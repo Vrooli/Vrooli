@@ -11,8 +11,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // =============================================================================
 //
 // @layer 5  (api surface)
-// @domain versions
-// @stability experimental
+// @stability stable
 //
 // Reads release artifacts indexed from component manifest version folders.
 // Diff is computed server-side as paired aligned rows so the UI can

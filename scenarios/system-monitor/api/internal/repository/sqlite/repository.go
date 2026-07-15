@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -113,7 +114,8 @@ CREATE TABLE IF NOT EXISTS process_samples (
 	owner TEXT NOT NULL,
 	cpu_pct REAL NOT NULL,
 	rss_kb INTEGER NOT NULL,
-	threads INTEGER NOT NULL
+	threads INTEGER NOT NULL,
+	gpu_vram_mb REAL NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_process_samples_ts ON process_samples(ts);
 CREATE INDEX IF NOT EXISTS idx_process_samples_owner_ts ON process_samples(owner, ts);
@@ -180,6 +182,13 @@ func NewRepository(dbPath string) (*Repository, error) {
 	if err := apidb.EnsureSchemas(context.Background(), primary, apidb.SchemaProviderFunc(Schema)); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("create schema: %w", err)
+	}
+	// Additive migration for pre-GPU-attribution databases. SQLite lacks an
+	// IF NOT EXISTS form for ADD COLUMN; duplicate-column means the schema was
+	// already upgraded and is safe to ignore.
+	if _, err := primary.Exec("ALTER TABLE process_samples ADD COLUMN gpu_vram_mb REAL NOT NULL DEFAULT 0"); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+		db.Close()
+		return nil, fmt.Errorf("migrate process gpu attribution: %w", err)
 	}
 
 	return NewRepositoryFromDB(db), nil

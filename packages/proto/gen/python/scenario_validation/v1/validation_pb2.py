@@ -25,9 +25,11 @@ _sym_db = _symbol_database.Default()
 from common.v1 import maturity_pb2 as common_dot_v1_dot_maturity__pb2
 from common.v1 import metrics_pb2 as common_dot_v1_dot_metrics__pb2
 from google.protobuf import any_pb2 as google_dot_protobuf_dot_any__pb2
+from google.protobuf import duration_pb2 as google_dot_protobuf_dot_duration__pb2
+from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'scenario-validation/v1/validation.proto\x12\x1dvrooli.scenario_validation.v1\x1a\x18\x63ommon/v1/maturity.proto\x1a\x17\x63ommon/v1/metrics.proto\x1a\x19google/protobuf/any.proto\"v\n\x17ValidateScenarioRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12+\n\x11include_execution\x18\x03 \x01(\x08R\x10includeExecution\"\xb0\x02\n\x18ValidateScenarioResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12G\n\x06status\x18\x02 \x01(\x0e\x32/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12=\n\nassessment\x18\x03 \x01(\x0b\x32\x1d.common.v1.MaturityAssessmentR\nassessment\x12\x39\n\rnative_detail\x18\x04 \x01(\x0b\x32\x14.google.protobuf.AnyR\x0cnativeDetail\x12\x35\n\x07metrics\x18\x05 \x01(\x0b\x32\x1b.common.v1.ExecutionMetricsR\x07metrics\"W\n\nFixRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12\x19\n\x08rule_ids\x18\x03 \x03(\tR\x07ruleIds\"\xae\x01\n\x0c\x46ixCandidate\x12\x17\n\x07rule_id\x18\x01 \x01(\tR\x06ruleId\x12\x1b\n\tfile_path\x18\x02 \x01(\tR\x08\x66ilePath\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x16\n\x06\x62\x65\x66ore\x18\x04 \x01(\tR\x06\x62\x65\x66ore\x12\x14\n\x05\x61\x66ter\x18\x05 \x01(\tR\x05\x61\x66ter\x12\x18\n\x07\x61pplied\x18\x06 \x01(\x08R\x07\x61pplied\"\xac\x01\n\x0b\x46ixResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x18\n\x07\x61pplied\x18\x02 \x01(\x08R\x07\x61pplied\x12K\n\ncandidates\x18\x03 \x03(\x0b\x32+.vrooli.scenario_validation.v1.FixCandidateR\ncandidates\x12\x1a\n\x08messages\x18\x04 \x03(\tR\x08messages*\xcd\x01\n\x10ValidationStatus\x12!\n\x1dVALIDATION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n\x18VALIDATION_STATUS_PASSED\x10\x01\x12\x1c\n\x18VALIDATION_STATUS_FAILED\x10\x02\x12\x1e\n\x1aVALIDATION_STATUS_DEGRADED\x10\x03\x12\x1b\n\x17VALIDATION_STATUS_ERROR\x10\x04\x12\x1d\n\x19VALIDATION_STATUS_SKIPPED\x10\x05\x32\xe9\x02\n\x19ScenarioValidationService\x12\x83\x01\n\x10ValidateScenario\x12\x36.vrooli.scenario_validation.v1.ValidateScenarioRequest\x1a\x37.vrooli.scenario_validation.v1.ValidateScenarioResponse\x12\x63\n\nPreviewFix\x12).vrooli.scenario_validation.v1.FixRequest\x1a*.vrooli.scenario_validation.v1.FixResponse\x12\x61\n\x08\x41pplyFix\x12).vrooli.scenario_validation.v1.FixRequest\x1a*.vrooli.scenario_validation.v1.FixResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'scenario-validation/v1/validation.proto\x12\x1dvrooli.scenario_validation.v1\x1a\x18\x63ommon/v1/maturity.proto\x1a\x17\x63ommon/v1/metrics.proto\x1a\x19google/protobuf/any.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"v\n\x17ValidateScenarioRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12+\n\x11include_execution\x18\x03 \x01(\x08R\x10includeExecution\"\xb0\x02\n\x18ValidateScenarioResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12G\n\x06status\x18\x02 \x01(\x0e\x32/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12=\n\nassessment\x18\x03 \x01(\x0b\x32\x1d.common.v1.MaturityAssessmentR\nassessment\x12\x39\n\rnative_detail\x18\x04 \x01(\x0b\x32\x14.google.protobuf.AnyR\x0cnativeDetail\x12\x35\n\x07metrics\x18\x05 \x01(\x0b\x32\x1b.common.v1.ExecutionMetricsR\x07metrics\"\x97\x01\n\x12ValidationRunError\x12I\n\x04\x63ode\x18\x01 \x01(\x0e\x32\x35.vrooli.scenario_validation.v1.ValidationRunErrorCodeR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x1c\n\tretryable\x18\x03 \x01(\x08R\tretryable\"\x8b\x07\n\rValidationRun\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x12\n\x04path\x18\x03 \x01(\tR\x04path\x12\'\n\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\x12\"\n\rparent_run_id\x18\x05 \x01(\tR\x0bparentRunId\x12G\n\x05state\x18\x06 \x01(\x0e\x32\x31.vrooli.scenario_validation.v1.ValidationRunStateR\x05state\x12\x39\n\ncreated_at\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nstarted_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n\x0c\x63ompleted_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0b\x63ompletedAt\x12J\n\x13\x65stimated_remaining\x18\n \x01(\x0b\x32\x19.google.protobuf.DurationR\x12\x65stimatedRemaining\x12s\n\x19preliminary_static_result\x18\x0b \x01(\x0b\x32\x37.vrooli.scenario_validation.v1.ValidateScenarioResponseR\x17preliminaryStaticResult\x12`\n\x0fterminal_result\x18\x0c \x01(\x0b\x32\x37.vrooli.scenario_validation.v1.ValidateScenarioResponseR\x0eterminalResult\x12G\n\x05\x65rror\x18\r \x01(\x0b\x32\x31.vrooli.scenario_validation.v1.ValidationRunErrorR\x05\x65rror\x12\x45\n\x13\x61rtifact_references\x18\x0e \x03(\x0b\x32\x14.google.protobuf.AnyR\x12\x61rtifactReferences\x12\x35\n\x16\x63\x61ncellation_requested\x18\x0f \x01(\x08R\x15\x63\x61ncellationRequested\"\x98\x01\n\x19StartValidationRunRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12\'\n\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12\"\n\rparent_run_id\x18\x04 \x01(\tR\x0bparentRunId\"\\\n\x1aStartValidationRunResponse\x12>\n\x03run\x18\x01 \x01(\x0b\x32,.vrooli.scenario_validation.v1.ValidationRunR\x03run\"0\n\x17GetValidationRunRequest\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\"Z\n\x18GetValidationRunResponse\x12>\n\x03run\x18\x01 \x01(\x0b\x32,.vrooli.scenario_validation.v1.ValidationRunR\x03run\"f\n\x18WaitValidationRunRequest\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x33\n\x07timeout\x18\x02 \x01(\x0b\x32\x19.google.protobuf.DurationR\x07timeout\"[\n\x19WaitValidationRunResponse\x12>\n\x03run\x18\x01 \x01(\x0b\x32,.vrooli.scenario_validation.v1.ValidationRunR\x03run\"J\n\x19\x41\x62ortValidationRunRequest\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason\"\\\n\x1a\x41\x62ortValidationRunResponse\x12>\n\x03run\x18\x01 \x01(\x0b\x32,.vrooli.scenario_validation.v1.ValidationRunR\x03run\"W\n\nFixRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12\x19\n\x08rule_ids\x18\x03 \x03(\tR\x07ruleIds\"\xae\x01\n\x0c\x46ixCandidate\x12\x17\n\x07rule_id\x18\x01 \x01(\tR\x06ruleId\x12\x1b\n\tfile_path\x18\x02 \x01(\tR\x08\x66ilePath\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x16\n\x06\x62\x65\x66ore\x18\x04 \x01(\tR\x06\x62\x65\x66ore\x12\x14\n\x05\x61\x66ter\x18\x05 \x01(\tR\x05\x61\x66ter\x12\x18\n\x07\x61pplied\x18\x06 \x01(\x08R\x07\x61pplied\"\xac\x01\n\x0b\x46ixResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x18\n\x07\x61pplied\x18\x02 \x01(\x08R\x07\x61pplied\x12K\n\ncandidates\x18\x03 \x03(\x0b\x32+.vrooli.scenario_validation.v1.FixCandidateR\ncandidates\x12\x1a\n\x08messages\x18\x04 \x03(\tR\x08messages*\xcd\x01\n\x10ValidationStatus\x12!\n\x1dVALIDATION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n\x18VALIDATION_STATUS_PASSED\x10\x01\x12\x1c\n\x18VALIDATION_STATUS_FAILED\x10\x02\x12\x1e\n\x1aVALIDATION_STATUS_DEGRADED\x10\x03\x12\x1b\n\x17VALIDATION_STATUS_ERROR\x10\x04\x12\x1d\n\x19VALIDATION_STATUS_SKIPPED\x10\x05*\x8f\x02\n\x12ValidationRunState\x12$\n VALIDATION_RUN_STATE_UNSPECIFIED\x10\x00\x12\x1f\n\x1bVALIDATION_RUN_STATE_QUEUED\x10\x01\x12 \n\x1cVALIDATION_RUN_STATE_RUNNING\x10\x02\x12\"\n\x1eVALIDATION_RUN_STATE_SUCCEEDED\x10\x03\x12\x1f\n\x1bVALIDATION_RUN_STATE_FAILED\x10\x04\x12!\n\x1dVALIDATION_RUN_STATE_CANCELED\x10\x05\x12(\n$VALIDATION_RUN_STATE_RECOVERY_FAILED\x10\x06*\x8b\x03\n\x16ValidationRunErrorCode\x12)\n%VALIDATION_RUN_ERROR_CODE_UNSPECIFIED\x10\x00\x12\x30\n,VALIDATION_RUN_ERROR_CODE_INVALID_TRANSITION\x10\x01\x12\'\n#VALIDATION_RUN_ERROR_CODE_NOT_FOUND\x10\x02\x12\x32\n.VALIDATION_RUN_ERROR_CODE_IDEMPOTENCY_CONFLICT\x10\x03\x12,\n(VALIDATION_RUN_ERROR_CODE_ABORT_REJECTED\x10\x04\x12.\n*VALIDATION_RUN_ERROR_CODE_EXECUTION_FAILED\x10\x05\x12-\n)VALIDATION_RUN_ERROR_CODE_RECOVERY_FAILED\x10\x06\x12*\n&VALIDATION_RUN_ERROR_CODE_WAIT_TIMEOUT\x10\x07\x32\xe9\x02\n\x19ScenarioValidationService\x12\x83\x01\n\x10ValidateScenario\x12\x36.vrooli.scenario_validation.v1.ValidateScenarioRequest\x1a\x37.vrooli.scenario_validation.v1.ValidateScenarioResponse\x12\x63\n\nPreviewFix\x12).vrooli.scenario_validation.v1.FixRequest\x1a*.vrooli.scenario_validation.v1.FixResponse\x12\x61\n\x08\x41pplyFix\x12).vrooli.scenario_validation.v1.FixRequest\x1a*.vrooli.scenario_validation.v1.FixResponse2\xc4\x04\n\x1b\x44urableValidationRunService\x12\x89\x01\n\x12StartValidationRun\x12\x38.vrooli.scenario_validation.v1.StartValidationRunRequest\x1a\x39.vrooli.scenario_validation.v1.StartValidationRunResponse\x12\x83\x01\n\x10GetValidationRun\x12\x36.vrooli.scenario_validation.v1.GetValidationRunRequest\x1a\x37.vrooli.scenario_validation.v1.GetValidationRunResponse\x12\x86\x01\n\x11WaitValidationRun\x12\x37.vrooli.scenario_validation.v1.WaitValidationRunRequest\x1a\x38.vrooli.scenario_validation.v1.WaitValidationRunResponse\x12\x89\x01\n\x12\x41\x62ortValidationRun\x12\x38.vrooli.scenario_validation.v1.AbortValidationRunRequest\x1a\x39.vrooli.scenario_validation.v1.AbortValidationRunResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,18 +37,44 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'scenario_validation.v1.vali
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1'
-  _globals['_VALIDATIONSTATUS']._serialized_start=1021
-  _globals['_VALIDATIONSTATUS']._serialized_end=1226
-  _globals['_VALIDATESCENARIOREQUEST']._serialized_start=152
-  _globals['_VALIDATESCENARIOREQUEST']._serialized_end=270
-  _globals['_VALIDATESCENARIORESPONSE']._serialized_start=273
-  _globals['_VALIDATESCENARIORESPONSE']._serialized_end=577
-  _globals['_FIXREQUEST']._serialized_start=579
-  _globals['_FIXREQUEST']._serialized_end=666
-  _globals['_FIXCANDIDATE']._serialized_start=669
-  _globals['_FIXCANDIDATE']._serialized_end=843
-  _globals['_FIXRESPONSE']._serialized_start=846
-  _globals['_FIXRESPONSE']._serialized_end=1018
-  _globals['_SCENARIOVALIDATIONSERVICE']._serialized_start=1229
-  _globals['_SCENARIOVALIDATIONSERVICE']._serialized_end=1590
+  _globals['_VALIDATIONSTATUS']._serialized_start=2908
+  _globals['_VALIDATIONSTATUS']._serialized_end=3113
+  _globals['_VALIDATIONRUNSTATE']._serialized_start=3116
+  _globals['_VALIDATIONRUNSTATE']._serialized_end=3387
+  _globals['_VALIDATIONRUNERRORCODE']._serialized_start=3390
+  _globals['_VALIDATIONRUNERRORCODE']._serialized_end=3785
+  _globals['_VALIDATESCENARIOREQUEST']._serialized_start=217
+  _globals['_VALIDATESCENARIOREQUEST']._serialized_end=335
+  _globals['_VALIDATESCENARIORESPONSE']._serialized_start=338
+  _globals['_VALIDATESCENARIORESPONSE']._serialized_end=642
+  _globals['_VALIDATIONRUNERROR']._serialized_start=645
+  _globals['_VALIDATIONRUNERROR']._serialized_end=796
+  _globals['_VALIDATIONRUN']._serialized_start=799
+  _globals['_VALIDATIONRUN']._serialized_end=1706
+  _globals['_STARTVALIDATIONRUNREQUEST']._serialized_start=1709
+  _globals['_STARTVALIDATIONRUNREQUEST']._serialized_end=1861
+  _globals['_STARTVALIDATIONRUNRESPONSE']._serialized_start=1863
+  _globals['_STARTVALIDATIONRUNRESPONSE']._serialized_end=1955
+  _globals['_GETVALIDATIONRUNREQUEST']._serialized_start=1957
+  _globals['_GETVALIDATIONRUNREQUEST']._serialized_end=2005
+  _globals['_GETVALIDATIONRUNRESPONSE']._serialized_start=2007
+  _globals['_GETVALIDATIONRUNRESPONSE']._serialized_end=2097
+  _globals['_WAITVALIDATIONRUNREQUEST']._serialized_start=2099
+  _globals['_WAITVALIDATIONRUNREQUEST']._serialized_end=2201
+  _globals['_WAITVALIDATIONRUNRESPONSE']._serialized_start=2203
+  _globals['_WAITVALIDATIONRUNRESPONSE']._serialized_end=2294
+  _globals['_ABORTVALIDATIONRUNREQUEST']._serialized_start=2296
+  _globals['_ABORTVALIDATIONRUNREQUEST']._serialized_end=2370
+  _globals['_ABORTVALIDATIONRUNRESPONSE']._serialized_start=2372
+  _globals['_ABORTVALIDATIONRUNRESPONSE']._serialized_end=2464
+  _globals['_FIXREQUEST']._serialized_start=2466
+  _globals['_FIXREQUEST']._serialized_end=2553
+  _globals['_FIXCANDIDATE']._serialized_start=2556
+  _globals['_FIXCANDIDATE']._serialized_end=2730
+  _globals['_FIXRESPONSE']._serialized_start=2733
+  _globals['_FIXRESPONSE']._serialized_end=2905
+  _globals['_SCENARIOVALIDATIONSERVICE']._serialized_start=3788
+  _globals['_SCENARIOVALIDATIONSERVICE']._serialized_end=4149
+  _globals['_DURABLEVALIDATIONRUNSERVICE']._serialized_start=4152
+  _globals['_DURABLEVALIDATIONRUNSERVICE']._serialized_end=4732
 # @@protoc_insertion_point(module_scope)

@@ -11,7 +11,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // =============================================================================
 //
 // @layer 5  (api surface)
-// @domain components
 // @stability stable
 //
 // Wire contract for the ComponentsService Connect-RPC service. The registry
@@ -42,6 +41,35 @@ service ComponentsService {
   rpc ListComponentExamples(ListComponentExamplesRequest) returns (ListComponentExamplesResponse);
   rpc ListDesignStyles(ListDesignStylesRequest) returns (ListDesignStylesResponse);
   rpc ValidateStyleFit(ValidateStyleFitRequest) returns (ValidateStyleFitResponse);
+}
+
+// AssetKind makes the existing catalog projection capable of representing
+// both renderable React components and non-renderable reusable hooks. The
+// ComponentsService name and existing Component fields are retained for wire
+// compatibility with current clients.
+enum AssetKind {
+  ASSET_KIND_UNSPECIFIED = 0;
+  ASSET_KIND_COMPONENT = 1;
+  ASSET_KIND_HOOK = 2;
+}
+
+// AssetDependency is an authored edge from one catalog asset version to a
+// specific library asset version. Version is required so preview and adoption
+// can materialize a deterministic closure without selecting a moving latest.
+message AssetDependency {
+  string library_id = 1;
+  string version = 2;
+}
+
+// AssetMetrics is computed by the server as part of catalog projections. It
+// deliberately contains only counts that can be acted on in the catalog; no
+// client is expected to issue per-row count queries.
+message AssetMetrics {
+  int32 direct_adoption_count = 1;
+  int32 version_count = 2;
+  // Includes direct roots and dependency files materialized through a parent
+  // adoption. It is always at least direct_adoption_count.
+  int32 effective_adoption_count = 3;
 }
 
 // Component is the canonical wire shape for a single indexed component.
@@ -102,6 +130,15 @@ message Component {
   // Stable operator-facing catalog category from component.json. This is
   // deliberately distinct from the implementation slot.
   string category = 17;
+
+  // Explicit catalog asset kind. Existing indexed rows are components.
+  AssetKind asset_kind = 18;
+
+  // Version-pinned dependencies declared by this asset's manifest.
+  repeated AssetDependency dependencies = 19;
+
+  // Server-projected catalog counts.
+  AssetMetrics metrics = 20;
 }
 
 // ListComponentsRequest filters the registry view.
@@ -134,6 +171,10 @@ message ListComponentsRequest {
   // Optional affinity filter. When combined with style_id, both must match the
   // same declaration. Valid values are native, compatible, and discouraged.
   string affinity = 7;
+
+  // Optional exact asset kind filter. Unspecified retains the legacy view of
+  // all catalog assets.
+  AssetKind asset_kind = 8;
 }
 
 message ListComponentsResponse {
@@ -364,6 +405,7 @@ message ComponentVersionFile {
   string path = 1;
   string content_sha256 = 2;
   bool is_entry = 3;
+  string slot = 4;
 }
 
 enum DesignAffinity {

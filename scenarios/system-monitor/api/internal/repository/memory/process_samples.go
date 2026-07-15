@@ -29,7 +29,7 @@ func (r *MemoryRepository) QueryProcessTimeline(_ context.Context, q repository.
 		if !processSampleMatchesQuery(s, q) {
 			continue
 		}
-		acc.AddRaw(s.Owner, s.Comm, s.PID, s.CPUPct, s.RSSKB, s.Timestamp)
+		acc.AddRaw(s.Owner, s.Comm, s.PID, s.CPUPct, s.RSSKB, s.GPUVRAMMB, s.Timestamp)
 	}
 
 	for _, ru := range r.processRollups {
@@ -39,7 +39,7 @@ func (r *MemoryRepository) QueryProcessTimeline(_ context.Context, q repository.
 		acc.AddRollup(ru.Owner, ru.Comm, ru.AvgCPUPct, ru.MaxCPUPct, ru.MaxRSSKB, ru.SampleCount, ru.Minute)
 	}
 
-	return acc.Entries(q.Top), nil
+	return acc.Entries(q.Top, q.Rank), nil
 }
 
 func processSampleMatchesQuery(s repository.ProcessSample, q repository.ProcessTimelineQuery) bool {

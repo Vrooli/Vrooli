@@ -90,13 +90,18 @@ type ManifestPositional struct {
 }
 
 type ManifestFlag struct {
-	Name        string            `json:"name"`
-	Aliases     []string          `json:"aliases,omitempty"`
-	Description string            `json:"description,omitempty"`
-	Required    bool              `json:"required,omitempty"`
-	Default     string            `json:"default,omitempty"`
-	Bool        bool              `json:"bool,omitempty"`
-	Bind        *ManifestFlagBind `json:"bind,omitempty"`
+	Name        string   `json:"name"`
+	Aliases     []string `json:"aliases,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Required    bool     `json:"required,omitempty"`
+	Default     string   `json:"default,omitempty"`
+	Bool        bool     `json:"bool,omitempty"`
+	// Values, when non-empty, declares the closed vocabulary the flag
+	// accepts; ValueAliases maps accepted synonyms to a declared value.
+	// See Flag.Values / Flag.ValueAliases for the runtime contract.
+	Values       []string          `json:"values,omitempty"`
+	ValueAliases map[string]string `json:"value_aliases,omitempty"`
+	Bind         *ManifestFlagBind `json:"bind,omitempty"`
 }
 
 // ManifestFlagBind, when set, declares how the flag's parsed value maps
@@ -323,12 +328,14 @@ func ManifestArgs(c ManifestCommand) (ArgSchema, error) {
 	}
 	for _, f := range c.Flags {
 		flag := Flag{
-			Name:        f.Name,
-			Aliases:     f.Aliases,
-			Description: f.Description,
-			Required:    f.Required,
-			Default:     f.Default,
-			Bool:        f.Bool,
+			Name:         f.Name,
+			Aliases:      f.Aliases,
+			Description:  f.Description,
+			Required:     f.Required,
+			Default:      f.Default,
+			Bool:         f.Bool,
+			Values:       f.Values,
+			ValueAliases: f.ValueAliases,
 		}
 		if f.Bind != nil {
 			flag.Bind = FlagBind{Field: f.Bind.Field, Kind: f.Bind.Kind}

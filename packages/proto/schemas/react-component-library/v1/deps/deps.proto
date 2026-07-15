@@ -9,8 +9,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // =============================================================================
 //
 // @layer 5  (api surface)
-// @domain deps
-// @stability experimental
+// @stability stable
 //
 // Indexer-populated declarations parsed from each component's @deps
 // header field. ValidateAdoption intersects those declarations against

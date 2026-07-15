@@ -29,6 +29,12 @@ func TestMemoryProcessTimeline_RollupAndQuery(t *testing.T) {
 	if len(entries) != 2 || entries[0].Owner != "security-health" {
 		t.Fatalf("pre-rollup ranking wrong: %+v", entries)
 	}
+	entries, err = repo.QueryProcessTimeline(ctx, repository.ProcessTimelineQuery{
+		Start: minute.Add(-time.Minute), End: minute.Add(2 * time.Minute), Top: 10, Rank: "rss",
+	})
+	if err != nil || len(entries) != 2 || entries[0].Owner != "web-console" {
+		t.Fatalf("rss ranking wrong: entries=%+v err=%v", entries, err)
+	}
 
 	// Roll up the security-health/web-console minute.
 	res, err := repo.RollupProcessSamples(ctx, time.Time{}, minute.Add(2*time.Minute))
@@ -50,5 +56,23 @@ func TestMemoryProcessTimeline_RollupAndQuery(t *testing.T) {
 	}
 	if entries[0].CPUPct < 79 || entries[0].CPUPct > 81 {
 		t.Fatalf("rollup avg = %f, want ~80", entries[0].CPUPct)
+	}
+}
+
+func TestMemoryProcessTimeline_RanksByGPUVRAM(t *testing.T) {
+	repo := NewRepository()
+	now := time.Now().UTC()
+	if err := repo.SaveProcessSamples(context.Background(), []repository.ProcessSample{
+		{Timestamp: now, PID: 1, Owner: "cpu-owner", Comm: "cpu", CPUPct: 99, RSSKB: 1, GPUVRAMMB: 32},
+		{Timestamp: now, PID: 2, Owner: "gpu-owner", Comm: "gpu", CPUPct: 1, RSSKB: 1, GPUVRAMMB: 4096},
+	}); err != nil {
+		t.Fatalf("save samples: %v", err)
+	}
+	entries, err := repo.QueryProcessTimeline(context.Background(), repository.ProcessTimelineQuery{Start: now.Add(-time.Second), End: now.Add(time.Second), Rank: "gpu"})
+	if err != nil {
+		t.Fatalf("query gpu timeline: %v", err)
+	}
+	if len(entries) < 2 || entries[0].Owner != "gpu-owner" || entries[0].GPUVRAMMB != 4096 {
+		t.Fatalf("gpu ranking = %#v", entries)
 	}
 }

@@ -24,6 +24,9 @@ const (
 	// ScenarioValidationServiceName is the fully-qualified name of the ScenarioValidationService
 	// service.
 	ScenarioValidationServiceName = "vrooli.scenario_validation.v1.ScenarioValidationService"
+	// DurableValidationRunServiceName is the fully-qualified name of the DurableValidationRunService
+	// service.
+	DurableValidationRunServiceName = "vrooli.scenario_validation.v1.DurableValidationRunService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -43,6 +46,18 @@ const (
 	// ScenarioValidationServiceApplyFixProcedure is the fully-qualified name of the
 	// ScenarioValidationService's ApplyFix RPC.
 	ScenarioValidationServiceApplyFixProcedure = "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix"
+	// DurableValidationRunServiceStartValidationRunProcedure is the fully-qualified name of the
+	// DurableValidationRunService's StartValidationRun RPC.
+	DurableValidationRunServiceStartValidationRunProcedure = "/vrooli.scenario_validation.v1.DurableValidationRunService/StartValidationRun"
+	// DurableValidationRunServiceGetValidationRunProcedure is the fully-qualified name of the
+	// DurableValidationRunService's GetValidationRun RPC.
+	DurableValidationRunServiceGetValidationRunProcedure = "/vrooli.scenario_validation.v1.DurableValidationRunService/GetValidationRun"
+	// DurableValidationRunServiceWaitValidationRunProcedure is the fully-qualified name of the
+	// DurableValidationRunService's WaitValidationRun RPC.
+	DurableValidationRunServiceWaitValidationRunProcedure = "/vrooli.scenario_validation.v1.DurableValidationRunService/WaitValidationRun"
+	// DurableValidationRunServiceAbortValidationRunProcedure is the fully-qualified name of the
+	// DurableValidationRunService's AbortValidationRun RPC.
+	DurableValidationRunServiceAbortValidationRunProcedure = "/vrooli.scenario_validation.v1.DurableValidationRunService/AbortValidationRun"
 )
 
 // ScenarioValidationServiceClient is a client for the
@@ -182,4 +197,159 @@ func (UnimplementedScenarioValidationServiceHandler) PreviewFix(context.Context,
 
 func (UnimplementedScenarioValidationServiceHandler) ApplyFix(context.Context, *connect.Request[v1.FixRequest]) (*connect.Response[v1.FixResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.ScenarioValidationService.ApplyFix is not implemented"))
+}
+
+// DurableValidationRunServiceClient is a client for the
+// vrooli.scenario_validation.v1.DurableValidationRunService service.
+type DurableValidationRunServiceClient interface {
+	StartValidationRun(context.Context, *connect.Request[v1.StartValidationRunRequest]) (*connect.Response[v1.StartValidationRunResponse], error)
+	GetValidationRun(context.Context, *connect.Request[v1.GetValidationRunRequest]) (*connect.Response[v1.GetValidationRunResponse], error)
+	WaitValidationRun(context.Context, *connect.Request[v1.WaitValidationRunRequest]) (*connect.Response[v1.WaitValidationRunResponse], error)
+	AbortValidationRun(context.Context, *connect.Request[v1.AbortValidationRunRequest]) (*connect.Response[v1.AbortValidationRunResponse], error)
+}
+
+// NewDurableValidationRunServiceClient constructs a client for the
+// vrooli.scenario_validation.v1.DurableValidationRunService service. By default, it uses the
+// Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewDurableValidationRunServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) DurableValidationRunServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	durableValidationRunServiceMethods := v1.File_scenario_validation_v1_validation_proto.Services().ByName("DurableValidationRunService").Methods()
+	return &durableValidationRunServiceClient{
+		startValidationRun: connect.NewClient[v1.StartValidationRunRequest, v1.StartValidationRunResponse](
+			httpClient,
+			baseURL+DurableValidationRunServiceStartValidationRunProcedure,
+			connect.WithSchema(durableValidationRunServiceMethods.ByName("StartValidationRun")),
+			connect.WithClientOptions(opts...),
+		),
+		getValidationRun: connect.NewClient[v1.GetValidationRunRequest, v1.GetValidationRunResponse](
+			httpClient,
+			baseURL+DurableValidationRunServiceGetValidationRunProcedure,
+			connect.WithSchema(durableValidationRunServiceMethods.ByName("GetValidationRun")),
+			connect.WithClientOptions(opts...),
+		),
+		waitValidationRun: connect.NewClient[v1.WaitValidationRunRequest, v1.WaitValidationRunResponse](
+			httpClient,
+			baseURL+DurableValidationRunServiceWaitValidationRunProcedure,
+			connect.WithSchema(durableValidationRunServiceMethods.ByName("WaitValidationRun")),
+			connect.WithClientOptions(opts...),
+		),
+		abortValidationRun: connect.NewClient[v1.AbortValidationRunRequest, v1.AbortValidationRunResponse](
+			httpClient,
+			baseURL+DurableValidationRunServiceAbortValidationRunProcedure,
+			connect.WithSchema(durableValidationRunServiceMethods.ByName("AbortValidationRun")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// durableValidationRunServiceClient implements DurableValidationRunServiceClient.
+type durableValidationRunServiceClient struct {
+	startValidationRun *connect.Client[v1.StartValidationRunRequest, v1.StartValidationRunResponse]
+	getValidationRun   *connect.Client[v1.GetValidationRunRequest, v1.GetValidationRunResponse]
+	waitValidationRun  *connect.Client[v1.WaitValidationRunRequest, v1.WaitValidationRunResponse]
+	abortValidationRun *connect.Client[v1.AbortValidationRunRequest, v1.AbortValidationRunResponse]
+}
+
+// StartValidationRun calls
+// vrooli.scenario_validation.v1.DurableValidationRunService.StartValidationRun.
+func (c *durableValidationRunServiceClient) StartValidationRun(ctx context.Context, req *connect.Request[v1.StartValidationRunRequest]) (*connect.Response[v1.StartValidationRunResponse], error) {
+	return c.startValidationRun.CallUnary(ctx, req)
+}
+
+// GetValidationRun calls
+// vrooli.scenario_validation.v1.DurableValidationRunService.GetValidationRun.
+func (c *durableValidationRunServiceClient) GetValidationRun(ctx context.Context, req *connect.Request[v1.GetValidationRunRequest]) (*connect.Response[v1.GetValidationRunResponse], error) {
+	return c.getValidationRun.CallUnary(ctx, req)
+}
+
+// WaitValidationRun calls
+// vrooli.scenario_validation.v1.DurableValidationRunService.WaitValidationRun.
+func (c *durableValidationRunServiceClient) WaitValidationRun(ctx context.Context, req *connect.Request[v1.WaitValidationRunRequest]) (*connect.Response[v1.WaitValidationRunResponse], error) {
+	return c.waitValidationRun.CallUnary(ctx, req)
+}
+
+// AbortValidationRun calls
+// vrooli.scenario_validation.v1.DurableValidationRunService.AbortValidationRun.
+func (c *durableValidationRunServiceClient) AbortValidationRun(ctx context.Context, req *connect.Request[v1.AbortValidationRunRequest]) (*connect.Response[v1.AbortValidationRunResponse], error) {
+	return c.abortValidationRun.CallUnary(ctx, req)
+}
+
+// DurableValidationRunServiceHandler is an implementation of the
+// vrooli.scenario_validation.v1.DurableValidationRunService service.
+type DurableValidationRunServiceHandler interface {
+	StartValidationRun(context.Context, *connect.Request[v1.StartValidationRunRequest]) (*connect.Response[v1.StartValidationRunResponse], error)
+	GetValidationRun(context.Context, *connect.Request[v1.GetValidationRunRequest]) (*connect.Response[v1.GetValidationRunResponse], error)
+	WaitValidationRun(context.Context, *connect.Request[v1.WaitValidationRunRequest]) (*connect.Response[v1.WaitValidationRunResponse], error)
+	AbortValidationRun(context.Context, *connect.Request[v1.AbortValidationRunRequest]) (*connect.Response[v1.AbortValidationRunResponse], error)
+}
+
+// NewDurableValidationRunServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewDurableValidationRunServiceHandler(svc DurableValidationRunServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	durableValidationRunServiceMethods := v1.File_scenario_validation_v1_validation_proto.Services().ByName("DurableValidationRunService").Methods()
+	durableValidationRunServiceStartValidationRunHandler := connect.NewUnaryHandler(
+		DurableValidationRunServiceStartValidationRunProcedure,
+		svc.StartValidationRun,
+		connect.WithSchema(durableValidationRunServiceMethods.ByName("StartValidationRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	durableValidationRunServiceGetValidationRunHandler := connect.NewUnaryHandler(
+		DurableValidationRunServiceGetValidationRunProcedure,
+		svc.GetValidationRun,
+		connect.WithSchema(durableValidationRunServiceMethods.ByName("GetValidationRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	durableValidationRunServiceWaitValidationRunHandler := connect.NewUnaryHandler(
+		DurableValidationRunServiceWaitValidationRunProcedure,
+		svc.WaitValidationRun,
+		connect.WithSchema(durableValidationRunServiceMethods.ByName("WaitValidationRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	durableValidationRunServiceAbortValidationRunHandler := connect.NewUnaryHandler(
+		DurableValidationRunServiceAbortValidationRunProcedure,
+		svc.AbortValidationRun,
+		connect.WithSchema(durableValidationRunServiceMethods.ByName("AbortValidationRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/vrooli.scenario_validation.v1.DurableValidationRunService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case DurableValidationRunServiceStartValidationRunProcedure:
+			durableValidationRunServiceStartValidationRunHandler.ServeHTTP(w, r)
+		case DurableValidationRunServiceGetValidationRunProcedure:
+			durableValidationRunServiceGetValidationRunHandler.ServeHTTP(w, r)
+		case DurableValidationRunServiceWaitValidationRunProcedure:
+			durableValidationRunServiceWaitValidationRunHandler.ServeHTTP(w, r)
+		case DurableValidationRunServiceAbortValidationRunProcedure:
+			durableValidationRunServiceAbortValidationRunHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedDurableValidationRunServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedDurableValidationRunServiceHandler struct{}
+
+func (UnimplementedDurableValidationRunServiceHandler) StartValidationRun(context.Context, *connect.Request[v1.StartValidationRunRequest]) (*connect.Response[v1.StartValidationRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.DurableValidationRunService.StartValidationRun is not implemented"))
+}
+
+func (UnimplementedDurableValidationRunServiceHandler) GetValidationRun(context.Context, *connect.Request[v1.GetValidationRunRequest]) (*connect.Response[v1.GetValidationRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.DurableValidationRunService.GetValidationRun is not implemented"))
+}
+
+func (UnimplementedDurableValidationRunServiceHandler) WaitValidationRun(context.Context, *connect.Request[v1.WaitValidationRunRequest]) (*connect.Response[v1.WaitValidationRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.DurableValidationRunService.WaitValidationRun is not implemented"))
+}
+
+func (UnimplementedDurableValidationRunServiceHandler) AbortValidationRun(context.Context, *connect.Request[v1.AbortValidationRunRequest]) (*connect.Response[v1.AbortValidationRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.DurableValidationRunService.AbortValidationRun is not implemented"))
 }

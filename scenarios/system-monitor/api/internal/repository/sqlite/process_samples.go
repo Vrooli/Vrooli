@@ -24,8 +24,8 @@ func (r *Repository) SaveProcessSamples(ctx context.Context, samples []repositor
 		return fmt.Errorf("begin process-sample tx: %w", err)
 	}
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO process_samples (ts, pid, ppid, comm, cmdline, cwd, owner, cpu_pct, rss_kb, threads)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		`INSERT INTO process_samples (ts, pid, ppid, comm, cmdline, cwd, owner, cpu_pct, rss_kb, threads, gpu_vram_mb)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		_ = tx.Rollback()
 		return fmt.Errorf("prepare process-sample insert: %w", err)
@@ -34,7 +34,7 @@ func (r *Repository) SaveProcessSamples(ctx context.Context, samples []repositor
 
 	for _, s := range samples {
 		if _, err := stmt.ExecContext(ctx,
-			s.Timestamp.UTC(), s.PID, s.PPID, s.Comm, s.Cmdline, s.Cwd, s.Owner, s.CPUPct, s.RSSKB, s.Threads,
+			s.Timestamp.UTC(), s.PID, s.PPID, s.Comm, s.Cmdline, s.Cwd, s.Owner, s.CPUPct, s.RSSKB, s.Threads, s.GPUVRAMMB,
 		); err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("insert process sample: %w", err)
@@ -62,11 +62,11 @@ func (r *Repository) QueryProcessTimeline(ctx context.Context, q repository.Proc
 	if err := r.addRollupProcessTimelineRows(ctx, q, acc); err != nil {
 		return nil, err
 	}
-	return acc.Entries(q.Top), nil
+	return acc.Entries(q.Top, q.Rank), nil
 }
 
 func (r *Repository) addRawProcessTimelineRows(ctx context.Context, q repository.ProcessTimelineQuery, acc *repository.ProcessTimelineAccumulator) error {
-	rawQuery := `SELECT owner, comm, pid, cpu_pct, rss_kb, ts FROM process_samples WHERE ts >= ? AND ts < ?`
+	rawQuery := `SELECT owner, comm, pid, cpu_pct, rss_kb, gpu_vram_mb, ts FROM process_samples WHERE ts >= ? AND ts < ?`
 	rawArgs := []interface{}{q.Start.UTC(), q.End.UTC()}
 	if q.Owner != "" {
 		rawQuery += " AND owner = ?"
@@ -84,12 +84,13 @@ func (r *Repository) addRawProcessTimelineRows(ctx context.Context, q repository
 			pid         int
 			cpu         float64
 			rss         int64
+			gpuVRAM     float64
 			ts          time.Time
 		)
-		if err := rawRows.Scan(&owner, &comm, &pid, &cpu, &rss, &ts); err != nil {
+		if err := rawRows.Scan(&owner, &comm, &pid, &cpu, &rss, &gpuVRAM, &ts); err != nil {
 			return err
 		}
-		acc.AddRaw(owner, comm, pid, cpu, rss, ts)
+		acc.AddRaw(owner, comm, pid, cpu, rss, gpuVRAM, ts)
 	}
 	return rawRows.Err()
 }

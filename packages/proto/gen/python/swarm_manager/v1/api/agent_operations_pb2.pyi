@@ -369,6 +369,22 @@ class AgentOpsGetMigrationStatusRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
+class AgentOpsRunReconciliationRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class AgentOpsRunReconciliationResponse(_message.Message):
+    __slots__ = ("dirs_scanned", "snapshots_seen", "reaped", "skipped_too_recent")
+    DIRS_SCANNED_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOTS_SEEN_FIELD_NUMBER: _ClassVar[int]
+    REAPED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_TOO_RECENT_FIELD_NUMBER: _ClassVar[int]
+    dirs_scanned: int
+    snapshots_seen: int
+    reaped: _containers.RepeatedScalarFieldContainer[str]
+    skipped_too_recent: int
+    def __init__(self, dirs_scanned: _Optional[int] = ..., snapshots_seen: _Optional[int] = ..., reaped: _Optional[_Iterable[str]] = ..., skipped_too_recent: _Optional[int] = ...) -> None: ...
+
 class AgentOpsGetMigrationStatusResponse(_message.Message):
     __slots__ = ("state", "epoch", "staged_count", "promoted_count", "quarantined_count", "started_at", "updated_at", "report_path", "document_found")
     STATE_FIELD_NUMBER: _ClassVar[int]

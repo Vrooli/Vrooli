@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-25T09:55:24-04:00"
+    "last_validated_at": "2026-07-15T14:24:00-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-007",
       "title": "Matrix-Themed Dashboard",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-007",
       "category": "ui",
       "description": "System must provide a dark cyberpunk monitoring dashboard with Matrix theme using React",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test React components"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify theme consistency"
         },
         {
@@ -44,7 +44,7 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "UI matches design spec"
         }
       ]

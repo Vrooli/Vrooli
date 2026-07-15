@@ -9,8 +9,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // =============================================================================
 //
 // @layer 5  (api surface)
-// @domain themes
-// @stability experimental
+// @stability stable
 //
 // The preview iframe can be themed with one of:
 //   - a built-in theme (vrooli-default, neutral-light, neutral-dark,

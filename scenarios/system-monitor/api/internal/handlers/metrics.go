@@ -162,6 +162,57 @@ func (h *MetricsHandler) HandleGetCurrentMetrics(w http.ResponseWriter, r *http.
 	httputil.SafeProtoJSON(w, h.log, r, convert.MetricsResponseToProto(metrics))
 }
 
+// HandleGetPressureSnapshot handles GET /api/v1/metrics/pressure. It is a
+// plain JSON operational surface because pressure is host evidence, not part
+// of the existing compatibility metrics protobuf.
+func (h *MetricsHandler) HandleGetPressureSnapshot(w http.ResponseWriter, r *http.Request) {
+	snapshot, err := h.monitorSvc.GetPressureSnapshot(r.Context())
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.JSON(w, snapshot) //nolint:errcheck
+}
+
+// HandleGetGPUHistory handles GET /api/v1/forensics/gpu?window=1h. It exposes
+// bounded persisted GPU utilization and VRAM evidence without a new scan.
+func (h *MetricsHandler) HandleGetGPUHistory(w http.ResponseWriter, r *http.Request) {
+	window := time.Hour
+	if raw := r.URL.Query().Get("window"); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil || parsed <= 0 {
+			httputil.HandleError(w, h.log, r, apierrors.Validation("window", "must be a positive duration"))
+			return
+		}
+		window = parsed
+	}
+	history, err := h.monitorSvc.GetGPUHistory(r.Context(), window)
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.JSON(w, history) //nolint:errcheck
+}
+
+// HandleGetPressureHistory handles GET /api/v1/forensics/pressure?window=1h.
+func (h *MetricsHandler) HandleGetPressureHistory(w http.ResponseWriter, r *http.Request) {
+	window := time.Hour
+	if raw := r.URL.Query().Get("window"); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil || parsed <= 0 {
+			httputil.HandleError(w, h.log, r, apierrors.Validation("window", "must be a positive duration"))
+			return
+		}
+		window = parsed
+	}
+	history, err := h.monitorSvc.GetPressureHistory(r.Context(), window)
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	httputil.JSON(w, history) //nolint:errcheck
+}
+
 // HandleGetMetricsTimeline handles GET /api/v1/metrics/timeline.
 func (h *MetricsHandler) HandleGetMetricsTimeline(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -226,6 +277,7 @@ type processTimelineEntryJSON struct {
 	Aggregated  bool    `json:"aggregated"`
 	CPUPct      float64 `json:"cpu_pct"`
 	RSSKB       int64   `json:"rss_kb"`
+	GPUVRAMMB   float64 `json:"gpu_vram_mb"`
 	SampleCount int64   `json:"sample_count"`
 	FirstSeen   string  `json:"first_seen,omitempty"`
 	LastSeen    string  `json:"last_seen,omitempty"`
@@ -235,6 +287,7 @@ type processTimelineResponseJSON struct {
 	WindowSeconds int                        `json:"window_seconds"`
 	Owner         string                     `json:"owner,omitempty"`
 	Top           int                        `json:"top"`
+	Rank          string                     `json:"rank"`
 	Count         int                        `json:"count"`
 	Entries       []processTimelineEntryJSON `json:"entries"`
 }
@@ -265,7 +318,11 @@ func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http
 		}
 	}
 
-	entries, err := h.monitorSvc.GetProcessTimeline(ctx, window, owner, top)
+	rank := r.URL.Query().Get("rank")
+	if rank != "rss" && rank != "gpu" {
+		rank = "cpu"
+	}
+	entries, err := h.monitorSvc.GetProcessTimelineRanked(ctx, window, owner, top, rank)
 	if err != nil {
 		httputil.HandleError(w, h.log, r, err)
 		return
@@ -280,6 +337,7 @@ func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http
 			Aggregated:  e.Aggregated,
 			CPUPct:      e.CPUPct,
 			RSSKB:       e.RSSKB,
+			GPUVRAMMB:   e.GPUVRAMMB,
 			SampleCount: e.SampleCount,
 		}
 		if !e.FirstSeen.IsZero() {
@@ -295,6 +353,7 @@ func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http
 		WindowSeconds: int(window.Seconds()),
 		Owner:         owner,
 		Top:           top,
+		Rank:          rank,
 		Count:         len(out),
 		Entries:       out,
 	})

@@ -9,8 +9,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // =============================================================================
 //
 // @layer 5  (api surface)
-// @domain preview
-// @stability experimental
+// @stability stable
 //
 // Stateless service: no tables, no persistence. Given a component id,
 // reads the source via the components ContentStore, transpiles the TSX

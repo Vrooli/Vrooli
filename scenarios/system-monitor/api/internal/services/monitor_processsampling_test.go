@@ -65,6 +65,20 @@ func TestMonitorService_SamplesAttributesAndPersists(t *testing.T) {
 	}
 }
 
+func TestSelectDualRankSamplesKeepsMemoryLeaderOutsideCPUTopN(t *testing.T) {
+	selected, dropped := selectDualRankSamples([]procsampler.ProcessSample{
+		{PID: 1, CPUPct: 90, RSSKB: 10},
+		{PID: 2, CPUPct: 80, RSSKB: 20},
+		{PID: 3, CPUPct: 1, RSSKB: 900},
+	}, 2)
+	if dropped != 0 || len(selected) != 3 {
+		t.Fatalf("selected=%#v dropped=%d, want bounded CPU/RSS union of all three", selected, dropped)
+	}
+	if selected[2].PID != 3 {
+		t.Fatalf("RSS leader was not retained: %#v", selected)
+	}
+}
+
 func TestMonitorService_ProcessSampleIntervalGate(t *testing.T) {
 	repo := memory.NewRepository()
 	sampler := &fakeSampler{}

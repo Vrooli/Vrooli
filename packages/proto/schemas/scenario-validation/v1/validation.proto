@@ -5,6 +5,8 @@ package vrooli.scenario_validation.v1;
 import "common/v1/maturity.proto";
 import "common/v1/metrics.proto";
 import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1";
 
@@ -35,6 +37,17 @@ service ScenarioValidationService {
   // changed. Apply is never implicit: callers reach this RPC only when the user
   // explicitly opts into writing (e.g. `--apply`).
   rpc ApplyFix(FixRequest) returns (FixResponse);
+}
+
+// DurableValidationRunService is an opt-in provider contract for validation
+// whose execution may outlive an HTTP request. It deliberately sits beside
+// ScenarioValidationService: ValidateScenario remains the fast, terminal
+// static-validation contract implemented by existing providers.
+service DurableValidationRunService {
+  rpc StartValidationRun(StartValidationRunRequest) returns (StartValidationRunResponse);
+  rpc GetValidationRun(GetValidationRunRequest) returns (GetValidationRunResponse);
+  rpc WaitValidationRun(WaitValidationRunRequest) returns (WaitValidationRunResponse);
+  rpc AbortValidationRun(AbortValidationRunRequest) returns (AbortValidationRunResponse);
 }
 
 message ValidateScenarioRequest {
@@ -72,6 +85,89 @@ message ValidateScenarioResponse {
   // for this validation. Absent for providers that have not adopted metrics.
   common.v1.ExecutionMetrics metrics = 5;
 }
+
+// ValidationRunState is provider-neutral lifecycle state. A provider persists
+// these states in its own ledger; no central run database is implied.
+enum ValidationRunState {
+  VALIDATION_RUN_STATE_UNSPECIFIED = 0;
+  VALIDATION_RUN_STATE_QUEUED = 1;
+  VALIDATION_RUN_STATE_RUNNING = 2;
+  VALIDATION_RUN_STATE_SUCCEEDED = 3;
+  VALIDATION_RUN_STATE_FAILED = 4;
+  VALIDATION_RUN_STATE_CANCELED = 5;
+  VALIDATION_RUN_STATE_RECOVERY_FAILED = 6;
+}
+
+// ValidationRunErrorCode classifies lifecycle failures so callers can select a
+// recovery path without parsing text. Invalid transitions are never encoded as
+// a terminal validation status.
+enum ValidationRunErrorCode {
+  VALIDATION_RUN_ERROR_CODE_UNSPECIFIED = 0;
+  VALIDATION_RUN_ERROR_CODE_INVALID_TRANSITION = 1;
+  VALIDATION_RUN_ERROR_CODE_NOT_FOUND = 2;
+  VALIDATION_RUN_ERROR_CODE_IDEMPOTENCY_CONFLICT = 3;
+  VALIDATION_RUN_ERROR_CODE_ABORT_REJECTED = 4;
+  VALIDATION_RUN_ERROR_CODE_EXECUTION_FAILED = 5;
+  VALIDATION_RUN_ERROR_CODE_RECOVERY_FAILED = 6;
+  VALIDATION_RUN_ERROR_CODE_WAIT_TIMEOUT = 7;
+}
+
+message ValidationRunError {
+  ValidationRunErrorCode code = 1;
+  string message = 2;
+  bool retryable = 3;
+}
+
+// ValidationRun is the durable, reattachable provider-owned record. Terminal
+// results use the existing shared response so direct and delegated consumers
+// receive identical provider-owned findings, presentation, and metrics.
+message ValidationRun {
+  string run_id = 1;
+  string scenario = 2;
+  string path = 3;
+  string idempotency_key = 4;
+  string parent_run_id = 5;
+  ValidationRunState state = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp started_at = 8;
+  google.protobuf.Timestamp completed_at = 9;
+  google.protobuf.Duration estimated_remaining = 10;
+  ValidateScenarioResponse preliminary_static_result = 11;
+  ValidateScenarioResponse terminal_result = 12;
+  ValidationRunError error = 13;
+  repeated google.protobuf.Any artifact_references = 14;
+  bool cancellation_requested = 15;
+}
+
+message StartValidationRunRequest {
+  string scenario = 1;
+  string path = 2;
+  // The same key and target must return the same provider-owned run. Reusing a
+  // key with a different target is an idempotency conflict.
+  string idempotency_key = 3;
+  // Optional Test Genie parent/attempt identity. Providers retain this only as
+  // a durable linkage reference; it is not their source of truth.
+  string parent_run_id = 4;
+}
+
+message StartValidationRunResponse { ValidationRun run = 1; }
+
+message GetValidationRunRequest { string run_id = 1; }
+message GetValidationRunResponse { ValidationRun run = 1; }
+
+message WaitValidationRunRequest {
+  string run_id = 1;
+  // Zero leaves the caller's timeout policy in control. A wait timeout never
+  // cancels provider work; callers may reattach with Get or Wait.
+  google.protobuf.Duration timeout = 2;
+}
+message WaitValidationRunResponse { ValidationRun run = 1; }
+
+message AbortValidationRunRequest {
+  string run_id = 1;
+  string reason = 2;
+}
+message AbortValidationRunResponse { ValidationRun run = 1; }
 
 // FixRequest selects the deterministic remediations to preview or apply for a
 // scenario. It mirrors ValidateScenarioRequest's target-resolution fields so a

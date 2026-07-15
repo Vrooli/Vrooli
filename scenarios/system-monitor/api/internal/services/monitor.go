@@ -5,6 +5,7 @@ package services
 import (
 	"context"
 	"log"
+	"sort"
 	"sync"
 	"time"
 
@@ -150,6 +151,7 @@ func (s *MonitorService) registerCollectors() {
 	s.collectors.Register(collectors.NewNetworkCollector())
 	s.collectors.Register(collectors.NewDiskCollector())
 	s.collectors.Register(collectors.NewProcessCollector())
+	s.collectors.Register(collectors.NewPressureCollector())
 	if gpuCollector := collectors.NewGPUCollector(); gpuCollector.IsEnabled() {
 		gpuCollector.SetSnapshotProvider(s.snapshots)
 		s.collectors.Register(gpuCollector)
@@ -314,7 +316,7 @@ func (s *MonitorService) collectMetrics() {
 	// Per-process attribution sampling runs on its own (typically slower)
 	// cadence; gate it so it doesn't fire on every fast metrics tick.
 	if s.shouldSampleProcesses(now) {
-		s.sampleProcesses(ctx, now)
+		s.sampleProcesses(ctx, now, gpuVRAMByPID(metricsData))
 	}
 	s.recordCycleSelfMetrics(time.Since(cycleStarted), collectors.CommandForkCount()-cycleForksBefore, now)
 }
@@ -336,7 +338,11 @@ func (s *MonitorService) shouldSampleProcesses(now time.Time) bool {
 // sampleProcesses walks /proc once, attributes each pid to its owning scenario,
 // caps to the configured top-N (logging what was dropped — no silent caps), and
 // persists the cycle to the process_samples table.
-func (s *MonitorService) sampleProcesses(ctx context.Context, now time.Time) {
+func (s *MonitorService) sampleProcesses(ctx context.Context, now time.Time, gpuVRAMArgs ...map[int]float64) {
+	var gpuVRAM map[int]float64
+	if len(gpuVRAMArgs) > 0 {
+		gpuVRAM = gpuVRAMArgs[0]
+	}
 	s.mu.Lock()
 	s.lastProcSampledAt = now
 	s.mu.Unlock()
@@ -359,14 +365,12 @@ func (s *MonitorService) sampleProcesses(ctx context.Context, now time.Time) {
 		s.attributor.Attribute(ctx, samples)
 	}
 
-	// samples arrive sorted by descending CPU%; cap to top-N and log the drop.
-	dropped := 0
-	if s.procSampleTopN > 0 && len(samples) > s.procSampleTopN {
-		dropped = len(samples) - s.procSampleTopN
-		samples = samples[:s.procSampleTopN]
-	}
+	// Retain independent CPU and RSS leaders. A CPU-only cap loses the exact
+	// low-CPU memory hog evidence needed after OOM; the bounded union is at
+	// most 2*topN and still comes from this single /proc walk.
+	samples, dropped := selectRankSamples(samples, s.procSampleTopN, gpuVRAM)
 	if dropped > 0 {
-		log.Printf("process sampler: capped to top %d by CPU, dropped %d lower-usage processes", s.procSampleTopN, dropped)
+		log.Printf("process sampler: retained CPU/RSS top-%d union (%d rows), dropped %d processes", s.procSampleTopN, len(samples), dropped)
 	}
 
 	rows := make([]repository.ProcessSample, 0, len(samples))
@@ -382,11 +386,65 @@ func (s *MonitorService) sampleProcesses(ctx context.Context, now time.Time) {
 			CPUPct:    ps.CPUPct,
 			RSSKB:     ps.RSSKB,
 			Threads:   ps.Threads,
+			GPUVRAMMB: gpuVRAM[ps.PID],
 		})
 	}
 	if err := s.procRepo.SaveProcessSamples(ctx, rows); err != nil {
 		log.Printf("process sampler: persist %d rows: %v", len(rows), err)
 	}
+}
+
+func selectDualRankSamples(samples []procsampler.ProcessSample, top int) ([]procsampler.ProcessSample, int) {
+	return selectRankSamples(samples, top, nil)
+}
+
+func selectRankSamples(samples []procsampler.ProcessSample, top int, gpuVRAM map[int]float64) ([]procsampler.ProcessSample, int) {
+	if top <= 0 || len(samples) <= top {
+		return samples, 0
+	}
+	cpu := append([]procsampler.ProcessSample(nil), samples...)
+	rss := append([]procsampler.ProcessSample(nil), samples...)
+	sort.SliceStable(cpu, func(i, j int) bool { return cpu[i].CPUPct > cpu[j].CPUPct })
+	sort.SliceStable(rss, func(i, j int) bool { return rss[i].RSSKB > rss[j].RSSKB })
+	keep := make(map[int]struct{}, top*2)
+	for _, ranked := range [][]procsampler.ProcessSample{cpu, rss} {
+		for i := 0; i < top && i < len(ranked); i++ {
+			keep[ranked[i].PID] = struct{}{}
+		}
+	}
+	if len(gpuVRAM) > 0 {
+		gpu := append([]procsampler.ProcessSample(nil), samples...)
+		sort.SliceStable(gpu, func(i, j int) bool { return gpuVRAM[gpu[i].PID] > gpuVRAM[gpu[j].PID] })
+		for i := 0; i < top && i < len(gpu); i++ {
+			if gpuVRAM[gpu[i].PID] > 0 {
+				keep[gpu[i].PID] = struct{}{}
+			}
+		}
+	}
+	selected := make([]procsampler.ProcessSample, 0, len(keep))
+	for _, sample := range samples {
+		if _, ok := keep[sample.PID]; ok {
+			selected = append(selected, sample)
+		}
+	}
+	return selected, len(samples) - len(selected)
+}
+
+func gpuVRAMByPID(metricsData []*collectors.MetricData) map[int]float64 {
+	for _, data := range metricsData {
+		if data.CollectorName != "gpu" {
+			continue
+		}
+		devices, _ := data.Values["devices"].([]models.GPUDeviceMetrics)
+		result := make(map[int]float64)
+		for _, device := range devices {
+			for _, process := range device.Processes {
+				result[process.PID] += process.MemoryUsedMB
+			}
+		}
+		return result
+	}
+	return nil
 }
 
 func (s *MonitorService) recordCollectorSelfMetrics(name string, duration time.Duration, forks uint64) {
@@ -441,11 +499,20 @@ func (s *MonitorService) SelfMetrics() map[string]interface{} {
 // by owner/scenario. It is the standing replacement for the manual `ps`/`top`
 // "top consumers by scenario" forensic.
 func (s *MonitorService) GetProcessTimeline(ctx context.Context, window time.Duration, owner string, top int) ([]repository.ProcessTimelineEntry, error) {
+	return s.GetProcessTimelineRanked(ctx, window, owner, top, "cpu")
+}
+
+// GetProcessTimelineRanked returns bounded scenario attribution ranked by CPU
+// (default) or RSS. Invalid rank values fail closed to the CPU default.
+func (s *MonitorService) GetProcessTimelineRanked(ctx context.Context, window time.Duration, owner string, top int, rank string) ([]repository.ProcessTimelineEntry, error) {
 	if s.procRepo == nil {
 		return nil, nil
 	}
 	if window <= 0 {
 		window = 5 * time.Minute
+	}
+	if rank != "rss" {
+		rank = "cpu"
 	}
 	now := s.clock.Now()
 	return s.procRepo.QueryProcessTimeline(ctx, repository.ProcessTimelineQuery{
@@ -456,6 +523,7 @@ func (s *MonitorService) GetProcessTimeline(ctx context.Context, window time.Dur
 		End:   now.Add(time.Second),
 		Owner: owner,
 		Top:   top,
+		Rank:  rank,
 	})
 }
 
@@ -522,6 +590,97 @@ func (s *MonitorService) collectFromRegistry(ctx context.Context, name string) (
 		return nil, nil
 	}
 	return collector.Collect(ctx)
+}
+
+// GetPressureSnapshot performs a bounded fresh read of the pressure collector.
+// Unsupported/degraded hosts return an explicit unavailable snapshot instead of
+// an error so callers can make a safe fail-closed recovery decision.
+func (s *MonitorService) GetPressureSnapshot(ctx context.Context) (*models.PressureSnapshot, error) {
+	data, err := s.collectFromRegistry(ctx, "pressure")
+	if err != nil {
+		return nil, err
+	}
+	snapshot := &models.PressureSnapshot{Timestamp: s.clock.Now(), Memory: map[string]map[string]float64{}}
+	if data == nil {
+		snapshot.DegradedReason = "pressure collector is disabled"
+		return snapshot, nil
+	}
+	snapshot.Timestamp = data.Timestamp
+	if available, ok := data.Values["available"].(bool); ok {
+		snapshot.Available = available
+	}
+	if reason, ok := data.Values["degraded_reason"].(string); ok {
+		snapshot.DegradedReason = reason
+	}
+	if memory, ok := data.Values["memory"].(map[string]map[string]float64); ok {
+		snapshot.Memory = memory
+	}
+	snapshot.OOMKillCount = pressureInt64(data.Values["oom_kill_count"])
+	snapshot.OOMCount = pressureInt64(data.Values["oom_count"])
+	return snapshot, nil
+}
+
+// GetGPUHistory returns the persisted low-cardinality GPU summary timeline.
+func (s *MonitorService) GetGPUHistory(ctx context.Context, window time.Duration) (*models.GPUHistory, error) {
+	if window <= 0 {
+		window = time.Hour
+	}
+	end := s.clock.Now()
+	start := end.Add(-window)
+	utilization, err := s.repo.GetHistoricalMetrics(ctx, "total_usage_percent", repository.TimeRange{StartTime: start, EndTime: end})
+	if err != nil {
+		return nil, err
+	}
+	vram, err := s.repo.GetHistoricalMetrics(ctx, "used_memory_mb", repository.TimeRange{StartTime: start, EndTime: end})
+	if err != nil {
+		return nil, err
+	}
+	return &models.GPUHistory{Start: start, End: end, Utilization: gpuHistoryPoints(utilization), VRAMUsedMB: gpuHistoryPoints(vram)}, nil
+}
+
+// GetPressureHistory returns retained PSI and OOM counter evidence over a
+// bounded time window. It is read-only and does not collect or scan processes.
+func (s *MonitorService) GetPressureHistory(ctx context.Context, window time.Duration) (*models.PressureHistory, error) {
+	if window <= 0 {
+		window = time.Hour
+	}
+	end := s.clock.Now()
+	start := end.Add(-window)
+	rangeFilter := repository.TimeRange{StartTime: start, EndTime: end}
+	some, err := s.repo.GetHistoricalMetrics(ctx, "memory_psi_some_avg10", rangeFilter)
+	if err != nil {
+		return nil, err
+	}
+	full, err := s.repo.GetHistoricalMetrics(ctx, "memory_psi_full_avg10", rangeFilter)
+	if err != nil {
+		return nil, err
+	}
+	oomKills, err := s.repo.GetHistoricalMetrics(ctx, "oom_kill_count", rangeFilter)
+	if err != nil {
+		return nil, err
+	}
+	return &models.PressureHistory{Start: start, End: end, SomeAvg10: gpuHistoryPoints(some), FullAvg10: gpuHistoryPoints(full), OOMKillCount: gpuHistoryPoints(oomKills)}, nil
+}
+
+func gpuHistoryPoints(points []repository.MetricDataPoint) []models.GPUHistoryPoint {
+	out := make([]models.GPUHistoryPoint, 0, len(points))
+	for _, point := range points {
+		out = append(out, models.GPUHistoryPoint{Timestamp: point.Timestamp, Value: point.Value})
+	}
+	return out
+}
+
+func pressureInt64(value interface{}) int64 {
+	switch v := value.(type) {
+	case int64:
+		return v
+	case int:
+		return int64(v)
+	case float64:
+		return int64(v)
+	default:
+		return 0
+	}
 }
 
 // GetMetricsTimeline retrieves a windowed timeline of metric samples.

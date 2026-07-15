@@ -36,6 +36,9 @@ const (
 	// AdoptionsServiceListAdoptionsProcedure is the fully-qualified name of the AdoptionsService's
 	// ListAdoptions RPC.
 	AdoptionsServiceListAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListAdoptions"
+	// AdoptionsServiceListEffectiveAdoptionsProcedure is the fully-qualified name of the
+	// AdoptionsService's ListEffectiveAdoptions RPC.
+	AdoptionsServiceListEffectiveAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListEffectiveAdoptions"
 	// AdoptionsServiceApplyAdoptionProcedure is the fully-qualified name of the AdoptionsService's
 	// ApplyAdoption RPC.
 	AdoptionsServiceApplyAdoptionProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ApplyAdoption"
@@ -72,6 +75,7 @@ const (
 // vrooli.react_component_library.v1.adoptions.AdoptionsService service.
 type AdoptionsServiceClient interface {
 	ListAdoptions(context.Context, *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error)
+	ListEffectiveAdoptions(context.Context, *connect.Request[adoptions.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptions.ListEffectiveAdoptionsResponse], error)
 	ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error)
 	ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error)
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
@@ -119,6 +123,12 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+AdoptionsServiceListAdoptionsProcedure,
 			connect.WithSchema(adoptionsServiceMethods.ByName("ListAdoptions")),
+			connect.WithClientOptions(opts...),
+		),
+		listEffectiveAdoptions: connect.NewClient[adoptions.ListEffectiveAdoptionsRequest, adoptions.ListEffectiveAdoptionsResponse](
+			httpClient,
+			baseURL+AdoptionsServiceListEffectiveAdoptionsProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("ListEffectiveAdoptions")),
 			connect.WithClientOptions(opts...),
 		),
 		applyAdoption: connect.NewClient[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse](
@@ -186,22 +196,29 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // adoptionsServiceClient implements AdoptionsServiceClient.
 type adoptionsServiceClient struct {
-	listAdoptions       *connect.Client[adoptions.ListAdoptionsRequest, adoptions.ListAdoptionsResponse]
-	applyAdoption       *connect.Client[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse]
-	reapplyAdoption     *connect.Client[adoptions.ReapplyAdoptionRequest, adoptions.ReapplyAdoptionResponse]
-	deleteAdoption      *connect.Client[adoptions.DeleteAdoptionRequest, adoptions.DeleteAdoptionResponse]
-	refreshAdoptions    *connect.Client[adoptions.RefreshAdoptionsRequest, adoptions.RefreshAdoptionsResponse]
-	reconcileAdoptions  *connect.Client[adoptions.ReconcileAdoptionsRequest, adoptions.ReconcileAdoptionsResponse]
-	reconvergeAdoptions *connect.Client[adoptions.ReconvergeAdoptionsRequest, adoptions.ReconvergeAdoptionsResponse]
-	resolveAdoptionPath *connect.Client[adoptions.ResolveAdoptionPathRequest, adoptions.ResolveAdoptionPathResponse]
-	suggestAdoptions    *connect.Client[adoptions.SuggestAdoptionsRequest, adoptions.SuggestAdoptionsResponse]
-	discoverAdoptions   *connect.Client[adoptions.DiscoverAdoptionsRequest, adoptions.DiscoverAdoptionsResponse]
-	confirmDiscovery    *connect.Client[adoptions.ConfirmDiscoveryRequest, adoptions.ConfirmDiscoveryResponse]
+	listAdoptions          *connect.Client[adoptions.ListAdoptionsRequest, adoptions.ListAdoptionsResponse]
+	listEffectiveAdoptions *connect.Client[adoptions.ListEffectiveAdoptionsRequest, adoptions.ListEffectiveAdoptionsResponse]
+	applyAdoption          *connect.Client[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse]
+	reapplyAdoption        *connect.Client[adoptions.ReapplyAdoptionRequest, adoptions.ReapplyAdoptionResponse]
+	deleteAdoption         *connect.Client[adoptions.DeleteAdoptionRequest, adoptions.DeleteAdoptionResponse]
+	refreshAdoptions       *connect.Client[adoptions.RefreshAdoptionsRequest, adoptions.RefreshAdoptionsResponse]
+	reconcileAdoptions     *connect.Client[adoptions.ReconcileAdoptionsRequest, adoptions.ReconcileAdoptionsResponse]
+	reconvergeAdoptions    *connect.Client[adoptions.ReconvergeAdoptionsRequest, adoptions.ReconvergeAdoptionsResponse]
+	resolveAdoptionPath    *connect.Client[adoptions.ResolveAdoptionPathRequest, adoptions.ResolveAdoptionPathResponse]
+	suggestAdoptions       *connect.Client[adoptions.SuggestAdoptionsRequest, adoptions.SuggestAdoptionsResponse]
+	discoverAdoptions      *connect.Client[adoptions.DiscoverAdoptionsRequest, adoptions.DiscoverAdoptionsResponse]
+	confirmDiscovery       *connect.Client[adoptions.ConfirmDiscoveryRequest, adoptions.ConfirmDiscoveryResponse]
 }
 
 // ListAdoptions calls vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions.
 func (c *adoptionsServiceClient) ListAdoptions(ctx context.Context, req *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error) {
 	return c.listAdoptions.CallUnary(ctx, req)
+}
+
+// ListEffectiveAdoptions calls
+// vrooli.react_component_library.v1.adoptions.AdoptionsService.ListEffectiveAdoptions.
+func (c *adoptionsServiceClient) ListEffectiveAdoptions(ctx context.Context, req *connect.Request[adoptions.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptions.ListEffectiveAdoptionsResponse], error) {
+	return c.listEffectiveAdoptions.CallUnary(ctx, req)
 }
 
 // ApplyAdoption calls vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption.
@@ -266,6 +283,7 @@ func (c *adoptionsServiceClient) ConfirmDiscovery(ctx context.Context, req *conn
 // vrooli.react_component_library.v1.adoptions.AdoptionsService service.
 type AdoptionsServiceHandler interface {
 	ListAdoptions(context.Context, *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error)
+	ListEffectiveAdoptions(context.Context, *connect.Request[adoptions.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptions.ListEffectiveAdoptionsResponse], error)
 	ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error)
 	ReapplyAdoption(context.Context, *connect.Request[adoptions.ReapplyAdoptionRequest]) (*connect.Response[adoptions.ReapplyAdoptionResponse], error)
 	DeleteAdoption(context.Context, *connect.Request[adoptions.DeleteAdoptionRequest]) (*connect.Response[adoptions.DeleteAdoptionResponse], error)
@@ -308,6 +326,12 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 		AdoptionsServiceListAdoptionsProcedure,
 		svc.ListAdoptions,
 		connect.WithSchema(adoptionsServiceMethods.ByName("ListAdoptions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adoptionsServiceListEffectiveAdoptionsHandler := connect.NewUnaryHandler(
+		AdoptionsServiceListEffectiveAdoptionsProcedure,
+		svc.ListEffectiveAdoptions,
+		connect.WithSchema(adoptionsServiceMethods.ByName("ListEffectiveAdoptions")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adoptionsServiceApplyAdoptionHandler := connect.NewUnaryHandler(
@@ -374,6 +398,8 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case AdoptionsServiceListAdoptionsProcedure:
 			adoptionsServiceListAdoptionsHandler.ServeHTTP(w, r)
+		case AdoptionsServiceListEffectiveAdoptionsProcedure:
+			adoptionsServiceListEffectiveAdoptionsHandler.ServeHTTP(w, r)
 		case AdoptionsServiceApplyAdoptionProcedure:
 			adoptionsServiceApplyAdoptionHandler.ServeHTTP(w, r)
 		case AdoptionsServiceReapplyAdoptionProcedure:
@@ -405,6 +431,10 @@ type UnimplementedAdoptionsServiceHandler struct{}
 
 func (UnimplementedAdoptionsServiceHandler) ListAdoptions(context.Context, *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions is not implemented"))
+}
+
+func (UnimplementedAdoptionsServiceHandler) ListEffectiveAdoptions(context.Context, *connect.Request[adoptions.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptions.ListEffectiveAdoptionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ListEffectiveAdoptions is not implemented"))
 }
 
 func (UnimplementedAdoptionsServiceHandler) ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error) {

@@ -35,6 +35,12 @@ class ResolveSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RESOLVE_SOURCE_HEURISTIC: _ClassVar[ResolveSource]
     RESOLVE_SOURCE_FALLBACK: _ClassVar[ResolveSource]
 
+class RecommendationClass(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RECOMMENDATION_CLASS_UNSPECIFIED: _ClassVar[RecommendationClass]
+    RECOMMENDATION_CLASS_HEURISTIC: _ClassVar[RecommendationClass]
+    RECOMMENDATION_CLASS_UNAVAILABLE: _ClassVar[RecommendationClass]
+
 class ReconvergeAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RECONVERGE_ACTION_UNSPECIFIED: _ClassVar[ReconvergeAction]
@@ -59,6 +65,9 @@ RESOLVE_SOURCE_EXPLICIT: ResolveSource
 RESOLVE_SOURCE_TEMPLATE_MANIFEST: ResolveSource
 RESOLVE_SOURCE_HEURISTIC: ResolveSource
 RESOLVE_SOURCE_FALLBACK: ResolveSource
+RECOMMENDATION_CLASS_UNSPECIFIED: RecommendationClass
+RECOMMENDATION_CLASS_HEURISTIC: RecommendationClass
+RECOMMENDATION_CLASS_UNAVAILABLE: RecommendationClass
 RECONVERGE_ACTION_UNSPECIFIED: ReconvergeAction
 RECONVERGE_ACTION_REAPPLIED: ReconvergeAction
 RECONVERGE_ACTION_WOULD_REAPPLY: ReconvergeAction
@@ -99,16 +108,22 @@ class Adoption(_message.Message):
     def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., adopted_version: _Optional[str] = ..., library_version_status: _Optional[_Union[LibraryVersionStatus, str]] = ..., local_status: _Optional[_Union[LocalStatus, str]] = ..., status_detail: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., refreshed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_sha256: _Optional[str] = ..., applied_at: _Optional[str] = ..., files: _Optional[_Iterable[_Union[AdoptionFile, _Mapping]]] = ...) -> None: ...
 
 class AdoptionFile(_message.Message):
-    __slots__ = ("library_path", "adopted_path", "source_sha256", "adopted_snapshot_sha256")
+    __slots__ = ("library_path", "adopted_path", "source_sha256", "adopted_snapshot_sha256", "source_asset_id", "source_library_id", "source_version")
     LIBRARY_PATH_FIELD_NUMBER: _ClassVar[int]
     ADOPTED_PATH_FIELD_NUMBER: _ClassVar[int]
     SOURCE_SHA256_FIELD_NUMBER: _ClassVar[int]
     ADOPTED_SNAPSHOT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_VERSION_FIELD_NUMBER: _ClassVar[int]
     library_path: str
     adopted_path: str
     source_sha256: str
     adopted_snapshot_sha256: str
-    def __init__(self, library_path: _Optional[str] = ..., adopted_path: _Optional[str] = ..., source_sha256: _Optional[str] = ..., adopted_snapshot_sha256: _Optional[str] = ...) -> None: ...
+    source_asset_id: str
+    source_library_id: str
+    source_version: str
+    def __init__(self, library_path: _Optional[str] = ..., adopted_path: _Optional[str] = ..., source_sha256: _Optional[str] = ..., adopted_snapshot_sha256: _Optional[str] = ..., source_asset_id: _Optional[str] = ..., source_library_id: _Optional[str] = ..., source_version: _Optional[str] = ...) -> None: ...
 
 class ListAdoptionsRequest(_message.Message):
     __slots__ = ("component_id", "scenario", "limit")
@@ -125,6 +140,34 @@ class ListAdoptionsResponse(_message.Message):
     ADOPTIONS_FIELD_NUMBER: _ClassVar[int]
     adoptions: _containers.RepeatedCompositeFieldContainer[Adoption]
     def __init__(self, adoptions: _Optional[_Iterable[_Union[Adoption, _Mapping]]] = ...) -> None: ...
+
+class EffectiveAdoption(_message.Message):
+    __slots__ = ("source_asset_id", "source_library_id", "source_version", "mediated", "parent_adoption")
+    SOURCE_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_VERSION_FIELD_NUMBER: _ClassVar[int]
+    MEDIATED_FIELD_NUMBER: _ClassVar[int]
+    PARENT_ADOPTION_FIELD_NUMBER: _ClassVar[int]
+    source_asset_id: str
+    source_library_id: str
+    source_version: str
+    mediated: bool
+    parent_adoption: Adoption
+    def __init__(self, source_asset_id: _Optional[str] = ..., source_library_id: _Optional[str] = ..., source_version: _Optional[str] = ..., mediated: _Optional[bool] = ..., parent_adoption: _Optional[_Union[Adoption, _Mapping]] = ...) -> None: ...
+
+class ListEffectiveAdoptionsRequest(_message.Message):
+    __slots__ = ("component_id", "limit")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    limit: int
+    def __init__(self, component_id: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class ListEffectiveAdoptionsResponse(_message.Message):
+    __slots__ = ("adoptions",)
+    ADOPTIONS_FIELD_NUMBER: _ClassVar[int]
+    adoptions: _containers.RepeatedCompositeFieldContainer[EffectiveAdoption]
+    def __init__(self, adoptions: _Optional[_Iterable[_Union[EffectiveAdoption, _Mapping]]] = ...) -> None: ...
 
 class ApplyAdoptionRequest(_message.Message):
     __slots__ = ("component_id", "scenario", "adopted_path", "version", "confirm_overwrite", "override_validation", "replace_existing")
@@ -253,20 +296,22 @@ class SuggestAdoptionsRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., limit: _Optional[int] = ..., component_id: _Optional[str] = ...) -> None: ...
 
 class AdoptionSuggestion(_message.Message):
-    __slots__ = ("scenario", "component_id", "library_id", "display_name", "inventory_path", "reasons")
+    __slots__ = ("scenario", "component_id", "library_id", "display_name", "inventory_path", "reasons", "classification")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     INVENTORY_PATH_FIELD_NUMBER: _ClassVar[int]
     REASONS_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     component_id: str
     library_id: str
     display_name: str
     inventory_path: str
     reasons: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, scenario: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., inventory_path: _Optional[str] = ..., reasons: _Optional[_Iterable[str]] = ...) -> None: ...
+    classification: RecommendationClass
+    def __init__(self, scenario: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., inventory_path: _Optional[str] = ..., reasons: _Optional[_Iterable[str]] = ..., classification: _Optional[_Union[RecommendationClass, str]] = ...) -> None: ...
 
 class SuggestAdoptionsResponse(_message.Message):
     __slots__ = ("suggestions",)

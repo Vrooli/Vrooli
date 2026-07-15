@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-25T09:55:24-04:00"
+    "last_validated_at": "2026-07-15T14:24:00-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-005",
       "title": "Configurable Alert Thresholds",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
       "category": "api",
       "description": "System must provide API endpoints to configure warning and critical thresholds for all monitored metrics",
@@ -14,7 +14,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test threshold CRUD operations"
         },
         {
@@ -32,7 +32,7 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Thresholds configurable via UI"
         }
       ]

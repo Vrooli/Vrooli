@@ -40,6 +40,10 @@ const (
 	// A single swarm-manager backlog item. Vocabulary is pinned; the runtime
 	// adapter arrives in a later phase.
 	OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM OperatingModeTargetKind = 4
+	// A plain scenario repository workspace, identified by scenario name (the
+	// spec-sync target). Unlike the other kinds, a scenario is a directory that
+	// already exists on disk; its workflow lives under a dedicated scope root.
+	OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_SCENARIO OperatingModeTargetKind = 5
 )
 
 // Enum value maps for OperatingModeTargetKind.
@@ -49,12 +53,14 @@ var (
 		1: "OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION",
 		3: "OPERATING_MODE_TARGET_KIND_INITIATIVE",
 		4: "OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM",
+		5: "OPERATING_MODE_TARGET_KIND_SCENARIO",
 	}
 	OperatingModeTargetKind_value = map[string]int32{
 		"OPERATING_MODE_TARGET_KIND_UNSPECIFIED":    0,
 		"OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION": 1,
 		"OPERATING_MODE_TARGET_KIND_INITIATIVE":     3,
 		"OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM":   4,
+		"OPERATING_MODE_TARGET_KIND_SCENARIO":       5,
 	}
 )
 
@@ -2471,12 +2477,13 @@ const file_swarm_manager_v1_domain_operating_mode_proto_rawDesc = "" +
 	"\x1bOperatingModeExampleRunStep\x12\x1d\n" +
 	"\x05phase\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05phase\x12/\n" +
 	"\x06output\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06output\x12\x12\n" +
-	"\x04note\x18\x03 \x01(\tR\x04note*\xf7\x01\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note*\xa0\x02\n" +
 	"\x17OperatingModeTargetKind\x12*\n" +
 	"&OPERATING_MODE_TARGET_KIND_UNSPECIFIED\x10\x00\x12-\n" +
 	")OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION\x10\x01\x12)\n" +
 	"%OPERATING_MODE_TARGET_KIND_INITIATIVE\x10\x03\x12+\n" +
-	"'OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM\x10\x04\"\x04\b\x02\x10\x02*#OPERATING_MODE_TARGET_KIND_PLAN_REF*\xb3\x02\n" +
+	"'OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM\x10\x04\x12'\n" +
+	"#OPERATING_MODE_TARGET_KIND_SCENARIO\x10\x05\"\x04\b\x02\x10\x02*#OPERATING_MODE_TARGET_KIND_PLAN_REF*\xb3\x02\n" +
 	"\x1cOperatingModeRunStrategyKind\x120\n" +
 	",OPERATING_MODE_RUN_STRATEGY_KIND_UNSPECIFIED\x10\x00\x127\n" +
 	"3OPERATING_MODE_RUN_STRATEGY_KIND_EXISTING_ITEM_FLOW\x10\x01\x125\n" +

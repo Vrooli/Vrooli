@@ -54,7 +54,7 @@ ONBOARDING_STEP_STATUS_SKIPPED: OnboardingStepStatus
 ONBOARDING_STEP_STATUS_FAILED: OnboardingStepStatus
 
 class OnboardingOp(_message.Message):
-    __slots__ = ("id", "host", "port", "user", "node_name", "target_revision", "repo_url", "state", "node_id", "failure_reason", "exit_code", "created_at", "started_at", "finished_at", "source_mode", "base_revision", "working_tree_digest")
+    __slots__ = ("id", "host", "port", "user", "node_name", "target_revision", "repo_url", "state", "node_id", "failure_reason", "exit_code", "created_at", "started_at", "finished_at", "source_mode", "base_revision", "working_tree_digest", "failure_detail")
     ID_FIELD_NUMBER: _ClassVar[int]
     HOST_FIELD_NUMBER: _ClassVar[int]
     PORT_FIELD_NUMBER: _ClassVar[int]
@@ -72,6 +72,7 @@ class OnboardingOp(_message.Message):
     SOURCE_MODE_FIELD_NUMBER: _ClassVar[int]
     BASE_REVISION_FIELD_NUMBER: _ClassVar[int]
     WORKING_TREE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_DETAIL_FIELD_NUMBER: _ClassVar[int]
     id: str
     host: str
     port: int
@@ -89,7 +90,8 @@ class OnboardingOp(_message.Message):
     source_mode: SourceMode
     base_revision: str
     working_tree_digest: str
-    def __init__(self, id: _Optional[str] = ..., host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., state: _Optional[_Union[OnboardingState, str]] = ..., node_id: _Optional[str] = ..., failure_reason: _Optional[str] = ..., exit_code: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., base_revision: _Optional[str] = ..., working_tree_digest: _Optional[str] = ...) -> None: ...
+    failure_detail: str
+    def __init__(self, id: _Optional[str] = ..., host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., state: _Optional[_Union[OnboardingState, str]] = ..., node_id: _Optional[str] = ..., failure_reason: _Optional[str] = ..., exit_code: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., base_revision: _Optional[str] = ..., working_tree_digest: _Optional[str] = ..., failure_detail: _Optional[str] = ...) -> None: ...
 
 class OnboardingStepEvent(_message.Message):
     __slots__ = ("op_id", "sequence", "step_id", "status", "detail", "emitted_at")
@@ -218,19 +220,3 @@ class CancelOnboardingResponse(_message.Message):
     OP_FIELD_NUMBER: _ClassVar[int]
     op: OnboardingOp
     def __init__(self, op: _Optional[_Union[OnboardingOp, _Mapping]] = ...) -> None: ...
-
-class GetLocalNodeSuggestionRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class GetLocalNodeSuggestionResponse(_message.Message):
-    __slots__ = ("host", "user", "hostname", "available")
-    HOST_FIELD_NUMBER: _ClassVar[int]
-    USER_FIELD_NUMBER: _ClassVar[int]
-    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
-    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
-    host: str
-    user: str
-    hostname: str
-    available: bool
-    def __init__(self, host: _Optional[str] = ..., user: _Optional[str] = ..., hostname: _Optional[str] = ..., available: _Optional[bool] = ...) -> None: ...

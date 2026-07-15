@@ -13,6 +13,43 @@ type MetricsResponse struct {
 	Timestamp      time.Time `json:"timestamp"`
 }
 
+// PressureSnapshot is the typed, low-overhead memory-pressure view. Available
+// is deliberately separate from UnderPressure so consumers never mistake a
+// degraded collector for an all-clear signal.
+type PressureSnapshot struct {
+	Available      bool                          `json:"available"`
+	Memory         map[string]map[string]float64 `json:"memory,omitempty"`
+	OOMKillCount   int64                         `json:"oom_kill_count,omitempty"`
+	OOMCount       int64                         `json:"oom_count,omitempty"`
+	DegradedReason string                        `json:"degraded_reason,omitempty"`
+	Timestamp      time.Time                     `json:"timestamp"`
+}
+
+// GPUHistory is the retained GPU summary evidence for a selected time range.
+// Per-process GPU facts remain available in detailed live snapshots; this
+// bounded timeline provides the historical VRAM/utilization correlation.
+type GPUHistory struct {
+	Start       time.Time         `json:"start"`
+	End         time.Time         `json:"end"`
+	Utilization []GPUHistoryPoint `json:"utilization"`
+	VRAMUsedMB  []GPUHistoryPoint `json:"vram_used_mb"`
+}
+
+type GPUHistoryPoint struct {
+	Timestamp time.Time `json:"timestamp"`
+	Value     float64   `json:"value"`
+}
+
+// PressureHistory is the retained correlation timeline for PSI and kernel OOM
+// counters. Missing points deliberately remain absent rather than fabricated.
+type PressureHistory struct {
+	Start        time.Time         `json:"start"`
+	End          time.Time         `json:"end"`
+	SomeAvg10    []GPUHistoryPoint `json:"memory_psi_some_avg10"`
+	FullAvg10    []GPUHistoryPoint `json:"memory_psi_full_avg10"`
+	OOMKillCount []GPUHistoryPoint `json:"oom_kill_count"`
+}
+
 // MetricTimelineSample represents a single sample in a metrics timeline.
 type MetricTimelineSample struct {
 	Timestamp      time.Time `json:"timestamp"`

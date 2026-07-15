@@ -9,7 +9,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // =============================================================================
 //
 // @layer 5  (api surface)
-// @domain health
 // @stability stable
 //
 // Wire contract for the API's /health and /api/v1/health endpoints. Health is

@@ -9,7 +9,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // =============================================================================
 //
 // @layer 5  (api surface)
-// @domain errors
 // @stability stable
 //
 // Connect-RPC methods use Connect's canonical error envelope and code set.

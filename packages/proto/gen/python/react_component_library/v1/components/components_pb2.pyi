@@ -10,6 +10,12 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class AssetKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ASSET_KIND_UNSPECIFIED: _ClassVar[AssetKind]
+    ASSET_KIND_COMPONENT: _ClassVar[AssetKind]
+    ASSET_KIND_HOOK: _ClassVar[AssetKind]
+
 class ComponentVersionIntent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     COMPONENT_VERSION_INTENT_UNSPECIFIED: _ClassVar[ComponentVersionIntent]
@@ -37,6 +43,9 @@ class StyleFitVerdictKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STYLE_FIT_VERDICT_KIND_OK: _ClassVar[StyleFitVerdictKind]
     STYLE_FIT_VERDICT_KIND_INFO: _ClassVar[StyleFitVerdictKind]
     STYLE_FIT_VERDICT_KIND_WARN: _ClassVar[StyleFitVerdictKind]
+ASSET_KIND_UNSPECIFIED: AssetKind
+ASSET_KIND_COMPONENT: AssetKind
+ASSET_KIND_HOOK: AssetKind
 COMPONENT_VERSION_INTENT_UNSPECIFIED: ComponentVersionIntent
 COMPONENT_VERSION_INTENT_DRAFT: ComponentVersionIntent
 COMPONENT_VERSION_INTENT_RELEASE: ComponentVersionIntent
@@ -54,8 +63,26 @@ STYLE_FIT_VERDICT_KIND_OK: StyleFitVerdictKind
 STYLE_FIT_VERDICT_KIND_INFO: StyleFitVerdictKind
 STYLE_FIT_VERDICT_KIND_WARN: StyleFitVerdictKind
 
+class AssetDependency(_message.Message):
+    __slots__ = ("library_id", "version")
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    library_id: str
+    version: str
+    def __init__(self, library_id: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
+
+class AssetMetrics(_message.Message):
+    __slots__ = ("direct_adoption_count", "version_count", "effective_adoption_count")
+    DIRECT_ADOPTION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    VERSION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_ADOPTION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    direct_adoption_count: int
+    version_count: int
+    effective_adoption_count: int
+    def __init__(self, direct_adoption_count: _Optional[int] = ..., version_count: _Optional[int] = ..., effective_adoption_count: _Optional[int] = ...) -> None: ...
+
 class Component(_message.Message):
-    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles", "category")
+    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles", "category", "asset_kind", "dependencies", "metrics")
     class HeadersEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -80,6 +107,9 @@ class Component(_message.Message):
     SLOT_FIELD_NUMBER: _ClassVar[int]
     DESIGN_STYLES_FIELD_NUMBER: _ClassVar[int]
     CATEGORY_FIELD_NUMBER: _ClassVar[int]
+    ASSET_KIND_FIELD_NUMBER: _ClassVar[int]
+    DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
     id: str
     library_id: str
     display_name: str
@@ -97,10 +127,13 @@ class Component(_message.Message):
     slot: str
     design_styles: _containers.RepeatedCompositeFieldContainer[ComponentDesignAffinity]
     category: str
-    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ..., category: _Optional[str] = ...) -> None: ...
+    asset_kind: AssetKind
+    dependencies: _containers.RepeatedCompositeFieldContainer[AssetDependency]
+    metrics: AssetMetrics
+    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ..., category: _Optional[str] = ..., asset_kind: _Optional[_Union[AssetKind, str]] = ..., dependencies: _Optional[_Iterable[_Union[AssetDependency, _Mapping]]] = ..., metrics: _Optional[_Union[AssetMetrics, _Mapping]] = ...) -> None: ...
 
 class ListComponentsRequest(_message.Message):
-    __slots__ = ("match", "tag", "limit", "tags", "category", "style_id", "affinity")
+    __slots__ = ("match", "tag", "limit", "tags", "category", "style_id", "affinity", "asset_kind")
     MATCH_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
@@ -108,6 +141,7 @@ class ListComponentsRequest(_message.Message):
     CATEGORY_FIELD_NUMBER: _ClassVar[int]
     STYLE_ID_FIELD_NUMBER: _ClassVar[int]
     AFFINITY_FIELD_NUMBER: _ClassVar[int]
+    ASSET_KIND_FIELD_NUMBER: _ClassVar[int]
     match: str
     tag: str
     limit: int
@@ -115,7 +149,8 @@ class ListComponentsRequest(_message.Message):
     category: str
     style_id: str
     affinity: str
-    def __init__(self, match: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., category: _Optional[str] = ..., style_id: _Optional[str] = ..., affinity: _Optional[str] = ...) -> None: ...
+    asset_kind: AssetKind
+    def __init__(self, match: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., category: _Optional[str] = ..., style_id: _Optional[str] = ..., affinity: _Optional[str] = ..., asset_kind: _Optional[_Union[AssetKind, str]] = ...) -> None: ...
 
 class ListComponentsResponse(_message.Message):
     __slots__ = ("components",)
@@ -382,14 +417,16 @@ class ComponentVersion(_message.Message):
     def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., status: _Optional[_Union[ComponentVersionStatus, str]] = ..., source_path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., files: _Optional[_Iterable[_Union[ComponentVersionFile, _Mapping]]] = ..., parity_report: _Optional[_Union[IngestParityReport, _Mapping]] = ...) -> None: ...
 
 class ComponentVersionFile(_message.Message):
-    __slots__ = ("path", "content_sha256", "is_entry")
+    __slots__ = ("path", "content_sha256", "is_entry", "slot")
     PATH_FIELD_NUMBER: _ClassVar[int]
     CONTENT_SHA256_FIELD_NUMBER: _ClassVar[int]
     IS_ENTRY_FIELD_NUMBER: _ClassVar[int]
+    SLOT_FIELD_NUMBER: _ClassVar[int]
     path: str
     content_sha256: str
     is_entry: bool
-    def __init__(self, path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., is_entry: _Optional[bool] = ...) -> None: ...
+    slot: str
+    def __init__(self, path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., is_entry: _Optional[bool] = ..., slot: _Optional[str] = ...) -> None: ...
 
 class ComponentDesignAffinity(_message.Message):
     __slots__ = ("style_id", "affinity", "reason")

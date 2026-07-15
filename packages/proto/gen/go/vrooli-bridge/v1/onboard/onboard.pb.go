@@ -278,8 +278,16 @@ type OnboardingOp struct {
 	// node-side setup) and two nodes on the same working tree are comparable. Empty
 	// in PINNED_REVISION mode.
 	WorkingTreeDigest string `protobuf:"bytes,17,opt,name=working_tree_digest,json=workingTreeDigest,proto3" json:"working_tree_digest,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// On a terminal FAILED op, a bounded, multi-line tail of the node-side
+	// diagnostic output captured when the failing step ran — the concrete cause
+	// (e.g. the `make setup` error), not just the failure_reason taxonomy code.
+	// Empty on success/cancelled and whenever no node output was produced (a
+	// control-plane-side failure before the remote script ran). NEVER carries
+	// secret material: the node streams only its own build/setup diagnostics here;
+	// the SSH password and pairing code never reach the node's stdout/stderr.
+	FailureDetail string `protobuf:"bytes,18,opt,name=failure_detail,json=failureDetail,proto3" json:"failure_detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *OnboardingOp) Reset() {
@@ -427,6 +435,13 @@ func (x *OnboardingOp) GetBaseRevision() string {
 func (x *OnboardingOp) GetWorkingTreeDigest() string {
 	if x != nil {
 		return x.WorkingTreeDigest
+	}
+	return ""
+}
+
+func (x *OnboardingOp) GetFailureDetail() string {
+	if x != nil {
+		return x.FailureDetail
 	}
 	return ""
 }
@@ -1238,122 +1253,11 @@ func (x *CancelOnboardingResponse) GetOp() *OnboardingOp {
 	return nil
 }
 
-type GetLocalNodeSuggestionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetLocalNodeSuggestionRequest) Reset() {
-	*x = GetLocalNodeSuggestionRequest{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetLocalNodeSuggestionRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetLocalNodeSuggestionRequest) ProtoMessage() {}
-
-func (x *GetLocalNodeSuggestionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetLocalNodeSuggestionRequest.ProtoReflect.Descriptor instead.
-func (*GetLocalNodeSuggestionRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{12}
-}
-
-type GetLocalNodeSuggestionResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Loopback address of the control-plane machine ("127.0.0.1").
-	Host string `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
-	// OS user the control-plane process runs as — the SSH user to onboard the
-	// local machine with. Resolved server-side; the browser cannot know it.
-	User string `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
-	// The control-plane machine's hostname, for display ("this machine (studio-01)").
-	Hostname string `protobuf:"bytes,3,opt,name=hostname,proto3" json:"hostname,omitempty"`
-	// False when the server could not resolve the local user (e.g. an unnamed
-	// container user); the UI then hides the "use this machine" affordance rather
-	// than prefilling a wrong value.
-	Available     bool `protobuf:"varint,4,opt,name=available,proto3" json:"available,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetLocalNodeSuggestionResponse) Reset() {
-	*x = GetLocalNodeSuggestionResponse{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetLocalNodeSuggestionResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetLocalNodeSuggestionResponse) ProtoMessage() {}
-
-func (x *GetLocalNodeSuggestionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetLocalNodeSuggestionResponse.ProtoReflect.Descriptor instead.
-func (*GetLocalNodeSuggestionResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *GetLocalNodeSuggestionResponse) GetHost() string {
-	if x != nil {
-		return x.Host
-	}
-	return ""
-}
-
-func (x *GetLocalNodeSuggestionResponse) GetUser() string {
-	if x != nil {
-		return x.User
-	}
-	return ""
-}
-
-func (x *GetLocalNodeSuggestionResponse) GetHostname() string {
-	if x != nil {
-		return x.Hostname
-	}
-	return ""
-}
-
-func (x *GetLocalNodeSuggestionResponse) GetAvailable() bool {
-	if x != nil {
-		return x.Available
-	}
-	return false
-}
-
 var File_vrooli_bridge_v1_onboard_onboard_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\n" +
-	"&vrooli-bridge/v1/onboard/onboard.proto\x12\x1fvrooli.vrooli_bridge.v1.onboard\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\x05\n" +
+	"&vrooli-bridge/v1/onboard/onboard.proto\x12\x1fvrooli.vrooli_bridge.v1.onboard\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdd\x05\n" +
 	"\fOnboardingOp\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x12\n" +
@@ -1376,7 +1280,8 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\vsource_mode\x18\x0f \x01(\x0e2+.vrooli.vrooli_bridge.v1.onboard.SourceModeR\n" +
 	"sourceMode\x12#\n" +
 	"\rbase_revision\x18\x10 \x01(\tR\fbaseRevision\x12.\n" +
-	"\x13working_tree_digest\x18\x11 \x01(\tR\x11workingTreeDigest\"\x81\x02\n" +
+	"\x13working_tree_digest\x18\x11 \x01(\tR\x11workingTreeDigest\x12%\n" +
+	"\x0efailure_detail\x18\x12 \x01(\tR\rfailureDetail\"\x81\x02\n" +
 	"\x13OnboardingStepEvent\x12\x13\n" +
 	"\x05op_id\x18\x01 \x01(\tR\x04opId\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12\x17\n" +
@@ -1433,13 +1338,7 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\x17CancelOnboardingRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"Y\n" +
 	"\x18CancelOnboardingResponse\x12=\n" +
-	"\x02op\x18\x01 \x01(\v2-.vrooli.vrooli_bridge.v1.onboard.OnboardingOpR\x02op\"\x1f\n" +
-	"\x1dGetLocalNodeSuggestionRequest\"\x82\x01\n" +
-	"\x1eGetLocalNodeSuggestionResponse\x12\x12\n" +
-	"\x04host\x18\x01 \x01(\tR\x04host\x12\x12\n" +
-	"\x04user\x18\x02 \x01(\tR\x04user\x12\x1a\n" +
-	"\bhostname\x18\x03 \x01(\tR\bhostname\x12\x1c\n" +
-	"\tavailable\x18\x04 \x01(\bR\tavailable*\xb7\x02\n" +
+	"\x02op\x18\x01 \x01(\v2-.vrooli.vrooli_bridge.v1.onboard.OnboardingOpR\x02op*\xb7\x02\n" +
 	"\x0fOnboardingState\x12 \n" +
 	"\x1cONBOARDING_STATE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18ONBOARDING_STATE_PENDING\x10\x01\x12\x1e\n" +
@@ -1460,14 +1359,13 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\x1eONBOARDING_STEP_STATUS_STARTED\x10\x01\x12\x1d\n" +
 	"\x19ONBOARDING_STEP_STATUS_OK\x10\x02\x12\"\n" +
 	"\x1eONBOARDING_STEP_STATUS_SKIPPED\x10\x03\x12!\n" +
-	"\x1dONBOARDING_STEP_STATUS_FAILED\x10\x042\xc8\x06\n" +
+	"\x1dONBOARDING_STEP_STATUS_FAILED\x10\x042\xac\x05\n" +
 	"\x0eOnboardService\x12\x84\x01\n" +
 	"\x0fStartOnboarding\x127.vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest\x1a8.vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse\x12~\n" +
 	"\rGetOnboarding\x125.vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest\x1a6.vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse\x12\x84\x01\n" +
 	"\x0fListOnboardings\x127.vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest\x1a8.vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse\x12\x81\x01\n" +
 	"\x0eWaitOnboarding\x126.vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest\x1a7.vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse\x12\x87\x01\n" +
-	"\x10CancelOnboarding\x128.vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest\x1a9.vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse\x12\x99\x01\n" +
-	"\x16GetLocalNodeSuggestion\x12>.vrooli.vrooli_bridge.v1.onboard.GetLocalNodeSuggestionRequest\x1a?.vrooli.vrooli_bridge.v1.onboard.GetLocalNodeSuggestionResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard;onboard_v1b\x06proto3"
+	"\x10CancelOnboarding\x128.vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest\x1a9.vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard;onboard_v1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_onboard_onboard_proto_rawDescOnce sync.Once
@@ -1482,35 +1380,33 @@ func file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_bridge_v1_onboard_onboard_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_vrooli_bridge_v1_onboard_onboard_proto_goTypes = []any{
-	(OnboardingState)(0),                   // 0: vrooli.vrooli_bridge.v1.onboard.OnboardingState
-	(SourceMode)(0),                        // 1: vrooli.vrooli_bridge.v1.onboard.SourceMode
-	(OnboardingStepStatus)(0),              // 2: vrooli.vrooli_bridge.v1.onboard.OnboardingStepStatus
-	(*OnboardingOp)(nil),                   // 3: vrooli.vrooli_bridge.v1.onboard.OnboardingOp
-	(*OnboardingStepEvent)(nil),            // 4: vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent
-	(*StartOnboardingRequest)(nil),         // 5: vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
-	(*StartOnboardingResponse)(nil),        // 6: vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
-	(*GetOnboardingRequest)(nil),           // 7: vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
-	(*GetOnboardingResponse)(nil),          // 8: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
-	(*ListOnboardingsRequest)(nil),         // 9: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest
-	(*ListOnboardingsResponse)(nil),        // 10: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
-	(*WaitOnboardingRequest)(nil),          // 11: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
-	(*WaitOnboardingResponse)(nil),         // 12: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
-	(*CancelOnboardingRequest)(nil),        // 13: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
-	(*CancelOnboardingResponse)(nil),       // 14: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
-	(*GetLocalNodeSuggestionRequest)(nil),  // 15: vrooli.vrooli_bridge.v1.onboard.GetLocalNodeSuggestionRequest
-	(*GetLocalNodeSuggestionResponse)(nil), // 16: vrooli.vrooli_bridge.v1.onboard.GetLocalNodeSuggestionResponse
-	(*timestamppb.Timestamp)(nil),          // 17: google.protobuf.Timestamp
+	(OnboardingState)(0),             // 0: vrooli.vrooli_bridge.v1.onboard.OnboardingState
+	(SourceMode)(0),                  // 1: vrooli.vrooli_bridge.v1.onboard.SourceMode
+	(OnboardingStepStatus)(0),        // 2: vrooli.vrooli_bridge.v1.onboard.OnboardingStepStatus
+	(*OnboardingOp)(nil),             // 3: vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	(*OnboardingStepEvent)(nil),      // 4: vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent
+	(*StartOnboardingRequest)(nil),   // 5: vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
+	(*StartOnboardingResponse)(nil),  // 6: vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
+	(*GetOnboardingRequest)(nil),     // 7: vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
+	(*GetOnboardingResponse)(nil),    // 8: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
+	(*ListOnboardingsRequest)(nil),   // 9: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest
+	(*ListOnboardingsResponse)(nil),  // 10: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
+	(*WaitOnboardingRequest)(nil),    // 11: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
+	(*WaitOnboardingResponse)(nil),   // 12: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
+	(*CancelOnboardingRequest)(nil),  // 13: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
+	(*CancelOnboardingResponse)(nil), // 14: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
+	(*timestamppb.Timestamp)(nil),    // 15: google.protobuf.Timestamp
 }
 var file_vrooli_bridge_v1_onboard_onboard_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.state:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingState
-	17, // 1: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.created_at:type_name -> google.protobuf.Timestamp
-	17, // 2: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.started_at:type_name -> google.protobuf.Timestamp
-	17, // 3: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.finished_at:type_name -> google.protobuf.Timestamp
+	15, // 1: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.created_at:type_name -> google.protobuf.Timestamp
+	15, // 2: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.started_at:type_name -> google.protobuf.Timestamp
+	15, // 3: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.finished_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.source_mode:type_name -> vrooli.vrooli_bridge.v1.onboard.SourceMode
 	2,  // 5: vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent.status:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingStepStatus
-	17, // 6: vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent.emitted_at:type_name -> google.protobuf.Timestamp
+	15, // 6: vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent.emitted_at:type_name -> google.protobuf.Timestamp
 	1,  // 7: vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest.source_mode:type_name -> vrooli.vrooli_bridge.v1.onboard.SourceMode
 	3,  // 8: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
 	4,  // 9: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse.events:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent
@@ -1522,15 +1418,13 @@ var file_vrooli_bridge_v1_onboard_onboard_proto_depIdxs = []int32{
 	9,  // 15: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:input_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest
 	11, // 16: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
 	13, // 17: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
-	15, // 18: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetLocalNodeSuggestion:input_type -> vrooli.vrooli_bridge.v1.onboard.GetLocalNodeSuggestionRequest
-	6,  // 19: vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
-	8,  // 20: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
-	10, // 21: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:output_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
-	12, // 22: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
-	14, // 23: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
-	16, // 24: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetLocalNodeSuggestion:output_type -> vrooli.vrooli_bridge.v1.onboard.GetLocalNodeSuggestionResponse
-	19, // [19:25] is the sub-list for method output_type
-	13, // [13:19] is the sub-list for method input_type
+	6,  // 18: vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
+	8,  // 19: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
+	10, // 20: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:output_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
+	12, // 21: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
+	14, // 22: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
+	18, // [18:23] is the sub-list for method output_type
+	13, // [13:18] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
 	13, // [13:13] is the sub-list for extension extendee
 	0,  // [0:13] is the sub-list for field type_name
@@ -1547,7 +1441,7 @@ func file_vrooli_bridge_v1_onboard_onboard_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc), len(file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   14,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

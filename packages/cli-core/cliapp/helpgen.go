@@ -3,6 +3,7 @@ package cliapp
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 )
 
@@ -45,6 +46,9 @@ func renderHelp(prefix string, cmd Command, w io.Writer) error {
 			suffix := strings.TrimSpace(f.Description)
 			if f.Required {
 				suffix = strings.TrimSpace("(required) " + suffix)
+			}
+			if choices := flagChoices(f); choices != "" {
+				suffix = strings.TrimSpace(suffix + " " + choices)
 			}
 			if !f.Bool && f.Default != "" {
 				suffix = strings.TrimSpace(suffix + fmt.Sprintf(" (default: %s)", f.Default))
@@ -96,6 +100,25 @@ func positionalUsageLabel(p Positional) string {
 	default:
 		return "[" + name + "]"
 	}
+}
+
+// flagChoices renders a flag's declared vocabulary for help output, or ""
+// when the flag accepts free-form values. Values keep declaration order;
+// synonyms are sorted for stable output.
+func flagChoices(f Flag) string {
+	if len(f.Values) == 0 {
+		return ""
+	}
+	out := "(choices: " + strings.Join(f.Values, ", ")
+	if len(f.ValueAliases) > 0 {
+		aliases := make([]string, 0, len(f.ValueAliases))
+		for alias, target := range f.ValueAliases {
+			aliases = append(aliases, alias+"="+target)
+		}
+		sort.Strings(aliases)
+		out += "; synonyms: " + strings.Join(aliases, ", ")
+	}
+	return out + ")"
 }
 
 func flagSynopsis(f Flag) string {

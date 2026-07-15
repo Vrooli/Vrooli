@@ -72,6 +72,9 @@ const (
 	// AgentOperationsServiceGetMigrationStatusProcedure is the fully-qualified name of the
 	// AgentOperationsService's GetMigrationStatus RPC.
 	AgentOperationsServiceGetMigrationStatusProcedure = "/swarm_manager.v1.AgentOperationsService/GetMigrationStatus"
+	// AgentOperationsServiceRunReconciliationProcedure is the fully-qualified name of the
+	// AgentOperationsService's RunReconciliation RPC.
+	AgentOperationsServiceRunReconciliationProcedure = "/swarm_manager.v1.AgentOperationsService/RunReconciliation"
 )
 
 // AgentOperationsServiceClient is a client for the swarm_manager.v1.AgentOperationsService service.
@@ -137,6 +140,13 @@ type AgentOperationsServiceClient interface {
 	// (written by the Phase-8 migration tooling). An absent document is the
 	// not-started state, so a UI can always render partial-migration state.
 	GetMigrationStatus(context.Context, *connect.Request[api.AgentOpsGetMigrationStatusRequest]) (*connect.Response[api.AgentOpsGetMigrationStatusResponse], error)
+	// RunReconciliation runs the SAME orphan-snapshot sweep the API performs at
+	// startup (opsrunner.ReconcileOrphanSnapshots): execution snapshots that no
+	// workflow operation record references and that are older than the in-flight
+	// grace period are removed. Idempotent and race-safe — a referenced snapshot
+	// is never touched and a young orphan is skipped — so invoking it live is
+	// exactly as safe as the startup sweep. MUTATING (deletes orphan files).
+	RunReconciliation(context.Context, *connect.Request[api.AgentOpsRunReconciliationRequest]) (*connect.Response[api.AgentOpsRunReconciliationResponse], error)
 }
 
 // NewAgentOperationsServiceClient constructs a client for the
@@ -228,6 +238,12 @@ func NewAgentOperationsServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentOperationsServiceMethods.ByName("GetMigrationStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		runReconciliation: connect.NewClient[api.AgentOpsRunReconciliationRequest, api.AgentOpsRunReconciliationResponse](
+			httpClient,
+			baseURL+AgentOperationsServiceRunReconciliationProcedure,
+			connect.WithSchema(agentOperationsServiceMethods.ByName("RunReconciliation")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -246,6 +262,7 @@ type agentOperationsServiceClient struct {
 	getWorkflowProjection *connect.Client[api.AgentOpsGetWorkflowProjectionRequest, api.AgentOpsGetWorkflowProjectionResponse]
 	listExecutionHistory  *connect.Client[api.AgentOpsListExecutionHistoryRequest, api.AgentOpsListExecutionHistoryResponse]
 	getMigrationStatus    *connect.Client[api.AgentOpsGetMigrationStatusRequest, api.AgentOpsGetMigrationStatusResponse]
+	runReconciliation     *connect.Client[api.AgentOpsRunReconciliationRequest, api.AgentOpsRunReconciliationResponse]
 }
 
 // ResolveBinding calls swarm_manager.v1.AgentOperationsService.ResolveBinding.
@@ -313,6 +330,11 @@ func (c *agentOperationsServiceClient) GetMigrationStatus(ctx context.Context, r
 	return c.getMigrationStatus.CallUnary(ctx, req)
 }
 
+// RunReconciliation calls swarm_manager.v1.AgentOperationsService.RunReconciliation.
+func (c *agentOperationsServiceClient) RunReconciliation(ctx context.Context, req *connect.Request[api.AgentOpsRunReconciliationRequest]) (*connect.Response[api.AgentOpsRunReconciliationResponse], error) {
+	return c.runReconciliation.CallUnary(ctx, req)
+}
+
 // AgentOperationsServiceHandler is an implementation of the swarm_manager.v1.AgentOperationsService
 // service.
 type AgentOperationsServiceHandler interface {
@@ -377,6 +399,13 @@ type AgentOperationsServiceHandler interface {
 	// (written by the Phase-8 migration tooling). An absent document is the
 	// not-started state, so a UI can always render partial-migration state.
 	GetMigrationStatus(context.Context, *connect.Request[api.AgentOpsGetMigrationStatusRequest]) (*connect.Response[api.AgentOpsGetMigrationStatusResponse], error)
+	// RunReconciliation runs the SAME orphan-snapshot sweep the API performs at
+	// startup (opsrunner.ReconcileOrphanSnapshots): execution snapshots that no
+	// workflow operation record references and that are older than the in-flight
+	// grace period are removed. Idempotent and race-safe — a referenced snapshot
+	// is never touched and a young orphan is skipped — so invoking it live is
+	// exactly as safe as the startup sweep. MUTATING (deletes orphan files).
+	RunReconciliation(context.Context, *connect.Request[api.AgentOpsRunReconciliationRequest]) (*connect.Response[api.AgentOpsRunReconciliationResponse], error)
 }
 
 // NewAgentOperationsServiceHandler builds an HTTP handler from the service implementation. It
@@ -464,6 +493,12 @@ func NewAgentOperationsServiceHandler(svc AgentOperationsServiceHandler, opts ..
 		connect.WithSchema(agentOperationsServiceMethods.ByName("GetMigrationStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentOperationsServiceRunReconciliationHandler := connect.NewUnaryHandler(
+		AgentOperationsServiceRunReconciliationProcedure,
+		svc.RunReconciliation,
+		connect.WithSchema(agentOperationsServiceMethods.ByName("RunReconciliation")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/swarm_manager.v1.AgentOperationsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentOperationsServiceResolveBindingProcedure:
@@ -492,6 +527,8 @@ func NewAgentOperationsServiceHandler(svc AgentOperationsServiceHandler, opts ..
 			agentOperationsServiceListExecutionHistoryHandler.ServeHTTP(w, r)
 		case AgentOperationsServiceGetMigrationStatusProcedure:
 			agentOperationsServiceGetMigrationStatusHandler.ServeHTTP(w, r)
+		case AgentOperationsServiceRunReconciliationProcedure:
+			agentOperationsServiceRunReconciliationHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -551,4 +588,8 @@ func (UnimplementedAgentOperationsServiceHandler) ListExecutionHistory(context.C
 
 func (UnimplementedAgentOperationsServiceHandler) GetMigrationStatus(context.Context, *connect.Request[api.AgentOpsGetMigrationStatusRequest]) (*connect.Response[api.AgentOpsGetMigrationStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.AgentOperationsService.GetMigrationStatus is not implemented"))
+}
+
+func (UnimplementedAgentOperationsServiceHandler) RunReconciliation(context.Context, *connect.Request[api.AgentOpsRunReconciliationRequest]) (*connect.Response[api.AgentOpsRunReconciliationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swarm_manager.v1.AgentOperationsService.RunReconciliation is not implemented"))
 }

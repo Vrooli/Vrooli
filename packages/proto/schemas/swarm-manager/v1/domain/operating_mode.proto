@@ -51,6 +51,10 @@ enum OperatingModeTargetKind {
   // A single swarm-manager backlog item. Vocabulary is pinned; the runtime
   // adapter arrives in a later phase.
   OPERATING_MODE_TARGET_KIND_BACKLOG_ITEM = 4;
+  // A plain scenario repository workspace, identified by scenario name (the
+  // spec-sync target). Unlike the other kinds, a scenario is a directory that
+  // already exists on disk; its workflow lives under a dedicated scope root.
+  OPERATING_MODE_TARGET_KIND_SCENARIO = 5;
 
   // 2 was the pre-cutover unmanaged plan-ref target kind, now removed
   // (EXECUTION-MODES.md D6). Reserved so the number and name are never reused.

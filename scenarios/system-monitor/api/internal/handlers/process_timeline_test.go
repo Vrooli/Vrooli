@@ -33,6 +33,9 @@ func TestGetProcessTimeline_RankedWindow(t *testing.T) {
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 
 	body := testutil.DecodeJSONBody[map[string]interface{}](t, w.Body.Bytes())
+	if body["rank"] != "cpu" {
+		t.Errorf("rank = %v, want cpu", body["rank"])
+	}
 	if body["window_seconds"].(float64) != 300 {
 		t.Errorf("window_seconds = %v, want 300", body["window_seconds"])
 	}
@@ -56,6 +59,18 @@ func TestGetProcessTimeline_RankedWindow(t *testing.T) {
 	second := entries[1].(map[string]interface{})
 	if second["aggregated"] != true {
 		t.Errorf("second entry should be aggregated, got %v", second["aggregated"])
+	}
+}
+
+func TestGetProcessTimelineAcceptsRSSRank(t *testing.T) {
+	mock := handlermocks.NewMonitorQuerier().WithProcessTimeline(nil)
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+	w := httptest.NewRecorder()
+	handler.HandleGetProcessTimeline(w, httptest.NewRequest(http.MethodGet, "/api/v1/forensics/processes?rank=rss", nil))
+	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
+	body := testutil.DecodeJSONBody[map[string]interface{}](t, w.Body.Bytes())
+	if body["rank"] != "rss" {
+		t.Fatalf("rank = %v, want rss", body["rank"])
 	}
 }
 

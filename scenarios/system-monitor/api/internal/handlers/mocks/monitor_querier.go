@@ -12,6 +12,9 @@ import (
 type MonitorQuerier struct {
 	metrics          *models.MetricsResponse
 	freshMetrics     *models.MetricsResponse
+	pressureSnapshot *models.PressureSnapshot
+	gpuHistory       *models.GPUHistory
+	pressureHistory  *models.PressureHistory
 	detailedMetrics  *models.DetailedMetrics
 	diskDetail       *models.DiskDetailResponse
 	timelineResponse *models.MetricsTimelineResponse
@@ -20,6 +23,21 @@ type MonitorQuerier struct {
 	infraData        *models.InfrastructureMonitorData
 	active           bool
 	err              error
+}
+
+func (m *MonitorQuerier) WithPressureSnapshot(snapshot *models.PressureSnapshot) *MonitorQuerier {
+	m.pressureSnapshot = snapshot
+	return m
+}
+
+func (m *MonitorQuerier) WithGPUHistory(history *models.GPUHistory) *MonitorQuerier {
+	m.gpuHistory = history
+	return m
+}
+
+func (m *MonitorQuerier) WithPressureHistory(history *models.PressureHistory) *MonitorQuerier {
+	m.pressureHistory = history
+	return m
 }
 
 func NewMonitorQuerier() *MonitorQuerier {
@@ -82,6 +100,18 @@ func (m *MonitorQuerier) GetCurrentMetricsFresh(_ context.Context) (*models.Metr
 	return m.metrics, m.err
 }
 
+func (m *MonitorQuerier) GetPressureSnapshot(_ context.Context) (*models.PressureSnapshot, error) {
+	return m.pressureSnapshot, m.err
+}
+
+func (m *MonitorQuerier) GetGPUHistory(_ context.Context, _ time.Duration) (*models.GPUHistory, error) {
+	return m.gpuHistory, m.err
+}
+
+func (m *MonitorQuerier) GetPressureHistory(_ context.Context, _ time.Duration) (*models.PressureHistory, error) {
+	return m.pressureHistory, m.err
+}
+
 func (m *MonitorQuerier) GetDetailedMetrics(_ context.Context) (*models.DetailedMetrics, error) {
 	return m.detailedMetrics, m.err
 }
@@ -104,6 +134,10 @@ func (m *MonitorQuerier) WithProcessTimeline(entries []repository.ProcessTimelin
 }
 
 func (m *MonitorQuerier) GetProcessTimeline(_ context.Context, _ time.Duration, _ string, _ int) ([]repository.ProcessTimelineEntry, error) {
+	return m.processTimeline, m.err
+}
+
+func (m *MonitorQuerier) GetProcessTimelineRanked(_ context.Context, _ time.Duration, _ string, _ int, _ string) ([]repository.ProcessTimelineEntry, error) {
 	return m.processTimeline, m.err
 }
 

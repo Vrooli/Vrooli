@@ -30,10 +30,14 @@ probes, development pprof, logs, and forensics.
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/metrics/current` | Current system metrics snapshot |
+| GET | `/api/v1/metrics/pressure` | Typed Linux memory PSI/OOM snapshot; unavailable evidence is explicit |
 | GET | `/api/v1/metrics/detailed` | Comprehensive metrics (CPU, memory, network, GPU, disk, processes, system health) |
 | GET | `/api/v1/metrics/timeline` | Recent metrics timeline |
 | GET | `/api/v1/metrics/processes` | Process monitoring data (zombies, high-thread, leak candidates) |
 | GET | `/api/v1/metrics/processes/timeline` | Ranked process consumers over a time window, grouped by owner/scenario |
+| GET | `/api/v1/forensics/processes` | Bounded CPU, RSS, or GPU-VRAM-ranked process attribution (`rank=cpu|rss|gpu`) |
+| GET | `/api/v1/forensics/gpu` | Retained GPU utilization and VRAM timeline (`window=1h`) |
+| GET | `/api/v1/forensics/pressure` | Retained memory PSI and OOM-kill timeline (`window=1h`) |
 | GET | `/api/v1/metrics/infrastructure` | Infrastructure monitoring (DB pools, HTTP pools, queues, storage I/O) |
 | GET | `/api/v1/metrics/disk` | Disk partition and usage detail through the generated Connect method |
 

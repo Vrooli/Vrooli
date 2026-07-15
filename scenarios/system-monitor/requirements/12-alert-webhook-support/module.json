@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-25T09:55:24-04:00"
+    "last_validated_at": "2026-07-15T14:24:00-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-002",
       "title": "Alert Webhook Support",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-012",
       "category": "integration",
       "description": "Implement alert webhook system with configurable endpoints and cooldown periods. System must support multiple webhook destinations, retry logic, and customizable alert formats.",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify webhook payload formatting"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test cooldown logic"
         },
         {
@@ -38,7 +38,7 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Alerts reliably reach external systems"
         }
       ]

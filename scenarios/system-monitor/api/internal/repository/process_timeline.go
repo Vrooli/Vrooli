@@ -13,6 +13,7 @@ type processTimelineAgg struct {
 	cpuSum      float64
 	cpuMax      float64
 	rssMax      int64
+	gpuVRAMMax  float64
 	sampleCount int64
 	firstSeen   time.Time
 	lastSeen    time.Time
@@ -28,13 +29,14 @@ func NewProcessTimelineAccumulator() *ProcessTimelineAccumulator {
 	return &ProcessTimelineAccumulator{merged: map[string]*processTimelineAgg{}}
 }
 
-func (a *ProcessTimelineAccumulator) AddRaw(owner, comm string, pid int, cpu float64, rss int64, ts time.Time) {
+func (a *ProcessTimelineAccumulator) AddRaw(owner, comm string, pid int, cpu float64, rss int64, gpuVRAMMB float64, ts time.Time) {
 	row := a.entry(owner, comm)
 	if row.sampleCount == 0 {
 		row.pid = pid
 	}
 	row.addCPU(cpu, 1)
 	row.addRSS(rss)
+	row.addGPU(gpuVRAMMB)
 	row.addWindow(ts, ts)
 }
 
@@ -50,12 +52,18 @@ func (a *ProcessTimelineAccumulator) AddRollup(owner, comm string, avgCPU, maxCP
 	row.addWindow(minute, minute.Add(time.Minute))
 }
 
-func (a *ProcessTimelineAccumulator) Entries(top int) []ProcessTimelineEntry {
+func (a *ProcessTimelineAccumulator) Entries(top int, rank string) []ProcessTimelineEntry {
 	entries := make([]ProcessTimelineEntry, 0, len(a.merged))
 	for _, row := range a.merged {
 		entries = append(entries, row.entry())
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
+		if rank == "gpu" && entries[i].GPUVRAMMB != entries[j].GPUVRAMMB {
+			return entries[i].GPUVRAMMB > entries[j].GPUVRAMMB
+		}
+		if rank == "rss" && entries[i].RSSKB != entries[j].RSSKB {
+			return entries[i].RSSKB > entries[j].RSSKB
+		}
 		if entries[i].CPUPct != entries[j].CPUPct {
 			return entries[i].CPUPct > entries[j].CPUPct
 		}
@@ -95,6 +103,12 @@ func (a *processTimelineAgg) addRSS(rss int64) {
 	}
 }
 
+func (a *processTimelineAgg) addGPU(vram float64) {
+	if vram > a.gpuVRAMMax {
+		a.gpuVRAMMax = vram
+	}
+}
+
 func (a *processTimelineAgg) addWindow(start, end time.Time) {
 	if a.firstSeen.IsZero() || start.Before(a.firstSeen) {
 		a.firstSeen = start
@@ -116,6 +130,7 @@ func (a *processTimelineAgg) entry() ProcessTimelineEntry {
 		Aggregated:  a.aggregated,
 		CPUPct:      avg,
 		RSSKB:       a.rssMax,
+		GPUVRAMMB:   a.gpuVRAMMax,
 		SampleCount: a.sampleCount,
 		FirstSeen:   a.firstSeen,
 		LastSeen:    a.lastSeen,

@@ -48,9 +48,6 @@ const (
 	// OnboardServiceCancelOnboardingProcedure is the fully-qualified name of the OnboardService's
 	// CancelOnboarding RPC.
 	OnboardServiceCancelOnboardingProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/CancelOnboarding"
-	// OnboardServiceGetLocalNodeSuggestionProcedure is the fully-qualified name of the OnboardService's
-	// GetLocalNodeSuggestion RPC.
-	OnboardServiceGetLocalNodeSuggestionProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/GetLocalNodeSuggestion"
 )
 
 // OnboardServiceClient is a client for the vrooli.vrooli_bridge.v1.onboard.OnboardService service.
@@ -81,12 +78,6 @@ type OnboardServiceClient interface {
 	// CANCELLED. Cancelling an already-terminal op is a no-op that returns the
 	// terminal op. Owner-gated.
 	CancelOnboarding(context.Context, *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error)
-	// GetLocalNodeSuggestion returns onboarding defaults for the machine the
-	// control plane itself runs on, so the UI can offer a one-click "add this
-	// machine" prefill. The username is the OS user the control-plane process
-	// runs as (resolved server-side — the browser cannot know it); the host is
-	// the loopback address. Owner-gated, read-only, no side effects.
-	GetLocalNodeSuggestion(context.Context, *connect.Request[onboard.GetLocalNodeSuggestionRequest]) (*connect.Response[onboard.GetLocalNodeSuggestionResponse], error)
 }
 
 // NewOnboardServiceClient constructs a client for the
@@ -131,23 +122,16 @@ func NewOnboardServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(onboardServiceMethods.ByName("CancelOnboarding")),
 			connect.WithClientOptions(opts...),
 		),
-		getLocalNodeSuggestion: connect.NewClient[onboard.GetLocalNodeSuggestionRequest, onboard.GetLocalNodeSuggestionResponse](
-			httpClient,
-			baseURL+OnboardServiceGetLocalNodeSuggestionProcedure,
-			connect.WithSchema(onboardServiceMethods.ByName("GetLocalNodeSuggestion")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // onboardServiceClient implements OnboardServiceClient.
 type onboardServiceClient struct {
-	startOnboarding        *connect.Client[onboard.StartOnboardingRequest, onboard.StartOnboardingResponse]
-	getOnboarding          *connect.Client[onboard.GetOnboardingRequest, onboard.GetOnboardingResponse]
-	listOnboardings        *connect.Client[onboard.ListOnboardingsRequest, onboard.ListOnboardingsResponse]
-	waitOnboarding         *connect.Client[onboard.WaitOnboardingRequest, onboard.WaitOnboardingResponse]
-	cancelOnboarding       *connect.Client[onboard.CancelOnboardingRequest, onboard.CancelOnboardingResponse]
-	getLocalNodeSuggestion *connect.Client[onboard.GetLocalNodeSuggestionRequest, onboard.GetLocalNodeSuggestionResponse]
+	startOnboarding  *connect.Client[onboard.StartOnboardingRequest, onboard.StartOnboardingResponse]
+	getOnboarding    *connect.Client[onboard.GetOnboardingRequest, onboard.GetOnboardingResponse]
+	listOnboardings  *connect.Client[onboard.ListOnboardingsRequest, onboard.ListOnboardingsResponse]
+	waitOnboarding   *connect.Client[onboard.WaitOnboardingRequest, onboard.WaitOnboardingResponse]
+	cancelOnboarding *connect.Client[onboard.CancelOnboardingRequest, onboard.CancelOnboardingResponse]
 }
 
 // StartOnboarding calls vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding.
@@ -173,12 +157,6 @@ func (c *onboardServiceClient) WaitOnboarding(ctx context.Context, req *connect.
 // CancelOnboarding calls vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding.
 func (c *onboardServiceClient) CancelOnboarding(ctx context.Context, req *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error) {
 	return c.cancelOnboarding.CallUnary(ctx, req)
-}
-
-// GetLocalNodeSuggestion calls
-// vrooli.vrooli_bridge.v1.onboard.OnboardService.GetLocalNodeSuggestion.
-func (c *onboardServiceClient) GetLocalNodeSuggestion(ctx context.Context, req *connect.Request[onboard.GetLocalNodeSuggestionRequest]) (*connect.Response[onboard.GetLocalNodeSuggestionResponse], error) {
-	return c.getLocalNodeSuggestion.CallUnary(ctx, req)
 }
 
 // OnboardServiceHandler is an implementation of the vrooli.vrooli_bridge.v1.onboard.OnboardService
@@ -210,12 +188,6 @@ type OnboardServiceHandler interface {
 	// CANCELLED. Cancelling an already-terminal op is a no-op that returns the
 	// terminal op. Owner-gated.
 	CancelOnboarding(context.Context, *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error)
-	// GetLocalNodeSuggestion returns onboarding defaults for the machine the
-	// control plane itself runs on, so the UI can offer a one-click "add this
-	// machine" prefill. The username is the OS user the control-plane process
-	// runs as (resolved server-side — the browser cannot know it); the host is
-	// the loopback address. Owner-gated, read-only, no side effects.
-	GetLocalNodeSuggestion(context.Context, *connect.Request[onboard.GetLocalNodeSuggestionRequest]) (*connect.Response[onboard.GetLocalNodeSuggestionResponse], error)
 }
 
 // NewOnboardServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -255,12 +227,6 @@ func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.Handler
 		connect.WithSchema(onboardServiceMethods.ByName("CancelOnboarding")),
 		connect.WithHandlerOptions(opts...),
 	)
-	onboardServiceGetLocalNodeSuggestionHandler := connect.NewUnaryHandler(
-		OnboardServiceGetLocalNodeSuggestionProcedure,
-		svc.GetLocalNodeSuggestion,
-		connect.WithSchema(onboardServiceMethods.ByName("GetLocalNodeSuggestion")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/vrooli.vrooli_bridge.v1.onboard.OnboardService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OnboardServiceStartOnboardingProcedure:
@@ -273,8 +239,6 @@ func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.Handler
 			onboardServiceWaitOnboardingHandler.ServeHTTP(w, r)
 		case OnboardServiceCancelOnboardingProcedure:
 			onboardServiceCancelOnboardingHandler.ServeHTTP(w, r)
-		case OnboardServiceGetLocalNodeSuggestionProcedure:
-			onboardServiceGetLocalNodeSuggestionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -302,8 +266,4 @@ func (UnimplementedOnboardServiceHandler) WaitOnboarding(context.Context, *conne
 
 func (UnimplementedOnboardServiceHandler) CancelOnboarding(context.Context, *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding is not implemented"))
-}
-
-func (UnimplementedOnboardServiceHandler) GetLocalNodeSuggestion(context.Context, *connect.Request[onboard.GetLocalNodeSuggestionRequest]) (*connect.Response[onboard.GetLocalNodeSuggestionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.onboard.OnboardService.GetLocalNodeSuggestion is not implemented"))
 }

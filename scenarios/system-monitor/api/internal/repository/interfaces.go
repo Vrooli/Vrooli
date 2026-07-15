@@ -58,6 +58,7 @@ type ProcessSample struct {
 	CPUPct    float64
 	RSSKB     int64
 	Threads   int
+	GPUVRAMMB float64
 }
 
 // ProcessTimelineQuery parameterizes a timeline read.
@@ -66,6 +67,7 @@ type ProcessTimelineQuery struct {
 	End   time.Time
 	Owner string // optional scenario filter; "" means all owners
 	Top   int    // optional cap on ranked rows returned; <=0 means a default
+	Rank  string // "cpu" (default), "rss", or "gpu"
 }
 
 // ProcessTimelineEntry is one ranked consumer over the queried window,
@@ -77,6 +79,7 @@ type ProcessTimelineEntry struct {
 	Aggregated  bool // true when the entry spans rollup (per-minute) rows
 	CPUPct      float64
 	RSSKB       int64
+	GPUVRAMMB   float64
 	SampleCount int64
 	FirstSeen   time.Time
 	LastSeen    time.Time

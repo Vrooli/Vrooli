@@ -110,6 +110,14 @@ service AgentOperationsService {
   // (written by the Phase-8 migration tooling). An absent document is the
   // not-started state, so a UI can always render partial-migration state.
   rpc GetMigrationStatus(AgentOpsGetMigrationStatusRequest) returns (AgentOpsGetMigrationStatusResponse);
+
+  // RunReconciliation runs the SAME orphan-snapshot sweep the API performs at
+  // startup (opsrunner.ReconcileOrphanSnapshots): execution snapshots that no
+  // workflow operation record references and that are older than the in-flight
+  // grace period are removed. Idempotent and race-safe — a referenced snapshot
+  // is never touched and a young orphan is skipped — so invoking it live is
+  // exactly as safe as the startup sweep. MUTATING (deletes orphan files).
+  rpc RunReconciliation(AgentOpsRunReconciliationRequest) returns (AgentOpsRunReconciliationResponse);
 }
 
 // AgentOpsTargetSelector identifies a target: a kind plus its domain id
@@ -457,6 +465,27 @@ message AgentOpsListExecutionHistoryResponse {
 // ---------------------------------------------------------------------------
 
 message AgentOpsGetMigrationStatusRequest {}
+
+// ---------------------------------------------------------------------------
+// Reconciliation
+// ---------------------------------------------------------------------------
+
+message AgentOpsRunReconciliationRequest {}
+
+// AgentOpsRunReconciliationResponse is the orphan-snapshot sweep report — the
+// same shape the startup sweep logs.
+message AgentOpsRunReconciliationResponse {
+  // dirs_scanned is the number of agentops directories examined.
+  int32 dirs_scanned = 1;
+  // snapshots_seen is the total execution snapshot files found across those dirs.
+  int32 snapshots_seen = 2;
+  // reaped lists the snapshot file paths removed (orphans past the grace period).
+  repeated string reaped = 3;
+  // skipped_too_recent counts orphan snapshots left in place because they were
+  // younger than the grace period (a concurrent in-flight Invoke may still be
+  // between writing its snapshot and committing its operation record).
+  int32 skipped_too_recent = 4;
+}
 
 // AgentOpsGetMigrationStatusResponse projects the Phase-8 persisted-state
 // migration status document. An absent document is state=not-started with

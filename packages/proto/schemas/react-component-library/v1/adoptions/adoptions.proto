@@ -11,8 +11,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // =============================================================================
 //
 // @layer 5  (api surface)
-// @domain adoptions
-// @stability experimental
+// @stability stable
 //
 // Wire contract for the AdoptionsService Connect-RPC service. An
 // adoption record is a soft link from a registry component (by id) to a
@@ -29,6 +28,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 
 service AdoptionsService {
   rpc ListAdoptions(ListAdoptionsRequest) returns (ListAdoptionsResponse);
+  rpc ListEffectiveAdoptions(ListEffectiveAdoptionsRequest) returns (ListEffectiveAdoptionsResponse);
   rpc ApplyAdoption(ApplyAdoptionRequest) returns (ApplyAdoptionResponse);
   rpc ReapplyAdoption(ReapplyAdoptionRequest) returns (ReapplyAdoptionResponse);
   rpc DeleteAdoption(DeleteAdoptionRequest) returns (DeleteAdoptionResponse);
@@ -122,6 +122,11 @@ message AdoptionFile {
   string adopted_path = 2;
   string source_sha256 = 3;
   string adopted_snapshot_sha256 = 4;
+  // Immutable identity of the catalog asset that supplied this file. Empty
+  // means a legacy row whose attribution could not be derived safely.
+  string source_asset_id = 5;
+  string source_library_id = 6;
+  string source_version = 7;
 }
 
 message ListAdoptionsRequest {
@@ -135,6 +140,26 @@ message ListAdoptionsRequest {
 
 message ListAdoptionsResponse {
   repeated Adoption adoptions = 1;
+}
+
+// EffectiveAdoption identifies an asset use through a root adoption. When
+// mediated is true, the asset was materialized as a dependency file and the
+// parent_adoption is the direct component adoption that caused it.
+message EffectiveAdoption {
+  string source_asset_id = 1;
+  string source_library_id = 2;
+  string source_version = 3;
+  bool mediated = 4;
+  Adoption parent_adoption = 5;
+}
+
+message ListEffectiveAdoptionsRequest {
+  string component_id = 1;
+  int32 limit = 2;
+}
+
+message ListEffectiveAdoptionsResponse {
+  repeated EffectiveAdoption adoptions = 1;
 }
 
 message ApplyAdoptionRequest {
@@ -281,6 +306,15 @@ message SuggestAdoptionsRequest {
   string component_id = 3;
 }
 
+// RecommendationClass distinguishes read-only inventory heuristics from the
+// separately returned, content-verified discovery candidates. No class grants
+// authority to mutate a target scenario.
+enum RecommendationClass {
+  RECOMMENDATION_CLASS_UNSPECIFIED = 0;
+  RECOMMENDATION_CLASS_HEURISTIC = 1;
+  RECOMMENDATION_CLASS_UNAVAILABLE = 2;
+}
+
 message AdoptionSuggestion {
   string scenario = 1;
   string component_id = 2;
@@ -289,6 +323,7 @@ message AdoptionSuggestion {
   // Scenario-relative inventory surface that triggered this candidate.
   string inventory_path = 5;
   repeated string reasons = 7;
+  RecommendationClass classification = 8;
 }
 
 message SuggestAdoptionsResponse {

@@ -1,6 +1,10 @@
+import datetime
+
 from common.v1 import maturity_pb2 as _maturity_pb2
 from common.v1 import metrics_pb2 as _metrics_pb2
 from google.protobuf import any_pb2 as _any_pb2
+from google.protobuf import duration_pb2 as _duration_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -18,12 +22,48 @@ class ValidationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VALIDATION_STATUS_DEGRADED: _ClassVar[ValidationStatus]
     VALIDATION_STATUS_ERROR: _ClassVar[ValidationStatus]
     VALIDATION_STATUS_SKIPPED: _ClassVar[ValidationStatus]
+
+class ValidationRunState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    VALIDATION_RUN_STATE_UNSPECIFIED: _ClassVar[ValidationRunState]
+    VALIDATION_RUN_STATE_QUEUED: _ClassVar[ValidationRunState]
+    VALIDATION_RUN_STATE_RUNNING: _ClassVar[ValidationRunState]
+    VALIDATION_RUN_STATE_SUCCEEDED: _ClassVar[ValidationRunState]
+    VALIDATION_RUN_STATE_FAILED: _ClassVar[ValidationRunState]
+    VALIDATION_RUN_STATE_CANCELED: _ClassVar[ValidationRunState]
+    VALIDATION_RUN_STATE_RECOVERY_FAILED: _ClassVar[ValidationRunState]
+
+class ValidationRunErrorCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    VALIDATION_RUN_ERROR_CODE_UNSPECIFIED: _ClassVar[ValidationRunErrorCode]
+    VALIDATION_RUN_ERROR_CODE_INVALID_TRANSITION: _ClassVar[ValidationRunErrorCode]
+    VALIDATION_RUN_ERROR_CODE_NOT_FOUND: _ClassVar[ValidationRunErrorCode]
+    VALIDATION_RUN_ERROR_CODE_IDEMPOTENCY_CONFLICT: _ClassVar[ValidationRunErrorCode]
+    VALIDATION_RUN_ERROR_CODE_ABORT_REJECTED: _ClassVar[ValidationRunErrorCode]
+    VALIDATION_RUN_ERROR_CODE_EXECUTION_FAILED: _ClassVar[ValidationRunErrorCode]
+    VALIDATION_RUN_ERROR_CODE_RECOVERY_FAILED: _ClassVar[ValidationRunErrorCode]
+    VALIDATION_RUN_ERROR_CODE_WAIT_TIMEOUT: _ClassVar[ValidationRunErrorCode]
 VALIDATION_STATUS_UNSPECIFIED: ValidationStatus
 VALIDATION_STATUS_PASSED: ValidationStatus
 VALIDATION_STATUS_FAILED: ValidationStatus
 VALIDATION_STATUS_DEGRADED: ValidationStatus
 VALIDATION_STATUS_ERROR: ValidationStatus
 VALIDATION_STATUS_SKIPPED: ValidationStatus
+VALIDATION_RUN_STATE_UNSPECIFIED: ValidationRunState
+VALIDATION_RUN_STATE_QUEUED: ValidationRunState
+VALIDATION_RUN_STATE_RUNNING: ValidationRunState
+VALIDATION_RUN_STATE_SUCCEEDED: ValidationRunState
+VALIDATION_RUN_STATE_FAILED: ValidationRunState
+VALIDATION_RUN_STATE_CANCELED: ValidationRunState
+VALIDATION_RUN_STATE_RECOVERY_FAILED: ValidationRunState
+VALIDATION_RUN_ERROR_CODE_UNSPECIFIED: ValidationRunErrorCode
+VALIDATION_RUN_ERROR_CODE_INVALID_TRANSITION: ValidationRunErrorCode
+VALIDATION_RUN_ERROR_CODE_NOT_FOUND: ValidationRunErrorCode
+VALIDATION_RUN_ERROR_CODE_IDEMPOTENCY_CONFLICT: ValidationRunErrorCode
+VALIDATION_RUN_ERROR_CODE_ABORT_REJECTED: ValidationRunErrorCode
+VALIDATION_RUN_ERROR_CODE_EXECUTION_FAILED: ValidationRunErrorCode
+VALIDATION_RUN_ERROR_CODE_RECOVERY_FAILED: ValidationRunErrorCode
+VALIDATION_RUN_ERROR_CODE_WAIT_TIMEOUT: ValidationRunErrorCode
 
 class ValidateScenarioRequest(_message.Message):
     __slots__ = ("scenario", "path", "include_execution")
@@ -48,6 +88,108 @@ class ValidateScenarioResponse(_message.Message):
     native_detail: _any_pb2.Any
     metrics: _metrics_pb2.ExecutionMetrics
     def __init__(self, scenario: _Optional[str] = ..., status: _Optional[_Union[ValidationStatus, str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., native_detail: _Optional[_Union[_any_pb2.Any, _Mapping]] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ...) -> None: ...
+
+class ValidationRunError(_message.Message):
+    __slots__ = ("code", "message", "retryable")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    RETRYABLE_FIELD_NUMBER: _ClassVar[int]
+    code: ValidationRunErrorCode
+    message: str
+    retryable: bool
+    def __init__(self, code: _Optional[_Union[ValidationRunErrorCode, str]] = ..., message: _Optional[str] = ..., retryable: _Optional[bool] = ...) -> None: ...
+
+class ValidationRun(_message.Message):
+    __slots__ = ("run_id", "scenario", "path", "idempotency_key", "parent_run_id", "state", "created_at", "started_at", "completed_at", "estimated_remaining", "preliminary_static_result", "terminal_result", "error", "artifact_references", "cancellation_requested")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_REMAINING_FIELD_NUMBER: _ClassVar[int]
+    PRELIMINARY_STATIC_RESULT_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_RESULT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_REFERENCES_FIELD_NUMBER: _ClassVar[int]
+    CANCELLATION_REQUESTED_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    scenario: str
+    path: str
+    idempotency_key: str
+    parent_run_id: str
+    state: ValidationRunState
+    created_at: _timestamp_pb2.Timestamp
+    started_at: _timestamp_pb2.Timestamp
+    completed_at: _timestamp_pb2.Timestamp
+    estimated_remaining: _duration_pb2.Duration
+    preliminary_static_result: ValidateScenarioResponse
+    terminal_result: ValidateScenarioResponse
+    error: ValidationRunError
+    artifact_references: _containers.RepeatedCompositeFieldContainer[_any_pb2.Any]
+    cancellation_requested: bool
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., state: _Optional[_Union[ValidationRunState, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., estimated_remaining: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., preliminary_static_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., terminal_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., error: _Optional[_Union[ValidationRunError, _Mapping]] = ..., artifact_references: _Optional[_Iterable[_Union[_any_pb2.Any, _Mapping]]] = ..., cancellation_requested: _Optional[bool] = ...) -> None: ...
+
+class StartValidationRunRequest(_message.Message):
+    __slots__ = ("scenario", "path", "idempotency_key", "parent_run_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    path: str
+    idempotency_key: str
+    parent_run_id: str
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ...) -> None: ...
+
+class StartValidationRunResponse(_message.Message):
+    __slots__ = ("run",)
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    run: ValidationRun
+    def __init__(self, run: _Optional[_Union[ValidationRun, _Mapping]] = ...) -> None: ...
+
+class GetValidationRunRequest(_message.Message):
+    __slots__ = ("run_id",)
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+
+class GetValidationRunResponse(_message.Message):
+    __slots__ = ("run",)
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    run: ValidationRun
+    def __init__(self, run: _Optional[_Union[ValidationRun, _Mapping]] = ...) -> None: ...
+
+class WaitValidationRunRequest(_message.Message):
+    __slots__ = ("run_id", "timeout")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    timeout: _duration_pb2.Duration
+    def __init__(self, run_id: _Optional[str] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ...) -> None: ...
+
+class WaitValidationRunResponse(_message.Message):
+    __slots__ = ("run",)
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    run: ValidationRun
+    def __init__(self, run: _Optional[_Union[ValidationRun, _Mapping]] = ...) -> None: ...
+
+class AbortValidationRunRequest(_message.Message):
+    __slots__ = ("run_id", "reason")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    reason: str
+    def __init__(self, run_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class AbortValidationRunResponse(_message.Message):
+    __slots__ = ("run",)
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    run: ValidationRun
+    def __init__(self, run: _Optional[_Union[ValidationRun, _Mapping]] = ...) -> None: ...
 
 class FixRequest(_message.Message):
     __slots__ = ("scenario", "path", "rule_ids")

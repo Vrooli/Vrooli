@@ -17,7 +17,7 @@ Set these in `.env` or export them before starting the scenario.
 | `MEMORY_WARNING_THRESHOLD` | `80` | Memory usage warning threshold (%) |
 | `MEMORY_CRITICAL_THRESHOLD` | `95` | Memory usage critical threshold (%) |
 | `SYSTEM_MONITOR_PROC_SAMPLE_INTERVAL` | `20s` | Cadence of the per-process `/proc` sampler that feeds the attribution timeline. Go duration string. |
-| `SYSTEM_MONITOR_PROC_SAMPLE_TOP_N` | `50` | Max processes (ranked by CPU) persisted per sampling cycle. Dropped lower-usage processes are logged, never silently capped. |
+| `SYSTEM_MONITOR_PROC_SAMPLE_TOP_N` | `50` | Top-N processes retained independently by CPU, RSS, and GPU VRAM per sampling cycle; the bounded union is at most 3N rows. Dropped processes are logged, never silently capped. |
 | `SYSTEM_MONITOR_RAW_RETENTION` | `6h` | How long raw per-process rows are kept before they are downsampled into per-minute rollups. Go duration string. |
 | `SYSTEM_MONITOR_ROLLUP_RETENTION` | `720h` | How long per-owner/per-minute rollups are kept (default 30 days). Go duration string. |
 
@@ -116,7 +116,7 @@ A single `/proc` walk per sampling cycle captures pid/ppid/cmdline/cwd/CPU%/RSS
 for every live process, attributes each to its owning scenario (by matching
 `.../scenarios/<name>/` in the working directory, parsing a `<scenario>-api`
 binary name, and walking the parent chain so children inherit their launcher's
-owner), and persists the top-N consumers to a `process_samples` table. Host
+owner), and persists the bounded CPU/RSS top-N union to a `process_samples` table. Host
 processes that belong to no scenario are bucketed as `unknown` (a first-class
 result, not an error). This replaces the opaque `bash -c "ps | sort | head"`
 pipelines with one cheap pass and turns the manual "top consumers by scenario"
@@ -132,6 +132,11 @@ Query the ranked timeline over a window, grouped by source scenario:
 # REST
 curl 'http://localhost:8080/api/v1/metrics/processes/timeline?window=5m&top=20'
 curl 'http://localhost:8080/api/v1/metrics/processes/timeline?window=1h&owner=security-health'
+curl 'http://localhost:8080/api/v1/metrics/pressure'
+curl 'http://localhost:8080/api/v1/forensics/processes?window=1h&rank=rss&top=20'
+curl 'http://localhost:8080/api/v1/forensics/processes?window=1h&rank=gpu&top=20'
+curl 'http://localhost:8080/api/v1/forensics/gpu?window=1h'
+curl 'http://localhost:8080/api/v1/forensics/pressure?window=1h'
 
 # CLI
 system-monitor metrics process-timeline --window 5m --top 20

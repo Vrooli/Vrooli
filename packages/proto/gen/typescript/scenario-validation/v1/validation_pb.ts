@@ -8,15 +8,15 @@ import type { MaturityAssessment } from "../../common/v1/maturity_pb";
 import { file_common_v1_maturity } from "../../common/v1/maturity_pb";
 import type { ExecutionMetrics } from "../../common/v1/metrics_pb";
 import { file_common_v1_metrics } from "../../common/v1/metrics_pb";
-import type { Any } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_any } from "@bufbuild/protobuf/wkt";
+import type { Any, Duration, Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_any, file_google_protobuf_duration, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file scenario-validation/v1/validation.proto.
  */
 export const file_scenario_validation_v1_validation: GenFile = /*@__PURE__*/
-  fileDesc("CidzY2VuYXJpby12YWxpZGF0aW9uL3YxL3ZhbGlkYXRpb24ucHJvdG8SHXZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxIlQKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YAyABKAgi+wEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRI/CgZzdGF0dXMYAiABKA4yLy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uU3RhdHVzEjEKCmFzc2Vzc21lbnQYAyABKAsyHS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50EisKDW5hdGl2ZV9kZXRhaWwYBCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55EiwKB21ldHJpY3MYBSABKAsyGy5jb21tb24udjEuRXhlY3V0aW9uTWV0cmljcyI+CgpGaXhSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSEAoIcnVsZV9pZHMYAyADKAkidwoMRml4Q2FuZGlkYXRlEg8KB3J1bGVfaWQYASABKAkSEQoJZmlsZV9wYXRoGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg4KBmJlZm9yZRgEIAEoCRINCgVhZnRlchgFIAEoCRIPCgdhcHBsaWVkGAYgASgIIoMBCgtGaXhSZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIPCgdhcHBsaWVkGAIgASgIEj8KCmNhbmRpZGF0ZXMYAyADKAsyKy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhDYW5kaWRhdGUSEAoIbWVzc2FnZXMYBCADKAkqzQEKEFZhbGlkYXRpb25TdGF0dXMSIQodVkFMSURBVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIcChhWQUxJREFUSU9OX1NUQVRVU19QQVNTRUQQARIcChhWQUxJREFUSU9OX1NUQVRVU19GQUlMRUQQAhIeChpWQUxJREFUSU9OX1NUQVRVU19ERUdSQURFRBADEhsKF1ZBTElEQVRJT05fU1RBVFVTX0VSUk9SEAQSHQoZVkFMSURBVElPTl9TVEFUVVNfU0tJUFBFRBAFMukCChlTY2VuYXJpb1ZhbGlkYXRpb25TZXJ2aWNlEoMBChBWYWxpZGF0ZVNjZW5hcmlvEjYudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QaNy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USYwoKUHJldmlld0ZpeBIpLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLkZpeFJlcXVlc3QaKi52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhSZXNwb25zZRJhCghBcHBseUZpeBIpLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLkZpeFJlcXVlc3QaKi52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NjZW5hcmlvLXZhbGlkYXRpb24vdjE7c2NlbmFyaW92YWxpZGF0aW9udjFiBnByb3RvMw", [file_common_v1_maturity, file_common_v1_metrics, file_google_protobuf_any]);
+  fileDesc("CidzY2VuYXJpby12YWxpZGF0aW9uL3YxL3ZhbGlkYXRpb24ucHJvdG8SHXZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxIlQKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YAyABKAgi+wEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRI/CgZzdGF0dXMYAiABKA4yLy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uU3RhdHVzEjEKCmFzc2Vzc21lbnQYAyABKAsyHS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50EisKDW5hdGl2ZV9kZXRhaWwYBCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55EiwKB21ldHJpY3MYBSABKAsyGy5jb21tb24udjEuRXhlY3V0aW9uTWV0cmljcyJ9ChJWYWxpZGF0aW9uUnVuRXJyb3ISQwoEY29kZRgBIAEoDjI1LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW5FcnJvckNvZGUSDwoHbWVzc2FnZRgCIAEoCRIRCglyZXRyeWFibGUYAyABKAgivgUKDVZhbGlkYXRpb25SdW4SDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBHBhdGgYAyABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAQgASgJEhUKDXBhcmVudF9ydW5faWQYBSABKAkSQAoFc3RhdGUYBiABKA4yMS52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uUnVuU3RhdGUSLgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKc3RhcnRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI2ChNlc3RpbWF0ZWRfcmVtYWluaW5nGAogASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEloKGXByZWxpbWluYXJ5X3N0YXRpY19yZXN1bHQYCyABKAsyNy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USUAoPdGVybWluYWxfcmVzdWx0GAwgASgLMjcudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGVTY2VuYXJpb1Jlc3BvbnNlEkAKBWVycm9yGA0gASgLMjEudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGlvblJ1bkVycm9yEjEKE2FydGlmYWN0X3JlZmVyZW5jZXMYDiADKAsyFC5nb29nbGUucHJvdG9idWYuQW55Eh4KFmNhbmNlbGxhdGlvbl9yZXF1ZXN0ZWQYDyABKAgiawoZU3RhcnRWYWxpZGF0aW9uUnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgDIAEoCRIVCg1wYXJlbnRfcnVuX2lkGAQgASgJIlcKGlN0YXJ0VmFsaWRhdGlvblJ1blJlc3BvbnNlEjkKA3J1bhgBIAEoCzIsLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW4iKQoXR2V0VmFsaWRhdGlvblJ1blJlcXVlc3QSDgoGcnVuX2lkGAEgASgJIlUKGEdldFZhbGlkYXRpb25SdW5SZXNwb25zZRI5CgNydW4YASABKAsyLC52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uUnVuIlYKGFdhaXRWYWxpZGF0aW9uUnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkSKgoHdGltZW91dBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiJWChlXYWl0VmFsaWRhdGlvblJ1blJlc3BvbnNlEjkKA3J1bhgBIAEoCzIsLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW4iOwoZQWJvcnRWYWxpZGF0aW9uUnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkSDgoGcmVhc29uGAIgASgJIlcKGkFib3J0VmFsaWRhdGlvblJ1blJlc3BvbnNlEjkKA3J1bhgBIAEoCzIsLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRpb25SdW4iPgoKRml4UmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhAKCHJ1bGVfaWRzGAMgAygJIncKDEZpeENhbmRpZGF0ZRIPCgdydWxlX2lkGAEgASgJEhEKCWZpbGVfcGF0aBgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIOCgZiZWZvcmUYBCABKAkSDQoFYWZ0ZXIYBSABKAkSDwoHYXBwbGllZBgGIAEoCCKDAQoLRml4UmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSDwoHYXBwbGllZBgCIAEoCBI/CgpjYW5kaWRhdGVzGAMgAygLMisudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuRml4Q2FuZGlkYXRlEhAKCG1lc3NhZ2VzGAQgAygJKs0BChBWYWxpZGF0aW9uU3RhdHVzEiEKHVZBTElEQVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASHAoYVkFMSURBVElPTl9TVEFUVVNfUEFTU0VEEAESHAoYVkFMSURBVElPTl9TVEFUVVNfRkFJTEVEEAISHgoaVkFMSURBVElPTl9TVEFUVVNfREVHUkFERUQQAxIbChdWQUxJREFUSU9OX1NUQVRVU19FUlJPUhAEEh0KGVZBTElEQVRJT05fU1RBVFVTX1NLSVBQRUQQBSqPAgoSVmFsaWRhdGlvblJ1blN0YXRlEiQKIFZBTElEQVRJT05fUlVOX1NUQVRFX1VOU1BFQ0lGSUVEEAASHwobVkFMSURBVElPTl9SVU5fU1RBVEVfUVVFVUVEEAESIAocVkFMSURBVElPTl9SVU5fU1RBVEVfUlVOTklORxACEiIKHlZBTElEQVRJT05fUlVOX1NUQVRFX1NVQ0NFRURFRBADEh8KG1ZBTElEQVRJT05fUlVOX1NUQVRFX0ZBSUxFRBAEEiEKHVZBTElEQVRJT05fUlVOX1NUQVRFX0NBTkNFTEVEEAUSKAokVkFMSURBVElPTl9SVU5fU1RBVEVfUkVDT1ZFUllfRkFJTEVEEAYqiwMKFlZhbGlkYXRpb25SdW5FcnJvckNvZGUSKQolVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEjAKLFZBTElEQVRJT05fUlVOX0VSUk9SX0NPREVfSU5WQUxJRF9UUkFOU0lUSU9OEAESJwojVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9OT1RfRk9VTkQQAhIyCi5WQUxJREFUSU9OX1JVTl9FUlJPUl9DT0RFX0lERU1QT1RFTkNZX0NPTkZMSUNUEAMSLAooVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9BQk9SVF9SRUpFQ1RFRBAEEi4KKlZBTElEQVRJT05fUlVOX0VSUk9SX0NPREVfRVhFQ1VUSU9OX0ZBSUxFRBAFEi0KKVZBTElEQVRJT05fUlVOX0VSUk9SX0NPREVfUkVDT1ZFUllfRkFJTEVEEAYSKgomVkFMSURBVElPTl9SVU5fRVJST1JfQ09ERV9XQUlUX1RJTUVPVVQQBzLpAgoZU2NlbmFyaW9WYWxpZGF0aW9uU2VydmljZRKDAQoQVmFsaWRhdGVTY2VuYXJpbxI2LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0GjcudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGVTY2VuYXJpb1Jlc3BvbnNlEmMKClByZXZpZXdGaXgSKS52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhSZXF1ZXN0GioudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuRml4UmVzcG9uc2USYQoIQXBwbHlGaXgSKS52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhSZXF1ZXN0GioudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuRml4UmVzcG9uc2UyxAQKG0R1cmFibGVWYWxpZGF0aW9uUnVuU2VydmljZRKJAQoSU3RhcnRWYWxpZGF0aW9uUnVuEjgudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuU3RhcnRWYWxpZGF0aW9uUnVuUmVxdWVzdBo5LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlN0YXJ0VmFsaWRhdGlvblJ1blJlc3BvbnNlEoMBChBHZXRWYWxpZGF0aW9uUnVuEjYudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuR2V0VmFsaWRhdGlvblJ1blJlcXVlc3QaNy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5HZXRWYWxpZGF0aW9uUnVuUmVzcG9uc2UShgEKEVdhaXRWYWxpZGF0aW9uUnVuEjcudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuV2FpdFZhbGlkYXRpb25SdW5SZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuV2FpdFZhbGlkYXRpb25SdW5SZXNwb25zZRKJAQoSQWJvcnRWYWxpZGF0aW9uUnVuEjgudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuQWJvcnRWYWxpZGF0aW9uUnVuUmVxdWVzdBo5LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLkFib3J0VmFsaWRhdGlvblJ1blJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2NlbmFyaW8tdmFsaWRhdGlvbi92MTtzY2VuYXJpb3ZhbGlkYXRpb252MWIGcHJvdG8z", [file_common_v1_maturity, file_common_v1_metrics, file_google_protobuf_any, file_google_protobuf_duration, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.ValidateScenarioRequest
@@ -103,6 +103,294 @@ export const ValidateScenarioResponseSchema: GenMessage<ValidateScenarioResponse
   messageDesc(file_scenario_validation_v1_validation, 1);
 
 /**
+ * @generated from message vrooli.scenario_validation.v1.ValidationRunError
+ */
+export type ValidationRunError = Message<"vrooli.scenario_validation.v1.ValidationRunError"> & {
+  /**
+   * @generated from field: vrooli.scenario_validation.v1.ValidationRunErrorCode code = 1;
+   */
+  code: ValidationRunErrorCode;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
+
+  /**
+   * @generated from field: bool retryable = 3;
+   */
+  retryable: boolean;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.ValidationRunError.
+ * Use `create(ValidationRunErrorSchema)` to create a new message.
+ */
+export const ValidationRunErrorSchema: GenMessage<ValidationRunError> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 2);
+
+/**
+ * ValidationRun is the durable, reattachable provider-owned record. Terminal
+ * results use the existing shared response so direct and delegated consumers
+ * receive identical provider-owned findings, presentation, and metrics.
+ *
+ * @generated from message vrooli.scenario_validation.v1.ValidationRun
+ */
+export type ValidationRun = Message<"vrooli.scenario_validation.v1.ValidationRun"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string scenario = 2;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string path = 3;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string idempotency_key = 4;
+   */
+  idempotencyKey: string;
+
+  /**
+   * @generated from field: string parent_run_id = 5;
+   */
+  parentRunId: string;
+
+  /**
+   * @generated from field: vrooli.scenario_validation.v1.ValidationRunState state = 6;
+   */
+  state: ValidationRunState;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 7;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp started_at = 8;
+   */
+  startedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp completed_at = 9;
+   */
+  completedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Duration estimated_remaining = 10;
+   */
+  estimatedRemaining?: Duration | undefined;
+
+  /**
+   * @generated from field: vrooli.scenario_validation.v1.ValidateScenarioResponse preliminary_static_result = 11;
+   */
+  preliminaryStaticResult?: ValidateScenarioResponse | undefined;
+
+  /**
+   * @generated from field: vrooli.scenario_validation.v1.ValidateScenarioResponse terminal_result = 12;
+   */
+  terminalResult?: ValidateScenarioResponse | undefined;
+
+  /**
+   * @generated from field: vrooli.scenario_validation.v1.ValidationRunError error = 13;
+   */
+  error?: ValidationRunError | undefined;
+
+  /**
+   * @generated from field: repeated google.protobuf.Any artifact_references = 14;
+   */
+  artifactReferences: Any[];
+
+  /**
+   * @generated from field: bool cancellation_requested = 15;
+   */
+  cancellationRequested: boolean;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.ValidationRun.
+ * Use `create(ValidationRunSchema)` to create a new message.
+ */
+export const ValidationRunSchema: GenMessage<ValidationRun> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 3);
+
+/**
+ * @generated from message vrooli.scenario_validation.v1.StartValidationRunRequest
+ */
+export type StartValidationRunRequest = Message<"vrooli.scenario_validation.v1.StartValidationRunRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * The same key and target must return the same provider-owned run. Reusing a
+   * key with a different target is an idempotency conflict.
+   *
+   * @generated from field: string idempotency_key = 3;
+   */
+  idempotencyKey: string;
+
+  /**
+   * Optional Test Genie parent/attempt identity. Providers retain this only as
+   * a durable linkage reference; it is not their source of truth.
+   *
+   * @generated from field: string parent_run_id = 4;
+   */
+  parentRunId: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.StartValidationRunRequest.
+ * Use `create(StartValidationRunRequestSchema)` to create a new message.
+ */
+export const StartValidationRunRequestSchema: GenMessage<StartValidationRunRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 4);
+
+/**
+ * @generated from message vrooli.scenario_validation.v1.StartValidationRunResponse
+ */
+export type StartValidationRunResponse = Message<"vrooli.scenario_validation.v1.StartValidationRunResponse"> & {
+  /**
+   * @generated from field: vrooli.scenario_validation.v1.ValidationRun run = 1;
+   */
+  run?: ValidationRun | undefined;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.StartValidationRunResponse.
+ * Use `create(StartValidationRunResponseSchema)` to create a new message.
+ */
+export const StartValidationRunResponseSchema: GenMessage<StartValidationRunResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 5);
+
+/**
+ * @generated from message vrooli.scenario_validation.v1.GetValidationRunRequest
+ */
+export type GetValidationRunRequest = Message<"vrooli.scenario_validation.v1.GetValidationRunRequest"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.GetValidationRunRequest.
+ * Use `create(GetValidationRunRequestSchema)` to create a new message.
+ */
+export const GetValidationRunRequestSchema: GenMessage<GetValidationRunRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 6);
+
+/**
+ * @generated from message vrooli.scenario_validation.v1.GetValidationRunResponse
+ */
+export type GetValidationRunResponse = Message<"vrooli.scenario_validation.v1.GetValidationRunResponse"> & {
+  /**
+   * @generated from field: vrooli.scenario_validation.v1.ValidationRun run = 1;
+   */
+  run?: ValidationRun | undefined;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.GetValidationRunResponse.
+ * Use `create(GetValidationRunResponseSchema)` to create a new message.
+ */
+export const GetValidationRunResponseSchema: GenMessage<GetValidationRunResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 7);
+
+/**
+ * @generated from message vrooli.scenario_validation.v1.WaitValidationRunRequest
+ */
+export type WaitValidationRunRequest = Message<"vrooli.scenario_validation.v1.WaitValidationRunRequest"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * Zero leaves the caller's timeout policy in control. A wait timeout never
+   * cancels provider work; callers may reattach with Get or Wait.
+   *
+   * @generated from field: google.protobuf.Duration timeout = 2;
+   */
+  timeout?: Duration | undefined;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.WaitValidationRunRequest.
+ * Use `create(WaitValidationRunRequestSchema)` to create a new message.
+ */
+export const WaitValidationRunRequestSchema: GenMessage<WaitValidationRunRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 8);
+
+/**
+ * @generated from message vrooli.scenario_validation.v1.WaitValidationRunResponse
+ */
+export type WaitValidationRunResponse = Message<"vrooli.scenario_validation.v1.WaitValidationRunResponse"> & {
+  /**
+   * @generated from field: vrooli.scenario_validation.v1.ValidationRun run = 1;
+   */
+  run?: ValidationRun | undefined;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.WaitValidationRunResponse.
+ * Use `create(WaitValidationRunResponseSchema)` to create a new message.
+ */
+export const WaitValidationRunResponseSchema: GenMessage<WaitValidationRunResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 9);
+
+/**
+ * @generated from message vrooli.scenario_validation.v1.AbortValidationRunRequest
+ */
+export type AbortValidationRunRequest = Message<"vrooli.scenario_validation.v1.AbortValidationRunRequest"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.AbortValidationRunRequest.
+ * Use `create(AbortValidationRunRequestSchema)` to create a new message.
+ */
+export const AbortValidationRunRequestSchema: GenMessage<AbortValidationRunRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 10);
+
+/**
+ * @generated from message vrooli.scenario_validation.v1.AbortValidationRunResponse
+ */
+export type AbortValidationRunResponse = Message<"vrooli.scenario_validation.v1.AbortValidationRunResponse"> & {
+  /**
+   * @generated from field: vrooli.scenario_validation.v1.ValidationRun run = 1;
+   */
+  run?: ValidationRun | undefined;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.AbortValidationRunResponse.
+ * Use `create(AbortValidationRunResponseSchema)` to create a new message.
+ */
+export const AbortValidationRunResponseSchema: GenMessage<AbortValidationRunResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 11);
+
+/**
  * FixRequest selects the deterministic remediations to preview or apply for a
  * scenario. It mirrors ValidateScenarioRequest's target-resolution fields so a
  * consumer that just validated a scenario can fix it without re-resolving.
@@ -138,7 +426,7 @@ export type FixRequest = Message<"vrooli.scenario_validation.v1.FixRequest"> & {
  * Use `create(FixRequestSchema)` to create a new message.
  */
 export const FixRequestSchema: GenMessage<FixRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 2);
+  messageDesc(file_scenario_validation_v1_validation, 12);
 
 /**
  * FixCandidate is a single proposed (dry-run) or applied file edit. It mirrors
@@ -196,7 +484,7 @@ export type FixCandidate = Message<"vrooli.scenario_validation.v1.FixCandidate">
  * Use `create(FixCandidateSchema)` to create a new message.
  */
 export const FixCandidateSchema: GenMessage<FixCandidate> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 3);
+  messageDesc(file_scenario_validation_v1_validation, 13);
 
 /**
  * FixResponse reports the candidates a provider previewed or applied.
@@ -238,7 +526,7 @@ export type FixResponse = Message<"vrooli.scenario_validation.v1.FixResponse"> &
  * Use `create(FixResponseSchema)` to create a new message.
  */
 export const FixResponseSchema: GenMessage<FixResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_validation_v1_validation, 4);
+  messageDesc(file_scenario_validation_v1_validation, 14);
 
 /**
  * @generated from enum vrooli.scenario_validation.v1.ValidationStatus
@@ -282,6 +570,110 @@ export const ValidationStatusSchema: GenEnum<ValidationStatus> = /*@__PURE__*/
   enumDesc(file_scenario_validation_v1_validation, 0);
 
 /**
+ * ValidationRunState is provider-neutral lifecycle state. A provider persists
+ * these states in its own ledger; no central run database is implied.
+ *
+ * @generated from enum vrooli.scenario_validation.v1.ValidationRunState
+ */
+export enum ValidationRunState {
+  /**
+   * @generated from enum value: VALIDATION_RUN_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_STATE_QUEUED = 1;
+   */
+  QUEUED = 1,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_STATE_RUNNING = 2;
+   */
+  RUNNING = 2,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_STATE_SUCCEEDED = 3;
+   */
+  SUCCEEDED = 3,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_STATE_FAILED = 4;
+   */
+  FAILED = 4,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_STATE_CANCELED = 5;
+   */
+  CANCELED = 5,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_STATE_RECOVERY_FAILED = 6;
+   */
+  RECOVERY_FAILED = 6,
+}
+
+/**
+ * Describes the enum vrooli.scenario_validation.v1.ValidationRunState.
+ */
+export const ValidationRunStateSchema: GenEnum<ValidationRunState> = /*@__PURE__*/
+  enumDesc(file_scenario_validation_v1_validation, 1);
+
+/**
+ * ValidationRunErrorCode classifies lifecycle failures so callers can select a
+ * recovery path without parsing text. Invalid transitions are never encoded as
+ * a terminal validation status.
+ *
+ * @generated from enum vrooli.scenario_validation.v1.ValidationRunErrorCode
+ */
+export enum ValidationRunErrorCode {
+  /**
+   * @generated from enum value: VALIDATION_RUN_ERROR_CODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_ERROR_CODE_INVALID_TRANSITION = 1;
+   */
+  INVALID_TRANSITION = 1,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_ERROR_CODE_NOT_FOUND = 2;
+   */
+  NOT_FOUND = 2,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_ERROR_CODE_IDEMPOTENCY_CONFLICT = 3;
+   */
+  IDEMPOTENCY_CONFLICT = 3,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_ERROR_CODE_ABORT_REJECTED = 4;
+   */
+  ABORT_REJECTED = 4,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_ERROR_CODE_EXECUTION_FAILED = 5;
+   */
+  EXECUTION_FAILED = 5,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_ERROR_CODE_RECOVERY_FAILED = 6;
+   */
+  RECOVERY_FAILED = 6,
+
+  /**
+   * @generated from enum value: VALIDATION_RUN_ERROR_CODE_WAIT_TIMEOUT = 7;
+   */
+  WAIT_TIMEOUT = 7,
+}
+
+/**
+ * Describes the enum vrooli.scenario_validation.v1.ValidationRunErrorCode.
+ */
+export const ValidationRunErrorCodeSchema: GenEnum<ValidationRunErrorCode> = /*@__PURE__*/
+  enumDesc(file_scenario_validation_v1_validation, 2);
+
+/**
  * @generated from service vrooli.scenario_validation.v1.ScenarioValidationService
  */
 export const ScenarioValidationService: GenService<{
@@ -320,4 +712,48 @@ export const ScenarioValidationService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_scenario_validation_v1_validation, 0);
+
+/**
+ * DurableValidationRunService is an opt-in provider contract for validation
+ * whose execution may outlive an HTTP request. It deliberately sits beside
+ * ScenarioValidationService: ValidateScenario remains the fast, terminal
+ * static-validation contract implemented by existing providers.
+ *
+ * @generated from service vrooli.scenario_validation.v1.DurableValidationRunService
+ */
+export const DurableValidationRunService: GenService<{
+  /**
+   * @generated from rpc vrooli.scenario_validation.v1.DurableValidationRunService.StartValidationRun
+   */
+  startValidationRun: {
+    methodKind: "unary";
+    input: typeof StartValidationRunRequestSchema;
+    output: typeof StartValidationRunResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.scenario_validation.v1.DurableValidationRunService.GetValidationRun
+   */
+  getValidationRun: {
+    methodKind: "unary";
+    input: typeof GetValidationRunRequestSchema;
+    output: typeof GetValidationRunResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.scenario_validation.v1.DurableValidationRunService.WaitValidationRun
+   */
+  waitValidationRun: {
+    methodKind: "unary";
+    input: typeof WaitValidationRunRequestSchema;
+    output: typeof WaitValidationRunResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.scenario_validation.v1.DurableValidationRunService.AbortValidationRun
+   */
+  abortValidationRun: {
+    methodKind: "unary";
+    input: typeof AbortValidationRunRequestSchema;
+    output: typeof AbortValidationRunResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_scenario_validation_v1_validation, 1);
 

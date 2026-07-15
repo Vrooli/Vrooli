@@ -26,6 +26,10 @@ func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 
 	r.HandleFunc("GET /health", health.Handle)
 	r.HandleFunc("GET /api/v1/health", health.Handle)
+	r.HandleFunc("GET /api/v1/metrics/pressure", metrics.HandleGetPressureSnapshot)
+	r.HandleFunc("GET /api/v1/forensics/processes", metrics.HandleGetProcessTimeline)
+	r.HandleFunc("GET /api/v1/forensics/gpu", metrics.HandleGetGPUHistory)
+	r.HandleFunc("GET /api/v1/forensics/pressure", metrics.HandleGetPressureHistory)
 
 	// Crash-forensics + logs surfaces (plain JSON; see forensics.go header).
 	r.HandleFunc("GET /api/v1/forensics/pstore", forensicsH.Pstore)

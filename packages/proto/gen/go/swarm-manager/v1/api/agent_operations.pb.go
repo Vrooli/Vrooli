@@ -2249,6 +2249,118 @@ func (*AgentOpsGetMigrationStatusRequest) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_api_agent_operations_proto_rawDescGZIP(), []int{33}
 }
 
+type AgentOpsRunReconciliationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentOpsRunReconciliationRequest) Reset() {
+	*x = AgentOpsRunReconciliationRequest{}
+	mi := &file_swarm_manager_v1_api_agent_operations_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentOpsRunReconciliationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentOpsRunReconciliationRequest) ProtoMessage() {}
+
+func (x *AgentOpsRunReconciliationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_agent_operations_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentOpsRunReconciliationRequest.ProtoReflect.Descriptor instead.
+func (*AgentOpsRunReconciliationRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_agent_operations_proto_rawDescGZIP(), []int{34}
+}
+
+// AgentOpsRunReconciliationResponse is the orphan-snapshot sweep report — the
+// same shape the startup sweep logs.
+type AgentOpsRunReconciliationResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// dirs_scanned is the number of agentops directories examined.
+	DirsScanned int32 `protobuf:"varint,1,opt,name=dirs_scanned,json=dirsScanned,proto3" json:"dirs_scanned,omitempty"`
+	// snapshots_seen is the total execution snapshot files found across those dirs.
+	SnapshotsSeen int32 `protobuf:"varint,2,opt,name=snapshots_seen,json=snapshotsSeen,proto3" json:"snapshots_seen,omitempty"`
+	// reaped lists the snapshot file paths removed (orphans past the grace period).
+	Reaped []string `protobuf:"bytes,3,rep,name=reaped,proto3" json:"reaped,omitempty"`
+	// skipped_too_recent counts orphan snapshots left in place because they were
+	// younger than the grace period (a concurrent in-flight Invoke may still be
+	// between writing its snapshot and committing its operation record).
+	SkippedTooRecent int32 `protobuf:"varint,4,opt,name=skipped_too_recent,json=skippedTooRecent,proto3" json:"skipped_too_recent,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *AgentOpsRunReconciliationResponse) Reset() {
+	*x = AgentOpsRunReconciliationResponse{}
+	mi := &file_swarm_manager_v1_api_agent_operations_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentOpsRunReconciliationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentOpsRunReconciliationResponse) ProtoMessage() {}
+
+func (x *AgentOpsRunReconciliationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_agent_operations_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentOpsRunReconciliationResponse.ProtoReflect.Descriptor instead.
+func (*AgentOpsRunReconciliationResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_agent_operations_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *AgentOpsRunReconciliationResponse) GetDirsScanned() int32 {
+	if x != nil {
+		return x.DirsScanned
+	}
+	return 0
+}
+
+func (x *AgentOpsRunReconciliationResponse) GetSnapshotsSeen() int32 {
+	if x != nil {
+		return x.SnapshotsSeen
+	}
+	return 0
+}
+
+func (x *AgentOpsRunReconciliationResponse) GetReaped() []string {
+	if x != nil {
+		return x.Reaped
+	}
+	return nil
+}
+
+func (x *AgentOpsRunReconciliationResponse) GetSkippedTooRecent() int32 {
+	if x != nil {
+		return x.SkippedTooRecent
+	}
+	return 0
+}
+
 // AgentOpsGetMigrationStatusResponse projects the Phase-8 persisted-state
 // migration status document. An absent document is state=not-started with
 // document_found=false — never an error — so a UI can always render
@@ -2273,7 +2385,7 @@ type AgentOpsGetMigrationStatusResponse struct {
 
 func (x *AgentOpsGetMigrationStatusResponse) Reset() {
 	*x = AgentOpsGetMigrationStatusResponse{}
-	mi := &file_swarm_manager_v1_api_agent_operations_proto_msgTypes[34]
+	mi := &file_swarm_manager_v1_api_agent_operations_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2285,7 +2397,7 @@ func (x *AgentOpsGetMigrationStatusResponse) String() string {
 func (*AgentOpsGetMigrationStatusResponse) ProtoMessage() {}
 
 func (x *AgentOpsGetMigrationStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_agent_operations_proto_msgTypes[34]
+	mi := &file_swarm_manager_v1_api_agent_operations_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2298,7 +2410,7 @@ func (x *AgentOpsGetMigrationStatusResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use AgentOpsGetMigrationStatusResponse.ProtoReflect.Descriptor instead.
 func (*AgentOpsGetMigrationStatusResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_agent_operations_proto_rawDescGZIP(), []int{34}
+	return file_swarm_manager_v1_api_agent_operations_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *AgentOpsGetMigrationStatusResponse) GetState() string {
@@ -2532,7 +2644,13 @@ const file_swarm_manager_v1_api_agent_operations_proto_rawDesc = "" +
 	"\n" +
 	"executions\x18\x01 \x03(\v2*.swarm_manager.v1.AgentOpsExecutionSummaryR\n" +
 	"executions\"#\n" +
-	"!AgentOpsGetMigrationStatusRequest\"\xcd\x02\n" +
+	"!AgentOpsGetMigrationStatusRequest\"\"\n" +
+	" AgentOpsRunReconciliationRequest\"\xb3\x01\n" +
+	"!AgentOpsRunReconciliationResponse\x12!\n" +
+	"\fdirs_scanned\x18\x01 \x01(\x05R\vdirsScanned\x12%\n" +
+	"\x0esnapshots_seen\x18\x02 \x01(\x05R\rsnapshotsSeen\x12\x16\n" +
+	"\x06reaped\x18\x03 \x03(\tR\x06reaped\x12,\n" +
+	"\x12skipped_too_recent\x18\x04 \x01(\x05R\x10skippedTooRecent\"\xcd\x02\n" +
 	"\"AgentOpsGetMigrationStatusResponse\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\tR\x05state\x12\x14\n" +
 	"\x05epoch\x18\x02 \x01(\x05R\x05epoch\x12!\n" +
@@ -2545,7 +2663,7 @@ const file_swarm_manager_v1_api_agent_operations_proto_rawDesc = "" +
 	"updated_at\x18\a \x01(\tR\tupdatedAt\x12\x1f\n" +
 	"\vreport_path\x18\b \x01(\tR\n" +
 	"reportPath\x12%\n" +
-	"\x0edocument_found\x18\t \x01(\bR\rdocumentFound2\xbb\r\n" +
+	"\x0edocument_found\x18\t \x01(\bR\rdocumentFound2\xb9\x0e\n" +
 	"\x16AgentOperationsService\x12s\n" +
 	"\x0eResolveBinding\x12/.swarm_manager.v1.AgentOpsResolveBindingRequest\x1a0.swarm_manager.v1.AgentOpsResolveBindingResponse\x12\x7f\n" +
 	"\x12ValidateInvocation\x123.swarm_manager.v1.AgentOpsValidateInvocationRequest\x1a4.swarm_manager.v1.AgentOpsValidateInvocationResponse\x12v\n" +
@@ -2559,7 +2677,8 @@ const file_swarm_manager_v1_api_agent_operations_proto_rawDesc = "" +
 	"\x15DeleteBindingOverride\x126.swarm_manager.v1.AgentOpsDeleteBindingOverrideRequest\x1a7.swarm_manager.v1.AgentOpsDeleteBindingOverrideResponse\x12\x88\x01\n" +
 	"\x15GetWorkflowProjection\x126.swarm_manager.v1.AgentOpsGetWorkflowProjectionRequest\x1a7.swarm_manager.v1.AgentOpsGetWorkflowProjectionResponse\x12\x85\x01\n" +
 	"\x14ListExecutionHistory\x125.swarm_manager.v1.AgentOpsListExecutionHistoryRequest\x1a6.swarm_manager.v1.AgentOpsListExecutionHistoryResponse\x12\x7f\n" +
-	"\x12GetMigrationStatus\x123.swarm_manager.v1.AgentOpsGetMigrationStatusRequest\x1a4.swarm_manager.v1.AgentOpsGetMigrationStatusResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x12GetMigrationStatus\x123.swarm_manager.v1.AgentOpsGetMigrationStatusRequest\x1a4.swarm_manager.v1.AgentOpsGetMigrationStatusResponse\x12|\n" +
+	"\x11RunReconciliation\x122.swarm_manager.v1.AgentOpsRunReconciliationRequest\x1a3.swarm_manager.v1.AgentOpsRunReconciliationResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_agent_operations_proto_rawDescOnce sync.Once
@@ -2573,7 +2692,7 @@ func file_swarm_manager_v1_api_agent_operations_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_agent_operations_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_agent_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_swarm_manager_v1_api_agent_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_swarm_manager_v1_api_agent_operations_proto_goTypes = []any{
 	(*AgentOpsTargetSelector)(nil),                // 0: swarm_manager.v1.AgentOpsTargetSelector
 	(*AgentOpsResolveBindingRequest)(nil),         // 1: swarm_manager.v1.AgentOpsResolveBindingRequest
@@ -2609,50 +2728,52 @@ var file_swarm_manager_v1_api_agent_operations_proto_goTypes = []any{
 	(*AgentOpsExecutionSummary)(nil),              // 31: swarm_manager.v1.AgentOpsExecutionSummary
 	(*AgentOpsListExecutionHistoryResponse)(nil),  // 32: swarm_manager.v1.AgentOpsListExecutionHistoryResponse
 	(*AgentOpsGetMigrationStatusRequest)(nil),     // 33: swarm_manager.v1.AgentOpsGetMigrationStatusRequest
-	(*AgentOpsGetMigrationStatusResponse)(nil),    // 34: swarm_manager.v1.AgentOpsGetMigrationStatusResponse
-	(domain.OperatingModeTargetKind)(0),           // 35: swarm_manager.v1.OperatingModeTargetKind
-	(*domain.AgentOpsOperationBinding)(nil),       // 36: swarm_manager.v1.AgentOpsOperationBinding
-	(domain.AgentOpsCapability)(0),                // 37: swarm_manager.v1.AgentOpsCapability
-	(*domain.AgentOpsWorkflowInstance)(nil),       // 38: swarm_manager.v1.AgentOpsWorkflowInstance
-	(*domain.AgentOpsExecutionProvenance)(nil),    // 39: swarm_manager.v1.AgentOpsExecutionProvenance
-	(*domain.AgentOpsOperationContract)(nil),      // 40: swarm_manager.v1.AgentOpsOperationContract
-	(domain.AgentOpsBindingLayer)(0),              // 41: swarm_manager.v1.AgentOpsBindingLayer
+	(*AgentOpsRunReconciliationRequest)(nil),      // 34: swarm_manager.v1.AgentOpsRunReconciliationRequest
+	(*AgentOpsRunReconciliationResponse)(nil),     // 35: swarm_manager.v1.AgentOpsRunReconciliationResponse
+	(*AgentOpsGetMigrationStatusResponse)(nil),    // 36: swarm_manager.v1.AgentOpsGetMigrationStatusResponse
+	(domain.OperatingModeTargetKind)(0),           // 37: swarm_manager.v1.OperatingModeTargetKind
+	(*domain.AgentOpsOperationBinding)(nil),       // 38: swarm_manager.v1.AgentOpsOperationBinding
+	(domain.AgentOpsCapability)(0),                // 39: swarm_manager.v1.AgentOpsCapability
+	(*domain.AgentOpsWorkflowInstance)(nil),       // 40: swarm_manager.v1.AgentOpsWorkflowInstance
+	(*domain.AgentOpsExecutionProvenance)(nil),    // 41: swarm_manager.v1.AgentOpsExecutionProvenance
+	(*domain.AgentOpsOperationContract)(nil),      // 42: swarm_manager.v1.AgentOpsOperationContract
+	(domain.AgentOpsBindingLayer)(0),              // 43: swarm_manager.v1.AgentOpsBindingLayer
 }
 var file_swarm_manager_v1_api_agent_operations_proto_depIdxs = []int32{
-	35, // 0: swarm_manager.v1.AgentOpsTargetSelector.kind:type_name -> swarm_manager.v1.OperatingModeTargetKind
+	37, // 0: swarm_manager.v1.AgentOpsTargetSelector.kind:type_name -> swarm_manager.v1.OperatingModeTargetKind
 	0,  // 1: swarm_manager.v1.AgentOpsResolveBindingRequest.target:type_name -> swarm_manager.v1.AgentOpsTargetSelector
-	36, // 2: swarm_manager.v1.AgentOpsResolveBindingResponse.resolved:type_name -> swarm_manager.v1.AgentOpsOperationBinding
+	38, // 2: swarm_manager.v1.AgentOpsResolveBindingResponse.resolved:type_name -> swarm_manager.v1.AgentOpsOperationBinding
 	0,  // 3: swarm_manager.v1.AgentOpsValidateInvocationRequest.target:type_name -> swarm_manager.v1.AgentOpsTargetSelector
-	36, // 4: swarm_manager.v1.AgentOpsValidateInvocationResponse.resolved:type_name -> swarm_manager.v1.AgentOpsOperationBinding
-	37, // 5: swarm_manager.v1.AgentOpsValidateInvocationResponse.missing_capabilities:type_name -> swarm_manager.v1.AgentOpsCapability
+	38, // 4: swarm_manager.v1.AgentOpsValidateInvocationResponse.resolved:type_name -> swarm_manager.v1.AgentOpsOperationBinding
+	39, // 5: swarm_manager.v1.AgentOpsValidateInvocationResponse.missing_capabilities:type_name -> swarm_manager.v1.AgentOpsCapability
 	0,  // 6: swarm_manager.v1.AgentOpsInspectWorkflowRequest.target:type_name -> swarm_manager.v1.AgentOpsTargetSelector
-	38, // 7: swarm_manager.v1.AgentOpsInspectWorkflowResponse.workflow:type_name -> swarm_manager.v1.AgentOpsWorkflowInstance
+	40, // 7: swarm_manager.v1.AgentOpsInspectWorkflowResponse.workflow:type_name -> swarm_manager.v1.AgentOpsWorkflowInstance
 	0,  // 8: swarm_manager.v1.AgentOpsInspectExecutionRequest.target:type_name -> swarm_manager.v1.AgentOpsTargetSelector
-	39, // 9: swarm_manager.v1.AgentOpsInspectExecutionResponse.provenance:type_name -> swarm_manager.v1.AgentOpsExecutionProvenance
-	40, // 10: swarm_manager.v1.AgentOpsCatalogEntry.contract:type_name -> swarm_manager.v1.AgentOpsOperationContract
-	35, // 11: swarm_manager.v1.AgentOpsCatalogEntry.compatible_targets:type_name -> swarm_manager.v1.OperatingModeTargetKind
+	41, // 9: swarm_manager.v1.AgentOpsInspectExecutionResponse.provenance:type_name -> swarm_manager.v1.AgentOpsExecutionProvenance
+	42, // 10: swarm_manager.v1.AgentOpsCatalogEntry.contract:type_name -> swarm_manager.v1.AgentOpsOperationContract
+	37, // 11: swarm_manager.v1.AgentOpsCatalogEntry.compatible_targets:type_name -> swarm_manager.v1.OperatingModeTargetKind
 	10, // 12: swarm_manager.v1.AgentOpsListOperationCatalogResponse.entries:type_name -> swarm_manager.v1.AgentOpsCatalogEntry
 	0,  // 13: swarm_manager.v1.AgentOpsListCompatibleModesRequest.target:type_name -> swarm_manager.v1.AgentOpsTargetSelector
-	35, // 14: swarm_manager.v1.AgentOpsCompatibleMode.target_kind:type_name -> swarm_manager.v1.OperatingModeTargetKind
+	37, // 14: swarm_manager.v1.AgentOpsCompatibleMode.target_kind:type_name -> swarm_manager.v1.OperatingModeTargetKind
 	13, // 15: swarm_manager.v1.AgentOpsCompatibleMode.verdicts:type_name -> swarm_manager.v1.AgentOpsModeOperationVerdict
 	14, // 16: swarm_manager.v1.AgentOpsListCompatibleModesResponse.modes:type_name -> swarm_manager.v1.AgentOpsCompatibleMode
 	0,  // 17: swarm_manager.v1.AgentOpsGetResolvedBindingsRequest.target:type_name -> swarm_manager.v1.AgentOpsTargetSelector
-	36, // 18: swarm_manager.v1.AgentOpsBindingContribution.binding:type_name -> swarm_manager.v1.AgentOpsOperationBinding
-	36, // 19: swarm_manager.v1.AgentOpsResolvedOperationBinding.binding:type_name -> swarm_manager.v1.AgentOpsOperationBinding
+	38, // 18: swarm_manager.v1.AgentOpsBindingContribution.binding:type_name -> swarm_manager.v1.AgentOpsOperationBinding
+	38, // 19: swarm_manager.v1.AgentOpsResolvedOperationBinding.binding:type_name -> swarm_manager.v1.AgentOpsOperationBinding
 	17, // 20: swarm_manager.v1.AgentOpsResolvedOperationBinding.contributions:type_name -> swarm_manager.v1.AgentOpsBindingContribution
 	18, // 21: swarm_manager.v1.AgentOpsGetResolvedBindingsResponse.operations:type_name -> swarm_manager.v1.AgentOpsResolvedOperationBinding
-	36, // 22: swarm_manager.v1.AgentOpsBindingOverrideDocument.binding:type_name -> swarm_manager.v1.AgentOpsOperationBinding
+	38, // 22: swarm_manager.v1.AgentOpsBindingOverrideDocument.binding:type_name -> swarm_manager.v1.AgentOpsOperationBinding
 	0,  // 23: swarm_manager.v1.AgentOpsListBindingOverridesRequest.owner:type_name -> swarm_manager.v1.AgentOpsTargetSelector
 	20, // 24: swarm_manager.v1.AgentOpsListBindingOverridesResponse.overrides:type_name -> swarm_manager.v1.AgentOpsBindingOverrideDocument
 	0,  // 25: swarm_manager.v1.AgentOpsPutBindingOverrideRequest.owner:type_name -> swarm_manager.v1.AgentOpsTargetSelector
-	36, // 26: swarm_manager.v1.AgentOpsPutBindingOverrideResponse.stored:type_name -> swarm_manager.v1.AgentOpsOperationBinding
+	38, // 26: swarm_manager.v1.AgentOpsPutBindingOverrideResponse.stored:type_name -> swarm_manager.v1.AgentOpsOperationBinding
 	0,  // 27: swarm_manager.v1.AgentOpsDeleteBindingOverrideRequest.owner:type_name -> swarm_manager.v1.AgentOpsTargetSelector
 	0,  // 28: swarm_manager.v1.AgentOpsGetWorkflowProjectionRequest.target:type_name -> swarm_manager.v1.AgentOpsTargetSelector
-	41, // 29: swarm_manager.v1.AgentOpsOperationProjection.binding_layer:type_name -> swarm_manager.v1.AgentOpsBindingLayer
-	38, // 30: swarm_manager.v1.AgentOpsGetWorkflowProjectionResponse.workflow:type_name -> swarm_manager.v1.AgentOpsWorkflowInstance
+	43, // 29: swarm_manager.v1.AgentOpsOperationProjection.binding_layer:type_name -> swarm_manager.v1.AgentOpsBindingLayer
+	40, // 30: swarm_manager.v1.AgentOpsGetWorkflowProjectionResponse.workflow:type_name -> swarm_manager.v1.AgentOpsWorkflowInstance
 	28, // 31: swarm_manager.v1.AgentOpsGetWorkflowProjectionResponse.operations:type_name -> swarm_manager.v1.AgentOpsOperationProjection
 	0,  // 32: swarm_manager.v1.AgentOpsListExecutionHistoryRequest.target:type_name -> swarm_manager.v1.AgentOpsTargetSelector
-	41, // 33: swarm_manager.v1.AgentOpsExecutionSummary.binding_layer:type_name -> swarm_manager.v1.AgentOpsBindingLayer
+	43, // 33: swarm_manager.v1.AgentOpsExecutionSummary.binding_layer:type_name -> swarm_manager.v1.AgentOpsBindingLayer
 	31, // 34: swarm_manager.v1.AgentOpsListExecutionHistoryResponse.executions:type_name -> swarm_manager.v1.AgentOpsExecutionSummary
 	1,  // 35: swarm_manager.v1.AgentOperationsService.ResolveBinding:input_type -> swarm_manager.v1.AgentOpsResolveBindingRequest
 	3,  // 36: swarm_manager.v1.AgentOperationsService.ValidateInvocation:input_type -> swarm_manager.v1.AgentOpsValidateInvocationRequest
@@ -2667,21 +2788,23 @@ var file_swarm_manager_v1_api_agent_operations_proto_depIdxs = []int32{
 	27, // 45: swarm_manager.v1.AgentOperationsService.GetWorkflowProjection:input_type -> swarm_manager.v1.AgentOpsGetWorkflowProjectionRequest
 	30, // 46: swarm_manager.v1.AgentOperationsService.ListExecutionHistory:input_type -> swarm_manager.v1.AgentOpsListExecutionHistoryRequest
 	33, // 47: swarm_manager.v1.AgentOperationsService.GetMigrationStatus:input_type -> swarm_manager.v1.AgentOpsGetMigrationStatusRequest
-	2,  // 48: swarm_manager.v1.AgentOperationsService.ResolveBinding:output_type -> swarm_manager.v1.AgentOpsResolveBindingResponse
-	4,  // 49: swarm_manager.v1.AgentOperationsService.ValidateInvocation:output_type -> swarm_manager.v1.AgentOpsValidateInvocationResponse
-	6,  // 50: swarm_manager.v1.AgentOperationsService.InspectWorkflow:output_type -> swarm_manager.v1.AgentOpsInspectWorkflowResponse
-	8,  // 51: swarm_manager.v1.AgentOperationsService.InspectExecution:output_type -> swarm_manager.v1.AgentOpsInspectExecutionResponse
-	11, // 52: swarm_manager.v1.AgentOperationsService.ListOperationCatalog:output_type -> swarm_manager.v1.AgentOpsListOperationCatalogResponse
-	15, // 53: swarm_manager.v1.AgentOperationsService.ListCompatibleModes:output_type -> swarm_manager.v1.AgentOpsListCompatibleModesResponse
-	19, // 54: swarm_manager.v1.AgentOperationsService.GetResolvedBindings:output_type -> swarm_manager.v1.AgentOpsGetResolvedBindingsResponse
-	22, // 55: swarm_manager.v1.AgentOperationsService.ListBindingOverrides:output_type -> swarm_manager.v1.AgentOpsListBindingOverridesResponse
-	24, // 56: swarm_manager.v1.AgentOperationsService.PutBindingOverride:output_type -> swarm_manager.v1.AgentOpsPutBindingOverrideResponse
-	26, // 57: swarm_manager.v1.AgentOperationsService.DeleteBindingOverride:output_type -> swarm_manager.v1.AgentOpsDeleteBindingOverrideResponse
-	29, // 58: swarm_manager.v1.AgentOperationsService.GetWorkflowProjection:output_type -> swarm_manager.v1.AgentOpsGetWorkflowProjectionResponse
-	32, // 59: swarm_manager.v1.AgentOperationsService.ListExecutionHistory:output_type -> swarm_manager.v1.AgentOpsListExecutionHistoryResponse
-	34, // 60: swarm_manager.v1.AgentOperationsService.GetMigrationStatus:output_type -> swarm_manager.v1.AgentOpsGetMigrationStatusResponse
-	48, // [48:61] is the sub-list for method output_type
-	35, // [35:48] is the sub-list for method input_type
+	34, // 48: swarm_manager.v1.AgentOperationsService.RunReconciliation:input_type -> swarm_manager.v1.AgentOpsRunReconciliationRequest
+	2,  // 49: swarm_manager.v1.AgentOperationsService.ResolveBinding:output_type -> swarm_manager.v1.AgentOpsResolveBindingResponse
+	4,  // 50: swarm_manager.v1.AgentOperationsService.ValidateInvocation:output_type -> swarm_manager.v1.AgentOpsValidateInvocationResponse
+	6,  // 51: swarm_manager.v1.AgentOperationsService.InspectWorkflow:output_type -> swarm_manager.v1.AgentOpsInspectWorkflowResponse
+	8,  // 52: swarm_manager.v1.AgentOperationsService.InspectExecution:output_type -> swarm_manager.v1.AgentOpsInspectExecutionResponse
+	11, // 53: swarm_manager.v1.AgentOperationsService.ListOperationCatalog:output_type -> swarm_manager.v1.AgentOpsListOperationCatalogResponse
+	15, // 54: swarm_manager.v1.AgentOperationsService.ListCompatibleModes:output_type -> swarm_manager.v1.AgentOpsListCompatibleModesResponse
+	19, // 55: swarm_manager.v1.AgentOperationsService.GetResolvedBindings:output_type -> swarm_manager.v1.AgentOpsGetResolvedBindingsResponse
+	22, // 56: swarm_manager.v1.AgentOperationsService.ListBindingOverrides:output_type -> swarm_manager.v1.AgentOpsListBindingOverridesResponse
+	24, // 57: swarm_manager.v1.AgentOperationsService.PutBindingOverride:output_type -> swarm_manager.v1.AgentOpsPutBindingOverrideResponse
+	26, // 58: swarm_manager.v1.AgentOperationsService.DeleteBindingOverride:output_type -> swarm_manager.v1.AgentOpsDeleteBindingOverrideResponse
+	29, // 59: swarm_manager.v1.AgentOperationsService.GetWorkflowProjection:output_type -> swarm_manager.v1.AgentOpsGetWorkflowProjectionResponse
+	32, // 60: swarm_manager.v1.AgentOperationsService.ListExecutionHistory:output_type -> swarm_manager.v1.AgentOpsListExecutionHistoryResponse
+	36, // 61: swarm_manager.v1.AgentOperationsService.GetMigrationStatus:output_type -> swarm_manager.v1.AgentOpsGetMigrationStatusResponse
+	35, // 62: swarm_manager.v1.AgentOperationsService.RunReconciliation:output_type -> swarm_manager.v1.AgentOpsRunReconciliationResponse
+	49, // [49:63] is the sub-list for method output_type
+	35, // [35:49] is the sub-list for method input_type
 	35, // [35:35] is the sub-list for extension type_name
 	35, // [35:35] is the sub-list for extension extendee
 	0,  // [0:35] is the sub-list for field type_name
@@ -2698,7 +2821,7 @@ func file_swarm_manager_v1_api_agent_operations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_agent_operations_proto_rawDesc), len(file_swarm_manager_v1_api_agent_operations_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   35,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
