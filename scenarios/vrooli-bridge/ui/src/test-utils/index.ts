@@ -47,6 +47,7 @@
  */
 export { renderWithProviders } from "./renderWithProviders";
 export type { ProviderRenderOptions, ProviderRenderResult } from "./renderWithProviders";
+export { seedSession } from "./session";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "./a11y";
 // Note: HealthResponse is the *generated proto type* re-exported by

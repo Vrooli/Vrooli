@@ -3,8 +3,10 @@ import {
   CheckCircle2,
   CircleSlash,
   HelpCircle,
+  Plus,
   PowerOff,
   RefreshCw,
+  ServerCog,
   ShieldOff,
   type LucideIcon,
 } from "lucide-react";
@@ -43,6 +45,19 @@ function dotClass(node: Node): string {
   return node.online ? "bg-app-success" : "bg-app-muted-foreground";
 }
 
+/**
+ * Render a node's provenance revision: shorten a long commit sha but PRESERVE the
+ * "+dirty" working-tree marker, so a node onboarded from a working tree reads
+ * loudly as "e767613fca+dirty" — visibly not a pinned node — rather than being
+ * truncated back to a clean-looking sha.
+ */
+function formatRevision(rev: string): string {
+  const dirty = rev.endsWith("+dirty");
+  const base = dirty ? rev.slice(0, -"+dirty".length) : rev;
+  const shortBase = base.length > 12 ? base.slice(0, 12) : base;
+  return dirty ? `${shortBase}+dirty` : shortBase;
+}
+
 /** A labeled OS/arch/version/health metadata cell. */
 function MetaField({ label, value }: { label: string; value: string }) {
   return (
@@ -77,12 +92,18 @@ function JobStatus({ nodeId, queue }: { nodeId: string; queue?: NodeQueue }) {
  * from the scheduler, and an atomic revoke. Loading / error / empty are handled
  * explicitly. Pairing lives in the sibling `PairNodeForm`; run history lives in
  * the runs feature.
+ *
+ * `onAddNode` is invoked by the primary "Add a node" call to action — the
+ * welcoming empty-state card when the fleet is empty, and the header button once
+ * it has nodes. The dashboard wires it to scroll to and focus the Add-a-node
+ * wizard; when omitted (isolated renders) the button is inert.
  */
-export function FleetPanel() {
+export function FleetPanel({ onAddNode }: { onAddNode?: () => void } = {}) {
   const { t } = useTranslation();
   const nodesQuery = useNodesQuery();
   const queueQuery = useFleetQueueQuery();
   const revoke = useRevokeNodeMutation();
+  const hasNodes = (nodesQuery.data?.length ?? 0) > 0;
 
   const handleRevoke = (node: Node) => {
     const name = node.name || node.id;
@@ -99,10 +120,25 @@ export function FleetPanel() {
       aria-labelledby="fleet-heading"
       className="rounded-panel border border-app-border bg-app-surface p-4"
     >
-      <h3 id="fleet-heading" className="text-sm font-semibold text-app-foreground">
-        {t(strings.fleet.title)}
-      </h3>
-      <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.fleet.description)}</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 id="fleet-heading" className="text-sm font-semibold text-app-foreground">
+            {t(strings.fleet.title)}
+          </h3>
+          <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.fleet.description)}</p>
+        </div>
+        {hasNodes && (
+          <Button
+            type="button"
+            size="sm"
+            data-testid={selectors.fleet.onboard.addNode}
+            onClick={onAddNode}
+          >
+            <Plus aria-hidden="true" className="mr-1 h-4 w-4" />
+            {t(strings.fleet.onboard.addNode)}
+          </Button>
+        )}
+      </div>
 
       {nodesQuery.isLoading && (
         <p data-testid={selectors.fleet.loading} className="mt-3 text-sm text-app-muted-foreground">
@@ -117,9 +153,22 @@ export function FleetPanel() {
       )}
 
       {nodesQuery.data && nodesQuery.data.length === 0 && (
-        <p data-testid={selectors.fleet.empty} className="mt-3 text-sm text-app-muted-foreground">
-          {t(strings.fleet.empty)}
-        </p>
+        <div
+          data-testid={selectors.fleet.empty}
+          className="mt-3 flex flex-col items-center gap-3 rounded-panel border border-dashed border-app-border bg-app-background p-8 text-center"
+        >
+          <span className="flex h-12 w-12 items-center justify-center rounded-pill bg-app-surface-muted">
+            <ServerCog aria-hidden="true" className="h-6 w-6 text-app-muted-foreground" />
+          </span>
+          <div className="flex flex-col gap-1">
+            <p className="text-base font-semibold text-app-foreground">{t(strings.fleet.emptyHeading)}</p>
+            <p className="max-w-sm text-sm text-app-muted-foreground">{t(strings.fleet.empty)}</p>
+          </div>
+          <Button type="button" data-testid={selectors.fleet.onboard.addNode} onClick={onAddNode}>
+            <Plus aria-hidden="true" className="mr-1 h-4 w-4" />
+            {t(strings.fleet.onboard.addNode)}
+          </Button>
+        </div>
       )}
 
       {nodesQuery.data && nodesQuery.data.length > 0 && (
@@ -153,7 +202,7 @@ export function FleetPanel() {
                     <MetaField label={t(strings.fleet.archLabel)} value={node.arch || unknown} />
                     <MetaField
                       label={t(strings.fleet.versionLabel)}
-                      value={node.revision ? node.revision.slice(0, 10) : unknown}
+                      value={node.revision ? formatRevision(node.revision) : unknown}
                     />
                     <MetaField label={t(strings.fleet.healthLabel)} value={t(STATUS_LABEL[node.status])} />
                   </dl>

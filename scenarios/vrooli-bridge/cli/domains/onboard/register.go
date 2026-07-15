@@ -5,10 +5,13 @@
 // paired, ONLINE fleet agent. The manual pair issue/redeem verbs remain for
 // advanced flows; this domain is the walk-away path.
 //
-// All five verbs are owner-gated. The SSH password is NEVER a flag: `start`
-// prompts for it interactively (masked) or reads $BRIDGE_SSH_PASSWORD for
-// non-interactive use, and sends it once in the request body — never on argv,
-// where `ps` could leak it to any local user.
+// All five verbs are owner-gated. The SSH password is NEVER a flag value and
+// `start` NEVER prompts unless asked: it is read from stdin (--password-stdin),
+// a masked TTY prompt (--prompt-password, explicit opt-in), or
+// $BRIDGE_SSH_PASSWORD, and sent once in the request body — never on argv,
+// where `ps` could leak it to any local user. With no source provided the host
+// is assumed to already trust the bridge key. The UI onboard form is the
+// equivalent browser path.
 package onboard
 
 import (

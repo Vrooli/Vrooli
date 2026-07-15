@@ -235,6 +235,39 @@ func (r *Resolver) Resolve(ctx context.Context, requested string) (string, error
 	return resolved, nil
 }
 
+// ResolveWorkingTree is the working-tree-mode pipeline: default an empty request
+// to the control plane's commit, expand "@cp", and validate the ref — but SKIP
+// the pushed preflight. In working-tree mode the control plane ships its LOCAL
+// tree to the node over SSH rather than having the node fetch a commit, so the
+// base commit is deliberately allowed to be unpushed (that is the whole point of
+// the mode). It returns the base commit the shipped tree sits on, or a typed
+// error (ErrUnsafeRevision / ErrNoControlPlaneCommit). The ErrNotPushed hard
+// failure that Resolve enforces is intentionally NOT reachable here; Resolve
+// (pinned mode) keeps it.
+func (r *Resolver) ResolveWorkingTree(ctx context.Context, requested string) (string, error) {
+	req := strings.TrimSpace(requested)
+
+	var resolved string
+	if req == "" {
+		commit, err := r.ControlPlaneCommit(ctx)
+		if err != nil {
+			return "", err
+		}
+		resolved = commit
+	} else {
+		expanded, err := r.expandSentinel(ctx, req)
+		if err != nil {
+			return "", err
+		}
+		resolved = expanded
+	}
+
+	if err := ValidateRef(resolved); err != nil {
+		return "", err
+	}
+	return resolved, nil
+}
+
 // expandSentinel replaces the "@cp" token with the control-plane commit and
 // leaves every other token untouched.
 func (r *Resolver) expandSentinel(ctx context.Context, req string) (string, error) {

@@ -23,8 +23,8 @@
   },
   "pages": {
     "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows."
+      "title": "Your fleet",
+      "description": "The trusted machines you've added — each one set up automatically and ready to run work."
     },
     "settings": {
       "title": "Settings",
@@ -51,7 +51,7 @@
     "title": "Fleet",
     "description": "Trusted Vrooli nodes in your fleet.",
     "loading": "Loading nodes…",
-    "empty": "No nodes registered yet. Pair a node to see it here.",
+    "empty": "Add your first machine and it'll be set up automatically and ready to run work.",
     "onlineLabel": "Online",
     "offlineLabel": "Offline",
     "neverSeen": "never seen",
@@ -83,29 +83,53 @@
       "codeHelp": "Shown once. Deliver it out-of-band to the node's installer.",
       "publicKeyLabel": "Control-plane public key",
       "expiresLabel": "Expires",
-      "copy": "Copy code"
+      "copy": "Copy code",
+      "disclosureLabel": "Advanced: pair a machine manually with a code",
+      "disclosureNote": "Most people should use Add a node above. Use this only to set up a machine by hand with a one-time code."
     },
     "onboard": {
-      "heading": "Onboard a node",
-      "description": "Point the control plane at a raw SSH host — it drives the host from bare OS to a paired, online fleet agent in one durable operation.",
-      "hostLabel": "SSH host",
+      "heading": "Add a node",
+      "description": "Add a machine to your fleet in three steps — we'll set it up and bring it online for you.",
+      "hostLabel": "Address",
       "hostPlaceholder": "node-01.example.com",
-      "userLabel": "SSH user",
+      "userLabel": "Username",
       "userPlaceholder": "root",
       "portLabel": "SSH port",
       "portPlaceholder": "22",
       "nameLabel": "Node name",
       "namePlaceholder": "mac-mini-office",
       "passwordLabel": "SSH password",
-      "passwordHelp": "Used once to install the onboarding key, then discarded. Leave blank if the host already trusts the bridge key. Never stored in the browser.",
+      "passwordShow": "Show password",
+      "passwordHide": "Hide password",
+      "controlPlaneUrlLabel": "Control-plane URL",
+      "controlPlaneUrlPlaceholder": "http://control-plane.example.com:8080",
+      "controlPlaneUrlHelp": "The address the node dials back to reach this control plane. Leave blank to use this control plane's own address. Must be reachable from the node.",
       "capabilitiesLabel": "Capabilities",
       "capabilitiesPlaceholder": "scenario, deploy",
       "capabilitiesHelp": "Comma-separated verb namespaces the node self-reports.",
       "revisionLabel": "Revision",
       "revisionHelp": "@cp is the control plane's current commit. Accepts an explicit SHA or branch.",
-      "submit": "Start onboarding",
+      "provisionSudoLabel": "Set the machine up with admin rights (recommended)",
+      "provisionSudoHelp": "Installs a scoped sudoers drop-in for the SSH user at first touch so later privileged steps (setup, prerequisites, auto-start) run over non-interactive SSH. The owner password is used once and never stored.",
+      "advancedHeading": "Advanced options",
+      "advancedHelp": "Most people can skip these — they control naming, source revision, and setup details.",
+      "setupEnvironmentLabel": "Environment",
+      "setupEnvironmentPlaceholder": "development | production | minimal",
+      "setupEnvironmentHelp": "Host environment profile applied on the node. Blank = the node default (development).",
+      "setupResourcesLabel": "Resources",
+      "setupResourcesPlaceholder": "enabled | none | ollama,postgres",
+      "setupResourcesHelp": "Which local resources the node provisions. Blank = the node default.",
+      "setupScenariosLabel": "Scenarios",
+      "setupScenariosPlaceholder": "none | all | web-console,agent-manager",
+      "setupScenariosHelp": "Which scenarios the node sets up. Blank = the node default.",
+      "includeOptionalLabel": "Include optional safeguards",
+      "includeOptionalHelp": "Also apply optional (non-required) host safeguards during node setup.",
+      "sourceModeLabel": "Ship this control plane's working tree (development mode)",
+      "sourceModeHelp": "Instead of the node cloning a pushed revision, ship this control plane's local working tree over SSH — uncommitted work onboards without a commit or push.",
+      "sourceModeWarning": "Working-tree mode records dirty provenance (base commit + content digest), not a fetchable revision. The node is excluded from fleet rolls until it is re-onboarded in pinned mode. Use it for development and validation only.",
+      "submit": "Start",
       "submitting": "Starting…",
-      "progressHeading": "Onboarding progress",
+      "progressHeading": "Setting up your machine…",
       "waiting": "Waiting for the first step…",
       "successHeading": "Node onboarded",
       "successBody": "{{node}} is paired and online.",
@@ -142,8 +166,22 @@
         "interrupted_by_restart": "The control plane restarted mid-onboarding. The op is safe to retry.",
         "internal_error": "An unexpected control-plane error ended the op. Capture the op id and control-plane logs.",
         "generic": "Onboarding did not complete. Inspect the step history above."
-      }
-    }
+      },
+      "addNode": "Add a node",
+      "stepConnect": "Connect",
+      "stepUnlock": "Unlock",
+      "stepReview": "Review & start",
+      "stepIndicator": "Step {{current}} of {{total}}",
+      "next": "Next",
+      "back": "Back",
+      "connectIntro": "Tell us which machine to add. It must be reachable from this computer over SSH.",
+      "macHint": "On a Mac: System Settings → General → Sharing → turn on Remote Login.",
+      "moreLabel": "More options",
+      "unlockIntro": "Enter the machine's login password. It's used once to install a secure key, then discarded — it is never stored.",
+      "passwordOptionalNote": "Leave this blank if this computer can already sign in to the machine without a password.",
+      "reviewSummary": "We'll connect to {{target}}, install a secure key, set the machine up, and bring it online. This can take several minutes — you can watch every step."
+    },
+    "emptyHeading": "No machines in your fleet yet"
   },
   "runs": {
     "title": "Run history",
@@ -207,5 +245,34 @@
     "title": "Something went wrong",
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again"
+  },
+  "session": {
+    "screenTitle": "Welcome to Vrooli Bridge",
+    "screenIntro": "Sign in to manage the machines in your fleet. First time here? Create the owner account — it controls everything.",
+    "signedInAs": "Signed in as {{email}}",
+    "signedIn": "Signed in",
+    "signOut": "Sign out",
+    "accountHeading": "Account",
+    "login": {
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Your password",
+      "usernameLabel": "Display name (optional)",
+      "usernamePlaceholder": "Fleet operator",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "missingFields": "Enter your email and password.",
+      "invalidCredentials": "Invalid email or password.",
+      "unavailable": "The authenticator is unavailable. Try again in a moment.",
+      "switchToRegister": "New here? Create the owner account",
+      "switchToSignIn": "Already have an account? Sign in"
+    },
+    "register": {
+      "submit": "Create account",
+      "submitting": "Creating…",
+      "emailTaken": "That email is already registered. Sign in instead.",
+      "invalidInput": "{{detail}}"
+    }
   }
 }

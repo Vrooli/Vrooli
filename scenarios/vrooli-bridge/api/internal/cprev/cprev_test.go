@@ -160,6 +160,40 @@ func TestResolve_UnpushedCommitFailsPreflight(t *testing.T) {
 	}
 }
 
+func TestResolveWorkingTree_UnpushedBaseBypassesPreflight(t *testing.T) {
+	// The exact scenario Resolve hard-fails (CP HEAD committed locally but never
+	// pushed) must SUCCEED under ResolveWorkingTree: the tree is shipped over SSH,
+	// not fetched, so an unpushed base is expected. This is the scoping guarantee.
+	git := &fakeGit{head: cpCommit, advertised: []string{otherPush}}
+	r := cprev.New(cprev.WithGitRunner(git))
+
+	// Pinned mode still hard-fails the very same commit.
+	var notPushed cprev.ErrNotPushed
+	if _, err := r.Resolve(context.Background(), ""); !errors.As(err, &notPushed) {
+		t.Fatalf("pinned Resolve err = %v, want ErrNotPushed (pinned mode must keep the hard fail)", err)
+	}
+
+	// Working-tree mode resolves to the base commit with no preflight failure.
+	got, err := r.ResolveWorkingTree(context.Background(), "")
+	if err != nil {
+		t.Fatalf("ResolveWorkingTree err = %v, want nil (unpushed base is allowed in working-tree mode)", err)
+	}
+	if got != cpCommit {
+		t.Fatalf("ResolveWorkingTree = %q, want %q (the base HEAD)", got, cpCommit)
+	}
+}
+
+func TestResolveWorkingTree_StillRejectsMetacharRef(t *testing.T) {
+	// The push preflight is bypassed, but the metacharacter guard is NOT: a
+	// relative/injectable ref must still be refused at the boundary.
+	git := &fakeGit{head: cpCommit, advertised: []string{cpCommit}}
+	r := cprev.New(cprev.WithGitRunner(git))
+	var unsafe cprev.ErrUnsafeRevision
+	if _, err := r.ResolveWorkingTree(context.Background(), "HEAD~1"); !errors.As(err, &unsafe) {
+		t.Fatalf("ResolveWorkingTree(HEAD~1) err = %v, want ErrUnsafeRevision", err)
+	}
+}
+
 func TestResolve_MetacharRefRejectedAtBoundary(t *testing.T) {
 	// A relative ref (HEAD~1) must be rejected here, BEFORE any git/preflight, so
 	// the operator gets a friendly boundary error rather than an opaque privsep

@@ -80,6 +80,12 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		VerifyTimeoutSeconds: req.Msg.GetVerifyTimeoutSeconds(),
 		SkipSetup:            req.Msg.GetSkipSetup(),
 		SkipPrereqs:          req.Msg.GetSkipPrereqs(),
+		ProvisionSudo:        req.Msg.GetProvisionSudo(),
+		SetupEnvironment:     req.Msg.GetSetupEnvironment(),
+		SetupResources:       req.Msg.GetSetupResources(),
+		SetupScenarios:       req.Msg.GetSetupScenarios(),
+		IncludeOptional:      req.Msg.GetIncludeOptional(),
+		SourceMode:           sourceModeFromProto(req.Msg.GetSourceMode()),
 		DryRun:               dryRun,
 	})
 	if err != nil {

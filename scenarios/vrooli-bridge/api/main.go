@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -42,6 +43,7 @@ import (
 	fleetH "vrooli-bridge/handlers/fleet"
 	gateH "vrooli-bridge/handlers/gate"
 	healthH "vrooli-bridge/handlers/health"
+	identityH "vrooli-bridge/handlers/identity"
 	onboardH "vrooli-bridge/handlers/onboard"
 	pairingH "vrooli-bridge/handlers/pairing"
 	provisionH "vrooli-bridge/handlers/provision"
@@ -197,6 +199,36 @@ func bootstrapScriptPath() (string, error) {
 	return "", fmt.Errorf("node bootstrap script not found (set BRIDGE_BOOTSTRAP_SCRIPT); looked in %v", candidates)
 }
 
+// deriveControlPlaneURL builds the dial-back URL nodes use to reach this
+// control plane when neither the request nor BRIDGE_CONTROL_PLANE_URL names
+// one. It pairs the primary outbound IP (reachable from LAN nodes, unlike
+// localhost) with the port this process serves on — the same API_PORT
+// resolution api-core/server uses (default 8080).
+func deriveControlPlaneURL() string {
+	port := strings.TrimSpace(os.Getenv("API_PORT"))
+	if port == "" {
+		port = "8080"
+	}
+	return "http://" + net.JoinHostPort(outboundIP(), port)
+}
+
+// outboundIP returns the IP of the interface holding the default route. The
+// UDP "dial" never sends a packet — it only asks the kernel which source
+// address it would pick for a non-routable TEST-NET-1 destination. Hosts with
+// no default route (fully offline) fall back to loopback, which still serves
+// the onboard-this-same-machine case.
+func outboundIP() string {
+	conn, err := net.Dial("udp", "192.0.2.1:9")
+	if err != nil {
+		return "127.0.0.1"
+	}
+	defer conn.Close()
+	if addr, ok := conn.LocalAddr().(*net.UDPAddr); ok && addr.IP != nil && !addr.IP.IsUnspecified() {
+		return addr.IP.String()
+	}
+	return "127.0.0.1"
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -335,9 +367,26 @@ func main() {
 	// picks up an optional default control-plane URL from BRIDGE_CONTROL_PLANE_URL
 	// so an operator can omit control_plane_url when the control plane knows its
 	// own public URL.
-	onboardOpts := []internalonboard.Option{internalonboard.WithRevisionResolver(revResolver)}
+	// Working-tree source mode ships the control plane's LOCAL tree to the node
+	// over SSH (owner development/validation mode). The snapshotter enumerates the
+	// same checkout the revision resolver reads (BRIDGE_CP_REPO_DIR or the process
+	// working directory). The node-revision recorder stamps the node record with the
+	// provenance the op brought it to so `nodes`/fleet UI render a dirty node loudly.
+	onboardOpts := []internalonboard.Option{
+		internalonboard.WithRevisionResolver(revResolver),
+		internalonboard.WithWorkingTreeSource(internalonboard.NewWorkingTreeSource(strings.TrimSpace(os.Getenv("BRIDGE_CP_REPO_DIR")))),
+		internalonboard.WithNodeRevisionRecorder(onboardH.NewNodeRevisionRecorder(registrySvc)),
+	}
 	if cpURL := strings.TrimSpace(os.Getenv("BRIDGE_CONTROL_PLANE_URL")); cpURL != "" {
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(cpURL))
+	} else {
+		// Zero-config default: the control plane knows its own address, so a
+		// bare start (no env, no per-request control_plane_url) must still
+		// onboard instead of failing validation. Per-request and env values
+		// always win over this derivation.
+		derived := deriveControlPlaneURL()
+		log.Printf("onboard: default control-plane URL derived as %s (override per request or with BRIDGE_CONTROL_PLANE_URL)", derived)
+		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(derived))
 	}
 	onboardSvc := onboardH.NewService(db, clk, pairingSvc, presenceHub, onboardssh.NewService(sshStateDir), bootstrapScript, onboardOpts...)
 	if n, rerr := onboardSvc.ResumeInterrupted(context.Background()); rerr != nil {
@@ -355,6 +404,12 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.Module(db, "vrooli-bridge-api", "1.0.0"),
+		// identity: same-origin owner sign-in / registration facade. The browser
+		// never calls scenario-authenticator cross-origin; it calls this bridge RPC,
+		// which forwards to the authenticator (resolved by name via the shared
+		// authResolver) and relays the issued owner JWT. Unauthenticated (it precedes
+		// the caller holding a token); owns no credential logic and no tables.
+		identityH.Module(authResolver, logger),
 		// registry RevokeNode performs atomic revocation: durable revoke +
 		// credential destruction (pairingSvc) + live-channel drop (presenceHub).
 		registryH.Module(db, clk, presenceHub, pairingSvc, presenceHub, logger),

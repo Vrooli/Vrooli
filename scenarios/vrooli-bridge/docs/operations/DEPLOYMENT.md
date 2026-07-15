@@ -36,7 +36,7 @@ Use this document to answer:
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Local Vrooli stack (control plane on Linux) | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite path; owner auth (cli-core `auth login`) | Built and running as an ordinary Vrooli scenario. |
+| Local Vrooli stack (control plane on Linux) | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite path; owner token (cli-core `configure token` or `VROOLI_BRIDGE_API_TOKEN`) | Built and running as an ordinary Vrooli scenario. |
 | Per-node agent service (Linux / macOS) | supported | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as systemd (`--user`, requires linger) / launchd (LaunchAgent, requires a logged-in user) | Cross-compiled agent + `vrooli-bridge-agent service install` + one-shot onboarding are built and tested. Per-OS installer wrappers and code-signing are still convenience gaps. |
 | Per-node agent service (Windows) | gated | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a Windows Service | Service unit is render-only (`sc.exe create` argv); live install/onboarding on Windows is not yet exercised. |
 | Control plane on macOS / Windows | gated P2 | Vrooli-the-platform installable/runnable on those OSes | Depends on platform portability work outside this scenario (OT-P2-001). Bridge is written cross-platform so it is never the blocker. |
@@ -100,14 +100,20 @@ exist:
   [`../concepts/FLOWS.md`](../concepts/FLOWS.md#one-shot-node-onboarding).
 - **Manual bootstrap (fallback / air-gapped first touch).** Run
   `bootstrap/bootstrap.sh` directly on the node with
-  `BRIDGE_PAIRING_CODE` in the environment. The script clones Vrooli at a
-  pinned revision, runs `vrooli setup`, builds the agent + CLI, generates
-  the node key, redeems the pairing code (pinning the control-plane key
-  **before** the code is burned), installs the OS-native service, enables
-  headless auto-start, and verifies the dial-out channel is live. It is
-  idempotent — a re-run after a partial failure converges, and a
-  fully-onboarded node re-run changes nothing. Marker grammar, step list,
-  and exit codes are documented in
+  `BRIDGE_PAIRING_CODE` in the environment. The script installs **only**
+  the clone prerequisites (`git` and `curl`) and delegates all heavier
+  provisioning to `vrooli setup`, which is the **sole machine-provisioning
+  authority** — bootstrap never duplicates a toolchain install. It clones
+  Vrooli at a pinned revision, runs `vrooli setup` (**elevated** when
+  passwordless sudo is available — the one-shot path provisions a
+  `sudoers.d` drop-in at first touch; otherwise setup runs unprivileged and
+  names the skipped root-required requirements loudly), builds the agent +
+  CLI, generates the node key, redeems the pairing code (pinning the
+  control-plane key **before** the code is burned), installs the OS-native
+  service, enables headless auto-start, and verifies the dial-out channel
+  is live. It is idempotent — a re-run after a partial failure converges,
+  and a fully-onboarded node re-run changes nothing. Marker grammar, step
+  list, and exit codes are documented in
   [`../../bootstrap/README.md`](../../bootstrap/README.md).
 
 Everything after onboarding is remote.

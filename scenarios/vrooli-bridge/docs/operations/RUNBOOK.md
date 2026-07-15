@@ -56,9 +56,14 @@ maintains presence. Operate nodes **through** the control plane:
 - Revoke a node: `vrooli-bridge nodes revoke <node>` — atomically kills its
   job and provisioning rights.
 
-All owner-gated verbs require an authenticated session; run
-`vrooli-bridge auth login` first (cli-core framework auth). To add a new
-node, use **onboarding** (below) rather than a manual per-node installer.
+All owner-gated verbs require an owner token. Set one once with
+`vrooli-bridge configure token "<owner-token>"` (or export
+`VROOLI_BRIDGE_API_TOKEN`) — the cli-core framework token source. In the
+**UI**, the console shows a sign-in screen instead: sign in (or create the
+owner account) and it proxies same-origin to scenario-authenticator via the
+bridge's `IdentityService`, keeping the JWT in browser storage until you sign
+out; an expired token returns you to the sign-in screen. To add a
+new node, use **onboarding** (below) rather than a manual per-node installer.
 
 On the node itself, the agent service is managed with the platform's
 service manager (`systemctl`, `launchctl`, or the Windows Service
@@ -75,32 +80,86 @@ code server-side (injected over SSH stdin, never argv/logs) → run the
 script → confirm the node is ONLINE. The op is server-owned: it survives
 your client disconnecting and is re-attachable by id.
 
-CLI path (owner-authenticated; `auth login` first):
+CLI path (owner-authenticated; `configure token` first):
 
 ```bash
-# Prompts for the SSH password interactively (masked); or set
-# BRIDGE_SSH_PASSWORD for non-interactive use. Blank password is allowed
-# when the host already trusts the bridge key.
-vrooli-bridge onboard start --host mini-01.local --user admin
+# `start` NEVER prompts. Supply the SSH password one of three ways (or the
+# UI onboard form on the fleet dashboard — the equivalent browser path):
+#   --password-stdin       pipe it in (e.g. from `read -s` or a secret manager)
+#   --prompt-password      explicit opt-in masked TTY prompt
+#   $BRIDGE_SSH_PASSWORD   ambient env var for programmatic runs
+# With none of these, the host is assumed to already trust the bridge key.
+# The password rides once in the request body — never argv, never stored.
+# Passwordless sudo is provisioned at first touch by default
+# (--provision-sudo); pass --no-provision-sudo to opt out and let
+# root-required setup steps degrade loudly.
+read -rs SSH_PW && printf '%s' "$SSH_PW" | vrooli-bridge onboard start \
+  --host mini-01.local --user admin --password-stdin && unset SSH_PW
+
+# Shape the node's setup with an explicit profile (else its own defaults apply):
+vrooli-bridge onboard start --host mini-01.local --user admin --prompt-password --setup-environment production --setup-resources enabled
 
 # Block ONCE on the terminal outcome (never poll); exits non-zero on failure:
-vrooli-bridge onboard watch <op-id>
+vrooli-bridge onboard watch "<op-id>"
 
 # Inspect full step history at any time:
-vrooli-bridge onboard status <op-id>
+vrooli-bridge onboard status "<op-id>"
 vrooli-bridge onboard list --host mini-01.local
 ```
 
 Key flags: `--revision` (default `@cp` = the control plane's current
 commit; pass an explicit already-pushed SHA/branch when HEAD is
-unpushed), `--name`, `--capabilities`, `--control-plane-url`,
-`--verify-timeout`, `--skip-setup`, `--skip-prereqs`. The UI path is the
-**OnboardNodeForm** on the fleet dashboard (same durable op, live step
-states, failure-taxonomy rendering).
+unpushed), `--name`, `--capabilities`, `--control-plane-url` (the dial-back
+URL the node pairs to; defaults to the server's `$BRIDGE_CONTROL_PLANE_URL`,
+else the control plane's own derived LAN address — zero configuration
+required), `--verify-timeout`, `--skip-setup`, `--skip-prereqs`. The UI path
+is the **OnboardNodeForm** on the fleet dashboard (same durable op, live step
+states, failure-taxonomy rendering), including the same password,
+control-plane-URL, setup-profile, and source-mode inputs.
+
+**Elevated, profile-driven setup.** The node-side `vrooli setup` is the sole
+machine-provisioning authority. When passwordless sudo is available on the node
+(provision it at onboarding via `--provision-sudo`, the default), setup runs
+**under sudo** so no requirement is skipped for privilege. Without it, setup runs
+unprivileged and the **skipped root-required requirements are named loudly** in
+the `setup` step detail — a warning in the op step events / `onboard watch` /
+UI, not a failure. The setup profile is operator-chosen and reaches the node's
+`make setup SETUP_ARGS='…'`:
+
+| Flag (CLI + UI advanced options) | Maps to | Values |
+|------|---------|--------|
+| `--setup-environment` | `vrooli setup --environment` | `development` \| `production` \| `minimal` |
+| `--setup-resources`   | `vrooli setup --resources`   | `enabled` \| `none` \| `<comma-list>` |
+| `--setup-scenarios`   | `vrooli setup --scenarios`   | `none` \| `all` \| `<comma-list>` |
+| `--include-optional`  | `vrooli setup --include-optional` | (flag) also apply optional safeguards |
+
+**Default:** all four are left **empty/off**, the sensible fleet posture — the
+node falls through to `vrooli setup`'s own defaults (development environment,
+default resources) and the bootstrap does not reshape a node's setup unless you
+ask. Every value is metacharacter-validated at the API boundary (no
+shell-injectable token can reach the node), and the setup sentinel is keyed on
+the profile, so changing it re-runs setup while an identical profile no-ops.
+
+**Source mode — pinned vs working-tree.** By default the node clones the
+`--revision` from the clone remote, which must be **pushed** (the control-plane
+preflight hard-fails an unpushed commit). For owner **development/validation**,
+`--source working-tree` ships the control plane's **local working tree** over SSH
+so uncommitted work onboards without a commit or push:
+
+```bash
+vrooli-bridge onboard start --host mini-01.local --user admin --source working-tree
+```
+
+A working-tree node records **dirty provenance** — its revision renders
+`"<base>+dirty"` in `nodes list`, node detail, and the fleet UI, so it is
+visibly not a pinned node. Because it is pinned to no fetchable commit, **fleet
+rolls exclude it** with a `needs-reprovision` disposition; re-onboard it without
+`--source working-tree` (pinned mode) to make it rollable again. Keep fleet-wide
+rolls on pinned nodes; working-tree is a single-host development affordance.
 
 If an op FAILS, it records a machine-branchable reason
 (`ssh_setup_failed`, `pairing_failed`, `bootstrap_failed`,
-`verify_online_failed`, …). Every step is idempotent, so a FAILED op is
+`working_tree_sync_failed`, `verify_online_failed`, …). Every step is idempotent, so a FAILED op is
 always safe to re-run — `onboard start` again converges. `onboard cancel
 <op-id>` cancels a non-terminal op (the remote host may be partially set
 up; a re-run converges).
@@ -126,10 +185,7 @@ of band before dispatching jobs.
 1. **Enable Remote Login (SSH).** System Settings → General → Sharing →
    Remote Login → on, for the admin user. This is the SSH target
    `onboard start --host … --user …` connects to.
-2. **Install Docker Desktop** and launch it once so the daemon is
-   running (bridge nodes are real build/test environments; container
-   workloads need the runtime up).
-3. **Enable auto-login for the agent's user.** System Settings → Users &
+2. **Enable auto-login for the agent's user.** System Settings → Users &
    Groups → Automatically log in as `<user>`. This is **required**: the
    node-agent installs as a launchd **LaunchAgent**
    (`com.vrooli.bridge.vrooli-bridge-agent`), which runs only while its
@@ -137,14 +193,21 @@ of band before dispatching jobs.
    but the agent will not auto-start after reboot — there is no
    `loginctl enable-linger` equivalent on macOS.
 
+**Docker is not an onboarding pre-step.** Nothing in pairing or coming
+ONLINE needs Docker — it matters only later, when a dispatched job runs a
+container workload. Docker is a `vrooli setup` requirement (the `docker`
+requirement), so setup — not onboarding — owns installing it. On macOS its
+daemon (Docker Desktop) runs **per GUI session**, so a headless mini must
+have Docker Desktop running in the auto-logged-in user's session before
+container workloads dispatch to it; it is never needed to bring the node
+ONLINE.
+
 **Then onboard from the control-plane host:**
 
 ```bash
-vrooli-bridge auth login
-vrooli-bridge onboard start \
-  --host mini-01.local --user admin \
-  --name mac-mini-01 --revision <already-pushed-sha>
-vrooli-bridge onboard watch <op-id>
+vrooli-bridge configure token "<owner-token>"
+vrooli-bridge onboard start --host mini-01.local --user admin --name mac-mini-01 --revision "<already-pushed-sha>"
+vrooli-bridge onboard watch "<op-id>"
 ```
 
 Verify success: the op reaches SUCCEEDED, `nodes list` shows the node

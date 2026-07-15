@@ -30,6 +30,7 @@ import type { ReactElement, ReactNode } from "react";
 import { I18nextProvider } from "react-i18next";
 import { MemoryRouter } from "react-router-dom";
 
+import { SessionProvider } from "../features/session/SessionProvider";
 import { i18n } from "../i18n";
 import { ThemeProvider, type ThemeChoice } from "../theme/ThemeProvider";
 
@@ -95,7 +96,11 @@ export function renderWithProviders(
     );
     return (
       <QueryClientProvider client={queryClient}>
-        <I18nextProvider i18n={i18n}>{routed}</I18nextProvider>
+        <I18nextProvider i18n={i18n}>
+          {/* SessionProvider initialises from localStorage; seed a session with
+              `seedSession()` before rendering to exercise the signed-in shell. */}
+          <SessionProvider>{routed}</SessionProvider>
+        </I18nextProvider>
       </QueryClientProvider>
     );
   };

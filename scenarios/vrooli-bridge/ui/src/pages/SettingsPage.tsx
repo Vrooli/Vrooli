@@ -1,5 +1,6 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { OwnerSignIn } from "../features/session/OwnerSignIn";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
@@ -32,6 +33,13 @@ export function SettingsPage() {
       <h2 id="settings-heading" className="text-2xl font-semibold">
         {t(strings.pages.settings.title)}
       </h2>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
+          {t(strings.session.accountHeading)}
+        </h3>
+        <OwnerSignIn />
+      </div>
 
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">

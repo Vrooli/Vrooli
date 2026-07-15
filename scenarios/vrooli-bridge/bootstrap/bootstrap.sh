@@ -93,11 +93,26 @@ NODE_NAME="${BRIDGE_NODE_NAME:-}"
 REPO_URL="${BRIDGE_REPO_URL:-$DEFAULT_REPO_URL}"
 REVISION="${BRIDGE_REVISION:-}"
 CHECKOUT_DIR="${BRIDGE_CHECKOUT_DIR:-$HOME/vrooli}"
+
+# Working-tree source mode: when SOURCE_DIR is set the control plane has already
+# shipped its LOCAL tree here over SSH, so step_clone verifies that pre-synced tree
+# instead of cloning/fetching (the node has no git remote to fetch and no .git
+# history — provenance is REVISION as a base commit + SOURCE_DIGEST). Empty ==
+# pinned mode (clone/fetch REVISION).
+SOURCE_DIR="${BRIDGE_SOURCE_DIR:-}"
+SOURCE_DIGEST="${BRIDGE_SOURCE_DIGEST:-}"
 STATE_DIR="${BRIDGE_AGENT_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/vrooli-bridge-agent}"
 WORK_DIR="${BRIDGE_WORK_DIR:-}"
 SERVICE_USER="${BRIDGE_SERVICE_USER:-}"
 CAPABILITIES="${BRIDGE_CAPABILITIES:-}"
 VERIFY_TIMEOUT="${BRIDGE_VERIFY_TIMEOUT:-120}"
+
+# Setup profile: the operator-chosen shape of the node-side `vrooli setup` this
+# script runs. Empty values fall through to `vrooli setup`'s own defaults.
+SETUP_ENVIRONMENT="${BRIDGE_SETUP_ENVIRONMENT:-}"
+SETUP_RESOURCES="${BRIDGE_SETUP_RESOURCES:-}"
+SETUP_SCENARIOS="${BRIDGE_SETUP_SCENARIOS:-}"
+INCLUDE_OPTIONAL=0
 
 SKIP_PREREQS=0
 SKIP_SETUP=0
@@ -121,14 +136,25 @@ Options (flag overrides env in parentheses):
   --repo-url URL            Source repo to clone.             (BRIDGE_REPO_URL; default: Vrooli GitHub)
   --revision REV            Git commit/branch/tag to pin.     (BRIDGE_REVISION; default: repo default branch)
   --checkout-dir DIR        Where the node's checkout lives.  (BRIDGE_CHECKOUT_DIR; default: $HOME/vrooli)
+  --source-dir DIR          Verify a pre-synced working tree here instead of
+                            cloning (working-tree source mode; the control plane
+                            ships its local tree over SSH). (BRIDGE_SOURCE_DIR)
+  --source-digest DIGEST    Content digest of the pre-synced tree; keys the setup
+                            sentinel so re-shipped work re-runs setup. (BRIDGE_SOURCE_DIGEST)
   --state-dir DIR           Agent credential/state dir.       (BRIDGE_AGENT_STATE_DIR; default: XDG state)
   --work-dir DIR            Dir the agent runs jobs in.       (BRIDGE_WORK_DIR; default: checkout dir)
   --service-user USER       OS principal the service runs as. (BRIDGE_SERVICE_USER; default: current user)
   --capabilities LIST       Comma-separated verb namespaces.  (BRIDGE_CAPABILITIES)
   --verify-timeout SECONDS  Dial-out verification budget.     (BRIDGE_VERIFY_TIMEOUT; default: 120)
 
+Setup profile (shapes the node-side `vrooli setup`; empty = vrooli setup default):
+  --setup-environment ENV   development|production|minimal.   (BRIDGE_SETUP_ENVIRONMENT)
+  --setup-resources SEL     enabled|none|<comma-list>.        (BRIDGE_SETUP_RESOURCES)
+  --setup-scenarios SEL     none|all|<comma-list>.            (BRIDGE_SETUP_SCENARIOS)
+  --include-optional        Also apply optional host safeguards.
+
 Pre-satisfied-prerequisite shortcuts (each documented in README.md):
-  --skip-prereqs            Assume git/go/pnpm/curl are already installed.
+  --skip-prereqs            Assume git/curl (the clone prerequisites) are present.
   --skip-setup              Skip `make setup` (node cannot run jobs until it is
                             run later, but pairing/online/auto-start still work).
   --force-setup             Run `make setup` even if its revision sentinel exists.
@@ -146,11 +172,17 @@ while [ $# -gt 0 ]; do
     --repo-url)          REPO_URL="$2"; shift 2 ;;
     --revision)          REVISION="$2"; shift 2 ;;
     --checkout-dir)      CHECKOUT_DIR="$2"; shift 2 ;;
+    --source-dir)        SOURCE_DIR="$2"; shift 2 ;;
+    --source-digest)     SOURCE_DIGEST="$2"; shift 2 ;;
     --state-dir)         STATE_DIR="$2"; shift 2 ;;
     --work-dir)          WORK_DIR="$2"; shift 2 ;;
     --service-user)      SERVICE_USER="$2"; shift 2 ;;
     --capabilities)      CAPABILITIES="$2"; shift 2 ;;
     --verify-timeout)    VERIFY_TIMEOUT="$2"; shift 2 ;;
+    --setup-environment) SETUP_ENVIRONMENT="$2"; shift 2 ;;
+    --setup-resources)   SETUP_RESOURCES="$2"; shift 2 ;;
+    --setup-scenarios)   SETUP_SCENARIOS="$2"; shift 2 ;;
+    --include-optional)  INCLUDE_OPTIONAL=1; shift ;;
     --skip-prereqs)      SKIP_PREREQS=1; shift ;;
     --skip-setup)        SKIP_SETUP=1; shift ;;
     --force-setup)       FORCE_SETUP=1; shift ;;
@@ -166,6 +198,40 @@ done
 [ -n "$CONTROL_PLANE_URL" ] || { log "error: --control-plane-url (or \$BRIDGE_CONTROL_PLANE_URL) is required"; usage; exit 2; }
 [ -n "$NODE_NAME" ] || NODE_NAME="$(hostname)"
 [ -n "$WORK_DIR" ] || WORK_DIR="$CHECKOUT_DIR"
+
+# Defence-in-depth: the API boundary already rejects shell metacharacters in the
+# setup-profile values (api/internal/onboard.validateSetupProfile, mirroring the
+# cprev revision filter), but this script may also be run by hand, so it re-checks
+# before the values are spliced into `make setup SETUP_ARGS=…`. A metachar here is
+# a config error (exit 2), never a silent injection. The set mirrors
+# cprev.shellMetachars; a comma is allowed (resource/scenario selections are
+# comma lists). Checked char-by-char so every metachar (including glob and
+# bracket characters) is matched as a literal.
+SETUP_METACHARS='|&;<>()$`\"'"'"'*?[]{}!#~ '
+validate_setup_value() {
+  local name="$1" value="$2" i c
+  local n=${#value}
+  for (( i = 0; i < n; i++ )); do
+    c="${value:i:1}"
+    case "$c" in
+      $'\t'|$'\n'|$'\r')
+        log "error: --${name} value contains whitespace; setup-profile values are spliced into the node setup command"
+        exit 2 ;;
+    esac
+    case "$SETUP_METACHARS" in
+      *"$c"*)
+        log "error: --${name} value contains a disallowed shell character (${c}); setup-profile values are spliced into the node setup command"
+        exit 2 ;;
+    esac
+  done
+}
+validate_setup_value setup-environment "$SETUP_ENVIRONMENT"
+validate_setup_value setup-resources   "$SETUP_RESOURCES"
+validate_setup_value setup-scenarios   "$SETUP_SCENARIOS"
+case "$SETUP_ENVIRONMENT" in
+  ""|development|production|minimal) ;;
+  *) log "error: --setup-environment must be development, production, or minimal"; exit 2 ;;
+esac
 
 readonly BOOTSTRAP_STATE_DIR="${STATE_DIR}/.bootstrap"
 readonly NODE_ID_FILE="${STATE_DIR}/node_id"
@@ -204,7 +270,7 @@ step_detect_os() {
     *) ARCH="$uname_m" ;;
   esac
   if [ "$OS" = "darwin" ]; then
-    log "    note: macOS nodes require Docker Desktop running and Remote Login enabled (manual pre-steps; see README)."
+    log "    note: macOS nodes need Remote Login enabled (and auto-login if headless); Docker is only for container workloads later, not to onboard (see README)."
   fi
   step_ok "os=${OS} arch=${ARCH}"
 }
@@ -212,15 +278,96 @@ step_detect_os() {
 # ensure_cmd <name> — is a command available?
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# have_passwordless_sudo — true when privileged commands can run non-interactively:
+# already root, or `sudo -n` works without a password. Never prompts, so a headless
+# run can branch on it instead of hanging on a password prompt.
+have_passwordless_sudo() {
+  [ "$(id -u)" -eq 0 ] && return 0
+  sudo -n true 2>/dev/null
+}
+
+# as_root <cmd...> — run a command with root privilege: directly when already root,
+# else via non-interactive `sudo -n`. NEVER prompts (a headless run must degrade
+# loudly, never wedge on a password prompt). Caller must have checked
+# have_passwordless_sudo first.
+as_root() {
+  if [ "$(id -u)" -eq 0 ]; then
+    "$@"
+  else
+    sudo -n "$@"
+  fi
+}
+
+# profile_hash <string> — a short, stable, filesystem-safe digest of its input,
+# used to key the setup sentinel on the setup profile so a changed profile re-runs
+# setup while an identical one stays a no-op. Prefers sha256; falls back to cksum
+# (always present) so no extra dependency is required.
+profile_hash() {
+  local input="$1"
+  if have sha256sum; then
+    printf '%s' "$input" | sha256sum | cut -c1-16
+  elif have shasum; then
+    printf '%s' "$input" | shasum -a 256 | cut -c1-16
+  else
+    printf '%s' "$input" | cksum | tr -d ' ' | cut -c1-16
+  fi
+}
+
+# compose_setup_args — the SETUP_ARGS string threaded into `make setup`. Each value
+# was metachar-validated at parse time, so a plain space-join is safe (make word-
+# splits SETUP_ARGS into `vrooli setup` argv). Empty values are omitted, falling
+# through to `vrooli setup`'s own defaults.
+compose_setup_args() {
+  local a=""
+  [ -n "$SETUP_ENVIRONMENT" ] && a="${a} --environment ${SETUP_ENVIRONMENT}"
+  [ -n "$SETUP_RESOURCES" ]   && a="${a} --resources ${SETUP_RESOURCES}"
+  [ -n "$SETUP_SCENARIOS" ]   && a="${a} --scenarios ${SETUP_SCENARIOS}"
+  [ "$INCLUDE_OPTIONAL" -eq 1 ] && a="${a} --include-optional"
+  printf '%s' "${a# }"
+}
+
+# parse_needs_sudo <setup-output-file> — echo a single-line, marker-safe summary of
+# the requirements `vrooli setup` skipped for privilege, or nothing when none were.
+# It reads the grouped renderer's "Needs sudo — …(N):" block (internal/setup/
+# requirements_report.go): the header line followed by two-space-indented item
+# rows. Degrades gracefully if the format shifts — a header with no parseable items
+# still yields a generic loud detail rather than a false all-clear.
+parse_needs_sudo() {
+  local out="$1"
+  grep -qE '^Needs sudo' "$out" 2>/dev/null || return 0
+  local names
+  names="$(awk '
+    /^Needs sudo/ { insec=1; next }
+    insec && /^[^ ]/ { insec=0 }
+    insec && /^  [^ ]/ { printf "%s%s", sep, $2; sep="," }
+  ' "$out" 2>/dev/null)"
+  # Keep the detail marker-safe: no embedded double quotes (the marker wraps
+  # detail in quotes) and no newlines (awk already produced one line).
+  names="$(printf '%s' "$names" | tr -d '"')"
+  if [ -z "$names" ]; then
+    printf 'ran unprivileged; root-required requirements were skipped (see setup output above)'
+    return 0
+  fi
+  local count
+  count="$(printf '%s' "$names" | awk -F, '{print NF}')"
+  printf '%s root-required requirement(s) skipped for privilege: %s' "$count" "$names"
+}
+
 step_prereqs() {
-  step_start prereqs "ensure git/go/pnpm/curl"
+  # Only the true chicken-and-egg set needed to CLONE the source: git + curl.
+  # Every heavier toolchain (go, pnpm, node, docker…) is owned by project-level
+  # `vrooli setup`, which runs from the cloned tree in step_setup — installing
+  # them here too would duplicate that authority and drift from it. The
+  # post-setup toolchain guard (step_toolchain_guard) confirms setup actually
+  # delivered go/pnpm before the build steps rely on them.
+  step_start prereqs "ensure git/curl (clone prerequisites)"
   if [ "$SKIP_PREREQS" -eq 1 ]; then
     step_skip "--skip-prereqs"
     return
   fi
   local missing=()
   local c
-  for c in git curl go pnpm; do
+  for c in git curl; do
     have "$c" || missing+=("$c")
   done
   if [ "${#missing[@]}" -eq 0 ]; then
@@ -239,36 +386,57 @@ step_prereqs() {
 }
 
 install_prereqs_linux() {
+  # git and curl are the only prerequisites this step installs; the package name
+  # matches the command name for both, so no per-tool mapping is needed.
   have apt-get || fail 1 "no apt-get: install these manually and re-run: $*"
-  local sudo=""
-  [ "$(id -u)" -eq 0 ] || sudo="sudo"
-  $sudo apt-get update >&2
-  local pkg c
+  # apt-get needs root. Use non-interactive sudo (or run directly as root); never
+  # fall back to interactive sudo, which would hang a headless onboarding run.
+  if ! have_passwordless_sudo; then
+    fail 1 "installing prerequisites (${*}) needs root, but passwordless sudo is unavailable on this node — provision it (onboard --provision-sudo) or install these manually and re-run with --skip-prereqs"
+  fi
+  as_root apt-get update >&2
+  local c
   for c in "$@"; do
-    case "$c" in
-      go) pkg="golang-go" ;;
-      *)  pkg="$c" ;;
-    esac
-    $sudo apt-get install -y "$pkg" >&2
+    as_root apt-get install -y "$c" >&2
   done
 }
 
+# install_prereqs_darwin — deliberately does NOT auto-install Homebrew. Only git
+# and curl can reach here (setup owns every heavier toolchain), and on macOS curl
+# always ships while git arrives with the Xcode Command Line Tools. Directing the
+# operator to `xcode-select --install` provisions git through Apple's own supported
+# path rather than bootstrapping a whole package manager during a headless
+# onboarding run — a smaller, more predictable footprint on someone else's Mac.
 install_prereqs_darwin() {
-  if ! have brew; then
-    log "    installing Homebrew (non-interactive)"
-    NONINTERACTIVE=1 /bin/bash -c \
-      "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" >&2
-    # brew is on PATH under /opt/homebrew (arm) or /usr/local (intel).
-    eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv 2>/dev/null || true)"
-  fi
-  local c
-  for c in "$@"; do
-    brew install "$c" >&2
-  done
+  fail 1 "missing macOS clone prerequisite(s): $* — run 'xcode-select --install' (installs git; curl ships with macOS) then re-run. This bootstrap does not auto-install Homebrew; project 'vrooli setup' owns every other toolchain."
 }
 
 step_clone() {
   step_start clone "clone/converge ${REPO_URL}"
+
+  # Working-tree source mode: the control plane pre-shipped its LOCAL tree into
+  # SOURCE_DIR over SSH, so there is nothing to clone/fetch. Verify the tree
+  # landed (exists, non-empty) and record its dirty provenance instead of a git
+  # sha — the node has no .git history here. The setup sentinel keys on
+  # SOURCE_DIGEST so re-shipping changed work re-runs setup.
+  if [ -n "$SOURCE_DIR" ]; then
+    [ -d "$SOURCE_DIR" ] || fail 1 "--source-dir ${SOURCE_DIR} does not exist (the control plane's working-tree ship did not land here)"
+    [ -n "$(ls -A "$SOURCE_DIR" 2>/dev/null)" ] || fail 1 "--source-dir ${SOURCE_DIR} is empty (the working-tree ship is incomplete) — re-run onboarding"
+    CHECKOUT_DIR="$SOURCE_DIR"
+    if [ -n "$REVISION" ]; then
+      REVISION_SHA="${REVISION}+dirty"
+    else
+      REVISION_SHA="working-tree"
+    fi
+    SETUP_DIGEST_KEY="$SOURCE_DIGEST"
+    if [ -n "$SOURCE_DIGEST" ]; then
+      step_ok "using pre-synced working tree at ${SOURCE_DIR} (${REVISION_SHA}, digest ${SOURCE_DIGEST})"
+    else
+      step_ok "using pre-synced working tree at ${SOURCE_DIR} (${REVISION_SHA})"
+    fi
+    return
+  fi
+
   mkdir -p "$(dirname "$CHECKOUT_DIR")"
   if [ -d "${CHECKOUT_DIR}/.git" ]; then
     log "    existing checkout — fetching"
@@ -296,14 +464,36 @@ step_setup() {
     return
   fi
   mkdir -p "$BOOTSTRAP_STATE_DIR"
-  local sentinel="${BOOTSTRAP_STATE_DIR}/setup-${REVISION_SHA}.done"
+
+  # The sentinel is keyed on BOTH the revision and the setup profile, so changing
+  # the profile (environment/resources/scenarios/include-optional) re-runs setup
+  # while an identical profile at the same revision stays a no-op.
+  # SETUP_DIGEST_KEY is the working-tree content digest (empty in pinned mode); it
+  # folds into the sentinel key so re-shipping changed uncommitted work (same base
+  # revision, new digest) re-runs setup while an identical tree stays a no-op.
+  local setup_args profile_token sentinel
+  setup_args="$(compose_setup_args)"
+  profile_token="$(profile_hash "${REVISION_SHA}|${setup_args}|${SETUP_DIGEST_KEY}")"
+  sentinel="${BOOTSTRAP_STATE_DIR}/setup-${REVISION_SHA}-${profile_token}.done"
   if [ "$FORCE_SETUP" -eq 0 ] && [ -f "$sentinel" ]; then
-    step_skip "already set up at ${REVISION_SHA}"
+    step_skip "already set up at ${REVISION_SHA} for this profile"
     return
   fi
+
+  # Project-level `vrooli setup` is the sole machine-provisioning authority on the
+  # node. Run it ELEVATED when passwordless sudo is available so no requirement is
+  # skipped for privilege; otherwise run unprivileged and surface the skipped
+  # root-required items LOUDLY (a warning in the step detail, never a failure).
+  local elevated=0
+  local -a cmd=(make -C "$CHECKOUT_DIR" setup "SETUP_ARGS=${setup_args}")
+  if have_passwordless_sudo; then
+    elevated=1
+    [ "$(id -u)" -eq 0 ] || cmd=(sudo -n "${cmd[@]}")
+  fi
+
   local out rc
   out="$(mktemp)"
-  if make -C "$CHECKOUT_DIR" setup >"$out" 2>&1; then
+  if "${cmd[@]}" >"$out" 2>&1; then
     rc=0
   else
     rc=$?
@@ -319,9 +509,97 @@ step_setup() {
     rm -f "$out"
     fail 1 "make setup failed (exit ${rc}) — see output above"
   fi
+
+  # Name the skipped root-required requirements loudly so they are visible in the
+  # op step events, CLI watch output, and the UI — a warning, not a failure.
+  local skipped
+  skipped="$(parse_needs_sudo "$out")"
   rm -f "$out"
   touch "$sentinel"
-  step_ok "setup complete at ${REVISION_SHA}"
+
+  local mode="unprivileged"
+  [ "$elevated" -eq 1 ] && mode="elevated"
+  if [ -n "$skipped" ]; then
+    step_ok "setup complete at ${REVISION_SHA} (${mode}) — ${skipped}"
+  else
+    step_ok "setup complete at ${REVISION_SHA} (${mode})"
+  fi
+}
+
+# toolchain_dirs — the known, PATH-independent locations project `vrooli setup`
+# installs the build toolchains into. setup writes NO shell-profile PATH entry: it
+# installs into these fixed locations and relies on the operator's interactive login
+# shell already carrying them. A non-interactive SSH shell (which is what a headless
+# onboarding run is) does not source the login profile, so a tool setup just
+# installed can be present on disk yet invisible on this process's PATH. The guard
+# probes these to recover such a tool and amend PATH for the build steps.
+#   * $HOME/.vrooli/bin  — no-sudo standalone tools, e.g. pnpm (internal/runtime tool installer)
+#   * $HOME/.local/bin    — setup's symlink target for go-installed binaries
+#   * $HOME/go/bin        — Go's default install target ($GOBIN)
+#   * /usr/local/go/bin   — official Go tarball layout
+#   * /opt/homebrew/bin, /usr/local/bin — Homebrew (arm/intel) + system bins
+toolchain_dirs() {
+  printf '%s\n' \
+    "${HOME}/.vrooli/bin" \
+    "${HOME}/.local/bin" \
+    "${HOME}/go/bin" \
+    "/usr/local/go/bin" \
+    "/opt/homebrew/bin" \
+    "/usr/local/bin"
+}
+
+# locate_offpath <cmd> — echo the directory of executable <cmd> found in a known
+# toolchain dir but not on PATH, or nothing (return 1). bash-3.2-safe: while-read
+# over toolchain_dirs, no mapfile.
+locate_offpath() {
+  local bin="$1" dir
+  while IFS= read -r dir; do
+    [ -n "$dir" ] || continue
+    if [ -x "${dir}/${bin}" ]; then
+      printf '%s' "$dir"
+      return 0
+    fi
+  done < <(toolchain_dirs)
+  return 1
+}
+
+# The toolchains the node must have to build from source (agent + CLI) and to run
+# jobs (scenario UIs need pnpm). setup owns installing them; this list is only what
+# the guard verifies.
+readonly BUILD_TOOLCHAINS="go pnpm"
+
+step_toolchain_guard() {
+  # Fail fast and legibly when `vrooli setup` did not deliver a build toolchain,
+  # instead of letting the build steps die with a confusing "go: command not
+  # found". Also repairs the non-interactive-SSH PATH gap: a tool present only in a
+  # known install dir is recovered onto PATH for the rest of this run.
+  step_start toolchain "verify build toolchains resolve"
+  local recovered="" absent="" tool dir
+  for tool in $BUILD_TOOLCHAINS; do
+    if have "$tool"; then
+      continue
+    fi
+    if dir="$(locate_offpath "$tool")"; then
+      case ":${PATH}:" in
+        *":${dir}:"*) ;;
+        *) PATH="${dir}:${PATH}"; export PATH ;;
+      esac
+      recovered="${recovered:+${recovered}, }${tool} (${dir})"
+    else
+      absent="${absent:+${absent} }${tool}"
+    fi
+  done
+  if [ -n "$absent" ]; then
+    # Name the gap AND the setup authority that should have closed it, so the
+    # operator fixes the real cause (often: setup skipped root-required items for
+    # privilege) rather than chasing a downstream build error.
+    fail 1 "build toolchain(s) missing after setup: ${absent} — the node's 'vrooli setup' toolchain requirements did not deliver them (checked PATH and known install dirs: \$HOME/.vrooli/bin, \$HOME/.local/bin, \$HOME/go/bin, /usr/local/go/bin, /opt/homebrew/bin, /usr/local/bin). Run 'vrooli setup status' on this node to see why (e.g. a group skipped for privilege) then re-run; use --skip-setup only if you provision these another way."
+  fi
+  if [ -n "$recovered" ]; then
+    step_ok "build toolchains resolve — recovered off-PATH and amended PATH: ${recovered}"
+  else
+    step_ok "build toolchains resolve on PATH"
+  fi
 }
 
 step_build_agent() {
@@ -418,8 +696,9 @@ step_pin_verify() {
 
 step_service_install() {
   step_start service-install "install + start node-agent service"
-  local cfg
-  mapfile -t cfg < <(agent_service_args)
+  local cfg=() line
+  # bash-3.2-safe array fill (macOS stock bash has no mapfile/readarray).
+  while IFS= read -r line; do cfg+=("$line"); done < <(agent_service_args)
 
   # Idempotent: if the service is already installed, running, and its unit file
   # byte-matches what we would render now, do nothing (no restart).
@@ -464,13 +743,19 @@ step_autostart() {
     step_skip "linger already enabled for ${target_user}"
     return
   fi
-  local sudo=""
-  [ "$(id -u)" -eq 0 ] || [ "$target_user" = "$(id -un)" ] || sudo="sudo"
-  if loginctl enable-linger "$target_user" >&2 2>/dev/null || $sudo loginctl enable-linger "$target_user" >&2; then
+  # A direct enable may be permitted (root, or a self-linger the host's polkit
+  # allows); try it first. Otherwise elevate with NON-INTERACTIVE sudo only — an
+  # interactive password prompt would hang a headless onboarding run, so we degrade
+  # loudly instead of blocking.
+  if loginctl enable-linger "$target_user" >&2 2>/dev/null; then
     step_ok "enabled linger for ${target_user}"
-  else
-    fail 1 "could not enable linger for ${target_user} (needed so the agent survives logout/reboot): run 'loginctl enable-linger ${target_user}' as an admin and re-run"
+    return
   fi
+  if have_passwordless_sudo && as_root loginctl enable-linger "$target_user" >&2; then
+    step_ok "enabled linger for ${target_user} (via sudo)"
+    return
+  fi
+  fail 1 "could not enable linger for ${target_user} without an interactive password prompt (needed so the agent survives logout/reboot): provision passwordless sudo (onboard --provision-sudo) or run 'sudo loginctl enable-linger ${target_user}' as an admin and re-run"
 }
 
 # journal_channel_state — echoes the most recent channel lifecycle verdict from
@@ -494,8 +779,9 @@ step_verify_online() {
   local have_journal=0
   journalctl --user -n0 >/dev/null 2>&1 && have_journal=1
 
-  local cfg
-  mapfile -t cfg < <(agent_service_args)
+  local cfg=() line
+  # bash-3.2-safe array fill (macOS stock bash has no mapfile/readarray).
+  while IFS= read -r line; do cfg+=("$line"); done < <(agent_service_args)
 
   local deadline=$(( $(date +%s) + VERIFY_TIMEOUT ))
   while :; do
@@ -526,6 +812,9 @@ step_verify_online() {
 # --- run ---------------------------------------------------------------------
 
 REVISION_SHA=""
+# Working-tree content digest folded into the setup sentinel key (empty in pinned
+# mode); step_clone sets it in working-tree source mode.
+SETUP_DIGEST_KEY=""
 
 main() {
   marker run-start "" "vrooli-bridge node bootstrap"
@@ -534,6 +823,7 @@ main() {
   step_prereqs
   step_clone
   step_setup
+  step_toolchain_guard
   step_build_agent
   step_build_cli
   step_node_key

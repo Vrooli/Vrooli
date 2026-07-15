@@ -96,8 +96,17 @@ func startSchema() cliapp.ArgSchema {
 		{Name: "checkout-dir"},
 		{Name: "control-plane-url"},
 		{Name: "verify-timeout"},
+		{Name: "setup-environment"},
+		{Name: "setup-resources"},
+		{Name: "setup-scenarios"},
+		{Name: "include-optional", Bool: true},
 		{Name: "skip-setup", Bool: true},
 		{Name: "skip-prereqs", Bool: true},
+		{Name: "provision-sudo", Bool: true},
+		{Name: "no-provision-sudo", Bool: true},
+		{Name: "source"},
+		{Name: "password-stdin", Bool: true},
+		{Name: "prompt-password", Bool: true},
 	}}
 }
 
@@ -111,6 +120,60 @@ func envPassword(t *testing.T, secret string) passwordSource {
 		readSecret: func() ([]byte, error) { t.Fatal("prompt must not run when the env var is set"); return nil, nil },
 		prompt:     io.Discard,
 	}
+}
+
+func TestStart_PasswordStdinFlagPipesTheSecret(t *testing.T) {
+	svc := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{
+		OpId: "op-stdin", Host: "10.0.0.5", Port: 22, User: "deploy",
+	}}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.password = passwordSource{
+		lookupEnv: func(string) (string, bool) {
+			t.Fatal("env must not be consulted under --password-stdin")
+			return "", false
+		},
+		isTerminal: func() bool { return false },
+		readSecret: func() ([]byte, error) { t.Fatal("prompt must not run under --password-stdin"); return nil, nil },
+		stdin:      strings.NewReader("piped-pw\n"),
+		prompt:     io.Discard,
+	}
+
+	ctx, out := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{
+		Flags:     map[string]string{"host": "10.0.0.5", "user": "deploy"},
+		BoolFlags: map[string]bool{"password-stdin": true},
+	})
+	require.NoError(t, h.start(ctx))
+
+	// The piped secret reached the request body with the pipe newline stripped...
+	require.Equal(t, "piped-pw", svc.startReq.SshPassword)
+	// ...and the report names the (non-secret) source without leaking the value.
+	require.Contains(t, out.String(), "--password-stdin")
+	require.NotContains(t, out.String(), "piped-pw")
+}
+
+func TestStart_NoCredentialReportsKeyTrustedAssumption(t *testing.T) {
+	svc := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{
+		OpId: "op-none", Host: "10.0.0.5", Port: 22, User: "deploy",
+	}}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.password = passwordSource{
+		lookupEnv:  func(string) (string, bool) { return "", false },
+		isTerminal: func() bool { return true }, // even on a TTY: no prompt, ever
+		readSecret: func() ([]byte, error) { t.Fatal("start must never auto-prompt"); return nil, nil },
+		prompt:     io.Discard,
+	}
+
+	ctx, out := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"host": "10.0.0.5", "user": "deploy"},
+	})
+	require.NoError(t, h.start(ctx))
+
+	require.Empty(t, svc.startReq.SshPassword)
+	// The report says the run is riding on key trust and teaches every intake path.
+	require.Contains(t, out.String(), "already trusts the bridge key")
+	require.Contains(t, out.String(), "--password-stdin")
 }
 
 func TestStart_SendsPasswordInBodyNotArgv(t *testing.T) {
@@ -146,6 +209,94 @@ func TestStart_SendsPasswordInBodyNotArgv(t *testing.T) {
 	// Human output points the operator at watch.
 	require.Contains(t, out.String(), "op-1")
 	require.Contains(t, out.String(), "onboard watch op-1")
+}
+
+func TestStart_ProvisionSudoDefaultsOnAndCanBeDisabled(t *testing.T) {
+	newStartCtx := func(bools map[string]bool) (*fakeOnboard, cliapp.RunContext) {
+		svc := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{OpId: "op-s", Host: "h", Port: 22, User: "root"}}
+		core := clitest.NewTestApp(t, connectAPI(svc))
+		h := newHandlers(core)
+		h.password = envPassword(t, "pw")
+		ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{
+			Flags:     map[string]string{"host": "h"},
+			BoolFlags: bools,
+		})
+		require.NoError(t, h.start(ctx))
+		return svc, ctx
+	}
+
+	// Default: no flag → provisioning ON (the operator handed over admin creds).
+	svc, _ := newStartCtx(nil)
+	require.True(t, svc.startReq.ProvisionSudo, "provision-sudo must default ON")
+
+	// Opt out with --no-provision-sudo.
+	svcOff, _ := newStartCtx(map[string]bool{"no-provision-sudo": true})
+	require.False(t, svcOff.startReq.ProvisionSudo, "--no-provision-sudo must disable it")
+
+	// Explicit --provision-sudo wins if both are somehow present.
+	svcBoth, _ := newStartCtx(map[string]bool{"no-provision-sudo": true, "provision-sudo": true})
+	require.True(t, svcBoth.startReq.ProvisionSudo, "explicit --provision-sudo wins")
+}
+
+func TestStart_SetupProfileFlagsReachRequest(t *testing.T) {
+	svc := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{OpId: "op-p", Host: "h", Port: 22, User: "root"}}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.password = envPassword(t, "pw")
+
+	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{
+		Flags: map[string]string{
+			"host":              "h",
+			"setup-environment": "production",
+			"setup-resources":   "enabled",
+			"setup-scenarios":   "none",
+		},
+		BoolFlags: map[string]bool{"include-optional": true},
+	})
+	require.NoError(t, h.start(ctx))
+
+	require.Equal(t, "production", svc.startReq.SetupEnvironment)
+	require.Equal(t, "enabled", svc.startReq.SetupResources)
+	require.Equal(t, "none", svc.startReq.SetupScenarios)
+	require.True(t, svc.startReq.IncludeOptional)
+
+	// Omitted profile flags default to empty (the node uses its own setup defaults).
+	svcEmpty := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{OpId: "op-e", Host: "h", Port: 22, User: "root"}}
+	coreEmpty := clitest.NewTestApp(t, connectAPI(svcEmpty))
+	hEmpty := newHandlers(coreEmpty)
+	hEmpty.password = envPassword(t, "pw")
+	ctxEmpty, _ := cliapptest.NewCapturedRunContext(coreEmpty, startSchema(), cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"host": "h"},
+	})
+	require.NoError(t, hEmpty.start(ctxEmpty))
+	require.Empty(t, svcEmpty.startReq.SetupEnvironment)
+	require.Empty(t, svcEmpty.startReq.SetupResources)
+	require.Empty(t, svcEmpty.startReq.SetupScenarios)
+	require.False(t, svcEmpty.startReq.IncludeOptional)
+}
+
+func TestStart_SourceModeFlag(t *testing.T) {
+	// --source working-tree sets the working-tree source mode on the request.
+	svc := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{OpId: "op-wt", Host: "h", Port: 22, User: "root"}}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.password = envPassword(t, "pw")
+	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"host": "h", "source": "working-tree"},
+	})
+	require.NoError(t, h.start(ctx))
+	require.Equal(t, onboardv1.SourceMode_SOURCE_MODE_WORKING_TREE, svc.startReq.SourceMode)
+
+	// Omitted --source defaults to pinned.
+	svcDef := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{OpId: "op-p", Host: "h", Port: 22, User: "root"}}
+	coreDef := clitest.NewTestApp(t, connectAPI(svcDef))
+	hDef := newHandlers(coreDef)
+	hDef.password = envPassword(t, "pw")
+	ctxDef, _ := cliapptest.NewCapturedRunContext(coreDef, startSchema(), cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"host": "h"},
+	})
+	require.NoError(t, hDef.start(ctxDef))
+	require.Equal(t, onboardv1.SourceMode_SOURCE_MODE_PINNED_REVISION, svcDef.startReq.SourceMode)
 }
 
 func TestStart_JSONShape(t *testing.T) {

@@ -25,6 +25,12 @@ type FirstTouchRequest struct {
 	User     string
 	Password []byte
 	KeyName  string
+
+	// ProvisionSudo, when true, installs a scoped passwordless-sudo drop-in for
+	// User over the freshly key-authenticated connection — while the password is
+	// still held — so every later privileged step works over non-interactive SSH.
+	// Declining (or a provisioning failure) never fails the first touch itself.
+	ProvisionSudo bool
 }
 
 // FirstTouchResult reports the outcome of a managed first touch. It carries no
@@ -44,6 +50,12 @@ type FirstTouchResult struct {
 	ConnectionVerified  bool   `json:"connection_verified"`
 	Status              string `json:"status"`
 	Message             string `json:"message,omitempty"`
+
+	// SudoProvisioned is true only when the passwordless-sudo drop-in was written
+	// and verified this run. SudoState carries the full outcome (including the
+	// no-op, declined, and password-unavailable cases) for the op step detail.
+	SudoProvisioned bool      `json:"sudo_provisioned"`
+	SudoState       SudoState `json:"sudo_state,omitempty"`
 }
 
 // FirstTouch establishes working passwordless SSH to a single owner-supplied
@@ -54,8 +66,12 @@ type FirstTouchResult struct {
 //
 // The flow is idempotent: on a host where the key is already authorized the
 // initial test succeeds and no password is required, and a re-run with an
-// already-present key installs nothing (already_exists). The password slice is
-// always zeroed before returning, including on every early-return path.
+// already-present key installs nothing (already_exists).
+//
+// When ProvisionSudo is set, the password is held one step longer — through the
+// optional passwordless-sudo drop-in install over the now-key-authenticated
+// connection — and only then zeroed. The password slice is always zeroed before
+// returning (deferred), including on every early-return and error path.
 func (s *Service) FirstTouch(ctx context.Context, req FirstTouchRequest) (FirstTouchResult, error) {
 	// Zero the credential no matter which path we exit through.
 	defer zeroBytes(req.Password)
@@ -120,6 +136,11 @@ func (s *Service) FirstTouch(ctx context.Context, req FirstTouchRequest) (FirstT
 		result.ConnectionVerified = true
 		result.Status = StatusSuccess
 		result.Message = "passwordless SSH already working"
+		// The key already authorizes, but the passwordless-sudo drop-in may not be
+		// installed yet. Provision it if asked — on this path the owner password may
+		// be absent (a pure re-run), which the provisioner reports as
+		// password-unavailable rather than a failure.
+		s.provisionSudo(ctx, req, testReq, &result)
 		return result, nil
 	}
 
@@ -139,9 +160,9 @@ func (s *Service) FirstTouch(ctx context.Context, req FirstTouchRequest) (FirstT
 		KnownHostsFile: s.knownHostsPath(),
 		Password:       string(req.Password),
 	})
-	// The password has served its one purpose — destroy our copy immediately,
-	// well before the function returns (the deferred zero is a backstop).
-	zeroBytes(req.Password)
+	// NB: the password is NOT zeroed here — when ProvisionSudo is set it is needed
+	// once more for the sudo drop-in below. The deferred zero (and the eager wipe
+	// after provisioning) guarantee it never outlives this function.
 
 	if !copyResp.OK {
 		result.Status = copyResp.Status
@@ -156,11 +177,37 @@ func (s *Service) FirstTouch(ctx context.Context, req FirstTouchRequest) (FirstT
 	if final.OK {
 		result.Status = StatusSuccess
 		result.Message = "passwordless SSH established"
+		// 5. Optional passwordless-sudo provisioning while the password is still in
+		//    hand, over the connection the just-installed key now authorizes.
+		s.provisionSudo(ctx, req, testReq, &result)
 	} else {
 		result.Status = final.Status
 		result.Message = fmt.Sprintf("key installed but passwordless SSH still failed: %s", final.Message)
 	}
 	return result, nil
+}
+
+// provisionSudo runs (or declines) the passwordless-sudo drop-in install for a
+// successful first touch, recording the outcome on result. It is the single place
+// the password's hold window is extended and then eagerly wiped: the sudo write
+// is its last consumer, so we zero it here (the deferred FirstTouch zero remains
+// the backstop on every other path).
+func (s *Service) provisionSudo(ctx context.Context, req FirstTouchRequest, testReq TestConnectionRequest, result *FirstTouchResult) {
+	if !req.ProvisionSudo {
+		result.SudoState = SudoStateDeclined
+		return
+	}
+	out := s.provisioner.Provision(ctx, ProvisionSudoRequest{
+		Host:           testReq.Host,
+		Port:           testReq.Port,
+		User:           testReq.User,
+		KeyPath:        testReq.KeyPath,
+		KnownHostsFile: s.knownHostsPath(),
+		Password:       req.Password,
+	})
+	zeroBytes(req.Password)
+	result.SudoState = out.State
+	result.SudoProvisioned = out.State == SudoStateProvisioned
 }
 
 // zeroBytes overwrites b with zeros. Go strings are immutable and cannot be

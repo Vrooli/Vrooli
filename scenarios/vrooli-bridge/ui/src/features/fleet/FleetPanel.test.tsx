@@ -131,6 +131,30 @@ describe("FleetPanel", () => {
     await waitFor(() => expect(screen.getByTestId(selectors.fleet.empty)).toBeInTheDocument());
   });
 
+  it("invites adding the first node from the empty state and fires the callback", async () => {
+    const onAddNode = vi.fn();
+    const user = userEvent.setup();
+    listNodes.mockResolvedValue({ nodes: [] });
+    renderWithProviders(<FleetPanel onAddNode={onAddNode} />);
+
+    await waitFor(() => expect(screen.getByTestId(selectors.fleet.empty)).toBeInTheDocument());
+    // The empty card carries the welcoming heading and a single primary CTA.
+    expect(screen.getByText(strings.fleet.emptyHeading)).toBeInTheDocument();
+    await user.click(screen.getByTestId(selectors.fleet.onboard.addNode));
+    expect(onAddNode).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an Add-a-node header button once the fleet has nodes", async () => {
+    const onAddNode = vi.fn();
+    const user = userEvent.setup();
+    listNodes.mockResolvedValue({ nodes: [makeNode({ id: "n1" })] });
+    renderWithProviders(<FleetPanel onAddNode={onAddNode} />);
+
+    await screen.findByTestId(selectors.fleet.row({ id: "n1" }));
+    await user.click(screen.getByTestId(selectors.fleet.onboard.addNode));
+    expect(onAddNode).toHaveBeenCalledTimes(1);
+  });
+
   it("surfaces a typed error when the list query fails", async () => {
     listNodes.mockRejectedValue(new ConnectError("denied", Code.Unavailable));
     renderWithProviders(<FleetPanel />);

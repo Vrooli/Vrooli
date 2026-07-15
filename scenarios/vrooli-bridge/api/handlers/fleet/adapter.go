@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"vrooli-bridge/internal/fleet"
+	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/provision"
 	"vrooli-bridge/internal/registry"
 
@@ -64,6 +65,8 @@ func dispositionToProto(d fleet.NodeDisposition) fleetv1.NodeRolloutDisposition 
 		return fleetv1.NodeRolloutDisposition_NODE_ROLLOUT_DISPOSITION_SKIPPED_NEEDS_UPDATE
 	case fleet.DispositionSkippedRevoked:
 		return fleetv1.NodeRolloutDisposition_NODE_ROLLOUT_DISPOSITION_SKIPPED_REVOKED
+	case fleet.DispositionSkippedWorkingTree:
+		return fleetv1.NodeRolloutDisposition_NODE_ROLLOUT_DISPOSITION_SKIPPED_WORKING_TREE
 	case fleet.DispositionFailed:
 		return fleetv1.NodeRolloutDisposition_NODE_ROLLOUT_DISPOSITION_FAILED
 	default:
@@ -95,7 +98,14 @@ func (a nodeListerAdapter) ListNodes(ctx context.Context) ([]fleet.NodeRef, erro
 	}
 	out := make([]fleet.NodeRef, 0, len(nodes))
 	for _, n := range nodes {
-		out = append(out, fleet.NodeRef{ID: n.ID, Revoked: n.Revoked()})
+		// A node's provenance revision carrying the dirty working-tree marker means
+		// it was onboarded from the control plane's local tree — not a fetchable
+		// commit — so a revision roll must exclude it (needs-reprovision).
+		out = append(out, fleet.NodeRef{
+			ID:          n.ID,
+			Revoked:     n.Revoked(),
+			WorkingTree: onboard.IsWorkingTreeRevision(n.Revision),
+		})
 	}
 	return out, nil
 }

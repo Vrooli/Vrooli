@@ -8,7 +8,9 @@
 --
 -- SECRETS never land here: there is deliberately NO column for the owner SSH
 -- password or the single-use pairing code. The password is request-scoped and
--- zeroed after the SSH key install; the pairing code is issued server-side and
+-- zeroed after first touch (installing the SSH key and, when requested, the
+-- passwordless-sudo drop-in — which the password only ever reaches over `sudo -S`
+-- on stdin, never argv or a log line); the pairing code is issued server-side and
 -- injected into the remote bootstrap over stdin. The only durable identity is
 -- node_id, learned once the bootstrap redeems the code.
 CREATE TABLE IF NOT EXISTS onboarding_ops (

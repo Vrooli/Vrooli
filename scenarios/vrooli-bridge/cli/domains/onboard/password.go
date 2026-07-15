@@ -4,69 +4,113 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"golang.org/x/term"
 )
 
-// sshPasswordEnvVar is the non-interactive path for the owner's SSH password.
-// It is the ONLY way to supply the password without a TTY prompt — deliberately
-// an env var, never a flag, so the single-use secret never lands in argv (where
-// `ps` would expose it to any local user) or shell history.
+// sshPasswordEnvVar is the ambient non-interactive path for the owner's SSH
+// password. It is deliberately an env var, never a flag, so the single-use
+// secret never lands in argv (where `ps` would expose it to any local user)
+// or shell history.
 const sshPasswordEnvVar = "BRIDGE_SSH_PASSWORD"
 
+// credentialSource names where the resolved password came from. It is
+// non-secret metadata: the start report echoes it so the operator can see
+// which intake path won without ever seeing the secret itself.
+type credentialSource string
+
+const (
+	credentialFromStdin  credentialSource = "--password-stdin"
+	credentialFromPrompt credentialSource = "--prompt-password"
+	credentialFromEnv    credentialSource = "$" + sshPasswordEnvVar
+	credentialNone       credentialSource = "none"
+)
+
 // passwordSource resolves the SSH password without ever reading it from argv.
-// The seams (env, isTerminal, readSecret) are injected so the resolution logic
-// is unit-testable without a real TTY.
+// The seams (env, isTerminal, readSecret, stdin) are injected so the
+// resolution logic is unit-testable without a real TTY or process stdin.
 type passwordSource struct {
 	lookupEnv  func(string) (string, bool)
 	isTerminal func() bool
 	readSecret func() ([]byte, error)
+	stdin      io.Reader
 	prompt     io.Writer
 }
 
-// newPasswordSource wires passwordSource to the real process: $BRIDGE_SSH_PASSWORD,
-// stdin's TTY state, and a masked terminal read. The prompt text goes to stderr
-// so it never contaminates piped --json stdout.
+// newPasswordSource wires passwordSource to the real process:
+// $BRIDGE_SSH_PASSWORD, stdin's TTY state, a masked terminal read, and process
+// stdin for --password-stdin. The prompt text goes to stderr so it never
+// contaminates piped --json stdout.
 func newPasswordSource() passwordSource {
 	fd := int(os.Stdin.Fd())
 	return passwordSource{
 		lookupEnv:  os.LookupEnv,
 		isTerminal: func() bool { return term.IsTerminal(fd) },
 		readSecret: func() ([]byte, error) { return term.ReadPassword(fd) },
+		stdin:      os.Stdin,
 		prompt:     os.Stderr,
 	}
 }
 
-// resolve returns the SSH password to send once in the StartOnboarding request.
-// Precedence:
-//  1. $BRIDGE_SSH_PASSWORD, when set (the non-interactive/programmatic path) —
-//     honoured even if empty, which means "the host already trusts the bridge key".
-//  2. An interactive masked prompt, when stdin is a TTY. A blank entry is valid
-//     and means the same "already key-trusted" case.
-//  3. Empty, when there is neither an env var nor a TTY — assume the host is
-//     already key-trusted rather than blocking a non-interactive run.
+// resolve returns the SSH password to send once in the StartOnboarding request
+// body, plus the (non-secret) source it came from. `start` NEVER prompts unless
+// explicitly asked: an unattended run cannot hang on a question, and an
+// interactive one only sees a prompt it opted into. Precedence:
 //
-// The returned string is passed straight into the request body; it is never
-// placed on argv. An empty result is legitimate (the API treats it as "no
-// first-touch needed").
-func (p passwordSource) resolve(user, host string) (string, error) {
+//  1. --password-stdin: read the whole of stdin (pipe it from a secret manager
+//     or `read -s`); one trailing newline is stripped.
+//  2. --prompt-password: a masked TTY prompt, explicit opt-in only. Errors
+//     without a TTY rather than silently degrading.
+//  3. $BRIDGE_SSH_PASSWORD, when set — honoured even if empty, which means
+//     "the host already trusts the bridge key".
+//  4. Empty: assume the host is already key-trusted. The op fails at ssh-setup
+//     with guidance naming every intake path if that assumption is wrong.
+//
+// The two flags are mutually exclusive; passing both is a usage error. The
+// returned string goes straight into the request body — never argv.
+func (p passwordSource) resolve(user, host string, fromStdin, promptRequested bool) (string, credentialSource, error) {
+	if fromStdin && promptRequested {
+		return "", credentialNone, fmt.Errorf("--password-stdin and --prompt-password are mutually exclusive: choose one credential path")
+	}
+	if fromStdin {
+		raw, err := io.ReadAll(p.stdin)
+		if err != nil {
+			return "", credentialNone, fmt.Errorf("read SSH password from stdin: %w", err)
+		}
+		return trimTrailingNewline(string(raw)), credentialFromStdin, nil
+	}
+	if promptRequested {
+		if !p.isTerminal() {
+			return "", credentialNone, fmt.Errorf("--prompt-password needs a TTY: pipe the password via --password-stdin or set $%s instead", sshPasswordEnvVar)
+		}
+		who := user
+		if who == "" {
+			who = "root"
+		}
+		fmt.Fprintf(p.prompt, "SSH password for %s@%s (leave blank if the host already trusts the bridge key): ", who, host)
+		secret, err := p.readSecret()
+		// ReadPassword consumes the trailing newline without echoing it; print
+		// our own so the next line of output is not glued to the prompt.
+		fmt.Fprintln(p.prompt)
+		if err != nil {
+			return "", credentialNone, fmt.Errorf("read SSH password: %w", err)
+		}
+		return string(secret), credentialFromPrompt, nil
+	}
 	if v, ok := p.lookupEnv(sshPasswordEnvVar); ok {
-		return v, nil
+		return v, credentialFromEnv, nil
 	}
-	if !p.isTerminal() {
-		return "", nil
+	return "", credentialNone, nil
+}
+
+// trimTrailingNewline strips exactly one trailing LF or CRLF — the newline the
+// shell pipe appends — while preserving any other byte that is genuinely part
+// of the password (including a bare trailing CR).
+func trimTrailingNewline(s string) string {
+	if strings.HasSuffix(s, "\n") {
+		s = strings.TrimSuffix(s, "\n")
+		s = strings.TrimSuffix(s, "\r")
 	}
-	who := user
-	if who == "" {
-		who = "root"
-	}
-	fmt.Fprintf(p.prompt, "SSH password for %s@%s (leave blank if the host already trusts the bridge key): ", who, host)
-	secret, err := p.readSecret()
-	// ReadPassword consumes the trailing newline without echoing it; print our
-	// own so the next line of output is not glued to the prompt.
-	fmt.Fprintln(p.prompt)
-	if err != nil {
-		return "", fmt.Errorf("read SSH password: %w", err)
-	}
-	return string(secret), nil
+	return s
 }

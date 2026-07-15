@@ -372,13 +372,13 @@
       "path": "/vrooli.vrooli_bridge.v1.fleet.FleetService/RollFleet",
       "method": "POST",
       "summary": "Roll the fleet (or a subset) to a target revision",
-      "description": "Pins every registered (or named) node to a target git revision: enumerates the eligible nodes, classifies each (online + protocol-compatible + not-revoked → dispatch; otherwise skip with a reason), dispatches a privileged provisioning op to each eligible node, and records a durable rollout with the per-node ledger. Honours X-Dry-Run. Owner-gated.",
+      "description": "Pins every registered (or named) node to a target git revision: enumerates the eligible nodes, classifies each (online + protocol-compatible + not-revoked → dispatch; otherwise skip with a reason), dispatches a privileged provisioning op to each eligible node, and records a durable rollout with the per-node ledger. target_revision defaults to the control plane's current commit (pass \"@cp\" to say so explicitly) and is resolved+preflighted ONCE up front, so the whole fleet pins to a single exact commit and an unpushed target fails the roll before any node is touched. Honours X-Dry-Run. Owner-gated.",
       "category": "fleet",
       "request": {
         "type": "object",
         "properties": {
           "node_ids": "array<string>",
-          "target_revision": "string (required)",
+          "target_revision": "string (defaults to the control plane's commit; \"@cp\" = same)",
           "timeout_seconds": "int64"
         }
       },
@@ -395,12 +395,17 @@
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing target_revision"
+          "description": "An invalid revision (e.g. a relative ref like HEAD~1)"
         },
         {
           "status": 401,
           "code": "unauthenticated",
           "description": "Owner token required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The resolved commit is not on the clone remote (push it first)"
         },
         {
           "status": 500,
@@ -677,18 +682,108 @@
       ]
     },
     {
+      "id": "identity_login",
+      "path": "/vrooli.vrooli_bridge.v1.identity.IdentityService/Login",
+      "method": "POST",
+      "summary": "Owner sign-in (same-origin)",
+      "description": "Forwards email + password to scenario-authenticator (resolved by name via api-core/discovery) and returns the issued owner JWT. The control plane owns no credential logic — it relays. Called same-origin by the bridge UI so the browser never makes a cross-origin call.",
+      "category": "identity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "password": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "refresh_token": "string",
+          "token": "string (owner JWT)",
+          "user_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid email or password"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "scenario-authenticator could not be reached"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Sign in",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.identity.IdentityService/Login -H 'Content-Type: application/json' -d '{\"email\":\"you@example.com\",\"password\":\"…\"}'"
+        }
+      ]
+    },
+    {
+      "id": "identity_register",
+      "path": "/vrooli.vrooli_bridge.v1.identity.IdentityService/Register",
+      "method": "POST",
+      "summary": "Create owner account (same-origin)",
+      "description": "Creates an owner account in scenario-authenticator and returns the issued owner JWT (the account is signed in immediately, so a fresh owner can register their first node in one flow). Relayed via api-core/discovery; same-origin only.",
+      "category": "identity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "password": "string",
+          "username": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "refresh_token": "string",
+          "token": "string (owner JWT)",
+          "user_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Email already registered"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Weak password or malformed email (authenticator message relayed)"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "scenario-authenticator could not be reached"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create account",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.identity.IdentityService/Register -H 'Content-Type: application/json' -d '{\"email\":\"you@example.com\",\"password\":\"…\"}'"
+        }
+      ]
+    },
+    {
       "id": "onboard_start_onboarding",
       "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/StartOnboarding",
       "method": "POST",
       "summary": "Onboard a raw SSH host into the fleet (one-shot, durable)",
-      "description": "Drives a raw SSH-reachable host from bare OS to a paired, ONLINE, auto-starting fleet agent in one durable, server-owned op (SSH first-touch → push bootstrap script → remote bootstrap → verify online). The owner's SSH password is used once and never persisted; the pairing code is issued server-side and injected over stdin. Honours X-Dry-Run. Owner-gated.",
+      "description": "Drives a raw SSH-reachable host from bare OS to a paired, ONLINE, auto-starting fleet agent in one durable, server-owned op (SSH first-touch → push bootstrap script → remote bootstrap → verify online). The owner's SSH password is used once and never persisted; the pairing code is issued server-side and injected over stdin. target_revision defaults to the control plane's current commit (pass \"@cp\" to say so explicitly); the resolved commit is preflighted against the clone remote, so an unpushed commit is rejected with push-first guidance. Honours X-Dry-Run. Owner-gated.",
       "category": "onboard",
       "request": {
         "type": "object",
         "properties": {
           "capabilities": "array<string>",
           "checkout_dir": "string",
-          "control_plane_url": "string (required)",
+          "control_plane_url": "string (required unless BRIDGE_CONTROL_PLANE_URL is set)",
           "host": "string (required)",
           "node_name": "string",
           "port": "int32",
@@ -696,7 +791,7 @@
           "skip_prereqs": "bool",
           "skip_setup": "bool",
           "ssh_password": "string",
-          "target_revision": "string (required)",
+          "target_revision": "string (defaults to the control plane's commit; \"@cp\" = same)",
           "user": "string",
           "verify_timeout_seconds": "int32"
         }
@@ -712,12 +807,17 @@
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing host/target_revision/control_plane_url"
+          "description": "Missing host/control_plane_url, or an invalid revision (e.g. a relative ref like HEAD~1)"
         },
         {
           "status": 401,
           "code": "unauthenticated",
           "description": "Owner token required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The resolved commit is not on the clone remote (push it first) or the control plane's commit could not be determined"
         },
         {
           "status": 500,
@@ -1138,14 +1238,14 @@
       "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/SyncToRevision",
       "method": "POST",
       "summary": "Sync a node to a project revision (privileged)",
-      "description": "Brings a node to a target git revision (`git fetch`@R + idempotent `vrooli setup`) via the node's separate privileged helper, creating a durable, audited provisioning op. Validates and rejects an unknown/revoked/offline node before any op is created. Honours X-Dry-Run. Owner-gated.",
+      "description": "Brings a node to a target git revision (`git fetch`@R + idempotent `vrooli setup`) via the node's separate privileged helper, creating a durable, audited provisioning op. Validates and rejects an unknown/revoked/offline node before any op is created. target_revision defaults to the control plane's current commit (pass \"@cp\" to say so explicitly) and is preflighted against the clone remote, so an unpushed commit is rejected with push-first guidance; rollback_revision accepts \"@cp\" too. Honours X-Dry-Run. Owner-gated.",
       "category": "provision",
       "request": {
         "type": "object",
         "properties": {
           "node_id": "string (required)",
-          "rollback_revision": "string",
-          "target_revision": "string (required)",
+          "rollback_revision": "string (\"@cp\" accepted)",
+          "target_revision": "string (defaults to the control plane's commit; \"@cp\" = same)",
           "timeout_seconds": "int64"
         }
       },
@@ -1160,7 +1260,7 @@
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing node_id/target_revision"
+          "description": "Missing node_id, or an invalid revision (e.g. a relative ref like HEAD~1)"
         },
         {
           "status": 401,
@@ -1176,6 +1276,11 @@
           "status": 409,
           "code": "failed_precondition",
           "description": "Node revoked or offline"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The resolved commit is not on the clone remote (push it first)"
         },
         {
           "status": 503,

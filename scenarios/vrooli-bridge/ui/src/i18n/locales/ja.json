@@ -23,8 +23,8 @@
   },
   "pages": {
     "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。"
+      "title": "あなたのフリート",
+      "description": "追加した信頼済みのマシン。各マシンは自動でセットアップされ、作業を実行できる状態です。"
     },
     "settings": {
       "title": "設定",
@@ -50,7 +50,7 @@
     "title": "フリート",
     "description": "フリート内の信頼された Vrooli ノード。",
     "loading": "ノードを読み込み中…",
-    "empty": "登録済みのノードがありません。ノードをペアリングすると表示されます。",
+    "empty": "最初のマシンを追加すると、自動でセットアップされ、作業を実行できるようになります。",
     "onlineLabel": "オンライン",
     "offlineLabel": "オフライン",
     "neverSeen": "未確認",
@@ -82,29 +82,53 @@
       "codeHelp": "一度だけ表示されます。ノードのインストーラーに帯域外で渡してください。",
       "publicKeyLabel": "コントロールプレーンの公開鍵",
       "expiresLabel": "有効期限",
-      "copy": "コードをコピー"
+      "copy": "コードをコピー",
+      "disclosureLabel": "詳細: コードでマシンを手動ペアリング",
+      "disclosureNote": "ほとんどの場合は上の「ノードを追加」を使用してください。これは、ワンタイムコードでマシンを手動でセットアップする場合にのみ使用します。"
     },
     "onboard": {
-      "heading": "ノードをオンボード",
-      "description": "コントロールプレーンを生のSSHホストに向けると、ベアOSからペアリング済みでオンラインのフリートエージェントまで、単一の永続的な操作で構築します。",
-      "hostLabel": "SSHホスト",
+      "heading": "ノードを追加",
+      "description": "3つのステップでマシンをフリートに追加します。セットアップしてオンラインにします。",
+      "hostLabel": "アドレス",
       "hostPlaceholder": "node-01.example.com",
-      "userLabel": "SSHユーザー",
+      "userLabel": "ユーザー名",
       "userPlaceholder": "root",
       "portLabel": "SSHポート",
       "portPlaceholder": "22",
       "nameLabel": "ノード名",
       "namePlaceholder": "mac-mini-office",
       "passwordLabel": "SSHパスワード",
-      "passwordHelp": "オンボードキーのインストールに一度だけ使用し、その後破棄します。ホストがすでにブリッジキーを信頼している場合は空欄にしてください。ブラウザには保存されません。",
+      "passwordShow": "パスワードを表示",
+      "passwordHide": "パスワードを非表示",
+      "controlPlaneUrlLabel": "コントロールプレーンURL",
+      "controlPlaneUrlPlaceholder": "http://control-plane.example.com:8080",
+      "controlPlaneUrlHelp": "ノードがこのコントロールプレーンに接続し直すためのアドレスです。空欄の場合はコントロールプレーン自身のアドレスを使用します。ノードから到達可能である必要があります。",
       "capabilitiesLabel": "ケイパビリティ",
       "capabilitiesPlaceholder": "scenario, deploy",
       "capabilitiesHelp": "ノードが自己申告する動詞ネームスペースをカンマ区切りで指定します。",
       "revisionLabel": "リビジョン",
       "revisionHelp": "@cp はコントロールプレーンの現在のコミットです。明示的なSHAまたはブランチも指定できます。",
-      "submit": "オンボードを開始",
+      "provisionSudoLabel": "管理者権限でマシンをセットアップする（推奨）",
+      "provisionSudoHelp": "初回接続時に SSH ユーザー向けの限定的な sudoers ドロップインを設定し、以降の特権操作（セットアップ、前提条件、自動起動）を非対話型 SSH で実行できるようにします。オーナーのパスワードは一度だけ使用され、保存されません。",
+      "advancedHeading": "詳細オプション",
+      "advancedHelp": "ほとんどの場合は不要です。名前、ソースリビジョン、セットアップの詳細を制御します。",
+      "setupEnvironmentLabel": "環境",
+      "setupEnvironmentPlaceholder": "development | production | minimal",
+      "setupEnvironmentHelp": "ノードに適用するホスト環境プロファイル。空欄はノードの既定値（development）です。",
+      "setupResourcesLabel": "リソース",
+      "setupResourcesPlaceholder": "enabled | none | ollama,postgres",
+      "setupResourcesHelp": "ノードがプロビジョニングするローカルリソース。空欄はノードの既定値です。",
+      "setupScenariosLabel": "シナリオ",
+      "setupScenariosPlaceholder": "none | all | web-console,agent-manager",
+      "setupScenariosHelp": "ノードがセットアップするシナリオ。空欄はノードの既定値です。",
+      "includeOptionalLabel": "任意のセーフガードを含める",
+      "includeOptionalHelp": "ノードのセットアップ時に任意（必須ではない）のホストセーフガードも適用します。",
+      "sourceModeLabel": "このコントロールプレーンの作業ツリーを送信（開発モード）",
+      "sourceModeHelp": "ノードがプッシュ済みのリビジョンをクローンする代わりに、このコントロールプレーンのローカル作業ツリーを SSH 経由で送信します。未コミットの作業をコミットやプッシュなしでオンボードできます。",
+      "sourceModeWarning": "作業ツリーモードは、フェッチ可能なリビジョンではなく、ダーティな来歴（ベースコミット＋コンテンツダイジェスト）を記録します。ピン留めモードで再オンボードするまで、ノードはフリートロールから除外されます。開発と検証にのみ使用してください。",
+      "submit": "開始",
       "submitting": "開始中…",
-      "progressHeading": "オンボードの進行状況",
+      "progressHeading": "マシンをセットアップしています…",
       "waiting": "最初のステップを待機中…",
       "successHeading": "ノードをオンボードしました",
       "successBody": "{{node}} はペアリングされオンラインです。",
@@ -141,8 +165,22 @@
         "interrupted_by_restart": "オンボード中にコントロールプレーンが再起動しました。このオペは安全に再試行できます。",
         "internal_error": "予期しないコントロールプレーンのエラーでオペが終了しました。オペIDとコントロールプレーンのログを控えてください。",
         "generic": "オンボードが完了しませんでした。上記のステップ履歴を確認してください。"
-      }
-    }
+      },
+      "addNode": "ノードを追加",
+      "stepConnect": "接続",
+      "stepUnlock": "ロック解除",
+      "stepReview": "確認して開始",
+      "stepIndicator": "ステップ {{current}} / {{total}}",
+      "next": "次へ",
+      "back": "戻る",
+      "connectIntro": "追加するマシンを教えてください。このコンピューターから SSH で接続できる必要があります。",
+      "macHint": "Mac の場合: システム設定 → 一般 → 共有 → リモートログインをオンにします。",
+      "moreLabel": "その他のオプション",
+      "unlockIntro": "マシンのログインパスワードを入力してください。安全なキーをインストールするために一度だけ使用され、その後破棄されます。保存されることはありません。",
+      "passwordOptionalNote": "このコンピューターがすでにパスワードなしでマシンにサインインできる場合は、空欄のままにしてください。",
+      "reviewSummary": "{{target}} に接続し、安全なキーをインストールし、マシンをセットアップしてオンラインにします。数分かかる場合があります。すべてのステップを確認できます。"
+    },
+    "emptyHeading": "フリートにはまだマシンがありません"
   },
   "runs": {
     "title": "実行履歴",
@@ -204,5 +242,34 @@
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
+  },
+  "session": {
+    "screenTitle": "Vrooli Bridge へようこそ",
+    "screenIntro": "フリート内のマシンを管理するにはサインインしてください。はじめての場合は、すべてを管理するオーナーアカウントを作成してください。",
+    "signedInAs": "{{email}} としてサインイン中",
+    "signedIn": "サインイン済み",
+    "signOut": "サインアウト",
+    "accountHeading": "アカウント",
+    "login": {
+      "emailLabel": "メールアドレス",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "パスワード",
+      "passwordPlaceholder": "パスワード",
+      "usernameLabel": "表示名（任意）",
+      "usernamePlaceholder": "フリートオペレーター",
+      "submit": "サインイン",
+      "submitting": "サインインしています…",
+      "missingFields": "メールアドレスとパスワードを入力してください。",
+      "invalidCredentials": "メールアドレスまたはパスワードが正しくありません。",
+      "unavailable": "認証サービスを利用できません。しばらくしてからもう一度お試しください。",
+      "switchToRegister": "はじめてですか？ オーナーアカウントを作成",
+      "switchToSignIn": "すでにアカウントをお持ちですか？ サインイン"
+    },
+    "register": {
+      "submit": "アカウント作成",
+      "submitting": "作成しています…",
+      "emailTaken": "このメールアドレスは既に登録されています。代わりにサインインしてください。",
+      "invalidInput": "{{detail}}"
+    }
   }
 }

@@ -38,16 +38,19 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 // start kicks off a durable, server-owned onboarding op. The SSH password is
-// resolved from a masked prompt or $BRIDGE_SSH_PASSWORD and carried once in the
-// request body — never on argv. Honours the global --dry-run (which sets
+// resolved promptlessly — --password-stdin, opt-in --prompt-password, or
+// $BRIDGE_SSH_PASSWORD, else empty (key-trusted host) — and carried once in
+// the request body, never on argv. Honours the global --dry-run (which sets
 // X-Dry-Run): the server validates and returns dry_run=true without creating an
 // op or touching the host.
 func (h *handlers) start(ctx cliapp.RunContext) error {
 	host := strings.TrimSpace(ctx.Flag("host"))
 	user := strings.TrimSpace(ctx.Flag("user"))
 
-	// Resolve the password BEFORE the RPC so a prompt failure never half-starts.
-	password, err := h.password.resolve(user, host)
+	// Resolve the password BEFORE the RPC so a credential-intake failure never
+	// half-starts. This never prompts unless --prompt-password was given.
+	password, credSource, err := h.password.resolve(user, host,
+		ctx.BoolFlag("password-stdin"), ctx.BoolFlag("prompt-password"))
 	if err != nil {
 		return err
 	}
@@ -55,6 +58,11 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	revision := strings.TrimSpace(ctx.Flag("revision"))
 	if revision == "" {
 		revision = defaultRevision
+	}
+
+	sourceMode, err := resolveSourceMode(ctx.Flag("source"))
+	if err != nil {
+		return err
 	}
 
 	resp, err := h.client.StartOnboarding(context.Background(), connect.NewRequest(&onboardv1.StartOnboardingRequest{
@@ -71,6 +79,12 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		VerifyTimeoutSeconds: int32(parseInt(ctx.Flag("verify-timeout"))),
 		SkipSetup:            ctx.BoolFlag("skip-setup"),
 		SkipPrereqs:          ctx.BoolFlag("skip-prereqs"),
+		ProvisionSudo:        resolveProvisionSudo(ctx),
+		SetupEnvironment:     strings.TrimSpace(ctx.Flag("setup-environment")),
+		SetupResources:       strings.TrimSpace(ctx.Flag("setup-resources")),
+		SetupScenarios:       strings.TrimSpace(ctx.Flag("setup-scenarios")),
+		IncludeOptional:      ctx.BoolFlag("include-optional"),
+		SourceMode:           sourceMode,
 	}))
 	if err != nil {
 		// The server's revision-preflight and validation errors (unsafe ref,
@@ -89,16 +103,67 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 			Changes: []string{"No op was created and the host was not touched."},
 		})
 	}
+	changes := []string{
+		fmt.Sprintf("op id: %s", resp.Msg.OpId),
+		fmt.Sprintf("target revision: %s", revision),
+		credentialReportLine(credSource),
+	}
+	if sourceMode == onboardv1.SourceMode_SOURCE_MODE_WORKING_TREE {
+		changes = append(changes,
+			"source: working-tree — shipping the control plane's local tree over SSH (uncommitted work included)",
+			"provenance: the node records a dirty working-tree revision and is excluded from fleet rolls until re-onboarded pinned",
+		)
+	} else {
+		changes = append(changes, "source: pinned — the node clones the pushed revision")
+	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Onboarding started: op %s for %s.", resp.Msg.OpId, target)},
-		Changes: []string{
-			fmt.Sprintf("op id: %s", resp.Msg.OpId),
-			fmt.Sprintf("target revision: %s", revision),
-		},
+		Result:  []string{fmt.Sprintf("Onboarding started: op %s for %s.", resp.Msg.OpId, target)},
+		Changes: changes,
 		NextCommand: []string{
 			fmt.Sprintf("`onboard watch %s` — follow the live step states through to ONLINE", resp.Msg.OpId),
 		},
 	})
+}
+
+// credentialReportLine echoes the (non-secret) credential intake path in the
+// start report, so the operator can tell which source won — or that none was
+// provided and the run is riding on an already-key-trusted host.
+func credentialReportLine(source credentialSource) string {
+	if source == credentialNone {
+		return "credential: none provided — assuming the host already trusts the bridge key " +
+			"(supply one via --password-stdin, --prompt-password, $" + sshPasswordEnvVar + ", or the UI onboard form)"
+	}
+	return fmt.Sprintf("credential: SSH password from %s — sent once in the request body, used for first-touch, never stored", source)
+}
+
+// resolveSourceMode maps the --source flag to the proto SourceMode. Empty or
+// "pinned" is the default (clone/fetch the pushed revision); "working-tree" ships
+// the control plane's local tree over SSH. Any other value is a usage error.
+func resolveSourceMode(raw string) (onboardv1.SourceMode, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "pinned":
+		return onboardv1.SourceMode_SOURCE_MODE_PINNED_REVISION, nil
+	case "working-tree", "working_tree", "worktree":
+		return onboardv1.SourceMode_SOURCE_MODE_WORKING_TREE, nil
+	default:
+		return onboardv1.SourceMode_SOURCE_MODE_UNSPECIFIED, fmt.Errorf("invalid --source %q: expected pinned or working-tree", raw)
+	}
+}
+
+// resolveProvisionSudo resolves the default-ON passwordless-sudo provisioning
+// intent from the presence-based flags: on unless --no-provision-sudo is given,
+// with an explicit --provision-sudo winning if both appear. The operator is
+// handing over admin credentials, so the useful default is to leave the host with
+// working non-interactive sudo for later privileged steps.
+func resolveProvisionSudo(ctx cliapp.RunContext) bool {
+	provision := true
+	if ctx.BoolFlag("no-provision-sudo") {
+		provision = false
+	}
+	if ctx.BoolFlag("provision-sudo") {
+		provision = true
+	}
+	return provision
 }
 
 // status shows one op by id with its full persisted step-event history.

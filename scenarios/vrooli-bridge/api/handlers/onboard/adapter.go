@@ -7,6 +7,7 @@ import (
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/pairing"
 	"vrooli-bridge/internal/presence"
+	"vrooli-bridge/internal/registry"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -34,6 +35,10 @@ func domainOpToProto(op onboard.Op) *onboardv1.OnboardingOp {
 		FailureReason:  string(op.FailureReason),
 		ExitCode:       op.ExitCode,
 		CreatedAt:      timestamppb.New(op.CreatedAt),
+
+		SourceMode:        sourceModeToProto(op.SourceMode),
+		BaseRevision:      op.BaseRevision,
+		WorkingTreeDigest: op.WorkingTreeDigest,
 	}
 	if !op.StartedAt.IsZero() {
 		out.StartedAt = timestamppb.New(op.StartedAt)
@@ -64,6 +69,26 @@ func stateToProto(s onboard.State) onboardv1.OnboardingState {
 		return onboardv1.OnboardingState_ONBOARDING_STATE_CANCELLED
 	default:
 		return onboardv1.OnboardingState_ONBOARDING_STATE_UNSPECIFIED
+	}
+}
+
+func sourceModeToProto(m onboard.SourceMode) onboardv1.SourceMode {
+	switch m {
+	case onboard.SourceModeWorkingTree:
+		return onboardv1.SourceMode_SOURCE_MODE_WORKING_TREE
+	default:
+		return onboardv1.SourceMode_SOURCE_MODE_PINNED_REVISION
+	}
+}
+
+// sourceModeFromProto maps the wire source mode to the domain, defaulting an
+// unspecified value to pinned (the fleet-safe default).
+func sourceModeFromProto(m onboardv1.SourceMode) onboard.SourceMode {
+	switch m {
+	case onboardv1.SourceMode_SOURCE_MODE_WORKING_TREE:
+		return onboard.SourceModeWorkingTree
+	default:
+		return onboard.SourceModePinned
 	}
 }
 
@@ -112,6 +137,39 @@ func (a codeIssuerAdapter) Issue(ctx context.Context, p onboard.IssueParams) ([]
 		return nil, err
 	}
 	return []byte(issued.Code), nil
+}
+
+// nodeRevisionRecorderAdapter stamps a node's provenance revision after
+// onboarding verifies it ONLINE, via a read-modify-write over the registry (the
+// registry Update overwrites the whole editable surface, so it reloads the node
+// and rewrites only the revision). Best-effort at the call site: a failure is a
+// non-fatal note on the op, never a failed onboarding.
+type nodeRevisionRecorderAdapter struct {
+	svc registry.Service
+}
+
+var _ onboard.NodeRevisionRecorder = nodeRevisionRecorderAdapter{}
+
+// NewNodeRevisionRecorder builds the onboard NodeRevisionRecorder over the
+// registry service so main.go can wire it without reaching into the domain.
+func NewNodeRevisionRecorder(svc registry.Service) onboard.NodeRevisionRecorder {
+	return nodeRevisionRecorderAdapter{svc: svc}
+}
+
+func (a nodeRevisionRecorderAdapter) RecordRevision(ctx context.Context, nodeID, revision string) error {
+	node, err := a.svc.Get(ctx, nodeID)
+	if err != nil {
+		return err
+	}
+	_, err = a.svc.Update(ctx, registry.UpdateInput{
+		ID:           node.ID,
+		Name:         node.Name,
+		Endpoint:     node.Endpoint,
+		Capabilities: node.Capabilities,
+		Scopes:       node.Scopes,
+		Revision:     revision,
+	})
+	return err
 }
 
 // presencePoller is the narrow presence read the online confirmer needs.

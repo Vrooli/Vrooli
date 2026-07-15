@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -32,6 +33,44 @@ type testSSHD struct {
 	listener net.Listener
 	hostKey  gossh.Signer
 	wg       sync.WaitGroup
+
+	envMu    sync.Mutex
+	extraEnv []string // test-controlled env (PATH to fakes, sudoers dir, markers)
+}
+
+// setEnv sets the extra environment every remote exec runs with. Test values take
+// precedence over the inherited process env (used to place fake sudo/visudo on
+// PATH and redirect the sudoers.d dir for the sudo-provisioning tests).
+func (s *testSSHD) setEnv(env ...string) {
+	s.envMu.Lock()
+	s.extraEnv = append([]string(nil), env...)
+	s.envMu.Unlock()
+}
+
+// execEnv merges HOME + the test's extra env over the inherited process env, with
+// the test values winning on duplicate keys (robust regardless of libc getenv
+// resolution order).
+func (s *testSSHD) execEnv() []string {
+	s.envMu.Lock()
+	extra := append([]string{"HOME=" + s.home}, s.extraEnv...)
+	s.envMu.Unlock()
+
+	override := make(map[string]struct{}, len(extra))
+	for _, kv := range extra {
+		if i := strings.IndexByte(kv, '='); i > 0 {
+			override[kv[:i]] = struct{}{}
+		}
+	}
+	out := append([]string(nil), extra...)
+	for _, kv := range os.Environ() {
+		if i := strings.IndexByte(kv, '='); i > 0 {
+			if _, dup := override[kv[:i]]; dup {
+				continue
+			}
+		}
+		out = append(out, kv)
+	}
+	return out
 }
 
 // requireSSHTools skips the test unless the external tooling the flow shells out
@@ -196,10 +235,14 @@ func (s *testSSHD) handleSession(ch gossh.Channel, requests <-chan *gossh.Reques
 
 // runExec runs the remote command through a real shell with HOME set to the
 // fake remote home, so the keys_copy shell snippet (mkdir -p ~/.ssh, printf >>
-// authorized_keys, chmod) actually executes against a real filesystem.
+// authorized_keys, chmod) actually executes against a real filesystem. The SSH
+// channel is wired to the command's stdin so a client that streams stdin (the
+// sudo password, the pairing code) reaches the remote process as it would for
+// real.
 func (s *testSSHD) runExec(ch gossh.Channel, command string) int {
 	cmd := exec.Command("/bin/sh", "-c", command)
-	cmd.Env = append(os.Environ(), "HOME="+s.home)
+	cmd.Env = s.execEnv()
+	cmd.Stdin = ch
 	cmd.Stdout = ch
 	cmd.Stderr = ch.Stderr()
 	if err := cmd.Run(); err != nil {

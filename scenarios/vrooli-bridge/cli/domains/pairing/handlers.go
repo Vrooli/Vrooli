@@ -51,7 +51,7 @@ func (h *handlers) issue(ctx cliapp.RunContext) error {
 		TtlSeconds: ttl,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("issue pairing code (run `auth login` first if unauthenticated)", err, nil)
+		return cliapp.WrapAPIError("issue pairing code (set a token via `configure token` or $VROOLI_BRIDGE_API_TOKEN if unauthenticated)", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no response")

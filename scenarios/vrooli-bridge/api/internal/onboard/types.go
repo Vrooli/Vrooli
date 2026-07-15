@@ -94,6 +94,31 @@ func (s State) String() string {
 	}
 }
 
+// SourceMode selects how the node acquires the Vrooli source it builds from. It
+// mirrors the onboard.proto SourceMode so the domain never imports proto; the
+// handler translates at the boundary.
+type SourceMode int
+
+const (
+	// SourceModeUnspecified is the zero value; it defaults to pinned at the boundary.
+	SourceModeUnspecified SourceMode = 0
+	// SourceModePinned — the node clones/fetches the pushed target revision. Default.
+	SourceModePinned SourceMode = 1
+	// SourceModeWorkingTree — the control plane ships its local working tree over
+	// SSH; provenance is a base HEAD + content digest, marked dirty.
+	SourceModeWorkingTree SourceMode = 2
+)
+
+// String renders the source mode as a short lowercase label.
+func (m SourceMode) String() string {
+	switch m {
+	case SourceModeWorkingTree:
+		return "working-tree"
+	default:
+		return "pinned"
+	}
+}
+
 // StepStatus is the disposition of one step in an onboarding op. It mirrors the
 // bootstrap script's step-start/step-ok/step-skip/step-fail markers and the
 // orchestrator's own phase milestones, and the onboard.proto OnboardingStepStatus.
@@ -136,6 +161,9 @@ const (
 	StepSSHSetup = "ssh-setup"
 	// StepPushScript — the SCP of the bootstrap script.
 	StepPushScript = "push-script"
+	// StepSyncTree — the working-tree ship phase (tar-over-SSH of the control
+	// plane's local tree to the node). Only emitted in working-tree source mode.
+	StepSyncTree = "sync-tree"
 	// StepRun — the bootstrap run envelope (run-start / run-ok / run-fail).
 	StepRun = "run"
 	// StepVerifyOnline — the orchestrator's post-run ONLINE confirmation (distinct
@@ -152,6 +180,9 @@ const (
 	FailureSSHSetup FailureReason = "ssh_setup_failed"
 	// FailureScriptPush — could not copy the bootstrap script to the host.
 	FailureScriptPush FailureReason = "script_push_failed"
+	// FailureWorkingTreeSync — could not snapshot or ship the control plane's
+	// working tree to the node (working-tree source mode only).
+	FailureWorkingTreeSync FailureReason = "working_tree_sync_failed"
 	// FailurePairingIssue — could not issue the server-side pairing code.
 	FailurePairingIssue FailureReason = "pairing_issue_failed"
 	// FailureBootstrapUsage — the bootstrap script rejected its config (exit 2).
@@ -186,6 +217,14 @@ type Op struct {
 	NodeID        string
 	FailureReason FailureReason
 	ExitCode      int32
+
+	// SourceMode records how the node acquired its source. In working-tree mode
+	// BaseRevision + WorkingTreeDigest carry the dirty provenance (TargetRevision
+	// then reads as "<base>+dirty"); in pinned mode they are empty and
+	// TargetRevision is the pinned commit.
+	SourceMode        SourceMode
+	BaseRevision      string
+	WorkingTreeDigest string
 
 	CreatedAt time.Time
 	// StartedAt/FinishedAt are zero until the corresponding transition.
@@ -225,8 +264,36 @@ type StartInput struct {
 	SkipSetup            bool
 	SkipPrereqs          bool
 
+	// ProvisionSudo installs a scoped passwordless-sudo drop-in for User at first
+	// touch (while the password is still held) so later privileged steps work over
+	// non-interactive SSH. Declining never fails onboarding.
+	ProvisionSudo bool
+
+	// Setup profile — the operator-chosen shape of the node-side `vrooli setup`
+	// the bootstrap runs. Threaded into `make setup SETUP_ARGS=…`; each value is
+	// metacharacter-validated at Start so no shell-injectable token reaches the
+	// remote script. Empty falls through to the node's `vrooli setup` defaults.
+	SetupEnvironment string // development | production | minimal | ""
+	SetupResources   string // enabled | none | <comma list> | ""
+	SetupScenarios   string // none | all | <comma list> | ""
+	IncludeOptional  bool   // also apply optional (non-required) host safeguards
+
+	// SourceMode selects pinned-revision (default; clone/fetch a pushed commit)
+	// or working-tree (ship the control plane's local tree over SSH). Working-tree
+	// is the owner development/validation mode; it records honest dirty provenance
+	// and its nodes are excluded from fleet rolls.
+	SourceMode SourceMode
+
+	// BaseRevision is the base commit a working-tree ship sits on (working-tree
+	// mode only); Start fills it from the resolved revision so the orchestrator can
+	// record complete provenance. Empty in pinned mode (TargetRevision is the commit).
+	BaseRevision string
+
 	DryRun bool
 }
+
+// WorkingTree reports whether this input onboards in working-tree source mode.
+func (in StartInput) WorkingTree() bool { return in.SourceMode == SourceModeWorkingTree }
 
 // Decision is the result of a Start: the created op id (empty on a dry-run),
 // whether it was a dry-run, and the validated SSH target echoed back.
@@ -261,3 +328,74 @@ func (e ErrInvalid) Error() string { return fmt.Sprintf("%s: %s", e.Field, e.Rea
 
 // trimField normalises a request token.
 func trimField(s string) string { return strings.TrimSpace(s) }
+
+// dirtyMarker is the suffix appended to a working-tree node's provenance revision
+// so a dirty node is visibly not a pinned node everywhere a revision is rendered
+// (op, node record, CLI, UI). Fleet-roll classification keys on it to exclude
+// working-tree nodes; keep the two in lockstep.
+const dirtyMarker = "+dirty"
+
+// workingTreeRevision renders the provenance revision recorded for a working-tree
+// node: the base commit the shipped tree sat on plus the dirty marker (e.g.
+// "e767613fca+dirty"). It is what the op's TargetRevision and the node record's
+// revision hold in working-tree mode.
+func workingTreeRevision(baseHEAD string) string {
+	return strings.TrimSpace(baseHEAD) + dirtyMarker
+}
+
+// IsWorkingTreeRevision reports whether a rendered revision string carries the
+// dirty working-tree marker. Exported so the fleet handler's node projection can
+// classify a node as working-tree from its persisted revision alone.
+func IsWorkingTreeRevision(revision string) bool {
+	return strings.HasSuffix(strings.TrimSpace(revision), dirtyMarker)
+}
+
+// setupProfileMetachars is the shell-metacharacter set a setup-profile value may
+// never contain. It mirrors internal/cprev.shellMetachars (the revision filter)
+// EXACTLY so a value this boundary accepts is one the node-side script — which
+// splices these into `make setup SETUP_ARGS=…` — can also splice safely. The two
+// sets are intentionally duplicated: cprev governs refs, this governs profile
+// tokens, and each documents its own contract. A comma is deliberately allowed
+// (resource/scenario selections are comma lists).
+const setupProfileMetachars = "|&;<>()$`\\\"'\n\r\t*?[]{}!#~ "
+
+// validSetupEnvironments is the enum-ish allow-list for setup_environment. Empty
+// is always valid (the node falls through to its own default).
+var validSetupEnvironments = map[string]struct{}{
+	"development": {},
+	"production":  {},
+	"minimal":     {},
+}
+
+// validateSetupProfile rejects any profile value carrying a shell metacharacter
+// (mirroring the cprev revision filter so the rejection is friendly here rather
+// than an opaque failure deep in the node-side script) and, for the enum-ish
+// environment, a value outside {development, production, minimal}. Empty values
+// pass — they fall through to the node's `vrooli setup` defaults.
+func validateSetupProfile(in StartInput) error {
+	for field, value := range map[string]string{
+		"setup_environment": in.SetupEnvironment,
+		"setup_resources":   in.SetupResources,
+		"setup_scenarios":   in.SetupScenarios,
+	} {
+		v := trimField(value)
+		if v == "" {
+			continue
+		}
+		if i := strings.IndexAny(v, setupProfileMetachars); i >= 0 {
+			return ErrInvalid{
+				Field:  field,
+				Reason: fmt.Sprintf("contains disallowed character %q (setup profile values are spliced into the node's setup command, so shell metacharacters are refused)", string(v[i])),
+			}
+		}
+	}
+	if env := trimField(in.SetupEnvironment); env != "" {
+		if _, ok := validSetupEnvironments[env]; !ok {
+			return ErrInvalid{
+				Field:  "setup_environment",
+				Reason: "must be one of development, production, minimal (or empty for the node default)",
+			}
+		}
+	}
+	return nil
+}

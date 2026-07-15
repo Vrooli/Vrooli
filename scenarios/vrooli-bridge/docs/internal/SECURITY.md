@@ -68,6 +68,62 @@ Onboarding a fresh node uses two short-lived credentials that are
   or the pairing code, and tests assert both are absent from DB rows,
   step events, and captured logs.
 
+### Credential Custody Decision (2026-07-14)
+
+Onboarding and privileged provisioning handle several classes of credential;
+this records **where each lives and why**, so a future agent does not
+accidentally move a secret to weaker custody.
+
+- **Operator SSH password — transient, zeroed, never persisted.** Intake is
+  explicit and promptless by default: the CLI reads it from `--password-stdin`,
+  an opt-in `--prompt-password` masked TTY prompt, or `$BRIDGE_SSH_PASSWORD` —
+  never as a flag value (argv is `ps`-visible) and never via an unrequested
+  prompt (unattended runs must not hang). The UI onboard form holds it only in
+  ephemeral component state and clears it when the request settles. The
+  owner-supplied first-touch password lives only in memory for the key-install
+  dial and is zeroed on **every** exit path (asserted by test). It is never
+  written to disk, logs, or the DB. The sudo-provisioning work (2026-07-14)
+  extended the in-memory **hold window** inside `ssh.FirstTouch` — the password
+  is now also used to install the `sudoers.d` drop-in in the same touch — but it
+  is still zeroed on all paths and never persisted; the hold is longer, not
+  durable.
+- **Durable credential = the bridge keypair, on-disk at `0600` (dir `0700`).**
+  The one long-lived per-node secret is the generated SSH/identity keypair under
+  the bridge-owned storage namespace (never the operator's `~/.ssh`). The DB
+  stores **only** paths and key fingerprints — never private key bytes. This is
+  the professional shape: the filesystem's owner-only permission bits are the
+  custody boundary, and the durable record is a pointer, not the secret.
+- **Recorded privilege artifact = the `sudoers.d` drop-in.** The scoped
+  passwordless-sudo grant installed at first touch is itself the auditable record
+  that the node was elevated; it lives where the OS expects a sudoers fragment
+  (under the system `sudoers.d` directory), owned `root:root` `0440` like any
+  sudoers file, and is the reviewable trace of the privilege handover.
+- **Owner JWT in the browser — `localStorage`, origin-bounded, cleared on
+  sign-out or expiry.** The console signs in through the same-origin
+  `IdentityService` facade (which forwards to scenario-authenticator and stores
+  nothing server-side) and keeps the owner JWT plus display email in
+  `localStorage` under `vrooli-bridge.session`, mirroring device-sync-hub. The
+  custody boundary is the browser origin — the standard SPA bearer-token
+  posture, with XSS as the threat model. The token is short-lived (authenticator
+  expiry), attached per request as `Authorization: Bearer`, never logged by the
+  control plane, and a `401` on a token-bearing request clears the session and
+  returns the console to the sign-in screen. There is deliberately no refresh
+  flow: expiry means signing in again.
+- **Vault rejected for now — named upgrade path.** A dev-mode, root-token Vault
+  on the same host is not stronger than `0600` files and adds a hard runtime
+  dependency to onboarding; it becomes the upgrade path only once Vault grows
+  real policies, rotation, and an SSH-CA. Until then, resource-vault content KV
+  remains the right home for **durable named secrets** (the kopia precedent), and
+  third-party API tokens stay in env vars — but the bridge's own onboarding
+  credentials do **not** gain from routing through a root-token dev Vault.
+
+**Known residue (accepted).** The SSH key-copy seam materializes the password as
+an **immutable Go string** to satisfy the `KeyCopier` interface, so that copy is
+**unzeroable until GC** even though `FirstTouch` zeroes its own `[]byte`. This is
+accepted residue, not a persisted secret: it is process-memory-only and dies with
+the process. The named future fix is changing the `KeyCopier` interface to take a
+`[]byte` so the whole path stays zeroable end-to-end.
+
 ## Threat Model
 
 | Risk | Impact | Mitigation | Status |

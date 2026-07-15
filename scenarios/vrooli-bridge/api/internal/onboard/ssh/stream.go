@@ -31,6 +31,12 @@ type StreamOptions struct {
 	// single-use pairing code to the bootstrap script.
 	Stdin []byte
 
+	// StdinReader streams the remote command's standard input from an io.Reader
+	// instead of a fixed Stdin buffer, for payloads too large to materialise in
+	// memory (the working-tree tar the orchestrator pipes to a remote `tar -xf -`).
+	// When set it takes precedence over Stdin. Like Stdin it is never logged.
+	StdinReader io.Reader
+
 	// OnStdoutLine is invoked for each stdout line as it arrives (newline
 	// trimmed), so a long-running remote command's progress can be parsed and
 	// persisted live. nil discards stdout.
@@ -58,7 +64,11 @@ func (s *Service) RunStreaming(ctx context.Context, cfg Config, command string, 
 	args = append(args, target, "--", command)
 
 	cmd := exec.CommandContext(ctx, "ssh", args...)
-	if len(opts.Stdin) > 0 {
+	switch {
+	case opts.StdinReader != nil:
+		// Streamed stdin (e.g. a working-tree tar) — no in-memory materialisation.
+		cmd.Stdin = opts.StdinReader
+	case len(opts.Stdin) > 0:
 		// bytes.NewReader (not strings.NewReader(string(...))) so no immutable,
 		// unzeroable copy of a secret stdin is ever materialised — the caller's
 		// []byte remains the only copy and can be wiped after this returns.

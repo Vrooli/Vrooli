@@ -20,9 +20,12 @@ const (
 	testCode     = "PAIRINGCODEABCDEF0123456789ABCDEF"
 )
 
-// bootstrapSteps is the ordered step vocabulary the bootstrap script emits.
+// bootstrapSteps is the ordered step vocabulary the bootstrap script emits
+// (13 steps: `toolchain` verifies setup delivered go/pnpm before the build steps).
+// The orchestrator's own phase steps (ssh-setup, push-script, sync-tree,
+// verify-online-confirm) are NOT here — this is the remote script's vocabulary.
 var bootstrapSteps = []string{
-	"detect-os", "prereqs", "clone", "setup", "build-agent", "build-cli",
+	"detect-os", "prereqs", "clone", "setup", "toolchain", "build-agent", "build-cli",
 	"node-key", "pair-redeem", "pin-verify", "service-install", "autostart", "verify-online",
 }
 
@@ -119,6 +122,120 @@ func TestStart_SuccessFullFlow(t *testing.T) {
 	for i := 1; i < len(events); i++ {
 		require.Greater(t, events[i].Sequence, events[i-1].Sequence)
 	}
+}
+
+func TestStart_ProvisionSudoThreadsAndNamesOutcome(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &mocks.FakeSSHDriver{
+		RunBootstrapMarkers: successMarkers(testNodeID),
+		FirstTouchSudoState: "provisioned",
+	}
+	issuer := &mocks.FakeCodeIssuer{Code: testCode}
+	confirmer := &mocks.FakeOnlineConfirmer{Online: true}
+	svc := newTestService(repo, driver, issuer, confirmer)
+
+	in := validInput()
+	in.ProvisionSudo = true
+	dec, err := svc.Start(context.Background(), in)
+	require.NoError(t, err)
+
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateSucceeded, op.State)
+
+	// The provisioning intent was threaded down to the SSH first-touch seam...
+	require.True(t, driver.CapturedProvisionSudo, "provision_sudo must reach FirstTouchParams")
+
+	// ...and the ssh-setup OK step names the sudo outcome (never a credential).
+	_, events, err := svc.GetOp(context.Background(), dec.OpID)
+	require.NoError(t, err)
+	var sshSetupDetail string
+	for _, ev := range events {
+		if ev.StepID == onboard.StepSSHSetup && ev.Status == onboard.StepStatusOK {
+			sshSetupDetail = ev.Detail
+		}
+	}
+	require.Contains(t, sshSetupDetail, "sudo: provisioned")
+	require.NotContains(t, sshSetupDetail, testPassword)
+}
+
+func TestStart_SetupProfileThreadsToBootstrapArgs(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
+	issuer := &mocks.FakeCodeIssuer{Code: testCode}
+	confirmer := &mocks.FakeOnlineConfirmer{Online: true}
+	svc := newTestService(repo, driver, issuer, confirmer)
+
+	in := validInput()
+	in.SetupEnvironment = "production"
+	in.SetupResources = "enabled"
+	in.SetupScenarios = "none"
+	in.IncludeOptional = true
+
+	dec, err := svc.Start(context.Background(), in)
+	require.NoError(t, err)
+
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateSucceeded, op.State)
+
+	// Each profile field reaches the node-side bootstrap as its flag/value pair,
+	// and --include-optional is present as a bare flag.
+	requireArgPair(t, driver.CapturedArgs, "--setup-environment", "production")
+	requireArgPair(t, driver.CapturedArgs, "--setup-resources", "enabled")
+	requireArgPair(t, driver.CapturedArgs, "--setup-scenarios", "none")
+	require.Contains(t, driver.CapturedArgs, "--include-optional")
+}
+
+func TestStart_SetupProfileOmittedWhenEmpty(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
+	svc := newTestService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true})
+
+	// validInput carries no profile — the node falls through to `vrooli setup`'s
+	// own defaults, so none of the profile flags are emitted.
+	dec, err := svc.Start(context.Background(), validInput())
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateSucceeded, op.State)
+
+	for _, flag := range []string{"--setup-environment", "--setup-resources", "--setup-scenarios", "--include-optional"} {
+		require.NotContains(t, driver.CapturedArgs, flag, "empty profile must not emit %s", flag)
+	}
+}
+
+func TestStart_SetupProfileValidation(t *testing.T) {
+	cases := map[string]struct {
+		mutate func(*onboard.StartInput)
+		field  string
+	}{
+		"metachar in resources":    {func(in *onboard.StartInput) { in.SetupResources = "a;rm -rf /" }, "setup_resources"},
+		"command sub in scenarios": {func(in *onboard.StartInput) { in.SetupScenarios = "$(whoami)" }, "setup_scenarios"},
+		"metachar in environment":  {func(in *onboard.StartInput) { in.SetupEnvironment = "dev|x" }, "setup_environment"},
+		"bad environment enum":     {func(in *onboard.StartInput) { in.SetupEnvironment = "staging" }, "setup_environment"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			svc := newTestService(mocks.NewFakeRepository(), &mocks.FakeSSHDriver{}, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{})
+			in := validInput()
+			tc.mutate(&in)
+			_, err := svc.Start(context.Background(), in)
+			var invalid onboard.ErrInvalid
+			require.ErrorAs(t, err, &invalid)
+			require.Equal(t, tc.field, invalid.Field)
+			// A rejected request still zeroes the transient password.
+			require.Equal(t, strings.Repeat("\x00", len(testPassword)), string(in.Password))
+		})
+	}
+}
+
+// requireArgPair asserts args contains flag immediately followed by value.
+func requireArgPair(t *testing.T, args []string, flag, value string) {
+	t.Helper()
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == flag && args[i+1] == value {
+			return
+		}
+	}
+	t.Fatalf("expected args to contain %q %q, got %v", flag, value, args)
 }
 
 func TestStart_SecretsNeverPersisted(t *testing.T) {

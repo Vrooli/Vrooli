@@ -2,12 +2,15 @@ package fleet
 
 import "context"
 
-// NodeRef is the minimal node shape a roll needs to enumerate + classify: its id
-// and whether it is revoked. The handler adapter projects a registry node down
-// to this.
+// NodeRef is the minimal node shape a roll needs to enumerate + classify: its id,
+// whether it is revoked, and whether it was onboarded from a working tree (dirty
+// provenance). The handler adapter projects a registry node down to this.
 type NodeRef struct {
 	ID      string
 	Revoked bool
+	// WorkingTree is true when the node's provenance revision carries the dirty
+	// working-tree marker, so a revision roll excludes it (needs-reprovision).
+	WorkingTree bool
 }
 
 // NodeLister is the registry enumeration seam: the roll needs every registered

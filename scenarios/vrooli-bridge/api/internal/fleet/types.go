@@ -73,6 +73,11 @@ const (
 	DispositionSkippedRevoked NodeDisposition = 4
 	// DispositionFailed — the provisioning op could not be dispatched.
 	DispositionFailed NodeDisposition = 5
+	// DispositionSkippedWorkingTree — the node was onboarded from the control
+	// plane's working tree (dirty provenance), so it is pinned to no fetchable
+	// commit and a revision roll cannot converge it. It is excluded and flagged
+	// needs-reprovision; re-onboard it pinned to make it rollable.
+	DispositionSkippedWorkingTree NodeDisposition = 6
 )
 
 // String renders the disposition as a short lowercase label.
@@ -86,6 +91,8 @@ func (d NodeDisposition) String() string {
 		return "skipped_needs_update"
 	case DispositionSkippedRevoked:
 		return "skipped_revoked"
+	case DispositionSkippedWorkingTree:
+		return "skipped_working_tree"
 	case DispositionFailed:
 		return "failed"
 	default:

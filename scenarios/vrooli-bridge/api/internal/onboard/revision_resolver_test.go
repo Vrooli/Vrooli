@@ -18,10 +18,32 @@ type fakeRevResolver struct {
 	resolved    string
 	err         error
 	lastRequest string
+	// workingTreeErr, when set, is returned by ResolveWorkingTree only (so a test
+	// can prove pinned Resolve and working-tree ResolveWorkingTree diverge).
+	workingTreeErr error
+	// calledResolve / calledWorkingTree record which pipeline the service chose.
+	calledResolve     bool
+	calledWorkingTree bool
 }
 
 func (f *fakeRevResolver) Resolve(_ context.Context, requested string) (string, error) {
 	f.lastRequest = requested
+	f.calledResolve = true
+	if f.err != nil {
+		return "", f.err
+	}
+	if f.resolved != "" {
+		return f.resolved, nil
+	}
+	return requested, nil
+}
+
+func (f *fakeRevResolver) ResolveWorkingTree(_ context.Context, requested string) (string, error) {
+	f.lastRequest = requested
+	f.calledWorkingTree = true
+	if f.workingTreeErr != nil {
+		return "", f.workingTreeErr
+	}
 	if f.err != nil {
 		return "", f.err
 	}

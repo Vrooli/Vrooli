@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { SessionProvider } from "../features/session/SessionProvider";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
 /**
@@ -8,7 +9,13 @@ import { ThemeProvider } from "../theme/ThemeProvider";
  * QueryClient and i18n are wired in `main.tsx` (they own setup that has to run
  * before React mounts and during HMR). Anything that only needs context goes
  * here so tests and Storybook-style harnesses can re-use the same composition.
+ * SessionProvider holds the owner token so the shell chrome and the owner gate
+ * re-render on sign-in / sign-out.
  */
 export function Providers({ children }: { children: ReactNode }) {
-  return <ThemeProvider>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider>
+      <SessionProvider>{children}</SessionProvider>
+    </ThemeProvider>
+  );
 }

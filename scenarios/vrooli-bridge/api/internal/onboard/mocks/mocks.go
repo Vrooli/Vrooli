@@ -114,6 +114,9 @@ func (f *FakeRepository) Update(_ context.Context, op onboard.Op) (onboard.Op, e
 	existing.ExitCode = op.ExitCode
 	existing.StartedAt = op.StartedAt
 	existing.FinishedAt = op.FinishedAt
+	existing.SourceMode = op.SourceMode
+	existing.BaseRevision = op.BaseRevision
+	existing.WorkingTreeDigest = op.WorkingTreeDigest
 	f.ops[op.ID] = existing
 	return existing, nil
 }
@@ -163,10 +166,23 @@ type FakeSSHDriver struct {
 	RunBootstrapExit    int
 	RunBootstrapMarkers []onboard.Marker
 
+	// FirstTouchSudoState, when set, is echoed back on the returned Conn so a test
+	// can assert the orchestrator surfaces the sudo outcome in the step detail.
+	FirstTouchSudoState string
+
+	// Working-tree ship (SyncTree) knobs + capture.
+	SyncTreeErr      error
+	SyncTreeBlock    bool
+	SyncTreeResult   onboard.SyncResult
+	SyncTreeCalls    int
+	CapturedSyncDest string
+	CapturedSyncTree onboard.SyncParams
+
 	// Captured for assertions.
-	CapturedPairingCode []byte
-	CapturedArgs        []string
-	FirstTouchCalls     int
+	CapturedPairingCode   []byte
+	CapturedArgs          []string
+	FirstTouchCalls       int
+	CapturedProvisionSudo bool
 }
 
 var _ onboard.SSHDriver = (*FakeSSHDriver)(nil)
@@ -174,6 +190,7 @@ var _ onboard.SSHDriver = (*FakeSSHDriver)(nil)
 func (d *FakeSSHDriver) FirstTouch(ctx context.Context, p onboard.FirstTouchParams) (onboard.Conn, error) {
 	d.mu.Lock()
 	d.FirstTouchCalls++
+	d.CapturedProvisionSudo = p.ProvisionSudo
 	d.mu.Unlock()
 	if d.FirstTouchBlock {
 		<-ctx.Done()
@@ -182,7 +199,7 @@ func (d *FakeSSHDriver) FirstTouch(ctx context.Context, p onboard.FirstTouchPara
 	if d.FirstTouchErr != nil {
 		return onboard.Conn{}, d.FirstTouchErr
 	}
-	return onboard.Conn{Host: p.Host, Port: p.Port, User: p.User, KeyPath: "/state/bridge-onboard"}, nil
+	return onboard.Conn{Host: p.Host, Port: p.Port, User: p.User, KeyPath: "/state/bridge-onboard", SudoState: d.FirstTouchSudoState}, nil
 }
 
 func (d *FakeSSHDriver) PushScript(ctx context.Context, _ onboard.Conn) (string, error) {
@@ -194,6 +211,29 @@ func (d *FakeSSHDriver) PushScript(ctx context.Context, _ onboard.Conn) (string,
 		return "", d.PushScriptErr
 	}
 	return "/tmp/bootstrap.sh", nil
+}
+
+func (d *FakeSSHDriver) SyncTree(ctx context.Context, p onboard.SyncParams) (onboard.SyncResult, error) {
+	d.mu.Lock()
+	d.SyncTreeCalls++
+	d.CapturedSyncTree = p
+	d.CapturedSyncDest = p.DestDir
+	d.mu.Unlock()
+	if d.SyncTreeBlock {
+		<-ctx.Done()
+		return onboard.SyncResult{}, ctx.Err()
+	}
+	if d.SyncTreeErr != nil {
+		return onboard.SyncResult{}, d.SyncTreeErr
+	}
+	res := d.SyncTreeResult
+	if res.ResolvedDestDir == "" {
+		res.ResolvedDestDir = p.DestDir
+		if res.ResolvedDestDir == "" {
+			res.ResolvedDestDir = "/home/node/vrooli"
+		}
+	}
+	return res, nil
 }
 
 func (d *FakeSSHDriver) RunBootstrap(ctx context.Context, p onboard.RunParams, onMarker func(onboard.Marker)) (onboard.BootstrapResult, error) {
@@ -238,6 +278,40 @@ func (f *FakeCodeIssuer) Issue(_ context.Context, p onboard.IssueParams) ([]byte
 		return nil, f.Err
 	}
 	return []byte(f.Code), nil
+}
+
+// FakeWorkingTreeSource returns a canned working-tree snapshot and records calls.
+type FakeWorkingTreeSource struct {
+	Snapshot_ onboard.WorkingTreeSnapshot
+	Err       error
+	Calls     int
+}
+
+var _ onboard.WorkingTreeSource = (*FakeWorkingTreeSource)(nil)
+
+func (f *FakeWorkingTreeSource) Snapshot(_ context.Context) (onboard.WorkingTreeSnapshot, error) {
+	f.Calls++
+	if f.Err != nil {
+		return onboard.WorkingTreeSnapshot{}, f.Err
+	}
+	return f.Snapshot_, nil
+}
+
+// FakeNodeRevisionRecorder records the revision it was asked to stamp on a node.
+type FakeNodeRevisionRecorder struct {
+	Err          error
+	Calls        int
+	LastNodeID   string
+	LastRevision string
+}
+
+var _ onboard.NodeRevisionRecorder = (*FakeNodeRevisionRecorder)(nil)
+
+func (f *FakeNodeRevisionRecorder) RecordRevision(_ context.Context, nodeID, revision string) error {
+	f.Calls++
+	f.LastNodeID = nodeID
+	f.LastRevision = revision
+	return f.Err
 }
 
 // FakeOnlineConfirmer reports a canned online result.

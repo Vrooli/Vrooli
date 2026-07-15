@@ -1,5 +1,7 @@
+import { Button } from "../components/ui/button";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { useSession } from "../features/session/SessionProvider";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
@@ -22,6 +24,7 @@ export function TopBar() {
   const { t } = useTranslation();
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
+  const { isOwner, ownerEmail, clearOwnerToken } = useSession();
 
   return (
     <header
@@ -77,6 +80,26 @@ export function TopBar() {
             ))}
           </select>
         </label>
+        {isOwner && (
+          <div className="flex items-center gap-2 border-l border-app-border pl-3 text-xs">
+            <span
+              data-testid={selectors.session.topbar.status}
+              className="max-w-[12rem] truncate text-app-muted-foreground"
+            >
+              {ownerEmail
+                ? t(strings.session.signedInAs, { email: ownerEmail })
+                : t(strings.session.signedIn)}
+            </span>
+            <Button
+              data-testid={selectors.session.topbar.signOut}
+              variant="outline"
+              size="sm"
+              onClick={clearOwnerToken}
+            >
+              {t(strings.session.signOut)}
+            </Button>
+          </div>
+        )}
       </div>
     </header>
   );

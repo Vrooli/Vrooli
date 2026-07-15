@@ -108,7 +108,7 @@ func TestOnboarding_FullFlow_ThroughConnectHandler(t *testing.T) {
 	for _, ev := range getResp.Msg.GetEvents() {
 		seen[ev.GetStepId()] = ev.GetStatus()
 	}
-	for _, step := range []string{"detect-os", "prereqs", "clone", "setup", "build-agent", "build-cli", "node-key", "pair-redeem", "pin-verify", "service-install", "autostart", "verify-online"} {
+	for _, step := range []string{"detect-os", "prereqs", "clone", "setup", "toolchain", "build-agent", "build-cli", "node-key", "pair-redeem", "pin-verify", "service-install", "autostart", "verify-online"} {
 		require.Contains(t, seen, step, "missing persisted bootstrap step %q", step)
 		require.Equal(t, onboardv1.OnboardingStepStatus_ONBOARDING_STEP_STATUS_OK, seen[step], "step %q not OK", step)
 	}
@@ -204,7 +204,7 @@ func assertNoSecretLeak(t *testing.T, d *sql.DB, opID, secret string) {
 }
 
 // writeStubBootstrap writes a stand-in bootstrap script that emits the real
-// VBOOTSTRAP marker vocabulary (all 12 steps + run envelope), records the
+// VBOOTSTRAP marker vocabulary (all 13 steps + run envelope), records the
 // pairing code it received over the env into codeOut, and never echoes the code
 // to stdout/stderr. It lets the orchestrator drive a real SSH/SCP/exec round-trip
 // without a full clone+build+setup.
@@ -217,7 +217,7 @@ set -uo pipefail
 printf '%s' "${BRIDGE_PAIRING_CODE:-}" > '` + codeOut + `'
 emit() { printf 'VBOOTSTRAP v=1 event=%s' "$1"; [ -n "${2:-}" ] && printf ' step=%s' "$2"; [ -n "${3:-}" ] && printf ' detail="%s"' "$3"; printf '\n'; }
 emit run-start "" "stub bootstrap"
-for step in detect-os prereqs clone setup build-agent build-cli node-key; do
+for step in detect-os prereqs clone setup toolchain build-agent build-cli node-key; do
   emit step-start "$step" ""
   emit step-ok "$step" ""
 done

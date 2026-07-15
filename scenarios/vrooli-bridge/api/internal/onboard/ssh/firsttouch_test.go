@@ -153,6 +153,114 @@ func TestFirstTouchRequiresPasswordWhenNotYetTrusted(t *testing.T) {
 	}
 }
 
+// fakeProvisioner records the request it was handed and returns a canned state.
+type fakeProvisioner struct {
+	called      bool
+	gotPassword string
+	state       SudoState
+}
+
+func (p *fakeProvisioner) Provision(_ context.Context, req ProvisionSudoRequest) ProvisionSudoResult {
+	p.called = true
+	p.gotPassword = string(req.Password)
+	return ProvisionSudoResult{State: p.state}
+}
+
+func TestFirstTouchProvisionsSudoAfterKeyInstall(t *testing.T) {
+	dir := t.TempDir()
+	seedKeypair(t, dir, "bridge-onboard")
+
+	runner := &scriptedRunner{queue: []runResult{
+		{res: Result{ExitCode: 255}, err: &SSHError{Category: ErrAuth, Message: "Permission denied"}},
+		{res: Result{Stdout: "ok"}},
+	}}
+	copier := &recordingCopier{resp: CopyKeyResponse{Outcome: Outcome{OK: true, Status: StatusSuccess}, KeyCopied: true}}
+	prov := &fakeProvisioner{state: SudoStateProvisioned}
+
+	svc := NewService(dir, WithRunner(runner), WithKeyCopier(copier), WithSudoProvisioner(prov))
+
+	pw := []byte("hunter2")
+	res, err := svc.FirstTouch(context.Background(), FirstTouchRequest{
+		Host: "example.test", User: "u", Password: pw, KeyName: "bridge-onboard", ProvisionSudo: true,
+	})
+	if err != nil {
+		t.Fatalf("FirstTouch error: %v", err)
+	}
+	if !res.OK || !res.SudoProvisioned || res.SudoState != SudoStateProvisioned {
+		t.Fatalf("expected sudo provisioned, got %+v", res)
+	}
+	if !prov.called || prov.gotPassword != "hunter2" {
+		t.Fatalf("provisioner should receive the still-live password, got called=%v pw=%q", prov.called, prov.gotPassword)
+	}
+	// The longer hold window still ends zeroed on the success path.
+	if !allZero(pw) {
+		t.Errorf("password slice not zeroed after sudo provisioning: %v", pw)
+	}
+}
+
+func TestFirstTouchDeclinesSudoWhenNotRequested(t *testing.T) {
+	dir := t.TempDir()
+	seedKeypair(t, dir, "bridge-onboard")
+
+	runner := &scriptedRunner{queue: []runResult{
+		{res: Result{ExitCode: 255}, err: &SSHError{Category: ErrAuth, Message: "Permission denied"}},
+		{res: Result{Stdout: "ok"}},
+	}}
+	copier := &recordingCopier{resp: CopyKeyResponse{Outcome: Outcome{OK: true, Status: StatusSuccess}, KeyCopied: true}}
+	prov := &fakeProvisioner{state: SudoStateProvisioned}
+
+	svc := NewService(dir, WithRunner(runner), WithKeyCopier(copier), WithSudoProvisioner(prov))
+
+	pw := []byte("hunter2")
+	res, err := svc.FirstTouch(context.Background(), FirstTouchRequest{
+		Host: "example.test", User: "u", Password: pw, KeyName: "bridge-onboard", ProvisionSudo: false,
+	})
+	if err != nil {
+		t.Fatalf("FirstTouch error: %v", err)
+	}
+	if res.SudoProvisioned || res.SudoState != SudoStateDeclined {
+		t.Fatalf("expected declined sudo, got %+v", res)
+	}
+	if prov.called {
+		t.Errorf("provisioner must not run when ProvisionSudo is false")
+	}
+	if !allZero(pw) {
+		t.Errorf("password slice not zeroed on declined path: %v", pw)
+	}
+}
+
+func TestFirstTouchAlreadyPasswordlessStillProvisionsSudo(t *testing.T) {
+	dir := t.TempDir()
+	seedKeypair(t, dir, "bridge-onboard")
+
+	// Initial passwordless test succeeds — the key already works. No password is
+	// supplied (a pure re-run); the provisioner reports password-unavailable.
+	runner := &scriptedRunner{queue: []runResult{{res: Result{Stdout: "ok"}}}}
+	copier := &recordingCopier{}
+	prov := &fakeProvisioner{state: SudoStatePasswordUnavailable}
+
+	svc := NewService(dir, WithRunner(runner), WithKeyCopier(copier), WithSudoProvisioner(prov))
+
+	res, err := svc.FirstTouch(context.Background(), FirstTouchRequest{
+		Host: "h", User: "u", KeyName: "bridge-onboard", ProvisionSudo: true,
+	})
+	if err != nil {
+		t.Fatalf("FirstTouch error: %v", err)
+	}
+	if !res.OK || !res.AlreadyPasswordless {
+		t.Fatalf("expected already-passwordless short-circuit, got %+v", res)
+	}
+	if !prov.called {
+		t.Errorf("sudo provisioning must still run on the already-passwordless SSH path")
+	}
+	if res.SudoProvisioned || res.SudoState != SudoStatePasswordUnavailable {
+		t.Errorf("expected password-unavailable sudo state, got %+v", res)
+	}
+	if copier.called {
+		t.Errorf("copier must not run when SSH is already passwordless")
+	}
+}
+
 func TestFirstTouchRejectsEmptyHost(t *testing.T) {
 	svc := NewService(t.TempDir())
 	if _, err := svc.FirstTouch(context.Background(), FirstTouchRequest{User: "u"}); err == nil {

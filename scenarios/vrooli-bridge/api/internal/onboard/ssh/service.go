@@ -18,10 +18,11 @@ const knownHostsFileName = "known_hosts"
 // password-authenticated key copy (x/crypto). The seams are injectable so tests
 // can drive the flow against an in-process sshd or fakes.
 type Service struct {
-	stateDir string
-	cmd      CommandRunner
-	runner   Runner
-	copier   KeyCopier
+	stateDir    string
+	cmd         CommandRunner
+	runner      Runner
+	copier      KeyCopier
+	provisioner SudoProvisioner
 }
 
 // Option configures a Service.
@@ -54,6 +55,15 @@ func WithKeyCopier(k KeyCopier) Option {
 	}
 }
 
+// WithSudoProvisioner overrides the passwordless-sudo provisioner.
+func WithSudoProvisioner(p SudoProvisioner) Option {
+	return func(s *Service) {
+		if p != nil {
+			s.provisioner = p
+		}
+	}
+}
+
 // NewService constructs a Service rooted at stateDir with the production seams.
 func NewService(stateDir string, opts ...Option) *Service {
 	s := &Service{
@@ -64,6 +74,11 @@ func NewService(stateDir string, opts ...Option) *Service {
 	}
 	for _, o := range opts {
 		o(s)
+	}
+	// Default the sudo provisioner over the service's own streaming exec (a method
+	// value binds the fully-constructed receiver) unless a test injected one.
+	if s.provisioner == nil {
+		s.provisioner = &execSudoProvisioner{stream: s.RunStreaming}
 	}
 	return s
 }

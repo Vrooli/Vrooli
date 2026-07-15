@@ -35,7 +35,7 @@ func (h *handlers) distribute(ctx cliapp.RunContext) error {
 		DestinationPath: ctx.Flag("dest"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("distribute artifact (run `auth login` first if unauthenticated)", err, nil)
+		return cliapp.WrapAPIError("distribute artifact (set a token via `configure token` or $VROOLI_BRIDGE_API_TOKEN if unauthenticated)", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no distribution response")

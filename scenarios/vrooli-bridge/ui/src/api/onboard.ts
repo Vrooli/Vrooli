@@ -4,6 +4,7 @@ import {
   OnboardService,
   OnboardingState,
   OnboardingStepStatus,
+  SourceMode,
   StartOnboardingRequestSchema,
   type OnboardingOp,
   type OnboardingStepEvent,
@@ -31,7 +32,7 @@ export type StartOnboardingInput = MessageInitShape<typeof StartOnboardingReques
  */
 export const onboardClient = createClient(OnboardService, transport);
 
-export { OnboardingState, OnboardingStepStatus };
+export { OnboardingState, OnboardingStepStatus, SourceMode };
 export type {
   OnboardingOp,
   OnboardingStepEvent,

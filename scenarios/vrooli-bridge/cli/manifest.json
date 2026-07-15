@@ -1052,7 +1052,7 @@
       "commands": [
         {
           "name": "start",
-          "description": "Onboard a host end-to-end (SSH first-touch → bootstrap → verify online). Prompts for the SSH password interactively; set $BRIDGE_SSH_PASSWORD for non-interactive use. The password is sent once in the request body, never on argv.",
+          "description": "Onboard a host end-to-end (SSH first-touch → bootstrap → verify online). Never prompts: supply the SSH password via --password-stdin, --prompt-password (explicit opt-in), or $BRIDGE_SSH_PASSWORD; with none of these the host is assumed to already trust the bridge key. The password is sent once in the request body, never on argv. The UI onboard form is the equivalent browser path.",
           "flags": [
             {
               "name": "host",
@@ -1093,11 +1093,28 @@
             },
             {
               "name": "control-plane-url",
-              "description": "Control-plane base URL the node pairs/dials back to (default: server $BRIDGE_CONTROL_PLANE_URL)"
+              "description": "Control-plane base URL the node pairs/dials back to (default: server $BRIDGE_CONTROL_PLANE_URL, else the control plane's own derived address)"
             },
             {
               "name": "verify-timeout",
               "description": "Seconds to wait for the node to come ONLINE (0 = bootstrap default)"
+            },
+            {
+              "name": "setup-environment",
+              "description": "Node-side setup environment profile: development | production | minimal (empty = node default)"
+            },
+            {
+              "name": "setup-resources",
+              "description": "Node-side setup resource selection: enabled | none | <comma-list> (empty = node default)"
+            },
+            {
+              "name": "setup-scenarios",
+              "description": "Node-side setup scenario selection: none | all | <comma-list> (empty = node default)"
+            },
+            {
+              "name": "include-optional",
+              "bool": true,
+              "description": "Also apply optional (non-required) host safeguards during node setup"
             },
             {
               "name": "skip-setup",
@@ -1108,6 +1125,30 @@
               "name": "skip-prereqs",
               "bool": true,
               "description": "Assume prerequisites (git/go/pnpm/curl) are already present on the node"
+            },
+            {
+              "name": "provision-sudo",
+              "bool": true,
+              "description": "Install a scoped passwordless-sudo drop-in for the SSH user at first touch so later privileged steps work over non-interactive SSH (default: on)"
+            },
+            {
+              "name": "no-provision-sudo",
+              "bool": true,
+              "description": "Do not install the passwordless-sudo drop-in (opt out of the default-on behaviour)"
+            },
+            {
+              "name": "source",
+              "description": "Source mode: pinned (default; node clones the pushed revision) or working-tree (ship the control plane's local tree over SSH so uncommitted work onboards without a commit or push). working-tree is the owner development/validation mode; its nodes record dirty provenance and are excluded from fleet rolls"
+            },
+            {
+              "name": "password-stdin",
+              "bool": true,
+              "description": "Read the SSH password from stdin (pipe it from a secret manager or `read -s`); one trailing newline is stripped. Mutually exclusive with --prompt-password. The password is sent once in the request body — never on argv, never stored"
+            },
+            {
+              "name": "prompt-password",
+              "bool": true,
+              "description": "Ask for the SSH password with a masked interactive prompt (requires a TTY). Without this flag `start` never prompts. Mutually exclusive with --password-stdin"
             }
           ],
           "binding": {
@@ -1246,6 +1287,16 @@
       "service": "ProvisionService",
       "method": "ReportProvisionEvent",
       "reason": "Node-facing dial-out RPC: the node-agent's privileged helper streams provision events back here signed with its per-node credential. There is no operator `provision report` command; the agent reports provisioning progress on the channel."
+    },
+    {
+      "service": "IdentityService",
+      "method": "Login",
+      "reason": "Browser-facing same-origin owner sign-in facade, called by the bridge UI only (ui/src/features/session). It forwards to scenario-authenticator and relays the owner JWT so the browser never makes a cross-origin call. The CLI authenticates via an owner token supplied out-of-band, so there is no `auth login` command."
+    },
+    {
+      "service": "IdentityService",
+      "method": "Register",
+      "reason": "Browser-facing same-origin owner account-creation facade, called by the bridge UI only (ui/src/features/session). Same rationale as IdentityService/Login: the CLI supplies an owner token out-of-band and never registers accounts."
     }
   ]
 }

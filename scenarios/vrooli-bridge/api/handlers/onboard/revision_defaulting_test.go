@@ -32,6 +32,14 @@ func (s *stubResolver) Resolve(_ context.Context, requested string) (string, err
 	return s.resolved, nil
 }
 
+func (s *stubResolver) ResolveWorkingTree(_ context.Context, requested string) (string, error) {
+	s.last = requested
+	if s.err != nil {
+		return "", s.err
+	}
+	return s.resolved, nil
+}
+
 // startHandler is the slice of the onboard Connect handler these tests drive
 // (NewConnectHandler returns an unexported concrete type).
 type startHandler interface {

@@ -30,6 +30,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	s.emit(ctx, opID, &seq, StepSSHSetup, StepStatusStarted, "establishing passwordless SSH")
 	conn, err := s.driver.FirstTouch(ctx, FirstTouchParams{
 		Host: in.Host, Port: in.Port, User: in.User, Password: in.Password,
+		ProvisionSudo: in.ProvisionSudo,
 	})
 	if err != nil {
 		if s.cancelled(ctx) {
@@ -40,7 +41,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.finishFailed(ctx, opID, &seq, FailureSSHSetup, 0, err.Error())
 		return
 	}
-	s.emit(ctx, opID, &seq, StepSSHSetup, StepStatusOK, "passwordless SSH established")
+	s.emit(ctx, opID, &seq, StepSSHSetup, StepStatusOK, sshSetupDetail(conn.SudoState))
 	if s.cancelled(ctx) {
 		s.finishCancelled(ctx, opID, &seq)
 		return
@@ -61,6 +62,47 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	}
 	s.emit(ctx, opID, &seq, StepPushScript, StepStatusOK, "bootstrap script staged on node")
 
+	// ---- Phase: SYNC_TREE (working-tree source mode only) ----
+	// Ship the control plane's LOCAL tree to the node over the established SSH
+	// channel so uncommitted work onboards without a commit or push. The bootstrap
+	// then verifies the pre-synced tree instead of cloning. Pinned mode skips this
+	// entirely (the node clones the pushed commit itself).
+	var wtDigest, wtSourceDir string
+	if in.WorkingTree() {
+		s.emit(ctx, opID, &seq, StepSyncTree, StepStatusStarted, "shipping control-plane working tree to node")
+		snap, snErr := s.worktree.Snapshot(ctx)
+		if snErr != nil {
+			if s.cancelled(ctx) {
+				s.finishCancelled(ctx, opID, &seq)
+				return
+			}
+			s.emit(ctx, opID, &seq, StepSyncTree, StepStatusFailed, snErr.Error())
+			s.finishFailed(ctx, opID, &seq, FailureWorkingTreeSync, 0, "working-tree snapshot failed: "+snErr.Error())
+			return
+		}
+		syncRes, syErr := s.driver.SyncTree(ctx, SyncParams{
+			Conn: conn, RepoDir: snap.RepoDir, Files: snap.Files, DestDir: trimField(in.CheckoutDir),
+		})
+		if syErr != nil {
+			if s.cancelled(ctx) {
+				s.finishCancelled(ctx, opID, &seq)
+				return
+			}
+			s.emit(ctx, opID, &seq, StepSyncTree, StepStatusFailed, syErr.Error())
+			s.finishFailed(ctx, opID, &seq, FailureWorkingTreeSync, 0, "working-tree ship failed: "+syErr.Error())
+			return
+		}
+		wtDigest = snap.Digest
+		wtSourceDir = syncRes.ResolvedDestDir
+		s.recordDigest(ctx, opID, wtDigest)
+		s.emit(ctx, opID, &seq, StepSyncTree, StepStatusOK, fmt.Sprintf(
+			"shipped %d file(s), %s, digest %s → %s", len(snap.Files), humanBytes(syncRes.BytesTransferred), shortDigest(wtDigest), wtSourceDir))
+		if s.cancelled(ctx) {
+			s.finishCancelled(ctx, opID, &seq)
+			return
+		}
+	}
+
 	// ---- Issue the server-side pairing code (operator never handles one) ----
 	code, err := s.issuer.Issue(ctx, IssueParams{NodeName: in.NodeName, Scopes: nil})
 	if err != nil {
@@ -80,7 +122,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.handleMarker(ctx, opID, &seq, m, &nodeID)
 	}
 	res, runErr := s.driver.RunBootstrap(ctx, RunParams{
-		Conn: conn, RemotePath: remotePath, Args: buildBootstrapArgs(in), PairingCode: code,
+		Conn: conn, RemotePath: remotePath, Args: buildBootstrapArgs(in, wtSourceDir, wtDigest), PairingCode: code,
 	}, onMarker)
 	// The code has served its one purpose — destroy our copy immediately.
 	zeroBytes(code)
@@ -121,7 +163,39 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		return
 	}
 	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusOK, "node is online with control-plane key pinned")
+	s.recordNodeRevision(ctx, opID, &seq, nodeID, in)
 	s.finishSucceeded(ctx, opID, nodeID, int32(res.ExitCode))
+}
+
+// recordNodeRevision stamps the node record with the provenance the op brought it
+// to — the pinned commit, or a "<base>+dirty" marker for a working-tree node — so
+// `nodes list`, node detail, and the fleet UI show a dirty node as visibly not a
+// pinned one. Best-effort: the node is already paired and ONLINE, so a recording
+// failure is surfaced as a non-fatal note, never a failed op.
+func (s *service) recordNodeRevision(ctx context.Context, opID string, seq *uint64, nodeID string, in StartInput) {
+	if s.nodeRev == nil || nodeID == "" {
+		return
+	}
+	rev := trimField(in.TargetRevision)
+	if in.WorkingTree() {
+		rev = workingTreeRevision(in.BaseRevision)
+	}
+	if rev == "" {
+		return
+	}
+	if err := s.nodeRev.RecordRevision(ctx, nodeID, rev); err != nil {
+		s.emit(ctx, opID, seq, StepVerifyOnline, StepStatusOK, "node online; could not stamp provenance revision ("+err.Error()+")")
+	}
+}
+
+// sshSetupDetail renders the ssh-setup OK step detail, naming the passwordless-
+// sudo provisioning outcome when one was reported (never the password). An empty
+// state (sudo not requested for this driver) collapses to the plain message.
+func sshSetupDetail(sudoState string) string {
+	if sudoState == "" {
+		return "passwordless SSH established"
+	}
+	return "passwordless SSH established; sudo: " + sudoState
 }
 
 // handleMarker persists one parsed bootstrap marker as a step event and captures
@@ -147,9 +221,20 @@ func (s *service) handleMarker(ctx context.Context, opID string, seq *uint64, m 
 }
 
 // buildBootstrapArgs assembles the bootstrap flags from a validated input. The
-// pairing code is deliberately NOT among them — it rides stdin (env-only).
-func buildBootstrapArgs(in StartInput) []string {
+// pairing code is deliberately NOT among them — it rides stdin (env-only). In
+// working-tree mode wtSourceDir/wtDigest are set (the node-side tree the
+// orchestrator pre-shipped and its content digest); the script then verifies that
+// tree instead of cloning, and keys its setup sentinel on the digest.
+func buildBootstrapArgs(in StartInput, wtSourceDir, wtDigest string) []string {
 	args := []string{"--control-plane-url", in.ControlPlaneURL, "--revision", in.TargetRevision}
+	if wtSourceDir != "" {
+		// Working-tree mode: point the script at the pre-synced tree and give it the
+		// content digest so a re-ship of changed work re-runs node-side setup.
+		args = append(args, "--source-dir", wtSourceDir)
+		if wtDigest != "" {
+			args = append(args, "--source-digest", wtDigest)
+		}
+	}
 	if nn := trimField(in.NodeName); nn != "" {
 		args = append(args, "--node-name", nn)
 	}
@@ -170,6 +255,21 @@ func buildBootstrapArgs(in StartInput) []string {
 	}
 	if in.SkipPrereqs {
 		args = append(args, "--skip-prereqs")
+	}
+	// Setup profile — the values are metachar-validated at Start (validateSetupProfile),
+	// so they are safe to pass as bootstrap flags; the script quotes them defensively
+	// and splices them into `make setup SETUP_ARGS=…`.
+	if env := trimField(in.SetupEnvironment); env != "" {
+		args = append(args, "--setup-environment", env)
+	}
+	if res := trimField(in.SetupResources); res != "" {
+		args = append(args, "--setup-resources", res)
+	}
+	if scn := trimField(in.SetupScenarios); scn != "" {
+		args = append(args, "--setup-scenarios", scn)
+	}
+	if in.IncludeOptional {
+		args = append(args, "--include-optional")
 	}
 	return args
 }
@@ -239,6 +339,41 @@ func (s *service) recordNodeID(ctx context.Context, opID, nodeID string) {
 	}
 	op.NodeID = nodeID
 	_, _ = s.repo.Update(ctx, op)
+}
+
+// recordDigest persists the working-tree content digest on the op (working-tree
+// mode) so the op's provenance is complete before the bootstrap runs.
+func (s *service) recordDigest(ctx context.Context, opID, digest string) {
+	op, err := s.repo.Get(ctx, opID)
+	if err != nil {
+		return
+	}
+	op.WorkingTreeDigest = digest
+	_, _ = s.repo.Update(ctx, op)
+}
+
+// shortDigest renders the first 12 hex chars of a content digest for a step
+// detail (the full digest lives on the op record).
+func shortDigest(d string) string {
+	if len(d) <= 12 {
+		return d
+	}
+	return d[:12]
+}
+
+// humanBytes renders a transfer size in the largest sensible unit for a step
+// detail, e.g. "4.2 MiB". It is display-only.
+func humanBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
 // emit appends one step event (assigning the next per-op sequence) and fans it

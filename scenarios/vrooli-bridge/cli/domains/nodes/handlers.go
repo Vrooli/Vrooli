@@ -15,7 +15,7 @@ import (
 
 // handlers bundles the closure over *cliapp.ScenarioApp so each RunCtx-func has
 // typed access to the API client without re-resolving it. The owner JWT rides
-// the configured token source (populate it with `auth login`).
+// the configured token source (set it via `configure token` or $VROOLI_BRIDGE_API_TOKEN).
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client registryconnect.NodeRegistryServiceClient
@@ -39,7 +39,7 @@ func (h *handlers) register(ctx cliapp.RunContext) error {
 		Scopes:       splitCSV(ctx.Flag("scopes")),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("register node (run `auth login` first if unauthenticated)", err, nil)
+		return cliapp.WrapAPIError("register node (set a token via `configure token` or $VROOLI_BRIDGE_API_TOKEN if unauthenticated)", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Node == nil {
 		return fmt.Errorf("server returned no node")
@@ -159,8 +159,26 @@ func formatNode(n *registryv1.Node) string {
 	if n.CreatedAt != nil {
 		created = n.CreatedAt.AsTime().Format(time.RFC3339)
 	}
-	return fmt.Sprintf("%s — %s [%s/%s status=%s online=%t scopes=%d created=%s]",
-		n.Id, n.Name, n.Os, n.Arch, statusLabel(n.Status), n.Online, len(n.Scopes), created)
+	return fmt.Sprintf("%s — %s [%s/%s status=%s online=%t rev=%s scopes=%d created=%s]",
+		n.Id, n.Name, n.Os, n.Arch, statusLabel(n.Status), n.Online, formatRevision(n.Revision), len(n.Scopes), created)
+}
+
+// formatRevision renders a node's provenance revision for a one-line listing,
+// shortening a long commit sha but PRESERVING the "+dirty" working-tree marker so
+// a dirty node reads loudly as "e767613fca+dirty" — visibly not a pinned node.
+func formatRevision(rev string) string {
+	rev = strings.TrimSpace(rev)
+	if rev == "" {
+		return "-"
+	}
+	base, dirty := strings.CutSuffix(rev, "+dirty")
+	if len(base) > 12 {
+		base = base[:12]
+	}
+	if dirty {
+		return base + "+dirty"
+	}
+	return base
 }
 
 // statusLabel renders the NodeStatus enum as a short lowercase word.

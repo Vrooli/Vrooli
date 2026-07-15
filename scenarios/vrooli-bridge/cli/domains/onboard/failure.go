@@ -46,7 +46,8 @@ func failureGuidance(op *onboardv1.OnboardingOp) string {
 	switch reason {
 	case failSSHSetup:
 		return fmt.Sprintf("SSH setup failed: could not establish passwordless SSH to %s. "+
-			"Confirm the host is reachable on the SSH port, the user is correct, and the SSH password was right, then re-run `onboard start`.", target)
+			"Confirm the host is reachable on the SSH port, the user is correct, and the SSH password was right, then re-run `onboard start` "+
+			"(supply the password via --password-stdin, --prompt-password, $%s, or the UI onboard form).", target, sshPasswordEnvVar)
 	case failScriptPush:
 		return fmt.Sprintf("Could not copy the bootstrap script to %s over SSH. "+
 			"Check remote disk space and write access to the temp dir, then re-run `onboard start`.", target)

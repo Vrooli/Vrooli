@@ -15,7 +15,7 @@ import (
 
 // handlers closes over *cliapp.ScenarioApp so each RunContext-func has typed
 // access to the generated DispatchService client. The owner JWT rides the
-// configured token source (populate it with `auth login`).
+// configured token source (set it via `configure token` or $VROOLI_BRIDGE_API_TOKEN).
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client dispatchconnect.DispatchServiceClient
@@ -39,7 +39,7 @@ func (h *handlers) job(ctx cliapp.RunContext) error {
 		TimeoutSeconds: parseInt64(ctx.Flag("timeout")),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("dispatch job (run `auth login` first if unauthenticated)", err, nil)
+		return cliapp.WrapAPIError("dispatch job (set a token via `configure token` or $VROOLI_BRIDGE_API_TOKEN if unauthenticated)", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no dispatch response")

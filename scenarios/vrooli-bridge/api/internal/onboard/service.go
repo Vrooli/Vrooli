@@ -65,6 +65,8 @@ type service struct {
 	defaultControlPlaneURL string
 	defaultRevision        string
 	revResolver            RevisionResolver
+	worktree               WorkingTreeSource
+	nodeRev                NodeRevisionRecorder
 
 	wg sync.WaitGroup // tracks in-flight orchestration goroutines (for tests)
 }
@@ -90,6 +92,20 @@ func WithDefaultRevision(rev string) Option {
 // the legacy WithDefaultRevision behaviour applies.
 func WithRevisionResolver(r RevisionResolver) Option {
 	return func(s *service) { s.revResolver = r }
+}
+
+// WithWorkingTreeSource wires the control-plane working-tree snapshotter used in
+// working-tree source mode. Unset (the default), a working-tree StartOnboarding is
+// refused at Start with a clear error rather than silently degrading to pinned.
+func WithWorkingTreeSource(w WorkingTreeSource) Option {
+	return func(s *service) { s.worktree = w }
+}
+
+// WithNodeRevisionRecorder wires the seam that stamps a node's provenance revision
+// after it verifies ONLINE. Unset, provenance is recorded on the op only (the node
+// record keeps whatever revision pairing left).
+func WithNodeRevisionRecorder(r NodeRevisionRecorder) Option {
+	return func(s *service) { s.nodeRev = r }
 }
 
 // NewService constructs the production Service.
@@ -133,12 +149,27 @@ func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
 		zeroBytes(in.Password)
 		return Decision{}, ErrInvalid{Field: "control_plane_url", Reason: "required"}
 	}
+	// Working-tree mode ships the control plane's local tree over SSH; it requires
+	// the snapshotter to be wired (production always does). Refuse loudly rather
+	// than silently falling back to a pinned clone the operator did not ask for.
+	if in.WorkingTree() && s.worktree == nil {
+		zeroBytes(in.Password)
+		return Decision{}, ErrInvalid{Field: "source_mode", Reason: "working-tree onboarding is not available on this control plane (no working-tree source configured)"}
+	}
+
 	revision := trimField(in.TargetRevision)
 	if s.revResolver != nil {
-		// Default (empty/"@cp" → the control plane's commit), validate, and
-		// preflight the target against the clone remote. A metachar ref or an
-		// unpushed commit fails here, loudly, before any host is touched.
-		resolved, rerr := s.revResolver.Resolve(ctx, revision)
+		// Default (empty/"@cp" → the control plane's commit) and validate. Pinned
+		// mode ALSO preflights the commit against the clone remote (an unpushed
+		// commit hard-fails here); working-tree mode skips that preflight because the
+		// tree is shipped over SSH, not fetched — an unpushed base is expected.
+		var resolved string
+		var rerr error
+		if in.WorkingTree() {
+			resolved, rerr = s.revResolver.ResolveWorkingTree(ctx, revision)
+		} else {
+			resolved, rerr = s.revResolver.Resolve(ctx, revision)
+		}
 		if rerr != nil {
 			zeroBytes(in.Password)
 			return Decision{}, rerr
@@ -154,8 +185,30 @@ func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
 		}
 	}
 
+	// Validate the operator-chosen setup profile (metachar rejection + enum-ish
+	// environment) before any host is touched, so a shell-injectable or nonsense
+	// value fails here, loudly, rather than deep in the node-side script.
+	if err := validateSetupProfile(in); err != nil {
+		zeroBytes(in.Password)
+		return Decision{}, err
+	}
+
 	// Normalise the resolved values back onto the input the goroutine consumes.
+	// in.TargetRevision carries the BASE commit (the bootstrap `--revision`); in
+	// working-tree mode BaseRevision holds it too so the op provenance is complete.
 	in.Host, in.User, in.Port, in.ControlPlaneURL, in.TargetRevision = host, user, port, cpURL, revision
+	if in.WorkingTree() {
+		in.BaseRevision = revision
+	}
+
+	// The op's persisted TargetRevision is what renders in `nodes`/`onboard`
+	// output: the pinned commit, or a "<base>+dirty" marker for a working-tree op
+	// so a dirty op is visibly not a pinned one. The content digest is filled in by
+	// the orchestrator once the tree is shipped.
+	opRevision := revision
+	if in.WorkingTree() {
+		opRevision = workingTreeRevision(revision)
+	}
 
 	// Dry-run: the request validated and would be dispatched, but we create no
 	// op and touch no host. The transient password is not needed — zero it.
@@ -169,9 +222,11 @@ func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
 		Port:           port,
 		User:           user,
 		NodeName:       trimField(in.NodeName),
-		TargetRevision: revision,
+		TargetRevision: opRevision,
 		RepoURL:        trimField(in.RepoURL),
 		State:          StatePending,
+		SourceMode:     in.SourceMode,
+		BaseRevision:   in.BaseRevision,
 	})
 	if err != nil {
 		zeroBytes(in.Password)

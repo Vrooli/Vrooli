@@ -116,6 +116,11 @@ func (s *service) classifyAndDispatch(ctx context.Context, node NodeRef, in Roll
 	switch {
 	case node.Revoked:
 		return NodeResult{NodeID: node.ID, Disposition: DispositionSkippedRevoked, Detail: "node revoked"}
+	case node.WorkingTree:
+		// A working-tree node is pinned to no fetchable commit; a revision roll
+		// cannot converge it. Exclude it and flag needs-reprovision rather than
+		// dispatching a sync that would fail on the node.
+		return NodeResult{NodeID: node.ID, Disposition: DispositionSkippedWorkingTree, Detail: "node on working-tree source (dirty); needs reprovision to a pinned revision to be rollable"}
 	case !s.presence.IsOnline(node.ID):
 		return NodeResult{NodeID: node.ID, Disposition: DispositionSkippedOffline, Detail: "node offline"}
 	case !s.presence.Dispatchable(node.ID):
@@ -205,7 +210,7 @@ func countSkipped(results []NodeResult) int {
 	n := 0
 	for _, r := range results {
 		switch r.Disposition {
-		case DispositionSkippedOffline, DispositionSkippedNeedsUpdate, DispositionSkippedRevoked:
+		case DispositionSkippedOffline, DispositionSkippedNeedsUpdate, DispositionSkippedRevoked, DispositionSkippedWorkingTree:
 			n++
 		}
 	}

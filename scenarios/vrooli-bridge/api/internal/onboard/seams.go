@@ -17,6 +17,11 @@ type Conn struct {
 	Port    int
 	User    string
 	KeyPath string
+
+	// SudoState is the passwordless-sudo provisioning outcome from first touch
+	// (empty when not requested). Informational: the orchestrator surfaces it in
+	// the ssh-setup step detail. It carries no credential material.
+	SudoState string
 }
 
 // FirstTouchParams is the owner-supplied SSH target for the first-touch phase.
@@ -27,6 +32,11 @@ type FirstTouchParams struct {
 	Port     int
 	User     string
 	Password []byte
+
+	// ProvisionSudo asks the driver to install a scoped passwordless-sudo drop-in
+	// for User while the password is still held, so later privileged steps work
+	// over non-interactive SSH. Declining never fails the first touch.
+	ProvisionSudo bool
 }
 
 // RunParams drives the remote bootstrap. PairingCode is the single-use,
@@ -48,9 +58,35 @@ type BootstrapResult struct {
 	ExitCode int
 }
 
+// SyncParams drives the working-tree ship: tar the RepoDir-relative Files and
+// unpack them into DestDir on the node over the established SSH channel. Files is
+// the exact list the WorkingTreeSource enumerated (tracked + modified +
+// untracked-non-ignored); the transport must preserve names with spaces/newlines
+// (it uses the tar archive format, not shell word-splitting).
+type SyncParams struct {
+	Conn    Conn
+	RepoDir string
+	Files   []string
+	DestDir string
+}
+
+// SyncResult is the outcome of a working-tree ship.
+type SyncResult struct {
+	// BytesTransferred is the size of the tar stream sent to the node, for the
+	// step detail (so the operator sees how much was shipped).
+	BytesTransferred int64
+
+	// ResolvedDestDir is the concrete node-side directory the tree landed in — the
+	// operator's DestDir when explicit, or the node-resolved default ($HOME/vrooli)
+	// otherwise. The orchestrator threads it into the bootstrap `--source-dir` and
+	// `--checkout-dir` so the script verifies exactly where the tree was unpacked.
+	ResolvedDestDir string
+}
+
 // SSHDriver is the SSH-capability seam: establish passwordless SSH, copy the
-// bootstrap script to the node, and run it while streaming its VBOOTSTRAP
-// markers back. Production wraps internal/onboard/ssh; unit tests fake it.
+// bootstrap script to the node, ship the control plane's working tree (working-
+// tree mode), and run the bootstrap while streaming its VBOOTSTRAP markers back.
+// Production wraps internal/onboard/ssh; unit tests fake it.
 type SSHDriver interface {
 	// FirstTouch establishes working passwordless SSH to the host (generate key,
 	// copy it with the password, retest) and returns the key-authenticated Conn.
@@ -61,10 +97,52 @@ type SSHDriver interface {
 	// path it landed at.
 	PushScript(ctx context.Context, conn Conn) (remotePath string, err error)
 
+	// SyncTree ships the control plane's working tree to the node's DestDir over
+	// the established SSH channel (tar-over-ssh). Only called in working-tree
+	// source mode. It returns the number of bytes transferred.
+	SyncTree(ctx context.Context, p SyncParams) (SyncResult, error)
+
 	// RunBootstrap runs the bootstrap script remotely, injecting the pairing code
 	// over stdin, and invokes onMarker for every parsed VBOOTSTRAP stdout marker
 	// as it streams. It returns once the script exits.
 	RunBootstrap(ctx context.Context, p RunParams, onMarker func(Marker)) (BootstrapResult, error)
+}
+
+// WorkingTreeSnapshot is the control plane's local working tree at ship time: the
+// base commit it sits on, a deterministic content digest, the repo root, and the
+// exact file list to ship. Empty Files with a valid BaseHEAD is a clean checkout
+// at that commit (nothing uncommitted); the ship still happens so the node builds
+// from exactly what the operator has locally.
+type WorkingTreeSnapshot struct {
+	// BaseHEAD is the control plane's HEAD commit the tree sits on.
+	BaseHEAD string
+	// Digest is a deterministic hash over the file list + per-file content, so
+	// re-shipping changed work is detectable (it re-keys the node's setup sentinel).
+	Digest string
+	// RepoDir is the control-plane checkout root the Files are relative to.
+	RepoDir string
+	// Files are the repo-relative paths to ship (tracked + modified +
+	// untracked-non-ignored), from `git ls-files -z -c -o --exclude-standard`.
+	Files []string
+}
+
+// WorkingTreeSource snapshots the control plane's local working tree for a
+// working-tree-mode ship. Production (worktree.go) drives git + the filesystem;
+// unit tests fake it.
+type WorkingTreeSource interface {
+	// Snapshot enumerates the control plane's working tree and computes its base
+	// HEAD and content digest. It reads only; it never mutates the checkout.
+	Snapshot(ctx context.Context) (WorkingTreeSnapshot, error)
+}
+
+// NodeRevisionRecorder writes a node's provenance revision after onboarding
+// verifies it ONLINE, so `nodes list` / node detail / the fleet UI render what
+// the node was actually brought to — a pinned commit, or a "<base>+dirty" marker
+// for a working-tree node. Production wraps the registry service's Update; unit
+// tests fake it. A recording failure never fails onboarding (the node is already
+// paired and online) — it is logged and the op still succeeds.
+type NodeRevisionRecorder interface {
+	RecordRevision(ctx context.Context, nodeID, revision string) error
 }
 
 // RevisionResolver defaults, validates, and preflights the onboarding target
@@ -76,6 +154,13 @@ type SSHDriver interface {
 // require a non-empty revision).
 type RevisionResolver interface {
 	Resolve(ctx context.Context, requested string) (string, error)
+
+	// ResolveWorkingTree is the working-tree-mode variant: it defaults (empty/"@cp"
+	// → the control plane's commit) and metacharacter-validates the base revision
+	// but SKIPS the pushed preflight — the tree is shipped over SSH, not fetched, so
+	// an unpushed base commit is expected and must not hard-fail. Pinned mode keeps
+	// Resolve (ErrNotPushed stays a hard failure); only working-tree mode bypasses.
+	ResolveWorkingTree(ctx context.Context, requested string) (string, error)
 }
 
 // IssueParams is the server-side pairing-code request.
