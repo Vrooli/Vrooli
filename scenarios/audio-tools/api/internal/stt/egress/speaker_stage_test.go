@@ -48,13 +48,14 @@ func TestSpeakerStage_FallbackFlagPropagates(t *testing.T) {
 
 // TestSpeakerStage_NoAudioOrNoIsolationIsNoOp proves the audio-domain stage
 // only applies to PCM segments with a wired isolation; otherwise it emits.
-func TestSpeakerStage_NoAudioOrNoIsolationIsNoOp(t *testing.T) {
+func TestSpeakerStage_NoAudioFailsClosedUnlessPolicyAllowsFallback(t *testing.T) {
 	ctx := context.Background()
 	iso := &mocks.FakeSpeakerIsolation{Verdict: egress.SpeakerVerdict{Allowed: false, Reason: "x"}}
 
-	// No audio bytes (e.g. Passthrough/Kyutai segments) -> emit, isolation not consulted.
+	// Missing span audio must not silently bypass a required filter.
 	out := egress.SpeakerStage{Isolation: iso}.Apply(ctx, egress.SegmentDecision{Text: "hi", Outcome: egress.Emit})
-	require.Equal(t, egress.Emit, out.Outcome)
+	require.Equal(t, egress.Reject, out.Outcome)
+	require.Contains(t, out.Reason, "audio is unavailable")
 	require.Empty(t, iso.Seen)
 
 	// No isolation wired -> emit.

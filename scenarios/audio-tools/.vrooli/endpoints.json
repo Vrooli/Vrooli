@@ -329,6 +329,22 @@
       "category": "experiment"
     },
     {
+      "id": "experiment.evidence.record",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/RecordQualificationEvidence",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.evidence.list",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/ListQualificationEvidence",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
       "id": "session.open",
       "path": "/vrooli.audio_tools.v1.session.SessionService/OpenSession",
       "method": "POST",

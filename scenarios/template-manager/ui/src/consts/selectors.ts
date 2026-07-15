@@ -322,6 +322,59 @@ const literalSelectors = {
   pages: {
     dashboard: "page-dashboard",
     settings: "page-settings",
+    templateList: "page-template-list",
+    templateDetail: "page-template-detail",
+    runList: "page-run-list",
+    runDetail: "page-run-detail",
+    debtList: "page-debt-list",
+    debtDetail: "page-debt-detail",
+  },
+  templateList: {
+    root: "template-list",
+    table: "template-list-table",
+    kindFilter: "template-list-kind-filter",
+    loading: "template-list-loading",
+    error: "template-list-error",
+  },
+  runList: {
+    root: "run-list",
+    table: "run-list-table",
+    statusFilter: "run-list-status-filter",
+    loading: "run-list-loading",
+    error: "run-list-error",
+  },
+  templateDetail: {
+    header: "template-detail-header",
+    overview: "template-detail-overview",
+    runs: "template-detail-runs",
+    drift: "template-detail-drift",
+    debt: "template-detail-debt",
+    loading: "template-detail-loading",
+    error: "template-detail-error",
+  },
+  runDetail: {
+    header: "run-detail-header",
+    overview: "run-detail-overview",
+    phases: "run-detail-phases",
+    findings: "run-detail-findings",
+    loading: "run-detail-loading",
+    error: "run-detail-error",
+  },
+  debtList: {
+    root: "debt-list",
+    table: "debt-list-table",
+    templateFilter: "debt-list-template-filter",
+    statusFilter: "debt-list-status-filter",
+    loading: "debt-list-loading",
+    error: "debt-list-error",
+  },
+  debtDetail: {
+    header: "debt-detail-header",
+    overview: "debt-detail-overview",
+    message: "debt-detail-message",
+    provenance: "debt-detail-provenance",
+    loading: "debt-detail-loading",
+    error: "debt-detail-error",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -339,6 +392,9 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "templates",
+            "runs",
+            "debt",
             "settings",
           ] as const,
         },
@@ -352,10 +408,46 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "templates",
+            "runs",
+            "debt",
             "settings",
           ] as const,
         },
       },
+    }),
+  },
+  templateList: {
+    row: defineDynamicSelector({
+      description: "Template list row link to a template detail view, by template id",
+      testIdPattern: "template-list-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  runList: {
+    row: defineDynamicSelector({
+      description: "Run list row link to a validation run detail view, by run id",
+      testIdPattern: "run-list-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  debtList: {
+    row: defineDynamicSelector({
+      description: "Debt list row link to a debt entry detail view, by debt key",
+      testIdPattern: "debt-list-row-${key}",
+      params: { key: { type: "string" } },
+    }),
+  },
+  templateDetail: {
+    runLink: defineDynamicSelector({
+      description: "Template detail link to one of its validation runs, by run id",
+      testIdPattern: "template-detail-run-link-${id}",
+      params: { id: { type: "string" } },
+    }),
+    debtLink: defineDynamicSelector({
+      description: "Template detail link to one of its debt entries, by debt key",
+      testIdPattern: "template-detail-debt-link-${key}",
+      params: { key: { type: "string" } },
     }),
   },
   settingsPage: {

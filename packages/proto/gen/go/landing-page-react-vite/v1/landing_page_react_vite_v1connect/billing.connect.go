@@ -52,6 +52,9 @@ const (
 	// LandingPagePaymentsServiceUpdateStripeSettingsProcedure is the fully-qualified name of the
 	// LandingPagePaymentsService's UpdateStripeSettings RPC.
 	LandingPagePaymentsServiceUpdateStripeSettingsProcedure = "/landing_page_react_vite.v1.LandingPagePaymentsService/UpdateStripeSettings"
+	// LandingPagePaymentsServiceGetBillingPortalProcedure is the fully-qualified name of the
+	// LandingPagePaymentsService's GetBillingPortal RPC.
+	LandingPagePaymentsServiceGetBillingPortalProcedure = "/landing_page_react_vite.v1.LandingPagePaymentsService/GetBillingPortal"
 )
 
 // LandingPagePaymentsServiceClient is a client for the
@@ -75,6 +78,8 @@ type LandingPagePaymentsServiceClient interface {
 	// Updates Stripe settings and returns the refreshed snapshot.
 	// Admin-only endpoint for credential management.
 	UpdateStripeSettings(context.Context, *connect.Request[v1.UpdateStripeSettingsRequest]) (*connect.Response[v1.UpdateStripeSettingsResponse], error)
+	// Returns the hosted billing portal URL for self-service management.
+	GetBillingPortal(context.Context, *connect.Request[v1.GetBillingPortalRequest]) (*connect.Response[v1.BillingPortalResponse], error)
 }
 
 // NewLandingPagePaymentsServiceClient constructs a client for the
@@ -125,6 +130,12 @@ func NewLandingPagePaymentsServiceClient(httpClient connect.HTTPClient, baseURL 
 			connect.WithSchema(landingPagePaymentsServiceMethods.ByName("UpdateStripeSettings")),
 			connect.WithClientOptions(opts...),
 		),
+		getBillingPortal: connect.NewClient[v1.GetBillingPortalRequest, v1.BillingPortalResponse](
+			httpClient,
+			baseURL+LandingPagePaymentsServiceGetBillingPortalProcedure,
+			connect.WithSchema(landingPagePaymentsServiceMethods.ByName("GetBillingPortal")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -136,6 +147,7 @@ type landingPagePaymentsServiceClient struct {
 	getPricing            *connect.Client[v1.GetPricingRequest, v1.GetPricingResponse]
 	getStripeSettings     *connect.Client[v1.GetStripeSettingsRequest, v1.GetStripeSettingsResponse]
 	updateStripeSettings  *connect.Client[v1.UpdateStripeSettingsRequest, v1.UpdateStripeSettingsResponse]
+	getBillingPortal      *connect.Client[v1.GetBillingPortalRequest, v1.BillingPortalResponse]
 }
 
 // CreateCheckoutSession calls
@@ -172,6 +184,11 @@ func (c *landingPagePaymentsServiceClient) UpdateStripeSettings(ctx context.Cont
 	return c.updateStripeSettings.CallUnary(ctx, req)
 }
 
+// GetBillingPortal calls landing_page_react_vite.v1.LandingPagePaymentsService.GetBillingPortal.
+func (c *landingPagePaymentsServiceClient) GetBillingPortal(ctx context.Context, req *connect.Request[v1.GetBillingPortalRequest]) (*connect.Response[v1.BillingPortalResponse], error) {
+	return c.getBillingPortal.CallUnary(ctx, req)
+}
+
 // LandingPagePaymentsServiceHandler is an implementation of the
 // landing_page_react_vite.v1.LandingPagePaymentsService service.
 type LandingPagePaymentsServiceHandler interface {
@@ -193,6 +210,8 @@ type LandingPagePaymentsServiceHandler interface {
 	// Updates Stripe settings and returns the refreshed snapshot.
 	// Admin-only endpoint for credential management.
 	UpdateStripeSettings(context.Context, *connect.Request[v1.UpdateStripeSettingsRequest]) (*connect.Response[v1.UpdateStripeSettingsResponse], error)
+	// Returns the hosted billing portal URL for self-service management.
+	GetBillingPortal(context.Context, *connect.Request[v1.GetBillingPortalRequest]) (*connect.Response[v1.BillingPortalResponse], error)
 }
 
 // NewLandingPagePaymentsServiceHandler builds an HTTP handler from the service implementation. It
@@ -238,6 +257,12 @@ func NewLandingPagePaymentsServiceHandler(svc LandingPagePaymentsServiceHandler,
 		connect.WithSchema(landingPagePaymentsServiceMethods.ByName("UpdateStripeSettings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	landingPagePaymentsServiceGetBillingPortalHandler := connect.NewUnaryHandler(
+		LandingPagePaymentsServiceGetBillingPortalProcedure,
+		svc.GetBillingPortal,
+		connect.WithSchema(landingPagePaymentsServiceMethods.ByName("GetBillingPortal")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/landing_page_react_vite.v1.LandingPagePaymentsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case LandingPagePaymentsServiceCreateCheckoutSessionProcedure:
@@ -252,6 +277,8 @@ func NewLandingPagePaymentsServiceHandler(svc LandingPagePaymentsServiceHandler,
 			landingPagePaymentsServiceGetStripeSettingsHandler.ServeHTTP(w, r)
 		case LandingPagePaymentsServiceUpdateStripeSettingsProcedure:
 			landingPagePaymentsServiceUpdateStripeSettingsHandler.ServeHTTP(w, r)
+		case LandingPagePaymentsServiceGetBillingPortalProcedure:
+			landingPagePaymentsServiceGetBillingPortalHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -283,4 +310,8 @@ func (UnimplementedLandingPagePaymentsServiceHandler) GetStripeSettings(context.
 
 func (UnimplementedLandingPagePaymentsServiceHandler) UpdateStripeSettings(context.Context, *connect.Request[v1.UpdateStripeSettingsRequest]) (*connect.Response[v1.UpdateStripeSettingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_react_vite.v1.LandingPagePaymentsService.UpdateStripeSettings is not implemented"))
+}
+
+func (UnimplementedLandingPagePaymentsServiceHandler) GetBillingPortal(context.Context, *connect.Request[v1.GetBillingPortalRequest]) (*connect.Response[v1.BillingPortalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_react_vite.v1.LandingPagePaymentsService.GetBillingPortal is not implemented"))
 }

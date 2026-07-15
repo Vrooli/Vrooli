@@ -252,7 +252,7 @@ When sources conflict, apply this precedence (highest to lowest):
 
 ### List backlog items
 ```bash
-swarm-manager backlog list [--kind <kind>] [--status <status>]
+swarm-manager backlog list [--kind "<kind>"] [--status "<status>"]
 ```
 
 ### Create a backlog item
@@ -262,7 +262,7 @@ swarm-manager backlog create --data '{"kind":"idea","name":"my-feature","title":
 
 ### Update a backlog item
 ```bash
-swarm-manager backlog update --kind <kind> --name <name> --data '{"acceptance_allow":["scenarios/web-console/**"]}'
+swarm-manager backlog update --kind "<kind>" --name "<name>" --data '{"acceptance_allow":["scenarios/web-console/**"]}'
 ```
 
 Notes:
@@ -272,7 +272,7 @@ Notes:
 
 ### Delete a backlog item
 ```bash
-swarm-manager backlog delete --kind <kind> --name <name>
+swarm-manager backlog delete --kind "<kind>" --name "<name>"
 ```
 
 ### Queue a single item
@@ -282,17 +282,17 @@ swarm-manager backlog queue --kind <kind> --name <name> [--execute] [--force] [-
 
 ### Read item metadata
 ```bash
-swarm-manager backlog get --kind <kind> --name <name>
+swarm-manager backlog get --kind "<kind>" --name "<name>"
 ```
 
 ### List files in item folder
 ```bash
-swarm-manager backlog files --kind <kind> --name <name>
+swarm-manager backlog files --kind "<kind>" --name "<name>"
 ```
 
 ### Read a specific file
 ```bash
-swarm-manager backlog file-get --kind <kind> --name <name> --path <relative-path>
+swarm-manager backlog file-get --kind "<kind>" --name "<name>" --path "<relative-path>"
 # Example: swarm-manager backlog file-get --kind idea --name my-feature --path workshop/round-001.json
 ```
 
@@ -309,7 +309,7 @@ EOF
 Trigger agent-driven research, initialization, or workshop on a backlog item.
 
 ```bash
-swarm-manager backlog research --kind <kind> --name <name> --data '{"mode":"<mode>"}'
+swarm-manager backlog research --kind "<kind>" --name "<name>" --data '{"mode":"<mode>"}'
 ```
 
 **Modes:**
@@ -402,9 +402,9 @@ swarm-manager backlog batch-queue --items fix/auth-bug,idea/new-feature --execut
 swarm-manager captures list                              # List all captures
 swarm-manager captures create --text "Quick thought..."  # Create a capture from text
 swarm-manager captures create --text "..." --file a.png  # Create with text and file attachment(s)
-swarm-manager captures get --id <id>                     # Get a specific capture
-swarm-manager captures delete --id <id>                  # Delete a capture
-swarm-manager captures classify --id <id>                # AI-classify a capture into a backlog item
+swarm-manager captures get --id "<id>"                     # Get a specific capture
+swarm-manager captures delete --id "<id>"                  # Delete a capture
+swarm-manager captures classify --id "<id>"                # AI-classify a capture into a backlog item
 ```
 
 ### Initiatives commands
@@ -413,13 +413,13 @@ Initiatives are stored as folders at `.vrooli/initiatives/{name}/` containing an
 
 ```bash
 swarm-manager initiatives list                                    # List all initiatives with rollup status
-swarm-manager initiatives get --name <name>                       # Get initiative details and member items
-swarm-manager initiatives context --name <name>                   # Initiative + members + upstream + downstream in one call
+swarm-manager initiatives get --name "<name>"                       # Get initiative details and member items
+swarm-manager initiatives context --name "<name>"                   # Initiative + members + upstream + downstream in one call
 swarm-manager initiatives create --data '{"name":"my-init","title":"My Initiative","description":"...","status":"active","priority":5,"depends_on":["other-initiative"]}'
-swarm-manager initiatives update --name <name> --data '{"title":"Updated Title","priority":2,"depends_on":["dep-a","dep-b"]}' # Partial update (supply only fields that should change)
-swarm-manager initiatives delete --name <name>                    # Delete an initiative
-swarm-manager initiatives add-items --name <name> --items kind/name,kind/name   # Add items to initiative
-swarm-manager initiatives remove-items --name <name> --items kind/name,kind/name # Remove items from initiative
+swarm-manager initiatives update --name "<name>" --data '{"title":"Updated Title","priority":2,"depends_on":["dep-a","dep-b"]}' # Partial update (supply only fields that should change)
+swarm-manager initiatives delete --name "<name>"                    # Delete an initiative
+swarm-manager initiatives add-items --name "<name>" --items kind/name,kind/name   # Add items to initiative
+swarm-manager initiatives remove-items --name "<name>" --items kind/name,kind/name # Remove items from initiative
 ```
 
 Use `initiatives context` as the single-call loader before proposing backlog changes — it returns the initiative, its member items (compact view with kind/name/title/status/priority/depends_on), direct upstream initiatives (what this blocks on), and direct downstream initiatives (what this unblocks). This is the right tool for the reuse-before-create heuristic (see `swarm-manager-initiative-context`), not the global `overview` command.
@@ -447,16 +447,16 @@ Consequence: describe the mutation you want, not the bookkeeping. Never emit cle
 Initiatives support arbitrary context files alongside the `initiative.json` metadata. Use these commands to manage strategic context, decision logs, health reports, or any other files.
 
 ```bash
-swarm-manager initiatives files --name <name>                              # List all files in an initiative
-swarm-manager initiatives file-get --name <name> --path <path>             # Read a file
-swarm-manager initiatives file-get --name <name> --path <path> --out local-file  # Download to local file
-swarm-manager initiatives file-upload --name <name> --path <path> --stdin  # Upload from stdin (heredoc)
-swarm-manager initiatives file-upload --name <name> --path <path> --file <local-file>  # Upload local file
-swarm-manager initiatives file-upload --name <name> --path <path> --content "inline text"  # Upload inline
-swarm-manager initiatives file-op --name <name> --op delete --source <path>  # Delete a file
-swarm-manager initiatives file-op --name <name> --op rename --source <old> --dest <new>  # Rename
-swarm-manager initiatives file-op --name <name> --op move --source <from> --dest <to>    # Move
-swarm-manager initiatives file-op --name <name> --op copy --source <from> --dest <to>    # Copy
+swarm-manager initiatives files --name "<name>"                              # List all files in an initiative
+swarm-manager initiatives file-get --name "<name>" --path "<path>"             # Read a file
+swarm-manager initiatives file-get --name "<name>" --path "<path>" --out local-file  # Download to local file
+swarm-manager initiatives file-upload --name "<name>" --path "<path>" --stdin  # Upload from stdin (heredoc)
+swarm-manager initiatives file-upload --name "<name>" --path "<path>" --file "<local-file>"  # Upload local file
+swarm-manager initiatives file-upload --name "<name>" --path "<path>" --content "inline text"  # Upload inline
+swarm-manager initiatives file-op --name "<name>" --op delete --source "<path>"  # Delete a file
+swarm-manager initiatives file-op --name "<name>" --op rename --source "<old>" --dest "<new>"  # Rename
+swarm-manager initiatives file-op --name "<name>" --op move --source "<from>" --dest "<to>"    # Move
+swarm-manager initiatives file-op --name "<name>" --op copy --source "<from>" --dest "<to>"    # Copy
 ```
 
 Notes:
@@ -473,8 +473,8 @@ swarm-manager overview --format markdown # Markdown output (default)
 
 ### Agent-manager run commands
 ```bash
-swarm-manager agent-manager run-get --id <run-id>   # Get execution run status
-swarm-manager agent-manager run-stop --id <run-id>  # Stop a running execution
+swarm-manager agent-manager run-get --id "<run-id>"   # Get execution run status
+swarm-manager agent-manager run-stop --id "<run-id>"  # Stop a running execution
 ```
 
 ### Stats commands
@@ -490,18 +490,18 @@ The `summary` subcommand returns all stat categories in one call. Use the focuse
 
 ### Convert item kind
 ```bash
-swarm-manager backlog convert --kind <kind> --name <name> --target-kind <new-kind>
+swarm-manager backlog convert --kind "<kind>" --name "<name>" --target-kind "<new-kind>"
 ```
 
 ### Export / Import backlog
 ```bash
-swarm-manager backlog export [--kind <kind>] [--name <name>]
-swarm-manager backlog import --file <file>
+swarm-manager backlog export [--kind "<kind>"] [--name "<name>"]
+swarm-manager backlog import --file "<file>"
 ```
 
 ### Prompt trace
 ```bash
-swarm-manager backlog prompt-trace --kind <kind> --name <name>
+swarm-manager backlog prompt-trace --kind "<kind>" --name "<name>"
 ```
 
 ## Mutation Rules

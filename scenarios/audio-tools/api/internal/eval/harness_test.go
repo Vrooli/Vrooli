@@ -174,6 +174,28 @@ func TestRunReport_RealtimeProducesLatencySamples(t *testing.T) {
 	require.Len(t, rep.PerStrategy[0].PerClip[0].LatencySamplesMs, 3, "one latency sample per real-time repeat")
 }
 
+func TestReplay_ContextDeadlineReturnsWhenSessionDoesNotCloseEvents(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	clip := Clip{ID: "deadline", PCM: silentPCM(16000, 100), SampleRate: 16000}
+	result := make(chan StreamResult, 1)
+	go func() {
+		result <- Replay(ctx, clip, ReplayOptions{ChunkMs: 100}, func(ctx context.Context, _ <-chan sttchain.AudioChunk, _ chan<- sttchain.StreamEvent) error {
+			<-ctx.Done()
+			// A misbehaving stream may return without closing events. The harness
+			// must still honor the experiment's runtime deadline.
+			return ctx.Err()
+		})
+	}()
+
+	select {
+	case got := <-result:
+		require.ErrorIs(t, got.Err, context.DeadlineExceeded)
+	case <-time.After(time.Second):
+		t.Fatal("Replay ignored context cancellation while waiting for events")
+	}
+}
+
 func TestReplay_RealtimeTailPacesOnlyFinalWindow(t *testing.T) {
 	clip := Clip{ID: "c1", PCM: silentPCM(16000, 2000), SampleRate: 16000, Reference: "hello world"}
 	var sleeps []time.Duration

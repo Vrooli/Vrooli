@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -44,6 +45,7 @@ import (
 	intsession "audio-tools/internal/session"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
+	sttsession "audio-tools/internal/stt/session"
 	"audio-tools/internal/sttbackend"
 	"audio-tools/internal/sttcapacity"
 	"audio-tools/internal/sttengine"
@@ -185,6 +187,29 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	}
 
 	sessionRegistry := intsession.NewRegistry()
+	// The streaming ledger owns recoverable captured PCM until processed
+	// acknowledgement. Keep it in the scenario-private runtime data directory
+	// (not the repository) so a process restart can resume a turn.
+	streamNamespace, err := storage.ScenarioNamespace("audio-tools")
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, fmt.Errorf("resolve stt session namespace: %w", err)
+	}
+	streamResolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, fmt.Errorf("create stt session storage resolver: %w", err)
+	}
+	streamPaths, err := streamResolver.Resolve(storage.Options{ScenarioID: streamNamespace})
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, fmt.Errorf("resolve stt session storage: %w", err)
+	}
+	streamLedgers, err := sttsession.NewDiskRegistry(filepath.Join(streamPaths.DataDir, "stt-session-spool"), 0)
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, fmt.Errorf("create stt session ledger: %w", err)
+	}
 	usageRecorder := usagereport.New(stores.Usage, logger)
 
 	// Corpus + eval/experiment harnesses. Audio bytes live in the blob store under the
@@ -208,10 +233,19 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			experimentSvc = intexp.NewService(intexp.NewSQLiteRepository(db, clock.System{}), expBlobs)
 		}
 	}
-	// evalProvider builds a fresh Local (Whisper) provider per replay; the
-	// eval handler wraps each in a metered decorator.
-	evalProvider := func() sttchain.Provider { return sttchain.NewLocalProvider(voiceSvc) }
-	evalDeps := newExperimentEvalDeps(logger, corpusSvc, evalProvider, sttpkg.Defaults(), speakerClient)
+	// Each experiment replay receives a fresh provider. Provider-neutral cells
+	// select this factory by engine id instead of relabelling a Whisper run.
+	evalProviderForEngine := func(engineID string) sttchain.Provider {
+		switch engineID {
+		case "", "whisper-local", "eval-whisper-local":
+			return sttchain.NewLocalProvider(voiceSvc)
+		case "kyutai":
+			return sttchain.NewKyutaiProvider(env.KyutaiURL)
+		default:
+			return nil
+		}
+	}
+	evalDeps := newExperimentEvalDeps(logger, corpusSvc, evalProviderForEngine, sttpkg.Defaults(), speakerClient)
 	if experimentSvc != nil {
 		experimentMgr = intexp.NewManager(intexp.Config{
 			Service: experimentSvc,
@@ -254,20 +288,22 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	}
 
 	sttDeps := sttH.Deps{
-		Chain:           chs.STT,
-		Selector:        sttpkg.NewSelectorWithRegistry(chs.STT, audioEngine, engineRegistry),
-		Registry:        engineRegistry,
-		Voice:           voiceSvc,
-		SpeakerResource: speakerClient,
-		Engine:          audioEngine,
-		Logger:          logger,
-		Clock:           clock.System{},
-		Usage:           usageRecorder,
-		StreamConfig:    stores.STTStream,
-		SpeakerConfig:   stores.STTSpeaker,
-		Wakeword:        stores.Wakeword,
-		Speaker:         stores.Speaker,
-		Capacity:        sttcapacity.NewCLIReporter(),
+		Chain:                  chs.STT,
+		Selector:               sttpkg.NewSelectorWithRegistry(chs.STT, audioEngine, engineRegistry),
+		Registry:               engineRegistry,
+		Voice:                  voiceSvc,
+		SpeakerResource:        speakerClient,
+		Engine:                 audioEngine,
+		Logger:                 logger,
+		Clock:                  clock.System{},
+		Usage:                  usageRecorder,
+		StreamConfig:           stores.STTStream,
+		SpeakerConfig:          stores.STTSpeaker,
+		Wakeword:               stores.Wakeword,
+		Speaker:                stores.Speaker,
+		Capacity:               sttcapacity.NewCLIReporter(),
+		Sessions:               streamLedgers,
+		EnableStreamTestFaults: env.EnableStreamTestFaults,
 	}
 
 	diagOrch := diagcore.New(diagcore.Deps{
@@ -352,6 +388,9 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 	longFormEnabled := longForm != nil && (longForm.GetEnabled() || longForm.GetTargetDurationSeconds() > 0 || longForm.GetGapMs() > 0 || longForm.GetTagContains() != "" || len(longForm.GetSweepDurationsSeconds()) > 0)
 	augmentationEnabled := augmentation != nil && (len(augmentation.GetNoiseTypes()) > 0 || len(augmentation.GetCompetingVoiceIds()) > 0)
 	speakerEnabled := speaker != nil && speakerConfigured(speaker)
+	if len(recipe.GetCells()) > 0 && (augmentationEnabled || speakerEnabled) {
+		return inteval.EvalReport{}, nil, fmt.Errorf("provider-neutral evaluation cells with augmentation or speaker ablation are not executable yet; do not relabel the legacy Whisper runner as provider-neutral")
+	}
 	if !longFormEnabled && !augmentationEnabled && !speakerEnabled {
 		progress := newExperimentProgress(evalWorkUnits(len(recipe.GetClipIds()), recipe.GetStrategies(), recipe.GetRealtimeRepeats()), emit)
 		opts := inteval.EvalOptions{
@@ -360,6 +399,10 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 		}
 		if progress != nil {
 			opts = progress.options("condition default", opts)
+		}
+		if len(recipe.GetCells()) > 0 {
+			report, err := evalH.RunReportCellsWithOptions(ctx, evalDeps, recipe.GetClipIds(), recipe.GetCells(), recipe.GetChunkMs(), opts)
+			return report, map[string]any{"phase": "default", "long_form": false, "provider_cells": true}, err
 		}
 		report, err := evalH.RunReportWithOptions(ctx, evalDeps, recipe.GetClipIds(), recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), opts)
 		return report, map[string]any{"phase": "default", "long_form": false}, err
@@ -505,6 +548,28 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 		"condition_count":              len(conditions),
 		"dropped_span_threshold_words": safetyThreshold(recipe),
 	}
+	if len(recipe.GetCells()) > 0 {
+		if len(augGroups) != 0 || speakerEnabled {
+			return inteval.EvalReport{}, nil, fmt.Errorf("provider-neutral evaluation cells with augmentation or speaker ablation are not executable yet; do not relabel the legacy Whisper runner as provider-neutral")
+		}
+		progress := newExperimentProgress(cellExperimentWorkUnits(evalClips, recipe.GetCells()), emit)
+		opts := inteval.EvalOptions{
+			LatencyTailSeconds:        int(recipe.GetLatencyTailSeconds()),
+			DroppedSpanThresholdWords: int(safetyThreshold(recipe)),
+			RealtimeConcurrency:       realtimeConcurrency,
+		}
+		if progress != nil {
+			opts = progress.options("provider cell", opts)
+		}
+		report, err := evalH.RunReportForCells(ctx, evalDeps, evalClips, recipe.GetCells(), recipe.GetChunkMs(), opts)
+		if err == nil {
+			if warning, ok := longFormSourceDurationWarning(longForm, clips); ok {
+				report.Warnings = appendUniqueReportWarnings(report.Warnings, warning)
+			}
+		}
+		realized["provider_cells"] = true
+		return report, realized, err
+	}
 	progress := newExperimentProgress(experimentWorkUnits(evalClips, augGroups, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), conditions, speakerConfigured(speaker)), emit)
 	report, err := runAugmentationSpeakerConditionReports(ctx, evalDeps, evalClips, augGroups, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), recipe.GetLatencyTailSeconds(), safetyThreshold(recipe), realtimeConcurrency, conditions, speakerConfigured(speaker), progress)
 	if err == nil {
@@ -593,6 +658,20 @@ func experimentWorkUnits(clips []inteval.Clip, augGroups []exprecipe.ConditionGr
 	return total
 }
 
+func cellExperimentWorkUnits(clips []inteval.Clip, cells []*experimentv1.EvaluationCell) int64 {
+	if len(clips) == 0 || len(cells) == 0 {
+		return 0
+	}
+	var total int64
+	for _, cell := range cells {
+		if cell == nil || cell.GetRepeatCount() < 1 {
+			continue
+		}
+		total += int64(len(clips)) * int64(cell.GetRepeatCount())
+	}
+	return total
+}
+
 func evaluatedSpeakerConditionCount(conditions []speakerEvalCondition, speakerEnabled bool) int {
 	if !speakerEnabled || len(conditions) == 0 {
 		return 1
@@ -656,14 +735,17 @@ func estimateClipSeconds(corpusSvc *intcorpus.Service) func(context.Context, []s
 	}
 }
 
-func newExperimentEvalDeps(logger logx.Logger, corpusSvc *intcorpus.Service, evalProvider func() sttchain.Provider, defaults sttpkg.StreamConfig, speakerClient *sttpipeline.SpeakerClient) evalH.Deps {
+func newExperimentEvalDeps(logger logx.Logger, corpusSvc *intcorpus.Service, evalProviderForEngine func(string) sttchain.Provider, defaults sttpkg.StreamConfig, speakerClient *sttpipeline.SpeakerClient) evalH.Deps {
 	return evalH.Deps{
-		Logger:          logger,
-		Clock:           clock.System{},
-		Corpus:          corpusSvc,
-		NewProvider:     evalProvider,
-		Defaults:        defaults,
-		SpeakerResource: speakerClient,
+		Logger: logger,
+		Clock:  clock.System{},
+		Corpus: corpusSvc,
+		NewProvider: func() sttchain.Provider {
+			return evalProviderForEngine("whisper-local")
+		},
+		NewProviderForEngine: evalProviderForEngine,
+		Defaults:             defaults,
+		SpeakerResource:      speakerClient,
 	}
 }
 
@@ -695,6 +777,10 @@ func experimentRunConditionJSON(row inteval.StrategyReport, realized map[string]
 		"strategy":        string(row.Strategy),
 		"base_strategy":   string(baseStrategy),
 		"label":           row.Label,
+		"engine_id":       row.EngineID,
+		"policy_profile":  row.PolicyProfile,
+		"replay_lane":     row.ReplayLane,
+		"fault_profile":   row.FaultProfile,
 		"condition_group": row.ConditionGroup,
 		"speaker": map[string]any{
 			"extraction_enabled":   row.ExtractionEnabled,

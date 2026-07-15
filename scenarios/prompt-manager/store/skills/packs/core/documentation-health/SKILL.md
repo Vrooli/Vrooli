@@ -358,7 +358,7 @@ Fetch templates and their purposes on demand via the knowledge-observatory CLI:
 
 ```bash
 knowledge-observatory docs templates              # List types with purpose descriptions
-knowledge-observatory docs template <type>         # Get template content
+knowledge-observatory docs template "<type>"         # Get template content
 ```
 
 Available types: seams, problems, progress, invariants,

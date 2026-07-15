@@ -493,7 +493,6 @@ resources::check_mcp_integration() {
 resources::get_health_endpoint() {
     local resource="$1"
     case "$resource" in
-        "browserless") echo "/pressure" ;;
         "ollama") echo "/api/tags" ;;
         "comfyui") echo "/" ;;  # ComfyUI root endpoint works better than system_stats
         "whisper") echo "/docs" ;;  # Whisper has docs endpoint, not health

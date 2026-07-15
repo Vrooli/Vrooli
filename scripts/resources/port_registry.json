@@ -1,7 +1,6 @@
 {
   "resource_ports": {
     "blender": 8093,
-    "browserless": 4110,
     "btcpay": 23000,
     "cncjs": 8194,
     "comfyui": 8188,

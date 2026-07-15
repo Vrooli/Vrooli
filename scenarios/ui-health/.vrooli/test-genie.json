@@ -1049,9 +1049,9 @@
         "local_level_impact": "L3",
         "global_impact": "advisory",
         "dimension": "ui",
-        "severity_default": "SEVERITY_WARNING",
+        "severity_default": "SEVERITY_ERROR",
         "recommended_skill_ids": [
-          "ux"
+          "ui-health"
         ],
         "clean_requirement": "advisory"
       },

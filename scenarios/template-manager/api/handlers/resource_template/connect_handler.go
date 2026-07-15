@@ -54,9 +54,20 @@ func (h *connectHandler) ValidateResourceTemplates(ctx context.Context, _ *conne
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	resp := &resourcev1.ValidateResourceTemplatesResponse{Count: int32(report.Count)}
-	for _, item := range report.Templates {
-		resp.Templates = append(resp.Templates, summaryToProto(item))
+	resp := &resourcev1.ValidateResourceTemplatesResponse{
+		Count:       int32(report.Count),
+		Status:      report.Status,
+		IssuesCount: int32(report.IssuesCount),
+		Issues:      report.Issues,
+	}
+	for _, result := range report.Results {
+		resp.Results = append(resp.Results, &resourcev1.ResourceTemplateValidationResult{
+			Name:         result.Name,
+			Driver:       result.Driver,
+			Transitional: result.Transitional,
+			Status:       result.Status,
+			Issues:       result.Issues,
+		})
 	}
 	return connect.NewResponse(resp), nil
 }

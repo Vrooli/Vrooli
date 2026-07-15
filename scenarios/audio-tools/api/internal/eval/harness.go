@@ -157,7 +157,22 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 	var res StreamResult
 	startedAt := opts.now()
 	var doneAt time.Time
-	for ev := range events {
+	for {
+		var ev sttchain.StreamEvent
+		var ok bool
+		select {
+		case ev, ok = <-events:
+			if !ok {
+				goto eventsDrained
+			}
+		case <-ctx.Done():
+			// A server-owned experiment deadline must release the worker even if
+			// a provider violates the stream contract and never closes events.
+			// The session still receives the same context and is responsible for
+			// its own asynchronous teardown.
+			res.Err = ctx.Err()
+			return res
+		}
 		switch ev.Kind {
 		case sttchain.StreamEventSegment:
 			if ev.Segment != nil {
@@ -192,6 +207,8 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 			}
 		}
 	}
+
+eventsDrained:
 	if err := <-sessionDone; err != nil && res.Err == nil {
 		res.Err = err
 	}
@@ -256,9 +273,18 @@ func EvalClip(ctx context.Context, clip Clip, meter *MeteredProvider, opts Repla
 // invoked once per replay (strategies are single-use): it returns a fresh
 // Session bound to a fresh MeteredProvider so per-clip compute is isolated.
 type StrategySpec struct {
-	Kind         sttchain.StrategyKind
-	Label        string
-	BuildSession func(clip Clip) (Session, *MeteredProvider)
+	Kind  sttchain.StrategyKind
+	Label string
+	// Cell metadata identifies a provider-neutral experiment row. It stays in
+	// the internal report so persistence can retain the exact evidence lane
+	// rather than inferring it from a display label.
+	EngineID      string
+	ModelID       string
+	PolicyProfile string
+	ReplayLane    string
+	FaultProfile  string
+	CellID        string
+	BuildSession  func(clip Clip) (Session, *MeteredProvider)
 }
 
 // EvalOptions tunes a full RunReport over a corpus.
@@ -357,6 +383,15 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 			runRealtimeRepeats(ctx, clips, spec, strategyIndex, len(specs), opts, clipResults)
 		}
 		strategyReport := aggregateStrategy(spec.Kind, spec.Label, clipResults)
+		strategyReport.EngineID = spec.EngineID
+		strategyReport.ModelID = spec.ModelID
+		strategyReport.PolicyProfile = spec.PolicyProfile
+		strategyReport.ReplayLane = spec.ReplayLane
+		strategyReport.FaultProfile = spec.FaultProfile
+		if spec.CellID != "" {
+			strategyReport.BaseStrategy = spec.Kind
+			strategyReport.Strategy = sttchain.StrategyKind(spec.CellID)
+		}
 		if tailLatencyApproximation {
 			strategyReport.Scaling.Warnings = append(strategyReport.Scaling.Warnings, ReportWarning{
 				Code:     "tail_latency_approximation",
@@ -367,6 +402,21 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 		report.PerStrategy = append(report.PerStrategy, strategyReport)
 	}
 	return explainReport(report)
+}
+
+// CombineReports merges independently executed cells into one comparison.
+// Cells must be run independently when their replay lanes have different
+// timing semantics; re-explaining only after the merge keeps winner deltas and
+// warnings consistent with a single report.
+func CombineReports(reports ...EvalReport) EvalReport {
+	var combined EvalReport
+	for _, report := range reports {
+		combined.QualityMeasured = combined.QualityMeasured || report.QualityMeasured
+		combined.LatencyMeasured = combined.LatencyMeasured || report.LatencyMeasured
+		combined.PerStrategy = append(combined.PerStrategy, report.PerStrategy...)
+		combined.Warnings = append(combined.Warnings, report.Warnings...)
+	}
+	return explainReport(combined)
 }
 
 func (o EvalOptions) emitProgress(progress EvalProgress) {

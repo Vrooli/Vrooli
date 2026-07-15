@@ -115,9 +115,6 @@ integration_patterns:
     - scenario_name: research-assistant
       usage_pattern: Document analysis and knowledge extraction
       
-    - scenario_name: idea-generator
-      usage_pattern: Creative content generation and refinement
-      
     - scenario_name: stream-of-consciousness-analyzer
       usage_pattern: Thought pattern analysis and insight extraction
       
@@ -611,7 +608,7 @@ resource_discovery:
     description: "Local LLM inference with privacy-first AI capabilities"
     version: "latest"
     dependencies: []
-    enables: [research-assistant, idea-generator, stream-of-consciousness-analyzer, study-buddy]
+    enables: [research-assistant, stream-of-consciousness-analyzer, study-buddy]
 
 resource_framework_compliance:
   - docker-service structure (resource.json + cli/ Go module + config/ + docs/)

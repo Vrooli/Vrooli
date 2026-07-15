@@ -167,6 +167,13 @@ func (s *speakerVerification) Evaluate(ctx context.Context, audio []byte) egress
 	return v
 }
 
+// AllowMissingAudio makes the required/advisory policy visible to the shared
+// egress stage. Only advisory or an explicit operator fail-open choice may
+// emit text when a provider span cannot be bound to canonical PCM.
+func (s *speakerVerification) AllowMissingAudio() bool {
+	return s.cfg.Mode == "advisory" || s.cfg.FallbackWithoutVerification
+}
+
 // currentSpeakerIsolation builds the per-session audio-domain isolation from
 // the live speaker-config cell + the resource client. Returns nil when speaker
 // isolation is disabled or off, so the Segmenter omits the audio-domain egress

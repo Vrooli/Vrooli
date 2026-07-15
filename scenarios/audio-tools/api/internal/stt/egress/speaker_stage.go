@@ -48,6 +48,13 @@ type SpeakerIsolation interface {
 	Evaluate(ctx context.Context, audio []byte) SpeakerVerdict
 }
 
+// MissingAudioPolicy lets an isolation implementation make the pinned policy
+// explicit. Filter mode fails closed when a recognition span has no audio;
+// advisory and deliberately configured fail-open modes emit a visible fallback.
+type MissingAudioPolicy interface {
+	AllowMissingAudio() bool
+}
+
 // SpeakerStage is the audio-domain egress stage. It runs the active
 // SpeakerIsolation method against the segment's canonical-PCM audio and, when
 // the segment is not allowed (a non-enrolled voice under filter mode), assigns
@@ -61,8 +68,17 @@ type SpeakerStage struct {
 func (SpeakerStage) Name() string { return "speaker" }
 
 func (s SpeakerStage) Apply(ctx context.Context, in SegmentDecision) SegmentDecision {
-	if s.Isolation == nil || len(in.Audio) == 0 {
-		return in // no isolation wired, or no audio to verify -> emit unchanged
+	if s.Isolation == nil {
+		return in
+	}
+	if len(in.Audio) == 0 {
+		if policy, ok := s.Isolation.(MissingAudioPolicy); ok && policy.AllowMissingAudio() {
+			in.FallbackUsed = true
+			return in
+		}
+		in.Outcome = Reject
+		in.Reason = "speaker verification required but recognition audio is unavailable"
+		return in
 	}
 	v := s.Isolation.Evaluate(ctx, in.Audio)
 	in.Score = v.Score

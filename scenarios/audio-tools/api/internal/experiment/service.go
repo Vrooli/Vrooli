@@ -35,6 +35,14 @@ func (s *Service) ListRuns(ctx context.Context, experimentID string) ([]Run, err
 	return s.repo.ListRuns(ctx, experimentID)
 }
 
+func (s *Service) RecordQualificationEvidence(ctx context.Context, evidence QualificationEvidence) (QualificationEvidence, error) {
+	return s.repo.CreateQualificationEvidence(ctx, evidence)
+}
+
+func (s *Service) ListQualificationEvidence(ctx context.Context, filter QualificationEvidenceFilter) ([]QualificationEvidence, error) {
+	return s.repo.ListQualificationEvidence(ctx, filter)
+}
+
 func (s *Service) DeleteExperiment(ctx context.Context, exp Experiment) (bool, error) {
 	if !exp.Status.Terminal() {
 		return false, fmt.Errorf("experiment: cannot delete %q while status is %s", exp.ID, exp.Status)

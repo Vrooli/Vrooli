@@ -110,7 +110,7 @@ curl -X POST http://localhost:${API_PORT}/api/v1/funnels \
 
 ```bash
 # CLI
-funnel-builder analytics <funnel_id>
+funnel-builder analytics "<funnel_id>"
 
 # API — conversion rates
 curl -X GET http://localhost:${API_PORT}/api/v1/funnels/{id}/analytics/conversion
@@ -123,7 +123,7 @@ curl -X GET http://localhost:${API_PORT}/api/v1/funnels/{id}/analytics/dropoff
 
 ```bash
 # CLI
-funnel-builder export-leads <funnel_id> --format csv --output leads.csv
+funnel-builder export-leads "<funnel_id>" --format csv --output leads.csv
 
 # API
 curl -X GET "http://localhost:${API_PORT}/api/v1/leads/export?funnel_id={id}&format=csv"
@@ -135,10 +135,10 @@ curl -X GET "http://localhost:${API_PORT}/api/v1/leads/export?funnel_id={id}&for
 
 ```bash
 funnel-builder list                                    # List all funnels
-funnel-builder create --name <name> --template <type>  # Create from template
-funnel-builder analytics <funnel_id>                   # View analytics
-funnel-builder export-leads <id> --format <csv|json> --output <file>
-funnel-builder delete <funnel_id>                      # Delete a funnel
+funnel-builder create --name "<name>" --template "<type>"  # Create from template
+funnel-builder analytics "<funnel_id>"                   # View analytics
+funnel-builder export-leads "<id>" --format "<csv|json>" --output "<file>"
+funnel-builder delete "<funnel_id>"                      # Delete a funnel
 ```
 
 ---

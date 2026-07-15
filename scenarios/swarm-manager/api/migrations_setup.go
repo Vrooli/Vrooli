@@ -47,6 +47,17 @@ func (s *Server) runMigrationsOnce() {
 		slog.Info("migrations: pruned orphaned pending executions", "count", pruned)
 	}
 
+	// Always-run reconciliation: sweep execution records stranded in an
+	// inspectable status with no agent run id (the empty-run-id root-cause class,
+	// plan-manager finding 98911a67). These can never poll to terminal and Cancel
+	// refuses them, so they need an explicit deterministic sweep to failed
+	// (retryable). Idempotent — a healthy record is untouched.
+	if report, err := s.executionSvc.ReconcileStrandedRecords(); err != nil {
+		slog.Error("migrations: reconcile stranded execution records failed", "err", err)
+	} else if len(report.Stranded) > 0 {
+		slog.Info("migrations: reconciled stranded execution records", "count", len(report.Stranded), "execution_ids", report.Stranded)
+	}
+
 	// Fetch existing events once so migrations can check sentinels and the
 	// per-execution emit history without issuing extra queries per migration.
 	repo := eventlog.NewSQLiteRepository(s.eventDB)

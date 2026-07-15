@@ -277,6 +277,43 @@ observer fanout, or transport details — those live in the Segmenter.
 
 ## Session lifecycle: idle-based, drain-then-close
 
+### Protocol v2: replay-safe capture coverage
+
+Browser and Connect clients use protocol version 2 for a streaming turn. A
+turn has a random `session_id` and `resume_token`; each captured canonical PCM
+chunk has a monotonically increasing `sequence`, absolute `start_sample` and
+`end_sample` cursors, and a SHA-256 identity. Browser WebSocket frames encode
+those values as `ATV2 | sequence | start_sample | end_sample | sha256 | PCM`.
+The handler verifies the digest before the server session ledger accepts the
+chunk. `done`, a socket close, and an empty final are **not** evidence that
+audio was processed.
+
+The server ledger persists received coverage and only advances its processed
+cursor after the pipeline has finished the relevant audio. It returns a durable
+`processed_acknowledgement` status with both cursors before terminal `final`
+and `done`. The browser stores the same ordered chunks and digests in a bounded
+turn journal before releasing a frame to the socket, compacts only after the
+processed cursor advances, and surfaces reduced durability or quota failure
+instead of discarding unacknowledged audio. Replay is at-least-once; the ledger
+deduplicates the identical sequence/range/digest and rejects conflicts or gaps.
+
+For supported same-tab reload recovery, the browser also retains only the
+opaque session/resume identity in session storage. It restores that identity
+with the IndexedDB journal, resumes the same server ledger, and derives the
+next sample cursor from retained coverage. It deletes both identity and journal
+only after terminal processed acknowledgement; ordinary telemetry never
+contains the audio payload or transcript.
+
+This is deliberately not an exactly-once *transport* promise: a reconnect may
+deliver a retained chunk again, but it cannot silently replace it or advance
+coverage without the server acknowledgement. Durable transcript segments have a
+different, stronger rule: both transports commit a stable `segmentId` into the
+same ledger before emitting it. On WebSocket reconnect, the server re-emits
+those commits in canonical sample order and the browser delivers each identity
+to host UI once. A future provider-recovery generation must replay retained
+ranges under a new generation identity while preserving that same segment
+idempotency rule.
+
 A streaming session used to be bounded by a hard 5-minute *absolute*
 WebSocket deadline (`context.WithTimeout(r.Context(), 5*time.Minute)`
 in `handlers/stt/stream_ws.go`). That clock fired on *active* speakers
@@ -302,9 +339,9 @@ with a drain-then-close teardown**:
   never take or wait on the single-session model lock.
 - **Backend death is durable.** If kyutai closes before a `done` frame,
   the provider emits a durable `error` event before terminal `done`.
-  A typed kyutai busy rejection is preserved as `code:"stt_busy"` on
-  the browser-facing error frame; clients must treat that as a visible
-  busy state, not a successful empty final.
+  Kyutai admission reports durable `queued`, `ready`, `timed_out`, or
+  `rejected` lifecycle status. Clients retain audio locally while queued;
+  contention is never represented as a successful empty final.
 - **Force-commit during continuous speech (kyutai).** Independently of
   teardown, the kyutai server force-commits a pending segment at the
   next word boundary once it has spanned `KYUTAI_STT_MAX_SEGMENT_FRAMES`

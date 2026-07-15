@@ -11,6 +11,7 @@ import (
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/operatingmode"
 
+	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
@@ -35,7 +36,7 @@ func TestOperatingModeBacklogMutatorEmitsAuditedStatusMetadata(t *testing.T) {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
-	repo := eventlog.NewSQLiteRepository(db)
+	repo := eventlog.NewSQLiteRepository(database.NewFromPrimary(db))
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init event schema: %v", err)
 	}

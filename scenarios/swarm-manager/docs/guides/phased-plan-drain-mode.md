@@ -2,7 +2,7 @@
 
 Phased-plan-drain is the **generic, plan-first execution loop**: point it at a
 plan-manager plan and drain it slice-by-slice. It is not an initiative mode —
-its declared target is `plan-manager-plan` (see the target concept in
+its declared target is `plan-execution` (see the target concept in
 [EXECUTION-MODES](../concepts/EXECUTION-MODES.md)). No initiative, member
 items, or backlog ceremony are involved; work that warrants initiative
 tracking layers it on by composing this mode (`executed_by` — holistic-loop
@@ -34,7 +34,7 @@ execute --(progress=continue)--> execute
 
 ## Reads
 
-Composed as generic-base ∪ plan-manager-plan adapter — no initiative
+Composed as generic-base ∪ plan-execution adapter — no initiative
 variables exist for this target:
 
 - Base: `ROUND_NUMBER`, `OPERATOR_NOTE`, `PRIOR_ROUNDS_JSON` (the accumulated
@@ -91,7 +91,7 @@ swarm-manager operating-mode start --mode phased-plan-drain --target <plan-id|sl
 ```
 
 The round spawns with the plan's reads (`PLAN_ID`, `PLAN_CONTEXT_JSON`),
-stores under `<dataRoot>/mode-targets/plan-manager-plan/<execution-id>/`, and
+stores under `<dataRoot>/mode-targets/plan-execution/<execution-id>/`, and
 holds the plan ownership lock (`plan--<execution-id>`). Follow up with the
 ordinary round actions, addressing the round by its resolved scope id plus an
 explicit mode:

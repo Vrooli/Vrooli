@@ -1,7 +1,9 @@
 package stt
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +15,7 @@ import (
 	"audio-tools/internal/logx"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/stt/segmenter"
+	"audio-tools/internal/stt/session"
 	"audio-tools/internal/sttengine"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -77,6 +80,17 @@ func (h *connectHandler) TranscribeStream(
 		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("first message must be StreamStart"))
 	}
 	startCfg := startPayload.Start
+	if startCfg.ProtocolVersion != 2 || startCfg.SessionId == "" || startCfg.ResumeToken == "" {
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("TranscribeStream requires protocol_version=2, session_id, and resume_token"))
+	}
+	registry := h.deps.Sessions
+	if registry == nil {
+		registry = session.NewRegistry(0)
+	}
+	ledger, _, err := registry.Open(startCfg.SessionId, startCfg.ResumeToken)
+	if err != nil {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 
 	chunkCh := make(chan sttchain.AudioChunk, 16)
 	streamCtx, cancel := context.WithCancel(ctx)
@@ -98,8 +112,36 @@ func (h *connectHandler) TranscribeStream(
 			}
 			switch p := msg.GetPayload().(type) {
 			case *sttv1.TranscribeStreamRequest_AudioChunk:
+				if p.AudioChunk == nil {
+					pumpErr <- fmt.Errorf("empty StreamAudioChunk")
+					return
+				}
+				chunk := p.AudioChunk
+				if len(chunk.Sha256) != 0 {
+					digest := sha256.Sum256(chunk.Audio)
+					if !bytes.Equal(digest[:], chunk.Sha256) {
+						pumpErr <- fmt.Errorf("audio chunk digest mismatch")
+						return
+					}
+				}
+				result, receiveErr := ledger.Receive(session.Chunk{
+					Sequence: chunk.Sequence, StartSample: chunk.StartSample, EndSample: chunk.EndSample, Audio: chunk.Audio,
+				})
+				if receiveErr != nil {
+					ledger.Fail(session.TerminalReason("receive_failed"))
+					pumpErr <- receiveErr
+					return
+				}
+				if result == session.ReceivedDuplicate {
+					continue
+				}
+				if err := registry.Persist(ledger); err != nil {
+					ledger.Fail(session.TerminalReason("persistence_failed"))
+					pumpErr <- err
+					return
+				}
 				select {
-				case chunkCh <- sttchain.AudioChunk{Audio: p.AudioChunk}:
+				case chunkCh <- sttchain.AudioChunk{Audio: chunk.Audio, Sequence: chunk.Sequence, StartSample: chunk.StartSample, EndSample: chunk.EndSample, Digest: chunk.Sha256}:
 				case <-streamCtx.Done():
 					pumpErr <- streamCtx.Err()
 					return
@@ -116,6 +158,10 @@ func (h *connectHandler) TranscribeStream(
 
 	env := envelope.FromConnectStream(stream.RequestHeader())
 	start := sttchain.StreamStart{
+		ProtocolVersion:         startCfg.ProtocolVersion,
+		SessionID:               startCfg.SessionId,
+		Generation:              startCfg.Generation,
+		ResumeToken:             startCfg.ResumeToken,
 		Language:                startCfg.Language,
 		InitialPrompt:           startCfg.InitialPrompt,
 		SkipSpeakerVerification: startCfg.SkipSpeakerVerification,
@@ -148,7 +194,29 @@ func (h *connectHandler) TranscribeStream(
 	}()
 
 	// Forward each typed StreamEvent to the wire as the matching proto oneof.
+	// Done is held until the ledger confirms processed coverage: a transport
+	// close or provider final is not proof that captured audio was processed.
+	var terminal *sttchain.StreamEvent
 	for ev := range events {
+		if ev.Kind == sttchain.StreamEventDone {
+			copy := ev
+			terminal = &copy
+			continue
+		}
+		if ev.Kind == sttchain.StreamEventSegment && ev.Segment != nil {
+			if ev.Segment.SegmentID == "" {
+				ev.Segment.SegmentID = fmt.Sprintf("%s:%d:%d:%d", start.SessionID, start.Generation, ev.Segment.StartSample, ev.Segment.EndSample)
+			}
+			ev.Segment.Generation = start.Generation
+			if _, commitErr := ledger.Commit(session.Segment{ID: ev.Segment.SegmentID, Text: ev.Segment.Text, StartSample: ev.Segment.StartSample, EndSample: ev.Segment.EndSample}); commitErr != nil {
+				ledger.Fail(session.TerminalReason("commit_conflict"))
+				return connect.NewError(connect.CodeInternal, commitErr)
+			}
+			if err := registry.Persist(ledger); err != nil {
+				ledger.Fail(session.TerminalReason("persistence_failed"))
+				return connect.NewError(connect.CodeInternal, err)
+			}
+		}
 		out := protoForEvent(ev)
 		if out == nil {
 			continue
@@ -162,13 +230,7 @@ func (h *connectHandler) TranscribeStream(
 	// the pump only errors when the receive side returns a non-EOF
 	// error. Reap the Segmenter goroutine too so its exit code is
 	// surfaced to the caller.
-	select {
-	case e := <-pumpErr:
-		if e != nil && !errors.Is(e, io.EOF) {
-			return connect.NewError(connect.CodeInternal, e)
-		}
-	default:
-	}
+	pumpFailure := <-pumpErr
 	if e := <-runErrCh; e != nil {
 		// Selector typed errors surface here when the Segmenter could
 		// not produce a strategy; data-plane errors are already on the
@@ -176,6 +238,42 @@ func (h *connectHandler) TranscribeStream(
 		// a Done event was emitted (the streaming parity contract), but a
 		// late Segmenter/Selector failure must still leave a trace.
 		logPostDoneStreamError(h.deps.Logger, startCfg.Language, e)
+	}
+	if pumpFailure != nil && !errors.Is(pumpFailure, io.EOF) {
+		ledger.Fail(session.TerminalReason("input_failed"))
+	}
+	state := ledger.Snapshot()
+	if state.TerminalReason == session.TerminalNone && state.ReceivedSequence >= 0 {
+		if err := ledger.AcknowledgeProcessed(uint64(state.ReceivedSequence)); err != nil {
+			ledger.Fail(session.TerminalReason("processed_ack_failed"))
+		} else if err := ledger.Complete(); err != nil && !errors.Is(err, session.ErrTerminal) {
+			ledger.Fail(session.TerminalIncompleteCoverage)
+		}
+		state = ledger.Snapshot()
+	}
+	state = ledger.Snapshot()
+	if err := registry.Persist(ledger); err != nil {
+		return connect.NewError(connect.CodeInternal, err)
+	}
+	ack := &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Acknowledgement{Acknowledgement: &sttv1.StreamAcknowledgement{
+		ReceivedSequence: state.ReceivedSequence, ProcessedSequence: state.ProcessedSequence,
+		DeliveryClass: sttv1.StreamDeliveryClass_STREAM_DELIVERY_CLASS_DURABLE,
+	}}}
+	if err := stream.Send(ack); err != nil {
+		return err
+	}
+	if terminal == nil {
+		terminal = &sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
+	}
+	if terminal.Done == nil {
+		terminal.Done = &sttchain.DoneEvent{}
+	}
+	terminal.Done.ProcessedSequence = state.ProcessedSequence
+	terminal.Done.TerminalReason = string(state.TerminalReason)
+	if out := protoForEvent(*terminal); out != nil {
+		if err := stream.Send(out); err != nil {
+			return err
+		}
 	}
 	return nil
 }

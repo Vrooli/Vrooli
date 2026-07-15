@@ -904,10 +904,7 @@ func TestQueue_BlocksOnUnmetDeps_ForceOverrides(t *testing.T) {
 }
 
 func TestResearch_SpawnsAgent(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-research")
 
 	item := BacklogItem{
 		Name:        "research-test",
@@ -931,8 +928,13 @@ func TestResearch_SpawnsAgent(t *testing.T) {
 	h.Research(w, req)
 	testutil.AssertStatus(t, w, http.StatusCreated)
 
-	if agent.lastReq == nil || agent.lastReq.Purpose != "research" {
-		t.Errorf("expected agent spawn for research")
+	if !phase.started {
+		t.Fatal("expected the live phase engine to start the research operation")
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["runId"] != "run-research" && resp["run_id"] != "run-research" {
+		t.Fatalf("expected run id in response, got %v", resp)
 	}
 }
 

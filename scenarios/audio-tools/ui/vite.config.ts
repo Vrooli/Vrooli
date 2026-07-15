@@ -1,5 +1,6 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
@@ -26,6 +27,7 @@ import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 //              produce the perf bundle through the standard lifecycle path.
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
+  const audioCaptureBrowser = fileURLToPath(new URL("../../../packages/audio-capture-browser/src/index.ts", import.meta.url));
 
   return {
     // INTEROP-CRITICAL: relative base required for tunnel/iframe proxy contexts.
@@ -34,6 +36,7 @@ export default defineConfig(({ mode }): UserConfig => {
     resolve: isProfile
       ? {
           alias: {
+			"@vrooli/audio-capture-browser": audioCaptureBrowser,
             "react-dom/client": "react-dom/profiling",
             // Internal references inside react-dom/client.js do
             // `require('react-dom')`, which would resolve back to the
@@ -41,7 +44,7 @@ export default defineConfig(({ mode }): UserConfig => {
             "react-dom$": "react-dom/profiling",
           },
         }
-      : undefined,
+      : { alias: { "@vrooli/audio-capture-browser": audioCaptureBrowser } },
     esbuild: isProfile
       ? {
           keepNames: true,

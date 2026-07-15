@@ -90,12 +90,29 @@ The knobs below bound teardown and the single-session lock.
 | Name | Default | Notes |
 |---|---|---|
 | `KYUTAI_STT_SEND_DRAIN_TIMEOUT_S` | `5` | Bounded wait for the send worker to flush queued durable events to a slow consumer during teardown before the socket is force-closed. Committed text is flushed within this window; a dead consumer cannot hang teardown past it. |
+| `KYUTAI_STT_ADMISSION_MAX_DEPTH` | `8` | Maximum FIFO admission queue depth, excluding the active decoder holder. Excess sessions receive `rejected/admission_full` before sending audio. |
+| `KYUTAI_STT_ADMISSION_MAX_WAIT_S` | `30` | Bounded FIFO admission wait. Expired sessions receive `timed_out/admission_timeout`; clients retain audio for explicit recovery. |
+| `KYUTAI_STT_START_FRAME_TIMEOUT_S` | `5` | Maximum wait for the required `start` control frame before joining admission. A bare WebSocket is rejected and cannot reserve the decoder. |
 | `KYUTAI_STT_LOCK_TIMEOUT_S` | `10` | Bounded wait to acquire the single-session model lock before a new connection inspects the holder. |
 | `KYUTAI_STT_ACTIVITY_WEDGE_S` | `5` | If the current holder decoded a frame within this many seconds, it is active and the newcomer receives `{"type":"error","code":"stt_busy",...}` instead of cancelling it. Only holders idle beyond this threshold are reaped as wedged. |
+| `KYUTAI_STT_TORCH_COMPILE` | `0` | Enables moshi's experimental lazy `torch.compile` path when set to `1`. It is disabled by default because its first inference can spend many minutes compiling on a local GPU after health is already ready; CUDA graphing remains enabled. Enable only with measured cold and warm throughput evidence. |
 
 Every stream logs a close summary with reason, frames consumed, segments
 emitted, and duration. Reap warnings include holder age and idle time so active
 dictation kills are distinguishable from real wedge recovery in logs.
+
+### Throughput qualification
+
+Run the opt-in live regression probe after changing the image, CUDA stack, or
+decode configuration:
+
+```bash
+KYUTAI_STT_LIVE_PROBE=1 python3 -m pytest docker/test_live_throughput.py
+```
+
+It sends 30 seconds of canonical audio as 100 ms WebSocket frames and fails at
+90 seconds. It also requires all 300 accepted batches to be acknowledged before
+`done`; a terminal frame alone is not enough evidence of complete processing.
 
 ## Operator Checklist
 
@@ -108,6 +125,10 @@ dictation kills are distinguishable from real wedge recovery in logs.
   intentionally absent from `requirements.txt`.
 - Prefer shared `vrooli resource ...` lifecycle behavior before adding
   resource-local commands.
+
+The Docker and Vrooli lifecycle checks use `/ready`, not `/health`: the latter
+only proves that the process is alive, while `/ready` proves model admission is
+safe.
 
 ## Common Operations
 

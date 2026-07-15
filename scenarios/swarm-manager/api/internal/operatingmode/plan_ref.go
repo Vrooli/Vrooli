@@ -16,7 +16,6 @@ const (
 	PlanRefRoleOperatingModePlan    = "operating_mode_plan"
 	planContextSourceResume         = "plan-manager.resume"
 	planContextSourceMissingPrepare = "prepare_plan.pending"
-	planContextSourcePlanRef        = "plan-ref"
 )
 
 type PlanRef struct {
@@ -114,9 +113,9 @@ func (s *Service) collectPlanContext(ctx context.Context, init InitiativeSnapsho
 	return out, nil
 }
 
-// resolvePlanManagerPlan resolves a plan-manager-plan target instance's
-// execution context from its plan/execution handle.
-func (s *Service) resolvePlanManagerPlan(ctx context.Context, def Definition, phaseDef PhaseDefinition, handle string) (*PlanExecutionContext, error) {
+// resolvePlanExecution resolves a plan-execution target instance's execution
+// context from its plan/execution handle.
+func (s *Service) resolvePlanExecution(ctx context.Context, def Definition, phaseDef PhaseDefinition, handle string) (*PlanExecutionContext, error) {
 	return s.resumePlanExecution(ctx, def, phaseDef, handle)
 }
 

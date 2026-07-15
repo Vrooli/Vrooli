@@ -8,19 +8,26 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 var ErrSourceConflict = errors.New("evidence source observation conflicts with immutable content")
 
-type Store struct{ db *sql.DB }
+// Store holds a *database.RoutedDB rather than a raw *sql.DB so that, under a
+// test-genie in-place e2e run, evidence reads and writes route to the installed
+// test pool instead of the live ledger. RoutedDB's method surface mirrors
+// *sql.DB, so the query bodies below are unchanged.
+type Store struct{ db *database.RoutedDB }
 
-func NewStore(db *sql.DB) *Store { return &Store{db: db} }
+// NewStore creates an evidence store over the given routed database handle.
+// Callers outside the lifecycle (tests) wrap a raw *sql.DB with
+// database.NewFromPrimary.
+func NewStore(db *database.RoutedDB) *Store { return &Store{db: db} }
 
-func (s *Store) InitSchema(ctx context.Context) error {
-	if s == nil || s.db == nil {
-		return fmt.Errorf("evidence store database is required")
-	}
-	_, err := s.db.ExecContext(ctx, `
+// schemaSQL is the declarative evidence-ledger schema. It is the single source
+// of truth applied both at boot (via database.EnsureSchemas) and by InitSchema.
+const schemaSQL = `
 		CREATE TABLE IF NOT EXISTS evidence_observations (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			source_system TEXT NOT NULL,
@@ -72,7 +79,17 @@ func (s *Store) InitSchema(ctx context.Context) error {
 			projected_digest TEXT NOT NULL,
 			completed_at TEXT NOT NULL
 		);
-	`)
+	`
+
+// Schema returns the declarative evidence-ledger schema for
+// database.EnsureSchemas.
+func Schema() string { return schemaSQL }
+
+func (s *Store) InitSchema(ctx context.Context) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("evidence store database is required")
+	}
+	_, err := s.db.ExecContext(ctx, schemaSQL)
 	return err
 }
 

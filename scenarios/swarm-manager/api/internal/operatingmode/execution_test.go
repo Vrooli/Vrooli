@@ -105,7 +105,7 @@ func TestExecutionManifestPersistsDefinitionAndProvenanceSlots(t *testing.T) {
 	if err != nil {
 		t.Fatalf("executionManifestPath: %v", err)
 	}
-	if got := filepath.ToSlash(path); !hasSuffix(got, "data/mode-targets/plan-manager-plan/plan-123/modes/phased-plan-drain/executions/execution-001/manifest.json") {
+	if got := filepath.ToSlash(path); !hasSuffix(got, "data/mode-targets/plan-execution/plan-123/modes/phased-plan-drain/executions/execution-001/manifest.json") {
 		t.Fatalf("manifest path = %s", got)
 	}
 
@@ -251,7 +251,7 @@ func TestRunOwnerIndexIsIdempotentAndRejectsDualOwnership(t *testing.T) {
 		t.Fatalf("ResolveRunOwner = %+v, %v", owner, err)
 	}
 	globalOwners, err := store.LookupRunOwners("run-123")
-	if err != nil || len(globalOwners) != 1 || globalOwners[0].TargetKind != TargetPlanManagerPlan || globalOwners[0].ScopeID != "plan-123" || globalOwners[0].Mode != ModePhasedPlanDrain || globalOwners[0].ExecutionID != first.ExecutionID || globalOwners[0].Round != 1 {
+	if err != nil || len(globalOwners) != 1 || globalOwners[0].TargetKind != TargetPlanExecution || globalOwners[0].ScopeID != "plan-123" || globalOwners[0].Mode != ModePhasedPlanDrain || globalOwners[0].ExecutionID != first.ExecutionID || globalOwners[0].Round != 1 {
 		t.Fatalf("LookupRunOwners = %+v, %v", globalOwners, err)
 	}
 	if err := store.IndexRunOwner(second, "run-123", 1); !errors.Is(err, ErrRunOwnerAmbiguous) {
@@ -285,7 +285,7 @@ func TestLookupRunOwnersBackfillsPreGlobalPlanTargetIndex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookupRunOwners: %v", err)
 	}
-	if len(owners) != 1 || owners[0].ExecutionID != execution.ExecutionID || owners[0].ScopeID != "plan-pre-index" || owners[0].TargetKind != TargetPlanManagerPlan {
+	if len(owners) != 1 || owners[0].ExecutionID != execution.ExecutionID || owners[0].ScopeID != "plan-pre-index" || owners[0].TargetKind != TargetPlanExecution {
 		t.Fatalf("recovered owners = %+v", owners)
 	}
 	if _, err := os.Stat(globalPath); err != nil {

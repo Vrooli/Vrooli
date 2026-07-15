@@ -7,15 +7,13 @@
 package backlog
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentactivity"
+	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/workshop"
@@ -52,71 +50,13 @@ func (h *Handler) GetClarification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If thread is active and last message is from user, check agent completion.
-	h.pollClarificationAgentCompletion(r.Context(), itemDir, threadID, thread)
-
+	// The assistant turn is pushed into the thread by the clarification
+	// thread-commit action handler when the operation's round completes, so a read
+	// is now a simple load — no agent-run poll.
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, &apipb.GetClarificationResponse{
 		Thread: clarificationThreadToProto(thread),
 	}); err != nil {
 		slog.Error("failed to write clarification-get response", "err", err)
-	}
-}
-
-// pollClarificationAgentCompletion checks whether the research agent has
-// finished and, when it has, records its response (or error) in the thread
-// file and parses any impact XML. Extracting this collapses ten branches out
-// of GetClarification into a single call, making the handler read as a simple
-// load → poll → respond sequence.
-func (h *Handler) pollClarificationAgentCompletion(ctx context.Context, itemDir, threadID string, thread *workshop.ClarificationThread) {
-	if thread.Status != "active" || len(thread.Messages) == 0 ||
-		thread.Messages[len(thread.Messages)-1].Role != "user" ||
-		thread.RunID == "" || !h.agentService.IsEnabled() {
-		return
-	}
-
-	state, err := h.agentService.GetRunState(ctx, thread.RunID)
-	if err != nil || !isTerminalStatus(state.Status) {
-		return
-	}
-
-	// Agent finished — record its response.
-	if state.Status == "complete" || state.Status == "completed" || state.Status == "success" {
-		// Check if the agent wrote directly to the thread file.
-		refreshed, _ := workshop.LoadClarificationByID(itemDir, threadID)
-		if refreshed != nil && len(refreshed.Messages) > len(thread.Messages) {
-			*thread = *refreshed
-		} else if state.Summary != "" {
-			// Agent didn't write to thread file — use the run summary as the response.
-			thread.Messages = append(thread.Messages, workshop.ClarificationMessage{
-				Role:      "assistant",
-				Content:   state.Summary,
-				CreatedAt: time.Now().UTC().Format(time.RFC3339),
-			})
-			thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-			_ = workshop.SaveClarification(itemDir, thread)
-		}
-	} else if state.Status == "failed" || state.Status == "error" {
-		// Agent failed — add an error message.
-		errMsg := "The clarification agent encountered an error. Please try again."
-		if state.ErrorMsg != "" {
-			errMsg = fmt.Sprintf("The clarification agent failed: %s", state.ErrorMsg)
-		}
-		thread.Messages = append(thread.Messages, workshop.ClarificationMessage{
-			Role:      "assistant",
-			Content:   errMsg,
-			CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		})
-		thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-		_ = workshop.SaveClarification(itemDir, thread)
-	}
-
-	// Parse impact from the latest assistant message.
-	if latest := lastAssistantMessage(thread); latest != nil {
-		if impact := workshop.ParseImpactXML(latest.Content); impact != nil {
-			thread.LatestImpact = impact
-			thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-			_ = workshop.SaveClarification(itemDir, thread)
-		}
 	}
 }
 
@@ -342,27 +282,15 @@ func (h *Handler) clarificationActionInvalidateRound(w http.ResponseWriter, r *h
 	if _, delErr := workshop.DeleteRoundAndRenumber(itemDir, thread.RoundNumber); delErr != nil {
 		slog.Error("clarification-action delete round failed", "err", delErr)
 	}
-	// Spawn a new workshop round.
+	// Start a fresh workshop round through the runner.
 	item, loadErr := h.store.LoadItem(kind, name)
 	if loadErr == nil {
-		actionCtx := agentactivity.WithSpec(r.Context(), agentactivity.Spec{
-			OwnerType:   agentactivity.OwnerBacklog,
-			OwnerKind:   string(kind),
-			OwnerName:   item.Name,
-			OwnerTitle:  item.Title,
-			Purpose:     agentactivity.PurposeResearch,
-			PhaseKind:   string(agentactivity.LaneInvestigate),
-			RequestedBy: "swarm-manager",
-			Metadata: map[string]string{
-				"entrypoint": "backlog.clarification.invalidate_round",
-			},
-		})
-		runResult, spawnErr := h.spawnWorkshopForClarification(actionCtx, kind, item, itemDir)
-		if spawnErr == nil {
-			resp.RunId = &runResult.RunID
-			resp.TaskId = &runResult.TaskID
+		handle, invokeErr := h.invokeItemOperation(r.Context(), kind, item.Name, agentops.OpWorkshopRound, "", nil)
+		if invokeErr == nil {
+			resp.RunId = &handle.RunID
+			resp.TaskId = &handle.TaskID
 		} else {
-			slog.Error("clarification-action spawn workshop failed", "err", spawnErr)
+			slog.Error("clarification-action workshop invoke failed", "err", invokeErr)
 		}
 	}
 	thread.Status = "resolved"

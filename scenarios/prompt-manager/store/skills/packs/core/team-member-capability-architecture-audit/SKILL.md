@@ -55,8 +55,8 @@ Read only enough context to understand the member's current capability shape:
 6. Structural pipeline state — run once for the team and reuse the output:
 
    ```bash
-   prompt-manager graph topics --team <team>           # validation findings (errors + warnings)
-   prompt-manager graph drain-status --team <team>     # per-prefix queue depth + oldest age
+   prompt-manager graph topics --team "<team>"           # validation findings (errors + warnings)
+   prompt-manager graph drain-status --team "<team>"     # per-prefix queue depth + oldest age
    ```
 
    The validation report is the source of truth for the four pipeline-layer scores
@@ -135,8 +135,8 @@ When the member legitimately has no pipeline (a pure reviewer, code-writer, or d
 The audit's structural pipeline scores are populated by:
 
 ```bash
-prompt-manager graph topics --team <team>           # validation report
-prompt-manager graph drain-status --team <team>     # queue depth + age
+prompt-manager graph topics --team "<team>"           # validation report
+prompt-manager graph drain-status --team "<team>"     # queue depth + age
 ```
 
 Other layers (Identity, Ownership, Plan of Record, Skill Surface, Feedback Loop) remain prose-judgment per Phase 1–4 of `### 3. Audit Process`.

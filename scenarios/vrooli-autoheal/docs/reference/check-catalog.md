@@ -315,24 +315,6 @@ Complete reference of all available health checks.
 
 ---
 
-### resource-browserless
-
-**Purpose:** Verify Browserless headless Chrome resource is healthy.
-
-| Property | Value |
-|----------|-------|
-| ID | `resource-browserless` |
-| Category | Resource |
-| Interval | 60 seconds |
-| Platforms | All |
-| Importance | Medium |
-
-**What it checks:**
-- Runs `vrooli resource status browserless`
-- Parses status output
-
----
-
 ## System Checks
 
 ### system-disk
@@ -608,9 +590,9 @@ Complete reference of all available health checks.
 | Category | Count | Description |
 |----------|-------|-------------|
 | Infrastructure | 9 | Network, DNS, Docker, Cloudflared, RDP, NTP, Resolved, Certificate, Display |
-| Resource | 6 | PostgreSQL, Redis, Ollama, Qdrant, SearXNG, Browserless |
+| Resource | 5 | PostgreSQL, Redis, Ollama, Qdrant, SearXNG |
 | System | 6 | Disk, Inode, Swap, Zombies, Ports, Claude Cache |
-| **Total** | **21** | |
+| **Total** | **20** | |
 
 ## Adding Custom Checks
 

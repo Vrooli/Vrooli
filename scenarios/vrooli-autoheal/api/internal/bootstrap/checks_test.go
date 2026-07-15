@@ -44,13 +44,12 @@ func TestRegisterDefaultChecks(t *testing.T) {
 		"resource-ollama",
 		"resource-qdrant",
 		"resource-searxng",
-		"resource-browserless",
 		"resource-whisper",
 		// Scenario checks (critical)
 		"scenario-app-monitor",
 		"scenario-ecosystem-manager",
 		// Scenario checks (non-critical)
-		"scenario-landing-manager",
+		"scenario-template-manager",
 		"scenario-browser-automation-studio",
 		"scenario-test-genie",
 	}

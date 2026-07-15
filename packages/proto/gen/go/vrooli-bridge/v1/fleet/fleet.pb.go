@@ -101,6 +101,11 @@ const (
 	// The provisioning op could not be dispatched (a transient delivery/validation
 	// failure); detail carries the reason.
 	NodeRolloutDisposition_NODE_ROLLOUT_DISPOSITION_FAILED NodeRolloutDisposition = 5
+	// The node was onboarded from the control plane's working tree (dirty
+	// provenance), so it is pinned to no fetchable commit and a revision roll
+	// cannot converge it. It is excluded and flagged needs-reprovision; re-onboard
+	// it in pinned mode (or provision it to a pushed revision) to make it rollable.
+	NodeRolloutDisposition_NODE_ROLLOUT_DISPOSITION_SKIPPED_WORKING_TREE NodeRolloutDisposition = 6
 )
 
 // Enum value maps for NodeRolloutDisposition.
@@ -112,6 +117,7 @@ var (
 		3: "NODE_ROLLOUT_DISPOSITION_SKIPPED_NEEDS_UPDATE",
 		4: "NODE_ROLLOUT_DISPOSITION_SKIPPED_REVOKED",
 		5: "NODE_ROLLOUT_DISPOSITION_FAILED",
+		6: "NODE_ROLLOUT_DISPOSITION_SKIPPED_WORKING_TREE",
 	}
 	NodeRolloutDisposition_value = map[string]int32{
 		"NODE_ROLLOUT_DISPOSITION_UNSPECIFIED":          0,
@@ -120,6 +126,7 @@ var (
 		"NODE_ROLLOUT_DISPOSITION_SKIPPED_NEEDS_UPDATE": 3,
 		"NODE_ROLLOUT_DISPOSITION_SKIPPED_REVOKED":      4,
 		"NODE_ROLLOUT_DISPOSITION_FAILED":               5,
+		"NODE_ROLLOUT_DISPOSITION_SKIPPED_WORKING_TREE": 6,
 	}
 )
 
@@ -694,14 +701,15 @@ const file_vrooli_bridge_v1_fleet_fleet_proto_rawDesc = "" +
 	"\x1aROLLOUT_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19ROLLOUT_STATUS_DISPATCHED\x10\x01\x12\x1a\n" +
 	"\x16ROLLOUT_STATUS_PARTIAL\x10\x02\x12\x19\n" +
-	"\x15ROLLOUT_STATUS_FAILED\x10\x03*\x9f\x02\n" +
+	"\x15ROLLOUT_STATUS_FAILED\x10\x03*\xd2\x02\n" +
 	"\x16NodeRolloutDisposition\x12(\n" +
 	"$NODE_ROLLOUT_DISPOSITION_UNSPECIFIED\x10\x00\x12'\n" +
 	"#NODE_ROLLOUT_DISPOSITION_DISPATCHED\x10\x01\x12,\n" +
 	"(NODE_ROLLOUT_DISPOSITION_SKIPPED_OFFLINE\x10\x02\x121\n" +
 	"-NODE_ROLLOUT_DISPOSITION_SKIPPED_NEEDS_UPDATE\x10\x03\x12,\n" +
 	"(NODE_ROLLOUT_DISPOSITION_SKIPPED_REVOKED\x10\x04\x12#\n" +
-	"\x1fNODE_ROLLOUT_DISPOSITION_FAILED\x10\x052\xea\x02\n" +
+	"\x1fNODE_ROLLOUT_DISPOSITION_FAILED\x10\x05\x121\n" +
+	"-NODE_ROLLOUT_DISPOSITION_SKIPPED_WORKING_TREE\x10\x062\xea\x02\n" +
 	"\fFleetService\x12n\n" +
 	"\tRollFleet\x12/.vrooli.vrooli_bridge.v1.fleet.RollFleetRequest\x1a0.vrooli.vrooli_bridge.v1.fleet.RollFleetResponse\x12q\n" +
 	"\n" +

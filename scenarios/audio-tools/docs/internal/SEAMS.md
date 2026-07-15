@@ -36,7 +36,7 @@
 | `stt.MultipartTranscribeHandler` / `audio.multipartTranscodeHandler` | Concrete | `handlers/{stt,audio}/` | UI multipart upload paths |
 | `audio.Runner` + `audio.DefaultRunner` + `audio.SetFfmpegAvailableForTest` | Interface + var + test seam | `internal/audio/transcode.go` | `handlers/audio` unit tests substitute a fake Runner and seed ffmpeg presence so happy-path / error branches run without an ffmpeg binary on PATH |
 | `audioformat.ProcessRunner` / `audioformat.Process` / `audioformat.StreamDecoder` | Interface + per-session decoder | `internal/audioformat/stream.go` | streaming STT live decode (one ffmpeg child per non-PCM session); `FakeProcessRunner` keeps ffmpeg off the unit-test path |
-| `stt.StreamWSHandler` | Concrete | `handlers/stt/stream_ws.go` | mounts `/api/v1/voice/stream` over `voice.Service.HandleStreamWS` |
+| `stt.StreamWSHandler` | Concrete | `handlers/stt/stream_ws.go` | mounts `/api/v1/voice/stream` over `voice.Service.HandleStreamWS`; its deterministic qualification faults live in `stream_ws_faults.go` and are double-gated by the boot-only `EnableStreamTestFaults` dependency plus `X-Vrooli-Test-Mode: 1`. The bounded fault values exercise provider admission, post-chunk and post-commit close, reader backpressure, and processed-coverage acknowledgement behavior without emitting audio or transcript data. A suppressed acknowledgement retains the v2 replay tail and emits `incomplete_coverage`; terminal `done` is therefore not a success signal without full coverage. |
 | `stt.Segmenter` | Concrete | `internal/stt/segmenter/` | WS handler + Connect bidi handler + eval streaming harness rows (one impl, two transports, one lab replay path) |
 | `stt.StrategySelector` | Concrete | `internal/stt/selector.go` | `stt.Segmenter` at session start |
 | `stt.StreamingStrategy` | Interface | `internal/stt/strategy/{vad_segment,overlap_agree,passthrough}.go` | `stt.StrategySelector` |
@@ -58,6 +58,7 @@
 | `eval scaling analysis` | Pure report-policy seam | `internal/eval/scaling.go` | Experiment reports hand duration-sweep clip results to backend-owned scaling classification. CLI/UI render `ScalingAnalysis` fields from the shared eval proto and do not fit models or re-rank strategies client-side |
 | `handlers/experiment.ExperimentManager` | Interface | `handlers/experiment/connect_handler.go` | Connect handler consumer-side seam over `internal/experiment.Manager` (`Submit/Get/Wait/List/Cancel/Subscribe`); handler tests can substitute a fake manager without starting the worker |
 | `ui experiment client` | Generated Connect client wrapper | `ui/src/services/experiment.ts` | Dictation Studio lab console consumes `ExperimentService` for start/wait/cancel/list/report/compare. Component tests mock this module, so UI tests prove lifecycle wiring without live Whisper/Kokoro/speaker resources or a running API |
+| `StreamDiagnosticRecorder` | Bounded metadata-only browser record | `packages/audio-capture-browser/src/streamDiagnostic.ts` | Browser dictation transports publish protocol state, coverage cursors, durability, status/error codes, and terminal reason to product UI. It intentionally cannot retain audio or transcript text, so support export is privacy-safe. |
 
 ## Cross-scenario boundaries
 
@@ -736,9 +737,17 @@ other two scenarios, and asserts byte-equality against the audio-tools copy
 (audio-tools is the authoritative SSOT for voice substrate). If you change
 any file in the set, copy the new bytes to the other two scenarios; if you
 add a new shared file, append it to the `SYNCED_FILES` constant in the guard.
-`VoiceStreamProvider.ts` is NOT in the synced set — audio-tools is on
-PCM-capture while web-console/swarm-manager still use MediaRecorder, and
-that divergence is intentional until they catch up.
+`VoiceStreamProvider.ts` is not in the synced set. Audio Tools uses its v2
+canonical-PCM provider directly; Web Console and Swarm Manager use
+`PcmVoiceStreamProvider` host adapters over the governed
+`packages/audio-capture-browser` protocol/journal core. The package now owns
+the protocol frame format, journal, session identity, diagnostics, and v2
+WebSocket message/acknowledgement dispatch. Host adapters still own microphone
+leases, same-origin URL routing, and host UX; extracting the remaining common
+transport lifecycle is tracked by the provider-parity plan and must not be
+misrepresented as complete. The legacy MediaRecorder providers remain only as
+unselected compatibility code and must not be used to claim streaming-path
+coverage.
 
 ### `voice/pcmCapture.PcmCaptureFactory` (embed PCM capture seam)
 
@@ -763,7 +772,15 @@ server's ffmpeg-free fast-path. Lives in
   AudioWorklet migration swap one factory without touching the provider or
   its tests. The pure Float32→s16le + WAV conversion lives separately in
   `voice/pcm.ts` (fully unit-tested in `pcm.test.ts`).
-- **Consumed by**: `VoiceStreamProvider.ts` only.
+- **Protocol coupling**: the provider wraps each canonical chunk with the v2
+  session identity, absolute sample cursors, and SHA-256 digest from
+  `packages/audio-capture-browser`; the server verifies the digest before it
+  enters the session ledger. The local turn journal commits before the frame is
+  released and compacts only on a processed acknowledgement.
+- **Consumed by**: Audio Tools `VoiceStreamProvider.ts`, Web Console
+  `PcmVoiceStreamProvider.ts`, and Swarm Manager `PcmVoiceStreamProvider.ts`
+  use this governed shared browser package for their selected streaming paths.
+  Legacy MediaRecorder providers remain unselected compatibility code.
 
 ## Cross-references
 

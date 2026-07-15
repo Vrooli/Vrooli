@@ -15,6 +15,12 @@ services:
       - KYUTAI_STT_HF_REPO=${KYUTAI_STT_HF_REPO:-kyutai/stt-1b-en_fr}
       - KYUTAI_STT_DEVICE=${KYUTAI_STT_DEVICE:-cuda}
       - KYUTAI_STT_LOG_LEVEL=${KYUTAI_STT_LOG_LEVEL:-INFO}
+      # torch.compile's deferred first-step compilation can occupy a live turn
+      # for minutes. Keep it opt-in; CUDA graphing stays enabled by default.
+      - KYUTAI_STT_TORCH_COMPILE=${KYUTAI_STT_TORCH_COMPILE:-0}
+      # Keep the protection effective even before a rebuilt image picks up the
+      # server-side configuration shim.
+      - NO_TORCH_COMPILE=${NO_TORCH_COMPILE:-1}
       # Segment commit cadence (12.5 Hz frames). SILENCE commits on a pause;
       # MAX_SEGMENT force-commits during continuous speech so a long unbroken
       # utterance still produces durable segments (0 disables force-commit).
@@ -26,7 +32,7 @@ services:
     networks:
       - kyutai-stt-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]
       interval: 30s
       timeout: 10s
       retries: 3

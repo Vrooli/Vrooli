@@ -64,6 +64,11 @@ func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 					ProviderTier:     protomap.ProviderTierToProto(string(ev.Segment.ProviderTier)),
 					ModelId:          ev.Segment.ModelID,
 					LatencyMs:        ev.Segment.LatencyMs,
+					SegmentId:        ev.Segment.SegmentID,
+					Generation:       ev.Segment.Generation,
+					StartSample:      ev.Segment.StartSample,
+					EndSample:        ev.Segment.EndSample,
+					AlignmentQuality: ev.Segment.AlignmentQuality,
 				},
 			},
 		}
@@ -123,15 +128,35 @@ func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 		return &sttv1.TranscribeStreamEvent{
 			Event: &sttv1.TranscribeStreamEvent_Done{
 				Done: &sttv1.StreamDone{
-					FinalText:       done.FinalText,
-					ProviderTier:    protomap.ProviderTierToProto(string(done.LockedTier)),
-					ProviderId:      done.ProviderID,
-					ModelId:         done.ModelID,
-					LatencyMs:       done.LatencyMs,
-					FellBackToUnary: done.FellBackToUnary,
+					FinalText:          done.FinalText,
+					ProviderTier:       protomap.ProviderTierToProto(string(done.LockedTier)),
+					ProviderId:         done.ProviderID,
+					ModelId:            done.ModelID,
+					LatencyMs:          done.LatencyMs,
+					FellBackToUnary:    done.FellBackToUnary,
+					ProcessedSequence:  done.ProcessedSequence,
+					ProcessedEndSample: done.ProcessedEndSample,
+					TerminalReason:     done.TerminalReason,
 				},
 			},
 		}
+	case sttchain.StreamEventAcknowledgement:
+		if ev.Acknowledgement == nil {
+			return nil
+		}
+		return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Acknowledgement{Acknowledgement: &sttv1.StreamAcknowledgement{
+			ReceivedSequence: ev.Acknowledgement.ReceivedSequence, ProcessedSequence: ev.Acknowledgement.ProcessedSequence,
+			ReceivedEndSample: ev.Acknowledgement.ReceivedEndSample, ProcessedEndSample: ev.Acknowledgement.ProcessedEndSample,
+			DeliveryClass: sttv1.StreamDeliveryClass_STREAM_DELIVERY_CLASS_DURABLE,
+		}}}
+	case sttchain.StreamEventSessionStatus:
+		if ev.SessionStatus == nil {
+			return nil
+		}
+		return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_SessionStatus{SessionStatus: &sttv1.StreamSessionStatus{
+			SessionId: ev.SessionStatus.SessionID, Generation: ev.SessionStatus.Generation, State: ev.SessionStatus.State,
+			QueuePosition: ev.SessionStatus.QueuePosition, CapabilityOutcome: ev.SessionStatus.CapabilityOutcome, RecoveryGuidance: ev.SessionStatus.RecoveryGuidance,
+		}}}
 	}
 	return nil
 }

@@ -130,6 +130,32 @@ func TestRepository_RunsRoundTrip(t *testing.T) {
 	require.Equal(t, []byte(`{"snr_db":12}`), runs[0].ConditionJSON)
 }
 
+func TestRepository_QualificationEvidenceRoundTripAndCellFilter(t *testing.T) {
+	ctx := context.Background()
+	repo, _ := newRepo(t)
+	first, err := repo.CreateQualificationEvidence(ctx, experiment.QualificationEvidence{
+		EngineID: "kyutai", ModelID: "kyutai/stt-1b-en_fr", Strategy: "passthrough", Kind: "fault", FaultProfile: "provider_busy",
+		Passed: true, ArtifactRef: "bas:provider-busy", MachineJSON: []byte(`{"host":"runner"}`),
+	})
+	require.NoError(t, err)
+	second, err := repo.CreateQualificationEvidence(ctx, experiment.QualificationEvidence{
+		EngineID: "whisper-local", ModelID: "medium", Strategy: "vad_segment", Kind: "browser_product_path",
+		Passed: false, ArtifactRef: "bas:whisper-browser", Notes: "expected failure",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, first.ID)
+	require.NotEmpty(t, second.ID)
+
+	all, err := repo.ListQualificationEvidence(ctx, experiment.QualificationEvidenceFilter{})
+	require.NoError(t, err)
+	require.Len(t, all, 2)
+	kyutai, err := repo.ListQualificationEvidence(ctx, experiment.QualificationEvidenceFilter{EngineID: "kyutai", ModelID: "kyutai/stt-1b-en_fr", Strategy: "passthrough"})
+	require.NoError(t, err)
+	require.Len(t, kyutai, 1)
+	require.Equal(t, "provider_busy", kyutai[0].FaultProfile)
+	require.True(t, kyutai[0].Passed)
+}
+
 func TestRepository_CompleteSucceededPersistsRunsAndTerminalStatusAtomically(t *testing.T) {
 	ctx := context.Background()
 	repo, _ := newRepo(t)

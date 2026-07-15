@@ -2,11 +2,11 @@ package execution
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 )
 
@@ -41,10 +41,6 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		}
 	}
 
-	if s.agentService == nil || !s.agentService.IsEnabled() {
-		return Record{}, apierr.Unavailable("agent-manager is not available")
-	}
-
 	item, err := s.loadBacklogItem(record.BacklogKind, record.BacklogName)
 	if err != nil {
 		return Record{}, err
@@ -63,79 +59,68 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, err
 	}
 
-	itemDir := s.itemDir(item.Kind, item.Name)
-	deliverable, err := s.resolveExecutionDeliverable(ctx, item, itemDir)
+	// Pre-execution baseline capture: pin a GCT baseline of each declared
+	// scenario's current state so finalization can separate regressions this
+	// item causes from pre-existing failures. An execution-domain prep step
+	// independent of how the agent is launched. Cheap synchronous planning here;
+	// the slow snapshot runs detached. Best-effort — never blocks the start.
+	record.PreExecBaselines = s.capturePreExecBaselinesLocked(ctx, item)
+
+	// Plan-backed items start as an execution-run operation against their
+	// plan-execution target. Research-conclusion items have no execution plan_ref
+	// and cannot target a plan-execution operation, so they start the
+	// research-conclude operation against their backlog-item target instead.
+	if hasExecutionPlanRef(item) {
+		return s.startPlanOperationLocked(ctx, records, idx, record, item)
+	}
+	return s.startConclusionOperationLocked(ctx, records, idx, record)
+}
+
+// startPlanOperationLocked starts a plan-backed item's primary execution as an
+// execution-run operation against its plan-execution target. The operation
+// runner spawns the agent through the operating-mode engine's chokepoint
+// (execution-drain -> phased-plan-drain, inheriting the item's write-scope
+// containment via the plan-execution target adapter) and returns the live run
+// association; the execution record keeps tracking the returned agent run id for
+// status and finalization (transitional — the completion authority consolidates
+// on the workflow in slice C, note d789cb50).
+func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record, idx int, record Record, item backlogItem) (Record, error) {
+	if s.operationStarter == nil {
+		return Record{}, apierr.Unavailable("execution operation runner is not available")
+	}
+	// Plan Manager stays the sole plan authority — the operation resolves the live
+	// plan context there from the item's canonical execution_spec plan_ref.
+	planHandle, err := executionPlanHandle(item)
 	if err != nil {
 		return Record{}, apierr.BadRequest("%s", err.Error())
 	}
-	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, preflight, deliverable.Path)
-	if handoffErr != nil {
-		return Record{}, handoffErr
-	}
-	prompt := buildExecutionPrompt(executionPromptParams{
-		Kind:               item.Kind,
-		Name:               item.Name,
-		Title:              item.Title,
-		ItemFolder:         itemDir,
-		RunType:            "process",
-		DeliverablePath:    deliverable.Path,
-		DeliverableContent: deliverable.Markdown,
-		IdeaHandoff:        ideaHandoff,
-		SuggestedSkills:    item.SuggestedSkills,
-	})
-	record.PromptTrace = &PromptTrace{
-		Purpose:        "process",
-		Prompt:         prompt,
-		PromptRevision: promptRevision(prompt),
-		UsedFallback:   false,
-		CapturedAt:     nowRFC3339(),
-	}
-
-	// Pre-execution baseline capture: pin a GCT baseline of each declared
-	// scenario's current state so finalization can separate regressions this
-	// item causes from pre-existing failures. Cheap synchronous planning here;
-	// the slow snapshot runs detached. Best-effort — never blocks the spawn.
-	record.PreExecBaselines = s.capturePreExecBaselinesLocked(ctx, item)
-
-	activityCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
-		item,
-		record.ExecutionID,
-		agentactivity.PurposeProcess,
-		record.StartedBy,
-		map[string]string{
-			"entrypoint": "execution.start",
-			"mode":       string(record.Mode),
-			"operation":  record.Operation,
-		},
-	))
-
-	// Pre-merge hold: with shadow engagement on, spawn with agent-manager's
-	// ManualReview so the run parks at needs_review (overlay NOT merged). The
-	// poller's processEngagementHold then opens shadow restore points from the
-	// actual diff and approves the merge. Flag off ⇒ today's auto-merge path.
-	manualReview := s.engagementHoldActive()
-	runResult, err := s.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
-		Kind:            item.Kind,
-		Name:            item.Name,
-		Title:           buildProcessingTitle(item),
-		Description:     prompt,
-		Prompt:          prompt,
-		ScopePath:       ".",
-		ProjectRoot:     ".",
-		CreatedBy:       record.StartedBy,
-		Purpose:         "process",
-		AcceptanceAllow: item.AcceptanceAllow,
-		AcceptanceDeny:  item.AcceptanceDeny,
-		Creates:         item.Creates,
-		Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
-		ManualReview:    manualReview,
+	res, err := s.operationStarter.StartOperation(ctx, OperationStartRequest{
+		Operation:        operationExecutionRun,
+		OperationVersion: operationVersionPinned,
+		TargetKind:       targetKindPlanExecution,
+		TargetID:         planHandle,
+		IdempotencyKey:   "exec-" + record.ExecutionID,
+		RequestedBy:      record.StartedBy,
 	})
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
+	// A start that yields no trackable agent run id could never be polled to a
+	// terminal status — the record would strand in "starting" (the poller skips
+	// run-id-less records and Cancel refuses them). Reap the dangling operation and
+	// fail the start so the record stays pending/retryable instead.
+	if strings.TrimSpace(res.RunID) == "" {
+		if cerr := s.operationStarter.CancelOperation(ctx, OperationCancelRequest{
+			TargetKind: targetKindPlanExecution, TargetID: planHandle, ExecutionID: res.ExecutionID,
+		}); cerr != nil {
+			slog.Warn("execution: reap of run-id-less start failed", "execution_id", record.ExecutionID, "err", cerr)
+		}
+		return Record{}, apierr.BadGateway("execution operation started but returned no run id; agent-manager may be unavailable")
+	}
 
-	record.TaskID = runResult.TaskID
-	record.RunID = runResult.RunID
+	record.RunID = res.RunID
+	record.OpWorkflowID = res.WorkflowID
+	record.OpExecutionID = res.ExecutionID
 	record.StartedAt = nowRFC3339()
 	record.FinishedAt = ""
 	record.FailureReason = ""
@@ -146,13 +131,84 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, err
 	}
 	s.dispatchStatusUpdate(record)
-
-	// Baseline Modes engagements are now opened at the pre-merge hold from the
-	// ACTUAL diff (processEngagementHold), not here from the declared scope — see
-	// engagement_hold.go. The ManualReview spawn above is what routes the run to
-	// that hold.
-
 	return record, nil
+}
+
+// startConclusionOperationLocked starts a research-conclusion item's primary
+// execution as a research-conclude operation against its backlog-item target.
+// Research/idea items have no execution plan_ref (their deliverable is the
+// conclusion itself), so they cannot target a plan-execution operation; the
+// research-conclude mode reads the item spec directly. The operation runner spawns
+// the agent through the operating-mode engine's chokepoint and returns the live
+// run association; the completion bridge's commit-execution-round handler drives
+// the record to terminal, so the poller defers it (OpExecutionID set). Mirrors
+// startPlanOperationLocked (no Go-side prompt: the mode owns it).
+func (s *Service) startConclusionOperationLocked(ctx context.Context, records []Record, idx int, record Record) (Record, error) {
+	if s.operationStarter == nil {
+		return Record{}, apierr.Unavailable("execution operation runner is not available")
+	}
+	res, err := s.operationStarter.StartOperation(ctx, OperationStartRequest{
+		Operation:        operationResearchConclude,
+		OperationVersion: operationVersionPinned,
+		TargetKind:       targetKindBacklogItem,
+		TargetID:         record.BacklogKind + "/" + record.BacklogName,
+		IdempotencyKey:   "exec-" + record.ExecutionID,
+		RequestedBy:      record.StartedBy,
+	})
+	if err != nil {
+		return Record{}, wrapAgentError(err)
+	}
+	// A start that yields no trackable agent run id could never be driven to a
+	// terminal status — reap the dangling operation and fail the start so the
+	// record stays pending/retryable (mirrors startPlanOperationLocked).
+	if strings.TrimSpace(res.RunID) == "" {
+		if cerr := s.operationStarter.CancelOperation(ctx, OperationCancelRequest{
+			TargetKind: targetKindBacklogItem, TargetID: record.BacklogKind + "/" + record.BacklogName, ExecutionID: res.ExecutionID,
+		}); cerr != nil {
+			slog.Warn("execution: reap of run-id-less conclusion start failed", "execution_id", record.ExecutionID, "err", cerr)
+		}
+		return Record{}, apierr.BadGateway("research-conclude operation started but returned no run id; agent-manager may be unavailable")
+	}
+	record.RunID = res.RunID
+	record.OpWorkflowID = res.WorkflowID
+	record.OpExecutionID = res.ExecutionID
+	record.StartedAt = nowRFC3339()
+	record.FinishedAt = ""
+	record.FailureReason = ""
+	record.Status = StatusStarting
+	record.UpdatedAt = nowRFC3339()
+	records[idx] = record
+	if err := s.store.Save(records); err != nil {
+		return Record{}, err
+	}
+	s.dispatchStatusUpdate(record)
+	return record, nil
+}
+
+// reapOperationForRecord marks a canceled run's operation execution canceled in
+// the durable workflow, so the record does not linger "running". Best-effort: it
+// only applies to operation-started records (OpExecutionID set) and never fails
+// the cancel — a missed reap is recovered by slice-C run reconciliation.
+func (s *Service) reapOperationForRecord(ctx context.Context, record Record) {
+	if s.operationStarter == nil || strings.TrimSpace(record.OpExecutionID) == "" {
+		return
+	}
+	item, err := s.loadBacklogItem(record.BacklogKind, record.BacklogName)
+	if err != nil {
+		return
+	}
+	handle, err := executionPlanHandle(item)
+	if err != nil {
+		return
+	}
+	if err := s.operationStarter.CancelOperation(ctx, OperationCancelRequest{
+		TargetKind:  targetKindPlanExecution,
+		TargetID:    handle,
+		ExecutionID: record.OpExecutionID,
+	}); err != nil {
+		slog.Warn("execution: reap operation on cancel failed",
+			"execution_id", record.ExecutionID, "op_execution_id", record.OpExecutionID, "err", err)
+	}
 }
 
 // Cancel cancels a scheduled record before it starts.
@@ -192,6 +248,10 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.stopper.StopRun(ctx, record.RunID); err != nil {
 			return Record{}, err
 		}
+		// Reap the operation execution so its durable workflow record does not
+		// linger "running" and the refresh driver stops polling the stopped run.
+		// The StopRun above is the cooperative cancel; this only updates bookkeeping.
+		s.reapOperationForRecord(ctx, record)
 		record.Status = StatusCanceled
 		record.UpdatedAt = nowRFC3339()
 		record.FinishedAt = nowRFC3339()

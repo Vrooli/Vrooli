@@ -126,6 +126,15 @@ describe("buildVoiceStreamWsUrl", () => {
     expect(url).not.toContain("language=");
   });
 
+  it("forwards an explicit browser qualification fault only from test-mode page state", () => {
+    window.history.pushState({}, "", "/?stt_test_mode=1&stt_test_fault=provider_busy");
+    const api = createVoiceApi(makeFakeClient({}, "http://localhost:8080"));
+    const url = api.buildVoiceStreamWsUrl();
+    expect(url).toContain("test_mode=1");
+    expect(url).toContain("test_fault=provider_busy");
+    window.history.pushState({}, "", "/");
+  });
+
   it("strips trailing slash from base URL", () => {
     const api = createVoiceApi(makeFakeClient({}, "http://localhost:8080/"));
     const url = api.buildVoiceStreamWsUrl();

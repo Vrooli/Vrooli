@@ -1,145 +1,156 @@
 # Template Manager
 
-Owns the template domain: generation, validation, orientation, drift, and debt for scenario templates, design kits, and resource templates
+Template Manager is the single accountable owner of Vrooli's **template domain**.
+Standing up a new scenario used to be a loose collection of `vrooli` CLI verbs with
+no persistent evidence and no owner for quality. Template Manager makes that work
+**measured, repeatable, and improvable**: scenario templates, design kits, and
+resource templates each have one owner, a durable store of validation evidence,
+and a programmatic surface other scenarios can call.
 
-This scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+It owns the full lifecycle — generation, orientation, and detemplating of scenarios;
+shallow and deep template validation; drift and version-lag detection; the inherited
+template-debt ledger; design-kit and resource-template inspection; factory
+documentation; and a recurring deep-validation monitor with federated measures.
 
-- Go API (`api/`)
-- React + TypeScript + Vite UI (`ui/`)
-- CLI wrapper (`cli/`)
-- Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry, generated L0 experience contract, and progress log
-  (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
+See [`PRD.md`](PRD.md) for the full product framing and operational targets, and
+[`docs/factory/TEMPLATE-FACTORY-GUIDE.md`](docs/factory/TEMPLATE-FACTORY-GUIDE.md)
+for the maintainer's operating loop.
 
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+## What You Get
 
-## What's In This Scenario
+- A **template registry** cataloging scenario templates, design kits, and resource
+  templates with version and manifest metadata, backed by a migration-owned SQLite
+  store under the api-core storage resolver.
+- **Validation runs** (shallow and deep), **drift snapshots**, version-lag tracking,
+  and a deduplicated **debt ledger** — all persisted and queryable through API and CLI.
+- A **test-genie provider** for the `templates` phase, plus a **recurring monitor**
+  that runs scheduled deep validation for active scenario templates under capacity-aware,
+  serialized execution.
+- An **orientation guidance** surface that returns the next incomplete orientation gate
+  and its contract as structured data, so execution agents know what work a freshly
+  generated scenario still owes.
+- **Factory documentation** for template maintenance, the generation contract, and the
+  migration protocol — owned here and indexed into search-hub.
+- Coordinated surfaces over generated proto contracts:
+  - **API (`api/`)** — Go + Connect-RPC over the contracts in
+    `packages/proto/schemas/template-manager`. Storage is SQLite via api-core/storage,
+    rooted at the durable home store. Serves on **port 17093**.
+  - **CLI (`cli/`)** — the primary agent- and operator-facing surface: a thin,
+    manifest-driven wrapper (`cli/manifest.json` is the contract) that speaks
+    proto-JSON to the API. Groups are listed below.
+  - **UI (`ui/`)** — a React + Vite operations console for fleet standing, validation
+    history, debt trends, registry state, drift, and monitor status. Serves on
+    **port 21598**.
 
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
-- SQLite by default. Add external resources to `.vrooli/service.json`
-  only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Baseline PWA/native-readiness metadata: web app manifest,
-  standalone-mode mobile tags, proxy-safe relative install asset URLs,
-  a minimal app-shell service worker, safe-area CSS tokens, and generic
-  placeholder icons ready for scenario-specific replacement.
-- Canonical responsive shell plus adopted-provenance UI primitives from
-  `react-component-library` for common shared surfaces such as buttons,
-  cards, data tables, empty states, inputs, selects, status badges, sidebar
-  shell, and bottom navigation.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
-- Generated `experience/` L0 specs for the starter routes. These are UX
-  intent placeholders, not finished claims; grow them as routes become real.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
+## CLI Command Groups
 
-## Placeholders vs. Durable Scaffolding
+The CLI is the contract in [`cli/manifest.json`](cli/manifest.json); run
+`template-manager help` or `template-manager <group> help` for the live surface.
+All read commands accept `--json` for machine-readable output.
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
+| Group | What it does | Example |
+|---|---|---|
+| **lifecycle** | Generate, orient, and detemplate scenarios | `template-manager lifecycle generate --template react-vite --id my-scenario` |
+| **template** | Validate templates, report drift, clean validation workspaces | `template-manager template drift my-scenario` |
+| **design** | List, show, and validate scenario design kits | `template-manager design list --json` |
+| **guidance** | Return the next incomplete orientation gate for a scenario | `template-manager guidance next my-scenario` |
+| **measures** | List and run declared template-manager measures | `template-manager measures list` |
+| **monitor** | Inspect recurring deep-validation monitor state | `template-manager monitor status --json` |
+| **registry** | Inspect governed template records | `template-manager registry list` |
+| **resource-template** | List, show, validate, and generate from resource templates | `template-manager resource-template generate <name>` |
+| **runs** | Run and inspect validation runs and drift snapshots | `template-manager runs run my-scenario --deep` |
+| **debt** | Inspect inherited template-debt entries | `template-manager debt list --json` |
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- Starter page content such as the dashboard metric placeholders.
-- The bare-minimum settings surface once your scenario needs more than
-  theme and locale.
+Top-level utility commands: `status` (API health; `--json` for the raw payload),
+`configure` (view/update CLI settings), `version`, and the three template-lifecycle
+verbs (`generate`, `orient`, `detemplate`) exposed both directly and under `lifecycle`.
 
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
+> **Note:** the template-domain verbs used to live on the `vrooli` CLI as
+> `vrooli scenario generate|orient|detemplate|template|design`. Those were removed
+> when the domain moved here — use the `template-manager` CLI instead.
 
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- Adopted shared UI primitives under `ui/src/components/ui/`; prefer
-  `react-component-library adoptions apply` over hand-rolling a new primitive.
-- The responsive shell floors: full viewport height, overflow-contained main
-  content, desktop sidebar, fixed safe-area mobile bottom nav, and Settings
-  ownership of locale switching.
-- The feature-folder pattern under `ui/src/features/<name>/`.
-- The proto → API → CLI → UI vertical-slice shape.
+## The Operating Loops
 
-**Connect-RPC is the default transport.** Every domain endpoint goes
-through a proto service and generated Connect handlers/clients. If
-you find yourself writing `Path: "/api/v1/..."` as a literal string in
-an `EndpointDescriptor`, stop — use a proto service method instead.
-Codegen rejects literal Paths that lack an explicit `RESTException`
-tag; the four allowed REST reasons (multipart upload, webhook
-receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+- **Validation loop.** `runs run` executes shallow or deep validation against a
+  scenario template and persists the result; `runs list`/`runs show` read the history;
+  `template validate` and `template drift` cover ad-hoc checks. A template stays
+  quarantined until its current deep-validation evidence is clean.
+- **Drift loop.** `runs drift-record` runs fleet drift and persists a snapshot;
+  `runs drift` / `template drift` surface which scenarios have diverged from their
+  source template (manifest or content drift, plus version lag).
+- **Debt loop.** Defects surfaced during validation are recorded as deduplicated
+  entries in the debt ledger (`debt list` / `debt show`), giving inherited template
+  debt one accountable, trend-able home instead of scattered TODOs.
+- **Monitor loop.** A recurring, capacity-aware scheduler runs deep validation for
+  active scenario templates in serialized order and persists scheduler-attributed
+  results; `monitor status` reports its state.
+- **Measures.** Typed measures (`measures list` / `measures run`) compute fleet
+  standing, validation history, and debt trends from one path and federate to
+  measures-health.
 
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
-
-## Running The Scenario
+## Running
 
 ```bash
-# Build API + UI, install pnpm deps, install scenario CLI
+# Build API + UI, install pnpm deps, install the scenario CLI
 make setup   # wraps `vrooli scenario setup`
 
 # Start API + UI in the background
 make start   # wraps `vrooli scenario start`
+
+make logs    # tail API + UI logs
+make stop    # stop the scenario
 ```
 
 See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
-
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute template-manager --preset comprehensive` directly for
+Run tests with `make test` (which wraps `vrooli scenario test template-manager`), or
+invoke `test-genie execute template-manager --preset comprehensive` directly for
 finer-grained presets.
 
 ## Documentation Map
 
 | Need | Start Here |
 |---|---|
-| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
-| Establish UI design language | `DESIGN.md` at this scenario's root |
-| Author UX intent | [`experience/README.md`](experience/README.md) |
+| Product framing and operational targets | [`PRD.md`](PRD.md) |
+| Maintain the template factory | [`docs/factory/TEMPLATE-FACTORY-GUIDE.md`](docs/factory/TEMPLATE-FACTORY-GUIDE.md) |
+| The react-vite generation contract | [`docs/factory/TEMPLATE-GENERATION-CONTRACT.md`](docs/factory/TEMPLATE-GENERATION-CONTRACT.md) |
+| Maintain the react-vite template | [`docs/factory/TEMPLATE-MAINTENANCE.md`](docs/factory/TEMPLATE-MAINTENANCE.md) |
+| Architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
+| Workflows, data, integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
+| UI design language | `DESIGN.md` at this scenario's root, [`docs/concepts/UI-ARCHITECTURE.md`](docs/concepts/UI-ARCHITECTURE.md) |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
-| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
-| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
-| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
-| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
-| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
-| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
-| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
-| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
-| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
-| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| Deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
+| Env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
+| API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
+| CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| Troubleshooting | [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md) |
 
-## Working Rules
+## Customize Safely
 
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
-2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
-3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
-4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
-5. **Keep `experience/` aligned with routes.** Start at L0, then add priorities, claims, bindings, states, and journeys before flipping pages active.
-6. **Update `docs/concepts/DOMAINS.md`** before adding product code.
-7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
-8. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-9. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
-10. **Keep boundaries**: only edit within this scenario's directory.
+Template Manager is a real scenario, not scaffold to be replaced — extend it, don't
+strip it. When you add product surface, keep these seams intact:
+
+1. **Connect-RPC is the default transport.** Every domain endpoint goes through a
+   proto service in `packages/proto/schemas/template-manager` and generated
+   Connect handlers/clients. Do not write literal `Path: "/api/v1/..."` strings in an
+   `EndpointDescriptor`; codegen rejects literal Paths that lack an explicit
+   `RESTException` tag.
+2. **The CLI stays a thin wrapper.** Logic lives in the API; the CLI is
+   manifest-driven proto-JSON plumbing. Add commands by extending
+   [`cli/manifest.json`](cli/manifest.json) and the API service, not by putting
+   behavior in the CLI.
+3. **Storage changes are migration-first.** The SQLite store is migrated, never
+   recreated — add a migration rather than editing schema in place or dropping tables.
+4. **Template content stays under `templates/`.** Template Manager operates on and
+   validates template content; it does not house it.
+5. **Update [`PRD.md`](PRD.md) and `requirements/`** before feature work — operational
+   targets drive code and tests. Requirement status is auto-synced by Test Genie; tag
+   tests with `[REQ:ID]` rather than hand-editing status.
+6. **Keep [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) and
+   [`docs/manifest.json`](docs/manifest.json) accurate**, read the root `DESIGN.md`
+   before UI work, and keep edits within this scenario's directory.
 
 ## pnpm Everywhere
 
-This scenario assumes pnpm. If you run another package manager, convert
-lockfiles yourself before committing. Scripts use `pnpm` directly (no
-`npm` fallbacks) to reduce drift.
-
-## Need Inspiration?
-
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+This scenario assumes pnpm. Scripts use `pnpm` directly (no `npm` fallbacks) to reduce
+drift; convert lockfiles yourself if you use another package manager.

@@ -16,7 +16,6 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/planclient"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
@@ -62,19 +61,11 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	}
 	operation, confirm, force, mode, startedBy := params.operation, params.confirm, params.force, params.mode, params.startedBy
 
-	var executionService ExecutionQueuer
-	if h.executionQueuer != nil {
-		executionService = h.executionQueuer
-	} else {
-		executionService = execution.NewService(execution.ServiceConfig{
-			DataRoot:           h.dataRoot,
-			RepoRoot:           h.repoRoot,
-			PolicyProvider:     h.policyProvider,
-			GovernanceProvider: h.governanceProvider,
-			AgentService:       h.agentService,
-			PlanRenderer:       planclient.NewConnectClient(nil, nil),
-		})
+	if h.executionQueuer == nil {
+		apierr.MapError(w, "[backlog] queue", apierr.Unavailable("execution service is not available"))
+		return
 	}
+	executionService := h.executionQueuer
 
 	preflight, preflightErr := executionService.ProcessPreflight(r.Context(), string(kind), name)
 	if preflightErr != nil {
@@ -331,15 +322,11 @@ func (h *Handler) ProcessPreflight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	executionService := execution.NewService(execution.ServiceConfig{
-		DataRoot:           h.dataRoot,
-		RepoRoot:           h.repoRoot,
-		PolicyProvider:     h.policyProvider,
-		GovernanceProvider: h.governanceProvider,
-		AgentService:       h.agentService,
-		PlanRenderer:       planclient.NewConnectClient(nil, nil),
-	})
-	preflight, err := executionService.ProcessPreflight(r.Context(), string(kind), name)
+	if h.executionQueuer == nil {
+		apierr.MapError(w, "[backlog] process-preflight", apierr.Unavailable("execution service is not available"))
+		return
+	}
+	preflight, err := h.executionQueuer.ProcessPreflight(r.Context(), string(kind), name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			apierr.MapError(w, "[backlog] process-preflight", apierr.NotFound("backlog item not found"))

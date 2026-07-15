@@ -404,7 +404,7 @@ transition guards (replan, continue, blocked, non-accepting review, reconcile).
     { "id": "happy-path", "label": "Drains in one slice", "branch": "execute →(progress=continue)→ execute →(progress=complete)→ stop" },
     { "id": "blocked", "label": "Work is blocked", "branch": "execute →(progress=blocked)→ guarded stop" }
   ],
-  "target": { "kind": "plan-manager-plan", "…": "…" },
+  "target": { "kind": "plan-execution", "…": "…" },
   "trace": [ { "phase": "execute", "inputs": {}, "output": {}, "transition": {} } ]
 }
 ```

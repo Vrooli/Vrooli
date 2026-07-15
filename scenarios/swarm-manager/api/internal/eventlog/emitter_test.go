@@ -9,18 +9,19 @@ import (
 
 	"swarm-manager/internal/eventlog"
 
+	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
 func setupEmitter(t *testing.T) (*eventlog.Emitter, *eventlog.SQLiteRepository) {
 	t.Helper()
-	db, err := sql.Open("sqlite", ":memory:")
+	sqldb, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { sqldb.Close() })
 
-	repo := eventlog.NewSQLiteRepository(db)
+	repo := eventlog.NewSQLiteRepository(database.NewFromPrimary(sqldb))
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init schema: %v", err)
 	}

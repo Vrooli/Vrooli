@@ -56,7 +56,12 @@ func TestLoadModesFromDirDiscoversShippedModes(t *testing.T) {
 		t.Fatalf("LoadModesFromDir: %v", err)
 	}
 	got := SortedModes(defs)
-	want := []Mode{ModeHolisticLoop, ModeItemLevel, ModePhasedPlanDrain}
+	want := []Mode{
+		"backlog-clarify", "backlog-conclude", "backlog-evidence", "backlog-finalize",
+		"backlog-fixup", "backlog-followup", "backlog-research", "backlog-review",
+		"backlog-revision", "backlog-workshop", "execution-drain", ModeHolisticLoop,
+		"initiative-review-loop", ModeItemLevel, ModePhasedPlanDrain, "scenario-spec-sync",
+	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("discovered modes = %v, want %v", got, want)
 	}

@@ -67,6 +67,45 @@ per-case + aggregate report.
    ingress/selector/egress construction point as live STT without reading or
    mutating the live stream-config row.
 
+### Provider cells
+
+`ExperimentRecipe.cells` is the provider-neutral execution surface. A
+`kyutai:passthrough` cell creates a fresh Kyutai adapter and routes canonical
+PCM through the production Segmenter rather than assigning a Kyutai label to a
+Whisper result. Dictation Studio exposes this cell as the `passthrough`
+choice. Unknown engines fail before a run is persisted.
+
+Current scope is deliberately explicit: deterministic and full-real-time
+native-streaming cells run through their declared provider, including
+materialized long-form duration sweeps. Product-path, fault-profile,
+policy-profile, augmentation, and speaker-ablation cells refuse server-only
+execution rather than being relabelled as completed evidence. Product-path
+evidence must come from the browser qualification harness; fault and policy
+profiles require their corresponding harnesses before they can contribute to
+promotion.
+
+Provider-cell reports also carry a provider-scoped `promotion_verdict`. It
+uses the shared trust-floor rubric and is intentionally conservative: only a
+full-real-time duration sweep can credit the duration profiles it actually
+reaches. When an experiment report is retrieved, compatible succeeded reports
+from the same recorded host/OS/architecture contribute their earned real-time
+duration rungs, so the 30-second, 1-minute, 5-minute, 15-minute, and 60-minute
+ladder can be built across persisted runs. Deterministic replay remains quality
+evidence, never a substitute for a real-time long-form turn. A cell declares
+one lane: a `realtime` cell derives its WER and safety result from its first
+paced repeat, while an explicitly `deterministic` cell derives those fields
+from its unpaced replay. The runner never attaches an unpaced failure to a
+report labeled `realtime`.
+Recovery, fault, browser-product-path, and device categories remain explicit
+blocking reasons until their dedicated qualification artifacts are persisted.
+An `interval_accounting` artifact is also stricter than its name implies: it
+must include `all_intervals_accounted: true`,
+`duplicate_committed_segments: 0`, and `silent_terminal_outcomes: 0` in its
+machine provenance before a passing record can credit promotion. This prevents
+a duration or WER result from implicitly asserting no-loss delivery semantics.
+A strategy recommendation is therefore never a stable-engine promotion by
+itself.
+
 ## Metrics
 
 | Metric | Meaning | Reproducible? |
@@ -82,11 +121,12 @@ per-case + aggregate report.
 | **Length curves** | WER, p95 finalization latency, mean time-to-first-commit, and max dropped span by input-length bucket (10s/30s/1m/3m/5m/>5m). | mixed; quality/drop fields yes, wall-clock latency no |
 | **Scaling analysis** | One raw point per evaluated duration plus backend-owned `flat` / `linear` / `superlinear` / `inconclusive` classifications, fitted model stats, units, and log-log growth exponents for every registered metric. | mixed; compute fields yes, wall-clock latency no |
 
-The num[sot]:two run modes are a first-class contract: the **deterministic** pass feeds
-chunks back-to-back and yields reproducible WER + compute (used for
-pass/fail); the **real-time-paced** pass releases chunks at 1× audio rate
-and yields wall-clock latency, reported only as a p50/p95 distribution over
-repeated runs — never gated on a single sample.
+The two run modes are a first-class contract. An explicit **deterministic**
+cell feeds chunks back-to-back and yields reproducible WER + compute. A
+**real-time-paced** cell releases chunks at 1× audio rate; its first paced
+repeat supplies WER/safety and all repeats supply the latency distribution.
+This keeps native streaming providers from being judged by an incompatible
+unpaced transport while retaining a separately requestable deterministic lane.
 
 Persisted experiments can opt into tail-paced latency with
 `--latency-tail-seconds N`. In that mode the worker fast-feeds the prefix of
@@ -388,7 +428,11 @@ per-condition/per-strategy/per-clip quality and latency steps,
 `storing report`) and a terminal event. The `StartExperiment` response carries
 a server-computed `estimated_seconds` value from realized clip duration,
 strategy count, condition count, and repeat settings unless the client
-explicitly supplies an override. The Dictation Studio lab
+explicitly supplies an override. The manager also enforces a runtime budget:
+the estimate plus 25% headroom (at least two minutes), or 30 minutes when a
+duration cannot be estimated. Exceeding that budget is a terminal **failed**
+experiment with a persisted `runtime budget` error, not an endlessly-running
+job; explicit operator cancellation remains `canceled`. The Dictation Studio lab
 subscribes to that stream and falls back to `GetExperiment` polling only when
 the browser transport cannot stream.
 

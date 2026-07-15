@@ -109,13 +109,33 @@ class ValidateResourceTemplatesRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
+class ResourceTemplateValidationResult(_message.Message):
+    __slots__ = ("name", "driver", "transitional", "status", "issues")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DRIVER_FIELD_NUMBER: _ClassVar[int]
+    TRANSITIONAL_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    driver: str
+    transitional: bool
+    status: str
+    issues: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., driver: _Optional[str] = ..., transitional: _Optional[bool] = ..., status: _Optional[str] = ..., issues: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class ValidateResourceTemplatesResponse(_message.Message):
-    __slots__ = ("count", "templates")
+    __slots__ = ("count", "status", "issues_count", "results", "issues")
     COUNT_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATES_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_COUNT_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_FIELD_NUMBER: _ClassVar[int]
     count: int
-    templates: _containers.RepeatedCompositeFieldContainer[ResourceTemplateSummary]
-    def __init__(self, count: _Optional[int] = ..., templates: _Optional[_Iterable[_Union[ResourceTemplateSummary, _Mapping]]] = ...) -> None: ...
+    status: str
+    issues_count: int
+    results: _containers.RepeatedCompositeFieldContainer[ResourceTemplateValidationResult]
+    issues: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, count: _Optional[int] = ..., status: _Optional[str] = ..., issues_count: _Optional[int] = ..., results: _Optional[_Iterable[_Union[ResourceTemplateValidationResult, _Mapping]]] = ..., issues: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class GenerateResourceTemplateRequest(_message.Message):
     __slots__ = ("template", "from_blueprint", "destination", "force", "dry_run", "values")

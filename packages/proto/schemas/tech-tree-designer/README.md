@@ -2,7 +2,7 @@
 
 This folder is **not** a regular template directory.
 
-At scenario generation time, `vrooli scenario generate` reads the
+At scenario generation time, `template-manager generate` reads the
 `relocations` block in `template.json` and copies this entire `proto/`
 tree into `packages/proto/schemas/<your-scenario>/`, substituting
 `tech-tree-designer` and `tech_tree_designer` in both path components

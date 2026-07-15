@@ -27,7 +27,7 @@ import (
 //     SSOT; the sub-mode never routes among parent phases.
 //   - Target context flows from the parent: a same-target-kind sub-mode
 //     receives the parent's resolved target instance unchanged; an
-//     initiative-target mode may delegate to a `plan-manager-plan`-target
+//     initiative-target mode may delegate to a `plan-execution`-target
 //     sub-mode when it declares `target.plan_ref.required` — the initiative's
 //     bound plan is the sub-mode's unit of work. No other combination is
 //     compatible (loader-rejected).
@@ -107,13 +107,13 @@ func validateDelegationTargetCompatibility(parent, sub Definition) error {
 	if parent.Target.Kind == sub.Target.Kind {
 		return nil
 	}
-	if parent.Target.Kind == TargetInitiative && sub.Target.Kind == TargetPlanManagerPlan {
+	if parent.Target.Kind == TargetInitiative && sub.Target.Kind == TargetPlanExecution {
 		if !parent.Target.PlanRef.Required {
 			return fmt.Errorf("delegating to plan-target sub-mode %q requires target.plan_ref.required on the initiative-target mode (the initiative's bound plan supplies the sub-mode's plan)", sub.Mode)
 		}
 		return nil
 	}
-	return fmt.Errorf("target %q cannot supply the target context of sub-mode %q (target %q); compatible combinations: same target kind, or initiative → plan-manager-plan with a required bound plan_ref", parent.Target.Kind, sub.Mode, sub.Target.Kind)
+	return fmt.Errorf("target %q cannot supply the target context of sub-mode %q (target %q); compatible combinations: same target kind, or initiative → plan-execution with a required bound plan_ref", parent.Target.Kind, sub.Mode, sub.Target.Kind)
 }
 
 // delegatedOutcomeFields returns the top-level output field segments a
@@ -234,13 +234,13 @@ func nextDelegatedSubPhase(sub Definition, parentPhase Phase, rounds []RoundEnve
 // deriveSubTarget produces the sub-mode's target instance from the parent's
 // resolved one — the target-context flow of composition. Same target kind
 // passes the parent instance through unchanged; an initiative parent
-// delegating to a plan-manager-plan sub-mode hands over its bound plan
+// delegating to a plan-execution sub-mode hands over its bound plan
 // context as the sub-mode's unit of work.
 func deriveSubTarget(parentDef, sub Definition, parent TargetInstance) (TargetInstance, error) {
 	if parentDef.Target.Kind == sub.Target.Kind {
 		return parent, nil
 	}
-	if parentDef.Target.Kind == TargetInitiative && sub.Target.Kind == TargetPlanManagerPlan {
+	if parentDef.Target.Kind == TargetInitiative && sub.Target.Kind == TargetPlanExecution {
 		plan := parent.Plan
 		if plan == nil || plan.Missing {
 			return TargetInstance{}, fmt.Errorf("delegation to plan-target sub-mode %q requires the initiative %q to have a resolved bound plan (plan_ref)", sub.Mode, parent.ID)
@@ -253,7 +253,7 @@ func deriveSubTarget(parentDef, sub Definition, parent TargetInstance) (TargetIn
 			return TargetInstance{}, fmt.Errorf("delegation to plan-target sub-mode %q: initiative %q bound plan carries no execution/plan id", sub.Mode, parent.ID)
 		}
 		return TargetInstance{
-			Kind:  TargetPlanManagerPlan,
+			Kind:  TargetPlanExecution,
 			ID:    id,
 			Title: fmt.Sprintf("Plan %s", id),
 			Plan:  plan,
@@ -286,11 +286,12 @@ func collectDelegatedRunContext(parent RunContext) (RunContext, error) {
 		return RunContext{}, err
 	}
 	return RunContext{
-		Def:       sub,
-		PhaseDef:  subPhaseDef,
-		Target:    target,
-		Artifacts: parent.Artifacts,
-		Rounds:    parent.Rounds,
-		Execution: parent.Execution,
+		Def:            sub,
+		PhaseDef:       subPhaseDef,
+		Target:         target,
+		Artifacts:      parent.Artifacts,
+		Rounds:         parent.Rounds,
+		Execution:      parent.Execution,
+		OperatorInputs: parent.OperatorInputs,
 	}, nil
 }

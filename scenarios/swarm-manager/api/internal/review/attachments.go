@@ -1,16 +1,13 @@
 package review
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"sort"
 	"strings"
 
 	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/pathutil"
-	"swarm-manager/internal/workshop"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -70,33 +67,6 @@ func redactStrings(redactor pathredact.Redactor, values []string) []string {
 		out[i] = redactor.RedactString(value)
 	}
 	return out
-}
-
-func (s *Service) loadReviewDeliverableContent(ctx context.Context, kind, name, itemDir string) string {
-	if s.planContentResolver != nil {
-		content, err := s.planContentResolver(ctx, kind, name, itemDir)
-		if err == nil && strings.TrimSpace(content) != "" {
-			return content
-		}
-		if err != nil {
-			slog.Warn("review: plan content resolver failed", "kind", kind, "name", name, "err", err)
-		}
-	}
-	if strings.EqualFold(strings.TrimSpace(kind), "research") {
-		return workshop.LoadPlanContentByName(itemDir, "conclusion.md")
-	}
-	return ""
-}
-
-func flattenChangedPaths(changedPathsByScenario map[string][]string) []string {
-	if len(changedPathsByScenario) == 0 {
-		return nil
-	}
-	paths := make([]string, 0)
-	for _, scenarioPaths := range changedPathsByScenario {
-		paths = append(paths, scenarioPaths...)
-	}
-	return pathutil.UniqueSortedStrings(paths)
 }
 
 func cloneChangedPaths(changedPathsByScenario map[string][]string) map[string][]string {

@@ -1,14 +1,16 @@
 /**
  * @vrooliComponentSource react-component-library:BottomNav
- * @vrooliComponentVersion 1.1.0
- * @vrooliComponentAdoption template:react-vite:bottom-nav
- * @vrooliComponentAppliedAt 2026-07-07T00:00:00Z
- * @vrooliComponentSourceSha256 9c884bb2f3af5d64e39cc877ddfb212e64173945e2e3ab41a3eccf5aa12dbfa4
- * @vrooliComponentDriftHash 9c884bb2f3af5d64e39cc877ddfb212e64173945e2e3ab41a3eccf5aa12dbfa4
+ * @vrooliComponentVersion 1.2.0
+ * @vrooliComponentAdoption c2e1c3c0-6879-43a5-aa10-c2399c6f664e
+ * @vrooliComponentAppliedAt 2026-07-14T20:14:27Z
+ * @vrooliComponentSourceSha256 852e5580fbfcc836b25ac8f54fea55df9c86c4225416b11569c9b63abbce3f14
+ * @vrooliComponentDriftHash 852e5580fbfcc836b25ac8f54fea55df9c86c4225416b11569c9b63abbce3f14
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import type { MouseEvent, ReactNode } from "react";
 
 export interface BottomNavItem {
@@ -33,8 +35,7 @@ export interface BottomNavProps {
   inactiveItemClassName?: string;
 }
 
-const joinClasses = (...classes: Array<string | undefined | false>) =>
-  classes.filter(Boolean).join(" ");
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 const baseItemClass =
   "touch-target flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-xs transition";
@@ -63,13 +64,13 @@ export function BottomNav({
     <nav
       data-testid={testId}
       aria-label={label}
-      className={joinClasses(
-        "fixed inset-x-0 bottom-0 z-30 flex border-t border-app-border bg-app-surface pl-safe pr-safe pb-safe md:hidden",
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-30 flex border-t border-app-border bg-app-surface pl-safe pr-safe pb-[max(env(safe-area-inset-bottom,0px),1.75rem)] md:hidden",
         className,
       )}
     >
       {items.map((item) => {
-        const classNames = joinClasses(
+        const classNames = cn(
           baseItemClass,
           item.active ? activeItemClassName ?? activeClass : inactiveItemClassName ?? inactiveClass,
           item.disabled && disabledClass,

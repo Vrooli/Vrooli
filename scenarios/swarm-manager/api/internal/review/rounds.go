@@ -9,9 +9,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/idgen"
-	"swarm-manager/internal/pathutil"
 )
 
 // ListRounds returns all review evidence rounds for a backlog item.
@@ -31,6 +29,12 @@ func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 	for i := range rounds {
 		round := &rounds[i]
 		if round.Status != RoundStatusGathering || round.RunID == "" {
+			continue
+		}
+		// Runner-owned rounds are finalized by the operation runner's completion
+		// bridge (commit-review-round), not this poll — defer so the two never
+		// race to drive the same round.
+		if round.RunnerOwned() {
 			continue
 		}
 		state, stateErr := s.inspector.GetRunState(context.Background(), round.RunID)
@@ -133,104 +137,50 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 		s.eventLogger.EmitReviewRequestCreated(round.ExecutionID, threadID, message)
 	}
 
-	// Spawn a targeted review agent with the user's request.
-	if s.agentService != nil && s.agentService.IsEnabled() {
-		// #nosec G118 -- intentional: the review agent is spawned detached from
-		// the HTTP request, which returns immediately. Inheriting the request
-		// context would cancel the spawn the moment the handler responds;
-		// instead it gets its own 30s-bounded context.
+	// Start a targeted evidence-request operation with the operator's request.
+	// It runs through the operation runner (bound backlog-evidence mode); the
+	// EVIDENCE_REQUEST caller input carries the operator's ask into the mode via
+	// the generic.evidence_request provider. The gathered evidence + assistant
+	// turn land on this thread through the request-evidence completion handler.
+	if s.operationStarter != nil {
+		// #nosec G118 -- intentional: the operation is started detached from the
+		// HTTP request, which returns immediately. Inheriting the request context
+		// would cancel the start the moment the handler responds; instead it gets
+		// its own 30s-bounded context.
 		go func() {
-			spawnCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			opCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-
-			itemTitle := s.resolveItemTitle(kind, name, "")
-			deliverableContent := s.loadReviewDeliverableContent(spawnCtx, kind, name, itemDir)
-			var changedPaths []string
-			var affectedScenarios []string
-			var gctResultsJSON string
-			var baselineDiffJSON string
-			if round.ExecutionID != "" && s.loadExecutionContext != nil {
-				if execCtx, ctxErr := s.loadExecutionContext(spawnCtx, round.ExecutionID); ctxErr != nil {
-					slog.Warn("load execution review context for evidence request", "execution_id", round.ExecutionID, "error", ctxErr)
-				} else if execCtx != nil {
-					changedPaths = flattenChangedPaths(execCtx.ChangedPathsByScenario)
-					affectedScenarios = pathutil.UniqueSortedStrings(append([]string(nil), execCtx.AffectedScenarios...))
-					gctResultsJSON = execCtx.GCTResultsJSON
-					baselineDiffJSON = execCtx.BaselineDiffJSON
-					itemTitle = s.resolveItemTitle(execCtx.BacklogKind, execCtx.BacklogName, execCtx.ItemTitle)
-				}
-			}
-
-			// Inject agent activity spec for the tracked agent service.
-			spawnCtx = agentactivity.WithSpec(spawnCtx, agentactivity.Spec{
-				OwnerType:   agentactivity.OwnerBacklog,
-				OwnerKind:   kind,
-				OwnerName:   name,
-				OwnerTitle:  itemTitle,
-				ExecutionID: round.ExecutionID,
-				Purpose:     agentactivity.PurposeReview,
-				PhaseKind:   string(agentactivity.LaneReview),
-				RequestedBy: "swarm-manager-ui",
-				Metadata: map[string]string{
-					"entrypoint": "review.request_more_evidence",
-					"thread_id":  threadID,
-				},
+			res, startErr := s.operationStarter.StartReviewOperation(opCtx, OperationStartRequest{
+				Operation:      opEvidenceRequest,
+				TargetKind:     targetKindBacklogItem,
+				TargetID:       kind + "/" + name,
+				IdempotencyKey: "evidence-" + threadID,
+				CallerInputs:   map[string]any{"EVIDENCE_REQUEST": message},
+				RequestedBy:    "swarm-manager-ui",
 			})
-
-			instructionVars := map[string]string{
-				"ITEM_FOLDER":  itemDir,
-				"ROUND_NUMBER": fmt.Sprintf("%03d", roundNum),
-			}
-			prompt, renderErr := s.promptClient.ReadSkill(spawnCtx, "swarm-manager-review", instructionVars, true)
-			if renderErr != nil {
-				slog.Error("render review skill for evidence request", "error", renderErr, "thread_id", threadID)
-				return
-			}
-
-			reqAttachments := buildReviewAttachments(deliverableContent, changedPaths, affectedScenarios, gctResultsJSON, baselineDiffJSON, message)
-
-			titlePreview := message
-			if len(titlePreview) > 50 {
-				titlePreview = titlePreview[:50]
-			}
-
-			result, spawnErr := s.agentService.SpawnBacklog(spawnCtx, agentmanager.BacklogSpawnRequest{
-				Kind:               kind,
-				Name:               name,
-				Title:              "Evidence Request: " + titlePreview,
-				Description:        prompt,
-				Prompt:             prompt,
-				ScopePath:          ".",
-				ProjectRoot:        ".",
-				CreatedBy:          "swarm-manager:review-request",
-				Purpose:            "review",
-				ContextAttachments: reqAttachments,
-				Environment: map[string]string{
-					"VROOLI_SPAWN_SOURCE": "swarm-manager-review-request",
-				},
-			})
-			if spawnErr != nil {
-				if errors.Is(spawnErr, agentactivity.ErrBacklogItemBusy) {
+			if startErr != nil {
+				if errors.Is(startErr, agentactivity.ErrBacklogItemBusy) {
 					slog.Info("evidence request skipped: agent already active", "kind", kind, "name", name, "thread_id", threadID)
 				} else {
-					slog.Error("spawn review agent for evidence request", "error", spawnErr, "thread_id", threadID)
+					slog.Error("start evidence-request operation", "error", startErr, "thread_id", threadID)
 				}
 				return
 			}
 
-			// Update thread with agent RunID.
+			// Stamp the run id on the thread so the request-evidence completion
+			// handler correlates the gathered evidence back to it.
 			r, loadErr := LoadRound(itemDir, roundNum)
 			if loadErr != nil || r == nil {
 				return
 			}
 			for i := range r.RequestThreads {
 				if r.RequestThreads[i].ID == threadID {
-					r.RequestThreads[i].RunID = result.RunID
+					r.RequestThreads[i].RunID = res.RunID
 					break
 				}
 			}
 			_ = SaveRound(itemDir, *r)
-			slog.Info("review evidence request agent spawned", "thread_id", threadID, "run_id", result.RunID)
+			slog.Info("evidence request operation started", "thread_id", threadID, "run_id", res.RunID)
 		}()
 	}
 

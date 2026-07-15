@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "bas.status",
   "name": "Show Browser-Automation-Studio Status",
-  "description": "Report the operational status of Browser Automation Studio — API health, browserless resource state, and indexed workflow count. Use this to verify BAS is up before invoking other bas.* actions, or when triaging 'screenshots aren't working.'",
+  "description": "Report the operational status of Browser Automation Studio — API health and indexed workflow count. Use this to verify BAS is up before invoking other bas.* actions, or when triaging 'screenshots aren't working.'",
   "status": "active",
   "owner": {
     "type": "scenario",
@@ -20,10 +20,6 @@
     "api": {
       "type": "string",
       "description": "JSON object with API.running and API.url."
-    },
-    "browserless": {
-      "type": "string",
-      "description": "JSON object with browserless.status."
     },
     "workflows": {
       "type": "string",

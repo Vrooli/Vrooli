@@ -1,5 +1,5 @@
 {
-  "scenario": "landing-manager",
+  "scenario": "landing-page-react-vite",
   "report_version": 1,
   "generated_at": "2025-11-23T19:34:23.916138987Z",
   "dependencies": [
@@ -243,7 +243,7 @@
     }
   },
   "bundle_manifest": {
-    "scenario": "landing-manager",
+    "scenario": "landing-page-react-vite",
     "generated_at": "2025-11-23T19:34:23.916138987Z",
     "files": [
       {
@@ -257,7 +257,7 @@
         "exists": true
       },
       {
-        "path": "api/landing-manager-api",
+        "path": "api/landing-page-react-vite-api",
         "type": "api-binary",
         "exists": true
       },
@@ -272,7 +272,7 @@
         "exists": true
       },
       {
-        "path": "cli/landing-manager",
+        "path": "cli/landing-page-react-vite",
         "type": "cli-binary",
         "exists": true
       }

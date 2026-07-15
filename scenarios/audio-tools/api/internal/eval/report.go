@@ -54,6 +54,15 @@ type StrategyReport struct {
 	Strategy sttchain.StrategyKind
 	Label    string
 
+	// Provider-neutral cell identity is persisted with each report row. These
+	// fields deliberately name the executed route and evidence lane instead of
+	// deriving them from labels or legacy Whisper-specific strategy names.
+	EngineID      string
+	ModelID       string
+	PolicyProfile string
+	ReplayLane    string
+	FaultProfile  string
+
 	WER        float64
 	EditCounts EditCounts
 	RefWords   int
@@ -220,6 +229,18 @@ type EvalReport struct {
 	Summary             EvalReportSummary
 	Warnings            []ReportWarning
 	NormalizationPolicy NormalizationPolicy
+	PromotionVerdicts   []PromotionVerdict
+}
+
+// PromotionVerdict is separate from strategy ranking: a locally preferred
+// strategy is not necessarily eligible for stable provider promotion.
+type PromotionVerdict struct {
+	EngineID      string
+	ModelID       string
+	Strategy      string
+	PolicyProfile string
+	Stable        bool
+	Reasons       []string
 }
 
 // aggregateStrategy folds per-clip results (and their pooled latency

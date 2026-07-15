@@ -60,6 +60,17 @@ export function ExperimentBuilder({
           <Input data-testid={selectors.dictationStudio.experimentName} value={input.name} onChange={(event) => set("name", event.currentTarget.value)} />
         </label>
 
+        <label className="flex flex-col gap-1 text-xs lg:col-span-2">
+          {t(strings.dictationStudio.enginesLabel)}
+          <Input
+            data-testid={selectors.dictationStudio.experimentEngines}
+            value={input.engineIds.join(",")}
+            onChange={(event) => set("engineIds", event.currentTarget.value.split(",").map((engineId) => engineId.trim()).filter(Boolean))}
+            placeholder={t(strings.dictationStudio.enginesPlaceholder)}
+          />
+          <span className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.enginesHint)}</span>
+        </label>
+
         <fieldset className="flex flex-col gap-2 rounded-control border border-app-border p-3">
           <legend className="px-1 text-xs font-medium">{t(strings.dictationStudio.strategiesLabel)}</legend>
           <div className="flex flex-wrap gap-2">
@@ -228,7 +239,7 @@ export function ExperimentBuilder({
         <Button
           type="button"
           data-testid={selectors.dictationStudio.startExperiment}
-          disabled={pending || input.strategies.length === 0 || (!input.longForm && input.clipIds.length === 0 && !hasSweepDurations(input))}
+          disabled={pending || input.engineIds.length === 0 || input.strategies.length === 0 || (!input.longForm && input.clipIds.length === 0 && !hasSweepDurations(input))}
           onClick={onStart}
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FlaskConical className="h-4 w-4" aria-hidden="true" />}
@@ -237,6 +248,8 @@ export function ExperimentBuilder({
         <span className="text-xs text-app-muted-foreground">
           {!input.longForm && input.clipIds.length === 0 && !hasSweepDurations(input)
             ? t(strings.dictationStudio.startInputRequired)
+            : input.engineIds.length === 0
+              ? t(strings.dictationStudio.enginesRequired)
             : t(strings.dictationStudio.builderSafetyHint)}
         </span>
       </div>

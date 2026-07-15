@@ -52,7 +52,8 @@
     /* Paths */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@vrooli/audio-capture-browser": ["../../../packages/audio-capture-browser/src/index.ts"]
     }
   },
   "include": ["src"],

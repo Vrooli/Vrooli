@@ -1,18 +1,92 @@
 from buf.validate import validate_pb2 as _validate_pb2
 from swarm_manager.v1.domain import settings_pb2 as _settings_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from collections.abc import Mapping as _Mapping
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class SettingsFieldRole(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SETTINGS_FIELD_ROLE_UNSPECIFIED: _ClassVar[SettingsFieldRole]
+    SETTINGS_FIELD_ROLE_USER_PREFERENCE: _ClassVar[SettingsFieldRole]
+    SETTINGS_FIELD_ROLE_POLICY_CONTROL: _ClassVar[SettingsFieldRole]
+    SETTINGS_FIELD_ROLE_GOVERNANCE: _ClassVar[SettingsFieldRole]
+    SETTINGS_FIELD_ROLE_DORMANT: _ClassVar[SettingsFieldRole]
+SETTINGS_FIELD_ROLE_UNSPECIFIED: SettingsFieldRole
+SETTINGS_FIELD_ROLE_USER_PREFERENCE: SettingsFieldRole
+SETTINGS_FIELD_ROLE_POLICY_CONTROL: SettingsFieldRole
+SETTINGS_FIELD_ROLE_GOVERNANCE: SettingsFieldRole
+SETTINGS_FIELD_ROLE_DORMANT: SettingsFieldRole
+
 class SettingsResponse(_message.Message):
-    __slots__ = ("settings",)
+    __slots__ = ("settings", "policy_projection")
     SETTINGS_FIELD_NUMBER: _ClassVar[int]
+    POLICY_PROJECTION_FIELD_NUMBER: _ClassVar[int]
     settings: _settings_pb2.Settings
-    def __init__(self, settings: _Optional[_Union[_settings_pb2.Settings, _Mapping]] = ...) -> None: ...
+    policy_projection: SettingsPolicyProjection
+    def __init__(self, settings: _Optional[_Union[_settings_pb2.Settings, _Mapping]] = ..., policy_projection: _Optional[_Union[SettingsPolicyProjection, _Mapping]] = ...) -> None: ...
+
+class SettingsFieldClassification(_message.Message):
+    __slots__ = ("field", "role", "control", "note")
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    field: str
+    role: SettingsFieldRole
+    control: str
+    note: str
+    def __init__(self, field: _Optional[str] = ..., role: _Optional[_Union[SettingsFieldRole, str]] = ..., control: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
+
+class PolicyControlsView(_message.Message):
+    __slots__ = ("default_mode", "auto_initialize", "auto_advance_enabled", "cascade_enabled", "auto_advance_delay_seconds", "max_auto_rounds", "auto_fixup", "max_fixup_attempts", "review_agent_enabled", "review_code_quality_min_score", "review_test_min_pass_rate", "review_max_blocking_violations", "review_max_warnings", "review_require_screenshots", "review_require_tests", "agent_max_turns", "agent_timeout_seconds")
+    DEFAULT_MODE_FIELD_NUMBER: _ClassVar[int]
+    AUTO_INITIALIZE_FIELD_NUMBER: _ClassVar[int]
+    AUTO_ADVANCE_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    CASCADE_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    AUTO_ADVANCE_DELAY_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    MAX_AUTO_ROUNDS_FIELD_NUMBER: _ClassVar[int]
+    AUTO_FIXUP_FIELD_NUMBER: _ClassVar[int]
+    MAX_FIXUP_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_AGENT_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_CODE_QUALITY_MIN_SCORE_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_TEST_MIN_PASS_RATE_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_MAX_BLOCKING_VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_MAX_WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_REQUIRE_SCREENSHOTS_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_REQUIRE_TESTS_FIELD_NUMBER: _ClassVar[int]
+    AGENT_MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
+    AGENT_TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    default_mode: str
+    auto_initialize: bool
+    auto_advance_enabled: bool
+    cascade_enabled: bool
+    auto_advance_delay_seconds: int
+    max_auto_rounds: int
+    auto_fixup: bool
+    max_fixup_attempts: int
+    review_agent_enabled: bool
+    review_code_quality_min_score: float
+    review_test_min_pass_rate: float
+    review_max_blocking_violations: int
+    review_max_warnings: int
+    review_require_screenshots: bool
+    review_require_tests: bool
+    agent_max_turns: int
+    agent_timeout_seconds: int
+    def __init__(self, default_mode: _Optional[str] = ..., auto_initialize: _Optional[bool] = ..., auto_advance_enabled: _Optional[bool] = ..., cascade_enabled: _Optional[bool] = ..., auto_advance_delay_seconds: _Optional[int] = ..., max_auto_rounds: _Optional[int] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ..., review_agent_enabled: _Optional[bool] = ..., review_code_quality_min_score: _Optional[float] = ..., review_test_min_pass_rate: _Optional[float] = ..., review_max_blocking_violations: _Optional[int] = ..., review_max_warnings: _Optional[int] = ..., review_require_screenshots: _Optional[bool] = ..., review_require_tests: _Optional[bool] = ..., agent_max_turns: _Optional[int] = ..., agent_timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class SettingsPolicyProjection(_message.Message):
+    __slots__ = ("effective_controls", "classifications")
+    EFFECTIVE_CONTROLS_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFICATIONS_FIELD_NUMBER: _ClassVar[int]
+    effective_controls: PolicyControlsView
+    classifications: _containers.RepeatedCompositeFieldContainer[SettingsFieldClassification]
+    def __init__(self, effective_controls: _Optional[_Union[PolicyControlsView, _Mapping]] = ..., classifications: _Optional[_Iterable[_Union[SettingsFieldClassification, _Mapping]]] = ...) -> None: ...
 
 class AutoFilerSettingsPatch(_message.Message):
     __slots__ = ("enabled", "mode", "strategy", "max_open_auto_filed", "velocity_window_days", "min_velocity_transitions", "interval_minutes", "goal_name")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strings"
 
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/catalog"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
@@ -117,9 +118,16 @@ func (h *connectHandler) ValidateTemplate(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	resp := &lifecyclev1.ValidateTemplateResponse{Mode: string(run.Mode), Template: run.TemplateID, Count: 1}
+	resp := &lifecyclev1.ValidateTemplateResponse{
+		Mode:        string(run.Mode),
+		Template:    run.TemplateID,
+		Count:       1,
+		Status:      validationVerdict(run.Status),
+		IssuesCount: int32(len(run.Findings)),
+		Warnings:    retainTempWarnings(req.Msg.Mode, req.Msg.RetainTemp),
+	}
 	for _, finding := range run.Findings {
-		resp.Issues = append(resp.Issues, &lifecyclev1.TemplateValidationIssue{Template: run.TemplateID, Message: finding.Summary})
+		resp.Issues = append(resp.Issues, &lifecyclev1.TemplateValidationIssue{Template: run.TemplateID, Path: finding.Key, Message: finding.Summary})
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -128,10 +136,35 @@ func validationMode(mode string) catalog.ValidationMode {
 	return catalog.ValidationMode(mode)
 }
 
+// validationVerdict maps the persisted run status ("passed"/"failed") onto the
+// stable machine verdict emitted to clients ("pass"/"fail").
+func validationVerdict(status string) string {
+	if status == "passed" {
+		return "pass"
+	}
+	return "fail"
+}
+
+// retainTempWarnings reports the advisory that --retain-temp is a no-op outside
+// deep validation. The deep workspace is the only artifact retain-temp keeps, so
+// passing it with shallow (the default) mode silently does nothing without this.
+func retainTempWarnings(mode string, retainTemp bool) []string {
+	if !retainTemp {
+		return nil
+	}
+	if catalog.ValidationMode(mode) == catalog.ModeDeep {
+		return nil
+	}
+	return []string{"--retain-temp only applies to deep validation; it has no effect in shallow mode"}
+}
+
 func (h *connectHandler) DriftReport(ctx context.Context, req *connect.Request[lifecyclev1.DriftReportRequest]) (*connect.Response[lifecyclev1.DriftReportResponse], error) {
 	engine, err := h.requireEngine()
 	if err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(req.Msg.Scenario) == "" && !req.Msg.All {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("specify a scenario slug to audit one scenario, or pass --all to audit every generated scenario"))
 	}
 	report, err := engine.DriftReport(ctx, templatecontracts.TemplateDriftRequest{Scenario: req.Msg.Scenario, All: req.Msg.All, Verbose: req.Msg.Verbose, JSON: true})
 	if err != nil {
@@ -165,12 +198,24 @@ func (h *connectHandler) CleanupRuns(ctx context.Context, req *connect.Request[l
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&lifecyclev1.CleanupRunsResponse{
+	resp := &lifecyclev1.CleanupRunsResponse{
 		Matched: int32(len(result.Eligible)),
 		Removed: int32(len(result.Removed)),
 		DryRun:  result.DryRun,
 		Message: result.Message,
-	}), nil
+		Skipped: int32(len(result.Skipped)),
+	}
+	for _, skipped := range result.Skipped {
+		entry := &lifecyclev1.CleanupSkippedRun{Path: skipped.Path, Reason: skipped.Reason}
+		if skipped.Run != nil {
+			entry.RunId = skipped.Run.Marker.RunID
+			if entry.Path == "" {
+				entry.Path = skipped.Run.MarkerPath
+			}
+		}
+		resp.SkippedRuns = append(resp.SkippedRuns, entry)
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func (h *connectHandler) ListDesignKits(ctx context.Context, _ *connect.Request[lifecyclev1.ListDesignKitsRequest]) (*connect.Response[lifecyclev1.ListDesignKitsResponse], error) {
@@ -210,11 +255,35 @@ func (h *connectHandler) ValidateDesignKits(ctx context.Context, req *connect.Re
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	resp := &lifecyclev1.ValidateDesignKitsResponse{Count: int32(report.Count)}
+	resp := &lifecyclev1.ValidateDesignKitsResponse{
+		Count:       int32(report.Count),
+		Status:      verdict(len(report.Issues) == 0),
+		IssuesCount: int32(len(report.Issues)),
+	}
 	for _, issue := range report.Issues {
-		resp.Issues = append(resp.Issues, &lifecyclev1.DesignValidationIssue{Kit: issue.Kit, Adapter: issue.Adapter, Path: issue.Path, Message: issue.Message})
+		resp.Issues = append(resp.Issues, designIssueToProto(issue))
+	}
+	for _, result := range report.Results {
+		kitResult := &lifecyclev1.DesignKitValidationResult{Kit: result.Kit, Status: result.Status}
+		for _, issue := range result.Issues {
+			kitResult.Issues = append(kitResult.Issues, designIssueToProto(issue))
+		}
+		resp.Results = append(resp.Results, kitResult)
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// verdict maps a boolean pass state onto the stable "pass"/"fail" verdict string
+// emitted across the validation surfaces.
+func verdict(passed bool) string {
+	if passed {
+		return "pass"
+	}
+	return "fail"
+}
+
+func designIssueToProto(issue templatecontracts.DesignValidationIssue) *lifecyclev1.DesignValidationIssue {
+	return &lifecyclev1.DesignValidationIssue{Kit: issue.Kit, Adapter: issue.Adapter, Path: issue.Path, Message: issue.Message}
 }
 
 func (h *connectHandler) requireEngine() (*templateengine.Engine, error) {

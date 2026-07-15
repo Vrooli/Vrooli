@@ -2,6 +2,7 @@ package domains
 
 import (
 	"swarm-manager/cli/domains/agentmanager"
+	"swarm-manager/cli/domains/agentoperations"
 	"swarm-manager/cli/domains/aisearch"
 	"swarm-manager/cli/domains/autofiler"
 	"swarm-manager/cli/domains/backlog"
@@ -44,6 +45,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		prompts.Register(deps),
 		initiatives.Register(deps),
 		operatingmodecli.Register(deps),
+		agentoperations.Register(deps),
 		captures.Register(deps),
 		records.Register(deps),
 		agentmanager.Register(deps),

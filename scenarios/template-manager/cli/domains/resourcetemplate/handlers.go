@@ -57,11 +57,29 @@ func (h *handlers) validateCall(_ cliapp.OperationContext) (*resourcev1.Validate
 }
 
 func (h *handlers) validateReport(_ cliapp.OperationContext, msg *resourcev1.ValidateResourceTemplatesResponse) cliapp.ListReport {
-	results := make([]string, 0, len(msg.Templates))
-	for _, item := range msg.Templates {
-		results = append(results, fmt.Sprintf("%s driver=%s transitional=%t", item.Name, item.Driver, item.Transitional))
+	results := make([]string, 0, len(msg.Results)+len(msg.Issues))
+	for _, item := range msg.Results {
+		line := fmt.Sprintf("%s [%s] driver=%s transitional=%t", item.Name, item.Status, item.Driver, item.Transitional)
+		for _, issue := range item.Issues {
+			line += "\n    - " + issue
+		}
+		results = append(results, line)
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Validated %d resource template(s).", msg.Count)}, ResultsHeading: "Templates", Results: results}
+	for _, issue := range msg.Issues {
+		results = append(results, "fleet: "+issue)
+	}
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Validated %d resource template(s); status=%s issues=%d.", msg.Count, msg.Status, msg.IssuesCount)},
+		ResultsHeading: "Templates",
+		Results:        results,
+	}
+}
+
+func (h *handlers) validateOutcome(msg *resourcev1.ValidateResourceTemplatesResponse) error {
+	if msg.IssuesCount > 0 {
+		return fmt.Errorf("resource template validation failed")
+	}
+	return nil
 }
 
 func (h *handlers) generateCall(ctx cliapp.OperationContext) (*resourcev1.GenerateResourceTemplateResponse, error) {

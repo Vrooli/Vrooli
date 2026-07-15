@@ -7,60 +7,45 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/config"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
-	. "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
+	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
-func OrientationHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
-	return bindGlobal(deps.Stdout,
-		func(ctx C, args []string) (OrientationRequest, error) {
-			return ParseOrientationRequest(deps.Globals(ctx).JSON, args)
-		},
-		func(ctx C, req OrientationRequest) (cliout.Format, OrientationReport, error) {
-			return runOrientation(deps, ctx, req)
-		},
-		RenderOrientationResponse,
-	)
-}
-
-func runOrientation[C any](deps HandlerDeps[C], ctx C, req OrientationRequest) (cliout.Format, OrientationReport, error) {
-	format := cliout.FormatHuman
-	if req.JSON {
-		format = cliout.FormatJSON
-	}
+func runOrientation[C any](deps HandlerDeps[C], ctx C, req templatecontracts.OrientationRequest) (templatecontracts.OrientationReport, error) {
 	item, err := scenariomodel.Load(deps.Root(ctx), req.Name, scenariomodel.SandboxEnvFromEnv())
 	if err != nil {
-		return "", OrientationReport{}, err
+		return templatecontracts.OrientationReport{}, err
 	}
 	report, manifest, err := evaluateOrientation(deps, ctx, item)
 	if err != nil {
-		return "", OrientationReport{}, err
+		return templatecontracts.OrientationReport{}, err
 	}
 	if !req.Finalize {
-		return format, report, nil
+		return report, nil
 	}
 	if report.Finalized {
-		return format, report, nil
+		return report, nil
 	}
 	if report.Completed < report.Required {
-		return "", OrientationReport{}, fmt.Errorf("orientation is incomplete for %s: %d/%d required steps complete", report.Scenario, report.Completed, report.Required)
+		return templatecontracts.OrientationReport{}, fmt.Errorf("orientation is incomplete for %s: %d/%d required steps complete", report.Scenario, report.Completed, report.Required)
 	}
 	for _, cleanup := range manifest.Finalize.Cleanup {
 		clean, err := cleanScenarioRelativePath(cleanup)
 		if err != nil {
-			return "", OrientationReport{}, fmt.Errorf("invalid orientation cleanup path %q: %w", cleanup, err)
+			return templatecontracts.OrientationReport{}, fmt.Errorf("invalid orientation cleanup path %q: %w", cleanup, err)
 		}
 		if isDurableOrientationCleanupTarget(clean) {
-			return "", OrientationReport{}, fmt.Errorf("refusing to clean durable orientation path %q", cleanup)
+			return templatecontracts.OrientationReport{}, fmt.Errorf("refusing to clean durable orientation path %q", cleanup)
 		}
 		if err := os.RemoveAll(filepath.Join(item.Path, clean)); err != nil {
-			return "", OrientationReport{}, fmt.Errorf("clean orientation path %q: %w", cleanup, err)
+			return templatecontracts.OrientationReport{}, fmt.Errorf("clean orientation path %q: %w", cleanup, err)
 		}
 	}
 	report.Finalized = true
@@ -69,22 +54,22 @@ func runOrientation[C any](deps HandlerDeps[C], ctx C, req OrientationRequest) (
 	if strings.TrimSpace(report.Message) == "" {
 		report.Message = "Initialization complete; use normal scenario lifecycle commands."
 	}
-	return format, report, nil
+	return report, nil
 }
 
-func evaluateOrientation[C any](deps HandlerDeps[C], ctx C, item scenariomodel.Scenario) (OrientationReport, TemplateOrientation, error) {
+func evaluateOrientation[C any](deps HandlerDeps[C], ctx C, item scenariomodel.Scenario) (templatecontracts.OrientationReport, templatecontracts.TemplateOrientation, error) {
 	orientationPath := filepath.Join(item.Path, ".vrooli", "orientation.json")
-	report := OrientationReport{
+	report := templatecontracts.OrientationReport{
 		Scenario:        item.Slug,
 		ScenarioPath:    item.Path,
 		OrientationPath: orientationPath,
 	}
 	if item.Manifest.Generation != nil {
-		report.Template = GenerationTemplate{
+		report.Template = templatecontracts.GenerationTemplate{
 			ID:      item.Manifest.Generation.Template.ID,
 			Version: item.Manifest.Generation.Template.Version,
 		}
-		report.Design = GenerationDesign{
+		report.Design = templatecontracts.GenerationDesign{
 			ID:      item.Manifest.Generation.Design.ID,
 			Version: item.Manifest.Generation.Design.Version,
 			Adapter: item.Manifest.Generation.Design.Adapter,
@@ -95,17 +80,21 @@ func evaluateOrientation[C any](deps HandlerDeps[C], ctx C, item scenariomodel.S
 		if os.IsNotExist(err) {
 			report.Finalized = true
 			report.Message = "No orientation metadata found. Orientation has either been finalized or this scenario was not generated from an orientation-enabled template."
-			return report, TemplateOrientation{}, nil
+			return report, templatecontracts.TemplateOrientation{}, nil
 		}
-		return report, TemplateOrientation{}, err
+		return report, templatecontracts.TemplateOrientation{}, err
 	}
-	var manifest TemplateOrientation
+	var manifest templatecontracts.TemplateOrientation
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return report, TemplateOrientation{}, fmt.Errorf("parse orientation manifest: %w", err)
+		return report, templatecontracts.TemplateOrientation{}, fmt.Errorf("parse orientation manifest: %w", err)
 	}
 	report.StartDocument = strings.TrimSpace(manifest.StartDocument)
+	ev := orientationEval{
+		scenarioRoot:       item.Path,
+		templateSourceRoot: resolveTemplateSourceRoot(deps.Root(ctx), item),
+	}
 	for _, step := range manifest.Steps {
-		stepReport := evaluateOrientationStep(deps, ctx, item.Path, step)
+		stepReport := evaluateOrientationStep(deps, ctx, ev, step)
 		report.Steps = append(report.Steps, stepReport)
 		if !stepReport.Required {
 			continue
@@ -125,8 +114,8 @@ func evaluateOrientation[C any](deps HandlerDeps[C], ctx C, item scenariomodel.S
 	return report, manifest, nil
 }
 
-func evaluateOrientationStep[C any](deps HandlerDeps[C], ctx C, scenarioRoot string, step TemplateOrientationStep) OrientationStepReport {
-	report := OrientationStepReport{
+func evaluateOrientationStep[C any](deps HandlerDeps[C], ctx C, ev orientationEval, step templatecontracts.TemplateOrientationStep) templatecontracts.OrientationStepReport {
+	report := templatecontracts.OrientationStepReport{
 		ID:          step.ID,
 		Title:       step.Title,
 		Description: step.Description,
@@ -138,8 +127,11 @@ func evaluateOrientationStep[C any](deps HandlerDeps[C], ctx C, scenarioRoot str
 		report.Complete = false
 		return report
 	}
-	for _, check := range step.Checks {
-		checkReport := evaluateOrientationCheck(deps, ctx, scenarioRoot, check)
+	// Declared checks first, then engine-derived content-quality companions so
+	// green orientation certifies real adaptation work, not just shipped files.
+	checks := append(append([]templatecontracts.TemplateOrientationCheck(nil), step.Checks...), deriveContentAdaptedChecks(step.Checks, ev)...)
+	for _, check := range checks {
+		checkReport := evaluateOrientationCheck(deps, ctx, ev, check)
 		report.Checks = append(report.Checks, checkReport)
 		if !checkReport.Passed && !checkReport.Optional {
 			report.Complete = false
@@ -148,8 +140,8 @@ func evaluateOrientationStep[C any](deps HandlerDeps[C], ctx C, scenarioRoot str
 	return report
 }
 
-func evaluateOrientationCheck[C any](deps HandlerDeps[C], ctx C, scenarioRoot string, check TemplateOrientationCheck) OrientationCheckReport {
-	report := OrientationCheckReport{
+func evaluateOrientationCheck[C any](deps HandlerDeps[C], ctx C, ev orientationEval, check templatecontracts.TemplateOrientationCheck) templatecontracts.OrientationCheckReport {
+	report := templatecontracts.OrientationCheckReport{
 		Kind:     check.Kind,
 		Label:    orientationCheckLabel(check),
 		Optional: check.Optional,
@@ -159,7 +151,7 @@ func evaluateOrientationCheck[C any](deps HandlerDeps[C], ctx C, scenarioRoot st
 		if err != nil {
 			return "", err
 		}
-		return filepath.Join(scenarioRoot, clean), nil
+		return filepath.Join(ev.scenarioRoot, clean), nil
 	}
 	switch check.Kind {
 	case "file_exists":
@@ -175,13 +167,15 @@ func evaluateOrientationCheck[C any](deps HandlerDeps[C], ctx C, scenarioRoot st
 	case "text_contains", "text_absent":
 		evaluateOrientationTextCondition(&report, check, resolve)
 	case "text_absent_tree":
-		evaluateOrientationTextAbsentTree(&report, check, scenarioRoot)
+		evaluateOrientationTextAbsentTree(&report, check, ev.scenarioRoot)
 	case "json_path_exists":
 		evaluateOrientationJSONPathExists(&report, check, resolve)
 	case "json_min_entries":
 		evaluateOrientationJSONMinEntries(&report, check, resolve)
+	case "content_adapted":
+		evaluateOrientationContentAdapted(&report, ev, check)
 	case "command":
-		evaluateOrientationCommand(&report, deps, ctx, scenarioRoot, check)
+		evaluateOrientationCommand(&report, deps, ctx, ev.scenarioRoot, check)
 	default:
 		report.Message = "unknown check kind"
 	}
@@ -190,7 +184,7 @@ func evaluateOrientationCheck[C any](deps HandlerDeps[C], ctx C, scenarioRoot st
 
 type orientationPathResolver func(string) (string, error)
 
-func evaluateOrientationFileExists(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+func evaluateOrientationFileExists(report *templatecontracts.OrientationCheckReport, check templatecontracts.TemplateOrientationCheck, resolve orientationPathResolver) {
 	path, err := resolve(check.Path)
 	if err != nil {
 		report.Message = err.Error()
@@ -203,7 +197,7 @@ func evaluateOrientationFileExists(report *OrientationCheckReport, check Templat
 	}
 }
 
-func evaluateOrientationFileAbsent(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+func evaluateOrientationFileAbsent(report *templatecontracts.OrientationCheckReport, check templatecontracts.TemplateOrientationCheck, resolve orientationPathResolver) {
 	path, err := resolve(check.Path)
 	if err != nil {
 		report.Message = err.Error()
@@ -216,7 +210,7 @@ func evaluateOrientationFileAbsent(report *OrientationCheckReport, check Templat
 	}
 }
 
-func evaluateOrientationDirectoryExists(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+func evaluateOrientationDirectoryExists(report *templatecontracts.OrientationCheckReport, check templatecontracts.TemplateOrientationCheck, resolve orientationPathResolver) {
 	path, err := resolve(check.Path)
 	if err != nil {
 		report.Message = err.Error()
@@ -229,7 +223,7 @@ func evaluateOrientationDirectoryExists(report *OrientationCheckReport, check Te
 	}
 }
 
-func evaluateOrientationGlobPresence(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+func evaluateOrientationGlobPresence(report *templatecontracts.OrientationCheckReport, check templatecontracts.TemplateOrientationCheck, resolve orientationPathResolver) {
 	matches, err := orientationGlobMatches(check.Pattern, resolve)
 	if err != nil {
 		report.Message = err.Error()
@@ -244,7 +238,7 @@ func evaluateOrientationGlobPresence(report *OrientationCheckReport, check Templ
 	}
 }
 
-func evaluateOrientationGlobMinCount(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+func evaluateOrientationGlobMinCount(report *templatecontracts.OrientationCheckReport, check templatecontracts.TemplateOrientationCheck, resolve orientationPathResolver) {
 	matches, err := orientationGlobMatches(check.Pattern, resolve)
 	if err != nil {
 		report.Message = err.Error()
@@ -264,7 +258,7 @@ func orientationGlobMatches(pattern string, resolve orientationPathResolver) ([]
 	return filepath.Glob(resolved)
 }
 
-func evaluateOrientationTextCondition(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+func evaluateOrientationTextCondition(report *templatecontracts.OrientationCheckReport, check templatecontracts.TemplateOrientationCheck, resolve orientationPathResolver) {
 	path, err := resolve(check.Path)
 	if err != nil {
 		report.Message = err.Error()
@@ -285,7 +279,7 @@ func evaluateOrientationTextCondition(report *OrientationCheckReport, check Temp
 	}
 }
 
-func evaluateOrientationTextAbsentTree(report *OrientationCheckReport, check TemplateOrientationCheck, scenarioRoot string) {
+func evaluateOrientationTextAbsentTree(report *templatecontracts.OrientationCheckReport, check templatecontracts.TemplateOrientationCheck, scenarioRoot string) {
 	hits, err := scanTreeForText(scenarioRoot, check.Text)
 	if err != nil {
 		report.Message = err.Error()
@@ -303,7 +297,7 @@ func evaluateOrientationTextAbsentTree(report *OrientationCheckReport, check Tem
 		check.Text, len(hits), strings.Join(shown, ", "), filepath.Base(scenarioRoot))
 }
 
-func evaluateOrientationJSONPathExists(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+func evaluateOrientationJSONPathExists(report *templatecontracts.OrientationCheckReport, check templatecontracts.TemplateOrientationCheck, resolve orientationPathResolver) {
 	value, ok, err := orientationResolvedJSONPathValue(check, resolve)
 	if err != nil {
 		report.Message = err.Error()
@@ -315,7 +309,7 @@ func evaluateOrientationJSONPathExists(report *OrientationCheckReport, check Tem
 	}
 }
 
-func evaluateOrientationJSONMinEntries(report *OrientationCheckReport, check TemplateOrientationCheck, resolve orientationPathResolver) {
+func evaluateOrientationJSONMinEntries(report *templatecontracts.OrientationCheckReport, check templatecontracts.TemplateOrientationCheck, resolve orientationPathResolver) {
 	value, ok, err := orientationResolvedJSONPathValue(check, resolve)
 	if err != nil {
 		report.Message = err.Error()
@@ -332,7 +326,7 @@ func evaluateOrientationJSONMinEntries(report *OrientationCheckReport, check Tem
 	}
 }
 
-func orientationResolvedJSONPathValue(check TemplateOrientationCheck, resolve orientationPathResolver) (any, bool, error) {
+func orientationResolvedJSONPathValue(check templatecontracts.TemplateOrientationCheck, resolve orientationPathResolver) (any, bool, error) {
 	path, err := resolve(check.Path)
 	if err != nil {
 		return nil, false, err
@@ -347,7 +341,7 @@ func orientationJSONMinEntriesMessage(ok bool, count, minCount int) string {
 	return fmt.Sprintf("JSON path has %d entrie(s), need at least %d", count, minCount)
 }
 
-func evaluateOrientationCommand[C any](report *OrientationCheckReport, deps HandlerDeps[C], ctx C, scenarioRoot string, check TemplateOrientationCheck) {
+func evaluateOrientationCommand[C any](report *templatecontracts.OrientationCheckReport, deps HandlerDeps[C], ctx C, scenarioRoot string, check templatecontracts.TemplateOrientationCheck) {
 	timeout, err := time.ParseDuration(check.Timeout)
 	if err != nil {
 		report.Message = "invalid timeout: " + err.Error()
@@ -383,7 +377,7 @@ func orientationCommandFailureMessage(ctx context.Context, timeout, stdout, stde
 	return truncateForIssue(msg, 240)
 }
 
-func orientationCheckLabel(check TemplateOrientationCheck) string {
+func orientationCheckLabel(check templatecontracts.TemplateOrientationCheck) string {
 	switch check.Kind {
 	case "file_exists", "file_absent", "directory_exists":
 		return check.Path
@@ -399,6 +393,8 @@ func orientationCheckLabel(check TemplateOrientationCheck) string {
 		return check.Path
 	case "text_absent_tree":
 		return check.Text
+	case "content_adapted":
+		return check.Path + " (adapted from template)"
 	case "command":
 		return check.Run
 	default:
@@ -448,4 +444,220 @@ func orientationJSONEntryCount(value any) (int, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// orientationEval carries the per-scenario evaluation context. templateSourceRoot
+// is the on-disk source directory of the scenario's originating template (empty
+// when the scenario was not generated from a discoverable template), which lets
+// content-quality checks measure divergence from the template scaffold.
+type orientationEval struct {
+	scenarioRoot       string
+	templateSourceRoot string
+}
+
+// resolveTemplateSourceRoot maps a generated scenario back to its template source
+// directory using the recorded generation manifest. Returns "" when the scenario
+// has no generation metadata or the template is no longer present.
+func resolveTemplateSourceRoot(root string, item scenariomodel.Scenario) string {
+	if item.Manifest.Generation == nil {
+		return ""
+	}
+	id := strings.TrimSpace(item.Manifest.Generation.Template.ID)
+	if id == "" {
+		return ""
+	}
+	candidate := filepath.Join(config.TemplateBaseDir(root), id)
+	if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+		return candidate
+	}
+	return ""
+}
+
+// deriveContentAdaptedChecks upgrades the meaning of declared placeholder-removal
+// gates: for every declared text_absent check whose target file the template also
+// ships, the engine adds a content_adapted companion. A text_absent marker means
+// "the template ships replaceable placeholder text here", so the engine also
+// requires the file to carry materially adapted content — closing the loophole
+// where deleting the marker line alone flips the gate green. This makes react-vite
+// (and any template) content-aware without editing template.json. Derivation is
+// skipped entirely when the template source is unavailable, and never duplicates a
+// content_adapted check the template already declares for the same path.
+func deriveContentAdaptedChecks(checks []templatecontracts.TemplateOrientationCheck, ev orientationEval) []templatecontracts.TemplateOrientationCheck {
+	if ev.templateSourceRoot == "" {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	for _, check := range checks {
+		if check.Kind != "content_adapted" {
+			continue
+		}
+		if clean, err := cleanScenarioRelativePath(check.Path); err == nil {
+			seen[clean] = struct{}{}
+		}
+	}
+	var derived []templatecontracts.TemplateOrientationCheck
+	for _, check := range checks {
+		if check.Kind != "text_absent" {
+			continue
+		}
+		clean, err := cleanScenarioRelativePath(check.Path)
+		if err != nil {
+			continue
+		}
+		if _, ok := seen[clean]; ok {
+			continue
+		}
+		if !orientationRegularFileExists(filepath.Join(ev.templateSourceRoot, clean)) {
+			continue
+		}
+		seen[clean] = struct{}{}
+		derived = append(derived, templatecontracts.TemplateOrientationCheck{Kind: "content_adapted", Path: check.Path})
+	}
+	return derived
+}
+
+func evaluateOrientationContentAdapted(report *templatecontracts.OrientationCheckReport, ev orientationEval, check templatecontracts.TemplateOrientationCheck) {
+	clean, err := cleanScenarioRelativePath(check.Path)
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	if ev.templateSourceRoot == "" {
+		report.Passed = true
+		report.Skipped = true
+		report.Message = "no generation template recorded; content adaptation not evaluated"
+		return
+	}
+	templateFile := filepath.Join(ev.templateSourceRoot, clean)
+	if !orientationRegularFileExists(templateFile) {
+		report.Passed = true
+		report.Skipped = true
+		report.Message = "template does not ship this file; content adaptation not evaluated"
+		return
+	}
+	netNew, err := templateNetNewContentLines(templateFile, filepath.Join(ev.scenarioRoot, clean))
+	if err != nil {
+		report.Message = err.Error()
+		return
+	}
+	threshold := contentAdaptedThreshold(clean, check.MinCount)
+	report.Passed = netNew >= threshold
+	if !report.Passed {
+		report.Message = fmt.Sprintf("only %d line(s) of scenario-specific content beyond the template scaffold; need at least %d — replace the generated boilerplate with real content", netNew, threshold)
+	}
+}
+
+// contentAdaptedThreshold returns the minimum number of scenario-specific content
+// lines required. JSON registries legitimately keep most structural scaffolding
+// and are oriented by re-pointing a small number of values, so they require only
+// one adapted line; prose/markdown files are meant to be rewritten and require
+// more. A template-declared minCount override always wins.
+func contentAdaptedThreshold(relPath string, override int) int {
+	if override > 0 {
+		return override
+	}
+	if strings.EqualFold(filepath.Ext(relPath), ".json") {
+		return 1
+	}
+	return 3
+}
+
+func orientationRegularFileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+var orientationPlaceholderPattern = regexp.MustCompile(`\{\{[^}]*\}\}`)
+
+type templateLineMatcher struct {
+	exact    string
+	segments []string
+}
+
+// templateNetNewContentLines counts scenario content lines that are NOT derived
+// from the template source. Matching is placeholder-aware: a scenario line is
+// template-derived when it exactly equals a plain template line, or contains a
+// placeholder template line's literal segments in order, so generator variable
+// substitution never registers as adaptation. A missing scenario file yields 0.
+func templateNetNewContentLines(templateFile, scenarioFile string) (int, error) {
+	templateData, err := os.ReadFile(templateFile)
+	if err != nil {
+		return 0, err
+	}
+	scenarioData, err := os.ReadFile(scenarioFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	matchers := buildTemplateLineMatchers(string(templateData))
+	netNew := 0
+	for _, raw := range strings.Split(string(scenarioData), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
+		}
+		if !templateLineMatches(line, matchers) {
+			netNew++
+		}
+	}
+	return netNew, nil
+}
+
+func buildTemplateLineMatchers(content string) []templateLineMatcher {
+	var matchers []templateLineMatcher
+	for _, raw := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
+		}
+		if strings.Contains(line, "{{") {
+			segments := placeholderLiteralSegments(line)
+			// Pure-placeholder lines (no literal anchor) are dropped so they
+			// never wildcard-match unrelated scenario content.
+			if len(segments) == 0 {
+				continue
+			}
+			matchers = append(matchers, templateLineMatcher{segments: segments})
+			continue
+		}
+		matchers = append(matchers, templateLineMatcher{exact: line})
+	}
+	return matchers
+}
+
+func placeholderLiteralSegments(line string) []string {
+	var segments []string
+	for _, part := range orientationPlaceholderPattern.Split(line, -1) {
+		if part != "" {
+			segments = append(segments, part)
+		}
+	}
+	return segments
+}
+
+func templateLineMatches(line string, matchers []templateLineMatcher) bool {
+	for _, matcher := range matchers {
+		if len(matcher.segments) == 0 {
+			if line == matcher.exact {
+				return true
+			}
+			continue
+		}
+		idx := 0
+		matched := true
+		for _, segment := range matcher.segments {
+			offset := strings.Index(line[idx:], segment)
+			if offset < 0 {
+				matched = false
+				break
+			}
+			idx += offset + len(segment)
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
 }

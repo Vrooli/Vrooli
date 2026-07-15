@@ -13,9 +13,9 @@ import (
 )
 
 func TestVectorStore_DefaultCollectionRequiresResolvedVectorSize(t *testing.T) {
-	// Empty collection still means DefaultCollectionName, but vector dimensions
-	// must be resolved from Ollama policy by startup wiring before this store is
-	// constructed.
+	// Empty collection still means the variant-aware defaultCollection(), but
+	// vector dimensions must be resolved from Ollama policy by startup wiring
+	// before this store is constructed.
 	var observedPath string
 	var createBody createCollectionRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -36,8 +36,9 @@ func TestVectorStore_DefaultCollectionRequiresResolvedVectorSize(t *testing.T) {
 	if err := vs.EnsureCollection(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.HasSuffix(observedPath, "/collections/"+DefaultCollectionName) {
-		t.Errorf("expected default collection %q in path, got %q", DefaultCollectionName, observedPath)
+	wantCollection := defaultCollection()
+	if !strings.HasSuffix(observedPath, "/collections/"+wantCollection) {
+		t.Errorf("expected default collection %q in path, got %q", wantCollection, observedPath)
 	}
 	if createBody.Vectors.Size != 3 {
 		t.Errorf("expected resolved vector size 3 on the wire, got %d", createBody.Vectors.Size)

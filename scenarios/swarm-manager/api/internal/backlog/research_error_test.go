@@ -99,7 +99,10 @@ func TestResearch_AgentUnavailable(t *testing.T) {
 }
 
 func TestResearch_AgentError(t *testing.T) {
-	h, rootDir := setupTestHandlerWithAgent(t, &mockAgentErrorService{err: errors.New("boom")})
+	// A runner is wired, but the live phase-start seam fails. A non-typed start
+	// error maps to invokeInternal -> 500, matching the legacy spawn-error contract.
+	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-err")
+	phase.err = errors.New("boom")
 
 	item := BacklogItem{
 		Name:        "idea-3",
@@ -120,6 +123,6 @@ func TestResearch_AgentError(t *testing.T) {
 
 	h.Research(w, req)
 	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d", w.Code)
+		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
 	}
 }

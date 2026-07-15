@@ -49,6 +49,15 @@ vrooli resource install codex
 resource-codex status
 ```
 
+## Coding-role policy
+
+Codex owns its concrete coding-role inventory in `model-policy.json`. Use
+`resource-codex policy validate`, `policy roles --json`, and `policy resolve
+--role code.default --json` to inspect it. The response records the concrete
+model, fallbacks, policy provenance, and the intentionally `intent_only`
+permission posture; Agent Manager consumes that response at run creation but
+does not duplicate the inventory or write Codex configuration.
+
 ## Permissions
 
 Manage Codex bash-command patterns via the `permissions` subgroup. The adapter owns a Vrooli-namespaced `[vrooli.permissions]` section in `~/.codex/config.toml` (user scope) or `~/.codex/requirements.toml` (admin scope). All other Codex-native settings (`[profiles.*]`, `sandbox_mode`, `approval_policy`, …) round-trip untouched.

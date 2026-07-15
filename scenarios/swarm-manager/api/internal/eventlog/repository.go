@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // Repository defines the append-only event log storage interface.
@@ -21,18 +23,25 @@ type Repository interface {
 }
 
 // SQLiteRepository implements Repository backed by a SQLite database.
+//
+// It holds a *database.RoutedDB rather than a raw *sql.DB so that, under a
+// test-genie in-place e2e run, every query routes to the installed test pool
+// instead of the live event log. RoutedDB's method surface mirrors *sql.DB, so
+// the query bodies below are unchanged.
 type SQLiteRepository struct {
-	db *sql.DB
+	db *database.RoutedDB
 }
 
-// NewSQLiteRepository creates a repository using the given database connection.
-func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
+// NewSQLiteRepository creates a repository using the given routed database
+// handle. Callers outside the lifecycle (tests) wrap a raw *sql.DB with
+// database.NewFromPrimary.
+func NewSQLiteRepository(db *database.RoutedDB) *SQLiteRepository {
 	return &SQLiteRepository{db: db}
 }
 
-// InitSchema creates the events table and indexes if they don't exist.
-func (r *SQLiteRepository) InitSchema(ctx context.Context) error {
-	_, err := r.db.ExecContext(ctx, `
+// schemaSQL is the declarative event-log schema. It is the single source of
+// truth applied both at boot (via database.EnsureSchemas) and by InitSchema.
+const schemaSQL = `
 		CREATE TABLE IF NOT EXISTS events (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			timestamp TEXT NOT NULL,
@@ -45,7 +54,14 @@ func (r *SQLiteRepository) InitSchema(ctx context.Context) error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_events_entity ON events(entity_type, entity_id);
 		CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
-	`)
+	`
+
+// Schema returns the declarative event-log schema for database.EnsureSchemas.
+func Schema() string { return schemaSQL }
+
+// InitSchema creates the events table and indexes if they don't exist.
+func (r *SQLiteRepository) InitSchema(ctx context.Context) error {
+	_, err := r.db.ExecContext(ctx, schemaSQL)
 	return err
 }
 

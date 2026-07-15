@@ -167,6 +167,29 @@ it("renders", () => {
 	}
 }
 
+func TestAnalyzeTSArchitectureProjectionAllowsDocumentedProviderFreeException(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	writeFile(t, filepath.Join(root, "src", "ThemeProvider.test.tsx"), `
+import { render, screen } from "@testing-library/react";
+import { ThemeProvider } from "./ThemeProvider";
+
+// provider-free-exception: this test mounts ThemeProvider itself; the canonical
+// wrapper would double-provide and fight over documentElement.
+it("provides", () => {
+  render(<ThemeProvider>x</ThemeProvider>);
+  expect(screen.getByText("x")).toBeInTheDocument();
+});
+`)
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	for _, f := range findings {
+		if f.Code == codeUnitProjectionDrift && strings.Contains(f.Observed, "direct Testing Library render") {
+			t.Fatalf("documented provider-free exception should not be flagged: %+v", findings)
+		}
+	}
+}
+
 func TestAnalyzeTSArchitectureProjectionAllowsRenderWithProviders(t *testing.T) {
 	root := t.TempDir()
 	writeCanonicalUIProjection(t, root)

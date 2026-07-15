@@ -39,6 +39,37 @@ func (s *stubAgentService) SpawnBacklog(_ context.Context, _ agentmanager.Backlo
 	return agentmanager.RunResult{TaskID: "task-1", RunID: "run-1"}, nil
 }
 
+// stubOperationStarter fakes the operation runner seam for plan-backed execution
+// starts. It records the request and returns a live run association; the default
+// (zero-value result) yields run-1/wf-1/opx-1 so downstream RunID assertions and
+// the cancel-by-run-id path work exactly as the legacy spawn did.
+type stubOperationStarter struct {
+	calls       int
+	req         OperationStartRequest
+	err         error
+	result      OperationStartResult
+	cancelCalls int
+	cancelReq   OperationCancelRequest
+}
+
+func (s *stubOperationStarter) StartOperation(_ context.Context, req OperationStartRequest) (OperationStartResult, error) {
+	s.calls++
+	s.req = req
+	if s.err != nil {
+		return OperationStartResult{}, s.err
+	}
+	if (s.result == OperationStartResult{}) {
+		return OperationStartResult{RunID: "run-1", WorkflowID: "wf-1", ExecutionID: "opx-1"}, nil
+	}
+	return s.result, nil
+}
+
+func (s *stubOperationStarter) CancelOperation(_ context.Context, req OperationCancelRequest) error {
+	s.cancelCalls++
+	s.cancelReq = req
+	return nil
+}
+
 type snapshotAgentService struct {
 	stubAgentService
 	runStateCalls int
@@ -110,6 +141,8 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
+	starter := &stubOperationStarter{}
+	service.SetOperationStarter(starter)
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "idea",
@@ -142,42 +175,34 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if started.QueuedAt != queuedAt {
 		t.Fatalf("expected QueuedAt preserved through start: got %q want %q", started.QueuedAt, queuedAt)
 	}
-	if started.TaskID != "task-1" || started.RunID != "run-1" {
-		t.Fatalf("expected task/run IDs set, got task=%s run=%s", started.TaskID, started.RunID)
+	// A plan-backed item starts as an execution-run operation: the record tracks
+	// the agent run id the operation returned plus the durable operation-execution
+	// correlation ids, and the legacy direct spawn is not used.
+	if started.RunID != "run-1" {
+		t.Fatalf("expected run id from operation start, got %q", started.RunID)
 	}
-	if started.PromptTrace == nil {
-		t.Fatal("expected prompt trace to be captured")
+	if started.OpWorkflowID != "wf-1" || started.OpExecutionID != "opx-1" {
+		t.Fatalf("expected operation-execution refs on record, got workflow=%q execution=%q", started.OpWorkflowID, started.OpExecutionID)
 	}
-	if started.PromptTrace.Purpose != "process" {
-		t.Fatalf("expected purpose 'process', got %q", started.PromptTrace.Purpose)
+	if agent.spawnCalls != 0 {
+		t.Fatalf("expected no direct spawn for a plan-backed item, got %d", agent.spawnCalls)
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "<execution-context>") {
-		t.Fatal("expected prompt to contain <execution-context> tag")
+	if starter.calls != 1 {
+		t.Fatalf("expected 1 operation start, got %d", starter.calls)
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "<implementation-plan path=\"plan-manager:test-plan-test-idea\">") {
-		t.Fatal("expected prompt to contain implementation plan tag")
+	if starter.req.Operation != "execution-run" || starter.req.TargetKind != "plan-execution" {
+		t.Fatalf("expected execution-run against plan-execution, got op=%q target=%q", starter.req.Operation, starter.req.TargetKind)
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "Test plan content.") {
-		t.Fatal("expected prompt to contain rendered plan content")
-	}
-	if !strings.Contains(started.PromptTrace.Prompt, "<idea-handoff>") {
-		t.Fatal("expected prompt to contain idea handoff metadata")
-	}
-	for _, handoffFile := range []string{
-		filepath.Join(root, "ideas", "test-idea", "handoff", "brief.md"),
-		filepath.Join(root, "ideas", "test-idea", "handoff", "manifest.json"),
-		filepath.Join(root, "ideas", "test-idea", "handoff", "source-index.json"),
-	} {
-		if _, err := os.Stat(handoffFile); err != nil {
-			t.Fatalf("expected handoff file %s to exist: %v", handoffFile, err)
-		}
-	}
-	if agent.spawnCalls != 1 {
-		t.Fatalf("expected 1 spawn call, got %d", agent.spawnCalls)
+	if starter.req.TargetID != "test-plan-test-idea" {
+		t.Fatalf("expected plan handle from the item plan_ref, got %q", starter.req.TargetID)
 	}
 }
 
-func TestQueueAndStartManualExecution_ResearchUsesConclusionDeliverable(t *testing.T) {
+// TestQueueAndStartManualExecution_ResearchRoutesToConcludeOperation proves a
+// plan-less research item's primary execution starts the research-conclude
+// operation against its backlog-item target (the mode owns the prompt), instead
+// of the legacy direct spawn.
+func TestQueueAndStartManualExecution_ResearchRoutesToConcludeOperation(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "research", "test-research", map[string]any{
 		"name":        "test-research",
@@ -197,6 +222,8 @@ func TestQueueAndStartManualExecution_ResearchUsesConclusionDeliverable(t *testi
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
+	starter := &stubOperationStarter{result: OperationStartResult{RunID: "run-c", WorkflowID: "wf-c", ExecutionID: "opx-c"}}
+	service.SetOperationStarter(starter)
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "research",
@@ -211,14 +238,20 @@ func TestQueueAndStartManualExecution_ResearchUsesConclusionDeliverable(t *testi
 	if err != nil {
 		t.Fatalf("Start error: %v", err)
 	}
-	if started.PromptTrace == nil {
-		t.Fatal("expected prompt trace to be captured")
+	if starter.calls != 1 {
+		t.Fatalf("expected 1 operation start, got %d", starter.calls)
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "<research-conclusion path=\"conclusion.md\">") {
-		t.Fatal("expected prompt to contain research conclusion tag")
+	if starter.req.Operation != operationResearchConclude {
+		t.Fatalf("expected research-conclude operation, got %q", starter.req.Operation)
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "Manually created conclusion for testing") {
-		t.Fatal("expected prompt to contain conclusion.md content")
+	if starter.req.TargetKind != targetKindBacklogItem || starter.req.TargetID != "research/test-research" {
+		t.Fatalf("expected backlog-item target research/test-research, got %s/%s", starter.req.TargetKind, starter.req.TargetID)
+	}
+	if started.Status != StatusStarting || started.RunID != "run-c" || started.OpExecutionID != "opx-c" {
+		t.Fatalf("expected starting record with run/op ids, got status=%s run=%s op=%s", started.Status, started.RunID, started.OpExecutionID)
+	}
+	if agent.spawnCalls != 0 {
+		t.Fatalf("expected 0 direct agent spawns, got %d", agent.spawnCalls)
 	}
 }
 
@@ -618,6 +651,8 @@ func TestCancel_StartingExecution(t *testing.T) {
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
 	service.stopper = stopper
+	starter := &stubOperationStarter{}
+	service.SetOperationStarter(starter)
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "idea",
@@ -645,6 +680,63 @@ func TestCancel_StartingExecution(t *testing.T) {
 	if stopper.stopCalls != 1 {
 		t.Fatalf("expected 1 StopRun call, got %d", stopper.stopCalls)
 	}
+	// The operation execution is reaped so its durable workflow record does not
+	// linger running after the agent run was stopped.
+	if starter.cancelCalls != 1 {
+		t.Fatalf("expected 1 operation reap on cancel, got %d", starter.cancelCalls)
+	}
+	if starter.cancelReq.ExecutionID != "opx-1" {
+		t.Fatalf("expected reap of the started operation execution, got %q", starter.cancelReq.ExecutionID)
+	}
+}
+
+func TestStart_EmptyRunIDFailsCleanlyAndReaps(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "norunid-item", map[string]any{
+		"name": "norunid-item", "title": "No Run", "description": "d",
+		"status": "backlog", "priority": 3, "tags": []string{},
+	})
+	mustWriteDeliverableFile(t, root, "idea", "norunid-item")
+
+	agent := &stubAgentService{}
+	service := NewService(ServiceConfig{
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
+		AgentService: agent,
+		PromptClient: &promptmanager.MockClient{Result: "p"},
+	})
+	// A start that returns no run id (e.g. agent-manager degraded) must fail
+	// cleanly, not strand the record in "starting".
+	starter := &stubOperationStarter{result: OperationStartResult{WorkflowID: "wf", ExecutionID: "opx"}}
+	service.SetOperationStarter(starter)
+
+	rec, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "idea", BacklogName: "norunid-item", Mode: ModeManual})
+	if err != nil {
+		t.Fatalf("queue: %v", err)
+	}
+	if _, startErr := service.Start(context.Background(), rec.ExecutionID); startErr == nil {
+		t.Fatal("expected a start error when the operation returns no run id")
+	}
+	records, err := service.store.Load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	var got *Record
+	for i := range records {
+		if records[i].ExecutionID == rec.ExecutionID {
+			got = &records[i]
+		}
+	}
+	if got == nil {
+		t.Fatal("record disappeared")
+	}
+	if got.Status != StatusPending {
+		t.Fatalf("record must stay pending/retryable, got %s", got.Status)
+	}
+	if starter.cancelCalls != 1 {
+		t.Fatalf("expected the dangling operation to be reaped, got %d", starter.cancelCalls)
+	}
 }
 
 func TestCancel_NeedsReviewExecution(t *testing.T) {
@@ -669,6 +761,7 @@ func TestCancel_NeedsReviewExecution(t *testing.T) {
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
 	service.stopper = stopper
+	service.SetOperationStarter(&stubOperationStarter{})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "idea",

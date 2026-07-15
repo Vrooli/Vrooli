@@ -2,11 +2,8 @@ package templatecontracts
 
 import (
 	"fmt"
-	"io"
 	"regexp"
 	"strings"
-
-	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 // Detemplate removes a template's illustrative example domain (the `notes`
@@ -185,61 +182,4 @@ func (e *DetemplateDanglingRefError) Error() string {
 	}
 	return fmt.Sprintf("refusing to detemplate: %d non-example file(s) still reference the %q example domain after marker removal:\n  %s",
 		len(e.References), e.Marker, strings.Join(refs, "\n  "))
-}
-
-// RenderDetemplateResponse renders a DetemplateResult as human text or the
-// proto-typed JSON wire contract.
-func RenderDetemplateResponse(w io.Writer, format cliout.Format, result DetemplateResult) error {
-	if format == cliout.FormatJSON {
-		return writeScenarioDetemplateJSON(w, result)
-	}
-	prefix := ""
-	if result.DryRun {
-		prefix = "[DRY-RUN] "
-	}
-	verb := "Removed"
-	if result.DryRun {
-		verb = "Would remove"
-	}
-	_, _ = fmt.Fprintf(w, "%s%s the %q example domain from %s\n", prefix, verb, result.Marker, result.Scenario)
-	_, _ = fmt.Fprintf(w, "  doc blocks stripped: %d\n", result.BlocksRemoved)
-	_, _ = fmt.Fprintf(w, "  registration lines stripped: %d\n", result.LinesStripped)
-	if len(result.FilesEdited) > 0 {
-		_, _ = fmt.Fprintln(w, "  files edited:")
-		for _, f := range result.FilesEdited {
-			_, _ = fmt.Fprintf(w, "    - %s (blocks=%d lines=%d)\n", f.Path, f.BlocksRemoved, f.LinesStripped)
-		}
-	}
-	if len(result.PathsDeleted) > 0 {
-		_, _ = fmt.Fprintf(w, "  paths %s:\n", map[bool]string{true: "to delete", false: "deleted"}[result.DryRun])
-		for _, p := range result.PathsDeleted {
-			_, _ = fmt.Fprintf(w, "    - %s\n", p)
-		}
-	}
-	if len(result.Finalizers) > 0 {
-		_, _ = fmt.Fprintln(w, "  finalizers:")
-		for _, fin := range result.Finalizers {
-			status := "skipped"
-			switch {
-			case result.DryRun:
-				status = "pending"
-			case fin.Ran && fin.OK:
-				status = "ok"
-			case fin.Ran && !fin.OK:
-				status = "FAILED"
-			}
-			label := fin.Description
-			if strings.TrimSpace(label) == "" {
-				label = fin.Command
-			}
-			_, _ = fmt.Fprintf(w, "    - %s [%s]\n", label, status)
-			if strings.TrimSpace(fin.Message) != "" {
-				_, _ = fmt.Fprintf(w, "        %s\n", fin.Message)
-			}
-		}
-	}
-	if strings.TrimSpace(result.Message) != "" {
-		_, _ = fmt.Fprintln(w, result.Message)
-	}
-	return nil
 }

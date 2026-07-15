@@ -10,6 +10,7 @@ import (
 	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/identity"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/cli-core/cliutil"
 	_ "modernc.org/sqlite"
 )
@@ -26,7 +27,7 @@ func TestEvidenceInvocationMiddlewareRecordsOnlyVerifiedSuccessfulCLIRequests(t 
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	store := evidence.NewStore(db)
+	store := evidence.NewStore(database.NewFromPrimary(db))
 	if err := store.InitSchema(context.Background()); err != nil {
 		t.Fatal(err)
 	}

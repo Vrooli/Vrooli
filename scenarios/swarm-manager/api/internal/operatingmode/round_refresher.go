@@ -147,6 +147,11 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 	if err := s.syncExecutionStatus(round); err != nil {
 		return RoundEnvelope{}, err
 	}
+	// Notify the terminal-round observer (the operation-runner completion seam)
+	// once the round is durably persisted. A runner-owned round routes its
+	// resolved outcome into Runner.CommitResult here; a legacy initiative round is
+	// unrecognized and left untouched.
+	s.notifyTerminalRound(ctx, round)
 	// Auto-dispatch fires *after* lock release and *after* the predecessor
 	// round is persisted, so the next phase sees a clean lock and a stable
 	// upstream record. Failure / cancel paths skip auto-dispatch — the
@@ -155,6 +160,30 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 		s.maybeAutoStartNext(ctx, round)
 	}
 	return round, nil
+}
+
+// RefreshRunByID refreshes the round a live agent run belongs to, resolving the
+// run's (scope, mode, round) from the global run-owner index. It is the entry
+// point a target-round refresh driver uses: a non-initiative target round is
+// walked by no initiative-keyed refresh (Workspace/auto-start are initiative
+// only), so the driver polls active runs by id and drives each to completion
+// through here — which fires the terminal-round observer that delivers the result
+// to the operation runner. found=false when the run id has no indexed owner
+// (already reaped, or never a mode run).
+func (s *Service) RefreshRunByID(ctx context.Context, runID string) (RoundEnvelope, bool, error) {
+	owners, err := s.store.LookupRunOwners(strings.TrimSpace(runID))
+	if err != nil {
+		return RoundEnvelope{}, false, err
+	}
+	if len(owners) == 0 {
+		return RoundEnvelope{}, false, nil
+	}
+	owner := owners[0]
+	round, err := s.RefreshRound(ctx, owner.ScopeID, owner.Mode, owner.Round)
+	if err != nil {
+		return RoundEnvelope{}, false, err
+	}
+	return round, true, nil
 }
 
 func (s *Service) reconcileEvidence(ctx context.Context, runID string) {

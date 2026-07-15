@@ -5,17 +5,21 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
+import { closeSharedAudioContext } from "../../audio-integration/hooks/voice/sharedAudioContext";
 
 interface FakeProvider {
   onResult: ((s: string) => void) | null;
   onError: ((s: string) => void) | null;
   onPartial: ((s: string) => void) | null;
+  onStatus: ((status: { code: string; message: string }) => void) | null;
+  onDiagnostic: ((value: { state: string; durability: string; capturedSequence: number; sentSequence: number; processedSequence: number; terminalReason?: string }) => void) | null;
   lastTurn: { blob: Blob; mimeType: string; durationMs: number; capturedAt: number } | null;
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
   getStream: () => MediaStream | null;
   getLastTurnAudio: () => FakeProvider["lastTurn"];
+  exportDiagnostic: () => string;
 }
 
 const constructed: FakeProvider[] = [];
@@ -29,6 +33,8 @@ vi.mock("../../audio-integration", () => ({
     onResult: ((s: string) => void) | null = null;
     onError: ((s: string) => void) | null = null;
     onPartial: ((s: string) => void) | null = null;
+    onStatus: ((status: { code: string; message: string }) => void) | null = null;
+    onDiagnostic: FakeProvider["onDiagnostic"] = null;
     lastTurn: FakeProvider["lastTurn"] = null;
     start = vi.fn().mockResolvedValue(undefined);
     stop = vi.fn();
@@ -36,6 +42,9 @@ vi.mock("../../audio-integration", () => ({
     getStream = vi.fn(() => fakeStream);
     getLastTurnAudio() {
       return this.lastTurn;
+    }
+    exportDiagnostic() {
+      return JSON.stringify({ schemaVersion: 1, state: "failed" });
     }
     constructor() {
       constructed.push(this);
@@ -69,6 +78,23 @@ afterEach(() => {
 });
 
 describe("DictationRecorder", () => {
+  it("resumes the shared capture context in the record-button gesture", async () => {
+    const resume = vi.fn().mockResolvedValue(undefined);
+    class SuspendedAudioContext {
+      state: AudioContextState = "suspended";
+      resume = resume;
+      close = vi.fn().mockResolvedValue(undefined);
+    }
+    Object.defineProperty(window, "AudioContext", { configurable: true, value: SuspendedAudioContext });
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+
+    expect(resume).toHaveBeenCalledOnce();
+    closeSharedAudioContext();
+  });
+
   it("starts recording and flips the button to Stop", async () => {
     const user = userEvent.setup();
     renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
@@ -193,5 +219,41 @@ describe("DictationRecorder", () => {
       constructed[0]!.onError?.("mic-failed");
     });
     expect(await screen.findByText(/mic-failed/)).toBeInTheDocument();
+		expect(screen.getByTestId(selectors.dictationStudio.recordError)).toHaveTextContent("mic-failed");
+  });
+
+  it("surfaces durable recovery and queue status without developer tools", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    act(() => {
+      constructed[0]!.onStatus?.({ code: "queued", message: "Waiting for the local Kyutai decoder." });
+    });
+    expect(await screen.findByText("Waiting for the local Kyutai decoder.")).toBeInTheDocument();
+  });
+
+  it("[REQ:ATD-P1-002] shows coverage and exports a metadata-only turn diagnostic", async () => {
+    const user = userEvent.setup();
+    const createObjectURL = vi.fn(() => "blob:diagnostic");
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    act(() => {
+      constructed[0]!.onDiagnostic?.({ state: "failed", durability: "persistent", capturedSequence: 4, sentSequence: 4, processedSequence: 3, terminalReason: "recovery_failed" });
+    });
+    expect(await screen.findByTestId(selectors.dictationStudio.turnDetails)).toHaveTextContent("dictationStudio.turnCapturedChunks5");
+    expect(screen.getByTestId(selectors.dictationStudio.turnCaptureStatus)).toHaveAttribute("data-has-captured-audio", "true");
+    expect(screen.getByTestId(selectors.dictationStudio.turnSentStatus)).toHaveAttribute("data-has-sent-audio", "true");
+    expect(screen.getByTestId(selectors.dictationStudio.turnProcessedStatus)).toHaveAttribute("data-has-processed-audio", "true");
+    expect(screen.getByTestId(selectors.dictationStudio.turnProcessedReady)).toBeInTheDocument();
+    await user.click(screen.getByTestId(selectors.dictationStudio.exportDiagnostic));
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(click).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:diagnostic");
   });
 });

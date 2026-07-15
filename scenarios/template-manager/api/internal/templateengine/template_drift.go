@@ -8,61 +8,53 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/cliout"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
-	. "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts" //nolint:revive // see template_runtime.go rationale
+	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
 // runTemplateDrift answers `vrooli scenario template drift`. For each target
 // scenario it loads the recorded provenance from .vrooli/service.json, re-hashes
 // the current template, and reports any mismatch.
-func runTemplateDrift[C any](deps HandlerDeps[C], ctx C, req TemplateDriftRequest) (cliout.Format, TemplateDriftReport, error) {
+func runTemplateDrift[C any](deps HandlerDeps[C], ctx C, req templatecontracts.TemplateDriftRequest) (templatecontracts.TemplateDriftReport, error) {
 	root := deps.Root(ctx)
-	format, err := deps.OutputFormat(ctx)
-	if err != nil {
-		return "", TemplateDriftReport{}, err
-	}
-	if req.JSON {
-		format = cliout.FormatJSON
-	}
 
 	var targets []scenariomodel.Scenario
 	env := scenariomodel.SandboxEnvFromEnv()
 	if req.All {
 		all, err := scenariomodel.Discover(root, env)
 		if err != nil {
-			return "", TemplateDriftReport{}, fmt.Errorf("discover scenarios: %w", err)
+			return templatecontracts.TemplateDriftReport{}, fmt.Errorf("discover scenarios: %w", err)
 		}
 		targets = all
 	} else {
 		scenario, err := scenariomodel.Load(root, req.Scenario, env)
 		if err != nil {
 			if errors.Is(err, scenariomodel.ErrNotFound) {
-				return "", TemplateDriftReport{}, fmt.Errorf("scenario not found: %s", req.Scenario)
+				return templatecontracts.TemplateDriftReport{}, fmt.Errorf("scenario not found: %s", req.Scenario)
 			}
-			return "", TemplateDriftReport{}, fmt.Errorf("load scenario %s: %w", req.Scenario, err)
+			return templatecontracts.TemplateDriftReport{}, fmt.Errorf("load scenario %s: %w", req.Scenario, err)
 		}
 		targets = []scenariomodel.Scenario{scenario}
 	}
 
-	report := TemplateDriftReport{Scenarios: make([]TemplateDriftScenarioReport, 0, len(targets))}
+	report := templatecontracts.TemplateDriftReport{Scenarios: make([]templatecontracts.TemplateDriftScenarioReport, 0, len(targets))}
 	for _, sc := range targets {
 		entry := analyzeDriftForScenario(root, sc, req.Verbose)
-		if req.All && entry.Status == TemplateDriftStatusNoProvenance {
+		if req.All && entry.Status == templatecontracts.TemplateDriftStatusNoProvenance {
 			// In --all mode, scenarios without template provenance (handwritten
 			// or pre-provenance) are noise — skip them silently.
 			continue
 		}
 		report.Scenarios = append(report.Scenarios, entry)
 	}
-	return format, report, nil
+	return report, nil
 }
 
-func analyzeDriftForScenario(root string, sc scenariomodel.Scenario, verbose bool) TemplateDriftScenarioReport {
-	out := TemplateDriftScenarioReport{Scenario: sc.Slug}
+func analyzeDriftForScenario(root string, sc scenariomodel.Scenario, verbose bool) templatecontracts.TemplateDriftScenarioReport {
+	out := templatecontracts.TemplateDriftScenarioReport{Scenario: sc.Slug}
 	gen := sc.Manifest.Generation
 	if gen == nil || strings.TrimSpace(gen.Template.ID) == "" {
-		out.Status = TemplateDriftStatusNoProvenance
+		out.Status = templatecontracts.TemplateDriftStatusNoProvenance
 		return out
 	}
 	out.TemplateID = gen.Template.ID
@@ -72,11 +64,11 @@ func analyzeDriftForScenario(root string, sc scenariomodel.Scenario, verbose boo
 
 	info, err := loadTemplate(root, gen.Template.ID)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) || strings.Contains(err.Error(), "template not found") {
-			out.Status = TemplateDriftStatusTemplateGone
+		if errors.Is(err, os.ErrNotExist) || errors.Is(err, ErrTemplateNotFound) {
+			out.Status = templatecontracts.TemplateDriftStatusTemplateGone
 			return out
 		}
-		out.Status = TemplateDriftStatusHashError
+		out.Status = templatecontracts.TemplateDriftStatusHashError
 		out.Message = fmt.Sprintf("load template: %v", err)
 		return out
 	}
@@ -86,7 +78,7 @@ func analyzeDriftForScenario(root string, sc scenariomodel.Scenario, verbose boo
 	out.CurrentManifest = manifestSha
 	out.CurrentContent = contentSha
 	if hashErr != nil {
-		out.Status = TemplateDriftStatusHashError
+		out.Status = templatecontracts.TemplateDriftStatusHashError
 		out.Message = fmt.Sprintf("hash template: %v", hashErr)
 		return out
 	}
@@ -95,16 +87,16 @@ func analyzeDriftForScenario(root string, sc scenariomodel.Scenario, verbose boo
 	// hashes. There's nothing to compare against, so we can't claim drift — but
 	// we also shouldn't silently report "in sync" because that would be a lie.
 	if strings.TrimSpace(gen.ManifestSha) == "" && strings.TrimSpace(gen.ContentSha) == "" {
-		out.Status = TemplateDriftStatusMissingHashes
+		out.Status = templatecontracts.TemplateDriftStatusMissingHashes
 		return out
 	}
 
 	out.ManifestDrifted = !hashesEqualOrSkippable(gen.ManifestSha, manifestSha)
 	out.ContentDrifted = !hashesEqualOrSkippable(gen.ContentSha, contentSha)
 	if out.Drifted() {
-		out.Status = TemplateDriftStatusDrifted
+		out.Status = templatecontracts.TemplateDriftStatusDrifted
 	} else {
-		out.Status = TemplateDriftStatusOK
+		out.Status = templatecontracts.TemplateDriftStatusOK
 	}
 
 	if verbose && out.ContentDrifted {
@@ -136,7 +128,7 @@ func hashesEqualOrSkippable(recorded, current string) bool {
 // inherited files, so byte-level "this file changed" reports would be noise.
 // What's actionable is "the template now ships file X and your scenario
 // doesn't have it" — that's what this surfaces.
-func collectVerboseDiffs(info TemplateInfo, sc scenariomodel.Scenario) []TemplateDriftFileDiff {
+func collectVerboseDiffs(info templatecontracts.TemplateInfo, sc scenariomodel.Scenario) []templatecontracts.TemplateDriftFileDiff {
 	files, err := templateFilesByPath(info.Path, info.Manifest)
 	if err != nil {
 		return nil
@@ -146,14 +138,14 @@ func collectVerboseDiffs(info TemplateInfo, sc scenariomodel.Scenario) []Templat
 		paths = append(paths, path)
 	}
 	sort.Strings(paths)
-	var diffs []TemplateDriftFileDiff
+	var diffs []templatecontracts.TemplateDriftFileDiff
 	for _, rel := range paths {
 		if strings.Contains(rel, "{{") {
 			continue
 		}
 		target := filepath.Join(sc.Path, filepath.FromSlash(rel))
 		if _, err := os.Stat(target); errors.Is(err, os.ErrNotExist) {
-			diffs = append(diffs, TemplateDriftFileDiff{Path: rel, Reason: "added_in_template"})
+			diffs = append(diffs, templatecontracts.TemplateDriftFileDiff{Path: rel, Reason: "added_in_template"})
 		}
 	}
 	return diffs
@@ -163,7 +155,7 @@ func collectVerboseDiffs(info TemplateInfo, sc scenariomodel.Scenario) []Templat
 // TemplateDrifted bit on an InfoOutput. The check is best-effort: any failure
 // to load the template or compute its current hash leaves TemplateDrifted
 // false, because `info` must keep working even when drift detection can't run.
-func EnrichInfoDriftFlag(root string, out *InfoOutput) {
+func EnrichInfoDriftFlag(root string, out *templatecontracts.InfoOutput) {
 	if out == nil || out.Scenario.Generation == nil {
 		return
 	}

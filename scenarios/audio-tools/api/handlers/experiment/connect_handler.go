@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -33,6 +34,20 @@ var (
 const (
 	minSNRDB = -80.0
 	maxSNRDB = 80.0
+
+	// A known-duration experiment gets 25% headroom plus a small fixed setup
+	// allowance. This leaves room for normal decode/finalization variation while
+	// making an experiment that has stopped making useful progress fail visibly
+	// instead of occupying the single async worker indefinitely.
+	experimentRuntimeSlackFraction = 4
+	experimentRuntimeMinSlack      = 2 * time.Minute
+	experimentRuntimeUnknown       = 30 * time.Minute
+	// A single provider-cell qualification may intentionally reach the trust
+	// floor's 60-minute rung, but ad-hoc recipe multiplication must not turn
+	// into an accidental multi-hour worker reservation. Split broader matrices
+	// into explicit persisted cells so their progress and cancellation remain
+	// observable.
+	experimentMaxEstimatedSeconds int32 = 60 * 60
 )
 
 // ExperimentManager is the handler-owned seam over internal/experiment.Manager.
@@ -107,6 +122,7 @@ func (h *connectHandler) StartExperiment(ctx context.Context, req *connect.Reque
 		RecipeJSON:       recipeJSON,
 		MachineJSON:      experimentMachineJSON(recipeJSON),
 		EstimatedSeconds: int(estimatedSeconds),
+		MaxRuntime:       experimentRuntimeBudget(estimatedSeconds),
 	})
 	if err != nil {
 		return nil, experimentError(err, h.deps.Logger, "StartExperiment")
@@ -117,12 +133,24 @@ func (h *connectHandler) StartExperiment(ctx context.Context, req *connect.Reque
 	}), nil
 }
 
-func (h *connectHandler) estimateExperimentSeconds(ctx context.Context, recipe *experimentv1.ExperimentRecipe, clientOverride int32) (int32, error) {
-	if clientOverride > 0 {
-		return clientOverride, nil
+func experimentRuntimeBudget(estimatedSeconds int32) time.Duration {
+	if estimatedSeconds <= 0 {
+		return experimentRuntimeUnknown
 	}
+	base := time.Duration(estimatedSeconds) * time.Second
+	slack := base / experimentRuntimeSlackFraction
+	if slack < experimentRuntimeMinSlack {
+		slack = experimentRuntimeMinSlack
+	}
+	return base + slack
+}
+
+func (h *connectHandler) estimateExperimentSeconds(ctx context.Context, recipe *experimentv1.ExperimentRecipe, clientOverride int32) (int32, error) {
 	if recipe == nil {
-		return 0, nil
+		if clientOverride > experimentMaxEstimatedSeconds {
+			return 0, experimentDurationLimitError(int64(clientOverride))
+		}
+		return clientOverride, nil
 	}
 	durationSeconds := estimatedRecipeDurationSeconds(recipe)
 	if durationSeconds <= 0 && h.deps.EstimateClipSeconds != nil {
@@ -133,22 +161,53 @@ func (h *connectHandler) estimateExperimentSeconds(ctx context.Context, recipe *
 		durationSeconds = estimated
 	}
 	if durationSeconds <= 0 {
-		return 0, nil
+		if clientOverride > experimentMaxEstimatedSeconds {
+			return 0, experimentDurationLimitError(int64(clientOverride))
+		}
+		return clientOverride, nil
 	}
-	strategies := len(recipe.GetStrategies())
-	if strategies == 0 {
-		strategies = 3
-	}
-	repeats := int(recipe.GetRealtimeRepeats()) + 1
-	if repeats < 1 {
-		repeats = 1
+	// Cells are independent provider/strategy/lane work units. Their
+	// repeat_count must contribute to admission cost; counting only the number
+	// of cells would let a repeated real-time recipe understate its duration.
+	cellRuns := int64(0)
+	if cells := recipe.GetCells(); len(cells) > 0 {
+		for _, cell := range cells {
+			repeats := cell.GetRepeatCount()
+			if repeats < 1 {
+				repeats = 1
+			}
+			cellRuns += int64(repeats)
+		}
+	} else {
+		strategies := len(recipe.GetStrategies())
+		if strategies == 0 {
+			strategies = 3
+		}
+		repeats := int(recipe.GetRealtimeRepeats()) + 1
+		if repeats < 1 {
+			repeats = 1
+		}
+		cellRuns = int64(strategies * repeats)
 	}
 	conditions := estimatedConditionCount(recipe)
-	total := durationSeconds * int32(strategies) * int32(repeats) * int32(conditions)
+	total := int64(durationSeconds) * cellRuns * int64(conditions)
 	if total < 1 {
-		return 1, nil
+		total = 1
 	}
-	return total, nil
+	// The recipe-derived duration is authoritative. A caller may reserve more
+	// time for a known external setup cost, but it may not shrink the derived
+	// budget and turn a long run into a misleadingly short one.
+	if clientOverride > 0 && int64(clientOverride) > total {
+		total = int64(clientOverride)
+	}
+	if total > int64(experimentMaxEstimatedSeconds) {
+		return 0, experimentDurationLimitError(total)
+	}
+	return int32(total), nil
+}
+
+func experimentDurationLimitError(seconds int64) error {
+	return fmt.Errorf("estimated experiment duration %ds exceeds the %ds qualification ceiling; split the matrix into explicit provider cells", seconds, experimentMaxEstimatedSeconds)
 }
 
 func estimatedRecipeDurationSeconds(recipe *experimentv1.ExperimentRecipe) int32 {
@@ -367,22 +426,54 @@ func (h *connectHandler) CompareExperiments(ctx context.Context, req *connect.Re
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) RecordQualificationEvidence(ctx context.Context, req *connect.Request[experimentv1.RecordQualificationEvidenceRequest]) (*connect.Response[experimentv1.RecordQualificationEvidenceResponse], error) {
+	if h.deps.Service == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errServiceNotConfigured)
+	}
+	evidence, err := qualificationEvidenceFromProto(req.Msg.GetEvidence())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if len(evidence.MachineJSON) == 0 {
+		// A local qualification command normally has no reason to repeat host
+		// identity. Stamp it server-side so it can only qualify reports from
+		// this same host/OS/architecture tuple.
+		evidence.MachineJSON = experimentMachineJSON(nil)
+	}
+	saved, err := h.deps.Service.RecordQualificationEvidence(ctx, evidence)
+	if err != nil {
+		return nil, experimentError(err, h.deps.Logger, "RecordQualificationEvidence")
+	}
+	return connect.NewResponse(&experimentv1.RecordQualificationEvidenceResponse{Evidence: qualificationEvidenceToProto(saved)}), nil
+}
+
+func (h *connectHandler) ListQualificationEvidence(ctx context.Context, req *connect.Request[experimentv1.ListQualificationEvidenceRequest]) (*connect.Response[experimentv1.ListQualificationEvidenceResponse], error) {
+	if h.deps.Service == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errServiceNotConfigured)
+	}
+	items, err := h.deps.Service.ListQualificationEvidence(ctx, intexp.QualificationEvidenceFilter{
+		EngineID: req.Msg.GetEngineId(), ModelID: req.Msg.GetModelId(), Strategy: req.Msg.GetStrategy(), PolicyProfile: req.Msg.GetPolicyProfile(),
+	})
+	if err != nil {
+		return nil, experimentError(err, h.deps.Logger, "ListQualificationEvidence")
+	}
+	resp := &experimentv1.ListQualificationEvidenceResponse{Evidence: make([]*experimentv1.QualificationEvidence, 0, len(items))}
+	for _, item := range items {
+		resp.Evidence = append(resp.Evidence, qualificationEvidenceToProto(item))
+	}
+	return connect.NewResponse(resp), nil
+}
+
 // reportOrNil returns the experiment's parsed report, or nil when none has been
 // persisted yet (or it cannot be parsed). It never errors: callers that compare
 // across a mix of finished and unfinished experiments rely on the nil signal.
 func (h *connectHandler) reportOrNil(ctx context.Context, exp intexp.Experiment) *evalv1.EvalReport {
-	if h.deps.Service == nil {
-		return nil
-	}
-	data, err := h.deps.Service.GetReport(ctx, exp)
+	report, err := h.decodedReport(ctx, exp)
 	if err != nil {
-		return nil
-	}
-	report := &evalv1.EvalReport{}
-	if err := protojson.Unmarshal(data, report); err != nil {
 		h.deps.Logger.Printf("experiment.CompareExperiments: unparseable report for %s: %v", exp.ID, err)
 		return nil
 	}
+	h.aggregatePromotionVerdicts(ctx, exp, report)
 	return report
 }
 
@@ -421,6 +512,27 @@ func validateRecipe(recipe *experimentv1.ExperimentRecipe) error {
 		}
 		if strategy.GetOverlapMaxWindowMs() < 0 {
 			return fmt.Errorf("strategies[%d].overlap_max_window_ms must be non-negative", i)
+		}
+	}
+	for i, cell := range recipe.GetCells() {
+		if strings.TrimSpace(cell.GetEngineId()) == "" {
+			return fmt.Errorf("cells[%d].engine_id is required", i)
+		}
+		switch cell.GetStrategy() {
+		case "batch", "buffered", "buffered_fallback", "vad_segment", "vad", "overlap_agree", "overlap", "passthrough":
+		default:
+			return fmt.Errorf("cells[%d].strategy %q is not supported", i, cell.GetStrategy())
+		}
+		switch cell.GetReplayLane() {
+		case experimentv1.ReplayLane_REPLAY_LANE_DETERMINISTIC, experimentv1.ReplayLane_REPLAY_LANE_REALTIME, experimentv1.ReplayLane_REPLAY_LANE_PRODUCT_PATH:
+		default:
+			return fmt.Errorf("cells[%d].replay_lane is required", i)
+		}
+		if cell.GetRepeatCount() < 1 {
+			return fmt.Errorf("cells[%d].repeat_count must be at least 1", i)
+		}
+		if cell.GetReplayLane() == experimentv1.ReplayLane_REPLAY_LANE_REALTIME && recipe.GetLatencyTailSeconds() > 0 {
+			return fmt.Errorf("cells[%d] realtime evidence cannot use latency_tail_seconds", i)
 		}
 	}
 	if longForm := recipe.GetLongForm(); longForm != nil {
@@ -490,15 +602,27 @@ func (h *connectHandler) report(ctx context.Context, id string) (intexp.Experime
 	if err != nil {
 		return intexp.Experiment{}, nil, nil, err
 	}
-	data, err := h.deps.Service.GetReport(ctx, exp)
+	report, err := h.decodedReport(ctx, exp)
 	if err != nil {
 		return intexp.Experiment{}, nil, nil, err
 	}
+	h.aggregatePromotionVerdicts(ctx, exp, report)
+	return exp, report, runs, nil
+}
+
+func (h *connectHandler) decodedReport(ctx context.Context, exp intexp.Experiment) (*evalv1.EvalReport, error) {
+	if h.deps.Service == nil {
+		return nil, errServiceNotConfigured
+	}
+	data, err := h.deps.Service.GetReport(ctx, exp)
+	if err != nil {
+		return nil, err
+	}
 	report := &evalv1.EvalReport{}
 	if err := protojson.Unmarshal(data, report); err != nil {
-		return intexp.Experiment{}, nil, nil, err
+		return nil, err
 	}
-	return exp, report, runs, nil
+	return report, nil
 }
 
 func experimentError(err error, logger logx.Logger, op string) error {

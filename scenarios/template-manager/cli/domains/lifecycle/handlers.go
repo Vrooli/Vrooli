@@ -111,11 +111,14 @@ func (h *handlers) validateCall(ctx cliapp.OperationContext) (*lifecyclev1.Valid
 }
 
 func (h *handlers) validateReport(_ cliapp.OperationContext, msg *lifecyclev1.ValidateTemplateResponse) cliapp.ListReport {
-	results := make([]string, 0, len(msg.Issues))
+	results := make([]string, 0, len(msg.Issues)+len(msg.Warnings))
+	for _, warning := range msg.Warnings {
+		results = append(results, "warning: "+warning)
+	}
 	for _, issue := range msg.Issues {
 		results = append(results, fmt.Sprintf("%s %s: %s", issue.Template, issue.Path, issue.Message))
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Validated %d template(s); issues=%d.", msg.Count, len(msg.Issues))}, ResultsHeading: "Issues", Results: results}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Validated %d template(s); status=%s issues=%d.", msg.Count, msg.Status, msg.IssuesCount)}, ResultsHeading: "Issues", Results: results}
 }
 
 func (h *handlers) driftCall(ctx cliapp.OperationContext) (*lifecyclev1.DriftReportResponse, error) {
@@ -152,9 +155,18 @@ func (h *handlers) cleanupCall(ctx cliapp.OperationContext) (*lifecyclev1.Cleanu
 }
 
 func (h *handlers) cleanupReport(_ cliapp.OperationContext, msg *lifecyclev1.CleanupRunsResponse) cliapp.MutationReport {
+	changes := make([]string, 0, len(msg.SkippedRuns)+1)
+	changes = append(changes, msg.Message)
+	for _, skipped := range msg.SkippedRuns {
+		label := skipped.RunId
+		if label == "" {
+			label = skipped.Path
+		}
+		changes = append(changes, fmt.Sprintf("skipped %s: %s", label, skipped.Reason))
+	}
 	return cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Matched %d run(s); removed %d.", msg.Matched, msg.Removed)},
-		Changes: []string{msg.Message},
+		Result:  []string{fmt.Sprintf("Matched %d run(s); removed %d; skipped %d.", msg.Matched, msg.Removed, msg.Skipped)},
+		Changes: changes,
 	}
 }
 
@@ -195,11 +207,34 @@ func (h *handlers) designValidateCall(ctx cliapp.OperationContext) (*lifecyclev1
 }
 
 func (h *handlers) designValidateReport(_ cliapp.OperationContext, msg *lifecyclev1.ValidateDesignKitsResponse) cliapp.ListReport {
-	results := make([]string, 0, len(msg.Issues))
-	for _, issue := range msg.Issues {
-		results = append(results, fmt.Sprintf("%s/%s %s: %s", issue.Kit, issue.Adapter, issue.Path, issue.Message))
+	results := make([]string, 0, len(msg.Results)+len(msg.Issues))
+	for _, result := range msg.Results {
+		line := fmt.Sprintf("%s [%s]", result.Kit, result.Status)
+		for _, issue := range result.Issues {
+			line += "\n    - " + designIssueLine(issue)
+		}
+		results = append(results, line)
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Validated %d design kit(s); issues=%d.", msg.Count, len(msg.Issues))}, ResultsHeading: "Issues", Results: results}
+	for _, issue := range msg.Issues {
+		if issue.Kit == "" {
+			results = append(results, "fleet: "+designIssueLine(issue))
+		}
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Validated %d design kit(s); status=%s issues=%d.", msg.Count, msg.Status, msg.IssuesCount)}, ResultsHeading: "Design kits", Results: results}
+}
+
+func designIssueLine(issue *lifecyclev1.DesignValidationIssue) string {
+	scope := issue.Adapter
+	if issue.Path != "" {
+		if scope != "" {
+			scope += " "
+		}
+		scope += issue.Path
+	}
+	if scope == "" {
+		return issue.Message
+	}
+	return scope + ": " + issue.Message
 }
 
 func (h *handlers) designValidateOutcome(resp *lifecyclev1.ValidateDesignKitsResponse) error {

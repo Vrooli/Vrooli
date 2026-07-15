@@ -35,7 +35,7 @@ plan-manager --auto-start author start --title "<plan title>"
 Then follow the API-owned next action until finalize:
 
 ```bash
-plan-manager author continue <session>
+plan-manager author continue "<session>"
 ```
 
 The session is a form, not a stage-gated wizard: every response carries a
@@ -44,9 +44,9 @@ filled/missing/violation status). Read the checklist and submit any or all
 fields **in any order**, batched when you already know the content:
 
 ```bash
-plan-manager author submit <session> --set purpose="..." --set scope="..."   # sections in one call
-plan-manager author phase-add <session> --title "..." --intent "..."   --set steps="..." --set validation="..." --set acceptance="..."            # add+fill a phase in one call
-plan-manager author phase-submit <session> <phase> --set <field>="..." ...   # batch fields on an existing phase
+plan-manager author submit "<session>" --set purpose="..." --set scope="..."   # sections in one call
+plan-manager author phase-add "<session>" --title "..." --intent "..."   --set steps="..." --set validation="..." --set acceptance="..."            # add+fill a phase in one call
+plan-manager author phase-submit "<session>" "<phase>" --set "<field>"="..." ...   # batch fields on an existing phase
 ```
 
 Each batch item returns an accepted/rejected line naming exactly what was
@@ -63,7 +63,7 @@ Skill discovery is a low-friction bootstrap, not a curation workflow. Ask Plan
 Manager to add the prompt-manager pack:
 
 ```bash
-plan-manager author skill-pack <session> --concepts "<c1>,<c2>" --complexity <level>
+plan-manager author skill-pack "<session>" --concepts "<c1>,<c2>" --complexity "<minor|moderate|major|architectural>"
 ```
 
 That command runs `prompt-manager discover --type skill --json`, auto-adds the
@@ -88,9 +88,9 @@ candidate accept/reject/apply step.
 Review, validate, finalize:
 
 ```bash
-plan-manager author preview <session>
-plan-manager author validate <session>
-plan-manager author finalize <session>
+plan-manager author preview "<session>"
+plan-manager author validate "<session>"
+plan-manager author finalize "<session>"
 ```
 
 Report back: plan id/slug, `plan-manager plans render <slug>`, any degraded

@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-
-	"swarm-manager/internal/agentmanager"
 )
 
 // multipartClarificationRequest builds a multipart/form-data CreateClarification
@@ -17,8 +15,10 @@ import (
 // web-console file-upload UI uses.
 func multipartClarificationRequest(t *testing.T, kind, name, roundNumber string) *httptest.ResponseRecorder {
 	t.Helper()
-	agent := &mockAgentService{result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"}}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	// A runner is wired so the valid case starts the clarification operation (a
+	// missing runner would fail closed with 503). Bad round_number values are
+	// rejected at parse time, before any operation starts.
+	h, rootDir, _, _ := setupTestHandlerWithRunner(t, "run-x")
 	seedTwoInitiativesThreeItems(t, rootDir)
 
 	var body bytes.Buffer

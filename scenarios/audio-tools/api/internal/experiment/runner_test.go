@@ -135,6 +135,27 @@ func TestManager_CancelRunningExperiment(t *testing.T) {
 	require.Equal(t, experiment.StatusCanceled, done.Status)
 }
 
+func TestManager_RuntimeLimitFailsAnOverBudgetExperiment(t *testing.T) {
+	started := make(chan struct{})
+	mgr, _, _ := newManager(t, func(ctx context.Context, _ experiment.Experiment, _ func(int, string)) (experiment.RunResult, error) {
+		close(started)
+		<-ctx.Done()
+		return experiment.RunResult{}, ctx.Err()
+	})
+
+	exp, err := mgr.Submit(context.Background(), experiment.SubmitSpec{
+		Name:       "over-budget",
+		MaxRuntime: 20 * time.Millisecond,
+	})
+	require.NoError(t, err)
+	<-started
+
+	done, err := mgr.Wait(context.Background(), exp.ID)
+	require.NoError(t, err)
+	require.Equal(t, experiment.StatusFailed, done.Status)
+	require.Contains(t, done.Error, "runtime budget")
+}
+
 func TestManager_StreamReportsQueuePosition(t *testing.T) {
 	firstStarted := make(chan struct{})
 	secondStarted := make(chan struct{})

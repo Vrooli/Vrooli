@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file template-manager/v1/lifecycle/lifecycle.proto.
  */
 export const file_template_manager_v1_lifecycle_lifecycle: GenFile = /*@__PURE__*/
-  fileDesc("Ci10ZW1wbGF0ZS1tYW5hZ2VyL3YxL2xpZmVjeWNsZS9saWZlY3ljbGUucHJvdG8SJHZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZSLEAgoXR2VuZXJhdGVTY2VuYXJpb1JlcXVlc3QSEAoIdGVtcGxhdGUYASABKAkSCgoCaWQYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhMKC2Rlc3RpbmF0aW9uGAUgASgJEg4KBmRlc2lnbhgGIAEoCRINCgVmb3JjZRgHIAEoCBIPCgdkcnlfcnVuGAggASgIEhEKCXJ1bl9ob29rcxgJIAEoCBJZCgZ2YWx1ZXMYCiADKAsySS52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuR2VuZXJhdGVTY2VuYXJpb1JlcXVlc3QuVmFsdWVzRW50cnkaLQoLVmFsdWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKpAQoYR2VuZXJhdGVTY2VuYXJpb1Jlc3BvbnNlEhAKCHRlbXBsYXRlGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRITCgtkZXN0aW5hdGlvbhgDIAEoCRIPCgdkcnlfcnVuGAQgASgIEhEKCXJ1bl9ob29rcxgFIAEoCBIYChBtYW5pZmVzdF92ZXJzaW9uGAYgASgJEhIKCmRlc2lnbl9raXQYByABKAkiOwoVT3JpZW50U2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhAKCGZpbmFsaXplGAIgASgIIrgBChZPcmllbnRTY2VuYXJpb1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhUKDXNjZW5hcmlvX3BhdGgYAiABKAkSEQoJZmluYWxpemVkGAMgASgIEhEKCWNvbXBsZXRlZBgEIAEoBRIQCghyZXF1aXJlZBgFIAEoBRIZChFmaW5hbGl6ZV9yZXF1aXJlZBgGIAEoCBIRCgluZXh0X3N0ZXAYByABKAkSDwoHbWVzc2FnZRgIIAEoCSI+ChlEZXRlbXBsYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg8KB2RyeV9ydW4YAiABKAgivgEKGkRldGVtcGxhdGVTY2VuYXJpb1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhUKDXNjZW5hcmlvX3BhdGgYAiABKAkSDgoGbWFya2VyGAMgASgJEg8KB2RyeV9ydW4YBCABKAgSFgoOYmxvY2tzX3JlbW92ZWQYBSABKAUSFgoObGluZXNfc3RyaXBwZWQYBiABKAUSFQoNcGF0aHNfZGVsZXRlZBgHIAMoCRIPCgdtZXNzYWdlGAggASgJInsKF1ZhbGlkYXRlVGVtcGxhdGVSZXF1ZXN0EhAKCHRlbXBsYXRlGAEgASgJEgwKBG1vZGUYAiABKAkSEwoLdGVzdF9wcmVzZXQYAyABKAkSFgoOd2FybmluZ19wb2xpY3kYBCABKAkSEwoLcmV0YWluX3RlbXAYBSABKAgiSgoXVGVtcGxhdGVWYWxpZGF0aW9uSXNzdWUSEAoIdGVtcGxhdGUYASABKAkSDAoEcGF0aBgCIAEoCRIPCgdtZXNzYWdlGAMgASgJIpgBChhWYWxpZGF0ZVRlbXBsYXRlUmVzcG9uc2USDAoEbW9kZRgBIAEoCRIQCgh0ZW1wbGF0ZRgCIAEoCRINCgVjb3VudBgDIAEoBRJNCgZpc3N1ZXMYBCADKAsyPS52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuVGVtcGxhdGVWYWxpZGF0aW9uSXNzdWUiRAoSRHJpZnRSZXBvcnRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgsKA2FsbBgCIAEoCBIPCgd2ZXJib3NlGAMgASgIIocBCg1EcmlmdFNjZW5hcmlvEhAKCHNjZW5hcmlvGAEgASgJEhAKCHRlbXBsYXRlGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIYChBtYW5pZmVzdF9kcmlmdGVkGAQgASgIEhcKD2NvbnRlbnRfZHJpZnRlZBgFIAEoCBIPCgdtZXNzYWdlGAYgASgJIl0KE0RyaWZ0UmVwb3J0UmVzcG9uc2USRgoJc2NlbmFyaW9zGAEgAygLMjMudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkRyaWZ0U2NlbmFyaW8iYwoSQ2xlYW51cFJ1bnNSZXF1ZXN0Eg8KB2RyeV9ydW4YASABKAgSEgoKb2xkZXJfdGhhbhgCIAEoCRIYChBpbmNsdWRlX3JldGFpbmVkGAMgASgIEg4KBnJ1bl9pZBgEIAEoCSJZChNDbGVhbnVwUnVuc1Jlc3BvbnNlEg8KB21hdGNoZWQYASABKAUSDwoHcmVtb3ZlZBgCIAEoBRIPCgdkcnlfcnVuGAMgASgIEg8KB21lc3NhZ2UYBCABKAkiFwoVTGlzdERlc2lnbktpdHNSZXF1ZXN0InwKCURlc2lnbktpdBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSDwoHZGVmYXVsdBgEIAEoCBITCgtkZXNjcmlwdGlvbhgFIAEoCRIMCgR0YWdzGAYgAygJEhAKCGFkYXB0ZXJzGAcgAygJIlcKFkxpc3REZXNpZ25LaXRzUmVzcG9uc2USPQoEa2l0cxgBIAMoCzIvLnZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZS5EZXNpZ25LaXQiIQoTR2V0RGVzaWduS2l0UmVxdWVzdBIKCgJpZBgBIAEoCSJUChRHZXREZXNpZ25LaXRSZXNwb25zZRI8CgNraXQYASABKAsyLy52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuRGVzaWduS2l0IjQKGVZhbGlkYXRlRGVzaWduS2l0c1JlcXVlc3QSCgoCaWQYASABKAkSCwoDYWxsGAIgASgIIlQKFURlc2lnblZhbGlkYXRpb25Jc3N1ZRILCgNraXQYASABKAkSDwoHYWRhcHRlchgCIAEoCRIMCgRwYXRoGAMgASgJEg8KB21lc3NhZ2UYBCABKAkieAoaVmFsaWRhdGVEZXNpZ25LaXRzUmVzcG9uc2USDQoFY291bnQYASABKAUSSwoGaXNzdWVzGAIgAygLMjsudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkRlc2lnblZhbGlkYXRpb25Jc3N1ZTL0BgoYVGVtcGxhdGVMaWZlY3ljbGVTZXJ2aWNlEpEBChBHZW5lcmF0ZVNjZW5hcmlvEj0udnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkdlbmVyYXRlU2NlbmFyaW9SZXF1ZXN0Gj4udnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkdlbmVyYXRlU2NlbmFyaW9SZXNwb25zZRKLAQoOT3JpZW50U2NlbmFyaW8SOy52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuT3JpZW50U2NlbmFyaW9SZXF1ZXN0GjwudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLk9yaWVudFNjZW5hcmlvUmVzcG9uc2USlwEKEkRldGVtcGxhdGVTY2VuYXJpbxI/LnZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZS5EZXRlbXBsYXRlU2NlbmFyaW9SZXF1ZXN0GkAudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkRldGVtcGxhdGVTY2VuYXJpb1Jlc3BvbnNlEpEBChBWYWxpZGF0ZVRlbXBsYXRlEj0udnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLlZhbGlkYXRlVGVtcGxhdGVSZXF1ZXN0Gj4udnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLlZhbGlkYXRlVGVtcGxhdGVSZXNwb25zZRKCAQoLRHJpZnRSZXBvcnQSOC52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuRHJpZnRSZXBvcnRSZXF1ZXN0GjkudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkRyaWZ0UmVwb3J0UmVzcG9uc2USggEKC0NsZWFudXBSdW5zEjgudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkNsZWFudXBSdW5zUmVxdWVzdBo5LnZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZS5DbGVhbnVwUnVuc1Jlc3BvbnNlMsIDChBEZXNpZ25LaXRTZXJ2aWNlEosBCg5MaXN0RGVzaWduS2l0cxI7LnZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZS5MaXN0RGVzaWduS2l0c1JlcXVlc3QaPC52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuTGlzdERlc2lnbktpdHNSZXNwb25zZRKFAQoMR2V0RGVzaWduS2l0EjkudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkdldERlc2lnbktpdFJlcXVlc3QaOi52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuR2V0RGVzaWduS2l0UmVzcG9uc2USlwEKElZhbGlkYXRlRGVzaWduS2l0cxI/LnZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZS5WYWxpZGF0ZURlc2lnbktpdHNSZXF1ZXN0GkAudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLlZhbGlkYXRlRGVzaWduS2l0c1Jlc3BvbnNlQltaWWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdGVtcGxhdGUtbWFuYWdlci92MS9saWZlY3ljbGU7bGlmZWN5Y2xlX3YxYgZwcm90bzM");
+  fileDesc("Ci10ZW1wbGF0ZS1tYW5hZ2VyL3YxL2xpZmVjeWNsZS9saWZlY3ljbGUucHJvdG8SJHZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZSLEAgoXR2VuZXJhdGVTY2VuYXJpb1JlcXVlc3QSEAoIdGVtcGxhdGUYASABKAkSCgoCaWQYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhMKC2Rlc3RpbmF0aW9uGAUgASgJEg4KBmRlc2lnbhgGIAEoCRINCgVmb3JjZRgHIAEoCBIPCgdkcnlfcnVuGAggASgIEhEKCXJ1bl9ob29rcxgJIAEoCBJZCgZ2YWx1ZXMYCiADKAsySS52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuR2VuZXJhdGVTY2VuYXJpb1JlcXVlc3QuVmFsdWVzRW50cnkaLQoLVmFsdWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKpAQoYR2VuZXJhdGVTY2VuYXJpb1Jlc3BvbnNlEhAKCHRlbXBsYXRlGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRITCgtkZXN0aW5hdGlvbhgDIAEoCRIPCgdkcnlfcnVuGAQgASgIEhEKCXJ1bl9ob29rcxgFIAEoCBIYChBtYW5pZmVzdF92ZXJzaW9uGAYgASgJEhIKCmRlc2lnbl9raXQYByABKAkiOwoVT3JpZW50U2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhAKCGZpbmFsaXplGAIgASgIIrgBChZPcmllbnRTY2VuYXJpb1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhUKDXNjZW5hcmlvX3BhdGgYAiABKAkSEQoJZmluYWxpemVkGAMgASgIEhEKCWNvbXBsZXRlZBgEIAEoBRIQCghyZXF1aXJlZBgFIAEoBRIZChFmaW5hbGl6ZV9yZXF1aXJlZBgGIAEoCBIRCgluZXh0X3N0ZXAYByABKAkSDwoHbWVzc2FnZRgIIAEoCSI+ChlEZXRlbXBsYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg8KB2RyeV9ydW4YAiABKAgivgEKGkRldGVtcGxhdGVTY2VuYXJpb1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhUKDXNjZW5hcmlvX3BhdGgYAiABKAkSDgoGbWFya2VyGAMgASgJEg8KB2RyeV9ydW4YBCABKAgSFgoOYmxvY2tzX3JlbW92ZWQYBSABKAUSFgoObGluZXNfc3RyaXBwZWQYBiABKAUSFQoNcGF0aHNfZGVsZXRlZBgHIAMoCRIPCgdtZXNzYWdlGAggASgJInsKF1ZhbGlkYXRlVGVtcGxhdGVSZXF1ZXN0EhAKCHRlbXBsYXRlGAEgASgJEgwKBG1vZGUYAiABKAkSEwoLdGVzdF9wcmVzZXQYAyABKAkSFgoOd2FybmluZ19wb2xpY3kYBCABKAkSEwoLcmV0YWluX3RlbXAYBSABKAgiSgoXVGVtcGxhdGVWYWxpZGF0aW9uSXNzdWUSEAoIdGVtcGxhdGUYASABKAkSDAoEcGF0aBgCIAEoCRIPCgdtZXNzYWdlGAMgASgJItABChhWYWxpZGF0ZVRlbXBsYXRlUmVzcG9uc2USDAoEbW9kZRgBIAEoCRIQCgh0ZW1wbGF0ZRgCIAEoCRINCgVjb3VudBgDIAEoBRJNCgZpc3N1ZXMYBCADKAsyPS52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuVGVtcGxhdGVWYWxpZGF0aW9uSXNzdWUSDgoGc3RhdHVzGAUgASgJEhQKDGlzc3Vlc19jb3VudBgGIAEoBRIQCgh3YXJuaW5ncxgHIAMoCSJEChJEcmlmdFJlcG9ydFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSCwoDYWxsGAIgASgIEg8KB3ZlcmJvc2UYAyABKAgihwEKDURyaWZ0U2NlbmFyaW8SEAoIc2NlbmFyaW8YASABKAkSEAoIdGVtcGxhdGUYAiABKAkSDgoGc3RhdHVzGAMgASgJEhgKEG1hbmlmZXN0X2RyaWZ0ZWQYBCABKAgSFwoPY29udGVudF9kcmlmdGVkGAUgASgIEg8KB21lc3NhZ2UYBiABKAkiXQoTRHJpZnRSZXBvcnRSZXNwb25zZRJGCglzY2VuYXJpb3MYASADKAsyMy52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuRHJpZnRTY2VuYXJpbyJjChJDbGVhbnVwUnVuc1JlcXVlc3QSDwoHZHJ5X3J1bhgBIAEoCBISCgpvbGRlcl90aGFuGAIgASgJEhgKEGluY2x1ZGVfcmV0YWluZWQYAyABKAgSDgoGcnVuX2lkGAQgASgJIkEKEUNsZWFudXBTa2lwcGVkUnVuEg4KBnJ1bl9pZBgBIAEoCRIMCgRwYXRoGAIgASgJEg4KBnJlYXNvbhgDIAEoCSK5AQoTQ2xlYW51cFJ1bnNSZXNwb25zZRIPCgdtYXRjaGVkGAEgASgFEg8KB3JlbW92ZWQYAiABKAUSDwoHZHJ5X3J1bhgDIAEoCBIPCgdtZXNzYWdlGAQgASgJEg8KB3NraXBwZWQYBSABKAUSTQoMc2tpcHBlZF9ydW5zGAYgAygLMjcudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkNsZWFudXBTa2lwcGVkUnVuIhcKFUxpc3REZXNpZ25LaXRzUmVxdWVzdCJ8CglEZXNpZ25LaXQSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEg8KB2RlZmF1bHQYBCABKAgSEwoLZGVzY3JpcHRpb24YBSABKAkSDAoEdGFncxgGIAMoCRIQCghhZGFwdGVycxgHIAMoCSJXChZMaXN0RGVzaWduS2l0c1Jlc3BvbnNlEj0KBGtpdHMYASADKAsyLy52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuRGVzaWduS2l0IiEKE0dldERlc2lnbktpdFJlcXVlc3QSCgoCaWQYASABKAkiVAoUR2V0RGVzaWduS2l0UmVzcG9uc2USPAoDa2l0GAEgASgLMi8udnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkRlc2lnbktpdCI0ChlWYWxpZGF0ZURlc2lnbktpdHNSZXF1ZXN0EgoKAmlkGAEgASgJEgsKA2FsbBgCIAEoCCJUChVEZXNpZ25WYWxpZGF0aW9uSXNzdWUSCwoDa2l0GAEgASgJEg8KB2FkYXB0ZXIYAiABKAkSDAoEcGF0aBgDIAEoCRIPCgdtZXNzYWdlGAQgASgJIoUBChlEZXNpZ25LaXRWYWxpZGF0aW9uUmVzdWx0EgsKA2tpdBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSSwoGaXNzdWVzGAMgAygLMjsudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkRlc2lnblZhbGlkYXRpb25Jc3N1ZSLwAQoaVmFsaWRhdGVEZXNpZ25LaXRzUmVzcG9uc2USDQoFY291bnQYASABKAUSSwoGaXNzdWVzGAIgAygLMjsudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkRlc2lnblZhbGlkYXRpb25Jc3N1ZRIOCgZzdGF0dXMYAyABKAkSFAoMaXNzdWVzX2NvdW50GAQgASgFElAKB3Jlc3VsdHMYBSADKAsyPy52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuRGVzaWduS2l0VmFsaWRhdGlvblJlc3VsdDL0BgoYVGVtcGxhdGVMaWZlY3ljbGVTZXJ2aWNlEpEBChBHZW5lcmF0ZVNjZW5hcmlvEj0udnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkdlbmVyYXRlU2NlbmFyaW9SZXF1ZXN0Gj4udnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkdlbmVyYXRlU2NlbmFyaW9SZXNwb25zZRKLAQoOT3JpZW50U2NlbmFyaW8SOy52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuT3JpZW50U2NlbmFyaW9SZXF1ZXN0GjwudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLk9yaWVudFNjZW5hcmlvUmVzcG9uc2USlwEKEkRldGVtcGxhdGVTY2VuYXJpbxI/LnZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZS5EZXRlbXBsYXRlU2NlbmFyaW9SZXF1ZXN0GkAudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkRldGVtcGxhdGVTY2VuYXJpb1Jlc3BvbnNlEpEBChBWYWxpZGF0ZVRlbXBsYXRlEj0udnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLlZhbGlkYXRlVGVtcGxhdGVSZXF1ZXN0Gj4udnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLlZhbGlkYXRlVGVtcGxhdGVSZXNwb25zZRKCAQoLRHJpZnRSZXBvcnQSOC52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuRHJpZnRSZXBvcnRSZXF1ZXN0GjkudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkRyaWZ0UmVwb3J0UmVzcG9uc2USggEKC0NsZWFudXBSdW5zEjgudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkNsZWFudXBSdW5zUmVxdWVzdBo5LnZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZS5DbGVhbnVwUnVuc1Jlc3BvbnNlMsIDChBEZXNpZ25LaXRTZXJ2aWNlEosBCg5MaXN0RGVzaWduS2l0cxI7LnZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZS5MaXN0RGVzaWduS2l0c1JlcXVlc3QaPC52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuTGlzdERlc2lnbktpdHNSZXNwb25zZRKFAQoMR2V0RGVzaWduS2l0EjkudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLkdldERlc2lnbktpdFJlcXVlc3QaOi52cm9vbGkudGVtcGxhdGVfbWFuYWdlci52MS5saWZlY3ljbGUuR2V0RGVzaWduS2l0UmVzcG9uc2USlwEKElZhbGlkYXRlRGVzaWduS2l0cxI/LnZyb29saS50ZW1wbGF0ZV9tYW5hZ2VyLnYxLmxpZmVjeWNsZS5WYWxpZGF0ZURlc2lnbktpdHNSZXF1ZXN0GkAudnJvb2xpLnRlbXBsYXRlX21hbmFnZXIudjEubGlmZWN5Y2xlLlZhbGlkYXRlRGVzaWduS2l0c1Jlc3BvbnNlQltaWWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdGVtcGxhdGUtbWFuYWdlci92MS9saWZlY3ljbGU7bGlmZWN5Y2xlX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.template_manager.v1.lifecycle.GenerateScenarioRequest
@@ -348,6 +348,9 @@ export type ValidateTemplateResponse = Message<"vrooli.template_manager.v1.lifec
   template: string;
 
   /**
+   * count is the number of templates validated by this call, not the number of
+   * issues found. Read status/issues_count for the pass-fail verdict.
+   *
    * @generated from field: int32 count = 3;
    */
   count: number;
@@ -356,6 +359,31 @@ export type ValidateTemplateResponse = Message<"vrooli.template_manager.v1.lifec
    * @generated from field: repeated vrooli.template_manager.v1.lifecycle.TemplateValidationIssue issues = 4;
    */
   issues: TemplateValidationIssue[];
+
+  /**
+   * status is the machine verdict: "pass" when no issues were found, "fail"
+   * otherwise. Always populated so consumers never infer pass-fail from an
+   * omitted repeated field.
+   *
+   * @generated from field: string status = 5;
+   */
+  status: string;
+
+  /**
+   * issues_count mirrors len(issues); it is the failure count, distinct from
+   * count (templates validated).
+   *
+   * @generated from field: int32 issues_count = 6;
+   */
+  issuesCount: number;
+
+  /**
+   * warnings carry non-fatal advisories about the request itself (e.g. a flag
+   * that has no effect in the selected mode). They never change the verdict.
+   *
+   * @generated from field: repeated string warnings = 7;
+   */
+  warnings: string[];
 };
 
 /**
@@ -484,6 +512,36 @@ export const CleanupRunsRequestSchema: GenMessage<CleanupRunsRequest> = /*@__PUR
   messageDesc(file_template_manager_v1_lifecycle_lifecycle, 12);
 
 /**
+ * @generated from message vrooli.template_manager.v1.lifecycle.CleanupSkippedRun
+ */
+export type CleanupSkippedRun = Message<"vrooli.template_manager.v1.lifecycle.CleanupSkippedRun"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * reason explains why the workspace was not removed (e.g. "retained run; use
+   * --include-retained or --run <id>") so a dry-run is self-explaining.
+   *
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.template_manager.v1.lifecycle.CleanupSkippedRun.
+ * Use `create(CleanupSkippedRunSchema)` to create a new message.
+ */
+export const CleanupSkippedRunSchema: GenMessage<CleanupSkippedRun> = /*@__PURE__*/
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 13);
+
+/**
  * @generated from message vrooli.template_manager.v1.lifecycle.CleanupRunsResponse
  */
 export type CleanupRunsResponse = Message<"vrooli.template_manager.v1.lifecycle.CleanupRunsResponse"> & {
@@ -506,6 +564,19 @@ export type CleanupRunsResponse = Message<"vrooli.template_manager.v1.lifecycle.
    * @generated from field: string message = 4;
    */
   message: string;
+
+  /**
+   * skipped is the number of workspaces left in place; skipped_runs enumerates
+   * each with the reason it was retained.
+   *
+   * @generated from field: int32 skipped = 5;
+   */
+  skipped: number;
+
+  /**
+   * @generated from field: repeated vrooli.template_manager.v1.lifecycle.CleanupSkippedRun skipped_runs = 6;
+   */
+  skippedRuns: CleanupSkippedRun[];
 };
 
 /**
@@ -513,7 +584,7 @@ export type CleanupRunsResponse = Message<"vrooli.template_manager.v1.lifecycle.
  * Use `create(CleanupRunsResponseSchema)` to create a new message.
  */
 export const CleanupRunsResponseSchema: GenMessage<CleanupRunsResponse> = /*@__PURE__*/
-  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 13);
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 14);
 
 /**
  * @generated from message vrooli.template_manager.v1.lifecycle.ListDesignKitsRequest
@@ -526,7 +597,7 @@ export type ListDesignKitsRequest = Message<"vrooli.template_manager.v1.lifecycl
  * Use `create(ListDesignKitsRequestSchema)` to create a new message.
  */
 export const ListDesignKitsRequestSchema: GenMessage<ListDesignKitsRequest> = /*@__PURE__*/
-  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 14);
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 15);
 
 /**
  * @generated from message vrooli.template_manager.v1.lifecycle.DesignKit
@@ -573,7 +644,7 @@ export type DesignKit = Message<"vrooli.template_manager.v1.lifecycle.DesignKit"
  * Use `create(DesignKitSchema)` to create a new message.
  */
 export const DesignKitSchema: GenMessage<DesignKit> = /*@__PURE__*/
-  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 15);
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 16);
 
 /**
  * @generated from message vrooli.template_manager.v1.lifecycle.ListDesignKitsResponse
@@ -590,7 +661,7 @@ export type ListDesignKitsResponse = Message<"vrooli.template_manager.v1.lifecyc
  * Use `create(ListDesignKitsResponseSchema)` to create a new message.
  */
 export const ListDesignKitsResponseSchema: GenMessage<ListDesignKitsResponse> = /*@__PURE__*/
-  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 16);
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 17);
 
 /**
  * @generated from message vrooli.template_manager.v1.lifecycle.GetDesignKitRequest
@@ -607,7 +678,7 @@ export type GetDesignKitRequest = Message<"vrooli.template_manager.v1.lifecycle.
  * Use `create(GetDesignKitRequestSchema)` to create a new message.
  */
 export const GetDesignKitRequestSchema: GenMessage<GetDesignKitRequest> = /*@__PURE__*/
-  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 17);
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 18);
 
 /**
  * @generated from message vrooli.template_manager.v1.lifecycle.GetDesignKitResponse
@@ -624,7 +695,7 @@ export type GetDesignKitResponse = Message<"vrooli.template_manager.v1.lifecycle
  * Use `create(GetDesignKitResponseSchema)` to create a new message.
  */
 export const GetDesignKitResponseSchema: GenMessage<GetDesignKitResponse> = /*@__PURE__*/
-  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 18);
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 19);
 
 /**
  * @generated from message vrooli.template_manager.v1.lifecycle.ValidateDesignKitsRequest
@@ -646,7 +717,7 @@ export type ValidateDesignKitsRequest = Message<"vrooli.template_manager.v1.life
  * Use `create(ValidateDesignKitsRequestSchema)` to create a new message.
  */
 export const ValidateDesignKitsRequestSchema: GenMessage<ValidateDesignKitsRequest> = /*@__PURE__*/
-  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 19);
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 20);
 
 /**
  * @generated from message vrooli.template_manager.v1.lifecycle.DesignValidationIssue
@@ -678,7 +749,36 @@ export type DesignValidationIssue = Message<"vrooli.template_manager.v1.lifecycl
  * Use `create(DesignValidationIssueSchema)` to create a new message.
  */
 export const DesignValidationIssueSchema: GenMessage<DesignValidationIssue> = /*@__PURE__*/
-  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 20);
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 21);
+
+/**
+ * @generated from message vrooli.template_manager.v1.lifecycle.DesignKitValidationResult
+ */
+export type DesignKitValidationResult = Message<"vrooli.template_manager.v1.lifecycle.DesignKitValidationResult"> & {
+  /**
+   * @generated from field: string kit = 1;
+   */
+  kit: string;
+
+  /**
+   * status is "pass" when the kit produced no issues, "fail" otherwise.
+   *
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: repeated vrooli.template_manager.v1.lifecycle.DesignValidationIssue issues = 3;
+   */
+  issues: DesignValidationIssue[];
+};
+
+/**
+ * Describes the message vrooli.template_manager.v1.lifecycle.DesignKitValidationResult.
+ * Use `create(DesignKitValidationResultSchema)` to create a new message.
+ */
+export const DesignKitValidationResultSchema: GenMessage<DesignKitValidationResult> = /*@__PURE__*/
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 22);
 
 /**
  * @generated from message vrooli.template_manager.v1.lifecycle.ValidateDesignKitsResponse
@@ -690,9 +790,29 @@ export type ValidateDesignKitsResponse = Message<"vrooli.template_manager.v1.lif
   count: number;
 
   /**
+   * issues is the flat list across every kit plus any fleet-level issue (e.g.
+   * more than one kit marked default). results groups the per-kit verdicts.
+   *
    * @generated from field: repeated vrooli.template_manager.v1.lifecycle.DesignValidationIssue issues = 2;
    */
   issues: DesignValidationIssue[];
+
+  /**
+   * status is the overall verdict: "pass" when issues is empty, "fail" otherwise.
+   *
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: int32 issues_count = 4;
+   */
+  issuesCount: number;
+
+  /**
+   * @generated from field: repeated vrooli.template_manager.v1.lifecycle.DesignKitValidationResult results = 5;
+   */
+  results: DesignKitValidationResult[];
 };
 
 /**
@@ -700,7 +820,7 @@ export type ValidateDesignKitsResponse = Message<"vrooli.template_manager.v1.lif
  * Use `create(ValidateDesignKitsResponseSchema)` to create a new message.
  */
 export const ValidateDesignKitsResponseSchema: GenMessage<ValidateDesignKitsResponse> = /*@__PURE__*/
-  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 21);
+  messageDesc(file_template_manager_v1_lifecycle_lifecycle, 23);
 
 /**
  * TemplateLifecycleService owns scenario template lifecycle operations that

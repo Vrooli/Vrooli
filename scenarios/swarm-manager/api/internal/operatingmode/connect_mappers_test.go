@@ -117,7 +117,7 @@ func TestWorkspaceToProtoCarriesExecutionManifestProvenance(t *testing.T) {
 	}
 	compiledJSON, _ := json.Marshal(compiled)
 	got := workspaceToProto(Workspace{Definition: WorkspaceMode{InputContract: compiled}, Executions: []OperatingModeExecution{{
-		ExecutionID: "execution-1", ScopeKind: string(TargetPlanManagerPlan), ScopeID: "plan-1",
+		ExecutionID: "execution-1", ScopeKind: string(TargetPlanExecution), ScopeID: "plan-1",
 		Mode: string(ModePhasedPlanDrain), Status: ExecutionStatusActive,
 		SchemaVersion: executionManifestSchemaVersion, DefinitionDigest: digest, DefinitionBundle: bundle,
 		InputContractDigest: "sha256:inputs", InputSnapshotDigest: "sha256:values",

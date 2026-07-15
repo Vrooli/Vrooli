@@ -134,7 +134,7 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 	if cmd.Dir != "" {
 		c.Dir = cmd.Dir
 	}
-	c.Env = append(os.Environ(), "GOWORK=off", "CI=1")
+	c.Env = append(scrubbedEnviron(), "GOWORK=off", "CI=1")
 	c.Env = append(c.Env, cmd.Env...)
 	setProcessGroup(c)
 	// On cancel (hard timeout or no-output stall) kill the whole process group
@@ -188,6 +188,44 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 		res.FailureReason = waitErr.Error()
 	}
 	return res
+}
+
+// scenarioIdentityEnvVars are the launch-time variables that bind a process to
+// THIS scenario instance (Unit Health itself). Leaking them into a validated
+// scenario's test commands makes those tests impersonate Unit Health — e.g. a
+// UI e2e script reading UI_PORT would drive Unit Health's UI instead of its
+// own scenario's. Tests must see the same clean environment a developer shell
+// provides.
+var scenarioIdentityEnvVars = map[string]struct{}{
+	"UI_PORT":                  {},
+	"API_PORT":                 {},
+	"SCENARIO_NAME":            {},
+	"SCENARIO_PATH":            {},
+	"SCENARIO_DATA_DIR":        {},
+	"SCENARIO_MODE":            {},
+	"VROOLI_SCENARIO":          {},
+	"VROOLI_SCENARIO_DIR":      {},
+	"VROOLI_STORAGE_NAMESPACE": {},
+	"VROOLI_PROCESS_ID":        {},
+	"VROOLI_STEP":              {},
+	"VROOLI_LIFECYCLE_MANAGED": {},
+}
+
+// scrubbedEnviron returns the inherited environment minus this scenario's
+// identity variables.
+func scrubbedEnviron() []string {
+	env := os.Environ()
+	out := make([]string, 0, len(env))
+	for _, kv := range env {
+		key, _, ok := strings.Cut(kv, "=")
+		if ok {
+			if _, drop := scenarioIdentityEnvVars[key]; drop {
+				continue
+			}
+		}
+		out = append(out, kv)
+	}
+	return out
 }
 
 // classifyFailure inspects output to refine a nonzero exit into a more specific

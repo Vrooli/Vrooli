@@ -774,7 +774,7 @@ Use `visited-tracker` to track which files in `{{TARGET}}` have been audited for
 visited-tracker least-visited --location scenarios/{{TARGET}} --tag bundle-integration --limit 5
 
 # After auditing a file
-visited-tracker visit <file-path> --location scenarios/{{TARGET}} --tag bundle-integration --note "<summary>"
+visited-tracker visit "<file-path>" --location scenarios/{{TARGET}} --tag bundle-integration --note "<summary>"
 ```
 
 ---

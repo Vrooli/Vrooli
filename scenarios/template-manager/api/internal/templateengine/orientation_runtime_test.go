@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts" //nolint:revive // tests target scenariohandler glue over scenariocli contracts.
+	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
 func TestEvaluateOrientationCheckPrimitives(t *testing.T) {
@@ -15,7 +15,7 @@ func TestEvaluateOrientationCheckPrimitives(t *testing.T) {
 	mustWrite(t, filepath.Join(root, "api", "internal", "orders", "service.go"), "package orders\n")
 	mustWrite(t, filepath.Join(root, "api", "internal", "billing", "service.go"), "package billing\n")
 
-	checks := []TemplateOrientationCheck{
+	checks := []templatecontracts.TemplateOrientationCheck{
 		{Kind: "file_exists", Path: "docs/START-HERE.md"},
 		{Kind: "file_absent", Path: "missing.txt"},
 		{Kind: "directory_exists", Path: "requirements"},
@@ -29,7 +29,7 @@ func TestEvaluateOrientationCheckPrimitives(t *testing.T) {
 		{Kind: "text_absent", Path: "docs/START-HERE.md", Text: "placeholder"},
 	}
 	for _, check := range checks {
-		report := evaluateOrientationCheck(HandlerDeps[struct{}]{}, struct{}{}, root, check)
+		report := evaluateOrientationCheck(HandlerDeps[struct{}]{}, struct{}{}, orientationEval{scenarioRoot: root}, check)
 		if !report.Passed {
 			t.Fatalf("%s should pass: %#v", check.Kind, report)
 		}
@@ -37,18 +37,18 @@ func TestEvaluateOrientationCheckPrimitives(t *testing.T) {
 }
 
 func TestValidateOrientationSourceRejectsUnsafeCleanup(t *testing.T) {
-	info := TemplateInfo{
+	info := templatecontracts.TemplateInfo{
 		Name: "demo",
-		Manifest: TemplateManifest{
+		Manifest: templatecontracts.TemplateManifest{
 			Version: "0.1.0",
-			Orientation: &TemplateOrientation{
+			Orientation: &templatecontracts.TemplateOrientation{
 				CopyTo: ".vrooli/orientation.json",
-				Finalize: TemplateOrientationFinalize{
+				Finalize: templatecontracts.TemplateOrientationFinalize{
 					Cleanup: []string{"../outside", "docs"},
 				},
-				Steps: []TemplateOrientationStep{{
+				Steps: []templatecontracts.TemplateOrientationStep{{
 					ID:     "start",
-					Checks: []TemplateOrientationCheck{{Kind: "file_exists", Path: "README.md"}},
+					Checks: []templatecontracts.TemplateOrientationCheck{{Kind: "file_exists", Path: "README.md"}},
 				}},
 			},
 		},
@@ -56,6 +56,37 @@ func TestValidateOrientationSourceRejectsUnsafeCleanup(t *testing.T) {
 	issues := validateOrientationSource(info)
 	if len(issues) != 2 {
 		t.Fatalf("issues = %#v, want 2", issues)
+	}
+}
+
+func TestValidateOrientationSourceAcceptsContentAdapted(t *testing.T) {
+	info := templatecontracts.TemplateInfo{
+		Name: "demo",
+		Manifest: templatecontracts.TemplateManifest{
+			Version: "0.1.0",
+			Orientation: &templatecontracts.TemplateOrientation{
+				CopyTo: ".vrooli/orientation.json",
+				Steps: []templatecontracts.TemplateOrientationStep{{
+					ID: "charter",
+					Checks: []templatecontracts.TemplateOrientationCheck{
+						{Kind: "content_adapted", Path: "README.md"},
+						{Kind: "content_adapted", Path: "CHANGELOG.md", MinCount: 2},
+					},
+				}},
+			},
+		},
+	}
+	if issues := validateOrientationSource(info); len(issues) != 0 {
+		t.Fatalf("valid content_adapted checks should not raise issues: %#v", issues)
+	}
+
+	bad := info
+	bad.Manifest.Orientation.Steps[0].Checks = []templatecontracts.TemplateOrientationCheck{
+		{Kind: "content_adapted", Path: "../escape.md"},
+		{Kind: "content_adapted", Path: "ok.md", MinCount: -1},
+	}
+	if issues := validateOrientationSource(bad); len(issues) != 2 {
+		t.Fatalf("invalid content_adapted checks should raise 2 issues, got %#v", issues)
 	}
 }
 

@@ -19,6 +19,7 @@ Use this document to answer:
 | `/health` status | health | API | API and dependency reachability | healthy for local development |
 | UI health endpoint | health | UI server | UI bundle/server reachability | responds during lifecycle health check |
 | test-genie result | validation | `make test` | scenario correctness evidence | all required phases pass |
+| Turn diagnostic | user/operator recovery | Dictation Studio Record tab | Shows protocol state, durable-capture level, captured/processed chunk coverage, and terminal reason; the export is bounded metadata only (never PCM or transcript). | Any failed or incomplete turn must expose a terminal reason or retained recovery state. |
 
 ## Logs
 
@@ -26,6 +27,7 @@ Use this document to answer:
 |---|---|---|---|
 | API logs | lifecycle-managed API process | `make logs` | Request logging uses deterministic clock seam in tests. |
 | UI logs | lifecycle-managed UI server | `make logs` | Production bundle server logs only. |
+| Safe turn export | Dictation Studio Record tab | Use **Turn details → Export safe diagnostic** after a failed/degraded turn. | Includes opaque session identity and state codes only; it excludes transcript and audio. |
 
 ## Metrics
 

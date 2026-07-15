@@ -96,7 +96,7 @@ swarm-manager backlog pending-questions --source workshop --json
 If the caller supplied scope, apply it to the live queue before presenting decisions:
 
 ```bash
-swarm-manager backlog pending-questions --source workshop --initiative <initiative> --json
+swarm-manager backlog pending-questions --source workshop --initiative "<initiative>" --json
 ```
 
 For item scope, fetch the live queue and filter to the exact `kind` and `name`. The live queue is authoritative; the staged handoff only enriches matching decisions.
@@ -221,7 +221,7 @@ If the operator asks something the brief cannot already answer:
 2. If the operator accepts, run:
 
 ```bash
-swarm-manager backlog clarify --kind <kind> --name <name> --round <round> --item <item_id> --message "<operator question>"
+swarm-manager backlog clarify --kind "<kind>" --name "<name>" --round "<round>" --item "<item_id>" --message "<operator question>"
 ```
 
 3. Mark the current decision mentally as clarification-pending.

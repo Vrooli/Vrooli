@@ -224,9 +224,9 @@ The skill had ~380 lines documenting 40+ commands with all their flags—essenti
 **The fix:** Restructure the CLI with subcommand groups that have their own help:
 ```bash
 # Before: skill documents every command
-scenario-to-desktop pipeline-run <scenario> [--stages ...] [--platforms ...] [--wait]
-scenario-to-desktop pipeline-status <id> [--verbose] [--json]
-scenario-to-desktop telemetry-ingest <scenario> --file <path>
+scenario-to-desktop pipeline-run "<scenario>" [--stages ...] [--platforms ...] [--wait]
+scenario-to-desktop pipeline-status "<id>" [--verbose] [--json]
+scenario-to-desktop telemetry-ingest "<scenario>" --file "<path>"
 # ... 37 more commands with flags
 
 # After: skill says "run help for details"

@@ -4,11 +4,26 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
+
+// testEnv isolates the process-wide fallback pin path so recommendation tests
+// exercise their supplied host snapshot rather than an operator's persisted
+// capacity-degrade choice in the developer's runtime home.
+func testEnv(t *testing.T, values map[string]string) func(string) string {
+	t.Helper()
+	pinPath := filepath.Join(t.TempDir(), "whisper-model.pin")
+	return func(key string) string {
+		if key == EnvPinFile {
+			return pinPath
+		}
+		return values[key]
+	}
+}
 
 type fakeHostProbe struct {
 	snapshot hostinventory.Snapshot
@@ -28,7 +43,7 @@ func TestCmd_JSON_FrozenSchema(t *testing.T) {
 		}},
 		Stdout: stdout,
 		Stderr: &bytes.Buffer{},
-		GetEnv: func(string) string { return "" },
+		GetEnv: testEnv(t, nil),
 	}
 	if err := h.Run([]string{"--json"}); err != nil {
 		t.Fatal(err)
@@ -54,7 +69,7 @@ func TestCmd_HumanDefault(t *testing.T) {
 		Probe:  fakeHostProbe{snapshot: hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: 2}, Memory: hostinventory.Memory{TotalBytes: 2 << 30}}},
 		Stdout: stdout,
 		Stderr: &bytes.Buffer{},
-		GetEnv: func(string) string { return "" },
+		GetEnv: testEnv(t, nil),
 	}
 	if err := h.Run(nil); err != nil {
 		t.Fatal(err)
@@ -70,7 +85,7 @@ func TestCmd_HumanExplain(t *testing.T) {
 		Probe:  fakeHostProbe{snapshot: hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: 2}, Memory: hostinventory.Memory{TotalBytes: 2 << 30}}},
 		Stdout: stdout,
 		Stderr: &bytes.Buffer{},
-		GetEnv: func(string) string { return "" },
+		GetEnv: testEnv(t, nil),
 	}
 	if err := h.Run([]string{"--explain"}); err != nil {
 		t.Fatal(err)
@@ -110,7 +125,7 @@ func TestCmd_BudgetFlagOverridesEnv(t *testing.T) {
 		}},
 		Stdout: stdout,
 		Stderr: &bytes.Buffer{},
-		GetEnv: func(string) string { return "50" },
+		GetEnv: testEnv(t, map[string]string{envBudgetVar: "50"}),
 	}
 	if err := h.Run([]string{"--budget-pct", "10", "--json"}); err != nil {
 		t.Fatal(err)

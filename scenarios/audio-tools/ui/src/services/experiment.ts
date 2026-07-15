@@ -8,6 +8,7 @@ import {
   type Experiment,
   type ExperimentRecipe,
   type ExperimentRun,
+  ReplayLane,
 } from "@vrooli/proto-types/audio-tools/v1/experiment/experiment_pb";
 
 import { transport } from "../api/client";
@@ -143,6 +144,8 @@ export interface ExperimentReportRow {
 export interface StartExperimentInput {
   name: string;
   clipIds: string[];
+  /** Explicit engine dimension for provider-neutral evaluation cells. */
+  engineIds: string[];
   strategies: string[];
   realtimeRepeats: number;
   latencyTailSeconds: number;
@@ -178,7 +181,10 @@ function decodeRecipe(r?: ExperimentRecipe): RecipeSummary {
     : "unspecified";
   return {
     clipIds: r?.clipIds ?? [],
-    strategies: (r?.strategies ?? []).map((s) => s.kind || s.label).filter(Boolean),
+    strategies: [
+      ...(r?.strategies ?? []).map((s) => s.kind || s.label).filter(Boolean),
+      ...(r?.cells ?? []).map((cell) => cell.label || `${cell.engineId}:${cell.strategy}`).filter(Boolean),
+    ],
     strategyDetails: (r?.strategies ?? []).map((s) => ({
       kind: s.kind,
       label: s.label,
@@ -266,23 +272,32 @@ function decodeEvent(e: ExperimentEvent): ExperimentEventRow {
 }
 
 function buildRecipe(input: StartExperimentInput) {
-  const strategies = input.strategies.map((kind) => ({
-    kind,
-    label: kind,
-    overlapMaxStallRejects: input.overlapMaxStallRejects,
-    overlapWindowMs: input.overlapWindowMs,
-    overlapCommitRuns: input.overlapCommitRuns,
-    overlapMaxWindowMs: input.overlapMaxWindowMs,
-    vadSilenceMs: input.vadSilenceMs,
-  }));
+	const replayLane = input.realtimeRepeats > 0 ? ReplayLane.REALTIME : ReplayLane.DETERMINISTIC;
+	const repeatCount = replayLane === ReplayLane.REALTIME ? Math.max(1, Math.round(input.realtimeRepeats)) : 1;
+	const cells = input.engineIds
+    .map((engineId) => engineId.trim())
+    .filter(Boolean)
+    .flatMap((engineId) => input.strategies.map((strategy) => ({
+      engineId,
+      strategy,
+      label: `${engineId}:${strategy}`,
+      replayLane,
+      repeatCount,
+    })));
   const sweepDurationsSeconds = csvNumbers(input.sweepDurationsCsv)
     .map((n) => Math.max(0, Math.round(n)))
     .filter((n) => n > 0);
   return {
     clipIds: input.clipIds,
-    strategies,
-    realtimeRepeats: input.realtimeRepeats,
-    latencyTailSeconds: input.latencyTailSeconds,
+    // Legacy strategy-only rows remain readable in historical reports. New
+    // recipes use cells exclusively so every result names its engine.
+    strategies: [],
+    cells,
+    // Cell replay lanes own pacing. Keeping legacy global pacing/tail flags
+    // clear prevents a labelled real-time provider cell from being rejected or
+    // silently converted into a tail approximation.
+    realtimeRepeats: 0,
+    latencyTailSeconds: 0,
     chunkMs: input.chunkMs,
     seed: BigInt(input.seed),
     longForm: {

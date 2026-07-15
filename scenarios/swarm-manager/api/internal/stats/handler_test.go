@@ -14,6 +14,7 @@ import (
 	"swarm-manager/internal/stats"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
@@ -36,7 +37,7 @@ func TestGetStatsEmpty(t *testing.T) {
 	}
 	defer db.Close()
 
-	repo := eventlog.NewSQLiteRepository(db)
+	repo := eventlog.NewSQLiteRepository(database.NewFromPrimary(db))
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -74,7 +75,7 @@ func TestGetStatsUnknownGoalReturns404(t *testing.T) {
 	}
 	defer db.Close()
 
-	repo := eventlog.NewSQLiteRepository(db)
+	repo := eventlog.NewSQLiteRepository(database.NewFromPrimary(db))
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -105,7 +106,7 @@ func TestGetStatsIncludesAgentSessionMetrics(t *testing.T) {
 	}
 	defer db.Close()
 
-	repo := eventlog.NewSQLiteRepository(db)
+	repo := eventlog.NewSQLiteRepository(database.NewFromPrimary(db))
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -176,7 +177,7 @@ func TestGetStatsCategoryFilter(t *testing.T) {
 	}
 	defer db.Close()
 
-	repo := eventlog.NewSQLiteRepository(db)
+	repo := eventlog.NewSQLiteRepository(database.NewFromPrimary(db))
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init: %v", err)
 	}

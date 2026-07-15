@@ -198,14 +198,14 @@ func TestResourceHealer_ImplementsHealer(t *testing.T) {
 // --- ScenarioHealer Tests ---
 
 func TestScenarioHealer_CheckID(t *testing.T) {
-	h := NewScenarioHealer("landing-manager", nil)
-	if h.CheckID() != "scenario-landing-manager" {
-		t.Errorf("CheckID() = %q, want %q", h.CheckID(), "scenario-landing-manager")
+	h := NewScenarioHealer("template-manager", nil)
+	if h.CheckID() != "scenario-template-manager" {
+		t.Errorf("CheckID() = %q, want %q", h.CheckID(), "scenario-template-manager")
 	}
 }
 
 func TestScenarioHealer_Actions(t *testing.T) {
-	h := NewScenarioHealer("landing-manager", nil)
+	h := NewScenarioHealer("template-manager", nil)
 
 	t.Run("nil result", func(t *testing.T) {
 		actions := h.Actions(nil)
@@ -244,7 +244,7 @@ func TestScenarioHealer_Actions(t *testing.T) {
 
 func TestScenarioHealer_Execute(t *testing.T) {
 	exec := &mockExecutor{combinedOutputResult: []byte("ok")}
-	h := NewScenarioHealer("landing-manager", exec)
+	h := NewScenarioHealer("template-manager", exec)
 
 	actions := []string{"start", "stop", "restart", "restart-clean", "logs", "diagnose"}
 	for _, actionID := range actions {
@@ -365,7 +365,7 @@ func TestHealerRegistration(t *testing.T) {
 	registry := healing.NewRegistry()
 
 	resourceHealer := NewResourceHealer("postgres", nil)
-	scenarioHealer := NewScenarioHealer("landing-manager", nil)
+	scenarioHealer := NewScenarioHealer("template-manager", nil)
 	systemdHealer := NewSystemdHealer("infra-cloudflared", "cloudflared", nil)
 
 	registry.Register(resourceHealer)
@@ -375,8 +375,8 @@ func TestHealerRegistration(t *testing.T) {
 	if !registry.IsHealable("resource-postgres") {
 		t.Error("expected resource-postgres to be healable")
 	}
-	if !registry.IsHealable("scenario-landing-manager") {
-		t.Error("expected scenario-landing-manager to be healable")
+	if !registry.IsHealable("scenario-template-manager") {
+		t.Error("expected scenario-template-manager to be healable")
 	}
 	if !registry.IsHealable("infra-cloudflared") {
 		t.Error("expected infra-cloudflared to be healable")

@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"strings"
 
 	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/idgen"
 )
@@ -111,41 +109,48 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 	}
 	records = append(records, fixupRecord)
 
-	activityCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
-		item,
-		fixupRecord.ExecutionID,
-		agentactivity.PurposeFixup,
-		"swarm-manager:fixup",
-		map[string]string{
-			"entrypoint": "execution.fixup",
-			"attempt":    fmt.Sprintf("%d", fixupRecord.FixupAttempt),
+	// Reroute through the operation runner: a fix-up is the execution-fixup
+	// operation on the backlog-item target. The bound mode (backlog-fixup) owns the
+	// prompt; the review feedback + type ride as caller inputs. The completion
+	// bridge's commit-execution-round handler drives this record to terminal
+	// (execution.opshandlers), so the poller defers it (OpExecutionID set).
+	if s.operationStarter == nil {
+		slog.Error("fixup start skipped: execution operation runner unavailable", "kind", item.Kind, "name", item.Name)
+		for i := range records {
+			if records[i].ExecutionID == fixupRecord.ExecutionID {
+				records[i].Status = StatusFailed
+				records[i].FailureReason = "execution operation runner is not available"
+				records[i].FinishedAt = now
+				break
+			}
+		}
+		_ = s.store.Save(records)
+		s.dispatchStatusUpdate(fixupRecord)
+		return
+	}
+	res, opErr := s.operationStarter.StartOperation(ctx, OperationStartRequest{
+		Operation:        operationExecutionFixup,
+		OperationVersion: operationVersionPinned,
+		TargetKind:       targetKindBacklogItem,
+		TargetID:         item.Kind + "/" + item.Name,
+		// execution-fixup declares only OPERATOR_NOTE; the review feedback rides
+		// there (routed to the mode's operator-note channel).
+		CallerInputs: map[string]string{
+			"OPERATOR_NOTE": buildFinalizationFeedback(effectiveFinalization(*record)),
 		},
-	))
-
-	runResult, err := s.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
-		Kind:            item.Kind,
-		Name:            item.Name,
-		Title:           fmt.Sprintf("Fix-up: %s/%s (attempt %d)", item.Kind, item.Name, fixupRecord.FixupAttempt),
-		Description:     prompt,
-		Prompt:          prompt,
-		ScopePath:       ".",
-		ProjectRoot:     ".",
-		CreatedBy:       "swarm-manager:fixup",
-		Purpose:         "fixup",
-		AcceptanceAllow: item.AcceptanceAllow,
-		AcceptanceDeny:  item.AcceptanceDeny,
-		Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
+		IdempotencyKey: "exec-" + fixupRecord.ExecutionID,
+		RequestedBy:    fixupRecord.StartedBy,
 	})
-	if err != nil {
-		if errors.Is(err, agentactivity.ErrBacklogItemBusy) {
-			slog.Warn("fixup spawn skipped: agent already active", "kind", item.Kind, "name", item.Name)
+	if opErr != nil {
+		if errors.Is(opErr, agentactivity.ErrBacklogItemBusy) {
+			slog.Warn("fixup start skipped: agent already active", "kind", item.Kind, "name", item.Name)
 		} else {
-			slog.Error("failed to spawn fixup run", "err", err)
+			slog.Error("failed to start fixup operation", "err", opErr)
 		}
 		for i := range records {
 			if records[i].ExecutionID == fixupRecord.ExecutionID {
 				records[i].Status = StatusFailed
-				records[i].FailureReason = fmt.Sprintf("spawn failed: %v", err)
+				records[i].FailureReason = fmt.Sprintf("start failed: %v", opErr)
 				records[i].FinishedAt = now
 				break
 			}
@@ -162,8 +167,9 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 
 	for i := range records {
 		if records[i].ExecutionID == fixupRecord.ExecutionID {
-			records[i].TaskID = runResult.TaskID
-			records[i].RunID = runResult.RunID
+			records[i].RunID = res.RunID
+			records[i].OpWorkflowID = res.WorkflowID
+			records[i].OpExecutionID = res.ExecutionID
 			records[i].Status = StatusStarting
 			records[i].StartedAt = now
 			break
@@ -286,69 +292,46 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		followUpRecord.FixupAttempt = parent.FixupAttempt + 1
 	}
 
-	if req.RunMode == "continue" && strings.TrimSpace(parent.RunID) != "" {
-		// Continue existing agent-manager session.
-		if s.continuer == nil {
-			return Record{}, fmt.Errorf("cannot follow up: run continuation not available")
-		}
-		continueCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
-			item,
-			followUpRecord.ExecutionID,
-			executionActivityPurpose(runType),
-			followUpRecord.StartedBy,
-			map[string]string{
-				"entrypoint":       "execution.follow_up",
-				"follow_up_type":   runType,
-				"run_mode":         req.RunMode,
-				"parent_execution": parent.ExecutionID,
-			},
-		))
-		if err := s.continuer.ContinueRun(continueCtx, parent.RunID, prompt); err != nil {
-			if strings.Contains(err.Error(), "session_expired") || strings.Contains(err.Error(), "continuation_not_supported") {
-				return Record{}, apierr.Wrap(apierr.ErrSessionExpired, http.StatusConflict, "agent session expired; retry with run_mode=new")
-			}
-			return Record{}, fmt.Errorf("continue run failed: %w", err)
-		}
-		followUpRecord.RunID = parent.RunID
-		followUpRecord.TaskID = parent.TaskID
-		followUpRecord.Status = StatusRunning
-		followUpRecord.StartedAt = now
-	} else {
-		// Spawn a fresh run.
-		spawnCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
-			item,
-			followUpRecord.ExecutionID,
-			executionActivityPurpose(runType),
-			followUpRecord.StartedBy,
-			map[string]string{
-				"entrypoint":       "execution.follow_up",
-				"follow_up_type":   runType,
-				"run_mode":         req.RunMode,
-				"parent_execution": parent.ExecutionID,
-			},
-		))
-		runResult, spawnErr := s.agentService.SpawnBacklog(spawnCtx, agentmanager.BacklogSpawnRequest{
-			Kind:            item.Kind,
-			Name:            item.Name,
-			Title:           fmt.Sprintf("Follow-up: %s/%s", item.Kind, item.Name),
-			Description:     prompt,
-			Prompt:          prompt,
-			ScopePath:       ".",
-			ProjectRoot:     ".",
-			CreatedBy:       "swarm-manager:follow-up",
-			Purpose:         req.FollowUpType,
-			AcceptanceAllow: item.AcceptanceAllow,
-			AcceptanceDeny:  item.AcceptanceDeny,
-			Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
-		})
-		if spawnErr != nil {
-			return Record{}, wrapAgentError(fmt.Errorf("spawn follow-up failed: %w", spawnErr))
-		}
-		followUpRecord.TaskID = runResult.TaskID
-		followUpRecord.RunID = runResult.RunID
-		followUpRecord.Status = StatusStarting
-		followUpRecord.StartedAt = now
+	// Reroute through the operation runner. A follow-up starts a fresh
+	// execution-followup operation (or execution-fixup when the caller asked for a
+	// fix-up flavor) on the backlog-item target; the bound mode owns the prompt and
+	// the note/type ride as caller inputs. Agent-session continuation
+	// (run_mode=continue) is not part of the declarative-operations model — a fresh
+	// run reads the same completed deliverable + feedback — so it collapses to a
+	// fresh start. The completion bridge drives this record to terminal, so the
+	// poller defers it (OpExecutionID set).
+	if s.operationStarter == nil {
+		return Record{}, apierr.Unavailable("execution operation runner is not available")
 	}
+	// Route by operation, matching each contract's declared caller inputs:
+	// execution-followup accepts FOLLOWUP_NOTE + FOLLOWUP_TYPE; execution-fixup
+	// accepts only OPERATOR_NOTE (LivePreparer rejects any undeclared input).
+	followUpOp := operationExecutionFollowup
+	callerInputs := map[string]string{
+		"FOLLOWUP_TYPE": runType,
+		"FOLLOWUP_NOTE": strings.TrimSpace(req.Context),
+	}
+	if req.FollowUpType == "fixup" {
+		followUpOp = operationExecutionFixup
+		callerInputs = map[string]string{"OPERATOR_NOTE": strings.TrimSpace(req.Context)}
+	}
+	res, opErr := s.operationStarter.StartOperation(ctx, OperationStartRequest{
+		Operation:        followUpOp,
+		OperationVersion: operationVersionPinned,
+		TargetKind:       targetKindBacklogItem,
+		TargetID:         item.Kind + "/" + item.Name,
+		CallerInputs:     callerInputs,
+		IdempotencyKey:   "exec-" + followUpRecord.ExecutionID,
+		RequestedBy:      followUpRecord.StartedBy,
+	})
+	if opErr != nil {
+		return Record{}, wrapAgentError(fmt.Errorf("start follow-up operation failed: %w", opErr))
+	}
+	followUpRecord.RunID = res.RunID
+	followUpRecord.OpWorkflowID = res.WorkflowID
+	followUpRecord.OpExecutionID = res.ExecutionID
+	followUpRecord.Status = StatusStarting
+	followUpRecord.StartedAt = now
 
 	records = append(records, followUpRecord)
 	if err := s.store.Save(records); err != nil {

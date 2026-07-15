@@ -136,16 +136,22 @@ class TemplateValidationIssue(_message.Message):
     def __init__(self, template: _Optional[str] = ..., path: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class ValidateTemplateResponse(_message.Message):
-    __slots__ = ("mode", "template", "count", "issues")
+    __slots__ = ("mode", "template", "count", "issues", "status", "issues_count", "warnings")
     MODE_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_FIELD_NUMBER: _ClassVar[int]
     COUNT_FIELD_NUMBER: _ClassVar[int]
     ISSUES_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_COUNT_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
     mode: str
     template: str
     count: int
     issues: _containers.RepeatedCompositeFieldContainer[TemplateValidationIssue]
-    def __init__(self, mode: _Optional[str] = ..., template: _Optional[str] = ..., count: _Optional[int] = ..., issues: _Optional[_Iterable[_Union[TemplateValidationIssue, _Mapping]]] = ...) -> None: ...
+    status: str
+    issues_count: int
+    warnings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, mode: _Optional[str] = ..., template: _Optional[str] = ..., count: _Optional[int] = ..., issues: _Optional[_Iterable[_Union[TemplateValidationIssue, _Mapping]]] = ..., status: _Optional[str] = ..., issues_count: _Optional[int] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DriftReportRequest(_message.Message):
     __slots__ = ("scenario", "all", "verbose")
@@ -191,17 +197,31 @@ class CleanupRunsRequest(_message.Message):
     run_id: str
     def __init__(self, dry_run: _Optional[bool] = ..., older_than: _Optional[str] = ..., include_retained: _Optional[bool] = ..., run_id: _Optional[str] = ...) -> None: ...
 
+class CleanupSkippedRun(_message.Message):
+    __slots__ = ("run_id", "path", "reason")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    path: str
+    reason: str
+    def __init__(self, run_id: _Optional[str] = ..., path: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
 class CleanupRunsResponse(_message.Message):
-    __slots__ = ("matched", "removed", "dry_run", "message")
+    __slots__ = ("matched", "removed", "dry_run", "message", "skipped", "skipped_runs")
     MATCHED_FIELD_NUMBER: _ClassVar[int]
     REMOVED_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_RUNS_FIELD_NUMBER: _ClassVar[int]
     matched: int
     removed: int
     dry_run: bool
     message: str
-    def __init__(self, matched: _Optional[int] = ..., removed: _Optional[int] = ..., dry_run: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+    skipped: int
+    skipped_runs: _containers.RepeatedCompositeFieldContainer[CleanupSkippedRun]
+    def __init__(self, matched: _Optional[int] = ..., removed: _Optional[int] = ..., dry_run: _Optional[bool] = ..., message: _Optional[str] = ..., skipped: _Optional[int] = ..., skipped_runs: _Optional[_Iterable[_Union[CleanupSkippedRun, _Mapping]]] = ...) -> None: ...
 
 class ListDesignKitsRequest(_message.Message):
     __slots__ = ()
@@ -263,10 +283,26 @@ class DesignValidationIssue(_message.Message):
     message: str
     def __init__(self, kit: _Optional[str] = ..., adapter: _Optional[str] = ..., path: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
+class DesignKitValidationResult(_message.Message):
+    __slots__ = ("kit", "status", "issues")
+    KIT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_FIELD_NUMBER: _ClassVar[int]
+    kit: str
+    status: str
+    issues: _containers.RepeatedCompositeFieldContainer[DesignValidationIssue]
+    def __init__(self, kit: _Optional[str] = ..., status: _Optional[str] = ..., issues: _Optional[_Iterable[_Union[DesignValidationIssue, _Mapping]]] = ...) -> None: ...
+
 class ValidateDesignKitsResponse(_message.Message):
-    __slots__ = ("count", "issues")
+    __slots__ = ("count", "issues", "status", "issues_count", "results")
     COUNT_FIELD_NUMBER: _ClassVar[int]
     ISSUES_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_COUNT_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
     count: int
     issues: _containers.RepeatedCompositeFieldContainer[DesignValidationIssue]
-    def __init__(self, count: _Optional[int] = ..., issues: _Optional[_Iterable[_Union[DesignValidationIssue, _Mapping]]] = ...) -> None: ...
+    status: str
+    issues_count: int
+    results: _containers.RepeatedCompositeFieldContainer[DesignKitValidationResult]
+    def __init__(self, count: _Optional[int] = ..., issues: _Optional[_Iterable[_Union[DesignValidationIssue, _Mapping]]] = ..., status: _Optional[str] = ..., issues_count: _Optional[int] = ..., results: _Optional[_Iterable[_Union[DesignKitValidationResult, _Mapping]]] = ...) -> None: ...

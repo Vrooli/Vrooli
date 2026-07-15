@@ -19,8 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/fileops"
@@ -28,7 +27,6 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathredact"
 	"swarm-manager/internal/projectroot"
-	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -268,11 +266,7 @@ func finalizedPlanRefFromRound(roundContent string, existing *PlanRef) (*PlanRef
 func (h *Handler) computeAutoAdvance(item BacklogItem, round *workshop.Round, kind BacklogKind, name, itemDir string) *apipb.WorkshopAutoAdvance {
 	autoAdvance := &apipb.WorkshopAutoAdvance{Triggered: false, Reason: "disabled"}
 
-	cfg, cfgErr := settings.NewStore("").Load()
-	if cfgErr != nil {
-		slog.Warn("failed to load settings for auto-advance", "err", cfgErr)
-		cfg = settings.DefaultSettings()
-	}
+	controls := h.loadPolicyControls("failed to load policy controls for auto-advance")
 
 	_, roundCount, loadErr := workshop.LoadLatestRound(itemDir)
 	if loadErr != nil {
@@ -281,13 +275,13 @@ func (h *Handler) computeAutoAdvance(item BacklogItem, round *workshop.Round, ki
 		return autoAdvance
 	}
 
-	result := workshop.ShouldAutoAdvance(cfg.AutoAdvanceWorkshop, round, roundCount, string(kind), cfg.MaxAutoRounds)
+	result := workshop.ShouldAutoAdvance(controls.AutoAdvance.Enabled, round, roundCount, string(kind), controls.AutoAdvance.MaxAutoRounds)
 	if result.NextMode == string(ResearchModeFinalize) && !workshop.NeedsSynthesis(round) {
 		result.Advance = false
 		result.NextMode = ""
 	}
 	autoAdvance.Reason = result.Reason
-	if nextMode := resolveNextMode(result, cfg.AutoAdvanceWorkshop, round, roundCount, kind, cfg.MaxAutoRounds); nextMode != "" {
+	if nextMode := resolveNextMode(result, controls.AutoAdvance.Enabled, round, roundCount, kind, controls.AutoAdvance.MaxAutoRounds); nextMode != "" {
 		autoAdvance.NextMode = &nextMode
 	}
 
@@ -300,41 +294,29 @@ func (h *Handler) computeAutoAdvance(item BacklogItem, round *workshop.Round, ki
 		runMode = ResearchModeFinalize
 	}
 
-	if cfg.AutoAdvanceDelaySeconds > 0 {
-		h.scheduleDeferredAdvance(autoAdvance, kind, name, itemDir, runMode, roundCount, cfg.AutoAdvanceDelaySeconds)
+	if controls.AutoAdvance.DelaySeconds > 0 {
+		h.scheduleDeferredAdvance(autoAdvance, kind, name, runMode, controls.AutoAdvance.DelaySeconds)
 	} else {
 		h.executeImmediateAdvance(autoAdvance, item, kind, name, runMode)
 	}
 	return autoAdvance
 }
 
-// scheduleDeferredAdvance writes a pending advance file and registers it with the ticker.
-func (h *Handler) scheduleDeferredAdvance(aa *apipb.WorkshopAutoAdvance, kind BacklogKind, name, itemDir string, runMode ResearchMode, roundCount, delaySec int) {
-	deletePendingAdvance(itemDir)
-	if h.workshopTicker != nil {
-		h.workshopTicker.Unregister(string(kind), name)
-	}
-
-	now := time.Now().UTC()
-	pa := PendingAdvance{
-		CreatedAt:  now,
-		AdvanceAt:  now.Add(time.Duration(delaySec) * time.Second),
-		NextMode:   string(runMode),
-		RoundCount: roundCount,
-		Kind:       string(kind),
-		Name:       name,
-	}
-	if writeErr := writePendingAdvance(itemDir, pa); writeErr != nil {
-		slog.Error("failed to write pending advance", "kind", kind, "name", name, "err", writeErr)
+// scheduleDeferredAdvance records a durable scheduler intent that fires the
+// advance OPERATION after the configured delay. It replaces the legacy pending
+// advance file + in-memory ticker: the intent lives on the item's persisted
+// workflow, so a restart resumes it, and the scheduler firer re-derives the
+// concrete operation from current readiness through the AdvanceResolver.
+func (h *Handler) scheduleDeferredAdvance(aa *apipb.WorkshopAutoAdvance, kind BacklogKind, name string, runMode ResearchMode, delaySec int) {
+	op := advanceOperationForMode(runMode)
+	notBefore := time.Now().UTC().Add(time.Duration(delaySec) * time.Second).Format(time.RFC3339)
+	if err := h.scheduleDeferredAdvanceIntent(kind, name, op, notBefore); err != nil {
+		slog.Error("failed to schedule deferred advance", "kind", kind, "name", name, "err", err)
 		aa.Reason = "error"
 		return
 	}
-	if h.workshopTicker != nil {
-		h.workshopTicker.Register(string(kind), name, pa)
-	}
 	aa.Pending = true
-	advanceAtStr := pa.AdvanceAt.Format(time.RFC3339)
-	aa.AdvanceAt = &advanceAtStr
+	aa.AdvanceAt = &notBefore
 	aa.DelaySeconds = int32(delaySec)
 	if aa.NextMode == nil {
 		nm := string(runMode)
@@ -342,22 +324,25 @@ func (h *Handler) scheduleDeferredAdvance(aa *apipb.WorkshopAutoAdvance, kind Ba
 	}
 }
 
-// executeImmediateAdvance spawns the workshop agent immediately.
+// executeImmediateAdvance starts the advance operation immediately through the
+// runner.
 func (h *Handler) executeImmediateAdvance(aa *apipb.WorkshopAutoAdvance, item BacklogItem, kind BacklogKind, name string, runMode ResearchMode) {
-	runID, taskID, spawnErr := h.spawnWorkshopAsync(item, runMode)
-	if spawnErr != nil {
-		if errors.Is(spawnErr, agentactivity.ErrBacklogItemBusy) {
+	op := advanceOperationForMode(runMode)
+	handle, err := h.invokeItemOperation(context.Background(), kind, item.Name, op, "", nil)
+	if err != nil {
+		switch mapInvokeError(err).kind {
+		case invokeBusy:
 			slog.Info("auto-advance skipped: agent already active", "kind", kind, "name", name)
 			aa.Reason = "agent_active"
-		} else {
-			slog.Error("auto-advance spawn failed", "kind", kind, "name", name, "err", spawnErr)
+		default:
+			slog.Error("auto-advance invoke failed", "kind", kind, "name", name, "err", err)
 			aa.Reason = "error"
 		}
 		return
 	}
 	aa.Triggered = true
-	aa.RunId = &runID
-	aa.TaskId = &taskID
+	aa.RunId = &handle.RunID
+	aa.TaskId = &handle.TaskID
 }
 
 func resolveNextMode(result workshop.AutoAdvanceResult, autoAdvanceEnabled bool, round *workshop.Round, roundCount int, kind BacklogKind, maxAutoRounds int) string {
@@ -381,60 +366,6 @@ func resolveNextMode(result workshop.AutoAdvanceResult, autoAdvanceEnabled bool,
 		return string(ResearchModeWorkshop)
 	}
 	return ""
-}
-
-// spawnWorkshopAsync spawns a workshop/finalize/initialize agent for the given item.
-// Per-item idempotency is enforced by the centralized guard in
-// agentactivity.Service.spawnTracked — no local lock needed here.
-func (h *Handler) spawnWorkshopAsync(item BacklogItem, mode ResearchMode) (runID, taskID string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	service := h.agentService
-	if service == nil {
-		return "", "", agentmanager.ErrNotAvailable
-	}
-
-	selection, promptErr := h.fetchResearchPrompt(ctx, item, mode)
-	prompt := selection.Prompt
-	if promptErr != nil {
-		slog.Warn("auto-workshop prompt fetch failed, using fallback", "kind", item.Kind, "name", item.Name, "err", promptErr)
-		prompt = "Use the backlog item folder as context and perform the requested workshop refinement."
-	}
-
-	activityCtx := agentactivity.WithSpec(ctx, agentactivity.Spec{
-		OwnerType:   agentactivity.OwnerBacklog,
-		OwnerKind:   string(item.Kind),
-		OwnerName:   item.Name,
-		OwnerTitle:  item.Title,
-		Purpose:     researchPurpose(mode),
-		PhaseKind:   researchLane(mode),
-		RequestedBy: "swarm-manager",
-		Metadata: map[string]string{
-			"entrypoint":     "backlog.workshop_auto_advance",
-			"mode":           string(mode),
-			"auto_triggered": "true",
-			"skill_id":       selection.SkillID,
-		},
-	})
-
-	runResult, err := service.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
-		Kind:        string(item.Kind),
-		Name:        item.Name,
-		Title:       buildResearchTitle(item, mode),
-		Description: prompt,
-		Prompt:      prompt,
-		ScopePath:   ".",
-		ProjectRoot: ".",
-		CreatedBy:   "swarm-manager",
-		Purpose:     "research",
-		Environment: map[string]string{"VROOLI_SPAWN_SOURCE": string(item.Kind) + "/" + item.Name},
-	})
-	if err != nil {
-		return "", "", fmt.Errorf("spawn failed: %w", err)
-	}
-
-	return runResult.RunID, runResult.TaskID, nil
 }
 
 // WorkshopDeleteRound deletes a workshop round and renumbers subsequent rounds.
@@ -608,11 +539,11 @@ func (h *Handler) ReWorkshop(w http.ResponseWriter, r *http.Request) {
 
 	// Kick off a fresh workshop round. Bypass dependency gating because the
 	// caller has explicitly asked us to re-author against the current repo.
-	go func(it BacklogItem) {
-		if _, _, spawnErr := h.spawnWorkshopAsync(it, ResearchModeInitialize); spawnErr != nil {
-			slog.Error("re-workshop spawn failed", "kind", it.Kind, "name", it.Name, "err", spawnErr)
+	go func(k BacklogKind, n string) {
+		if _, err := h.invokeItemOperation(context.Background(), k, n, agentops.OpResearchRefine, "", nil); err != nil {
+			slog.Error("re-workshop invoke failed", "kind", k, "name", n, "err", err)
 		}
-	}(item)
+	}(kind, item.Name)
 
 	slog.Info("re-workshop triggered", "kind", kind, "name", name, "deleted_rounds", deleted, "status_reverted", statusReverted)
 

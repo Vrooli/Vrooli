@@ -126,19 +126,20 @@ type Config struct {
 
 // Service orchestrates initiative review rounds.
 type Service struct {
-	initStore       InitiativeStore
-	backlogLoader   BacklogLoader
-	graphReader     GraphReader
-	spawner         AgentSpawner
-	inspector       RunInspector
-	lock            *initiativelock.Lock
-	executionLookup ExecutionLookup
-	planContent     PlanContentResolver
-	gctClient       GCTClient
-	gctPollInterval time.Duration
-	gctPollTimeout  time.Duration
-	promptClient    promptmanager.Client
-	clock           func() time.Time
+	initStore        InitiativeStore
+	backlogLoader    BacklogLoader
+	graphReader      GraphReader
+	spawner          AgentSpawner
+	operationStarter OperationStarter
+	inspector        RunInspector
+	lock             *initiativelock.Lock
+	executionLookup  ExecutionLookup
+	planContent      PlanContentResolver
+	gctClient        GCTClient
+	gctPollInterval  time.Duration
+	gctPollTimeout   time.Duration
+	promptClient     promptmanager.Client
+	clock            func() time.Time
 
 	mu           sync.Mutex
 	activeRounds map[string]activeRound // keyed by RunID
@@ -215,6 +216,12 @@ func (s *Service) ListRounds(initiativeName string) ([]review.Round, error) {
 		if r.Status != review.RoundStatusGathering || r.RunID == "" {
 			continue
 		}
+		// Runner-owned rounds are finalized by the operation runner's completion
+		// bridge (commit-initiative-review), not this poll — defer so the two
+		// never race to drive the same round.
+		if r.RunnerOwned() {
+			continue
+		}
 		state, stateErr := s.inspector.GetRunState(context.Background(), r.RunID)
 		if stateErr != nil {
 			continue
@@ -244,15 +251,3 @@ func (s *Service) setInitiativeStatus(init *initiatives.Initiative, status, when
 	}
 	return nil
 }
-
-// renderInstructions builds the per-round review skill prompt.
-func (s *Service) renderInstructions(ctx context.Context, init *initiatives.Initiative, roundNum int) (string, error) {
-	vars := map[string]string{
-		"INITIATIVE_NAME": init.Name,
-		"ROUND_NUMBER":    fmt.Sprintf("%03d", roundNum),
-	}
-	return s.promptClient.ReadSkill(ctx, "swarm-manager-initiative-review", vars, true)
-}
-
-// --- Attachment assembly lives in context.go so this file stays focused on
-// lifecycle.

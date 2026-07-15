@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +21,11 @@ import (
 // measured kyutai flush lag is ~0.07s (RTF 0.13), so this is generous; it only
 // exists so a wedged backend cannot hang teardown forever.
 const kyutaiDrainTimeout = 5 * time.Second
+
+// kyutaiMaxInFlightBatches bounds raw PCM accepted by the resource but not yet
+// decoded. It preserves WebSocket control-frame liveness under deterministic
+// replay instead of relying on socket-buffer growth as an implicit queue.
+const kyutaiMaxInFlightBatches = 8
 
 // KyutaiProvider is the Local-tier adapter for the Kyutai streaming STT
 // engine (resources/kyutai-stt). Unlike the Whisper LocalProvider (batch),
@@ -62,10 +68,24 @@ type KyutaiProvider struct {
 func NewKyutaiProvider(baseURL string) *KyutaiProvider {
 	return &KyutaiProvider{
 		BaseURL: baseURL,
-		ModelID: "kyutai",
+		ModelID: kyutaiModelID(),
 		Doer:    httpc.DefaultDoer(),
 		Clock:   clock.System{},
 	}
+}
+
+// kyutaiModelID is explicit runtime provenance, not the engine id. Operators
+// overriding the resource model must export AUDIO_KYUTAI_MODEL_ID alongside
+// the resource configuration; promotion evidence then cannot cross that model
+// boundary. The bundled resource's declared default is used otherwise.
+func kyutaiModelID() string {
+	if model := strings.TrimSpace(os.Getenv("AUDIO_KYUTAI_MODEL_ID")); model != "" {
+		return model
+	}
+	if model := strings.TrimSpace(os.Getenv("KYUTAI_STT_HF_REPO")); model != "" {
+		return model
+	}
+	return "kyutai/stt-1b-en_fr"
 }
 
 func (p *KyutaiProvider) Type() ProviderTier { return TierLocal }
@@ -186,6 +206,13 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		// streamDone is closed by the reader when it returns; the ctx watcher and
 		// the writer select on it so neither outlives the session.
 		streamDone := make(chan struct{})
+		// The resource accepts the start control frame immediately but may place
+		// the session in FIFO admission. Never push PCM while it is queued: the
+		// upstream session ledger/browser journal is the replay authority, not a
+		// resource socket buffer. The reader closes this only on an explicit
+		// `ready` status.
+		readyForAudio := make(chan struct{})
+		var readyOnce sync.Once
 
 		// DEDICATED WRITER. gorilla forbids concurrent writers, but serializing
 		// writes behind a mutex meant a blocked WriteMessage (a stalled consumer)
@@ -194,14 +221,19 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		// all conn writes, fed by a buffered channel. NOTHING is held across a
 		// blocking write, so the pump and the cancel watcher always make progress.
 		type writeReq struct {
-			mt   int
-			data []byte
+			mt    int
+			data  []byte
+			audio bool
 		}
 		writeCh := make(chan writeReq, 16)
+		credits := make(chan struct{}, kyutaiMaxInFlightBatches)
+		for range kyutaiMaxInFlightBatches {
+			credits <- struct{}{}
+		}
 		writerGone := make(chan struct{})
-		send := func(mt int, data []byte) bool {
+		send := func(mt int, data []byte, audio bool) bool {
 			select {
-			case writeCh <- writeReq{mt: mt, data: data}:
+			case writeCh <- writeReq{mt: mt, data: data, audio: audio}:
 				return true
 			case <-writerGone:
 				return false
@@ -211,13 +243,20 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		}
 		var endOnce sync.Once
 		sendEnd := func() {
-			endOnce.Do(func() { send(websocket.TextMessage, []byte(`{"type":"end"}`)) })
+			endOnce.Do(func() { send(websocket.TextMessage, []byte(`{"type":"end"}`), false) })
 		}
 		go func() {
 			defer close(writerGone)
 			for {
 				select {
 				case req := <-writeCh:
+					if req.audio {
+						select {
+						case <-credits:
+						case <-streamDone:
+							return
+						}
+					}
 					if err := conn.WriteMessage(req.mt, req.data); err != nil {
 						return
 					}
@@ -248,7 +287,14 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		// PCM chunks -> WS binary frames. On clean close enqueue end so the server
 		// flushes its tail. On ctx cancel the watcher owns end + bounded drain.
 		go func(ctx context.Context) {
-			if !send(websocket.BinaryMessage, first.Audio) {
+			select {
+			case <-readyForAudio:
+			case <-ctx.Done():
+				return
+			case <-streamDone:
+				return
+			}
+			if !send(websocket.BinaryMessage, first.Audio, true) {
 				return
 			}
 			for {
@@ -260,7 +306,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 						sendEnd()
 						return
 					}
-					if !send(websocket.BinaryMessage, ch.Audio) {
+					if !send(websocket.BinaryMessage, ch.Audio, true) {
 						return
 					}
 				}
@@ -276,6 +322,18 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		defer close(streamDone)
 		defer conn.Close()
 		var finalText string
+		segmentOrdinal := 0
+		var processedBatches int64
+		grantProcessedBatches := func(processed int64) {
+			for processedBatches < processed {
+				select {
+				case credits <- struct{}{}:
+					processedBatches++
+				default:
+					return
+				}
+			}
+		}
 		for {
 			_, data, err := conn.ReadMessage()
 			if err != nil {
@@ -287,30 +345,57 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 				return
 			}
 			var msg struct {
-				Type    string `json:"type"`
-				Text    string `json:"text"`
-				StartMs int64  `json:"start_ms"`
-				EndMs   int64  `json:"end_ms"`
-				Message string `json:"message"`
-				Code    string `json:"code"`
+				Type             string `json:"type"`
+				Text             string `json:"text"`
+				StartMs          int64  `json:"start_ms"`
+				EndMs            int64  `json:"end_ms"`
+				Message          string `json:"message"`
+				Code             string `json:"code"`
+				Position         int32  `json:"position"`
+				ProcessedBatches int64  `json:"processed_batches"`
 			}
 			if err := json.Unmarshal(data, &msg); err != nil {
 				continue
 			}
 			switch msg.Type {
+			case "processed":
+				grantProcessedBatches(msg.ProcessedBatches)
+			case "queued":
+				events <- StreamEvent{Kind: StreamEventSessionStatus, SessionStatus: &SessionStatusEvent{
+					SessionID: start.SessionID, Generation: start.Generation, State: "queued", QueuePosition: msg.Position,
+					RecoveryGuidance: "Audio is retained while waiting for the local decoder.",
+				}}
+			case "ready":
+				readyOnce.Do(func() { close(readyForAudio) })
+				events <- StreamEvent{Kind: StreamEventSessionStatus, SessionStatus: &SessionStatusEvent{
+					SessionID: start.SessionID, Generation: start.Generation, State: "ready",
+				}}
 			case "partial":
 				if msg.Text != "" {
-					events <- StreamEvent{Kind: StreamEventPartial, Partial: &PartialEvent{Text: msg.Text}}
+					// Partials are progress-only and explicitly droppable. Never let a
+					// high-rate native stream fill the bounded downstream channel and
+					// stop this reader from servicing resource ping/control frames or
+					// receiving the following durable segment/done events.
+					select {
+					case events <- StreamEvent{Kind: StreamEventPartial, Partial: &PartialEvent{Text: msg.Text}}:
+					default:
+					}
 				}
 			case "segment":
 				if msg.Text == "" {
 					continue
 				}
 				finalText += " " + msg.Text
+				segmentOrdinal++
 				events <- StreamEvent{Kind: StreamEventSegment, Segment: &SegmentEvent{
 					Text:             msg.Text,
+					SegmentID:        fmt.Sprintf("%s:%d:kyutai:%d", start.SessionID, start.Generation, segmentOrdinal),
+					Generation:       start.Generation,
 					StartMs:          msg.StartMs,
 					EndMs:            msg.EndMs,
+					StartSample:      first.StartSample + msg.StartMs*16,
+					EndSample:        first.StartSample + msg.EndMs*16,
+					AlignmentQuality: "approximate",
 					DetectedLanguage: start.Language,
 					ProviderTier:     TierLocal,
 					ProviderID:       "kyutai",
@@ -322,6 +407,12 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 				} else {
 					events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: %s", msg.Message)}
 				}
+			case "timed_out", "rejected":
+				events <- StreamEvent{Kind: StreamEventSessionStatus, SessionStatus: &SessionStatusEvent{
+					SessionID: start.SessionID, Generation: start.Generation, State: msg.Type,
+					RecoveryGuidance: "Retained audio can be replayed through the configured recovery engine.",
+				}}
+				events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: %s: %s", msg.Code, msg.Message)}
 			case "done":
 				events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
 					FinalText: strings.TrimSpace(finalText), LockedTier: TierLocal,

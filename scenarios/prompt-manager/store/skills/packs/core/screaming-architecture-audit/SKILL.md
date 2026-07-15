@@ -53,18 +53,18 @@ architecture-cartographer campaign create {{TARGET}} --from-audit audit.json
 #   balanced (default) = regressions → cycles → severity (legacy)
 #   fast               = cheapest path to a green suite (gating sources first)
 #   long-term          = structural root-causes before symptoms
-architecture-cartographer campaign next <campaign-id> --profile balanced
+architecture-cartographer campaign next "<campaign-id>" --profile balanced
 
 # Fix an item, then mark it off (the agent fixes by hand; the tracker records it)
-architecture-cartographer campaign resolve <campaign-id> --finding <afid> --note "what you did"
+architecture-cartographer campaign resolve "<campaign-id>" --finding "<afid>" --note "what you did"
 
 # Re-audit and reconcile: gone → validated, persists → open, (re)appeared → REGRESSION
 test-genie execute {{TARGET}} --preset architecture-audit --json > audit-2.json
-architecture-cartographer campaign reaudit <campaign-id> --from-audit audit-2.json
+architecture-cartographer campaign reaudit "<campaign-id>" --from-audit audit-2.json
 
 # Repeat next→fix→reaudit until clean, then close
-architecture-cartographer campaign status <campaign-id>
-architecture-cartographer campaign close <campaign-id>
+architecture-cartographer campaign status "<campaign-id>"
+architecture-cartographer campaign close "<campaign-id>"
 ```
 
 A re-audit that flags a **regression** means your fix introduced a new problem

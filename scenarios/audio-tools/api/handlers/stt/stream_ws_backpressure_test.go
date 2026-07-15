@@ -44,6 +44,9 @@ func newWedgeKyutaiServer(t *testing.T, partialCount, partialBytes int, segText 
 		if _, _, err := conn.ReadMessage(); err != nil {
 			return
 		}
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"ready"}`)); err != nil {
+			return
+		}
 		payload := strings.Repeat("x", partialBytes)
 		for i := 0; i < partialCount; i++ {
 			frame := fmt.Sprintf(`{"type":"partial","text":"%s%d"}`, payload, i)

@@ -1,92 +1,134 @@
 {
-  "metadata": {
-    "name": "audio-tools-diagnostics-suite",
-    "description": "Functional capability probe: run the Diagnostics self-test, which drives STT, TTS, Summarize, and Transcode end-to-end against the live providers, then capture the result. Non-media (text + embedded fixtures only — no microphone), so it is deterministic in the BAS Playwright harness. This is the regression guard the plan calls for: if 'Summarize broke' or 'Transcode broke', clicking Run here surfaces it instead of a user. The per-capability result is asserted via the last-run summary anchor rather than brittle status text.",
-    "labels": {
-      "intent": "functional",
-      "reset": "none"
-    },
-    "version": "1",
-    "execution_mode": "observer"
-  },
-  "settings": {
-    "viewport_width": 1440,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "navigate-diagnostics",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "audio-tools",
-          "scenario_path": "/diagnostics",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 30000
-        },
-        "metadata": { "label": "Navigate to /diagnostics" }
-      }
-    },
-    {
-      "id": "wait-suite-run",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid='suite-run']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 15000
-        },
-        "metadata": { "label": "Wait for the Run full diagnostics control" }
-      }
-    },
-    {
-      "id": "click-suite-run",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "[data-testid='suite-run']"
-        },
-        "metadata": { "label": "Run the capability self-test (STT/TTS/Summarize/Transcode)" }
-      }
-    },
-    {
-      "id": "wait-suite-last-run",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid='suite-last-run']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 45000
-        },
-        "metadata": { "label": "Wait for the suite to complete (Summarize calls Ollama, ~10s)" }
-      }
-    },
-    {
-      "id": "assert-suite-last-run",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "[data-testid='suite-last-run']",
-          "mode": "ASSERTION_MODE_EXISTS"
-        },
-        "metadata": { "label": "Assert the suite produced a last-run summary" }
-      }
-    },
-    {
-      "id": "capture-suite-result",
-      "action": {
-        "type": "ACTION_TYPE_SCREENSHOT",
-        "screenshot": { "full_page": true },
-        "metadata": { "label": "Capture the completed self-test result" }
-      }
-    }
+  "id": "2b3eff35-9f24-49c0-ba9b-1ec4269fba5e",
+  "project_id": "0238b793-8b5e-42ff-a42a-7b495da99b7f",
+  "name": "audio-tools-diagnostics-suite",
+  "folder_path": "/bas/flows",
+  "description": "Functional capability probe: run the Diagnostics self-test, which drives STT, TTS, Summarize, and Transcode end-to-end against the live providers, then capture the result. Non-media (text + embedded fixtures only — no microphone), so it is deterministic in the BAS Playwright harness. This is the regression guard the plan calls for: if 'Summarize broke' or 'Transcode broke', clicking Run here surfaces it instead of a user. The per-capability result is asserted via the last-run summary anchor rather than brittle status text.",
+  "tags": [
+    "reset:none",
+    "intent:functional"
   ],
-  "edges": [
-    { "id": "e1", "source": "navigate-diagnostics", "target": "wait-suite-run", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "wait-suite-run", "target": "click-suite-run", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "click-suite-run", "target": "wait-suite-last-run", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e4", "source": "wait-suite-last-run", "target": "assert-suite-last-run", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e5", "source": "assert-suite-last-run", "target": "capture-suite-result", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
-  ]
+  "version": 1,
+  "created_at": "2026-07-12T16:40:18.972679826Z",
+  "updated_at": "2026-07-12T16:40:18.972679826Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "navigate-diagnostics",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
+            "scenario": "audio-tools",
+            "scenario_path": "/diagnostics"
+          },
+          "metadata": {
+            "label": "Navigate to /diagnostics"
+          }
+        }
+      },
+      {
+        "id": "wait-suite-run",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid='suite-run']",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the Run full diagnostics control"
+          }
+        }
+      },
+      {
+        "id": "click-suite-run",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid='suite-run']"
+          },
+          "metadata": {
+            "label": "Run the capability self-test (STT/TTS/Summarize/Transcode)"
+          }
+        }
+      },
+      {
+        "id": "wait-suite-last-run",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid='suite-last-run']",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 45000
+          },
+          "metadata": {
+            "label": "Wait for the suite to complete (Summarize calls Ollama, ~10s)"
+          }
+        }
+      },
+      {
+        "id": "assert-suite-last-run",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid='suite-last-run']"
+          },
+          "metadata": {
+            "label": "Assert the suite produced a last-run summary"
+          }
+        }
+      },
+      {
+        "id": "capture-suite-result",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Capture the completed self-test result"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "navigate-diagnostics",
+        "target": "wait-suite-run",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "wait-suite-run",
+        "target": "click-suite-run",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "click-suite-run",
+        "target": "wait-suite-last-run",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "wait-suite-last-run",
+        "target": "assert-suite-last-run",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "assert-suite-last-run",
+        "target": "capture-suite-result",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
 }

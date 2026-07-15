@@ -8,6 +8,8 @@ import { strings } from "../../consts/strings";
 import { selectors } from "../../consts/selectors";
 import { useMicPermission } from "../diagnostics/useMicPermission";
 import { extractPcm16FromWav, pcm16DurationMs } from "./audioWav";
+import type { StreamTurnDiagnostic } from "@vrooli/audio-capture-browser";
+import { getSharedAudioContext } from "../../audio-integration/hooks/voice/sharedAudioContext";
 
 export interface CapturedClip {
   /** raw signed-16-bit little-endian PCM */
@@ -40,9 +42,11 @@ export function DictationRecorder({ onCaptured }: Props) {
   const [partial, setPartial] = useState("");
   const [finalText, setFinalText] = useState("");
   const [error, setError] = useState("");
+  const [streamStatus, setStreamStatus] = useState("");
   const [captureMissing, setCaptureMissing] = useState(false);
   const [capturedSeconds, setCapturedSeconds] = useState<number | null>(null);
   const [noAudioDetected, setNoAudioDetected] = useState(false);
+  const [diagnostic, setDiagnostic] = useState<StreamTurnDiagnostic | null>(null);
   const micPermission = useMicPermission();
 
   const stopLevelMonitor = () => {
@@ -142,6 +146,9 @@ export function DictationRecorder({ onCaptured }: Props) {
         stopLevelMonitor();
       };
       p.onPartial = (text) => setPartial(text);
+
+      p.onStatus = ({ message }) => setStreamStatus(message);
+      p.onDiagnostic = (next) => setDiagnostic(next);
       providerRef.current = p;
     }
     return providerRef.current;
@@ -157,12 +164,23 @@ export function DictationRecorder({ onCaptured }: Props) {
 
   const start = async () => {
     if (state === "preparing" || state === "recording" || state === "transcribing") return;
+    // Dictation Studio does not use useVoiceCore, which normally resumes this
+    // context in the initiating gesture. Do it before the first await so the
+    // microphone graph is renderable in browsers that suspend new contexts.
+    try {
+      const context = getSharedAudioContext();
+      if (context.state !== "running") void context.resume().catch(() => undefined);
+    } catch {
+      // Capture startup will surface an actionable error if Web Audio is unavailable.
+    }
     setError("");
+    setStreamStatus("");
     setPartial("");
     setFinalText("");
     setCaptureMissing(false);
     setCapturedSeconds(null);
     setNoAudioDetected(false);
+    setDiagnostic(null);
     setState("preparing");
     try {
       const provider = ensureProvider();
@@ -193,6 +211,17 @@ export function DictationRecorder({ onCaptured }: Props) {
   };
 
   const active = state === "preparing" || state === "recording" || state === "transcribing";
+  const exportDiagnostic = () => {
+    const exported = providerRef.current?.exportDiagnostic();
+    if (!exported || typeof document === "undefined") return;
+    const blob = new Blob([exported], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = "dictation-turn-diagnostic.json";
+    link.click();
+    URL.revokeObjectURL(href);
+  };
   const stateLabel =
     state === "preparing"
       ? t(strings.dictationStudio.preparing)
@@ -268,7 +297,8 @@ export function DictationRecorder({ onCaptured }: Props) {
       {noAudioDetected && state === "recording" ? (
         <p className="text-sm text-app-warning">{t(strings.dictationStudio.noAudioDetected)}</p>
       ) : null}
-      {error ? <p className="text-sm text-app-danger">{error}</p> : null}
+      {error ? <p className="text-sm text-app-danger" data-testid={selectors.dictationStudio.recordError}>{error}</p> : null}
+      {streamStatus && !error ? <p className="text-sm text-app-muted-foreground" aria-live="polite" data-testid={selectors.dictationStudio.streamStatus}>{streamStatus}</p> : null}
       {captureMissing ? (
         <p className="text-sm text-app-warning">{t(strings.dictationStudio.captureMissing)}</p>
       ) : null}
@@ -276,6 +306,44 @@ export function DictationRecorder({ onCaptured }: Props) {
         <p className="text-xs text-app-success">
           {t(strings.dictationStudio.captureRetained, { seconds: capturedSeconds })}
         </p>
+      ) : null}
+      {diagnostic ? (
+        <details className="rounded-control border border-app-border bg-app-surface-muted p-3 text-sm" data-testid={selectors.dictationStudio.turnDetails}>
+          <summary className="cursor-pointer font-medium">{t(strings.dictationStudio.turnDetails)}</summary>
+          <span
+            className="sr-only"
+            data-testid={selectors.dictationStudio.turnCaptureStatus}
+            data-has-captured-audio={diagnostic.capturedSequence >= 0 ? "true" : "false"}
+          />
+          <span
+            className="sr-only"
+            data-testid={selectors.dictationStudio.turnSentStatus}
+            data-has-sent-audio={diagnostic.sentSequence >= 0 ? "true" : "false"}
+          />
+          <span
+            className="sr-only"
+            data-testid={selectors.dictationStudio.turnDoneStatus}
+            data-done-sent={diagnostic.doneSent ? "true" : "false"}
+          />
+          {diagnostic.doneSent ? <span className="sr-only" data-testid={selectors.dictationStudio.turnDoneReady} /> : null}
+          <span
+            className="sr-only"
+            data-testid={selectors.dictationStudio.turnProcessedStatus}
+            data-has-processed-audio={diagnostic.processedSequence >= 0 ? "true" : "false"}
+          />
+          {diagnostic.processedSequence >= 0 ? <span className="sr-only" data-testid={selectors.dictationStudio.turnProcessedReady} /> : null}
+          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+            <dt className="text-app-muted-foreground">{t(strings.dictationStudio.turnState)}</dt><dd>{diagnostic.state}</dd>
+            <dt className="text-app-muted-foreground">{t(strings.dictationStudio.turnDurability)}</dt><dd>{diagnostic.durability}</dd>
+            <dt className="text-app-muted-foreground">{t(strings.dictationStudio.turnCapturedChunks)}</dt><dd>{Math.max(0, diagnostic.capturedSequence + 1)}</dd>
+            <dt className="text-app-muted-foreground">{t(strings.dictationStudio.turnProcessedChunks)}</dt><dd>{Math.max(0, diagnostic.processedSequence + 1)}</dd>
+            <dt className="text-app-muted-foreground">{t(strings.dictationStudio.turnTerminalOutcome)}</dt><dd>{diagnostic.terminalReason ?? t(strings.dictationStudio.turnInProgress)}</dd>
+          </dl>
+          <p className="mt-2 text-xs text-app-muted-foreground">{t(strings.dictationStudio.turnDiagnosticPrivacy)}</p>
+          <Button type="button" variant="outline" className="mt-2" data-testid={selectors.dictationStudio.exportDiagnostic} onClick={exportDiagnostic}>
+            {t(strings.dictationStudio.exportDiagnostic)}
+          </Button>
+        </details>
       ) : null}
 
       {partial ? (

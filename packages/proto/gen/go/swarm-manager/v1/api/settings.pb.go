@@ -23,12 +23,79 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// SettingsResponse returns current settings.
+// SettingsFieldRole classifies a persisted settings field's role in the
+// declarative agent-operations model.
+type SettingsFieldRole int32
+
+const (
+	SettingsFieldRole_SETTINGS_FIELD_ROLE_UNSPECIFIED SettingsFieldRole = 0
+	// Pure user preference (UI behavior); never consumed by orchestration.
+	SettingsFieldRole_SETTINGS_FIELD_ROLE_USER_PREFERENCE SettingsFieldRole = 1
+	// Policy control: consumed by the operation runner's transition-policy /
+	// binding-default seam. Retained user-facing, read through PolicyControls.
+	SettingsFieldRole_SETTINGS_FIELD_ROLE_POLICY_CONTROL SettingsFieldRole = 2
+	// System governance (concurrency lanes, queue depth, circuit breaker, cost
+	// caps); consumed via the governance seam, not transition policies.
+	SettingsFieldRole_SETTINGS_FIELD_ROLE_GOVERNANCE SettingsFieldRole = 3
+	// Persisted but currently has no runtime reader. Kept for compatibility;
+	// Phase 8 decides its migration alongside its projected destination.
+	SettingsFieldRole_SETTINGS_FIELD_ROLE_DORMANT SettingsFieldRole = 4
+)
+
+// Enum value maps for SettingsFieldRole.
+var (
+	SettingsFieldRole_name = map[int32]string{
+		0: "SETTINGS_FIELD_ROLE_UNSPECIFIED",
+		1: "SETTINGS_FIELD_ROLE_USER_PREFERENCE",
+		2: "SETTINGS_FIELD_ROLE_POLICY_CONTROL",
+		3: "SETTINGS_FIELD_ROLE_GOVERNANCE",
+		4: "SETTINGS_FIELD_ROLE_DORMANT",
+	}
+	SettingsFieldRole_value = map[string]int32{
+		"SETTINGS_FIELD_ROLE_UNSPECIFIED":     0,
+		"SETTINGS_FIELD_ROLE_USER_PREFERENCE": 1,
+		"SETTINGS_FIELD_ROLE_POLICY_CONTROL":  2,
+		"SETTINGS_FIELD_ROLE_GOVERNANCE":      3,
+		"SETTINGS_FIELD_ROLE_DORMANT":         4,
+	}
+)
+
+func (x SettingsFieldRole) Enum() *SettingsFieldRole {
+	p := new(SettingsFieldRole)
+	*p = x
+	return p
+}
+
+func (x SettingsFieldRole) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SettingsFieldRole) Descriptor() protoreflect.EnumDescriptor {
+	return file_swarm_manager_v1_api_settings_proto_enumTypes[0].Descriptor()
+}
+
+func (SettingsFieldRole) Type() protoreflect.EnumType {
+	return &file_swarm_manager_v1_api_settings_proto_enumTypes[0]
+}
+
+func (x SettingsFieldRole) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SettingsFieldRole.Descriptor instead.
+func (SettingsFieldRole) EnumDescriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{0}
+}
+
+// SettingsResponse returns current settings plus the derived policy-control
+// projection (which controls are policy-level vs pure user preference, and
+// their effective values for the operation runner's transition policies).
 type SettingsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Settings      *domain.Settings       `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState    `protogen:"open.v1"`
+	Settings         *domain.Settings          `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
+	PolicyProjection *SettingsPolicyProjection `protobuf:"bytes,2,opt,name=policy_projection,json=policyProjection,proto3" json:"policy_projection,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *SettingsResponse) Reset() {
@@ -68,6 +135,322 @@ func (x *SettingsResponse) GetSettings() *domain.Settings {
 	return nil
 }
 
+func (x *SettingsResponse) GetPolicyProjection() *SettingsPolicyProjection {
+	if x != nil {
+		return x.PolicyProjection
+	}
+	return nil
+}
+
+// SettingsFieldClassification maps one persisted settings field to its role
+// and (for policy controls) its destination path inside PolicyControlsView.
+type SettingsFieldClassification struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Persisted JSON field name in Settings (e.g. "auto_advance_workshop").
+	Field string            `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	Role  SettingsFieldRole `protobuf:"varint,2,opt,name=role,proto3,enum=swarm_manager.v1.SettingsFieldRole" json:"role,omitempty"`
+	// Destination control path (e.g. "auto_advance.delay_seconds"); empty for
+	// non-policy fields.
+	Control string `protobuf:"bytes,3,opt,name=control,proto3" json:"control,omitempty"`
+	// Short human-readable explanation.
+	Note          string `protobuf:"bytes,4,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SettingsFieldClassification) Reset() {
+	*x = SettingsFieldClassification{}
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SettingsFieldClassification) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SettingsFieldClassification) ProtoMessage() {}
+
+func (x *SettingsFieldClassification) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SettingsFieldClassification.ProtoReflect.Descriptor instead.
+func (*SettingsFieldClassification) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SettingsFieldClassification) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *SettingsFieldClassification) GetRole() SettingsFieldRole {
+	if x != nil {
+		return x.Role
+	}
+	return SettingsFieldRole_SETTINGS_FIELD_ROLE_UNSPECIFIED
+}
+
+func (x *SettingsFieldClassification) GetControl() string {
+	if x != nil {
+		return x.Control
+	}
+	return ""
+}
+
+func (x *SettingsFieldClassification) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// PolicyControlsView is the effective policy-control projection derived from
+// current settings — the typed values orchestration consumers (auto-advance,
+// scheduler intents, review spawning, fixup/retry, execution posture) read.
+type PolicyControlsView struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Execution posture.
+	DefaultMode string `protobuf:"bytes,1,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
+	// Auto-advance group.
+	AutoInitialize          bool  `protobuf:"varint,2,opt,name=auto_initialize,json=autoInitialize,proto3" json:"auto_initialize,omitempty"`
+	AutoAdvanceEnabled      bool  `protobuf:"varint,3,opt,name=auto_advance_enabled,json=autoAdvanceEnabled,proto3" json:"auto_advance_enabled,omitempty"`
+	CascadeEnabled          bool  `protobuf:"varint,4,opt,name=cascade_enabled,json=cascadeEnabled,proto3" json:"cascade_enabled,omitempty"`
+	AutoAdvanceDelaySeconds int32 `protobuf:"varint,5,opt,name=auto_advance_delay_seconds,json=autoAdvanceDelaySeconds,proto3" json:"auto_advance_delay_seconds,omitempty"`
+	MaxAutoRounds           int32 `protobuf:"varint,6,opt,name=max_auto_rounds,json=maxAutoRounds,proto3" json:"max_auto_rounds,omitempty"`
+	// Retry/fixup group.
+	AutoFixup        bool  `protobuf:"varint,7,opt,name=auto_fixup,json=autoFixup,proto3" json:"auto_fixup,omitempty"`
+	MaxFixupAttempts int32 `protobuf:"varint,8,opt,name=max_fixup_attempts,json=maxFixupAttempts,proto3" json:"max_fixup_attempts,omitempty"`
+	// Review group.
+	ReviewAgentEnabled          bool    `protobuf:"varint,9,opt,name=review_agent_enabled,json=reviewAgentEnabled,proto3" json:"review_agent_enabled,omitempty"`
+	ReviewCodeQualityMinScore   float64 `protobuf:"fixed64,10,opt,name=review_code_quality_min_score,json=reviewCodeQualityMinScore,proto3" json:"review_code_quality_min_score,omitempty"`
+	ReviewTestMinPassRate       float64 `protobuf:"fixed64,11,opt,name=review_test_min_pass_rate,json=reviewTestMinPassRate,proto3" json:"review_test_min_pass_rate,omitempty"`
+	ReviewMaxBlockingViolations int32   `protobuf:"varint,12,opt,name=review_max_blocking_violations,json=reviewMaxBlockingViolations,proto3" json:"review_max_blocking_violations,omitempty"`
+	ReviewMaxWarnings           int32   `protobuf:"varint,13,opt,name=review_max_warnings,json=reviewMaxWarnings,proto3" json:"review_max_warnings,omitempty"`
+	ReviewRequireScreenshots    bool    `protobuf:"varint,14,opt,name=review_require_screenshots,json=reviewRequireScreenshots,proto3" json:"review_require_screenshots,omitempty"`
+	ReviewRequireTests          bool    `protobuf:"varint,15,opt,name=review_require_tests,json=reviewRequireTests,proto3" json:"review_require_tests,omitempty"`
+	// Agent budget group.
+	AgentMaxTurns       int32 `protobuf:"varint,16,opt,name=agent_max_turns,json=agentMaxTurns,proto3" json:"agent_max_turns,omitempty"`
+	AgentTimeoutSeconds int32 `protobuf:"varint,17,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3" json:"agent_timeout_seconds,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *PolicyControlsView) Reset() {
+	*x = PolicyControlsView{}
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PolicyControlsView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PolicyControlsView) ProtoMessage() {}
+
+func (x *PolicyControlsView) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PolicyControlsView.ProtoReflect.Descriptor instead.
+func (*PolicyControlsView) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PolicyControlsView) GetDefaultMode() string {
+	if x != nil {
+		return x.DefaultMode
+	}
+	return ""
+}
+
+func (x *PolicyControlsView) GetAutoInitialize() bool {
+	if x != nil {
+		return x.AutoInitialize
+	}
+	return false
+}
+
+func (x *PolicyControlsView) GetAutoAdvanceEnabled() bool {
+	if x != nil {
+		return x.AutoAdvanceEnabled
+	}
+	return false
+}
+
+func (x *PolicyControlsView) GetCascadeEnabled() bool {
+	if x != nil {
+		return x.CascadeEnabled
+	}
+	return false
+}
+
+func (x *PolicyControlsView) GetAutoAdvanceDelaySeconds() int32 {
+	if x != nil {
+		return x.AutoAdvanceDelaySeconds
+	}
+	return 0
+}
+
+func (x *PolicyControlsView) GetMaxAutoRounds() int32 {
+	if x != nil {
+		return x.MaxAutoRounds
+	}
+	return 0
+}
+
+func (x *PolicyControlsView) GetAutoFixup() bool {
+	if x != nil {
+		return x.AutoFixup
+	}
+	return false
+}
+
+func (x *PolicyControlsView) GetMaxFixupAttempts() int32 {
+	if x != nil {
+		return x.MaxFixupAttempts
+	}
+	return 0
+}
+
+func (x *PolicyControlsView) GetReviewAgentEnabled() bool {
+	if x != nil {
+		return x.ReviewAgentEnabled
+	}
+	return false
+}
+
+func (x *PolicyControlsView) GetReviewCodeQualityMinScore() float64 {
+	if x != nil {
+		return x.ReviewCodeQualityMinScore
+	}
+	return 0
+}
+
+func (x *PolicyControlsView) GetReviewTestMinPassRate() float64 {
+	if x != nil {
+		return x.ReviewTestMinPassRate
+	}
+	return 0
+}
+
+func (x *PolicyControlsView) GetReviewMaxBlockingViolations() int32 {
+	if x != nil {
+		return x.ReviewMaxBlockingViolations
+	}
+	return 0
+}
+
+func (x *PolicyControlsView) GetReviewMaxWarnings() int32 {
+	if x != nil {
+		return x.ReviewMaxWarnings
+	}
+	return 0
+}
+
+func (x *PolicyControlsView) GetReviewRequireScreenshots() bool {
+	if x != nil {
+		return x.ReviewRequireScreenshots
+	}
+	return false
+}
+
+func (x *PolicyControlsView) GetReviewRequireTests() bool {
+	if x != nil {
+		return x.ReviewRequireTests
+	}
+	return false
+}
+
+func (x *PolicyControlsView) GetAgentMaxTurns() int32 {
+	if x != nil {
+		return x.AgentMaxTurns
+	}
+	return 0
+}
+
+func (x *PolicyControlsView) GetAgentTimeoutSeconds() int32 {
+	if x != nil {
+		return x.AgentTimeoutSeconds
+	}
+	return 0
+}
+
+// SettingsPolicyProjection carries the effective policy controls plus the
+// per-field classification table so clients can label which settings are
+// policy-level versus user preference.
+type SettingsPolicyProjection struct {
+	state             protoimpl.MessageState         `protogen:"open.v1"`
+	EffectiveControls *PolicyControlsView            `protobuf:"bytes,1,opt,name=effective_controls,json=effectiveControls,proto3" json:"effective_controls,omitempty"`
+	Classifications   []*SettingsFieldClassification `protobuf:"bytes,2,rep,name=classifications,proto3" json:"classifications,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *SettingsPolicyProjection) Reset() {
+	*x = SettingsPolicyProjection{}
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SettingsPolicyProjection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SettingsPolicyProjection) ProtoMessage() {}
+
+func (x *SettingsPolicyProjection) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SettingsPolicyProjection.ProtoReflect.Descriptor instead.
+func (*SettingsPolicyProjection) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SettingsPolicyProjection) GetEffectiveControls() *PolicyControlsView {
+	if x != nil {
+		return x.EffectiveControls
+	}
+	return nil
+}
+
+func (x *SettingsPolicyProjection) GetClassifications() []*SettingsFieldClassification {
+	if x != nil {
+		return x.Classifications
+	}
+	return nil
+}
+
 // AutoFilerSettingsPatch applies partial updates to Settings.auto_filer.
 type AutoFilerSettingsPatch struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
@@ -85,7 +468,7 @@ type AutoFilerSettingsPatch struct {
 
 func (x *AutoFilerSettingsPatch) Reset() {
 	*x = AutoFilerSettingsPatch{}
-	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -97,7 +480,7 @@ func (x *AutoFilerSettingsPatch) String() string {
 func (*AutoFilerSettingsPatch) ProtoMessage() {}
 
 func (x *AutoFilerSettingsPatch) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -110,7 +493,7 @@ func (x *AutoFilerSettingsPatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutoFilerSettingsPatch.ProtoReflect.Descriptor instead.
 func (*AutoFilerSettingsPatch) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{1}
+	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AutoFilerSettingsPatch) GetEnabled() bool {
@@ -223,7 +606,7 @@ type UpdateSettingsRequest struct {
 
 func (x *UpdateSettingsRequest) Reset() {
 	*x = UpdateSettingsRequest{}
-	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -235,7 +618,7 @@ func (x *UpdateSettingsRequest) String() string {
 func (*UpdateSettingsRequest) ProtoMessage() {}
 
 func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_api_settings_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -248,7 +631,7 @@ func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSettingsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{2}
+	return file_swarm_manager_v1_api_settings_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UpdateSettingsRequest) GetTheme() string {
@@ -451,9 +834,38 @@ var File_swarm_manager_v1_api_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\n" +
-	"#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"J\n" +
+	"#swarm-manager/v1/api/settings.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/settings.proto\"\xa3\x01\n" +
 	"\x10SettingsResponse\x126\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\"\xc2\x04\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1a.swarm_manager.v1.SettingsR\bsettings\x12W\n" +
+	"\x11policy_projection\x18\x02 \x01(\v2*.swarm_manager.v1.SettingsPolicyProjectionR\x10policyProjection\"\x9a\x01\n" +
+	"\x1bSettingsFieldClassification\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x127\n" +
+	"\x04role\x18\x02 \x01(\x0e2#.swarm_manager.v1.SettingsFieldRoleR\x04role\x12\x18\n" +
+	"\acontrol\x18\x03 \x01(\tR\acontrol\x12\x12\n" +
+	"\x04note\x18\x04 \x01(\tR\x04note\"\xdc\x06\n" +
+	"\x12PolicyControlsView\x12!\n" +
+	"\fdefault_mode\x18\x01 \x01(\tR\vdefaultMode\x12'\n" +
+	"\x0fauto_initialize\x18\x02 \x01(\bR\x0eautoInitialize\x120\n" +
+	"\x14auto_advance_enabled\x18\x03 \x01(\bR\x12autoAdvanceEnabled\x12'\n" +
+	"\x0fcascade_enabled\x18\x04 \x01(\bR\x0ecascadeEnabled\x12;\n" +
+	"\x1aauto_advance_delay_seconds\x18\x05 \x01(\x05R\x17autoAdvanceDelaySeconds\x12&\n" +
+	"\x0fmax_auto_rounds\x18\x06 \x01(\x05R\rmaxAutoRounds\x12\x1d\n" +
+	"\n" +
+	"auto_fixup\x18\a \x01(\bR\tautoFixup\x12,\n" +
+	"\x12max_fixup_attempts\x18\b \x01(\x05R\x10maxFixupAttempts\x120\n" +
+	"\x14review_agent_enabled\x18\t \x01(\bR\x12reviewAgentEnabled\x12@\n" +
+	"\x1dreview_code_quality_min_score\x18\n" +
+	" \x01(\x01R\x19reviewCodeQualityMinScore\x128\n" +
+	"\x19review_test_min_pass_rate\x18\v \x01(\x01R\x15reviewTestMinPassRate\x12C\n" +
+	"\x1ereview_max_blocking_violations\x18\f \x01(\x05R\x1breviewMaxBlockingViolations\x12.\n" +
+	"\x13review_max_warnings\x18\r \x01(\x05R\x11reviewMaxWarnings\x12<\n" +
+	"\x1areview_require_screenshots\x18\x0e \x01(\bR\x18reviewRequireScreenshots\x120\n" +
+	"\x14review_require_tests\x18\x0f \x01(\bR\x12reviewRequireTests\x12&\n" +
+	"\x0fagent_max_turns\x18\x10 \x01(\x05R\ragentMaxTurns\x122\n" +
+	"\x15agent_timeout_seconds\x18\x11 \x01(\x05R\x13agentTimeoutSeconds\"\xc8\x01\n" +
+	"\x18SettingsPolicyProjection\x12S\n" +
+	"\x12effective_controls\x18\x01 \x01(\v2$.swarm_manager.v1.PolicyControlsViewR\x11effectiveControls\x12W\n" +
+	"\x0fclassifications\x18\x02 \x03(\v2-.swarm_manager.v1.SettingsFieldClassificationR\x0fclassifications\"\xc2\x04\n" +
 	"\x16AutoFilerSettingsPatch\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x123\n" +
 	"\x04mode\x18\x02 \x01(\tB\x1a\xbaH\x17r\x15R\x00R\asuggestR\bauto_addH\x01R\x04mode\x88\x01\x01\x12E\n" +
@@ -537,7 +949,13 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"!_circuit_breaker_cooldown_minutesB\x1d\n" +
 	"\x1b_execution_cost_cap_per_runB\x19\n" +
 	"\x17_cost_per_turn_estimateB\x15\n" +
-	"\x13_fix_before_featureJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b!\x10\"J\x04\b\x19\x10\x1aJ\x04\b$\x10%R\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x13delete_confirmationR\x19max_concurrent_executionsBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\x13_fix_before_featureJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b!\x10\"J\x04\b\x19\x10\x1aJ\x04\b$\x10%R\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x13delete_confirmationR\x19max_concurrent_executions*\xce\x01\n" +
+	"\x11SettingsFieldRole\x12#\n" +
+	"\x1fSETTINGS_FIELD_ROLE_UNSPECIFIED\x10\x00\x12'\n" +
+	"#SETTINGS_FIELD_ROLE_USER_PREFERENCE\x10\x01\x12&\n" +
+	"\"SETTINGS_FIELD_ROLE_POLICY_CONTROL\x10\x02\x12\"\n" +
+	"\x1eSETTINGS_FIELD_ROLE_GOVERNANCE\x10\x03\x12\x1f\n" +
+	"\x1bSETTINGS_FIELD_ROLE_DORMANT\x10\x04BIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_settings_proto_rawDescOnce sync.Once
@@ -551,27 +969,36 @@ func file_swarm_manager_v1_api_settings_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_settings_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_swarm_manager_v1_api_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_swarm_manager_v1_api_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_swarm_manager_v1_api_settings_proto_goTypes = []any{
-	(*SettingsResponse)(nil),       // 0: swarm_manager.v1.SettingsResponse
-	(*AutoFilerSettingsPatch)(nil), // 1: swarm_manager.v1.AutoFilerSettingsPatch
-	(*UpdateSettingsRequest)(nil),  // 2: swarm_manager.v1.UpdateSettingsRequest
-	nil,                            // 3: swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
-	nil,                            // 4: swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
-	(*domain.Settings)(nil),        // 5: swarm_manager.v1.Settings
-	(domain.DeleteConfirmLevel)(0), // 6: swarm_manager.v1.DeleteConfirmLevel
+	(SettingsFieldRole)(0),              // 0: swarm_manager.v1.SettingsFieldRole
+	(*SettingsResponse)(nil),            // 1: swarm_manager.v1.SettingsResponse
+	(*SettingsFieldClassification)(nil), // 2: swarm_manager.v1.SettingsFieldClassification
+	(*PolicyControlsView)(nil),          // 3: swarm_manager.v1.PolicyControlsView
+	(*SettingsPolicyProjection)(nil),    // 4: swarm_manager.v1.SettingsPolicyProjection
+	(*AutoFilerSettingsPatch)(nil),      // 5: swarm_manager.v1.AutoFilerSettingsPatch
+	(*UpdateSettingsRequest)(nil),       // 6: swarm_manager.v1.UpdateSettingsRequest
+	nil,                                 // 7: swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
+	nil,                                 // 8: swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
+	(*domain.Settings)(nil),             // 9: swarm_manager.v1.Settings
+	(domain.DeleteConfirmLevel)(0),      // 10: swarm_manager.v1.DeleteConfirmLevel
 }
 var file_swarm_manager_v1_api_settings_proto_depIdxs = []int32{
-	5, // 0: swarm_manager.v1.SettingsResponse.settings:type_name -> swarm_manager.v1.Settings
-	3, // 1: swarm_manager.v1.UpdateSettingsRequest.delete_confirmation_levels:type_name -> swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
-	4, // 2: swarm_manager.v1.UpdateSettingsRequest.lane_concurrency_limits:type_name -> swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
-	1, // 3: swarm_manager.v1.UpdateSettingsRequest.auto_filer:type_name -> swarm_manager.v1.AutoFilerSettingsPatch
-	6, // 4: swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry.value:type_name -> swarm_manager.v1.DeleteConfirmLevel
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	9,  // 0: swarm_manager.v1.SettingsResponse.settings:type_name -> swarm_manager.v1.Settings
+	4,  // 1: swarm_manager.v1.SettingsResponse.policy_projection:type_name -> swarm_manager.v1.SettingsPolicyProjection
+	0,  // 2: swarm_manager.v1.SettingsFieldClassification.role:type_name -> swarm_manager.v1.SettingsFieldRole
+	3,  // 3: swarm_manager.v1.SettingsPolicyProjection.effective_controls:type_name -> swarm_manager.v1.PolicyControlsView
+	2,  // 4: swarm_manager.v1.SettingsPolicyProjection.classifications:type_name -> swarm_manager.v1.SettingsFieldClassification
+	7,  // 5: swarm_manager.v1.UpdateSettingsRequest.delete_confirmation_levels:type_name -> swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
+	8,  // 6: swarm_manager.v1.UpdateSettingsRequest.lane_concurrency_limits:type_name -> swarm_manager.v1.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
+	5,  // 7: swarm_manager.v1.UpdateSettingsRequest.auto_filer:type_name -> swarm_manager.v1.AutoFilerSettingsPatch
+	10, // 8: swarm_manager.v1.UpdateSettingsRequest.DeleteConfirmationLevelsEntry.value:type_name -> swarm_manager.v1.DeleteConfirmLevel
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_settings_proto_init() }
@@ -579,20 +1006,21 @@ func file_swarm_manager_v1_api_settings_proto_init() {
 	if File_swarm_manager_v1_api_settings_proto != nil {
 		return
 	}
-	file_swarm_manager_v1_api_settings_proto_msgTypes[1].OneofWrappers = []any{}
-	file_swarm_manager_v1_api_settings_proto_msgTypes[2].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_settings_proto_msgTypes[4].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_settings_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_settings_proto_rawDesc), len(file_swarm_manager_v1_api_settings_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   5,
+			NumEnums:      1,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_swarm_manager_v1_api_settings_proto_goTypes,
 		DependencyIndexes: file_swarm_manager_v1_api_settings_proto_depIdxs,
+		EnumInfos:         file_swarm_manager_v1_api_settings_proto_enumTypes,
 		MessageInfos:      file_swarm_manager_v1_api_settings_proto_msgTypes,
 	}.Build()
 	File_swarm_manager_v1_api_settings_proto = out.File

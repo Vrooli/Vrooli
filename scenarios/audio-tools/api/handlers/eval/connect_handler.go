@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	inteval "audio-tools/internal/eval"
+	"audio-tools/internal/stt/trustfloor"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
+	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 )
 
 type reportRunner struct{ deps Deps }
@@ -51,6 +54,130 @@ func RunReportForClips(ctx context.Context, deps Deps, clips []inteval.Clip, str
 	return RunReportForClipsWithOptions(ctx, deps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{})
 }
 
+// RunReportForCells executes provider-neutral experiment cells through the
+// same Segmenter path as ordinary eval. It deliberately refuses to fabricate a
+// provider when a cell names an unknown engine.
+func RunReportForCells(ctx context.Context, deps Deps, clips []inteval.Clip, cells []*experimentv1.EvaluationCell, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
+	h := &reportRunner{deps: deps}
+	if len(clips) == 0 {
+		return inteval.EvalReport{}, errEvalEmptyCorpus
+	}
+	if len(cells) == 0 {
+		return inteval.EvalReport{}, fmt.Errorf("%w: no evaluation cells", errEvalInvalidRequest)
+	}
+
+	reports := make([]inteval.EvalReport, 0, len(cells))
+	for i, cell := range cells {
+		if err := validateExecutableCell(cell); err != nil {
+			return inteval.EvalReport{}, fmt.Errorf("%w: cells[%d]: %v", errEvalInvalidRequest, i, err)
+		}
+		specs, err := h.buildCellSpecs([]*experimentv1.EvaluationCell{cell})
+		if err != nil {
+			return inteval.EvalReport{}, fmt.Errorf("%w: %v", errEvalInvalidRequest, err)
+		}
+
+		cellOpts := opts
+		cellOpts.ChunkMs = int(chunkMs)
+		cellOpts.QualityPass = true
+		cellOpts.RealtimeRepeats = 0
+		switch cell.GetReplayLane() {
+		case experimentv1.ReplayLane_REPLAY_LANE_DETERMINISTIC:
+			// A deterministic cell's repeat count means independently replayed
+			// rows, not a synthetic latency distribution.
+			for repeat := int32(0); repeat < cell.GetRepeatCount(); repeat++ {
+				repeatSpecs := specs
+				if cell.GetRepeatCount() > 1 {
+					repeatSpecs = append([]inteval.StrategySpec(nil), specs...)
+					repeatSpecs[0].Label = fmt.Sprintf("%s [repeat %d/%d]", specs[0].Label, repeat+1, cell.GetRepeatCount())
+					repeatSpecs[0].CellID = fmt.Sprintf("%s/repeat-%d", specs[0].CellID, repeat+1)
+				}
+				reports = append(reports, inteval.RunReport(ctx, clips, repeatSpecs, cellOpts))
+			}
+		case experimentv1.ReplayLane_REPLAY_LANE_REALTIME:
+			// A realtime cell earns its WER from the paced production-shaped
+			// replay itself. Do not run an unpaced deterministic pre-pass and
+			// attach its failure to a row labeled realtime; callers that need
+			// deterministic evidence must request an explicit deterministic cell.
+			cellOpts.QualityPass = false
+			cellOpts.RealtimeRepeats = int(cell.GetRepeatCount())
+			reports = append(reports, inteval.RunReport(ctx, clips, specs, cellOpts))
+		default:
+			return inteval.EvalReport{}, fmt.Errorf("%w: cells[%d] has unsupported replay lane", errEvalInvalidRequest, i)
+		}
+	}
+	report := inteval.CombineReports(reports...)
+	report.PromotionVerdicts = promotionVerdicts(report)
+	return report, nil
+}
+
+func promotionVerdicts(report inteval.EvalReport) []inteval.PromotionVerdict {
+	measurements := make([]trustfloor.ReplayMeasurement, 0, len(report.PerStrategy))
+	for _, row := range report.PerStrategy {
+		if row.EngineID == "" {
+			continue
+		}
+		measurement := trustfloor.ReplayMeasurement{
+			EngineID:       row.EngineID,
+			ModelID:        row.ModelID,
+			Strategy:       string(row.Strategy),
+			PolicyProfile:  row.PolicyProfile,
+			WER:            row.WER,
+			ReplayLane:     row.ReplayLane,
+			SafetyObserved: true,
+			SafetyPassed:   row.Safety.Passed,
+		}
+		for _, clip := range row.PerClip {
+			measurement.ClipDurationsMS = append(measurement.ClipDurationsMS, clip.AudioDurationMs)
+		}
+		measurements = append(measurements, measurement)
+	}
+	assessed := trustfloor.EvaluateReplayMeasurements(measurements, trustfloor.DefaultThresholds)
+	verdicts := make([]inteval.PromotionVerdict, 0, len(assessed))
+	for _, verdict := range assessed {
+		verdicts = append(verdicts, inteval.PromotionVerdict{
+			EngineID:      verdict.EngineID,
+			ModelID:       verdict.ModelID,
+			Strategy:      verdict.Strategy,
+			PolicyProfile: verdict.PolicyProfile,
+			Stable:        verdict.Verdict.Stable,
+			Reasons:       verdict.Verdict.Reasons,
+		})
+	}
+	return verdicts
+}
+
+func validateExecutableCell(cell *experimentv1.EvaluationCell) error {
+	if cell == nil {
+		return errors.New("cell is required")
+	}
+	if strings.TrimSpace(cell.GetFaultProfile()) != "" {
+		return fmt.Errorf("fault profile %q requires the dedicated fault harness", cell.GetFaultProfile())
+	}
+	if strings.TrimSpace(cell.GetPolicyProfile()) != "" {
+		return fmt.Errorf("policy profile %q requires the policy evaluation harness", cell.GetPolicyProfile())
+	}
+	switch cell.GetReplayLane() {
+	case experimentv1.ReplayLane_REPLAY_LANE_DETERMINISTIC, experimentv1.ReplayLane_REPLAY_LANE_REALTIME:
+		return nil
+	case experimentv1.ReplayLane_REPLAY_LANE_PRODUCT_PATH:
+		return errors.New("product-path evidence must run through the browser qualification harness")
+	default:
+		return errors.New("replay lane is required")
+	}
+}
+
+func RunReportCellsWithOptions(ctx context.Context, deps Deps, clipIDs []string, cells []*experimentv1.EvaluationCell, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
+	h := &reportRunner{deps: deps}
+	if h.deps.Corpus == nil {
+		return inteval.EvalReport{}, errEvalNotConfigured
+	}
+	clips, err := h.loadClips(ctx, clipIDs)
+	if err != nil {
+		return inteval.EvalReport{}, err
+	}
+	return RunReportForCells(ctx, deps, clips, cells, chunkMs, opts)
+}
+
 func RunReportForClipsWithOptions(ctx context.Context, deps Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
 	h := &reportRunner{deps: deps}
 	if h.deps.NewProvider == nil {
@@ -87,10 +214,26 @@ func ReportToProto(r inteval.EvalReport) *evalv1.EvalReport {
 			WerPolicy:              r.NormalizationPolicy.WERPolicy,
 			OverlapAgreementPolicy: r.NormalizationPolicy.OverlapAgreementPolicy,
 		},
-		LatencyHonesty: "Wall-clock finalization and commit timing are intra-experiment-only; compare cross-experiment runs by WER, calls, audio-seconds, RTF, safety gates, and pinned machine metadata.",
+		LatencyHonesty:    "Wall-clock finalization and commit timing are intra-experiment-only; compare cross-experiment runs by WER, calls, audio-seconds, RTF, safety gates, and pinned machine metadata.",
+		PromotionVerdicts: promotionVerdictsToProto(r.PromotionVerdicts),
 	}
 	for _, s := range r.PerStrategy {
 		out.PerStrategy = append(out.PerStrategy, strategyReportToProto(s))
+	}
+	return out
+}
+
+func promotionVerdictsToProto(in []inteval.PromotionVerdict) []*evalv1.PromotionVerdict {
+	out := make([]*evalv1.PromotionVerdict, 0, len(in))
+	for _, verdict := range in {
+		out = append(out, &evalv1.PromotionVerdict{
+			EngineId:      verdict.EngineID,
+			ModelId:       verdict.ModelID,
+			Strategy:      verdict.Strategy,
+			PolicyProfile: verdict.PolicyProfile,
+			Stable:        verdict.Stable,
+			Reasons:       append([]string(nil), verdict.Reasons...),
+		})
 	}
 	return out
 }
@@ -122,6 +265,11 @@ func strategyReportToProto(s inteval.StrategyReport) *evalv1.StrategyReport {
 		StageAttribution:         stageAttributionToProto(s.StageAttribution),
 		LengthCurves:             lengthCurvesToProto(s.LengthCurves),
 		Scaling:                  scalingAnalysisToProto(s.Scaling),
+		EngineId:                 s.EngineID,
+		ModelId:                  s.ModelID,
+		PolicyProfile:            s.PolicyProfile,
+		ReplayLane:               s.ReplayLane,
+		FaultProfile:             s.FaultProfile,
 		PerClip:                  make([]*evalv1.ClipReport, 0, len(s.PerClip)),
 	}
 	for _, c := range s.PerClip {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/vrooli/maturity-go/dimensions"
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
@@ -14,6 +15,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -783,6 +785,16 @@ func BuildValidationResponse(
 	if native != nil {
 		packed, err := anypb.New(native)
 		if err != nil {
+			// Providers pack captured command output (test/coverage stdout,
+			// tool logs) into native string fields. proto3 marshal rejects any
+			// string field holding invalid UTF-8, which would otherwise turn a
+			// completed assessment into a false SYSTEM/missing-dependency error
+			// for the whole phase. Scrub invalid UTF-8 to the replacement rune
+			// and retry rather than fail the validation on a serialization
+			// artifact. The scrub runs only on the (rare) failing path.
+			packed, err = anypb.New(sanitizeMessageStringsUTF8(native))
+		}
+		if err != nil {
 			return nil, fmt.Errorf("pack native detail: %w", err)
 		}
 		detail = packed
@@ -794,6 +806,80 @@ func BuildValidationResponse(
 		NativeDetail: detail,
 		Metrics:      metrics,
 	}, nil
+}
+
+// sanitizeMessageStringsUTF8 returns a deep copy of msg with every string field
+// (including repeated, map, and nested-message fields) scrubbed to valid UTF-8,
+// replacing invalid byte sequences with the Unicode replacement rune. The input
+// is never mutated. bytes fields are left untouched (they legitimately carry
+// arbitrary bytes). It exists so a serialization artifact in provider-captured
+// command output cannot fail an otherwise-complete validation response.
+func sanitizeMessageStringsUTF8(msg proto.Message) proto.Message {
+	if msg == nil {
+		return nil
+	}
+	clone := proto.Clone(msg)
+	scrubReflectStringsUTF8(clone.ProtoReflect())
+	return clone
+}
+
+func scrubReflectStringsUTF8(m protoreflect.Message) {
+	if m == nil || !m.IsValid() {
+		return
+	}
+	m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		switch {
+		case fd.IsMap():
+			mapVal := v.Map()
+			valKind := fd.MapValue().Kind()
+			if valKind != protoreflect.StringKind && valKind != protoreflect.MessageKind && valKind != protoreflect.GroupKind {
+				return true
+			}
+			// Collect first: mutating a protoreflect map mid-Range is unsafe.
+			type kv struct {
+				k protoreflect.MapKey
+				s string
+			}
+			var fixes []kv
+			mapVal.Range(func(mk protoreflect.MapKey, mv protoreflect.Value) bool {
+				if valKind == protoreflect.StringKind {
+					if s := mv.String(); !utf8.ValidString(s) {
+						fixes = append(fixes, kv{mk, strings.ToValidUTF8(s, "�")})
+					}
+				} else {
+					scrubReflectStringsUTF8(mv.Message())
+				}
+				return true
+			})
+			for _, f := range fixes {
+				mapVal.Set(f.k, protoreflect.ValueOfString(f.s))
+			}
+		case fd.IsList():
+			list := v.List()
+			switch fd.Kind() {
+			case protoreflect.StringKind:
+				for i := 0; i < list.Len(); i++ {
+					if s := list.Get(i).String(); !utf8.ValidString(s) {
+						list.Set(i, protoreflect.ValueOfString(strings.ToValidUTF8(s, "�")))
+					}
+				}
+			case protoreflect.MessageKind, protoreflect.GroupKind:
+				for i := 0; i < list.Len(); i++ {
+					scrubReflectStringsUTF8(list.Get(i).Message())
+				}
+			}
+		default:
+			switch fd.Kind() {
+			case protoreflect.StringKind:
+				if s := v.String(); !utf8.ValidString(s) {
+					m.Set(fd, protoreflect.ValueOfString(strings.ToValidUTF8(s, "�")))
+				}
+			case protoreflect.MessageKind, protoreflect.GroupKind:
+				scrubReflectStringsUTF8(v.Message())
+			}
+		}
+		return true
+	})
 }
 
 // DeriveValidationStatus returns FAILED when the assessment reports error or

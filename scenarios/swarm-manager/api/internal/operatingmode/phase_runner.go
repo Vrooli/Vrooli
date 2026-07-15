@@ -57,6 +57,7 @@ func (s *Service) StartTargetPhase(ctx context.Context, req StartTargetPhaseRequ
 	if err != nil {
 		return RoundEnvelope{}, err
 	}
+	rc.OperatorInputs = req.OperatorInputs
 	return s.startResolvedPhase(ctx, rc, req.Note, req.Inputs, req.Override, req.RequestedBy)
 }
 
@@ -174,6 +175,17 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 		RoundNumber: round.Round,
 		RoundSlug:   string(phaseDef.Phase),
 		ProfileKey:  exec.PhaseDef.ProfileKey,
+	}
+	// Generic write-scope containment: when the resolved target projects an
+	// acceptance scope (e.g. a plan-execution drain inheriting its backing item's
+	// acceptance_allow/deny/creates), thread it into the spawn so the agent runs
+	// sandbox-scoped exactly as the owning work requires. A scopeless target
+	// leaves the spawn unconstrained. The engine never branches on target kind —
+	// it applies whatever containment the adapter supplied.
+	if scope := rc.Target.Containment; !scope.IsZero() {
+		spawnReq.AcceptanceAllow = scope.AcceptanceAllow
+		spawnReq.AcceptanceDeny = scope.AcceptanceDeny
+		spawnReq.Creates = scope.Creates
 	}
 	if s.activity != nil {
 		// PhaseKind drives lane assignment in agentactivity. Building the spec

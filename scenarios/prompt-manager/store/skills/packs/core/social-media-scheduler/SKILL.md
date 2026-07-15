@@ -38,7 +38,7 @@ vrooli scenario status social-media-scheduler
 ```
 
 Required resources: PostgreSQL, Redis, MinIO, Ollama
-Optional: Browserless (for social verification screenshots)
+Optional: browser-automation-studio (for social verification screenshots)
 
 Platform accounts must be connected via OAuth before scheduling:
 ```bash
@@ -117,13 +117,13 @@ curl -X POST http://localhost:${API_PORT}/api/v1/bulk/schedule \
 ### **5. CLI Reference**
 
 ```bash
-social-media-scheduler login <email> <password>     # Authenticate
+social-media-scheduler login "<email>" "<password>"     # Authenticate
 social-media-scheduler whoami                        # Current user info
 social-media-scheduler platforms                     # List available platforms
 social-media-scheduler accounts                      # Show connected accounts
-social-media-scheduler schedule <title> <content> <platforms> <datetime>
+social-media-scheduler schedule "<title>" "<content>" "<platforms>" "<datetime>"
 social-media-scheduler list                          # List scheduled posts
-social-media-scheduler status <post_id>              # Get post status
+social-media-scheduler status "<post_id>"              # Get post status
 ```
 
 ---

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Operational requirements for Template Manager's accountable ownership of Vrooli template handling.",
-    "last_validated_at": "2026-07-12T22:11:06-04:00",
+    "last_validated_at": "2026-07-14T22:05:01-04:00",
     "module": "template-domain",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -71,7 +71,7 @@
     {
       "id": "TM-P0-003",
       "title": "Test Genie Templates Phase Provider",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "integration",
       "criticality": "P0",
@@ -93,7 +93,7 @@
           "type": "test",
           "ref": "PRD.md",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Preview and apply modes stamp adopted generation provenance idempotently."
         }
       ]
@@ -154,7 +154,7 @@
     {
       "id": "TM-P1-002",
       "title": "Dashboard And Measures",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "ui",
       "criticality": "P1",
@@ -169,8 +169,8 @@
           "type": "test",
           "ref": "ui/src/App.tsx",
           "phase": "ui-health",
-          "status": "failing",
-          "notes": "UI tests cover loading, empty, error, a11y, and data-rendering states for all dashboard surfaces."
+          "status": "implemented",
+          "notes": "UI tests cover loading, empty, error, a11y, and data-rendering states for the dashboard overview plus the paginated template/run/debt list routes and the template, run, and debt-entry detail views reached through them."
         },
         {
           "type": "test",
@@ -260,11 +260,11 @@
     {
       "id": "TM-P2-002",
       "title": "Orientation Gate Stewardship",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "category": "governance",
       "criticality": "P2",
-      "description": "Own the orientation gate schema, shared check vocabulary, and evaluation engine while templates retain declarative per-template gate data.",
+      "description": "Own the orientation gate schema, shared check vocabulary, and evaluation engine while templates retain declarative per-template gate data. The engine provides a content_adapted check kind and auto-derives it from declared text_absent markers, measuring placeholder-aware net-new divergence from the template source (JSON threshold 1, prose 3) so green orientation certifies real adaptation rather than shipped files.",
       "tags": [
         "orientation",
         "governance",
@@ -273,10 +273,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "docs/concepts/FLOWS.md",
+          "ref": "internal/templateengine/orientation_content_adapted_test.go",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Fresh throwaway scenarios show content-quality gates incomplete until real work satisfies each contract."
+          "status": "not_implemented",
+          "notes": "Unit tests cover both directions (fail-on-boilerplate, fail-on-marker-deletion-gaming, pass-on-real-content) plus derivation, thresholds, and template-source skip. Live proof: a fresh generated scenario shows content-quality gates incomplete while genuinely oriented content advances them, with zero fleet regressions across scenarios/*."
         }
       ]
     }

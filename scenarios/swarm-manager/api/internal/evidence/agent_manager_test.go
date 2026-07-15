@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"swarm-manager/internal/agentmanager"
@@ -52,10 +53,10 @@ func TestReconcileAgentManagerNormalizesBoundedToolAndDiffEvidence(t *testing.T)
 	if rawOutput != 0 {
 		t.Fatal("collector persisted raw tool output")
 	}
-	if complete, err := NewStore(db).HasTerminalWatermark(context.Background(), "agent-manager-events", "run-42", "agent_tool"); err != nil || !complete {
+	if complete, err := NewStore(database.NewFromPrimary(db)).HasTerminalWatermark(context.Background(), "agent-manager-events", "run-42", "agent_tool"); err != nil || !complete {
 		t.Fatalf("agent tool terminal watermark = %v, %v; want true", complete, err)
 	}
-	if complete, err := NewStore(db).HasTerminalWatermark(context.Background(), "agent-manager-diff", "run-42", "repository_change"); err != nil || !complete {
+	if complete, err := NewStore(database.NewFromPrimary(db)).HasTerminalWatermark(context.Background(), "agent-manager-diff", "run-42", "repository_change"); err != nil || !complete {
 		t.Fatalf("diff terminal watermark = %v, %v; want true", complete, err)
 	}
 }

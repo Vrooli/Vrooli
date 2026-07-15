@@ -123,14 +123,19 @@ func (s *Segmenter) normalizeChunks(
 	// or on nctx cancel, so the strategy's chunk loop terminates.
 	go func() {
 		defer close(pcmCh)
+		var sequence uint64
+		var sampleCursor int64
 		for {
 			select {
 			case f, ok := <-dec.Frames():
 				if !ok {
 					return
 				}
+				chunk := sttchain.AudioChunk{Audio: f, Sequence: sequence, StartSample: sampleCursor, EndSample: sampleCursor + int64(len(f)/2)}
+				sequence++
+				sampleCursor = chunk.EndSample
 				select {
-				case pcmCh <- sttchain.AudioChunk{Audio: f}:
+				case pcmCh <- chunk:
 				case <-nctx.Done():
 					return
 				}

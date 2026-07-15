@@ -9,24 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/cliout"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
-	. "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
+	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
-
-// DetemplateHandler wires `vrooli scenario detemplate <name>`.
-func DetemplateHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
-	return bindGlobal(deps.Stdout,
-		func(ctx C, args []string) (DetemplateRequest, error) {
-			return ParseDetemplateRequest(deps.Globals(ctx).JSON, args)
-		},
-		func(ctx C, req DetemplateRequest) (cliout.Format, DetemplateResult, error) {
-			return runDetemplate(deps, ctx, req)
-		},
-		RenderDetemplateResponse,
-	)
-}
 
 // detemplateTextExtensions are the file types detemplate rewrites in place
 // (fenced doc blocks + registration-line markers). Whole-file example
@@ -62,7 +48,7 @@ type detemplateEdit struct {
 	Abs     string
 	Content []byte
 	Mode    fs.FileMode
-	Summary FileMarkerSummary
+	Summary templatecontracts.FileMarkerSummary
 }
 
 type detemplateFinalizerPlan struct {
@@ -75,22 +61,18 @@ type detemplateFinalizerPlan struct {
 type detemplateContext struct {
 	root     string
 	item     scenariomodel.Scenario
-	info     TemplateInfo
-	example  *TemplateExampleDomain
+	info     templatecontracts.TemplateInfo
+	example  *templatecontracts.TemplateExampleDomain
 	marker   string
 	template string
 }
 
-func runDetemplate[C any](deps HandlerDeps[C], ctx C, req DetemplateRequest) (cliout.Format, DetemplateResult, error) {
-	format := cliout.FormatHuman
-	if req.JSON {
-		format = cliout.FormatJSON
-	}
+func runDetemplate[C any](deps HandlerDeps[C], ctx C, req templatecontracts.DetemplateRequest) (templatecontracts.DetemplateResult, error) {
 	dctx, err := loadDetemplateContext(deps.Root(ctx), req.Name)
 	if err != nil {
-		return "", DetemplateResult{}, err
+		return templatecontracts.DetemplateResult{}, err
 	}
-	result := DetemplateResult{
+	result := templatecontracts.DetemplateResult{
 		Scenario:     dctx.item.Slug,
 		ScenarioPath: dctx.item.Path,
 		Marker:       dctx.marker,
@@ -100,14 +82,14 @@ func runDetemplate[C any](deps HandlerDeps[C], ctx C, req DetemplateRequest) (cl
 	deletions := resolveDetemplateDeletions(dctx.root, dctx.item, dctx.info, dctx.example.Paths)
 	edits, dangling, err := planDetemplateEdits(dctx.item.Path, dctx.marker, deletions)
 	if err != nil {
-		return "", DetemplateResult{}, err
+		return templatecontracts.DetemplateResult{}, err
 	}
 	if len(dangling) > 0 {
-		return "", DetemplateResult{}, &DetemplateDanglingRefError{Marker: dctx.marker, References: dangling}
+		return templatecontracts.DetemplateResult{}, &templatecontracts.DetemplateDanglingRefError{Marker: dctx.marker, References: dangling}
 	}
 	jsonEdits, err := planDetemplateJSONPrunes(dctx.item.Path, dctx.example.JSONPrune)
 	if err != nil {
-		return "", DetemplateResult{}, err
+		return templatecontracts.DetemplateResult{}, err
 	}
 	edits = append(edits, jsonEdits...)
 	sort.Slice(edits, func(i, j int) bool { return edits[i].Summary.Path < edits[j].Summary.Path })
@@ -118,21 +100,21 @@ func runDetemplate[C any](deps HandlerDeps[C], ctx C, req DetemplateRequest) (cl
 	if req.DryRun {
 		populateDryRunDetemplateFinalizers(&result, plans)
 		result.Message = "Dry run: no files were written, deleted, or finalized."
-		return format, result, nil
+		return result, nil
 	}
 
 	if len(edits) == 0 && len(deletions) == 0 {
 		result.Message = fmt.Sprintf("No %q example-domain residue found; scenario is already detemplated.", dctx.marker)
-		return format, result, nil
+		return result, nil
 	}
 
 	if err := applyDetemplateChanges(edits, deletions); err != nil {
-		return "", DetemplateResult{}, err
+		return templatecontracts.DetemplateResult{}, err
 	}
 	runDetemplateFinalizers(deps, ctx, &result, plans)
 
 	result.Message = fmt.Sprintf("Removed the %q example domain. Run `template-manager lifecycle orient %s` to confirm the example-domain-removed gate.", dctx.marker, dctx.item.Slug)
-	return format, result, nil
+	return result, nil
 }
 
 func loadDetemplateContext(root, name string) (detemplateContext, error) {
@@ -162,7 +144,7 @@ func loadDetemplateContext(root, name string) (detemplateContext, error) {
 	}, nil
 }
 
-func populateDetemplateSummary(result *DetemplateResult, edits []detemplateEdit, deletions []detemplateDeletion) {
+func populateDetemplateSummary(result *templatecontracts.DetemplateResult, edits []detemplateEdit, deletions []detemplateDeletion) {
 	for _, e := range edits {
 		result.FilesEdited = append(result.FilesEdited, e.Summary)
 		result.BlocksRemoved += e.Summary.BlocksRemoved
@@ -182,9 +164,9 @@ func detemplateTouchesProto(deletions []detemplateDeletion) bool {
 	return false
 }
 
-func populateDryRunDetemplateFinalizers(result *DetemplateResult, plans []detemplateFinalizerPlan) {
+func populateDryRunDetemplateFinalizers(result *templatecontracts.DetemplateResult, plans []detemplateFinalizerPlan) {
 	for _, p := range plans {
-		result.Finalizers = append(result.Finalizers, DetemplateFinalizer{
+		result.Finalizers = append(result.Finalizers, templatecontracts.DetemplateFinalizer{
 			Description: p.Description,
 			Command:     p.commandLine(),
 			Ran:         false,
@@ -206,9 +188,9 @@ func applyDetemplateChanges(edits []detemplateEdit, deletions []detemplateDeleti
 	return nil
 }
 
-func runDetemplateFinalizers[C any](deps HandlerDeps[C], ctx C, result *DetemplateResult, plans []detemplateFinalizerPlan) {
+func runDetemplateFinalizers[C any](deps HandlerDeps[C], ctx C, result *templatecontracts.DetemplateResult, plans []detemplateFinalizerPlan) {
 	for _, p := range plans {
-		fin := DetemplateFinalizer{Description: p.Description, Command: p.commandLine()}
+		fin := templatecontracts.DetemplateFinalizer{Description: p.Description, Command: p.commandLine()}
 		if deps.RunSubprocess == nil {
 			fin.Message = "skipped (no subprocess runner)"
 			result.Finalizers = append(result.Finalizers, fin)
@@ -238,7 +220,7 @@ func runDetemplateFinalizers[C any](deps HandlerDeps[C], ctx C, result *Detempla
 // the relocation target, and the corresponding generated proto artifacts are
 // added so no orphan gen residue survives. Only paths that exist are returned,
 // which makes a second run a no-op (idempotent).
-func resolveDetemplateDeletions(root string, item scenariomodel.Scenario, info TemplateInfo, paths []string) []detemplateDeletion {
+func resolveDetemplateDeletions(root string, item scenariomodel.Scenario, info templatecontracts.TemplateInfo, paths []string) []detemplateDeletion {
 	var out []detemplateDeletion
 	seen := map[string]struct{}{}
 	add := func(abs, display string, isProto bool) {
@@ -276,14 +258,14 @@ func resolveDetemplateDeletions(root string, item scenariomodel.Scenario, info T
 
 // matchRelocation returns the relocation whose From is a path prefix of p,
 // along with p relative to that From.
-func matchRelocation(info TemplateInfo, p string) (TemplateRelocation, string, bool) {
+func matchRelocation(info templatecontracts.TemplateInfo, p string) (templatecontracts.TemplateRelocation, string, bool) {
 	for _, r := range info.Manifest.Relocations {
 		from := strings.TrimSuffix(r.From, "/") + "/"
 		if strings.HasPrefix(p, from) {
 			return r, strings.TrimPrefix(p, from), true
 		}
 	}
-	return TemplateRelocation{}, "", false
+	return templatecontracts.TemplateRelocation{}, "", false
 }
 
 // generatedProtoDirs returns the repo-relative generated artifact directories
@@ -303,7 +285,7 @@ func generatedProtoDirs(scenarioID, rel string) []string {
 // for every text file carrying example markers, and detects dangling
 // references — kept code files that still import a to-be-deleted example
 // package after marker removal.
-func planDetemplateEdits(scenarioRoot, marker string, deletions []detemplateDeletion) ([]detemplateEdit, []DetemplateDanglingRef, error) {
+func planDetemplateEdits(scenarioRoot, marker string, deletions []detemplateDeletion) ([]detemplateEdit, []templatecontracts.DetemplateDanglingRef, error) {
 	deletedAbs := make([]string, 0, len(deletions))
 	for _, d := range deletions {
 		deletedAbs = append(deletedAbs, d.Abs)
@@ -311,7 +293,7 @@ func planDetemplateEdits(scenarioRoot, marker string, deletions []detemplateDele
 	tokens := danglingTokens(scenarioRoot, deletions)
 
 	var edits []detemplateEdit
-	var dangling []DetemplateDanglingRef
+	var dangling []templatecontracts.DetemplateDanglingRef
 	err := filepath.WalkDir(scenarioRoot, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -338,7 +320,7 @@ func planDetemplateEdits(scenarioRoot, marker string, deletions []detemplateDele
 		}
 		rel, _ := filepath.Rel(scenarioRoot, path)
 		rel = filepath.ToSlash(rel)
-		out, summary, changed := StripExampleDomainFile(rel, content, marker)
+		out, summary, changed := templatecontracts.StripExampleDomainFile(rel, content, marker)
 		if changed {
 			info, statErr := entry.Info()
 			mode := fs.FileMode(0o644)
@@ -350,7 +332,7 @@ func planDetemplateEdits(scenarioRoot, marker string, deletions []detemplateDele
 		// Dangling-ref scan on the post-strip content of kept code files.
 		if _, isCode := detemplateCodeExtensions[ext]; isCode && len(tokens) > 0 {
 			for _, ref := range danglingReferences(out, tokens) {
-				dangling = append(dangling, DetemplateDanglingRef{File: rel, Reference: ref})
+				dangling = append(dangling, templatecontracts.DetemplateDanglingRef{File: rel, Reference: ref})
 			}
 		}
 		return nil
@@ -371,7 +353,7 @@ func planDetemplateEdits(scenarioRoot, marker string, deletions []detemplateDele
 // planDetemplateJSONPrunes computes order-preserving prunes for hand-authored
 // JSON files (i18n locales, the CLI manifest) that cannot carry comment
 // markers. Absent files are skipped, which keeps a second run a no-op.
-func planDetemplateJSONPrunes(scenarioRoot string, entries []TemplateJSONPruneEntry) ([]detemplateEdit, error) {
+func planDetemplateJSONPrunes(scenarioRoot string, entries []templatecontracts.TemplateJSONPruneEntry) ([]detemplateEdit, error) {
 	var edits []detemplateEdit
 	for _, e := range entries {
 		abs := filepath.Join(scenarioRoot, filepath.FromSlash(e.File))
@@ -383,7 +365,7 @@ func planDetemplateJSONPrunes(scenarioRoot string, entries []TemplateJSONPruneEn
 		if readErr != nil {
 			return nil, readErr
 		}
-		out, removed, pruneErr := PruneJSON(content, e.Keys, e.ArrayMatch)
+		out, removed, pruneErr := templatecontracts.PruneJSON(content, e.Keys, e.ArrayMatch)
 		if pruneErr != nil {
 			return nil, fmt.Errorf("prune %s: %w", e.File, pruneErr)
 		}
@@ -394,7 +376,7 @@ func planDetemplateJSONPrunes(scenarioRoot string, entries []TemplateJSONPruneEn
 			Abs:     abs,
 			Content: out,
 			Mode:    info.Mode().Perm(),
-			Summary: FileMarkerSummary{Path: e.File, LinesStripped: removed},
+			Summary: templatecontracts.FileMarkerSummary{Path: e.File, LinesStripped: removed},
 		})
 	}
 	return edits, nil

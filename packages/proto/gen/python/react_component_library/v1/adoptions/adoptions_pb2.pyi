@@ -191,28 +191,56 @@ class RefreshAdoptionsRequest(_message.Message):
     def __init__(self, component_id: _Optional[str] = ...) -> None: ...
 
 class ResolveAdoptionPathRequest(_message.Message):
-    __slots__ = ("component_id", "scenario", "override_path", "feature")
+    __slots__ = ("component_id", "scenario", "override_path", "feature", "version", "template")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     OVERRIDE_PATH_FIELD_NUMBER: _ClassVar[int]
     FEATURE_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     scenario: str
     override_path: str
     feature: str
-    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., override_path: _Optional[str] = ..., feature: _Optional[str] = ...) -> None: ...
+    version: str
+    template: str
+    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., override_path: _Optional[str] = ..., feature: _Optional[str] = ..., version: _Optional[str] = ..., template: _Optional[str] = ...) -> None: ...
+
+class ResolvedVersionFile(_message.Message):
+    __slots__ = ("library_path", "target_path", "slot", "source", "slot_source", "is_entry", "warnings")
+    LIBRARY_PATH_FIELD_NUMBER: _ClassVar[int]
+    TARGET_PATH_FIELD_NUMBER: _ClassVar[int]
+    SLOT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    SLOT_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    IS_ENTRY_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    library_path: str
+    target_path: str
+    slot: str
+    source: ResolveSource
+    slot_source: str
+    is_entry: bool
+    warnings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, library_path: _Optional[str] = ..., target_path: _Optional[str] = ..., slot: _Optional[str] = ..., source: _Optional[_Union[ResolveSource, str]] = ..., slot_source: _Optional[str] = ..., is_entry: _Optional[bool] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ResolveAdoptionPathResponse(_message.Message):
-    __slots__ = ("path", "source", "slot", "warnings")
+    __slots__ = ("path", "source", "slot", "warnings", "files", "template", "manifest_resolved")
     PATH_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     SLOT_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_RESOLVED_FIELD_NUMBER: _ClassVar[int]
     path: str
     source: ResolveSource
     slot: str
     warnings: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, path: _Optional[str] = ..., source: _Optional[_Union[ResolveSource, str]] = ..., slot: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
+    files: _containers.RepeatedCompositeFieldContainer[ResolvedVersionFile]
+    template: str
+    manifest_resolved: bool
+    def __init__(self, path: _Optional[str] = ..., source: _Optional[_Union[ResolveSource, str]] = ..., slot: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ..., files: _Optional[_Iterable[_Union[ResolvedVersionFile, _Mapping]]] = ..., template: _Optional[str] = ..., manifest_resolved: _Optional[bool] = ...) -> None: ...
 
 class SuggestAdoptionsRequest(_message.Message):
     __slots__ = ("scenario", "limit", "component_id")

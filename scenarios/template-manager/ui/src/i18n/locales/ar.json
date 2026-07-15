@@ -11,6 +11,9 @@
     "mainLabel": "المحتوى الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",
+      "templates": "القوالب",
+      "runs": "عمليات التحقق",
+      "debt": "الديون",
       "settings": "الإعدادات"
     }
   },
@@ -31,6 +34,18 @@
       "title": "الإعدادات",
       "themeHeading": "المظهر",
       "localeHeading": "اللغة"
+    },
+    "templateList": {
+      "title": "سجل القوالب",
+      "description": "كل قوالب السيناريو والتصميم والموارد المحكومة. صفِّ حسب النوع، ثم افتح قالبًا لعرض إصداراته وانحرافه وسجل تحققه."
+    },
+    "runList": {
+      "title": "سجل التحقق",
+      "description": "كل عمليات التحقق المحفوظة عبر الأسطول. صفِّ حسب الحالة، ثم افتح عملية لعرض نتائج مراحلها ونتائجها."
+    },
+    "debtList": {
+      "title": "سجل الديون",
+      "description": "كل عيوب القوالب الموروثة عبر الأسطول. صفِّ حسب القالب أو الحالة، ثم افتح عنصرًا لعرض مصدره الكامل."
     }
   },
   "health": {
@@ -121,6 +136,111 @@
     "empty": {
       "title": "لا توجد بيانات حالة",
       "description": "شغّل التحقق أو تسجيل الانحراف لملء مجموعات الحالة."
+    }
+  },
+  "list": {
+    "pagination": {
+      "label": "ترقيم الصفحات",
+      "prev": "السابق",
+      "next": "التالي",
+      "status": "الصفحة {{page}} من {{total}}"
+    }
+  },
+  "templateList": {
+    "search": "بحث في القوالب",
+    "searchPlaceholder": "ابحث بالاسم أو المعرف أو الإصدار",
+    "empty": "لا توجد قوالب تطابق عوامل التصفية الحالية",
+    "viewEntry": "عرض القالب",
+    "filters": {
+      "kind": "النوع",
+      "allKinds": "كل الأنواع"
+    }
+  },
+  "runList": {
+    "search": "بحث في عمليات التحقق",
+    "searchPlaceholder": "ابحث بمعرف العملية أو القالب",
+    "empty": "لا توجد عمليات تحقق تطابق عوامل التصفية الحالية",
+    "viewEntry": "عرض عملية التحقق",
+    "filters": {
+      "status": "الحالة",
+      "allStatuses": "كل الحالات"
+    }
+  },
+  "detail": {
+    "back": {
+      "dashboard": "العودة إلى لوحة التحكم",
+      "debtList": "العودة إلى سجل الديون"
+    },
+    "loadingTitle": "جارٍ التحميل",
+    "loadingDescription": "جارٍ جلب أحدث سجل من API مدير القوالب.",
+    "errorTitle": "تعذر التحميل",
+    "errorDescription": "تحقق من تشغيل template-manager وأن هذا السجل لا يزال موجودًا."
+  },
+  "templateDetail": {
+    "overview": "نظرة عامة",
+    "runs": "عمليات التحقق",
+    "runsEmpty": "لا توجد عمليات تحقق مسجلة",
+    "drift": "لقطات الانحراف",
+    "driftEmpty": "لا توجد لقطات انحراف مسجلة",
+    "debt": "الديون",
+    "debtEmpty": "لا توجد عناصر دين مسجلة",
+    "fields": {
+      "kind": "النوع",
+      "version": "الإصدار",
+      "status": "الحالة",
+      "latestVersion": "أحدث إصدار",
+      "lag": "تأخر الإصدار",
+      "updatedAt": "آخر تحديث",
+      "tags": "الوسوم",
+      "manifestPath": "مسار البيان",
+      "sourcePath": "مسار المصدر"
+    }
+  },
+  "runDetail": {
+    "overview": "نظرة عامة",
+    "phases": "نتائج المراحل",
+    "phasesEmpty": "لا توجد نتائج مراحل مسجلة",
+    "findings": "النتائج",
+    "findingsEmpty": "لا توجد نتائج — تشغيل نظيف",
+    "columns": {
+      "findingCount": "النتائج",
+      "source": "المصدر"
+    },
+    "fields": {
+      "template": "القالب",
+      "mode": "الوضع",
+      "status": "الحالة",
+      "trigger": "المُشغِّل",
+      "target": "الهدف",
+      "startedAt": "بدأ",
+      "finishedAt": "انتهى",
+      "duration": "المدة"
+    }
+  },
+  "debtDetail": {
+    "overview": "نظرة عامة",
+    "message": "التفاصيل",
+    "messageEmpty": "لا توجد تفاصيل إضافية مسجلة",
+    "fields": {
+      "key": "المفتاح",
+      "template": "القالب",
+      "severity": "الخطورة",
+      "status": "الحالة",
+      "source": "المصدر",
+      "firstSeen": "أول ظهور",
+      "lastSeen": "آخر ظهور"
+    }
+  },
+  "debtList": {
+    "search": "بحث في عناصر الديون",
+    "searchPlaceholder": "ابحث بالمفتاح أو القالب أو العنوان",
+    "empty": "لا توجد عناصر دين تطابق عوامل التصفية الحالية",
+    "viewEntry": "عرض عنصر الدين",
+    "filters": {
+      "template": "القالب",
+      "allTemplates": "كل القوالب",
+      "status": "الحالة",
+      "allStatuses": "كل الحالات"
     }
   }
 }

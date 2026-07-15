@@ -73,7 +73,7 @@ func TestBuildSpeakerConditions_SkipsMissingTargetProfile(t *testing.T) {
 
 func TestExperimentEvalDeps_CarriesSpeakerResource(t *testing.T) {
 	client := &sttpipeline.SpeakerClient{}
-	deps := newExperimentEvalDeps(nil, nil, func() sttchain.Provider { return nil }, sttpkg.Defaults(), client)
+	deps := newExperimentEvalDeps(nil, nil, func(string) sttchain.Provider { return nil }, sttpkg.Defaults(), client)
 
 	if deps.SpeakerResource != client {
 		t.Fatalf("SpeakerResource not wired into experiment eval deps")
@@ -169,6 +169,8 @@ func TestExperimentRunsForReportStoresPerCellConditions(t *testing.T) {
 			ConditionGroup:      "clean",
 			ExtractionEnabled:   false,
 			VerificationEnabled: false,
+			EngineID:            "whisper-local",
+			ReplayLane:          "deterministic",
 		},
 		{
 			Strategy:            sttchain.StrategyKind("batch/extract_on_verify_on/noisy"),
@@ -177,6 +179,8 @@ func TestExperimentRunsForReportStoresPerCellConditions(t *testing.T) {
 			ConditionGroup:      "noisy",
 			ExtractionEnabled:   true,
 			VerificationEnabled: true,
+			EngineID:            "kyutai",
+			ReplayLane:          "realtime",
 		},
 	}}
 	realized := map[string]any{"phase": "materialized", "clip_count": 2}
@@ -204,6 +208,12 @@ func TestExperimentRunsForReportStoresPerCellConditions(t *testing.T) {
 	}
 	if !secondSpeaker["extraction_enabled"].(bool) || !secondSpeaker["verification_enabled"].(bool) {
 		t.Fatalf("second speaker condition should be enabled: %v", secondSpeaker)
+	}
+	if first["engine_id"] != "whisper-local" || first["replay_lane"] != "deterministic" {
+		t.Fatalf("first provider identity = %v", first)
+	}
+	if second["engine_id"] != "kyutai" || second["replay_lane"] != "realtime" {
+		t.Fatalf("second provider identity = %v", second)
 	}
 }
 

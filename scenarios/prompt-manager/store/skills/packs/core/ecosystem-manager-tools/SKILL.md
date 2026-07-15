@@ -33,7 +33,7 @@ ecosystem-manager steer profiles
 ecosystem-manager steer templates
 
 # View details of a specific profile or template (resolved by ID or slug)
-ecosystem-manager steer show <id>
+ecosystem-manager steer show "<id>"
 ```
 
 ### 2. Select a Steering Strategy
@@ -68,19 +68,19 @@ The type prefix (`resource` or `scenario`) is required.
 
 ```bash
 # New scenario with a steering profile
-ecosystem-manager task add --steer-profile <profile-id> scenario <name>
+ecosystem-manager task add --steer-profile "<profile-id>" scenario "<name>"
 
 # New resource with a steering profile
-ecosystem-manager task add --steer-profile <profile-id> resource <name>
+ecosystem-manager task add --steer-profile "<profile-id>" resource "<name>"
 
 # Improve existing scenario with a steering profile
-ecosystem-manager task improve --steer-profile <profile-id> scenario <name>
+ecosystem-manager task improve --steer-profile "<profile-id>" scenario "<name>"
 
 # Improve with a specific steer mode (improver tasks only)
-ecosystem-manager task improve --steer-mode "<mode>" scenario <name>
+ecosystem-manager task improve --steer-mode "<mode>" scenario "<name>"
 
 # Improve with an ordered list of steer modes (improver tasks only)
-ecosystem-manager task improve --steer-queue "progress,test,refactor" scenario <name>
+ecosystem-manager task improve --steer-queue "progress,test,refactor" scenario "<name>"
 ```
 
 > **Note:** `task improve` requires the target scenario or resource to already exist on disk. `task add` (generators) does not — the target will be created.
@@ -97,7 +97,7 @@ ecosystem-manager task improve --steer-queue "progress,test,refactor" scenario <
 For swarm-manager idea execution, the standard task-creation pattern is:
 
 ```bash
-ecosystem-manager task add --steer-profile <profile-id> \
+ecosystem-manager task add --steer-profile "<profile-id>" \
   --handoff-dir "<item-folder>/handoff" \
   --origin-source swarm-manager \
   --origin-backlog-item "idea/<item-name>" \
@@ -124,14 +124,14 @@ Use filtering to check for existing tasks before creating new ones (see "One tas
 
 ```bash
 # Confirm the task was created with correct steering
-ecosystem-manager task show <task-id>
+ecosystem-manager task show "<task-id>"
 ```
 
 ### 6. Update Task Status (optional)
 
 ```bash
 # Manually transition a task's status (e.g., pause or reset a stuck task)
-ecosystem-manager task status <task-id> --status <new-status>
+ecosystem-manager task status "<task-id>" --status "<new-status>"
 ```
 
 ### 7. Ensure Queue is Running

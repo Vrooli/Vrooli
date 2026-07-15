@@ -51,6 +51,22 @@ func InputProviderCapabilities() map[string]ProviderCapabilityDescriptor {
 		{ID: "generic.round_number", SourceKind: InputSourceGenericProvider, Type: InputTypeInteger, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
 		{ID: "generic.agent_profile_key", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
 		{ID: "generic.operator_note", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureDegrade},
+		// Structured caller-context providers. Like generic.operator_note, each reads
+		// an optional per-run string the caller supplied (RunContext.OperatorInputs),
+		// keyed by the operation caller-input name. They give an operation a typed
+		// sink for its request context WITHOUT collapsing everything into the operator
+		// note and WITHOUT a mode caller-input (the empty-set engine invariant holds).
+		// The clarify sinks carry the operator's clarification turn context; the
+		// research sinks carry the legacy research request context faithfully.
+		{ID: "generic.user_question", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureDegrade},
+		{ID: "generic.decision_topic", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureDegrade},
+		{ID: "generic.user_message", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureDegrade},
+		{ID: "generic.user_prompt", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureDegrade},
+		{ID: "generic.context_paths", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureDegrade},
+		{ID: "generic.context_targets", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureDegrade},
+		{ID: "generic.context_requirements", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureDegrade},
+		{ID: "generic.gap_report", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureDegrade},
+		{ID: "generic.evidence_request", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessRound, FailurePolicy: InputFailureDegrade},
 		{ID: "generic.prior_rounds", SourceKind: InputSourceGenericProvider, Type: InputTypeArray, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
 		{ID: "generic.mode_artifacts", SourceKind: InputSourceGenericProvider, Type: InputTypeArray, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
 		{ID: "generic.backlog_sync_proposal", SourceKind: InputSourceGenericProvider, Type: InputTypeString, Freshness: InputFreshnessStatic, FailurePolicy: InputFailureRequired},
@@ -60,10 +76,14 @@ func InputProviderCapabilities() map[string]ProviderCapabilityDescriptor {
 		{ID: "target.initiative_description", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetInitiative}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
 		{ID: "target.acceptance_criteria", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetInitiative}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
 		{ID: "target.member_items", SourceKind: InputSourceTargetAdapter, Type: InputTypeArray, TargetKinds: []TargetKind{TargetInitiative}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
-		{ID: "target.plan_context", SourceKind: InputSourceTargetAdapter, Type: InputTypeObject, TargetKinds: []TargetKind{TargetInitiative, TargetPlanManagerPlan, TargetPlanRef}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
-		{ID: "target.plan_id", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetPlanManagerPlan}, Freshness: InputFreshnessExecution, FailurePolicy: InputFailureRequired},
-		{ID: "target.plan_path", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetPlanRef}, Freshness: InputFreshnessExecution, FailurePolicy: InputFailureRequired},
-		{ID: "target.plan_content", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetPlanRef}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
+		{ID: "target.plan_context", SourceKind: InputSourceTargetAdapter, Type: InputTypeObject, TargetKinds: []TargetKind{TargetInitiative, TargetPlanExecution}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
+		{ID: "target.plan_id", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetPlanExecution}, Freshness: InputFreshnessExecution, FailurePolicy: InputFailureRequired},
+		{ID: "target.scenario_name", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetScenario}, Freshness: InputFreshnessExecution, FailurePolicy: InputFailureRequired},
+		{ID: "target.item_title", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetBacklogItem}, Freshness: InputFreshnessExecution, FailurePolicy: InputFailureRequired},
+		{ID: "target.item_description", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetBacklogItem}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
+		{ID: "target.item_status", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetBacklogItem}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
+		{ID: "target.item_spec", SourceKind: InputSourceTargetAdapter, Type: InputTypeString, TargetKinds: []TargetKind{TargetBacklogItem}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
+		{ID: "target.item_plan_ref", SourceKind: InputSourceTargetAdapter, Type: InputTypeObject, TargetKinds: []TargetKind{TargetBacklogItem}, Freshness: InputFreshnessRound, FailurePolicy: InputFailureRequired},
 		{ID: "derived.sha256", SourceKind: InputSourceDerived, Type: InputTypeString, Freshness: InputFreshnessExecution, FailurePolicy: InputFailureRequired},
 	}
 	out := make(map[string]ProviderCapabilityDescriptor, len(descriptors))
@@ -760,6 +780,24 @@ func (rc RunContext) resolveProviderCapability(capability string, round RoundEnv
 		return rc.PhaseDef.ProfileKey, nil
 	case "generic.operator_note":
 		return strings.TrimSpace(note), nil
+	case "generic.user_question":
+		return rc.operatorInput("USER_QUESTION"), nil
+	case "generic.decision_topic":
+		return rc.operatorInput("DECISION_TOPIC"), nil
+	case "generic.user_message":
+		return rc.operatorInput("USER_MESSAGE"), nil
+	case "generic.user_prompt":
+		return rc.operatorInput("USER_PROMPT"), nil
+	case "generic.context_paths":
+		return rc.operatorInput("CONTEXT_PATHS"), nil
+	case "generic.context_targets":
+		return rc.operatorInput("CONTEXT_TARGETS"), nil
+	case "generic.context_requirements":
+		return rc.operatorInput("CONTEXT_REQUIREMENTS"), nil
+	case "generic.gap_report":
+		return rc.operatorInput("GAP_REPORT"), nil
+	case "generic.evidence_request":
+		return rc.operatorInput("EVIDENCE_REQUEST"), nil
 	case "generic.prior_rounds":
 		return append([]RoundEnvelope{}, rc.Rounds...), nil
 	case "generic.mode_artifacts":

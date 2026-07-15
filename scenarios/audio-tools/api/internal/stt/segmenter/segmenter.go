@@ -132,13 +132,15 @@ func (s *Segmenter) Run(
 	// Passthrough see the raw bytes (the former hands the whole file to
 	// Whisper, the latter's native provider decodes for itself).
 	pcmChunks := chunks
+	var timeline *AudioTimeline
 	if s.requiresPCM(selection.Kind, engineID) {
 		normalized, nstart, cleanup, nerr := s.normalizeChunks(ctx, start, chunks, events)
 		if nerr != nil {
 			return nerr // error + Done already emitted
 		}
 		defer cleanup()
-		pcmChunks = normalized
+		timeline = NewAudioTimeline(0)
+		pcmChunks = captureTimeline(ctx, timeline, normalized)
 		start = nstart
 	}
 
@@ -170,7 +172,7 @@ func (s *Segmenter) Run(
 	gate := quality.New(cfg, s.deps.Registry, s.deps.SpeakerIsolation).Gate()
 	inner := make(chan sttchain.StreamEvent)
 	forwardDone := make(chan struct{})
-	go runEgress(ctx, gate, inner, events, forwardDone)
+	go runEgress(ctx, gate, timeline, inner, events, forwardDone)
 
 	err = selection.Strategy.Run(ctx, start, pcmChunks, inner)
 	close(inner)
@@ -222,7 +224,7 @@ func (s *Segmenter) buildIngress(cfg stt.StreamConfig) *ingress.Pipeline {
 // rebuilt from the surviving segment texts so the final transcript matches
 // what the consumer actually saw. It closes done when in is drained so the
 // Segmenter can sequence the events-channel close after the strategy returns.
-func runEgress(ctx context.Context, gate *egress.Gate, in <-chan sttchain.StreamEvent, out chan<- sttchain.StreamEvent, done chan<- struct{}) {
+func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, in <-chan sttchain.StreamEvent, out chan<- sttchain.StreamEvent, done chan<- struct{}) {
 	defer close(done)
 	var finalParts []string
 	gatedAny := false
@@ -233,6 +235,12 @@ func runEgress(ctx context.Context, gate *egress.Gate, in <-chan sttchain.Stream
 			if seg == nil {
 				out <- ev
 				continue
+			}
+			if len(seg.Audio) == 0 && timeline != nil && seg.EndSample > seg.StartSample {
+				bound := timeline.Lookup(seg.StartSample, seg.EndSample)
+				if bound.Status == AudioRangeAttached {
+					seg.Audio = bound.PCM
+				}
 			}
 			dec := gate.Apply(ctx, egress.SegmentDecision{
 				Text:       seg.Text,
@@ -271,6 +279,35 @@ func runEgress(ctx context.Context, gate *egress.Gate, in <-chan sttchain.Stream
 			out <- ev
 		}
 	}
+}
+
+// captureTimeline appends canonical PCM before any strategy or ingress stage
+// consumes it. Provider adapters only translate recognition output; they never
+// own a duplicate cross-cutting audio buffer.
+func captureTimeline(ctx context.Context, timeline *AudioTimeline, in <-chan sttchain.AudioChunk) <-chan sttchain.AudioChunk {
+	out := make(chan sttchain.AudioChunk, 16)
+	go func() {
+		defer close(out)
+		for {
+			select {
+			case chunk, ok := <-in:
+				if !ok {
+					return
+				}
+				if err := timeline.Append(chunk); err != nil {
+					return
+				}
+				select {
+				case out <- chunk:
+				case <-ctx.Done():
+					return
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return out
 }
 
 // requiresPCMDecode mirrors stt.Selector's gate: only VADSegment and

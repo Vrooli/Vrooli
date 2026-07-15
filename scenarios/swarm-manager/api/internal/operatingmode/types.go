@@ -60,22 +60,36 @@ const (
 // loop operates on. Each kind has a target adapter that supplies the
 // target-specific reads, ownership key, and resolution; the initiative is one
 // adapter among several, not the substrate everything else is bolted onto.
+//
+// The vocabulary is exactly three kinds (EXECUTION-MODES.md D1/D6):
+// backlog-item, initiative, and plan-execution. The pre-cutover plan-ref target
+// (an unmanaged workspace-file plan) is removed; the pre-cutover
+// plan-manager-plan kind is renamed to the provider-neutral plan-execution. The
+// domain plan_ref FIELD on backlog items and initiatives (an associated Plan
+// Manager reference) is unrelated to this enum and is never a target kind.
 const (
-	// TargetPlanManagerPlan targets a canonical plan-manager plan
-	// (execution id / slug).
-	TargetPlanManagerPlan TargetKind = "plan-manager-plan"
-	// TargetPlanRef targets a plan file or reference not imported into
-	// swarm-manager (e.g. a repo-relative plan path).
-	TargetPlanRef TargetKind = "plan-ref"
+	// TargetBacklogItem targets a single swarm-manager backlog item. The
+	// vocabulary is pinned here; the backlog-item target adapter (the eventual
+	// replacement for item-level coordination) lands in a later phase, so no
+	// mode declares this kind yet and AdapterFor fails closed for it.
+	TargetBacklogItem TargetKind = "backlog-item"
 	// TargetInitiative targets a swarm-manager initiative and its member items.
 	TargetInitiative TargetKind = "initiative"
+	// TargetPlanExecution targets a canonical, provider-neutral plan execution;
+	// the resolved instance carries the plan id and execution id.
+	TargetPlanExecution TargetKind = "plan-execution"
+	// TargetScenario targets a plain scenario repository workspace (a scenario
+	// directory), identified by scenario name. It has no owning backlog item,
+	// initiative, or plan — the deliverable is the scenario's own spec artifacts.
+	// Used by spec-sync.
+	TargetScenario TargetKind = "scenario"
 )
 
-// IsValidTargetKind reports whether the given kind is one of the three
-// registered target kinds. Empty is invalid; unknown values are invalid.
+// IsValidTargetKind reports whether the given kind is one of the registered
+// target kinds. Empty is invalid; unknown values are invalid.
 func IsValidTargetKind(kind TargetKind) bool {
 	switch kind {
-	case TargetPlanManagerPlan, TargetPlanRef, TargetInitiative:
+	case TargetBacklogItem, TargetInitiative, TargetPlanExecution, TargetScenario:
 		return true
 	default:
 		return false

@@ -12,10 +12,10 @@ prompt-manager skill read ui-health
 
 ```bash
 # Static report including every interop_* finding (no browser):
-ui-health validate scenario <scenario> --static-only --json
+ui-health validate scenario "<scenario>" --static-only --json
 
 # Preview/apply the safe-subset interop fixers:
-ui-health fix run <scenario> --json
+ui-health fix run "<scenario>" --json
 ```
 
 ui-health is the single authority for UI-interop checks (deployment-context correctness across localhost / Cloudflare tunnel / app-monitor proxy-iframe). The `ui-health` skill's decision model routes each `interop_*` finding to its remediation lens.

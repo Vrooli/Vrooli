@@ -139,7 +139,7 @@ This is the canonical list of deployment targets and their current status. Updat
 #### Action mode → Route to target skill
 1. Load the target-specific Tools skill:
    ```bash
-   prompt-manager skill read <target-skill-id>
+   prompt-manager skill read "<target-skill-id>"
    ```
 2. For **first-time deployments** to a target, suggest cross-platform readiness first:
    ```

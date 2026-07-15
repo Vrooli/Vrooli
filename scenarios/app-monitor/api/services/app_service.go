@@ -42,19 +42,18 @@ func NewAppServiceWithOptions(repo repository.AppRepository, httpClient HTTPClie
 
 	repoRoot, _ := findRepoRoot()
 	return &AppService{
-		repo:               repo,
-		httpClient:         httpClient,
-		timeNow:            timeProvider,
-		cache:              &orchestratorCache{},
-		completenessCache:  &completenessCache{data: make(map[string]*CompletenessResponse)},
-		viewStats:          make(map[string]*viewStatsEntry),
-		issueCache:         make(map[string]*fixCacheEntry),
-		issueCacheTTL:      fixBacklogCacheTTL,
-		repoRoot:           repoRoot,
-		scenarioURL:        discovery.ResolveScenarioURLDefault,
-		browserlessService: NewBrowserlessService(),
-		enrichmentCache:    make(map[string]*enrichmentCacheEntry),
-		uiServerPort:       os.Getenv("UI_PORT"),
+		repo:              repo,
+		httpClient:        httpClient,
+		timeNow:           timeProvider,
+		cache:             &orchestratorCache{},
+		completenessCache: &completenessCache{data: make(map[string]*CompletenessResponse)},
+		viewStats:         make(map[string]*viewStatsEntry),
+		issueCache:        make(map[string]*fixCacheEntry),
+		issueCacheTTL:     fixBacklogCacheTTL,
+		repoRoot:          repoRoot,
+		scenarioURL:       discovery.ResolveScenarioURLDefault,
+		enrichmentCache:   make(map[string]*enrichmentCacheEntry),
+		uiServerPort:      os.Getenv("UI_PORT"),
 	}
 }
 

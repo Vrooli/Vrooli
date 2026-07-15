@@ -49,6 +49,22 @@ Non-negotiable contracts. Changing any of these is an RFC-level decision, not a 
 2. The browser-voice WebSocket is **not** a REST exception; it is a `TransportReason: websocket_transport` endpoint. (This constant must be added to the template — see R-PROTO.)
 3. No new endpoints in web-console for audio. Consumers reach audio-tools directly via the integrations adapter.
 
+## Streaming v2 replay and segment delivery
+
+1. A v2 audio chunk is retained until the server emits a processed-coverage
+   acknowledgement or an explicit terminal failure. A socket close or generic
+   `done` is not evidence of coverage.
+2. Both Connect and WebSocket transports commit each durable transcript segment
+   into the session ledger before emitting it. The identity is provider-supplied
+   when available; otherwise it is deterministically derived from session,
+   generation, and canonical sample range.
+3. A WebSocket reconnect re-emits committed segments in canonical timeline
+   order with `segmentId`. Browser providers retain IDs for the active turn and
+   deliver each ID to host UI exactly once. This lets replay repair a missed
+   server-to-browser delivery without duplicate composer or dictation text.
+4. **Encoded in**: `handlers/stt/{stream_ws,transcribe_stream}.go`,
+   `internal/stt/session/ledger.go`, and both PCM v2 browser providers.
+
 ## Greenfield discipline
 
 1. No compatibility shims inside audio-tools. No legacy aliases. No `// removed` comments. No `_unused` named vars carried for symmetry.

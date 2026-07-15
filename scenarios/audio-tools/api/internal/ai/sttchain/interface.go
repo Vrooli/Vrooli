@@ -174,6 +174,12 @@ type Provider interface {
 // Carried out-of-band so the provider can negotiate format/language
 // before any audio arrives.
 type StreamStart struct {
+	// ProtocolVersion is the negotiated transport contract. Version 2 adds
+	// replay-safe chunk and acknowledgement identities.
+	ProtocolVersion         int32
+	SessionID               string
+	Generation              uint64
+	ResumeToken             string
 	Language                string
 	InitialPrompt           string
 	SkipSpeakerVerification bool
@@ -217,7 +223,11 @@ type StreamStart struct {
 // BufferedFallback (which hands the whole reassembled file to Whisper)
 // and Passthrough (whose native provider decodes for itself).
 type AudioChunk struct {
-	Audio []byte
+	Audio       []byte
+	Sequence    uint64
+	StartSample int64
+	EndSample   int64
+	Digest      []byte
 }
 
 // StreamEventKind enumerates the event types emitted on the output channel.
@@ -230,6 +240,8 @@ const (
 	StreamEventSpeakerRejection StreamEventKind = "speaker_rejection"
 	StreamEventError            StreamEventKind = "error"
 	StreamEventDone             StreamEventKind = "done"
+	StreamEventAcknowledgement  StreamEventKind = "acknowledgement"
+	StreamEventSessionStatus    StreamEventKind = "session_status"
 	// StreamEventVadState carries periodic snapshots of the server-side
 	// VAD silence clock. Consumers (UI mic-button ring) render the
 	// silence-elapsed value with light client-side interpolation so the
@@ -251,19 +263,30 @@ type StreamEvent struct {
 	Error            error
 	Done             *DoneEvent
 	VadState         *VadStateEvent
+	Acknowledgement  *AcknowledgementEvent
+	SessionStatus    *SessionStatusEvent
 }
 
-// Durable reports whether this event must be delivered losslessly and in
-// order across every hop of the streaming pipeline. It is the single code
-// encoding of the event-durability contract documented in
-// docs/domains/stt/streaming-pipeline.md#event-durability-contract: Partial is
-// the SOLE disposable class (it may be coalesced-to-latest or dropped under
-// consumer backpressure and MUST NEVER back-pressure its producer); every
-// other event kind — Segment, SpeakerRejection, Error, Done, WakeWord,
-// VadState — is durable (ordered, lossless). All three Go hops (the kyutai
-// provider adapter, the relay egress buffer, and the browser WS handler) read
-// this one predicate instead of re-deriving the rule inline.
-func (e StreamEvent) Durable() bool { return e.Kind != StreamEventPartial }
+type DeliveryClass string
+
+const (
+	DeliveryProgress DeliveryClass = "progress"
+	DeliveryDurable  DeliveryClass = "durable"
+)
+
+// DeliveryClass is the explicit bounded-queue registry. High-rate partial,
+// VAD, and transient status updates are coalescible; commit, acknowledgement,
+// policy, error, and terminal events are ordered and durable.
+func (e StreamEvent) DeliveryClass() DeliveryClass {
+	switch e.Kind {
+	case StreamEventPartial, StreamEventVadState:
+		return DeliveryProgress
+	default:
+		return DeliveryDurable
+	}
+}
+
+func (e StreamEvent) Durable() bool { return e.DeliveryClass() == DeliveryDurable }
 
 // IsDroppable is the inverse of Durable: true only for Partial events, the one
 // class the pipeline may coalesce or drop to stay backpressure-safe.
@@ -275,8 +298,13 @@ type PartialEvent struct {
 
 type SegmentEvent struct {
 	Text             string
+	SegmentID        string
+	Generation       uint64
 	StartMs          int64
 	EndMs            int64
+	StartSample      int64
+	EndSample        int64
+	AlignmentQuality string
 	DetectedLanguage string
 	// Per-segment trace; the chain may stamp these from the locked tier
 	// if the adapter doesn't fill them in.
@@ -339,12 +367,31 @@ type VadStateEvent struct {
 }
 
 type DoneEvent struct {
-	FinalText       string
-	LockedTier      ProviderTier
-	ProviderID      string
-	ModelID         string
-	LatencyMs       float64
-	FellBackToUnary bool
+	FinalText          string
+	LockedTier         ProviderTier
+	ProviderID         string
+	ModelID            string
+	LatencyMs          float64
+	FellBackToUnary    bool
+	ProcessedSequence  int64
+	ProcessedEndSample int64
+	TerminalReason     string
+}
+
+type AcknowledgementEvent struct {
+	ReceivedSequence   int64
+	ProcessedSequence  int64
+	ReceivedEndSample  int64
+	ProcessedEndSample int64
+}
+
+type SessionStatusEvent struct {
+	SessionID         string
+	Generation        uint64
+	State             string
+	QueuePosition     int32
+	CapabilityOutcome string
+	RecoveryGuidance  string
 }
 
 // ErrInsufficientCredits is returned by the Vrooli provider when LPBS reports

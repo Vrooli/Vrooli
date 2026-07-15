@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/idgen"
 )
@@ -132,39 +130,71 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		UpdatedAt: now,
 	}
 
-	// Always spawn a fresh agent-manager run. Retry's contract is a clean
-	// re-dispatch; "continue existing session" semantics belong to FollowUp.
-	spawnCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
-		item,
-		retryRecord.ExecutionID,
-		executionActivityPurpose("retry"),
-		retryRecord.StartedBy,
-		map[string]string{
-			"entrypoint":       "execution.retry",
-			"parent_execution": parent.ExecutionID,
-		},
-	))
-	runResult, spawnErr := s.agentService.SpawnBacklog(spawnCtx, agentmanager.BacklogSpawnRequest{
-		Kind:            item.Kind,
-		Name:            item.Name,
-		Title:           fmt.Sprintf("Retry: %s/%s", item.Kind, item.Name),
-		Description:     prompt,
-		Prompt:          prompt,
-		ScopePath:       ".",
-		ProjectRoot:     ".",
-		CreatedBy:       "swarm-manager:retry",
-		Purpose:         "retry",
-		AcceptanceAllow: item.AcceptanceAllow,
-		AcceptanceDeny:  item.AcceptanceDeny,
-		Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
-	})
-	if spawnErr != nil {
-		return Record{}, wrapAgentError(fmt.Errorf("spawn retry failed: %w", spawnErr))
+	// Retry re-drains as a brand-new attempt. Plan-backed items start the
+	// execution-retry operation against their plan-execution target (mirroring the
+	// primary start; Retry-as-New-Attempt lineage is preserved on the record).
+	// Research-conclusion items have no plan_ref and keep the legacy direct spawn
+	// (slice-B exception, note 8828b096). "Continue existing session" semantics
+	// belong to FollowUp, never here.
+	if hasExecutionPlanRef(item) {
+		if s.operationStarter == nil {
+			return Record{}, apierr.Unavailable("execution operation runner is not available")
+		}
+		planHandle, herr := executionPlanHandle(item)
+		if herr != nil {
+			return Record{}, apierr.BadRequest("%s", herr.Error())
+		}
+		var inputs map[string]string
+		if note := strings.TrimSpace(req.Note); note != "" {
+			inputs = map[string]string{"RETRY_NOTE": note}
+		}
+		res, opErr := s.operationStarter.StartOperation(ctx, OperationStartRequest{
+			Operation:        operationExecutionRetry,
+			OperationVersion: operationVersionPinned,
+			TargetKind:       targetKindPlanExecution,
+			TargetID:         planHandle,
+			CallerInputs:     inputs,
+			IdempotencyKey:   "exec-" + retryRecord.ExecutionID,
+			RequestedBy:      retryRecord.StartedBy,
+		})
+		if opErr != nil {
+			return Record{}, wrapAgentError(fmt.Errorf("start retry operation failed: %w", opErr))
+		}
+		retryRecord.RunID = res.RunID
+		retryRecord.OpWorkflowID = res.WorkflowID
+		retryRecord.OpExecutionID = res.ExecutionID
+		retryRecord.Status = StatusStarting
+		retryRecord.StartedAt = now
+	} else {
+		// Research-conclusion items (no plan_ref) retry as a fresh research-conclude
+		// operation against their backlog-item target — the same operation their
+		// primary execution uses (retry-as-new-attempt lineage preserved on the
+		// record). The optional note rides as OPERATOR_NOTE.
+		if s.operationStarter == nil {
+			return Record{}, apierr.Unavailable("execution operation runner is not available")
+		}
+		var inputs map[string]string
+		if note := strings.TrimSpace(req.Note); note != "" {
+			inputs = map[string]string{"OPERATOR_NOTE": note}
+		}
+		res, opErr := s.operationStarter.StartOperation(ctx, OperationStartRequest{
+			Operation:        operationResearchConclude,
+			OperationVersion: operationVersionPinned,
+			TargetKind:       targetKindBacklogItem,
+			TargetID:         item.Kind + "/" + item.Name,
+			CallerInputs:     inputs,
+			IdempotencyKey:   "exec-" + retryRecord.ExecutionID,
+			RequestedBy:      retryRecord.StartedBy,
+		})
+		if opErr != nil {
+			return Record{}, wrapAgentError(fmt.Errorf("start retry conclusion operation failed: %w", opErr))
+		}
+		retryRecord.RunID = res.RunID
+		retryRecord.OpWorkflowID = res.WorkflowID
+		retryRecord.OpExecutionID = res.ExecutionID
+		retryRecord.Status = StatusStarting
+		retryRecord.StartedAt = now
 	}
-	retryRecord.TaskID = runResult.TaskID
-	retryRecord.RunID = runResult.RunID
-	retryRecord.Status = StatusStarting
-	retryRecord.StartedAt = now
 
 	records = append(records, retryRecord)
 	if err := s.store.Save(records); err != nil {

@@ -50,14 +50,34 @@ func (p *Passthrough) Run(
 		return err
 	}
 	sawDone := false
-	for ev := range vendor {
+	for {
+		var ev sttchain.StreamEvent
+		var ok bool
+		select {
+		case ev, ok = <-vendor:
+			if !ok {
+				goto vendorDrained
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 		if ev.Kind == sttchain.StreamEventDone {
 			sawDone = true
 		}
-		events <- ev
+		select {
+		case events <- ev:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
+
+vendorDrained:
 	if !sawDone {
-		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
+		select {
+		case events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	return nil
 }

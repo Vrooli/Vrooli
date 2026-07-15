@@ -2,7 +2,10 @@ package stt
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -251,9 +254,17 @@ func (h *handlers) transcribeStream(ctx cliapp.RunContext) error {
 		streamClient = h.client
 	}
 	stream := streamClient.TranscribeStream(context.Background())
+	sessionID, err := streamSessionIdentity()
+	if err != nil {
+		return err
+	}
+	resumeToken, err := streamSessionIdentity()
+	if err != nil {
+		return err
+	}
 	if err := stream.Send(&sttv1.TranscribeStreamRequest{
 		Payload: &sttv1.TranscribeStreamRequest_Start{
-			Start: &sttv1.StreamStart{Language: ctx.Flag("language")},
+			Start: &sttv1.StreamStart{Language: ctx.Flag("language"), ProtocolVersion: 2, SessionId: sessionID, ResumeToken: resumeToken},
 		},
 	}); err != nil {
 		return cliapp.WrapAPIError("transcribe-stream start", err, nil)
@@ -263,16 +274,22 @@ func (h *handlers) transcribeStream(ctx cliapp.RunContext) error {
 	// drain whatever events the server has already emitted before
 	// returning.
 	go func() {
+		var sequence uint64
 		for off := 0; off < len(data); off += chunkBytes {
 			end := off + chunkBytes
 			if end > len(data) {
 				end = len(data)
 			}
+			chunk := data[off:end]
+			digest := sha256.Sum256(chunk)
 			if err := stream.Send(&sttv1.TranscribeStreamRequest{
-				Payload: &sttv1.TranscribeStreamRequest_AudioChunk{AudioChunk: data[off:end]},
+				Payload: &sttv1.TranscribeStreamRequest_AudioChunk{AudioChunk: &sttv1.StreamAudioChunk{
+					Audio: chunk, Sequence: sequence, StartSample: int64(off / 2), EndSample: int64(end / 2), Sha256: digest[:],
+				}},
 			}); err != nil {
 				return
 			}
+			sequence++
 		}
 		_ = stream.Send(&sttv1.TranscribeStreamRequest{
 			Payload: &sttv1.TranscribeStreamRequest_End{End: &sttv1.StreamEnd{}},
@@ -312,6 +329,14 @@ func (h *handlers) transcribeStream(ctx cliapp.RunContext) error {
 		}
 	}
 	return lastErr
+}
+
+func streamSessionIdentity() (string, error) {
+	var value [16]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		return "", fmt.Errorf("generate stream identity: %w", err)
+	}
+	return hex.EncodeToString(value[:]), nil
 }
 
 // formats prints the STT ingress capability matrix: the input codecs the

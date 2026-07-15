@@ -15,7 +15,6 @@ import (
 	"swarm-manager/internal/depgraph"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/planclient"
 )
 
 // ExecutionQueuer abstracts execution operations needed by batch queue,
@@ -35,8 +34,12 @@ type ExecutionQueuer interface {
 	RetryLatestForBacklog(ctx context.Context, backlogKind, backlogName, note string) (execution.Record, bool, error)
 }
 
-// SetExecutionQueuer injects a custom execution queuer for batch queue operations.
-// If not set, BatchQueue constructs a default execution.Service inline.
+// SetExecutionQueuer injects the execution service the backlog handler queues
+// through. It is required for the queue/batch-queue/process-preflight paths: the
+// backlog domain package no longer constructs an execution service itself (that
+// path threaded a spawn-capable agent service into the domain; autonomous
+// launches now flow exclusively through the operation runner). An unset queuer
+// makes those endpoints return an Unavailable error rather than falling back.
 func (h *Handler) SetExecutionQueuer(eq ExecutionQueuer) {
 	h.executionQueuer = eq
 }
@@ -140,19 +143,11 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 	sortedOrder, _ := g.TopologicalSort()
 
 	// Phase 3: Process each item in topological order.
-	var eq ExecutionQueuer
-	if h.executionQueuer != nil {
-		eq = h.executionQueuer
-	} else {
-		eq = execution.NewService(execution.ServiceConfig{
-			DataRoot:           h.dataRoot,
-			RepoRoot:           h.repoRoot,
-			PolicyProvider:     h.policyProvider,
-			GovernanceProvider: h.governanceProvider,
-			AgentService:       h.agentService,
-			PlanRenderer:       planclient.NewConnectClient(nil, nil),
-		})
+	if h.executionQueuer == nil {
+		apierr.MapError(w, "[backlog] batch-queue", apierr.Unavailable("execution service is not available"))
+		return
 	}
+	eq := h.executionQueuer
 
 	results := make([]batchQueueItemResult, 0, len(loaded))
 

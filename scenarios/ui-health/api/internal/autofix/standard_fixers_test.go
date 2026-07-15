@@ -2,6 +2,7 @@ package autofix
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,10 +17,54 @@ func TestStandardFixClassFor(t *testing.T) {
 		}
 	}
 	// The report-only standards must stay detection_only.
-	for _, code := range []string{"standard_no_raw_hex", "standard_a11y_harness", "standard_pwa_manifest", "standard_eslint_stability"} {
+	for _, code := range []string{"standard_no_raw_hex", "standard_pwa_manifest", "standard_eslint_stability"} {
 		if FixClassFor(code) == "autofix" {
 			t.Fatalf("%q must be detection_only, not autofix", code)
 		}
+	}
+}
+
+func TestA11yHarnessHelperFixRequiresExistingDependencyAndTest(t *testing.T) {
+	root := interopScenario(t)
+	writeFile(t, root, "ui/package.json", `{"devDependencies":{"axe-core":"^4.10.0"}}`)
+	writeFile(t, root, "ui/src/layout/AppShell.a11y.test.tsx", `expectNoA11yViolations(container)`)
+	helperPath := filepath.Join(root, "ui", "src", "test-utils", "a11y.ts")
+
+	f := New(noopValidator{})
+	if !f.CanFix(root, RuleStandardA11yHarness, helperPath) {
+		t.Fatal("canonical helper should be fixable when axe-core and an existing a11y test are present")
+	}
+	if !f.CanFix(root, RuleStandardA11yHarness, filepath.Join(root, "ui", "package.json")) {
+		t.Fatal("rule-level package finding should advertise the available helper repair")
+	}
+	if _, err := f.PreviewFixResponse("demo", root, []string{RuleStandardA11yHarness}); err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if _, err := os.Stat(helperPath); !os.IsNotExist(err) {
+		t.Fatalf("preview must not write helper, stat err=%v", err)
+	}
+	resp, err := f.ApplyFixResponse("demo", root, []string{RuleStandardA11yHarness})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if len(resp.GetCandidates()) != 1 || !strings.Contains(readFile(t, root, "ui/src/test-utils/a11y.ts"), "axe.run") {
+		t.Fatalf("apply did not create canonical helper: %#v", resp.GetCandidates())
+	}
+	if f.CanFix(root, RuleStandardA11yHarness, helperPath) {
+		t.Fatal("helper fixer must be idempotent")
+	}
+}
+
+func TestA11yHarnessHelperFixDoesNotInventDependencyOrTest(t *testing.T) {
+	root := interopScenario(t)
+	writeFile(t, root, "ui/package.json", `{}`)
+	f := New(noopValidator{})
+	if f.CanFix(root, RuleStandardA11yHarness, "") {
+		t.Fatal("fixer must not add axe-core")
+	}
+	writeFile(t, root, "ui/package.json", `{"devDependencies":{"axe-core":"^4.10.0"}}`)
+	if f.CanFix(root, RuleStandardA11yHarness, "") {
+		t.Fatal("fixer must not author an a11y test when none exists")
 	}
 }
 

@@ -9,13 +9,15 @@
  * change this structure—update the maps below so UI code, automation flows, and
  * the manifest builder all stay in sync across every scenario.
  *
- * ## Manifest Export
+ * ## Auto-Generated Manifest
  *
  * If you need to add or modify selectors:
  *
  * 1. Update the `literalSelectors` object below for static selectors
  * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
- * 3. `selectorsManifest` updates from the same source maps automatically
+ * 3. Run `pnpm selector:manifest` to regenerate `selectors.manifest.json`
+ *
+ * Do not hand-edit the generated manifest.
  */
 import { LOCALE_CODES } from "../i18n/locales";
 
@@ -316,7 +318,17 @@ const literalSelectors = {
     recordStart: "dictation-record-start",
     recordCancel: "dictation-record-cancel",
     recordState: "dictation-record-state",
+		streamStatus: "dictation-stream-status",
+		recordError: "dictation-record-error",
     audioMeter: "dictation-audio-meter",
+    turnDetails: "dictation-turn-details",
+    turnCaptureStatus: "dictation-turn-capture-status",
+    turnSentStatus: "dictation-turn-sent-status",
+    turnDoneStatus: "dictation-turn-done-status",
+    turnDoneReady: "dictation-turn-done-ready",
+    turnProcessedStatus: "dictation-turn-processed-status",
+    turnProcessedReady: "dictation-turn-processed-ready",
+    exportDiagnostic: "dictation-export-diagnostic",
     transcriptEditor: "dictation-transcript-editor",
     tagInput: "dictation-tag-input",
     saveClip: "dictation-save-clip",
@@ -331,6 +343,7 @@ const literalSelectors = {
     startExperiment: "dictation-start-experiment",
     refreshExperiments: "dictation-refresh-experiments",
     experimentName: "dictation-experiment-name",
+    experimentEngines: "dictation-experiment-engines",
     experimentLongForm: "dictation-experiment-long-form",
     experimentSeed: "dictation-experiment-seed",
     experimentTargetDuration: "dictation-experiment-target-duration",

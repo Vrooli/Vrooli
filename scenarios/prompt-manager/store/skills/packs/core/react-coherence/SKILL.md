@@ -11,7 +11,7 @@ prompt-manager skill read ui-health
 **Validate coherence/theming via the provider:**
 
 ```bash
-ui-health validate scenario <scenario> --static-only --json
+ui-health validate scenario "<scenario>" --static-only --json
 ```
 
 Coherence = code organization, state management, and styling/theming structure. For deployment-context correctness see the interop lenses; for stylistic/visual judgment see the separate `ux` skill.

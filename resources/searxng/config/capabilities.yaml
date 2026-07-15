@@ -68,7 +68,6 @@ spec:
   scenarios:
     primary:
       - research-assistant
-      - idea-generator
       - document-manager
     secondary:
       - brand-manager
@@ -78,7 +77,7 @@ spec:
       - [searxng, ollama, qdrant]           # AI-powered research workflows
       - [searxng, n8n, postgres]           # Automated research pipelines
       - [searxng, whisper, minio]          # Multi-modal research platform
-      - [searxng, agent-s2, browserless]   # Comprehensive web research
+      - [searxng, agent-s2]                # Comprehensive web research
   
   # Business intelligence
   business:

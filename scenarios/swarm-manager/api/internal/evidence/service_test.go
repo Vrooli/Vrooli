@@ -9,6 +9,7 @@ import (
 
 	"swarm-manager/internal/planclient"
 
+	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
@@ -39,7 +40,7 @@ func newEvidenceService(t *testing.T, sessions, modes *stubOwnerIndex) (*Service
 		t.Fatalf("open sqlite: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	store := NewStore(db)
+	store := NewStore(database.NewFromPrimary(db))
 	if err := store.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init schema: %v", err)
 	}
@@ -153,7 +154,7 @@ func TestIngestRejectsChangedReplayAndStoresProducerProgress(t *testing.T) {
 	if _, err := service.Ingest(context.Background(), changed); !errors.Is(err, ErrSourceConflict) {
 		t.Fatalf("changed replay error = %v", err)
 	}
-	store := NewStore(db)
+	store := NewStore(database.NewFromPrimary(db))
 	if err := store.SaveCheckpoint(context.Background(), Checkpoint{ProducerID: "plan-manager", RunID: "run-42", FactKind: "plan", Cursor: "42"}); err != nil {
 		t.Fatalf("save checkpoint: %v", err)
 	}
@@ -217,7 +218,7 @@ func TestReconcilePlanManagerCreatesAuthoritativeLinkedEvidence(t *testing.T) {
 	if confidence != string(ConfidenceAuthoritative) || checkpoint != "plan-1:plan.created:1" {
 		t.Fatalf("confidence=%q checkpoint=%q", confidence, checkpoint)
 	}
-	if complete, err := NewStore(db).HasTerminalWatermark(context.Background(), "plan-manager", "run-42", "plan"); err != nil || !complete {
+	if complete, err := NewStore(database.NewFromPrimary(db)).HasTerminalWatermark(context.Background(), "plan-manager", "run-42", "plan"); err != nil || !complete {
 		t.Fatalf("plan-manager terminal watermark = %v, %v; want true after committed reconciliation", complete, err)
 	}
 }
@@ -230,7 +231,7 @@ func TestEvaluateRequirementDefersAbsenceUntilProducerWatermark(t *testing.T) {
 	if err != nil || pending.State != RequirementPending {
 		t.Fatalf("pending=%+v err=%v", pending, err)
 	}
-	if err := NewStore(db).SaveWatermark(context.Background(), Watermark{ProducerID: "plan-manager", RunID: "run-42", FactKind: "plan", Coverage: "terminal"}); err != nil {
+	if err := NewStore(database.NewFromPrimary(db)).SaveWatermark(context.Background(), Watermark{ProducerID: "plan-manager", RunID: "run-42", FactKind: "plan", Coverage: "terminal"}); err != nil {
 		t.Fatal(err)
 	}
 	missing, err := service.EvaluateRequirement(context.Background(), Owner{Kind: OwnerAgentSession, ID: "session-1"}, "run-42", requirement)

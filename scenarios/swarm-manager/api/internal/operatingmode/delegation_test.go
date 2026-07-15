@@ -288,8 +288,8 @@ func TestStartTargetPhaseStartsDrainOnBarePlan(t *testing.T) {
 	if round.Mode != string(ModePhasedPlanDrain) || round.Phase != "execute" {
 		t.Fatalf("round = %s/%s, want phased-plan-drain/execute", round.Mode, round.Phase)
 	}
-	if round.ScopeKind != string(TargetPlanManagerPlan) {
-		t.Fatalf("scope kind = %q, want plan-manager-plan", round.ScopeKind)
+	if round.ScopeKind != string(TargetPlanExecution) {
+		t.Fatalf("scope kind = %q, want plan-execution", round.ScopeKind)
 	}
 	// The fake plan execution resolves execution id "exec-1".
 	if round.ScopeID != "exec-1" {

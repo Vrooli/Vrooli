@@ -269,28 +269,6 @@ func (h *AppHandler) GetAppIssues(c *gin.Context) {
 	h.GetAppFixes(c)
 }
 
-// GetFallbackDiagnostics retrieves console logs, network requests, and page status using browserless
-// This is used when the iframe bridge fails to provide diagnostics
-func (h *AppHandler) GetFallbackDiagnostics(c *gin.Context) {
-	appID := c.Param("id")
-
-	var payload struct {
-		URL string `json:"url" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse("URL is required"))
-		return
-	}
-
-	result, err := h.appService.GetFallbackDiagnostics(c.Request.Context(), appID, payload.URL)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, errorResponse(fmt.Sprintf("Failed to retrieve fallback diagnostics: %v", err)))
-		return
-	}
-
-	c.JSON(http.StatusOK, successResponse(result))
-}
-
 // ReportAppFix creates a Swarm Manager fix backlog item with App Monitor evidence.
 func (h *AppHandler) ReportAppFix(c *gin.Context) {
 	appID := c.Param("id")

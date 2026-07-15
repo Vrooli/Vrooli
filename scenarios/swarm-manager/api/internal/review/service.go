@@ -8,9 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
 )
 
@@ -95,6 +93,7 @@ const DefaultRoundMaxAge = 30 * time.Minute
 type Service struct {
 	dataRoot             string
 	agentService         AgentSpawner
+	operationStarter     OperationStarter
 	inspector            RunInspector
 	promptClient         promptmanager.Client
 	eventLogger          EventLogger
@@ -174,10 +173,19 @@ type startReviewParams struct {
 	BaselineDiffJSON       string // Pre-serialized before/after baseline diff per scenario
 }
 
-// startReview creates a review round and spawns the review agent.
+// startReview creates a review round and starts the review-round operation
+// through the operation runner. The runner resolves the bound backlog-review mode
+// and spawns the agent through the operating-mode engine's chokepoint; the round's
+// completion arrives through the runner completion bridge, which fires the
+// commit-review-round handler (see opshandlers.go). The round is written BEFORE
+// the start (commit-before-async) so a start failure leaves a resolvable record;
+// its run id is stamped after start so the completion handler correlates back to
+// it. The round is NOT tracked for legacy polling — it is runner-owned, and the
+// completion bridge + refresh driver own its terminal transition (see the
+// OpExecutionID guard in polling.go).
 func (s *Service) startReview(ctx context.Context, params startReviewParams) error {
-	if s.agentService == nil || !s.agentService.IsEnabled() {
-		return fmt.Errorf("agent service not available")
+	if s.operationStarter == nil {
+		return fmt.Errorf("review operation runner not available")
 	}
 
 	roundNum, err := NextRoundNumber(params.ItemDir)
@@ -185,27 +193,7 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		return fmt.Errorf("determine next round: %w", err)
 	}
 
-	itemTitle := s.resolveItemTitle(params.BacklogKind, params.BacklogName, params.ItemTitle)
-	deliverableContent := s.loadReviewDeliverableContent(ctx, params.BacklogKind, params.BacklogName, params.ItemDir)
-
-	// Build changed paths list.
-	changedPaths := flattenChangedPaths(params.ChangedPathsByScenario)
-	affectedScenarios := pathutil.UniqueSortedStrings(append([]string(nil), params.AffectedScenarios...))
-
-	// Render instructions with structural variables only.
-	instructionVars := map[string]string{
-		"ITEM_FOLDER":  params.ItemDir,
-		"ROUND_NUMBER": fmt.Sprintf("%03d", roundNum),
-	}
-	instructions, err := s.promptClient.ReadSkill(ctx, "swarm-manager-review", instructionVars, true)
-	if err != nil {
-		return fmt.Errorf("render review skill: %w", err)
-	}
-
-	// Build context attachments for data the agent needs to review.
-	attachments := buildReviewAttachments(deliverableContent, changedPaths, affectedScenarios, params.GCTResultsJSON, params.BaselineDiffJSON, "")
-
-	// Create the round file in gathering state.
+	// Create the round file in gathering state before the async start.
 	round := Round{
 		RoundNum:    roundNum,
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
@@ -213,58 +201,46 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		Status:      RoundStatusGathering,
 		Evidence:    []EvidenceItem{},
 	}
-
-	// Inject agent activity spec for the tracked agent service.
-	ctx = agentactivity.WithSpec(ctx, agentactivity.Spec{
-		OwnerType:   agentactivity.OwnerBacklog,
-		OwnerKind:   params.BacklogKind,
-		OwnerName:   params.BacklogName,
-		OwnerTitle:  itemTitle,
-		ExecutionID: params.ExecutionID,
-		Purpose:     agentactivity.PurposeReview,
-		PhaseKind:   string(agentactivity.LaneReview),
-		RequestedBy: "swarm-manager",
-		Metadata: map[string]string{
-			"entrypoint":   "review.start",
-			"round_number": fmt.Sprintf("%03d", roundNum),
-		},
-	})
-
-	// Spawn the review agent with instructions as system prompt and data as context.
-	runResult, err := s.agentService.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Kind:               params.BacklogKind,
-		Name:               params.BacklogName,
-		Title:              "Review: " + itemTitle,
-		Description:        instructions,
-		Prompt:             instructions,
-		ScopePath:          ".",
-		ProjectRoot:        ".",
-		CreatedBy:          "swarm-manager:review",
-		Purpose:            "review",
-		ContextAttachments: attachments,
-		Environment: map[string]string{
-			"VROOLI_SPAWN_SOURCE": "swarm-manager-review",
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("spawn review agent: %w", err)
-	}
-
-	round.RunID = runResult.RunID
 	if err := SaveRound(params.ItemDir, round); err != nil {
 		return fmt.Errorf("save review round: %w", err)
 	}
 
-	// Track the gathering round for polling.
-	s.trackActiveRound(runResult.RunID, params.BacklogKind, params.BacklogName, params.ItemDir, roundNum)
+	res, err := s.operationStarter.StartReviewOperation(ctx, OperationStartRequest{
+		Operation:      opReviewRound,
+		TargetKind:     targetKindBacklogItem,
+		TargetID:       params.BacklogKind + "/" + params.BacklogName,
+		IdempotencyKey: fmt.Sprintf("review-%s-r%d", params.ExecutionID, roundNum),
+		RequestedBy:    "swarm-manager",
+	})
+	if err != nil {
+		return fmt.Errorf("start review operation: %w", err)
+	}
+
+	// Stamp the run association + operation execution refs on the round so the
+	// completion handler correlates back and the poller defers to the runner.
+	round.RunID = res.RunID
+	round.OpWorkflowID = res.WorkflowID
+	round.OpExecutionID = res.ExecutionID
+	if err := SaveRound(params.ItemDir, round); err != nil {
+		return fmt.Errorf("save review round run association: %w", err)
+	}
 
 	if s.eventLogger != nil {
 		s.eventLogger.EmitReviewStarted(params.ExecutionID, roundNum)
 	}
 
-	slog.Info("review round started", "round", roundNum, "execution_id", params.ExecutionID, "run_id", runResult.RunID)
+	slog.Info("review round started", "round", roundNum, "execution_id", params.ExecutionID,
+		"run_id", res.RunID, "op_execution", res.ExecutionID)
 	return nil
 }
+
+// Operation + target identifiers the review reroute pins. The operation version
+// pins the exact contract version the system binding pins.
+const (
+	opReviewRound         = "review-round"
+	opEvidenceRequest     = "evidence-request"
+	targetKindBacklogItem = "backlog-item"
+)
 
 // TriggerReviewAgent manually triggers a review agent for an execution.
 // Used when the user wants to re-run or initiate evidence gathering.
@@ -315,18 +291,4 @@ func (s *Service) buildStartReviewParamsFromExecution(ctx context.Context, execu
 		GCTResultsJSON:         execCtx.GCTResultsJSON,
 		BaselineDiffJSON:       execCtx.BaselineDiffJSON,
 	}, nil
-}
-
-func (s *Service) resolveItemTitle(kind, name, fallback string) string {
-	if title := strings.TrimSpace(fallback); title != "" {
-		return title
-	}
-	if s.loadItemTitle != nil {
-		if title, err := s.loadItemTitle(kind, name); err == nil {
-			if trimmed := strings.TrimSpace(title); trimmed != "" {
-				return trimmed
-			}
-		}
-	}
-	return name
 }

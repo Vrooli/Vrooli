@@ -150,7 +150,7 @@ func TestSimulationUsesDeclaredPlanTargetWithoutInitiativeLeakage(t *testing.T) 
 	if err != nil {
 		t.Fatalf("SimulateMode: %v", err)
 	}
-	if simulation.Target.Kind != TargetPlanManagerPlan || simulation.Target.ID != "simulated-plan-execution" {
+	if simulation.Target.Kind != TargetPlanExecution || simulation.Target.ID != "simulated-plan-execution" {
 		t.Fatalf("simulation target = %+v, want plan-manager execution target", simulation.Target)
 	}
 	if strings.Contains(strings.ToLower(simulation.Target.Description), "initiative") {
@@ -160,7 +160,7 @@ func TestSimulationUsesDeclaredPlanTargetWithoutInitiativeLeakage(t *testing.T) 
 		t.Fatalf("plan target context leaked initiative fixture: %+v", simulation.Target.Context)
 	}
 	for _, step := range simulation.Trace {
-		if step.Inputs.Target.Kind != TargetPlanManagerPlan || step.Round.ScopeID != "simulated-plan-execution" || step.Round.InitiativeName != "" || len(step.Round.Items) != 0 {
+		if step.Inputs.Target.Kind != TargetPlanExecution || step.Round.ScopeID != "simulated-plan-execution" || step.Round.InitiativeName != "" || len(step.Round.Items) != 0 {
 			t.Fatalf("plan-target simulation step leaked initiative state: target=%+v round=%+v", step.Inputs.Target, step.Round)
 		}
 	}

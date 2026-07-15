@@ -223,6 +223,42 @@ type Service struct {
 	planExecution      PlanExecutionClient
 	evidenceReconciler EvidenceReconciler
 	evidenceService    *evidence.Service
+	backlogTargets     BacklogItemTargetReader
+	planContainment    PlanContainmentResolver
+	roundObserver      RoundObserver
+}
+
+// RoundObserver is notified once each time a round transitions to a terminal
+// status (completed, needs_attention, failed, canceled) during a refresh. It is
+// the seam the declarative operation runner attaches to: a runner-owned round's
+// completion is routed into Runner.CommitResult through this callback, keeping the
+// dependency edge one-way (the operating-mode engine never imports the runner).
+// A non-runner round (a legacy initiative-keyed mode) simply is not recognized by
+// the observer and is left untouched. The callback must not block the refresh; it
+// is expected to hand off quickly and fail-soft on its own errors.
+type RoundObserver func(ctx context.Context, round RoundEnvelope)
+
+// BacklogItemTarget is the resolved data a backlog-item target adapter projects
+// onto a mode run. It is the item's coordination-relevant fields plus the
+// artifacts a backlog operation reads (the spec document, the bound plan_ref).
+// The backlog item's own document remains the source of truth; this is a
+// read-only projection.
+type BacklogItemTarget struct {
+	Ref          string
+	Title        string
+	Description  string
+	Status       string
+	SpecDocument string
+	PlanRef      *PlanRef
+}
+
+// BacklogItemTargetReader resolves a backlog item as an operating-mode target by
+// its "kind/name" ref. It is the read-side seam the backlog-item adapter uses;
+// production wires it to the backlog store, tests inject a fake. When it is not
+// wired, the adapter degrades to the coarse BacklogReader snapshot (title +
+// status) rather than resolving a half-built target.
+type BacklogItemTargetReader interface {
+	LoadBacklogItemTarget(itemRef string) (BacklogItemTarget, error)
 }
 
 // EvidenceReconciler pulls producer facts for an Agent Manager run. A failure
@@ -246,13 +282,20 @@ type StartPhaseRequest struct {
 // plan-manager execution id/slug, or a plan-ref path). Phase defaults to the
 // mode's start phase.
 type StartTargetPhaseRequest struct {
-	Mode        string
-	TargetRef   string
-	Phase       string
-	Note        string
-	Inputs      map[string]any
-	Override    bool
-	RequestedBy string
+	Mode      string
+	TargetRef string
+	Phase     string
+	Note      string
+	Inputs    map[string]any
+	// OperatorInputs are optional structured caller-context strings for this run,
+	// keyed by operation caller-input name (e.g. USER_QUESTION, CONTEXT_PATHS).
+	// They feed the mode's structured caller-context generic providers, distinct
+	// from Note (the operator-note channel) and from Inputs (the mode's typed
+	// caller-input contract, which the backlog modes leave empty). The engine
+	// never routes these as caller inputs, preserving the empty-set invariant.
+	OperatorInputs map[string]string
+	Override       bool
+	RequestedBy    string
 }
 
 type SwitchModeRequest struct {
@@ -649,6 +692,41 @@ func (s *Service) SetEvidenceReconciler(reconciler EvidenceReconciler) {
 }
 
 func (s *Service) SetEvidenceService(service *evidence.Service) { s.evidenceService = service }
+
+// SetRoundObserver wires the terminal-round completion seam. Safe to call after
+// construction; nil detaches it. The operation-runner bridge sets this to route a
+// runner-owned round's completion into Runner.CommitResult.
+func (s *Service) SetRoundObserver(obs RoundObserver) { s.roundObserver = obs }
+
+// notifyTerminalRound fires the round observer exactly for a round that reached a
+// terminal status on this refresh. Pending-evidence and still-active rounds are
+// not terminal and are skipped, so the observer sees each completion once (the
+// runner's CommitResult is idempotent regardless).
+func (s *Service) notifyTerminalRound(ctx context.Context, round RoundEnvelope) {
+	if s.roundObserver == nil {
+		return
+	}
+	switch round.Status {
+	case RoundStatusCompleted, RoundStatusNeedsAttention, RoundStatusFailed, RoundStatusCanceled:
+		s.roundObserver(ctx, round)
+	}
+}
+
+// SetBacklogItemTargetReader wires the read-side seam the backlog-item target
+// adapter uses to resolve an item's full target projection. Safe to call after
+// construction; nil detaches it (the adapter then degrades to the BacklogReader
+// snapshot).
+func (s *Service) SetBacklogItemTargetReader(reader BacklogItemTargetReader) {
+	s.backlogTargets = reader
+}
+
+// SetPlanContainmentResolver wires the seam the plan-execution target adapter
+// uses to inherit the write-scope containment of the backlog item that owns a
+// plan_ref. Safe to call after construction; nil detaches it (plan-execution
+// spawns then run unconstrained, as a plan-first run with no owning item).
+func (s *Service) SetPlanContainmentResolver(resolver PlanContainmentResolver) {
+	s.planContainment = resolver
+}
 
 func (s *Service) ResolveRoundActionMode(initiativeName, rawMode string) (Mode, error) {
 	trimmed := strings.TrimSpace(rawMode)

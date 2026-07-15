@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -68,6 +69,20 @@ func TestValidateRecipeRejectsInvalidInputs(t *testing.T) {
 			}},
 			want: "target_profile_id",
 		},
+		{
+			name: "cell without engine",
+			recipe: &experimentv1.ExperimentRecipe{Cells: []*experimentv1.EvaluationCell{{
+				Strategy: "passthrough", ReplayLane: experimentv1.ReplayLane_REPLAY_LANE_REALTIME, RepeatCount: 1,
+			}}},
+			want: "cells[0].engine_id",
+		},
+		{
+			name: "realtime cell with tail approximation",
+			recipe: &experimentv1.ExperimentRecipe{LatencyTailSeconds: 5, Cells: []*experimentv1.EvaluationCell{{
+				EngineId: "kyutai", Strategy: "passthrough", ReplayLane: experimentv1.ReplayLane_REPLAY_LANE_REALTIME, RepeatCount: 1,
+			}}},
+			want: "cannot use latency_tail_seconds",
+		},
 	}
 
 	for _, tc := range tests {
@@ -83,6 +98,14 @@ func TestValidateRecipeAllowsDefaultsAndOverlapStallDefault(t *testing.T) {
 	err := validateRecipe(&experimentv1.ExperimentRecipe{Strategies: []*evalv1.EvalStrategy{{
 		Kind:                   "overlap_agree",
 		OverlapMaxStallRejects: -1,
+	}}})
+	require.NoError(t, err)
+}
+
+func TestValidateRecipeAllowsProviderNeutralCell(t *testing.T) {
+	err := validateRecipe(&experimentv1.ExperimentRecipe{Cells: []*experimentv1.EvaluationCell{{
+		EngineId: "kyutai", Strategy: "passthrough", PolicyProfile: "speaker-filter",
+		ReplayLane: experimentv1.ReplayLane_REPLAY_LANE_PRODUCT_PATH, FaultProfile: "dropped_connection", RepeatCount: 2,
 	}}})
 	require.NoError(t, err)
 }
@@ -304,7 +327,7 @@ func TestStartExperimentComputesEstimatedSecondsFromClipIDs(t *testing.T) {
 	require.Equal(t, 22, mgr.spec.EstimatedSeconds)
 }
 
-func TestStartExperimentEstimatedSecondsOverrideWins(t *testing.T) {
+func TestStartExperimentEstimatedSecondsCannotUnderstateRecipe(t *testing.T) {
 	mgr := &captureSubmitManager{}
 	h := NewConnectHandler(Deps{
 		Logger:  logx.Std{},
@@ -321,8 +344,27 @@ func TestStartExperimentEstimatedSecondsOverrideWins(t *testing.T) {
 	}))
 
 	require.NoError(t, err)
-	require.Equal(t, int32(12), resp.Msg.GetEstimatedSeconds())
-	require.Equal(t, 12, mgr.spec.EstimatedSeconds)
+	require.Equal(t, int32(600), resp.Msg.GetEstimatedSeconds())
+	require.Equal(t, 600, mgr.spec.EstimatedSeconds)
+}
+
+func TestStartExperimentRejectsExcessiveComputedDuration(t *testing.T) {
+	mgr := &captureSubmitManager{}
+	h := NewConnectHandler(Deps{Logger: logx.Std{}, Manager: mgr, Service: &intexp.Service{}})
+	_, err := h.StartExperiment(context.Background(), connect.NewRequest(&experimentv1.StartExperimentRequest{
+		Recipe: &experimentv1.ExperimentRecipe{
+			Cells:    []*experimentv1.EvaluationCell{{EngineId: "kyutai", Strategy: "passthrough", ReplayLane: experimentv1.ReplayLane_REPLAY_LANE_REALTIME, RepeatCount: 2}},
+			LongForm: &experimentv1.LongFormRecipe{Enabled: true, TargetDurationSeconds: 1_801},
+		},
+	}))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "qualification ceiling")
+	require.Nil(t, mgr.spec.RecipeJSON)
+}
+
+func TestExperimentRuntimeBudgetBoundsKnownAndUnknownDurations(t *testing.T) {
+	require.Equal(t, 18*time.Minute+45*time.Second, experimentRuntimeBudget(900))
+	require.Equal(t, experimentRuntimeUnknown, experimentRuntimeBudget(0))
 }
 
 func TestDeleteExperimentRejectsRunningExperiment(t *testing.T) {

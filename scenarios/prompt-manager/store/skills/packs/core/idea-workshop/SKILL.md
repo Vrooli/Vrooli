@@ -169,7 +169,7 @@ Use Idea Workshop when:
    ```
 2. **Kick off the clarify phase** to begin formal hardening:
    ```bash
-   swarm-manager backlog research --kind idea --name <name> --data '{"mode":"clarify"}'
+   swarm-manager backlog research --kind idea --name "<name>" --data '{"mode":"clarify"}'
    ```
 3. **Inform the user** of next steps: the idea agent will generate clarifying questions, then suggest improvements, then produce an enhanced specification.
 

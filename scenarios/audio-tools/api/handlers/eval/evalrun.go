@@ -12,6 +12,7 @@ import (
 	"audio-tools/internal/stt/segmenter"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
+	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 )
 
 const evalEngineID = "eval-whisper-local"
@@ -143,17 +144,35 @@ func (h *reportRunner) buildSpecs(reqStrategies []*evalv1.EvalStrategy) ([]intev
 }
 
 func (h *reportRunner) newMeter(clip inteval.Clip) *inteval.MeteredProvider {
-	return inteval.NewMeteredProvider(h.deps.NewProvider(), float64(clip.SampleRate*2))
+	return h.newMeterForEngine(clip, evalEngineID)
+}
+
+func (h *reportRunner) newMeterForEngine(clip inteval.Clip, engineID string) *inteval.MeteredProvider {
+	provider := h.deps.NewProvider
+	if h.deps.NewProviderForEngine != nil {
+		selected := h.deps.NewProviderForEngine(engineID)
+		if selected != nil {
+			return inteval.NewMeteredProvider(selected, float64(clip.SampleRate*2))
+		}
+	}
+	if provider == nil {
+		return nil
+	}
+	return inteval.NewMeteredProvider(provider(), float64(clip.SampleRate*2))
 }
 
 func (h *reportRunner) streamConfigFor(pref stt.StrategyPreference) stt.StreamConfig {
+	return h.streamConfigForEngine(pref, evalEngineID)
+}
+
+func (h *reportRunner) streamConfigForEngine(pref stt.StrategyPreference, engineID string) stt.StreamConfig {
 	cfg := h.deps.Defaults
 	if cfg.Mode == "" {
 		cfg = stt.Defaults()
 	}
 	cfg.Mode = stt.ModeAuto
 	cfg.StrategyPreference = pref
-	cfg.EngineID = evalEngineID
+	cfg.EngineID = engineID
 	return cfg
 }
 
@@ -162,9 +181,13 @@ func (h *reportRunner) streamConfigFor(pref stt.StrategyPreference) stt.StreamCo
 // per-run SpeakerConfig, so the public eval surface remains speaker-off while
 // experiments can exercise extraction/verification hermetically.
 func (h *reportRunner) segmenterSession(meter *inteval.MeteredProvider, cfg stt.StreamConfig, clip inteval.Clip) inteval.Session {
+	return h.segmenterSessionForEngine(meter, cfg, clip, evalEngineID)
+}
+
+func (h *reportRunner) segmenterSessionForEngine(meter *inteval.MeteredProvider, cfg stt.StreamConfig, clip inteval.Clip, engineID string) inteval.Session {
 	chain := sttchain.NewChain(sttchain.Options{
 		EnableLocal:  true,
-		LocalEngines: map[string]sttchain.Provider{evalEngineID: meter},
+		LocalEngines: map[string]sttchain.Provider{engineID: meter},
 	})
 	selector := stt.NewSelector(providerBatchExecutor{provider: meter})
 	deps := segmenter.Deps{Chain: chain, Selector: selector}
@@ -180,10 +203,88 @@ func (h *reportRunner) segmenterSession(meter *inteval.MeteredProvider, cfg stt.
 	start := sttchain.StreamStart{
 		InputFormat:     "pcm_s16le",
 		InputSampleRate: int32(clip.SampleRate),
-		EngineID:        evalEngineID,
+		EngineID:        engineID,
 	}
 	return func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
 		return seg.Run(ctx, start, cfg, chunks, events)
+	}
+}
+
+func (h *reportRunner) buildCellSpecs(cells []*experimentv1.EvaluationCell) ([]inteval.StrategySpec, error) {
+	if len(cells) == 0 {
+		return nil, fmt.Errorf("no evaluation cells")
+	}
+	if h.deps.NewProviderForEngine == nil {
+		return nil, fmt.Errorf("provider-neutral cell factory is not configured")
+	}
+	specs := make([]inteval.StrategySpec, 0, len(cells))
+	for i, cell := range cells {
+		if cell == nil || cell.GetEngineId() == "" {
+			return nil, fmt.Errorf("cells[%d].engine_id is required", i)
+		}
+		engineID := cell.GetEngineId()
+		provider := h.deps.NewProviderForEngine(engineID)
+		if provider == nil {
+			return nil, fmt.Errorf("cells[%d] names unavailable engine %q", i, engineID)
+		}
+		kind := cell.GetStrategy()
+		label := cell.GetLabel()
+		if label == "" {
+			label = engineID + ":" + kind
+		}
+		preference, strategyKind, batch, ok := evaluationCellStrategy(kind)
+		if !ok {
+			return nil, fmt.Errorf("cells[%d] has unsupported strategy %q", i, kind)
+		}
+		cfg := h.streamConfigForEngine(preference, engineID)
+		replayLane := evaluationReplayLaneName(cell.GetReplayLane())
+		specs = append(specs, inteval.StrategySpec{Kind: strategyKind, Label: label,
+			EngineID: engineID, ModelID: provider.Model(), PolicyProfile: cell.GetPolicyProfile(), ReplayLane: replayLane, FaultProfile: cell.GetFaultProfile(),
+			CellID: engineID + "/" + kind + "/" + replayLane,
+			BuildSession: func(clip inteval.Clip) (inteval.Session, *inteval.MeteredProvider) {
+				meter := h.newMeterForEngine(clip, engineID)
+				if meter == nil {
+					return nil, nil
+				}
+				if batch {
+					return batchSession(meter, clip.Format), meter
+				}
+				return h.segmenterSessionForEngine(meter, cfg, clip, engineID), meter
+			},
+		})
+	}
+	return specs, nil
+}
+
+func evaluationReplayLaneName(lane experimentv1.ReplayLane) string {
+	switch lane {
+	case experimentv1.ReplayLane_REPLAY_LANE_DETERMINISTIC:
+		return "deterministic"
+	case experimentv1.ReplayLane_REPLAY_LANE_REALTIME:
+		return "realtime"
+	case experimentv1.ReplayLane_REPLAY_LANE_PRODUCT_PATH:
+		return "product_path"
+	default:
+		return "unspecified"
+	}
+}
+
+// evaluationCellStrategy maps the provider-neutral recipe vocabulary to the
+// same production strategy selection path used by live streaming. Batch is
+// intentionally explicit: it is the provider's unary baseline, while every
+// other cell runs through Segmenter with the requested strategy preference.
+func evaluationCellStrategy(kind string) (stt.StrategyPreference, sttchain.StrategyKind, bool, bool) {
+	switch kind {
+	case "batch", "buffered_fallback":
+		return stt.PreferenceAuto, sttchain.StrategyBuffered, true, true
+	case "vad_segment":
+		return stt.PreferenceVAD, sttchain.StrategyVADSegment, false, true
+	case "overlap_agree", "overlap":
+		return stt.PreferenceOverlap, sttchain.StrategyOverlapAgree, false, true
+	case "passthrough":
+		return stt.PreferencePassthrough, sttchain.StrategyPassthrough, false, true
+	default:
+		return "", "", false, false
 	}
 }
 

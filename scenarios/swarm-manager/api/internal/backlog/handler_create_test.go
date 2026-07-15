@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/identity"
@@ -331,12 +330,10 @@ func contentTypeForPath(path string) string {
 // ---------------------------------------------------------------------------
 
 func TestCreate_AutoInitializesWorkshop(t *testing.T) {
-	spawned := make(chan struct{})
-	agent := &mockAgentService{
-		result:   agentmanager.RunResult{RunID: "run-auto", TaskID: "task-auto"},
-		spawnedC: spawned,
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	// Auto-init is now a fire-and-forget goroutine that Invokes the operation
+	// runner (no mock spawn channel). Create returns synchronously; the item is
+	// persisted before the background invoke.
+	h, rootDir, _, _ := setupTestHandlerWithRunner(t, "run-auto")
 
 	// Re-enable auto-initialize for this test.
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
@@ -367,19 +364,11 @@ func TestCreate_AutoInitializesWorkshop(t *testing.T) {
 
 	testutil.AssertStatusCreated(t, w)
 
-	// Wait for the background goroutine to call SpawnBacklog.
-	select {
-	case <-spawned:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timed out waiting for auto-init spawn")
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.Name != "auto-init-test" {
+		t.Errorf("expected created item 'auto-init-test', got %q", resp.Item.Name)
 	}
-
-	if agent.lastReq == nil {
-		t.Fatal("expected agent spawn to be called")
-	}
-	if agent.lastReq.Name != "auto-init-test" {
-		t.Errorf("expected spawn for 'auto-init-test', got %q", agent.lastReq.Name)
-	}
+	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "auto-init-test", "spec.json"))
 }
 
 func TestCreate_AutoInitializeDisabledViaSetting(t *testing.T) {
@@ -424,12 +413,11 @@ func TestCreate_AutoInitializeDisabledViaSetting(t *testing.T) {
 }
 
 func TestCreate_AutoInit_AgentDown_StillCreates(t *testing.T) {
-	spawned := make(chan struct{})
-	agent := &mockAgentService{
-		err:      fmt.Errorf("agent down"),
-		spawnedC: spawned,
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	// "Agent down" now means the background auto-init invoke fails (here the live
+	// phase-start seam errors). The failure is logged, not fatal: Create must still
+	// persist the item.
+	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-down")
+	phase.err = fmt.Errorf("agent down")
 
 	// Re-enable auto-initialize to test agent-down resilience.
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
@@ -458,18 +446,11 @@ func TestCreate_AutoInit_AgentDown_StillCreates(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Create(w, req)
 
-	// Item should be created successfully regardless of agent error.
+	// Item should be created successfully regardless of the auto-init failure.
 	testutil.AssertStatusCreated(t, w)
 
 	specPath := filepath.Join(rootDir, "fix", "agent-down-test", "spec.json")
 	testutil.AssertFileExists(t, specPath)
-
-	// Wait for the goroutine to attempt spawn (and fail).
-	select {
-	case <-spawned:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timed out waiting for auto-init attempt")
-	}
 }
 
 func TestCreate_WithEffort(t *testing.T) {

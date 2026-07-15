@@ -35,7 +35,6 @@ Vrooli-managed services:
 - **Ollama** - AI inference service
 - **Qdrant** - Vector database
 - **SearXNG** - Metasearch engine
-- **Browserless** - Headless Chrome
 
 ### Vrooli Checks
 Internal Vrooli platform health:

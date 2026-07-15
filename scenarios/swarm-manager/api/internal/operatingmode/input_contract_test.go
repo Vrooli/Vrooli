@@ -40,7 +40,7 @@ func float64Ptr(value float64) *float64 { return &value }
 func minimalInputContractDefinition() Definition {
 	return Definition{
 		Mode:        "input-contract-test",
-		Target:      TargetPolicy{Kind: TargetPlanManagerPlan},
+		Target:      TargetPolicy{Kind: TargetPlanExecution},
 		RunStrategy: RunStrategyPolicy{Kind: RunStrategySinglePhaseRun},
 		InputContract: InputContractDefinition{
 			Specs: []InputSpec{
@@ -320,6 +320,53 @@ func TestOptionalCallerInputRendersNullWhenAbsentFromSnapshot(t *testing.T) {
 	}
 }
 
+// TestGenericCallerContextProviderRendersOperatorInput proves the structured
+// caller-context provider seam end to end at the render layer: a mode that binds
+// generic.user_prompt to a phase read renders the per-run OperatorInputs value the
+// operation runner routes in, WITHOUT the mode declaring a caller-source input. An
+// absent operator input degrades to an empty read rather than erroring, matching
+// the optional-input contract every structured caller-context provider honors.
+func TestGenericCallerContextProviderRendersOperatorInput(t *testing.T) {
+	def := minimalInputContractDefinition()
+	def.InputContract.Specs = []InputSpec{
+		{ID: "context.user_prompt", Type: InputTypeString, Sensitivity: InputSensitivityInternal, Retention: InputRetentionValue, Description: "Operator research prompt."},
+	}
+	def.InputContract.Sources = []InputSourceBinding{
+		{InputID: "context.user_prompt", Kind: InputSourceGenericProvider, Capability: "generic.user_prompt"},
+	}
+	def.InputContract.Aliases = []InputAlias{{Name: "USER_PROMPT", InputID: "context.user_prompt"}}
+	phase := def.PhaseGraph.Phases["run"]
+	phase.Reads = []string{"USER_PROMPT"}
+	def.PhaseGraph.Phases["run"] = phase
+
+	compiled, err := CompileInputContract(map[Mode]Definition{def.Mode: def}, def)
+	if err != nil {
+		t.Fatalf("CompileInputContract: %v", err)
+	}
+	compiledJSON, _ := json.Marshal(compiled)
+	rc := RunContext{
+		Def: def, PhaseDef: def.PhaseGraph.Phases["run"],
+		Execution:      &OperatingModeExecution{CompiledInputContract: compiledJSON},
+		OperatorInputs: map[string]string{"USER_PROMPT": "focus on the auth boundary"},
+	}
+	reads, err := rc.DeclaredReads(RoundEnvelope{Round: 1}, "")
+	if err != nil {
+		t.Fatalf("DeclaredReads: %v", err)
+	}
+	if reads["USER_PROMPT"] != "focus on the auth boundary" {
+		t.Fatalf("USER_PROMPT read = %q, want the routed operator input", reads["USER_PROMPT"])
+	}
+
+	rc.OperatorInputs = nil
+	reads, err = rc.DeclaredReads(RoundEnvelope{Round: 1}, "")
+	if err != nil {
+		t.Fatalf("DeclaredReads with no operator input: %v", err)
+	}
+	if reads["USER_PROMPT"] != "" {
+		t.Fatalf("absent operator input should degrade to empty, got %q", reads["USER_PROMPT"])
+	}
+}
+
 // [REQ:REQ-P0-011-INPUT-CONTRACT]
 func TestDeclaredReadsUsesPinnedExecutionContractAfterLiveSourceMutation(t *testing.T) {
 	store := testStore(t)
@@ -340,7 +387,7 @@ func TestDeclaredReadsUsesPinnedExecutionContractAfterLiveSourceMutation(t *test
 	rc := RunContext{
 		Def: live, PhaseDef: live.PhaseGraph.Phases["execute"], Execution: &execution,
 		Target: TargetInstance{
-			Kind: TargetPlanManagerPlan, ID: "plan-123",
+			Kind: TargetPlanExecution, ID: "plan-123",
 			Plan: &PlanExecutionContext{ExecutionID: "plan-123"},
 		},
 	}

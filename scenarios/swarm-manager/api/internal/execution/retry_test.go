@@ -36,7 +36,7 @@ func TestRetry_NewAttemptFromFailed(t *testing.T) {
 		UpdatedAt:      "2026-04-25T00:30:00Z",
 	}
 
-	svc := followUpTestService(t, root, []Record{parentRecord}, agent)
+	svc, _ := followUpTestService(t, root, []Record{parentRecord}, agent)
 
 	record, err := svc.Retry(context.Background(), RetryRequest{
 		ExecutionID: "parent-1",
@@ -66,8 +66,14 @@ func TestRetry_NewAttemptFromFailed(t *testing.T) {
 	if record.Mode != ModeYOLO {
 		t.Fatalf("expected mode carried from parent (yolo), got %s", record.Mode)
 	}
-	if agent.spawnCalls != 1 {
-		t.Fatalf("expected 1 spawn call, got %d", agent.spawnCalls)
+	if agent.spawnCalls != 0 {
+		t.Fatalf("plan-backed retry must not direct-spawn, got %d", agent.spawnCalls)
+	}
+	if record.RunID == "" {
+		t.Fatal("expected run id from retry operation start")
+	}
+	if record.OpExecutionID == "" {
+		t.Fatal("expected operation-execution ref on retry record")
 	}
 
 	// Parent record must be untouched on disk.
@@ -123,7 +129,7 @@ func TestRetry_FromCompletedAllowed(t *testing.T) {
 		CreatedAt:   "2026-04-25T00:00:00Z",
 		UpdatedAt:   "2026-04-25T00:30:00Z",
 	}
-	svc := followUpTestService(t, root, []Record{parent}, agent)
+	svc, _ := followUpTestService(t, root, []Record{parent}, agent)
 
 	rec, err := svc.Retry(context.Background(), RetryRequest{ExecutionID: "parent-c"})
 	if err != nil {
@@ -156,7 +162,7 @@ func TestRetry_RejectsNonTerminal(t *testing.T) {
 		CreatedAt:   "2026-04-25T00:00:00Z",
 		UpdatedAt:   "2026-04-25T00:30:00Z",
 	}
-	svc := followUpTestService(t, root, []Record{parent}, agent)
+	svc, _ := followUpTestService(t, root, []Record{parent}, agent)
 
 	_, err := svc.Retry(context.Background(), RetryRequest{ExecutionID: "parent-r"})
 	if err == nil {
@@ -170,7 +176,7 @@ func TestRetry_RejectsNonTerminal(t *testing.T) {
 func TestRetry_NotFound(t *testing.T) {
 	root := t.TempDir()
 	agent := &stubAgentService{}
-	svc := followUpTestService(t, root, []Record{}, agent)
+	svc, _ := followUpTestService(t, root, []Record{}, agent)
 
 	_, err := svc.Retry(context.Background(), RetryRequest{ExecutionID: "missing"})
 	if err == nil {
@@ -203,14 +209,14 @@ func TestRetry_IdempotentWhenInFlight(t *testing.T) {
 		CreatedAt:   "2026-04-25T00:00:00Z",
 		UpdatedAt:   "2026-04-25T00:30:00Z",
 	}
-	svc := followUpTestService(t, root, []Record{parent}, agent)
+	svc, _ := followUpTestService(t, root, []Record{parent}, agent)
 
 	first, err := svc.Retry(context.Background(), RetryRequest{ExecutionID: "parent-d"})
 	if err != nil {
 		t.Fatalf("first retry: %v", err)
 	}
-	if agent.spawnCalls != 1 {
-		t.Fatalf("expected 1 spawn after first retry, got %d", agent.spawnCalls)
+	if agent.spawnCalls != 0 {
+		t.Fatalf("plan-backed retry must not direct-spawn, got %d", agent.spawnCalls)
 	}
 
 	// Second call while the first is still in-flight should return the same record.
@@ -221,8 +227,8 @@ func TestRetry_IdempotentWhenInFlight(t *testing.T) {
 	if second.ExecutionID != first.ExecutionID {
 		t.Errorf("expected idempotent dedup; got different exec ids %s vs %s", first.ExecutionID, second.ExecutionID)
 	}
-	if agent.spawnCalls != 1 {
-		t.Errorf("expected still 1 spawn call after dedup, got %d", agent.spawnCalls)
+	if agent.spawnCalls != 0 {
+		t.Errorf("dedup retry must not direct-spawn, got %d", agent.spawnCalls)
 	}
 
 	records, err := svc.store.Load()
@@ -260,7 +266,7 @@ func TestRetry_PromptHasNoReviewFeedback(t *testing.T) {
 			AggregateSummary: "Tests failing — should NOT appear in retry prompt",
 		},
 	}
-	svc := followUpTestService(t, root, []Record{parent}, agent)
+	svc, _ := followUpTestService(t, root, []Record{parent}, agent)
 
 	rec, err := svc.Retry(context.Background(), RetryRequest{ExecutionID: "parent-p", Note: "trying again"})
 	if err != nil {

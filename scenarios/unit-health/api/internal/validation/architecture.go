@@ -364,7 +364,7 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 	walkSourceFiles(ws.RootPath, func(path string) {
 		if isTSTestFile(path) {
 			testFiles++
-			if importsTestingLibraryRender(readFileString(path)) {
+			if src := readFileString(path); importsTestingLibraryRender(src) && !documentsProviderFreeException(src) {
 				directRenderFiles[path] = true
 			}
 			parent := filepath.Base(filepath.Dir(path))
@@ -439,7 +439,7 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 			"Component tests import renderWithProviders from src/test-utils so provider setup stays centralized.",
 			"direct Testing Library render import",
 			"Bypassing the canonical render helper lets QueryClient, i18n, router, and theme setup drift between tests.",
-			"Replace direct Testing Library render imports with renderWithProviders from src/test-utils, unless the test documents a narrow provider-free exception.",
+			"Replace direct Testing Library render imports with renderWithProviders from src/test-utils, or document a narrow exception with a \"provider-free-exception: <reason>\" comment in the test file.",
 			now,
 		))
 	}
@@ -466,6 +466,20 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 }
 
 var testingLibraryRenderImportRe = regexp.MustCompile(`(?s)import\s*\{([^}]*)\}\s*from\s*["']@testing-library/react["']`)
+
+// providerFreeExceptionMarker is the documented escape hatch for tests that
+// genuinely must render without the canonical provider stack — e.g. a test of
+// the theme/query provider itself, where wrapping it in renderWithProviders
+// would double-mount the very provider under test. The marker must appear with
+// a reason, e.g.:
+//
+//	// provider-free-exception: this test mounts ThemeProvider itself; the
+//	// canonical wrapper would double-provide and fight over documentElement.
+const providerFreeExceptionMarker = "provider-free-exception:"
+
+func documentsProviderFreeException(src string) bool {
+	return strings.Contains(src, providerFreeExceptionMarker)
+}
 
 func importsTestingLibraryRender(src string) bool {
 	for _, m := range testingLibraryRenderImportRe.FindAllStringSubmatch(src, -1) {

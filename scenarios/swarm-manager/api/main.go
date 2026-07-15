@@ -12,7 +12,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"log"
@@ -47,6 +46,7 @@ import (
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/operatingmode"
 	"swarm-manager/internal/operations"
+	"swarm-manager/internal/opsbridge"
 	"swarm-manager/internal/overview"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/planclient"
@@ -65,6 +65,9 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	aisearchpkg "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -95,9 +98,11 @@ type Server struct {
 	reviewSvc           *review.Service
 	reviewHandler       *review.Handler
 	initiativeReviewSvc *initiativereview.Service
+	backlogOpsRunner    *opsbridge.BacklogRunner
 	executionStopChan   chan struct{}
 	reviewStopChan      chan struct{}
 	initReviewStopChan  chan struct{}
+	opsRunnerStopChan   chan struct{}
 	graphBroker         *graph.Broker
 	graphDispatch       *graph.Dispatch
 	graphProjection     *graph.ProjectionService
@@ -106,7 +111,7 @@ type Server struct {
 	dataRoot            string
 	cacheRoot           string
 	promptClient        promptmanager.Client
-	eventDB             *sql.DB
+	eventDB             *database.RoutedDB
 	emitter             *eventlog.Emitter
 	statsEngine         *stats.Engine
 	eventRepo           *eventlog.SQLiteRepository
@@ -199,6 +204,7 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		executionStopChan:  make(chan struct{}),
 		reviewStopChan:     make(chan struct{}),
 		initReviewStopChan: make(chan struct{}),
+		opsRunnerStopChan:  make(chan struct{}),
 		aiSearchStopChan:   make(chan struct{}),
 		reviewSweeperStop:  make(chan struct{}),
 		autoFilerStopChan:  make(chan struct{}),
@@ -302,6 +308,8 @@ func (s *Server) setupRoutes() {
 	s.wireSessionMutationProposals(materializer)
 	s.registerInitiativeReviewRoutes(materializer)
 	s.registerOperatingModeRoutes(scenarioRoot, materializer)
+	s.registerAgentOperationsDiagnostics(scenarioRoot)
+	s.registerBacklogOperationsRunner(scenarioRoot)
 	s.wireEvidence()
 	s.registerOperationsRoutes()
 	s.registerPlanRoutes(scenarioRoot)
@@ -410,12 +418,9 @@ func (s *Server) registerHealthRoutes() {
 
 func (s *Server) registerBacklogRoutes(dataRoot, scenarioRoot string) *backlog.Handler {
 	backlogHandler := backlog.NewHandlerWithClients(dataRoot, scenarioRoot, s.requireTrackedAgentService(), nil)
-	backlogHandler.SetPolicyProvider(settings.NewPolicyAdapter(s.settingsStore))
-	backlogHandler.SetGovernanceProvider(settings.NewGovernanceAdapter(s.settingsStore))
 	backlogHandler.SetAgentSessionArtifactRecorder(s.agentSessionSvc)
 	s.agentSessionSvc.SetBacklogBatchApplier(backlogHandler)
 	backlogHandler.RegisterRoutes(s.router)
-	backlogHandler.StartWorkshopTicker()
 	s.backlogHandler = backlogHandler
 	return backlogHandler
 }
@@ -908,6 +913,26 @@ func main() {
 		go srv.initiativeReviewSvc.StartBackgroundWorker(srv.initReviewStopChan)
 	}
 
+	// Declarative operation runner: poll active target rounds toward completion
+	// (nothing else drives a non-initiative target round) and fire due scheduled
+	// intents. Both reload durable workflow state each tick, so a restart resumes
+	// cleanly. The stop chan cancels the shared context on shutdown.
+	if srv.backlogOpsRunner != nil {
+		go func(built *opsbridge.BacklogRunner, stop <-chan struct{}) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go func() { <-stop; cancel() }()
+			go func() {
+				if err := built.RefreshDriver.Run(ctx, 5*time.Second); err != nil && ctx.Err() == nil {
+					slog.Warn("backlog-ops refresh driver stopped", "err", err)
+				}
+			}()
+			if err := built.Scheduler.Run(ctx, 5*time.Second); err != nil && ctx.Err() == nil {
+				slog.Warn("backlog-ops scheduler stopped", "err", err)
+			}
+		}(srv.backlogOpsRunner, srv.opsRunnerStopChan)
+	}
+
 	if srv.autoFilerSweeper != nil {
 		go func() {
 			ctx, cancel := context.WithCancel(context.Background())
@@ -932,8 +957,23 @@ func main() {
 	srv.startAISearchBackground()
 	srv.startSearchRegistration()
 
+	// Top-level mux mounts the API handler plus, in development mode, the
+	// dev-only RoutingService test-genie calls to install a runtime test DB pool
+	// without restarting this scenario. The RoutingService's own path is more
+	// specific than "/", so http.ServeMux routes it ahead of the API handler.
+	rootMux := http.NewServeMux()
+	if srv.eventDB != nil {
+		devrouting.Register(rootMux, srv.eventDB)
+	}
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the installed test
+	// pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
 	if err := server.Run(server.Config{
-		Handler:      srv.Handler(),
+		Handler:      handler,
 		WriteTimeout: 180 * time.Second,
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
@@ -941,6 +981,7 @@ func main() {
 	close(srv.executionStopChan)
 	close(srv.reviewStopChan)
 	close(srv.initReviewStopChan)
+	close(srv.opsRunnerStopChan)
 	close(srv.aiSearchStopChan)
 	close(srv.reviewSweeperStop)
 	close(srv.autoFilerStopChan)

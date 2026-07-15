@@ -54,6 +54,19 @@ type Round struct {
 	// It is populated at read time so the UI can distinguish "still gathering"
 	// from "waiting in needs_review for manual approval".
 	CurrentRunStatus string `json:"current_run_status,omitempty"`
+	// OpWorkflowID and OpExecutionID link a runner-owned round to the declarative
+	// operation execution that produced it. When OpExecutionID is set the round is
+	// RUNNER-OWNED: the operation runner's completion bridge finalizes it (via the
+	// commit-review-round / commit-initiative-review handler), so the legacy
+	// review poller defers and never re-drives it from agent-run state.
+	OpWorkflowID  string `json:"op_workflow_id,omitempty"`
+	OpExecutionID string `json:"op_execution_id,omitempty"`
+}
+
+// RunnerOwned reports whether the round's terminal transition is owned by the
+// operation runner (started through the reroute) rather than the legacy poller.
+func (r Round) RunnerOwned() bool {
+	return r.OpExecutionID != ""
 }
 
 // EvidenceItem is a single piece of proof that work was done correctly.

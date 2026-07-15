@@ -16,7 +16,10 @@ import (
 )
 
 func ensureDefaultStrategies(recipe *experimentv1.ExperimentRecipe) {
-	if recipe == nil || len(recipe.GetStrategies()) > 0 {
+	// Provider cells supersede legacy strategy-only recipes. Adding the
+	// Whisper-oriented default trio beside an explicit Kyutai cell makes the
+	// persisted preview claim work that the server will never execute.
+	if recipe == nil || len(recipe.GetCells()) > 0 || len(recipe.GetStrategies()) > 0 {
 		return
 	}
 	recipe.Strategies = []*evalv1.EvalStrategy{
@@ -253,6 +256,34 @@ func statusFromFlag(s string) (experimentv1.ExperimentStatus, error) {
 		return experimentv1.ExperimentStatus_EXPERIMENT_STATUS_CANCELED, nil
 	default:
 		return experimentv1.ExperimentStatus_EXPERIMENT_STATUS_UNSPECIFIED, fmt.Errorf("--status must be queued|running|succeeded|failed|canceled: %q", s)
+	}
+}
+
+func qualificationKindFromFlag(s string) (experimentv1.QualificationEvidenceKind, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "interval_accounting":
+		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_INTERVAL_ACCOUNTING, nil
+	case "bounded_recovery":
+		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_BOUNDED_RECOVERY, nil
+	case "fault":
+		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_FAULT, nil
+	case "browser_product_path":
+		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH, nil
+	case "device":
+		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_DEVICE, nil
+	default:
+		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_UNSPECIFIED, fmt.Errorf("--kind must be interval_accounting|bounded_recovery|fault|browser_product_path|device: %q", s)
+	}
+}
+
+func qualificationOutcomeFromFlag(s string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "passed", "pass":
+		return true, nil
+	case "failed", "fail":
+		return false, nil
+	default:
+		return false, fmt.Errorf("--outcome must be passed or failed: %q", s)
 	}
 }
 

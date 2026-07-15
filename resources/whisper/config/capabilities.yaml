@@ -79,7 +79,7 @@ spec:
       - [whisper, postgres, minio]          # Audio content management
       - [whisper, n8n, vault]              # Automated transcription workflows
       - [whisper, ollama, qdrant]          # AI-powered audio analysis
-      - [whisper, agent-s2, browserless]   # Multi-modal automation
+      - [whisper, agent-s2]                # Multi-modal automation
   
   # Business intelligence
   business:

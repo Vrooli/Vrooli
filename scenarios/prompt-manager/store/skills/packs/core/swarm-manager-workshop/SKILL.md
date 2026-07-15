@@ -235,7 +235,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
       ```
    d. Read top candidates from the discover output:
       ```bash
-      prompt-manager skill read <id-1> <id-2> <id-3> -output combined
+      prompt-manager skill read "<id-1>" "<id-2>" "<id-3>" -output combined
       ```
    e. Assess relevance autonomously — include only skills that will materially improve the plan
    f. Embed discovered skills as Required Reading entries in the canonical plan (alongside any kind-specific required skills from above)

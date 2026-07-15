@@ -77,6 +77,16 @@ func newContinuousSpeechKyutaiServer(t *testing.T, segCount, partialsPerSeg int)
 		if _, _, err := conn.ReadMessage(); err != nil {
 			return
 		}
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"ready"}`)); err != nil {
+			return
+		}
+		// Match the resource contract: recognition output begins only after the
+		// admitted session has accepted its first PCM frame. Emitting the entire
+		// transcript before this read races the provider's readiness-gated pump
+		// and makes the relay guard exercise an impossible backend lifecycle.
+		if _, _, err := conn.ReadMessage(); err != nil {
+			return
+		}
 		for s := 0; s < segCount; s++ {
 			for p := 0; p < partialsPerSeg; p++ {
 				frame := fmt.Sprintf(`{"type":"partial","text":"seg %d word %d"}`, s, p)
@@ -116,6 +126,9 @@ func newContendedKyutaiServer(t *testing.T) (baseURL, wsEndpoint string) {
 		}
 		defer conn.Close()
 		if _, _, err := conn.ReadMessage(); err != nil {
+			return
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"ready"}`)); err != nil {
 			return
 		}
 		if _, _, err := conn.ReadMessage(); err != nil {

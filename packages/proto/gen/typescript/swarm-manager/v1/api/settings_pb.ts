@@ -2,8 +2,8 @@
 // @generated from file swarm-manager/v1/api/settings.proto (package swarm_manager.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { DeleteConfirmLevel, Settings } from "../domain/settings_pb";
 import { file_swarm_manager_v1_domain_settings } from "../domain/settings_pb";
@@ -13,10 +13,12 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/settings.proto.
  */
 export const file_swarm_manager_v1_api_settings: GenFile = /*@__PURE__*/
-  fileDesc("CiNzd2FybS1tYW5hZ2VyL3YxL2FwaS9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSJAChBTZXR0aW5nc1Jlc3BvbnNlEiwKCHNldHRpbmdzGAEgASgLMhouc3dhcm1fbWFuYWdlci52MS5TZXR0aW5ncyLQAwoWQXV0b0ZpbGVyU2V0dGluZ3NQYXRjaBIUCgdlbmFibGVkGAEgASgISACIAQESLQoEbW9kZRgCIAEoCUIaukgXchVSAFIHc3VnZ2VzdFIIYXV0b19hZGRIAYgBARI7CghzdHJhdGVneRgDIAEoCUIkukghch9SAFIPZmVhdHVyZV9wZW5kaW5nUgppbXBvcnRhbmNlSAKIAQESIAoTbWF4X29wZW5fYXV0b19maWxlZBgEIAEoBUgDiAEBEiEKFHZlbG9jaXR5X3dpbmRvd19kYXlzGAUgASgFSASIAQESJQoYbWluX3ZlbG9jaXR5X3RyYW5zaXRpb25zGAYgASgFSAWIAQESHQoQaW50ZXJ2YWxfbWludXRlcxgHIAEoBUgGiAEBEhYKCWdvYWxfbmFtZRgIIAEoCUgHiAEBQgoKCF9lbmFibGVkQgcKBV9tb2RlQgsKCV9zdHJhdGVneUIWChRfbWF4X29wZW5fYXV0b19maWxlZEIXChVfdmVsb2NpdHlfd2luZG93X2RheXNCGwoZX21pbl92ZWxvY2l0eV90cmFuc2l0aW9uc0ITChFfaW50ZXJ2YWxfbWludXRlc0IMCgpfZ29hbF9uYW1lIp0RChVVcGRhdGVTZXR0aW5nc1JlcXVlc3QSMAoFdGhlbWUYASABKAlCHLpIGXIXUgBSBGRhcmtSBWxpZ2h0UgZzeXN0ZW1IAIgBARIwCgxkZWZhdWx0X21vZGUYBSABKAlCFbpIEnIQUgBSBm1hbnVhbFIEeW9sb0gBiAEBEhcKCmF1dG9fZml4dXAYByABKAhIAogBARIfChJtYXhfZml4dXBfYXR0ZW1wdHMYCCABKAVIA4gBARIhChRyZXZpZXdfYWdlbnRfZW5hYmxlZBgfIAEoCEgEiAEBEhwKD21heF9hdXRvX3JvdW5kcxgJIAEoBUgFiAEBEiUKGGF1dG9faW5pdGlhbGl6ZV93b3Jrc2hvcBgQIAEoCEgGiAEBEiIKFWF1dG9fYWR2YW5jZV93b3Jrc2hvcBgRIAEoCEgHiAEBEiIKFWF1dG9fY2FzY2FkZV93b3Jrc2hvcBgSIAEoCEgIiAEBEhwKD2FnZW50X21heF90dXJucxgKIAEoBUgJiAEBEiIKFWFnZW50X3RpbWVvdXRfc2Vjb25kcxgLIAEoBUgKiAEBEh8KEnNlYXJjaF9kZWJvdW5jZV9tcxgNIAEoBUgLiAEBEh4KEXRvYXN0X2R1cmF0aW9uX21zGA4gASgFSAyIAQESaQoaZGVsZXRlX2NvbmZpcm1hdGlvbl9sZXZlbHMYJSADKAsyRS5zd2FybV9tYW5hZ2VyLnYxLlVwZGF0ZVNldHRpbmdzUmVxdWVzdC5EZWxldGVDb25maXJtYXRpb25MZXZlbHNFbnRyeRIqCh1yZXZpZXdfY29kZV9xdWFsaXR5X21pbl9zY29yZRgTIAEoAUgNiAEBEiYKGXJldmlld190ZXN0X21pbl9wYXNzX3JhdGUYFCABKAFIDogBARIrCh5yZXZpZXdfbWF4X2Jsb2NraW5nX3Zpb2xhdGlvbnMYFSABKAVID4gBARIgChNyZXZpZXdfbWF4X3dhcm5pbmdzGBYgASgFSBCIAQESJwoacmV2aWV3X3JlcXVpcmVfc2NyZWVuc2hvdHMYFyABKAhIEYgBARIhChRyZXZpZXdfcmVxdWlyZV90ZXN0cxgYIAEoCEgSiAEBEmMKF2xhbmVfY29uY3VycmVuY3lfbGltaXRzGCIgAygLMkIuc3dhcm1fbWFuYWdlci52MS5VcGRhdGVTZXR0aW5nc1JlcXVlc3QuTGFuZUNvbmN1cnJlbmN5TGltaXRzRW50cnkSHAoPbWF4X3F1ZXVlX2RlcHRoGBogASgFSBOIAQESJgoZY2lyY3VpdF9icmVha2VyX3RocmVzaG9sZBgbIAEoBUgUiAEBEi0KIGNpcmN1aXRfYnJlYWtlcl9jb29sZG93bl9taW51dGVzGBwgASgFSBWIAQESJwoaZXhlY3V0aW9uX2Nvc3RfY2FwX3Blcl9ydW4YHSABKAFIFogBARIjChZjb3N0X3Blcl90dXJuX2VzdGltYXRlGB4gASgBSBeIAQESPQoSZml4X2JlZm9yZV9mZWF0dXJlGCMgASgJQhy6SBlyF1IAUgNvZmZSB3N1Z2dlc3RSBWJsb2NrSBiIAQESPAoKYXV0b19maWxlchgmIAEoCzIoLnN3YXJtX21hbmFnZXIudjEuQXV0b0ZpbGVyU2V0dGluZ3NQYXRjaBplCh1EZWxldGVDb25maXJtYXRpb25MZXZlbHNFbnRyeRILCgNrZXkYASABKAkSMwoFdmFsdWUYAiABKA4yJC5zd2FybV9tYW5hZ2VyLnYxLkRlbGV0ZUNvbmZpcm1MZXZlbDoCOAEaPAoaTGFuZUNvbmN1cnJlbmN5TGltaXRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4AUIICgZfdGhlbWVCDwoNX2RlZmF1bHRfbW9kZUINCgtfYXV0b19maXh1cEIVChNfbWF4X2ZpeHVwX2F0dGVtcHRzQhcKFV9yZXZpZXdfYWdlbnRfZW5hYmxlZEISChBfbWF4X2F1dG9fcm91bmRzQhsKGV9hdXRvX2luaXRpYWxpemVfd29ya3Nob3BCGAoWX2F1dG9fYWR2YW5jZV93b3Jrc2hvcEIYChZfYXV0b19jYXNjYWRlX3dvcmtzaG9wQhIKEF9hZ2VudF9tYXhfdHVybnNCGAoWX2FnZW50X3RpbWVvdXRfc2Vjb25kc0IVChNfc2VhcmNoX2RlYm91bmNlX21zQhQKEl90b2FzdF9kdXJhdGlvbl9tc0IgCh5fcmV2aWV3X2NvZGVfcXVhbGl0eV9taW5fc2NvcmVCHAoaX3Jldmlld190ZXN0X21pbl9wYXNzX3JhdGVCIQofX3Jldmlld19tYXhfYmxvY2tpbmdfdmlvbGF0aW9uc0IWChRfcmV2aWV3X21heF93YXJuaW5nc0IdChtfcmV2aWV3X3JlcXVpcmVfc2NyZWVuc2hvdHNCFwoVX3Jldmlld19yZXF1aXJlX3Rlc3RzQhIKEF9tYXhfcXVldWVfZGVwdGhCHAoaX2NpcmN1aXRfYnJlYWtlcl90aHJlc2hvbGRCIwohX2NpcmN1aXRfYnJlYWtlcl9jb29sZG93bl9taW51dGVzQh0KG19leGVjdXRpb25fY29zdF9jYXBfcGVyX3J1bkIZChdfY29zdF9wZXJfdHVybl9lc3RpbWF0ZUIVChNfZml4X2JlZm9yZV9mZWF0dXJlSgQIAhADSgQIAxAESgQIBBAFSgQIBhAHSgQIDBANSgQIDxAQSgQIIRAiSgQIGRAaSgQIJBAlUhdhZ2VudF9yZXF1aXJlc19hcHByb3ZhbFIbY29uZmlybV9kZXN0cnVjdGl2ZV9hY3Rpb25zUhNkZWxldGVfY29uZmlybWF0aW9uUhltYXhfY29uY3VycmVudF9leGVjdXRpb25zQklaR2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_swarm_manager_v1_domain_settings]);
+  fileDesc("CiNzd2FybS1tYW5hZ2VyL3YxL2FwaS9zZXR0aW5ncy5wcm90bxIQc3dhcm1fbWFuYWdlci52MSKHAQoQU2V0dGluZ3NSZXNwb25zZRIsCghzZXR0aW5ncxgBIAEoCzIaLnN3YXJtX21hbmFnZXIudjEuU2V0dGluZ3MSRQoRcG9saWN5X3Byb2plY3Rpb24YAiABKAsyKi5zd2FybV9tYW5hZ2VyLnYxLlNldHRpbmdzUG9saWN5UHJvamVjdGlvbiJ+ChtTZXR0aW5nc0ZpZWxkQ2xhc3NpZmljYXRpb24SDQoFZmllbGQYASABKAkSMQoEcm9sZRgCIAEoDjIjLnN3YXJtX21hbmFnZXIudjEuU2V0dGluZ3NGaWVsZFJvbGUSDwoHY29udHJvbBgDIAEoCRIMCgRub3RlGAQgASgJIo4EChJQb2xpY3lDb250cm9sc1ZpZXcSFAoMZGVmYXVsdF9tb2RlGAEgASgJEhcKD2F1dG9faW5pdGlhbGl6ZRgCIAEoCBIcChRhdXRvX2FkdmFuY2VfZW5hYmxlZBgDIAEoCBIXCg9jYXNjYWRlX2VuYWJsZWQYBCABKAgSIgoaYXV0b19hZHZhbmNlX2RlbGF5X3NlY29uZHMYBSABKAUSFwoPbWF4X2F1dG9fcm91bmRzGAYgASgFEhIKCmF1dG9fZml4dXAYByABKAgSGgoSbWF4X2ZpeHVwX2F0dGVtcHRzGAggASgFEhwKFHJldmlld19hZ2VudF9lbmFibGVkGAkgASgIEiUKHXJldmlld19jb2RlX3F1YWxpdHlfbWluX3Njb3JlGAogASgBEiEKGXJldmlld190ZXN0X21pbl9wYXNzX3JhdGUYCyABKAESJgoecmV2aWV3X21heF9ibG9ja2luZ192aW9sYXRpb25zGAwgASgFEhsKE3Jldmlld19tYXhfd2FybmluZ3MYDSABKAUSIgoacmV2aWV3X3JlcXVpcmVfc2NyZWVuc2hvdHMYDiABKAgSHAoUcmV2aWV3X3JlcXVpcmVfdGVzdHMYDyABKAgSFwoPYWdlbnRfbWF4X3R1cm5zGBAgASgFEh0KFWFnZW50X3RpbWVvdXRfc2Vjb25kcxgRIAEoBSKkAQoYU2V0dGluZ3NQb2xpY3lQcm9qZWN0aW9uEkAKEmVmZmVjdGl2ZV9jb250cm9scxgBIAEoCzIkLnN3YXJtX21hbmFnZXIudjEuUG9saWN5Q29udHJvbHNWaWV3EkYKD2NsYXNzaWZpY2F0aW9ucxgCIAMoCzItLnN3YXJtX21hbmFnZXIudjEuU2V0dGluZ3NGaWVsZENsYXNzaWZpY2F0aW9uItADChZBdXRvRmlsZXJTZXR0aW5nc1BhdGNoEhQKB2VuYWJsZWQYASABKAhIAIgBARItCgRtb2RlGAIgASgJQhq6SBdyFVIAUgdzdWdnZXN0UghhdXRvX2FkZEgBiAEBEjsKCHN0cmF0ZWd5GAMgASgJQiS6SCFyH1IAUg9mZWF0dXJlX3BlbmRpbmdSCmltcG9ydGFuY2VIAogBARIgChNtYXhfb3Blbl9hdXRvX2ZpbGVkGAQgASgFSAOIAQESIQoUdmVsb2NpdHlfd2luZG93X2RheXMYBSABKAVIBIgBARIlChhtaW5fdmVsb2NpdHlfdHJhbnNpdGlvbnMYBiABKAVIBYgBARIdChBpbnRlcnZhbF9taW51dGVzGAcgASgFSAaIAQESFgoJZ29hbF9uYW1lGAggASgJSAeIAQFCCgoIX2VuYWJsZWRCBwoFX21vZGVCCwoJX3N0cmF0ZWd5QhYKFF9tYXhfb3Blbl9hdXRvX2ZpbGVkQhcKFV92ZWxvY2l0eV93aW5kb3dfZGF5c0IbChlfbWluX3ZlbG9jaXR5X3RyYW5zaXRpb25zQhMKEV9pbnRlcnZhbF9taW51dGVzQgwKCl9nb2FsX25hbWUinREKFVVwZGF0ZVNldHRpbmdzUmVxdWVzdBIwCgV0aGVtZRgBIAEoCUIcukgZchdSAFIEZGFya1IFbGlnaHRSBnN5c3RlbUgAiAEBEjAKDGRlZmF1bHRfbW9kZRgFIAEoCUIVukgSchBSAFIGbWFudWFsUgR5b2xvSAGIAQESFwoKYXV0b19maXh1cBgHIAEoCEgCiAEBEh8KEm1heF9maXh1cF9hdHRlbXB0cxgIIAEoBUgDiAEBEiEKFHJldmlld19hZ2VudF9lbmFibGVkGB8gASgISASIAQESHAoPbWF4X2F1dG9fcm91bmRzGAkgASgFSAWIAQESJQoYYXV0b19pbml0aWFsaXplX3dvcmtzaG9wGBAgASgISAaIAQESIgoVYXV0b19hZHZhbmNlX3dvcmtzaG9wGBEgASgISAeIAQESIgoVYXV0b19jYXNjYWRlX3dvcmtzaG9wGBIgASgISAiIAQESHAoPYWdlbnRfbWF4X3R1cm5zGAogASgFSAmIAQESIgoVYWdlbnRfdGltZW91dF9zZWNvbmRzGAsgASgFSAqIAQESHwoSc2VhcmNoX2RlYm91bmNlX21zGA0gASgFSAuIAQESHgoRdG9hc3RfZHVyYXRpb25fbXMYDiABKAVIDIgBARJpChpkZWxldGVfY29uZmlybWF0aW9uX2xldmVscxglIAMoCzJFLnN3YXJtX21hbmFnZXIudjEuVXBkYXRlU2V0dGluZ3NSZXF1ZXN0LkRlbGV0ZUNvbmZpcm1hdGlvbkxldmVsc0VudHJ5EioKHXJldmlld19jb2RlX3F1YWxpdHlfbWluX3Njb3JlGBMgASgBSA2IAQESJgoZcmV2aWV3X3Rlc3RfbWluX3Bhc3NfcmF0ZRgUIAEoAUgOiAEBEisKHnJldmlld19tYXhfYmxvY2tpbmdfdmlvbGF0aW9ucxgVIAEoBUgPiAEBEiAKE3Jldmlld19tYXhfd2FybmluZ3MYFiABKAVIEIgBARInChpyZXZpZXdfcmVxdWlyZV9zY3JlZW5zaG90cxgXIAEoCEgRiAEBEiEKFHJldmlld19yZXF1aXJlX3Rlc3RzGBggASgISBKIAQESYwoXbGFuZV9jb25jdXJyZW5jeV9saW1pdHMYIiADKAsyQi5zd2FybV9tYW5hZ2VyLnYxLlVwZGF0ZVNldHRpbmdzUmVxdWVzdC5MYW5lQ29uY3VycmVuY3lMaW1pdHNFbnRyeRIcCg9tYXhfcXVldWVfZGVwdGgYGiABKAVIE4gBARImChljaXJjdWl0X2JyZWFrZXJfdGhyZXNob2xkGBsgASgFSBSIAQESLQogY2lyY3VpdF9icmVha2VyX2Nvb2xkb3duX21pbnV0ZXMYHCABKAVIFYgBARInChpleGVjdXRpb25fY29zdF9jYXBfcGVyX3J1bhgdIAEoAUgWiAEBEiMKFmNvc3RfcGVyX3R1cm5fZXN0aW1hdGUYHiABKAFIF4gBARI9ChJmaXhfYmVmb3JlX2ZlYXR1cmUYIyABKAlCHLpIGXIXUgBSA29mZlIHc3VnZ2VzdFIFYmxvY2tIGIgBARI8CgphdXRvX2ZpbGVyGCYgASgLMiguc3dhcm1fbWFuYWdlci52MS5BdXRvRmlsZXJTZXR0aW5nc1BhdGNoGmUKHURlbGV0ZUNvbmZpcm1hdGlvbkxldmVsc0VudHJ5EgsKA2tleRgBIAEoCRIzCgV2YWx1ZRgCIAEoDjIkLnN3YXJtX21hbmFnZXIudjEuRGVsZXRlQ29uZmlybUxldmVsOgI4ARo8ChpMYW5lQ29uY3VycmVuY3lMaW1pdHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBQggKBl90aGVtZUIPCg1fZGVmYXVsdF9tb2RlQg0KC19hdXRvX2ZpeHVwQhUKE19tYXhfZml4dXBfYXR0ZW1wdHNCFwoVX3Jldmlld19hZ2VudF9lbmFibGVkQhIKEF9tYXhfYXV0b19yb3VuZHNCGwoZX2F1dG9faW5pdGlhbGl6ZV93b3Jrc2hvcEIYChZfYXV0b19hZHZhbmNlX3dvcmtzaG9wQhgKFl9hdXRvX2Nhc2NhZGVfd29ya3Nob3BCEgoQX2FnZW50X21heF90dXJuc0IYChZfYWdlbnRfdGltZW91dF9zZWNvbmRzQhUKE19zZWFyY2hfZGVib3VuY2VfbXNCFAoSX3RvYXN0X2R1cmF0aW9uX21zQiAKHl9yZXZpZXdfY29kZV9xdWFsaXR5X21pbl9zY29yZUIcChpfcmV2aWV3X3Rlc3RfbWluX3Bhc3NfcmF0ZUIhCh9fcmV2aWV3X21heF9ibG9ja2luZ192aW9sYXRpb25zQhYKFF9yZXZpZXdfbWF4X3dhcm5pbmdzQh0KG19yZXZpZXdfcmVxdWlyZV9zY3JlZW5zaG90c0IXChVfcmV2aWV3X3JlcXVpcmVfdGVzdHNCEgoQX21heF9xdWV1ZV9kZXB0aEIcChpfY2lyY3VpdF9icmVha2VyX3RocmVzaG9sZEIjCiFfY2lyY3VpdF9icmVha2VyX2Nvb2xkb3duX21pbnV0ZXNCHQobX2V4ZWN1dGlvbl9jb3N0X2NhcF9wZXJfcnVuQhkKF19jb3N0X3Blcl90dXJuX2VzdGltYXRlQhUKE19maXhfYmVmb3JlX2ZlYXR1cmVKBAgCEANKBAgDEARKBAgEEAVKBAgGEAdKBAgMEA1KBAgPEBBKBAghECJKBAgZEBpKBAgkECVSF2FnZW50X3JlcXVpcmVzX2FwcHJvdmFsUhtjb25maXJtX2Rlc3RydWN0aXZlX2FjdGlvbnNSE2RlbGV0ZV9jb25maXJtYXRpb25SGW1heF9jb25jdXJyZW50X2V4ZWN1dGlvbnMqzgEKEVNldHRpbmdzRmllbGRSb2xlEiMKH1NFVFRJTkdTX0ZJRUxEX1JPTEVfVU5TUEVDSUZJRUQQABInCiNTRVRUSU5HU19GSUVMRF9ST0xFX1VTRVJfUFJFRkVSRU5DRRABEiYKIlNFVFRJTkdTX0ZJRUxEX1JPTEVfUE9MSUNZX0NPTlRST0wQAhIiCh5TRVRUSU5HU19GSUVMRF9ST0xFX0dPVkVSTkFOQ0UQAxIfChtTRVRUSU5HU19GSUVMRF9ST0xFX0RPUk1BTlQQBEJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_settings]);
 
 /**
- * SettingsResponse returns current settings.
+ * SettingsResponse returns current settings plus the derived policy-control
+ * projection (which controls are policy-level vs pure user preference, and
+ * their effective values for the operation runner's transition policies).
  *
  * @generated from message swarm_manager.v1.SettingsResponse
  */
@@ -25,6 +27,11 @@ export type SettingsResponse = Message<"swarm_manager.v1.SettingsResponse"> & {
    * @generated from field: swarm_manager.v1.Settings settings = 1;
    */
   settings?: Settings | undefined;
+
+  /**
+   * @generated from field: swarm_manager.v1.SettingsPolicyProjection policy_projection = 2;
+   */
+  policyProjection?: SettingsPolicyProjection | undefined;
 };
 
 /**
@@ -33,6 +40,185 @@ export type SettingsResponse = Message<"swarm_manager.v1.SettingsResponse"> & {
  */
 export const SettingsResponseSchema: GenMessage<SettingsResponse> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_api_settings, 0);
+
+/**
+ * SettingsFieldClassification maps one persisted settings field to its role
+ * and (for policy controls) its destination path inside PolicyControlsView.
+ *
+ * @generated from message swarm_manager.v1.SettingsFieldClassification
+ */
+export type SettingsFieldClassification = Message<"swarm_manager.v1.SettingsFieldClassification"> & {
+  /**
+   * Persisted JSON field name in Settings (e.g. "auto_advance_workshop").
+   *
+   * @generated from field: string field = 1;
+   */
+  field: string;
+
+  /**
+   * @generated from field: swarm_manager.v1.SettingsFieldRole role = 2;
+   */
+  role: SettingsFieldRole;
+
+  /**
+   * Destination control path (e.g. "auto_advance.delay_seconds"); empty for
+   * non-policy fields.
+   *
+   * @generated from field: string control = 3;
+   */
+  control: string;
+
+  /**
+   * Short human-readable explanation.
+   *
+   * @generated from field: string note = 4;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.SettingsFieldClassification.
+ * Use `create(SettingsFieldClassificationSchema)` to create a new message.
+ */
+export const SettingsFieldClassificationSchema: GenMessage<SettingsFieldClassification> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_settings, 1);
+
+/**
+ * PolicyControlsView is the effective policy-control projection derived from
+ * current settings — the typed values orchestration consumers (auto-advance,
+ * scheduler intents, review spawning, fixup/retry, execution posture) read.
+ *
+ * @generated from message swarm_manager.v1.PolicyControlsView
+ */
+export type PolicyControlsView = Message<"swarm_manager.v1.PolicyControlsView"> & {
+  /**
+   * Execution posture.
+   *
+   * @generated from field: string default_mode = 1;
+   */
+  defaultMode: string;
+
+  /**
+   * Auto-advance group.
+   *
+   * @generated from field: bool auto_initialize = 2;
+   */
+  autoInitialize: boolean;
+
+  /**
+   * @generated from field: bool auto_advance_enabled = 3;
+   */
+  autoAdvanceEnabled: boolean;
+
+  /**
+   * @generated from field: bool cascade_enabled = 4;
+   */
+  cascadeEnabled: boolean;
+
+  /**
+   * @generated from field: int32 auto_advance_delay_seconds = 5;
+   */
+  autoAdvanceDelaySeconds: number;
+
+  /**
+   * @generated from field: int32 max_auto_rounds = 6;
+   */
+  maxAutoRounds: number;
+
+  /**
+   * Retry/fixup group.
+   *
+   * @generated from field: bool auto_fixup = 7;
+   */
+  autoFixup: boolean;
+
+  /**
+   * @generated from field: int32 max_fixup_attempts = 8;
+   */
+  maxFixupAttempts: number;
+
+  /**
+   * Review group.
+   *
+   * @generated from field: bool review_agent_enabled = 9;
+   */
+  reviewAgentEnabled: boolean;
+
+  /**
+   * @generated from field: double review_code_quality_min_score = 10;
+   */
+  reviewCodeQualityMinScore: number;
+
+  /**
+   * @generated from field: double review_test_min_pass_rate = 11;
+   */
+  reviewTestMinPassRate: number;
+
+  /**
+   * @generated from field: int32 review_max_blocking_violations = 12;
+   */
+  reviewMaxBlockingViolations: number;
+
+  /**
+   * @generated from field: int32 review_max_warnings = 13;
+   */
+  reviewMaxWarnings: number;
+
+  /**
+   * @generated from field: bool review_require_screenshots = 14;
+   */
+  reviewRequireScreenshots: boolean;
+
+  /**
+   * @generated from field: bool review_require_tests = 15;
+   */
+  reviewRequireTests: boolean;
+
+  /**
+   * Agent budget group.
+   *
+   * @generated from field: int32 agent_max_turns = 16;
+   */
+  agentMaxTurns: number;
+
+  /**
+   * @generated from field: int32 agent_timeout_seconds = 17;
+   */
+  agentTimeoutSeconds: number;
+};
+
+/**
+ * Describes the message swarm_manager.v1.PolicyControlsView.
+ * Use `create(PolicyControlsViewSchema)` to create a new message.
+ */
+export const PolicyControlsViewSchema: GenMessage<PolicyControlsView> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_settings, 2);
+
+/**
+ * SettingsPolicyProjection carries the effective policy controls plus the
+ * per-field classification table so clients can label which settings are
+ * policy-level versus user preference.
+ *
+ * @generated from message swarm_manager.v1.SettingsPolicyProjection
+ */
+export type SettingsPolicyProjection = Message<"swarm_manager.v1.SettingsPolicyProjection"> & {
+  /**
+   * @generated from field: swarm_manager.v1.PolicyControlsView effective_controls = 1;
+   */
+  effectiveControls?: PolicyControlsView | undefined;
+
+  /**
+   * @generated from field: repeated swarm_manager.v1.SettingsFieldClassification classifications = 2;
+   */
+  classifications: SettingsFieldClassification[];
+};
+
+/**
+ * Describes the message swarm_manager.v1.SettingsPolicyProjection.
+ * Use `create(SettingsPolicyProjectionSchema)` to create a new message.
+ */
+export const SettingsPolicyProjectionSchema: GenMessage<SettingsPolicyProjection> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_settings, 3);
 
 /**
  * AutoFilerSettingsPatch applies partial updates to Settings.auto_filer.
@@ -86,7 +272,7 @@ export type AutoFilerSettingsPatch = Message<"swarm_manager.v1.AutoFilerSettings
  * Use `create(AutoFilerSettingsPatchSchema)` to create a new message.
  */
 export const AutoFilerSettingsPatchSchema: GenMessage<AutoFilerSettingsPatch> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_settings, 1);
+  messageDesc(file_swarm_manager_v1_api_settings, 4);
 
 /**
  * UpdateSettingsRequest applies partial settings updates.
@@ -266,5 +452,55 @@ export type UpdateSettingsRequest = Message<"swarm_manager.v1.UpdateSettingsRequ
  * Use `create(UpdateSettingsRequestSchema)` to create a new message.
  */
 export const UpdateSettingsRequestSchema: GenMessage<UpdateSettingsRequest> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_settings, 2);
+  messageDesc(file_swarm_manager_v1_api_settings, 5);
+
+/**
+ * SettingsFieldRole classifies a persisted settings field's role in the
+ * declarative agent-operations model.
+ *
+ * @generated from enum swarm_manager.v1.SettingsFieldRole
+ */
+export enum SettingsFieldRole {
+  /**
+   * @generated from enum value: SETTINGS_FIELD_ROLE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Pure user preference (UI behavior); never consumed by orchestration.
+   *
+   * @generated from enum value: SETTINGS_FIELD_ROLE_USER_PREFERENCE = 1;
+   */
+  USER_PREFERENCE = 1,
+
+  /**
+   * Policy control: consumed by the operation runner's transition-policy /
+   * binding-default seam. Retained user-facing, read through PolicyControls.
+   *
+   * @generated from enum value: SETTINGS_FIELD_ROLE_POLICY_CONTROL = 2;
+   */
+  POLICY_CONTROL = 2,
+
+  /**
+   * System governance (concurrency lanes, queue depth, circuit breaker, cost
+   * caps); consumed via the governance seam, not transition policies.
+   *
+   * @generated from enum value: SETTINGS_FIELD_ROLE_GOVERNANCE = 3;
+   */
+  GOVERNANCE = 3,
+
+  /**
+   * Persisted but currently has no runtime reader. Kept for compatibility;
+   * Phase 8 decides its migration alongside its projected destination.
+   *
+   * @generated from enum value: SETTINGS_FIELD_ROLE_DORMANT = 4;
+   */
+  DORMANT = 4,
+}
+
+/**
+ * Describes the enum swarm_manager.v1.SettingsFieldRole.
+ */
+export const SettingsFieldRoleSchema: GenEnum<SettingsFieldRole> = /*@__PURE__*/
+  enumDesc(file_swarm_manager_v1_api_settings, 0);
 

@@ -22,7 +22,7 @@ func TestNewVrooliStrategy(t *testing.T) {
 
 	t.Run("with custom executor", func(t *testing.T) {
 		exec := &mockExecutor{}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 		if strategy.executor != exec {
 			t.Error("expected custom executor to be used")
 		}
@@ -62,9 +62,9 @@ func TestVrooliStrategy_Start(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("scenario started"),
 		}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 
-		result := strategy.Start(context.Background(), "scenario-landing-manager")
+		result := strategy.Start(context.Background(), "scenario-template-manager")
 
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
@@ -136,9 +136,9 @@ func TestVrooliStrategy_Restart(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("restarted"),
 		}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 
-		result := strategy.Restart(context.Background(), "scenario-landing-manager")
+		result := strategy.Restart(context.Background(), "scenario-template-manager")
 
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
@@ -185,9 +185,9 @@ func TestVrooliStrategy_Logs(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("log line 1\nlog line 2"),
 		}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 
-		result := strategy.Logs(context.Background(), "scenario-landing-manager", 50)
+		result := strategy.Logs(context.Background(), "scenario-template-manager", 50)
 
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
@@ -224,9 +224,9 @@ func TestVrooliStrategy_GetPorts(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("8080\n8081"),
 		}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 
-		result := strategy.GetPorts(context.Background(), "scenario-landing-manager")
+		result := strategy.GetPorts(context.Background(), "scenario-template-manager")
 
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
@@ -286,9 +286,9 @@ func TestVrooliStrategy_Diagnose(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("status output"),
 		}
-		strategy := NewVrooliStrategy(VrooliScenario, "landing-manager", exec)
+		strategy := NewVrooliStrategy(VrooliScenario, "template-manager", exec)
 
-		result := strategy.Diagnose(context.Background(), "scenario-landing-manager")
+		result := strategy.Diagnose(context.Background(), "scenario-template-manager")
 
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)

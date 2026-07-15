@@ -24,26 +24,6 @@ type executionPromptParams struct {
 	SuggestedSkills    []string
 }
 
-func buildProcessingTitle(item backlogItem) string {
-	label := strings.TrimSpace(item.Title)
-	if label == "" {
-		label = strings.TrimSpace(item.Name)
-	}
-	if label == "" {
-		label = "backlog item"
-	}
-	switch item.Kind {
-	case "fix":
-		return "Apply fix: " + label
-	case "execute":
-		return "Execute task: " + label
-	case "chore":
-		return "Run chore: " + label
-	default:
-		return "Generate scenario: " + label
-	}
-}
-
 // buildExecutionPrompt constructs a single unified prompt for all execution
 // run types. The prompt uses XML tags to clearly delineate context sections.
 func buildExecutionPrompt(p executionPromptParams) string {

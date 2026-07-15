@@ -1,6 +1,7 @@
 package backlog
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -8,10 +9,10 @@ import (
 	"net/http"
 	"strings"
 
+	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/identity"
-	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
@@ -162,12 +163,8 @@ func (f graphInvalidatorFunc) ScheduleAll() {
 // dependency readiness, and spawns the first workshop round asynchronously
 // if appropriate.
 func (h *Handler) maybeAutoWorkshop(item BacklogItem, forceOverride bool) {
-	cfg, err := settings.NewStore("").Load()
-	if err != nil {
-		slog.Warn("auto-workshop settings load error, using defaults", "kind", item.Kind, "name", item.Name, "err", err)
-		cfg = settings.DefaultSettings()
-	}
-	if !workshop.ShouldAutoInitialize(cfg.AutoInitializeWorkshop) {
+	controls := h.loadPolicyControls("auto-workshop policy-controls load error, using defaults")
+	if !workshop.ShouldAutoInitialize(controls.AutoAdvance.AutoInitialize) {
 		return
 	}
 	if !forceOverride && len(item.DependsOn) > 0 {
@@ -179,12 +176,11 @@ func (h *Handler) maybeAutoWorkshop(item BacklogItem, forceOverride bool) {
 			return
 		}
 	}
-	go func() {
-		_, _, spawnErr := h.spawnWorkshopAsync(item, ResearchModeInitialize)
-		if spawnErr != nil {
-			slog.Error("auto-init failed", "kind", item.Kind, "name", item.Name, "err", spawnErr)
+	go func(k BacklogKind, n string) {
+		if _, err := h.invokeItemOperation(context.Background(), k, n, agentops.OpResearchRefine, "", nil); err != nil {
+			slog.Error("auto-init failed", "kind", k, "name", n, "err", err)
 		}
-	}()
+	}(item.Kind, item.Name)
 }
 
 // cascadeWorkshopTrigger finds items that depend on the given item and
@@ -231,11 +227,10 @@ func (h *Handler) cascadeWorkshopTrigger(readyItem BacklogItem) {
 		}
 
 		slog.Info("cascade triggering workshop", "kind", item.Kind, "name", item.Name, "unblocked_by", readyKey)
-		go func(it BacklogItem) {
-			_, _, spawnErr := h.spawnWorkshopAsync(it, ResearchModeInitialize)
-			if spawnErr != nil {
-				slog.Error("cascade workshop spawn failed", "kind", it.Kind, "name", it.Name, "err", spawnErr)
+		go func(k BacklogKind, n string) {
+			if _, err := h.invokeItemOperation(context.Background(), k, n, agentops.OpResearchRefine, "", nil); err != nil {
+				slog.Error("cascade workshop invoke failed", "kind", k, "name", n, "err", err)
 			}
-		}(item)
+		}(item.Kind, item.Name)
 	}
 }

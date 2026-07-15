@@ -89,13 +89,13 @@ fix. Skipping this phase wastes effort and corrodes institutional memory.
    federated pass, and the fallback when search-hub is unavailable:
 
    ```bash
-   swarm-manager scenarios fixes --name <scenario> --all --search "<symptom keywords>"
+   swarm-manager scenarios fixes --name "<scenario>" --all --search "<symptom keywords>"
    ```
 
    Without `--search`, scope by recency:
 
    ```bash
-   swarm-manager scenarios fixes --name <scenario> --all --limit 20
+   swarm-manager scenarios fixes --name "<scenario>" --all --limit 20
    ```
 
 4. **Pass 3 — Direct fix-corpus semantic recall (fallback).** The records-only
@@ -104,7 +104,7 @@ fix. Skipping this phase wastes effort and corrodes institutional memory.
    by default when `--kind fix` is set.
 
    ```bash
-   swarm-manager ai-search query "<one-sentence symptom>" --kind fix --target-scenario <scenario>
+   swarm-manager ai-search query "<one-sentence symptom>" --kind fix --target-scenario "<scenario>"
    ```
 
    If AI search reports `fallback: unavailable`, run `swarm-manager ai-search
@@ -405,7 +405,7 @@ You **should** also:
 After the fix ships, write a swarm-manager record so future agents can find your investigation:
 
 ```bash
-swarm-manager records create --kind fix --scenario <name> \
+swarm-manager records create --kind fix --scenario "<name>" \
   --trigger "<one-line symptom>" \
   --approach "<root cause + what was built>" \
   --ruled-out "<hypothesis A>" --ruled-out "<hypothesis B>" \

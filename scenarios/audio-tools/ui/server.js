@@ -9,4 +9,8 @@ startScenarioServer({
   serviceName: 'audio-tools',
   corsOrigins: '*',
   proxyTimeoutMs: CONNECT_RPC_PROXY_TIMEOUT_MS,
+  // Dictation uses a same-origin WebSocket rather than Connect RPC. Preserve
+  // its endpoint exactly when the lifecycle UI server receives an upgrade.
+  wsPathPrefix: '/api/v1/voice/stream',
+  wsPathTransform: (path) => path,
 })

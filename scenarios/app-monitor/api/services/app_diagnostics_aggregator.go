@@ -425,7 +425,7 @@ func (s *AppService) extractTechStack(app *repository.App, status *AppScenarioSt
 	}
 
 	// Extract resources from tags (postgres, redis, ollama, etc.)
-	resourceTypes := []string{"postgres", "redis", "ollama", "qdrant", "n8n", "browserless", "vault"}
+	resourceTypes := []string{"postgres", "redis", "ollama", "qdrant", "n8n", "vault"}
 	for _, tag := range app.Tags {
 		normalized := normalizeLower(tag)
 		for _, resType := range resourceTypes {

@@ -71,7 +71,6 @@ declare -A RESOURCE_TYPES=(
     ["questdb"]="service"
     ["postgres"]="service"
     ["redis"]="service"
-    ["browserless"]="service"
     ["searxng"]="service"
 )
 
@@ -300,9 +299,6 @@ resources::get_health_endpoint() {
         "ollama")
             echo "/api/tags"
             ;;
-        "browserless")
-            echo "/pressure"
-            ;;
         "node-red")
             echo "/flows"
             ;;
@@ -373,13 +369,6 @@ resources::validate_service_identity() {
             # Also check HTML content
             if curl -s "$base_url" 2>/dev/null | grep -qi 'meta.*searxng\|searx'; then
                 echo "✅ Validated as SearXNG"
-                return 0
-            fi
-            ;;
-        "browserless")
-            # Check for Browserless-specific endpoints
-            if curl -s "$base_url/pressure" 2>/dev/null | grep -q "running\|queued"; then
-                echo "✅ Validated as Browserless"
                 return 0
             fi
             ;;

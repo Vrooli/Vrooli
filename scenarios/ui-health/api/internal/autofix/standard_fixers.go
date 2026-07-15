@@ -8,12 +8,23 @@ import (
 	"strings"
 )
 
+const canonicalA11yHelper = `import { expect } from "vitest";
+import axe from "axe-core";
+
+export async function expectNoA11yViolations(container: Element): Promise<void> {
+  const results = await axe.run(container);
+  expect(results.violations).toEqual([]);
+}
+`
+
 // Net-new UI-standard rule codes ui-health can auto-remediate. Only the *safe*,
 // fully-mechanical subset is autofixed; the remaining standards
-// (standard_no_raw_hex, standard_a11y_harness, standard_pwa_manifest,
-// standard_eslint_stability) are detection-only by nature (a hex→token mapping,
-// authoring a test, or rewriting hand-tuned config is not a safe mechanical
-// transform). Keep this list in lockstep with FixClassFor and the maturity.json
+// (standard_no_raw_hex, standard_pwa_manifest, standard_eslint_stability) are
+// detection-only by nature (a hex→token mapping, authoring a test, or rewriting
+// hand-tuned config is not a safe mechanical transform). The a11y harness fixer
+// below is deliberately narrower: it restores only a missing canonical helper
+// after the scenario has already made the dependency and test decisions. Keep
+// this list in lockstep with FixClassFor and the maturity.json
 // declarations — the ConsistencyWarnings check enforces it.
 const (
 	// RuleStandardTSConfigStrict flips an explicit "strict": false to true in
@@ -140,6 +151,70 @@ func (f *Fixer) canFixI18nLocaleParity(root, findingPath string) bool {
 		}
 	}
 	return false
+}
+
+// previewA11yHarnessHelper restores the generated helper only in the narrow
+// state where the project has already made both non-mechanical decisions: it
+// declares axe-core and contains an a11y test written to call the helper. It
+// never writes package metadata or a product-specific test.
+func (f *Fixer) previewA11yHarnessHelper(root string) ([]Candidate, error) {
+	pkgPath := filepath.Join(root, "ui", "package.json")
+	pkgData, err := os.ReadFile(pkgPath)
+	if err != nil || !declaresAxeCore(pkgData) {
+		return nil, nil
+	}
+	helperPath := filepath.Join(root, "ui", "src", "test-utils", "a11y.ts")
+	if data, readErr := os.ReadFile(helperPath); readErr == nil && strings.Contains(string(data), "expectNoA11yViolations") && strings.Contains(string(data), "axe.run") {
+		return nil, nil
+	}
+	if !hasA11yHelperCall(filepath.Join(root, "ui", "src")) {
+		return nil, nil
+	}
+	return []Candidate{{
+		RuleID:      RuleStandardA11yHarness,
+		FilePath:    helperPath,
+		Description: "Restore the canonical axe-core accessibility test helper required by an existing a11y test.",
+		Before:      "",
+		After:       canonicalA11yHelper,
+	}}, nil
+}
+
+func (f *Fixer) canFixA11yHarnessHelper(root, findingPath string) bool {
+	candidates, err := f.previewA11yHarnessHelper(root)
+	if err != nil || len(candidates) == 0 {
+		return false
+	}
+	// The harness rule is intentionally aggregated at ui/package.json while the
+	// safe edit is the missing helper, so recognize that rule-level location in
+	// addition to the concrete candidate path.
+	return findingPath == "" || candidates[0].FilePath == findingPath || filepath.Clean(findingPath) == filepath.Join(root, "ui", "package.json")
+}
+
+func declaresAxeCore(data []byte) bool {
+	var pkg struct {
+		Dependencies    map[string]string `json:"dependencies"`
+		DevDependencies map[string]string `json:"devDependencies"`
+	}
+	return json.Unmarshal(data, &pkg) == nil && (pkg.Dependencies["axe-core"] != "" || pkg.DevDependencies["axe-core"] != "")
+}
+
+func hasA11yHelperCall(root string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || found {
+			return nil
+		}
+		name := strings.ToLower(entry.Name())
+		if !strings.Contains(name, ".a11y.test.") && !strings.Contains(name, ".a11y.spec.") {
+			return nil
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr == nil && strings.Contains(string(data), "expectNoA11yViolations") {
+			found = true
+		}
+		return nil
+	})
+	return found
 }
 
 // readLocaleDoc parses a JSON catalog into a generic map. ok is false when the

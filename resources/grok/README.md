@@ -71,6 +71,15 @@ credentials beyond documenting how to provide them.
 
 Inspect what Grok discovers for a directory (read-only): `grok inspect`.
 
+## Coding-role policy
+
+Grok owns its concrete coding-role inventory in `model-policy.json`. Use
+`resource-grok policy validate`, `policy roles --json`, and `policy resolve
+--role code.default --json` to inspect it. The response records the concrete
+model, fallbacks, policy provenance, and hook-backed permission posture; Agent
+Manager consumes that response at run creation but does not duplicate the
+inventory or write Grok configuration.
+
 ## Permissions (command allow/deny)
 
 `resource-grok permissions` manages which shell commands Grok may run — the same

@@ -457,7 +457,7 @@ function shimStorageType(type: 'localStorage' | 'sessionStorage'): StorageShimEn
 
 /**
  * Shims localStorage and sessionStorage with in-memory implementations if they are
- * blocked (common in sandboxed iframe contexts like Browserless).
+ * blocked (common in sandboxed/headless browser containers).
  *
  * This function should be called as early as possible in your application,
  * before any code that might access localStorage or sessionStorage.

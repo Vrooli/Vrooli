@@ -11,7 +11,7 @@
   ],
   "not_for": [
     "The plan is exploratory or unstable — use holistic-loop",
-    "Items are independent and parallel execution wins — use item-level",
+    "Items are independent and parallel execution wins — drain them in parallel via member-item strategy",
     "Work is small enough to fit in a single backlog item"
   ],
   "tradeoffs": [
@@ -22,7 +22,7 @@
   ],
   "when_in_doubt_pick_instead": "holistic-loop",
   "target": {
-    "kind": "plan-manager-plan"
+    "kind": "plan-execution"
   },
   "input_contract": {
     "specs": [

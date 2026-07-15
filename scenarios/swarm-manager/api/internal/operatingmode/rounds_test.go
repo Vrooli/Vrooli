@@ -142,7 +142,7 @@ func TestStore_ModeScopedPaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RoundPath: %v", err)
 	}
-	if got := filepath.ToSlash(roundPath); !hasSuffix(got, "data/mode-targets/plan-manager-plan/exec-1234/modes/phased-plan-drain/rounds/round-007.json") {
+	if got := filepath.ToSlash(roundPath); !hasSuffix(got, "data/mode-targets/plan-execution/exec-1234/modes/phased-plan-drain/rounds/round-007.json") {
 		t.Fatalf("RoundPath = %s", got)
 	}
 }

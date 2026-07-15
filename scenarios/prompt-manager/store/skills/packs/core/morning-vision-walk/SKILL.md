@@ -141,11 +141,11 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 3. If the user makes a choice, execute it immediately on the correct team:
    ```bash
    # Director-swarm portfolio decisions
-   prompt-manager team decision-accept director-swarm <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   prompt-manager team decision-accept director-swarm "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
    # capability-gap decisions live on the team that raised them
-   prompt-manager team decision-accept meta-optimization <decision-id> --selected <option-key> --notes "<user's reasoning>"
-   prompt-manager team decision-accept marketing-crew <decision-id> --selected <option-key> --notes "<user's reasoning>"
-   prompt-manager team decision-accept infra-health <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   prompt-manager team decision-accept meta-optimization "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
+   prompt-manager team decision-accept marketing-crew "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
+   prompt-manager team decision-accept infra-health "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
    ```
    Note: if `decision-accept` is not yet available in the CLI, that is a parity bug — file/surface it and escalate; do NOT work around it by calling the API directly from this skill.
 4. If the user wants to defer, note it and move on.
@@ -204,7 +204,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
    - `decision-rejection-proposed` — "Marketing-contrarian recommends rejecting or superseding <original-decision> for <failure-mode>. Agree, override, or defer?"
 4. Execute the user's choice:
    ```bash
-   prompt-manager team decision-accept marketing-crew <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   prompt-manager team decision-accept marketing-crew "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
    ```
 5. For approved plan-of-record edits, the operator (or you, on the operator's direction) executes the actual file edits. Cite the decision id in the commit message.
 6. If the user wants to defer, note it and move on.
@@ -230,7 +230,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 3. For `decision-rejection-proposed` context, frame conversationally as: "Contrarian is recommending we reject or supersede [original decision X] because [failure mode tripped]. Agree, override, or defer?"
 4. Execute the user's choice immediately:
    ```bash
-   prompt-manager team decision-accept meta-optimization <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   prompt-manager team decision-accept meta-optimization "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
    ```
 5. If the user wants to defer, note it and move on.
 6. If there are no pending decisions, say so briefly and move on.
@@ -273,7 +273,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
    - `decision-rejection-proposed` — "Infra-contrarian recommends rejecting or superseding <original-decision> for <failure-mode>. Agree, override, or defer?"
 4. Execute the user's choice:
    ```bash
-   prompt-manager team decision-accept infra-health <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   prompt-manager team decision-accept infra-health "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
    ```
 5. For approved `instrumentation-gap` / `cross-platform-debt` / `reliability-target-update` / `framework-meta` decisions, the operator (or you, on the operator's direction) executes the actual `docs/infra-health/` edits proposed in the decision's attached diff. Cite the decision id in the change line.
 6. If the user wants to defer, note it and move on.
@@ -423,7 +423,7 @@ When bookmark-intelligence-hub exists, route bookmark-heavy alpha through that s
    ```
 6. Optionally kick off the idea hardening pipeline for created items:
    ```bash
-   swarm-manager backlog research --kind idea --name <name> --data '{"mode":"clarify"}'
+   swarm-manager backlog research --kind idea --name "<name>" --data '{"mode":"clarify"}'
    ```
 
 **Exit criteria:**

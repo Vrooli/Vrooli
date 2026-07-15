@@ -7,7 +7,7 @@ Generated scenarios receive root-level `DESIGN.md` from the `vrooli-conversion-l
 ## Features
 
 - **React + Vite Frontend** - Modern SPA with public landing and admin portal
-- **Go (Gin) API** - High-performance REST backend
+- **Go API (Proto + Connect-RPC)** - api-core module architecture over PostgreSQL; every business domain is a generated Connect-RPC service
 - **A/B Testing** - Whole-page variant testing with analytics
 - **Stripe Integration** - Subscriptions, one-time payments, credits
 - **Admin Portal** - Content management without code changes
@@ -59,7 +59,7 @@ Port bands declared in `.vrooli/service.json` follow the platform policy: `API_P
 | [Documentation Index](docs/index.md) | Complete documentation hub |
 | [Quick Start Guide](docs/QUICKSTART.md) | 5-minute first landing page |
 | [Admin Guide](docs/ADMIN_GUIDE.md) | Managing content and A/B tests |
-| [API Reference](docs/api/README.md) | REST API documentation |
+| [API Reference](docs/api/README.md) | Connect-RPC API documentation |
 | [Configuration Guide](docs/CONFIGURATION_GUIDE.md) | All config file reference |
 | [Architecture](docs/ARCHITECTURE.md) | System design and components |
 
@@ -83,10 +83,12 @@ Port bands declared in `.vrooli/service.json` follow the platform policy: `API_P
 
 ```
 landing-page-react-vite/
-├── api/                    # Go backend (Gin framework)
-│   ├── *_handlers.go       # HTTP route handlers
-│   ├── *_service.go        # Business logic
-│   └── initialization/     # DB schema and migrations
+├── api/                    # Go backend (Proto + Connect-RPC on api-core)
+│   ├── main.go             # Connect DB, apply schemas, seed, wire modules
+│   ├── handlers/<domain>/  # Per-domain Connect handler + module + endpoints
+│   ├── internal/<domain>/  # Per-domain business logic, storage, schema.sql
+│   ├── internal/{module,server,modules,database,clock,middleware}/  # api-core scaffold
+│   └── internal/testutil/  # Shared test harness (pgtest, mocks, httpx)
 ├── ui/                     # React + Vite frontend
 │   └── src/
 │       ├── surfaces/
@@ -102,6 +104,35 @@ landing-page-react-vite/
 ├── requirements/           # Feature specifications
 └── test/                   # Test suites
 ```
+
+## API Architecture
+
+The Go API is a **Proto + Connect-RPC** application built on the shared
+`api-core` module architecture (the same pattern the `react-vite` template
+establishes). There is no gorilla/mux route table and no gorilla/sessions
+auth in domain code; the wire contract is the proto surface under
+`packages/proto/schemas/landing-page-react-vite/v1/`.
+
+- **Wire contract** — Every business operation is a Connect-RPC method defined
+  in proto. `packages/proto` generates Go/TS/Python clients and the Connect
+  service handlers. Editing a domain starts with its `.proto` file, then
+  `make generate` in `packages/proto`.
+- **Domain modules** — Each domain ships as `handlers/<domain>/` (a thin
+  Connect handler that maps proto ⇄ domain types, its `module.Module`
+  mount, and machine-readable `Endpoints`) plus `internal/<domain>/`
+  (business logic, storage, and a migration-owned `schema.sql`). `main.go`
+  connects PostgreSQL, applies every domain's schema via
+  `database.EnsureSchemas`, seeds demo data, and hands the modules to
+  `server.New`. Adding a domain never touches a central `routes.go`.
+- **Storage** — PostgreSQL via `api-core/database`. Schema is declarative and
+  forward-only (`CREATE TABLE IF NOT EXISTS`), owned by each domain.
+- **Non-Connect surfaces** — A few surfaces stay raw HTTP by design: the
+  `/health` ops probe, static asset serving under `/api/v1/uploads/`,
+  `sitemap.xml` / `robots.txt`, the Stripe webhook receiver (raw body +
+  signature header), and multipart asset upload. These are documented REST
+  exceptions; their response payloads remain proto-typed.
+- **Tests** — Domain handler tests run against a real PostgreSQL testcontainer
+  via `internal/testutil/pgtest` (or `TEST_DATABASE_URL`).
 
 ## Configuration
 

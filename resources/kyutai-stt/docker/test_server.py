@@ -21,6 +21,8 @@ Covers:
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import json
 import os
 import sys
 
@@ -28,6 +30,37 @@ import sys
 # lazily inside Model.load(), which we never call here).
 sys.path.insert(0, os.path.dirname(__file__))
 import server  # noqa: E402
+
+
+def test_torch_compile_is_opt_in_before_moshi_import():
+    """A live dictation turn must not trigger Inductor's unbounded cold compile.
+
+    ``server`` sets NO_TORCH_COMPILE before Model.load imports moshi. Keep this
+    assertion near the server tests so a Docker/config refactor cannot quietly
+    restore the first-turn multi-minute stall.
+    """
+    assert server.TORCH_COMPILE_ENABLED is False
+    assert os.environ["NO_TORCH_COMPILE"] == "1"
+
+
+def test_readiness_distinguishes_live_process_from_loaded_model():
+    old_loaded = server.MODEL.loaded
+    try:
+        server.MODEL.loaded = False
+        starting = asyncio.run(server.ready())
+        assert starting.status_code == 503
+        assert json.loads(starting.body) == {
+            "status": "starting", "model_loaded": False, "device": server.MODEL.device,
+        }
+
+        server.MODEL.loaded = True
+        ready = asyncio.run(server.ready())
+        assert ready.status_code == 200
+        assert json.loads(ready.body) == {
+            "status": "ok", "model_loaded": True, "device": server.MODEL.device,
+        }
+    finally:
+        server.MODEL.loaded = old_loaded
 
 
 class FakeWS:
@@ -40,6 +73,27 @@ class FakeWS:
         import json
 
         self.sent.append(json.loads(text))
+
+
+class HandshakeWS(FakeWS):
+    """Minimal ASGI WebSocket for admission-handshake tests."""
+
+    def __init__(self, messages):
+        super().__init__()
+        self.messages = list(messages)
+        self.accepted = False
+        self.closed = False
+
+    async def accept(self) -> None:
+        self.accepted = True
+
+    async def receive(self):
+        if self.messages:
+            return self.messages.pop(0)
+        await asyncio.Future()
+
+    async def close(self) -> None:
+        self.closed = True
 
 
 class FakeTokenizer:
@@ -127,6 +181,105 @@ def test_short_utterance_does_not_prematurely_commit():
 
     assert _segments(ws) == []
     assert any(m.get("type") == "partial" for m in ws.sent)
+
+
+def test_processed_batch_signal_is_coalesced_and_monotonic():
+    """The transport credit signal must be absolute and never compete with
+    durable transcript delivery."""
+    ws = FakeWS()
+    session = server.StreamSession(ws)
+    session.processed_batches = 3
+
+    asyncio.run(session._drain_outbound())
+
+    processed = [m for m in ws.sent if m.get("type") == "processed"]
+    assert processed == [{"type": "processed", "processed_batches": 3}]
+    asyncio.run(session._drain_outbound())
+    assert [m for m in ws.sent if m.get("type") == "processed"] == processed
+
+
+def test_bare_websocket_cannot_reserve_decoder_admission():
+    """The required start header precedes FIFO admission.
+
+    This prevents a stale browser upgrade from occupying the one local decoder
+    without ever declaring a stream or sending audio.
+    """
+    old_loaded = server.MODEL.loaded
+    old_timeout = server.START_FRAME_TIMEOUT_S
+    old_admission = server.MODEL.admission
+    server.MODEL.loaded = True
+    server.START_FRAME_TIMEOUT_S = 0.01
+    server.MODEL.admission = server.FIFOAdmission(8, 30)
+    ws = HandshakeWS([])
+    try:
+        asyncio.run(server.stream(ws))
+    finally:
+        admission = server.MODEL.admission
+        server.MODEL.loaded = old_loaded
+        server.START_FRAME_TIMEOUT_S = old_timeout
+        server.MODEL.admission = old_admission
+
+    assert ws.accepted and ws.closed
+    assert ws.sent == [{
+        "type": "error",
+        "code": "start_timeout",
+        "message": "start control frame was not received before admission timeout",
+    }]
+    assert not admission._waiters
+    assert admission._active is None
+
+
+def test_multi_frame_decode_cooperatively_yields_to_outbound_work():
+    """A large PCM batch must not monopolize the asyncio loop long enough to
+    starve WebSocket keepalive/outbound credit work."""
+    previous_activity = server.MODEL.current_session_last_activity
+    _install_fake_model(max_segment_frames=0)
+    ws = FakeWS()
+    session = server.StreamSession(ws)
+
+    class FakeFramed:
+        def __getitem__(self, _):
+            return self
+
+        def unsqueeze(self, _):
+            return self
+
+    class FakeTorch:
+        @staticmethod
+        def no_grad():
+            return contextlib.nullcontext()
+
+    class FakeMimi:
+        @staticmethod
+        def encode(_):
+            return object()
+
+    class FakeLM:
+        @staticmethod
+        def step(_):
+            return None
+
+    server.MODEL._torch = FakeTorch()
+    server.MODEL._mimi = FakeMimi()
+    server.MODEL._lm_gen = FakeLM()
+
+    async def scenario():
+        outbound_ran = False
+
+        async def outbound():
+            nonlocal outbound_ran
+            await asyncio.sleep(0)
+            outbound_ran = True
+
+        task = asyncio.create_task(outbound())
+        await session._run_frames(FakeFramed(), server.DECODE_YIELD_FRAMES)
+        await task
+        return outbound_ran
+
+    try:
+        assert asyncio.run(scenario()), "decode did not yield to outbound work"
+    finally:
+        server.MODEL.current_session_last_activity = previous_activity
 
 
 def test_flush_commits_trailing_segment():

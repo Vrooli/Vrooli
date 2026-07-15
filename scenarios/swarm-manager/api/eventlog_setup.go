@@ -36,7 +36,11 @@ func (s *Server) initEventLog() {
 		slog.Warn("failed to resolve event database path", "error", err)
 		return
 	}
-	eventDB, err := database.Connect(context.Background(), database.Config{
+	// Open through database.Open so every connection is routed via
+	// *database.RoutedDB. Combined with devrouting.Register + TestModeMiddleware
+	// in main(), this lets test-genie install an isolated test pool at runtime so
+	// destructive e2e playbooks never touch the live event log / evidence ledger.
+	eventDB, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          dsn,
 		MaxOpenConns: 1,
@@ -46,19 +50,21 @@ func (s *Server) initEventLog() {
 		slog.Warn("failed to open event database, stats will be unavailable", "error", err)
 		return
 	}
-	repo := eventlog.NewSQLiteRepository(eventDB)
-	if err := repo.InitSchema(context.Background()); err != nil {
-		slog.Error("event log schema init error", "error", err)
+	// Apply the per-domain schemas to whichever pool is active (live at boot;
+	// the test pool once installed) via the shared EnsureSchemas seam. This is
+	// the "primary schema application" seam storage-health requires.
+	if err := database.EnsureSchemas(context.Background(), eventDB.Primary(),
+		database.SchemaProviderFunc(eventlog.Schema),
+		database.SchemaProviderFunc(evidence.Schema),
+	); err != nil {
+		slog.Error("event log / evidence schema init error", "error", err)
 		s.eventDB = eventDB
 		return
 	}
+	repo := eventlog.NewSQLiteRepository(eventDB)
 	s.eventDB = eventDB
 	s.eventRepo = repo
 	s.evidenceStore = evidence.NewStore(eventDB)
-	if err := s.evidenceStore.InitSchema(context.Background()); err != nil {
-		slog.Error("evidence ledger schema init error", "error", err)
-		s.evidenceStore = nil
-	}
 	s.emitter = eventlog.NewEmitter(repo)
 	s.statsEngine = stats.NewEngine(repo)
 	if err := s.statsEngine.Rebuild(context.Background()); err != nil {

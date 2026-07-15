@@ -12,6 +12,14 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { HealthCard } from "../features/health/HealthCard";
 import { useTranslation } from "../i18n";
+import {
+  debtStatusTone,
+  driftTone,
+  kindLabel,
+  modeLabel,
+  runStatusTone,
+  type Tone,
+} from "../lib/templateLabels";
 
 const queryKey = ["template-dashboard"] as const;
 
@@ -168,13 +176,13 @@ function RegistryCard({ templates }: { templates: Array<{ id: string; kind: numb
       <CardContent>
         <div className="grid gap-2">
           {templates.slice(0, 8).map((template) => (
-            <div key={template.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-panel border border-app-border px-3 py-2">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{template.id}</p>
-                <p className="truncate text-xs text-app-muted-foreground">{kindLabel(template.kind)} · {template.version}</p>
-              </div>
-              <StatusBadge tone={(template.versionLag?.lagCount ?? 0) > 0 ? "warning" : "success"}>{template.status}</StatusBadge>
-            </div>
+            <Row
+              key={template.id}
+              primary={template.id}
+              secondary={`${kindLabel(template.kind)} · ${template.version}`}
+              badge={template.status}
+              tone={(template.versionLag?.lagCount ?? 0) > 0 ? "warning" : "success"}
+            />
           ))}
         </div>
       </CardContent>
@@ -187,7 +195,7 @@ function RunsCard({ runs }: { runs: Array<{ id: string; templateId: string; mode
   return (
     <ListCard title={t(strings.dashboard.runs.title)} description={t(strings.dashboard.runs.description)} empty={t(strings.dashboard.runs.empty)}>
       {runs.slice(0, 6).map((run) => (
-        <Row key={run.id} primary={run.id} secondary={`${run.templateId} · ${modeLabel(run.mode)} · ${run.findings.length} findings`} badge={run.status} tone={run.status === "passed" ? "success" : "warning"} />
+        <Row key={run.id} primary={run.id} secondary={`${run.templateId} · ${modeLabel(run.mode)} · ${run.findings.length} findings`} badge={run.status} tone={runStatusTone(run.status)} />
       ))}
     </ListCard>
   );
@@ -198,7 +206,7 @@ function DebtCard({ entries }: { entries: Array<{ key: string; severity: string;
   return (
     <ListCard title={t(strings.dashboard.debt.title)} description={t(strings.dashboard.debt.description)} empty={t(strings.dashboard.debt.empty)}>
       {entries.slice(0, 6).map((entry) => (
-        <Row key={entry.key} primary={entry.title} secondary={`${entry.key} · ${entry.severity}`} badge={entry.status} tone={entry.status === "open" ? "danger" : "success"} />
+        <Row key={entry.key} primary={entry.title} secondary={`${entry.key} · ${entry.severity}`} badge={entry.status} tone={debtStatusTone(entry.status)} />
       ))}
     </ListCard>
   );
@@ -209,7 +217,7 @@ function DriftCard({ snapshots }: { snapshots: Array<{ id: string; templateId: s
   return (
     <ListCard title={t(strings.dashboard.drift.title)} description={t(strings.dashboard.drift.description)} empty={t(strings.dashboard.drift.empty)}>
       {snapshots.slice(0, 6).map((snapshot) => (
-        <Row key={snapshot.id} primary={snapshot.target} secondary={`${snapshot.templateId} · ${snapshot.driftCount} drifted`} badge={snapshot.status} tone={snapshot.driftCount > 0 ? "warning" : "success"} />
+        <Row key={snapshot.id} primary={snapshot.target} secondary={`${snapshot.templateId} · ${snapshot.driftCount} drifted`} badge={snapshot.status} tone={driftTone(snapshot.driftCount)} />
       ))}
     </ListCard>
   );
@@ -234,7 +242,7 @@ function ListCard({ title, description, empty, children }: { title: string; desc
   );
 }
 
-function Row({ primary, secondary, badge, tone }: { primary: string; secondary: string; badge: string; tone: "success" | "warning" | "danger" | "info" | "neutral" }) {
+function Row({ primary, secondary, badge, tone }: { primary: string; secondary: string; badge: string; tone: Tone }) {
   return (
     <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-panel border border-app-border px-3 py-2">
       <div className="min-w-0">
@@ -244,32 +252,6 @@ function Row({ primary, secondary, badge, tone }: { primary: string; secondary: 
       <StatusBadge tone={tone}>{badge}</StatusBadge>
     </div>
   );
-}
-
-function kindLabel(kind: number): string {
-  switch (kind) {
-    case 1:
-      return "scenario";
-    case 2:
-      return "design";
-    case 3:
-      return "resource";
-    default:
-      return "template";
-  }
-}
-
-function modeLabel(mode: number): string {
-  switch (mode) {
-    case 1:
-      return "shallow";
-    case 2:
-      return "deep";
-    case 3:
-      return "drift";
-    default:
-      return "validation";
-  }
 }
 
 function standingLabel(value: string): string {

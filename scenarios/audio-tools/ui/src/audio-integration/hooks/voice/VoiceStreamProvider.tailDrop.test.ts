@@ -12,6 +12,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 
 import { transcribeAudioWithRetry } from "../../api/voice";
+import { loadUnfinishedSession } from "@vrooli/audio-capture-browser";
 import { VoiceStreamProvider } from "./VoiceStreamProvider";
 import type { PcmCapture, PcmCaptureFactory } from "./pcmCapture";
 
@@ -104,17 +105,22 @@ describe("VoiceStreamProvider tail-drop", () => {
     vi.mocked(transcribeAudioWithRetry).mockReset();
   });
 
-  async function startAndOpenWs(): Promise<FakeWebSocket> {
+async function startAndOpenWs(): Promise<FakeWebSocket> {
     await provider.start();
     // Drain microtask queue so the FakeWebSocket onopen fires.
     await Promise.resolve();
     return FakeWebSocket.instances[FakeWebSocket.instances.length - 1]!;
-  }
+}
+
+async function waitForSocketWrites(ws: FakeWebSocket, count = 1): Promise<void> {
+  await vi.waitFor(() => expect(ws.send.mock.calls.length).toBeGreaterThanOrEqual(count));
+}
 
   it("drops captured frames after dropTail() is armed", async () => {
     const ws = await startAndOpenWs();
     // Pre-arm: a frame should be forwarded.
     pushFrame();
+    await waitForSocketWrites(ws);
     const sendsBeforeArm = ws.send.mock.calls.length;
     expect(sendsBeforeArm).toBeGreaterThanOrEqual(1);
 
@@ -124,15 +130,31 @@ describe("VoiceStreamProvider tail-drop", () => {
     expect(ws.send.mock.calls.length).toBe(sendsBeforeArm);
   });
 
-  it("sends binary PCM frames (s16le bytes) over the socket", async () => {
+  it("[REQ:ATD-P0-001] delivers a replayed durable segment identity once", async () => {
+    const onSegmentFinal = vi.fn();
+    provider.onSegmentFinal = onSegmentFinal;
+    const ws = await startAndOpenWs();
+    const durableSegment = { type: "segment-final", text: "replayed once", segmentIndex: 0, segmentId: "turn-1:0:0:1" };
+
+    ws.onmessage?.({ data: JSON.stringify(durableSegment) });
+    ws.onmessage?.({ data: JSON.stringify(durableSegment) });
+
+    expect(onSegmentFinal).toHaveBeenCalledTimes(1);
+    expect(onSegmentFinal).toHaveBeenCalledWith("replayed once", 0);
+  });
+
+  it("[REQ:ATD-P0-004] sends versioned binary frames with PCM coverage metadata", async () => {
     const ws = await startAndOpenWs();
     pushFrame(128);
+    await waitForSocketWrites(ws);
     const lastCall = ws.send.mock.calls.at(-1);
     expect(lastCall).toBeDefined();
-    const payload = lastCall![0] as ArrayBufferView;
-    expect(ArrayBuffer.isView(payload)).toBe(true);
-    // 128 samples * 2 bytes/sample of s16le PCM.
-    expect(payload.byteLength).toBe(256);
+    const payload = lastCall![0] as ArrayBuffer;
+    expect(payload).toBeInstanceOf(ArrayBuffer);
+    const bytes = new Uint8Array(payload);
+    expect(new TextDecoder().decode(bytes.slice(0, 4))).toBe("ATV2");
+    // 60-byte v2 header (including SHA-256) + 128 samples * 2 bytes/sample.
+    expect(payload.byteLength).toBe(316);
   });
 
   it("sends {type:done} and skips tail retention when armed", async () => {
@@ -144,6 +166,7 @@ describe("VoiceStreamProvider tail-drop", () => {
 
     provider.dropTail();
     provider.stop();
+    await waitForSocketWrites(ws);
     const doneCalls = ws.send.mock.calls.filter((args) => {
       const payload = args[0];
       return typeof payload === "string" && payload.includes('"done"');
@@ -164,11 +187,105 @@ describe("VoiceStreamProvider tail-drop", () => {
     expect(ws.send).not.toHaveBeenCalled();
 
     ws.open();
+    await waitForSocketWrites(ws, 2);
 
     const payloads = ws.send.mock.calls.map((args) => args[0]);
-    expect(ArrayBuffer.isView(payloads[0])).toBe(true);
+    expect(payloads[0]).toBeInstanceOf(ArrayBuffer);
     expect(payloads[1]).toBe(JSON.stringify({ type: "done" }));
     expect(payloads.filter((payload) => payload === JSON.stringify({ type: "done" })).length).toBe(1);
+  });
+
+  it("[REQ:ATD-P0-004] replays journaled v2 coverage after a reconnect", async () => {
+    vi.useFakeTimers();
+    try {
+      const first = await startAndOpenWs();
+      pushFrame(128);
+      await waitForSocketWrites(first);
+      const original = first.send.mock.calls[0]![0] as ArrayBuffer;
+
+      first.readyState = FakeWebSocket.CLOSED;
+      first.onclose?.();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await Promise.resolve();
+
+      const second = FakeWebSocket.instances.at(-1)!;
+      await waitForSocketWrites(second);
+      const replay = second.send.mock.calls[0]![0] as ArrayBuffer;
+      expect(Array.from(new Uint8Array(replay))).toEqual(Array.from(new Uint8Array(original)));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("[REQ:ATD-P0-001] compacts processed coverage so reconnects replay only missing audio", async () => {
+    vi.useFakeTimers();
+    try {
+      const first = await startAndOpenWs();
+      pushFrame(128);
+      pushFrame(128);
+      await waitForSocketWrites(first, 2);
+
+      first.onmessage?.({
+        data: JSON.stringify({
+          type: "status",
+          code: "processed_acknowledgement",
+          processedSequence: 0,
+        }),
+      });
+      // The acknowledgement is serialized after the frame journal write.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      first.readyState = FakeWebSocket.CLOSED;
+      first.onclose?.();
+      await vi.advanceTimersByTimeAsync(1_000);
+      const second = FakeWebSocket.instances.at(-1)!;
+      await waitForSocketWrites(second);
+
+      const replay = second.send.mock.calls[0]![0] as ArrayBuffer;
+      expect(new DataView(replay).getBigUint64(4, false)).toBe(1n);
+      expect(second.send.mock.calls).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("[REQ:ATD-P0-004] retains captured audio when final follows incomplete coverage", async () => {
+    const onResult = vi.fn();
+    const onError = vi.fn();
+    provider.onResult = onResult;
+    provider.onError = onError;
+    const ws = await startAndOpenWs();
+    pushFrame(128);
+    await waitForSocketWrites(ws);
+
+    ws.onmessage?.({ data: JSON.stringify({ type: "error", code: "incomplete_coverage", text: "Audio processing acknowledgement was intentionally withheld." }) });
+    ws.onmessage?.({ data: JSON.stringify({ type: "final", text: "must not be captured" }) });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onResult).not.toHaveBeenCalled();
+    expect(loadUnfinishedSession()).toMatchObject({ sessionId: expect.any(String), resumeToken: expect.any(String) });
+    expect(provider.getDiagnostic()).toMatchObject({ state: "failed", terminalReason: "incomplete_coverage" });
+  });
+
+  it("[REQ:ATD-P0-004] discards recovery state only after a terminal final", async () => {
+    const onResult = vi.fn();
+    provider.onResult = onResult;
+    const ws = await startAndOpenWs();
+    pushFrame(128);
+    await waitForSocketWrites(ws);
+    provider.stop();
+
+    ws.onmessage?.({ data: JSON.stringify({ type: "final", text: "committed transcript" }) });
+    await Promise.resolve();
+
+    expect(onResult).toHaveBeenCalledWith("committed transcript");
+    expect(loadUnfinishedSession()).toBeNull();
+    ws.readyState = FakeWebSocket.CLOSED;
+    ws.onclose?.();
+    expect(vi.mocked(transcribeAudioWithRetry)).not.toHaveBeenCalled();
   });
 
   it("retains the turn audio as a WAV blob when not armed", async () => {
@@ -190,6 +307,7 @@ describe("VoiceStreamProvider tail-drop", () => {
     const second = await startAndOpenWs();
     second.send.mockClear();
     pushFrame();
+    await waitForSocketWrites(second);
     // Send happens again; the new session is not still armed.
     expect(second.send.mock.calls.length).toBeGreaterThanOrEqual(1);
   });

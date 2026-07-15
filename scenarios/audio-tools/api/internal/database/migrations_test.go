@@ -47,6 +47,33 @@ func TestApplyMigrations_AddsColumnsToLegacyTable(t *testing.T) {
 	require.Empty(t, model)
 }
 
+func TestApplyMigrations_AddsModelToLegacyQualificationEvidence(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	_, err := d.ExecContext(ctx, `CREATE TABLE qualification_evidence (
+		id TEXT PRIMARY KEY,
+		engine_id TEXT NOT NULL,
+		strategy TEXT NOT NULL,
+		policy_profile TEXT NOT NULL DEFAULT '',
+		kind TEXT NOT NULL,
+		fault_profile TEXT NOT NULL DEFAULT '',
+		passed INTEGER NOT NULL,
+		artifact_ref TEXT NOT NULL,
+		notes TEXT NOT NULL DEFAULT '',
+		machine_json TEXT NOT NULL DEFAULT '{}',
+		observed_at TEXT NOT NULL
+	)`)
+	require.NoError(t, err)
+	require.NoError(t, localdb.ApplyMigrations(ctx, d))
+
+	_, err = d.ExecContext(ctx, `INSERT INTO qualification_evidence (id, engine_id, model_id, strategy, kind, passed, artifact_ref, observed_at) VALUES ('legacy', 'kyutai', '', 'passthrough', 'fault', 1, 'bas:legacy', '2026-07-12T00:00:00Z')`)
+	require.NoError(t, err)
+	row := d.QueryRowContext(ctx, `SELECT model_id FROM qualification_evidence WHERE id = 'legacy'`)
+	var model string
+	require.NoError(t, row.Scan(&model))
+	require.Empty(t, model)
+}
+
 // TestApplyMigrations_Idempotent proves a second apply is a clean no-op (the
 // "duplicate column name" error is the success signal, not a failure) when the
 // columns are already present from the declarative schema.

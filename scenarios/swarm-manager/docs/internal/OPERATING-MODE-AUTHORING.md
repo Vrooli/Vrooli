@@ -40,13 +40,13 @@ swarm-manager operating-mode scaffold --id my-mode --label "My Mode" \
 Open `modes/my-mode/mode.json` and shape it to your methodology:
 
 - **Identity & decision metadata** — `label`, `description`, and the `best_for` / `not_for` / `tradeoffs` lists (each must be non-empty) plus optional `when_in_doubt_pick_instead`. These drive the how-to-choose UI and the authoring startup brief.
-- **Target & run strategy** — `target.kind` (the unit of work: `plan-manager-plan` | `plan-ref` | `initiative`; an initiative-target mode may nest `target.plan_ref` for its bound-plan contract) and `run_strategy.kind`.
+- **Target & run strategy** — `target.kind` (the unit of work: `backlog-item` | `initiative` | `plan-execution`; an initiative-target mode may nest `target.plan_ref` for its bound-plan contract, which is the domain plan_ref field, not a target kind) and `run_strategy.kind`.
 - **Inputs** — every phase mode declares one top-level `input_contract` with three deliberately separate sets: logical `specs` (namespaced id, JSON type/bounds, sensitivity, retention, description), exactly one `sources` binding per spec (`generic_provider`, `target_adapter`, `caller`, `derived`, or `default`), and prompt `aliases`. A phase's `reads` selects those aliases. The transitive compiler rejects competing/missing sources, unavailable capabilities, target/type mismatches, derived cycles, unsafe sensitive-value retention, unknown aliases, and unused bindings before an execution manifest is created.
 - **Runtime parity** — prompt rendering resolves only the compiled phase bindings, not the old global read vocabulary. Provider descriptors declare their supported target kinds, value type, freshness, and failure policy; provider code only performs behavioral retrieval. New executions persist the canonical compiled contract and its SHA-256 digest, so later mode edits affect new executions only.
 - **Phase graph** — `phase_graph.start_phase`, `phase_graph.terminal`, and the `phases` list. Each phase declares a `kind` (`investigate` / `execute` / `review` / `reconcile`), an `activity_purpose` (lowercase snake-case token), a `profile_key` (must start with `swarm-manager/`), optional `output_artifacts`, an optional `declared_output` schema, and its `transitions`.
 - **Transitions & guards** — each transition is `{ "when": <guard>, "to": ["<phase>"] }`. A guard is a generic field-predicate: `{ "op": "always" }`, `{ "op": "eq", "field": "verdict", "value": "accepted" }`, or the composite forms `all` / `any` / `not`. A guard's `field` must be a declared output field of the phase, so a mode can never branch on output it doesn't promise to emit. This vocabulary can express any DAG — there is no branch type bespoke to a named mode.
 - **Classification-on-transition** — when the routing field is not directly emitted (the natural execute output is a *handoff*, not a routing enum), the transition declares `{ "classify": { "field": "progress", "enum": ["continue","complete","blocked"], "from": "handoff" }, "routes": { "continue": ["execute"], "complete": [], "blocked": [] } }`. The engine derives `field` from the handoff via the resolution ladder at the edge, then routes; an empty route is a guarded stop, and an honest abstain parks the round in `needs_attention`. There is no `classify_progress` phase — classification costs no agent round. Example-run routing for a classified edge must be L1-derivable (the value emitted directly or carried inline on the handoff).
-- **Composition (`executed_by`)** — a phase may delegate to exactly one sub-mode, one level deep: `{ "id": "execute", "kind": "execute", "executed_by": "phased-plan-drain", "transitions": [...] }` and nothing else (the sub-mode owns reads/prompt/emits/artifacts). The parent's transitions route on the sub-mode's terminal output. Initiative modes compose the generic drain instead of duplicating it (an initiative mode that delegates to a `plan-manager-plan` sub-mode declares `target.plan_ref.required`; its bound plan becomes the sub-mode's unit of work).
+- **Composition (`executed_by`)** — a phase may delegate to exactly one sub-mode, one level deep: `{ "id": "execute", "kind": "execute", "executed_by": "phased-plan-drain", "transitions": [...] }` and nothing else (the sub-mode owns reads/prompt/emits/artifacts). The parent's transitions route on the sub-mode's terminal output. Initiative modes compose the generic drain instead of duplicating it (an initiative mode that delegates to a `plan-execution` sub-mode declares `target.plan_ref.required`; its bound plan becomes the sub-mode's unit of work).
 - **Declared output** — `declared_output.fields` names the structured fields a phase must emit (`name`, `type`, `required`, `enum`, numeric/length bounds, nested `fields`). This one schema is what makes the phase robust to imperfect model output: the resolution ladder extracts, reconstructs, or honestly abstains against it (see the Northstar's resolution-ladder section). A required field named `progress` / `verdict` / `handoff` / `backlog_sync` sets the matching contract flag.
 - **Policy blocks** — `prompt.catalog_prefix`, `artifact.root`, `profile.default_profile_key`, `backlog_sync`, `metrics`, `lock.initiative_exclusive`, and `ui.workspace_tab_id`.
 
@@ -99,9 +99,54 @@ Authoring a mode is *only* the data folder. Do **not**:
 
 If a new mode appears to need one of those, it means the engine is missing a *generic* mechanism — raise that as its own change against the operating-mode subsystem, not as a per-mode branch.
 
+## A mode implements an operation (the agent-operations layer)
+
+A mode is the *how*; an **operation contract** is the *what*. The declarative
+agent-operations layer ([`docs/concepts/AGENT-OPERATIONS.md`](../concepts/AGENT-OPERATIONS.md))
+binds each operation to the mode that implements it. When you author a mode that
+a backlog item or initiative will run autonomously, you also wire it into that
+layer — all as data:
+
+- **Operation contract** (`operation-contracts/<id>.json`): the provider-neutral
+  behavior — required target capabilities, typed caller inputs, the typed result
+  + closed outcomes, evidence expectations, and cancellation/retry. Materialized
+  from `agentops.SeedOperationContracts()` via `go run ./api/cmd/genopscatalog .`;
+  edit the Go SSOT, not the JSON by hand.
+- **System-default binding** (`bindings/<operation>.json`): picks the mode (at a
+  pinned `mode_revision`) that implements the operation. **The bound mode's
+  `target.kind` must match the target the operation runs against** — the resolver
+  fails closed (`ErrIncompatibleMode`) otherwise. This is why, e.g.,
+  `execution-run`/`execution-retry` bind to a `plan-execution`-target mode
+  (`execution-drain`, which delegates to `phased-plan-drain`), `execution-fixup`
+  binds to a `backlog-item` mode (only backlog-item provides *both*
+  execution-workspace and review-artifacts), and `initiative-review` binds to an
+  `initiative` mode.
+- **Transition policy** (`policy/<domain>-default.json`): selects the closed
+  domain action that fires on each operation outcome. Policy names only registered
+  actions — never code.
+
+Inspect the whole thing without reading Go:
+
+```bash
+swarm-manager operating-mode list                 # every mode + its target
+swarm-manager operating-mode get --mode <id>      # phases, reads, classification, delegation
+swarm-manager agent-operations validate --operation <id> --target <sel>   # contract + binding resolves
+swarm-manager agent-operations resolve-binding --operation <id> --target <sel>
+```
+
+### Where a mode is *not* a selectable methodology
+
+`item-level` is **not** a real operating mode — it has no phase graph. It is
+member-item strategy configuration (run each member item through its own
+operation), retained as a compatibility placeholder until its cutover removes it.
+Do not present it as a selectable mode, and do not point a mode's
+`when_in_doubt_pick_instead` at it.
+
 ## Reference
 
 - Concept & vocabulary (Northstar): [`docs/concepts/EXECUTION-MODES.md`](../concepts/EXECUTION-MODES.md)
+- Agent-operations layer (contracts, bindings, policies): [`docs/concepts/AGENT-OPERATIONS.md`](../concepts/AGENT-OPERATIONS.md)
+- Cutover ledger (the 14 target-bound behaviors): [`docs/internal/AGENT-CUTOVER-LEDGER.md`](./AGENT-CUTOVER-LEDGER.md)
 - Schema: [`.vrooli/schemas/operating-mode.schema.json`](../../../../.vrooli/schemas/operating-mode.schema.json)
-- Working examples: `scenarios/swarm-manager/modes/{item-level,holistic-loop,phased-plan-drain}/`
+- Working examples: `scenarios/swarm-manager/modes/{holistic-loop,phased-plan-drain,backlog-research,backlog-review,execution-drain,initiative-review-loop}/`
 - Engine: `scenarios/swarm-manager/api/internal/operatingmode/` (loader, validator, guard evaluator, resolution ladder, simulation, authoring)

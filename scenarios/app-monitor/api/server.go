@@ -158,7 +158,6 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.POST("/apps/:id/view", h.app.RecordAppView)
 		v1.GET("/apps/:id/fixes", h.app.GetAppFixes)
 		v1.POST("/apps/:id/fixes/report", h.app.ReportAppFix)
-		v1.POST("/apps/:id/fallback-diagnostics", h.app.GetFallbackDiagnostics)
 		v1.GET("/apps/:id/diagnostics", h.app.GetAppCompleteDiagnostics)
 		v1.GET("/apps/:id/diagnostics/iframe-bridge", h.app.CheckAppIframeBridge)
 		v1.GET("/apps/:id/diagnostics/status", h.app.GetAppScenarioStatus)

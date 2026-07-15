@@ -56,13 +56,14 @@ type subscriber struct {
 }
 
 type entry struct {
-	id     string
-	mu     sync.Mutex
-	exp    Experiment
-	cancel context.CancelFunc
-	done   chan struct{}
-	subs   []*subscriber
-	last   *ProgressEvent
+	id         string
+	mu         sync.Mutex
+	exp        Experiment
+	cancel     context.CancelFunc
+	maxRuntime time.Duration
+	done       chan struct{}
+	subs       []*subscriber
+	last       *ProgressEvent
 }
 
 // Config configures an experiment Manager.
@@ -183,7 +184,7 @@ func (m *Manager) Submit(ctx context.Context, spec SubmitSpec) (Experiment, erro
 		return Experiment{}, err
 	}
 
-	e := &entry{id: saved.ID, exp: saved, done: make(chan struct{})}
+	e := &entry{id: saved.ID, exp: saved, maxRuntime: spec.MaxRuntime, done: make(chan struct{})}
 	m.mu.Lock()
 	m.entries[saved.ID] = e
 	m.queued = append(m.queued, e)
@@ -227,7 +228,13 @@ func (m *Manager) execute(e *entry) {
 		e.mu.Unlock()
 		return
 	}
-	jobCtx, cancel := context.WithCancel(m.baseCtx)
+	jobCtx := m.baseCtx
+	cancel := func() {}
+	if e.maxRuntime > 0 {
+		jobCtx, cancel = context.WithTimeout(m.baseCtx, e.maxRuntime)
+	} else {
+		jobCtx, cancel = context.WithCancel(m.baseCtx)
+	}
 	e.cancel = cancel
 	now := m.clock.Now().UTC()
 	e.exp.Status = StatusRunning
@@ -239,7 +246,11 @@ func (m *Manager) execute(e *entry) {
 	if err := m.service.repo.UpdateExperiment(m.baseCtx, snapshot); err != nil {
 		m.logger.Printf("experiment %s: persist running transition: %v", snapshot.ID, err)
 	}
-	m.emit(e, StatusRunning, 0, "started")
+	startedMessage := "started"
+	if e.maxRuntime > 0 {
+		startedMessage = fmt.Sprintf("started; runtime budget %s", e.maxRuntime)
+	}
+	m.emit(e, StatusRunning, 0, startedMessage)
 
 	emit := func(progress int, message string) {
 		if progress < 0 {
@@ -257,6 +268,9 @@ func (m *Manager) execute(e *entry) {
 	finished := m.clock.Now().UTC()
 	e.exp.FinishedAt = &finished
 	switch {
+	case errors.Is(jobCtx.Err(), context.DeadlineExceeded):
+		e.exp.Status = StatusFailed
+		e.exp.Error = fmt.Sprintf("experiment exceeded runtime budget of %s", e.maxRuntime)
 	case err != nil && jobCtx.Err() != nil:
 		e.exp.Status = StatusCanceled
 	case err != nil:

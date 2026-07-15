@@ -163,16 +163,6 @@ const (
 	ResearchModeInitialize ResearchMode = "initialize"
 )
 
-// promptSelection holds the resolved skill ID, variables, and rendered prompt
-// text returned by prompt-manager.
-type promptSelection struct {
-	SkillID      string
-	Variables    map[string]string
-	Prompt       string
-	ExperimentID string
-	VariantID    string
-}
-
 // ParseBacklogKind validates and normalizes a raw kind string.
 func ParseBacklogKind(raw string) (BacklogKind, error) {
 	candidate := BacklogKind(strings.ToLower(strings.TrimSpace(raw)))

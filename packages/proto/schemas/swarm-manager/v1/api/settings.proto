@@ -24,9 +24,78 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 //
 // =============================================================================
 
-// SettingsResponse returns current settings.
+// SettingsResponse returns current settings plus the derived policy-control
+// projection (which controls are policy-level vs pure user preference, and
+// their effective values for the operation runner's transition policies).
 message SettingsResponse {
   Settings settings = 1;
+  SettingsPolicyProjection policy_projection = 2;
+}
+
+// SettingsFieldRole classifies a persisted settings field's role in the
+// declarative agent-operations model.
+enum SettingsFieldRole {
+  SETTINGS_FIELD_ROLE_UNSPECIFIED = 0;
+  // Pure user preference (UI behavior); never consumed by orchestration.
+  SETTINGS_FIELD_ROLE_USER_PREFERENCE = 1;
+  // Policy control: consumed by the operation runner's transition-policy /
+  // binding-default seam. Retained user-facing, read through PolicyControls.
+  SETTINGS_FIELD_ROLE_POLICY_CONTROL = 2;
+  // System governance (concurrency lanes, queue depth, circuit breaker, cost
+  // caps); consumed via the governance seam, not transition policies.
+  SETTINGS_FIELD_ROLE_GOVERNANCE = 3;
+  // Persisted but currently has no runtime reader. Kept for compatibility;
+  // Phase 8 decides its migration alongside its projected destination.
+  SETTINGS_FIELD_ROLE_DORMANT = 4;
+}
+
+// SettingsFieldClassification maps one persisted settings field to its role
+// and (for policy controls) its destination path inside PolicyControlsView.
+message SettingsFieldClassification {
+  // Persisted JSON field name in Settings (e.g. "auto_advance_workshop").
+  string field = 1;
+  SettingsFieldRole role = 2;
+  // Destination control path (e.g. "auto_advance.delay_seconds"); empty for
+  // non-policy fields.
+  string control = 3;
+  // Short human-readable explanation.
+  string note = 4;
+}
+
+// PolicyControlsView is the effective policy-control projection derived from
+// current settings — the typed values orchestration consumers (auto-advance,
+// scheduler intents, review spawning, fixup/retry, execution posture) read.
+message PolicyControlsView {
+  // Execution posture.
+  string default_mode = 1;
+  // Auto-advance group.
+  bool auto_initialize = 2;
+  bool auto_advance_enabled = 3;
+  bool cascade_enabled = 4;
+  int32 auto_advance_delay_seconds = 5;
+  int32 max_auto_rounds = 6;
+  // Retry/fixup group.
+  bool auto_fixup = 7;
+  int32 max_fixup_attempts = 8;
+  // Review group.
+  bool review_agent_enabled = 9;
+  double review_code_quality_min_score = 10;
+  double review_test_min_pass_rate = 11;
+  int32 review_max_blocking_violations = 12;
+  int32 review_max_warnings = 13;
+  bool review_require_screenshots = 14;
+  bool review_require_tests = 15;
+  // Agent budget group.
+  int32 agent_max_turns = 16;
+  int32 agent_timeout_seconds = 17;
+}
+
+// SettingsPolicyProjection carries the effective policy controls plus the
+// per-field classification table so clients can label which settings are
+// policy-level versus user preference.
+message SettingsPolicyProjection {
+  PolicyControlsView effective_controls = 1;
+  repeated SettingsFieldClassification classifications = 2;
 }
 
 // AutoFilerSettingsPatch applies partial updates to Settings.auto_filer.

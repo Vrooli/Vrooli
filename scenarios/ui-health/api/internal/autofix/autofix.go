@@ -40,6 +40,11 @@ type Candidate = autofixcore.Candidate
 const (
 	RuleSlotDirMissing       = "slot_dir_missing"
 	RuleSlotParentDirMissing = "slot_parent_dir_missing"
+	// RuleStandardA11yHarness restores only the canonical helper when the
+	// scenario already declares axe-core and already contains a test written to
+	// use it. Adding dependencies or inventing a product-specific a11y test is
+	// intentionally outside this mechanical fixer.
+	RuleStandardA11yHarness = "standard_a11y_harness"
 )
 
 const gitkeepFile = ".gitkeep"
@@ -84,6 +89,11 @@ func New(validator Validator) *Fixer {
 		Preview: f.previewI18nLocaleParity,
 		CanFix:  f.canFixI18nLocaleParity,
 	})
+	fixers = append(fixers, autofixcore.Fixer{
+		RuleID:  RuleStandardA11yHarness,
+		Preview: f.previewA11yHarnessHelper,
+		CanFix:  f.canFixA11yHarnessHelper,
+	})
 	f.registry = autofixcore.NewRegistry(fixers...)
 	return f
 }
@@ -95,7 +105,8 @@ func FixClassFor(code string) autofixcore.FixClass {
 	switch code {
 	case RuleSlotDirMissing, RuleSlotParentDirMissing,
 		RuleInteropHScreen, RuleInteropProtectiveComments,
-		RuleStandardTSConfigStrict, RuleStandardI18nLocaleParity:
+		RuleStandardTSConfigStrict, RuleStandardI18nLocaleParity,
+		RuleStandardA11yHarness:
 		return autofixcore.FixClassAutofix
 	default:
 		return autofixcore.FixClassDetectionOnly

@@ -70,10 +70,7 @@ func enableAutoAdvanceSettings(t *testing.T, rootDir string) {
 }
 
 func TestWorkshopSave_ValidRound_WritesFile(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{RunID: "run-finalize", TaskID: "task-finalize"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, _, _ := setupTestHandlerWithRunner(t, "run-finalize")
 	enableAutoAdvanceSettings(t, rootDir)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-test", Title: "WS Test", Status: StatusBacklog,
@@ -162,10 +159,7 @@ func TestWorkshopSave_ItemNotFound_Returns404(t *testing.T) {
 }
 
 func TestWorkshopSave_AutoAdvance_Triggers(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{RunID: "run-123", TaskID: "task-456"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, _, _ := setupTestHandlerWithRunner(t, "run-123")
 
 	// Enable auto-advance for this test.
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
@@ -217,16 +211,13 @@ func TestWorkshopSave_AutoAdvance_Triggers(t *testing.T) {
 	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "workshop" {
 		t.Errorf("expected next mode 'workshop', got %v", resp.AutoAdvance.NextMode)
 	}
-	if agent.lastReq == nil {
-		t.Fatal("expected agent spawn to be called")
+	if resp.AutoAdvance.RunID == nil || *resp.AutoAdvance.RunID != "run-123" {
+		t.Fatalf("expected auto-advance run id 'run-123', got %v", resp.AutoAdvance.RunID)
 	}
 }
 
 func TestWorkshopSave_Ready_AutoFinalizes(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, _, _ := setupTestHandlerWithRunner(t, "run-x")
 	enableAutoAdvanceSettings(t, rootDir)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-ready", Title: "WS Ready", Status: StatusBacklog,
@@ -262,11 +253,8 @@ func TestWorkshopSave_Ready_AutoFinalizes(t *testing.T) {
 	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "finalize" {
 		t.Errorf("expected next mode 'finalize', got %v", resp.AutoAdvance.NextMode)
 	}
-	if agent.lastReq == nil {
-		t.Fatal("expected finalize agent spawn when item is ready")
-	}
-	if agent.lastReq.Title != "Finalize: WS Ready" {
-		t.Errorf("expected finalize title, got %q", agent.lastReq.Title)
+	if resp.AutoAdvance.RunID == nil || *resp.AutoAdvance.RunID != "run-x" {
+		t.Fatalf("expected finalize auto-advance run id 'run-x', got %v", resp.AutoAdvance.RunID)
 	}
 }
 
@@ -542,12 +530,14 @@ func TestWorkshopSave_AgentDown_StillSaves(t *testing.T) {
 }
 
 func TestWorkshopSave_ConcurrentSaves_GuardPreventsDouble(t *testing.T) {
-	// Simulate the centralized guard rejecting the spawn because another
-	// agent is already active for this item.
-	agent := &mockAgentService{
-		err: agentactivity.ErrBacklogItemBusy,
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	// The per-item double-spawn guard now lives in the operating-mode engine's
+	// agentactivity chokepoint (behind the phase-start seam). Here we simulate that
+	// chokepoint rejecting the immediate advance because another agent is already
+	// active: the phase-start returns ErrBacklogItemBusy, which the runner surfaces
+	// as an invokeBusy error. The save still succeeds and auto-advance reports
+	// agent_active (not error), so no duplicate round is started.
+	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-lock")
+	phase.err = agentactivity.ErrBacklogItemBusy
 
 	// Enable auto-advance to trigger the spawn path.
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
@@ -646,10 +636,7 @@ func TestWorkshopSave_OtherSelectedEmptyFreeform_NoAutoAdvance(t *testing.T) {
 }
 
 func TestWorkshopSave_OtherSelectedWithFreeform_AutoAdvances(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{RunID: "run-other-ok", TaskID: "task-other-ok"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, _, _ := setupTestHandlerWithRunner(t, "run-other-ok")
 	enableAutoAdvanceSettings(t, rootDir)
 
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
@@ -683,8 +670,8 @@ func TestWorkshopSave_OtherSelectedWithFreeform_AutoAdvances(t *testing.T) {
 	if !resp.AutoAdvance.Triggered {
 		t.Errorf("expected auto-advance to trigger when __other__ has freeform, reason=%s", resp.AutoAdvance.Reason)
 	}
-	if agent.lastReq == nil {
-		t.Fatal("expected agent spawn to be called")
+	if resp.AutoAdvance.RunID == nil || *resp.AutoAdvance.RunID != "run-other-ok" {
+		t.Fatalf("expected auto-advance run id 'run-other-ok', got %v", resp.AutoAdvance.RunID)
 	}
 }
 

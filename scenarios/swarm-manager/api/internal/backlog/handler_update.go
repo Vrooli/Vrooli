@@ -9,7 +9,6 @@ import (
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
@@ -201,12 +200,8 @@ func (h *Handler) maybeCascadeWorkshop(oldStatus BacklogStatus, item BacklogItem
 	if !blockingDepStatuses[oldStatus] || blockingDepStatuses[item.Status] {
 		return
 	}
-	cfg, cfgErr := settings.NewStore("").Load()
-	if cfgErr != nil {
-		slog.Warn("cascade settings load error, using defaults", "err", cfgErr)
-		cfg = settings.DefaultSettings()
-	}
-	if workshop.ShouldCascade(cfg.AutoCascadeWorkshop) {
+	controls := h.loadPolicyControls("cascade policy-controls load error, using defaults")
+	if workshop.ShouldCascade(controls.AutoAdvance.Cascade) {
 		go h.cascadeWorkshopTrigger(item)
 	}
 }

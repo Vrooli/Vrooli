@@ -15,16 +15,19 @@ func NewPolicyAdapter(store *Store) *policyAdapter {
 	return &policyAdapter{store: store}
 }
 
+// LoadPolicy derives the legacy execution.Policy view from the canonical
+// PolicyControls projection so the two seams can never disagree.
 func (a *policyAdapter) LoadPolicy() (execution.Policy, error) {
 	s, err := a.store.Load()
 	if err != nil {
 		return execution.Policy{}, err
 	}
+	controls := ProjectPolicyControls(s)
 	return execution.Policy{
-		DefaultMode:        execution.Mode(s.DefaultMode),
-		AutoFixup:          s.AutoFixup,
-		MaxFixupAttempts:   s.MaxFixupAttempts,
-		ReviewAgentEnabled: s.ReviewAgentEnabled,
+		DefaultMode:        execution.Mode(controls.Execution.DefaultMode),
+		AutoFixup:          controls.Retry.AutoFixup,
+		MaxFixupAttempts:   controls.Retry.MaxFixupAttempts,
+		ReviewAgentEnabled: controls.Review.AgentEnabled,
 	}, nil
 }
 
@@ -67,7 +70,10 @@ func (a *governanceAdapter) LoadGovernance() (execution.GovernanceSettings, erro
 		CircuitBreakerCooldownMinutes: s.CircuitBreakerCooldownMinutes,
 		ExecutionCostCapPerRun:        s.ExecutionCostCapPerRun,
 		CostPerTurnEstimate:           s.CostPerTurnEstimate,
-		AgentMaxTurns:                 s.AgentMaxTurns,
+		// Turn budget comes from the PolicyControls projection (same
+		// persisted field) so the governance cost estimate and the policy
+		// surface always agree.
+		AgentMaxTurns: ProjectPolicyControls(s).Budgets.MaxTurns,
 		FixBeforeFeature:              s.FixBeforeFeature,
 		AutoFilerEnabled:              s.AutoFiler.Enabled,
 		AutoFilerStrategy:             s.AutoFiler.Strategy,
@@ -117,12 +123,16 @@ func (a *reviewThresholdsAdapter) LoadReviewThresholds() (*execution.ReviewThres
 	if err != nil {
 		return nil, err
 	}
+	// Derived from the canonical PolicyControls projection so the review
+	// thresholds handed to the reviewer always match the policy-controls
+	// surface.
+	controls := ProjectPolicyControls(s)
 	return &execution.ReviewThresholds{
-		CodeQualityMinScore:   s.ReviewCodeQualityMinScore,
-		TestMinPassRate:       s.ReviewTestMinPassRate,
-		MaxBlockingViolations: s.ReviewMaxBlockingViolations,
-		MaxWarnings:           s.ReviewMaxWarnings,
-		RequireScreenshots:    s.ReviewRequireScreenshots,
-		RequireTests:          s.ReviewRequireTests,
+		CodeQualityMinScore:   controls.Review.CodeQualityMinScore,
+		TestMinPassRate:       controls.Review.TestMinPassRate,
+		MaxBlockingViolations: controls.Review.MaxBlockingViolations,
+		MaxWarnings:           controls.Review.MaxWarnings,
+		RequireScreenshots:    controls.Review.RequireScreenshots,
+		RequireTests:          controls.Review.RequireTests,
 	}, nil
 }

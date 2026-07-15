@@ -2,13 +2,8 @@ package operatingmode
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
-	"unicode/utf8"
 )
 
 // This file implements the target-adapter seam of the v2 unit-of-work
@@ -28,10 +23,6 @@ const (
 	ReadMemberItemsJSON       = "MEMBER_ITEMS_JSON"
 	ReadPlanContextJSON       = "PLAN_CONTEXT_JSON"
 	ReadPlanID                = "PLAN_ID"
-	ReadPlanPath              = "PLAN_PATH"
-	ReadPlanContent           = "PLAN_CONTENT"
-
-	maxPlanRefContentBytes = 1 << 20
 )
 
 // TargetInstance is the resolved unit of work one mode run operates on. It is
@@ -40,23 +31,55 @@ const (
 // Description.
 type TargetInstance struct {
 	Kind TargetKind
-	// ID is the stable identity of the target instance: the initiative name,
-	// the plan-manager execution id (or slug), or the plan-ref path. It is the
-	// round-store scope id and the input to the adapter's ownership key.
+	// ID is the stable identity of the target instance: the initiative name or
+	// the plan-execution id (execution id or slug). It is the round-store scope
+	// id and the input to the adapter's ownership key.
 	ID          string
 	Title       string
 	Description string
 	// Initiative and Items are populated by the initiative adapter.
 	Initiative InitiativeSnapshot
 	Items      []RoundItem
-	// Plan is the resolved plan execution context. The plan adapters populate
-	// it from their unit of work; the initiative adapter populates it from the
-	// initiative's bound plan_ref when the mode's target policy requires one.
+	// Plan is the resolved plan execution context. The plan-execution adapter
+	// populates it from its unit of work; the initiative adapter populates it
+	// from the initiative's bound plan_ref when the mode's target policy
+	// requires one.
 	Plan *PlanExecutionContext
-	// PlanPath is populated by the plan-ref adapter.
-	PlanPath        string
-	PlanContent     string
-	PlanContentHash string
+	// Item is populated by the backlog-item adapter with the resolved item
+	// projection (title, description, status, spec document, plan_ref).
+	Item BacklogItemTarget
+	// Containment is the optional write-scope projection any target adapter may
+	// supply for a run: the acceptance allow/deny globs + declared creates the
+	// engine threads into the agent spawn so the run is sandbox-scoped exactly as
+	// its owning work requires. A zero value leaves the spawn unconstrained. It is
+	// a generic capability — the engine never branches on which target kind
+	// provides it — so containment can never be forgotten by a caller.
+	Containment ContainmentScope
+}
+
+// ContainmentScope is the generic write-scope a target adapter projects onto a
+// run. The engine threads it into the agent spawn's acceptance allow/deny globs
+// and declared creates. The zero value (all empty) means an unconstrained spawn,
+// identical to a plan-first run with no owning work.
+type ContainmentScope struct {
+	AcceptanceAllow []string
+	AcceptanceDeny  []string
+	Creates         []string
+}
+
+// IsZero reports whether the scope constrains nothing (an unconstrained spawn).
+func (c ContainmentScope) IsZero() bool {
+	return len(c.AcceptanceAllow) == 0 && len(c.AcceptanceDeny) == 0 && len(c.Creates) == 0
+}
+
+// PlanContainmentResolver resolves the write-scope containment of the backlog
+// item that owns a plan-execution handle, so a plan-execution drain inherits
+// exactly the sandbox scope the item's legacy execution passed. Optional: when
+// unwired, or the handle has no backing item, the plan-execution spawn is
+// unconstrained (a plan-first run with no owning item). Production wires it to
+// the backlog store; tests inject a fake.
+type PlanContainmentResolver interface {
+	ContainmentForPlan(handle string) (scope ContainmentScope, found bool, err error)
 }
 
 // TargetAdapter supplies the target-specific parts of a mode run for one
@@ -65,22 +88,24 @@ type TargetInstance struct {
 // a resolved target instance.
 type TargetAdapter interface {
 	Kind() TargetKind
-	// Resolve loads the target instance identified by ref (initiative name,
-	// plan execution id/slug, or plan path).
+	// Resolve loads the target instance identified by ref (initiative name or
+	// plan execution id/slug).
 	Resolve(ctx context.Context, s *Service, def Definition, phaseDef PhaseDefinition, ref string) (TargetInstance, error)
 	// Values returns typed values keyed by target capability id. Its key set is
 	// checked against InputProviderCapabilities in tests.
 	Values(t TargetInstance) map[string]any
 	// OwnershipKey is the exclusive-run lock identity for a target instance
-	// id. Initiative targets keep the initiative name; plan targets get an
-	// equivalent plan-scoped key so a plan run never requires an initiative.
+	// id. Initiative targets keep the initiative name; plan-execution targets
+	// get an equivalent plan-scoped key so a plan run never requires an
+	// initiative.
 	OwnershipKey(id string) string
 }
 
 var targetAdapters = map[TargetKind]TargetAdapter{
-	TargetInitiative:      initiativeTargetAdapter{},
-	TargetPlanManagerPlan: planManagerPlanTargetAdapter{},
-	TargetPlanRef:         planRefTargetAdapter{},
+	TargetBacklogItem:   backlogItemTargetAdapter{},
+	TargetInitiative:    initiativeTargetAdapter{},
+	TargetPlanExecution: planExecutionTargetAdapter{},
+	TargetScenario:      scenarioTargetAdapter{},
 }
 
 // AdapterFor returns the target adapter for the given kind, or a typed error
@@ -88,7 +113,7 @@ var targetAdapters = map[TargetKind]TargetAdapter{
 func AdapterFor(kind TargetKind) (TargetAdapter, error) {
 	adapter, ok := targetAdapters[kind]
 	if !ok {
-		return nil, fmt.Errorf("unknown operating-mode target kind %q (want one of %s|%s|%s)", kind, TargetPlanManagerPlan, TargetPlanRef, TargetInitiative)
+		return nil, fmt.Errorf("unknown operating-mode target kind %q (want one of %s|%s|%s|%s)", kind, TargetBacklogItem, TargetInitiative, TargetPlanExecution, TargetScenario)
 	}
 	return adapter, nil
 }
@@ -143,148 +168,55 @@ func (initiativeTargetAdapter) Values(t TargetInstance) map[string]any {
 
 func (initiativeTargetAdapter) OwnershipKey(id string) string { return id }
 
-// --- plan-manager-plan adapter ---
+// --- plan-execution adapter ---
 
-type planManagerPlanTargetAdapter struct{}
+type planExecutionTargetAdapter struct{}
 
-func (planManagerPlanTargetAdapter) Kind() TargetKind { return TargetPlanManagerPlan }
+func (planExecutionTargetAdapter) Kind() TargetKind { return TargetPlanExecution }
 
-func (planManagerPlanTargetAdapter) Resolve(ctx context.Context, s *Service, def Definition, phaseDef PhaseDefinition, ref string) (TargetInstance, error) {
+func (planExecutionTargetAdapter) Resolve(ctx context.Context, s *Service, def Definition, phaseDef PhaseDefinition, ref string) (TargetInstance, error) {
 	handle := strings.TrimSpace(ref)
 	if handle == "" {
-		return TargetInstance{}, fmt.Errorf("mode %q targets a plan-manager plan: a plan execution id or slug is required", def.Mode)
+		return TargetInstance{}, fmt.Errorf("mode %q targets a plan execution: a plan execution id or slug is required", def.Mode)
 	}
-	plan, err := s.resolvePlanManagerPlan(ctx, def, phaseDef, handle)
+	plan, err := s.resolvePlanExecution(ctx, def, phaseDef, handle)
 	if err != nil {
 		return TargetInstance{}, err
 	}
 	id := firstNonEmpty(plan.ExecutionID, handle)
-	return TargetInstance{
-		Kind:  TargetPlanManagerPlan,
+	inst := TargetInstance{
+		Kind:  TargetPlanExecution,
 		ID:    id,
 		Title: fmt.Sprintf("Plan %s", id),
 		Plan:  plan,
-	}, nil
+	}
+	// Inherit the write-scope containment of the backlog item that owns this
+	// plan_ref, so a plan-execution drain runs under exactly the sandbox scope
+	// the item's legacy execution passed. Resolved by handle (the plan id/slug the
+	// caller targeted), not the resolved execution id, because that is what the
+	// owning item's plan_ref carries. Best-effort by seam presence; a plan-first
+	// run with no owning item resolves nothing and stays unconstrained.
+	if s.planContainment != nil {
+		scope, found, err := s.planContainment.ContainmentForPlan(handle)
+		if err != nil {
+			return TargetInstance{}, fmt.Errorf("resolve plan-execution containment for %q: %w", handle, err)
+		}
+		if found {
+			inst.Containment = scope
+		}
+	}
+	return inst, nil
 }
 
-func (planManagerPlanTargetAdapter) Values(t TargetInstance) map[string]any {
+func (planExecutionTargetAdapter) Values(t TargetInstance) map[string]any {
 	return map[string]any{
 		"target.plan_id":      t.ID,
 		"target.plan_context": targetPlanValue(t.Plan),
 	}
 }
 
-func (planManagerPlanTargetAdapter) OwnershipKey(id string) string {
+func (planExecutionTargetAdapter) OwnershipKey(id string) string {
 	return "plan--" + sanitizeOwnershipToken(id)
-}
-
-// --- plan-ref adapter ---
-
-type planRefTargetAdapter struct{}
-
-func (planRefTargetAdapter) Kind() TargetKind { return TargetPlanRef }
-
-func (planRefTargetAdapter) Resolve(_ context.Context, s *Service, def Definition, _ PhaseDefinition, ref string) (TargetInstance, error) {
-	if strings.TrimSpace(ref) == "" {
-		return TargetInstance{}, fmt.Errorf("mode %q targets a plan reference: a plan path is required", def.Mode)
-	}
-	path, content, contentHash, err := resolveWorkspacePlanRef(s.scenarioRoot, ref)
-	if err != nil {
-		return TargetInstance{}, fmt.Errorf("mode %q plan reference %q: %w", def.Mode, strings.TrimSpace(ref), err)
-	}
-	return TargetInstance{
-		Kind:            TargetPlanRef,
-		ID:              path,
-		Title:           fmt.Sprintf("Plan ref %s", path),
-		PlanPath:        path,
-		PlanContent:     content,
-		PlanContentHash: contentHash,
-		Plan: &PlanExecutionContext{
-			Required:     true,
-			Source:       planContextSourcePlanRef,
-			PlanPath:     path,
-			ContentHash:  contentHash,
-			ContentBytes: len([]byte(content)),
-		},
-	}, nil
-}
-
-func (planRefTargetAdapter) Values(t TargetInstance) map[string]any {
-	return map[string]any{
-		"target.plan_path":    t.PlanPath,
-		"target.plan_content": t.PlanContent,
-		"target.plan_context": targetPlanValue(t.Plan),
-	}
-}
-
-// resolveWorkspacePlanRef resolves a plan file relative to the same workspace
-// later supplied to Agent Manager. os.Root supplies the containment boundary;
-// explicit Lstat checks reject symlinks even when they would remain in-root.
-// The returned path is canonical workspace-relative identity, never an
-// absolute host path.
-func resolveWorkspacePlanRef(workspaceRoot, ref string) (string, string, string, error) {
-	rootPath := strings.TrimSpace(workspaceRoot)
-	if rootPath == "" {
-		return "", "", "", fmt.Errorf("execution workspace is unavailable")
-	}
-	absRoot, err := filepath.Abs(rootPath)
-	if err != nil {
-		return "", "", "", fmt.Errorf("resolve execution workspace: %w", err)
-	}
-	rel := filepath.Clean(filepath.FromSlash(strings.TrimSpace(ref)))
-	if rel == "." || !filepath.IsLocal(rel) {
-		return "", "", "", fmt.Errorf("path must be a contained workspace-relative file")
-	}
-
-	root, err := os.OpenRoot(absRoot)
-	if err != nil {
-		return "", "", "", fmt.Errorf("open execution workspace: %w", err)
-	}
-	defer root.Close()
-
-	parts := strings.Split(rel, string(filepath.Separator))
-	for i := range parts {
-		candidate := filepath.Join(parts[:i+1]...)
-		info, statErr := root.Lstat(candidate)
-		if statErr != nil {
-			return "", "", "", fmt.Errorf("inspect %q: %w", filepath.ToSlash(candidate), statErr)
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return "", "", "", fmt.Errorf("symlink component %q is not allowed", filepath.ToSlash(candidate))
-		}
-	}
-
-	file, err := root.Open(rel)
-	if err != nil {
-		return "", "", "", fmt.Errorf("open plan content: %w", err)
-	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil {
-		return "", "", "", fmt.Errorf("stat plan content: %w", err)
-	}
-	if !info.Mode().IsRegular() {
-		return "", "", "", fmt.Errorf("plan reference must resolve to a regular file")
-	}
-	if info.Size() > maxPlanRefContentBytes {
-		return "", "", "", fmt.Errorf("plan content size %d exceeds maximum %d bytes", info.Size(), maxPlanRefContentBytes)
-	}
-	data, err := io.ReadAll(io.LimitReader(file, maxPlanRefContentBytes+1))
-	if err != nil {
-		return "", "", "", fmt.Errorf("read plan content: %w", err)
-	}
-	if len(data) > maxPlanRefContentBytes {
-		return "", "", "", fmt.Errorf("plan content exceeds maximum %d bytes", maxPlanRefContentBytes)
-	}
-	if !utf8.Valid(data) {
-		return "", "", "", fmt.Errorf("plan content is not valid UTF-8")
-	}
-	digest := sha256.Sum256(data)
-	return filepath.ToSlash(rel), string(data), fmt.Sprintf("sha256:%x", digest[:]), nil
-}
-
-func (planRefTargetAdapter) OwnershipKey(id string) string {
-	return "plan-ref--" + sanitizeOwnershipToken(id)
 }
 
 func targetPlanValue(plan *PlanExecutionContext) any {
@@ -295,18 +227,13 @@ func targetPlanValue(plan *PlanExecutionContext) any {
 }
 
 // ParseTargetOwnershipKey recognizes a non-initiative ownership key
-// ("plan--<token>" / "plan-ref--<token>") and returns its target kind and
-// sanitized instance token. ok=false for initiative keys (a bare initiative
-// name).
+// ("plan--<token>") and returns its target kind and sanitized instance token.
+// ok=false for initiative keys (a bare initiative name).
 func ParseTargetOwnershipKey(key string) (TargetKind, string, bool) {
-	switch {
-	case strings.HasPrefix(key, "plan-ref--"):
-		return TargetPlanRef, strings.TrimPrefix(key, "plan-ref--"), true
-	case strings.HasPrefix(key, "plan--"):
-		return TargetPlanManagerPlan, strings.TrimPrefix(key, "plan--"), true
-	default:
-		return "", "", false
+	if strings.HasPrefix(key, "plan--") {
+		return TargetPlanExecution, strings.TrimPrefix(key, "plan--"), true
 	}
+	return "", "", false
 }
 
 // roundOwnershipKey derives the exclusive-run lock key from a persisted
@@ -325,7 +252,7 @@ func roundOwnershipKey(round RoundEnvelope) string {
 }
 
 // sanitizeOwnershipToken maps an arbitrary target instance id (a plan slug, an
-// execution UUID, a repo-relative path) onto a filesystem-safe lock key token.
+// execution UUID) onto a filesystem-safe lock key token.
 func sanitizeOwnershipToken(id string) string {
 	var b strings.Builder
 	for _, r := range strings.TrimSpace(id) {

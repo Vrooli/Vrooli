@@ -35,6 +35,9 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 			SpawnErr: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed),
 		},
 	})
+	// A plan-backed item starts through the operation runner; the request-failure
+	// now surfaces from the operation start, which wrapAgentError maps to 502.
+	service.SetOperationStarter(&stubOperationStarter{err: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed)})
 	handler := NewHandlerFromService(service)
 
 	reqBody := `{"backlogKind":"idea","backlogName":"request-fail-idea","mode":"yolo"}`

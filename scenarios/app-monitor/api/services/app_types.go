@@ -198,23 +198,22 @@ type enrichmentCacheEntry struct {
 
 // AppService handles business logic for application management
 type AppService struct {
-	repo               repository.AppRepository
-	httpClient         HTTPClient
-	timeNow            TimeProvider
-	cache              *orchestratorCache
-	completenessCache  *completenessCache
-	viewStatsMu        sync.RWMutex
-	viewStats          map[string]*viewStatsEntry
-	issueCacheMu       sync.RWMutex
-	issueCache         map[string]*fixCacheEntry
-	issueCacheTTL      time.Duration
-	repoRoot           string
-	scenarioURL        ScenarioURLResolver
-	browserlessService *BrowserlessService
-	enrichmentMu       sync.RWMutex
-	enrichmentCache    map[string]*enrichmentCacheEntry // key: lowercase scenario name
-	uiServerPort       string
-	backgroundWg       sync.WaitGroup
+	repo              repository.AppRepository
+	httpClient        HTTPClient
+	timeNow           TimeProvider
+	cache             *orchestratorCache
+	completenessCache *completenessCache
+	viewStatsMu       sync.RWMutex
+	viewStats         map[string]*viewStatsEntry
+	issueCacheMu      sync.RWMutex
+	issueCache        map[string]*fixCacheEntry
+	issueCacheTTL     time.Duration
+	repoRoot          string
+	scenarioURL       ScenarioURLResolver
+	enrichmentMu      sync.RWMutex
+	enrichmentCache   map[string]*enrichmentCacheEntry // key: lowercase scenario name
+	uiServerPort      string
+	backgroundWg      sync.WaitGroup
 }
 
 // =============================================================================

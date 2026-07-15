@@ -49,7 +49,17 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 
 func (h *handlers) wait(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
-	resp, err := h.client.WaitExperiment(context.Background(), connect.NewRequest(&experimentv1.WaitExperimentRequest{Id: id}))
+	// Experiments are server-owned and may intentionally run through the
+	// 60-minute qualification rung. The scenario's normal 180-second HTTP
+	// timeout must not turn `experiment wait` into a misleading client abort
+	// while the server continues correctly in the background.
+	//
+	// All non-wait RPCs retain h.client's ordinary timeout; this is the one
+	// command whose purpose is explicitly to block until a durable terminal
+	// state exists.
+	waitHTTPClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, 0)
+	waitClient := experimentconnect.NewExperimentServiceClient(waitHTTPClient, baseURL)
+	resp, err := waitClient.WaitExperiment(context.Background(), connect.NewRequest(&experimentv1.WaitExperimentRequest{Id: id}))
 	if err != nil {
 		return cliapp.WrapAPIError("experiment-wait", err, nil)
 	}
@@ -214,6 +224,67 @@ func (h *handlers) compare(ctx cliapp.RunContext) error {
 		return printExperimentProtoJSON(ctx.Stdout(), resp.Msg)
 	}
 	printComparison(ctx, resp.Msg.GetExperiments())
+	return nil
+}
+
+func (h *handlers) recordEvidence(ctx cliapp.RunContext) error {
+	kind, err := qualificationKindFromFlag(ctx.Flag("kind"))
+	if err != nil {
+		return err
+	}
+	passed, err := qualificationOutcomeFromFlag(ctx.Flag("outcome"))
+	if err != nil {
+		return err
+	}
+	evidence := &experimentv1.QualificationEvidence{
+		EngineId:      strings.TrimSpace(ctx.Flag("engine-id")),
+		ModelId:       strings.TrimSpace(ctx.Flag("model-id")),
+		Strategy:      strings.TrimSpace(ctx.Flag("strategy")),
+		PolicyProfile: strings.TrimSpace(ctx.Flag("policy-profile")),
+		Kind:          kind,
+		FaultProfile:  strings.TrimSpace(ctx.Flag("fault-profile")),
+		Passed:        passed,
+		ArtifactRef:   strings.TrimSpace(ctx.Flag("artifact-ref")),
+		Notes:         strings.TrimSpace(ctx.Flag("notes")),
+		MachineJson:   strings.TrimSpace(ctx.Flag("machine-json")),
+	}
+	resp, err := h.client.RecordQualificationEvidence(context.Background(), connect.NewRequest(&experimentv1.RecordQualificationEvidenceRequest{Evidence: evidence}))
+	if err != nil {
+		return cliapp.WrapAPIError("experiment-record-evidence", err, nil)
+	}
+	return renderExperimentProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Recorded %s qualification evidence for %s/%s/%s (%s).", ctx.Flag("kind"), evidence.GetEngineId(), evidence.GetModelId(), evidence.GetStrategy(), ctx.Flag("outcome"))},
+		NextCommand: []string{"audio-tools experiment list-evidence --json"},
+	})
+}
+
+func (h *handlers) listEvidence(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListQualificationEvidence(context.Background(), connect.NewRequest(&experimentv1.ListQualificationEvidenceRequest{
+		EngineId: strings.TrimSpace(ctx.Flag("engine-id")), ModelId: strings.TrimSpace(ctx.Flag("model-id")), Strategy: strings.TrimSpace(ctx.Flag("strategy")),
+		PolicyProfile: strings.TrimSpace(ctx.Flag("policy-profile")),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("experiment-list-evidence", err, nil)
+	}
+	if ctx.JSON() {
+		return printExperimentProtoJSON(ctx.Stdout(), resp.Msg)
+	}
+	if len(resp.Msg.GetEvidence()) == 0 {
+		fmt.Fprintln(ctx.Stdout(), "No qualification evidence found.")
+		return nil
+	}
+	fmt.Fprintf(ctx.Stdout(), "%-20s  %-20s  %-16s  %-15s  %-8s  %s\n", "ENGINE", "MODEL", "STRATEGY", "KIND", "OUTCOME", "ARTIFACT")
+	for _, evidence := range resp.Msg.GetEvidence() {
+		outcome := "failed"
+		if evidence.GetPassed() {
+			outcome = "passed"
+		}
+		kind := strings.TrimPrefix(strings.ToLower(evidence.GetKind().String()), "qualification_evidence_kind_")
+		if evidence.GetFaultProfile() != "" {
+			kind += ":" + evidence.GetFaultProfile()
+		}
+		fmt.Fprintf(ctx.Stdout(), "%-20s  %-20s  %-16s  %-15s  %-8s  %s\n", evidence.GetEngineId(), evidence.GetModelId(), evidence.GetStrategy(), kind, outcome, evidence.GetArtifactRef())
+	}
 	return nil
 }
 

@@ -7,8 +7,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/vrooli/vrooli/internal/cli/rootcli"
-	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 
@@ -39,68 +37,54 @@ func MustNew(root string) *Engine {
 }
 
 func (e *Engine) ListTemplates(ctx context.Context) ([]templatecontracts.TemplateInfo, error) {
-	_, templates, err := runTemplateList(e.deps(), ctx, templatecontracts.TemplateListRequest{})
-	return templates, err
+	return runTemplateList(e.deps(), ctx, templatecontracts.TemplateListRequest{})
 }
 
 func (e *Engine) ShowTemplate(ctx context.Context, name string) (templatecontracts.TemplateInfo, error) {
-	_, info, err := runTemplateShow(e.deps(), ctx, templatecontracts.TemplateShowRequest{Name: name})
-	return info, err
+	return runTemplateShow(e.deps(), ctx, templatecontracts.TemplateShowRequest{Name: name})
 }
 
 func (e *Engine) GenerateScenario(ctx context.Context, req templatecontracts.GenerateRequest) (templatecontracts.GenerateResult, error) {
-	_, result, err := runGenerate(e.deps(), ctx, req)
-	return result, err
+	return runGenerate(e.deps(), ctx, req)
 }
 
 func (e *Engine) OrientScenario(ctx context.Context, req templatecontracts.OrientationRequest) (templatecontracts.OrientationReport, error) {
-	_, report, err := runOrientation(e.deps(), ctx, req)
-	return report, err
+	return runOrientation(e.deps(), ctx, req)
 }
 
 func (e *Engine) DetemplateScenario(ctx context.Context, req templatecontracts.DetemplateRequest) (templatecontracts.DetemplateResult, error) {
-	_, result, err := runDetemplate(e.deps(), ctx, req)
-	return result, err
+	return runDetemplate(e.deps(), ctx, req)
 }
 
 func (e *Engine) ValidateTemplate(ctx context.Context, req templatecontracts.TemplateValidateRequest) (templatecontracts.TemplateValidationReport, error) {
-	_, report, err := runTemplateValidate(e.deps(), ctx, req)
-	return report, err
+	return runTemplateValidate(e.deps(), ctx, req)
 }
 
 func (e *Engine) DriftReport(ctx context.Context, req templatecontracts.TemplateDriftRequest) (templatecontracts.TemplateDriftReport, error) {
-	_, report, err := runTemplateDrift(e.deps(), ctx, req)
-	return report, err
+	return runTemplateDrift(e.deps(), ctx, req)
 }
 
 func (e *Engine) CleanupRuns(ctx context.Context, req templatecontracts.TemplateCleanupRequest) (templatecontracts.TemplateCleanupResult, error) {
-	_, result, err := runTemplateCleanup(e.deps(), ctx, req)
-	return result, err
+	return runTemplateCleanup(e.deps(), ctx, req)
 }
 
 func (e *Engine) ListDesignKits(ctx context.Context) ([]templatecontracts.DesignKitInfo, error) {
-	_, kits, err := runDesignList(e.deps(), ctx, templatecontracts.DesignListRequest{})
-	return kits, err
+	return runDesignList(e.deps(), ctx, templatecontracts.DesignListRequest{})
 }
 
 func (e *Engine) ShowDesignKit(ctx context.Context, id string) (templatecontracts.DesignKitInfo, error) {
-	_, kit, err := runDesignShow(e.deps(), ctx, templatecontracts.DesignShowRequest{ID: id})
-	return kit, err
+	return runDesignShow(e.deps(), ctx, templatecontracts.DesignShowRequest{ID: id})
 }
 
 func (e *Engine) ValidateDesignKits(ctx context.Context, req templatecontracts.DesignValidateRequest) (templatecontracts.DesignValidationReport, error) {
-	_, report, err := runDesignValidate(e.deps(), ctx, req)
-	return report, err
+	return runDesignValidate(e.deps(), ctx, req)
 }
 
 func (e *Engine) deps() HandlerDeps[context.Context] {
 	return HandlerDeps[context.Context]{
-		Stdout:       func(context.Context) io.Writer { return io.Discard },
-		Stderr:       func(context.Context) io.Writer { return io.Discard },
-		Root:         func(context.Context) string { return e.root },
-		Globals:      func(context.Context) rootcli.GlobalOptions { return rootcli.GlobalOptions{JSON: true} },
-		OutputFormat: func(context.Context) (cliout.Format, error) { return cliout.FormatJSON, nil },
-		HomeDir:      func(context.Context) (string, error) { return os.UserHomeDir() },
+		Stdout: func(context.Context) io.Writer { return io.Discard },
+		Stderr: func(context.Context) io.Writer { return io.Discard },
+		Root:   func(context.Context) string { return e.root },
 		RunSubprocess: func(_ context.Context, spec scenarioexec.SubprocessSpec) error {
 			if spec.Stdout == nil {
 				spec.Stdout = &bytes.Buffer{}

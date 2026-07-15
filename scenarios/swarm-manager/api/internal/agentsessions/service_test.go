@@ -16,6 +16,7 @@ import (
 	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/identity"
 
+	"github.com/vrooli/api-core/database"
 	agentdomainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -35,7 +36,7 @@ func TestMigrateArtifactEvidenceProjectsLegacyArtifactsWithoutUpgradingTrust(t *
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	store := evidence.NewStore(db)
+	store := evidence.NewStore(database.NewFromPrimary(db))
 	if err := store.InitSchema(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -942,7 +943,7 @@ func newTestService(t *testing.T, spawner *fakeSessionSpawner) *Service {
 		t.Fatalf("open evidence database: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	evidenceStore := evidence.NewStore(db)
+	evidenceStore := evidence.NewStore(database.NewFromPrimary(db))
 	if err := evidenceStore.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init evidence schema: %v", err)
 	}
@@ -995,6 +996,7 @@ func (f *fakeMutationProposalProcessor) Ingest(_ context.Context, _ ProposalTarg
 	f.ingestCalls++
 	return f.ingestion, nil
 }
+
 func (f *fakeMutationProposalProcessor) Apply(_ context.Context, _ ProposalTarget, _ string, accepted []string, _ MutationProposalSource) (MutationProposalApplication, error) {
 	f.accepted = append([]string(nil), accepted...)
 	return f.application, nil

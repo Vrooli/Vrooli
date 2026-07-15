@@ -206,14 +206,29 @@ function apiBaseToWsBase(apiBase: string): string {
 
 export function createVoiceApi(client: AudioToolsClient) {
   const api = {
-    buildVoiceStreamWsUrl(language?: string): string {
+    buildVoiceStreamWsUrl(language?: string, sessionId?: string, resumeToken?: string): string {
       const wsBase = apiBaseToWsBase(client.baseUrl.replace(/\/$/, ""));
       // The embed streams raw 16 kHz mono signed-16-bit PCM, so it declares
       // `format=pcm_s16le` to take the server's ffmpeg-free fast-path (the
       // audioformat substrate's identity decoder). See VoiceStreamProvider
       // + handlers/stt/stream_ws.go::buildStreamStart.
       const params = new URLSearchParams({ format: "pcm_s16le" });
+		// Browser automation cannot set arbitrary WebSocket handshake headers.
+		// The boot-only server qualification gate accepts this explicit URL pair
+		// solely for deterministic browser fault cases; ordinary pages never set
+		// it, and a normal server ignores it even if they do.
+		if (typeof window !== "undefined") {
+			const pageParams = new URLSearchParams(window.location.search);
+			const fault = pageParams.get("stt_test_fault");
+			if (pageParams.get("stt_test_mode") === "1" && fault) {
+				params.set("test_mode", "1");
+				params.set("test_fault", fault);
+			}
+		}
       if (language) params.set("language", language);
+      if (sessionId) params.set("protocol_version", "2");
+      if (sessionId) params.set("session_id", sessionId);
+      if (resumeToken) params.set("resume_token", resumeToken);
       return `${wsBase}/api/v1/voice/stream?${params.toString()}`;
     },
 
@@ -435,7 +450,7 @@ function lazy() {
   return _lazyApi;
 }
 
-export function buildVoiceStreamWsUrl(language?: string): string { return lazy().buildVoiceStreamWsUrl(language); }
+export function buildVoiceStreamWsUrl(language?: string, sessionId?: string, resumeToken?: string): string { return lazy().buildVoiceStreamWsUrl(language, sessionId, resumeToken); }
 export function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> { return lazy().transcribeAudio(audioBlob, language); }
 export function transcribeAudioBypassFilter(audioBlob: Blob, language?: string): Promise<string> { return lazy().transcribeAudioBypassFilter(audioBlob, language); }
 export function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> { return lazy().transcribeAudioWithRetry(audioBlob, maxAttempts, language); }

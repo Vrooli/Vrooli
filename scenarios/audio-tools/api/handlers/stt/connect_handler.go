@@ -21,6 +21,7 @@ import (
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
 	"audio-tools/internal/stt/quality"
+	"audio-tools/internal/stt/session"
 	"audio-tools/internal/sttcapacity"
 	"audio-tools/internal/sttengine"
 	"audio-tools/internal/usagereport"
@@ -50,6 +51,13 @@ type Deps struct {
 	// broker so the backing local resource (whisper/kyutai-stt) is marked active
 	// (protected from idle reclaim) while a session is live. nil = no reporting.
 	Capacity sttcapacity.Reporter
+	// Sessions is the server-owned replay ledger registry shared by Connect
+	// and WebSocket transports. Module supplies a bounded default when unset.
+	Sessions *session.Registry
+	// EnableStreamTestFaults permits the narrowly-scoped WebSocket fault seam
+	// used by qualification runs. It is false in normal deployments; requests
+	// must additionally opt in with the test-mode header before a fault is read.
+	EnableStreamTestFaults bool
 }
 
 type connectHandler struct {
@@ -64,6 +72,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 	}
 	if d.Clock == nil {
 		panic("stt.NewConnectHandler requires Deps.Clock")
+	}
+	if d.Sessions == nil {
+		d.Sessions = session.NewRegistry(0)
 	}
 	// Hydrate the in-process speaker-config cell from its persisted row so the
 	// mode/threshold/profile bindings survive a restart (profiles always

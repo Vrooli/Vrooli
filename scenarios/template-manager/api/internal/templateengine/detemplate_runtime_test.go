@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
-	. "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts" //nolint:revive // mirror runtime dot-import for fixture construction.
+	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
 // writeFile creates parent dirs and writes content (test helper).
@@ -25,7 +25,7 @@ func writeFile(t *testing.T, path, content string) {
 // carrying notes example residue (scenario-local files, a relocated proto
 // module + its gen artifacts) plus a real health domain. Returns root, the
 // scenario model, and the synthetic template info.
-func detemplateFixture(t *testing.T) (string, scenariomodel.Scenario, TemplateInfo) {
+func detemplateFixture(t *testing.T) (string, scenariomodel.Scenario, templatecontracts.TemplateInfo) {
 	t.Helper()
 	root := t.TempDir()
 	sc := filepath.Join(root, "scenarios", "myapp")
@@ -74,11 +74,11 @@ func detemplateFixture(t *testing.T) (string, scenariomodel.Scenario, TemplateIn
 	writeFile(t, filepath.Join(sc, "docs/clean.md"), "# Clean\nNo markers here.\n")
 
 	item := scenariomodel.Scenario{Slug: "myapp", Path: sc}
-	info := TemplateInfo{
+	info := templatecontracts.TemplateInfo{
 		Name: "react-vite",
-		Manifest: TemplateManifest{
-			Relocations: []TemplateRelocation{{From: "proto/", To: "packages/proto/schemas/{{SCENARIO_ID}}/"}},
-			ExampleDomain: &TemplateExampleDomain{
+		Manifest: templatecontracts.TemplateManifest{
+			Relocations: []templatecontracts.TemplateRelocation{{From: "proto/", To: "packages/proto/schemas/{{SCENARIO_ID}}/"}},
+			ExampleDomain: &templatecontracts.TemplateExampleDomain{
 				Marker: "notes",
 				Paths: []string{
 					"api/handlers/notes", "api/internal/notes", "cli/domains/notes",

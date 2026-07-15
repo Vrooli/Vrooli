@@ -112,7 +112,7 @@ func TestCmdOperatingModeGet_RendersComposedGraphAndClassification(t *testing.T)
 			case "phased-plan-drain":
 				return &apipb.OperatingModeDetailResponse{
 					Entry: &apipb.OperatingModeCatalogEntry{
-						Mode: "phased-plan-drain", Label: "Drain", TargetKind: "plan-manager-plan",
+						Mode: "phased-plan-drain", Label: "Drain", TargetKind: "plan-execution",
 						RunStrategy: "sequential_handoff",
 						Phases: []*apipb.OperatingModeCatalogPhase{
 							{Phase: "execute", IsStart: true, Classification: &apipb.OperatingModeTransitionClassification{
@@ -132,7 +132,7 @@ func TestCmdOperatingModeGet_RendersComposedGraphAndClassification(t *testing.T)
 		"base[OPERATOR_NOTE] target[MEMBER_ITEMS_JSON]",
 		"[delegated]",
 		"Executed by sub-mode: phased-plan-drain",
-		"Composed graph (target=Plan-manager plan)",
+		"Composed graph (target=Plan execution)",
 		"derive progress ∈ {continue, complete, blocked}",
 	} {
 		if !strings.Contains(out, want) {

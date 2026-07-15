@@ -122,11 +122,11 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
   const dataLoadingSources = [
     { name: 'app logs', loading: logs.includeAppLogs && logs.loading },
     {
-      name: consoleLogs.fromFallback ? 'console logs (fallback)' : 'console logs',
+      name: 'console logs',
       loading: consoleLogs.includeConsoleLogs && consoleLogs.loading
     },
     {
-      name: network.fromFallback ? 'network requests (fallback)' : 'network requests',
+      name: 'network requests',
       loading: network.includeNetworkRequests && network.loading
     },
     { name: 'health checks', loading: health.includeHealthChecks && health.loading },
@@ -412,7 +412,6 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                   includeSummary={diagnosticsSummaryIncluded}
                   onIncludeSummaryChange={setIncludeDiagnosticsSummary}
                   disabled={form.submitting}
-                  pageStatus={consoleLogs.fromFallback ? consoleLogs.pageStatus : null}
                   activePreviewUrl={activePreviewUrl}
                   app={app}
                 />

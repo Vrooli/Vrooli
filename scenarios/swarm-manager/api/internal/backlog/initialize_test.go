@@ -2,6 +2,7 @@ package backlog
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -16,10 +17,7 @@ import (
 )
 
 func TestResearch_InitializeMode_SpawnsAgent(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{TaskID: "task-init", RunID: "run-init", BaseURL: "http://agent", CreatedAt: "now"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-init")
 
 	item := BacklogItem{
 		Name:     "init-test",
@@ -43,14 +41,13 @@ func TestResearch_InitializeMode_SpawnsAgent(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
-	if agent.lastReq == nil {
-		t.Fatal("expected SpawnBacklog to be called")
+	if !phase.started {
+		t.Fatal("expected the live phase engine to start the initialize operation")
 	}
-	if agent.lastReq.Title != "Initialize: Test Initialize" {
-		t.Errorf("expected title 'Initialize: Test Initialize', got %q", agent.lastReq.Title)
-	}
-	if agent.lastReq.Purpose != "research" {
-		t.Errorf("expected purpose 'research', got %q", agent.lastReq.Purpose)
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["runId"] != "run-init" && resp["run_id"] != "run-init" {
+		t.Fatalf("expected run id in response, got %v", resp)
 	}
 }
 
@@ -98,10 +95,7 @@ func TestResearch_InitializeMode_AllKinds(t *testing.T) {
 
 	for _, tc := range kinds {
 		t.Run(string(tc.kind), func(t *testing.T) {
-			agent := &mockAgentService{
-				result: agentmanager.RunResult{TaskID: "task", RunID: "run", BaseURL: "http://agent", CreatedAt: "now"},
-			}
-			h, rootDir := setupTestHandlerWithAgent(t, agent)
+			h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-init-"+string(tc.kind))
 
 			item := BacklogItem{
 				Name:     "init-" + string(tc.kind),
@@ -125,8 +119,8 @@ func TestResearch_InitializeMode_AllKinds(t *testing.T) {
 			if w.Code != http.StatusCreated {
 				t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 			}
-			if agent.lastReq == nil {
-				t.Fatal("expected SpawnBacklog to be called")
+			if !phase.started {
+				t.Fatal("expected the live phase engine to start the initialize operation")
 			}
 		})
 	}
@@ -332,10 +326,7 @@ func TestResearch_FinalizeMode_RejectsWhenNotReady(t *testing.T) {
 }
 
 func TestResearch_FinalizeMode_SpawnsAgent(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{TaskID: "task-finalize", RunID: "run-finalize", BaseURL: "http://agent", CreatedAt: "now"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-finalize")
 
 	item := BacklogItem{
 		Name:     "finalize-ok",
@@ -365,19 +356,18 @@ func TestResearch_FinalizeMode_SpawnsAgent(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
-	if agent.lastReq == nil {
-		t.Fatal("expected SpawnBacklog to be called")
+	if !phase.started {
+		t.Fatal("expected the live phase engine to start the finalize operation")
 	}
-	if agent.lastReq.Title != "Finalize: Finalize Ok" {
-		t.Errorf("expected finalize title, got %q", agent.lastReq.Title)
+	var resp map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp["runId"] != "run-finalize" && resp["run_id"] != "run-finalize" {
+		t.Fatalf("expected run id in response, got %v", resp)
 	}
 }
 
 func TestResearch_FinalizeMode_AllowsLegacyAnsweredRound(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{TaskID: "task-legacy", RunID: "run-legacy", BaseURL: "http://agent", CreatedAt: "now"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-legacy")
 
 	item := BacklogItem{
 		Name:     "legacy-finalize-ok",
@@ -409,11 +399,8 @@ func TestResearch_FinalizeMode_AllowsLegacyAnsweredRound(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
-	if agent.lastReq == nil {
-		t.Fatal("expected SpawnBacklog to be called")
-	}
-	if agent.lastReq.Title != "Finalize: Legacy Finalize Ok" {
-		t.Errorf("expected finalize title, got %q", agent.lastReq.Title)
+	if !phase.started {
+		t.Fatal("expected the live phase engine to start the finalize operation for a legacy answered round")
 	}
 }
 
@@ -475,10 +462,7 @@ func TestResearch_BlocksOnUnmetDeps_DryRun(t *testing.T) {
 }
 
 func TestResearch_BlocksOnUnmetDeps_ForceOverrides(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{TaskID: "task-forced", RunID: "run-forced", BaseURL: "http://agent", CreatedAt: "now"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-forced")
 
 	// Create dep in "backlog" status.
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
@@ -491,7 +475,7 @@ func TestResearch_BlocksOnUnmetDeps_ForceOverrides(t *testing.T) {
 		DependsOn: []string{"idea/force-dep"},
 	})
 
-	// confirm=true, force=true → should proceed and spawn.
+	// confirm=true, force=true → should proceed and start the operation.
 	body := `{"mode":"initialize","confirm":true,"force":true}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/force-child/research", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -503,16 +487,13 @@ func TestResearch_BlocksOnUnmetDeps_ForceOverrides(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
-	if agent.lastReq == nil {
-		t.Fatal("expected SpawnBacklog to be called with force override")
+	if !phase.started {
+		t.Fatal("expected the live phase engine to start the operation with force override")
 	}
 }
 
 func TestResearch_FinalizeMode_SkipsDepsCheck(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{TaskID: "task-fin", RunID: "run-fin", BaseURL: "http://agent", CreatedAt: "now"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-fin")
 
 	// Create dep in "backlog" status — would block if checked.
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
@@ -544,7 +525,7 @@ func TestResearch_FinalizeMode_SkipsDepsCheck(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
-	if agent.lastReq == nil {
-		t.Fatal("expected SpawnBacklog to be called for finalize despite unmet dep")
+	if !phase.started {
+		t.Fatal("expected the live phase engine to start the finalize operation despite unmet dep")
 	}
 }

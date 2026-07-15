@@ -22,6 +22,10 @@ type Deps struct {
 	// over the live Whisper service; nil disables RunReport (returns
 	// FailedPrecondition).
 	NewProvider func() sttchain.Provider
+	// NewProviderForEngine returns a fresh provider for a declared engine id.
+	// Experiment cells use this instead of silently routing every comparison to
+	// Whisper. NewProvider remains the compatibility default for legacy recipes.
+	NewProviderForEngine func(engineID string) sttchain.Provider
 	// Defaults supplies the overlap/vad config used when an EvalStrategy
 	// leaves a knob unset.
 	Defaults stt.StreamConfig

@@ -2,7 +2,7 @@
   "kind": "operating-mode",
   "id": "item-level",
   "label": "Item Level",
-  "description": "Default mode. Each backlog item flows through the existing item execution pipeline; agents only read initiative state.",
+  "description": "Compatibility placeholder for the legacy per-item coordination. This is NOT a methodology loop — it has no phase graph. In the declarative model it is member-item strategy configuration on the initiative (run each member item through its own operation), not a real operating mode. Retained only until the member-item-strategy cutover removes it; do not present it as a selectable mode.",
   "best_for": [
     "Items are right-sized for one agent run each",
     "Items are loosely coupled and reviewable in isolation",

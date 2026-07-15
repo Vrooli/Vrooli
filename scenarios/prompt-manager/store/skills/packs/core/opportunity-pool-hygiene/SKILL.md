@@ -85,18 +85,18 @@ prompt-manager team knowledge-list monetization --topic-prefix=monetization/oppo
 
 Update an entry's front-matter (e.g., to flip `status`):
 ```bash
-prompt-manager team knowledge-update monetization <id> --content="<full new content with updated front-matter>"
+prompt-manager team knowledge-update monetization "<id>" --content="<full new content with updated front-matter>"
 ```
 
 Retire an entry softly (preferred):
 ```bash
 # Update content with status: retired + ## Retirement note section
-prompt-manager team knowledge-update monetization <id> --content="<...>"
+prompt-manager team knowledge-update monetization "<id>" --content="<...>"
 ```
 
 Delete an entry hard (duplicates / malformed only):
 ```bash
-prompt-manager team knowledge-delete monetization <id>
+prompt-manager team knowledge-delete monetization "<id>"
 ```
 
 Raise a catalog-promotion decision:

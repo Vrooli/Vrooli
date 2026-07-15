@@ -524,7 +524,7 @@ enhanced_test_lib::discover_resource_fixtures() {
             comfyui|node-red|huginn) resource_category="automation" ;;
             minio|vault|qdrant|questdb|postgres|redis) resource_category="storage" ;;
             judge0) resource_category="execution" ;;
-            browserless|claude-code|agent-s2) resource_category="agents" ;;
+            claude-code|agent-s2) resource_category="agents" ;;
             searxng) resource_category="search" ;;
         esac
     fi
@@ -561,9 +561,6 @@ enhanced_test_lib::discover_resource_fixtures() {
             ;;
         "agents")
             case "$resource_name" in
-                "browserless")
-                    echo "images/real-world documents/web"
-                    ;;
                 "claude-code")
                     echo "documents/code"
                     ;;

@@ -267,6 +267,7 @@
     "AUDIO_AI_ENABLE_BYOK": "true",
     "AUDIO_AI_ENABLE_VROOLI": "false",
     "AUDIO_AI_ENABLE_LOCAL": "true",
+    "AUDIO_TOOLS_ENABLE_STREAM_TEST_FAULTS": "false",
     "AUDIO_AVAIL_TTL_BYOK": "5m",
     "AUDIO_AVAIL_TTL_VROOLI": "30s"
   }

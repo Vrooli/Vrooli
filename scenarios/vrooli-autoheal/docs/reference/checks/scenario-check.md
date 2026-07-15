@@ -6,7 +6,7 @@ Monitors running Vrooli scenarios to ensure they remain healthy and responsive.
 
 | Property | Value |
 |----------|-------|
-| Check ID | `scenario-{name}` (e.g., `scenario-landing-manager`) |
+| Check ID | `scenario-{name}` (e.g., `scenario-template-manager`) |
 | Category | Scenario |
 | Interval | 60 seconds |
 | Platforms | All |

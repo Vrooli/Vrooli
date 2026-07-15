@@ -52,7 +52,7 @@ Do not use pre-v2 vocabulary: there is no `scope` (use `target`), no `classify_p
 
    ```bash
    swarm-manager operating-mode list
-   swarm-manager operating-mode get --mode <mode>
+   swarm-manager operating-mode get --mode "<mode>"
    ```
 
 ## Workflow
@@ -70,8 +70,8 @@ Do not use pre-v2 vocabulary: there is no `scope` (use `target`), no `classify_p
 Clone the closest existing mode, or scaffold blank only when nothing fits:
 
 ```bash
-swarm-manager operating-mode scaffold --id <mode-id> --start-from <existing-mode> --label "<Label>" --description "<When to use it>"
-swarm-manager operating-mode scaffold --id <mode-id> --label "<Label>" --description "<When to use it>"   # blank
+swarm-manager operating-mode scaffold --id "<mode-id>" --start-from "<existing-mode>" --label "<Label>" --description "<When to use it>"
+swarm-manager operating-mode scaffold --id "<mode-id>" --label "<Label>" --description "<When to use it>"   # blank
 ```
 
 `--start-from` re-homes the source mode's phase graph, reads, transitions, and
@@ -100,7 +100,7 @@ fallback prompts.
 ### 4. Validate + cover every branch
 
 ```bash
-swarm-manager operating-mode validate --mode <mode-id>
+swarm-manager operating-mode validate --mode "<mode-id>"
 ```
 
 Validate loads the mode fresh from disk through the real loader/validator (schema,
@@ -114,7 +114,7 @@ Before registration, walk the operator through the simulated flow of **every**
 guarded/classified branch:
 
 ```bash
-swarm-manager operating-mode simulate --mode <mode-id> --preset <example-run-id>
+swarm-manager operating-mode simulate --mode "<mode-id>" --preset "<example-run-id>"
 ```
 
 Simulate walks the phase graph through the **real** generic guards — no agents,
@@ -135,7 +135,7 @@ The registry reloads every mode from disk at startup (a data reload, not a
 rebuild). A `plan-manager-plan` / `plan-ref` mode then runs plan-first:
 
 ```bash
-swarm-manager operating-mode start --mode <mode-id> --target <plan-id|slug|path>
+swarm-manager operating-mode start --mode "<mode-id>" --target "<plan-id|slug|path>"
 ```
 
 ## What you never touch for a data-only mode

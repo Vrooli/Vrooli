@@ -11,7 +11,7 @@ vi.mock("./sharedAudioContext", () => ({
 }));
 
 import { getSharedAudioContext } from "./sharedAudioContext";
-import { createScriptProcessorPcmCapture } from "./pcmCapture";
+import { createCanonicalPcmCapture, createScriptProcessorPcmCapture } from "./pcmCapture";
 
 // ---------------------------------------------------------------------------
 // Fake AudioContext + MediaStream
@@ -83,6 +83,13 @@ afterEach(() => {
 });
 
 describe("createScriptProcessorPcmCapture", () => {
+
+  it("falls back to ScriptProcessor when AudioWorklet is unavailable", async () => {
+    const capture = await createCanonicalPcmCapture(makeFakeStream(), vi.fn());
+    expect(capture.stop).toBeTypeOf("function");
+    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
+  });
+
   it("returns a PcmCapture with a stop() function", () => {
     const capture = createScriptProcessorPcmCapture(makeFakeStream(), vi.fn());
     expect(capture).toHaveProperty("stop");

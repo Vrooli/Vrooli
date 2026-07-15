@@ -2,6 +2,7 @@ package agentmanager
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -159,6 +160,11 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 	if err != nil {
 		return RunResult{}, err
 	}
+	// A created run with no id is a failed spawn: nothing is trackable and the
+	// caller would otherwise persist an unpollable "starting" record. Fail closed.
+	if strings.TrimSpace(run.GetId()) == "" {
+		return RunResult{}, fmt.Errorf("%w: agent-manager created a run with no id", ErrRequestFailed)
+	}
 
 	baseURL, _ := s.ResolveURL(ctx)
 
@@ -231,6 +237,11 @@ func (s *AgentService) SpawnSession(ctx context.Context, req SessionSpawnRequest
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {
 		return RunResult{}, err
+	}
+	// A created run with no id is a failed spawn: nothing is trackable and the
+	// caller would otherwise persist an unpollable "starting" record. Fail closed.
+	if strings.TrimSpace(run.GetId()) == "" {
+		return RunResult{}, fmt.Errorf("%w: agent-manager created a run with no id", ErrRequestFailed)
 	}
 
 	baseURL, _ := s.ResolveURL(ctx)
@@ -308,6 +319,11 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 	if err != nil {
 		return RunResult{}, err
 	}
+	// A created run with no id is a failed spawn: nothing is trackable and the
+	// caller would otherwise persist an unpollable "starting" record. Fail closed.
+	if strings.TrimSpace(run.GetId()) == "" {
+		return RunResult{}, fmt.Errorf("%w: agent-manager created a run with no id", ErrRequestFailed)
+	}
 
 	baseURL, _ := s.ResolveURL(ctx)
 
@@ -383,6 +399,11 @@ func (s *AgentService) SpawnInitiative(ctx context.Context, req InitiativeSpawnR
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {
 		return RunResult{}, err
+	}
+	// A created run with no id is a failed spawn: nothing is trackable and the
+	// caller would otherwise persist an unpollable "starting" record. Fail closed.
+	if strings.TrimSpace(run.GetId()) == "" {
+		return RunResult{}, fmt.Errorf("%w: agent-manager created a run with no id", ErrRequestFailed)
 	}
 
 	baseURL, _ := s.ResolveURL(ctx)

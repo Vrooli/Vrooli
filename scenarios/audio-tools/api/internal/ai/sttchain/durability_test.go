@@ -13,7 +13,8 @@ func TestStreamEventDurability(t *testing.T) {
 		StreamEventError,
 		StreamEventDone,
 		StreamEventWakeWord,
-		StreamEventVadState,
+		StreamEventAcknowledgement,
+		StreamEventSessionStatus,
 	}
 	for _, k := range durable {
 		ev := StreamEvent{Kind: k}
@@ -25,11 +26,13 @@ func TestStreamEventDurability(t *testing.T) {
 		}
 	}
 
-	partial := StreamEvent{Kind: StreamEventPartial}
-	if partial.Durable() {
-		t.Error("partial events must NOT be durable — they are the sole disposable class")
-	}
-	if !partial.IsDroppable() {
-		t.Error("partial events must be droppable (coalesce-to-latest / drop under pressure)")
+	for _, k := range []StreamEventKind{StreamEventPartial, StreamEventVadState} {
+		ev := StreamEvent{Kind: k}
+		if ev.Durable() {
+			t.Errorf("event kind %q must be coalescible progress", k)
+		}
+		if !ev.IsDroppable() {
+			t.Errorf("event kind %q must be droppable progress", k)
+		}
 	}
 }

@@ -55,15 +55,15 @@ func (a *App) cmdOperatingModeList(args []string) error {
 }
 
 // cmdOperatingModeStart is the plan-first entry point: start a round of a
-// non-initiative-target mode directly on its target (a plan-manager plan by
-// execution id/slug, or a plan-ref path) — no initiative created. Round
-// follow-up uses `initiatives mode-refresh/mode-cancel --name <scope-id>
-// --mode <mode> --round N`, where the scope id is the resolved target id
-// printed on the started round.
+// non-initiative-target mode directly on its target (a plan execution by
+// execution id/slug) — no initiative created. Round follow-up uses
+// `initiatives mode-refresh/mode-cancel --name <scope-id> --mode <mode>
+// --round N`, where the scope id is the resolved target id printed on the
+// started round.
 func (a *App) cmdOperatingModeStart(args []string) error {
 	fs := flag.NewFlagSet("operating-mode start", flag.ContinueOnError)
 	modeFlag := fs.String("mode", "", "Operating mode ID (e.g., phased-plan-drain)")
-	targetFlag := fs.String("target", "", "Target ref: plan-manager execution id/slug, or plan-ref path")
+	targetFlag := fs.String("target", "", "Target ref: plan execution id/slug")
 	phaseFlag := fs.String("phase", "", "Phase name (defaults to the mode's start phase)")
 	noteFlag := fs.String("note", "", "Operator note")
 	inputsFlag := fs.String("inputs", "", "Caller inputs as a JSON object keyed by logical input ID")
@@ -236,10 +236,10 @@ func (a *App) cmdOperatingModeSet(args []string) error {
 
 func humanizeOperatingModeEnum(value string) string {
 	switch value {
-	case "plan-manager-plan":
-		return "Plan-manager plan"
-	case "plan-ref":
-		return "Plan reference"
+	case "backlog-item":
+		return "Backlog item"
+	case "plan-execution":
+		return "Plan execution"
 	case "initiative":
 		return "Initiative"
 	case "existing_item_flow":

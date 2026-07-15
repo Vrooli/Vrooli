@@ -10,17 +10,17 @@
     "Replanning is expected — the first plan will be wrong about something material"
   ],
   "not_for": [
-    "Items are independent and stable — use item-level for parallelism",
+    "Items are independent and stable — run them in parallel via member-item strategy",
     "A stable plan already exists and just needs to be drained — use phased-plan-drain",
     "Work is small enough to fit in a single backlog item"
   ],
   "tradeoffs": [
-    "One plan, not N plans — lower replanning cost than item-level for coupled work",
-    "Higher per-run cost than item-level",
+    "One plan, not N plans — lower replanning cost for coupled work",
+    "Higher per-run cost than draining independent items in parallel",
     "Loses parallelism — only one round runs at a time",
     "Initiative-level acceptance review instead of per-item review"
   ],
-  "when_in_doubt_pick_instead": "item-level",
+  "when_in_doubt_pick_instead": "phased-plan-drain",
   "target": {
     "kind": "initiative",
     "plan_ref": {

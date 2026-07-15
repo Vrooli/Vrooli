@@ -53,6 +53,33 @@ type Run struct {
 	CreatedAt     time.Time
 }
 
+// QualificationEvidence is a transcript-free proof record for one
+// provider/strategy/policy promotion gate. The store keeps failures as well as
+// passes so an operator cannot erase a failed qualification by recording a
+// later success without the history remaining inspectable.
+type QualificationEvidence struct {
+	ID            string
+	EngineID      string
+	ModelID       string
+	Strategy      string
+	PolicyProfile string
+	Kind          string
+	FaultProfile  string
+	Passed        bool
+	ArtifactRef   string
+	Notes         string
+	MachineJSON   []byte
+	ObservedAt    time.Time
+}
+
+// QualificationEvidenceFilter narrows evidence by its provider-cell identity.
+type QualificationEvidenceFilter struct {
+	EngineID      string
+	ModelID       string
+	Strategy      string
+	PolicyProfile string
+}
+
 // ListFilter narrows experiment listing.
 type ListFilter struct {
 	Status Status
@@ -66,6 +93,10 @@ type SubmitSpec struct {
 	RecipeJSON       []byte
 	MachineJSON      []byte
 	EstimatedSeconds int
+	// MaxRuntime bounds server-owned execution. It is intentionally separate
+	// from a caller's wait context: experiments survive a disconnected CLI, but
+	// they must not consume the single worker indefinitely.
+	MaxRuntime time.Duration
 }
 
 // RunResult is the artifact payload returned by a Runner after successful
@@ -109,4 +140,6 @@ type Repository interface {
 	DeleteExperiment(ctx context.Context, id string) error
 	CreateRun(ctx context.Context, run Run) (Run, error)
 	ListRuns(ctx context.Context, experimentID string) ([]Run, error)
+	CreateQualificationEvidence(ctx context.Context, evidence QualificationEvidence) (QualificationEvidence, error)
+	ListQualificationEvidence(ctx context.Context, filter QualificationEvidenceFilter) ([]QualificationEvidence, error)
 }

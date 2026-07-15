@@ -272,7 +272,7 @@ func (doc modeDocument) toDefinition() (Definition, error) {
 		UI:                     UIPolicy{WorkspaceTabID: uiTabID(doc.UI)},
 	}
 	if !IsValidTargetKind(def.Target.Kind) {
-		return Definition{}, fmt.Errorf("mode %q declares unknown target kind %q (want one of %s|%s|%s)", doc.ID, doc.Target.Kind, TargetPlanManagerPlan, TargetPlanRef, TargetInitiative)
+		return Definition{}, fmt.Errorf("mode %q declares unknown target kind %q (want one of %s|%s|%s)", doc.ID, doc.Target.Kind, TargetBacklogItem, TargetInitiative, TargetPlanExecution)
 	}
 
 	def.Profile = ProfilePolicy{DefaultProfileKey: profileDefaultKey(doc.Profile)}

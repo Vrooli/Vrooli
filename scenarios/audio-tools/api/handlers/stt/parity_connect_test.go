@@ -57,6 +57,8 @@ func projectFromProto(events []*sttv1.TranscribeStreamEvent) []eventProjection {
 		case *sttv1.TranscribeStreamEvent_Done:
 			p.Kind = sttchain.StreamEventDone
 			p.Text = e.Done.GetFinalText()
+		default:
+			continue // v2 acknowledgements are transport state, not transcript projection.
 		}
 		out = append(out, p)
 	}
@@ -91,12 +93,12 @@ func runConnectBidi(t *testing.T, audio []byte) []eventProjection {
 
 	stream := client.TranscribeStream(ctx)
 	if err := stream.Send(&sttv1.TranscribeStreamRequest{
-		Payload: &sttv1.TranscribeStreamRequest_Start{Start: &sttv1.StreamStart{}},
+		Payload: &sttv1.TranscribeStreamRequest_Start{Start: &sttv1.StreamStart{ProtocolVersion: 2, SessionId: "parity-session", ResumeToken: "parity-token"}},
 	}); err != nil {
 		t.Fatalf("send start: %v", err)
 	}
 	if err := stream.Send(&sttv1.TranscribeStreamRequest{
-		Payload: &sttv1.TranscribeStreamRequest_AudioChunk{AudioChunk: audio},
+		Payload: &sttv1.TranscribeStreamRequest_AudioChunk{AudioChunk: &sttv1.StreamAudioChunk{Audio: audio, Sequence: 0, StartSample: 0, EndSample: int64(len(audio) / 2)}},
 	}); err != nil {
 		t.Fatalf("send chunk: %v", err)
 	}

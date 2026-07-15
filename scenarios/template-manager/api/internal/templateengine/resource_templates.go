@@ -80,9 +80,24 @@ type ResourceTemplateSummary struct {
 	Description  string `json:"description"`
 }
 
+// ResourceTemplateValidationResult is the per-template verdict. Status is
+// "pass" when the template produced no issues, "fail" otherwise.
+type ResourceTemplateValidationResult struct {
+	Name         string   `json:"name"`
+	Driver       string   `json:"driver"`
+	Transitional bool     `json:"transitional"`
+	Status       string   `json:"status"`
+	Issues       []string `json:"issues,omitempty"`
+}
+
 type ResourceTemplateValidationReport struct {
-	Templates []ResourceTemplateSummary `json:"templates"`
-	Count     int                       `json:"count"`
+	Count       int                                `json:"count"`
+	Status      string                             `json:"status"`
+	IssuesCount int                                `json:"issues_count"`
+	Results     []ResourceTemplateValidationResult `json:"results"`
+	// Issues carries fleet-level problems not tied to one template, such as a
+	// missing canonical template.
+	Issues []string `json:"issues,omitempty"`
 }
 
 type ResourceTemplateGenerateRequest struct {
@@ -197,24 +212,36 @@ func validateResourceTemplates(root string) (ResourceTemplateValidationReport, e
 	}
 	seen := make(map[string]struct{}, len(templates))
 	report := ResourceTemplateValidationReport{
-		Templates: make([]ResourceTemplateSummary, 0, len(templates)),
-		Count:     len(templates),
+		Count:   len(templates),
+		Results: make([]ResourceTemplateValidationResult, 0, len(templates)),
 	}
+	// Collect issues per template instead of aborting on the first failure so a
+	// single broken template no longer masks the state of every other one — the
+	// operator sees a full per-template pass/fail table in one run.
 	for _, item := range templates {
+		result := ResourceTemplateValidationResult{
+			Name:         item.Name,
+			Driver:       item.Manifest.Driver,
+			Transitional: item.Manifest.Transitional,
+		}
 		if err := validateResourceTemplateGoModuleSource(item); err != nil {
-			return ResourceTemplateValidationReport{}, fmt.Errorf("validate resource template %s go.mod source: %w", item.Name, err)
+			result.Issues = append(result.Issues, fmt.Sprintf("go.mod source: %v", err))
 		}
 		if err := validateGeneratedResourceTemplate(root, item); err != nil {
-			return ResourceTemplateValidationReport{}, fmt.Errorf("validate generated resource template %s: %w", item.Name, err)
+			result.Issues = append(result.Issues, fmt.Sprintf("generated validation: %v", err))
 		}
+		result.Status = validationStatus(len(result.Issues) == 0)
+		report.IssuesCount += len(result.Issues)
 		seen[item.Name] = struct{}{}
-		report.Templates = append(report.Templates, resourceTemplateSummary(item))
+		report.Results = append(report.Results, result)
 	}
 	for _, required := range canonicalResourceTemplateNames {
 		if _, ok := seen[required]; !ok {
-			return ResourceTemplateValidationReport{}, fmt.Errorf("missing canonical resource template %q", required)
+			report.Issues = append(report.Issues, fmt.Sprintf("missing canonical resource template %q", required))
+			report.IssuesCount++
 		}
 	}
+	report.Status = validationStatus(report.IssuesCount == 0)
 	return report, nil
 }
 

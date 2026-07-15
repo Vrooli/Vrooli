@@ -25,6 +25,7 @@ The wire protocol on /v1/stream:
   server -> client (each a JSON TEXT frame with a "type"):
     {"type":"partial","text":"<interim hypothesis>"}        (optional)
     {"type":"segment","text":"<committed>","start_ms":int,"end_ms":int}
+    {"type":"processed","processed_batches":int}
     {"type":"done"}
     {"type":"error","message":"<reason>"}
 
@@ -54,7 +55,7 @@ import math
 import os
 import time
 from collections import deque
-from typing import Deque, List, Optional
+from typing import Awaitable, Callable, Deque, List, Optional
 
 import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -68,6 +69,26 @@ INPUT_SAMPLE_RATE = 16000
 # Configuration (env-driven; safe defaults for the bundled 1B model).
 HF_REPO = os.environ.get("KYUTAI_STT_HF_REPO", "kyutai/stt-1b-en_fr")
 DEVICE = os.environ.get("KYUTAI_STT_DEVICE", "cuda")
+
+
+def _enabled(value: str) -> bool:
+    """Parse an operator boolean without accepting accidental truthiness."""
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+# moshi lazily enables torch.compile on its first model step unless this flag is
+# set *before* importing moshi.  On the local RTX 4070 Ti SUPER that deferred
+# compile creates a 32-worker Inductor pool and can occupy the first dictation
+# session for many minutes, while /health has already advertised ready.  CUDA
+# graphing remains enabled in moshi, so the normal streaming path is still
+# accelerated without making a user turn pay an unbounded compilation cost.
+# Operators can opt into the experimental compiler only after benchmarking it
+# on their own hardware.
+TORCH_COMPILE_ENABLED = _enabled(os.environ.get("KYUTAI_STT_TORCH_COMPILE", "0"))
+if TORCH_COMPILE_ENABLED:
+    os.environ.pop("NO_TORCH_COMPILE", None)
+else:
+    os.environ["NO_TORCH_COMPILE"] = "1"
 
 # End-of-padding token id (word boundary) is a fixed model convention.
 END_OF_PADDING_ID = 0
@@ -91,6 +112,19 @@ MAX_SEGMENT_FRAMES = int(os.environ.get("KYUTAI_STT_MAX_SEGMENT_FRAMES", "48"))
 # recording indefinitely. See docs/OPERATIONS.md.
 LOCK_ACQUIRE_TIMEOUT_S = float(os.environ.get("KYUTAI_STT_LOCK_TIMEOUT_S", "10"))
 
+# FIFO admission is distinct from the model lock: contenders wait visibly
+# outside the decoder so a healthy active holder is never cancelled merely
+# because another user arrived. Audio Tools retains the queued turn for later
+# replay/recovery; this resource accepts audio only after emitting ready.
+ADMISSION_MAX_DEPTH = int(os.environ.get("KYUTAI_STT_ADMISSION_MAX_DEPTH", "8"))
+ADMISSION_MAX_WAIT_S = float(os.environ.get("KYUTAI_STT_ADMISSION_MAX_WAIT_S", "30"))
+
+# A WebSocket transport alone must not reserve the single decoder. The client
+# sends its start control frame before it can receive ``ready``; this short
+# handshake limit keeps abandoned browser upgrades from becoming an invisible
+# admission holder.
+START_FRAME_TIMEOUT_S = float(os.environ.get("KYUTAI_STT_START_FRAME_TIMEOUT_S", "5"))
+
 # A lock holder with decode activity newer than this is active, not wedged.
 # Contenders are rejected with a typed busy error instead of cancelling the
 # holder. Holders with no recent decode activity are still reapable, preserving
@@ -103,6 +137,12 @@ ACTIVITY_WEDGE_TIMEOUT_S = float(os.environ.get("KYUTAI_STT_ACTIVITY_WEDGE_S", "
 # it. Sibling to the relay's drain deadline on the audio-tools side.
 SEND_DRAIN_TIMEOUT_S = float(os.environ.get("KYUTAI_STT_SEND_DRAIN_TIMEOUT_S", "5"))
 
+# Model stepping is compute-heavy and normally synchronous. Yield periodically
+# during a multi-frame input batch so the WebSocket sender can emit processed
+# credits and the ASGI runtime can service control traffic. This is scheduling,
+# not a decode shortcut: every frame still reaches mimi + lm_gen in order.
+DECODE_YIELD_FRAMES = int(os.environ.get("KYUTAI_STT_DECODE_YIELD_FRAMES", "4"))
+
 logging.basicConfig(
     level=os.environ.get("KYUTAI_STT_LOG_LEVEL", "INFO"),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -110,6 +150,77 @@ logging.basicConfig(
 log = logging.getLogger("kyutai-stt")
 
 app = FastAPI(title="Kyutai STT", version=SERVER_VERSION)
+
+
+class AdmissionRejected(Exception):
+    """The bounded FIFO queue cannot accept another session."""
+
+
+class AdmissionTimedOut(Exception):
+    """A queued session exceeded its explicit operator wait bound."""
+
+
+class FIFOAdmission:
+    """Cancellation-safe FIFO admission for one local decoder.
+
+    The admission queue deliberately does not own model health/reaping; it
+    serializes contenders before the model lock so healthy work survives and
+    callers receive queued/ready/cancelled/timed-out lifecycle states.
+    """
+
+    def __init__(self, max_depth: int, max_wait_s: float) -> None:
+        self.max_depth = max_depth
+        self.max_wait_s = max_wait_s
+        self._guard = asyncio.Lock()
+        self._waiters: Deque[asyncio.Future] = deque()
+        self._active: Optional[asyncio.Future] = None
+
+    async def acquire(
+        self, on_queued: Optional[Callable[[int], Awaitable[None]]] = None
+    ) -> tuple[asyncio.Future, int]:
+        future = asyncio.get_running_loop().create_future()
+        async with self._guard:
+            if len(self._waiters) >= self.max_depth:
+                raise AdmissionRejected("kyutai admission queue is full")
+            self._waiters.append(future)
+            position = len(self._waiters)
+            self._promote_locked()
+        if position > 1 and on_queued is not None:
+            await on_queued(position)
+        try:
+            await asyncio.wait_for(asyncio.shield(future), timeout=self.max_wait_s)
+        except asyncio.TimeoutError as exc:
+            await self.cancel(future)
+            raise AdmissionTimedOut("kyutai admission wait timed out") from exc
+        except asyncio.CancelledError:
+            await self.cancel(future)
+            raise
+        return future, position
+
+    async def cancel(self, future: asyncio.Future) -> None:
+        async with self._guard:
+            if future in self._waiters:
+                self._waiters.remove(future)
+            if self._active is future:
+                self._active = None
+            if not future.done():
+                future.cancel()
+            self._promote_locked()
+
+    async def release(self, future: asyncio.Future) -> None:
+        async with self._guard:
+            if self._active is future:
+                self._active = None
+            if future in self._waiters:
+                self._waiters.remove(future)
+            self._promote_locked()
+
+    def _promote_locked(self) -> None:
+        if self._active is not None or not self._waiters:
+            return
+        self._active = self._waiters[0]
+        if not self._active.done():
+            self._active.set_result(None)
 
 
 class Model:
@@ -144,13 +255,19 @@ class Model:
         self.current_session_task: "Optional[asyncio.Task]" = None
         self.current_session_last_activity: Optional[float] = None
         self.current_session_started_at: Optional[float] = None
+        self.admission = FIFOAdmission(ADMISSION_MAX_DEPTH, ADMISSION_MAX_WAIT_S)
 
     def load(self) -> None:
         import torch
         import julius
         from moshi.models import loaders, LMGen
 
-        log.info("loading kyutai stt model repo=%s device=%s", self.repo, self.device)
+        log.info(
+            "loading kyutai stt model repo=%s device=%s torch_compile=%s",
+            self.repo,
+            self.device,
+            TORCH_COMPILE_ENABLED,
+        )
         if self.device == "cuda" and not torch.cuda.is_available():
             log.warning("cuda requested but unavailable; falling back to cpu")
             self.device = "cpu"
@@ -233,12 +350,26 @@ async def _startup() -> None:
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    """Liveness: the process can answer even while the model is loading."""
     return JSONResponse(
         {
             "status": "ok",
             "model_loaded": MODEL.loaded,
             "device": MODEL.device,
         }
+    )
+
+
+@app.get("/ready")
+async def ready() -> JSONResponse:
+    """Readiness: callers may admit audio only after model weights are live."""
+    if not MODEL.loaded:
+        return JSONResponse(
+            {"status": "starting", "model_loaded": False, "device": MODEL.device},
+            status_code=503,
+        )
+    return JSONResponse(
+        {"status": "ok", "model_loaded": True, "device": MODEL.device}
     )
 
 
@@ -296,6 +427,12 @@ class StreamSession:
         self._durables: Deque[dict] = deque()  # ordered, never dropped
         self._latest_partial: Optional[str] = None  # coalesced-to-latest
         self._last_sent_partial = ""  # de-dupe on the wire
+        # Absolute count of binary batches accepted by this session. This is a
+        # coalesced credit signal for the client-side bounded in-flight window,
+        # including a codec/model-frame remainder, not a transcript/audit
+        # payload.
+        self.processed_batches = 0
+        self._last_sent_processed_batches = 0
         self._wake = asyncio.Event()  # signals the send worker
         self._closed = False  # no more events will be enqueued
         self._sender_task: "Optional[asyncio.Task]" = None
@@ -377,6 +514,12 @@ class StreamSession:
         while self._durables:
             obj = self._durables.popleft()
             await self.ws.send_text(json.dumps(obj))
+        if self.processed_batches > self._last_sent_processed_batches:
+            self._last_sent_processed_batches = self.processed_batches
+            await self.ws.send_text(json.dumps({
+                "type": "processed",
+                "processed_batches": self.processed_batches,
+            }))
         if self._latest_partial is not None and self._latest_partial != self._last_sent_partial:
             self._last_sent_partial = self._latest_partial
             partial = self._latest_partial
@@ -456,9 +599,13 @@ class StreamSession:
             self.frames_consumed += 1
             MODEL.current_session_last_activity = time.monotonic()
             if text_tokens is None:
+                if DECODE_YIELD_FRAMES > 0 and (i + 1) % DECODE_YIELD_FRAMES == 0:
+                    await asyncio.sleep(0)
                 continue
             token = int(text_tokens[0, 0, 0].cpu().item())
             await self._step_token(token)
+            if DECODE_YIELD_FRAMES > 0 and (i + 1) % DECODE_YIELD_FRAMES == 0:
+                await asyncio.sleep(0)
 
     async def feed(self, pcm_bytes: bytes) -> None:
         torch = MODEL._torch
@@ -566,12 +713,84 @@ async def stream(ws: WebSocket) -> None:
         return
 
     session = StreamSession(ws)
-    started = False
+    # Validate the protocol intent before joining FIFO admission. In
+    # particular, a bare WS connection cannot consume the one local decoder
+    # slot and make real dictation appear stuck in queue.
+    try:
+        initial = await asyncio.wait_for(ws.receive(), timeout=START_FRAME_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        await ws.send_text(json.dumps({
+            "type": "error", "code": "start_timeout",
+            "message": "start control frame was not received before admission timeout",
+        }))
+        await ws.close()
+        return
+    if initial.get("type") == "websocket.disconnect":
+        return
+    if "text" not in initial or initial["text"] is None:
+        await ws.send_text(json.dumps({
+            "type": "error", "code": "start_required",
+            "message": "start control frame is required before admission",
+        }))
+        await ws.close()
+        return
+    try:
+        initial_payload = json.loads(initial["text"])
+    except json.JSONDecodeError:
+        await ws.send_text(json.dumps({
+            "type": "error", "code": "invalid_start",
+            "message": "start control frame must be valid JSON",
+        }))
+        await ws.close()
+        return
+    if initial_payload.get("type") != "start":
+        await ws.send_text(json.dumps({
+            "type": "error", "code": "start_required",
+            "message": "start control frame is required before admission",
+        }))
+        await ws.close()
+        return
+    try:
+        sample_rate = int(initial_payload.get("sample_rate", INPUT_SAMPLE_RATE))
+    except (TypeError, ValueError):
+        await ws.send_text(json.dumps({
+            "type": "error", "code": "unsupported_sample_rate",
+            "message": f"sample_rate must be {INPUT_SAMPLE_RATE}",
+        }))
+        await ws.close()
+        return
+    if sample_rate != INPUT_SAMPLE_RATE:
+        await ws.send_text(json.dumps({
+            "type": "error", "code": "unsupported_sample_rate",
+            "message": f"unsupported sample_rate {sample_rate}; contract requires {INPUT_SAMPLE_RATE}",
+        }))
+        await ws.close()
+        return
+    started = True
+    admission_ticket: Optional[asyncio.Future] = None
+    try:
+        admission_ticket, _ = await MODEL.admission.acquire(
+            lambda position: ws.send_text(json.dumps({
+                "type": "queued", "position": position,
+                "message": "Waiting for the local Kyutai decoder.",
+            }))
+        )
+        await ws.send_text(json.dumps({"type": "ready"}))
+    except AdmissionRejected as exc:
+        await ws.send_text(json.dumps({"type": "rejected", "code": "admission_full", "message": str(exc)}))
+        await ws.close()
+        return
+    except AdmissionTimedOut as exc:
+        await ws.send_text(json.dumps({"type": "timed_out", "code": "admission_timeout", "message": str(exc)}))
+        await ws.close()
+        return
     # One streaming session at a time on the shared GPU model instance. Bound
     # the acquire so a wedged prior session is reaped, not waited on forever.
     try:
         await _acquire_model_lock_or_reap()
     except ModelBusyError as exc:
+        if admission_ticket is not None:
+            await MODEL.admission.release(admission_ticket)
         await ws.send_text(
             json.dumps({"type": "error", "code": "stt_busy", "message": str(exc)})
         )
@@ -603,14 +822,11 @@ async def stream(ws: WebSocket) -> None:
                         continue
                     mtype = payload.get("type")
                     if mtype == "start":
-                        started = True
-                        sr = int(payload.get("sample_rate", INPUT_SAMPLE_RATE))
-                        if sr != INPUT_SAMPLE_RATE:
-                            session.enqueue_error(
-                                f"unsupported sample_rate {sr}; "
-                                f"contract requires {INPUT_SAMPLE_RATE}"
-                            )
-                            break
+                        # The validated start frame was consumed before
+                        # admission. A second start has no useful meaning and
+                        # is rejected rather than silently resetting a turn.
+                        session.enqueue_error("duplicate start control frame", "duplicate_start")
+                        break
                     elif mtype == "end":
                         await session.flush()
                         session.enqueue_done()
@@ -623,6 +839,12 @@ async def stream(ws: WebSocket) -> None:
                         session.enqueue_error("audio before start frame")
                         continue
                     await session.feed(msg["bytes"])
+                    # Credit every accepted binary batch, including a short
+                    # chunk retained as codec/model-frame remainder. The
+                    # client window is transport flow control, not a count of
+                    # fully stepped model frames.
+                    session.processed_batches += 1
+                    session._wake.set()
     except WebSocketDisconnect:
         close_reason = "disconnect"
         log.info("client disconnected")
@@ -648,6 +870,8 @@ async def stream(ws: WebSocket) -> None:
             MODEL.current_session_started_at = None
         if MODEL.lock.locked():
             MODEL.lock.release()
+        if admission_ticket is not None:
+            await MODEL.admission.release(admission_ticket)
         log.info(
             "stream close summary reason=%s frames=%d segments=%d duration_s=%.3f",
             close_reason,

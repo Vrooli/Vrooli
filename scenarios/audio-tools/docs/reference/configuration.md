@@ -10,7 +10,10 @@
 | `AUDIO_AI_ENABLE_BYOK` | `true` | Enables the BYOK tier in all three provider chains. |
 | `AUDIO_AI_ENABLE_VROOLI` | `false` | Enables the Vrooli/LPBS tier. Defaults off until `execute/lpbs-audio-gateway-endpoints` ships. |
 | `AUDIO_AI_ENABLE_LOCAL` | `true` | Enables the Local tier. |
+| `AUDIO_TOOLS_ENABLE_STREAM_TEST_FAULTS` | `false` | Enables deterministic STT WebSocket qualification faults. Requires `X-Vrooli-Test-Mode: 1` on each request as a second gate; never enable for ordinary deployments. |
 | `AUDIO_WHISPER_URL` | `http://localhost:8090` | Local STT resource. |
+| `AUDIO_KYUTAI_URL` | `http://localhost:8094` | Local Kyutai streaming STT resource. |
+| `AUDIO_KYUTAI_MODEL_ID` | `kyutai/stt-1b-en_fr` | Exact Kyutai model provenance recorded on evaluation and qualification evidence. Set this whenever `KYUTAI_STT_HF_REPO` changes; a new model requires a fresh promotion profile. |
 | `AUDIO_KOKORO_URL` | `http://localhost:8880` | Local TTS resource. |
 | `AUDIO_OLLAMA_URL` | `http://localhost:11434` | Local summarize resource. |
 | `AUDIO_LPBS_BASE_URL` | `""` | LPBS base URL (Vrooli tier). |
@@ -18,8 +21,6 @@
 | `AUDIO_AVAIL_TTL_BYOK` | `5m` | BYOK availability cache TTL. |
 | `AUDIO_AVAIL_TTL_VROOLI` | `30s` | Vrooli availability cache TTL. |
 | `AUDIO_SUMMARIZE_DEFAULT_MODEL` | `llama3.2:3b` | Local summarize default model. Empty or known reasoning defaults are coerced to the safe fallback at startup. |
-
-## Service manifest (`.vrooli/service.json`)
 
 Declares the resource dependencies (`whisper`, `kokoro`, `ollama`, `postgres`) — all `required: false` so audio-tools starts cleanly with zero local resources — and the LPBS scenario dependency (`required: false`, flag-off).
 
@@ -100,6 +101,25 @@ Single source of truth for everything the lifecycle needs to know.
 The template ships with `dependencies.resources: {}` — SQLite is
 in-process, so no resource is required. Scenarios add resources here
 when they need shared infrastructure.
+
+## Deterministic streaming-fault values
+
+When—and only when—`AUDIO_TOOLS_ENABLE_STREAM_TEST_FAULTS=true` and the
+request carries `X-Vrooli-Test-Mode: 1`, a qualification client may set
+`X-Audio-Tools-STT-Fault` to exactly one bounded fault value:
+
+| Value | Effect |
+|---|---|
+| `provider_busy` | Emits the typed `stt_busy` terminal error before provider work begins. |
+| `close_after_chunk:N` | Closes the socket after forwarding chunk `N` to the pipeline. |
+| `close_after_commit:N` | Closes after durable commit `N`, before final/done. The committed segment and replayable audio remain in the v2 session ledger. |
+| `pause_reads_after_chunk:N:MS` | Pauses server reads after accepted chunk `N` for `MS`; both are 1–10000. |
+| `delay_processed_ack_ms:MS` | Delays the terminal `processed_acknowledgement` by `MS` (1–10000). |
+| `suppress_processed_ack` | Withholds processed coverage, retains the replay tail, and emits `incomplete_coverage` plus a failed terminal `done`; it must never be interpreted as success. |
+
+These are explicit test seams for fault qualification, not operator controls or
+customer-facing API options. They are metadata-only in logs and never include
+audio or transcript payloads.
 
 ## Schema bootstrap
 

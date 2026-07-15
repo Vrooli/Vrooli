@@ -14,6 +14,20 @@ The host port is `8094` (container port `8000`). It is exported to scenarios as
 `KYUTAI_STT_URL` / `KYUTAI_STT_BASE_URL`, and the WebSocket URL as
 `KYUTAI_STT_WS_URL`.
 
+### Streaming flow control
+
+`/v1/stream` emits an additive progress frame after accepting one or more input
+batches:
+
+```json
+{ "type": "processed", "processed_batches": 42 }
+```
+
+`processed_batches` is an absolute, monotonically increasing count. Audio Tools
+uses it as a bounded credit window (eight unprocessed PCM batches maximum), so a
+fast deterministic replay cannot fill the transport write buffer and block
+WebSocket ping/pong control traffic. It carries no audio or transcript data.
+
 ## Model & Hardware
 
 | Property | Value |
@@ -54,6 +68,15 @@ tighter.
   is considered live, then flips `model_loaded` to `true` once ready.
 - `device` is `cuda` or `cpu`.
 
+### Readiness
+
+**GET** `/ready`
+
+Returns the same metadata with HTTP `200` only after model weights are loaded.
+While starting it returns HTTP `503` and `{ "status": "starting", "model_loaded": false }`.
+Use this endpoint for dependency admission and orchestration; keep `/health`
+for process liveness and diagnostics.
+
 ### Info
 
 **GET** `/v1/info`
@@ -88,6 +111,10 @@ serializes sessions on the shared GPU model instance.
      value yields an `error` frame and the connection closes.
    - `language` may be `"en"`, `"fr"`, or `""` (empty = auto / model default).
 
+   The server may reply `queued` before it replies `ready`. A client MUST wait
+   for `ready` before sending binary PCM; while queued it must retain/replay
+   its own canonical audio rather than relying on WebSocket buffering.
+
 2. One or more **BINARY** frames, each carrying raw **little-endian 16-bit PCM,
    mono, 16 kHz** audio samples. Frames may be any length; the server buffers
    and frames internally.
@@ -106,6 +133,11 @@ Every server message is a **TEXT** frame containing a JSON object with a
 | Frame | Shape | Meaning |
 |---|---|---|
 | partial | `{"type":"partial","text":"<interim>"}` | Optional interim hypothesis for the in-progress utterance. Emitted as tokens arrive. |
+| queued | `{"type":"queued","position":<int>}` | The FIFO admission queue accepted the session; `position` is one-based. No audio is accepted yet. |
+| ready | `{"type":"ready"}` | The session owns decoder admission and may now send PCM. |
+| processed | `{"type":"processed","processed_batches":<int>}` | Monotonic count of decoded binary batches. Clients use it as bounded transport credit; it carries no audio or transcript data. |
+| timed_out | `{"type":"timed_out","code":"admission_timeout",...}` | The bounded admission wait expired. No PCM was accepted. |
+| rejected | `{"type":"rejected","code":"admission_full",...}` | The FIFO admission queue was full. No PCM was accepted. |
 | segment | `{"type":"segment","text":"<committed>","start_ms":<int>,"end_ms":<int>}` | One finalized utterance/segment. `start_ms`/`end_ms` are millisecond offsets from the start of the stream. |
 | done | `{"type":"done"}` | Sent after the server receives `end` and flushes all buffered audio. |
 | error | `{"type":"error","message":"<reason>"}` | A protocol or runtime error. The connection then closes. |
@@ -113,6 +145,10 @@ Every server message is a **TEXT** frame containing a JSON object with a
 ### Frame ordering guarantees
 
 - `partial` frames (if any) precede the `segment` they refine.
+- `queued` and `ready` are durable admission lifecycle events. `ready` is the
+  sole permission to send binary audio; receipt of `start` alone is not. The
+  client sends `start` first; the server validates it before allocating a queue
+  position, so an idle WebSocket cannot reserve the decoder.
 - A `segment` commits the text; subsequent `partial` frames belong to the next
   utterance.
 - Exactly one `done` is sent for a well-formed session, after the final

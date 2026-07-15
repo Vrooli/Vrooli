@@ -12,11 +12,11 @@ prompt-manager skill read ui-health
 
 ```bash
 # Static strict-config + stability-lint checks:
-ui-health validate scenario <scenario> --static-only --json
+ui-health validate scenario "<scenario>" --static-only --json
 # Live render / console-error / crash evidence (drives the UI through BAS):
-ui-health validate scenario <scenario> --json
+ui-health validate scenario "<scenario>" --json
 # Auto-fix the safe subset (e.g. tsconfig strict false→true):
-ui-health fix run <scenario> --rule standard_tsconfig_strict --apply
+ui-health fix run "<scenario>" --rule standard_tsconfig_strict --apply
 ```
 
 Stability = crash prevention (null guards, hook discipline, error boundaries). For deployment-context correctness see the interop lenses; for stylistic judgment see the separate `ux` skill.

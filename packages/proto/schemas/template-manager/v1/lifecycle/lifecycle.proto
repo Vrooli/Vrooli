@@ -94,8 +94,20 @@ message TemplateValidationIssue {
 message ValidateTemplateResponse {
   string mode = 1;
   string template = 2;
+  // count is the number of templates validated by this call, not the number of
+  // issues found. Read status/issues_count for the pass-fail verdict.
   int32 count = 3;
   repeated TemplateValidationIssue issues = 4;
+  // status is the machine verdict: "pass" when no issues were found, "fail"
+  // otherwise. Always populated so consumers never infer pass-fail from an
+  // omitted repeated field.
+  string status = 5;
+  // issues_count mirrors len(issues); it is the failure count, distinct from
+  // count (templates validated).
+  int32 issues_count = 6;
+  // warnings carry non-fatal advisories about the request itself (e.g. a flag
+  // that has no effect in the selected mode). They never change the verdict.
+  repeated string warnings = 7;
 }
 
 message DriftReportRequest {
@@ -124,11 +136,23 @@ message CleanupRunsRequest {
   string run_id = 4;
 }
 
+message CleanupSkippedRun {
+  string run_id = 1;
+  string path = 2;
+  // reason explains why the workspace was not removed (e.g. "retained run; use
+  // --include-retained or --run <id>") so a dry-run is self-explaining.
+  string reason = 3;
+}
+
 message CleanupRunsResponse {
   int32 matched = 1;
   int32 removed = 2;
   bool dry_run = 3;
   string message = 4;
+  // skipped is the number of workspaces left in place; skipped_runs enumerates
+  // each with the reason it was retained.
+  int32 skipped = 5;
+  repeated CleanupSkippedRun skipped_runs = 6;
 }
 
 message ListDesignKitsRequest {}
@@ -167,7 +191,20 @@ message DesignValidationIssue {
   string message = 4;
 }
 
+message DesignKitValidationResult {
+  string kit = 1;
+  // status is "pass" when the kit produced no issues, "fail" otherwise.
+  string status = 2;
+  repeated DesignValidationIssue issues = 3;
+}
+
 message ValidateDesignKitsResponse {
   int32 count = 1;
+  // issues is the flat list across every kit plus any fleet-level issue (e.g.
+  // more than one kit marked default). results groups the per-kit verdicts.
   repeated DesignValidationIssue issues = 2;
+  // status is the overall verdict: "pass" when issues is empty, "fail" otherwise.
+  string status = 3;
+  int32 issues_count = 4;
+  repeated DesignKitValidationResult results = 5;
 }

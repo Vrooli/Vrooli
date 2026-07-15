@@ -3,13 +3,11 @@ package operatingmode
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
-// planDrainTestModeJSON is a minimal, valid plan-manager-plan-target mode used
+// planDrainTestModeJSON is a minimal, valid plan-execution-target mode used
 // to exercise the target/reads substrate. Optional overrides let rejection
 // tests swap the target kind or the declared reads.
 func planDrainTestModeJSON(targetKind string, reads []string) string {
@@ -56,13 +54,9 @@ func testInputContractJSON(_ string, reads []string) string {
 	contract := InputContractDefinition{}
 	for _, read := range reads {
 		id, capability, valueType, sourceKind := testInputDescriptor(read)
-		retention := InputRetentionValue
-		if read == ReadPlanContent {
-			retention = InputRetentionDigest
-		}
 		contract.Specs = append(contract.Specs, InputSpec{
 			ID: id, Type: valueType, Required: true, Sensitivity: InputSensitivityInternal,
-			Retention: retention, Description: "Test input for " + read + ".",
+			Retention: InputRetentionValue, Description: "Test input for " + read + ".",
 		})
 		contract.Sources = append(contract.Sources, InputSourceBinding{
 			InputID: id, Kind: sourceKind, Capability: capability,
@@ -114,10 +108,6 @@ func testInputDescriptor(read string) (string, string, InputValueType, InputSour
 		return "plan.context", "target.plan_context", InputTypeObject, InputSourceTargetAdapter
 	case ReadPlanID:
 		return "plan.id", "target.plan_id", InputTypeString, InputSourceTargetAdapter
-	case ReadPlanPath:
-		return "plan.path", "target.plan_path", InputTypeString, InputSourceTargetAdapter
-	case ReadPlanContent:
-		return "plan.content", "target.plan_content", InputTypeString, InputSourceTargetAdapter
 	default:
 		token := strings.ToLower(read)
 		return "test." + token, "generic." + token, InputTypeString, InputSourceGenericProvider
@@ -145,12 +135,12 @@ func loadPlanDrainTestMode(t *testing.T, targetKind string, reads []string) (Def
 // registry declares for their target kind.
 func TestTargetCapabilityDescriptorsMatchAdapterValues(t *testing.T) {
 	descriptors := InputProviderCapabilities()
-	for _, kind := range []TargetKind{TargetPlanManagerPlan, TargetPlanRef, TargetInitiative} {
+	for _, kind := range []TargetKind{TargetBacklogItem, TargetInitiative, TargetPlanExecution, TargetScenario} {
 		adapter, err := AdapterFor(kind)
 		if err != nil {
 			t.Fatalf("AdapterFor(%s): %v", kind, err)
 		}
-		instance := TargetInstance{Kind: kind, ID: "x", PlanPath: "plan.md", PlanContent: "# Plan", Plan: &PlanExecutionContext{}, Initiative: InitiativeSnapshot{Name: "x"}}
+		instance := TargetInstance{Kind: kind, ID: "x", Title: "x", Plan: &PlanExecutionContext{}, Initiative: InitiativeSnapshot{Name: "x"}}
 		values := adapter.Values(instance)
 		want := map[string]bool{}
 		for id, descriptor := range descriptors {
@@ -169,144 +159,59 @@ func TestTargetCapabilityDescriptorsMatchAdapterValues(t *testing.T) {
 	}
 }
 
-func TestPlanRefTargetResolvesContainedBoundedUTF8Content(t *testing.T) {
-	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "plans"), 0o755); err != nil {
-		t.Fatal(err)
+// TestBacklogItemTargetAdapterRegistered pins that backlog-item now has a runtime
+// adapter that provides exactly the item-scoped capabilities the compiler
+// registry declares and gives item runs a distinct ownership namespace.
+func TestBacklogItemTargetAdapterRegistered(t *testing.T) {
+	if !IsValidTargetKind(TargetBacklogItem) {
+		t.Fatalf("backlog-item must be valid target vocabulary")
 	}
-	content := "# Safe plan\n\nDo the work.\n"
-	if err := os.WriteFile(filepath.Join(root, "plans", "safe.md"), []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	def, err := loadPlanDrainTestMode(t, string(TargetPlanRef), []string{ReadPlanPath, ReadPlanContent, ReadPlanContextJSON})
+	adapter, err := AdapterFor(TargetBacklogItem)
 	if err != nil {
-		t.Fatalf("load plan-ref mode: %v", err)
+		t.Fatalf("AdapterFor(backlog-item): %v", err)
 	}
-	svc := newTestServiceWithOptions(t, root, serviceOptions{})
-	adapter, err := AdapterFor(TargetPlanRef)
-	if err != nil {
-		t.Fatal(err)
+	if adapter.Kind() != TargetBacklogItem {
+		t.Fatalf("adapter kind = %q", adapter.Kind())
 	}
-	target, err := adapter.Resolve(context.Background(), svc, def, def.PhaseGraph.Phases["execute"], "plans/../plans/safe.md")
-	if err != nil {
-		t.Fatalf("Resolve: %v", err)
+	key := adapter.OwnershipKey("fix/flaky-test")
+	if !strings.HasPrefix(key, "item--") {
+		t.Fatalf("backlog-item ownership key %q must be item-namespaced", key)
 	}
-	if target.ID != "plans/safe.md" || target.PlanPath != "plans/safe.md" {
-		t.Fatalf("canonical target path = id:%q path:%q", target.ID, target.PlanPath)
-	}
-	if target.PlanContent != content {
-		t.Fatalf("plan content = %q, want %q", target.PlanContent, content)
-	}
-	if target.PlanContentHash == "" || target.Plan == nil || target.Plan.ContentHash != target.PlanContentHash {
-		t.Fatalf("plan content provenance = target:%q context:%+v", target.PlanContentHash, target.Plan)
-	}
-	reads, err := (RunContext{Def: def, PhaseDef: def.PhaseGraph.Phases["execute"], Target: target}).DeclaredReads(RoundEnvelope{Round: 1}, "")
-	if err != nil {
-		t.Fatalf("DeclaredReads: %v", err)
-	}
-	if reads[ReadPlanPath] != "plans/safe.md" || reads[ReadPlanContent] != content {
-		t.Fatalf("plan-ref reads = %+v", reads)
-	}
-	compiled, err := CompileInputContract(map[Mode]Definition{def.Mode: def}, def)
-	if err != nil {
-		t.Fatalf("CompileInputContract: %v", err)
-	}
-	compiledJSON, err := json.Marshal(compiled)
-	if err != nil {
-		t.Fatal(err)
-	}
-	retention, err := promptInputRetentionTrace(OperatingModeExecution{CompiledInputContract: compiledJSON}, PinnedPromptSource{
-		Mode: string(def.Mode), Phase: "execute",
-	}, reads)
-	if err != nil {
-		t.Fatalf("promptInputRetentionTrace: %v", err)
-	}
-	contentRetention, ok := retention[ReadPlanContent].(map[string]any)
-	if !ok || contentRetention["retention"] != InputRetentionDigest || contentRetention["value_digest"] == "" {
-		t.Fatalf("plan content retention trace = %+v", retention[ReadPlanContent])
-	}
-	if _, leaked := contentRetention["value"]; leaked {
-		t.Fatalf("plan content retention trace leaked raw content: %+v", contentRetention)
+	// Its ownership namespace is disjoint from an initiative of the same name.
+	if initKey, _ := OwnershipKeyFor(TargetInitiative, "fix/flaky-test"); initKey == key {
+		t.Fatalf("backlog-item and initiative ownership keys collide: %q", key)
 	}
 }
 
-func TestResolveWorkspacePlanRefRejectsUnsafeOrInvalidContent(t *testing.T) {
-	root := t.TempDir()
-	outside := filepath.Join(t.TempDir(), "outside.md")
-	if err := os.WriteFile(outside, []byte("outside"), 0o644); err != nil {
-		t.Fatal(err)
+// TestBacklogItemAdapterResolvesFromReader proves the adapter resolves an item
+// target through the wired rich reader and projects its capabilities.
+func TestBacklogItemAdapterResolvesFromReader(t *testing.T) {
+	svc := &Service{backlogTargets: fakeBacklogTargetReader{item: BacklogItemTarget{
+		Title: "Fix flaky test", Description: "It flakes on CI", Status: "in_progress",
+		SpecDocument: `{"title":"Fix flaky test"}`, PlanRef: &PlanRef{Provider: "plan-manager", PlanID: "p-1"},
+	}}}
+	adapter := backlogItemTargetAdapter{}
+	inst, err := adapter.Resolve(context.Background(), svc, Definition{}, PhaseDefinition{}, "fix/flaky-test")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(root, "plans", "real"), 0o755); err != nil {
-		t.Fatal(err)
+	if inst.ID != "fix/flaky-test" || inst.Item.Ref != "fix/flaky-test" {
+		t.Fatalf("resolved instance identity = %+v", inst)
 	}
-	if err := os.WriteFile(filepath.Join(root, "plans", "real", "safe.md"), []byte("safe"), 0o644); err != nil {
-		t.Fatal(err)
+	vals := adapter.Values(inst)
+	if vals["target.item_title"] != "Fix flaky test" || vals["target.item_status"] != "in_progress" {
+		t.Fatalf("adapter values = %+v", vals)
 	}
-	if err := os.Symlink(filepath.Join("real", "safe.md"), filepath.Join(root, "plans", "link.md")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink("real", filepath.Join(root, "plans", "link-dir")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "invalid.md"), []byte{0xff, 0xfe}, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "oversized.md"), []byte(strings.Repeat("x", maxPlanRefContentBytes+1)), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	tests := []struct {
-		name string
-		ref  string
-		want string
-	}{
-		{name: "absolute", ref: outside, want: "workspace-relative"},
-		{name: "traversal", ref: "../outside.md", want: "workspace-relative"},
-		{name: "symlink file", ref: "plans/link.md", want: "symlink component"},
-		{name: "symlink directory", ref: "plans/link-dir/safe.md", want: "symlink component"},
-		{name: "directory", ref: "plans", want: "regular file"},
-		{name: "invalid utf8", ref: "invalid.md", want: "valid UTF-8"},
-		{name: "oversized", ref: "oversized.md", want: "exceeds maximum"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, _, _, err := resolveWorkspacePlanRef(root, tt.ref)
-			if err == nil || !strings.Contains(err.Error(), tt.want) {
-				t.Fatalf("resolveWorkspacePlanRef(%q) error = %v, want %q", tt.ref, err, tt.want)
-			}
-		})
+	if vals["target.item_plan_ref"] == nil {
+		t.Fatalf("plan_ref projection missing")
 	}
 }
 
-func TestStartTargetPhaseRejectsUnsafePlanRefBeforeAnyMutation(t *testing.T) {
-	root := t.TempDir()
-	outside := filepath.Join(t.TempDir(), "outside.md")
-	if err := os.WriteFile(outside, []byte("# outside"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(outside, filepath.Join(root, "linked-plan.md")); err != nil {
-		t.Fatal(err)
-	}
-	def, err := loadPlanDrainTestMode(t, string(TargetPlanRef), []string{ReadPlanPath, ReadPlanContent, ReadPlanContextJSON})
-	if err != nil {
-		t.Fatalf("load plan-ref mode: %v", err)
-	}
-	withSyntheticModeRegistry(t, def)
-	agent := &fakeAgent{}
-	prompts := &fakePrompts{}
-	svc := newTestServiceWithOptions(t, root, serviceOptions{agent: agent, prompts: prompts})
-	_, err = svc.StartTargetPhase(context.Background(), StartTargetPhaseRequest{
-		Mode: string(def.Mode), TargetRef: "linked-plan.md",
-	})
-	if err == nil || !strings.Contains(err.Error(), "symlink component") {
-		t.Fatalf("StartTargetPhase error = %v, want symlink rejection", err)
-	}
-	if len(agent.spawned) != 0 || len(prompts.sourceCalls) != 0 {
-		t.Fatalf("unsafe plan ref caused external preflight: spawned=%d prompt_sources=%v", len(agent.spawned), prompts.sourceCalls)
-	}
-	if _, statErr := os.Stat(filepath.Join(root, "data")); !os.IsNotExist(statErr) {
-		t.Fatalf("unsafe plan ref created target state: %v", statErr)
-	}
+type fakeBacklogTargetReader struct{ item BacklogItemTarget }
+
+func (f fakeBacklogTargetReader) LoadBacklogItemTarget(ref string) (BacklogItemTarget, error) {
+	f.item.Ref = ref
+	return f.item, nil
 }
 
 func TestPlanManagerContextCarriesStableIdentityAndDigest(t *testing.T) {
@@ -318,9 +223,9 @@ func TestPlanManagerContextCarriesStableIdentityAndDigest(t *testing.T) {
 		t.Fatal(err)
 	}
 	phase := def.PhaseGraph.Phases[def.PhaseGraph.StartPhase]
-	ctx, err := svc.resolvePlanManagerPlan(context.Background(), def, phase, "plan-stable")
+	ctx, err := svc.resolvePlanExecution(context.Background(), def, phase, "plan-stable")
 	if err != nil {
-		t.Fatalf("resolvePlanManagerPlan: %v", err)
+		t.Fatalf("resolvePlanExecution: %v", err)
 	}
 	if ctx.PlanID != "plan-stable" || ctx.ExecutionID != "exec-1" || ctx.PhaseContextDigest == "" {
 		t.Fatalf("plan context provenance = %+v", ctx)
@@ -334,20 +239,20 @@ func TestPlanManagerContextCarriesStableIdentityAndDigest(t *testing.T) {
 // exposes plan reads and none of the initiative reads, and vice versa — reads
 // are absent, not empty.
 func TestRunContextComposesOnlyItsTargetReads(t *testing.T) {
-	planDef, err := loadPlanDrainTestMode(t, string(TargetPlanManagerPlan), defaultPlanDrainReads())
+	planDef, err := loadPlanDrainTestMode(t, string(TargetPlanExecution), defaultPlanDrainReads())
 	if err != nil {
 		t.Fatalf("load plan-target mode: %v", err)
 	}
 	planRC := RunContext{
 		Def:      planDef,
 		PhaseDef: planDef.PhaseGraph.Phases["execute"],
-		Target:   TargetInstance{Kind: TargetPlanManagerPlan, ID: "exec-123", Plan: &PlanExecutionContext{ExecutionID: "exec-123"}},
+		Target:   TargetInstance{Kind: TargetPlanExecution, ID: "exec-123", Plan: &PlanExecutionContext{ExecutionID: "exec-123"}},
 	}
 	planReads, err := planRC.AvailableReads(RoundEnvelope{Round: 1}, "")
 	if err != nil {
 		t.Fatalf("plan AvailableReads: %v", err)
 	}
-	for _, forbidden := range []string{ReadInitiativeName, ReadMemberItemsJSON, ReadAcceptanceCriteria, ReadPlanPath} {
+	for _, forbidden := range []string{ReadInitiativeName, ReadMemberItemsJSON, ReadAcceptanceCriteria} {
 		if _, ok := planReads[forbidden]; ok {
 			t.Fatalf("plan-target reads must not contain %q", forbidden)
 		}
@@ -373,10 +278,8 @@ func TestRunContextComposesOnlyItsTargetReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initiative AvailableReads: %v", err)
 	}
-	for _, forbidden := range []string{ReadPlanID, ReadPlanPath} {
-		if _, ok := initReads[forbidden]; ok {
-			t.Fatalf("initiative-target reads must not contain %q", forbidden)
-		}
+	if _, ok := initReads[ReadPlanID]; ok {
+		t.Fatalf("initiative-target reads must not contain %q", ReadPlanID)
 	}
 	if initReads[ReadInitiativeName] != "init-a" {
 		t.Fatalf("initiative-target INITIATIVE_NAME = %q, want init-a", initReads[ReadInitiativeName])
@@ -387,14 +290,14 @@ func TestRunContextComposesOnlyItsTargetReads(t *testing.T) {
 // runtime SSOT: mutating a detached PhaseDefinition cannot inject an input
 // alias that the compiled mode contract did not bind.
 func TestDeclaredReadsUsesCompiledBindings(t *testing.T) {
-	def, err := loadPlanDrainTestMode(t, string(TargetPlanManagerPlan), defaultPlanDrainReads())
+	def, err := loadPlanDrainTestMode(t, string(TargetPlanExecution), defaultPlanDrainReads())
 	if err != nil {
 		t.Fatalf("load plan-target mode: %v", err)
 	}
 	phaseDef := def.PhaseGraph.Phases["execute"]
 	phaseDef.Reads = append(phaseDef.Reads, ReadMemberItemsJSON)
 	rc := RunContext{Def: def, PhaseDef: phaseDef, Target: TargetInstance{
-		Kind: TargetPlanManagerPlan, ID: "exec-123", Plan: &PlanExecutionContext{ExecutionID: "exec-123"},
+		Kind: TargetPlanExecution, ID: "exec-123", Plan: &PlanExecutionContext{ExecutionID: "exec-123"},
 	}}
 	reads, err := rc.DeclaredReads(RoundEnvelope{Round: 1}, "")
 	if err != nil {
@@ -409,19 +312,19 @@ func TestDeclaredReadsUsesCompiledBindings(t *testing.T) {
 // initiative-adapter read fails load-time read-side validation with an error
 // naming the providing target.
 func TestLoaderRejectsForeignAdapterRead(t *testing.T) {
-	_, err := loadPlanDrainTestMode(t, string(TargetPlanManagerPlan), append(defaultPlanDrainReads(), ReadMemberItemsJSON))
+	_, err := loadPlanDrainTestMode(t, string(TargetPlanExecution), append(defaultPlanDrainReads(), ReadMemberItemsJSON))
 	if err == nil || !strings.Contains(err.Error(), "does not support target") {
 		t.Fatalf("err = %v, want target-capability mismatch validation error", err)
 	}
-	if !strings.Contains(err.Error(), string(TargetPlanManagerPlan)) {
-		t.Fatalf("err = %v, want error naming the incompatible target %q", err, TargetPlanManagerPlan)
+	if !strings.Contains(err.Error(), string(TargetPlanExecution)) {
+		t.Fatalf("err = %v, want error naming the incompatible target %q", err, TargetPlanExecution)
 	}
 }
 
 // TestLoaderRejectsUnsatisfiableReadSlot: a declared read no provider supplies
 // is an unsatisfiable template slot and fails the load.
 func TestLoaderRejectsUnsatisfiableReadSlot(t *testing.T) {
-	_, err := loadPlanDrainTestMode(t, string(TargetPlanManagerPlan), append(defaultPlanDrainReads(), "NOT_A_REAL_READ"))
+	_, err := loadPlanDrainTestMode(t, string(TargetPlanExecution), append(defaultPlanDrainReads(), "NOT_A_REAL_READ"))
 	if err == nil || !strings.Contains(err.Error(), "unavailable capability") {
 		t.Fatalf("err = %v, want unavailable-capability validation error", err)
 	}
@@ -429,7 +332,7 @@ func TestLoaderRejectsUnsatisfiableReadSlot(t *testing.T) {
 
 // TestLoaderRejectsMissingReads: every phase must declare its input contract.
 func TestLoaderRejectsMissingReads(t *testing.T) {
-	doc := strings.Replace(planDrainTestModeJSON(string(TargetPlanManagerPlan), nil), `"reads": [],`, ``, 1)
+	doc := strings.Replace(planDrainTestModeJSON(string(TargetPlanExecution), nil), `"reads": [],`, ``, 1)
 	if _, err := LoadModeDefinition([]byte(doc)); err == nil {
 		t.Fatalf("LoadModeDefinition accepted a phase without reads")
 	}
@@ -448,7 +351,7 @@ func TestLoaderRejectsUnknownTargetKind(t *testing.T) {
 // seam: the substituted variable map is exactly the declared reads — plan
 // reads present, initiative reads absent.
 func TestPlanTargetPhasePromptRendersDeclaredReads(t *testing.T) {
-	def, err := loadPlanDrainTestMode(t, string(TargetPlanManagerPlan), defaultPlanDrainReads())
+	def, err := loadPlanDrainTestMode(t, string(TargetPlanExecution), defaultPlanDrainReads())
 	if err != nil {
 		t.Fatalf("load plan-target mode: %v", err)
 	}
@@ -459,7 +362,7 @@ func TestPlanTargetPhasePromptRendersDeclaredReads(t *testing.T) {
 	rc := RunContext{
 		Def:      def,
 		PhaseDef: def.PhaseGraph.Phases["execute"],
-		Target:   TargetInstance{Kind: TargetPlanManagerPlan, ID: "exec-123", Plan: &PlanExecutionContext{ExecutionID: "exec-123", PlanID: "plan-9"}},
+		Target:   TargetInstance{Kind: TargetPlanExecution, ID: "exec-123", Plan: &PlanExecutionContext{ExecutionID: "exec-123", PlanID: "plan-9"}},
 	}
 	rendered, err := svc.renderPhasePrompt(context.Background(), rc, RoundEnvelope{Round: 2}, "drain the next slice")
 	if err != nil {
@@ -510,19 +413,15 @@ func TestOwnershipKeysPerTarget(t *testing.T) {
 	if key, _ := OwnershipKeyFor(TargetInitiative, "init-a"); key != "init-a" {
 		t.Fatalf("initiative ownership key = %q, want init-a", key)
 	}
-	planKey, err := OwnershipKeyFor(TargetPlanManagerPlan, "exec-123")
+	planKey, err := OwnershipKeyFor(TargetPlanExecution, "exec-123")
 	if err != nil || planKey != "plan--exec-123" {
 		t.Fatalf("plan ownership key = %q (%v), want plan--exec-123", planKey, err)
-	}
-	refKey, err := OwnershipKeyFor(TargetPlanRef, "docs/plans/foo.md")
-	if err != nil || refKey != "plan-ref--docs-plans-foo.md" {
-		t.Fatalf("plan-ref ownership key = %q (%v), want sanitized path key", refKey, err)
 	}
 	if _, err := OwnershipKeyFor(TargetKind("galaxy"), "x"); err == nil {
 		t.Fatalf("OwnershipKeyFor accepted unknown target kind")
 	}
 
-	round := RoundEnvelope{ScopeKind: string(TargetPlanManagerPlan), ScopeID: "exec-123"}
+	round := RoundEnvelope{ScopeKind: string(TargetPlanExecution), ScopeID: "exec-123"}
 	if got := roundOwnershipKey(round); got != "plan--exec-123" {
 		t.Fatalf("roundOwnershipKey(plan round) = %q, want plan--exec-123", got)
 	}
@@ -535,7 +434,7 @@ func TestOwnershipKeysPerTarget(t *testing.T) {
 // TestPhaseReadsSummaryGroupsByProvider pins the catalog/UI metadata grouping:
 // declared reads split into base vs target-adapter groups, from data.
 func TestPhaseReadsSummaryGroupsByProvider(t *testing.T) {
-	def, err := loadPlanDrainTestMode(t, string(TargetPlanManagerPlan), []string{ReadOperatingMode, ReadPlanID, ReadPriorRoundsJSON, ReadPlanContextJSON})
+	def, err := loadPlanDrainTestMode(t, string(TargetPlanExecution), []string{ReadOperatingMode, ReadPlanID, ReadPriorRoundsJSON, ReadPlanContextJSON})
 	if err != nil {
 		t.Fatalf("load plan drain mode: %v", err)
 	}

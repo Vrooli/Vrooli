@@ -14,27 +14,34 @@ package backlog
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
-	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/execution"
+	"swarm-manager/internal/opsrunner"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/runtimepaths"
+	"swarm-manager/internal/settings"
 
 	"github.com/gorilla/mux"
 )
 
+// AgentSpawner is the injection type for the concrete agent service passed to
+// NewHandlerWithClients. The backlog domain package no longer spawns or continues
+// Agent Manager runs directly (that capability moved entirely behind the
+// operation runner; see the internal/archtest spawn-boundary guardrail), so only
+// the AgentActivityChecker capability of the injected service is consumed — via a
+// type assertion in the constructor. The interface is intentionally minimal: it
+// exists so a fake without HasActiveAgent (leaving the active-agent guard a no-op)
+// is still a valid injection.
 type AgentSpawner interface {
 	IsEnabled() bool
-	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
-	ContinueRun(ctx context.Context, runID string, message string) error
-	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
 }
 
 // AgentActivityChecker checks whether a backlog item has an active agent.
@@ -92,21 +99,46 @@ type Handler struct {
 	dataRoot             string
 	repoRoot             string
 	store                Store
-	agentService         AgentSpawner
 	activityChecker      AgentActivityChecker
 	promptClient         promptmanager.Client
 	planClient           planclient.Client
 	initiativeAssigner   InitiativeAssigner
 	sessionArtifacts     sessionArtifactRecorder
 	executionQueuer      ExecutionQueuer
-	policyProvider       execution.PolicyProvider
-	governanceProvider   execution.GovernanceProvider
 	eventDispatcher      dispatch.Invalidator
 	eventLogger          EventLogger
-	workshopTicker       *WorkshopTicker
+	opsRunner            *opsrunner.Runner
+	opsScheduler         *opsrunner.Scheduler
 	itemTerminalHandler  ItemTerminalHandler
 	recordCreator        RecordCreator
 	reviewRoundInspector ReviewRoundInspector
+	policyControls       agentops.PolicyControlsProvider
+}
+
+// SetPolicyControlsProvider injects the policy-controls seam used by the
+// workshop auto-initialize / auto-advance / cascade paths. When unset, the
+// handler falls back to the settings-backed provider that resolves the
+// scenario settings file on every load (the pre-seam behavior).
+func (h *Handler) SetPolicyControlsProvider(p agentops.PolicyControlsProvider) {
+	h.policyControls = p
+}
+
+// loadPolicyControls reads the current orchestration policy controls through
+// the PolicyControlsProvider seam. On load failure it logs (with the given
+// context string, preserving legacy per-site log messages) and degrades to
+// agentops.DefaultPolicyControls(), which equals the projection of default
+// settings — identical to the legacy DefaultSettings() fallback.
+func (h *Handler) loadPolicyControls(logContext string) agentops.PolicyControls {
+	provider := h.policyControls
+	if provider == nil {
+		provider = settings.NewPolicyControlsAdapter(nil)
+	}
+	controls, err := provider.LoadPolicyControls()
+	if err != nil {
+		slog.Warn(logContext, "err", err)
+		return agentops.DefaultPolicyControls()
+	}
+	return controls
 }
 
 // EventLogger records state-change events for analytics.
@@ -139,7 +171,6 @@ func NewHandler(dataRoot, repoRoot string) *Handler {
 		dataRoot:     dataRoot,
 		repoRoot:     repoRoot,
 		store:        NewFileStore(dataRoot),
-		agentService: nil,
 		promptClient: promptmanager.NewHTTPClient(),
 		planClient:   planclient.NewConnectClient(nil, nil),
 	}
@@ -155,10 +186,13 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentSpawner,
 		dataRoot:     dataRoot,
 		repoRoot:     repoRoot,
 		store:        NewFileStore(dataRoot),
-		agentService: agentService,
 		promptClient: promptClient,
 		planClient:   planclient.NewConnectClient(nil, nil),
 	}
+	// The injected agent service is consumed only as the active-agent guard source
+	// (a narrow, read-only capability). Its Agent Manager spawn methods are never
+	// called from the backlog domain package — autonomous launches flow through the
+	// operation runner (see internal/archtest spawn-boundary guardrail).
 	if checker, ok := agentService.(AgentActivityChecker); ok {
 		h.activityChecker = checker
 	}
@@ -199,16 +233,6 @@ func resolveRepoRootOrDefault(repoRoot string) string {
 // initiative rollup computation).
 func (h *Handler) Store() Store {
 	return h.store
-}
-
-// SetPolicyProvider injects a policy provider for execution service creation.
-func (h *Handler) SetPolicyProvider(pp execution.PolicyProvider) {
-	h.policyProvider = pp
-}
-
-// SetGovernanceProvider injects a governance provider for execution service creation.
-func (h *Handler) SetGovernanceProvider(gp execution.GovernanceProvider) {
-	h.governanceProvider = gp
 }
 
 // SetEventDispatcher injects an optional graph invalidation dispatcher.
@@ -280,21 +304,15 @@ func (h *Handler) SetAIIndexer(indexer AIIndexer) {
 	}
 }
 
-// StartWorkshopTicker starts the background ticker that fires deferred
-// auto-advance spawns. It also recovers any pending advances from disk
-// that survived a server restart.
-func (h *Handler) StartWorkshopTicker() {
-	t := newWorkshopTicker(h)
-	h.workshopTicker = t
-	t.RecoverPending()
-	t.Start()
-}
-
-// StopWorkshopTicker stops the background ticker.
-func (h *Handler) StopWorkshopTicker() {
-	if h.workshopTicker != nil {
-		h.workshopTicker.Stop()
-	}
+// SetRunner injects the declarative operation runner and its durable scheduler.
+// After this, the pre-execution backlog flows (research/workshop refinement,
+// clarification, deferred auto-advance) start operations through the runner
+// instead of spawning agents directly, and the scheduler owns the deferred
+// auto-advance timer that the in-memory workshop ticker used to. main.go calls
+// this once both the backlog handler and the operation runner are constructed.
+func (h *Handler) SetRunner(runner *opsrunner.Runner, scheduler *opsrunner.Scheduler) {
+	h.opsRunner = runner
+	h.opsScheduler = scheduler
 }
 
 func (h *Handler) emitDependencyChanges(entityID string, oldDeps, newDeps []string) {

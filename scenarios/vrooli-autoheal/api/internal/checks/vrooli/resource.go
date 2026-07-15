@@ -69,11 +69,6 @@ var resourceMetadata = map[string]struct {
 		description: "Checks SearXNG metasearch engine resource via vrooli CLI",
 		importance:  "Required for web search and research capabilities",
 	},
-	"browserless": {
-		title:       "Browserless Chrome",
-		description: "Checks Browserless headless Chrome resource via vrooli CLI",
-		importance:  "Required for web scraping, screenshots, and browser automation",
-	},
 	"whisper": {
 		title:       "Whisper STT",
 		description: "Checks Whisper speech-to-text resource and its activity edge via vrooli CLI",

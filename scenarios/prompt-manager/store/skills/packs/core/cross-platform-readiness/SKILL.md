@@ -193,7 +193,7 @@ port := requireEnv("API_PORT") // Crashes if not set
 | **PostgreSQL** | 0.3 (Wine/native) | 0.0 (impossible) | 0.95 | **SQLite** (pure Go) |
 | **Redis** | 0.5 (embedded possible) | 0.3 (limited) | 0.9 | In-memory cache |
 | **Ollama** | 0.0 (always-on server) | 0.0 | 0.95 | **OpenRouter** (as fallback) |
-| **Browserless** | 0.6 (bundled driver) | 0.0 | 0.9 | Bundled Playwright |
+| **browser-automation-studio** | 0.6 (bundled driver) | 0.0 | 0.9 | Bundled Playwright |
 | **Neo4j** | 0.6 (heavy) | 0.0 | 0.95 | SQLite + JSON |
 | **MinIO** | 0.7 (can embed) | 0.4 | 0.9 | Filesystem + cloud |
 | **Qdrant** | 0.5 (resource-heavy) | 0.2 | 0.9 | SQLite FTS |

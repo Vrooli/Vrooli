@@ -19,8 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/workshop"
@@ -164,72 +163,20 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build the clarification prompt.
 	userMessage := strings.TrimSpace(message)
 	if userMessage == "" {
 		userMessage = "Please explain this decision in detail — what it means, what each option implies, and what the practical consequences are."
 	}
 
-	prompt, err := h.buildClarificationPrompt(r.Context(), item, itemDir, targetItem, userMessage, nil)
-	if err != nil {
-		slog.Warn("clarification prompt build failed, using fallback", "err", err)
-		// Fall back to a basic prompt.
-		prompt = fmt.Sprintf("Explain this workshop decision:\n\nTopic: %s\nContext: %s\n\nUser question: %s",
-			targetItem.Topic, targetItem.Context, userMessage)
-	}
-
-	// Spawn the clarification agent.
-	if !h.agentService.IsEnabled() {
-		apierr.MapError(w, "[backlog] clarification-create", apierr.Unavailable("agent-manager is not available"))
-		return
-	}
-
-	activityCtx := agentactivity.WithSpec(r.Context(), agentactivity.Spec{
-		OwnerType:   agentactivity.OwnerBacklog,
-		OwnerKind:   string(kind),
-		OwnerName:   item.Name,
-		OwnerTitle:  item.Title,
-		Purpose:     agentactivity.PurposeClarify,
-		PhaseKind:   string(agentactivity.LaneInvestigate),
-		RequestedBy: "swarm-manager",
-		Metadata: map[string]string{
-			"entrypoint":   "backlog.clarification",
-			"round_number": fmt.Sprintf("%d", roundNumber),
-			"item_id":      itemID,
-		},
-	})
-
-	runResult, err := h.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
-		Kind:        string(kind),
-		Name:        item.Name,
-		Title:       fmt.Sprintf("Clarify: %s — %s", item.Title, targetItem.Topic),
-		Description: prompt,
-		Prompt:      prompt,
-		ScopePath:   ".",
-		ProjectRoot: ".",
-		CreatedBy:   "swarm-manager",
-		Purpose:     "clarify",
-		Environment: map[string]string{
-			"VROOLI_SPAWN_SOURCE": string(kind) + "/" + item.Name,
-		},
-	})
-	if err != nil {
-		if errors.Is(err, agentactivity.ErrBacklogItemBusy) {
-			apierr.MapError(w, "[backlog] clarification-create", apierr.Conflict("an agent is already active for this backlog item"))
-			return
-		}
-		slog.Error("clarification agent spawn failed", "err", err)
-		apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to spawn clarification agent"))
-		return
-	}
-
-	// Create the thread.
+	// Commit the thread (identity + user message + attachments) BEFORE starting
+	// the async clarification operation, so the operator's turn survives a start
+	// failure or retry. The assistant turn is written later by the
+	// start-clarification action handler when the operation's round completes.
 	now := time.Now().UTC().Format(time.RFC3339)
 	thread := &workshop.ClarificationThread{
 		ID:          uuid.New().String(),
 		RoundNumber: int(roundNumber),
 		ItemID:      itemID,
-		RunID:       runResult.RunID,
 		Messages: []workshop.ClarificationMessage{
 			{
 				Role:          "user",
@@ -242,11 +189,41 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-
 	if err := workshop.SaveClarification(itemDir, thread); err != nil {
 		slog.Error("clarification save failed", "err", err)
 		apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to save clarification thread"))
 		return
+	}
+
+	// Link the clarification to the decision item.
+	threadID := thread.ID
+	targetItem.ClarificationID = &threadID
+	if err := h.saveRoundItem(itemDir, targetRound, targetItem); err != nil {
+		slog.Warn("failed to link clarification to item", "err", err)
+	}
+
+	// Start the clarification operation, forwarding the operator's question and the
+	// decision topic as typed caller context so the clarify mode's providers steer
+	// the first turn (the committed thread is the durable record; these inputs are
+	// the run-start steering). On a start failure the thread persists (identity +
+	// user message + attachments) for retry.
+	clarInputs := map[string]any{}
+	putCallerString(clarInputs, "USER_QUESTION", userMessage)
+	decisionTopic := strings.TrimSpace(targetItem.Topic)
+	if decisionTopic == "" {
+		decisionTopic = strings.TrimSpace(targetItem.Text)
+	}
+	putCallerString(clarInputs, "DECISION_TOPIC", decisionTopic)
+	handle, err := h.invokeItemOperation(r.Context(), kind, item.Name, agentops.OpClarificationStart, "clarification-start-"+thread.ID, clarInputs)
+	if err != nil {
+		mapClarificationInvokeError(w, "clarification-create", err)
+		return
+	}
+	// Correlate the thread to the live run so the completion handler finds it.
+	thread.RunID = handle.RunID
+	thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	if err := workshop.SaveClarification(itemDir, thread); err != nil {
+		slog.Error("clarification run correlation save failed", "err", err)
 	}
 
 	// Emit analytics event.
@@ -259,17 +236,24 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	// Link the clarification to the decision item.
-	threadID := thread.ID
-	targetItem.ClarificationID = &threadID
-	if err := h.saveRoundItem(itemDir, targetRound, targetItem); err != nil {
-		slog.Warn("failed to link clarification to item", "err", err)
-	}
-
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, &apipb.CreateClarificationResponse{
 		Thread: clarificationThreadToProto(thread),
 	}); err != nil {
 		slog.Error("failed to write clarification-create response", "err", err)
+	}
+}
+
+// mapClarificationInvokeError classifies a runner Invoke error for a
+// clarification entrypoint into the API error the legacy spawn path returned.
+func mapClarificationInvokeError(w http.ResponseWriter, action string, err error) {
+	tag := "[backlog] " + action
+	switch mapInvokeError(err).kind {
+	case invokeUnavailable:
+		apierr.MapError(w, tag, apierr.Unavailable("agent-manager is not available"))
+	case invokeBusy:
+		apierr.MapError(w, tag, apierr.Conflict("an agent is already active for this backlog item"))
+	default:
+		apierr.MapError(w, tag, apierr.Internal("failed to start clarification operation"))
 	}
 }
 
@@ -338,7 +322,8 @@ func (h *Handler) ContinueClarification(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Append user message.
+	// Append the operator's follow-up (commit-before-async) so it survives a start
+	// failure or retry.
 	now := time.Now().UTC().Format(time.RFC3339)
 	thread.Messages = append(thread.Messages, workshop.ClarificationMessage{
 		Role:          "user",
@@ -347,18 +332,27 @@ func (h *Handler) ContinueClarification(w http.ResponseWriter, r *http.Request) 
 		AttachmentIDs: continueAttachmentIDs,
 	})
 	thread.UpdatedAt = now
-
-	// Continue the agent run.
-	if thread.RunID != "" && h.agentService.IsEnabled() {
-		if err := h.agentService.ContinueRun(r.Context(), thread.RunID, continueMessage); err != nil {
-			slog.Warn("ContinueRun failed", "err", err)
-			// Non-fatal — the message is still stored, user can retry.
-		}
-	}
-
+	turnKey := fmt.Sprintf("clarification-continue-%s-%d", thread.ID, len(thread.Messages))
 	if err := workshop.SaveClarification(itemDir, thread); err != nil {
 		apierr.MapError(w, "[backlog] clarification-continue", apierr.Internal("failed to save clarification"))
 		return
+	}
+
+	// Start the follow-up clarification operation, forwarding the operator's message
+	// as the required USER_MESSAGE caller input (the continue contract declares it
+	// required, so the runner fails closed on an empty message). The committed thread
+	// is the durable record; the assistant turn is written by the resolve-
+	// clarification action handler on completion.
+	continueInputs := map[string]any{}
+	putCallerString(continueInputs, "USER_MESSAGE", continueMessage)
+	handle, err := h.invokeItemOperation(r.Context(), kind, name, agentops.OpClarificationContinue, turnKey, continueInputs)
+	if err != nil {
+		mapClarificationInvokeError(w, "clarification-continue", err)
+		return
+	}
+	thread.RunID = handle.RunID
+	if err := workshop.SaveClarification(itemDir, thread); err != nil {
+		slog.Warn("clarification-continue run correlation save failed", "err", err)
 	}
 
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, &apipb.ContinueClarificationResponse{

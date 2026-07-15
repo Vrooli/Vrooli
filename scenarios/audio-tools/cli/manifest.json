@@ -1417,6 +1417,98 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "record-evidence",
+          "description": "Persist a transcript-free qualification artifact for one exact provider model/strategy/policy cell. A passed artifact can credit only its matching cell; failures remain visible in its promotion verdict. Example: audio-tools experiment record-evidence --engine-id kyutai --model-id kyutai/stt-1b-en_fr --strategy passthrough --kind fault --fault-profile provider_busy --outcome passed --artifact-ref bas:run-id",
+          "flags": [
+            {
+              "name": "engine-id",
+              "description": "Provider engine id (for example kyutai or whisper-local)"
+            },
+            {
+              "name": "model-id",
+              "description": "Exact provider model id from the qualification artifact (required)"
+            },
+            {
+              "name": "strategy",
+              "description": "Streaming strategy for the qualified provider cell"
+            },
+            {
+              "name": "policy-profile",
+              "description": "Optional dictation policy profile; empty is the default profile"
+            },
+            {
+              "name": "kind",
+              "description": "interval_accounting|bounded_recovery|fault|browser_product_path|device"
+            },
+            {
+              "name": "fault-profile",
+              "description": "Required trust-floor fault id when --kind=fault; omitted for other kinds"
+            },
+            {
+              "name": "outcome",
+              "description": "passed|failed"
+            },
+            {
+              "name": "artifact-ref",
+              "description": "Durable BAS run id, experiment id, or equivalent artifact reference"
+            },
+            {
+              "name": "notes",
+              "description": "Optional concise operator notes"
+            },
+            {
+              "name": "machine-json",
+              "description": "Optional JSON host/goos/goarch identity for an externally run artifact; local records are stamped by the API"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "RecordQualificationEvidence"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list-evidence",
+          "description": "List persisted qualification artifacts, optionally narrowed to one provider strategy/policy cell. Use --json for machine identity, notes, and exact timestamps.",
+          "flags": [
+            {
+              "name": "engine-id",
+              "description": "Optional provider engine id filter"
+            },
+            {
+              "name": "model-id",
+              "description": "Optional exact provider model id filter"
+            },
+            {
+              "name": "strategy",
+              "description": "Optional strategy filter"
+            },
+            {
+              "name": "policy-profile",
+              "description": "Optional policy profile filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "ListQualificationEvidence"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     }

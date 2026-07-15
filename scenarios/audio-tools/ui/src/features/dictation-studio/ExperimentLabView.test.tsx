@@ -180,6 +180,7 @@ function report() {
       ],
       qualityMeasured: true,
       latencyMeasured: true,
+      promotionVerdicts: [{ engineId: "kyutai", modelId: "kyutai/stt-1b-en_fr", strategy: "passthrough", policyProfile: "", stable: false, reasons: ["manual device evidence is missing"] }],
       summary: {
         winnerStrategy: "batch",
         winnerLabel: "batch",
@@ -309,6 +310,8 @@ describe("ExperimentLabView", () => {
 
     await user.click(screen.getByTestId(selectors.dictationStudio.experimentReport({ id: "exp-1" })));
     expect(await screen.findByTestId(selectors.dictationStudio.experimentResults)).toHaveTextContent(strings.dictationStudio.safetySafe);
+    expect(screen.getByTestId("dictation-promotion-verdicts")).toHaveTextContent(strings.dictationStudio.promotionBlocked);
+    expect(screen.getByTestId("dictation-promotion-verdicts")).toHaveTextContent("manual device evidence is missing");
     expect(screen.getByTestId(selectors.dictationStudio.lengthCurveChart)).toBeInTheDocument();
     expect(screen.getByText(strings.dictationStudio.realizedClipsLabel)).toBeInTheDocument();
     const conditions = screen.getByTestId(selectors.dictationStudio.experimentConditions);

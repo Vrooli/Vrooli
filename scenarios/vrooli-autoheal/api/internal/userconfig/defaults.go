@@ -70,7 +70,6 @@ func DefaultMonitoring() MonitoringConfig {
 			"ecosystem-manager": {Critical: true},
 			"template-manager":  {Critical: true},
 			// Non-critical scenarios - will report StatusWarning when stopped
-			"landing-manager":           {Critical: false},
 			"browser-automation-studio": {Critical: false},
 			"test-genie":                {Critical: false},
 			"deployment-manager":        {Critical: false},
@@ -83,7 +82,6 @@ func DefaultMonitoring() MonitoringConfig {
 			"ollama",
 			"qdrant",
 			"searxng",
-			"browserless",
 			"whisper",
 		},
 	}
@@ -242,12 +240,6 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 		IntervalSeconds: 60,
 	},
 	"resource-searxng": {
-		Enabled:         true,
-		AutoHeal:        true,
-		AutoHealOn:      "critical",
-		IntervalSeconds: 120,
-	},
-	"resource-browserless": {
 		Enabled:         true,
 		AutoHeal:        true,
 		AutoHealOn:      "critical",

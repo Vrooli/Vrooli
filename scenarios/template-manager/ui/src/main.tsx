@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
@@ -14,6 +15,12 @@ if (window.parent !== window) {
 // INTEROP-CRITICAL: Spatial navigation is initialized at startup for embedded
 // keyboard/gamepad control flows.
 initSpatialNav();
+
+// Self-heal stale lazy-chunk imports: every rebuild/restart deletes the old
+// content-hashed Vite chunks, so tabs opened before a deploy 404 on their next
+// lazy() navigation. The guard reloads once (60s cooldown) on vite:preloadError.
+// Required for the drill-down detail routes below, which are code-split.
+installChunkReloadGuard();
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {

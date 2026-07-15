@@ -235,6 +235,18 @@ func (s *Service) inspectRunningRecordsLocked(ctx context.Context, records []Rec
 		if !isInspectableStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
 			continue
 		}
+		// Runner-owned records (an operation execution correlates them via
+		// OpExecutionID) are driven to terminal by the completion bridge's
+		// commit-execution-round handler, NOT by polling agent-manager. Defer them
+		// here so the bridge is their single completion authority — the inverse of
+		// the poll path, avoiding the dual-drive slice A deliberately tolerated as
+		// transitional (plan-manager note d789cb50). The startup reconciliation sweep
+		// is the backstop for a runner-owned record whose bridge delivery is lost.
+		// Pre-migration non-runner records keep the poll path until Phase 8 migrates
+		// them.
+		if strings.TrimSpace(record.OpExecutionID) != "" {
+			continue
+		}
 
 		tracker := s.ensureRunTracker(record.RunID)
 

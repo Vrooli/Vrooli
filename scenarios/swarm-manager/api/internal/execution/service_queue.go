@@ -3,18 +3,14 @@ package execution
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
-	"swarm-manager/internal/promptcatalog"
 )
 
 // QueueBacklog creates an execution record and optionally starts it.
@@ -222,8 +218,8 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		return Record{}, apierr.BadRequest("scenario path does not exist: %s", ac.ScenarioPath)
 	}
 
-	if s.agentService == nil || !s.agentService.IsEnabled() {
-		return Record{}, apierr.Unavailable("agent-manager is not available")
+	if s.operationStarter == nil {
+		return Record{}, apierr.Unavailable("execution operation runner is not available")
 	}
 
 	records, err := s.store.Load()
@@ -246,56 +242,34 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		UpdatedAt:      now,
 	}
 
-	specSyncEntry, ok := promptcatalog.ResolveSpecSyncSkill()
-	if !ok {
-		return Record{}, fmt.Errorf("spec-sync prompt catalog entry missing")
-	}
-
-	// Fetch spec-sync prompt from prompt-manager
-	specSyncVars := map[string]string{
-		"TARGET": ac.ScenarioName,
-	}
-	prompt, promptErr := s.promptClient.ReadSkill(ctx, specSyncEntry.SkillID, specSyncVars, false)
-	if promptErr != nil {
-		slog.Warn("spec-sync prompt fetch failed, using fallback", "err", promptErr)
-		prompt = "Read the implementation code in this scenario and update all spec artifacts (PRD.md, requirements/, README.md, docs/) to match the actual behavior."
-	}
-	record.PromptTrace = &PromptTrace{
-		Purpose:        "spec-sync",
-		Prompt:         prompt,
-		PromptRevision: promptRevision(prompt),
-		UsedFallback:   promptErr != nil,
-		CapturedAt:     now,
-	}
-
-	// Spawn agent targeting the scenario directory
-	activityCtx := agentactivity.WithSpec(ctx, scenarioActivitySpec(
-		ac,
-		record.ExecutionID,
-		record.StartedBy,
-		map[string]string{
-			"entrypoint": "execution.spec_sync_archive",
-		},
-	))
-
-	runResult, err := s.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
-		Kind:        "spec-sync",
-		Name:        ac.ScenarioName,
-		Title:       "Spec sync: " + ac.ScenarioName,
-		Description: prompt,
-		Prompt:      prompt,
-		ScopePath:   ac.ScenarioPath,
-		ProjectRoot: ".",
-		CreatedBy:   "swarm-manager",
-		Purpose:     "spec-sync",
-		Environment: map[string]string{"VROOLI_SPAWN_SOURCE": record.BacklogKind + "/" + record.BacklogName},
+	// Start the spec-sync operation against the scenario target. The mode owns the
+	// prompt (prompt-manager skill swarm-manager-scenario-spec-sync-spec-sync). The
+	// record keeps its ArchiveContext, so the completion bridge's
+	// commit-execution-round handler runs handleSpecSyncComplete (archive + delete)
+	// via applyTerminalTransition's ArchiveContext branch on a completed outcome.
+	res, err := s.operationStarter.StartOperation(ctx, OperationStartRequest{
+		Operation:        operationSpecSync,
+		OperationVersion: operationVersionPinned,
+		TargetKind:       targetKindScenario,
+		TargetID:         ac.ScenarioName,
+		IdempotencyKey:   "exec-" + record.ExecutionID,
+		RequestedBy:      record.StartedBy,
 	})
 	if err != nil {
-		return Record{}, err
+		return Record{}, wrapAgentError(err)
+	}
+	if strings.TrimSpace(res.RunID) == "" {
+		if cerr := s.operationStarter.CancelOperation(ctx, OperationCancelRequest{
+			TargetKind: targetKindScenario, TargetID: ac.ScenarioName, ExecutionID: res.ExecutionID,
+		}); cerr != nil {
+			slog.Warn("execution: reap of run-id-less spec-sync start failed", "scenario", ac.ScenarioName, "err", cerr)
+		}
+		return Record{}, apierr.BadGateway("spec-sync operation started but returned no run id; agent-manager may be unavailable")
 	}
 
-	record.TaskID = runResult.TaskID
-	record.RunID = runResult.RunID
+	record.RunID = res.RunID
+	record.OpWorkflowID = res.WorkflowID
+	record.OpExecutionID = res.ExecutionID
 	record.StartedAt = nowRFC3339()
 	record.Status = StatusStarting
 	record.UpdatedAt = nowRFC3339()

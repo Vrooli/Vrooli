@@ -31,15 +31,22 @@ var forwardOnlyAlters = []string{
 	`ALTER TABLE speaker_profiles ADD COLUMN sample_rate INTEGER NOT NULL DEFAULT 0`,
 	`ALTER TABLE speaker_profiles ADD COLUMN embedding_dim INTEGER NOT NULL DEFAULT 0`,
 	`ALTER TABLE speaker_profiles ADD COLUMN model_name TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE qualification_evidence ADD COLUMN model_id TEXT NOT NULL DEFAULT ''`,
+	`DROP INDEX IF EXISTS idx_qualification_evidence_cell`,
+	`CREATE INDEX IF NOT EXISTS idx_qualification_evidence_cell ON qualification_evidence(engine_id, model_id, strategy, policy_profile, observed_at DESC)`,
 }
 
 // ApplyMigrations runs the forward-only ALTERs against db. It is idempotent:
 // the "duplicate column name" error from an already-applied ALTER is treated
-// as success. Call it once at boot, after EnsureSchemas.
+// as success. A partial-schema test/database can omit a domain table entirely;
+// that is also skipped so migrations remain usable by isolated domain tests.
+// Bootstrap calls it before EnsureSchemas (to repair declared-shape drift) and
+// again after EnsureSchemas (to cover tables created during this boot).
 func ApplyMigrations(ctx context.Context, db migrationExecer) error {
 	for _, stmt := range forwardOnlyAlters {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			if strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+			message := strings.ToLower(err.Error())
+			if strings.Contains(message, "duplicate column name") || strings.Contains(message, "no such table") {
 				continue
 			}
 			return fmt.Errorf("apply migration %q: %w", stmt, err)

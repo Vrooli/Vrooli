@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:DataTable
- * @vrooliComponentVersion 1.1.2
+ * @vrooliComponentVersion 1.2.0
  * @vrooliComponentAdoption scenario:experience-manager:data-table
- * @vrooliComponentAppliedAt 2026-07-14T20:41:17Z
- * @vrooliComponentSourceSha256 c201e00d856b5f419d036552b899112efdfb523f4e16356b0dc8d06ddfa91ef8
- * @vrooliComponentDriftHash c201e00d856b5f419d036552b899112efdfb523f4e16356b0dc8d06ddfa91ef8
+ * @vrooliComponentAppliedAt 2026-07-15T03:06:04Z
+ * @vrooliComponentSourceSha256 8f743927ac49c317d429a0e74f856ea6ede6746b87c75d5d8a55b7c2703fad1f
+ * @vrooliComponentDriftHash 8f743927ac49c317d429a0e74f856ea6ede6746b87c75d5d8a55b7c2703fad1f
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.

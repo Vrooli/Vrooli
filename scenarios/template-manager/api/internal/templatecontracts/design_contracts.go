@@ -1,14 +1,5 @@
 package templatecontracts
 
-import (
-	"fmt"
-	"io"
-	"sort"
-	"strings"
-
-	"github.com/vrooli/vrooli/internal/cliout"
-)
-
 type DesignCopyRule struct {
 	From string `json:"from"`
 	To   string `json:"to"`
@@ -49,9 +40,21 @@ type DesignValidationIssue struct {
 	Message string `json:"message"`
 }
 
-type DesignValidationReport struct {
-	Count  int                     `json:"count"`
+// DesignKitValidationResult is the per-kit verdict: Status is "pass" when the
+// kit produced no issues, "fail" otherwise, and Issues is that kit's subset of
+// the flat report.
+type DesignKitValidationResult struct {
+	Kit    string                  `json:"kit"`
+	Status string                  `json:"status"`
 	Issues []DesignValidationIssue `json:"issues,omitempty"`
+}
+
+type DesignValidationReport struct {
+	Count int `json:"count"`
+	// Issues is the flat list across every kit plus any fleet-level issue (e.g.
+	// more than one kit marked default). Results groups the per-kit verdicts.
+	Issues  []DesignValidationIssue     `json:"issues,omitempty"`
+	Results []DesignKitValidationResult `json:"results,omitempty"`
 }
 
 type (
@@ -62,88 +65,3 @@ type (
 		All bool
 	}
 )
-
-func RenderDesignListResponse(w io.Writer, format cliout.Format, kits []DesignKitInfo) error {
-	if format == cliout.FormatJSON {
-		return writeScenarioDesignListJSON(w, kits)
-	}
-	rows := make([][]string, 0, len(kits))
-	for _, kit := range kits {
-		defaultMarker := ""
-		if kit.Manifest.Default {
-			defaultMarker = "yes"
-		}
-		adapters := sortedDesignAdapterIDs(kit.Manifest.Adapters)
-		rows = append(rows, []string{kit.ID, kit.Manifest.Name, kit.Manifest.Version, defaultMarker, strings.Join(adapters, ", ")})
-	}
-	_ = cliout.RenderTable(w, []string{"ID", "Name", "Version", "Default", "Adapters"}, rows)
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Tip: template-manager design show <kit-id>")
-	return nil
-}
-
-func RenderDesignShowResponse(w io.Writer, format cliout.Format, info DesignKitInfo) error {
-	if format == cliout.FormatJSON {
-		return writeScenarioDesignShowJSON(w, info)
-	}
-	manifest := info.Manifest
-	_, _ = fmt.Fprintf(w, "%s (%s)\n", manifest.Name, manifest.ID)
-	if manifest.Description != "" {
-		_, _ = fmt.Fprintln(w, manifest.Description)
-	}
-	if manifest.Version != "" {
-		_, _ = fmt.Fprintf(w, "Version: %s\n", manifest.Version)
-	}
-	if manifest.Default {
-		_, _ = fmt.Fprintln(w, "Default: yes")
-	}
-	if len(manifest.Tags) > 0 {
-		_, _ = fmt.Fprintf(w, "Tags: %s\n", strings.Join(manifest.Tags, ", "))
-	}
-	_, _ = fmt.Fprintf(w, "Canonical design: %s/DESIGN.md\n", info.Path)
-	if len(manifest.Adapters) > 0 {
-		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "Adapters:")
-		for _, id := range sortedDesignAdapterIDs(manifest.Adapters) {
-			adapter := manifest.Adapters[id]
-			_, _ = fmt.Fprintf(w, "  - %s\n", id)
-			_, _ = fmt.Fprintf(w, "      path: %s\n", adapter.Path)
-			if len(adapter.Supports) > 0 {
-				_, _ = fmt.Fprintf(w, "      supports: %s\n", strings.Join(adapter.Supports, ", "))
-			}
-		}
-	}
-	return nil
-}
-
-func RenderDesignValidateResponse(w io.Writer, format cliout.Format, report DesignValidationReport) error {
-	if format == cliout.FormatJSON {
-		return writeScenarioDesignValidateJSON(w, report)
-	}
-	if len(report.Issues) == 0 {
-		_, _ = fmt.Fprintf(w, "Validated %d design kits\n", report.Count)
-		return nil
-	}
-	_, _ = fmt.Fprintf(w, "Design validation found %d issue(s) across %d kit(s):\n", len(report.Issues), report.Count)
-	for _, issue := range report.Issues {
-		scope := issue.Kit
-		if issue.Adapter != "" {
-			scope += "/" + issue.Adapter
-		}
-		if issue.Path != "" {
-			_, _ = fmt.Fprintf(w, "  - %s (%s): %s\n", scope, issue.Path, issue.Message)
-		} else {
-			_, _ = fmt.Fprintf(w, "  - %s: %s\n", scope, issue.Message)
-		}
-	}
-	return nil
-}
-
-func sortedDesignAdapterIDs(adapters map[string]DesignKitAdapter) []string {
-	ids := make([]string, 0, len(adapters))
-	for id := range adapters {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	return ids
-}

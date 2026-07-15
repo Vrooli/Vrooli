@@ -1,4 +1,4 @@
-import { Home, Settings } from "lucide-react";
+import { AlertCircle, Home, ListChecks, Package, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { BottomNav as CanonicalBottomNav, type BottomNavItem } from "../components/ui/bottom-nav";
@@ -44,6 +44,12 @@ function iconForItem(item: NavItem) {
 	switch (item.key) {
 		case "settings":
 			return <Settings aria-hidden className={iconClass} />;
+    case "debt":
+      return <AlertCircle aria-hidden className={iconClass} />;
+    case "templates":
+      return <Package aria-hidden className={iconClass} />;
+    case "runs":
+      return <ListChecks aria-hidden className={iconClass} />;
     case "dashboard":
       return <Home aria-hidden className={iconClass} />;
   }

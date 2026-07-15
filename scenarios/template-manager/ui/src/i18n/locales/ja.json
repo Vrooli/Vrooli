@@ -11,6 +11,9 @@
     "mainLabel": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",
+      "templates": "テンプレート",
+      "runs": "実行",
+      "debt": "負債",
       "settings": "設定"
     }
   },
@@ -31,6 +34,18 @@
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    },
+    "templateList": {
+      "title": "テンプレートレジストリ",
+      "description": "管理対象のシナリオ、デザイン、リソーステンプレート。種類で絞り込み、開くとバージョン、ドリフト、検証履歴を確認できます。"
+    },
+    "runList": {
+      "title": "検証履歴",
+      "description": "フリート全体の保存済み検証実行。ステータスで絞り込み、実行を開くとフェーズ結果と指摘事項を確認できます。"
+    },
+    "debtList": {
+      "title": "負債台帳",
+      "description": "フリート全体の継承テンプレート欠陥。テンプレートまたはステータスで絞り込み、項目を開いて詳細な由来を確認します。"
     }
   },
   "health": {
@@ -118,6 +133,111 @@
     "empty": {
       "title": "状態データはありません",
       "description": "検証またはドリフト記録を実行すると状態バケットが作成されます。"
+    }
+  },
+  "list": {
+    "pagination": {
+      "label": "ページネーション",
+      "prev": "前へ",
+      "next": "次へ",
+      "status": "{{total}} ページ中 {{page}} ページ目"
+    }
+  },
+  "templateList": {
+    "search": "テンプレートを検索",
+    "searchPlaceholder": "名前、ID、バージョンで検索",
+    "empty": "現在のフィルターに一致するテンプレートはありません",
+    "viewEntry": "テンプレートを表示",
+    "filters": {
+      "kind": "種類",
+      "allKinds": "すべての種類"
+    }
+  },
+  "runList": {
+    "search": "検証実行を検索",
+    "searchPlaceholder": "実行IDまたはテンプレートで検索",
+    "empty": "現在のフィルターに一致する検証実行はありません",
+    "viewEntry": "検証実行を表示",
+    "filters": {
+      "status": "ステータス",
+      "allStatuses": "すべてのステータス"
+    }
+  },
+  "detail": {
+    "back": {
+      "dashboard": "ダッシュボードに戻る",
+      "debtList": "負債台帳に戻る"
+    },
+    "loadingTitle": "読み込み中",
+    "loadingDescription": "Template Manager API から最新のレコードを取得しています。",
+    "errorTitle": "読み込めません",
+    "errorDescription": "template-manager が起動しており、このレコードがまだ存在することを確認してください。"
+  },
+  "templateDetail": {
+    "overview": "概要",
+    "runs": "検証実行",
+    "runsEmpty": "検証実行はまだありません",
+    "drift": "ドリフトスナップショット",
+    "driftEmpty": "ドリフトスナップショットはまだありません",
+    "debt": "負債",
+    "debtEmpty": "負債項目はまだありません",
+    "fields": {
+      "kind": "種類",
+      "version": "バージョン",
+      "status": "ステータス",
+      "latestVersion": "最新バージョン",
+      "lag": "バージョン遅れ",
+      "updatedAt": "更新日時",
+      "tags": "タグ",
+      "manifestPath": "マニフェストパス",
+      "sourcePath": "ソースパス"
+    }
+  },
+  "runDetail": {
+    "overview": "概要",
+    "phases": "フェーズ結果",
+    "phasesEmpty": "フェーズ結果はありません",
+    "findings": "指摘事項",
+    "findingsEmpty": "指摘事項なし — クリーンな実行",
+    "columns": {
+      "findingCount": "指摘数",
+      "source": "ソース"
+    },
+    "fields": {
+      "template": "テンプレート",
+      "mode": "モード",
+      "status": "ステータス",
+      "trigger": "トリガー",
+      "target": "対象",
+      "startedAt": "開始",
+      "finishedAt": "終了",
+      "duration": "所要時間"
+    }
+  },
+  "debtDetail": {
+    "overview": "概要",
+    "message": "詳細",
+    "messageEmpty": "追加の詳細はありません",
+    "fields": {
+      "key": "キー",
+      "template": "テンプレート",
+      "severity": "重大度",
+      "status": "ステータス",
+      "source": "ソース",
+      "firstSeen": "初回検出",
+      "lastSeen": "最終検出"
+    }
+  },
+  "debtList": {
+    "search": "負債項目を検索",
+    "searchPlaceholder": "キー、テンプレート、タイトルで検索",
+    "empty": "現在のフィルターに一致する負債項目はありません",
+    "viewEntry": "負債項目を表示",
+    "filters": {
+      "template": "テンプレート",
+      "allTemplates": "すべてのテンプレート",
+      "status": "ステータス",
+      "allStatuses": "すべてのステータス"
     }
   }
 }

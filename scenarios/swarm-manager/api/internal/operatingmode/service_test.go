@@ -502,10 +502,10 @@ func TestStartPhaseRejectsPlanTargetModeThroughInitiativeSurface(t *testing.T) {
 		InitiativeName: "init-phased",
 		Phase:          "execute",
 	})
-	if err == nil || !strings.Contains(err.Error(), "targets plan-manager-plan") {
+	if err == nil || !strings.Contains(err.Error(), "targets plan-execution") {
 		t.Fatalf("StartPhase error = %v, want plan-target rejection", err)
 	}
-	if _, err := svc.RenderLivePrompt(context.Background(), "init-phased", "execute", 0, ""); err == nil || !strings.Contains(err.Error(), "targets plan-manager-plan") {
+	if _, err := svc.RenderLivePrompt(context.Background(), "init-phased", "execute", 0, ""); err == nil || !strings.Contains(err.Error(), "targets plan-execution") {
 		t.Fatalf("RenderLivePrompt error = %v, want plan-target rejection", err)
 	}
 }

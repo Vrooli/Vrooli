@@ -61,9 +61,26 @@ message GetResourceTemplateResponse {
 
 message ValidateResourceTemplatesRequest {}
 
+message ResourceTemplateValidationResult {
+  string name = 1;
+  string driver = 2;
+  bool transitional = 3;
+  // status is "pass" when the template produced no issues, "fail" otherwise.
+  string status = 4;
+  repeated string issues = 5;
+}
+
 message ValidateResourceTemplatesResponse {
+  // count is the number of resource templates validated.
   int32 count = 1;
-  repeated ResourceTemplateSummary templates = 2;
+  // status is the overall verdict: "pass" when no issues were found, "fail"
+  // otherwise.
+  string status = 2;
+  int32 issues_count = 3;
+  repeated ResourceTemplateValidationResult results = 4;
+  // issues carries fleet-level problems not tied to one template, such as a
+  // missing canonical template.
+  repeated string issues = 5;
 }
 
 message GenerateResourceTemplateRequest {

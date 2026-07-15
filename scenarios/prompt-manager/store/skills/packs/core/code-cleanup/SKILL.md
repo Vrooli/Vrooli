@@ -277,7 +277,7 @@ tidiness-manager issues {{TARGET}} --category lint --limit 10
 **After cleaning each file:**
 ```bash
 # Record cleanup work with specific notes
-tidiness-manager visit <file-path> \
+tidiness-manager visit "<file-path>" \
   --scenario {{TARGET}} \
   --note "<what was removed, what remains to investigate>"
 ```
@@ -285,7 +285,7 @@ tidiness-manager visit <file-path> \
 **When a file has no cleanup candidates:**
 ```bash
 # Exclude from future cleanup queries
-tidiness-manager exclude <file-path> \
+tidiness-manager exclude "<file-path>" \
   --scenario {{TARGET}} \
   --reason "No dead code found - clean implementation"
 ```
@@ -293,7 +293,7 @@ tidiness-manager exclude <file-path> \
 **When a file is in packages/ or out of scope:**
 ```bash
 # Exclude shared code from cleanup scope
-tidiness-manager exclude <file-path> \
+tidiness-manager exclude "<file-path>" \
   --scenario {{TARGET}} \
   --reason "Shared package - out of scope for scenario cleanup"
 ```

@@ -11,6 +11,9 @@
     "mainLabel": "Main content",
     "nav": {
       "dashboard": "Dashboard",
+      "templates": "Templates",
+      "runs": "Runs",
+      "debt": "Debt",
       "settings": "Settings"
     }
   },
@@ -31,6 +34,18 @@
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    },
+    "templateList": {
+      "title": "Template registry",
+      "description": "Every governed scenario, design, and resource template. Filter by kind, then open one for its versions, drift, and validation history."
+    },
+    "runList": {
+      "title": "Validation history",
+      "description": "Every persisted validation run across the fleet. Filter by status, then open a run for its per-phase results and findings."
+    },
+    "debtList": {
+      "title": "Debt ledger",
+      "description": "Every inherited-template defect across the fleet. Filter by template or status, then open an entry for its full provenance."
     }
   },
   "health": {
@@ -121,6 +136,111 @@
     "empty": {
       "title": "No standing data",
       "description": "Run validation or drift recording to populate standing buckets."
+    }
+  },
+  "list": {
+    "pagination": {
+      "label": "Pagination",
+      "prev": "Previous",
+      "next": "Next",
+      "status": "Page {{page}} of {{total}}"
+    }
+  },
+  "templateList": {
+    "search": "Search templates",
+    "searchPlaceholder": "Search by name, id, or version",
+    "empty": "No templates match the current filters",
+    "viewEntry": "View template",
+    "filters": {
+      "kind": "Kind",
+      "allKinds": "All kinds"
+    }
+  },
+  "runList": {
+    "search": "Search validation runs",
+    "searchPlaceholder": "Search by run id or template",
+    "empty": "No validation runs match the current filters",
+    "viewEntry": "View validation run",
+    "filters": {
+      "status": "Status",
+      "allStatuses": "All statuses"
+    }
+  },
+  "detail": {
+    "back": {
+      "dashboard": "Back to dashboard",
+      "debtList": "Back to debt ledger"
+    },
+    "loadingTitle": "Loading",
+    "loadingDescription": "Fetching the latest record from the Template Manager API.",
+    "errorTitle": "Unable to load",
+    "errorDescription": "Check that template-manager is running and that this record still exists."
+  },
+  "templateDetail": {
+    "overview": "Overview",
+    "runs": "Validation runs",
+    "runsEmpty": "No validation runs recorded",
+    "drift": "Drift snapshots",
+    "driftEmpty": "No drift snapshots recorded",
+    "debt": "Debt",
+    "debtEmpty": "No debt entries recorded",
+    "fields": {
+      "kind": "Kind",
+      "version": "Version",
+      "status": "Status",
+      "latestVersion": "Latest version",
+      "lag": "Version lag",
+      "updatedAt": "Updated",
+      "tags": "Tags",
+      "manifestPath": "Manifest path",
+      "sourcePath": "Source path"
+    }
+  },
+  "runDetail": {
+    "overview": "Overview",
+    "phases": "Phase results",
+    "phasesEmpty": "No phase results recorded",
+    "findings": "Findings",
+    "findingsEmpty": "No findings — a clean run",
+    "columns": {
+      "findingCount": "Findings",
+      "source": "Source"
+    },
+    "fields": {
+      "template": "Template",
+      "mode": "Mode",
+      "status": "Status",
+      "trigger": "Trigger",
+      "target": "Target",
+      "startedAt": "Started",
+      "finishedAt": "Finished",
+      "duration": "Duration"
+    }
+  },
+  "debtDetail": {
+    "overview": "Overview",
+    "message": "Detail",
+    "messageEmpty": "No additional detail recorded",
+    "fields": {
+      "key": "Key",
+      "template": "Template",
+      "severity": "Severity",
+      "status": "Status",
+      "source": "Source",
+      "firstSeen": "First seen",
+      "lastSeen": "Last seen"
+    }
+  },
+  "debtList": {
+    "search": "Search debt entries",
+    "searchPlaceholder": "Search by key, template, or title",
+    "empty": "No debt entries match the current filters",
+    "viewEntry": "View debt entry",
+    "filters": {
+      "template": "Template",
+      "allTemplates": "All templates",
+      "status": "Status",
+      "allStatuses": "All statuses"
     }
   }
 }

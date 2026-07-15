@@ -48,7 +48,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ```
 
 ## Entries
-
 ### 2026-06-29 — Eval auto-tune sweep/apply RPC deferred
 
 **Symptom:** Dictation Studio experiment reports now recommend a winning
@@ -313,6 +312,21 @@ requirement-bound playbook coverage.
 **Refs:** `scenarios/audio-tools/bas/flows/audio-tools-dictation-studio-scripted-bench.json`,
 `scenarios/audio-tools/docs/reference/eval-harness.md`.
 
+### 2026-07-11 - BAS selector manifest qualification and streaming proxy blocker
+
+Persisted BAS workflows now compile selectors from Audio Tools ui/src/consts/selectors.manifest.json through their project root. Execution 3c21f0f4-d75a-4e7a-9704-519aecdbd6d5 completed all browser controls with the WAV fake microphone, but it is not successful PCM-v2 evidence: Audio Tools runtime logs show the normal UI proxy forwarding /api/v1/voice/stream as a plain GET without WebSocket Upgrade, producing HTTP 400. Filed scenario-qa code-defect knw-1783819641843118934. ATD-P0-006 automation therefore remains planned; P0-005 remains planned because Playbooks cannot set the boot-only test-fault gate.
+
+### 2026-07-11 - Test Genie cannot provision BAS fake-microphone fixtures (RESOLVED 2026-07-12)
+
+**Symptom:** The standard Audio Tools workflow phase times out in deterministic-microphone-smoke after the repository workflow schema is valid.\n\n**Root cause:** Chromium fake capture was configured only by the Browser Automation Studio driver process environment (BAS_FAKE_MICROPHONE_FILE). Test Genie could run the playbook but had no per-workflow fixture provisioning path, so its normal BAS driver had no fake device.\n\n**Resolution:** BAS now supports a per-execution deterministic-media capability: a workflow declares `settings.fake_media.microphone_wav` (path resolved against the execution's `project_root` and required to stay within it), the API threads it to the Playwright driver, and the driver pools a dedicated Chromium instance per distinct WAV with the fake-capture launch flags plus context-level microphone permission. `deterministic-microphone-smoke.json` now carries `settings.fake_media.microphone_wav = fixtures/dictation-reference.wav` and passed on a standard (non-specially-booted) driver: BAS execution 3676aa0c-5fce-4159-bf93-17319d2e5d30 (2026-07-12) proved captured PCM, v2 send, done delivery, and processed acknowledgement. BAS_FAKE_MICROPHONE_FILE remains only as the default-browser fallback for dedicated qualification drivers.\n\n**Owner:** resolved.\n\n**Refs:** bas/cases/01-foundation/01-dictation/deterministic-microphone-smoke.json; bas/fixtures/dictation-reference.wav; browser-automation-studio/playwright-driver/src/session/browser-manager.ts; packages/proto/schemas/browser-automation-studio/v1/workflows/definition.proto (FakeMediaConfig).
+
+### 2026-07-11 - P0 dictation requirements are in-progress pending live qualification
+
+**Symptom:** The P0 registry previously showed  even where focused unit and deterministic-browser evidence had passed, while its test-only validations could eventually allow an over-broad completion status.\n\n**Root cause:** The original requirement entries had no separate validation for their real-resource and manual qualification gates.\n\n**Workaround:** The registry now marks verified test and BAS validation as implemented, leaves each P0 requirement , and records a planned manual gate for the outstanding full provider profile, live admission/recovery, cross-engine speaker policy, consumer adapters, and device evidence.\n\n**Real fix:** Complete and record those gates through the qualification harness and ; only then may the full sync promote the requirements.\n\n**Owner:** audio-tools provider-parity plan.\n\n**Refs:** requirements/01-must-ship/module.json; provider experiments e0a2596e-91e9-4e4f-8b44-b2bec7b79e3d, ddf20231-47c4-4da6-803e-1e5e33ae3fb0, 4e5505e6-3e61-405f-88ab-b9a83cc2538a.
+
+### 2026-07-11 - Correction: P0 dictation qualification gates
+
+**Correction:** The preceding entry's wording was damaged by shell interpolation. Treat this entry as authoritative.\n\n**State:** Each P0 dictation requirement is in_progress. Focused unit and deterministic-browser validations are implemented. A planned manual validation remains for each real-resource and device gate, so a future full sync cannot mark a P0 claim complete from unit evidence alone.\n\n**Completion path:** Run and record the full provider duration, interruption, recovery, fault, browser, consumer-adapter, cross-engine speaker-policy, and device qualification profiles. Then record manual evidence with the scenario requirements manual-log command and let the normal full-suite sync derive completion.\n\n**Refs:** requirements/01-must-ship/module.json; experiments e0a2596e-91e9-4e4f-8b44-b2bec7b79e3d, ddf20231-47c4-4da6-803e-1e5e33ae3fb0, 4e5505e6-3e61-405f-88ab-b9a83cc2538a.
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -709,6 +723,159 @@ holders; not the cause of the mic stop). Web-console side owns the fix; see its
 `PROBLEMS.md §8c`. First step done: full client instrumentation + honest
 track-mute/ended/recorder-error handling + a guard that suppresses a client-VAD
 auto-stop when the audio source is not delivering samples.
+
+### 2026-07-12 - Kyutai deterministic long-form replay remains an unresolved flow-control blocker
+
+**Symptom:** The persisted 15-minute provider profile completed the paced
+Kyutai pass (11,337 frames, 154 segments, graceful end) but its preceding
+deterministic quality pass closed after 4,330 frames and 57 segments with
+`1011 keepalive ping timeout`. The incomplete quality transcript had WER 0.663
+and 638 deleted reference words; the matching Whisper row had WER 0.042.
+
+**Confirmed contributing defect:** Fast replay generates partials faster than
+the Go `KyutaiProvider` downstream consumer can drain them. The adapter used to
+synchronously write every partial into its 16-slot `events` channel, which could
+stop `ReadMessage`. `provider_kyutai.go` now uses a nonblocking bounded send for
+the explicitly droppable partial class; segments, session states, errors, and
+done remain ordered durable delivery. The 60 MiB
+`TestKyutaiProvider_PartialFloodDoesNotBlockWebSocketReader` oracle failed before
+the change and passes after it.
+
+**Current status (superseded by the 2026-07-12 addendum below):** The full
+deterministic native-streaming evaluation still closed at the same 50-second
+boundary after this repair (1,865 frames / 24 segments), so partial pressure
+was not the sole cause. The server reported `disconnect`, not `reaped`, and the
+paced pass proved the same model/audio path could complete. That isolated the
+native transport's unbounded fast writer as the remaining suspect.
+
+**Interim evidence correction:** A `realtime` evaluation cell now derives
+WER/safety from its first paced repeat and no longer attaches an incompatible
+unpaced deterministic failure to a row labeled `realtime`. An explicitly
+deterministic Kyutai cell remains a required, currently failing qualification
+until a real bounded transport-flow-control fix exists; this is not waived for
+promotion.
+
+**Validation:** Focused `go test ./internal/ai/sttchain ./handlers/stt` passes.
+The paced 15-minute rerun is experiment `71a8ea70-2a4a-4a9e-9e5a-f46dbd2191a4`.
+
+**Refs:** `api/internal/ai/sttchain/provider_kyutai.go`;
+`api/internal/ai/sttchain/provider_kyutai_test.go`; experiments
+`ddf20231-47c4-4da6-803e-1e5e33ae3fb0`,
+`71a8ea70-2a4a-4a9e-9e5a-f46dbd2191a4`; record `rec-6d413e62862befd6`.
+
+### 2026-07-12 — Deterministic experiment runtime is bounded; Kyutai decode throughput remains below budget
+
+**Observed:** After bounded `processed_batches` credits were deployed, the
+former 1011 disconnect no longer occurred, but a 15-minute deterministic run
+(`02f07e9e-aff1-4714-b1b8-2b6b7d3583ca`) was still active after 40 minutes and
+was cancelled as invalid evidence. A controlled 30-second, 100ms-chunk Kyutai
+probe then exceeded its 2m30s runtime budget. The same audio with 1-second
+chunks completed in about 30 seconds before an abnormal normal-close; adding a
+cooperative `asyncio.sleep(0)` every four model frames removed that early close,
+but the probe still exceeded the 2m30s budget. The resource is healthy and
+loaded on the RTX 4070 Ti SUPER, so this is not a CPU fallback.
+
+**Fixed:** `experiment.Manager` now receives the server-computed estimate and
+enforces a runtime budget of estimate + 25% headroom (minimum two minutes;
+30 minutes for unestimated jobs). Deadline expiry is a persisted **failed**
+experiment with `experiment exceeded runtime budget …`, not a permanently
+running worker. The evaluation harness and native passthrough forwarding now
+honor context cancellation, so the deadline actually releases the worker.
+Kyutai yields cooperatively during multi-frame decode so WebSocket sender and
+control tasks are not starved by one large PCM batch.
+
+**Remaining blocker:** Deterministic Kyutai quality evidence is still not
+earned. The 100ms path is too slow, while the larger-chunk path needs a clean
+`done` plus a non-error transcript before it can be used for quality evidence.
+Do not promote Kyutai or launch the corrected 60-minute profile until a
+deterministic 15-minute run completes inside its budget with valid transcript
+and safety results.
+
+**Validation:** `go test ./internal/eval ./internal/stt/strategy
+./internal/experiment ./handlers/experiment` passes; Kyutai resource suites
+pass (13 Python tests and `make test`). Live timeout experiment
+`3b2c3483-3a9c-483a-bf6c-0667b838e744` failed at exactly 2m30s with the
+persisted runtime-budget diagnostic. The scheduling probe
+`cfd5bafd-83ca-4bb5-a06a-0c337d3f0cfa` ran until the same enforced deadline
+without the prior 30-second close-before-`done`.
+
+### 2026-07-12 addendum — resolved: compile guard restores bounded 100 ms-frame throughput
+
+The prior entry records the state before the rebuilt resource was deployed.
+The managed container now runs with `NO_TORCH_COMPILE=1` and
+`KYUTAI_STT_TORCH_COMPILE=0`, so moshi cannot lazily start PyTorch Inductor
+compilation on a user turn. The direct managed-resource probe sent 300 canonical
+100 ms PCM frames (30 seconds total), received complete processed coverage, and
+finished in **3.85 seconds** under its enforced 90-second wall-clock ceiling.
+Persisted experiment `9dfbb669-216b-4151-9754-7ca34cd368c7` independently
+succeeded for that deterministic 30-second path. The full real-time 60-minute
+provider experiment `1733d1a1-4997-4227-af2a-6719a976f699` also completed both
+Kyutai and Whisper over 3,602,659 ms of materialized PCM.
+
+This resolves the decoder-throughput blocker and does **not** promote Kyutai:
+the trust rubric still blocks both engines until independently persisted fault,
+recovery, browser-product-path, and device evidence is complete. The runtime
+budget remains enforced for every experiment, including any future
+qualification retry.
+
+### 2026-07-12 — Whisper unary batch is not a valid long-form promotion cell
+
+**Symptom:** persisted full-real-time experiment
+`1733d1a1-4997-4227-af2a-6719a976f699` reported a 24-word dropped span for
+the Whisper row. Before 2026-07-12, promotion aggregation retained only WER
+and duration, so that observed safety failure was omitted from the provider
+verdict.
+
+**Investigation:** the report's Whisper row is
+`whisper-local/batch/realtime`, not a segmented streaming strategy. Its one
+`batchSession` call buffered the entire 3,602,659 ms synthetic clip before
+calling the unary Whisper provider. The report confirms a real loss signal:
+the repeated product sentence occurs 25 times in reference and 24 times in
+the hypothesis, and the hypothesis also ends with an unwanted trailing phrase.
+The repeated corpus material can make global word alignment choose a longer
+equivalent deletion path, but it does not explain away the missing occurrence
+or make the unary result valid no-loss evidence.
+
+**Resolution shipped:** promotion evidence is now keyed by engine, strategy,
+and policy profile. Reports with no strategy identity are retained as legacy
+history but excluded from promotion aggregation. Observed safety state is
+preserved in `ReplayMeasurement`, so the batch cell explicitly fails the
+dropped-span gate instead of contaminating or being hidden by another Whisper
+strategy. The UI contract renders the cell identity.
+
+**Remaining gate:** qualify a real-time long-form `whisper-local/vad_segment`
+or `whisper-local/overlap_agree` provider cell (and the corresponding Kyutai
+cell) through the full duration/fault/browser/device matrix. Do not use a
+whole-clip unary batch baseline as stable-engine promotion evidence.
+
+**Refs:** `api/handlers/eval/evalrun.go::batchSession`,
+`api/internal/stt/trustfloor/rubric.go`,
+`api/handlers/experiment/promotion_evidence.go`.
+
+### 2026-07-12 — Dedicated qualification artifacts were previously not durable promotion input
+
+**Symptom:** Deterministic BAS and focused recovery tests could prove parts of the
+dictation contract, but promotion verdicts consumed only replay WER, duration,
+and safety fields. Browser, recovery, fault, interval-accounting, and device
+claims therefore had no persisted, inspectable connection to a provider cell.
+
+**Resolution shipped:** `ExperimentService` now owns a qualification-evidence
+ledger. Each record stores engine, exact model id, strategy, policy profile,
+required artifact reference, pass/fail result, timestamp, and machine identity.
+Trust-floor aggregation consumes only records from the exact
+engine/model/strategy/policy cell on the same host/OS/architecture as the
+report; it never credits another model, strategy, or machine. Failed records
+remain visible as explicit promotion reasons. The operator surface is
+`audio-tools experiment record-evidence` and `audio-tools experiment
+list-evidence`.
+
+**Remaining gate:** Existing browser and recovery results have not been
+backfilled, because their stored artifacts do not assert one exact provider
+strategy/policy cell. Run each real qualification profile with that identity and
+record its durable artifact reference. Physical-device evidence remains absent.
+
+**Refs:** `api/internal/experiment/`; `api/handlers/experiment/promotion_evidence.go`;
+`cli/domains/experiment/`; `packages/proto/schemas/audio-tools/v1/experiment/experiment.proto`.
 
 ## Cross-references
 

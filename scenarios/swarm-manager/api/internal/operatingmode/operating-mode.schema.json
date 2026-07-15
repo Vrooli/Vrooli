@@ -176,8 +176,8 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["plan-manager-plan", "plan-ref", "initiative"],
-          "description": "plan-manager-plan = a canonical plan-manager plan (execution id / slug). plan-ref = a plan file/reference not imported into swarm-manager (e.g. a repo-relative plan path). initiative = a swarm-manager initiative and its member items."
+          "enum": ["backlog-item", "initiative", "plan-execution", "scenario"],
+          "description": "backlog-item = a single swarm-manager backlog item (vocabulary is pinned; its runtime adapter arrives in a later phase). initiative = a swarm-manager initiative and its member items. plan-execution = a canonical, provider-neutral plan execution (the resolved instance carries plan id + execution id). scenario = a plain scenario repository workspace (a scenario directory) identified by scenario name, with no owning item/initiative/plan (used by spec-sync). NOTE: the domain plan_ref FIELD on items/initiatives is an associated Plan Manager reference, never a target kind; the pre-cutover unmanaged plan-ref target kind is removed."
         },
         "plan_ref": { "$ref": "#/$defs/PlanRefPolicy" }
       },
@@ -259,7 +259,7 @@
         "id": { "$ref": "#/$defs/PhaseId" },
         "executed_by": {
           "$ref": "#/$defs/Identifier",
-          "description": "Sub-mode id that executes this phase (phase delegation, EXECUTION-MODES.md D3). The engine runs the sub-mode's loop as this phase, one level deep: sub-rounds persist under the parent run tagged with this phase id, an onward sub-route keeps the phase in progress, and a sub-mode stop surfaces its outcome (e.g. the classified `progress` value) as this phase's result for the parent's transitions to route on. The delegating mode's target must supply the sub-mode's target context: same target kind, or an initiative-target mode with `target.plan_ref.required` delegating to a `plan-manager-plan`-target sub-mode (the initiative's bound plan is the sub-mode's plan)."
+          "description": "Sub-mode id that executes this phase (phase delegation, EXECUTION-MODES.md D3). The engine runs the sub-mode's loop as this phase, one level deep: sub-rounds persist under the parent run tagged with this phase id, an onward sub-route keeps the phase in progress, and a sub-mode stop surfaces its outcome (e.g. the classified `progress` value) as this phase's result for the parent's transitions to route on. The delegating mode's target must supply the sub-mode's target context: same target kind, or an initiative-target mode with `target.plan_ref.required` delegating to a `plan-execution`-target sub-mode (the initiative's bound plan is the sub-mode's plan)."
         },
         "reads": {
           "type": "array",
@@ -619,7 +619,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["role"],
-      "description": "Initiative-adapter configuration (nested under `target`): the contract for a canonical plan-manager reference bound to the initiative. When required, the start phase may emit it and subsequent phases consume it through the PLAN_CONTEXT_JSON read. Distinct from the plan-ref target kind, where the plan itself is the unit of work.",
+      "description": "Initiative-adapter configuration (nested under `target`): the contract for a canonical plan-manager reference bound to the initiative. When required, the start phase may emit it and subsequent phases consume it through the PLAN_CONTEXT_JSON read. This is the domain plan_ref FIELD (an associated Plan Manager reference), distinct from the plan-execution target kind where a plan execution itself is the unit of work.",
       "properties": {
         "required": {
           "type": "boolean",

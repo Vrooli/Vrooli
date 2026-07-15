@@ -16,15 +16,17 @@ const GroupName = "experiment"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ExperimentService.StartExperiment":        h.start,
-		"ExperimentService.GetExperiment":          h.get,
-		"ExperimentService.WaitExperiment":         h.wait,
-		"ExperimentService.ListExperiments":        h.list,
-		"ExperimentService.CancelExperiment":       h.cancel,
-		"ExperimentService.DeleteExperiment":       h.delete,
-		"ExperimentService.StreamExperimentEvents": h.watch,
-		"ExperimentService.GetExperimentReport":    h.report,
-		"ExperimentService.CompareExperiments":     h.compare,
+		"ExperimentService.StartExperiment":             h.start,
+		"ExperimentService.GetExperiment":               h.get,
+		"ExperimentService.WaitExperiment":              h.wait,
+		"ExperimentService.ListExperiments":             h.list,
+		"ExperimentService.CancelExperiment":            h.cancel,
+		"ExperimentService.DeleteExperiment":            h.delete,
+		"ExperimentService.StreamExperimentEvents":      h.watch,
+		"ExperimentService.GetExperimentReport":         h.report,
+		"ExperimentService.CompareExperiments":          h.compare,
+		"ExperimentService.RecordQualificationEvidence": h.recordEvidence,
+		"ExperimentService.ListQualificationEvidence":   h.listEvidence,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -1152,15 +1152,14 @@ func buildIssueDescription(
 	safeScenarioName := sanitizeScenarioIdentifier(scenarioName)
 	previewPath := extractPreviewPath(previewURL)
 	screenshotCommand := fmt.Sprintf(
-		"resource-browserless screenshot --scenario %q --output /tmp/%s-validation.png --fullpage",
-		scenarioName,
+		"browser-automation-studio capture --url %q --capture screenshot --out /tmp/%s-validation",
+		fmt.Sprintf("scenario=%s", scenarioName),
 		safeScenarioName,
 	)
 	if previewPath != "" {
 		screenshotCommand = fmt.Sprintf(
-			"resource-browserless screenshot --scenario %q --path %q --output /tmp/%s-validation.png --fullpage",
-			scenarioName,
-			previewPath,
+			"browser-automation-studio capture --url %q --capture screenshot --out /tmp/%s-validation",
+			fmt.Sprintf("scenario=%s,path=%s", scenarioName, previewPath),
 			safeScenarioName,
 		)
 	}
@@ -1238,12 +1237,12 @@ func buildIssueDescription(
 	builder.WriteString("- Reproduce the original preview flow in App Monitor to confirm the issue is resolved.\n")
 
 	builder.WriteString("\n## Visual Validation\n\n")
-	builder.WriteString("- Capture before/after screenshots when visual confirmation is needed. Browserless can target the running scenario directly:\n")
+	builder.WriteString("- Capture before/after screenshots when visual confirmation is needed. Browser Automation Studio can capture a full-page screenshot of the running scenario directly:\n")
 	builder.WriteString("  ```bash\n")
 	builder.WriteString(fmt.Sprintf("  %s\n", screenshotCommand))
 	builder.WriteString("  ```\n")
 	if previewPath == "" {
-		builder.WriteString(fmt.Sprintf("  Use `--path /route` if you need a specific page within `%s`.\n", scenarioName))
+		builder.WriteString(fmt.Sprintf("  Add `,path=/route` to the `--url` value if you need a specific page within `%s`.\n", scenarioName))
 	}
 	builder.WriteString("- Attach relevant screenshots to this issue so future reviewers can validate the UI changes quickly.\n")
 	builder.WriteString("- If App Monitor still shows cached content, rerun the scenario lifecycle commands above before taking the screenshot.\n")

@@ -10,6 +10,7 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/evidence"
 
+	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
@@ -81,7 +82,7 @@ func newOperatingModeEvidenceStore(t *testing.T) *evidence.Store {
 		t.Fatalf("open evidence sqlite: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	store := evidence.NewStore(db)
+	store := evidence.NewStore(database.NewFromPrimary(db))
 	if err := store.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init evidence schema: %v", err)
 	}

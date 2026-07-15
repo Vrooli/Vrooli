@@ -198,7 +198,7 @@ Use visited-tracker for systematic migration loops:
 visited-tracker least-visited --location scenarios/{{TARGET}}/ui --tag ui-design-system-migration --limit 10
 
 # Mark files as reviewed after migration work
-visited-tracker visit <file-path> --location scenarios/{{TARGET}}/ui --tag ui-design-system-migration --note "migrated to primitive contracts"
+visited-tracker visit "<file-path>" --location scenarios/{{TARGET}}/ui --tag ui-design-system-migration --note "migrated to primitive contracts"
 ```
 
 Also keep these docs current:

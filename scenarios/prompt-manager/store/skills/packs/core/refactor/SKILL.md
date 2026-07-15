@@ -100,7 +100,7 @@ tidiness-manager recommend-refactors {{TARGET}} \
 **After analyzing each file:**
 ```bash
 # Record your visit with specific notes about improvements and remaining work
-tidiness-manager visit <file-path> \
+tidiness-manager visit "<file-path>" \
   --scenario {{TARGET}} \
   --note "<summary of refactorings made and what remains>"
 ```
@@ -108,7 +108,7 @@ tidiness-manager visit <file-path> \
 **When a file is irrelevant to refactoring (config, build scripts, generated files, etc.):**
 ```bash
 # Mark it excluded so it doesn't resurface - this is NOT a refactor target
-tidiness-manager exclude <file-path> \
+tidiness-manager exclude "<file-path>" \
   --scenario {{TARGET}} \
   --reason "Not a refactor target - config/generated/tooling/etc."
 ```
@@ -116,7 +116,7 @@ tidiness-manager exclude <file-path> \
 **When a file is fully refactored:**
 ```bash
 # Mark it excluded so it doesn't resurface in future queries
-tidiness-manager exclude <file-path> \
+tidiness-manager exclude "<file-path>" \
   --scenario {{TARGET}} \
   --reason "All refactoring complete - clean structure, clear naming, no duplication"
 ```

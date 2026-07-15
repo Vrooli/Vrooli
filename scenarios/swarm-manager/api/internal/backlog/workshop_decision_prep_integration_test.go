@@ -304,10 +304,7 @@ func TestWorkshopDecisionPrep_AnswerOneDecision_PendingQuestionsDropsIt(t *testi
 }
 
 func TestWorkshopDecisionPrep_SpawnClarification_DoesNotMutateDecision(t *testing.T) {
-	agent := &mockAgentService{
-		result: agentmanager.RunResult{RunID: "run-clarify", TaskID: "task-clarify"},
-	}
-	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-clarify")
 	seedTwoInitiativesThreeItems(t, rootDir)
 
 	reqBody, err := protojson.Marshal(&apipb.CreateClarificationRequest{
@@ -341,11 +338,8 @@ func TestWorkshopDecisionPrep_SpawnClarification_DoesNotMutateDecision(t *testin
 	if resp.GetThread().GetRunId() != "run-clarify" {
 		t.Errorf("expected thread.run_id=run-clarify, got %q", resp.GetThread().GetRunId())
 	}
-	if agent.lastReq == nil {
-		t.Fatal("clarification handler should have spawned an agent through the standard interface")
-	}
-	if agent.lastReq.Purpose != "clarify" {
-		t.Errorf("expected agent spawn purpose=clarify, got %q", agent.lastReq.Purpose)
+	if !phase.started {
+		t.Fatal("clarification handler should have started the clarification operation through the runner")
 	}
 
 	// The decision must NOT have been answered as a side effect — the skill's

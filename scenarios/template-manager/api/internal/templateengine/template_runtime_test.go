@@ -15,8 +15,6 @@ import (
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	rootcli "github.com/vrooli/vrooli/internal/cli/rootcli"
-	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	scenariocli "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
@@ -161,7 +159,7 @@ func TestRunGenerateReactViteHooksWritePrimitiveEvidenceArtifact(t *testing.T) {
 			},
 		},
 	}
-	_, _, err = runGenerate(deps, struct{}{}, req)
+	_, err = runGenerate(deps, struct{}{}, req)
 	if err != nil {
 		t.Fatalf("runGenerate: %v", err)
 	}
@@ -284,7 +282,7 @@ func TestRunTemplateValidateDefaultsToShallowAndSupportsTemplateFilter(t *testin
 	var stdout, stderr strings.Builder
 	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, &capturedSubprocess{})
 
-	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+	report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
 		TemplateName: "missing-manifest",
 	})
 	if err != nil {
@@ -297,7 +295,7 @@ func TestRunTemplateValidateDefaultsToShallowAndSupportsTemplateFilter(t *testin
 		t.Fatalf("issues = %#v", report.Issues)
 	}
 
-	if _, _, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{TemplateName: "missing"}); err == nil {
+	if _, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{TemplateName: "missing"}); err == nil {
 		t.Fatal("expected missing template filter to fail")
 	}
 }
@@ -341,7 +339,7 @@ func TestRunTemplateValidateRoutesHookOutputToStderr(t *testing.T) {
 	capture := &capturedSubprocess{stdout: "hook-output"}
 	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
 
-	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+	report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
 		TemplateName: templateName,
 	})
 	if err != nil {
@@ -380,7 +378,7 @@ func TestRunTemplateValidateDeepInvokesTestGenieWithScenarioPath(t *testing.T) {
 	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
 	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
 
-	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+	report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
 		Mode:         scenariocli.TemplateValidationModeDeep,
 		TemplateName: templateName,
 		TestPreset:   "quick",
@@ -475,7 +473,7 @@ func TestRunTemplateValidateDeepReportsAndFailsWarningsByPolicy(t *testing.T) {
 			deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
 			deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
 
-			_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+			report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
 				Mode:          scenariocli.TemplateValidationModeDeep,
 				TemplateName:  templateName,
 				TestPreset:    "quick",
@@ -523,7 +521,7 @@ func TestRunTemplateValidateDeepFailsWhenTestGenieJSONReportsFailure(t *testing.
 	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
 	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
 
-	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+	report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
 		Mode:         scenariocli.TemplateValidationModeDeep,
 		TemplateName: templateName,
 		TestPreset:   "quick",
@@ -575,7 +573,7 @@ func TestRunTemplateValidateDeepParsesTestGenieJSONOnNonzeroExit(t *testing.T) {
 	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
 	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
 
-	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+	report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
 		Mode:         scenariocli.TemplateValidationModeDeep,
 		TemplateName: templateName,
 		TestPreset:   "quick",
@@ -633,7 +631,7 @@ func TestRunTemplateValidateDeepReportsTestGenieStartupErrorDetails(t *testing.T
 	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
 	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
 
-	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+	report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
 		Mode:         scenariocli.TemplateValidationModeDeep,
 		TemplateName: templateName,
 		TestPreset:   "quick",
@@ -749,7 +747,7 @@ func TestRunTemplateValidateDeepKeepsRelocationsDuringTestGenie(t *testing.T) {
 	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
 	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
 
-	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+	report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
 		Mode:         scenariocli.TemplateValidationModeDeep,
 		TemplateName: templateName,
 		TestPreset:   "quick",
@@ -797,7 +795,7 @@ func TestRunTemplateValidateDeepRetainTempKeepsRelocationsForRerun(t *testing.T)
 	deps := newRelocationTestDeps(repoRoot, &stdout, &stderr, capture)
 	deps.LocateTestGenieCLI = func(struct{}) (string, error) { return "/tmp/test-genie", nil }
 
-	_, report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
+	report, err := runTemplateValidate(deps, struct{}{}, scenariocli.TemplateValidateRequest{
 		Mode:         scenariocli.TemplateValidationModeDeep,
 		TemplateName: templateName,
 		TestPreset:   "quick",
@@ -1121,9 +1119,6 @@ func newRelocationTestDeps(repoRoot string, stdout, stderr io.Writer, capture *c
 		Stdout:        func(struct{}) io.Writer { return stdout },
 		Stderr:        func(struct{}) io.Writer { return stderr },
 		Root:          func(struct{}) string { return repoRoot },
-		Globals:       func(struct{}) rootcli.GlobalOptions { return rootcli.GlobalOptions{} },
-		OutputFormat:  func(struct{}) (cliout.Format, error) { return cliout.FormatHuman, nil },
-		HomeDir:       func(struct{}) (string, error) { return "", nil },
 		RunSubprocess: capture.Run,
 		CommandEnv:    func(struct{}) []string { return nil },
 	}
@@ -1375,7 +1370,7 @@ func TestRunGenerate_RelocationIdempotencyGuard(t *testing.T) {
 			},
 		},
 	}
-	_, _, err := runGenerate(deps, struct{}{}, req)
+	_, err := runGenerate(deps, struct{}{}, req)
 	if err == nil {
 		t.Fatal("expected runGenerate to error when relocation target exists without --force")
 	}
@@ -1385,7 +1380,7 @@ func TestRunGenerate_RelocationIdempotencyGuard(t *testing.T) {
 
 	// With --force the existing target is removed.
 	req.Options.Force = true
-	_, _, err = runGenerate(deps, struct{}{}, req)
+	_, err = runGenerate(deps, struct{}{}, req)
 	if err != nil {
 		t.Fatalf("runGenerate with --force: %v", err)
 	}
@@ -1415,7 +1410,7 @@ func TestRunGenerate_DryRunDoesNotWriteRelocations(t *testing.T) {
 			},
 		},
 	}
-	_, result, err := runGenerate(deps, struct{}{}, req)
+	result, err := runGenerate(deps, struct{}{}, req)
 	if err != nil {
 		t.Fatalf("dry runGenerate: %v", err)
 	}
@@ -1704,12 +1699,9 @@ func TestValidateRelocationProtoSources_RunsOfflineWithBSRUnreachable(t *testing
 	// proxies so any BSR HTTP would hard-fail. The test asserts the lint
 	// still succeeds — proving template validation is offline-clean.
 	deps := HandlerDeps[struct{}]{
-		Stdout:       func(struct{}) io.Writer { return io.Discard },
-		Stderr:       func(struct{}) io.Writer { return io.Discard },
-		Root:         func(struct{}) string { return repoRoot },
-		Globals:      func(struct{}) rootcli.GlobalOptions { return rootcli.GlobalOptions{} },
-		OutputFormat: func(struct{}) (cliout.Format, error) { return cliout.FormatHuman, nil },
-		HomeDir:      func(struct{}) (string, error) { return os.UserHomeDir() },
+		Stdout: func(struct{}) io.Writer { return io.Discard },
+		Stderr: func(struct{}) io.Writer { return io.Discard },
+		Root:   func(struct{}) string { return repoRoot },
 		RunSubprocess: func(_ struct{}, spec scenarioexec.SubprocessSpec) error {
 			return scenarioexec.RunSubprocess(spec)
 		},

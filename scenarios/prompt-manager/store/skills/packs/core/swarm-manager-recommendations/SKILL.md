@@ -99,7 +99,7 @@ Required sections:
 ### 7. Verification Commands
 
 ```bash
-swarm-manager backlog get --kind <kind> --name <name>
-swarm-manager execution list --backlog-kind <kind> --backlog-name <name>
-swarm-manager execution get --id <execution-id>
+swarm-manager backlog get --kind "<kind>" --name "<name>"
+swarm-manager execution list --backlog-kind "<kind>" --backlog-name "<name>"
+swarm-manager execution get --id "<execution-id>"
 ```

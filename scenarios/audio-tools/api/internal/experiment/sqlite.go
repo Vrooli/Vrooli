@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"audio-tools/internal/clock"
@@ -50,7 +51,12 @@ WHERE id = ?
 INSERT INTO experiment_runs (id, experiment_id, strategy, condition_json, created_at)
 VALUES (?, ?, ?, ?, ?)
 `
-	selectRunColumns = `id, experiment_id, strategy, condition_json, created_at`
+	selectRunColumns               = `id, experiment_id, strategy, condition_json, created_at`
+	insertQualificationEvidenceSQL = `
+INSERT INTO qualification_evidence (id, engine_id, model_id, strategy, policy_profile, kind, fault_profile, passed, artifact_ref, notes, machine_json, observed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`
+	selectQualificationEvidenceColumns = `id, engine_id, model_id, strategy, policy_profile, kind, fault_profile, passed, artifact_ref, notes, machine_json, observed_at`
 )
 
 func (s *sqliteRepository) CreateExperiment(ctx context.Context, exp Experiment) (Experiment, error) {
@@ -241,6 +247,69 @@ func (s *sqliteRepository) ListRuns(ctx context.Context, experimentID string) ([
 	return out, nil
 }
 
+func (s *sqliteRepository) CreateQualificationEvidence(ctx context.Context, evidence QualificationEvidence) (QualificationEvidence, error) {
+	if evidence.ID == "" {
+		evidence.ID = uuid.NewString()
+	}
+	if evidence.ObservedAt.IsZero() {
+		evidence.ObservedAt = s.clock.Now().UTC()
+	}
+	if len(evidence.MachineJSON) == 0 {
+		evidence.MachineJSON = []byte(`{}`)
+	}
+	if _, err := s.db.ExecContext(ctx, insertQualificationEvidenceSQL,
+		evidence.ID, evidence.EngineID, evidence.ModelID, evidence.Strategy, evidence.PolicyProfile,
+		evidence.Kind, evidence.FaultProfile, evidence.Passed, evidence.ArtifactRef,
+		evidence.Notes, string(evidence.MachineJSON), evidence.ObservedAt.Format(experimentTimeFormat),
+	); err != nil {
+		return QualificationEvidence{}, fmt.Errorf("experiment: record qualification evidence %q: %w", evidence.ID, err)
+	}
+	return evidence, nil
+}
+
+func (s *sqliteRepository) ListQualificationEvidence(ctx context.Context, filter QualificationEvidenceFilter) ([]QualificationEvidence, error) {
+	query := "SELECT " + selectQualificationEvidenceColumns + " FROM qualification_evidence"
+	var clauses []string
+	var args []any
+	if filter.EngineID != "" {
+		clauses = append(clauses, "engine_id = ?")
+		args = append(args, filter.EngineID)
+	}
+	if filter.ModelID != "" {
+		clauses = append(clauses, "model_id = ?")
+		args = append(args, filter.ModelID)
+	}
+	if filter.Strategy != "" {
+		clauses = append(clauses, "strategy = ?")
+		args = append(args, filter.Strategy)
+	}
+	if filter.PolicyProfile != "" {
+		clauses = append(clauses, "policy_profile = ?")
+		args = append(args, filter.PolicyProfile)
+	}
+	if len(clauses) > 0 {
+		query += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	query += " ORDER BY observed_at ASC, id ASC"
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("experiment: list qualification evidence: %w", err)
+	}
+	defer rows.Close()
+	var out []QualificationEvidence
+	for rows.Next() {
+		evidence, scanErr := scanQualificationEvidence(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		out = append(out, evidence)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("experiment: iterate qualification evidence: %w", err)
+	}
+	return out, nil
+}
+
 func (s *sqliteRepository) withExperimentDefaults(exp Experiment) Experiment {
 	if exp.ID == "" {
 		exp.ID = uuid.NewString()
@@ -322,6 +391,25 @@ func scanRun(sc scanner) (Run, error) {
 	}
 	run.CreatedAt = created
 	return run, nil
+}
+
+func scanQualificationEvidence(sc scanner) (QualificationEvidence, error) {
+	var evidence QualificationEvidence
+	var machine, observedAt string
+	if err := sc.Scan(
+		&evidence.ID, &evidence.EngineID, &evidence.ModelID, &evidence.Strategy, &evidence.PolicyProfile,
+		&evidence.Kind, &evidence.FaultProfile, &evidence.Passed, &evidence.ArtifactRef,
+		&evidence.Notes, &machine, &observedAt,
+	); err != nil {
+		return QualificationEvidence{}, err
+	}
+	evidence.MachineJSON = []byte(machine)
+	observed, err := time.Parse(experimentTimeFormat, observedAt)
+	if err != nil {
+		return QualificationEvidence{}, fmt.Errorf("experiment: parse qualification observed_at %q: %w", observedAt, err)
+	}
+	evidence.ObservedAt = observed
+	return evidence, nil
 }
 
 func formatTimePtr(t *time.Time) string {

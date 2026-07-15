@@ -44,7 +44,7 @@ export const buildApiUrlWithBase = (path: string) => buildApiUrl(path, { baseUrl
 
 // Create axios instance with lazy baseURL resolution
 const api = axios.create({
-  timeout: 75000, // 75s to accommodate 90s backend write timeout for browserless fallback diagnostics
+  timeout: 75000, // 75s to accommodate long-running diagnostics and report writes
   headers: {
     'Content-Type': 'application/json',
   },
@@ -141,57 +141,6 @@ export interface ReportIssueHealthCheckEntry {
   message?: string | null;
   code?: string | null;
   response?: string | null;
-}
-
-export interface BrowserlessFallbackConsoleLog {
-  level: string;
-  message: string;
-  timestamp: string;
-}
-
-export interface BrowserlessFallbackNetworkRequest {
-  requestId: string;
-  url: string;
-  method: string;
-  resourceType: string;
-  status?: number;
-  ok?: boolean;
-  statusText?: string;
-  duration?: number;
-  headers?: Record<string, string>;
-  contentType?: string;
-  failed?: boolean;
-  error?: string;
-  timestamp: string;
-}
-
-export interface BrowserlessFallbackPageStatus {
-  whiteScreen: boolean;
-  httpError?: {
-    status: number;
-    message: string;
-  } | null;
-  loadError?: string | null;
-  moduleError?: string | null;
-  cloudflareError: boolean;
-  notFoundError: boolean;
-  emptyBody: boolean;
-  resourceCount: number;
-  loadTimeMs: number;
-  performanceMetrics?: Record<string, unknown>;
-  detectedIssues?: string[];
-}
-
-export interface BrowserlessFallbackDiagnostics {
-  consoleLogs: BrowserlessFallbackConsoleLog[];
-  networkRequests: BrowserlessFallbackNetworkRequest[];
-  pageStatus: BrowserlessFallbackPageStatus | null;
-  screenshot?: string;
-  html?: string;
-  source: string;
-  capturedAt: string;
-  url: string;
-  title?: string;
 }
 
 export interface ReportIssueCapturePayload {
@@ -403,26 +352,6 @@ export const appService = {
     } catch (error) {
       logger.error(`Failed to create fix for app ${appId}`, error);
       throw error;
-    }
-  },
-
-  async getFallbackDiagnostics(
-    appId: string,
-    url: string,
-  ): Promise<BrowserlessFallbackDiagnostics | null> {
-    try {
-      const { data } = await api.post<ApiResponse<BrowserlessFallbackDiagnostics>>(
-        `/apps/${encodeURIComponent(appId)}/fallback-diagnostics`,
-        { url },
-      );
-      if (data?.success === false) {
-        logger.warn(`Fallback diagnostics for ${appId} failed`, data?.error || data?.message);
-        return null;
-      }
-      return data?.data ?? null;
-    } catch (error) {
-      logger.warn(`Failed to fetch fallback diagnostics for ${appId}`, error);
-      return null;
     }
   },
 

@@ -107,6 +107,16 @@ type Record struct {
 	ParentExecutionID string          `json:"parent_execution_id,omitempty"`
 	FixupAttempt      int             `json:"fixup_attempt,omitempty"`
 	Finalization      *Finalization   `json:"finalization,omitempty"`
+	// OpWorkflowID and OpExecutionID correlate this record to the durable
+	// operation execution that started its agent run (the runner's workflow
+	// instance + operation-execution id). They are written when the run is
+	// launched through the operation runner (execution-run / execution-retry /
+	// execution-followup / execution-fixup) so slice C can project canonical
+	// execution history from the workflow. Empty for records whose run was not
+	// launched as an operation (e.g. spec-sync-archive, which stays a direct
+	// spawn through slice B).
+	OpWorkflowID  string `json:"op_workflow_id,omitempty"`
+	OpExecutionID string `json:"op_execution_id,omitempty"`
 	// PreExecBaselines maps an affected scenario name to the GCT baseline
 	// captured for it just before execution started. Finalization diffs each
 	// of these against the post-execution working tree to separate regressions

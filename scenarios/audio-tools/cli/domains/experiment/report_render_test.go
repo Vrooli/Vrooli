@@ -500,6 +500,21 @@ func TestStartDryRunDoesNotSubmitAndEchoesRecipe(t *testing.T) {
 	require.Empty(t, exp["id"], "dry-run preview has no persisted id")
 }
 
+func TestStartProviderCellDoesNotInjectLegacyStrategyDefaults(t *testing.T) {
+	app := mountExperiment(t, &fakeExperimentSvc{
+		startFn: func(req *experimentv1.StartExperimentRequest) (*experimentv1.StartExperimentResponse, error) {
+			require.Len(t, req.GetRecipe().GetCells(), 1)
+			require.Empty(t, req.GetRecipe().GetStrategies(), "provider-cell recipes must not carry unused legacy defaults")
+			return &experimentv1.StartExperimentResponse{Experiment: &experimentv1.Experiment{Recipe: req.GetRecipe()}}, nil
+		},
+	})
+	h := newHandlers(app)
+	ctx, _ := cliapptest.NewCapturedRunContext(app, experimentStartSchema(), cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"recipe-json": `{"cells":[{"engineId":"kyutai","strategy":"passthrough","replayLane":"REPLAY_LANE_REALTIME"}]}`},
+	})
+	require.NoError(t, h.start(ctx))
+}
+
 func TestDeleteRequiresYes(t *testing.T) {
 	app := mountExperiment(t, &fakeExperimentSvc{
 		deleteFn: func(*experimentv1.DeleteExperimentRequest) (*experimentv1.DeleteExperimentResponse, error) {

@@ -1,14 +1,16 @@
 /**
  * @vrooliComponentSource react-component-library:EmptyState
- * @vrooliComponentVersion 1.0.0
- * @vrooliComponentAdoption template:react-vite:empty-state
- * @vrooliComponentAppliedAt 2026-07-07T00:00:00Z
- * @vrooliComponentSourceSha256 35e4777c7b380571efb456e860d89ef8b3f4a90b8d7ee6e7848322cd135256bf
- * @vrooliComponentDriftHash 35e4777c7b380571efb456e860d89ef8b3f4a90b8d7ee6e7848322cd135256bf
+ * @vrooliComponentVersion 1.1.0
+ * @vrooliComponentAdoption ab561979-6f6c-4815-9183-8ab02cf83ede
+ * @vrooliComponentAppliedAt 2026-07-14T20:14:27Z
+ * @vrooliComponentSourceSha256 06dbe7eb1804132d8f57871747deb1109d730373fc32383980deeecdeb2990b3
+ * @vrooliComponentDriftHash 06dbe7eb1804132d8f57871747deb1109d730373fc32383980deeecdeb2990b3
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import type { ReactNode } from "react";
 
 export interface EmptyStateProps {
@@ -19,13 +21,12 @@ export interface EmptyStateProps {
   className?: string;
 }
 
-const joinClasses = (...classes: Array<string | undefined | false>) =>
-  classes.filter(Boolean).join(" ");
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 export function EmptyState({ title, description, icon, action, className }: EmptyStateProps) {
   return (
     <div
-      className={joinClasses(
+      className={cn(
         "flex min-w-0 flex-col items-start gap-3 rounded-panel border border-dashed border-app-border bg-app-surface-muted p-4 text-app-foreground",
         className,
       )}
@@ -39,3 +40,4 @@ export function EmptyState({ title, description, icon, action, className }: Empt
     </div>
   );
 }
+

@@ -42,7 +42,6 @@ declare -g -A RESOURCE_PORTS=(
     # Note: sqlite is serverless and doesn't use a port
     
     # Agent Services (41xx range - safely above Vrooli range)
-    ["browserless"]="4110"     # Browserless.io Chrome service
     ["obs-studio"]="4455"      # OBS Studio WebSocket API
     # Note: claude-code is a CLI tool and doesn't use a port
     

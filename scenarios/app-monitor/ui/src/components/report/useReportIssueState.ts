@@ -178,7 +178,6 @@ const useReportIssueState = ({
   const consoleLogs = useReportConsoleLogsData({
     app,
     appId,
-    activePreviewUrl,
     bridgeSupported: bridgeState.isSupported,
     bridgeCaps: bridgeState.caps,
     logState,
@@ -190,7 +189,6 @@ const useReportIssueState = ({
   const network = useReportNetworkData({
     app,
     appId,
-    activePreviewUrl,
     bridgeSupported: bridgeState.isSupported,
     bridgeCaps: bridgeState.caps,
     networkState,

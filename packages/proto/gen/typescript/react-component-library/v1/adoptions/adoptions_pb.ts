@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file react-component-library/v1/adoptions/adoptions.proto.
  */
 export const file_react_component_library_v1_adoptions_adoptions: GenFile = /*@__PURE__*/
-  fileDesc("CjRyZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9hZG9wdGlvbnMvYWRvcHRpb25zLnByb3RvEit2cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zIqIECghBZG9wdGlvbhIKCgJpZBgBIAEoCRIUCgxjb21wb25lbnRfaWQYAiABKAkSEgoKbGlicmFyeV9pZBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIUCgxhZG9wdGVkX3BhdGgYBSABKAkSFwoPYWRvcHRlZF92ZXJzaW9uGAYgASgJEmEKFmxpYnJhcnlfdmVyc2lvbl9zdGF0dXMYByABKA4yQS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkxpYnJhcnlWZXJzaW9uU3RhdHVzEk4KDGxvY2FsX3N0YXR1cxgIIAEoDjI4LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuTG9jYWxTdGF0dXMSFQoNc3RhdHVzX2RldGFpbBgLIAEoCRIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxyZWZyZXNoZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDXNvdXJjZV9zaGEyNTYYDCABKAkSEgoKYXBwbGllZF9hdBgNIAEoCRJICgVmaWxlcxgOIAMoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuQWRvcHRpb25GaWxlInIKDEFkb3B0aW9uRmlsZRIUCgxsaWJyYXJ5X3BhdGgYASABKAkSFAoMYWRvcHRlZF9wYXRoGAIgASgJEhUKDXNvdXJjZV9zaGEyNTYYAyABKAkSHwoXYWRvcHRlZF9zbmFwc2hvdF9zaGEyNTYYBCABKAkiTQoUTGlzdEFkb3B0aW9uc1JlcXVlc3QSFAoMY29tcG9uZW50X2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg0KBWxpbWl0GAMgASgFImEKFUxpc3RBZG9wdGlvbnNSZXNwb25zZRJICglhZG9wdGlvbnMYASADKAsyNS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkFkb3B0aW9uIrcBChRBcHBseUFkb3B0aW9uUmVxdWVzdBIUCgxjb21wb25lbnRfaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSFAoMYWRvcHRlZF9wYXRoGAMgASgJEg8KB3ZlcnNpb24YBCABKAkSGQoRY29uZmlybV9vdmVyd3JpdGUYBSABKAgSGwoTb3ZlcnJpZGVfdmFsaWRhdGlvbhgGIAEoCBIYChByZXBsYWNlX2V4aXN0aW5nGAcgASgIIowBChVBcHBseUFkb3B0aW9uUmVzcG9uc2USRwoIYWRvcHRpb24YASABKAsyNS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkFkb3B0aW9uEhQKDHdyaXR0ZW5fcGF0aBgCIAEoCRIUCgxpbXBvcnRfc2l0ZXMYAyADKAkicwoWUmVhcHBseUFkb3B0aW9uUmVxdWVzdBIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEh8KF2NvbmZpcm1fbG9jYWxfb3ZlcndyaXRlGAMgASgIEhsKE292ZXJyaWRlX3ZhbGlkYXRpb24YBCABKAgieAoXUmVhcHBseUFkb3B0aW9uUmVzcG9uc2USRwoIYWRvcHRpb24YASABKAsyNS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkFkb3B0aW9uEhQKDHdyaXR0ZW5fcGF0aBgCIAEoCSIjChVEZWxldGVBZG9wdGlvblJlcXVlc3QSCgoCaWQYASABKAkiGAoWRGVsZXRlQWRvcHRpb25SZXNwb25zZSIvChdSZWZyZXNoQWRvcHRpb25zUmVxdWVzdBIUCgxjb21wb25lbnRfaWQYASABKAkibAoaUmVzb2x2ZUFkb3B0aW9uUGF0aFJlcXVlc3QSFAoMY29tcG9uZW50X2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEhUKDW92ZXJyaWRlX3BhdGgYAyABKAkSDwoHZmVhdHVyZRgEIAEoCSKXAQobUmVzb2x2ZUFkb3B0aW9uUGF0aFJlc3BvbnNlEgwKBHBhdGgYASABKAkSSgoGc291cmNlGAIgASgOMjoudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZXNvbHZlU291cmNlEgwKBHNsb3QYAyABKAkSEAoId2FybmluZ3MYBCADKAkiUAoXU3VnZ2VzdEFkb3B0aW9uc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDQoFbGltaXQYAiABKAUSFAoMY29tcG9uZW50X2lkGAMgASgJIo8BChJBZG9wdGlvblN1Z2dlc3Rpb24SEAoIc2NlbmFyaW8YASABKAkSFAoMY29tcG9uZW50X2lkGAIgASgJEhIKCmxpYnJhcnlfaWQYAyABKAkSFAoMZGlzcGxheV9uYW1lGAQgASgJEhYKDmludmVudG9yeV9wYXRoGAUgASgJEg8KB3JlYXNvbnMYByADKAkicAoYU3VnZ2VzdEFkb3B0aW9uc1Jlc3BvbnNlElQKC3N1Z2dlc3Rpb25zGAEgAygLMj8udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5BZG9wdGlvblN1Z2dlc3Rpb24ivgIKGFJlZnJlc2hBZG9wdGlvbnNSZXNwb25zZRJICglhZG9wdGlvbnMYASADKAsyNS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkFkb3B0aW9uEhcKD2xpYnJhcnlfY3VycmVudBgCIAEoBRIWCg5saWJyYXJ5X2JlaGluZBgDIAEoBRIaChJsaWJyYXJ5X2RlcHJlY2F0ZWQYBCABKAUSFwoPbGlicmFyeV9taXNzaW5nGAUgASgFEhcKD2xpYnJhcnlfdW5rbm93bhgGIAEoBRITCgtsb2NhbF9jbGVhbhgHIAEoBRIWCg5sb2NhbF9tb2RpZmllZBgIIAEoBRIVCg1sb2NhbF9taXNzaW5nGAkgASgFEhUKDWxvY2FsX3Vua25vd24YCiABKAUiKgoZUmVjb25jaWxlQWRvcHRpb25zUmVxdWVzdBINCgVhcHBseRgBIAEoCCJvChBSZWNvbmNpbGVGaW5kaW5nEhAKCHNjZW5hcmlvGAEgASgJEhQKDGFkb3B0ZWRfcGF0aBgCIAEoCRISCgpsaWJyYXJ5X2lkGAMgASgJEg8KB3ZlcnNpb24YBCABKAkSDgoGZGV0YWlsGAUgASgJIqkBChpSZWNvbmNpbGVBZG9wdGlvbnNSZXNwb25zZRIPCgdzY2FubmVkGAEgASgFEhgKEGFscmVhZHlfcmVjb3JkZWQYAiABKAUSDwoHY3JlYXRlZBgDIAEoBRJPCghmaW5kaW5ncxgEIAMoCzI9LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVjb25jaWxlRmluZGluZyI9ChpSZWNvbnZlcmdlQWRvcHRpb25zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRINCgVhcHBseRgCIAEoCCKTAQoVUmVjb252ZXJnZUZpbGVPdXRjb21lEhQKDGxpYnJhcnlfcGF0aBgBIAEoCRIUCgxhZG9wdGVkX3BhdGgYAiABKAkSTgoMbG9jYWxfc3RhdHVzGAMgASgOMjgudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5Mb2NhbFN0YXR1cyL6AwoRUmVjb252ZXJnZU91dGNvbWUSEwoLYWRvcHRpb25faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSFAoMY29tcG9uZW50X2lkGAMgASgJEhIKCmxpYnJhcnlfaWQYBCABKAkSFwoPYWRvcHRlZF92ZXJzaW9uGAUgASgJEhYKDnRhcmdldF92ZXJzaW9uGAYgASgJEmEKFmxpYnJhcnlfdmVyc2lvbl9zdGF0dXMYByABKA4yQS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkxpYnJhcnlWZXJzaW9uU3RhdHVzEk4KDGxvY2FsX3N0YXR1cxgIIAEoDjI4LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuTG9jYWxTdGF0dXMSTQoGYWN0aW9uGAkgASgOMj0udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZWNvbnZlcmdlQWN0aW9uEg4KBmRldGFpbBgKIAEoCRJRCgVmaWxlcxgLIAMoCzJCLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVjb252ZXJnZUZpbGVPdXRjb21lItYBChtSZWNvbnZlcmdlQWRvcHRpb25zUmVzcG9uc2USDwoHc2Nhbm5lZBgBIAEoBRIOCgZiZWhpbmQYAiABKAUSEQoJcmVhcHBsaWVkGAMgASgFEg8KB2ZsYWdnZWQYBCABKAUSDwoHc2tpcHBlZBgFIAEoBRIPCgdlcnJvcmVkGAYgASgFElAKCG91dGNvbWVzGAcgAygLMj4udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZWNvbnZlcmdlT3V0Y29tZSJTChhEaXNjb3ZlckFkb3B0aW9uc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSFgoObWluX3NpbWlsYXJpdHkYAiABKAESDQoFbGltaXQYAyABKAUikAIKEkRpc2NvdmVyeUNhbmRpZGF0ZRIQCghzY2VuYXJpbxgBIAEoCRIUCgxhZG9wdGVkX3BhdGgYAiABKAkSFAoMY29tcG9uZW50X2lkGAMgASgJEhIKCmxpYnJhcnlfaWQYBCABKAkSDwoHdmVyc2lvbhgFIAEoCRIUCgxkaXNwbGF5X25hbWUYBiABKAkSEgoKc2ltaWxhcml0eRgHIAEoARIUCgxzaGFyZWRfbGluZXMYCCABKAUSFwoPY2FuZGlkYXRlX2xpbmVzGAkgASgFEhQKDHNvdXJjZV9saW5lcxgKIAEoBRIWCg5iYXNlbmFtZV9tYXRjaBgLIAEoCBIQCghldmlkZW5jZRgMIAMoCSKZAQoZRGlzY292ZXJBZG9wdGlvbnNSZXNwb25zZRIPCgdzY2FubmVkGAEgASgFEhYKDm1pbl9zaW1pbGFyaXR5GAIgASgBElMKCmNhbmRpZGF0ZXMYAyADKAsyPy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkRpc2NvdmVyeUNhbmRpZGF0ZSJoChdDb25maXJtRGlzY292ZXJ5UmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIUCgxhZG9wdGVkX3BhdGgYAiABKAkSFAoMY29tcG9uZW50X2lkGAMgASgJEg8KB3ZlcnNpb24YBCABKAkijQEKGENvbmZpcm1EaXNjb3ZlcnlSZXNwb25zZRJHCghhZG9wdGlvbhgBIAEoCzI1LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuQWRvcHRpb24SFAoMd3JpdHRlbl9wYXRoGAIgASgJEhIKCnNpbWlsYXJpdHkYAyABKAEq9AEKFExpYnJhcnlWZXJzaW9uU3RhdHVzEiYKIkxJQlJBUllfVkVSU0lPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIiCh5MSUJSQVJZX1ZFUlNJT05fU1RBVFVTX0NVUlJFTlQQARIhCh1MSUJSQVJZX1ZFUlNJT05fU1RBVFVTX0JFSElORBACEiUKIUxJQlJBUllfVkVSU0lPTl9TVEFUVVNfREVQUkVDQVRFRBADEiIKHkxJQlJBUllfVkVSU0lPTl9TVEFUVVNfTUlTU0lORxAEEiIKHkxJQlJBUllfVkVSU0lPTl9TVEFUVVNfVU5LTk9XThAFKpIBCgtMb2NhbFN0YXR1cxIcChhMT0NBTF9TVEFUVVNfVU5TUEVDSUZJRUQQABIWChJMT0NBTF9TVEFUVVNfQ0xFQU4QARIZChVMT0NBTF9TVEFUVVNfTU9ESUZJRUQQAhIYChRMT0NBTF9TVEFUVVNfTUlTU0lORxADEhgKFExPQ0FMX1NUQVRVU19VTktOT1dOEAQqrQEKDVJlc29sdmVTb3VyY2USHgoaUkVTT0xWRV9TT1VSQ0VfVU5TUEVDSUZJRUQQABIbChdSRVNPTFZFX1NPVVJDRV9FWFBMSUNJVBABEiQKIFJFU09MVkVfU09VUkNFX1RFTVBMQVRFX01BTklGRVNUEAISHAoYUkVTT0xWRV9TT1VSQ0VfSEVVUklTVElDEAMSGwoXUkVTT0xWRV9TT1VSQ0VfRkFMTEJBQ0sQBCrqAQoQUmVjb252ZXJnZUFjdGlvbhIhCh1SRUNPTlZFUkdFX0FDVElPTl9VTlNQRUNJRklFRBAAEh8KG1JFQ09OVkVSR0VfQUNUSU9OX1JFQVBQTElFRBABEiMKH1JFQ09OVkVSR0VfQUNUSU9OX1dPVUxEX1JFQVBQTFkQAhImCiJSRUNPTlZFUkdFX0FDVElPTl9GTEFHR0VEX01PRElGSUVEEAMSKAokUkVDT05WRVJHRV9BQ1RJT05fU0tJUFBFRF9VTlJFU09MVkVEEAQSGwoXUkVDT05WRVJHRV9BQ1RJT05fRVJST1IQBTKIDgoQQWRvcHRpb25zU2VydmljZRKWAQoNTGlzdEFkb3B0aW9ucxJBLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuTGlzdEFkb3B0aW9uc1JlcXVlc3QaQi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkxpc3RBZG9wdGlvbnNSZXNwb25zZRKWAQoNQXBwbHlBZG9wdGlvbhJBLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuQXBwbHlBZG9wdGlvblJlcXVlc3QaQi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkFwcGx5QWRvcHRpb25SZXNwb25zZRKcAQoPUmVhcHBseUFkb3B0aW9uEkMudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZWFwcGx5QWRvcHRpb25SZXF1ZXN0GkQudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZWFwcGx5QWRvcHRpb25SZXNwb25zZRKZAQoORGVsZXRlQWRvcHRpb24SQi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkRlbGV0ZUFkb3B0aW9uUmVxdWVzdBpDLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuRGVsZXRlQWRvcHRpb25SZXNwb25zZRKfAQoQUmVmcmVzaEFkb3B0aW9ucxJELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVmcmVzaEFkb3B0aW9uc1JlcXVlc3QaRS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlJlZnJlc2hBZG9wdGlvbnNSZXNwb25zZRKlAQoSUmVjb25jaWxlQWRvcHRpb25zEkYudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZWNvbmNpbGVBZG9wdGlvbnNSZXF1ZXN0GkcudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZWNvbmNpbGVBZG9wdGlvbnNSZXNwb25zZRKoAQoTUmVjb252ZXJnZUFkb3B0aW9ucxJHLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVjb252ZXJnZUFkb3B0aW9uc1JlcXVlc3QaSC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlJlY29udmVyZ2VBZG9wdGlvbnNSZXNwb25zZRKoAQoTUmVzb2x2ZUFkb3B0aW9uUGF0aBJHLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVzb2x2ZUFkb3B0aW9uUGF0aFJlcXVlc3QaSC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlJlc29sdmVBZG9wdGlvblBhdGhSZXNwb25zZRKfAQoQU3VnZ2VzdEFkb3B0aW9ucxJELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuU3VnZ2VzdEFkb3B0aW9uc1JlcXVlc3QaRS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlN1Z2dlc3RBZG9wdGlvbnNSZXNwb25zZRKiAQoRRGlzY292ZXJBZG9wdGlvbnMSRS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkRpc2NvdmVyQWRvcHRpb25zUmVxdWVzdBpGLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuRGlzY292ZXJBZG9wdGlvbnNSZXNwb25zZRKfAQoQQ29uZmlybURpc2NvdmVyeRJELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuQ29uZmlybURpc2NvdmVyeVJlcXVlc3QaRS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkNvbmZpcm1EaXNjb3ZlcnlSZXNwb25zZUJiWmBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3JlYWN0LWNvbXBvbmVudC1saWJyYXJ5L3YxL2Fkb3B0aW9uczthZG9wdGlvbnNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CjRyZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9hZG9wdGlvbnMvYWRvcHRpb25zLnByb3RvEit2cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zIqIECghBZG9wdGlvbhIKCgJpZBgBIAEoCRIUCgxjb21wb25lbnRfaWQYAiABKAkSEgoKbGlicmFyeV9pZBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIUCgxhZG9wdGVkX3BhdGgYBSABKAkSFwoPYWRvcHRlZF92ZXJzaW9uGAYgASgJEmEKFmxpYnJhcnlfdmVyc2lvbl9zdGF0dXMYByABKA4yQS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkxpYnJhcnlWZXJzaW9uU3RhdHVzEk4KDGxvY2FsX3N0YXR1cxgIIAEoDjI4LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuTG9jYWxTdGF0dXMSFQoNc3RhdHVzX2RldGFpbBgLIAEoCRIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxyZWZyZXNoZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDXNvdXJjZV9zaGEyNTYYDCABKAkSEgoKYXBwbGllZF9hdBgNIAEoCRJICgVmaWxlcxgOIAMoCzI5LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuQWRvcHRpb25GaWxlInIKDEFkb3B0aW9uRmlsZRIUCgxsaWJyYXJ5X3BhdGgYASABKAkSFAoMYWRvcHRlZF9wYXRoGAIgASgJEhUKDXNvdXJjZV9zaGEyNTYYAyABKAkSHwoXYWRvcHRlZF9zbmFwc2hvdF9zaGEyNTYYBCABKAkiTQoUTGlzdEFkb3B0aW9uc1JlcXVlc3QSFAoMY29tcG9uZW50X2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg0KBWxpbWl0GAMgASgFImEKFUxpc3RBZG9wdGlvbnNSZXNwb25zZRJICglhZG9wdGlvbnMYASADKAsyNS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkFkb3B0aW9uIrcBChRBcHBseUFkb3B0aW9uUmVxdWVzdBIUCgxjb21wb25lbnRfaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSFAoMYWRvcHRlZF9wYXRoGAMgASgJEg8KB3ZlcnNpb24YBCABKAkSGQoRY29uZmlybV9vdmVyd3JpdGUYBSABKAgSGwoTb3ZlcnJpZGVfdmFsaWRhdGlvbhgGIAEoCBIYChByZXBsYWNlX2V4aXN0aW5nGAcgASgIIowBChVBcHBseUFkb3B0aW9uUmVzcG9uc2USRwoIYWRvcHRpb24YASABKAsyNS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkFkb3B0aW9uEhQKDHdyaXR0ZW5fcGF0aBgCIAEoCRIUCgxpbXBvcnRfc2l0ZXMYAyADKAkicwoWUmVhcHBseUFkb3B0aW9uUmVxdWVzdBIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEh8KF2NvbmZpcm1fbG9jYWxfb3ZlcndyaXRlGAMgASgIEhsKE292ZXJyaWRlX3ZhbGlkYXRpb24YBCABKAgieAoXUmVhcHBseUFkb3B0aW9uUmVzcG9uc2USRwoIYWRvcHRpb24YASABKAsyNS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkFkb3B0aW9uEhQKDHdyaXR0ZW5fcGF0aBgCIAEoCSIjChVEZWxldGVBZG9wdGlvblJlcXVlc3QSCgoCaWQYASABKAkiGAoWRGVsZXRlQWRvcHRpb25SZXNwb25zZSIvChdSZWZyZXNoQWRvcHRpb25zUmVxdWVzdBIUCgxjb21wb25lbnRfaWQYASABKAkijwEKGlJlc29sdmVBZG9wdGlvblBhdGhSZXF1ZXN0EhQKDGNvbXBvbmVudF9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIVCg1vdmVycmlkZV9wYXRoGAMgASgJEg8KB2ZlYXR1cmUYBCABKAkSDwoHdmVyc2lvbhgFIAEoCRIQCgh0ZW1wbGF0ZRgGIAEoCSLTAQoTUmVzb2x2ZWRWZXJzaW9uRmlsZRIUCgxsaWJyYXJ5X3BhdGgYASABKAkSEwoLdGFyZ2V0X3BhdGgYAiABKAkSDAoEc2xvdBgDIAEoCRJKCgZzb3VyY2UYBCABKA4yOi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlJlc29sdmVTb3VyY2USEwoLc2xvdF9zb3VyY2UYBSABKAkSEAoIaXNfZW50cnkYBiABKAgSEAoId2FybmluZ3MYByADKAkilQIKG1Jlc29sdmVBZG9wdGlvblBhdGhSZXNwb25zZRIMCgRwYXRoGAEgASgJEkoKBnNvdXJjZRgCIAEoDjI6LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVzb2x2ZVNvdXJjZRIMCgRzbG90GAMgASgJEhAKCHdhcm5pbmdzGAQgAygJEk8KBWZpbGVzGAUgAygLMkAudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZXNvbHZlZFZlcnNpb25GaWxlEhAKCHRlbXBsYXRlGAYgASgJEhkKEW1hbmlmZXN0X3Jlc29sdmVkGAcgASgIIlAKF1N1Z2dlc3RBZG9wdGlvbnNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg0KBWxpbWl0GAIgASgFEhQKDGNvbXBvbmVudF9pZBgDIAEoCSKPAQoSQWRvcHRpb25TdWdnZXN0aW9uEhAKCHNjZW5hcmlvGAEgASgJEhQKDGNvbXBvbmVudF9pZBgCIAEoCRISCgpsaWJyYXJ5X2lkGAMgASgJEhQKDGRpc3BsYXlfbmFtZRgEIAEoCRIWCg5pbnZlbnRvcnlfcGF0aBgFIAEoCRIPCgdyZWFzb25zGAcgAygJInAKGFN1Z2dlc3RBZG9wdGlvbnNSZXNwb25zZRJUCgtzdWdnZXN0aW9ucxgBIAMoCzI/LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuQWRvcHRpb25TdWdnZXN0aW9uIr4CChhSZWZyZXNoQWRvcHRpb25zUmVzcG9uc2USSAoJYWRvcHRpb25zGAEgAygLMjUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5BZG9wdGlvbhIXCg9saWJyYXJ5X2N1cnJlbnQYAiABKAUSFgoObGlicmFyeV9iZWhpbmQYAyABKAUSGgoSbGlicmFyeV9kZXByZWNhdGVkGAQgASgFEhcKD2xpYnJhcnlfbWlzc2luZxgFIAEoBRIXCg9saWJyYXJ5X3Vua25vd24YBiABKAUSEwoLbG9jYWxfY2xlYW4YByABKAUSFgoObG9jYWxfbW9kaWZpZWQYCCABKAUSFQoNbG9jYWxfbWlzc2luZxgJIAEoBRIVCg1sb2NhbF91bmtub3duGAogASgFIioKGVJlY29uY2lsZUFkb3B0aW9uc1JlcXVlc3QSDQoFYXBwbHkYASABKAgibwoQUmVjb25jaWxlRmluZGluZxIQCghzY2VuYXJpbxgBIAEoCRIUCgxhZG9wdGVkX3BhdGgYAiABKAkSEgoKbGlicmFyeV9pZBgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEg4KBmRldGFpbBgFIAEoCSKpAQoaUmVjb25jaWxlQWRvcHRpb25zUmVzcG9uc2USDwoHc2Nhbm5lZBgBIAEoBRIYChBhbHJlYWR5X3JlY29yZGVkGAIgASgFEg8KB2NyZWF0ZWQYAyABKAUSTwoIZmluZGluZ3MYBCADKAsyPS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlJlY29uY2lsZUZpbmRpbmciPQoaUmVjb252ZXJnZUFkb3B0aW9uc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDQoFYXBwbHkYAiABKAgikwEKFVJlY29udmVyZ2VGaWxlT3V0Y29tZRIUCgxsaWJyYXJ5X3BhdGgYASABKAkSFAoMYWRvcHRlZF9wYXRoGAIgASgJEk4KDGxvY2FsX3N0YXR1cxgDIAEoDjI4LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuTG9jYWxTdGF0dXMi+gMKEVJlY29udmVyZ2VPdXRjb21lEhMKC2Fkb3B0aW9uX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEhQKDGNvbXBvbmVudF9pZBgDIAEoCRISCgpsaWJyYXJ5X2lkGAQgASgJEhcKD2Fkb3B0ZWRfdmVyc2lvbhgFIAEoCRIWCg50YXJnZXRfdmVyc2lvbhgGIAEoCRJhChZsaWJyYXJ5X3ZlcnNpb25fc3RhdHVzGAcgASgOMkEudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5MaWJyYXJ5VmVyc2lvblN0YXR1cxJOCgxsb2NhbF9zdGF0dXMYCCABKA4yOC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkxvY2FsU3RhdHVzEk0KBmFjdGlvbhgJIAEoDjI9LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVjb252ZXJnZUFjdGlvbhIOCgZkZXRhaWwYCiABKAkSUQoFZmlsZXMYCyADKAsyQi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlJlY29udmVyZ2VGaWxlT3V0Y29tZSLWAQobUmVjb252ZXJnZUFkb3B0aW9uc1Jlc3BvbnNlEg8KB3NjYW5uZWQYASABKAUSDgoGYmVoaW5kGAIgASgFEhEKCXJlYXBwbGllZBgDIAEoBRIPCgdmbGFnZ2VkGAQgASgFEg8KB3NraXBwZWQYBSABKAUSDwoHZXJyb3JlZBgGIAEoBRJQCghvdXRjb21lcxgHIAMoCzI+LnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVjb252ZXJnZU91dGNvbWUiUwoYRGlzY292ZXJBZG9wdGlvbnNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhYKDm1pbl9zaW1pbGFyaXR5GAIgASgBEg0KBWxpbWl0GAMgASgFIpACChJEaXNjb3ZlcnlDYW5kaWRhdGUSEAoIc2NlbmFyaW8YASABKAkSFAoMYWRvcHRlZF9wYXRoGAIgASgJEhQKDGNvbXBvbmVudF9pZBgDIAEoCRISCgpsaWJyYXJ5X2lkGAQgASgJEg8KB3ZlcnNpb24YBSABKAkSFAoMZGlzcGxheV9uYW1lGAYgASgJEhIKCnNpbWlsYXJpdHkYByABKAESFAoMc2hhcmVkX2xpbmVzGAggASgFEhcKD2NhbmRpZGF0ZV9saW5lcxgJIAEoBRIUCgxzb3VyY2VfbGluZXMYCiABKAUSFgoOYmFzZW5hbWVfbWF0Y2gYCyABKAgSEAoIZXZpZGVuY2UYDCADKAkimQEKGURpc2NvdmVyQWRvcHRpb25zUmVzcG9uc2USDwoHc2Nhbm5lZBgBIAEoBRIWCg5taW5fc2ltaWxhcml0eRgCIAEoARJTCgpjYW5kaWRhdGVzGAMgAygLMj8udnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5EaXNjb3ZlcnlDYW5kaWRhdGUiaAoXQ29uZmlybURpc2NvdmVyeVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSFAoMYWRvcHRlZF9wYXRoGAIgASgJEhQKDGNvbXBvbmVudF9pZBgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJIo0BChhDb25maXJtRGlzY292ZXJ5UmVzcG9uc2USRwoIYWRvcHRpb24YASABKAsyNS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkFkb3B0aW9uEhQKDHdyaXR0ZW5fcGF0aBgCIAEoCRISCgpzaW1pbGFyaXR5GAMgASgBKvQBChRMaWJyYXJ5VmVyc2lvblN0YXR1cxImCiJMSUJSQVJZX1ZFUlNJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIgoeTElCUkFSWV9WRVJTSU9OX1NUQVRVU19DVVJSRU5UEAESIQodTElCUkFSWV9WRVJTSU9OX1NUQVRVU19CRUhJTkQQAhIlCiFMSUJSQVJZX1ZFUlNJT05fU1RBVFVTX0RFUFJFQ0FURUQQAxIiCh5MSUJSQVJZX1ZFUlNJT05fU1RBVFVTX01JU1NJTkcQBBIiCh5MSUJSQVJZX1ZFUlNJT05fU1RBVFVTX1VOS05PV04QBSqSAQoLTG9jYWxTdGF0dXMSHAoYTE9DQUxfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFgoSTE9DQUxfU1RBVFVTX0NMRUFOEAESGQoVTE9DQUxfU1RBVFVTX01PRElGSUVEEAISGAoUTE9DQUxfU1RBVFVTX01JU1NJTkcQAxIYChRMT0NBTF9TVEFUVVNfVU5LTk9XThAEKq0BCg1SZXNvbHZlU291cmNlEh4KGlJFU09MVkVfU09VUkNFX1VOU1BFQ0lGSUVEEAASGwoXUkVTT0xWRV9TT1VSQ0VfRVhQTElDSVQQARIkCiBSRVNPTFZFX1NPVVJDRV9URU1QTEFURV9NQU5JRkVTVBACEhwKGFJFU09MVkVfU09VUkNFX0hFVVJJU1RJQxADEhsKF1JFU09MVkVfU09VUkNFX0ZBTExCQUNLEAQq6gEKEFJlY29udmVyZ2VBY3Rpb24SIQodUkVDT05WRVJHRV9BQ1RJT05fVU5TUEVDSUZJRUQQABIfChtSRUNPTlZFUkdFX0FDVElPTl9SRUFQUExJRUQQARIjCh9SRUNPTlZFUkdFX0FDVElPTl9XT1VMRF9SRUFQUExZEAISJgoiUkVDT05WRVJHRV9BQ1RJT05fRkxBR0dFRF9NT0RJRklFRBADEigKJFJFQ09OVkVSR0VfQUNUSU9OX1NLSVBQRURfVU5SRVNPTFZFRBAEEhsKF1JFQ09OVkVSR0VfQUNUSU9OX0VSUk9SEAUyiA4KEEFkb3B0aW9uc1NlcnZpY2USlgEKDUxpc3RBZG9wdGlvbnMSQS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkxpc3RBZG9wdGlvbnNSZXF1ZXN0GkIudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5MaXN0QWRvcHRpb25zUmVzcG9uc2USlgEKDUFwcGx5QWRvcHRpb24SQS52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkFwcGx5QWRvcHRpb25SZXF1ZXN0GkIudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5BcHBseUFkb3B0aW9uUmVzcG9uc2USnAEKD1JlYXBwbHlBZG9wdGlvbhJDLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVhcHBseUFkb3B0aW9uUmVxdWVzdBpELnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVhcHBseUFkb3B0aW9uUmVzcG9uc2USmQEKDkRlbGV0ZUFkb3B0aW9uEkIudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5EZWxldGVBZG9wdGlvblJlcXVlc3QaQy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkRlbGV0ZUFkb3B0aW9uUmVzcG9uc2USnwEKEFJlZnJlc2hBZG9wdGlvbnMSRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlJlZnJlc2hBZG9wdGlvbnNSZXF1ZXN0GkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZWZyZXNoQWRvcHRpb25zUmVzcG9uc2USpQEKElJlY29uY2lsZUFkb3B0aW9ucxJGLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVjb25jaWxlQWRvcHRpb25zUmVxdWVzdBpHLnZyb29saS5yZWFjdF9jb21wb25lbnRfbGlicmFyeS52MS5hZG9wdGlvbnMuUmVjb25jaWxlQWRvcHRpb25zUmVzcG9uc2USqAEKE1JlY29udmVyZ2VBZG9wdGlvbnMSRy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlJlY29udmVyZ2VBZG9wdGlvbnNSZXF1ZXN0GkgudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZWNvbnZlcmdlQWRvcHRpb25zUmVzcG9uc2USqAEKE1Jlc29sdmVBZG9wdGlvblBhdGgSRy52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlJlc29sdmVBZG9wdGlvblBhdGhSZXF1ZXN0GkgudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5SZXNvbHZlQWRvcHRpb25QYXRoUmVzcG9uc2USnwEKEFN1Z2dlc3RBZG9wdGlvbnMSRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLlN1Z2dlc3RBZG9wdGlvbnNSZXF1ZXN0GkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5TdWdnZXN0QWRvcHRpb25zUmVzcG9uc2USogEKEURpc2NvdmVyQWRvcHRpb25zEkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5EaXNjb3ZlckFkb3B0aW9uc1JlcXVlc3QaRi52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkRpc2NvdmVyQWRvcHRpb25zUmVzcG9uc2USnwEKEENvbmZpcm1EaXNjb3ZlcnkSRC52cm9vbGkucmVhY3RfY29tcG9uZW50X2xpYnJhcnkudjEuYWRvcHRpb25zLkNvbmZpcm1EaXNjb3ZlcnlSZXF1ZXN0GkUudnJvb2xpLnJlYWN0X2NvbXBvbmVudF9saWJyYXJ5LnYxLmFkb3B0aW9ucy5Db25maXJtRGlzY292ZXJ5UmVzcG9uc2VCYlpgZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9yZWFjdC1jb21wb25lbnQtbGlicmFyeS92MS9hZG9wdGlvbnM7YWRvcHRpb25zX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.react_component_library.v1.adoptions.Adoption
@@ -419,7 +419,8 @@ export type ResolveAdoptionPathRequest = Message<"vrooli.react_component_library
   componentId: string;
 
   /**
-   * Required. Target scenario name.
+   * Required unless template is set. Target scenario name; the resolver
+   * chases its service.json to the owning template manifest.
    *
    * @generated from field: string scenario = 2;
    */
@@ -440,6 +441,26 @@ export type ResolveAdoptionPathRequest = Message<"vrooli.react_component_library
    * @generated from field: string feature = 4;
    */
   feature: string;
+
+  /**
+   * Optional. Version to resolve the full file set for (entry + companions).
+   * Empty resolves against the component's latest indexed version. Only the
+   * per-file `files` output depends on this; the summary `path` always
+   * resolves the entry slot.
+   *
+   * @generated from field: string version = 5;
+   */
+  version: string;
+
+  /**
+   * Optional. Resolve placement directly against this template's UI manifest
+   * (scenario-agnostic), instead of chasing a scenario's service.json. When
+   * set, `scenario` is used only for echo/labeling. This is the seam the code
+   * panel uses to preview placement for a template with no concrete scenario.
+   *
+   * @generated from field: string template = 6;
+   */
+  template: string;
 };
 
 /**
@@ -450,25 +471,92 @@ export const ResolveAdoptionPathRequestSchema: GenMessage<ResolveAdoptionPathReq
   messageDesc(file_react_component_library_v1_adoptions_adoptions, 11);
 
 /**
+ * ResolvedVersionFile is one member of a version unit placed at its
+ * slot-derived target path in the adopting scenario/template.
+ *
+ * @generated from message vrooli.react_component_library.v1.adoptions.ResolvedVersionFile
+ */
+export type ResolvedVersionFile = Message<"vrooli.react_component_library.v1.adoptions.ResolvedVersionFile"> & {
+  /**
+   * Library-side basename within the version unit (e.g. "useFocusTrap.ts").
+   *
+   * @generated from field: string library_path = 1;
+   */
+  libraryPath: string;
+
+  /**
+   * Resolved scenario-relative target path (e.g. "ui/src/hooks/useFocusTrap.ts").
+   *
+   * @generated from field: string target_path = 2;
+   */
+  targetPath: string;
+
+  /**
+   * Slot used to place this file.
+   *
+   * @generated from field: string slot = 3;
+   */
+  slot: string;
+
+  /**
+   * How the target PATH was resolved (template-manifest / heuristic / fallback).
+   *
+   * @generated from field: vrooli.react_component_library.v1.adoptions.ResolveSource source = 4;
+   */
+  source: ResolveSource;
+
+  /**
+   * How the SLOT was chosen: "explicit" (authored metadata), "heuristic"
+   * (extension rule, e.g. use*.ts -> hook), "component" (the component's
+   * declared slot), or "entry" (entry file inherits the component slot).
+   *
+   * @generated from field: string slot_source = 5;
+   */
+  slotSource: string;
+
+  /**
+   * True for the version's entry file.
+   *
+   * @generated from field: bool is_entry = 6;
+   */
+  isEntry: boolean;
+
+  /**
+   * Per-file non-fatal warnings.
+   *
+   * @generated from field: repeated string warnings = 7;
+   */
+  warnings: string[];
+};
+
+/**
+ * Describes the message vrooli.react_component_library.v1.adoptions.ResolvedVersionFile.
+ * Use `create(ResolvedVersionFileSchema)` to create a new message.
+ */
+export const ResolvedVersionFileSchema: GenMessage<ResolvedVersionFile> = /*@__PURE__*/
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 12);
+
+/**
  * @generated from message vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse
  */
 export type ResolveAdoptionPathResponse = Message<"vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse"> & {
   /**
-   * Resolved path, relative to the scenario root.
+   * Resolved path of the ENTRY file, relative to the scenario root. Retained
+   * for callers that only need the single renderable artifact.
    *
    * @generated from field: string path = 1;
    */
   path: string;
 
   /**
-   * How the resolver arrived at the path.
+   * How the resolver arrived at the entry path.
    *
    * @generated from field: vrooli.react_component_library.v1.adoptions.ResolveSource source = 2;
    */
   source: ResolveSource;
 
   /**
-   * Slot name used during resolution (echoed for UI badge rendering).
+   * Slot name used during entry resolution (echoed for UI badge rendering).
    *
    * @generated from field: string slot = 3;
    */
@@ -480,6 +568,30 @@ export type ResolveAdoptionPathResponse = Message<"vrooli.react_component_librar
    * @generated from field: repeated string warnings = 4;
    */
   warnings: string[];
+
+  /**
+   * Full file set placed at slot-derived target paths. Includes the entry
+   * file. Empty when the version has no indexed files (falls back to `path`).
+   *
+   * @generated from field: repeated vrooli.react_component_library.v1.adoptions.ResolvedVersionFile files = 5;
+   */
+  files: ResolvedVersionFile[];
+
+  /**
+   * Template id whose manifest drove placement (e.g. "react-vite"). Empty
+   * when no manifest resolved and placement used heuristics/fallback.
+   *
+   * @generated from field: string template = 6;
+   */
+  template: string;
+
+  /**
+   * True when a template UI manifest authoritatively placed the files. False
+   * signals the UI to render its flat fallback tree.
+   *
+   * @generated from field: bool manifest_resolved = 7;
+   */
+  manifestResolved: boolean;
 };
 
 /**
@@ -487,7 +599,7 @@ export type ResolveAdoptionPathResponse = Message<"vrooli.react_component_librar
  * Use `create(ResolveAdoptionPathResponseSchema)` to create a new message.
  */
 export const ResolveAdoptionPathResponseSchema: GenMessage<ResolveAdoptionPathResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 12);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 13);
 
 /**
  * @generated from message vrooli.react_component_library.v1.adoptions.SuggestAdoptionsRequest
@@ -521,7 +633,7 @@ export type SuggestAdoptionsRequest = Message<"vrooli.react_component_library.v1
  * Use `create(SuggestAdoptionsRequestSchema)` to create a new message.
  */
 export const SuggestAdoptionsRequestSchema: GenMessage<SuggestAdoptionsRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 13);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 14);
 
 /**
  * @generated from message vrooli.react_component_library.v1.adoptions.AdoptionSuggestion
@@ -565,7 +677,7 @@ export type AdoptionSuggestion = Message<"vrooli.react_component_library.v1.adop
  * Use `create(AdoptionSuggestionSchema)` to create a new message.
  */
 export const AdoptionSuggestionSchema: GenMessage<AdoptionSuggestion> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 14);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 15);
 
 /**
  * @generated from message vrooli.react_component_library.v1.adoptions.SuggestAdoptionsResponse
@@ -582,7 +694,7 @@ export type SuggestAdoptionsResponse = Message<"vrooli.react_component_library.v
  * Use `create(SuggestAdoptionsResponseSchema)` to create a new message.
  */
 export const SuggestAdoptionsResponseSchema: GenMessage<SuggestAdoptionsResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 15);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 16);
 
 /**
  * @generated from message vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse
@@ -649,7 +761,7 @@ export type RefreshAdoptionsResponse = Message<"vrooli.react_component_library.v
  * Use `create(RefreshAdoptionsResponseSchema)` to create a new message.
  */
 export const RefreshAdoptionsResponseSchema: GenMessage<RefreshAdoptionsResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 16);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 17);
 
 /**
  * ReconcileAdoptions inventories existing provenance-headed scenario UI files.
@@ -669,7 +781,7 @@ export type ReconcileAdoptionsRequest = Message<"vrooli.react_component_library.
  * Use `create(ReconcileAdoptionsRequestSchema)` to create a new message.
  */
 export const ReconcileAdoptionsRequestSchema: GenMessage<ReconcileAdoptionsRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 17);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 18);
 
 /**
  * @generated from message vrooli.react_component_library.v1.adoptions.ReconcileFinding
@@ -706,7 +818,7 @@ export type ReconcileFinding = Message<"vrooli.react_component_library.v1.adopti
  * Use `create(ReconcileFindingSchema)` to create a new message.
  */
 export const ReconcileFindingSchema: GenMessage<ReconcileFinding> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 18);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 19);
 
 /**
  * @generated from message vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsResponse
@@ -738,7 +850,7 @@ export type ReconcileAdoptionsResponse = Message<"vrooli.react_component_library
  * Use `create(ReconcileAdoptionsResponseSchema)` to create a new message.
  */
 export const ReconcileAdoptionsResponseSchema: GenMessage<ReconcileAdoptionsResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 19);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 20);
 
 /**
  * ReconvergeAdoptions batch-reconverges BEHIND adoptions. Dry-run by default.
@@ -766,7 +878,7 @@ export type ReconvergeAdoptionsRequest = Message<"vrooli.react_component_library
  * Use `create(ReconvergeAdoptionsRequestSchema)` to create a new message.
  */
 export const ReconvergeAdoptionsRequestSchema: GenMessage<ReconvergeAdoptionsRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 20);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 21);
 
 /**
  * ReconvergeFileOutcome is the per-file drift disposition inside one adoption.
@@ -795,7 +907,7 @@ export type ReconvergeFileOutcome = Message<"vrooli.react_component_library.v1.a
  * Use `create(ReconvergeFileOutcomeSchema)` to create a new message.
  */
 export const ReconvergeFileOutcomeSchema: GenMessage<ReconvergeFileOutcome> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 21);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 22);
 
 /**
  * ReconvergeOutcome is the per-adoption result of a reconverge pass.
@@ -869,7 +981,7 @@ export type ReconvergeOutcome = Message<"vrooli.react_component_library.v1.adopt
  * Use `create(ReconvergeOutcomeSchema)` to create a new message.
  */
 export const ReconvergeOutcomeSchema: GenMessage<ReconvergeOutcome> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 22);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 23);
 
 /**
  * @generated from message vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsResponse
@@ -928,7 +1040,7 @@ export type ReconvergeAdoptionsResponse = Message<"vrooli.react_component_librar
  * Use `create(ReconvergeAdoptionsResponseSchema)` to create a new message.
  */
 export const ReconvergeAdoptionsResponseSchema: GenMessage<ReconvergeAdoptionsResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 23);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 24);
 
 /**
  * DiscoverAdoptions surfaces header-less scenario UI files that resemble a
@@ -967,7 +1079,7 @@ export type DiscoverAdoptionsRequest = Message<"vrooli.react_component_library.v
  * Use `create(DiscoverAdoptionsRequestSchema)` to create a new message.
  */
 export const DiscoverAdoptionsRequestSchema: GenMessage<DiscoverAdoptionsRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 24);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 25);
 
 /**
  * DiscoveryCandidate is one header-less file matched to a library version,
@@ -1046,7 +1158,7 @@ export type DiscoveryCandidate = Message<"vrooli.react_component_library.v1.adop
  * Use `create(DiscoveryCandidateSchema)` to create a new message.
  */
 export const DiscoveryCandidateSchema: GenMessage<DiscoveryCandidate> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 25);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 26);
 
 /**
  * @generated from message vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsResponse
@@ -1073,7 +1185,7 @@ export type DiscoverAdoptionsResponse = Message<"vrooli.react_component_library.
  * Use `create(DiscoverAdoptionsResponseSchema)` to create a new message.
  */
 export const DiscoverAdoptionsResponseSchema: GenMessage<DiscoverAdoptionsResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 26);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 27);
 
 /**
  * ConfirmDiscovery names the exact component + version to attribute (echoed
@@ -1109,7 +1221,7 @@ export type ConfirmDiscoveryRequest = Message<"vrooli.react_component_library.v1
  * Use `create(ConfirmDiscoveryRequestSchema)` to create a new message.
  */
 export const ConfirmDiscoveryRequestSchema: GenMessage<ConfirmDiscoveryRequest> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 27);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 28);
 
 /**
  * @generated from message vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryResponse
@@ -1136,7 +1248,7 @@ export type ConfirmDiscoveryResponse = Message<"vrooli.react_component_library.v
  * Use `create(ConfirmDiscoveryResponseSchema)` to create a new message.
  */
 export const ConfirmDiscoveryResponseSchema: GenMessage<ConfirmDiscoveryResponse> = /*@__PURE__*/
-  messageDesc(file_react_component_library_v1_adoptions_adoptions, 28);
+  messageDesc(file_react_component_library_v1_adoptions_adoptions, 29);
 
 /**
  * @generated from enum vrooli.react_component_library.v1.adoptions.LibraryVersionStatus

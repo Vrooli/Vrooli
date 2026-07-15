@@ -9,17 +9,19 @@ import (
 
 	"swarm-manager/internal/eventlog"
 
+	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
-func setupTestDB(t *testing.T) *sql.DB {
+func setupTestDB(t *testing.T) *database.RoutedDB {
 	t.Helper()
-	db, err := sql.Open("sqlite", ":memory:")
+	sqldb, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("open in-memory sqlite: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { sqldb.Close() })
 
+	db := database.NewFromPrimary(sqldb)
 	repo := eventlog.NewSQLiteRepository(db)
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init schema: %v", err)

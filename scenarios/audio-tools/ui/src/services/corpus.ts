@@ -117,8 +117,8 @@ export async function getClipAudio(id: string): Promise<{ audio: Uint8Array; cli
 // =============================================================================
 
 export interface StrategyRow {
-  strategy: string;
-  label: string;
+	strategy: string;
+	label: string;
   wer: number;
   substitutions: number;
   insertions: number;
@@ -276,6 +276,16 @@ export interface EvalReportData {
   warnings: WarningRow[];
   normalizationPolicy: NormalizationPolicyRow | null;
   latencyHonesty: string;
+	promotionVerdicts: PromotionVerdictRow[];
+}
+
+export interface PromotionVerdictRow {
+	engineId: string;
+	modelId: string;
+	strategy: string;
+	policyProfile: string;
+	stable: boolean;
+	reasons: string[];
 }
 
 function decodeWarning(w: ReportWarning): WarningRow {
@@ -410,8 +420,8 @@ function decodeScaling(s?: ScalingAnalysis): ScalingAnalysisRow | null {
 
 function decodeStrategy(s: StrategyReport): StrategyRow {
   return {
-    strategy: s.strategy,
-    label: s.label || s.strategy,
+	strategy: s.strategy,
+	label: s.label || s.strategy,
     wer: s.wer,
     substitutions: s.substitutions,
     insertions: s.insertions,
@@ -461,13 +471,24 @@ function decodeStrategy(s: StrategyReport): StrategyRow {
 }
 
 export function decodeEvalReport(report?: EvalReport): EvalReportData {
-  return {
+	const promotionReport = report as (EvalReport & {
+		promotionVerdicts?: Array<{ engineId?: string; modelId?: string; strategy?: string; policyProfile?: string; stable?: boolean; reasons?: string[] }>;
+	}) | undefined;
+	return {
     perStrategy: (report?.perStrategy ?? []).map(decodeStrategy),
     qualityMeasured: report?.qualityMeasured ?? false,
     latencyMeasured: report?.latencyMeasured ?? false,
     summary: decodeSummary(report?.summary),
     warnings: (report?.warnings ?? []).map(decodeWarning),
     normalizationPolicy: decodePolicy(report?.normalizationPolicy),
-    latencyHonesty: report?.latencyHonesty ?? "",
-  };
+	latencyHonesty: report?.latencyHonesty ?? "",
+		promotionVerdicts: (promotionReport?.promotionVerdicts ?? []).map((verdict) => ({
+			engineId: verdict.engineId ?? "",
+			modelId: verdict.modelId ?? "",
+			strategy: verdict.strategy ?? "",
+			policyProfile: verdict.policyProfile ?? "",
+			stable: Boolean(verdict.stable),
+			reasons: verdict.reasons ?? [],
+		})),
+	};
 }

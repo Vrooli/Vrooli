@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	. "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts" //nolint:revive // see template_runtime.go rationale
+	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
 // templateFileFingerprint records a single emitted file's contribution to
@@ -30,7 +30,7 @@ type templateFileFingerprint struct {
 // Both return values are lowercase hex sha256 digests. Either may be empty if
 // computation fails for that hash; callers should treat hash failure as
 // non-fatal (drift just becomes unmeasurable for that path).
-func computeTemplateHashes(info TemplateInfo) (manifestSha string, contentSha string, err error) {
+func computeTemplateHashes(info templatecontracts.TemplateInfo) (manifestSha string, contentSha string, err error) {
 	if info.Path == "" {
 		return "", "", fmt.Errorf("template path is empty")
 	}
@@ -59,7 +59,7 @@ func hashTemplateManifestFile(templateDir string) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-func hashTemplateContent(templateDir string, manifest TemplateManifest) (string, error) {
+func hashTemplateContent(templateDir string, manifest templatecontracts.TemplateManifest) (string, error) {
 	var entries []templateFileFingerprint
 	err := walkTemplateEmissions(templateDir, manifest, func(relPath, absPath string, entry fs.DirEntry) error {
 		if entry.IsDir() {
@@ -95,7 +95,7 @@ func hashTemplateContent(templateDir string, manifest TemplateManifest) (string,
 // templateFilesByPath returns a path-keyed map of per-file fingerprints. This
 // is what `scenario template drift --verbose` consumes to point at individual
 // files that differ between the current template and a generated scenario.
-func templateFilesByPath(templateDir string, manifest TemplateManifest) (map[string]templateFileFingerprint, error) {
+func templateFilesByPath(templateDir string, manifest templatecontracts.TemplateManifest) (map[string]templateFileFingerprint, error) {
 	out := make(map[string]templateFileFingerprint)
 	err := walkTemplateEmissions(templateDir, manifest, func(relPath, absPath string, entry fs.DirEntry) error {
 		if entry.IsDir() {

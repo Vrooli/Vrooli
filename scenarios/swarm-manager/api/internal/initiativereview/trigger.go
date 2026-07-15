@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
@@ -120,27 +119,6 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		return TriggerResult{}, fmt.Errorf("next round: %w", err)
 	}
 
-	instructions, err := s.renderInstructions(ctx, init, roundNum)
-	if err != nil {
-		return TriggerResult{}, fmt.Errorf("render skill: %w", err)
-	}
-
-	// Run a fresh GCT pass over the union of affected scenarios before
-	// spawning the review agent. This is the "is the whole thing still
-	// working together" integration check the initiative review is
-	// designed around: per-item reviews landed earlier against earlier
-	// scenario states, and something may have drifted since. The call
-	// blocks (bounded by GCTPollTimeout per scenario) so results land
-	// in the review agent's context as fresh evidence rather than
-	// stale history.
-	affectedScenarios := s.collectAffectedScenarios(init)
-	freshGCT := s.runFreshGCT(ctx, affectedScenarios)
-
-	attachments, err := s.buildContextAttachments(init, affectedScenarios, freshGCT)
-	if err != nil {
-		return TriggerResult{}, fmt.Errorf("build attachments: %w", err)
-	}
-
 	generatedAt := s.clock().UTC().Format(time.RFC3339)
 	round := review.Round{
 		RoundNum:    roundNum,
@@ -164,12 +142,12 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		}
 	}
 
-	if s.spawner == nil || !s.spawner.IsEnabled() {
-		// Degraded mode (no spawner): the round still lands on disk and
-		// the initiative flips to in_review so the UI doesn't lie about
-		// lifecycle, but no agent-manager work happens. The provisional
-		// lock is released immediately because there is no live run to own
-		// it after the status transition.
+	if s.operationStarter == nil {
+		// Degraded mode (no runner): the round still lands on disk and the
+		// initiative flips to in_review so the UI doesn't lie about lifecycle,
+		// but no agent-manager work happens. The provisional lock is released
+		// immediately because there is no live run to own it after the status
+		// transition.
 		if err := review.SaveRound(itemDir, round); err != nil {
 			if s.lock != nil {
 				_ = s.lock.Release(init.Name, provisionalRunID)
@@ -188,43 +166,33 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		return TriggerResult{Started: true, Round: roundNum}, nil
 	}
 
-	runResult, err := s.spawner.SpawnInitiative(ctx, agentmanager.InitiativeSpawnRequest{
-		Name:               init.Name,
-		Title:              "Review: " + fallbackInitiativeTitle(init),
-		Description:        instructions,
-		Prompt:             instructions,
-		ScopePath:          ".",
-		ProjectRoot:        ".",
-		CreatedBy:          "swarm-manager:initiative-review",
-		Purpose:            "review",
-		RoundNumber:        roundNum,
-		RoundSlug:          "review",
-		ContextAttachments: attachments,
-		Environment: map[string]string{
-			"VROOLI_SPAWN_SOURCE": "swarm-manager-initiative-review",
-		},
+	// Start the initiative-review operation through the runner. The bound
+	// initiative-review-loop mode renders its own prompt + assembles context from
+	// the initiative target adapters (member items, acceptance criteria); the
+	// completion arrives through the runner completion bridge, which fires
+	// commit-initiative-review (see opshandlers.go).
+	res, err := s.operationStarter.StartInitiativeReviewOperation(ctx, OperationStartRequest{
+		Operation:      opInitiativeReview,
+		TargetKind:     targetKindInitiative,
+		TargetID:       init.Name,
+		IdempotencyKey: fmt.Sprintf("initiative-review-%s-r%d", init.Name, roundNum),
+		RequestedBy:    "swarm-manager:initiative-review",
 	})
 	if err != nil {
 		if s.lock != nil {
 			_ = s.lock.Release(init.Name, provisionalRunID)
 		}
-		return TriggerResult{}, fmt.Errorf("spawn agent: %w", err)
+		return TriggerResult{}, fmt.Errorf("start initiative review operation: %w", err)
 	}
 
 	// Swap the provisional holder for the agent-manager RunID so a later
-	// Release(runResult.RunID) actually clears the lock. AcquireOverride is
-	// a pure file write; on the unlikely failure path we release the
-	// provisional to avoid a wedged lock.
-	//
-	// Safety: between the Acquire above and AcquireOverride here, triggerGate
-	// is still held (TriggerIfReady serializes all startReview calls for
-	// this initiative), so no other caller can observe or replace the
-	// provisional holder. AcquireOverride itself doesn't validate that the
-	// provisional is still present — it's an unconditional write — and that's
-	// fine under the single-writer invariant this path guarantees.
+	// Release(res.RunID) actually clears the lock. AcquireOverride is a pure file
+	// write; on the unlikely failure path we release the provisional to avoid a
+	// wedged lock. triggerGate is still held so no other caller can observe or
+	// replace the provisional holder.
 	if s.lock != nil {
 		if swapErr := s.lock.AcquireOverride(init.Name, initiativelock.Holder{
-			RunID:       runResult.RunID,
+			RunID:       res.RunID,
 			Purpose:     "review",
 			RoundNumber: roundNum,
 			AcquiredBy:  "swarm-manager:initiative-review",
@@ -235,24 +203,35 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		}
 	}
 
-	round.RunID = runResult.RunID
+	round.RunID = res.RunID
 	round.ExecutionID = "" // initiative reviews have no single execution owner
+	round.OpWorkflowID = res.WorkflowID
+	round.OpExecutionID = res.ExecutionID
 	if err := review.SaveRound(itemDir, round); err != nil {
 		return TriggerResult{}, fmt.Errorf("save round: %w", err)
 	}
 	if err := s.setInitiativeStatus(init, initiatives.InitiativeStatusInReview, generatedAt); err != nil {
 		return TriggerResult{}, err
 	}
-	s.trackActiveRound(init.Name, roundNum, runResult.RunID)
+	// NOT tracked for legacy polling: the round is runner-owned (OpExecutionID
+	// set), so the operation runner's completion bridge + refresh driver own its
+	// terminal transition.
 
 	slog.Info("initiative review started",
 		"initiative", init.Name,
 		"round", roundNum,
-		"run_id", runResult.RunID,
+		"run_id", res.RunID,
+		"op_execution", res.ExecutionID,
 	)
 
-	return TriggerResult{Started: true, Round: roundNum, RunID: runResult.RunID}, nil
+	return TriggerResult{Started: true, Round: roundNum, RunID: res.RunID}, nil
 }
+
+// Operation + target identifiers the initiative-review reroute pins.
+const (
+	opInitiativeReview   = "initiative-review"
+	targetKindInitiative = "initiative"
+)
 
 // findNonTerminalItems returns the "kind/name" refs of member items that
 // are not yet in a terminal state. Missing-from-disk items are treated as
@@ -283,11 +262,4 @@ func (s *Service) findNonTerminalItems(init *initiatives.Initiative) ([]string, 
 		}
 	}
 	return out, nil
-}
-
-func fallbackInitiativeTitle(init *initiatives.Initiative) string {
-	if title := strings.TrimSpace(init.Title); title != "" {
-		return title
-	}
-	return init.Name
 }

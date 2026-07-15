@@ -187,15 +187,15 @@ scenario-to-cloud redeploy \
 If `health=stopped` and `freshness=current`, start the existing deployment:
 
 ```bash
-scenario-to-cloud deployment start <deployment-id>
-scenario-to-cloud deployment health <deployment-id>
+scenario-to-cloud deployment start "<deployment-id>"
+scenario-to-cloud deployment health "<deployment-id>"
 ```
 
 #### Step 4: Verify and triage
 
 ```bash
-scenario-to-cloud deployment health <deployment-id>
-scenario-to-cloud inspect logs <deployment-id> --tail 200
+scenario-to-cloud deployment health "<deployment-id>"
+scenario-to-cloud inspect logs "<deployment-id>" --tail 200
 ```
 
 Convergence safety rule for `--if-needed`:
@@ -220,17 +220,17 @@ scenario-to-cloud deployment health --domain {{DOMAIN}} --scenario {{SCENARIO_NA
 2. Run the exact recommendation commands from the output.
 3. Check logs for errors:
 ```bash
-scenario-to-cloud inspect logs <deployment-id> --level error --since 1h
+scenario-to-cloud inspect logs "<deployment-id>" --level error --since 1h
 ```
 4. If `history` or `logs` are empty and failure happened during preflight, inspect structured preflight diagnostics:
 ```bash
-scenario-to-cloud deployment get <deployment-id> --json
+scenario-to-cloud deployment get "<deployment-id>" --json
 ```
 Review `preflight_result.checks` and follow each failing check's `hint` first.
 5. If preflight failed, run this remediation order before retry:
 ```bash
 # A) Inspect failing preflight checks first (including owning processes)
-scenario-to-cloud deployment get <deployment-id> --json
+scenario-to-cloud deployment get "<deployment-id>" --json
 
 # B) Port conflicts (80/443) only when owner is unexpected
 scenario-to-cloud preflight fix-ports \
@@ -251,14 +251,14 @@ scenario-to-cloud preflight disk-cleanup \
   --action journal_vacuum
 
 # E) Re-check deployment diagnostics and identify unresolved failing checks
-scenario-to-cloud deployment get <deployment-id> --json
+scenario-to-cloud deployment get "<deployment-id>" --json
 ```
 Do not run `fix-ports` when expected edge services (for example `caddy`) are the owners of 80/443; follow the preflight `hint` for that check instead.
 If a failing check is a hard infrastructure requirement (for example RAM below minimum policy), stop and hand off the infrastructure fix before retrying deployment.
 6. Retry convergence:
 ```bash
-scenario-to-cloud deployment execute <deployment-id> --preflight --wait
-scenario-to-cloud deployment health <deployment-id> --json
+scenario-to-cloud deployment execute "<deployment-id>" --preflight --wait
+scenario-to-cloud deployment health "<deployment-id>" --json
 ```
 
 #### Hard Blocker Handoff (When Preflight Cannot Converge)

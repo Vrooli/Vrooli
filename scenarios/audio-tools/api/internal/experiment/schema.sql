@@ -29,3 +29,21 @@ CREATE TABLE IF NOT EXISTS experiment_runs (
 
 CREATE INDEX IF NOT EXISTS idx_experiment_runs_experiment_id ON experiment_runs(experiment_id);
 CREATE INDEX IF NOT EXISTS idx_experiment_runs_strategy ON experiment_runs(strategy);
+
+CREATE TABLE IF NOT EXISTS qualification_evidence (
+  id TEXT PRIMARY KEY,
+  engine_id TEXT NOT NULL,
+  model_id TEXT NOT NULL,
+  strategy TEXT NOT NULL,
+  policy_profile TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL,
+  fault_profile TEXT NOT NULL DEFAULT '',
+  passed INTEGER NOT NULL,
+  artifact_ref TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  machine_json TEXT NOT NULL DEFAULT '{}',
+  observed_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_qualification_evidence_cell
+  ON qualification_evidence(engine_id, model_id, strategy, policy_profile, observed_at DESC);

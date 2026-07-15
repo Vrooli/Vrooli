@@ -45,24 +45,24 @@ Never fuse them. You can run a `fast` profile toward a `zero-blockers` target, o
 test-genie execute <scenario> --preset comprehensive --json > audit.json
 
 # 2. OPEN the campaign (ingests every finding; all start `detected`).
-architecture-cartographer campaign create <scenario> --name "<goal>" --from-audit audit.json
+architecture-cartographer campaign create "<scenario>" --name "<goal>" --from-audit audit.json
 #   → prints the campaign id; capture it.
 
 # 3. NEXT — pull the ranked worklist for your chosen profile.
-architecture-cartographer campaign next <campaign-id> --profile fast    # or balanced / long-term
+architecture-cartographer campaign next "<campaign-id>" --profile fast    # or balanced / long-term
 
 # 4. WORK the top item(s) by hand. Then record each:
-architecture-cartographer campaign resolve <campaign-id> --finding <afid> --note "what you did"
+architecture-cartographer campaign resolve "<campaign-id>" --finding "<afid>" --note "what you did"
 
 # 5. RE-AUDIT and reconcile: gone → validated, persists → still open,
 #    (re)appeared or brand-new → REGRESSION (handle these first).
 test-genie execute <scenario> --preset comprehensive --json > audit-2.json
-architecture-cartographer campaign reaudit <campaign-id> --from-audit audit-2.json
+architecture-cartographer campaign reaudit "<campaign-id>" --from-audit audit-2.json
 
 # 6. CHECK your target. Not met? → back to step 3 with the next audit.
 #    Met? → close.
-architecture-cartographer campaign status <campaign-id>
-architecture-cartographer campaign close <campaign-id>
+architecture-cartographer campaign status "<campaign-id>"
+architecture-cartographer campaign close "<campaign-id>"
 ```
 
 Between iterations, use **`scenario-readiness-review`** to judge whether the changes you made are coherent and commit-ready — that is your measure step; this skill does not duplicate its logic.

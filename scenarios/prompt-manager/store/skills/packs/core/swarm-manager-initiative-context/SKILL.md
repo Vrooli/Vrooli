@@ -16,7 +16,7 @@ If you are doing a pure read-only investigation that will not touch the backlog,
 ## One command, one call
 
 ```bash
-swarm-manager initiatives context --name <initiative-name>
+swarm-manager initiatives context --name "<initiative-name>"
 ```
 
 The command prints, in one call:
@@ -34,7 +34,7 @@ Use the default human output for reading and reasoning. Reach for `--json` only 
 Each initiative has a `graph.json` projection on disk, auto-materialized from its members' `depends_on` edges. It is the canonical shape for reasoning about the item graph (nodes with kind/title/status/priority/effort/archived, edges keyed `depends_on`). Reach for it when you need the topology, not just the list.
 
 ```bash
-swarm-manager initiatives graph-show --name <initiative-name>
+swarm-manager initiatives graph-show --name "<initiative-name>"
 ```
 
 `graph.json` is **read-only to agents** — it is a projection, never a source of truth. Mutations go through backlog/initiatives endpoints (or an accepted feedback proposal); the projection updates itself.

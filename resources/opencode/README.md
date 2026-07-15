@@ -57,6 +57,15 @@ syncs the OpenRouter key into `auth.json`.
   reachable and no OpenRouter key is present. Target a local model
   explicitly with `-m ollama/<model>`.
 
+## Coding-role policy
+
+OpenCode owns its concrete coding-role inventory in `model-policy.json`. Use
+`resource-opencode policy validate`, `policy roles --json`, and `policy resolve
+--role code.default --json` to inspect it. The response records the concrete
+model, fallbacks, policy provenance, and native permission posture; Agent
+Manager consumes that response at run creation but does not duplicate the
+inventory or write OpenCode configuration.
+
 ## Permissions
 
 Manage the bash patterns OpenCode is allowed (or denied) to run via the

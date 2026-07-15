@@ -111,7 +111,7 @@ func TestManagerLoadAdoptsNewDefaultResources(t *testing.T) {
 	if err := os.WriteFile(configPath, []byte(`{
 		"version": "1.0",
 		"monitoring": {
-			"resources": ["postgres", "redis", "ollama", "qdrant", "searxng", "browserless"]
+			"resources": ["postgres", "redis", "ollama", "qdrant", "searxng"]
 		}
 	}`), 0o644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -139,7 +139,7 @@ func TestManagerLoadHonorsExplicitDisabledDefaultResource(t *testing.T) {
 			"resource-whisper": {"enabled": false}
 		},
 		"monitoring": {
-			"resources": ["postgres", "redis", "ollama", "qdrant", "searxng", "browserless"]
+			"resources": ["postgres", "redis", "ollama", "qdrant", "searxng"]
 		}
 	}`), 0o644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)

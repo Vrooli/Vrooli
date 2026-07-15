@@ -32,6 +32,24 @@ type RunContext struct {
 	Target    TargetInstance
 	Artifacts []ArtifactSnapshot
 	Rounds    []RoundEnvelope
+	// OperatorInputs are optional structured caller-context strings the run was
+	// started with, keyed by operation caller-input name (e.g. USER_QUESTION,
+	// CONTEXT_PATHS). Unlike the per-action operator note, these are set once at
+	// run start and belong to the run identity, so they ride on the context
+	// rather than a render parameter. The structured caller-context generic
+	// providers (generic.user_question, generic.gap_report, …) read from here;
+	// they are always optional, so an absent key resolves to an empty string.
+	OperatorInputs map[string]string
+}
+
+// operatorInput returns the structured caller-context string supplied for name,
+// or "" when the run carries none (the optional-input contract every structured
+// caller-context provider honors, matching generic.operator_note's empty note).
+func (rc RunContext) operatorInput(name string) string {
+	if rc.OperatorInputs == nil {
+		return ""
+	}
+	return rc.OperatorInputs[name]
 }
 
 // Adapter returns the run's target adapter.

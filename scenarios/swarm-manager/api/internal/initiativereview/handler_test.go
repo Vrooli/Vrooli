@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/review"
@@ -210,10 +209,11 @@ func TestHandler_Decide_WrongLifecycleReturns400(t *testing.T) {
 	}
 }
 
-func TestHandler_TriggerRoutes_ReadsAgentSpawnShape(t *testing.T) {
+func TestHandler_TriggerRoutes_StartsOperation(t *testing.T) {
 	// Smoke test that the router passes path params correctly and the
-	// service receives the right initiative name. This complements the
-	// service-level tests, which don't go through the mux.
+	// service reroutes the trigger to the initiative-review operation against
+	// the right target. This complements the service-level tests, which don't
+	// go through the mux.
 	e := newHandlerEnv(t)
 	e.seedItem("execute", "zeta", "Zeta", backlog.StatusCompleted)
 	e.createInitiative("smoke-init", "Smoke", "execute/zeta")
@@ -223,12 +223,13 @@ func TestHandler_TriggerRoutes_ReadsAgentSpawnShape(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d", rec.Code)
 	}
-	if len(e.spawner.spawnCalls) != 1 {
-		t.Fatalf("expected exactly one spawn call, got %d", len(e.spawner.spawnCalls))
+	if e.starter.calls != 1 {
+		t.Fatalf("expected exactly one operation start, got %d", e.starter.calls)
 	}
-	if e.spawner.spawnCalls[0].Name != "smoke-init" {
-		t.Errorf("spawn Name = %q, want smoke-init", e.spawner.spawnCalls[0].Name)
+	if e.starter.lastReq.TargetID != "smoke-init" {
+		t.Errorf("operation TargetID = %q, want smoke-init", e.starter.lastReq.TargetID)
 	}
-	// Make sure the run result was captured by the env.
-	_ = agentmanager.RunResult{}
+	if len(e.spawner.spawnCalls) != 0 {
+		t.Errorf("expected no direct agent spawn, got %d", len(e.spawner.spawnCalls))
+	}
 }

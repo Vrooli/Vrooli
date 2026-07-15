@@ -38,7 +38,7 @@ Check scenario status before use:
 vrooli scenario status seo-optimizer
 ```
 
-Required resources: PostgreSQL, Ollama, Browserless
+Required resources: PostgreSQL, Ollama, browser-automation-studio
 Optional: Redis (caching), Qdrant (semantic analysis)
 
 ---

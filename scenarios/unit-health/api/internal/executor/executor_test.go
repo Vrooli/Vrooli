@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -84,5 +85,40 @@ func TestRunAllPreservesOrderAndConcurrency(t *testing.T) {
 	}
 	if results[1].Status != StatusFailed {
 		t.Errorf("b should fail, got %q", results[1].Status)
+	}
+}
+
+func TestBoundedRunScrubsScenarioIdentityEnv(t *testing.T) {
+	t.Setenv("UI_PORT", "24851")
+	t.Setenv("SCENARIO_NAME", "unit-health")
+	t.Setenv("VROOLI_SCENARIO", "unit-health")
+	t.Setenv("UNIT_HEALTH_TEST_KEEP", "kept")
+	res := Bounded{}.Run(context.Background(), Command{
+		WorkspaceID: "w", Name: "env",
+		Argv:           []string{"sh", "-c", `echo "UI_PORT=[$UI_PORT] SCENARIO_NAME=[$SCENARIO_NAME] VROOLI_SCENARIO=[$VROOLI_SCENARIO] KEEP=[$UNIT_HEALTH_TEST_KEEP] CI=[$CI]"`},
+		TimeoutSeconds: 10,
+	})
+	if res.Status != StatusPassed {
+		t.Fatalf("status = %q (%s), want passed", res.Status, res.FailureReason)
+	}
+	want := "UI_PORT=[] SCENARIO_NAME=[] VROOLI_SCENARIO=[] KEEP=[kept] CI=[1]"
+	if !strings.Contains(res.Stdout, want) {
+		t.Fatalf("stdout = %q, want it to contain %q", res.Stdout, want)
+	}
+}
+
+func TestBoundedRunExplicitEnvOverridesScrub(t *testing.T) {
+	t.Setenv("UI_PORT", "24851")
+	res := Bounded{}.Run(context.Background(), Command{
+		WorkspaceID: "w", Name: "env",
+		Argv:           []string{"sh", "-c", `echo "UI_PORT=[$UI_PORT]"`},
+		Env:            []string{"UI_PORT=12345"},
+		TimeoutSeconds: 10,
+	})
+	if res.Status != StatusPassed {
+		t.Fatalf("status = %q (%s), want passed", res.Status, res.FailureReason)
+	}
+	if !strings.Contains(res.Stdout, "UI_PORT=[12345]") {
+		t.Fatalf("stdout = %q, want explicit UI_PORT=12345 preserved", res.Stdout)
 	}
 }

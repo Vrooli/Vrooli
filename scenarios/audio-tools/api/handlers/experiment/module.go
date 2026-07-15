@@ -35,4 +35,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 	{ID: "experiment.stream", Path: experimentconnect.ExperimentServiceStreamExperimentEventsProcedure, Method: "POST", Category: "experiment"},
 	{ID: "experiment.report", Path: experimentconnect.ExperimentServiceGetExperimentReportProcedure, Method: "POST", Category: "experiment"},
 	{ID: "experiment.compare", Path: experimentconnect.ExperimentServiceCompareExperimentsProcedure, Method: "POST", Category: "experiment"},
+	{ID: "experiment.evidence.record", Path: experimentconnect.ExperimentServiceRecordQualificationEvidenceProcedure, Method: "POST", Category: "experiment"},
+	{ID: "experiment.evidence.list", Path: experimentconnect.ExperimentServiceListQualificationEvidenceProcedure, Method: "POST", Category: "experiment"},
 }

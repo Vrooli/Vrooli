@@ -1,11 +1,16 @@
 package stt
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
 
@@ -17,6 +22,7 @@ import (
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/stt/segmenter"
+	"audio-tools/internal/stt/session"
 )
 
 // Voice streaming WS message types. These match the wire shape the
@@ -34,6 +40,36 @@ const (
 	// transport. See VadStateEvent doc + plan §7 step 3.
 	wsMsgVadState = "vad-state"
 )
+
+const wsV2AudioHeaderBytes = 60
+
+// decodeWSV2AudioFrame reads the versioned browser framing: ASCII ATV2,
+// uint64 chunk sequence, int64 absolute start/end samples (big endian), a
+// SHA-256 digest, then canonical audio bytes. It has no transport state so both the WebSocket
+// adapter and its contract tests use exactly the same mapping.
+func decodeWSV2AudioFrame(frame []byte) (sttchain.AudioChunk, error) {
+	if len(frame) < wsV2AudioHeaderBytes {
+		return sttchain.AudioChunk{}, fmt.Errorf("stt websocket v2: frame shorter than header")
+	}
+	if string(frame[:4]) != "ATV2" {
+		return sttchain.AudioChunk{}, fmt.Errorf("stt websocket v2: invalid frame magic")
+	}
+	chunk := sttchain.AudioChunk{
+		Sequence:    binary.BigEndian.Uint64(frame[4:12]),
+		StartSample: int64(binary.BigEndian.Uint64(frame[12:20])),
+		EndSample:   int64(binary.BigEndian.Uint64(frame[20:28])),
+		Digest:      append([]byte(nil), frame[28:60]...),
+		Audio:       append([]byte(nil), frame[wsV2AudioHeaderBytes:]...),
+	}
+	if len(chunk.Audio) == 0 || chunk.EndSample < chunk.StartSample {
+		return sttchain.AudioChunk{}, fmt.Errorf("stt websocket v2: invalid audio range")
+	}
+	actual := sha256.Sum256(chunk.Audio)
+	if !bytes.Equal(actual[:], chunk.Digest) {
+		return sttchain.AudioChunk{}, fmt.Errorf("stt websocket v2: audio digest mismatch")
+	}
+	return chunk, nil
+}
 
 // wsWriterDrainTimeout bounds how long teardown waits for the coalescing
 // writer to flush queued durable messages to a slow consumer before the socket
@@ -79,7 +115,7 @@ func (w *wsCoalescingWriter) wake() {
 // supersedes any unsent interim partial so stale text is never re-shown.
 func (w *wsCoalescingWriter) enqueue(m wsMessage) {
 	w.mu.Lock()
-	if m.Type == wsMsgPartial {
+	if wsMessageDeliveryClass(m) == sttchain.DeliveryProgress {
 		mm := m
 		w.partial = &mm
 	} else {
@@ -90,6 +126,25 @@ func (w *wsCoalescingWriter) enqueue(m wsMessage) {
 	}
 	w.mu.Unlock()
 	w.wake()
+}
+
+// wsMessageDeliveryClass mirrors sttchain.StreamEvent.DeliveryClass. VAD and
+// transient status updates are snapshots, not lossless commitments; keeping
+// them durable would let a high-rate status source grow an unbounded queue.
+func wsMessageDeliveryClass(m wsMessage) sttchain.DeliveryClass {
+	// A processed acknowledgement advances the browser's durable recovery
+	// cursor. Unlike ordinary status snapshots, it must survive terminal
+	// final/done delivery: dropping it leaves the browser retaining audio that
+	// the server has already processed and makes completion unverifiable.
+	if m.Type == wsMsgStatus && m.Code == "processed_acknowledgement" {
+		return sttchain.DeliveryDurable
+	}
+	switch m.Type {
+	case wsMsgPartial, wsMsgVadState, wsMsgStatus:
+		return sttchain.DeliveryProgress
+	default:
+		return sttchain.DeliveryDurable
+	}
 }
 
 func (w *wsCoalescingWriter) run() {
@@ -138,15 +193,21 @@ func (w *wsCoalescingWriter) close(timeout time.Duration) {
 type wsMessage struct {
 	Type string `json:"type"`
 	Text string `json:"text,omitempty"`
+	// SegmentID and Generation make durable segment delivery idempotent across
+	// a reconnect. They are absent on legacy (v1) messages.
+	SegmentID  string `json:"segmentId,omitempty"`
+	Generation uint64 `json:"generation,omitempty"`
 	// Code carries a machine-readable status/error class. On Type==wsMsgStatus
 	// it is a progress marker such as "stream_connected"; on Type==wsMsgError
 	// it is an error class such as "backend_starting", "backend_unavailable",
 	// or "provider_failure" so the UI can distinguish retryable backend states.
-	Code         string  `json:"code,omitempty"`
-	SegmentIndex int     `json:"segmentIndex,omitempty"`
-	Score        float64 `json:"score,omitempty"`
-	Threshold    float64 `json:"threshold,omitempty"`
-	ProfileID    string  `json:"profileId,omitempty"`
+	Code              string  `json:"code,omitempty"`
+	SegmentIndex      int     `json:"segmentIndex,omitempty"`
+	ReceivedSequence  int64   `json:"receivedSequence,omitempty"`
+	ProcessedSequence int64   `json:"processedSequence,omitempty"`
+	Score             float64 `json:"score,omitempty"`
+	Threshold         float64 `json:"threshold,omitempty"`
+	ProfileID         string  `json:"profileId,omitempty"`
 	// VAD-state fields (only populated when Type == wsMsgVadState). All
 	// are pointer-typed so omitempty drops them from non-VAD messages.
 	Voiced           *bool   `json:"voiced,omitempty"`
@@ -178,6 +239,14 @@ func StreamWSHandler(d Deps) http.Handler {
 			http.Error(w, "stt streaming pipeline not configured", http.StatusServiceUnavailable)
 			return
 		}
+		fault, err := streamTestFaultFromRequest(r, d.EnableStreamTestFaults)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if fault.enabled() && d.Logger != nil {
+			d.Logger.Printf("voice-ws: deterministic qualification fault armed providerBusy=%t closeAfterChunks=%d closeAfterCommits=%d pauseAfterChunks=%d pauseReadsFor=%s delayProcessedAckFor=%s suppressProcessedAck=%t", fault.providerBusy, fault.closeAfterChunks, fault.closeAfterCommits, fault.pauseAfterChunks, fault.pauseReadsFor, fault.delayProcessedAckFor, fault.suppressProcessedAck)
+		}
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			d.Logger.Printf("voice-ws: upgrade failed: %v", err)
@@ -203,8 +272,30 @@ func StreamWSHandler(d Deps) http.Handler {
 		// kyutai reader. Partials coalesce/drop; durables are ordered/lossless.
 		writer := newWSCoalescingWriter(conn)
 		writer.enqueue(wsMessage{Type: wsMsgStatus, Code: "stream_connected", Text: "Streaming transcription connected."})
+		if fault.providerBusy {
+			writer.enqueue(wsMessage{Type: wsMsgError, Code: "stt_busy", Text: "STT provider is busy (deterministic qualification fault)."})
+			writer.enqueue(wsMessage{Type: wsMsgDone})
+			writer.close(wsWriterDrainTimeout)
+			return
+		}
 
 		start := buildStreamStart(r)
+		var ledger *session.Ledger
+		var ledgers *session.Registry
+		resumed := false
+		if start.ProtocolVersion == 2 {
+			ledgers = d.Sessions
+			if ledgers == nil {
+				ledgers = session.NewRegistry(0)
+			}
+			ledger, resumed, err = ledgers.Open(start.SessionID, start.ResumeToken)
+			if err != nil {
+				writer.enqueue(wsMessage{Type: wsMsgError, Code: "invalid_session", Text: err.Error()})
+				writer.enqueue(wsMessage{Type: wsMsgDone})
+				writer.close(wsWriterDrainTimeout)
+				return
+			}
+		}
 		cfg := resolveStreamPipelineConfigFromDeps(ctx, d)
 		seg := segmenter.New(segmenter.Deps{Chain: d.Chain, Selector: d.Selector, Engine: d.Engine, Registry: d.Registry, SpeakerIsolation: currentSpeakerIsolation(d), SpeakerExtraction: currentSpeakerExtraction(d)})
 
@@ -225,6 +316,7 @@ func StreamWSHandler(d Deps) http.Handler {
 		readerErr := make(chan error, 1)
 		go func() {
 			defer close(chunks)
+			receivedChunks := 0
 			for {
 				_ = conn.SetReadDeadline(time.Now().Add(idle))
 				mt, data, err := conn.ReadMessage()
@@ -237,11 +329,62 @@ func StreamWSHandler(d Deps) http.Handler {
 					return
 				}
 				if mt == websocket.BinaryMessage {
+					chunk := sttchain.AudioChunk{Audio: data}
+					if start.ProtocolVersion == 2 {
+						parsed, parseErr := decodeWSV2AudioFrame(data)
+						if parseErr != nil {
+							ledger.Fail(session.TerminalReason("malformed_frame"))
+							_ = ledgers.Persist(ledger)
+							readerErr <- parseErr
+							return
+						}
+						result, receiveErr := ledger.Receive(session.Chunk{Sequence: parsed.Sequence, StartSample: parsed.StartSample, EndSample: parsed.EndSample, Audio: parsed.Audio})
+						if receiveErr != nil {
+							ledger.Fail(session.TerminalReason("receive_failed"))
+							_ = ledgers.Persist(ledger)
+							readerErr <- receiveErr
+							return
+						}
+						if err := ledgers.Persist(ledger); err != nil {
+							readerErr <- err
+							return
+						}
+						if result == session.ReceivedDuplicate {
+							continue
+						}
+						chunk = parsed
+					}
 					select {
-					case chunks <- sttchain.AudioChunk{Audio: data}:
+					case chunks <- chunk:
 					case <-ctx.Done():
 						readerErr <- ctx.Err()
 						return
+					}
+					receivedChunks++
+					if fault.closeAfterChunks > 0 && receivedChunks >= fault.closeAfterChunks {
+						// Close after forwarding the selected chunk, so the pipeline sees
+						// a real in-flight transport interruption rather than a synthetic
+						// pre-connect error. Deliver a typed durable error before closing:
+						// otherwise the client sees only a transport close and can mistake
+						// a recoverable missing range for a generic empty transcript.
+						if ledger != nil {
+							ledger.Fail(session.TerminalReason("test_fault_close_after_chunk"))
+							_ = ledgers.Persist(ledger)
+						}
+						writer.enqueue(wsMessage{Type: wsMsgError, Code: "incomplete_coverage", Text: "Streaming connection closed after deterministic qualification chunk limit."})
+						writer.close(wsWriterDrainTimeout)
+						cancel()
+						readerErr <- errors.New("deterministic stream fault: closed after configured chunk")
+						return
+					}
+					if fault.pauseAfterChunks > 0 && receivedChunks == fault.pauseAfterChunks {
+						// Pause at the reader seam after accepting the configured chunk.
+						// The next deadline is armed only after the pause, so this models
+						// a stalled server consumer rather than an accidental idle timeout.
+						if err := waitStreamTestFaultDelay(ctx, fault.pauseReadsFor); err != nil {
+							readerErr <- err
+							return
+						}
 					}
 					continue
 				}
@@ -263,6 +406,23 @@ func StreamWSHandler(d Deps) http.Handler {
 		}()
 
 		segIdx := 0
+		if ledger != nil && resumed {
+			// A reconnect may have missed a durable segment after the server
+			// committed it but before the browser received it. Replay the ledger's
+			// stable IDs in timeline order; clients use SegmentID to ignore any
+			// copy they already rendered.
+			committed := ledger.Snapshot().Committed
+			sort.Slice(committed, func(i, j int) bool {
+				if committed[i].StartSample != committed[j].StartSample {
+					return committed[i].StartSample < committed[j].StartSample
+				}
+				return committed[i].ID < committed[j].ID
+			})
+			for _, segment := range committed {
+				writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: segment.Text, SegmentID: segment.ID, Generation: start.Generation, SegmentIndex: segIdx})
+				segIdx++
+			}
+		}
 		var finalText string
 		providerCloseReason := "provider_done"
 		for ev := range events {
@@ -273,8 +433,47 @@ func StreamWSHandler(d Deps) http.Handler {
 				}
 			case sttchain.StreamEventSegment:
 				if ev.Segment != nil {
-					writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: ev.Segment.Text, SegmentIndex: segIdx})
+					segmentID := ev.Segment.SegmentID
+					if segmentID == "" {
+						segmentID = fmt.Sprintf("%s:%d:%d:%d", start.SessionID, start.Generation, ev.Segment.StartSample, ev.Segment.EndSample)
+					}
+					if ledger != nil {
+						isNew, commitErr := ledger.Commit(session.Segment{ID: segmentID, Text: ev.Segment.Text, StartSample: ev.Segment.StartSample, EndSample: ev.Segment.EndSample})
+						if commitErr != nil {
+							ledger.Fail(session.TerminalReason("commit_conflict"))
+							_ = ledgers.Persist(ledger)
+							providerCloseReason = "commit_conflict"
+							writer.enqueue(wsMessage{Type: wsMsgError, Code: "commit_conflict", Text: "Unable to preserve a durable transcript segment."})
+							continue
+						}
+						if err := ledgers.Persist(ledger); err != nil {
+							ledger.Fail(session.TerminalReason("persistence_failed"))
+							providerCloseReason = "persistence_failed"
+							writer.enqueue(wsMessage{Type: wsMsgError, Code: "persistence_failed", Text: "Unable to preserve transcript recovery state."})
+							continue
+						}
+						if !isNew {
+							// The segment was already replayed from the ledger above.
+							continue
+						}
+					}
+					writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: ev.Segment.Text, SegmentID: segmentID, Generation: start.Generation, SegmentIndex: segIdx})
 					segIdx++
+					if fault.closeAfterCommits > 0 && segIdx >= fault.closeAfterCommits {
+						// This is deliberately after the durable commit has been written
+						// to the session ledger but before final/done. It exercises the
+						// browser's resume boundary rather than fabricating a pre-connect
+						// failure. The retained audio is left recoverable and the terminal
+						// reason remains explicit for diagnostics.
+						if ledger != nil {
+							ledger.Fail(session.TerminalReason("test_fault_close_before_done"))
+							_ = ledgers.Persist(ledger)
+						}
+						writer.enqueue(wsMessage{Type: wsMsgError, Code: "incomplete_coverage", Text: "Streaming connection closed after a committed segment (deterministic qualification fault)."})
+						writer.close(wsWriterDrainTimeout)
+						cancel()
+						return
+					}
 				}
 			case sttchain.StreamEventVadState:
 				if ev.VadState != nil {
@@ -322,12 +521,49 @@ func StreamWSHandler(d Deps) http.Handler {
 		// the final text is fully redundant; send empty so the client can
 		// transition state without re-appending. Plain non-segmenting
 		// strategies (passthrough, buffered fallback) still need finalText.
+		var terminalReason session.TerminalReason
+		if ledger != nil {
+			state := ledger.Snapshot()
+			if state.ReceivedSequence >= 0 {
+				if fault.suppressProcessedAck {
+					// A done outcome with unacknowledged audio must never look like
+					// success. Keep the replay tail, persist the terminal reason, and
+					// give the browser an actionable durable error instead of silently
+					// compacting its journal.
+					ledger.Fail(session.TerminalIncompleteCoverage)
+					writer.enqueue(wsMessage{Type: wsMsgError, Code: "incomplete_coverage", Text: "Audio processing acknowledgement was intentionally withheld (deterministic qualification fault)."})
+				} else if fault.delayProcessedAckFor > 0 {
+					if err := waitStreamTestFaultDelay(ctx, fault.delayProcessedAckFor); err != nil {
+						ledger.Fail(session.TerminalReason("test_fault_ack_delay_cancelled"))
+					}
+				}
+				if state = ledger.Snapshot(); state.TerminalReason == "" {
+					if err := ledger.AcknowledgeProcessed(uint64(state.ReceivedSequence)); err != nil {
+						ledger.Fail(session.TerminalReason("processed_ack_failed"))
+					} else if err := ledger.Complete(); err != nil && !errors.Is(err, session.ErrTerminal) {
+						ledger.Fail(session.TerminalIncompleteCoverage)
+					}
+				}
+			}
+			if err := ledgers.Persist(ledger); err != nil {
+				writer.enqueue(wsMessage{Type: wsMsgError, Code: "persistence_failed", Text: "Unable to preserve audio recovery state."})
+			}
+			state = ledger.Snapshot()
+			terminalReason = state.TerminalReason
+			if !fault.suppressProcessedAck {
+				writer.enqueue(wsMessage{
+					Type: wsMsgStatus, Code: "processed_acknowledgement",
+					ReceivedSequence: state.ReceivedSequence, ProcessedSequence: state.ProcessedSequence,
+					Text: "Captured audio processing coverage updated.",
+				})
+			}
+		}
 		if segIdx > 0 {
 			writer.enqueue(wsMessage{Type: wsMsgFinal, Text: ""})
 		} else {
 			writer.enqueue(wsMessage{Type: wsMsgFinal, Text: finalText})
 		}
-		writer.enqueue(wsMessage{Type: wsMsgDone})
+		writer.enqueue(wsMessage{Type: wsMsgDone, Code: string(terminalReason)})
 
 		// Drain-then-close the browser egress: flush queued durables (including
 		// the terminal final + done) to the consumer within the bounded window,
@@ -415,6 +651,14 @@ func buildStreamStart(r *http.Request) sttchain.StreamStart {
 	q := r.URL.Query()
 	env := envelope.FromHTTP(r.Header)
 	return sttchain.StreamStart{
+		ProtocolVersion: func() int32 {
+			if q.Get("protocol_version") == "2" {
+				return 2
+			}
+			return 0
+		}(),
+		SessionID:    q.Get("session_id"),
+		ResumeToken:  q.Get("resume_token"),
 		Language:     q.Get("language"),
 		InputFormat:  q.Get("format"),
 		BYOKProvider: env.Provider,

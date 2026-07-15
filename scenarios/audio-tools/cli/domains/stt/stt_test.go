@@ -167,9 +167,14 @@ func TestTranscribeStreamUsesH2CGRPCTransport(t *testing.T) {
 				switch p := msg.GetPayload().(type) {
 				case *sttv1.TranscribeStreamRequest_Start:
 					sawStart = true
+					require.Equal(t, int32(2), p.Start.ProtocolVersion)
+					require.NotEmpty(t, p.Start.SessionId)
+					require.NotEmpty(t, p.Start.ResumeToken)
 				case *sttv1.TranscribeStreamRequest_AudioChunk:
 					sawChunk = true
-					require.Equal(t, []byte("PCMDATA"), p.AudioChunk)
+					require.Equal(t, []byte("PCMDATA"), p.AudioChunk.Audio)
+					require.Equal(t, uint64(0), p.AudioChunk.Sequence)
+					require.Len(t, p.AudioChunk.Sha256, 32)
 				case *sttv1.TranscribeStreamRequest_End:
 					sawEnd = true
 					require.True(t, sawStart)

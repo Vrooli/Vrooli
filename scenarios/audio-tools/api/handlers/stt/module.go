@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"audio-tools/internal/modulekit"
+	"audio-tools/internal/stt/session"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -12,6 +13,9 @@ import (
 )
 
 func Module(d Deps) modulekit.Module {
+	if d.Sessions == nil {
+		d.Sessions = session.NewRegistry(0)
+	}
 	h := NewConnectHandler(d)
 	runtimePath, runtimeHandler := sttconnect.NewSTTServiceHandler(h)
 	adminPath, adminHandler := sttconnect.NewSTTAdminServiceHandler(h)

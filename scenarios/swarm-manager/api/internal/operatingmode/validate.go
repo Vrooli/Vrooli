@@ -62,7 +62,7 @@ func validateDefinitions(defs map[Mode]Definition) error {
 			return err
 		}
 		if !IsValidTargetKind(def.Target.Kind) {
-			return fmt.Errorf("mode %q target kind must be one of %s|%s|%s (got %q)", mode, TargetPlanManagerPlan, TargetPlanRef, TargetInitiative, def.Target.Kind)
+			return fmt.Errorf("mode %q target kind must be one of %s|%s|%s (got %q)", mode, TargetBacklogItem, TargetInitiative, TargetPlanExecution, def.Target.Kind)
 		}
 		if def.Target.Kind != TargetInitiative && (def.Target.PlanRef.Required || strings.TrimSpace(def.Target.PlanRef.Role) != "") {
 			return fmt.Errorf("mode %q target.plan_ref is initiative-adapter configuration; target %q must not declare it", mode, def.Target.Kind)

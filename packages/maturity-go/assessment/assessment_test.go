@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -929,6 +930,49 @@ func TestBuildValidationResponseDerivesStatusAndPacksNativeDetail(t *testing.T) 
 	}
 	if unpacked.GetId() != "native" {
 		t.Fatalf("native detail id = %q, want native", unpacked.GetId())
+	}
+}
+
+func TestBuildValidationResponseScrubsInvalidUTF8InNativeDetail(t *testing.T) {
+	a, err := BuildProtoAssessment(BuildInput{Scenario: "demo", Spec: validSpec()})
+	if err != nil {
+		t.Fatalf("BuildProtoAssessment returned error: %v", err)
+	}
+	// A provider that packs captured command output can carry invalid UTF-8 in a
+	// string field. proto3 marshal rejects it; BuildValidationResponse must scrub
+	// and still deliver a response rather than fail the whole validation.
+	invalid := "coverage log \xff\xfe truncated"
+	if utf8.ValidString(invalid) {
+		t.Fatal("test fixture is unexpectedly valid UTF-8")
+	}
+	native := &commonv1.LocalMaturityLevel{Id: invalid}
+	got, err := BuildValidationResponse("demo", a, native, nil)
+	if err != nil {
+		t.Fatalf("BuildValidationResponse returned error on invalid UTF-8 native detail: %v", err)
+	}
+	if got.GetNativeDetail() == nil {
+		t.Fatal("native_detail is nil after scrub")
+	}
+	unpacked := &commonv1.LocalMaturityLevel{}
+	if err := got.GetNativeDetail().UnmarshalTo(unpacked); err != nil {
+		t.Fatalf("native_detail unmarshal failed: %v", err)
+	}
+	if !utf8.ValidString(unpacked.GetId()) {
+		t.Fatalf("scrubbed native detail id is still invalid UTF-8: %q", unpacked.GetId())
+	}
+	if !strings.Contains(unpacked.GetId(), "coverage log") || !strings.Contains(unpacked.GetId(), "truncated") {
+		t.Fatalf("scrub dropped surrounding valid text: %q", unpacked.GetId())
+	}
+}
+
+func TestSanitizeMessageStringsUTF8LeavesValidInputUnchanged(t *testing.T) {
+	native := &commonv1.LocalMaturityLevel{Id: "clean"}
+	out := sanitizeMessageStringsUTF8(native)
+	if out.(*commonv1.LocalMaturityLevel).GetId() != "clean" {
+		t.Fatalf("valid input was altered: %q", out.(*commonv1.LocalMaturityLevel).GetId())
+	}
+	if native.GetId() != "clean" {
+		t.Fatal("input message was mutated")
 	}
 }
 

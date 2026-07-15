@@ -230,12 +230,6 @@
         "required": false,
         "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
       },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": false,
-        "purpose": "Headless browser for capturing diagnostics when iframe bridge fails (console logs, network requests, screenshots, page HTML)"
-      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,

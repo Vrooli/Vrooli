@@ -529,17 +529,102 @@ func (*ValidateResourceTemplatesRequest) Descriptor() ([]byte, []int) {
 	return file_template_manager_v1_resource_template_resource_template_proto_rawDescGZIP(), []int{8}
 }
 
+type ResourceTemplateValidationResult struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Name         string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Driver       string                 `protobuf:"bytes,2,opt,name=driver,proto3" json:"driver,omitempty"`
+	Transitional bool                   `protobuf:"varint,3,opt,name=transitional,proto3" json:"transitional,omitempty"`
+	// status is "pass" when the template produced no issues, "fail" otherwise.
+	Status        string   `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Issues        []string `protobuf:"bytes,5,rep,name=issues,proto3" json:"issues,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceTemplateValidationResult) Reset() {
+	*x = ResourceTemplateValidationResult{}
+	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceTemplateValidationResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceTemplateValidationResult) ProtoMessage() {}
+
+func (x *ResourceTemplateValidationResult) ProtoReflect() protoreflect.Message {
+	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceTemplateValidationResult.ProtoReflect.Descriptor instead.
+func (*ResourceTemplateValidationResult) Descriptor() ([]byte, []int) {
+	return file_template_manager_v1_resource_template_resource_template_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ResourceTemplateValidationResult) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ResourceTemplateValidationResult) GetDriver() string {
+	if x != nil {
+		return x.Driver
+	}
+	return ""
+}
+
+func (x *ResourceTemplateValidationResult) GetTransitional() bool {
+	if x != nil {
+		return x.Transitional
+	}
+	return false
+}
+
+func (x *ResourceTemplateValidationResult) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ResourceTemplateValidationResult) GetIssues() []string {
+	if x != nil {
+		return x.Issues
+	}
+	return nil
+}
+
 type ValidateResourceTemplatesResponse struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
-	Count         int32                      `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
-	Templates     []*ResourceTemplateSummary `protobuf:"bytes,2,rep,name=templates,proto3" json:"templates,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// count is the number of resource templates validated.
+	Count int32 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	// status is the overall verdict: "pass" when no issues were found, "fail"
+	// otherwise.
+	Status      string                              `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	IssuesCount int32                               `protobuf:"varint,3,opt,name=issues_count,json=issuesCount,proto3" json:"issues_count,omitempty"`
+	Results     []*ResourceTemplateValidationResult `protobuf:"bytes,4,rep,name=results,proto3" json:"results,omitempty"`
+	// issues carries fleet-level problems not tied to one template, such as a
+	// missing canonical template.
+	Issues        []string `protobuf:"bytes,5,rep,name=issues,proto3" json:"issues,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ValidateResourceTemplatesResponse) Reset() {
 	*x = ValidateResourceTemplatesResponse{}
-	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[9]
+	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -551,7 +636,7 @@ func (x *ValidateResourceTemplatesResponse) String() string {
 func (*ValidateResourceTemplatesResponse) ProtoMessage() {}
 
 func (x *ValidateResourceTemplatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[9]
+	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -564,7 +649,7 @@ func (x *ValidateResourceTemplatesResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ValidateResourceTemplatesResponse.ProtoReflect.Descriptor instead.
 func (*ValidateResourceTemplatesResponse) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_resource_template_resource_template_proto_rawDescGZIP(), []int{9}
+	return file_template_manager_v1_resource_template_resource_template_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ValidateResourceTemplatesResponse) GetCount() int32 {
@@ -574,9 +659,30 @@ func (x *ValidateResourceTemplatesResponse) GetCount() int32 {
 	return 0
 }
 
-func (x *ValidateResourceTemplatesResponse) GetTemplates() []*ResourceTemplateSummary {
+func (x *ValidateResourceTemplatesResponse) GetStatus() string {
 	if x != nil {
-		return x.Templates
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ValidateResourceTemplatesResponse) GetIssuesCount() int32 {
+	if x != nil {
+		return x.IssuesCount
+	}
+	return 0
+}
+
+func (x *ValidateResourceTemplatesResponse) GetResults() []*ResourceTemplateValidationResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+func (x *ValidateResourceTemplatesResponse) GetIssues() []string {
+	if x != nil {
+		return x.Issues
 	}
 	return nil
 }
@@ -595,7 +701,7 @@ type GenerateResourceTemplateRequest struct {
 
 func (x *GenerateResourceTemplateRequest) Reset() {
 	*x = GenerateResourceTemplateRequest{}
-	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[10]
+	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -607,7 +713,7 @@ func (x *GenerateResourceTemplateRequest) String() string {
 func (*GenerateResourceTemplateRequest) ProtoMessage() {}
 
 func (x *GenerateResourceTemplateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[10]
+	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -620,7 +726,7 @@ func (x *GenerateResourceTemplateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateResourceTemplateRequest.ProtoReflect.Descriptor instead.
 func (*GenerateResourceTemplateRequest) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_resource_template_resource_template_proto_rawDescGZIP(), []int{10}
+	return file_template_manager_v1_resource_template_resource_template_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GenerateResourceTemplateRequest) GetTemplate() string {
@@ -679,7 +785,7 @@ type GenerateResourceTemplateResponse struct {
 
 func (x *GenerateResourceTemplateResponse) Reset() {
 	*x = GenerateResourceTemplateResponse{}
-	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[11]
+	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -691,7 +797,7 @@ func (x *GenerateResourceTemplateResponse) String() string {
 func (*GenerateResourceTemplateResponse) ProtoMessage() {}
 
 func (x *GenerateResourceTemplateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[11]
+	mi := &file_template_manager_v1_resource_template_resource_template_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -704,7 +810,7 @@ func (x *GenerateResourceTemplateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateResourceTemplateResponse.ProtoReflect.Descriptor instead.
 func (*GenerateResourceTemplateResponse) Descriptor() ([]byte, []int) {
-	return file_template_manager_v1_resource_template_resource_template_proto_rawDescGZIP(), []int{11}
+	return file_template_manager_v1_resource_template_resource_template_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GenerateResourceTemplateResponse) GetTemplate() *ResourceTemplateSummary {
@@ -794,10 +900,19 @@ const file_template_manager_v1_resource_template_resource_template_proto_rawDesc
 	"\x04name\x18\x01 \x01(\tR\x04name\"}\n" +
 	"\x1bGetResourceTemplateResponse\x12^\n" +
 	"\btemplate\x18\x01 \x01(\v2B.vrooli.template_manager.v1.resource_template.ResourceTemplateInfoR\btemplate\"\"\n" +
-	" ValidateResourceTemplatesRequest\"\x9e\x01\n" +
+	" ValidateResourceTemplatesRequest\"\xa2\x01\n" +
+	" ResourceTemplateValidationResult\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06driver\x18\x02 \x01(\tR\x06driver\x12\"\n" +
+	"\ftransitional\x18\x03 \x01(\bR\ftransitional\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x16\n" +
+	"\x06issues\x18\x05 \x03(\tR\x06issues\"\xf6\x01\n" +
 	"!ValidateResourceTemplatesResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\x12c\n" +
-	"\ttemplates\x18\x02 \x03(\v2E.vrooli.template_manager.v1.resource_template.ResourceTemplateSummaryR\ttemplates\"\xe3\x02\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12!\n" +
+	"\fissues_count\x18\x03 \x01(\x05R\vissuesCount\x12h\n" +
+	"\aresults\x18\x04 \x03(\v2N.vrooli.template_manager.v1.resource_template.ResourceTemplateValidationResultR\aresults\x12\x16\n" +
+	"\x06issues\x18\x05 \x03(\tR\x06issues\"\xe3\x02\n" +
 	"\x1fGenerateResourceTemplateRequest\x12\x1a\n" +
 	"\btemplate\x18\x01 \x01(\tR\btemplate\x12%\n" +
 	"\x0efrom_blueprint\x18\x02 \x01(\tR\rfromBlueprint\x12 \n" +
@@ -836,7 +951,7 @@ func file_template_manager_v1_resource_template_resource_template_proto_rawDescG
 	return file_template_manager_v1_resource_template_resource_template_proto_rawDescData
 }
 
-var file_template_manager_v1_resource_template_resource_template_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_template_manager_v1_resource_template_resource_template_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_template_manager_v1_resource_template_resource_template_proto_goTypes = []any{
 	(*ResourceTemplateVar)(nil),               // 0: vrooli.template_manager.v1.resource_template.ResourceTemplateVar
 	(*ResourceTemplateManifest)(nil),          // 1: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest
@@ -847,36 +962,37 @@ var file_template_manager_v1_resource_template_resource_template_proto_goTypes =
 	(*GetResourceTemplateRequest)(nil),        // 6: vrooli.template_manager.v1.resource_template.GetResourceTemplateRequest
 	(*GetResourceTemplateResponse)(nil),       // 7: vrooli.template_manager.v1.resource_template.GetResourceTemplateResponse
 	(*ValidateResourceTemplatesRequest)(nil),  // 8: vrooli.template_manager.v1.resource_template.ValidateResourceTemplatesRequest
-	(*ValidateResourceTemplatesResponse)(nil), // 9: vrooli.template_manager.v1.resource_template.ValidateResourceTemplatesResponse
-	(*GenerateResourceTemplateRequest)(nil),   // 10: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateRequest
-	(*GenerateResourceTemplateResponse)(nil),  // 11: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse
-	nil,                                       // 12: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.RequiredVarsEntry
-	nil,                                       // 13: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.OptionalVarsEntry
-	nil,                                       // 14: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.DocsEntry
-	nil,                                       // 15: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateRequest.ValuesEntry
-	nil,                                       // 16: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse.ValuesEntry
+	(*ResourceTemplateValidationResult)(nil),  // 9: vrooli.template_manager.v1.resource_template.ResourceTemplateValidationResult
+	(*ValidateResourceTemplatesResponse)(nil), // 10: vrooli.template_manager.v1.resource_template.ValidateResourceTemplatesResponse
+	(*GenerateResourceTemplateRequest)(nil),   // 11: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateRequest
+	(*GenerateResourceTemplateResponse)(nil),  // 12: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse
+	nil,                                       // 13: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.RequiredVarsEntry
+	nil,                                       // 14: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.OptionalVarsEntry
+	nil,                                       // 15: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.DocsEntry
+	nil,                                       // 16: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateRequest.ValuesEntry
+	nil,                                       // 17: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse.ValuesEntry
 }
 var file_template_manager_v1_resource_template_resource_template_proto_depIdxs = []int32{
-	12, // 0: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.required_vars:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.RequiredVarsEntry
-	13, // 1: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.optional_vars:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.OptionalVarsEntry
-	14, // 2: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.docs:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.DocsEntry
+	13, // 0: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.required_vars:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.RequiredVarsEntry
+	14, // 1: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.optional_vars:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.OptionalVarsEntry
+	15, // 2: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.docs:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.DocsEntry
 	1,  // 3: vrooli.template_manager.v1.resource_template.ResourceTemplateInfo.manifest:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateManifest
 	2,  // 4: vrooli.template_manager.v1.resource_template.ListResourceTemplatesResponse.templates:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateInfo
 	2,  // 5: vrooli.template_manager.v1.resource_template.GetResourceTemplateResponse.template:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateInfo
-	3,  // 6: vrooli.template_manager.v1.resource_template.ValidateResourceTemplatesResponse.templates:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateSummary
-	15, // 7: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateRequest.values:type_name -> vrooli.template_manager.v1.resource_template.GenerateResourceTemplateRequest.ValuesEntry
+	9,  // 6: vrooli.template_manager.v1.resource_template.ValidateResourceTemplatesResponse.results:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateValidationResult
+	16, // 7: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateRequest.values:type_name -> vrooli.template_manager.v1.resource_template.GenerateResourceTemplateRequest.ValuesEntry
 	3,  // 8: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse.template:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateSummary
-	16, // 9: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse.values:type_name -> vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse.ValuesEntry
+	17, // 9: vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse.values:type_name -> vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse.ValuesEntry
 	0,  // 10: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.RequiredVarsEntry.value:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateVar
 	0,  // 11: vrooli.template_manager.v1.resource_template.ResourceTemplateManifest.OptionalVarsEntry.value:type_name -> vrooli.template_manager.v1.resource_template.ResourceTemplateVar
 	4,  // 12: vrooli.template_manager.v1.resource_template.ResourceTemplateService.ListResourceTemplates:input_type -> vrooli.template_manager.v1.resource_template.ListResourceTemplatesRequest
 	6,  // 13: vrooli.template_manager.v1.resource_template.ResourceTemplateService.GetResourceTemplate:input_type -> vrooli.template_manager.v1.resource_template.GetResourceTemplateRequest
 	8,  // 14: vrooli.template_manager.v1.resource_template.ResourceTemplateService.ValidateResourceTemplates:input_type -> vrooli.template_manager.v1.resource_template.ValidateResourceTemplatesRequest
-	10, // 15: vrooli.template_manager.v1.resource_template.ResourceTemplateService.GenerateResourceTemplate:input_type -> vrooli.template_manager.v1.resource_template.GenerateResourceTemplateRequest
+	11, // 15: vrooli.template_manager.v1.resource_template.ResourceTemplateService.GenerateResourceTemplate:input_type -> vrooli.template_manager.v1.resource_template.GenerateResourceTemplateRequest
 	5,  // 16: vrooli.template_manager.v1.resource_template.ResourceTemplateService.ListResourceTemplates:output_type -> vrooli.template_manager.v1.resource_template.ListResourceTemplatesResponse
 	7,  // 17: vrooli.template_manager.v1.resource_template.ResourceTemplateService.GetResourceTemplate:output_type -> vrooli.template_manager.v1.resource_template.GetResourceTemplateResponse
-	9,  // 18: vrooli.template_manager.v1.resource_template.ResourceTemplateService.ValidateResourceTemplates:output_type -> vrooli.template_manager.v1.resource_template.ValidateResourceTemplatesResponse
-	11, // 19: vrooli.template_manager.v1.resource_template.ResourceTemplateService.GenerateResourceTemplate:output_type -> vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse
+	10, // 18: vrooli.template_manager.v1.resource_template.ResourceTemplateService.ValidateResourceTemplates:output_type -> vrooli.template_manager.v1.resource_template.ValidateResourceTemplatesResponse
+	12, // 19: vrooli.template_manager.v1.resource_template.ResourceTemplateService.GenerateResourceTemplate:output_type -> vrooli.template_manager.v1.resource_template.GenerateResourceTemplateResponse
 	16, // [16:20] is the sub-list for method output_type
 	12, // [12:16] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name
@@ -895,7 +1011,7 @@ func file_template_manager_v1_resource_template_resource_template_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_template_manager_v1_resource_template_resource_template_proto_rawDesc), len(file_template_manager_v1_resource_template_resource_template_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

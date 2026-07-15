@@ -1,6 +1,6 @@
 # UI Health Phase
 
-The `ui-health` phase is the single authority for **all** UI validation. It runs in **execution mode** (`IncludeExecution: true`) and produces one consolidated report covering: `ui/manifest.json` bindings + slot directories + overlay rules; static UI-interop rules; net-new UI standards (i18n parity, design-token/no-raw-hex, a11y harness, PWA/viewport, tsconfig-strict, eslint stability); UI-bundle freshness (the canonical content-hash engine — a stale bundle gates); and a **BAS-driven runtime render + iframe-bridge handshake** group. The runtime group absorbed the retired native `smoke` phase.
+The `ui-health` phase is the single authority for **all** UI validation. It runs in **execution mode** (`IncludeExecution: true`) and produces one consolidated report covering: `ui/manifest.json` bindings + slot directories + overlay rules; static UI-interop rules; net-new UI standards (i18n parity, design-token/no-raw-hex, a gating axe harness, PWA/viewport, tsconfig-strict, eslint stability); UI-bundle freshness (the canonical content-hash engine — a stale bundle gates); and a **BAS-driven runtime render + iframe-bridge handshake** group. The runtime group absorbed the retired native `smoke` phase.
 
 The phase declares `NeedsUI: true` and `RequiredResources: [browser-automation-studio]`. Runtime evidence has three explicit states: evaluated, skipped/unavailable, and evidence-incomplete. An unavailable BAS/UI is an infrastructure condition rather than a source defect, but it returns `DEGRADED` (never `PASSED`); static-only runs likewise report `runtime_not_evaluated_static_only`. A runtime maturity rung can advance only when every configured viewport has downloadable screenshot, DOM, layout, viewport provenance, and handshake/interaction evidence.
 
@@ -38,7 +38,8 @@ Each finding caps the capability it names at the rung below its impact; only ERR
 | `runtime_console_errors` / `visual_text_clipped` | runtime_render | L3 | WARNING | No |
 | `runtime_not_evaluated_static_only` / `runtime_skipped_*` / `runtime_evidence_incomplete` | runtime_render | L0 | INFO | Provider is DEGRADED, never PASSED |
 | `standard_tsconfig_strict` | project_standards | L4 | ERROR | Yes |
-| `standard_i18n_locale_parity` / `standard_a11y_harness` | project_standards | L4 | WARNING | No |
+| `standard_i18n_locale_parity` | project_standards | L4 | WARNING | No |
+| `standard_a11y_harness` | project_standards | L4 | ERROR | Yes — applicable UI scenarios require the axe dependency, canonical helper, and baseline test |
 | `pwa_manifest_install_fields` / `pwa_service_worker_offline` | pwa_native_readiness | L1–L3 | WARNING | No |
 
 ## The canonical fix
@@ -47,7 +48,7 @@ Each finding caps the capability it names at the rung below its impact; only ERR
 - **Interop findings** → adopt the relative Vite base, router basename, proxy-preserved API base, iframe bridge, and frame-ancestor helmet; remove hardcoded localhost. `interop_h_screen` and `interop_protective_comments` have safe fixers.
 - **Freshness findings** → rebuild the UI bundle so its content hash matches source (`freshness_ui_bundle_stale` gates); a stale bundle means the running UI does not reflect committed code.
 - **Runtime-render findings** → fix the live render: repair the iframe handshake, clear console/network/page errors, resolve visual defects (blank pixels, broken assets, viewport overflow, unsafe edge tap zones), and restore any missing artifact channel before claiming a visual pass.
-- **Project-standards findings** → restore i18n locale parity, replace raw hex with design tokens, add the a11y harness, enable strict tsconfig, and satisfy React-stability lint. Several (i18n parity, tsconfig-strict) have implemented mechanical fixers.
+- **Project-standards findings** → restore i18n locale parity, replace raw hex with design tokens, add the required axe dependency, canonical helper, and baseline harness test, enable strict tsconfig, and satisfy React-stability lint. Several (i18n parity, tsconfig-strict) have implemented mechanical fixers. The harness is a static gate for UI scenarios; live browser unavailability remains `DEGRADED`, never a static pass.
 - **PWA findings** → complete install metadata, launch scope, service-worker offline fallback, and optional platform fields to climb toward native readiness.
 
 ## How to verify

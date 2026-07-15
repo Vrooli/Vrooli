@@ -15,7 +15,7 @@ func Register(core *cliapp.ScenarioApp, _ []byte) (cliapp.SubcommandGroup, error
 				Description: "Show one resource template",
 				Args:        cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "name", Required: true}}},
 			}).WithPrimitive(cliapp.ProtoList(h.showCall, h.showReport)),
-			(cliapp.Command{Name: "validate", Description: "Validate resource templates"}).WithPrimitive(cliapp.ProtoList(h.validateCall, h.validateReport)),
+			(cliapp.Command{Name: "validate", Description: "Validate resource templates"}).WithPrimitive(cliapp.ProtoListOutcome(h.validateCall, h.validateReport, h.validateOutcome)),
 			(cliapp.Command{
 				Name:        "generate",
 				Description: "Generate files from a resource template",

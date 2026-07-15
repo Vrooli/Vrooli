@@ -148,7 +148,7 @@ Body captured every published tier (Hobby, Pro, Pro+, Ultra, Teams, Enterprise) 
 Initial capture (inbox entry exists, retag from `topic[example]:validation-inbox/pricing-comp-needed/<slug>` to scan):
 
 ```bash
-prompt-manager team knowledge-update monetization <queue-id> \
+prompt-manager team knowledge-update monetization "<queue-id>" \
   --topic="monetization/market-scan/<comp>-pricing-<YYYYMMDD>-<id4>" \
   --content="<full content with front-matter and body>" \
   --source="<url>"

@@ -101,4 +101,4 @@ End your response with a single fenced `json` block. The server parses this as t
 
 - `swarm-manager-backlog-tools` — reading item spec / deliverable conventions
 - `swarm-manager-review` — per-item review skill; this skill operates one level up
-- `swarm-manager-initiative-feedback` — the mutation-list envelope your `followup_proposal` must match
+- `swarm-manager-proposals` — the mutation-list envelope your `followup_proposal` must match

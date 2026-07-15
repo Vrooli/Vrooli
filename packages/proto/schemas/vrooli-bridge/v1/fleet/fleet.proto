@@ -76,6 +76,12 @@ enum NodeRolloutDisposition {
   // The provisioning op could not be dispatched (a transient delivery/validation
   // failure); detail carries the reason.
   NODE_ROLLOUT_DISPOSITION_FAILED = 5;
+
+  // The node was onboarded from the control plane's working tree (dirty
+  // provenance), so it is pinned to no fetchable commit and a revision roll
+  // cannot converge it. It is excluded and flagged needs-reprovision; re-onboard
+  // it in pinned mode (or provision it to a pushed revision) to make it rollable.
+  NODE_ROLLOUT_DISPOSITION_SKIPPED_WORKING_TREE = 6;
 }
 
 // NodeRolloutResult is one node's line in a rollout's ledger.

@@ -283,9 +283,9 @@ func simulationTargetInstance(def Definition, initiative InitiativeSnapshot, ite
 		Initiative:  initiative,
 		Items:       append([]RoundItem(nil), items...),
 	}
-	if def.Target.PlanRef.Required || def.Target.Kind == TargetPlanManagerPlan {
+	if def.Target.PlanRef.Required || def.Target.Kind == TargetPlanExecution {
 		target.Plan = simulatedPlanContext()
-		if def.Target.Kind == TargetPlanManagerPlan {
+		if def.Target.Kind == TargetPlanExecution {
 			target.ID = target.Plan.ExecutionID
 		}
 	}

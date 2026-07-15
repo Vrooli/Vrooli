@@ -20,6 +20,7 @@ import (
 	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
+	"audio-tools/internal/stt/session"
 	"audio-tools/internal/testutil/mocks"
 )
 
@@ -161,6 +162,240 @@ func TestStreamWS_EmitsInitialStatus(t *testing.T) {
 	require.NotEmpty(t, m.Text)
 }
 
+func TestWSMessageDeliveryClass_ProcessedAcknowledgementIsDurable(t *testing.T) {
+	require.Equal(t, sttchain.DeliveryProgress, wsMessageDeliveryClass(wsMessage{
+		Type: wsMsgStatus,
+		Code: "stream_connected",
+	}))
+	require.Equal(t, sttchain.DeliveryDurable, wsMessageDeliveryClass(wsMessage{
+		Type:              wsMsgStatus,
+		Code:              "processed_acknowledgement",
+		ReceivedSequence:  4,
+		ProcessedSequence: 4,
+	}))
+}
+
+// TestStreamWS_TestOnlyProviderBusyFault [REQ:ATD-P0-005] verifies the
+// qualification seam is observable on the real WebSocket protocol while
+// remaining disabled unless both the server switch and the per-request
+// test-mode header are present.
+func TestStreamWS_TestOnlyProviderBusyFault(t *testing.T) {
+	deps := newNoProviderDeps(t)
+	deps.EnableStreamTestFaults = true
+	r := mux.NewRouter()
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream")
+	wsURL.Scheme = "ws"
+	headers := http.Header{}
+	headers.Set(streamTestModeHeader, "1")
+	headers.Set(streamTestFaultHeader, "provider_busy")
+	c, resp, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
+	t.Cleanup(func() { _ = c.Close() })
+
+	_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	sawBusy, sawDone := false, false
+	for !sawDone {
+		_, raw, err := c.ReadMessage()
+		require.NoError(t, err)
+		var m wsMessage
+		require.NoError(t, json.Unmarshal(raw, &m))
+		if m.Type == wsMsgError {
+			require.Equal(t, "stt_busy", m.Code)
+			sawBusy = true
+		}
+		if m.Type == wsMsgDone {
+			sawDone = true
+		}
+	}
+	require.True(t, sawBusy)
+}
+
+func TestStreamWS_TestOnlyCloseAfterChunkFault(t *testing.T) {
+	deps := newNoProviderDeps(t)
+	deps.EnableStreamTestFaults = true
+	r := mux.NewRouter()
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream")
+	wsURL.Scheme = "ws"
+	headers := http.Header{}
+	headers.Set(streamTestModeHeader, "1")
+	headers.Set(streamTestFaultHeader, "close_after_chunk:1")
+	c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+
+	require.NoError(t, c.WriteMessage(websocket.BinaryMessage, []byte("one deterministic chunk")))
+	_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	sawIncompleteCoverage := false
+	for {
+		_, data, readErr := c.ReadMessage()
+		if readErr != nil {
+			err = readErr
+			break
+		}
+		var message wsMessage
+		if json.Unmarshal(data, &message) == nil && message.Type == wsMsgError && message.Code == "incomplete_coverage" {
+			sawIncompleteCoverage = true
+		}
+	}
+	require.Error(t, err, "configured transport interruption must close the browser socket")
+	require.True(t, sawIncompleteCoverage, "post-capture interruption must name incomplete coverage before closing")
+}
+
+// TestStreamWS_TestOnlySuppressProcessedAckFault [REQ:ATD-P0-004] proves a
+// terminal event cannot masquerade as success when the browser's replay cursor
+// was not acknowledged. The server must preserve the V2 replay tail and name
+// the failure explicitly instead of silently compacting either side's journal.
+func TestStreamWS_TestOnlySuppressProcessedAckFault(t *testing.T) {
+	adapter := &sttmocks.FakeBYOK{
+		IDStr:     "fake",
+		Available: true,
+		TranscribeFn: func(_ context.Context, _ string, _ sttchain.Request) (*sttchain.Result, error) {
+			return &sttchain.Result{Text: "ack fault transcript", Tier: sttchain.TierBYOK, ProviderID: "fake", ModelID: "fake-model"}, nil
+		},
+	}
+	chain := sttchain.NewChain(sttchain.Options{
+		BYOK:       sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"fake": adapter}),
+		EnableBYOK: true,
+	})
+	sessions := session.NewRegistry(0)
+	deps := Deps{
+		Chain:                  chain,
+		Selector:               sttpkg.NewSelector(chain),
+		Logger:                 &mocks.FakeLogger{},
+		StreamConfig:           staticStreamConfig{raw: `{"streaming_mode":"off"}`},
+		Sessions:               sessions,
+		EnableStreamTestFaults: true,
+	}
+	r := mux.NewRouter()
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le&protocol_version=2&session_id=ack-fault-session&resume_token=ack-fault-token")
+	wsURL.Scheme = "ws"
+	headers := http.Header{}
+	headers.Set(envelope.HeaderProvider, "fake")
+	headers.Set(envelope.HeaderKey, "secret")
+	headers.Set(streamTestModeHeader, "1")
+	headers.Set(streamTestFaultHeader, "suppress_processed_ack")
+	c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+
+	require.NoError(t, c.WriteMessage(websocket.BinaryMessage, encodeWSV2AudioFrameForTest(0, 0, 2, []byte{1, 0, 2, 0})))
+	require.NoError(t, c.WriteMessage(websocket.TextMessage, []byte(`{"type":"done"}`)))
+	_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	sawCoverageError, sawProcessedAck, sawDone := false, false, false
+	for !sawDone {
+		_, raw, readErr := c.ReadMessage()
+		require.NoError(t, readErr)
+		var message wsMessage
+		require.NoError(t, json.Unmarshal(raw, &message))
+		if message.Type == wsMsgStatus && message.Code == "processed_acknowledgement" {
+			sawProcessedAck = true
+		}
+		if message.Type == wsMsgError && message.Code == "incomplete_coverage" {
+			sawCoverageError = true
+		}
+		if message.Type == wsMsgDone {
+			require.Equal(t, string(session.TerminalIncompleteCoverage), message.Code)
+			sawDone = true
+		}
+	}
+	require.True(t, sawCoverageError)
+	require.False(t, sawProcessedAck)
+
+	ledger, _, err := sessions.Open("ack-fault-session", "ack-fault-token")
+	require.NoError(t, err)
+	state := ledger.Snapshot()
+	require.Equal(t, session.TerminalIncompleteCoverage, state.TerminalReason)
+	require.EqualValues(t, -1, state.ProcessedSequence)
+	require.Len(t, state.Replay, 1)
+}
+
+// TestStreamWS_TestOnlyCloseAfterCommitFault [REQ:ATD-P0-001] closes at the
+// durable commit boundary, not before the stream starts. That makes reconnect
+// and stable segment-ID replay testable without pretending an incomplete turn
+// was a normal terminal success.
+func TestStreamWS_TestOnlyCloseAfterCommitFault(t *testing.T) {
+	adapter := &sttmocks.FakeBYOK{
+		IDStr:     "fake",
+		Available: true,
+		TranscribeFn: func(_ context.Context, _ string, _ sttchain.Request) (*sttchain.Result, error) {
+			return &sttchain.Result{Text: "commit fault transcript", Tier: sttchain.TierBYOK, ProviderID: "fake", ModelID: "fake-model"}, nil
+		},
+	}
+	chain := sttchain.NewChain(sttchain.Options{
+		BYOK:       sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"fake": adapter}),
+		EnableBYOK: true,
+	})
+	sessions := session.NewRegistry(0)
+	deps := Deps{
+		Chain:                  chain,
+		Selector:               sttpkg.NewSelector(chain),
+		Logger:                 &mocks.FakeLogger{},
+		StreamConfig:           staticStreamConfig{raw: `{"streaming_mode":"off"}`},
+		Sessions:               sessions,
+		EnableStreamTestFaults: true,
+	}
+	r := mux.NewRouter()
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le&protocol_version=2&session_id=commit-fault-session&resume_token=commit-fault-token")
+	wsURL.Scheme = "ws"
+	headers := http.Header{}
+	headers.Set(envelope.HeaderProvider, "fake")
+	headers.Set(envelope.HeaderKey, "secret")
+	headers.Set(streamTestModeHeader, "1")
+	headers.Set(streamTestFaultHeader, "close_after_commit:1")
+	c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Close() })
+
+	require.NoError(t, c.WriteMessage(websocket.BinaryMessage, encodeWSV2AudioFrameForTest(0, 0, 2, []byte{1, 0, 2, 0})))
+	require.NoError(t, c.WriteMessage(websocket.TextMessage, []byte(`{"type":"done"}`)))
+	_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	sawSegment, sawCoverageError, sawDone := false, false, false
+	for {
+		_, raw, readErr := c.ReadMessage()
+		if readErr != nil {
+			break
+		}
+		var message wsMessage
+		require.NoError(t, json.Unmarshal(raw, &message))
+		if message.Type == wsMsgSegmentFinal {
+			sawSegment = true
+		}
+		if message.Type == wsMsgError && message.Code == "incomplete_coverage" {
+			sawCoverageError = true
+		}
+		if message.Type == wsMsgDone {
+			sawDone = true
+		}
+	}
+	require.True(t, sawSegment)
+	require.True(t, sawCoverageError)
+	require.False(t, sawDone, "fault closes before a normal terminal done")
+
+	ledger, _, err := sessions.Open("commit-fault-session", "commit-fault-token")
+	require.NoError(t, err)
+	state := ledger.Snapshot()
+	require.Equal(t, session.TerminalReason("test_fault_close_before_done"), state.TerminalReason)
+	require.Len(t, state.Committed, 1)
+	require.Len(t, state.Replay, 1)
+}
+
 func TestStreamWS_BinaryPCMAndDoneProducePromptSegmentFinal(t *testing.T) {
 	audio := []byte{0x01, 0x00, 0x02, 0x00, 0x03, 0x00}
 	captured := make(chan sttchain.Request, 1)
@@ -237,6 +472,90 @@ func TestStreamWS_BinaryPCMAndDoneProducePromptSegmentFinal(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("fake BYOK adapter was not called")
 	}
+}
+
+// TestStreamWS_V2ReplayReemitsCommittedSegmentWithStableIdentity
+// [REQ:ATD-P0-001] proves the WebSocket transport now shares the Connect
+// transport's ledger commit boundary. A reconnect gets the committed segment
+// again with the same identity; browser clients can therefore repair a missed
+// delivery without appending the text twice.
+func TestStreamWS_V2ReplayReemitsCommittedSegmentWithStableIdentity(t *testing.T) {
+	adapter := &sttmocks.FakeBYOK{
+		IDStr:     "fake",
+		Available: true,
+		TranscribeFn: func(_ context.Context, _ string, _ sttchain.Request) (*sttchain.Result, error) {
+			return &sttchain.Result{Text: "replay-safe segment", Tier: sttchain.TierBYOK, ProviderID: "fake", ModelID: "fake-model"}, nil
+		},
+	}
+	chain := sttchain.NewChain(sttchain.Options{
+		BYOK:       sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"fake": adapter}),
+		EnableBYOK: true,
+	})
+	sessions := session.NewRegistry(0)
+	deps := Deps{
+		Chain:        chain,
+		Selector:     sttpkg.NewSelector(chain),
+		Logger:       &mocks.FakeLogger{},
+		StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`},
+		Sessions:     sessions,
+	}
+	r := mux.NewRouter()
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le&protocol_version=2&session_id=replay-safe-session&resume_token=replay-safe-token")
+	wsURL.Scheme = "ws"
+	headers := http.Header{}
+	headers.Set(envelope.HeaderProvider, "fake")
+	headers.Set(envelope.HeaderKey, "secret")
+
+	readTerminal := func(c *websocket.Conn) []wsMessage {
+		t.Helper()
+		_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+		var messages []wsMessage
+		for {
+			_, raw, err := c.ReadMessage()
+			require.NoError(t, err)
+			var message wsMessage
+			require.NoError(t, json.Unmarshal(raw, &message))
+			messages = append(messages, message)
+			if message.Type == wsMsgDone {
+				return messages
+			}
+		}
+	}
+	findSegment := func(messages []wsMessage) wsMessage {
+		t.Helper()
+		for _, message := range messages {
+			if message.Type == wsMsgSegmentFinal {
+				return message
+			}
+		}
+		t.Fatal("expected durable segment-final")
+		return wsMessage{}
+	}
+
+	first, _, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
+	require.NoError(t, err)
+	require.NoError(t, first.WriteMessage(websocket.BinaryMessage, encodeWSV2AudioFrameForTest(0, 0, 2, []byte{1, 0, 2, 0})))
+	require.NoError(t, first.WriteMessage(websocket.TextMessage, []byte(`{"type":"done"}`)))
+	firstSegment := findSegment(readTerminal(first))
+	require.NotEmpty(t, firstSegment.SegmentID)
+	require.NoError(t, first.Close())
+
+	ledger, _, err := sessions.Open("replay-safe-session", "replay-safe-token")
+	require.NoError(t, err)
+	require.Len(t, ledger.Snapshot().Committed, 1)
+
+	second, _, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
+	require.NoError(t, err)
+	require.NoError(t, second.WriteMessage(websocket.TextMessage, []byte(`{"type":"done"}`)))
+	secondSegment := findSegment(readTerminal(second))
+	require.NoError(t, second.Close())
+	require.Equal(t, firstSegment.Text, secondSegment.Text)
+	require.Equal(t, firstSegment.SegmentID, secondSegment.SegmentID)
+	require.Len(t, ledger.Snapshot().Committed, 1, "replay must not duplicate the durable commit")
 }
 
 // TestStreamWS_AbruptClientCloseDrainsServer drops the connection mid-stream

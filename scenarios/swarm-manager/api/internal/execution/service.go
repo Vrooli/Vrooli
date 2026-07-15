@@ -21,9 +21,8 @@ import (
 )
 
 var (
-	errNotFound       = apierr.ErrNotFound
-	errSessionExpired = apierr.ErrSessionExpired
-	errAtCapacity     = apierr.ErrAtCapacity
+	errNotFound   = apierr.ErrNotFound
+	errAtCapacity = apierr.ErrAtCapacity
 )
 
 // Backlog status values referenced by execution when writing backlog items.
@@ -63,31 +62,6 @@ func (d *defaultGovernanceProvider) LoadGovernance() (GovernanceSettings, error)
 	return DefaultGovernanceSettings(), nil
 }
 
-func executionActivityPurpose(runType string) agentactivity.Purpose {
-	switch strings.ToLower(strings.TrimSpace(runType)) {
-	case "initialize":
-		return agentactivity.PurposeInitialize
-	case "workshop":
-		return agentactivity.PurposeWorkshop
-	case "finalize":
-		return agentactivity.PurposeFinalize
-	case "research":
-		return agentactivity.PurposeResearch
-	case "process":
-		return agentactivity.PurposeProcess
-	case "fixup":
-		return agentactivity.PurposeFixup
-	case "followup", "custom":
-		return agentactivity.PurposeFollowUp
-	case "spec-sync", "spec_sync":
-		return agentactivity.PurposeSpecSync
-	case "classify":
-		return agentactivity.PurposeClassify
-	default:
-		return agentactivity.PurposeProcess
-	}
-}
-
 func backlogActivitySpec(
 	item backlogItem,
 	executionID string,
@@ -113,25 +87,6 @@ func backlogActivitySpec(
 		ExecutionID: executionID,
 		Purpose:     purpose,
 		PhaseKind:   phaseKind,
-		RequestedBy: requestedBy,
-		Metadata:    metadata,
-	}
-}
-
-func scenarioActivitySpec(
-	ac ArchiveContext,
-	executionID string,
-	requestedBy string,
-	metadata map[string]string,
-) agentactivity.Spec {
-	return agentactivity.Spec{
-		OwnerType:   agentactivity.OwnerScenario,
-		OwnerName:   ac.ScenarioName,
-		OwnerTitle:  ac.ScenarioName,
-		ExecutionID: executionID,
-		Purpose:     agentactivity.PurposeSpecSync,
-		// spec-sync runs are scenario-shaped backlog work — Execute lane.
-		PhaseKind:   string(agentactivity.LaneExecute),
 		RequestedBy: requestedBy,
 		Metadata:    metadata,
 	}
@@ -189,6 +144,7 @@ type Service struct {
 	governanceProvider       GovernanceProvider
 	reviewThresholdsProvider ReviewThresholdsProvider
 	agentService             AgentSpawner
+	operationStarter         OperationStarter
 	promptClient             promptmanager.Client
 	experimentClient         promptmanager.ExperimentClient
 	archiver                 Archiver
@@ -201,7 +157,6 @@ type Service struct {
 	differ                   RunDiffer
 	stopper                  RunStopper
 	approver                 RunApprover
-	continuer                RunContinuer
 	scenarioLifecycle        ScenarioLifecycle
 	scenarioHealth           ScenarioHealthChecker
 	reviewService            ReviewServiceIntegration
@@ -316,9 +271,6 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	if differ, ok := cfg.AgentService.(RunDiffer); ok {
 		service.differ = differ
-	}
-	if continuer, ok := cfg.AgentService.(RunContinuer); ok {
-		service.continuer = continuer
 	}
 	if stopper, ok := cfg.AgentService.(RunStopper); ok {
 		service.stopper = stopper

@@ -55,6 +55,7 @@ function durationCurveX(durationMs: number, minDurationMs: number, maxDurationMs
 export function EvalReportTable({ report }: { report: EvalReportData }) {
   const { t } = useTranslation();
   const latency = report.latencyMeasured;
+  const promotionVerdicts = report.promotionVerdicts ?? [];
   const recommendedRow = report.perStrategy.find((row) => row.strategy === report.summary?.winnerStrategy);
   const recommendedUnsafe = recommendedRow?.safety?.passed === false;
   const worstClips = report.perStrategy.flatMap((strategy) =>
@@ -119,6 +120,29 @@ export function EvalReportTable({ report }: { report: EvalReportData }) {
       {report.latencyHonesty ? (
         <p className="text-xs text-app-muted-foreground">{report.latencyHonesty}</p>
       ) : null}
+
+	  {promotionVerdicts.length > 0 ? (
+		<section className="border-y border-app-border py-3" data-testid="dictation-promotion-verdicts">
+		  <h3 className="text-sm font-semibold">{t(strings.dictationStudio.promotionTitle)}</h3>
+		  <div className="mt-2 grid gap-2 md:grid-cols-2">
+			{promotionVerdicts.map((verdict) => (
+			  <div key={`${verdict.engineId}:${verdict.modelId}:${verdict.strategy}:${verdict.policyProfile}`} className="rounded-control border border-app-border p-3">
+				<div className="flex items-center justify-between gap-2">
+				  <span className="text-sm font-medium">{[verdict.engineId, verdict.modelId, verdict.strategy, verdict.policyProfile].filter(Boolean).join(" · ")}</span>
+				  <span className={verdict.stable ? "text-xs text-app-success" : "text-xs text-app-warning"}>
+					{verdict.stable ? t(strings.dictationStudio.promotionStable) : t(strings.dictationStudio.promotionBlocked)}
+				  </span>
+				</div>
+				{verdict.reasons.length > 0 ? (
+				  <ul className="mt-2 list-disc pl-5 text-xs text-app-muted-foreground">
+					{verdict.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+				  </ul>
+				) : null}
+			  </div>
+			))}
+		  </div>
+		</section>
+	  ) : null}
 
       {report.perStrategy.some((row) => row.safety || row.stageAttribution || arrayOrEmpty(row.lengthCurves).length > 0 || row.scaling) ? (
         <section className="grid gap-3 border-y border-app-border py-3 md:grid-cols-3">

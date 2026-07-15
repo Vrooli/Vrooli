@@ -66,7 +66,7 @@ PostGIS enhances capabilities when combined with:
 - **MinIO**: Store associated geographic files (KML, GeoJSON, shapefiles)
 - **QuestDB**: Time-series tracking of moving objects
 - **OpenStreetMap data**: Import real-world geographic data
-- **Browserless**: Generate map visualizations
+- **browser-automation-studio**: Generate map visualizations
 
 ## Performance Characteristics
 

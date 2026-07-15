@@ -248,7 +248,7 @@ func TestBuildCatalogEntry_PropagatesDecisionMetadata(t *testing.T) {
 		wantBestForNonZero bool
 	}{
 		{ModeItemLevel, MustDefinition(ModeItemLevel), "", true},
-		{ModeHolisticLoop, MustDefinition(ModeHolisticLoop), string(ModeItemLevel), true},
+		{ModeHolisticLoop, MustDefinition(ModeHolisticLoop), string(ModePhasedPlanDrain), true},
 		{ModePhasedPlanDrain, MustDefinition(ModePhasedPlanDrain), string(ModeHolisticLoop), true},
 	}
 	for _, tc := range cases {

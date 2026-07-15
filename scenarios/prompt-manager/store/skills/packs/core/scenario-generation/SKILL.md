@@ -31,7 +31,7 @@ When unsure, `react-vite` is a safe default for anything with a user-facing comp
 ### Generating the Scaffold
 
 ```bash
-template-manager generate <template> --id <name> --display-name "<title>" --description "<one-line purpose>"
+template-manager generate "<template>" --id "<name>" --display-name "<title>" --description "<one-line purpose>"
 ```
 
 Follow the template's post-generation checklist (dependency installs, `go mod tidy`, etc.).
@@ -62,10 +62,10 @@ Does an existing contract baseline exist
 One validate command covers PRD linkage and the requirements registry (linkage/lint checks are included):
 
 ```bash
-vrooli scenario requirements validate <name> --json
-business-health fix preview <name> --json
-business-health fix apply <name> --json
-vrooli scenario requirements validate <name> --json
+vrooli scenario requirements validate "<name>" --json
+business-health fix preview "<name>" --json
+business-health fix apply "<name>" --json
+vrooli scenario requirements validate "<name>" --json
 ```
 
 `fix preview` shows the deterministic remediation diff (template-section scaffold, registry creation, status normalization, `prd_ref` stubs for orphaned operational targets); `fix apply` writes it. Scope to specific findings with `--rules <code>,<code>`. The same fixers are reachable via `test-genie fix <name> --deterministic`.
@@ -76,14 +76,14 @@ There is **no AI-generation CLI** — you author the answers, and the wizard ren
 
 ```bash
 # Interactive TTY interview
-business-health wizard start <name> --interactive
+business-health wizard start "<name>" --interactive
 
 # Or non-interactive: supply answers as a file, preview the diff, then apply
-business-health wizard start <name>
-business-health wizard answer <name> --answers /tmp/answers_<name>.json
-business-health wizard preview <name>
-business-health wizard apply <name>
-vrooli scenario requirements validate <name> --json
+business-health wizard start "<name>"
+business-health wizard answer "<name>" --answers /tmp/answers_"<name>".json
+business-health wizard preview "<name>"
+business-health wizard apply "<name>"
+vrooli scenario requirements validate "<name>" --json
 ```
 
 Wizard sessions are resumable and diff-preview first. When the wizard surfaces a "similar capability already exists in scenario X" dedup hint, take it seriously (cell #34) — resolve the overlap before applying rather than minting a duplicate capability.
@@ -138,7 +138,7 @@ When a swarm-manager handoff exists, always pass it through to ecosystem-manager
 HANDOFF_DIR="<runtime item folder>/handoff"
 ORIGIN_ITEM_REF="path:scenarios/swarm-manager/ideas/<item-name>"
 
-ecosystem-manager task add --steer-profile <profile-id> \
+ecosystem-manager task add --steer-profile "<profile-id>" \
   --handoff-dir "$HANDOFF_DIR" \
   --origin-source swarm-manager \
   --origin-backlog-item idea/<item-name> \
@@ -149,7 +149,7 @@ ecosystem-manager task add --steer-profile <profile-id> \
 For existing scenarios, switch `task add` to `task improve`:
 
 ```bash
-ecosystem-manager task improve --steer-profile <profile-id> \
+ecosystem-manager task improve --steer-profile "<profile-id>" \
   --handoff-dir "$HANDOFF_DIR" \
   --origin-source swarm-manager \
   --origin-backlog-item idea/<item-name> \
@@ -163,31 +163,31 @@ ecosystem-manager task improve --steer-profile <profile-id> \
 
 ```bash
 # With a steering profile (works for both new and existing scenarios)
-ecosystem-manager task improve --steer-profile <profile-id> scenario <name>
+ecosystem-manager task improve --steer-profile "<profile-id>" scenario "<name>"
 
 # With a single steer mode (improver tasks only)
-ecosystem-manager task improve --steer-mode "<mode>" scenario <name>
+ecosystem-manager task improve --steer-mode "<mode>" scenario "<name>"
 
 # With an ordered list of steer modes (improver tasks only)
-ecosystem-manager task improve --steer-queue "progress,test,refactor" scenario <name>
+ecosystem-manager task improve --steer-queue "progress,test,refactor" scenario "<name>"
 ```
 
 ### Creating Generator Tasks (New Scenarios)
 
 ```bash
-ecosystem-manager task add --steer-profile <profile-id> scenario <name>
+ecosystem-manager task add --steer-profile "<profile-id>" scenario "<name>"
 ```
 
 ### Validate Before Creating
 
 ```bash
-ecosystem-manager task improve --dry-run --steer-profile balanced scenario <name>
+ecosystem-manager task improve --dry-run --steer-profile balanced scenario "<name>"
 ```
 
 For swarm-manager idea runs, also verify the created task retained the upstream contract:
 
 ```bash
-ecosystem-manager task show <task-id> --json
+ecosystem-manager task show "<task-id>" --json
 ```
 
 Confirm the response includes:
@@ -224,9 +224,9 @@ ecosystem-manager queue start  # if paused
 After initialization, capture baseline metrics for handoff:
 
 ```bash
-vrooli scenario status <name>
-scenario-completeness-scoring score <name>
-scenario-auditor audit <name> --timeout 240
+vrooli scenario status "<name>"
+scenario-completeness-scoring score "<name>"
+scenario-auditor audit "<name>" --timeout 240
 ```
 
 Expect low completeness scores and auditor failures for freshly initialized scenarios — this is normal. Capture the results for notes and handoff to the improvement agent.

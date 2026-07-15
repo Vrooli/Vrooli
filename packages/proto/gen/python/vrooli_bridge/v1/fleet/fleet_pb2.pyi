@@ -25,6 +25,7 @@ class NodeRolloutDisposition(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_ROLLOUT_DISPOSITION_SKIPPED_NEEDS_UPDATE: _ClassVar[NodeRolloutDisposition]
     NODE_ROLLOUT_DISPOSITION_SKIPPED_REVOKED: _ClassVar[NodeRolloutDisposition]
     NODE_ROLLOUT_DISPOSITION_FAILED: _ClassVar[NodeRolloutDisposition]
+    NODE_ROLLOUT_DISPOSITION_SKIPPED_WORKING_TREE: _ClassVar[NodeRolloutDisposition]
 ROLLOUT_STATUS_UNSPECIFIED: RolloutStatus
 ROLLOUT_STATUS_DISPATCHED: RolloutStatus
 ROLLOUT_STATUS_PARTIAL: RolloutStatus
@@ -35,6 +36,7 @@ NODE_ROLLOUT_DISPOSITION_SKIPPED_OFFLINE: NodeRolloutDisposition
 NODE_ROLLOUT_DISPOSITION_SKIPPED_NEEDS_UPDATE: NodeRolloutDisposition
 NODE_ROLLOUT_DISPOSITION_SKIPPED_REVOKED: NodeRolloutDisposition
 NODE_ROLLOUT_DISPOSITION_FAILED: NodeRolloutDisposition
+NODE_ROLLOUT_DISPOSITION_SKIPPED_WORKING_TREE: NodeRolloutDisposition
 
 class NodeRolloutResult(_message.Message):
     __slots__ = ("node_id", "disposition", "op_id", "detail")

@@ -2,6 +2,8 @@ package main
 
 import (
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -40,6 +42,40 @@ func TestSkillHelpDoesNotRequireAPI(t *testing.T) {
 	})
 	if !strings.Contains(output, "prompt-manager skill <subcommand> [args]") {
 		t.Fatalf("expected skill help output, got %q", output)
+	}
+}
+
+func TestBugCapturePreservesRequiredAttributionAlongsideInvocationHeaders(t *testing.T) {
+	var attribution, invocation string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"status":"ok","readiness":true}`))
+		case "/api/v1/teams/scenario-qa/bugs/capture":
+			attribution = r.Header.Get("X-Vrooli-Attribution")
+			invocation = r.Header.Get("X-Vrooli-Invocation-ID")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"disposition":"published","knowledge":{"id":"knw-test","topic":"bug-inbox/code-defect/test"}}`))
+		default:
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+	app.core.Config.APIBase = server.URL
+	if err := app.Run([]string{"team", "bug-capture", "scenario-qa", "--title=test", "--signal-type=code-defect", "--severity=minor", "--repro=start", "--expected=publish", "--actual=dropped", "--description=header regression"}); err != nil {
+		t.Fatalf("bug-capture: %v", err)
+	}
+	if attribution == "" {
+		t.Fatal("bug-capture dropped X-Vrooli-Attribution")
+	}
+	if invocation == "" {
+		t.Fatal("bug-capture dropped X-Vrooli-Invocation-ID")
 	}
 }
 

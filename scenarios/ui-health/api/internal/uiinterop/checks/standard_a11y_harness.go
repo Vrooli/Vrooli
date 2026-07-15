@@ -2,8 +2,9 @@
 Rule: Accessibility Test Harness
 ID: standard_a11y_harness
 Description: A UI scenario must ship an automated accessibility harness: an
-  axe-core-based dependency (axe-core / jest-axe / vitest-axe) AND at least one
-  *.a11y.test.* file that runs axe against rendered components. This is the
+  axe-core-based dependency (axe-core / jest-axe / vitest-axe), canonical
+  ui/src/test-utils/a11y.ts helper, AND at least one *.a11y.test.* file that
+  uses that helper against rendered components. This is the
   static precondition for the runtime axe/WCAG check group.
 Why: Accessibility regressions are invisible in normal development and code
   review — a missing label or a contrast failure looks fine on screen. An
@@ -11,7 +12,7 @@ Why: Accessibility regressions are invisible in normal development and code
   the same way type-checking catches type errors. Without the harness present,
   the runtime a11y assertion has nothing to execute.
 Category: accessibility
-Severity: medium
+Severity: high
 Slot: [D]
 SlotFile: ui
 TechStack: React
@@ -23,18 +24,23 @@ Standard: vrooli-ui-a11y-v1
 
 GoodExample:
     package.json devDependencies: { "axe-core": "^4.x" }
-    ui/src/layout/AppShell.a11y.test.tsx exists
+    ui/src/test-utils/a11y.ts exports expectNoA11yViolations via axe.run
+    ui/src/layout/AppShell.a11y.test.tsx uses expectNoA11yViolations
 
 BadExample:
-    no axe dependency and no *.a11y.test.* file
+    no axe dependency, canonical helper, or baseline a11y test
 
 <test-case id="a11y-harness-present" should-fail="false">
-  <description>axe dependency and an a11y test file are present</description>
+  <description>axe dependency, helper, and a11y test are present</description>
   <input>
     [ui/package.json]
     { "devDependencies": { "axe-core": "^4.8.0" } }
     [ui/src/layout/AppShell.a11y.test.tsx]
-    test("a11y", () => {});
+    import { expectNoA11yViolations } from "../test-utils/a11y";
+    test("a11y", () => expectNoA11yViolations(document.body));
+    [ui/src/test-utils/a11y.ts]
+    import axe from "axe-core";
+    export const expectNoA11yViolations = (node: Element) => axe.run(node);
   </input>
 </test-case>
 
@@ -47,7 +53,7 @@ BadExample:
 </test-case>
 
 <test-case id="a11y-harness-missing" should-fail="true">
-  <description>UI present but no axe dependency and no a11y test</description>
+  <description>UI present but no axe dependency, helper, or a11y test</description>
   <input>
     [ui/package.json]
     { "devDependencies": { "vitest": "^1.0.0" } }
@@ -56,6 +62,16 @@ BadExample:
   </input>
   <expected-violations>1</expected-violations>
   <expected-message>accessibility</expected-message>
+</test-case>
+
+<test-case id="a11y-harness-malformed-package" should-fail="true">
+  <description>A malformed UI package manifest is evidence failure, not a skip</description>
+  <input>
+    [ui/package.json]
+    { invalid
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>unparseable</expected-message>
 </test-case>
 */
 
@@ -98,10 +114,17 @@ func checkA11yHarness(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	}
 	if err := json.Unmarshal(data, &pkg); err != nil {
 		return uiinterop.RuleResult{
-			RuleID:     ruleID,
-			Skipped:    true,
-			SkipReason: "ui/package.json unparseable",
-			Message:    "ui/package.json unparseable; skipping accessibility harness check",
+			RuleID:  ruleID,
+			Passed:  false,
+			Message: "ui/package.json is unparseable; accessibility harness cannot be verified",
+			Violations: []uiinterop.Violation{{
+				RuleID:         ruleID,
+				Severity:       "high",
+				Title:          "Unparseable UI package manifest",
+				Description:    "ui/package.json is unparseable; accessibility harness evidence cannot be verified",
+				FilePath:       "ui/package.json",
+				Recommendation: "Repair ui/package.json, then declare the axe dependency and baseline accessibility harness.",
+			}},
 		}
 	}
 
@@ -116,13 +139,14 @@ func checkA11yHarness(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 			break
 		}
 	}
+	hasHelper := hasCanonicalA11yHelper(ctx)
 	hasTest := hasA11yTestFile(ctx)
 
-	if hasDep && hasTest {
+	if hasDep && hasHelper && hasTest {
 		return uiinterop.RuleResult{
 			RuleID:  ruleID,
 			Passed:  true,
-			Message: "accessibility harness present (axe dependency + *.a11y.test file)",
+			Message: "accessibility harness present (axe dependency + canonical helper + baseline a11y test)",
 		}
 	}
 
@@ -130,8 +154,11 @@ func checkA11yHarness(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	if !hasDep {
 		missing = append(missing, "an axe-based dependency (axe-core/jest-axe/vitest-axe)")
 	}
+	if !hasHelper {
+		missing = append(missing, "ui/src/test-utils/a11y.ts exporting an axe.run helper")
+	}
 	if !hasTest {
-		missing = append(missing, "at least one *.a11y.test.* file")
+		missing = append(missing, "at least one *.a11y.test.* file using the canonical helper")
 	}
 	return uiinterop.RuleResult{
 		RuleID:  ruleID,
@@ -139,16 +166,26 @@ func checkA11yHarness(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		Message: "accessibility test harness incomplete",
 		Violations: []uiinterop.Violation{{
 			RuleID:         ruleID,
-			Severity:       "medium",
+			Severity:       "high",
 			Title:          "Missing accessibility test harness",
 			Description:    "UI present but the accessibility harness is incomplete: missing " + strings.Join(missing, " and "),
 			FilePath:       "ui/package.json",
-			Recommendation: "Add an axe dependency and an *.a11y.test.tsx that asserts no violations on the app shell",
+			Recommendation: "Add an axe dependency, ui/src/test-utils/a11y.ts, and an *.a11y.test.tsx that uses the helper against the app shell",
 		}},
 	}
 }
 
-// hasA11yTestFile reports whether any *.a11y.test.* file exists under ui/.
+func hasCanonicalA11yHelper(ctx uiinterop.CheckContext) bool {
+	path := filepath.Join(ctx.ScenarioRoot, "ui", "src", "test-utils", "a11y.ts")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	content := string(data)
+	return strings.Contains(content, "expectNoA11yViolations") && strings.Contains(content, "axe.run")
+}
+
+// hasA11yTestFile reports whether any *.a11y.test.* file uses the canonical helper.
 func hasA11yTestFile(ctx uiinterop.CheckContext) bool {
 	files := ctx.TestSources
 	if files == nil {
@@ -156,7 +193,7 @@ func hasA11yTestFile(ctx uiinterop.CheckContext) bool {
 	}
 	for _, f := range files {
 		name := strings.ToLower(filepath.Base(f.RelPath))
-		if strings.Contains(name, ".a11y.test.") || strings.Contains(name, ".a11y.spec.") {
+		if (strings.Contains(name, ".a11y.test.") || strings.Contains(name, ".a11y.spec.")) && strings.Contains(f.Content, "expectNoA11yViolations") {
 			return true
 		}
 	}

@@ -1,6 +1,8 @@
 import { type ExperimentRow, type StartExperimentInput } from "../../services/experiment";
 
-export const strategyOptions = ["batch", "vad_segment", "overlap_agree"] as const;
+// Passthrough is the executable Kyutai provider cell; the three batch rows
+// remain Whisper strategy comparisons.
+export const strategyOptions = ["batch", "vad_segment", "overlap_agree", "passthrough"] as const;
 
 export function pct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -25,6 +27,7 @@ export function defaultInput(): StartExperimentInput {
   return {
     name: "Dictation experiment",
     clipIds: [],
+    engineIds: ["whisper-local", "kyutai"],
     strategies: [...strategyOptions],
     realtimeRepeats: 0,
     latencyTailSeconds: 8,

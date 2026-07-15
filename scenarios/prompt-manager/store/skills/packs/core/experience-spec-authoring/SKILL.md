@@ -87,16 +87,16 @@ affordance checker can promote them without rewriting the page intent.
 Use the deterministic loop before and after edits:
 
 ```bash
-experience-manager spec validate <scenario> --json
-experience-manager spec render <scenario> <page> --json
-experience-manager fix preview <scenario> --json
-experience-manager fix apply <scenario> --json
+experience-manager spec validate "<scenario>" --json
+experience-manager spec render "<scenario>" "<page>" --json
+experience-manager fix preview "<scenario>" --json
+experience-manager fix apply "<scenario>" --json
 ```
 
 For manual claims:
 
 ```bash
-experience-manager spec attest <scenario> <page> <claim> \
+experience-manager spec attest "<scenario>" "<page>" "<claim>" \
   --author "<name>" \
   --rationale "<what was checked>" \
   --expires-at "<RFC3339 timestamp>"

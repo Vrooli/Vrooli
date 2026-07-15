@@ -208,7 +208,8 @@ enum ResolveSource {
 message ResolveAdoptionPathRequest {
   // Required. Soft FK to components.id.
   string component_id = 1;
-  // Required. Target scenario name.
+  // Required unless template is set. Target scenario name; the resolver
+  // chases its service.json to the owning template manifest.
   string scenario = 2;
   // Optional. When non-empty, bypasses the manifest and is returned as-is
   // (after a path-safety check) with source = EXPLICIT.
@@ -216,17 +217,58 @@ message ResolveAdoptionPathRequest {
   // Optional. Feature folder name; required when the slot's manifest entry
   // sets requiresFeature.
   string feature = 4;
+  // Optional. Version to resolve the full file set for (entry + companions).
+  // Empty resolves against the component's latest indexed version. Only the
+  // per-file `files` output depends on this; the summary `path` always
+  // resolves the entry slot.
+  string version = 5;
+  // Optional. Resolve placement directly against this template's UI manifest
+  // (scenario-agnostic), instead of chasing a scenario's service.json. When
+  // set, `scenario` is used only for echo/labeling. This is the seam the code
+  // panel uses to preview placement for a template with no concrete scenario.
+  string template = 6;
+}
+
+// ResolvedVersionFile is one member of a version unit placed at its
+// slot-derived target path in the adopting scenario/template.
+message ResolvedVersionFile {
+  // Library-side basename within the version unit (e.g. "useFocusTrap.ts").
+  string library_path = 1;
+  // Resolved scenario-relative target path (e.g. "ui/src/hooks/useFocusTrap.ts").
+  string target_path = 2;
+  // Slot used to place this file.
+  string slot = 3;
+  // How the target PATH was resolved (template-manifest / heuristic / fallback).
+  ResolveSource source = 4;
+  // How the SLOT was chosen: "explicit" (authored metadata), "heuristic"
+  // (extension rule, e.g. use*.ts -> hook), "component" (the component's
+  // declared slot), or "entry" (entry file inherits the component slot).
+  string slot_source = 5;
+  // True for the version's entry file.
+  bool is_entry = 6;
+  // Per-file non-fatal warnings.
+  repeated string warnings = 7;
 }
 
 message ResolveAdoptionPathResponse {
-  // Resolved path, relative to the scenario root.
+  // Resolved path of the ENTRY file, relative to the scenario root. Retained
+  // for callers that only need the single renderable artifact.
   string path = 1;
-  // How the resolver arrived at the path.
+  // How the resolver arrived at the entry path.
   ResolveSource source = 2;
-  // Slot name used during resolution (echoed for UI badge rendering).
+  // Slot name used during entry resolution (echoed for UI badge rendering).
   string slot = 3;
   // Non-fatal warnings (e.g. "manifest unavailable; using heuristic match").
   repeated string warnings = 4;
+  // Full file set placed at slot-derived target paths. Includes the entry
+  // file. Empty when the version has no indexed files (falls back to `path`).
+  repeated ResolvedVersionFile files = 5;
+  // Template id whose manifest drove placement (e.g. "react-vite"). Empty
+  // when no manifest resolved and placement used heuristics/fallback.
+  string template = 6;
+  // True when a template UI manifest authoritatively placed the files. False
+  // signals the UI to render its flat fallback tree.
+  bool manifest_resolved = 7;
 }
 
 message SuggestAdoptionsRequest {

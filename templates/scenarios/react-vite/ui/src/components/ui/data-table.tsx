@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:DataTable
- * @vrooliComponentVersion 1.1.0
+ * @vrooliComponentVersion 1.2.0
  * @vrooliComponentAdoption 991de168-25ef-4b3e-b933-66dfb96379d6
- * @vrooliComponentAppliedAt 2026-07-09T04:48:52Z
- * @vrooliComponentSourceSha256 bb8cfbf635c0ec7f08630e132403c0b540e2874362e450e19d68decea63d63b5
- * @vrooliComponentDriftHash bb8cfbf635c0ec7f08630e132403c0b540e2874362e450e19d68decea63d63b5
+ * @vrooliComponentAppliedAt 2026-07-15T03:22:46Z
+ * @vrooliComponentSourceSha256 8f743927ac49c317d429a0e74f856ea6ede6746b87c75d5d8a55b7c2703fad1f
+ * @vrooliComponentDriftHash 8f743927ac49c317d429a0e74f856ea6ede6746b87c75d5d8a55b7c2703fad1f
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
@@ -12,7 +12,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { ArrowDown, ArrowUp, ChevronsUpDown, Search } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { isValidElement, type ReactNode, useMemo, useState } from "react";
 
 export interface DataTableColumn<Row> {
   id: string;
@@ -40,12 +40,39 @@ export interface DataTableProps<Row> {
   filterLabel?: string;
   filters?: Array<DataTableFilter<Row>>;
   className?: string;
+  // Applied to the rendered <table> as data-testid. A generic test hook that
+  // adopters use to target the table without depending on markup structure.
   tableTestId?: string;
+  // aria-label for the filter button group. Overrides filterLabel when set.
+  // Restored in 1.1.2 after 1.1.x dropped it (adopter a11y regression).
+  filterGroupLabel?: string;
+  // Formats the aria-label of each sortable column's sort button. Restored in
+  // 1.1.2 after 1.1.x dropped it (adopter a11y regression).
+  sortLabel?: (header: string) => string;
 }
 
 type SortDirection = "asc" | "desc";
 
 const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+
+// searchableText recursively extracts the visible text from a rendered accessor
+// node so a column with no explicit searchValue is still searchable by its
+// content. Restored in 1.1.1 after 1.1.0 dropped the fallback entirely.
+const searchableText = (value: ReactNode): string => {
+  if (value === null || value === undefined || typeof value === "boolean") {
+    return "";
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "bigint") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(searchableText).join(" ");
+  }
+  if (isValidElement<{ children?: ReactNode }>(value)) {
+    return searchableText(value.props.children);
+  }
+  return "";
+};
 
 function compareValues(a: string | number, b: string | number) {
   if (typeof a === "number" && typeof b === "number") {
@@ -66,6 +93,8 @@ export function DataTable<Row>({
   filters = [],
   className,
   tableTestId,
+  filterGroupLabel,
+  sortLabel = (header) => `Sort by ${header}`,
 }: DataTableProps<Row>) {
   const firstSortable = columns.find((column) => column.sortValue);
   const [query, setQuery] = useState("");
@@ -84,7 +113,7 @@ export function DataTable<Row>({
         return true;
       }
       return columns.some((column) => {
-        const value = column.searchValue ? column.searchValue(row) : "";
+        const value = column.searchValue ? column.searchValue(row) : searchableText(column.accessor(row));
         return value.toLowerCase().includes(normalizedQuery);
       });
     });
@@ -125,13 +154,13 @@ export function DataTable<Row>({
           />
         </label>
         {filters.length > 0 && (
-          <div className="flex flex-wrap gap-2" role="group" aria-label={filterLabel}>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={filterGroupLabel ?? filterLabel}>
             {filters.map((filter) => (
               <button
                 key={filter.id}
                 type="button"
                 className={cn(
-                  "min-h-9 rounded-control border px-3 text-sm font-medium transition",
+                  "min-h-11 rounded-control border px-3 text-sm font-medium transition",
                   activeFilter === filter.id
                     ? "border-app-primary bg-app-primary text-app-primary-foreground"
                     : "border-app-border text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
@@ -145,7 +174,7 @@ export function DataTable<Row>({
         )}
       </div>
       <div className="max-w-full overflow-x-auto">
-        <table data-testid={tableTestId} className="w-full min-w-max border-collapse text-left text-sm">
+        <table data-testid={tableTestId} className="w-full table-fixed border-collapse text-left text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
             <tr>
@@ -157,7 +186,8 @@ export function DataTable<Row>({
                     {column.sortValue ? (
                       <button
                         type="button"
-                        className="inline-flex min-h-9 items-center gap-1 rounded-control text-left hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+                        aria-label={sortLabel(column.header)}
+                        className="inline-flex min-h-11 items-center gap-1 rounded-control text-left hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
                         onClick={() => toggleSort(column)}
                       >
                         <span>{column.header}</span>
@@ -182,7 +212,7 @@ export function DataTable<Row>({
               filteredRows.map((row, index) => (
                 <tr key={getRowKey(row, index)} className="border-t border-app-border">
                   {columns.map((column) => (
-                    <td key={column.id} className={cn("px-3 py-3 align-middle text-app-foreground", column.className)}>
+                    <td key={column.id} className={cn("break-words px-3 py-3 align-middle text-app-foreground", column.className)}>
                       {column.accessor(row)}
                     </td>
                   ))}

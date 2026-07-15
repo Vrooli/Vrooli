@@ -55,6 +55,15 @@ vrooli resource install claude-code
 resource-claude-code status
 ```
 
+## Coding-role policy
+
+Claude Code owns its concrete coding-role inventory in `model-policy.json`.
+Use `resource-claude-code policy validate`, `policy roles --json`, and
+`policy resolve --role code.default --json` to inspect it. The response records
+the concrete model, fallbacks, native policy provenance, and permission
+enforcement posture; Agent Manager consumes that response at run creation but
+does not copy the inventory or write Claude's native configuration.
+
 ## Permissions
 
 `resource-claude-code permissions ...` is the canonical way to manage the bash-pattern permission rules in `~/.claude/settings.json`. The verbs are agent-gated: a detected agent caller must pass `--i-was-explicitly-authorized` to mutate the file. Read verbs (`list`, `show`, `drift-check`, `doctor`) are always allowed.

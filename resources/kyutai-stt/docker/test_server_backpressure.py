@@ -287,3 +287,32 @@ def test_active_session_is_not_reaped_by_competing_connection():
         "timeout alone is not a wedge signal"
     )
     assert not contender_acquired, "newcomer must be rejected/busy, not steal the active holder's lock"
+
+
+def test_fifo_admission_orders_waiters_and_supports_cancellation():
+    async def scenario():
+        admission = server.FIFOAdmission(max_depth=3, max_wait_s=1)
+        first, first_position = await admission.acquire()
+        queued_positions: list[int] = []
+        async def record(position: int) -> None:
+            queued_positions.append(position)
+        second_task = asyncio.create_task(admission.acquire(record))
+        third_task = asyncio.create_task(admission.acquire(record))
+        await asyncio.sleep(0)
+        second_task.cancel()
+        try:
+            await second_task
+        except asyncio.CancelledError:
+            pass
+        await admission.release(first)
+        third, third_position = await third_task
+        await admission.release(third)
+        return first_position, queued_positions, third_position, second_task.cancelled()
+
+    # Do not infer FIFO from wall-clock waits: the queue's explicit ticket
+    # order is the contract. The cancelled middle waiter must not block third.
+    first_position, queued_positions, third_position, second_cancelled = asyncio.run(scenario())
+    assert first_position == 1
+    assert queued_positions == [2, 3]
+    assert third_position == 3
+    assert second_cancelled

@@ -10,6 +10,11 @@ import (
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templateengine"
 )
 
+// defaultTemplateValidationFindingKey is the stable fallback debt key for a
+// validation issue that carries no failure-class path. It deliberately does not
+// embed the message so repeated runs of the same failure reuse one debt entry.
+const defaultTemplateValidationFindingKey = "template-validate.issue"
+
 type EngineRunner struct {
 	Engine *templateengine.Engine
 }
@@ -64,18 +69,31 @@ func (r EngineRunner) ValidateTemplate(ctx context.Context, req ValidateRequest)
 		result.PhaseResults = append(result.PhaseResults, catalog.PhaseResult{Phase: "template-validate", Status: statusFromSuccess(result.Success), FindingCount: int32(len(report.Issues))})
 	}
 	for _, issue := range report.Issues {
-		key := firstNonEmpty(issue.Path, issue.Message)
-		if key == "" {
-			key = "template-validate.issue"
-		}
-		result.Findings = append(result.Findings, catalog.ValidationFinding{
-			Key:      normalizeFindingKey(result.TemplateID, key),
-			Severity: "warning",
-			Summary:  firstNonEmpty(issue.Message, key),
-			Source:   firstNonEmpty(issue.Template, "template validate"),
-		})
+		result.Findings = append(result.Findings, findingFromValidationIssue(result.TemplateID, issue))
 	}
 	return result, nil
+}
+
+// findingFromValidationIssue projects a validation issue onto a debt finding.
+//
+// Debt identity must survive across runs: issue.Path is the stable failure
+// class (one of the testGenieDeepValidation* constants), while the message
+// carries volatile prose (temp paths, phase counts) that would mint a fresh
+// debt key every run if slugified into the key. The key is derived from the
+// class alone and the full prose is kept in the summary. Everything in
+// report.Issues is a hard failure that fails the run — warnings live in
+// report.WarningSummary — so the finding is filed at error severity.
+func findingFromValidationIssue(templateID string, issue templatecontracts.TemplateValidationIssue) catalog.ValidationFinding {
+	key := strings.TrimSpace(issue.Path)
+	if key == "" {
+		key = defaultTemplateValidationFindingKey
+	}
+	return catalog.ValidationFinding{
+		Key:      normalizeFindingKey(templateID, key),
+		Severity: "error",
+		Summary:  firstNonEmpty(issue.Message, key),
+		Source:   firstNonEmpty(issue.Template, "template validate"),
+	}
 }
 
 func (r EngineRunner) RecordFleetDrift(ctx context.Context) (DriftResult, error) {

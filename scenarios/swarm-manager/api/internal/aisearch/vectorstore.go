@@ -14,6 +14,7 @@ import (
 	"time"
 
 	sharedsearch "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/storage"
 )
 
 // closeBody closes an HTTP response body on a best-effort basis. The body is
@@ -33,7 +34,13 @@ func closeBody(resp *http.Response) {
 // observable HTTP traffic) can pin the same values without importing private
 // state.
 const (
-	DefaultCollectionName = "swarm-manager"
+	// DefaultCollectionDomain composes the variant-aware fallback collection
+	// name when a caller constructs a store without an explicit collection.
+	// Production callers always pass a resolved name (see env.go's
+	// resolveCollection); this domain only backs the empty-collection safety
+	// path. It is a bare domain (no scenario slug) so the name is composed
+	// through storage.Collection and never hardcodes live's identity.
+	DefaultCollectionDomain = "default"
 
 	// MaxDeleteBatch caps the number of point IDs sent in a single
 	// /points/delete request. Qdrant accepts arbitrary-size batches; the cap
@@ -44,6 +51,21 @@ const (
 	// to keep response bodies under ~1MB at typical payload widths.
 	scrollPageLimit = 256
 )
+
+// defaultCollection resolves the variant-aware fallback collection name used
+// when a caller passes an empty collection. In the lifecycle it reads the
+// injected VROOLI_STORAGE_NAMESPACE (live "swarm-manager_default", shadow
+// "swarm-manager_shadow_default"); outside it, it composes from this scenario's
+// slug using the same "<root>_<domain>" shape the SSOT uses, so even a mis-set
+// non-live variant stays isolated from live. It never returns a bare hardcoded
+// slug — see storage-steer §4.2/§4.5.
+func defaultCollection() string {
+	name, err := storage.Collection(DefaultCollectionDomain)
+	if err != nil {
+		return fallbackNamespaceRoot() + "_" + DefaultCollectionDomain
+	}
+	return name
+}
 
 // ScrollItem is the per-point projection returned by ScrollIDs. It carries
 // only the reconciler-relevant fields — never the vector — so a full
@@ -86,14 +108,14 @@ type qdrantVectorStore struct {
 }
 
 // NewVectorStore creates a Qdrant-backed VectorStore. Empty collection falls
-// back to DefaultCollectionName. The vector size must be resolved from Ollama
-// policy by the caller before constructing the store.
+// back to the variant-aware defaultCollection(). The vector size must be
+// resolved from Ollama policy by the caller before constructing the store.
 //
 // Deprecated: production callers should use NewVectorStoreForPolicy so
 // collection dimensions stay attached to the resolved embedding policy.
 func NewVectorStore(baseURL, apiKey, collection string, vectorSize int) VectorStore {
 	if collection == "" {
-		collection = DefaultCollectionName
+		collection = defaultCollection()
 	}
 	return &qdrantVectorStore{
 		BaseURL:    baseURL,
@@ -108,7 +130,7 @@ func NewVectorStore(baseURL, apiKey, collection string, vectorSize int) VectorSt
 // policy that was already resolved during startup preflight.
 func NewVectorStoreForPolicy(baseURL, apiKey, collection string, policy sharedsearch.EmbeddingPolicy) VectorStore {
 	if collection == "" {
-		collection = DefaultCollectionName
+		collection = defaultCollection()
 	}
 	return &qdrantVectorStore{
 		BaseURL:    baseURL,

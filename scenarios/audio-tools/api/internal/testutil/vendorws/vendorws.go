@@ -30,6 +30,10 @@ type Frame struct {
 
 // Options shape one fake server.
 type Options struct {
+	// Prelude is emitted immediately after upgrade, before WaitForFrames gates
+	// Script. Streaming resources use it for admission/control lifecycle frames
+	// (for example Kyutai's queued/ready) that must precede client audio.
+	Prelude []Frame
 	// Script is the ordered sequence of frames the server emits after
 	// upgrade. Use this for protocol shapes that emit unsolicited
 	// transcript updates (Deepgram's "Results" messages).
@@ -121,6 +125,21 @@ func newServer(opts Options, _ string) *httptest.Server {
 				}
 			}
 		}()
+
+		// Admission/control frames are observable before any client audio.
+		for _, f := range opts.Prelude {
+			if len(f.Binary) > 0 {
+				if err := conn.WriteMessage(websocket.BinaryMessage, f.Binary); err != nil {
+					return
+				}
+				continue
+			}
+			if f.Text != "" {
+				if err := conn.WriteMessage(websocket.TextMessage, []byte(f.Text)); err != nil {
+					return
+				}
+			}
+		}
 
 		// Hold the script until the client has sent the frames the test
 		// expects (when WaitForFrames is set), so the reply + close cannot

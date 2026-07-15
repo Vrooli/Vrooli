@@ -13,6 +13,7 @@ import (
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/operatingmode"
 
+	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
@@ -24,7 +25,7 @@ func setupEngine(t *testing.T) (*Engine, *eventlog.SQLiteRepository) {
 	}
 	t.Cleanup(func() { db.Close() })
 
-	repo := eventlog.NewSQLiteRepository(db)
+	repo := eventlog.NewSQLiteRepository(database.NewFromPrimary(db))
 	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init schema: %v", err)
 	}

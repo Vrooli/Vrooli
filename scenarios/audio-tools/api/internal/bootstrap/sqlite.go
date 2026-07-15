@@ -35,10 +35,19 @@ func OpenDB(ctx context.Context, env Env) (*sql.DB, string, error) {
 	if err != nil {
 		return nil, dsn, fmt.Errorf("connect sqlite: %w", err)
 	}
+	// Apply additive repairs before EnsureSchemas performs its declared-shape
+	// drift check. Otherwise an existing table missing a newly declared column
+	// fails startup before the forward migration gets a chance to add it.
+	if err := localdb.ApplyMigrations(ctx, db); err != nil {
+		_ = db.Close()
+		return nil, dsn, fmt.Errorf("pre-schema migrations: %w", err)
+	}
 	if err := database.EnsureSchemas(ctx, db, modules.AllSchemas()...); err != nil {
 		_ = db.Close()
 		return nil, dsn, fmt.Errorf("ensure schemas: %w", err)
 	}
+	// Repeat after schema creation so a fresh database sees the same completed
+	// migration set. Duplicate-column outcomes are deliberately idempotent.
 	if err := localdb.ApplyMigrations(ctx, db); err != nil {
 		_ = db.Close()
 		return nil, dsn, fmt.Errorf("apply migrations: %w", err)

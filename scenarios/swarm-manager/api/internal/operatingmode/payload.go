@@ -102,6 +102,15 @@ func (p RoundPayloadView) SetPhaseResult(result PhaseResult, envelope map[string
 	p.set(resultEnvelopeKey, cloneJSONMap(envelope))
 }
 
+// ResolvedOutput returns the round's validated resolved declared output — the
+// canonical envelope the resolution ladder produced from the agent's round and
+// the source of truth the guards read. ok=false when the round resolved none
+// (still running, or an honest abstain). It is the typed result an operation-
+// runner completion seam forwards to CommitResult.
+func (p RoundPayloadView) ResolvedOutput() (map[string]any, bool) {
+	return payloadEnvelopeMap(p.payload)
+}
+
 // ResultFieldLookup resolves guards from the canonical persisted envelope,
 // with the payload retained only as a compatibility/derived-field projection.
 func (p RoundPayloadView) ResultFieldLookup() FieldLookup {

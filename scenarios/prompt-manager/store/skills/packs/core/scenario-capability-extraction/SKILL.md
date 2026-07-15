@@ -146,7 +146,7 @@ Pick one or more UI archetypes. The selected archetypes become product scope and
 1. Generate the scenario through the project CLI:
 
    ```bash
-   template-manager generate react-vite --id <scenario-id> --display-name "<Display Name>" --description "<one-line purpose>" --design <kit-id>
+   template-manager generate react-vite --id "<scenario-id>" --display-name "<Display Name>" --description "<one-line purpose>" --design "<kit-id>"
    ```
 
 2. Follow the generated `docs/START-HERE.md` orientation protocol.
