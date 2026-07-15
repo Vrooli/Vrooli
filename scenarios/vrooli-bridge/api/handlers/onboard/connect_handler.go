@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os"
-	"os/user"
-	"strings"
 	"time"
 
 	"vrooli-bridge/internal/auth"
@@ -17,11 +14,6 @@ import (
 
 	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 )
-
-// localSuggestionHost is the address the control plane advertises for onboarding
-// its own machine. Loopback is correct: the SSH first-touch dials it from the
-// control-plane host itself.
-const localSuggestionHost = "127.0.0.1"
 
 // dryRunHeader is the canonical header cli-core sets on `--dry-run`
 // (cli-core/cliutil.DryRunHeader). StartOnboarding honours it by validating then
@@ -183,28 +175,6 @@ func (h *connectHandler) CancelOnboarding(ctx context.Context, req *connect.Requ
 		return nil, h.mapErr("CancelOnboarding", req.Msg.GetId(), err)
 	}
 	return connect.NewResponse(&onboardv1.CancelOnboardingResponse{Op: domainOpToProto(op)}), nil
-}
-
-// GetLocalNodeSuggestion returns onboarding defaults for the control-plane's own
-// machine so the UI can offer a one-click "add this machine" prefill. The user
-// is resolved from the OS (the browser cannot know it); when that fails the
-// response is marked unavailable rather than guessing a wrong value. Owner-gated,
-// read-only.
-func (h *connectHandler) GetLocalNodeSuggestion(ctx context.Context, _ *connect.Request[onboardv1.GetLocalNodeSuggestionRequest]) (*connect.Response[onboardv1.GetLocalNodeSuggestionResponse], error) {
-	if _, err := auth.RequireOwner(ctx); err != nil {
-		return nil, auth.ToConnectError(err)
-	}
-	resp := &onboardv1.GetLocalNodeSuggestionResponse{Host: localSuggestionHost}
-	if u, err := user.Current(); err == nil {
-		if name := strings.TrimSpace(u.Username); name != "" {
-			resp.User = name
-			resp.Available = true
-		}
-	}
-	if hostname, err := os.Hostname(); err == nil {
-		resp.Hostname = strings.TrimSpace(hostname)
-	}
-	return connect.NewResponse(resp), nil
 }
 
 // mapErr logs internal errors and returns the Connect translation.

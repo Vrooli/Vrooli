@@ -54,11 +54,23 @@ func (ExecKeyCopier) CopyKey(ctx context.Context, req CopyKeyRequest) CopyKeyRes
 		HostKeyCallback: hostKeyCallback,
 		Timeout:         10 * time.Second,
 	}
+	// Request exactly the host-key type(s) already pinned in known_hosts. Without
+	// this, x/crypto may negotiate a different host-key type than the OpenSSH-CLI
+	// key-auth test wrote moments earlier, yielding a spurious "knownhosts: key
+	// mismatch" for the same host. Empty on genuine first contact (TOFU handles it).
+	if algos := pinnedHostKeyAlgorithms(cfg.Host, cfg.Port, cfg.KnownHostsFile); len(algos) > 0 {
+		config.HostKeyAlgorithms = algos
+	}
 
 	addr := net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port))
 	client, err := dialContext(ctx, addr, config)
 	if err != nil {
 		classified := ClassifyError(err.Error(), cfg.Host, err.Error())
+		// Mirror TestConnection's fallback logging: the password dial is the one SSH
+		// step with no runner-level log, so without this a first-touch failure leaves
+		// no trace of the raw cause anywhere. The password is never in err.
+		slog.Warn("ssh.copy_key_dial_failed", "host", cfg.Host,
+			"status", StatusFromError(classified), "raw_error", err.Error())
 		return CopyKeyResponse{Outcome: Outcome{
 			OK:        false,
 			Status:    StatusFromError(classified),

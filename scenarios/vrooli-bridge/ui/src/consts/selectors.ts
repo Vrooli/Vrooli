@@ -324,7 +324,6 @@ const literalSelectors = {
     onboard: {
       form: "fleet-onboard-form",
       addNode: "fleet-onboard-add-node",
-      useThisMachine: "fleet-onboard-use-this-machine",
       stepIndicator: "fleet-onboard-step-indicator",
       next: "fleet-onboard-next",
       back: "fleet-onboard-back",
@@ -346,6 +345,7 @@ const literalSelectors = {
       includeOptional: "fleet-onboard-include-optional",
       sourceWorkingTree: "fleet-onboard-source-working-tree",
       sourceWarning: "fleet-onboard-source-warning",
+      sourceSummary: "fleet-onboard-source-summary",
       submit: "fleet-onboard-submit",
       error: "fleet-onboard-error",
       progress: "fleet-onboard-progress",

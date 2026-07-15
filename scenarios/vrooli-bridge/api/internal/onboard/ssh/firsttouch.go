@@ -50,6 +50,10 @@ type FirstTouchResult struct {
 	ConnectionVerified  bool   `json:"connection_verified"`
 	Status              string `json:"status"`
 	Message             string `json:"message,omitempty"`
+	// Hint carries the raw, non-sensitive underlying cause on a failure (e.g. the
+	// x/crypto dial error) so the operator sees an actionable reason instead of the
+	// generic category alone. Never holds credential material.
+	Hint string `json:"hint,omitempty"`
 
 	// SudoProvisioned is true only when the passwordless-sudo drop-in was written
 	// and verified this run. SudoState carries the full outcome (including the
@@ -167,6 +171,7 @@ func (s *Service) FirstTouch(ctx context.Context, req FirstTouchRequest) (FirstT
 	if !copyResp.OK {
 		result.Status = copyResp.Status
 		result.Message = copyResp.Message
+		result.Hint = copyResp.Hint
 		return result, nil
 	}
 
@@ -183,6 +188,7 @@ func (s *Service) FirstTouch(ctx context.Context, req FirstTouchRequest) (FirstT
 	} else {
 		result.Status = final.Status
 		result.Message = fmt.Sprintf("key installed but passwordless SSH still failed: %s", final.Message)
+		result.Hint = final.Hint
 	}
 	return result, nil
 }

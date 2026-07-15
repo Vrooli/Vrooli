@@ -75,12 +75,6 @@ func (f *fakeOnboard) CancelOnboarding(_ context.Context, req *connect.Request[o
 	return connect.NewResponse(f.cancelResp), nil
 }
 
-// GetLocalNodeSuggestion is a UI-only prefill verb with no CLI command; the fake
-// satisfies the handler interface with an empty suggestion.
-func (f *fakeOnboard) GetLocalNodeSuggestion(_ context.Context, _ *connect.Request[onboardv1.GetLocalNodeSuggestionRequest]) (*connect.Response[onboardv1.GetLocalNodeSuggestionResponse], error) {
-	return connect.NewResponse(&onboardv1.GetLocalNodeSuggestionResponse{}), nil
-}
-
 func connectAPI(svc onboardconnect.OnboardServiceHandler) http.Handler {
 	path, handler := onboardconnect.NewOnboardServiceHandler(svc)
 	mux := http.NewServeMux()

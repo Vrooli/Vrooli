@@ -1297,11 +1297,6 @@
       "service": "IdentityService",
       "method": "Register",
       "reason": "Browser-facing same-origin owner account-creation facade, called by the bridge UI only (ui/src/features/session). Same rationale as IdentityService/Login: the CLI supplies an owner token out-of-band and never registers accounts."
-    },
-    {
-      "service": "OnboardService",
-      "method": "GetLocalNodeSuggestion",
-      "reason": "Browser-facing prefill helper: returns the control-plane machine's own host/user so the UI 'add this machine' affordance can one-click fill the onboard form. The CLI operator already types --host/--user (or $USER) directly, so there is no corresponding command."
     }
   ]
 }

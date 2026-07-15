@@ -47,7 +47,13 @@ func (d *sshDriver) FirstTouch(ctx context.Context, p FirstTouchParams) (Conn, e
 		return Conn{}, err
 	}
 	if !res.OK {
-		return Conn{}, fmt.Errorf("passwordless SSH not established: %s", res.Message)
+		detail := res.Message
+		// Surface the raw underlying cause (never credential material) so the op step
+		// detail is actionable instead of the generic category alone.
+		if h := strings.TrimSpace(res.Hint); h != "" && h != res.Message {
+			detail = res.Message + ": " + h
+		}
+		return Conn{}, fmt.Errorf("passwordless SSH not established: %s", detail)
 	}
 	return Conn{Host: res.Host, Port: res.Port, User: res.User, KeyPath: res.KeyPath, SudoState: string(res.SudoState)}, nil
 }

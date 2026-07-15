@@ -9,17 +9,14 @@ import { selectors } from "../../consts/selectors";
 import { OnboardingState, OnboardingStepStatus, SourceMode } from "../../api/onboard";
 import { makeGetOnboardingResponse, makeStepEvent } from "./mocks/factories";
 
-const { startOnboarding, getOnboarding, getLocalNodeSuggestion } = vi.hoisted(() => ({
+const { startOnboarding, getOnboarding } = vi.hoisted(() => ({
   startOnboarding: vi.fn(),
   getOnboarding: vi.fn(),
-  // Default: no resolvable local suggestion, so the affordance is hidden unless a
-  // test opts in. Individual tests override this before rendering.
-  getLocalNodeSuggestion: vi.fn().mockResolvedValue({ host: "", user: "", hostname: "", available: false }),
 }));
 
 vi.mock("../../api/onboard", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/onboard")>();
-  return { ...actual, onboardClient: { startOnboarding, getOnboarding, getLocalNodeSuggestion } };
+  return { ...actual, onboardClient: { startOnboarding, getOnboarding } };
 });
 
 import { OnboardNodeForm } from "./OnboardNodeForm";
@@ -66,33 +63,6 @@ async function startOnboard(host = "node-01.example.com") {
   await user.click(screen.getByTestId(s.submit));
   return user;
 }
-
-describe("OnboardNodeForm local-machine suggestion", () => {
-  it('hides "use this machine" when the server has no resolvable suggestion', () => {
-    getLocalNodeSuggestion.mockResolvedValue({ host: "", user: "", hostname: "", available: false });
-    renderWithProviders(<OnboardNodeForm />);
-    expect(screen.queryByTestId(s.useThisMachine)).not.toBeInTheDocument();
-  });
-
-  it("prefills address + username from the server suggestion on one click", async () => {
-    getLocalNodeSuggestion.mockResolvedValue({
-      host: "127.0.0.1",
-      user: "studio",
-      hostname: "studio-box",
-      available: true,
-    });
-    const user = userEvent.setup();
-    renderWithProviders(<OnboardNodeForm />);
-
-    // The button appears once the (owner-gated) suggestion query resolves.
-    const button = await screen.findByTestId(s.useThisMachine);
-    // Fields start empty — the value comes from the server, never a hardcoded guess.
-    expect(screen.getByTestId(s.host)).toHaveValue("");
-    await user.click(button);
-    expect(screen.getByTestId(s.host)).toHaveValue("127.0.0.1");
-    expect(screen.getByTestId(s.user)).toHaveValue("studio");
-  });
-});
 
 describe("OnboardNodeForm wizard", () => {
   it("walks Connect → Unlock → Review, surfacing the fields for each step", async () => {
@@ -282,31 +252,31 @@ describe("OnboardNodeForm submission", () => {
     expect(input?.controlPlaneUrl).toBe("");
   });
 
-  it("defaults to pinned source and ships the working tree with a dirty warning when selected", async () => {
+  it("defaults to working-tree source and switches to pinned (with a push note) when unchecked", async () => {
     startOnboarding.mockResolvedValue({ opId: "op-src" });
     getOnboarding.mockResolvedValue(
       makeGetOnboardingResponse({ id: "op-src", state: OnboardingState.BOOTSTRAPPING }, [makeStepEvent()]),
     );
 
-    // Default: pinned, no dirty warning shown.
+    // Default: working-tree (ship this computer's files) — checked, no pinned push note.
     let user = userEvent.setup();
     renderWithProviders(<OnboardNodeForm />);
     await toReview(user);
     await openAdvanced(user);
-    expect(screen.getByTestId(s.sourceWorkingTree)).not.toBeChecked();
+    expect(screen.getByTestId(s.sourceWorkingTree)).toBeChecked();
     expect(screen.queryByTestId(s.sourceWarning)).toBeNull();
     await user.click(screen.getByTestId(s.submit));
     await waitFor(() => expect(startOnboarding).toHaveBeenCalledTimes(1));
-    expect(startOnboarding.mock.calls[0]?.[0]?.sourceMode).toBe(SourceMode.PINNED_REVISION);
+    expect(startOnboarding.mock.calls[0]?.[0]?.sourceMode).toBe(SourceMode.WORKING_TREE);
 
     cleanup();
     vi.clearAllMocks();
-    startOnboarding.mockResolvedValue({ opId: "op-wt" });
+    startOnboarding.mockResolvedValue({ opId: "op-pinned" });
     getOnboarding.mockResolvedValue(
-      makeGetOnboardingResponse({ id: "op-wt", state: OnboardingState.BOOTSTRAPPING }, [makeStepEvent()]),
+      makeGetOnboardingResponse({ id: "op-pinned", state: OnboardingState.BOOTSTRAPPING }, [makeStepEvent()]),
     );
 
-    // Working-tree: selecting it reveals the dirty warning and sends WORKING_TREE.
+    // Pinned: unchecking reveals the "must be pushed" note and sends PINNED_REVISION.
     user = userEvent.setup();
     renderWithProviders(<OnboardNodeForm />);
     await toReview(user);
@@ -315,7 +285,7 @@ describe("OnboardNodeForm submission", () => {
     expect(screen.getByTestId(s.sourceWarning)).toBeInTheDocument();
     await user.click(screen.getByTestId(s.submit));
     await waitFor(() => expect(startOnboarding).toHaveBeenCalledTimes(1));
-    expect(startOnboarding.mock.calls[0]?.[0]?.sourceMode).toBe(SourceMode.WORKING_TREE);
+    expect(startOnboarding.mock.calls[0]?.[0]?.sourceMode).toBe(SourceMode.PINNED_REVISION);
   });
 });
 

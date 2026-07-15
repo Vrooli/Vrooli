@@ -92,7 +92,7 @@ CONTROL_PLANE_URL="${BRIDGE_CONTROL_PLANE_URL:-}"
 NODE_NAME="${BRIDGE_NODE_NAME:-}"
 REPO_URL="${BRIDGE_REPO_URL:-$DEFAULT_REPO_URL}"
 REVISION="${BRIDGE_REVISION:-}"
-CHECKOUT_DIR="${BRIDGE_CHECKOUT_DIR:-$HOME/vrooli}"
+CHECKOUT_DIR="${BRIDGE_CHECKOUT_DIR:-$HOME/Vrooli}"
 
 # Working-tree source mode: when SOURCE_DIR is set the control plane has already
 # shipped its LOCAL tree here over SSH, so step_clone verifies that pre-synced tree
@@ -135,7 +135,7 @@ Options (flag overrides env in parentheses):
   --node-name NAME          Fleet label for this node.        (BRIDGE_NODE_NAME; default: hostname)
   --repo-url URL            Source repo to clone.             (BRIDGE_REPO_URL; default: Vrooli GitHub)
   --revision REV            Git commit/branch/tag to pin.     (BRIDGE_REVISION; default: repo default branch)
-  --checkout-dir DIR        Where the node's checkout lives.  (BRIDGE_CHECKOUT_DIR; default: $HOME/vrooli)
+  --checkout-dir DIR        Where the node's checkout lives.  (BRIDGE_CHECKOUT_DIR; default: $HOME/Vrooli)
   --source-dir DIR          Verify a pre-synced working tree here instead of
                             cloning (working-tree source mode; the control plane
                             ships its local tree over SSH). (BRIDGE_SOURCE_DIR)
