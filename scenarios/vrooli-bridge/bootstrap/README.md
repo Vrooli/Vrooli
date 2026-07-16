@@ -5,28 +5,30 @@ auto-starting** fleet agent in one idempotent run. It is the core node-local
 artifact every other onboarding surface (the phase-5 `onboard` orchestrator, the
 CLI `onboard` verbs, the UI form) drives.
 
-The agent is **built from cloned source** on the node — there is no binary
-distribution or code-signing to manage. One run:
+The one-shot working-tree path does **not** build on the node. The control plane
+detects the node's OS/architecture, cross-builds `vrooli`, `vrooli-bridge`, and
+`vrooli-bridge-agent` from the exact live tree it ships (including uncommitted
+and untracked non-ignored files), and transfers all three binaries plus their
+`.fp` sidecars. A raw node therefore reaches ONLINE with no preinstalled Go and
+without pulling a release artifact or GitHub clone. One run:
 
 1. **detect-os** — identify platform (`linux`/`darwin`; Windows uses the
    PowerShell installer).
-2. **prereqs** — ensure only the **clone prerequisites**, `git` and `curl`
-   (`apt-get` on Linux; on macOS a missing `git` points the operator at
-   `xcode-select --install` — see *Prerequisites & toolchains*). Every heavier
-   toolchain is owned by `setup`, not installed here.
-3. **clone** — clone the repo at a pinned revision, or converge an existing
-   checkout (`git fetch` + checkout).
-4. **setup** — `make setup` (idempotent; sentinel-guarded per revision **and
-   setup profile**). Runs **elevated** when passwordless sudo is available so no
-   requirement is skipped for privilege; otherwise runs unprivileged and names
-   the skipped root-required items loudly. See *Elevated, profile-driven setup*.
-5. **toolchain** — verify the build toolchains (`go`, `pnpm`) that `setup` owns
-   actually resolve before the build steps depend on them; recover a tool that
-   `setup` installed off the non-interactive shell's PATH, or fail with an
-   actionable gap. See *Prerequisites & toolchains*.
-6. **build-agent** — `make -C scenarios/vrooli-bridge/agent build`.
-7. **build-cli** — build the `vrooli-bridge` CLI from the checkout (needed to
-   redeem).
+2. **prebuilt-artifacts** — verify the three transferred executables and their
+   shared source fingerprint.
+3. **prereqs** — skipped for a pre-synced tree with a complete prebuilt bundle;
+   the pinned/manual fallback still ensures its clone prerequisites.
+4. **clone** — verify the pre-synced live tree, or clone/converge a pinned
+   revision in the manual fallback.
+5. **setup** — run the transferred `vrooli setup` directly with
+   `VROOLI_SOURCE_ROOT` set to the shipped tree. The matching sidecar keeps it
+   fresh before setup installs Go. The sentinel remains keyed by revision,
+   source digest, and setup profile.
+6. **toolchain** — skipped for the complete prebuilt path because no node-side
+   compile follows; retained for the manual source-build fallback, including
+   off-PATH recovery.
+7. **build-agent / build-cli** — report the received prebuilt binaries and skip
+   compilation. The manual fallback can still build both from source.
 8. **node-key** — load-or-generate the node's Ed25519 keypair; print its public
    key.
 9. **pair-redeem** — redeem the single-use pairing code against the control
@@ -93,10 +95,12 @@ machine-provisioning authority** on the node:
   **loudly** in the step detail (`… N root-required requirement(s) skipped for
   privilege: …`) — a warning surfaced in the op step events / CLI watch / UI, not
   a failure. `prereqs` and `autostart` likewise use non-interactive `sudo -n`
-  only, so a headless run degrades loudly instead of hanging on a password prompt.
+  only, so a headless run degrades loudly instead of hanging on a password
+  prompt. macOS setup stays under the SSH user because Homebrew refuses root;
+  individual requirements use the provisioned sudo capability when needed.
 - **Profile.** The setup-profile flags above are threaded into
-  `make -C <checkout> setup SETUP_ARGS='…'` (the root Makefile's sanctioned
-  pass-through to `vrooli setup`). Every value is metacharacter-validated at the
+  transferred `vrooli setup` invocation (the manual fallback retains the root
+  Makefile pass-through). Every value is metacharacter-validated at the
   API boundary (`api/internal/onboard.validateSetupProfile`, mirroring the cprev
   revision filter) **and** re-checked here before it is spliced in, so no
   shell-injectable value can ever reach the command. **Empty values are the
@@ -121,7 +125,10 @@ The **clone** step acquires the source in either mode:
   the tree landed) and `--source-digest` (its content digest). The **clone** step
   verifies that pre-synced tree instead of cloning, and records **dirty
   provenance** — the base commit plus the digest, rendered as `"<base>+dirty"`.
-  Use it when uncommitted work must onboard without a commit or push.
+  It then cross-builds only the detected node target from that same local root,
+  transfers the binaries/sidecars, and passes their paths to bootstrap. Use it
+  when uncommitted work must onboard without a commit or push, or when the node
+  must start without Go.
 
 A working-tree node is pinned to no fetchable commit, so fleet rolls **exclude**
 it with a `needs-reprovision` disposition; re-onboard it in pinned mode (or
@@ -131,28 +138,30 @@ while an identical tree stays a no-op.
 
 ### Prerequisites & toolchains
 
-The **prereqs** step installs only the true **chicken-and-egg** pair needed to
-clone the source: `git` and `curl`. Every heavier toolchain — `go`, `pnpm`,
-`node`, `docker` — is a `vrooli setup` requirement, installed from the cloned
-tree in the **setup** step. Bootstrap deliberately does **not** duplicate those
-installs: a second, drifting provisioning path is exactly the kind of divergence
-setup exists to prevent.
+With a pre-synced working tree and complete prebuilt bundle, bootstrap needs no
+clone or build tools: **prereqs** and the build-toolchain guard skip. The
+transferred Vrooli CLI runs setup, which installs git and Go as bootstrap host
+tools and owns every other selected requirement. Docker remains a lazy demand
+of enabled container-backed resources.
+
+The manual pinned fallback still installs only the true clone prerequisites,
+`git` and `curl`, and retains the off-PATH `go`/`pnpm` guard before its legacy
+source builds. Bootstrap deliberately does not create a second tool installer.
 
 - **Linux.** Missing `git`/`curl` are installed via non-interactive `apt-get`
   (package name == command name), gated on passwordless sudo like every other
   privileged action — a headless run degrades loudly rather than hanging on a
   password prompt.
-- **macOS — explicit decision: no Homebrew auto-install.** macOS always ships
-  `curl`, and `git` arrives with the **Xcode Command Line Tools**. When `git` is
-  missing the script directs the operator to run **`xcode-select --install`**
-  rather than bootstrapping Homebrew. Provisioning git through Apple's own
-  supported path keeps a far smaller, more predictable footprint on the node than
-  pulling in a whole package manager mid-onboarding, and `setup` — not
-  bootstrap — remains the sole owner of every other macOS toolchain.
+- **macOS manual fallback.** macOS always ships `curl`, and `git` arrives with
+  the **Xcode Command Line Tools**. When the pinned/manual clone path lacks git,
+  bootstrap directs the operator to **`xcode-select --install`**. In the
+  prebuilt working-tree path no clone tool is needed; `vrooli setup` remains the
+  owner and bootstraps Homebrew when absent before installing git/Go.
 
-The **toolchain** step is the guard that makes the "setup owns the toolchains"
-split safe. After setup runs it confirms `go` and `pnpm` actually resolve before
-the build steps rely on them, and it closes a real headless-onboarding gap: a
+In the manual fallback, the **toolchain** step is the guard that makes the
+"setup owns the toolchains" split safe. After setup runs it confirms `go` and
+`pnpm` actually resolve before source-build steps rely on them, and it closes a
+real headless-onboarding gap: a
 **non-interactive SSH shell does not source the login profile**, so a toolchain
 `setup` just installed can be present on disk yet invisible on `PATH` for the
 same bootstrap process. The guard therefore probes the fixed locations setup
@@ -178,8 +187,9 @@ phase-5 orchestrator, which may stage the checkout itself):
 | Flag | Effect |
 |------|--------|
 | `--skip-prereqs` | Assume `git`/`curl` (the clone prerequisites) are already installed. |
-| `--skip-setup` | Skip `make setup`. Pairing, online, and auto-start still work, but the node **cannot run jobs** until `make setup` is run later. |
-| `--force-setup` | Run `make setup` even if its per-revision sentinel exists. |
+| `--skip-setup` | Skip `vrooli setup`. Pairing, online, and auto-start still work, but the node **cannot run jobs** until setup is run later. |
+| `--force-setup` | Run `vrooli setup` even if its per-revision sentinel exists. |
+| `--vrooli-bin PATH` | Use a transferred prebuilt Vrooli CLI for setup; `PATH.fp` is required. |
 | `--agent-bin PATH` | Use a prebuilt node-agent instead of building one. |
 | `--bridge-cli PATH` | Use a prebuilt `vrooli-bridge` CLI instead of building one. |
 
@@ -223,7 +233,7 @@ headless mini needs Docker Desktop running in the auto-logged-in session before
 such workloads dispatch, not to onboard.
 
 **Darwin degradation contract:** if this host's `vrooli` build still refuses
-`make setup` on darwin, the script fails fast at the **setup** step with exit
+setup on darwin, the script fails fast at the **setup** step with exit
 **3** and an actionable message pointing at the macOS-compatibility /
 `workspace-sandbox-cross-platform` workstream — it never half-installs. The
 refusal is detected dynamically from the setup output, so once the darwin gate

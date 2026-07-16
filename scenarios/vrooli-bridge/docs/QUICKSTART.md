@@ -7,8 +7,8 @@ not need to set anything by hand.
 ## Prerequisites
 
 - **Vrooli CLI** installed and on `PATH` (run `vrooli help` to confirm)
-- **Go** matching the versions declared in `api/go.mod` and `cli/go.mod`
-- **Node 20+ and pnpm 9+** for the UI bundle
+- Workspace-root `vrooli setup` completed. It owns Go, Node, and pnpm; do not
+  hand-install scenario toolchains separately.
 
 If `vrooli` is not on your `PATH`, run `make setup` from the workspace
 root (one level above this directory) once.

@@ -150,6 +150,7 @@ export const strings = {
       viewNode: "fleet.onboard.viewNode",
       failureHeading: "fleet.onboard.failureHeading",
       retryHint: "fleet.onboard.retryHint",
+      failureOutputHeading: "fleet.onboard.failureOutputHeading",
       state: {
         unspecified: "fleet.onboard.state.unspecified",
         pending: "fleet.onboard.state.pending",

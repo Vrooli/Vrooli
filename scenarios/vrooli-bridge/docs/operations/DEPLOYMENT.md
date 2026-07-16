@@ -91,7 +91,10 @@ exist:
 - **One-shot onboarding (recommended).** The owner points the control
   plane at a raw SSH host (`vrooli-bridge onboard start …`, or the UI
   OnboardNodeForm). The `onboard` domain establishes passwordless SSH
-  first-touch, pushes `bootstrap/bootstrap.sh`, issues a single-use
+  first-touch and drives either source mode. With `--source working-tree`, it
+  ships the live tree, detects the node target, cross-builds `vrooli`,
+  `vrooli-bridge`, and the node-agent on the control plane, transfers them with
+  freshness sidecars, pushes `bootstrap/bootstrap.sh`, and issues a single-use
   pairing code server-side (injected over SSH stdin, never argv/logs),
   runs the script, and confirms the node is ONLINE — as one durable,
   cancellable, restart-reconciled `OnboardingOp` the operator blocks on
@@ -115,6 +118,12 @@ exist:
   and a fully-onboarded node re-run changes nothing. Marker grammar, step
   list, and exit codes are documented in
   [`../../bootstrap/README.md`](../../bootstrap/README.md).
+
+The working-tree one-shot path never pulls a GitHub release or builds on the
+node: release binaries cannot represent local uncommitted work. Its transferred
+Vrooli sidecar is computed from the same tree sent over SSH, so setup runs before
+the node has Go and installs Go afterward. The pinned/manual fallback remains
+available for fetchable revisions.
 
 Everything after onboarding is remote.
 

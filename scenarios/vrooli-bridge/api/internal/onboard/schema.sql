@@ -24,6 +24,11 @@ CREATE TABLE IF NOT EXISTS onboarding_ops (
   state           INTEGER NOT NULL DEFAULT 0,
   node_id         TEXT NOT NULL DEFAULT '',
   failure_reason  TEXT NOT NULL DEFAULT '',
+  -- A bounded, multi-line tail of the node-side diagnostic output on a FAILED op
+  -- (the concrete cause behind failure_reason — e.g. the `make setup` error).
+  -- Never secret material. A DB created before this column is brought to shape by
+  -- Migrate() (guarded ALTER TABLE ADD COLUMN, run before EnsureSchemas).
+  failure_detail  TEXT NOT NULL DEFAULT '',
   exit_code       INTEGER NOT NULL DEFAULT 0,
   created_at      TEXT NOT NULL,
   started_at      TEXT NOT NULL DEFAULT '',

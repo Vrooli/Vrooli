@@ -137,6 +137,7 @@
       "viewNode": "下のフリートで確認できます。",
       "failureHeading": "オンボードに失敗しました",
       "retryHint": "上記の問題を修正してから、オンボードを再度開始してください。各ステップは冪等なので再実行で収束します。",
+      "failureOutputHeading": "マシンからの出力",
       "state": {
         "unspecified": "不明",
         "pending": "保留中",

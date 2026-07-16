@@ -352,6 +352,8 @@ const literalSelectors = {
       steps: "fleet-onboard-steps",
       success: "fleet-onboard-success",
       failure: "fleet-onboard-failure",
+      failureOutput: "fleet-onboard-failure-output",
+      failureOutputToggle: "fleet-onboard-failure-output-toggle",
     },
   },
   runs: {

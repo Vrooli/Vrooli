@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Durable registry of trusted Vrooli nodes with OS/arch/version/endpoint/capabilities; register, list, inspect, revoke.",
-    "last_validated_at": "2026-07-14T11:17:18-04:00",
+    "last_validated_at": "2026-07-15T20:03:32-04:00",
     "module": "node-registry",
     "prd_ref": "OT-P0-001",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P0-001",
       "title": "Node Registry \u0026 Durable Identity",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "An owner can register, list, inspect, and revoke trusted Vrooli nodes. Each node has a durable, long-lived identity record (stable id, OS, architecture, current Vrooli revision, reachable endpoint, self-reported capabilities, permission scopes) — persistent infrastructure, distinct from device-sync-hub's ephemeral sync-peer grants.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/internal/registry/registry_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Registry CRUD persists durable node records; revoke removes the node and invalidates its credentials atomically."
         },
         {

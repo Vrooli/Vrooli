@@ -66,6 +66,7 @@ type service struct {
 	defaultRevision        string
 	revResolver            RevisionResolver
 	worktree               WorkingTreeSource
+	artifacts              ArtifactBuilder
 	nodeRev                NodeRevisionRecorder
 
 	wg sync.WaitGroup // tracks in-flight orchestration goroutines (for tests)
@@ -99,6 +100,13 @@ func WithRevisionResolver(r RevisionResolver) Option {
 // refused at Start with a clear error rather than silently degrading to pinned.
 func WithWorkingTreeSource(w WorkingTreeSource) Option {
 	return func(s *service) { s.worktree = w }
+}
+
+// WithArtifactBuilder wires the control-plane cross-builder used by working-tree
+// onboarding. It is deliberately separate from SSH transport and is never used
+// by pinned-revision mode.
+func WithArtifactBuilder(b ArtifactBuilder) Option {
+	return func(s *service) { s.artifacts = b }
 }
 
 // WithNodeRevisionRecorder wires the seam that stamps a node's provenance revision
@@ -155,6 +163,10 @@ func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
 	if in.WorkingTree() && s.worktree == nil {
 		zeroBytes(in.Password)
 		return Decision{}, ErrInvalid{Field: "source_mode", Reason: "working-tree onboarding is not available on this control plane (no working-tree source configured)"}
+	}
+	if in.WorkingTree() && s.artifacts == nil {
+		zeroBytes(in.Password)
+		return Decision{}, ErrInvalid{Field: "source_mode", Reason: "working-tree onboarding is not available on this control plane (no prebuilt artifact builder configured)"}
 	}
 
 	revision := trimField(in.TargetRevision)

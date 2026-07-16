@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Typed jobs validated against the scenario-CLI manifest; per-node verb-namespace scopes; never raw shell.",
-    "last_validated_at": "2026-07-14T11:17:18-04:00",
+    "last_validated_at": "2026-07-15T20:03:32-04:00",
     "module": "job-dispatch",
     "prd_ref": "OT-P0-004",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P0-004",
       "title": "Allowlisted Typed-Job Dispatch",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "security",
       "description": "The control plane dispatches typed jobs — {scenario, verb, args} validated against the scenario-CLI manifest — never raw shell strings. Each node grants which verb-namespaces it accepts (e.g. `scenario test*` yes, `secrets*` / `scenario deploy*` no). Execution is constrained to declared operations with per-node permission scopes.",
@@ -20,14 +20,14 @@
           "type": "test",
           "ref": "api/internal/dispatch/allowlist_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A job whose verb is absent from the manifest or outside the node's scopes is rejected before reaching the node."
         },
         {
           "type": "test",
           "ref": "agent/internal/exec/typedjob_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The node-agent executes only typed verbs via the local vrooli CLI; it never constructs or runs an arbitrary shell string."
         },
         {

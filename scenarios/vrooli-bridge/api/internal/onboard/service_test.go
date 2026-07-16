@@ -388,6 +388,35 @@ func TestStart_BootstrapExitCodes(t *testing.T) {
 	}
 }
 
+func TestStart_FailedOpPersistsNodeDiagnostics(t *testing.T) {
+	// A bootstrap that fails carries the node-side diagnostic tail (the concrete
+	// cause — e.g. the make setup error) onto the durable op so the operator can
+	// read it after the fact (CLI status / UI re-read), not just the reason code.
+	const nodeOutput = "make[1]: *** [setup] Error 2\nvrooli setup failed: postgres not reachable"
+	markers := []onboard.Marker{{Event: "run-start"}, {Event: "step-start", Step: "setup"}, {Event: "step-fail", Step: "setup", Detail: "make setup failed (exit 2) — see output above"}, {Event: "run-fail", Detail: "boom"}}
+	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: markers, RunBootstrapExit: 1, RunBootstrapDiagnostics: nodeOutput}
+	svc := newTestService(mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true})
+	dec, err := svc.Start(context.Background(), validInput())
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateFailed, op.State)
+	require.Equal(t, onboard.FailureBootstrap, op.FailureReason)
+	require.Equal(t, nodeOutput, op.FailureDetail, "the node's failing-step output must be persisted on the op")
+}
+
+func TestStart_ControlPlaneSideFailureHasNoDiagnostics(t *testing.T) {
+	// A failure BEFORE the remote script runs (here: SSH first touch) produced no
+	// node output, so FailureDetail stays empty — we never fabricate a tail.
+	driver := &mocks.FakeSSHDriver{FirstTouchErr: errors.New("connection refused")}
+	svc := newTestService(mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true})
+	dec, err := svc.Start(context.Background(), validInput())
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateFailed, op.State)
+	require.Equal(t, onboard.FailureSSHSetup, op.FailureReason)
+	require.Empty(t, op.FailureDetail)
+}
+
 func TestCancel_DrivesToCancelled(t *testing.T) {
 	// RunBootstrap blocks until the op-scoped context is cancelled.
 	driver := &mocks.FakeSSHDriver{RunBootstrapBlock: true}

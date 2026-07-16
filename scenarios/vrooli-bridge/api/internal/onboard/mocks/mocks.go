@@ -111,6 +111,7 @@ func (f *FakeRepository) Update(_ context.Context, op onboard.Op) (onboard.Op, e
 	existing.State = op.State
 	existing.NodeID = op.NodeID
 	existing.FailureReason = op.FailureReason
+	existing.FailureDetail = op.FailureDetail
 	existing.ExitCode = op.ExitCode
 	existing.StartedAt = op.StartedAt
 	existing.FinishedAt = op.FinishedAt
@@ -157,26 +158,34 @@ func (f *FakeRepository) Seed(op onboard.Op) {
 type FakeSSHDriver struct {
 	mu sync.Mutex
 
-	FirstTouchErr       error
-	FirstTouchBlock     bool
-	PushScriptErr       error
-	PushScriptBlock     bool
-	RunBootstrapBlock   bool
-	RunBootstrapErr     error
-	RunBootstrapExit    int
-	RunBootstrapMarkers []onboard.Marker
+	FirstTouchErr           error
+	FirstTouchBlock         bool
+	PushScriptErr           error
+	PushScriptBlock         bool
+	RunBootstrapBlock       bool
+	RunBootstrapErr         error
+	RunBootstrapExit        int
+	RunBootstrapMarkers     []onboard.Marker
+	RunBootstrapDiagnostics string
 
 	// FirstTouchSudoState, when set, is echoed back on the returned Conn so a test
 	// can assert the orchestrator surfaces the sudo outcome in the step detail.
 	FirstTouchSudoState string
 
 	// Working-tree ship (SyncTree) knobs + capture.
-	SyncTreeErr      error
-	SyncTreeBlock    bool
-	SyncTreeResult   onboard.SyncResult
-	SyncTreeCalls    int
-	CapturedSyncDest string
-	CapturedSyncTree onboard.SyncParams
+	SyncTreeErr         error
+	SyncTreeBlock       bool
+	SyncTreeResult      onboard.SyncResult
+	SyncTreeCalls       int
+	CapturedSyncDest    string
+	CapturedSyncTree    onboard.SyncParams
+	DetectPlatformErr   error
+	DetectedPlatform    onboard.NodePlatform
+	DetectPlatformCalls int
+	PushArtifactsErr    error
+	RemoteArtifacts     onboard.RemoteArtifacts
+	PushArtifactsCalls  int
+	CapturedArtifacts   onboard.ArtifactPushParams
 
 	// Captured for assertions.
 	CapturedPairingCode   []byte
@@ -236,6 +245,35 @@ func (d *FakeSSHDriver) SyncTree(ctx context.Context, p onboard.SyncParams) (onb
 	return res, nil
 }
 
+func (d *FakeSSHDriver) DetectPlatform(_ context.Context, _ onboard.Conn) (onboard.NodePlatform, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.DetectPlatformCalls++
+	if d.DetectPlatformErr != nil {
+		return onboard.NodePlatform{}, d.DetectPlatformErr
+	}
+	if d.DetectedPlatform.OS == "" {
+		return onboard.NodePlatform{OS: "linux", Arch: "amd64"}, nil
+	}
+	return d.DetectedPlatform, nil
+}
+
+func (d *FakeSSHDriver) PushArtifacts(_ context.Context, p onboard.ArtifactPushParams) (onboard.RemoteArtifacts, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.PushArtifactsCalls++
+	d.CapturedArtifacts = p
+	if d.PushArtifactsErr != nil {
+		return onboard.RemoteArtifacts{}, d.PushArtifactsErr
+	}
+	if d.RemoteArtifacts.Vrooli == "" {
+		return onboard.RemoteArtifacts{
+			Vrooli: "/tmp/artifacts/vrooli", BridgeCLI: "/tmp/artifacts/vrooli-bridge", Agent: "/tmp/artifacts/vrooli-bridge-agent",
+		}, nil
+	}
+	return d.RemoteArtifacts, nil
+}
+
 func (d *FakeSSHDriver) RunBootstrap(ctx context.Context, p onboard.RunParams, onMarker func(onboard.Marker)) (onboard.BootstrapResult, error) {
 	// Record a COPY of the injected code + args before any zeroing by the caller.
 	d.mu.Lock()
@@ -251,9 +289,9 @@ func (d *FakeSSHDriver) RunBootstrap(ctx context.Context, p onboard.RunParams, o
 		onMarker(m)
 	}
 	if d.RunBootstrapErr != nil {
-		return onboard.BootstrapResult{ExitCode: d.RunBootstrapExit}, d.RunBootstrapErr
+		return onboard.BootstrapResult{ExitCode: d.RunBootstrapExit, Diagnostics: d.RunBootstrapDiagnostics}, d.RunBootstrapErr
 	}
-	return onboard.BootstrapResult{ExitCode: d.RunBootstrapExit}, nil
+	return onboard.BootstrapResult{ExitCode: d.RunBootstrapExit, Diagnostics: d.RunBootstrapDiagnostics}, nil
 }
 
 // PairingCode returns a copy of the code the driver was handed.
@@ -295,6 +333,34 @@ func (f *FakeWorkingTreeSource) Snapshot(_ context.Context) (onboard.WorkingTree
 		return onboard.WorkingTreeSnapshot{}, f.Err
 	}
 	return f.Snapshot_, nil
+}
+
+// FakeArtifactBuilder records the one target/root requested by working-tree
+// onboarding and returns a canned bundle without running a toolchain.
+type FakeArtifactBuilder struct {
+	Result onboard.PrebuiltArtifacts
+	Err    error
+	Calls  int
+	Last   onboard.ArtifactBuildParams
+}
+
+var _ onboard.ArtifactBuilder = (*FakeArtifactBuilder)(nil)
+
+func (f *FakeArtifactBuilder) Build(_ context.Context, p onboard.ArtifactBuildParams) (onboard.PrebuiltArtifacts, error) {
+	f.Calls++
+	f.Last = p
+	if f.Err != nil {
+		return onboard.PrebuiltArtifacts{}, f.Err
+	}
+	if f.Result.Vrooli == "" {
+		f.Result = onboard.PrebuiltArtifacts{
+			Vrooli: "/cp/artifacts/vrooli", VrooliSidecar: "/cp/artifacts/vrooli.fp",
+			BridgeCLI: "/cp/artifacts/vrooli-bridge", BridgeSidecar: "/cp/artifacts/vrooli-bridge.fp",
+			Agent: "/cp/artifacts/vrooli-bridge-agent", AgentSidecar: "/cp/artifacts/vrooli-bridge-agent.fp",
+			Fingerprint: "test-fingerprint", Target: p.Target,
+		}
+	}
+	return f.Result, nil
 }
 
 // FakeNodeRevisionRecorder records the revision it was asked to stamp on a node.

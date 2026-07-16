@@ -112,6 +112,159 @@ func (d *sshDriver) SyncTree(ctx context.Context, p SyncParams) (SyncResult, err
 	return SyncResult{BytesTransferred: counter.n, ResolvedDestDir: resolvedDest}, nil
 }
 
+// DetectPlatform asks the node for its kernel/architecture after first touch and
+// normalises the result to the Go target names consumed by the shared builder.
+func (d *sshDriver) DetectPlatform(ctx context.Context, conn Conn) (NodePlatform, error) {
+	cfg := d.config(conn)
+	var lines []string
+	res, err := d.svc.RunStreaming(ctx, cfg, `printf 'VBPLATFORM=%s/%s\n' "$(uname -s)" "$(uname -m)"`, ssh.StreamOptions{
+		Run: syncRunOptions(),
+		OnStdoutLine: func(line string) {
+			lines = append(lines, strings.TrimSpace(line))
+		},
+	})
+	if err != nil {
+		return NodePlatform{}, err
+	}
+	if res.ExitCode != 0 {
+		return NodePlatform{}, fmt.Errorf("node platform probe failed (exit %d): %s", res.ExitCode, res.Stderr)
+	}
+	for _, line := range lines {
+		raw, ok := strings.CutPrefix(line, "VBPLATFORM=")
+		if !ok {
+			continue
+		}
+		parts := strings.SplitN(raw, "/", 2)
+		if len(parts) != 2 {
+			break
+		}
+		target := NodePlatform{OS: normaliseNodeOS(parts[0]), Arch: normaliseNodeArch(parts[1])}
+		if !supportedBridgeTarget(target) {
+			return NodePlatform{}, fmt.Errorf("unsupported bridge node platform %s/%s", parts[0], parts[1])
+		}
+		return target, nil
+	}
+	return NodePlatform{}, fmt.Errorf("node platform probe returned no platform marker")
+}
+
+func normaliseNodeOS(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "linux":
+		return "linux"
+	case "darwin":
+		return "darwin"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+func normaliseNodeArch(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "x86_64", "amd64":
+		return "amd64"
+	case "aarch64", "arm64":
+		return "arm64"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+// PushArtifacts copies all three executables and their sidecars into one unique,
+// private node-side directory. A final remote chmod/touch makes the executables
+// runnable and sidecars no older than their binaries for freshness validation.
+func (d *sshDriver) PushArtifacts(ctx context.Context, p ArtifactPushParams) (RemoteArtifacts, error) {
+	files := []string{
+		p.Artifacts.Vrooli, p.Artifacts.VrooliSidecar,
+		p.Artifacts.BridgeCLI, p.Artifacts.BridgeSidecar,
+		p.Artifacts.Agent, p.Artifacts.AgentSidecar,
+	}
+	for _, path := range files {
+		if info, err := os.Stat(path); err != nil || info.IsDir() {
+			if err == nil {
+				err = fmt.Errorf("path is a directory")
+			}
+			return RemoteArtifacts{}, fmt.Errorf("prebuilt artifact %s is unavailable: %w", path, err)
+		}
+	}
+	remoteDirName, err := remoteArtifactDirName()
+	if err != nil {
+		return RemoteArtifacts{}, err
+	}
+	cfg := d.config(p.Conn)
+	remoteDir, err := d.prepareRemoteArtifactDir(ctx, cfg, remoteDirName)
+	if err != nil {
+		return RemoteArtifacts{}, fmt.Errorf("prepare remote artifact directory: %w", err)
+	}
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = d.runRemoteCommand(ctx, cfg, "rm -rf "+shellQuote(remoteDir))
+		}
+	}()
+	for _, local := range files {
+		remote := remoteDir + "/" + filepath.Base(local)
+		if err := d.scpRunner.Copy(ctx, cfg, local, remote, ssh.DefaultSCPOptions()); err != nil {
+			return RemoteArtifacts{}, fmt.Errorf("copy %s: %w", filepath.Base(local), err)
+		}
+	}
+	remote := RemoteArtifacts{
+		Vrooli:    remoteDir + "/" + filepath.Base(p.Artifacts.Vrooli),
+		BridgeCLI: remoteDir + "/" + filepath.Base(p.Artifacts.BridgeCLI),
+		Agent:     remoteDir + "/" + filepath.Base(p.Artifacts.Agent),
+	}
+	finalise := "chmod 700 " + shellQuote(remote.Vrooli) + " " + shellQuote(remote.BridgeCLI) + " " + shellQuote(remote.Agent) +
+		"; touch " + shellQuote(remote.Vrooli+".fp") + " " + shellQuote(remote.BridgeCLI+".fp") + " " + shellQuote(remote.Agent+".fp")
+	if err := d.runRemoteCommand(ctx, cfg, finalise); err != nil {
+		return RemoteArtifacts{}, fmt.Errorf("finalise remote artifacts: %w", err)
+	}
+	cleanup = false
+	return remote, nil
+}
+
+const artifactDirMarker = "VBARTIFACTDIR="
+
+func (d *sshDriver) prepareRemoteArtifactDir(ctx context.Context, cfg ssh.Config, name string) (string, error) {
+	var resolved string
+	command := `dest="$HOME/.local/lib/vrooli-bridge/bootstrap/` + name + `"; umask 077; mkdir -p "$dest"; printf '` + artifactDirMarker + `%s\n' "$dest"`
+	res, err := d.svc.RunStreaming(ctx, cfg, command, ssh.StreamOptions{
+		Run: syncRunOptions(),
+		OnStdoutLine: func(line string) {
+			if value, ok := strings.CutPrefix(strings.TrimSpace(line), artifactDirMarker); ok {
+				resolved = strings.TrimSpace(value)
+			}
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	if res.ExitCode != 0 {
+		return "", fmt.Errorf("remote directory creation failed (exit %d): %s", res.ExitCode, res.Stderr)
+	}
+	if resolved == "" || !strings.HasPrefix(resolved, "/") {
+		return "", fmt.Errorf("node did not report an absolute artifact directory")
+	}
+	return resolved, nil
+}
+
+func (d *sshDriver) runRemoteCommand(ctx context.Context, cfg ssh.Config, command string) error {
+	res, err := d.svc.RunStreaming(ctx, cfg, command, ssh.StreamOptions{Run: syncRunOptions()})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("remote command failed (exit %d): %s", res.ExitCode, res.Stderr)
+	}
+	return nil
+}
+
+func remoteArtifactDirName() (string, error) {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("generate remote artifact suffix: %w", err)
+	}
+	return "artifacts-" + hex.EncodeToString(b[:]), nil
+}
+
 // buildSyncRemoteCommand renders the remote shell that resolves the destination,
 // creates it, reports it (the VBSYNCDEST marker), then extracts the incoming tar.
 // An explicit destDir is shell-quoted; an empty one defaults to $HOME/vrooli,
@@ -222,9 +375,36 @@ func (d *sshDriver) RunBootstrap(ctx context.Context, p RunParams, onMarker func
 		},
 	})
 	if err != nil {
-		return BootstrapResult{ExitCode: res.ExitCode}, err
+		return BootstrapResult{ExitCode: res.ExitCode, Diagnostics: diagnosticsTail(res.Stderr)}, err
 	}
-	return BootstrapResult{ExitCode: res.ExitCode}, nil
+	return BootstrapResult{ExitCode: res.ExitCode, Diagnostics: diagnosticsTail(res.Stderr)}, nil
+}
+
+// diagnosticsTailMaxBytes bounds the node-side diagnostic tail carried on a
+// BootstrapResult (and persisted on a failed op). The full stream can be MiB of
+// build output; the operator needs the end — where the failing step's error
+// lands — not the whole log. Sized to comfortably hold a `make setup` failure's
+// trailing context without bloating the durable record.
+const diagnosticsTailMaxBytes = 8 * 1024
+
+// diagnosticsTail returns at most the last diagnosticsTailMaxBytes of the
+// node-side stderr stream, trimmed to whole lines so the surfaced tail never
+// starts mid-line. The bootstrap already bounds its stderr capture (4 MiB), so
+// this is a second, display-oriented bound. An empty stream yields "".
+func diagnosticsTail(stderr string) string {
+	s := strings.TrimRight(stderr, "\n")
+	if s == "" {
+		return ""
+	}
+	if len(s) <= diagnosticsTailMaxBytes {
+		return s
+	}
+	s = s[len(s)-diagnosticsTailMaxBytes:]
+	// Drop a partial leading line so the tail begins at a line boundary.
+	if i := strings.IndexByte(s, '\n'); i >= 0 && i+1 < len(s) {
+		s = s[i+1:]
+	}
+	return s
 }
 
 // config builds the ssh.Config for a resolved Conn, pinned to the bridge-owned

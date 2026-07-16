@@ -313,7 +313,7 @@ func renderOpWithEvents(ctx cliapp.RunContext, msg *onboardv1.GetOnboardingRespo
 		Results:        results,
 	}
 	if op.State == onboardv1.OnboardingState_ONBOARDING_STATE_FAILED {
-		report.RetrievalHints = []string{failureGuidance(op)}
+		report.RetrievalHints = append(diagnosticsBlock(op), failureGuidance(op))
 	}
 	return cliapp.RenderProtoList(ctx, msg, report)
 }
@@ -397,10 +397,10 @@ func terminalSummaryLines(op *onboardv1.OnboardingOp) []string {
 			fmt.Sprintf("`nodes list` — see %s in the fleet.", op.NodeId),
 		}
 	case onboardv1.OnboardingState_ONBOARDING_STATE_FAILED:
-		return []string{
-			fmt.Sprintf("Onboarding %s FAILED (exit %d).", op.Id, op.ExitCode),
-			failureGuidance(op),
-		}
+		lines := []string{fmt.Sprintf("Onboarding %s FAILED (exit %d).", op.Id, op.ExitCode)}
+		lines = append(lines, diagnosticsBlock(op)...)
+		lines = append(lines, failureGuidance(op))
+		return lines
 	case onboardv1.OnboardingState_ONBOARDING_STATE_CANCELLED:
 		return []string{
 			fmt.Sprintf("Onboarding %s was CANCELLED. The host may be partially set up; re-run `onboard start` to converge (idempotent).", op.Id),
@@ -408,6 +408,25 @@ func terminalSummaryLines(op *onboardv1.OnboardingOp) []string {
 	default:
 		return []string{fmt.Sprintf("Onboarding %s ended in state %s.", op.Id, stateLabel(op.State))}
 	}
+}
+
+// diagnosticsBlock renders the node-side failure output (op.FailureDetail) as a
+// framed, indented block so the operator sees the concrete cause — the actual
+// "output above" the bootstrap's failure message referred to — not just the
+// taxonomy guidance. Empty (control-plane-side failures produce no node output)
+// yields no lines.
+func diagnosticsBlock(op *onboardv1.OnboardingOp) []string {
+	if op == nil || op.FailureDetail == "" {
+		return nil
+	}
+	body := strings.Split(strings.TrimRight(op.FailureDetail, "\n"), "\n")
+	lines := make([]string, 0, len(body)+2)
+	lines = append(lines, "── node output (tail) ──────────────────────────────")
+	for _, l := range body {
+		lines = append(lines, "  "+l)
+	}
+	lines = append(lines, "────────────────────────────────────────────────────")
+	return lines
 }
 
 func isTerminalState(s onboardv1.OnboardingState) bool {

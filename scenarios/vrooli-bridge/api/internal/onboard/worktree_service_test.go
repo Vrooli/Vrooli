@@ -25,6 +25,7 @@ func workingTreeService(
 	return onboard.NewService(repo, driver, issuer, confirmer, clock.System{},
 		onboard.WithRevisionResolver(res),
 		onboard.WithWorkingTreeSource(src),
+		onboard.WithArtifactBuilder(&mocks.FakeArtifactBuilder{}),
 		onboard.WithNodeRevisionRecorder(rec),
 	)
 }
@@ -70,6 +71,8 @@ func TestStart_WorkingTreeShipsTreeAndRecordsDirtyProvenance(t *testing.T) {
 	require.Equal(t, 1, driver.SyncTreeCalls)
 	require.Equal(t, src.Snapshot_.Files, driver.CapturedSyncTree.Files)
 	require.Equal(t, "/cp/repo", driver.CapturedSyncTree.RepoDir)
+	require.Equal(t, 1, driver.DetectPlatformCalls)
+	require.Equal(t, 1, driver.PushArtifactsCalls)
 
 	// Dirty provenance is persisted on the op: source mode, base, digest, and a
 	// TargetRevision that renders "<base>+dirty".
@@ -85,6 +88,10 @@ func TestStart_WorkingTreeShipsTreeAndRecordsDirtyProvenance(t *testing.T) {
 	require.Contains(t, driver.CapturedArgs, "--source-digest")
 	require.Contains(t, driver.CapturedArgs, "digestcafebabe1234")
 	require.Contains(t, driver.CapturedArgs, wtBase)
+	require.Contains(t, driver.CapturedArgs, "--vrooli-bin")
+	require.Contains(t, driver.CapturedArgs, "/tmp/artifacts/vrooli")
+	require.Contains(t, driver.CapturedArgs, "--bridge-cli")
+	require.Contains(t, driver.CapturedArgs, "--agent-bin")
 
 	// A sync-tree step event was persisted.
 	_, events, err := svc.GetOp(context.Background(), dec.OpID)
@@ -123,6 +130,8 @@ func TestStart_PinnedModeNeverShipsTree(t *testing.T) {
 	require.False(t, res.calledWorkingTree)
 	require.Equal(t, 0, src.Calls, "pinned mode must not snapshot the working tree")
 	require.Equal(t, 0, driver.SyncTreeCalls, "pinned mode must not ship a tree")
+	require.Equal(t, 0, driver.DetectPlatformCalls, "pinned mode does not cross-build live-tree artifacts")
+	require.Equal(t, 0, driver.PushArtifactsCalls, "pinned mode does not transfer live-tree artifacts")
 	require.NotContains(t, driver.CapturedArgs, "--source-dir")
 	require.Equal(t, onboard.SourceModePinned, op.SourceMode)
 	require.Empty(t, op.WorkingTreeDigest)

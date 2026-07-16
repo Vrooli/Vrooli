@@ -62,20 +62,24 @@ func TestSQLiteRepository_UpdateLifecycle(t *testing.T) {
 	created, err := repo.Create(ctx, onboard.Op{Host: "h"})
 	require.NoError(t, err)
 
-	created.State = onboard.StateSucceeded
+	created.State = onboard.StateFailed
 	created.NodeID = "node-xyz"
-	created.ExitCode = 0
+	created.ExitCode = 1
+	created.FailureReason = onboard.FailureBootstrap
+	created.FailureDetail = "make[1]: *** [setup] Error 2\nvrooli setup failed"
 	created.StartedAt = clk.Now().UTC()
 	created.FinishedAt = clk.Now().UTC()
 	updated, err := repo.Update(ctx, created)
 	require.NoError(t, err)
-	require.Equal(t, onboard.StateSucceeded, updated.State)
+	require.Equal(t, onboard.StateFailed, updated.State)
 	require.Equal(t, "node-xyz", updated.NodeID)
+	require.Equal(t, created.FailureDetail, updated.FailureDetail)
 
 	got, err := repo.Get(ctx, created.ID)
 	require.NoError(t, err)
-	require.Equal(t, onboard.StateSucceeded, got.State)
+	require.Equal(t, onboard.StateFailed, got.State)
 	require.Equal(t, "node-xyz", got.NodeID)
+	require.Equal(t, created.FailureDetail, got.FailureDetail, "failure_detail must round-trip through the durable store")
 	require.False(t, got.FinishedAt.IsZero())
 }
 

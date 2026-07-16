@@ -22,7 +22,7 @@ Bridge's guiding principle is **compose, don't reinvent**: it orchestrates the f
 | SQLite (`api-core/storage`) | embedded storage | yes | control-plane metadata (registry, pairing, runs, provisioning, audit) | `data` storage class under `~/.vrooli/data` | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
 | scenario-authenticator | scenario | yes | owner identity on control-plane access | HTTP validate/login (fail-closed, brief cache) | Control-plane access denied if unreachable (fail-closed, like device-sync-hub). |
-| Full Vrooli install on each node | node prerequisite | yes (node side) | a node is a real build/test environment, not a thin runner | root `vrooli` CLI present (or bootstrapped) | A node without Vrooli cannot accept jobs until provisioned/bootstrapped. |
+| Full Vrooli install on each node | provisioned capability | yes (node side) | a node is a real build/test environment, not a thin runner | working-tree onboarding transfers a source-matched `vrooli` + `.fp`, then `vrooli setup` installs Go/git | A node without Vrooli cannot accept jobs, but no preinstalled Go or GitHub clone is required to onboard it. |
 
 ## Vrooli Resources
 

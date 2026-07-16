@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, ChevronRight, Eye, EyeOff, Loader2, Rocket, XCircle } from "lucide-react";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
 
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { formatDate } from "../../i18n/format";
 import { errorMessage } from "../../lib/errorMessage";
 import {
   OnboardingState,
@@ -90,17 +92,51 @@ function splitCapabilities(raw: string): string[] {
 function StepRow({ event }: { event: OnboardingStepEvent }) {
   const { t } = useTranslation();
   const failed = event.status === OnboardingStepStatus.FAILED;
+  // Wall-clock time each step was emitted, so the timeline reads as a sequence of
+  // moments (and a stalled step is visible as a gap). Absent until the server
+  // stamps it; a missing timestamp simply renders no time rather than a bogus one.
+  const stampedAt = event.emittedAt ? formatDate(timestampDate(event.emittedAt), { timeStyle: "medium" }) : "";
   return (
     <li
       data-testid={selectors.fleet.onboardStep({ step: event.stepId })}
-      className="flex items-baseline justify-between gap-2 text-xs"
+      className="flex items-baseline gap-2 text-xs"
     >
+      <span className="shrink-0 font-mono text-[0.6rem] tabular-nums text-app-muted-foreground">{stampedAt}</span>
       <span className="font-mono text-app-foreground">{event.stepId}</span>
-      <span className={failed ? "text-app-danger" : "text-app-muted-foreground"}>
+      <span className={`ms-auto text-end ${failed ? "text-app-danger" : "text-app-muted-foreground"}`}>
         {t(STEP_STATUS_LABEL[event.status])}
         {event.detail ? ` — ${event.detail}` : ""}
       </span>
     </li>
+  );
+}
+
+/**
+ * Collapsible panel showing the raw node-side output captured when onboarding
+ * failed (op.failureDetail) — the concrete cause (e.g. the `make setup` error)
+ * behind the plain-language failure reason. Uses a native <details> so it is
+ * keyboard-accessible and needs no extra state; collapsed by default so the
+ * banner stays scannable, expandable for the operator (or a support session)
+ * that needs the specifics. The output is the machine's own diagnostics, never
+ * secret material.
+ */
+function FailureOutput({ detail }: { detail: string }) {
+  const { t } = useTranslation();
+  return (
+    <details
+      data-testid={selectors.fleet.onboard.failureOutput}
+      className="mt-1 rounded-control border border-app-danger/30 bg-app-background/60"
+    >
+      <summary
+        data-testid={selectors.fleet.onboard.failureOutputToggle}
+        className="cursor-pointer select-none px-2 py-1 text-xs font-medium text-app-foreground marker:text-app-muted-foreground"
+      >
+        {t(strings.fleet.onboard.failureOutputHeading)}
+      </summary>
+      <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words px-2 pb-2 pt-1 font-mono text-[0.65rem] leading-relaxed text-app-muted-foreground">
+        {detail}
+      </pre>
+    </details>
   );
 }
 
@@ -137,6 +173,7 @@ function TerminalBanner({ op }: { op: OnboardingOp }) {
           {t(strings.fleet.onboard.failureHeading)}
         </p>
         <p className="text-xs text-app-foreground">{t(failureStringKey(op.failureReason))}</p>
+        {op.failureDetail ? <FailureOutput detail={op.failureDetail} /> : null}
         <p className="text-xs text-app-muted-foreground">{t(strings.fleet.onboard.retryHint)}</p>
       </div>
     );

@@ -33,6 +33,7 @@ func domainOpToProto(op onboard.Op) *onboardv1.OnboardingOp {
 		State:          stateToProto(op.State),
 		NodeId:         op.NodeID,
 		FailureReason:  string(op.FailureReason),
+		FailureDetail:  op.FailureDetail,
 		ExitCode:       op.ExitCode,
 		CreatedAt:      timestamppb.New(op.CreatedAt),
 

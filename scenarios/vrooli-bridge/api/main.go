@@ -251,6 +251,13 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
+	// Column-evolution migrations run BEFORE EnsureSchemas so an existing DB is at
+	// the declared shape before EnsureSchemas' drift check verifies it (adding a
+	// column to a CREATE TABLE IF NOT EXISTS is a silent no-op on a DB that already
+	// has the table). Guarded + idempotent: a fresh DB has no table yet and skips.
+	if err := internalonboard.Migrate(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("onboard schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
@@ -375,6 +382,7 @@ func main() {
 	onboardOpts := []internalonboard.Option{
 		internalonboard.WithRevisionResolver(revResolver),
 		internalonboard.WithWorkingTreeSource(internalonboard.NewWorkingTreeSource(strings.TrimSpace(os.Getenv("BRIDGE_CP_REPO_DIR")))),
+		internalonboard.WithArtifactBuilder(internalonboard.NewArtifactBuilder()),
 		internalonboard.WithNodeRevisionRecorder(onboardH.NewNodeRevisionRecorder(registrySvc)),
 	}
 	if cpURL := strings.TrimSpace(os.Getenv("BRIDGE_CONTROL_PLANE_URL")); cpURL != "" {

@@ -56,6 +56,14 @@ type BootstrapResult struct {
 	// ExitCode is the bootstrap script's process exit code (0 success; 2 usage, 3
 	// unsupported platform, 4 pairing, 1 other — bootstrap/README.md).
 	ExitCode int
+
+	// Diagnostics is a bounded tail of the node-side diagnostic stream (the
+	// bootstrap script routes ALL human/build/setup output to stderr, markers to
+	// stdout) — on a failed run its tail is exactly the "output above" the script's
+	// failure message points at (e.g. the `make setup` error). Empty on success or
+	// when the node produced no output. It never carries secret material: the
+	// pairing code rides stdin and the SSH password never reaches the node.
+	Diagnostics string
 }
 
 // SyncParams drives the working-tree ship: tar the RepoDir-relative Files and
@@ -83,6 +91,56 @@ type SyncResult struct {
 	ResolvedDestDir string
 }
 
+// NodePlatform is the cross-compile target reported by the node over the
+// established SSH connection. OS and Arch use Go's canonical GOOS/GOARCH names.
+type NodePlatform struct {
+	OS   string
+	Arch string
+}
+
+// ArtifactBuildParams identifies the exact local tree and one node target the
+// control plane must build. RepoDir is the same snapshotted tree SyncTree ships.
+type ArtifactBuildParams struct {
+	RepoDir string
+	Target  NodePlatform
+}
+
+// PrebuiltArtifacts are the three control-plane-built executables and their
+// freshness sidecars. Directory is temporary and owned by the caller.
+type PrebuiltArtifacts struct {
+	Directory     string
+	Vrooli        string
+	VrooliSidecar string
+	BridgeCLI     string
+	BridgeSidecar string
+	Agent         string
+	AgentSidecar  string
+	Fingerprint   string
+	Target        NodePlatform
+}
+
+// ArtifactBuilder cross-compiles the exact live tree for one detected node
+// platform. Production invokes the project-level vrooli-dist command for the
+// Vrooli executable, keeping the release and bridge consumers on one primitive.
+type ArtifactBuilder interface {
+	Build(ctx context.Context, p ArtifactBuildParams) (PrebuiltArtifacts, error)
+}
+
+// ArtifactPushParams transfers one completed bundle over the established SSH
+// channel. The driver chooses a private, unique remote staging directory.
+type ArtifactPushParams struct {
+	Conn      Conn
+	Artifacts PrebuiltArtifacts
+}
+
+// RemoteArtifacts are the node-side paths bootstrap receives as its prebuilt
+// intake flags.
+type RemoteArtifacts struct {
+	Vrooli    string
+	BridgeCLI string
+	Agent     string
+}
+
 // SSHDriver is the SSH-capability seam: establish passwordless SSH, copy the
 // bootstrap script to the node, ship the control plane's working tree (working-
 // tree mode), and run the bootstrap while streaming its VBOOTSTRAP markers back.
@@ -101,6 +159,14 @@ type SSHDriver interface {
 	// the established SSH channel (tar-over-ssh). Only called in working-tree
 	// source mode. It returns the number of bytes transferred.
 	SyncTree(ctx context.Context, p SyncParams) (SyncResult, error)
+
+	// DetectPlatform resolves the one GOOS/GOARCH pair to cross-compile. It is
+	// called only after passwordless SSH is established.
+	DetectPlatform(ctx context.Context, conn Conn) (NodePlatform, error)
+
+	// PushArtifacts stages the three executables and their .fp sidecars in a
+	// private node-side directory and returns their executable paths.
+	PushArtifacts(ctx context.Context, p ArtifactPushParams) (RemoteArtifacts, error)
 
 	// RunBootstrap runs the bootstrap script remotely, injecting the pairing code
 	// over stdin, and invokes onMarker for every parsed VBOOTSTRAP stdout marker

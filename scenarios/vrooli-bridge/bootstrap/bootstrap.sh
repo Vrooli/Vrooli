@@ -3,8 +3,8 @@
 # vrooli-bridge node bootstrap — take a fresh node from raw OS to a paired,
 # ONLINE, auto-starting fleet agent in one idempotent run.
 #
-# It clones the Vrooli source at a pinned revision, sets the node up, builds the
-# node-agent (and the bridge CLI it needs to redeem) from that source, generates
+# It converges the Vrooli source, receives control-plane-cross-built binaries,
+# runs the transferred Vrooli CLI to set the node up, generates
 # the node keypair, redeems a single-use pairing code (pinning the control-plane
 # key BEFORE the code is burned), installs the platform-native background service,
 # enables headless auto-start, and verifies the agent's dial-out channel is live.
@@ -117,6 +117,7 @@ INCLUDE_OPTIONAL=0
 SKIP_PREREQS=0
 SKIP_SETUP=0
 FORCE_SETUP=0
+VROOLI_BIN_OVERRIDE=""
 AGENT_BIN_OVERRIDE=""
 BRIDGE_CLI_OVERRIDE=""
 
@@ -158,6 +159,7 @@ Pre-satisfied-prerequisite shortcuts (each documented in README.md):
   --skip-setup              Skip `make setup` (node cannot run jobs until it is
                             run later, but pairing/online/auto-start still work).
   --force-setup             Run `make setup` even if its revision sentinel exists.
+  --vrooli-bin PATH         Use a prebuilt Vrooli CLI for setup (with PATH.fp).
   --agent-bin PATH          Use a prebuilt node-agent instead of building it.
   --bridge-cli PATH         Use a prebuilt vrooli-bridge CLI instead of building it.
 
@@ -186,6 +188,7 @@ while [ $# -gt 0 ]; do
     --skip-prereqs)      SKIP_PREREQS=1; shift ;;
     --skip-setup)        SKIP_SETUP=1; shift ;;
     --force-setup)       FORCE_SETUP=1; shift ;;
+    --vrooli-bin)        VROOLI_BIN_OVERRIDE="$2"; shift 2 ;;
     --agent-bin)         AGENT_BIN_OVERRIDE="$2"; shift 2 ;;
     --bridge-cli)        BRIDGE_CLI_OVERRIDE="$2"; shift 2 ;;
     -h|--help)           usage; exit 0 ;;
@@ -197,7 +200,6 @@ done
 
 [ -n "$CONTROL_PLANE_URL" ] || { log "error: --control-plane-url (or \$BRIDGE_CONTROL_PLANE_URL) is required"; usage; exit 2; }
 [ -n "$NODE_NAME" ] || NODE_NAME="$(hostname)"
-[ -n "$WORK_DIR" ] || WORK_DIR="$CHECKOUT_DIR"
 
 # Defence-in-depth: the API boundary already rejects shell metacharacters in the
 # setup-profile values (api/internal/onboard.validateSetupProfile, mirroring the
@@ -237,6 +239,10 @@ readonly BOOTSTRAP_STATE_DIR="${STATE_DIR}/.bootstrap"
 readonly NODE_ID_FILE="${STATE_DIR}/node_id"
 AGENT_BIN="$AGENT_BIN_OVERRIDE"
 BRIDGE_CLI="$BRIDGE_CLI_OVERRIDE"
+PREBUILT_MODE=0
+if [ -n "$VROOLI_BIN_OVERRIDE" ] && [ -n "$AGENT_BIN_OVERRIDE" ] && [ -n "$BRIDGE_CLI_OVERRIDE" ]; then
+  PREBUILT_MODE=1
+fi
 NODE_ID=""
 NODE_PUBLIC_KEY=""
 
@@ -273,6 +279,28 @@ step_detect_os() {
     log "    note: macOS nodes need Remote Login enabled (and auto-login if headless); Docker is only for container workloads later, not to onboard (see README)."
   fi
   step_ok "os=${OS} arch=${ARCH}"
+}
+
+step_receive_artifacts() {
+  step_start prebuilt-artifacts "verify transferred prebuilt binaries"
+  if [ "$PREBUILT_MODE" -ne 1 ]; then
+    step_skip "complete prebuilt bundle not supplied; legacy source-build path remains available"
+    return
+  fi
+  local bin sidecar fingerprint="" value
+  for bin in "$VROOLI_BIN_OVERRIDE" "$BRIDGE_CLI_OVERRIDE" "$AGENT_BIN_OVERRIDE"; do
+    [ -x "$bin" ] || fail 1 "received prebuilt binary is not executable: ${bin}"
+    sidecar="${bin}.fp"
+    [ -s "$sidecar" ] || fail 1 "received prebuilt binary has no freshness sidecar: ${sidecar}"
+    value="$(tr -d '[:space:]' <"$sidecar")"
+    [ -n "$value" ] || fail 1 "received prebuilt freshness sidecar is empty: ${sidecar}"
+    if [ -z "$fingerprint" ]; then
+      fingerprint="$value"
+    elif [ "$fingerprint" != "$value" ]; then
+      fail 1 "received prebuilt binaries do not share one source fingerprint"
+    fi
+  done
+  step_ok "received prebuilt binaries for ${OS}/${ARCH} (fingerprint ${fingerprint:0:12})"
 }
 
 # ensure_cmd <name> — is a command available?
@@ -361,6 +389,10 @@ step_prereqs() {
   # post-setup toolchain guard (step_toolchain_guard) confirms setup actually
   # delivered go/pnpm before the build steps rely on them.
   step_start prereqs "ensure git/curl (clone prerequisites)"
+  if [ "$PREBUILT_MODE" -eq 1 ] && [ -n "$SOURCE_DIR" ]; then
+    step_skip "pre-synced tree + prebuilt binaries require no clone prerequisites"
+    return
+  fi
   if [ "$SKIP_PREREQS" -eq 1 ]; then
     step_skip "--skip-prereqs"
     return
@@ -485,15 +517,30 @@ step_setup() {
   # skipped for privilege; otherwise run unprivileged and surface the skipped
   # root-required items LOUDLY (a warning in the step detail, never a failure).
   local elevated=0
-  local -a cmd=(make -C "$CHECKOUT_DIR" setup "SETUP_ARGS=${setup_args}")
-  if have_passwordless_sudo; then
+  local -a cmd
+  if [ "$PREBUILT_MODE" -eq 1 ]; then
+    # Point freshness checks at the exact plain tree the control plane shipped.
+    # The transferred .fp sidecar must match it, so this invocation cannot try a
+    # node-side rebuild before setup has installed Go.
+    cmd=(env "VROOLI_SOURCE_ROOT=${CHECKOUT_DIR}" "$VROOLI_BIN_OVERRIDE" setup)
+    [ -n "$SETUP_ENVIRONMENT" ] && cmd+=(--environment "$SETUP_ENVIRONMENT")
+    [ -n "$SETUP_RESOURCES" ] && cmd+=(--resources "$SETUP_RESOURCES")
+    [ -n "$SETUP_SCENARIOS" ] && cmd+=(--scenarios "$SETUP_SCENARIOS")
+    [ "$INCLUDE_OPTIONAL" -eq 1 ] && cmd+=(--include-optional)
+  else
+    cmd=(make -C "$CHECKOUT_DIR" setup "SETUP_ARGS=${setup_args}")
+  fi
+  # Homebrew refuses to run as root. On macOS, keep setup under the SSH user and
+  # let its individual host requirements use the provisioned passwordless sudo
+  # where needed. Linux retains whole-setup elevation.
+  if [ "$OS" != "darwin" ] && have_passwordless_sudo; then
     elevated=1
     [ "$(id -u)" -eq 0 ] || cmd=(sudo -n "${cmd[@]}")
   fi
 
   local out rc
   out="$(mktemp)"
-  if "${cmd[@]}" >"$out" 2>&1; then
+  if ( cd "$CHECKOUT_DIR" && "${cmd[@]}" ) >"$out" 2>&1; then
     rc=0
   else
     rc=$?
@@ -507,7 +554,7 @@ step_setup() {
       fail 3 "vrooli setup refuses to run on this macOS host — the darwin setup gate is not yet open here. Track the macOS-compatibility / workspace-sandbox-cross-platform workstream, then re-run. (Do NOT --skip-setup unless prerequisites are already provisioned.)"
     fi
     rm -f "$out"
-    fail 1 "make setup failed (exit ${rc}) — see output above"
+    fail 1 "vrooli setup failed (exit ${rc}) — see output above"
   fi
 
   # Name the skipped root-required requirements loudly so they are visible in the
@@ -574,6 +621,10 @@ step_toolchain_guard() {
   # found". Also repairs the non-interactive-SSH PATH gap: a tool present only in a
   # known install dir is recovered onto PATH for the rest of this run.
   step_start toolchain "verify build toolchains resolve"
+  if [ "$PREBUILT_MODE" -eq 1 ]; then
+    step_skip "prebuilt binaries received; no node-side source build toolchain required"
+    return
+  fi
   local recovered="" absent="" tool dir
   for tool in $BUILD_TOOLCHAINS; do
     if have "$tool"; then
@@ -603,11 +654,11 @@ step_toolchain_guard() {
 }
 
 step_build_agent() {
-  step_start build-agent "build node-agent from source"
+  step_start build-agent "prepare node-agent"
   if [ -n "$AGENT_BIN_OVERRIDE" ]; then
     [ -x "$AGENT_BIN_OVERRIDE" ] || fail 1 "--agent-bin ${AGENT_BIN_OVERRIDE} is not executable"
     AGENT_BIN="$AGENT_BIN_OVERRIDE"
-    step_skip "using prebuilt ${AGENT_BIN}"
+    step_skip "received prebuilt ${AGENT_BIN}; no node-side build"
     return
   fi
   make -C "${CHECKOUT_DIR}/scenarios/vrooli-bridge/agent" build >&2
@@ -617,11 +668,11 @@ step_build_agent() {
 }
 
 step_build_cli() {
-  step_start build-cli "build vrooli-bridge CLI from source"
+  step_start build-cli "prepare vrooli-bridge CLI"
   if [ -n "$BRIDGE_CLI_OVERRIDE" ]; then
     [ -x "$BRIDGE_CLI_OVERRIDE" ] || fail 1 "--bridge-cli ${BRIDGE_CLI_OVERRIDE} is not executable"
     BRIDGE_CLI="$BRIDGE_CLI_OVERRIDE"
-    step_skip "using prebuilt ${BRIDGE_CLI}"
+    step_skip "received prebuilt ${BRIDGE_CLI}; no node-side build"
     return
   fi
   local cli_dir="${CHECKOUT_DIR}/scenarios/vrooli-bridge/cli"
@@ -820,8 +871,13 @@ main() {
   marker run-start "" "vrooli-bridge node bootstrap"
   log "vrooli-bridge bootstrap: node=${NODE_NAME} cp=${CONTROL_PLANE_URL} checkout=${CHECKOUT_DIR} state=${STATE_DIR}"
   step_detect_os
+  step_receive_artifacts
   step_prereqs
   step_clone
+  # --work-dir defaults to the effective checkout. Resolve that default only
+  # after step_clone because working-tree mode replaces CHECKOUT_DIR with the
+  # control plane's pre-synced source directory.
+  [ -n "$WORK_DIR" ] || WORK_DIR="$CHECKOUT_DIR"
   step_setup
   step_toolchain_guard
   step_build_agent

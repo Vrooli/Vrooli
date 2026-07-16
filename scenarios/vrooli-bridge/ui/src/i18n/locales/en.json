@@ -138,6 +138,7 @@
       "viewNode": "See it in the fleet below.",
       "failureHeading": "Onboarding failed",
       "retryHint": "Fix the issue above, then start onboarding again — every step is idempotent, so a re-run converges.",
+      "failureOutputHeading": "What the machine reported",
       "state": {
         "unspecified": "Unknown",
         "pending": "Pending",

@@ -58,3 +58,37 @@ func TestFailureGuidance_EmptyReasonIsHonest(t *testing.T) {
 	require.Contains(t, msg, "Onboarding failed")
 	require.NotContains(t, msg, "()") // no dangling empty-code parenthetical
 }
+
+func TestDiagnosticsBlock_FramesNodeOutputOnlyWhenPresent(t *testing.T) {
+	// No node output → no block (control-plane-side failures produce none).
+	require.Empty(t, diagnosticsBlock(&onboardv1.OnboardingOp{FailureReason: failSSHSetup}))
+	require.Empty(t, diagnosticsBlock(nil))
+
+	op := &onboardv1.OnboardingOp{
+		FailureReason: failBootstrap,
+		FailureDetail: "make[1]: *** [setup] Error 2\nvrooli setup failed: postgres not reachable",
+	}
+	lines := diagnosticsBlock(op)
+	require.NotEmpty(t, lines)
+	joined := strings.Join(lines, "\n")
+	// The concrete cause is present, each output line indented under a frame.
+	require.Contains(t, joined, "node output")
+	require.Contains(t, joined, "  make[1]: *** [setup] Error 2")
+	require.Contains(t, joined, "  vrooli setup failed: postgres not reachable")
+}
+
+func TestTerminalSummary_FailedOpShowsNodeOutputBeforeGuidance(t *testing.T) {
+	op := &onboardv1.OnboardingOp{
+		Id:            "op-1",
+		Host:          "h",
+		User:          "root",
+		ExitCode:      1,
+		State:         onboardv1.OnboardingState_ONBOARDING_STATE_FAILED,
+		FailureReason: failBootstrap,
+		FailureDetail: "FINAL ERROR: make setup failed",
+	}
+	joined := strings.Join(terminalSummaryLines(op), "\n")
+	require.Contains(t, joined, "FINAL ERROR: make setup failed", "the operator must see the concrete node error, not just the reason code")
+	// The concrete output appears above the taxonomy guidance.
+	require.Less(t, strings.Index(joined, "FINAL ERROR"), strings.Index(joined, "idempotent"))
+}

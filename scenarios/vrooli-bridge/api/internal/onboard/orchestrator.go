@@ -3,6 +3,7 @@ package onboard
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -38,7 +39,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 			return
 		}
 		s.emit(ctx, opID, &seq, StepSSHSetup, StepStatusFailed, err.Error())
-		s.finishFailed(ctx, opID, &seq, FailureSSHSetup, 0, err.Error())
+		s.finishFailed(ctx, opID, &seq, FailureSSHSetup, 0, err.Error(), "")
 		return
 	}
 	s.emit(ctx, opID, &seq, StepSSHSetup, StepStatusOK, sshSetupDetail(conn.SudoState))
@@ -57,7 +58,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 			return
 		}
 		s.emit(ctx, opID, &seq, StepPushScript, StepStatusFailed, err.Error())
-		s.finishFailed(ctx, opID, &seq, FailureScriptPush, 0, err.Error())
+		s.finishFailed(ctx, opID, &seq, FailureScriptPush, 0, err.Error(), "")
 		return
 	}
 	s.emit(ctx, opID, &seq, StepPushScript, StepStatusOK, "bootstrap script staged on node")
@@ -68,6 +69,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	// then verifies the pre-synced tree instead of cloning. Pinned mode skips this
 	// entirely (the node clones the pushed commit itself).
 	var wtDigest, wtSourceDir string
+	var remoteArtifacts RemoteArtifacts
 	if in.WorkingTree() {
 		s.emit(ctx, opID, &seq, StepSyncTree, StepStatusStarted, "shipping control-plane working tree to node")
 		snap, snErr := s.worktree.Snapshot(ctx)
@@ -77,7 +79,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 				return
 			}
 			s.emit(ctx, opID, &seq, StepSyncTree, StepStatusFailed, snErr.Error())
-			s.finishFailed(ctx, opID, &seq, FailureWorkingTreeSync, 0, "working-tree snapshot failed: "+snErr.Error())
+			s.finishFailed(ctx, opID, &seq, FailureWorkingTreeSync, 0, "working-tree snapshot failed: "+snErr.Error(), "")
 			return
 		}
 		syncRes, syErr := s.driver.SyncTree(ctx, SyncParams{
@@ -89,7 +91,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 				return
 			}
 			s.emit(ctx, opID, &seq, StepSyncTree, StepStatusFailed, syErr.Error())
-			s.finishFailed(ctx, opID, &seq, FailureWorkingTreeSync, 0, "working-tree ship failed: "+syErr.Error())
+			s.finishFailed(ctx, opID, &seq, FailureWorkingTreeSync, 0, "working-tree ship failed: "+syErr.Error(), "")
 			return
 		}
 		wtDigest = snap.Digest
@@ -101,12 +103,40 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 			s.finishCancelled(ctx, opID, &seq)
 			return
 		}
+
+		// The node needs no local Go toolchain: discover its one target, build all
+		// executable inputs from the exact RepoDir just shipped, then transfer them
+		// and their sidecars before bootstrap starts.
+		s.emit(ctx, opID, &seq, StepPrebuiltArtifacts, StepStatusStarted, "cross-building prebuilt binaries for node")
+		platform, pErr := s.driver.DetectPlatform(ctx, conn)
+		if pErr != nil {
+			s.emit(ctx, opID, &seq, StepPrebuiltArtifacts, StepStatusFailed, pErr.Error())
+			s.finishFailed(ctx, opID, &seq, FailurePrebuiltArtifacts, 0, "node platform detection failed: "+pErr.Error(), "")
+			return
+		}
+		built, bErr := s.artifacts.Build(ctx, ArtifactBuildParams{RepoDir: snap.RepoDir, Target: platform})
+		if built.Directory != "" {
+			defer os.RemoveAll(built.Directory)
+		}
+		if bErr != nil {
+			s.emit(ctx, opID, &seq, StepPrebuiltArtifacts, StepStatusFailed, bErr.Error())
+			s.finishFailed(ctx, opID, &seq, FailurePrebuiltArtifacts, 0, "control-plane cross-build failed: "+bErr.Error(), "")
+			return
+		}
+		remoteArtifacts, bErr = s.driver.PushArtifacts(ctx, ArtifactPushParams{Conn: conn, Artifacts: built})
+		if bErr != nil {
+			s.emit(ctx, opID, &seq, StepPrebuiltArtifacts, StepStatusFailed, bErr.Error())
+			s.finishFailed(ctx, opID, &seq, FailurePrebuiltArtifacts, 0, "prebuilt artifact transfer failed: "+bErr.Error(), "")
+			return
+		}
+		s.emit(ctx, opID, &seq, StepPrebuiltArtifacts, StepStatusOK, fmt.Sprintf(
+			"received prebuilt binaries for %s/%s (fingerprint %s)", platform.OS, platform.Arch, shortDigest(built.Fingerprint)))
 	}
 
 	// ---- Issue the server-side pairing code (operator never handles one) ----
 	code, err := s.issuer.Issue(ctx, IssueParams{NodeName: in.NodeName, Scopes: nil})
 	if err != nil {
-		s.finishFailed(ctx, opID, &seq, FailurePairingIssue, 0, "could not issue pairing code")
+		s.finishFailed(ctx, opID, &seq, FailurePairingIssue, 0, "could not issue pairing code", "")
 		return
 	}
 	if s.cancelled(ctx) {
@@ -122,7 +152,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.handleMarker(ctx, opID, &seq, m, &nodeID)
 	}
 	res, runErr := s.driver.RunBootstrap(ctx, RunParams{
-		Conn: conn, RemotePath: remotePath, Args: buildBootstrapArgs(in, wtSourceDir, wtDigest), PairingCode: code,
+		Conn: conn, RemotePath: remotePath, Args: buildBootstrapArgs(in, wtSourceDir, wtDigest, remoteArtifacts), PairingCode: code,
 	}, onMarker)
 	// The code has served its one purpose — destroy our copy immediately.
 	zeroBytes(code)
@@ -132,11 +162,11 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 			s.finishCancelled(ctx, opID, &seq)
 			return
 		}
-		s.finishFailed(ctx, opID, &seq, FailureBootstrap, int32(res.ExitCode), "bootstrap transport error: "+runErr.Error())
+		s.finishFailed(ctx, opID, &seq, FailureBootstrap, int32(res.ExitCode), "bootstrap transport error: "+runErr.Error(), res.Diagnostics)
 		return
 	}
 	if reason, ok := failureForExit(res.ExitCode); ok {
-		s.finishFailed(ctx, opID, &seq, reason, int32(res.ExitCode), fmt.Sprintf("bootstrap exited %d", res.ExitCode))
+		s.finishFailed(ctx, opID, &seq, reason, int32(res.ExitCode), fmt.Sprintf("bootstrap exited %d", res.ExitCode), res.Diagnostics)
 		return
 	}
 	if s.cancelled(ctx) {
@@ -146,7 +176,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 
 	// ---- Phase: VERIFYING ----
 	if nodeID == "" {
-		s.finishFailed(ctx, opID, &seq, FailureVerifyOnline, int32(res.ExitCode), "bootstrap succeeded but no node id was observed in its markers")
+		s.finishFailed(ctx, opID, &seq, FailureVerifyOnline, int32(res.ExitCode), "bootstrap succeeded but no node id was observed in its markers", res.Diagnostics)
 		return
 	}
 	s.recordNodeID(ctx, opID, nodeID)
@@ -159,7 +189,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 			detail = "online confirmation failed: " + cErr.Error()
 		}
 		s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusFailed, detail)
-		s.finishFailed(ctx, opID, &seq, FailureVerifyOnline, int32(res.ExitCode), detail)
+		s.finishFailed(ctx, opID, &seq, FailureVerifyOnline, int32(res.ExitCode), detail, res.Diagnostics)
 		return
 	}
 	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusOK, "node is online with control-plane key pinned")
@@ -225,7 +255,7 @@ func (s *service) handleMarker(ctx context.Context, opID string, seq *uint64, m 
 // working-tree mode wtSourceDir/wtDigest are set (the node-side tree the
 // orchestrator pre-shipped and its content digest); the script then verifies that
 // tree instead of cloning, and keys its setup sentinel on the digest.
-func buildBootstrapArgs(in StartInput, wtSourceDir, wtDigest string) []string {
+func buildBootstrapArgs(in StartInput, wtSourceDir, wtDigest string, artifacts RemoteArtifacts) []string {
 	args := []string{"--control-plane-url", in.ControlPlaneURL, "--revision", in.TargetRevision}
 	if wtSourceDir != "" {
 		// Working-tree mode: point the script at the pre-synced tree and give it the
@@ -234,6 +264,15 @@ func buildBootstrapArgs(in StartInput, wtSourceDir, wtDigest string) []string {
 		if wtDigest != "" {
 			args = append(args, "--source-digest", wtDigest)
 		}
+	}
+	if artifacts.Vrooli != "" {
+		args = append(args, "--vrooli-bin", artifacts.Vrooli)
+	}
+	if artifacts.BridgeCLI != "" {
+		args = append(args, "--bridge-cli", artifacts.BridgeCLI)
+	}
+	if artifacts.Agent != "" {
+		args = append(args, "--agent-bin", artifacts.Agent)
 	}
 	if nn := trimField(in.NodeName); nn != "" {
 		args = append(args, "--node-name", nn)
@@ -417,24 +456,29 @@ func (s *service) appendEvent(ctx context.Context, opID, stepID string, status S
 }
 
 func (s *service) finishSucceeded(ctx context.Context, opID, nodeID string, exitCode int32) {
-	s.finish(ctx, opID, StateSucceeded, "", exitCode, nodeID)
+	s.finish(ctx, opID, StateSucceeded, "", exitCode, nodeID, "")
 }
 
-func (s *service) finishFailed(ctx context.Context, opID string, seq *uint64, reason FailureReason, exitCode int32, detail string) {
+// finishFailed drives an op to FAILED. detail is a single-line step-event note
+// (the taxonomy in human words); diagnostics is the bounded, multi-line node-side
+// output tail (empty for control-plane-side failures that never ran the remote
+// script) persisted on the op so the operator sees the concrete cause, not just
+// the reason code.
+func (s *service) finishFailed(ctx context.Context, opID string, seq *uint64, reason FailureReason, exitCode int32, detail, diagnostics string) {
 	if detail != "" {
 		s.emit(ctx, opID, seq, StepRun, StepStatusFailed, detail)
 	}
-	s.finish(ctx, opID, StateFailed, reason, exitCode, "")
+	s.finish(ctx, opID, StateFailed, reason, exitCode, "", diagnostics)
 }
 
 func (s *service) finishCancelled(ctx context.Context, opID string, seq *uint64) {
 	s.emit(ctx, opID, seq, StepRun, StepStatusFailed, "onboarding cancelled by operator")
-	s.finish(ctx, opID, StateCancelled, "", 0, "")
+	s.finish(ctx, opID, StateCancelled, "", 0, "", "")
 }
 
 // finish drives an op to a terminal state and wakes block-once waiters. It never
 // re-terminalises an already-terminal op.
-func (s *service) finish(ctx context.Context, opID string, state State, reason FailureReason, exitCode int32, nodeID string) {
+func (s *service) finish(ctx context.Context, opID string, state State, reason FailureReason, exitCode int32, nodeID, diagnostics string) {
 	op, err := s.repo.Get(ctx, opID)
 	if err != nil {
 		return
@@ -455,6 +499,11 @@ func (s *service) finish(ctx context.Context, opID string, state State, reason F
 		op.NodeID = nodeID
 	}
 	op.FinishedAt = now
+	// Only a FAILED op carries diagnostics; a late/empty tail never clobbers a
+	// reason already recorded.
+	if diagnostics != "" {
+		op.FailureDetail = diagnostics
+	}
 	if _, err := s.repo.Update(ctx, op); err != nil {
 		return
 	}

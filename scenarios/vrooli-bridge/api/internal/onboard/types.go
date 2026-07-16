@@ -164,6 +164,9 @@ const (
 	// StepSyncTree — the working-tree ship phase (tar-over-SSH of the control
 	// plane's local tree to the node). Only emitted in working-tree source mode.
 	StepSyncTree = "sync-tree"
+	// StepPrebuiltArtifacts — target detection, control-plane cross-build, and
+	// transfer of the three prebuilt node executables plus sidecars.
+	StepPrebuiltArtifacts = "prebuilt-artifacts"
 	// StepRun — the bootstrap run envelope (run-start / run-ok / run-fail).
 	StepRun = "run"
 	// StepVerifyOnline — the orchestrator's post-run ONLINE confirmation (distinct
@@ -183,6 +186,9 @@ const (
 	// FailureWorkingTreeSync — could not snapshot or ship the control plane's
 	// working tree to the node (working-tree source mode only).
 	FailureWorkingTreeSync FailureReason = "working_tree_sync_failed"
+	// FailurePrebuiltArtifacts — node target discovery, cross-build, or transfer
+	// failed before bootstrap could run.
+	FailurePrebuiltArtifacts FailureReason = "prebuilt_artifacts_failed"
 	// FailurePairingIssue — could not issue the server-side pairing code.
 	FailurePairingIssue FailureReason = "pairing_issue_failed"
 	// FailureBootstrapUsage — the bootstrap script rejected its config (exit 2).
@@ -217,6 +223,14 @@ type Op struct {
 	NodeID        string
 	FailureReason FailureReason
 	ExitCode      int32
+
+	// FailureDetail is a bounded, multi-line tail of the node-side diagnostic
+	// output captured on a terminal FAILED op (the concrete cause — e.g. the
+	// `make setup` error — behind the FailureReason taxonomy code). Empty on
+	// success/cancelled and for control-plane-side failures that never reached the
+	// node. It never carries secret material (the node streams only its own build/
+	// setup diagnostics; the password and pairing code never touch its output).
+	FailureDetail string
 
 	// SourceMode records how the node acquired its source. In working-tree mode
 	// BaseRevision + WorkingTreeDigest carry the dirty provenance (TargetRevision

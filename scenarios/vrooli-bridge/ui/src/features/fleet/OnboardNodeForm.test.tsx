@@ -351,6 +351,48 @@ describe("OnboardNodeForm progress", () => {
     expect(rendered.size).toBe(FAILURE_CODES.length);
   });
 
+  it("shows the node's failure output in an expandable panel when present", async () => {
+    const nodeOutput = "make[1]: *** [setup] Error 2\nvrooli setup failed: postgres not reachable";
+    startOnboarding.mockResolvedValue({ opId: "op-diag" });
+    getOnboarding.mockResolvedValue(
+      makeGetOnboardingResponse(
+        {
+          id: "op-diag",
+          state: OnboardingState.FAILED,
+          failureReason: "bootstrap_failed",
+          exitCode: 1,
+          failureDetail: nodeOutput,
+        },
+        [makeStepEvent({ stepId: "setup", status: OnboardingStepStatus.FAILED })],
+      ),
+    );
+
+    renderWithProviders(<OnboardNodeForm />);
+    await startOnboard();
+
+    const output = await screen.findByTestId(s.failureOutput);
+    // The concrete cause is rendered verbatim — not just the taxonomy message.
+    expect(output).toHaveTextContent("make[1]: *** [setup] Error 2");
+    expect(output).toHaveTextContent("vrooli setup failed: postgres not reachable");
+    expect(screen.getByTestId(s.failureOutputToggle)).toBeInTheDocument();
+  });
+
+  it("omits the failure-output panel when the op carries no node output", async () => {
+    startOnboarding.mockResolvedValue({ opId: "op-nodiag" });
+    getOnboarding.mockResolvedValue(
+      makeGetOnboardingResponse(
+        { id: "op-nodiag", state: OnboardingState.FAILED, failureReason: "ssh_setup_failed", exitCode: 0 },
+        [makeStepEvent({ stepId: "ssh-setup", status: OnboardingStepStatus.FAILED })],
+      ),
+    );
+
+    renderWithProviders(<OnboardNodeForm />);
+    await startOnboard();
+
+    await screen.findByTestId(s.failure);
+    expect(screen.queryByTestId(s.failureOutput)).not.toBeInTheDocument();
+  });
+
   it("surfaces a StartOnboarding error and stays on the wizard", async () => {
     startOnboarding.mockRejectedValue(new ConnectError("host unreachable", Code.InvalidArgument));
 

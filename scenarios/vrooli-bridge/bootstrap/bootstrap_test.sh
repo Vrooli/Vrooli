@@ -26,6 +26,7 @@ STATE="${WORKROOT}/state"
 CHECKOUT="${WORKROOT}/checkout"
 FAKE_AGENT="${FAKEBIN}/fake-agent"
 FAKE_CLI="${FAKEBIN}/fake-cli"
+FAKE_VROOLI="${FAKEBIN}/fake-vrooli"
 mkdir -p "$FAKEBIN" "$TOOLBIN"
 
 PASS=0
@@ -130,6 +131,7 @@ JOURNAL
   cat >"$FAKE_AGENT" <<AGENT
 #!/usr/bin/env bash
 set -euo pipefail
+[ -n "\${FAKE_AGENT_LOG:-}" ] && printf '%s\n' "\$*" >>"\$FAKE_AGENT_LOG"
 svc="${STATE}/.service.json"
 unit="${STATE}/.unit"
 if [ "\$1" = "--print-public-key" ]; then echo "AAAApublickeyBBBB="; exit 0; fi
@@ -168,6 +170,17 @@ echo '{"node_id":"node-xyz","control_plane_public_key":"FAKECPKEY="}'
 exit 0
 CLI
 
+  # Fake project Vrooli CLI: the prebuilt-bundle path invokes this directly for
+  # setup with VROOLI_SOURCE_ROOT pointing at the shipped tree. It records the
+  # call so the no-Go test proves make/go were never used on the node.
+  cat >"$FAKE_VROOLI" <<'VROOLI'
+#!/usr/bin/env bash
+set -euo pipefail
+[ -n "${FAKE_VROOLI_LOG:-}" ] && printf 'root=%s argv=%s\n' "${VROOLI_SOURCE_ROOT:-}" "$*" >>"$FAKE_VROOLI_LOG"
+[ "${1:-}" = "setup" ] || { echo "expected setup" >&2; exit 2; }
+exit 0
+VROOLI
+
   # apt-get: records every invocation's argv to $FAKE_APT_LOG so a test can assert
   # the prereqs step installs ONLY git/curl and never a toolchain package. Any
   # `install` also drops a matching command shim into $FAKEBIN so the post-install
@@ -194,7 +207,7 @@ APT
   printf '#!/usr/bin/env bash\nexit 0\n' >"${TOOLBIN}/go"
   printf '#!/usr/bin/env bash\nexit 0\n' >"${TOOLBIN}/pnpm"
 
-  chmod +x "${FAKEBIN}/git" "${FAKEBIN}/make" "${FAKEBIN}/sudo" "${FAKEBIN}/loginctl" "${FAKEBIN}/journalctl" "${FAKEBIN}/apt-get" "${TOOLBIN}/go" "${TOOLBIN}/pnpm" "$FAKE_AGENT" "$FAKE_CLI"
+  chmod +x "${FAKEBIN}/git" "${FAKEBIN}/make" "${FAKEBIN}/sudo" "${FAKEBIN}/loginctl" "${FAKEBIN}/journalctl" "${FAKEBIN}/apt-get" "${TOOLBIN}/go" "${TOOLBIN}/pnpm" "$FAKE_AGENT" "$FAKE_CLI" "$FAKE_VROOLI"
 }
 
 FAKE_MAKE_LOG="${WORKROOT}/make.calls"
@@ -342,7 +355,7 @@ check "prereqs step detail is git/curl-only" "$(grep 'step=prereqs' "$OUTPQ" | g
 make_toolless_bin() {
   local d="$1" b real
   mkdir -p "$d"
-  for b in bash sh uname hostname id mktemp cat rm cp mv grep egrep awk sed tr cut date sleep \
+  for b in bash sh uname hostname id mktemp cat rm cp mv ls grep egrep awk sed tr cut date sleep \
            mkdir chmod chown touch dirname basename sha256sum shasum cksum jq env ln \
            readlink dd head tail wc sort; do
     real="$(command -v "$b" 2>/dev/null || true)"
@@ -351,6 +364,39 @@ make_toolless_bin() {
 }
 
 TOOLLESS="${WORKROOT}/toolless"; make_toolless_bin "$TOOLLESS"
+
+echo "== complete prebuilt bundle reaches online with no node Go or source build =="
+rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$CHECKOUT"
+printf 'shipped tree\n' >"${CHECKOUT}/WORKING.txt"
+: >"$FAKE_MAKE_LOG"
+FAKE_VROOLI_LOG="${WORKROOT}/vrooli.calls"; : >"$FAKE_VROOLI_LOG"
+FAKE_AGENT_LOG="${WORKROOT}/agent.calls"; : >"$FAKE_AGENT_LOG"
+PREBUILT_DEFAULT_CHECKOUT="${WORKROOT}/prebuilt-default-checkout"
+for bin in "$FAKE_VROOLI" "$FAKE_CLI" "$FAKE_AGENT"; do
+  printf 'live-tree-fingerprint\n' >"${bin}.fp"
+done
+OUTPRE="${WORKROOT}/prebuilt.out"
+set +e
+PATH="${FAKEBIN}:${TOOLLESS}" HOME="${WORKROOT}/prebuilt-home" \
+FAKE_MAKE_LOG="$FAKE_MAKE_LOG" FAKE_VROOLI_LOG="$FAKE_VROOLI_LOG" FAKE_AGENT_LOG="$FAKE_AGENT_LOG" \
+BRIDGE_PAIRING_CODE="TESTCODE1234" \
+  bash "$SCRIPT" \
+    --control-plane-url "http://cp.test" --node-name "test-node" \
+    --checkout-dir "$PREBUILT_DEFAULT_CHECKOUT" --source-dir "$CHECKOUT" --source-digest "live-tree-fingerprint" \
+    --state-dir "$STATE" --vrooli-bin "$FAKE_VROOLI" \
+    --agent-bin "$FAKE_AGENT" --bridge-cli "$FAKE_CLI" --verify-timeout 10 \
+    >"$OUTPRE" 2>"${OUTPRE}.err"
+rcpre=$?
+set -e
+check "prebuilt no-Go run exits 0" "$([ "$rcpre" -eq 0 ] && echo 0 || echo 1)"
+check "prebuilt bundle reports received binaries" "$(grep 'step=prebuilt-artifacts' "$OUTPRE" | grep -q 'received prebuilt binaries' && echo 0 || echo 1)"
+check "prebuilt setup invokes transferred vrooli directly" "$(grep -q 'argv=setup' "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
+check "prebuilt setup points freshness at shipped tree" "$(grep -q "root=${CHECKOUT}" "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
+check "prebuilt service work-dir follows shipped tree" "$(grep -q -- "--work-dir ${CHECKOUT}" "$FAKE_AGENT_LOG" && echo 0 || echo 1)"
+check "prebuilt run never invokes make" "$([ -s "$FAKE_MAKE_LOG" ] && echo 1 || echo 0)"
+check "prebuilt run never invokes go build" "$(grep -q 'go build\|build from source' "${OUTPRE}" "${OUTPRE}.err" && echo 1 || echo 0)"
+check "prebuilt toolchain guard skips source-build requirement" "$(marker_is "$OUTPRE" step-skip toolchain && echo 0 || echo 1)"
+check "prebuilt run reaches ONLINE" "$(grep -q 'event=run-ok' "$OUTPRE" && echo 0 || echo 1)"
 
 echo "== toolchain guard recovers a tool installed OFF the non-interactive PATH =="
 # go/pnpm are absent from PATH (TOOLBIN withheld; TOOLLESS has no toolchains) but

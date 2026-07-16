@@ -150,6 +150,13 @@ so uncommitted work onboards without a commit or push:
 vrooli-bridge onboard start --host mini-01.local --user admin --source working-tree
 ```
 
+After the tree lands, the control plane detects the node's OS/architecture and
+cross-builds exactly one target for `vrooli`, `vrooli-bridge`, and
+`vrooli-bridge-agent`. The node receives those binaries plus `.fp` sidecars,
+runs the transferred `vrooli setup`, and performs no `go build`; a node that
+starts without Go can therefore reach ONLINE. Watch output includes the
+`prebuilt-artifacts` step and `received prebuilt binaries` detail.
+
 A working-tree node records **dirty provenance** — its revision renders
 `"<base>+dirty"` in `nodes list`, node detail, and the fleet UI, so it is
 visibly not a pinned node. Because it is pinned to no fetchable commit, **fleet
