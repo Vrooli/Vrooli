@@ -1,0 +1,225 @@
+#!/bin/sh
+set -eu
+
+repository=${VROOLI_GITHUB_REPOSITORY:-Vrooli/Vrooli}
+version=${VROOLI_VERSION:-latest}
+if [ -n "${VROOLI_RELEASE_BASE_URL:-}" ]; then
+    release_base=${VROOLI_RELEASE_BASE_URL%/}
+elif [ "${version}" = latest ]; then
+    release_base="https://github.com/${repository}/releases/latest/download"
+else
+    case "${version}" in v*) tag=${version} ;; *) tag=v${version} ;; esac
+    release_base="https://github.com/${repository}/releases/download/${tag}"
+fi
+
+if ! command -v curl >/dev/null 2>&1; then
+    printf '%s\n' 'curl is required to install Vrooli' >&2
+    exit 1
+fi
+install_source=${VROOLI_INSTALL_SOURCE:-1}
+
+run_bootstrap_privileged() {
+    if [ "$(id -u)" = 0 ]; then
+        "$@"
+        return
+    fi
+    if command -v sudo >/dev/null 2>&1; then
+        printf 'Vrooli needs administrator access to install release verification tools: %s\n' "$*"
+        sudo "$@"
+        return
+    fi
+    printf '%s\n' 'Release verification tools are missing and sudo is unavailable' >&2
+    return 1
+}
+
+install_bootstrap_tools() {
+    packages=$1
+    printf 'Installing required release verification tools: %s\n' "${packages}"
+    if command -v apt-get >/dev/null 2>&1; then
+        run_bootstrap_privileged apt-get update
+        # Package names are fixed values assembled above, not user input.
+        # shellcheck disable=SC2086
+        run_bootstrap_privileged apt-get install -y --no-install-recommends ${packages}
+    elif command -v dnf >/dev/null 2>&1; then
+        # shellcheck disable=SC2086
+        run_bootstrap_privileged dnf install -y ${packages}
+    elif command -v yum >/dev/null 2>&1; then
+        # shellcheck disable=SC2086
+        run_bootstrap_privileged yum install -y ${packages}
+    elif command -v pacman >/dev/null 2>&1; then
+        # shellcheck disable=SC2086
+        run_bootstrap_privileged pacman -Sy --needed --noconfirm ${packages}
+    elif command -v apk >/dev/null 2>&1; then
+        # shellcheck disable=SC2086
+        run_bootstrap_privileged apk add --no-cache ${packages}
+    else
+        printf 'Cannot install release verification tools (%s): no supported package manager found\n' "${packages}" >&2
+        return 1
+    fi
+}
+
+bootstrap_packages=
+if ! command -v openssl >/dev/null 2>&1; then
+    bootstrap_packages=openssl
+fi
+if [ "${install_source}" = 1 ] && ! command -v tar >/dev/null 2>&1; then
+    bootstrap_packages="${bootstrap_packages}${bootstrap_packages:+ }tar"
+fi
+if [ -n "${bootstrap_packages}" ]; then
+    install_bootstrap_tools "${bootstrap_packages}"
+fi
+if ! command -v openssl >/dev/null 2>&1; then
+    printf '%s\n' 'OpenSSL is required to authenticate the Vrooli release manifest and automatic installation failed' >&2
+    exit 1
+fi
+if [ "${install_source}" = 1 ] && ! command -v tar >/dev/null 2>&1; then
+    printf '%s\n' 'tar is required to install the authenticated Vrooli source tree and automatic installation failed' >&2
+    exit 1
+fi
+
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/vrooli-install.XXXXXX")
+cleanup() { rm -rf "${work_dir}"; }
+trap cleanup EXIT HUP INT TERM
+
+helper_asset=vrooli-install-lib.sh
+manifest_asset=SHA256SUMS
+signature_asset=SHA256SUMS.sig
+curl -fsSL --retry 3 --retry-delay 1 -o "${work_dir}/${helper_asset}" "${release_base}/${helper_asset}"
+curl -fsSL --retry 3 --retry-delay 1 -o "${work_dir}/${manifest_asset}" "${release_base}/${manifest_asset}"
+curl -fsSL --retry 3 --retry-delay 1 -o "${work_dir}/${signature_asset}" "${release_base}/${signature_asset}"
+
+if [ -n "${VROOLI_RELEASE_PUBLIC_KEY_FILE:-}" ]; then
+    cp "${VROOLI_RELEASE_PUBLIC_KEY_FILE}" "${work_dir}/vrooli-release.pub"
+else
+cat > "${work_dir}/vrooli-release.pub" <<'VROOLI_RELEASE_PUBLIC_KEY'
+-----BEGIN PUBLIC KEY-----
+MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAk/E+Lt7yJyj29CnISiMQ
+ku6yRtOVWogzQAvdXE/st5MelBng4yrZ3zaSef90oS/TU2pkaWV/TAnc4P1EAdyP
+7UCH1pVjA1dBFoN4XAGpUsRoH+BSMmhApXfc9UayZPxtxr+HCF16csbMC7k++RRS
+k6/s7g35qdnthYpDMhRuIrs+46kJs9eoYg7nBXRyFaBM2u2ObP4KKZQLVV1vQ+Of
+WaGjQW2FU2iID2vtdHc9qC/HYOS8ZA+N1UCODaaGKtA5qoJCGtBsq/+VG+j4ETcm
+ivlYwS2xf4VXCzgpbaKmENUC36XQDjfhs1L8zopDP009z49xAMifXjOdJ31aogMP
+t01qRUnYVmNdZu7QWvLax9LWAIom6NfGEBx5IHA95Zt2c10hqBv5TKuyvTLbUi/D
+Jsb5xgwGst/jtxHCKdidaBYIJMjgD/d/Z5dpkH/rdC0XPWjEcfXc5QW8UkSD8g66
+e14ffzXNVhG50qxNV8UaiKNcFO/fqm7mLag5qY7udEVVAgMBAAE=
+-----END PUBLIC KEY-----
+VROOLI_RELEASE_PUBLIC_KEY
+fi
+
+openssl base64 -d -A -in "${work_dir}/${signature_asset}" -out "${work_dir}/manifest.sig"
+if ! openssl dgst -sha256 -verify "${work_dir}/vrooli-release.pub" -signature "${work_dir}/manifest.sig" "${work_dir}/${manifest_asset}" >/dev/null 2>&1; then
+    printf '%s\n' 'Vrooli release signature verification failed; nothing was installed' >&2
+    exit 1
+fi
+
+expected_helper=
+while read -r digest filename _rest; do
+    filename=${filename#\*}
+    if [ "${filename}" = "${helper_asset}" ]; then expected_helper=${digest}; break; fi
+done < "${work_dir}/${manifest_asset}"
+if [ -z "${expected_helper}" ]; then
+    printf '%s\n' 'Vrooli release manifest does not authenticate the installer helper' >&2
+    exit 1
+fi
+actual_helper=$(openssl dgst -sha256 "${work_dir}/${helper_asset}" | sed 's/^.*= //')
+if [ "${actual_helper}" != "${expected_helper}" ]; then
+    printf '%s\n' 'Vrooli installer helper checksum mismatch; nothing was installed' >&2
+    exit 1
+fi
+
+# shellcheck source=../packages/cli-core/install/platform.sh
+. "${work_dir}/${helper_asset}"
+os_name=$(vrooli_detect_os)
+arch_name=$(vrooli_detect_arch)
+suffix=
+if [ "${os_name}" = windows ]; then suffix=.exe; fi
+asset="vrooli_${os_name}_${arch_name}${suffix}"
+sidecar_asset="${asset}.fp"
+source_asset=vrooli-source.tar.gz
+vrooli_download "${release_base}/${asset}" "${work_dir}/${asset}"
+vrooli_download "${release_base}/${sidecar_asset}" "${work_dir}/${sidecar_asset}"
+if [ "${install_source}" = 1 ]; then
+    vrooli_download "${release_base}/${source_asset}" "${work_dir}/${source_asset}"
+fi
+vrooli_verify_signature "${work_dir}/${manifest_asset}" "${work_dir}/${signature_asset}" "${work_dir}/vrooli-release.pub"
+vrooli_verify_checksum "${work_dir}/${manifest_asset}" "${asset}" "${work_dir}/${asset}"
+vrooli_verify_checksum "${work_dir}/${manifest_asset}" "${sidecar_asset}" "${work_dir}/${sidecar_asset}"
+if [ "${install_source}" = 1 ]; then
+    vrooli_verify_checksum "${work_dir}/${manifest_asset}" "${source_asset}" "${work_dir}/${source_asset}"
+fi
+
+source_root=
+if [ "${install_source}" = 1 ]; then
+    source_key=
+    while read -r digest filename _rest; do
+        filename=${filename#\*}
+        if [ "${filename}" = "${source_asset}" ]; then source_key=${digest}; break; fi
+    done < "${work_dir}/${manifest_asset}"
+    if [ "${#source_key}" -ne 64 ]; then
+        printf '%s\n' 'Vrooli release manifest has no valid source archive digest' >&2
+        exit 1
+    fi
+    case "${source_key}" in
+        *[!A-Fa-f0-9]*)
+            printf '%s\n' 'Vrooli source archive digest cannot safely name the installed source tree' >&2
+            exit 1
+            ;;
+    esac
+    source_extract="${work_dir}/source-extract"
+    mkdir -p "${source_extract}"
+    tar -xzf "${work_dir}/${source_asset}" -C "${source_extract}"
+    if [ ! -f "${source_extract}/Vrooli/go.mod" ]; then
+        printf '%s\n' 'Authenticated Vrooli source archive has no Vrooli/go.mod root' >&2
+        exit 1
+    fi
+    if [ -n "${VROOLI_SOURCE_DIR:-}" ]; then
+        source_root=${VROOLI_SOURCE_DIR}
+        if [ -e "${source_root}" ]; then
+            printf 'Refusing to replace existing VROOLI_SOURCE_DIR: %s\n' "${source_root}" >&2
+            exit 1
+        fi
+        mkdir -p "$(dirname "${source_root}")"
+        mv "${source_extract}/Vrooli" "${source_root}"
+    else
+        source_parent="${HOME}/.vrooli/src/${source_key}"
+        source_root="${source_parent}/Vrooli"
+        if [ ! -f "${source_root}/go.mod" ]; then
+            source_stage="${source_parent}.new.$$"
+            rm -rf "${source_stage}"
+            mkdir -p "${source_stage}"
+            mv "${source_extract}/Vrooli" "${source_stage}/Vrooli"
+            rm -rf "${source_parent}"
+            mv "${source_stage}" "${source_parent}"
+        fi
+    fi
+fi
+
+install_dir=${VROOLI_INSTALL_DIR:-$(vrooli_default_install_dir)}
+mkdir -p "${install_dir}"
+chmod 0755 "${work_dir}/${asset}"
+mv "${work_dir}/${sidecar_asset}" "${install_dir}/vrooli${suffix}.fp"
+mv "${work_dir}/${asset}" "${install_dir}/vrooli${suffix}"
+
+if [ -n "${source_root}" ]; then
+    pointer_dir="${HOME}/.vrooli"
+    mkdir -p "${pointer_dir}"
+    pointer_tmp="${pointer_dir}/source-root.tmp.$$"
+    printf '%s\n' "${source_root}" > "${pointer_tmp}"
+    mv "${pointer_tmp}" "${pointer_dir}/source-root"
+fi
+
+printf 'Installed authenticated Vrooli CLI to %s\n' "${install_dir}/vrooli${suffix}"
+if [ -n "${source_root}" ]; then
+    printf 'Installed authenticated Vrooli source to %s\n' "${source_root}"
+fi
+case ":${PATH:-}:" in
+    *:"${install_dir}":*) ;;
+    *) printf 'Add %s to PATH, then run: vrooli setup\n' "${install_dir}" ;;
+esac
+if [ "${VROOLI_RUN_SETUP:-0}" = 1 ]; then
+    if [ -z "${source_root}" ]; then
+        printf '%s\n' 'VROOLI_RUN_SETUP=1 requires source installation (do not set VROOLI_INSTALL_SOURCE=0)' >&2
+        exit 1
+    fi
+    VROOLI_SOURCE_ROOT="${source_root}" "${install_dir}/vrooli${suffix}" setup
+fi
