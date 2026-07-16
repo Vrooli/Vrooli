@@ -198,6 +198,8 @@ func (s *Server) setupRoutes() {
 
 	apiRouter := s.router.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/health", s.handleHealth).Methods("GET")
+	apiRouter.HandleFunc("/admission", s.handleAdmissionStatus).Methods("GET")
+	apiRouter.HandleFunc("/admission/profile", s.handleAdmissionProfile).Methods("POST")
 	apiRouter.HandleFunc("/config", s.handleGetConfig).Methods("GET")
 	apiRouter.HandleFunc("/phases", s.handleListPhases).Methods("GET")
 	apiRouter.HandleFunc("/phases/applicability", s.handlePreviewPhaseApplicability).Methods("GET")

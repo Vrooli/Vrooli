@@ -1,57 +1,41 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { fetchHealth } from "./health";
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { fetchHealth } from './health';
+import { ApiError } from './client';
 
-describe("API utilities", () => {
-  beforeEach(() => {
-    // Clear all mocks before each test
-    vi.clearAllMocks();
+describe('fetchHealth', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
-  describe("fetchHealth", () => {
-    it("should successfully fetch health status", async () => {
-      // Mock successful response
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          status: "healthy",
-          service: "landing-page",
-          timestamp: "2025-11-21T00:00:00Z",
-        }),
-      });
+  it('fetches and returns the health payload from the REST /health probe', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ status: 'healthy', service: 'landing-page', timestamp: '2026-01-01T00:00:00Z' }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
 
-      const result = await fetchHealth();
+    const result = await fetchHealth();
 
-      expect(result).toEqual({
-        status: "healthy",
-        service: "landing-page",
-        timestamp: "2025-11-21T00:00:00Z",
-      });
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      status: 'healthy',
+      service: 'landing-page',
+      timestamp: '2026-01-01T00:00:00Z',
     });
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/health$/);
+    expect(init).toMatchObject({ method: 'GET', cache: 'no-store' });
+  });
 
-    it("should throw error when API returns non-ok status", async () => {
-      // Mock failed response
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        text: async () => "Internal Server Error",
-      });
+  it('throws ApiError on a non-ok response', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response('service unavailable', { status: 503 }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
 
-      await expect(fetchHealth()).rejects.toThrow("API call failed (500): Internal Server Error");
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-    });
-
-    it("should include correct headers", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ status: "healthy", service: "landing-page", timestamp: "" }),
-      });
-
-      await fetchHealth();
-
-      const callArgs = (global.fetch as any).mock.calls[0];
-      expect(callArgs[1].headers["Content-Type"]).toBe("application/json");
-      expect(callArgs[1].credentials).toBe("include");
-    });
+    const err = await fetchHealth().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(503);
   });
 });

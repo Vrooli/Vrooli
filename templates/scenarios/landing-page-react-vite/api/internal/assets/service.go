@@ -102,55 +102,22 @@ func NewService(db *sql.DB) *Service {
 
 // Upload validates, stores, records, and (best-effort) derives an uploaded file.
 func (s *Service) Upload(req *UploadRequest) (*Asset, error) {
-	if req.File == nil || req.Header == nil {
-		return nil, errors.New("no file provided")
+	mimeType, err := s.validateUpload(req)
+	if err != nil {
+		return nil, err
 	}
-	if req.Header.Size > s.maxSize {
-		return nil, fmt.Errorf("%w: max %d bytes", ErrFileTooLarge, s.maxSize)
-	}
-
-	mimeType := req.Header.Header.Get("Content-Type")
-	if mimeType == "" {
-		mimeType = detectMimeType(req.Header.Filename)
-	}
-	if !s.allowedTypes[mimeType] {
-		return nil, fmt.Errorf("%w: %s not allowed", ErrInvalidFileType, mimeType)
-	}
-
-	ext := filepath.Ext(req.Header.Filename)
-	if ext == "" {
-		ext = mimeTypeToExt(mimeType)
-	}
-	uniqueName := generateUniqueFilename(ext)
 
 	category := req.Category
 	if category == "" {
 		category = "general"
 	}
+	uniqueName := generateUniqueFilename(uploadExtension(req.Header.Filename, mimeType))
 	storagePath := filepath.Join(categoryToSubdir(category), uniqueName)
 	fullPath := filepath.Join(s.uploadDir, storagePath)
 
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
-	}
-	dst, err := os.Create(fullPath)
+	written, err := writeUploadFile(fullPath, req.File)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
-	}
-	defer dst.Close()
-
-	written, err := io.Copy(dst, req.File)
-	if err != nil {
-		_ = os.Remove(fullPath)
-		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
-	}
-
-	var altText, uploadedBy *string
-	if req.AltText != "" {
-		altText = &req.AltText
-	}
-	if req.UploadedBy != "" {
-		uploadedBy = &req.UploadedBy
+		return nil, err
 	}
 
 	asset := &Asset{
@@ -159,45 +126,119 @@ func (s *Service) Upload(req *UploadRequest) (*Asset, error) {
 		MimeType:         mimeType,
 		SizeBytes:        written,
 		StoragePath:      storagePath,
-		AltText:          altText,
+		AltText:          optionalString(req.AltText),
 		Category:         category,
-		UploadedBy:       uploadedBy,
+		UploadedBy:       optionalString(req.UploadedBy),
 	}
+	if err := s.insertAsset(asset, fullPath); err != nil {
+		return nil, err
+	}
+	asset.URL = s.baseURL + "/" + storagePath
+
+	s.attachDerivatives(asset, fullPath, storagePath, mimeType, category)
+	return asset, nil
+}
+
+// validateUpload verifies a file is present, within size limits, and of an
+// allowed type, returning the resolved MIME type.
+func (s *Service) validateUpload(req *UploadRequest) (string, error) {
+	if req.File == nil || req.Header == nil {
+		return "", errors.New("no file provided")
+	}
+	if req.Header.Size > s.maxSize {
+		return "", fmt.Errorf("%w: max %d bytes", ErrFileTooLarge, s.maxSize)
+	}
+	mimeType := req.Header.Header.Get("Content-Type")
+	if mimeType == "" {
+		mimeType = detectMimeType(req.Header.Filename)
+	}
+	if !s.allowedTypes[mimeType] {
+		return "", fmt.Errorf("%w: %s not allowed", ErrInvalidFileType, mimeType)
+	}
+	return mimeType, nil
+}
+
+// uploadExtension returns the filename extension, falling back to one derived
+// from the MIME type when the original name has none.
+func uploadExtension(filename, mimeType string) string {
+	if ext := filepath.Ext(filename); ext != "" {
+		return ext
+	}
+	return mimeTypeToExt(mimeType)
+}
+
+// optionalString returns a pointer to v, or nil when v is empty.
+func optionalString(v string) *string {
+	if v == "" {
+		return nil
+	}
+	return &v
+}
+
+// writeUploadFile streams the upload to disk, removing a partial file on error.
+func writeUploadFile(fullPath string, file io.Reader) (int64, error) {
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		return 0, fmt.Errorf("%w: %v", ErrUploadFailed, err)
+	}
+	dst, err := os.Create(fullPath)
+	if err != nil {
+		return 0, fmt.Errorf("%w: %v", ErrUploadFailed, err)
+	}
+	defer dst.Close()
+
+	written, err := io.Copy(dst, file)
+	if err != nil {
+		_ = os.Remove(fullPath)
+		return 0, fmt.Errorf("%w: %v", ErrUploadFailed, err)
+	}
+	return written, nil
+}
+
+// insertAsset persists the catalog row, removing the on-disk file if the insert
+// fails so bytes and metadata never drift apart.
+func (s *Service) insertAsset(asset *Asset, fullPath string) error {
 	if err := s.db.QueryRow(`
 		INSERT INTO assets (filename, original_filename, mime_type, size_bytes, storage_path, alt_text, category, uploaded_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, created_at
 	`, asset.Filename, asset.OriginalFilename, asset.MimeType, asset.SizeBytes, asset.StoragePath,
-		altText, category, uploadedBy).Scan(&asset.ID, &asset.CreatedAt); err != nil {
+		asset.AltText, asset.Category, asset.UploadedBy).Scan(&asset.ID, &asset.CreatedAt); err != nil {
 		_ = os.Remove(fullPath)
-		return nil, fmt.Errorf("failed to save asset metadata: %w", err)
+		return fmt.Errorf("failed to save asset metadata: %w", err)
 	}
-	asset.URL = s.baseURL + "/" + storagePath
+	return nil
+}
 
-	if strings.HasPrefix(mimeType, "image/") && mimeType != "image/svg+xml" {
-		derivatives, derr := s.generateDerivatives(fullPath, storagePath, mimeType, category)
-		if derr != nil {
-			log.Printf("assets: derivative generation failed (category=%s mime=%s): %v", category, mimeType, derr)
-		} else if len(derivatives) > 0 {
-			asset.Derivatives = derivatives
-			if thumb, ok := derivatives["logo_256"]; ok && asset.ThumbnailPath == nil {
-				asset.ThumbnailPath = ptr(thumb)
-			}
-			if thumb, ok := derivatives["favicon_64"]; ok && asset.ThumbnailPath == nil {
-				asset.ThumbnailPath = ptr(thumb)
-			}
-			if category == "logo" {
-				if _, ok := asset.Derivatives["logo_icon"]; !ok {
-					if alias, ok := asset.Derivatives["logo_256"]; ok {
-						asset.Derivatives["logo_icon"] = alias
-					} else {
-						asset.Derivatives["logo_icon"] = storagePath
-					}
-				}
+// attachDerivatives best-effort generates image derivatives (logo/favicon/OG
+// sizes) and records them on the asset. Failures are logged, not fatal.
+func (s *Service) attachDerivatives(asset *Asset, fullPath, storagePath, mimeType, category string) {
+	if !strings.HasPrefix(mimeType, "image/") || mimeType == "image/svg+xml" {
+		return
+	}
+	derivatives, derr := s.generateDerivatives(fullPath, storagePath, mimeType, category)
+	if derr != nil {
+		log.Printf("assets: derivative generation failed (category=%s mime=%s): %v", category, mimeType, derr)
+		return
+	}
+	if len(derivatives) == 0 {
+		return
+	}
+	asset.Derivatives = derivatives
+	if thumb, ok := derivatives["logo_256"]; ok && asset.ThumbnailPath == nil {
+		asset.ThumbnailPath = ptr(thumb)
+	}
+	if thumb, ok := derivatives["favicon_64"]; ok && asset.ThumbnailPath == nil {
+		asset.ThumbnailPath = ptr(thumb)
+	}
+	if category == "logo" {
+		if _, ok := asset.Derivatives["logo_icon"]; !ok {
+			if alias, ok := asset.Derivatives["logo_256"]; ok {
+				asset.Derivatives["logo_icon"] = alias
+			} else {
+				asset.Derivatives["logo_icon"] = storagePath
 			}
 		}
 	}
-	return asset, nil
 }
 
 const assetColumns = `id, filename, original_filename, mime_type, size_bytes, storage_path,

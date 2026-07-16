@@ -4,7 +4,7 @@ All notable changes to the `landing-page-react-vite` template are documented her
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this template aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - Unreleased
+## [1.0.0] - 2026-07-15
 
 The Go API rewrite from gorilla/mux to **Proto + Connect-RPC** on the
 `api-core` module architecture. This is a greenfield rebuild — no mux
@@ -125,10 +125,3 @@ blocks de-quarantine.
 - The Go API still uses `gorilla/mux` rather than Connect-RPC, and the README
   still describes a "Go (Gin) API"; both are addressed by the `1.0.0` rewrite.
   Deep validation will fail until then.
-
-## [1.0.0] - Unreleased
-
-- Planned: rewrite the Go API from `gorilla/mux` to Proto + Connect-RPC, wire the
-  UI to the generated Connect clients, reach template test parity, pass deep
-  validation, and de-quarantine the template. The README stack description is
-  corrected as part of this rewrite.

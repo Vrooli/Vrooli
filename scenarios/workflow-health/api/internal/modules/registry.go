@@ -26,6 +26,7 @@ import (
 	validationH "workflow-health/handlers/validation"
 	workflowsH "workflow-health/handlers/workflows"
 	localdb "workflow-health/internal/database"
+	validationrun "workflow-health/internal/validationrun"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/workflow-health/v1/workflows"
@@ -83,6 +84,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(validationH.Schema),
+		apidb.SchemaProviderFunc(validationrun.Schema),
 		apidb.SchemaProviderFunc(workflowsH.Schema),
 	}
 }

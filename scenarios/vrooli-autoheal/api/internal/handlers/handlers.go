@@ -61,16 +61,28 @@ type StoreInterface interface {
 	GetActionLogsForCheck(ctx context.Context, checkID string, limit int) (*persistence.ActionLogsResponse, error)
 }
 
+type operationalHistoryPruner interface {
+	PruneOperationalHistory(ctx context.Context, before time.Time, batchSize int) (persistence.RetentionResult, error)
+}
+
+type operationalRetentionReporter interface {
+	OperationalRetentionStatus(ctx context.Context) (persistence.RetentionStatus, error)
+}
+
 // Handlers wraps the dependencies needed by HTTP handlers
 type Handlers struct {
-	registry           *checks.Registry
-	store              StoreInterface
-	platform           *platform.Capabilities
-	watchdogDetector   *watchdog.Detector
-	hostCollector      hostinventory.Collector
-	incidentService    *incidents.Service
-	remediationService *remediation.Service
-	systemEventService *systemevents.Service
+	registry              *checks.Registry
+	store                 StoreInterface
+	platform              *platform.Capabilities
+	watchdogDetector      *watchdog.Detector
+	hostCollector         hostinventory.Collector
+	incidentService       *incidents.Service
+	remediationService    *remediation.Service
+	systemEventService    *systemevents.Service
+	historyRetentionHours func() int
+	lastRetentionAt       time.Time
+	lastRetentionResult   persistence.RetentionResult
+	lastRetentionErr      string
 
 	// tickLock prevents concurrent tick executions
 	tickLock    sync.Mutex
@@ -139,6 +151,39 @@ func NewWithInterface(registry *checks.Registry, store StoreInterface, plat *pla
 
 func (h *Handlers) SetSystemEventService(service *systemevents.Service) {
 	h.systemEventService = service
+}
+
+// SetHistoryRetentionHoursProvider wires the live user configuration into the
+// tick-owned retention pass. Keeping it as a narrow function avoids coupling
+// HTTP handlers to the configuration manager implementation.
+func (h *Handlers) SetHistoryRetentionHoursProvider(provider func() int) {
+	h.historyRetentionHours = provider
+}
+
+func (h *Handlers) pruneOperationalHistory(ctx context.Context) {
+	if h.historyRetentionHours == nil || !h.lastRetentionAt.IsZero() && time.Since(h.lastRetentionAt) < time.Hour {
+		return
+	}
+	pruner, ok := h.store.(operationalHistoryPruner)
+	if !ok {
+		return
+	}
+	hours := h.historyRetentionHours()
+	if hours < 1 {
+		return
+	}
+	result, err := pruner.PruneOperationalHistory(ctx, time.Now().Add(-time.Duration(hours)*time.Hour), 1000)
+	if err != nil {
+		h.lastRetentionErr = err.Error()
+		apierrors.LogError("retention", "prune_operational_history", err)
+		return
+	}
+	h.lastRetentionAt = time.Now()
+	h.lastRetentionResult = result
+	h.lastRetentionErr = ""
+	if result.HealthResults+result.ActionLogs+result.Actions+result.SystemEvents > 0 {
+		apierrors.LogInfo("retention", "pruned operational history", "health_results", result.HealthResults, "action_logs", result.ActionLogs, "actions", result.Actions, "system_events", result.SystemEvents)
+	}
 }
 
 // Health returns basic service health for lifecycle checks.
@@ -232,6 +277,22 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 			"journalctlExecsAvoided": h.systemEventService.ExecsAvoided(),
 		}
 	}
+	if reporter, ok := h.store.(operationalRetentionReporter); ok {
+		ctx, cancel := context.WithTimeout(r.Context(), healthDependencyTimeout)
+		retention, err := reporter.OperationalRetentionStatus(ctx)
+		cancel()
+		if err != nil {
+			response["retention"] = map[string]interface{}{"degraded": true, "error": err.Error()}
+		} else {
+			response["retention"] = map[string]interface{}{
+				"database":          retention,
+				"lastPrunedAt":      h.lastRetentionAt,
+				"lastPrune":         h.lastRetentionResult,
+				"degraded":          h.lastRetentionErr != "",
+				"degradationReason": h.lastRetentionErr,
+			}
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -302,6 +363,7 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 	}
 	h.upsertIncidentsFromInventoryChanges(ctx, inventoryChanges)
 	h.refreshSystemEvents(ctx)
+	h.pruneOperationalHistory(ctx)
 
 	// Run auto-heal for critical checks with auto-heal enabled
 	// [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]

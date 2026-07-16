@@ -1,116 +1,75 @@
-import { fromJson } from '@bufbuild/protobuf';
+import { create, type MessageInitShape } from '@bufbuild/protobuf';
+import { createClient } from '@connectrpc/connect';
+import { LandingPagePaymentsService } from '@vrooli/proto-types/landing-page-react-vite/v1/billing_pb';
 import {
   ConfigSource,
   GetStripeSettingsResponseSchema,
-  UpdateStripeSettingsResponseSchema,
-  type StripeConfigSnapshot,
-  type StripeSettings,
-} from '@proto-lprv/settings_pb';
-import { apiCall } from './common';
-import type { BundleCatalogEntry } from './types';
+  UpdateStripeSettingsRequestSchema,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/settings_pb';
+import type {
+  GetStripeSettingsResponse,
+  StripeSettings,
+  StripeConfigSnapshot,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/settings_pb';
+import { BundleAdminService } from '@vrooli/proto-types/landing-page-react-vite/v1/bundles_pb';
+import type { BundleCatalogEntry } from '@vrooli/proto-types/landing-page-react-vite/v1/bundles_pb';
+import type { PlanOption } from '@vrooli/proto-types/landing-page-react-vite/v1/pricing_pb';
 
-export interface StripeSettingsResponse {
-  publishable_key_preview?: string;
-  publishable_key_set: boolean;
-  secret_key_set: boolean;
-  webhook_secret_set: boolean;
-  dashboard_url?: string;
-  updated_at?: string;
-  source: 'env' | 'database' | string;
-}
+import { transport } from './client';
 
-export interface StripeSettingsUpdatePayload {
-  publishable_key?: string;
-  secret_key?: string;
-  webhook_secret?: string;
-  dashboard_url?: string;
-}
+const paymentsClient = createClient(LandingPagePaymentsService, transport);
+const bundleClient = createClient(BundleAdminService, transport);
 
-export interface BundleCatalogResponse {
-  bundles: BundleCatalogEntry[];
-}
-
-export interface UpdateBundlePricePayload {
-  plan_name?: string;
-  display_weight?: number;
-  display_enabled?: boolean;
+export type StripeSettingsUpdate = MessageInitShape<typeof UpdateStripeSettingsRequestSchema>;
+export interface BundlePriceUpdate {
+  planName?: string;
+  displayWeight?: number;
+  displayEnabled?: boolean;
   subtitle?: string;
   badge?: string;
-  cta_label?: string;
+  ctaLabel?: string;
   highlight?: boolean;
   features?: string[];
 }
 
-function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: StripeSettings): StripeSettingsResponse {
-  const normalizeSource = (source?: ConfigSource | string | number): 'env' | 'database' | string => {
-    switch (source) {
-      case ConfigSource.CONFIG_SOURCE_DATABASE:
-        return 'database';
-      case ConfigSource.CONFIG_SOURCE_ENV:
-        return 'env';
-      default:
-        return typeof source === 'number' ? String(source) : source ?? 'env';
-    }
-  };
-
-  const normalizeTimestamp = (value: unknown): string | undefined => {
-    if (!value) return undefined;
-    // Buf Timestamp with toJsonString
-    if (typeof (value as { toJsonString?: () => string }).toJsonString === 'function') {
-      return (value as { toJsonString: () => string }).toJsonString();
-    }
-    if (typeof value === 'string') return value;
-    if (value instanceof Date) return value.toISOString();
-    // Fallback for plain objects with seconds/nanos
-    const maybe = value as { seconds?: number; nanos?: number };
-    if (typeof maybe.seconds === 'number') {
-      const ms = maybe.seconds * 1000 + (maybe.nanos ? maybe.nanos / 1_000_000 : 0);
-      return new Date(ms).toISOString();
-    }
-    return undefined;
-  };
-
-  return {
-    publishable_key_preview: snapshot?.publishableKeyPreview,
-    publishable_key_set: Boolean(snapshot?.publishableKeySet),
-    secret_key_set: Boolean(snapshot?.secretKeySet),
-    webhook_secret_set: Boolean(snapshot?.webhookSecretSet),
-    dashboard_url: settings?.dashboardUrl,
-    updated_at: normalizeTimestamp(settings?.updatedAt),
-    source: normalizeSource(snapshot?.source),
-  };
+/** Fetches the current Stripe settings and redacted key snapshot (admin). */
+export function getStripeSettings(): Promise<GetStripeSettingsResponse> {
+  return paymentsClient.getStripeSettings({});
 }
 
-export function getStripeSettings() {
-  return apiCall('/admin/settings/stripe').then((resp) => {
-    const message = fromJson(GetStripeSettingsResponseSchema, resp, {
-      ignoreUnknownFields: true,
-      protoFieldName: true,
-    });
-    return flattenStripeSettings(message.snapshot, message.settings);
+/** Updates Stripe settings; only provided fields change (admin). */
+export async function updateStripeSettings(
+  data: StripeSettingsUpdate,
+): Promise<GetStripeSettingsResponse> {
+  const resp = await paymentsClient.updateStripeSettings(data);
+  // UpdateStripeSettingsResponse mirrors GetStripeSettingsResponse; normalize to
+  // the single shape the settings UI consumes.
+  return create(GetStripeSettingsResponseSchema, {
+    settings: resp.settings,
+    snapshot: resp.snapshot,
   });
 }
 
-export function updateStripeSettings(payload: StripeSettingsUpdatePayload) {
-  return apiCall('/admin/settings/stripe', {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  }).then((resp) => {
-    const message = fromJson(UpdateStripeSettingsResponseSchema, resp, {
-      ignoreUnknownFields: true,
-      protoFieldName: true,
-    });
-    return flattenStripeSettings(message.snapshot, message.settings);
-  });
+/** Lists the bundle catalog with per-bundle prices (admin). */
+export async function getBundleCatalog(): Promise<BundleCatalogEntry[]> {
+  const resp = await bundleClient.listBundleCatalog({});
+  return resp.bundles;
 }
 
-export function getBundleCatalog() {
-  return apiCall<BundleCatalogResponse>('/admin/bundles');
+/** Updates display metadata for a single bundle price (admin). */
+export async function updateBundlePrice(
+  bundleKey: string,
+  priceId: string,
+  data: BundlePriceUpdate,
+): Promise<PlanOption | undefined> {
+  const resp = await bundleClient.updateBundlePrice({ ...data, bundleKey, priceId });
+  return resp.price;
 }
 
-export function updateBundlePrice(bundleKey: string, priceId: string, payload: UpdateBundlePricePayload) {
-  return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices/${encodeURIComponent(priceId)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  });
-}
+export { ConfigSource };
+export type {
+  GetStripeSettingsResponse,
+  StripeSettings,
+  StripeConfigSnapshot,
+  BundleCatalogEntry,
+};

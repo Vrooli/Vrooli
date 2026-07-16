@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-02T16:29:59-04:00"
+    "last_validated_at": "2026-07-15T10:37:31-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P2-002",
       "title": "Produce Reproducible Rollout Evidence",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "category": "rollout",
       "criticality": "P2",
@@ -15,7 +15,7 @@
         {
           "type": "manual",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Final rollout notes in docs/internal/PROGRESS.md list the exact commands, run IDs, baseline names, and accepted skips for the completed plan."
         }
       ]

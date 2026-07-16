@@ -56,16 +56,39 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ### `POST /scenario-validation/v1.ScenarioValidationService/ValidateScenario`
 
-Validate a scenario's BAS workflow catalog and, when requested, execute
-validation cases through Browser Automation Studio.
+Validate a scenario's BAS workflow catalog without executing Browser Automation
+Studio work. Execution uses the durable lifecycle service below.
 
 | | |
 |---|---|
 | **Auth** | None |
-| **Request** | `ValidateScenarioRequest { scenario: string, path: string, include_execution: bool }` |
-| **Response** | `ValidateScenarioResponse` with workflow maturity assessment, findings, native catalog detail, execution summary, and metrics |
+| **Request** | `ValidateScenarioRequest { scenario: string, path: string }` |
+| **Response** | `ValidateScenarioResponse` with workflow maturity assessment, findings, native catalog detail, and metrics |
 | **Errors** | `invalid_argument` for missing or unresolvable target; `internal` for maturity response construction failures |
-| **CLI** | `workflow-health validate scenario <scenario> [--path <dir>] [--include-execution]` |
+| **CLI** | `workflow-health validate scenario <scenario> [--path <dir>]` |
+
+### Durable validation runs
+
+`DurableValidationRunService` owns execution work in Workflow Health's SQLite
+ledger. Start returns a persisted handle and preliminary static response; Get
+reattaches, Wait blocks once without cancelling work, and Abort is the only
+explicit cancellation route. Terminal runs embed the same shared
+`ValidateScenarioResponse` used by direct and Test Genie consumers.
+
+| RPC | CLI |
+|---|---|
+| `StartValidationRun` | `workflow-health validate start <scenario> --idempotency-key <key>` |
+| `GetValidationRun` | `workflow-health validate get <run-id>` |
+| `WaitValidationRun` | `workflow-health validate wait <run-id> [--timeout 5m]` |
+| `AbortValidationRun` | `workflow-health validate abort <run-id> [--reason <reason>]` |
+
+Callers do not poll: a timeout or disconnect leaves provider work running, and
+the caller can later use Get or a single Wait to reattach.
+
+If the Workflow Health process restarts while a run is queued or running, its
+startup recovery policy records `RECOVERY_FAILED` rather than replaying BAS
+work. This preserves evidence and prevents duplicate side effects; start a new
+run with a new idempotency key only after inspecting the failed record.
 
 ### `POST /scenario-validation/v1.ScenarioValidationService/PreviewFix`
 

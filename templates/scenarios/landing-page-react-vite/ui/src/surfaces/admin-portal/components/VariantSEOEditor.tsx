@@ -3,7 +3,8 @@ import { Save, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
-import type { VariantSEOConfig, SiteBranding } from '../../../shared/api';
+import { getVariantSEO, updateVariantSEO } from '../../../shared/api';
+import type { VariantSEOConfigInput, SiteBranding } from '../../../shared/api';
 
 interface VariantSEOEditorProps {
   variantSlug: string;
@@ -18,7 +19,7 @@ export function VariantSEOEditor({
   siteBranding,
   onSave,
 }: VariantSEOEditorProps) {
-  const [seoConfig, setSeoConfig] = useState<VariantSEOConfig>({});
+  const [seoConfig, setSeoConfig] = useState<VariantSEOConfigInput>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,20 +29,16 @@ export function VariantSEOEditor({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/v1/seo/${variantSlug}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSeoConfig({
-          title: data.title !== siteBranding?.default_title ? data.title : undefined,
-          description: data.description !== siteBranding?.default_description ? data.description : undefined,
-          og_title: data.og_title,
-          og_description: data.og_description,
-          og_image_url: data.og_image_url !== siteBranding?.default_og_image_url ? data.og_image_url : undefined,
-          twitter_card: data.twitter_card,
-          canonical_path: data.canonical_path,
-          noindex: data.noindex || false,
-        });
-      }
+      const data = await getVariantSEO(variantSlug);
+      setSeoConfig({
+        title: data.title !== siteBranding?.defaultTitle ? data.title : undefined,
+        description: data.description !== siteBranding?.defaultDescription ? data.description : undefined,
+        ogTitle: data.ogTitle,
+        ogDescription: data.ogDescription,
+        ogImageUrl: data.ogImageUrl !== siteBranding?.defaultOgImageUrl ? data.ogImageUrl : undefined,
+        twitterCard: data.twitterCard,
+        noindex: data.noindex || false,
+      });
     } catch (err) {
       setError('Failed to load SEO settings');
     } finally {
@@ -59,16 +56,7 @@ export function VariantSEOEditor({
     setSuccess(false);
 
     try {
-      const response = await fetch(`/api/v1/admin/variants/${variantSlug}/seo`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(seoConfig),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save SEO settings');
-      }
+      await updateVariantSEO(variantSlug, seoConfig);
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -80,18 +68,20 @@ export function VariantSEOEditor({
     }
   };
 
-  const updateField = <K extends keyof VariantSEOConfig>(
+  const updateField = <K extends keyof VariantSEOConfigInput>(
     field: K,
-    value: VariantSEOConfig[K]
+    value: VariantSEOConfigInput[K]
   ) => {
     setSeoConfig((prev) => ({ ...prev, [field]: value }));
     setSuccess(false);
   };
 
   // Compute preview values (variant overrides site defaults)
-  const previewTitle = seoConfig.title || siteBranding?.default_title || siteBranding?.site_name || 'Page Title';
-  const previewDescription = seoConfig.description || siteBranding?.default_description || '';
-  const previewOgImage = seoConfig.og_image_url || siteBranding?.default_og_image_url || undefined;
+  const previewTitle = seoConfig.title || siteBranding?.defaultTitle || siteBranding?.siteName || 'Page Title';
+  const previewDescription = seoConfig.description || siteBranding?.defaultDescription || '';
+  const previewOgImage = seoConfig.ogImageUrl || siteBranding?.defaultOgImageUrl || undefined;
+  const previewTwitterCard: 'summary' | 'summary_large_image' =
+    seoConfig.twitterCard === 'summary' ? 'summary' : 'summary_large_image';
 
   if (loading) {
     return (
@@ -144,7 +134,7 @@ export function VariantSEOEditor({
               type="text"
               value={seoConfig.title || ''}
               onChange={(e) => updateField('title', e.target.value || undefined)}
-              placeholder={siteBranding?.default_title || 'Use site default'}
+              placeholder={siteBranding?.defaultTitle || 'Use site default'}
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
             <p className="text-xs text-slate-500">
@@ -160,7 +150,7 @@ export function VariantSEOEditor({
             <textarea
               value={seoConfig.description || ''}
               onChange={(e) => updateField('description', e.target.value || undefined)}
-              placeholder={siteBranding?.default_description || 'Use site default'}
+              placeholder={siteBranding?.defaultDescription || 'Use site default'}
               rows={3}
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
@@ -176,8 +166,8 @@ export function VariantSEOEditor({
             </label>
             <input
               type="text"
-              value={seoConfig.og_title || ''}
-              onChange={(e) => updateField('og_title', e.target.value || undefined)}
+              value={seoConfig.ogTitle || ''}
+              onChange={(e) => updateField('ogTitle', e.target.value || undefined)}
               placeholder="Same as page title"
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
@@ -189,8 +179,8 @@ export function VariantSEOEditor({
               Social Share Description
             </label>
             <textarea
-              value={seoConfig.og_description || ''}
-              onChange={(e) => updateField('og_description', e.target.value || undefined)}
+              value={seoConfig.ogDescription || ''}
+              onChange={(e) => updateField('ogDescription', e.target.value || undefined)}
               placeholder="Same as meta description"
               rows={2}
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -203,10 +193,10 @@ export function VariantSEOEditor({
               Social Share Image
             </label>
             <ImageUploader
-              value={seoConfig.og_image_url}
-              onChange={(url) => updateField('og_image_url', url || undefined)}
+              value={seoConfig.ogImageUrl}
+              onChange={(url) => updateField('ogImageUrl', url || undefined)}
               category="og_image"
-              placeholder={siteBranding?.default_og_image_url || 'No image set'}
+              placeholder={siteBranding?.defaultOgImageUrl || 'No image set'}
               uploadLabel="Upload OG Image"
               previewSize="lg"
             />
@@ -221,8 +211,8 @@ export function VariantSEOEditor({
               Twitter Card Type
             </label>
             <select
-              value={seoConfig.twitter_card || 'summary_large_image'}
-              onChange={(e) => updateField('twitter_card', e.target.value as 'summary' | 'summary_large_image')}
+              value={seoConfig.twitterCard || 'summary_large_image'}
+              onChange={(e) => updateField('twitterCard', e.target.value || undefined)}
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             >
               <option value="summary_large_image">Large Image Card</option>
@@ -237,8 +227,8 @@ export function VariantSEOEditor({
             </label>
             <input
               type="text"
-              value={seoConfig.canonical_path || ''}
-              onChange={(e) => updateField('canonical_path', e.target.value || undefined)}
+              value={seoConfig.canonicalPath || ''}
+              onChange={(e) => updateField('canonicalPath', e.target.value || undefined)}
               placeholder="/"
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
@@ -268,11 +258,11 @@ export function VariantSEOEditor({
           <SEOPreview
             title={previewTitle}
             description={previewDescription}
-            url={siteBranding?.canonical_base_url || 'https://example.com'}
+            url={siteBranding?.canonicalBaseUrl || 'https://example.com'}
             ogImage={previewOgImage || undefined}
-            siteName={siteBranding?.site_name}
-            favicon={siteBranding?.favicon_url || undefined}
-            twitterCard={seoConfig.twitter_card || 'summary_large_image'}
+            siteName={siteBranding?.siteName}
+            favicon={siteBranding?.faviconUrl || undefined}
+            twitterCard={previewTwitterCard}
           />
         </div>
       </div>

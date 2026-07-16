@@ -24,6 +24,9 @@ import (
 // without Docker degrades gracefully.
 func NewDB(t *testing.T) *sql.DB {
 	t.Helper()
+	// Test-only helper: spinning up an ephemeral container is the correct
+	// fallback when TEST_DATABASE_URL is unset, not a production default.
+	// vrooli:env:optional
 	dbURL := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
 	if dbURL == "" {
 		dbURL = startContainer(t)

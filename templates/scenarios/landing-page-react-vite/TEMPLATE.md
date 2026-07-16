@@ -131,7 +131,7 @@ Key takeaways:
 
 | Document | Purpose |
 | --- | --- |
-| `docs/api/README.md` | Complete REST API endpoint documentation |
+| `docs/api/overview.md` | Complete REST API endpoint documentation |
 | `docs/CONFIGURATION_GUIDE.md` | Guide to all `.vrooli/` configuration files |
 | `docs/DESIGN_SYSTEM.md` | Visual design language and style packs |
 | `docs/SECURITY.md` | Authentication, session management, and production security |

@@ -68,7 +68,10 @@ func DefaultMonitoring() MonitoringConfig {
 			// Critical scenarios - will report StatusCritical when stopped
 			"app-monitor":       {Critical: true},
 			"ecosystem-manager": {Critical: true},
-			"template-manager":  {Critical: true},
+			// system-monitor provides the pressure evidence consumed by the
+			// runtime recovery controller; its liveness is therefore explicit.
+			"system-monitor":   {Critical: true},
+			"template-manager": {Critical: true},
 			// Non-critical scenarios - will report StatusWarning when stopped
 			"browser-automation-studio": {Critical: false},
 			"test-genie":                {Critical: false},

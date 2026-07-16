@@ -396,4 +396,4 @@ Metrics are near-real-time with up to 5-minute delay. If data is more than 10 mi
 
 ---
 
-**Next**: [Core Concepts](CONCEPTS.md) | [API Reference](api/README.md)
+**Next**: [Core Concepts](CONCEPTS.md) | [API Reference](api/overview.md)

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { getProxyInfo } from '@vrooli/api-base';
 import { AdminAuthProvider } from './app/providers/AdminAuthProvider';
 import { LandingVariantProvider } from './app/providers/LandingVariantProvider';
 import { ProtectedRoute } from './surfaces/admin-portal/components/ProtectedRoute';
@@ -15,9 +16,19 @@ import { BrandingSettings } from './surfaces/admin-portal/routes/BrandingSetting
 import { DocsViewer } from './surfaces/admin-portal/routes/DocsViewer';
 import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
 
+// getRouterBasename resolves the deployment sub-path from the proxy info so
+// route matching works when the app is mounted behind a reverse proxy prefix.
+function getRouterBasename(): string {
+  const info = getProxyInfo();
+  const path = info?.primary?.path ?? info?.basePath;
+  if (!path) return '';
+  return path.replace(/\/+$/, '');
+}
+
 export default function App() {
+  const basename = getRouterBasename();
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AdminAuthProvider>
         <LandingVariantProvider>
           <Routes>

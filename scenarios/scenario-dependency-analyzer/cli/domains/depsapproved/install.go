@@ -44,16 +44,9 @@ func runInstall(core *cliapp.ScenarioApp, args []string) error {
 	if len(positionals) != 1 {
 		return fmt.Errorf("usage: %s deps install <ecosystem>/<package>[@version] --scenario <name> --surface <ui|api|cli> [--apply] [--json]", support.AppName)
 	}
-	ecosystem, rest, ok := strings.Cut(positionals[0], "/")
-	if !ok || strings.TrimSpace(ecosystem) == "" || strings.TrimSpace(rest) == "" {
-		return fmt.Errorf("dependency must be formatted as <ecosystem>/<package>[@version]")
-	}
-	packageName := rest
-	if pkg, ver, hasVer := strings.Cut(rest, "@"); hasVer {
-		packageName = pkg
-		if strings.TrimSpace(version) == "" {
-			version = ver
-		}
+	ecosystem, packageName, version, err := parseInstallDependencySpec(positionals[0], version)
+	if err != nil {
+		return err
 	}
 	if strings.TrimSpace(scenario) == "" || strings.TrimSpace(surface) == "" {
 		return fmt.Errorf("--scenario and --surface are required")
@@ -74,6 +67,30 @@ func runInstall(core *cliapp.ScenarioApp, args []string) error {
 		return printProto(resp.Msg)
 	}
 	return printInstallResult(resp.Msg)
+}
+
+func parseInstallDependencySpec(spec, explicitVersion string) (ecosystem, packageName, version string, err error) {
+	ecosystem, packageName, ok := strings.Cut(strings.TrimSpace(spec), "/")
+	ecosystem = strings.TrimSpace(ecosystem)
+	packageName = strings.TrimSpace(packageName)
+	if !ok || ecosystem == "" || packageName == "" {
+		return "", "", "", fmt.Errorf("dependency must be formatted as <ecosystem>/<package>[@version]")
+	}
+
+	inlineVersion := ""
+	if versionIndex := strings.LastIndex(packageName, "@"); versionIndex > 0 {
+		inlineVersion = strings.TrimSpace(packageName[versionIndex+1:])
+		packageName = strings.TrimSpace(packageName[:versionIndex])
+	}
+	if packageName == "" {
+		return "", "", "", fmt.Errorf("dependency must be formatted as <ecosystem>/<package>[@version]")
+	}
+
+	version = strings.TrimSpace(explicitVersion)
+	if version == "" {
+		version = inlineVersion
+	}
+	return ecosystem, packageName, version, nil
 }
 
 func printInstallResult(msg *governancev1.InstallDependencyResponse) error {

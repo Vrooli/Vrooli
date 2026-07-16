@@ -1,43 +1,49 @@
-import type { LandingConfigResponse, LandingSection, DownloadApp, PricingOverview, VariantAxes, LandingHeaderConfig } from '../api';
+import { clone, fromJson, type JsonValue } from '@bufbuild/protobuf';
+import { LandingConfigResponseSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/config_pb';
+import type { LandingConfigResponse } from '../api';
 import rawFallback from '../../../../.vrooli/variants/fallback.json';
 import { normalizeHeaderConfig } from './headerConfig';
 
-interface FallbackPayload {
-  variant: LandingConfigResponse['variant'];
-  sections?: LandingSection[] | null;
-  pricing?: PricingOverview;
-  downloads?: DownloadApp[];
-  axes?: VariantAxes;
-  header?: LandingHeaderConfig;
+interface FallbackJson {
+  variant: { id?: number; slug?: string; name?: string; description?: string; axes?: Record<string, string> };
+  axes?: Record<string, string>;
+  sections?: unknown[];
+  pricing?: unknown;
+  downloads?: unknown[];
+  header?: unknown;
 }
 
-function normalizeSections(sectionsInput?: LandingSection[] | null): LandingSection[] {
-  const sections = Array.isArray(sectionsInput) ? sectionsInput : [];
-
-  return sections.map((section, index) => ({
-    ...section,
-    order: typeof section.order === 'number' && Number.isFinite(section.order) ? section.order : index + 1,
-    enabled: section.enabled ?? true,
-  }));
-}
-
+// The fallback payload is authored as REST-style JSON (snake_case fields). It is
+// parsed into the LandingConfigResponse proto with fromJson (which accepts the
+// original snake_case field names), then the header is normalized. Rendered when
+// the live API is unavailable.
 const FALLBACK_CONFIG: LandingConfigResponse = (() => {
-  const payload = rawFallback as FallbackPayload;
-  const variant = {
+  const payload = rawFallback as FallbackJson;
+  const variantJson = {
     ...payload.variant,
-    axes: payload.variant.axes ?? payload.axes,
+    axes: payload.variant?.axes ?? payload.axes ?? {},
   };
 
-  return {
-    variant,
-    sections: normalizeSections(payload.sections),
-    pricing: payload.pricing,
+  // Pricing is intentionally omitted: the authored fallback pricing is REST-shaped
+  // (plain-JSON plan metadata + string billing intervals) and cannot round-trip
+  // through the proto JSON decoder's common.v1.JsonValue maps / enums. With pricing
+  // absent, the pricing surface renders its demo placeholders — the offline-safe
+  // behavior this fallback exists to provide.
+  const configJson: Record<string, unknown> = {
+    variant: variantJson,
+    sections: payload.sections ?? [],
     downloads: payload.downloads ?? [],
-    header: normalizeHeaderConfig(payload.header, variant.name),
+    header: payload.header ?? {},
     fallback: true,
   };
+
+  const parsed = fromJson(LandingConfigResponseSchema, configJson as JsonValue, {
+    ignoreUnknownFields: true,
+  });
+  parsed.header = normalizeHeaderConfig(parsed.header ?? undefined, parsed.variant?.name);
+  return parsed;
 })();
 
 export function getFallbackLandingConfig(): LandingConfigResponse {
-  return JSON.parse(JSON.stringify(FALLBACK_CONFIG));
+  return clone(LandingConfigResponseSchema, FALLBACK_CONFIG);
 }

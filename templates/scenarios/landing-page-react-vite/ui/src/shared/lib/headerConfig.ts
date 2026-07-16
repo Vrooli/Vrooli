@@ -1,3 +1,8 @@
+import { create } from '@bufbuild/protobuf';
+import {
+  LandingHeaderConfigSchema,
+  HeaderNavLinkSchema,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/variant_pb';
 import type {
   HeaderVisibilityConfig,
   LandingHeaderConfig,
@@ -5,13 +10,11 @@ import type {
 } from '../api';
 
 export function buildDefaultHeaderConfig(name?: string): LandingHeaderConfig {
-  return {
+  return create(LandingHeaderConfigSchema, {
     branding: {
       mode: 'logo_and_name',
       label: name ?? 'Landing',
-      mobile_preference: 'auto',
-      logo_url: undefined,
-      logo_icon_url: undefined,
+      mobilePreference: 'auto',
     },
     nav: {
       links: [],
@@ -28,59 +31,63 @@ export function buildDefaultHeaderConfig(name?: string): LandingHeaderConfig {
     },
     behavior: {
       sticky: true,
-      hide_on_scroll: false,
+      hideOnScroll: false,
     },
-  };
+  });
 }
 
-export function normalizeHeaderConfig(config?: LandingHeaderConfig | null, name?: string): LandingHeaderConfig {
+export function normalizeHeaderConfig(
+  config?: LandingHeaderConfig | null,
+  name?: string,
+): LandingHeaderConfig {
   if (!config) {
     return buildDefaultHeaderConfig(name);
   }
 
   const base = buildDefaultHeaderConfig(name ?? config.branding?.label ?? 'Landing');
-  return {
+  return create(LandingHeaderConfigSchema, {
     branding: {
-      mode: config.branding?.mode ?? base.branding.mode,
-      label: config.branding?.label ?? base.branding.label,
+      mode: config.branding?.mode || base.branding?.mode,
+      label: config.branding?.label || base.branding?.label,
       subtitle: config.branding?.subtitle,
-      mobile_preference: config.branding?.mobile_preference ?? base.branding.mobile_preference,
-      logo_url: config.branding?.logo_url ?? base.branding.logo_url,
-      logo_icon_url: config.branding?.logo_icon_url ?? base.branding.logo_icon_url,
+      mobilePreference: config.branding?.mobilePreference || base.branding?.mobilePreference,
     },
     nav: {
       links: (config.nav?.links ?? []).map((link, index) => normalizeNavLink(link, index)),
     },
     ctas: {
-      primary: normalizeHeaderCTA(config.ctas?.primary, base.ctas.primary),
-      secondary: normalizeHeaderCTA(config.ctas?.secondary, base.ctas.secondary),
+      primary: normalizeHeaderCTA(config.ctas?.primary, base.ctas?.primary),
+      secondary: normalizeHeaderCTA(config.ctas?.secondary, base.ctas?.secondary),
     },
     behavior: {
-      sticky: config.behavior?.sticky ?? base.behavior.sticky,
-      hide_on_scroll: config.behavior?.hide_on_scroll ?? base.behavior.hide_on_scroll,
+      sticky: config.behavior?.sticky ?? base.behavior?.sticky ?? true,
+      hideOnScroll: config.behavior?.hideOnScroll ?? base.behavior?.hideOnScroll ?? false,
     },
-  };
+  });
 }
 
 function normalizeNavLink(link: LandingHeaderNavLink, index: number): LandingHeaderNavLink {
-  const visibility = ensureVisibility(link.visible_on);
+  const visibility = ensureVisibility(link.visibleOn);
   const children = Array.isArray(link.children)
     ? link.children.map((child, childIdx) => normalizeNavLink(child, childIdx))
-    : undefined;
-  return {
+    : [];
+  return create(HeaderNavLinkSchema, {
     id: link.id || `nav-${link.type}-${index}`,
-    type: link.type ?? 'section',
+    type: link.type || 'section',
     label: link.label || 'Section',
-    section_type: link.section_type,
-    section_id: link.section_id,
+    sectionType: link.sectionType,
+    sectionId: link.sectionId,
     anchor: link.anchor,
     href: link.href,
-    visible_on: visibility,
+    visibleOn: visibility,
     children,
-  };
+  });
 }
 
-function ensureVisibility(visibility?: HeaderVisibilityConfig): Required<HeaderVisibilityConfig> {
+function ensureVisibility(visibility?: HeaderVisibilityConfig): {
+  desktop: boolean;
+  mobile: boolean;
+} {
   const desktop = visibility?.desktop ?? true;
   const mobile = visibility?.mobile ?? true;
   if (!visibility?.desktop && !visibility?.mobile) {
@@ -89,16 +96,20 @@ function ensureVisibility(visibility?: HeaderVisibilityConfig): Required<HeaderV
   return { desktop, mobile };
 }
 
-function normalizeHeaderCTA<T extends { mode?: string; label?: string; href?: string; variant?: string }>(
-  incoming: T | undefined,
-  fallback: T,
-): T {
+interface HeaderCTAInit {
+  mode?: string;
+  label?: string;
+  href?: string;
+  variant?: string;
+}
+
+function normalizeHeaderCTA(incoming?: HeaderCTAInit, fallback?: HeaderCTAInit): HeaderCTAInit {
   return {
-    ...fallback,
+    ...(fallback ?? {}),
     ...(incoming ?? {}),
   };
 }
 
 export function cloneHeaderConfig(config: LandingHeaderConfig): LandingHeaderConfig {
-  return JSON.parse(JSON.stringify(config)) as LandingHeaderConfig;
+  return normalizeHeaderConfig(config);
 }

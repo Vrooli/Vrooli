@@ -15,7 +15,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Go unit tests verify variant_id is included in event payload",
-          "ref": "api/metrics_service_test.go",
+          "ref": "api/handlers/metrics/connect_handler_test.go",
           "test_duration_ms": 0,
           "last_test_run": "2025-11-21",
           "phase_result": ""
@@ -31,13 +31,13 @@
           "phase_result": ""
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Event schema: {event_type, variant_id, variant_slug, timestamp, session_id, ...}"
     },
     {
       "id": "METRIC-FILTER",
       "title": "Analytics variant filtering",
-      "prd_ref": "OT-P0-019",
+      "prd_ref": "OT-P0-020",
       "description": "Admin analytics view filters stats by variant and time range",
       "validation": [
         {
@@ -45,7 +45,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Go unit test verifies filtering by variant slug and date range",
-          "ref": "api/metrics_service_test.go",
+          "ref": "api/handlers/metrics/connect_handler_test.go",
           "test_duration_ms": 0,
           "last_test_run": "2025-11-22",
           "phase_result": ""
@@ -61,7 +61,7 @@
           "phase_result": ""
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "METRIC-TAG"
       ],
@@ -70,7 +70,7 @@
     {
       "id": "METRIC-EVENTS",
       "title": "Minimum event coverage",
-      "prd_ref": "OT-P0-019",
+      "prd_ref": "OT-P0-021",
       "description": "System emits events for: page_view, scroll_depth (bands), click (element ID), form_submit, conversion (Stripe success)",
       "validation": [
         {
@@ -78,7 +78,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Frontend useMetrics hook tracks all required event types",
-          "ref": "ui/src/hooks/useMetrics.ts",
+          "ref": "ui/src/shared/hooks/useMetrics.tsx",
           "test_duration_ms": 0,
           "last_test_run": "2025-11-21",
           "phase_result": ""
@@ -88,19 +88,19 @@
           "phase": "business",
           "status": "implemented",
           "notes": "API validates event_type enum (page_view, scroll_depth, click, form_submit, conversion)",
-          "ref": "api/metrics_service.go",
+          "ref": "api/internal/metrics/service.go",
           "test_duration_ms": 0,
           "last_test_run": "2025-11-21",
           "phase_result": ""
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Scroll depth bands: 25%, 50%, 75%, 100%; Click tracking active on PublicHome CTA"
     },
     {
       "id": "METRIC-IDEMPOTENT",
       "title": "Metrics idempotency",
-      "prd_ref": "OT-P0-019",
+      "prd_ref": "OT-P0-022",
       "description": "Metrics ingestion is idempotent or deduplicated to avoid double-counting on retries",
       "validation": [
         {
@@ -108,13 +108,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Go unit test verifies duplicate events are ignored via event_id check",
-          "ref": "api/metrics_service_test.go",
+          "ref": "api/handlers/metrics/connect_handler_test.go",
           "test_duration_ms": 0,
           "last_test_run": "2025-11-21",
           "phase_result": ""
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "METRIC-EVENTS"
       ],
@@ -131,7 +131,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Go unit test verifies summary aggregation (total visitors, variant stats, top CTA, CTR)",
-          "ref": "api/metrics_service_test.go",
+          "ref": "api/handlers/metrics/connect_handler_test.go",
           "test_duration_ms": 0,
           "last_test_run": "2025-11-22",
           "phase_result": ""
@@ -147,7 +147,7 @@
           "phase_result": ""
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "METRIC-TAG",
         "METRIC-EVENTS"
@@ -157,7 +157,7 @@
     {
       "id": "METRIC-DETAIL",
       "title": "Variant detail view",
-      "prd_ref": "OT-P0-023",
+      "prd_ref": "OT-P0-024",
       "description": "Variant detail page shows views, CTA clicks, conversions, conversion rate, basic trend",
       "validation": [
         {
@@ -165,7 +165,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Go unit test verifies variant stats include views, CTA clicks, conversions, conversion rate",
-          "ref": "api/metrics_service_test.go",
+          "ref": "api/handlers/metrics/connect_handler_test.go",
           "test_duration_ms": 0,
           "last_test_run": "2025-11-22",
           "phase_result": ""
@@ -181,7 +181,7 @@
           "phase_result": ""
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "METRIC-SUMMARY"
       ],

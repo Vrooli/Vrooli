@@ -128,7 +128,7 @@ The session encryption key is loaded from `SESSION_SECRET`:
 openssl rand -base64 32
 ```
 
-**⚠️ CRITICAL:** Always set `SESSION_SECRET` in production. If not set, a development placeholder is used with a warning logged.
+**⚠️ CRITICAL:** Always set `SESSION_SECRET` in production. The template ships no default signing key: when `SESSION_SECRET` is unset the API mints an ephemeral random key at boot (logged) so development runs without a committed secret. That key changes on every restart, so admin sessions do not survive restarts and are inconsistent across replicas until you set a stable `SESSION_SECRET`.
 
 ### Session Lifecycle
 
@@ -441,5 +441,5 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 
 - [Configuration Guide](CONFIGURATION_GUIDE.md) - Environment variable reference
 - [Deployment Guide](DEPLOYMENT.md) - Production deployment steps
-- [API Reference](api/README.md) - Endpoint documentation
+- [API Reference](api/overview.md) - Endpoint documentation
 - [Troubleshooting](TROUBLESHOOTING.md) - Common issues

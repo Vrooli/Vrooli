@@ -1,7 +1,6 @@
 import {
   getSection,
   updateSection,
-  patchSection,
   getVariant,
   getVariantSpace,
   type ContentSection,
@@ -16,7 +15,7 @@ export interface SectionEditorState {
 }
 
 export interface SectionFormFields {
-  sectionType: ContentSection['section_type'];
+  sectionType: ContentSection['sectionType'];
   enabled: boolean;
   order: number;
   content: Record<string, unknown>;
@@ -24,15 +23,18 @@ export interface SectionFormFields {
 
 export function buildFormFields(section: ContentSection): SectionFormFields {
   return {
-    sectionType: section.section_type,
+    sectionType: section.sectionType,
     enabled: section.enabled,
     order: section.order,
     content: section.content ?? {},
   };
 }
 
-export async function loadSectionEditor(sectionId: number): Promise<SectionEditorState> {
+export async function loadSectionEditor(sectionId: bigint): Promise<SectionEditorState> {
   const section = await getSection(sectionId);
+  if (!section) {
+    throw new Error('Section not found');
+  }
   return {
     section,
     form: buildFormFields(section),
@@ -40,18 +42,11 @@ export async function loadSectionEditor(sectionId: number): Promise<SectionEdito
 }
 
 export async function persistExistingSectionContent(
-  sectionId: number,
+  sectionId: bigint,
   content: Record<string, unknown>,
 ): Promise<SectionEditorState> {
   await updateSection(sectionId, content);
   return loadSectionEditor(sectionId);
-}
-
-export async function updateSectionOrder(sectionId: number, order: number) {
-  if (!sectionId || Number.isNaN(order)) {
-    throw new Error('Section ID and order are required');
-  }
-  await patchSection(sectionId, { order });
 }
 
 export interface VariantAxisContext {
@@ -85,7 +80,7 @@ function formatAxisLabel(axisId: string) {
   const withSpaces = axisId.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ');
   return withSpaces
     .split(' ')
-    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : ''))
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : ''))
     .join(' ')
     .trim();
 }
@@ -117,6 +112,9 @@ export async function loadVariantContext(slug: string): Promise<VariantContext> 
   }
 
   const [variant, space] = await Promise.all([getVariant(slug), getVariantSpace()]);
+  if (!variant) {
+    throw new Error('Variant not found');
+  }
 
   return {
     variant,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getEntitlements, type EntitlementPayload } from '../api';
+import { getEntitlements, type GetEntitlementsResponse } from '../api';
 
 const STORAGE_KEY = 'landing_entitlement_email';
 
@@ -31,7 +31,7 @@ function persistEmail(email: string) {
 
 export function useEntitlements() {
   const [email, setEmailState] = useState<string>(() => readStoredEmail());
-  const [entitlements, setEntitlements] = useState<EntitlementPayload | null>(null);
+  const [entitlements, setEntitlements] = useState<GetEntitlementsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +54,9 @@ export function useEntitlements() {
     setError(null);
 
     try {
-      const payload = await getEntitlements(trimmed);
+      // Entitlements are resolved from the session identity server-side; the
+      // stored email gates the client-side fetch but is no longer passed.
+      const payload = await getEntitlements();
       setEntitlements(payload);
     } catch (err) {
       setEntitlements(null);

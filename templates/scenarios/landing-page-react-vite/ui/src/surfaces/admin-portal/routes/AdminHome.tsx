@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "../components/AdminLayout";
 import { Button } from "../../../shared/ui/button";
-import { Activity, AlertTriangle, BarChart3, CheckCircle2, Compass, CreditCard, Download, ExternalLink, Gauge, History, Package, Palette, RefreshCw, Settings2, ShieldCheck, Type } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Compass, CreditCard, Download, ExternalLink, Gauge, History, Package, Palette, RefreshCw, Settings2, ShieldCheck, Type } from "lucide-react";
+import { timestampDate, type Timestamp } from "@bufbuild/protobuf/wkt";
 import { getAdminExperienceSnapshot, type AdminExperienceSnapshot } from "../../../shared/lib/adminExperience";
-import { listVariants, type AnalyticsSummary, type Variant, type VariantStats, getStripeSettings, type StripeSettingsResponse, resetDemoData, getBranding, listDownloadAppsAdmin, type SiteBranding, type DownloadApp } from "../../../shared/api";
+import { listVariants, type AnalyticsSummary, type Variant, type VariantStats, getStripeSettings, type GetStripeSettingsResponse, ConfigSource, resetDemoData, getBranding, listDownloadAppsAdmin, type SiteBranding, type DownloadApp } from "../../../shared/api";
 import { buildDateRange, fetchAnalyticsSummary } from "../controllers/analyticsController";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
 import { useAdminAuth } from "../../../app/providers/AdminAuthProvider";
@@ -79,7 +80,7 @@ export function AdminHome() {
   const [healthLoading, setHealthLoading] = useState(true);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [healthMetricsDegraded, setHealthMetricsDegraded] = useState(false);
-  const [stripeSettings, setStripeSettings] = useState<StripeSettingsResponse | null>(null);
+  const [stripeSettings, setStripeSettings] = useState<GetStripeSettingsResponse | null>(null);
   const [stripeLoading, setStripeLoading] = useState(true);
   const [stripeError, setStripeError] = useState<string | null>(null);
   const [resettingDemoData, setResettingDemoData] = useState(false);
@@ -114,7 +115,7 @@ export function AdminHome() {
 
       setHealthSnapshot(
         buildHealthSnapshot(
-          variantPayload.variants,
+          variantPayload,
           analyticsPayload.ok ? analyticsPayload.data : null
         )
       );
@@ -152,7 +153,7 @@ export function AdminHome() {
     setBrandingLoading(true);
     try {
       const branding = await getBranding();
-      setBrandingHealth(computeBrandingHealth(branding));
+      setBrandingHealth(branding ? computeBrandingHealth(branding) : null);
     } catch {
       setBrandingHealth(null);
     } finally {
@@ -167,7 +168,7 @@ export function AdminHome() {
   const refreshDownloadsHealth = useCallback(async () => {
     setDownloadsLoading(true);
     try {
-      const { apps } = await listDownloadAppsAdmin();
+      const apps = await listDownloadAppsAdmin();
       setDownloadsHealth(computeDownloadsHealth(apps));
     } catch {
       setDownloadsHealth(null);
@@ -569,7 +570,7 @@ interface AdminHealthDigestProps {
   onNavigateAnalytics: () => void;
   onInspectVariantAnalytics: (slug: string) => void;
   onHighlightVariant: (slug: string, options?: { sectionId?: number; sectionType?: string }) => void;
-  liveVariant: Variant | null;
+  liveVariant: { slug: string; name: string } | null;
   liveResolution: VariantResolution;
   statusNote: string | null;
   previewPublicLanding: () => void;
@@ -578,7 +579,7 @@ interface AdminHealthDigestProps {
 interface MonetizationStatusCardProps {
   loading: boolean;
   error: string | null;
-  settings: StripeSettingsResponse | null;
+  settings: GetStripeSettingsResponse | null;
   onRetry: () => void;
   onNavigateBilling: () => void;
 }
@@ -619,9 +620,9 @@ function MonetizationStatusCard({ loading, error, settings, onRetry, onNavigateB
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           {[
-            { label: "Publishable key", ok: Boolean(settings?.publishable_key_set) },
-            { label: "Secret key", ok: Boolean(settings?.secret_key_set) },
-            { label: "Webhook secret", ok: Boolean(settings?.webhook_secret_set) },
+            { label: "Publishable key", ok: Boolean(settings?.snapshot?.publishableKeySet) },
+            { label: "Secret key", ok: Boolean(settings?.snapshot?.secretKeySet) },
+            { label: "Webhook secret", ok: Boolean(settings?.snapshot?.webhookSecretSet) },
           ].map((badge) => (
             <div
               key={badge.label}
@@ -638,9 +639,11 @@ function MonetizationStatusCard({ loading, error, settings, onRetry, onNavigateB
       )}
       {!loading && !error && (
         <div className="mt-4 text-xs text-slate-500 flex flex-wrap gap-4">
-          {settings?.source && <span>Source: {settings.source === "database" ? "Admin override" : "Environment variables"}</span>}
-          {settings?.updated_at && (
-            <span>Last updated: {new Date(settings.updated_at).toLocaleString()}</span>
+          {settings?.snapshot && (
+            <span>Source: {settings.snapshot.source === ConfigSource.DATABASE ? "Admin override" : "Environment variables"}</span>
+          )}
+          {settings?.settings?.updatedAt && (
+            <span>Last updated: {timestampDate(settings.settings.updatedAt).toLocaleString()}</span>
           )}
         </div>
       )}
@@ -918,58 +921,64 @@ function AdminHealthDigest({
         </div>
         <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3" data-testid="admin-health-attention-card">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Needs attention</p>
-          {snapshot.highlightedAttention ? (
-            <>
-              <div>
-                <p className="text-lg font-semibold text-white">{snapshot.highlightedAttention.name}</p>
-                <p className="text-xs text-slate-500">{snapshot.highlightedAttention.updatedLabel}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {snapshot.highlightedAttention.reasons.map((reason) => (
-                  <span
-                    key={`${snapshot.highlightedAttention.slug}-${reason}`}
-                    className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200"
-                  >
-                    {reason}
-                  </span>
-                ))}
-              </div>
-              {typeof snapshot.highlightedAttention.conversionRate === "number" && (
-                <p className="text-sm text-slate-300">
-                  Conversion rate:&nbsp;
-                  <span className="font-semibold text-rose-300">
-                    {snapshot.highlightedAttention.conversionRate.toFixed(2)}%
-                  </span>
+          {(() => {
+            const attention = snapshot.highlightedAttention;
+            if (!attention) {
+              return (
+                <p className="text-sm text-slate-400">
+                  No variants are flagged right now. Keep routing traffic to surface the next opportunity.
                 </p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    onHighlightVariant(snapshot.highlightedAttention!.slug, {
-                      sectionId: snapshot.highlightedAttention?.sectionId,
-                      sectionType: snapshot.highlightedAttention?.sectionType,
-                    })
-                  }
-                  data-testid="admin-health-review"
-                >
-                  Review in customization
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onInspectVariantAnalytics(snapshot.highlightedAttention!.slug)}
-                  data-testid="admin-health-attention-analytics"
-                >
-                  View analytics
-                </Button>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-slate-400">
-              No variants are flagged right now. Keep routing traffic to surface the next opportunity.
-            </p>
-          )}
+              );
+            }
+            return (
+              <>
+                <div>
+                  <p className="text-lg font-semibold text-white">{attention.name}</p>
+                  <p className="text-xs text-slate-500">{attention.updatedLabel}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {attention.reasons.map((reason) => (
+                    <span
+                      key={`${attention.slug}-${reason}`}
+                      className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200"
+                    >
+                      {reason}
+                    </span>
+                  ))}
+                </div>
+                {typeof attention.conversionRate === "number" && (
+                  <p className="text-sm text-slate-300">
+                    Conversion rate:&nbsp;
+                    <span className="font-semibold text-rose-300">
+                      {attention.conversionRate.toFixed(2)}%
+                    </span>
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      onHighlightVariant(attention.slug, {
+                        sectionId: attention.sectionId,
+                        sectionType: attention.sectionType,
+                      })
+                    }
+                    data-testid="admin-health-review"
+                  >
+                    Review in customization
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onInspectVariantAnalytics(attention.slug)}
+                    data-testid="admin-health-attention-analytics"
+                  >
+                    View analytics
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -995,7 +1004,7 @@ function buildHealthSnapshot(
   }
 
   const statsBySlug = new Map<string, VariantStats>();
-  analytics?.variant_stats?.forEach((stat) => statsBySlug.set(stat.variant_slug, stat));
+  analytics?.variantStats?.forEach((stat) => statsBySlug.set(stat.variantSlug, stat));
   const attentionEntries = new Map<string, VariantAttention>();
   const registerAttention = (variant: Variant, reason: string, extras?: Partial<VariantAttention>) => {
     const existing = attentionEntries.get(variant.slug);
@@ -1014,15 +1023,15 @@ function buildHealthSnapshot(
       name: variant.name ?? variant.slug,
       reasons: [reason],
       conversionRate: extras?.conversionRate,
-      daysSinceUpdate: calculateDaysSinceUpdate(variant.updated_at),
-      updatedLabel: formatVariantUpdatedLabel(variant.updated_at),
+      daysSinceUpdate: calculateDaysSinceUpdate(timestampToIso(variant.updatedAt)),
+      updatedLabel: formatVariantUpdatedLabel(timestampToIso(variant.updatedAt)),
       sectionId: extras?.sectionId,
       sectionType: extras?.sectionType ?? "hero",
     });
   };
 
   activeVariants.forEach((variant) => {
-    const daysSinceUpdate = calculateDaysSinceUpdate(variant.updated_at);
+    const daysSinceUpdate = calculateDaysSinceUpdate(timestampToIso(variant.updatedAt));
     if (daysSinceUpdate === null) {
       registerAttention(variant, "Never customized");
     } else if (daysSinceUpdate >= STALE_VARIANT_DAYS) {
@@ -1030,21 +1039,21 @@ function buildHealthSnapshot(
     }
   });
 
-  if (analytics?.variant_stats?.length) {
+  if (analytics?.variantStats?.length) {
     const activeSlugs = new Set(activeVariants.map((variant) => variant.slug));
-    const relevantStats = analytics.variant_stats.filter((stat) => activeSlugs.has(stat.variant_slug));
+    const relevantStats = analytics.variantStats.filter((stat) => activeSlugs.has(stat.variantSlug));
     const underperforming = relevantStats.reduce<VariantStats | null>((worst, stat) => {
       if (!worst) {
         return stat;
       }
-      return stat.conversion_rate < worst.conversion_rate ? stat : worst;
+      return stat.conversionRate < worst.conversionRate ? stat : worst;
     }, null);
 
     if (underperforming) {
-      const matchingVariant = activeVariants.find((variant) => variant.slug === underperforming.variant_slug);
+      const matchingVariant = activeVariants.find((variant) => variant.slug === underperforming.variantSlug);
       if (matchingVariant) {
         registerAttention(matchingVariant, "Lowest conversion", {
-          conversionRate: underperforming.conversion_rate,
+          conversionRate: underperforming.conversionRate,
         });
       }
     }
@@ -1111,6 +1120,10 @@ function formatVariantUpdatedLabel(updatedAt?: string | null) {
   return `Updated ${diffDays} days ago`;
 }
 
+function timestampToIso(ts?: Timestamp): string | null {
+  return ts ? timestampDate(ts).toISOString() : null;
+}
+
 function calculateDaysSinceUpdate(updatedAt?: string | null) {
   if (!updatedAt) {
     return null;
@@ -1136,10 +1149,10 @@ function getAttentionPriority(entry: VariantAttention) {
 }
 
 function computeBrandingHealth(branding: SiteBranding): BrandingHealthStatus {
-  const hasIdentity = Boolean(branding.site_name && branding.logo_url);
-  const hasFavicon = Boolean(branding.favicon_url);
-  const hasSeo = Boolean(branding.default_title && branding.default_description);
-  const hasOgImage = Boolean(branding.default_og_image_url);
+  const hasIdentity = Boolean(branding.siteName && branding.logoUrl);
+  const hasFavicon = Boolean(branding.faviconUrl);
+  const hasSeo = Boolean(branding.defaultTitle && branding.defaultDescription);
+  const hasOgImage = Boolean(branding.defaultOgImageUrl);
   const checks = [hasIdentity, hasFavicon, hasSeo, hasOgImage];
   return {
     hasIdentity,
@@ -1157,7 +1170,7 @@ function computeDownloadsHealth(apps: DownloadApp[]): DownloadsHealthStatus {
 
   apps.forEach((app) => {
     if (app.platforms) {
-      platformsConfigured += app.platforms.filter((p) => p.artifact_url && p.release_version).length;
+      platformsConfigured += app.platforms.filter((p) => p.artifactUrl && p.releaseVersion).length;
     }
     if (app.storefronts) {
       storefrontsConfigured += app.storefronts.filter((s) => s.url).length;

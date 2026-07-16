@@ -107,6 +107,25 @@ func TestListEvidenceReturnsRepositoryRows(t *testing.T) {
 	}
 }
 
+func TestListEvidenceReturnsComponentRows(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "scenarios", "demo")
+	writeStudioFixture(t, scenarioDir)
+	repo := &fakeEvidenceRepository{rows: []reconcile.Evidence{{ID: "ev-component", Scenario: "demo", DocumentKind: "component", PageID: "button", ComponentID: "button", ExampleName: "primary", ClaimID: "action-present", Verdict: "passed"}}}
+	h := &handler{service: authoring.Service{RepoRoot: root, Evidence: repo}}
+
+	resp, err := h.ListEvidence(context.Background(), connect.NewRequest(&contractv1.ListEvidenceRequest{Scenario: "demo", Component: "button", Limit: 5}))
+	if err != nil {
+		t.Fatalf("ListEvidence: %v", err)
+	}
+	if repo.filter.ComponentID != "button" || repo.filter.PageID != "" {
+		t.Fatalf("filter = %+v", repo.filter)
+	}
+	if len(resp.Msg.GetEvidence()) != 1 || resp.Msg.GetEvidence()[0].GetExampleName() != "primary" || resp.Msg.GetEvidence()[0].GetComponentId() != "button" {
+		t.Fatalf("response = %+v", resp.Msg)
+	}
+}
+
 func TestListEvidenceRequiresEvidenceRepository(t *testing.T) {
 	h := &handler{service: authoring.Service{RepoRoot: t.TempDir()}}
 

@@ -9,7 +9,6 @@ import {
   loadSectionEditor,
   persistExistingSectionContent,
   loadVariantContext,
-  updateSectionOrder,
   type SectionEditorState,
   type VariantContext,
 } from '../controllers/sectionEditorController';
@@ -41,7 +40,7 @@ type PreviewRenderer = (params: {
   config: LandingConfigResponse | null;
 }) => JSX.Element | null;
 
-const SECTION_PREVIEW_RENDERERS: Record<ContentSection['section_type'], PreviewRenderer> = {
+const SECTION_PREVIEW_RENDERERS: Record<ContentSection['sectionType'], PreviewRenderer> = {
   hero: ({ content }) => <HeroSection content={content as any} />,
   features: ({ content }) => <FeaturesSection content={content as any} />,
   pricing: ({ content, config }) => <PricingSection content={content as any} pricingOverview={config?.pricing} />,
@@ -62,7 +61,7 @@ export function SectionEditor() {
   const parsedSectionId = !isNew && sectionId ? Number(sectionId) : NaN;
   const numericSectionId = Number.isNaN(parsedSectionId) ? null : parsedSectionId;
 
-  const [section, setSection] = useState<ContentSection | null>(null);
+  const [, setSection] = useState<ContentSection | null>(null);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,11 +79,9 @@ export function SectionEditor() {
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
   const compareConfigCache = useRef<Map<string, LandingConfigResponse>>(new Map());
-  const [reorderingSectionId, setReorderingSectionId] = useState<number | null>(null);
-  const [reorderError, setReorderError] = useState<string | null>(null);
 
   // Form state
-  const [sectionType, setSectionType] = useState<ContentSection['section_type']>('hero');
+  const [sectionType, setSectionType] = useState<ContentSection['sectionType']>('hero');
   const [enabled, setEnabled] = useState(true);
   const [order, setOrder] = useState(0);
   const [content, setContent] = useState<Record<string, unknown>>({
@@ -164,10 +161,6 @@ export function SectionEditor() {
     loadPreviewConfig(variantSlug);
   }, [variantSlug, loadPreviewConfig]);
 
-  const refreshPreviewConfig = useCallback(async () => {
-    await loadPreviewConfig(variantSlug);
-  }, [variantSlug, loadPreviewConfig]);
-
   useEffect(() => {
     let cancelled = false;
     const fetchVariantOptions = async () => {
@@ -175,7 +168,7 @@ export function SectionEditor() {
         setVariantOptionsLoading(true);
         const data = await listVariants();
         if (!cancelled) {
-          setVariantOptions(data.variants);
+          setVariantOptions(data);
           setVariantOptionsError(null);
         }
       } catch (err) {
@@ -233,7 +226,7 @@ export function SectionEditor() {
 
     try {
       setLoading(true);
-      const state = await loadSectionEditor(numericSectionId);
+      const state = await loadSectionEditor(BigInt(numericSectionId));
       applySectionState(state);
       setError(null);
     } catch (err) {
@@ -265,7 +258,7 @@ export function SectionEditor() {
         return;
       }
 
-      const state = await persistExistingSectionContent(numericSectionId, content);
+      const state = await persistExistingSectionContent(BigInt(numericSectionId), content);
       applySectionState(state);
       setError(null);
     } catch (err) {
@@ -281,16 +274,6 @@ export function SectionEditor() {
       ...prev,
       [key]: value,
     }));
-  };
-
-  const handleNavigateSection = (target: LandingSection) => {
-    if (!variantSlug) {
-      return;
-    }
-    const targetPath = target.id
-      ? `/admin/customization/variants/${variantSlug}/sections/${target.id}`
-      : `/admin/customization/variants/${variantSlug}/sections/new`;
-    navigate(targetPath);
   };
 
   const handleAddSection = () => {
@@ -394,45 +377,12 @@ export function SectionEditor() {
     }
     return (
       compareConfig.sections
-        ?.filter((section) => section.section_type === sectionType)
+        ?.filter((section) => section.sectionType === sectionType)
         .sort((a, b) => a.order - b.order)[0] ?? null
     );
   }, [compareConfig, sectionType]);
   const comparisonContent = comparisonSection?.content ?? {};
   const comparisonEnabled = comparisonSection?.enabled !== false;
-  const handleReorderSection = useCallback(
-    async (target: LandingSection, direction: 'up' | 'down') => {
-      if (!target.id || !timelineSections.length) {
-        return;
-      }
-      const currentIndex = timelineSections.findIndex((section) => section.id === target.id);
-      if (currentIndex === -1) {
-        return;
-      }
-      const neighborIndex = currentIndex + (direction === 'up' ? -1 : 1);
-      const neighbor = timelineSections[neighborIndex];
-      if (!neighbor || !neighbor.id || typeof neighbor.order !== 'number' || typeof target.order !== 'number') {
-        setReorderError('Unable to move section. Missing neighbor information.');
-        return;
-      }
-
-      try {
-        setReorderingSectionId(target.id);
-        setReorderError(null);
-        await Promise.all([
-          updateSectionOrder(target.id, neighbor.order),
-          updateSectionOrder(neighbor.id, target.order),
-        ]);
-        await refreshPreviewConfig();
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to reorder sections';
-        setReorderError(message);
-      } finally {
-        setReorderingSectionId(null);
-      }
-    },
-    [timelineSections, refreshPreviewConfig],
-  );
 
   if (loading) {
     return (
@@ -503,13 +453,8 @@ export function SectionEditor() {
                 sections={timelineSections}
                 loading={previewConfigLoading}
                 error={previewConfigError}
-                currentSectionId={numericSectionId}
                 currentSectionType={sectionType}
-                onNavigateSection={handleNavigateSection}
                 onAddSection={handleAddSection}
-                onReorderSection={handleReorderSection}
-                reorderingSectionId={reorderingSectionId}
-                reorderError={reorderError}
               />
             )}
             <VariantContextCard
@@ -530,7 +475,7 @@ export function SectionEditor() {
                   <select
                     id="section-type"
                     value={sectionType}
-                    onChange={(e) => setSectionType(e.target.value as ContentSection['section_type'])}
+                    onChange={(e) => setSectionType(e.target.value)}
                     disabled={!isNew}
                     className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50"
                     data-testid="section-type-input"
@@ -837,25 +782,15 @@ function VariantSectionTimeline({
   sections,
   loading,
   error,
-  currentSectionId,
   currentSectionType,
-  onNavigateSection,
   onAddSection,
-  onReorderSection,
-  reorderingSectionId,
-  reorderError,
 }: {
   variantName: string;
   sections: LandingSection[];
   loading: boolean;
   error: string | null;
-  currentSectionId: number | null;
-  currentSectionType: ContentSection['section_type'];
-  onNavigateSection: (section: LandingSection) => void;
+  currentSectionType: ContentSection['sectionType'];
   onAddSection: () => void;
-  onReorderSection: (section: LandingSection, direction: 'up' | 'down') => void;
-  reorderingSectionId: number | null;
-  reorderError: string | null;
 }) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4" data-testid="variant-section-timeline">
@@ -863,7 +798,7 @@ function VariantSectionTimeline({
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Variant Timeline</p>
           <h2 className="text-lg font-semibold text-white">Sections for {variantName}</h2>
-          <p className="text-xs text-slate-500">Jump directly to any section without leaving the editor.</p>
+          <p className="text-xs text-slate-500">Overview of the sections configured for this variant.</p>
         </div>
         <Button variant="outline" size="sm" className="gap-2" onClick={onAddSection}>
           <Plus className="h-4 w-4" />
@@ -884,71 +819,25 @@ function VariantSectionTimeline({
       {!loading && !error && sections.length > 0 && (
         <div className="space-y-2">
           {sections.map((section) => {
-            const isActive = currentSectionId
-              ? section.id === currentSectionId
-              : section.section_type === currentSectionType;
+            const isActive = section.sectionType === currentSectionType;
             const badge = section.enabled === false ? 'Disabled' : 'Enabled';
-            const isFirst = sections[0]?.id === section.id;
-            const isLast = sections[sections.length - 1]?.id === section.id;
             return (
               <div
-                key={`${section.section_type}-${section.id ?? section.order}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => onNavigateSection(section)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    onNavigateSection(section);
-                  }
-                }}
+                key={`${section.sectionType}-${section.order}`}
                 className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                  isActive ? 'border-white/40 bg-white/10' : 'border-white/10 hover:border-white/30'
+                  isActive ? 'border-white/40 bg-white/10' : 'border-white/10'
                 }`}
               >
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <div className="text-xs text-slate-500">#{section.order ?? '-'}</div>
-                    <div className="text-sm font-medium capitalize text-white">{section.section_type}</div>
+                    <div className="text-xs text-slate-500">#{section.order}</div>
+                    <div className="text-sm font-medium capitalize text-white">{section.sectionType}</div>
                     <div className="text-[11px] uppercase tracking-wide text-slate-500">{badge}</div>
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                    {section.id && (
-                      <>
-                        <button
-                          type="button"
-                          className="rounded-full border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-50"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onReorderSection(section, 'up');
-                          }}
-                          disabled={reorderingSectionId !== null || isFirst}
-                        >
-                          Move up
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-full border border-white/20 px-3 py-1 hover:border-white/40 disabled:opacity-50"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onReorderSection(section, 'down');
-                          }}
-                          disabled={reorderingSectionId !== null || isLast}
-                        >
-                          Move down
-                        </button>
-                      </>
-                    )}
                   </div>
                 </div>
               </div>
             );
           })}
-        </div>
-      )}
-      {reorderError && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-          {reorderError}
         </div>
       )}
     </div>

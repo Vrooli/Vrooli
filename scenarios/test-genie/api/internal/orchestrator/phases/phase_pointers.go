@@ -6,11 +6,40 @@ import (
 	"path/filepath"
 	"time"
 
+	"test-genie/internal/orchestrator/phases/validationprovider"
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
+
+// writeDurableChildReference records the provider child before Wait begins.
+// If Test Genie restarts, the next descriptor-driven Start reuses its
+// parent+phase idempotency key and therefore reconciles this same provider run
+// instead of creating duplicate execution work.
+func writeDurableChildReference(env workspace.Environment, phaseName, provider string, ref validationprovider.RunReference, logWriter io.Writer) {
+	payload := map[string]any{
+		"phase":             phaseName,
+		"scenario":          env.ScenarioName,
+		"status":            "in_progress",
+		"delivery_mode":     "durable-run",
+		"provider":          provider,
+		"parent_run_id":     ref.ParentRunID,
+		"provider_run_id":   ref.RunID,
+		"provider_state":    ref.State,
+		"provider_eta_secs": ref.ETASeconds,
+		"updated_at":        time.Now().UTC().Format(time.RFC3339),
+	}
+	writer := sharedartifacts.NewBaseWriter(env.ScenarioDir, env.ScenarioName, env.RunID)
+	targetDir := sharedartifacts.RunPhaseResultsDir(env.ScenarioDir, env.RunID)
+	if err := writer.EnsureDir(targetDir); err != nil {
+		shared.LogWarn(logWriter, "failed to create phase results dir for durable child: %v", err)
+		return
+	}
+	if err := writer.WriteJSON(filepath.Join(targetDir, phaseName+".json"), payload); err != nil {
+		shared.LogWarn(logWriter, "failed to persist durable child reference: %v", err)
+	}
+}
 
 // writePhasePointer persists a lightweight phase summary to coverage/runs/<runID>/phase-results/<phase>.json.
 // This keeps artifacts discoverable without moving existing outputs.

@@ -119,15 +119,10 @@ func (s *Service) loadConfig(ctx context.Context) (runtimeConfig, error) {
 	cfg.hasSecret = envSecret != ""
 	cfg.hasWebhook = envWebhook != ""
 
-	if !cfg.hasPublishable {
-		cfg.publishableKey = "pk_test_placeholder"
-	}
-	if !cfg.hasSecret {
-		cfg.secretKey = "sk_test_placeholder"
-	}
-	if !cfg.hasWebhook {
-		cfg.webhookSecret = "whsec_placeholder"
-	}
+	// Unset keys stay empty (inert): every consumer gates on the has* flags, so
+	// an empty value is safely non-functional. The template ships no default
+	// Stripe credentials — configure real keys via STRIPE_* env or the admin
+	// payment settings before enabling checkout.
 	return cfg, nil
 }
 

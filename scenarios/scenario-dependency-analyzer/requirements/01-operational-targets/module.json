@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "SDA requirements mapped to literal PRD operational target IDs.",
-    "last_validated_at": "2026-06-17T01:09:40-04:00",
+    "last_validated_at": "2026-07-15T16:49:57-04:00",
     "module": "operational-targets",
     "prd_ref": "PRD.md",
     "priority": "P0-P2",
@@ -11,7 +11,7 @@
     {
       "id": "SDA-P0-001",
       "title": "Declared dependency extraction",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "declared-dependencies",
       "description": "Parse scenario service metadata and extract declared resource and scenario dependencies.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/internal/dependencyhealth/connect_test.go::TestRuntimeDependencyHealthReportsRequiredResourceAndScenarioFailures",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates `.vrooli/service.json` resource and scenario dependency extraction for runtime health."
         }
       ]
@@ -28,7 +28,7 @@
     {
       "id": "SDA-P0-002",
       "title": "Retained non-import scenario signals",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "legacy-signals",
       "description": "Retain supported Vrooli command and workflow usage signals until AST facts replace them.",
@@ -37,7 +37,7 @@
           "type": "test",
           "ref": "api/internal/interfacegraph/builder_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Interface graph tests cover non-import evidence preservation where upstream facts provide it."
         }
       ]
@@ -45,7 +45,7 @@
     {
       "id": "SDA-P0-003",
       "title": "Dependency metadata storage",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "storage",
       "description": "Persist history-bearing dependency metadata and analysis records in the domain store.",
@@ -54,7 +54,7 @@
           "type": "test",
           "ref": "api/internal/store",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Store tests validate dependency metadata persistence surfaces."
         }
       ]
@@ -79,7 +79,7 @@
     {
       "id": "SDA-P0-005",
       "title": "Semantic scenario matching",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "semantic-matching",
       "description": "Use Qdrant and embeddings for proposed-scenario similarity with deterministic fallback behavior.",
@@ -88,7 +88,7 @@
           "type": "test",
           "ref": "api/internal/proposal",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Proposal tests validate semantic matching and deterministic fallback behavior."
         }
       ]
@@ -96,7 +96,7 @@
     {
       "id": "SDA-P0-006",
       "title": "CLI graph access",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "cli",
       "description": "Expose graph, drift, optimization, export, health, and governance workflows through the SDA CLI.",
@@ -105,7 +105,7 @@
           "type": "test",
           "ref": "cli",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI package tests and CLI Health discovery validate command availability."
         }
       ]
@@ -113,7 +113,7 @@
     {
       "id": "SDA-P0-007",
       "title": "API graph access",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "api",
       "description": "Serve REST and Connect endpoints for dependency and graph consumers.",
@@ -122,7 +122,7 @@
           "type": "test",
           "ref": "api/internal/graph",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Graph API tests validate downstream graph access."
         }
       ]
@@ -130,7 +130,7 @@
     {
       "id": "SDA-P0-008",
       "title": "Actual interface graph",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "actual-graph",
       "description": "Compute actual scenario edges from proto-health and code-facts batch facts.",
@@ -139,7 +139,7 @@
           "type": "test",
           "ref": "api/internal/interfacegraph",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Interface graph tests validate upstream proto/import fact interpretation."
         }
       ]
@@ -147,7 +147,7 @@
     {
       "id": "SDA-P0-009",
       "title": "Dependency drift reporting",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "category": "drift",
       "description": "Compare actual import evidence with declared scenario dependencies using asymmetric severity.",
@@ -156,7 +156,7 @@
           "type": "test",
           "ref": "api/internal/dependencyhealth/connect_test.go::TestMaturitySpecCoversDependencyHealthRuleFamilies",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Dependency health maturity coverage includes graph drift rule families."
         }
       ]
@@ -164,7 +164,7 @@
     {
       "id": "SDA-P0-010",
       "title": "Connect graph seam",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "category": "connect",
       "description": "Expose DescribeInterfaceGraph as the reusable Connect contract for downstream planners.",
@@ -173,7 +173,7 @@
           "type": "test",
           "ref": "api/internal/graph",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Graph Connect handler tests validate the reusable graph seam."
         }
       ]
@@ -181,7 +181,7 @@
     {
       "id": "SDA-P0-011",
       "title": "SQLite storage cutover",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "category": "sqlite",
       "description": "Run SDA on SQLite with embedded domain-owned schemas and no Postgres runtime dependency.",
@@ -190,7 +190,7 @@
           "type": "test",
           "ref": "api/internal/store",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Store tests validate SQLite-backed SDA persistence."
         }
       ]
@@ -198,7 +198,7 @@
     {
       "id": "SDA-P0-012",
       "title": "Test Genie dependency producer",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-012",
       "category": "dependency-health",
       "description": "Provide the single read-only SDA health producer consumed by Test Genie's dependencies phase.",
@@ -207,7 +207,7 @@
           "type": "test",
           "ref": "../test-genie/api/internal/orchestrator/phases/phase_dependencies_test.go::TestRunDependenciesPhase_MapsSDAHealthFindings",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test Genie maps the SDA health response without native dependency fallback."
         }
       ]
@@ -215,7 +215,7 @@
     {
       "id": "SDA-P0-013",
       "title": "Dependency surface readiness",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-013",
       "category": "readiness",
       "description": "Discover dependency surfaces through Code Facts and validate commands, runtimes, modules, package managers, lockfiles, and local install state without mutating files.",
@@ -224,7 +224,7 @@
           "type": "test",
           "ref": "api/internal/dependencyhealth/connect_test.go::TestReadinessRoutesByDiscoveredSurfaceLanguage",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Readiness routes by discovered surface language and checks Go/Node surface state."
         }
       ]
@@ -232,7 +232,7 @@
     {
       "id": "SDA-P0-014",
       "title": "Runtime dependency health",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-014",
       "category": "runtime",
       "description": "Report required resources and scenario dependencies from `.vrooli/service.json` with degraded runtime status evidence.",
@@ -241,7 +241,7 @@
           "type": "test",
           "ref": "api/internal/dependencyhealth/connect_test.go::TestRuntimeDependencyHealthReportsRequiredResourceAndScenarioFailures",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Runtime health reports required resource and scenario failures."
         }
       ]
@@ -249,7 +249,7 @@
     {
       "id": "SDA-P0-015",
       "title": "Approved dependency governance",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-015",
       "category": "governance",
       "description": "Maintain reviewable approved-dependency governance memory for package choices, ranges, constraints, and non-allowlist guidance.",
@@ -258,7 +258,7 @@
           "type": "test",
           "ref": "api/internal/dependencygovernance/registry_test.go::TestListFindingsFiltersFleetGovernanceFindings",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Governance tests validate review findings and advisory policy behavior."
         }
       ]
@@ -266,7 +266,7 @@
     {
       "id": "SDA-P0-016",
       "title": "Release-age policy validation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-016",
       "category": "release-age",
       "description": "Validate pnpm `minimumReleaseAge` policy and governed release-age exceptions for dependency supply-chain safety.",
@@ -275,14 +275,14 @@
           "type": "test",
           "ref": "api/internal/dependencyhealth/connect_test.go::TestReleaseAgeReportsMissingAndLowPNPMPolicy",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Release-age tests validate missing and low pnpm policy findings."
         },
         {
           "type": "test",
           "ref": "api/internal/dependencyhealth/connect_test.go::TestReleaseAgeAcceptsGovernedExcludes",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Release-age tests validate governed exclusion handling."
         }
       ]
@@ -290,7 +290,7 @@
     {
       "id": "SDA-P0-017",
       "title": "Security evidence boundary",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-017",
       "category": "security-boundary",
       "description": "Report Security Health dependency-index context in dependency health while keeping vulnerability findings in Security Health and governance evidence workflows.",
@@ -299,21 +299,21 @@
           "type": "test",
           "ref": "api/internal/dependencyhealth/connect_test.go::TestSecurityHealthVulnerabilityEvidenceStaysOutOfHealthFindings",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Dependency health does not call vulnerability evidence or emit security findings."
         },
         {
           "type": "test",
           "ref": "api/internal/dependencygovernance/registry_test.go::TestListSecurityGovernanceGapsReportsCoverageAndApprovedOverlap",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Governance still consumes Security Health vulnerability evidence."
         },
         {
           "type": "test",
           "ref": "api/internal/dependencygovernance/registry_test.go::TestListSecurityGovernanceGapsToleratesSecurityHealthPreamble",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Governance evidence parsing tolerates Security Health CLI wrapper output without moving scanner ownership into SDA."
         }
       ]
@@ -321,7 +321,7 @@
     {
       "id": "SDA-P1-001",
       "title": "Optimization recommendations",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "optimization",
       "description": "Recommend resource swaps and dependency reductions for lighter deployments.",
@@ -330,7 +330,7 @@
           "type": "test",
           "ref": "api/internal/optimization",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Optimization tests validate recommendation behavior."
         }
       ]
@@ -368,7 +368,7 @@
     {
       "id": "SDA-P1-004",
       "title": "Graph export formats",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "export",
       "description": "Export dependency graphs as JSON, DOT/GraphViz, and image-ready data.",
@@ -377,7 +377,7 @@
           "type": "test",
           "ref": "api/internal/graph",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Graph tests validate exportable graph payloads."
         }
       ]
@@ -415,7 +415,7 @@
     {
       "id": "SDA-P1-007",
       "title": "Governance operator workflow",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "category": "governance-ui",
       "description": "Provide CLI and UI workflows for dependency governance triage, fleet validation, dry-run mutation, security-gap review, and remediation preview.",
@@ -424,14 +424,14 @@
           "type": "test",
           "ref": "ui/src/features/governance/GovernancePage.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Governance UI tests validate triage, remediation, and dry-run/apply workflow copy."
         },
         {
           "type": "test",
           "ref": "api/internal/dependencygovernance/registry_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Governance API tests validate fleet triage and security-gap workflow behavior."
         }
       ]

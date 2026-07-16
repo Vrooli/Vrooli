@@ -31,7 +31,13 @@ HTTP handlers in `api/*_handlers.go` (e.g., `account_handlers.go`, `variant_hand
 - Enforce auth middleware
 - Serialize responses
 
-Client utilities live in `ui/src/shared/api/*.ts` and exclusively call REST endpoints.
+Client utilities live in `ui/src/shared/api/*.ts`. Each module wraps a generated
+Connect-RPC client (`createClient(<Service>, transport)` over the proto types in
+`@vrooli/proto-types/landing-page-react-vite`). The shared transport
+(`client.ts`) sends credentials so admin surfaces carry the HMAC session cookie
+set by `AdminAuthService.Login`. The only non-RPC calls left are the deliberate
+REST exceptions: multipart asset upload, static `/uploads` serving, `/sitemap.xml`,
+`/robots.txt`, and the Stripe webhook receiver.
 
 ### Coordination / Domain Layer
 
@@ -230,4 +236,4 @@ Logging, tracing, feature flags should hook through middleware or helper seams.
 ## See Also
 
 - [Configuration Guide](CONFIGURATION_GUIDE.md) - Environment variables
-- [API Reference](api/README.md) - Endpoint documentation
+- [API Reference](api/overview.md) - Endpoint documentation

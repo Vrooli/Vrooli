@@ -5,11 +5,11 @@
   "groups": [
     {
       "name": "validate",
-      "description": "Validate workflow assets through the shared scenario-validation provider contract",
+      "description": "Validate workflow assets and manage durable execution runs through the shared scenario-validation provider contract",
       "commands": [
         {
           "name": "scenario",
-          "description": "Validate a scenario's BAS workflow catalog and optional execution evidence",
+          "description": "Perform fast static validation of a scenario's BAS workflow catalog",
           "positionals": [
             {
               "name": "scenario",
@@ -21,11 +21,6 @@
             {
               "name": "path",
               "description": "Explicit scenario directory path"
-            },
-            {
-              "name": "include-execution",
-              "bool": true,
-              "description": "Execute validation cases through BAS after static validation"
             }
           ],
           "binding": {
@@ -41,6 +36,38 @@
               "filesystem:read"
             ]
           }
+        },
+        {
+          "name": "start",
+          "description": "Start a durable workflow execution validation run",
+          "positionals": [{"name":"scenario","required":true,"description":"Scenario id to validate"}],
+          "flags": [{"name":"path","description":"Explicit scenario directory path"},{"name":"idempotency-key","description":"Stable key for replay-safe start"},{"name":"parent-run-id","description":"Optional Test Genie parent run identity"}],
+          "binding":{"kind":"connect-rpc","service":"DurableValidationRunService","method":"StartValidationRun"},
+          "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}
+        },
+        {
+          "name": "get",
+          "description": "Get persisted durable workflow validation state",
+          "positionals": [{"name":"run-id","required":true,"description":"Provider validation run id"}],
+          "flags": [],
+          "binding":{"kind":"connect-rpc","service":"DurableValidationRunService","method":"GetValidationRun"},
+          "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}
+        },
+        {
+          "name": "wait",
+          "description": "Wait once for a durable workflow validation terminal result",
+          "positionals": [{"name":"run-id","required":true,"description":"Provider validation run id"}],
+          "flags": [{"name":"timeout","description":"Optional Go duration caller wait limit"}],
+          "binding":{"kind":"connect-rpc","service":"DurableValidationRunService","method":"WaitValidationRun"},
+          "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}
+        },
+        {
+          "name": "abort",
+          "description": "Explicitly abort a durable workflow validation run",
+          "positionals": [{"name":"run-id","required":true,"description":"Provider validation run id"}],
+          "flags": [{"name":"reason","description":"Optional operator cancellation reason"}],
+          "binding":{"kind":"connect-rpc","service":"DurableValidationRunService","method":"AbortValidationRun"},
+          "governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}
         }
       ]
     },

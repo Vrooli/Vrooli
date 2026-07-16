@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { create } from '@bufbuild/protobuf';
+import { DownloadStorefrontSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/download_pb';
 import { AdminLayout } from '../components/AdminLayout';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import {
   createDownloadAppAdmin,
-  deleteDownloadAppAdmin,
   listDownloadAppsAdmin,
   saveDownloadAppAdmin,
   type DownloadApp,
   type DownloadAppInput,
   type DownloadAsset,
-  type DownloadStorefront,
 } from '../../../shared/api';
-import { AlertCircle, CheckCircle2, Download, Plus, RefreshCw, Save, ExternalLink, Package, Monitor, Smartphone, Trash2, GripVertical } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Download, Plus, RefreshCw, Save, ExternalLink, Package, Monitor, Smartphone, GripVertical } from 'lucide-react';
 
 type PlatformKey = 'windows' | 'mac' | 'linux';
 
@@ -59,18 +59,19 @@ const PLATFORM_KEYS: PlatformKey[] = ['windows', 'mac', 'linux'];
 
 function buildPlatformForm(platform: PlatformKey, asset?: DownloadAsset): PlatformFormValues {
   // A platform is considered enabled if it has content or explicitly enabled metadata
-  const hasContent = Boolean(asset?.artifact_url || asset?.release_version);
+  const hasContent = Boolean(asset?.artifactUrl || asset?.releaseVersion);
   const explicitEnabled = asset?.metadata?.enabled;
   const enabled = explicitEnabled !== undefined ? Boolean(explicitEnabled) : hasContent;
+  const rawSize = asset?.metadata?.size_mb;
 
   return {
     platform,
     enabled,
-    artifactUrl: asset?.artifact_url ?? '',
-    releaseVersion: asset?.release_version ?? '',
-    releaseNotes: asset?.release_notes ?? '',
-    requiresEntitlement: asset?.requires_entitlement ?? true,
-    sizeMb: asset?.metadata?.size_mb ? String(asset.metadata.size_mb) : '',
+    artifactUrl: asset?.artifactUrl ?? '',
+    releaseVersion: asset?.releaseVersion ?? '',
+    releaseNotes: asset?.releaseNotes ?? '',
+    requiresEntitlement: asset?.requiresEntitlement ?? true,
+    sizeMb: typeof rawSize === 'number' || typeof rawSize === 'string' ? String(rawSize) : '',
   };
 }
 
@@ -89,13 +90,13 @@ function deserializeApp(app: DownloadApp): AppFormValues {
   const googleEnabled = googleStore ? Boolean(googleStore.url) : false;
 
   return {
-    appKey: app.app_key,
+    appKey: app.appKey,
     name: app.name ?? '',
     tagline: app.tagline ?? '',
     description: app.description ?? '',
-    installOverview: app.install_overview ?? '',
-    installSteps: (app.install_steps ?? []).join('\n'),
-    displayOrder: app.display_order ?? 0,
+    installOverview: app.installOverview ?? '',
+    installSteps: (app.installSteps ?? []).join('\n'),
+    displayOrder: app.displayOrder ?? 0,
     appleEnabled,
     appleLabel: appleStore?.label ?? 'App Store',
     appleUrl: appleStore?.url ?? '',
@@ -138,23 +139,23 @@ function buildDefaultAppValues(appKey = ''): AppFormValues {
 }
 
 function serializeApp(values: AppFormValues): DownloadAppInput {
-  const storefronts: DownloadStorefront[] = [];
+  const storefronts: NonNullable<DownloadAppInput['storefronts']> = [];
   // Only include storefronts that are enabled AND have a URL
   if (values.appleEnabled && values.appleUrl.trim()) {
-    storefronts.push({
+    storefronts.push(create(DownloadStorefrontSchema, {
       store: 'app_store',
       label: values.appleLabel.trim() || 'App Store',
       url: values.appleUrl.trim(),
-      badge: values.appleBadge.trim() || undefined,
-    });
+      badge: values.appleBadge.trim(),
+    }));
   }
   if (values.googleEnabled && values.googleUrl.trim()) {
-    storefronts.push({
+    storefronts.push(create(DownloadStorefrontSchema, {
       store: 'play_store',
       label: values.googleLabel.trim() || 'Google Play',
       url: values.googleUrl.trim(),
-      badge: values.googleBadge.trim() || undefined,
-    });
+      badge: values.googleBadge.trim(),
+    }));
   }
 
   const installSteps = values.installSteps
@@ -167,25 +168,25 @@ function serializeApp(values: AppFormValues): DownloadAppInput {
     const entry = values.platforms[key];
     return {
       platform: entry.platform,
-      artifact_url: entry.artifactUrl.trim(),
-      release_version: entry.releaseVersion.trim(),
-      release_notes: entry.releaseNotes.trim(),
-      requires_entitlement: entry.requiresEntitlement,
+      artifactUrl: entry.artifactUrl.trim(),
+      releaseVersion: entry.releaseVersion.trim(),
+      releaseNotes: entry.releaseNotes.trim(),
+      requiresEntitlement: entry.requiresEntitlement,
       metadata: {
         ...(entry.sizeMb.trim() ? { size_mb: Number(entry.sizeMb) } : {}),
         enabled: entry.enabled,
       },
     };
-  }).filter((platform) => platform.metadata.enabled && platform.artifact_url.length > 0 && platform.release_version.length > 0);
+  }).filter((platform) => platform.metadata.enabled && platform.artifactUrl.length > 0 && platform.releaseVersion.length > 0);
 
   return {
-    app_key: values.appKey.trim(),
+    appKey: values.appKey.trim(),
     name: values.name.trim(),
     tagline: values.tagline.trim(),
     description: values.description.trim(),
-    install_overview: values.installOverview.trim(),
-    install_steps: installSteps,
-    display_order: values.displayOrder,
+    installOverview: values.installOverview.trim(),
+    installSteps,
+    displayOrder: values.displayOrder,
     storefronts,
     platforms,
   };
@@ -210,12 +211,12 @@ export function DownloadSettings() {
     setLoading(true);
     setError(null);
     try {
-      const { apps } = await listDownloadAppsAdmin();
-      const sorted = [...apps].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+      const apps = await listDownloadAppsAdmin();
+      const sorted = [...apps].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
       const nextForms = sorted.map((app) => {
         const values = deserializeApp(app);
         return {
-          key: app.app_key,
+          key: app.appKey,
           values,
           original: values,
           saving: false,
@@ -300,39 +301,6 @@ export function DownloadSettings() {
     );
   };
 
-  const handleDelete = async (key: string) => {
-    const target = forms.find((form) => form.key === key);
-    if (!target) return;
-
-    // For new unsaved apps, just remove from local state
-    if (target.isNew) {
-      setForms((prev) => prev.filter((form) => form.key !== key));
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${target.values.name || target.values.appKey}"? This action cannot be undone.`
-    );
-    if (!confirmed) return;
-
-    setForms((prev) =>
-      prev.map((form) => (form.key === key ? { ...form, saving: true, error: undefined } : form))
-    );
-
-    try {
-      await deleteDownloadAppAdmin(target.values.appKey);
-      setForms((prev) => prev.filter((form) => form.key !== key));
-    } catch (err) {
-      setForms((prev) =>
-        prev.map((form) =>
-          form.key === key
-            ? { ...form, saving: false, error: err instanceof Error ? err.message : 'Failed to delete app' }
-            : form
-        )
-      );
-    }
-  };
-
   // Drag-and-drop handlers
   const handleDragStart = (key: string) => (e: React.DragEvent) => {
     setDraggingKey(key);
@@ -371,6 +339,7 @@ export function DownloadSettings() {
       // Create new array with reordered items
       const newForms = [...prev];
       const [removed] = newForms.splice(sourceIndex, 1);
+      if (!removed) return prev;
       newForms.splice(targetIndex, 0, removed);
 
       // Update displayOrder for all items based on new positions
@@ -412,13 +381,16 @@ export function DownloadSettings() {
       const response = target.isNew
         ? await createDownloadAppAdmin(payload)
         : await saveDownloadAppAdmin(target.values.appKey, payload);
+      if (!response) {
+        throw new Error('Save returned no data');
+      }
       const updatedValues = deserializeApp(response);
       setForms((prev) =>
         prev.map((form) =>
           form.key === key
             ? {
                 ...form,
-                key: response.app_key,
+                key: response.appKey,
                 values: updatedValues,
                 original: updatedValues,
                 saving: false,
@@ -469,14 +441,22 @@ export function DownloadSettings() {
     // Update forms based on results
     setForms((prev) =>
       prev.map((form) => {
-        const result = results.find((r, i) => dirtyForms[i].key === form.key);
+        const result = results.find((_result, i) => dirtyForms[i]?.key === form.key);
         if (!result) return form;
 
         if (result.status === 'fulfilled') {
-          const updatedValues = deserializeApp(result.value.response);
+          const response = result.value.response;
+          if (!response) {
+            return {
+              ...form,
+              saving: false,
+              error: 'Save returned no data',
+            };
+          }
+          const updatedValues = deserializeApp(response);
           return {
             ...form,
-            key: result.value.response.app_key,
+            key: response.appKey,
             values: updatedValues,
             original: updatedValues,
             saving: false,
@@ -730,16 +710,6 @@ export function DownloadSettings() {
                           </CardDescription>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(form.key)}
-                        disabled={form.saving}
-                        className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
-                        data-testid={`download-delete-${form.key}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">

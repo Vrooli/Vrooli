@@ -24,7 +24,7 @@ func TestLoginAndTokenRoundTrip(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)`, "admin@localhost", string(hash))
 	require.NoError(t, err)
 
-	svc := admin.NewService(db)
+	svc := admin.NewService(db, []byte("test-session-secret"))
 	ctx := context.Background()
 	require.NoError(t, svc.Login(ctx, "admin@localhost", "secret"))
 	require.ErrorIs(t, svc.Login(ctx, "admin@localhost", "wrong"), admin.ErrInvalidCredentials)
@@ -44,7 +44,7 @@ func TestLoginAndTokenRoundTrip(t *testing.T) {
 func TestInterceptorGatesOnCookie(t *testing.T) {
 	db := pgtest.NewDB(t)
 	pgtest.Apply(t, db, admin.Schema)
-	svc := admin.NewService(db)
+	svc := admin.NewService(db, []byte("test-session-secret"))
 
 	called := false
 	next := connect.UnaryFunc(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {

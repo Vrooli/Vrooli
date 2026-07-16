@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"workflow-health/internal/clock"
 	"workflow-health/internal/modules"
@@ -115,6 +116,9 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := validationH.RecoverInterrupted(context.Background(), db); err != nil {
+		log.Printf("recover interrupted durable validation runs: %v", err)
+	}
 
 	repoRoot, repoErr := repocontract.ResolveRepoRoot()
 	if repoErr != nil {
@@ -133,7 +137,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "workflow-health-api", "1.0.0"),
-		validationH.Module(log.Default(), repoRoot),
+		validationH.Module(log.Default(), repoRoot, db),
 		workflowsH.Module(log.Default()),
 	)
 
@@ -150,8 +154,12 @@ func main() {
 	// installed test pool. Self-disables in production mode.
 	handler := apihttp.TestModeMiddleware(rootMux)
 
+	// WaitValidationRun is the sole intentionally blocking provider endpoint.
+	// Its 15-minute Workflow phase budget receives one minute of bounded
+	// transport headroom; Start/Get/Abort return promptly and do not rely on it.
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
+		Handler:      handler,
+		WriteTimeout: 16 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			cancelSearchRegistration()
 			return db.Close()

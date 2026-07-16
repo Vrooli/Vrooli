@@ -166,8 +166,9 @@ diagnostics to Unit Health:
 
 Delegates BAS workflow validation and safe execution to Workflow Health:
 
-- Calls `scenario-validation/v1.ScenarioValidationService.ValidateScenario` on `workflow-health`
-- Sets `include_execution=true` so workflow-health can run eligible BAS validation cases
+- Reads Workflow Health's descriptor-declared `durable-run` delivery mode, then
+  calls `scenario-validation/v1.DurableValidationRunService.StartValidationRun`
+  and waits once for its terminal shared response
 - Preserves routed-isolation and explicit-confirmation guardrails for mutating or destructive workflows
 - Maps provider findings into `FINDING_SOURCE_WORKFLOW`
 

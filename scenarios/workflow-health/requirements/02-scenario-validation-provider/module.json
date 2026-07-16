@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-12T13:52:54-04:00"
+    "last_validated_at": "2026-07-15T11:06:54-04:00"
   },
   "requirements": [
     {
@@ -29,7 +29,7 @@
     {
       "id": "REQ-P0-004",
       "title": "Expose Provider CLI Commands",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "cli",
       "criticality": "P0",
@@ -38,7 +38,7 @@
         {
           "type": "test",
           "phase": "contracts",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI manifest and runtime command coverage tests prove every documented provider command is discoverable and bound to the intended RPC or local operation."
         }
       ]

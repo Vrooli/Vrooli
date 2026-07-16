@@ -40,6 +40,30 @@ type capturingClient struct {
 	got  *scenariovalidationv1.ValidateScenarioRequest
 }
 
+type capturingDurableClient struct {
+	start   *scenariovalidationv1.StartValidationRunRequest
+	wait    *scenariovalidationv1.WaitValidationRunRequest
+	abort   *scenariovalidationv1.AbortValidationRunRequest
+	run     *scenariovalidationv1.ValidationRun
+	waitErr error
+}
+
+func (c *capturingDurableClient) StartValidationRun(_ context.Context, req *connect.Request[scenariovalidationv1.StartValidationRunRequest]) (*connect.Response[scenariovalidationv1.StartValidationRunResponse], error) {
+	c.start = req.Msg
+	return connect.NewResponse(&scenariovalidationv1.StartValidationRunResponse{Run: c.run}), nil
+}
+func (c *capturingDurableClient) WaitValidationRun(_ context.Context, req *connect.Request[scenariovalidationv1.WaitValidationRunRequest]) (*connect.Response[scenariovalidationv1.WaitValidationRunResponse], error) {
+	c.wait = req.Msg
+	if c.waitErr != nil {
+		return nil, c.waitErr
+	}
+	return connect.NewResponse(&scenariovalidationv1.WaitValidationRunResponse{Run: c.run}), nil
+}
+func (c *capturingDurableClient) AbortValidationRun(_ context.Context, req *connect.Request[scenariovalidationv1.AbortValidationRunRequest]) (*connect.Response[scenariovalidationv1.AbortValidationRunResponse], error) {
+	c.abort = req.Msg
+	return connect.NewResponse(&scenariovalidationv1.AbortValidationRunResponse{Run: c.run}), nil
+}
+
 func (c *capturingClient) ValidateScenario(_ context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	c.got = req.Msg
 	return connect.NewResponse(c.resp), nil
@@ -70,6 +94,56 @@ func TestRunSendsScenarioPath(t *testing.T) {
 	}
 	if cap.got.GetPath() != wantPath {
 		t.Fatalf("path = %q, want %q", cap.got.GetPath(), wantPath)
+	}
+}
+
+func TestRunDurableStartsOnceAndWaitsForSharedTerminalResponse(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewDurableClient
+	terminal := &scenariovalidationv1.ValidateScenarioResponse{Scenario: "demo", Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: testAssessment("")}
+	cap := &capturingDurableClient{run: &scenariovalidationv1.ValidationRun{RunId: "provider-run-1", TerminalResult: terminal}}
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewDurableClient = func(time.Duration, string) DurableClient { return cap }
+	t.Cleanup(func() { ResolveBaseURL, NewDurableClient = prevResolve, prevClient })
+
+	provider := testProvider(false)
+	var startedRef RunReference
+	provider.OnStarted = func(ref RunReference) { startedRef = ref }
+	result := RunDurable(context.Background(), provider, "demo", "/tmp/demo", "parent-run-1")
+	if !result.Success {
+		t.Fatalf("durable result = %+v", result)
+	}
+	if cap.start == nil || cap.wait == nil {
+		t.Fatalf("start=%+v wait=%+v, want one each", cap.start, cap.wait)
+	}
+	if cap.start.GetIdempotencyKey() != "parent-run-1:proto" || cap.start.GetParentRunId() != "parent-run-1" {
+		t.Fatalf("start identity = %+v", cap.start)
+	}
+	if cap.wait.GetRunId() != "provider-run-1" {
+		t.Fatalf("wait run id = %q", cap.wait.GetRunId())
+	}
+	if result.Summary.ProviderRunID != "provider-run-1" {
+		t.Fatalf("provider run id = %q", result.Summary.ProviderRunID)
+	}
+	if result.Summary.ProviderParentRunID != "parent-run-1" || result.Summary.ProviderRunState != "unspecified" {
+		t.Fatalf("provider terminal reference = %+v", result.Summary)
+	}
+	if startedRef.RunID != "provider-run-1" || startedRef.ParentRunID != "parent-run-1" {
+		t.Fatalf("started child reference = %+v", startedRef)
+	}
+}
+
+func TestRunDurablePropagatesExplicitParentCancellation(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewDurableClient
+	cap := &capturingDurableClient{run: &scenariovalidationv1.ValidationRun{RunId: "provider-run-1"}, waitErr: context.Canceled}
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewDurableClient = func(time.Duration, string) DurableClient { return cap }
+	t.Cleanup(func() { ResolveBaseURL, NewDurableClient = prevResolve, prevClient })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_ = RunDurable(ctx, testProvider(false), "demo", "/tmp/demo", "parent-run-1")
+	if cap.abort == nil || cap.abort.GetRunId() != "provider-run-1" {
+		t.Fatalf("abort = %+v, want durable child cancellation", cap.abort)
 	}
 }
 

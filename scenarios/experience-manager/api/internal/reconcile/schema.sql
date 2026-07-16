@@ -1,7 +1,11 @@
 CREATE TABLE IF NOT EXISTS reconcile_evidence (
   id TEXT PRIMARY KEY,
   scenario TEXT NOT NULL,
+  document_kind TEXT NOT NULL DEFAULT 'page',
   page_id TEXT NOT NULL,
+  component_id TEXT NOT NULL DEFAULT '',
+  component_title TEXT NOT NULL DEFAULT '',
+  example_name TEXT NOT NULL DEFAULT '',
   route TEXT NOT NULL,
   state_id TEXT NOT NULL,
   claim_id TEXT NOT NULL,
@@ -22,7 +26,7 @@ CREATE TABLE IF NOT EXISTS reconcile_evidence_viewports (
 );
 
 CREATE INDEX IF NOT EXISTS idx_reconcile_evidence_claim
-  ON reconcile_evidence (scenario, page_id, state_id, claim_id, checked_at);
+  ON reconcile_evidence (scenario, page_id, component_id, state_id, claim_id, checked_at);
 
 CREATE INDEX IF NOT EXISTS idx_reconcile_evidence_viewports_viewport
   ON reconcile_evidence_viewports (viewport_id, viewport_width, viewport_height);

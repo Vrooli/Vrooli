@@ -184,10 +184,14 @@ message ListComponentsResponse {
 
 message GetComponentRequest {
   string id = 1;
+  // Opt-in because ordinary catalog reads do not require a cross-scenario
+  // evidence lookup.
+  bool include_experience = 2;
 }
 
 message GetComponentResponse {
   Component component = 1;
+  ComponentExperience experience = 2;
 }
 
 message GetComponentByLibraryIdRequest {
@@ -196,6 +200,47 @@ message GetComponentByLibraryIdRequest {
 
 message GetComponentByLibraryIdResponse {
   Component component = 1;
+}
+
+message ComponentExperience {
+  string component_id = 1;
+  string library_id = 2;
+  string version = 3;
+  string contract_id = 4;
+  string title = 5;
+  string purpose = 6;
+  repeated ComponentExperienceState states = 7;
+  repeated ComponentExperienceClaim claims = 8;
+  repeated ComponentExperienceEvidence evidence = 9;
+  string evidence_status = 10;
+  string evidence_message = 11;
+}
+
+message ComponentExperienceState {
+  string id = 1;
+  string example_name = 2;
+  string description = 3;
+}
+
+message ComponentExperienceClaim {
+  string id = 1;
+  string type = 2;
+  string statement = 3;
+  string tier = 4;
+  repeated string states = 5;
+}
+
+message ComponentExperienceEvidence {
+  string claim_id = 1;
+  string verdict = 2;
+  string state_id = 3;
+  string example_name = 4;
+  string capture_ref = 5;
+  string checked_at = 6;
+  string message = 7;
+  string viewport = 8;
+  int32 viewport_width = 9;
+  int32 viewport_height = 10;
 }
 
 // IndexComponentsRequest triggers a re-walk of the configured source root.

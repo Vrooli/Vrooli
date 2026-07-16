@@ -623,7 +623,7 @@ func (x *OperatingModeStartPhaseRequest) GetInputs() *structpb.Struct {
 // OperatingModeStartTargetPhaseRequest dispatches a round for a phase of a
 // non-initiative-target mode (the plan-first entry point). target_ref is the
 // handle the mode's target adapter resolves: a plan-manager execution id or
-// slug for `plan-manager-plan`, a repo-relative plan path for `plan-ref`.
+// slug for `plan-execution`, a scenario name for `scenario`.
 // phase defaults to the mode's start phase when empty.
 type OperatingModeStartTargetPhaseRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
@@ -1031,7 +1031,6 @@ type OperatingModeCapabilities struct {
 	RequiresAcceptanceCriteria   bool                   `protobuf:"varint,5,opt,name=requires_acceptance_criteria,json=requiresAcceptanceCriteria,proto3" json:"requires_acceptance_criteria,omitempty"`
 	SupportsArtifacts            bool                   `protobuf:"varint,6,opt,name=supports_artifacts,json=supportsArtifacts,proto3" json:"supports_artifacts,omitempty"`
 	SupportsHandoffs             bool                   `protobuf:"varint,7,opt,name=supports_handoffs,json=supportsHandoffs,proto3" json:"supports_handoffs,omitempty"`
-	UsesItemExecutionFlow        bool                   `protobuf:"varint,8,opt,name=uses_item_execution_flow,json=usesItemExecutionFlow,proto3" json:"uses_item_execution_flow,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
 }
@@ -1111,13 +1110,6 @@ func (x *OperatingModeCapabilities) GetSupportsArtifacts() bool {
 func (x *OperatingModeCapabilities) GetSupportsHandoffs() bool {
 	if x != nil {
 		return x.SupportsHandoffs
-	}
-	return false
-}
-
-func (x *OperatingModeCapabilities) GetUsesItemExecutionFlow() bool {
-	if x != nil {
-		return x.UsesItemExecutionFlow
 	}
 	return false
 }
@@ -3202,7 +3194,7 @@ type OperatingModeCatalogEntry struct {
 	SupportsPhases         bool                            `protobuf:"varint,15,opt,name=supports_phases,json=supportsPhases,proto3" json:"supports_phases,omitempty"`
 	Phases                 []*OperatingModeCatalogPhase    `protobuf:"bytes,16,rep,name=phases,proto3" json:"phases,omitempty"`
 	PhaseGraph             *OperatingModeCatalogPhaseGraph `protobuf:"bytes,17,opt,name=phase_graph,json=phaseGraph,proto3" json:"phase_graph,omitempty"`
-	// The mode's declared unit of work: plan-manager-plan | plan-ref | initiative.
+	// The mode's declared unit of work: backlog-item | initiative | plan-execution | scenario.
 	TargetKind string `protobuf:"bytes,18,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
 	// Complete parent + delegated execution-start input contract. UI and CLI
 	// derive request shape from this projection rather than rebuilding it.
@@ -3729,7 +3721,7 @@ type OperatingModeWorkspaceMode struct {
 	Terminal     []string                            `protobuf:"bytes,7,rep,name=terminal,proto3" json:"terminal,omitempty"`
 	Transitions  map[string]*OperatingModeStringList `protobuf:"bytes,8,rep,name=transitions,proto3" json:"transitions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	RunStrategy  string                              `protobuf:"bytes,9,opt,name=run_strategy,json=runStrategy,proto3" json:"run_strategy,omitempty"`
-	// The mode's declared unit of work: plan-manager-plan | plan-ref | initiative.
+	// The mode's declared unit of work: backlog-item | initiative | plan-execution | scenario.
 	TargetKind string `protobuf:"bytes,10,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
 	// Complete parent + delegated execution-start input contract.
 	InputContract *structpb.Struct `protobuf:"bytes,11,opt,name=input_contract,json=inputContract,proto3" json:"input_contract,omitempty"`
@@ -6057,7 +6049,7 @@ const file_swarm_manager_v1_api_operating_mode_proto_rawDesc = "" +
 	"\x05round\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\x05round\x12\x1e\n" +
 	"\x06run_id\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05runId\x122\n" +
 	"\x15accepted_mutation_ids\x18\x05 \x03(\tR\x13acceptedMutationIds\x12!\n" +
-	"\frequested_by\x18\x06 \x01(\tR\vrequestedBy\"\xbb\x03\n" +
+	"\frequested_by\x18\x06 \x01(\tR\vrequestedBy\"\xa2\x03\n" +
 	"\x19OperatingModeCapabilities\x12'\n" +
 	"\x0fsupports_phases\x18\x01 \x01(\bR\x0esupportsPhases\x12(\n" +
 	"\x10can_start_phases\x18\x02 \x01(\bR\x0ecanStartPhases\x12,\n" +
@@ -6065,8 +6057,7 @@ const file_swarm_manager_v1_api_operating_mode_proto_rawDesc = "" +
 	" can_apply_backlog_sync_proposals\x18\x04 \x01(\bR\x1ccanApplyBacklogSyncProposals\x12@\n" +
 	"\x1crequires_acceptance_criteria\x18\x05 \x01(\bR\x1arequiresAcceptanceCriteria\x12-\n" +
 	"\x12supports_artifacts\x18\x06 \x01(\bR\x11supportsArtifacts\x12+\n" +
-	"\x11supports_handoffs\x18\a \x01(\bR\x10supportsHandoffs\x127\n" +
-	"\x18uses_item_execution_flow\x18\b \x01(\bR\x15usesItemExecutionFlow\"t\n" +
+	"\x11supports_handoffs\x18\a \x01(\bR\x10supportsHandoffsJ\x04\b\b\x10\tR\x18uses_item_execution_flow\"t\n" +
 	"\x1fOperatingModeArtifactDefinition\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12\x1a\n" +

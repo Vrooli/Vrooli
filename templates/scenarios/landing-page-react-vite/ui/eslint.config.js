@@ -83,6 +83,33 @@ export default tseslint.config(
       ],
       "@typescript-eslint/restrict-template-expressions": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
+
+      // Production code must never import test-only helpers. src/test-utils/
+      // and any surfaces/<dom>/mocks or features/<dom>/mocks folder hold fakes,
+      // factories, and provider plumbing that would drag the whole test tree
+      // (and axe-core) into the production bundle. The *.test.{ts,tsx} override
+      // block below turns this off so tests remain the sole consumers.
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/test-utils",
+                "**/test-utils/*",
+                "@/test-utils",
+                "@/test-utils/*",
+                "**/features/*/mocks",
+                "**/features/*/mocks/*",
+                "**/surfaces/*/mocks",
+                "**/surfaces/*/mocks/*",
+              ],
+              message:
+                "Production code must not import from src/test-utils/ or any surfaces/<dom>/mocks (or features/<dom>/mocks) — these helpers are test-only. Move shared helpers out of those locations, or move the importing file to *.test.{ts,tsx}.",
+            },
+          ],
+        },
+      ],
     },
   },
   {
@@ -94,6 +121,9 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "react-refresh/only-export-components": "off",
+      // Tests are the consumers of src/test-utils/ — the production-side ban
+      // is precisely what makes those directories safe for fakes and plumbing.
+      "no-restricted-imports": "off",
     },
   }
 );

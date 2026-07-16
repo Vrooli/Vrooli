@@ -5,6 +5,7 @@ import { SEOHead } from '../../../shared/ui/SEOHead';
 import { useLandingVariant, type VariantResolution } from '../../../app/providers/LandingVariantProvider';
 import type {
   DownloadApp,
+  HeaderCTAConfig,
   LandingBranding,
   LandingConfigResponse,
   LandingHeaderConfig,
@@ -109,25 +110,25 @@ function formatDownloadPlatform(platform?: string) {
 // Map section types declared in variant schemas to their React implementations.
 // Add new entries here when introducing a new section so renderers stay centralized.
 const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
-  hero: ({ section }) => <HeroSection content={section.content} />, 
-  features: ({ section }) => <FeaturesSection content={section.content} />,
+  hero: ({ section }) => <HeroSection content={section.content ?? {}} />,
+  features: ({ section }) => <FeaturesSection content={section.content ?? {}} />,
   pricing: ({ section, config }) => (
-    <PricingSection content={section.content} pricingOverview={config?.pricing} />
+    <PricingSection content={section.content ?? {}} pricingOverview={config?.pricing} />
   ),
-  cta: ({ section }) => <CTASection content={section.content} />, 
-  testimonials: ({ section }) => <TestimonialsSection content={section.content} />,
-  faq: ({ section }) => <FAQSection content={section.content} />,
-  footer: ({ section }) => <FooterSection content={section.content} />,
+  cta: ({ section }) => <CTASection content={section.content ?? {}} />,
+  testimonials: ({ section }) => <TestimonialsSection content={section.content ?? {}} />,
+  faq: ({ section }) => <FAQSection content={section.content ?? {}} />,
+  footer: ({ section }) => <FooterSection content={section.content ?? {}} />,
   video: ({ section }) => <VideoSection content={section.content} />,
   downloads: ({ section, config }) => (
-    <DownloadSection content={section.content as any} downloads={config?.downloads} />
+    <DownloadSection content={section.content ?? {}} downloads={config?.downloads} />
   ),
 };
 
 function buildNavItems(sections: LandingSection[], includeDownloads: boolean, downloadAnchorId: string): NavItem[] {
   const items: NavItem[] = [];
   for (const type of SECTION_NAV_ORDER) {
-    const match = sections.find((section) => section.section_type === type);
+    const match = sections.find((section) => section.sectionType === type);
     if (!match) {
       continue;
     }
@@ -173,21 +174,18 @@ export function PublicLanding() {
       .filter((section) => section.enabled !== false)
       .sort((a, b) => a.order - b.order);
   }, [config]);
-  const debugSectionTypes: string[] | null = null;
-  const sectionsToRender = debugSectionTypes
-    ? sections.filter((section) => debugSectionTypes.includes(section.section_type))
-    : sections;
-  const downloadsSection = sections.find((section) => section.section_type === 'downloads');
+  const sectionsToRender = sections;
+  const downloadsSection = sections.find((section) => section.sectionType === 'downloads');
   const downloadApps = useMemo<DownloadApp[]>(() => {
     const raw = config?.downloads ?? [];
     return raw.filter((app) => hasDownloadTargets(app));
   }, [config]);
   const hasDownloads = downloadApps.length > 0;
   const downloadAnchorId = downloadsSection ? getSectionAnchorId(downloadsSection) : DOWNLOAD_ANCHOR_ID;
-  const heroSection = sections.find((section) => section.section_type === 'hero');
-  const heroCTAContent = heroSection?.content as { cta_text?: string; cta_url?: string } | undefined;
-  const heroCtaText = typeof heroCTAContent?.cta_text === 'string' ? heroCTAContent.cta_text : undefined;
-  const heroCtaUrl = typeof heroCTAContent?.cta_url === 'string' ? heroCTAContent.cta_url : undefined;
+  const heroSection = sections.find((section) => section.sectionType === 'hero');
+  const heroContent = heroSection?.content;
+  const heroCtaText = typeof heroContent?.cta_text === 'string' ? heroContent.cta_text : undefined;
+  const heroCtaUrl = typeof heroContent?.cta_url === 'string' ? heroContent.cta_url : undefined;
   const variantLabel = variant?.name ?? variant?.slug ?? 'Variant not resolved';
   const resolutionLabel = RESOLUTION_LABELS[resolution] ?? RESOLUTION_LABELS.unknown;
   const downloadButtonLabel = useMemo(() => {
@@ -196,6 +194,9 @@ export function PublicLanding() {
     }
     if (downloadApps.length === 1) {
       const single = downloadApps[0];
+      if (!single) {
+        return 'Downloads';
+      }
       const singleInstaller = single.platforms?.[0];
       if ((single.platforms?.length ?? 0) === 1 && singleInstaller) {
         return `Download ${formatDownloadPlatform(singleInstaller.platform)}`;
@@ -208,8 +209,8 @@ export function PublicLanding() {
     return 'View downloads';
   }, [downloadApps, hasDownloads]);
   const headerConfig = useMemo(
-    () => normalizeHeaderConfig(config?.header, config?.branding?.site_name ?? variantLabel),
-    [config?.branding?.site_name, config?.header, variantLabel],
+    () => normalizeHeaderConfig(config?.header, config?.branding?.siteName ?? variantLabel),
+    [config?.branding?.siteName, config?.header, variantLabel],
   );
   const navLinks = useMemo(
     () => resolveNavLinks(headerConfig, sections, hasDownloads, downloadAnchorId),
@@ -284,9 +285,9 @@ export function PublicLanding() {
   }
 
   const renderSection = (section: LandingSection) => {
-    const renderer = SECTION_COMPONENTS[section.section_type];
+    const renderer = SECTION_COMPONENTS[section.sectionType];
     if (!renderer) {
-      console.warn(`Unknown section type: ${section.section_type}`);
+      console.warn(`Unknown section type: ${section.sectionType}`);
       return null;
     }
 
@@ -398,7 +399,7 @@ function LandingExperienceHeader({
   showMeta,
 }: LandingExperienceHeaderProps) {
   const sticky = headerConfig.behavior?.sticky ?? true;
-  const hideOnScroll = sticky && headerConfig.behavior?.hide_on_scroll;
+  const hideOnScroll = sticky && (headerConfig.behavior?.hideOnScroll ?? false);
   const isHidden = useHideOnScroll(hideOnScroll);
   const hasDesktopNav = navLinks.some((link) => link.desktop);
   const hasMobileNav = navLinks.some((link) => link.mobile);
@@ -529,14 +530,11 @@ function BrandingBlock({
   showMeta: boolean;
 }) {
   const mode = header.branding?.mode ?? 'logo_and_name';
-  const label = header.branding?.label ?? branding?.site_name ?? runtime.variantLabel;
-  const subtitle = header.branding?.subtitle ?? branding?.tagline ?? null;
-  const logoUrl =
-    header.branding?.logo_icon_url ??
-    header.branding?.logo_url ??
-    branding?.logo_icon_url ??
-    branding?.logo_url;
-  const mobilePref = header.branding?.mobile_preference ?? 'auto';
+  // Proto string fields default to '' (never undefined), so fall back with || not ??.
+  const label = header.branding?.label || branding?.siteName || runtime.variantLabel;
+  const subtitle = header.branding?.subtitle || branding?.tagline || null;
+  const logoUrl = branding?.logoIconUrl || branding?.logoUrl;
+  const mobilePref = header.branding?.mobilePreference ?? 'auto';
   const showLogo = mode === 'logo' || mode === 'logo_and_name';
   const showName = mode === 'name' || mode === 'logo_and_name';
 
@@ -663,14 +661,13 @@ function resolveNavLinks(
   }
 
   const anchors = sections.map((section) => ({
-    id: section.id,
-    type: section.section_type,
+    type: section.sectionType,
     anchor: getSectionAnchorId(section),
   }));
 
   return configuredLinks.flatMap<HeaderNavRenderItem>((link, index) => {
-    const visibility = ensureVisibilityFlags(link.visible_on);
-    const label = link.label || SECTION_NAV_LABELS[link.section_type ?? ''] || 'Section';
+    const visibility = ensureVisibilityFlags(link.visibleOn);
+    const label = link.label || SECTION_NAV_LABELS[link.sectionType] || 'Section';
 
     if (link.type === 'downloads') {
       if (!downloadsAvailable) {
@@ -703,15 +700,12 @@ function resolveNavLinks(
 
     if (link.type === 'menu' && Array.isArray(link.children) && link.children.length > 0) {
       const children: HeaderNavRenderChild[] = link.children.map((child, childIdx) => {
-        const childVisibility = ensureVisibilityFlags(child.visible_on);
+        const childVisibility = ensureVisibilityFlags(child.visibleOn);
         // child visibility influences only child; parent visibility still used for desktop render
-        const childLabel = child.label || SECTION_NAV_LABELS[child.section_type ?? ''] || 'Item';
+        const childLabel = child.label || SECTION_NAV_LABELS[child.sectionType] || 'Item';
         const childAnchor =
           child.anchor ||
-          (typeof child.section_id === 'number'
-            ? anchors.find((entry) => entry.id === child.section_id)?.anchor
-            : undefined) ||
-          (child.section_type ? anchors.find((entry) => entry.type === child.section_type)?.anchor : undefined);
+          (child.sectionType ? anchors.find((entry) => entry.type === child.sectionType)?.anchor : undefined);
         const childHref =
           child.type === 'downloads'
             ? `#${downloadAnchorId}`
@@ -743,10 +737,7 @@ function resolveNavLinks(
 
     const anchor =
       link.anchor ||
-      (typeof link.section_id === 'number'
-        ? anchors.find((entry) => entry.id === link.section_id)?.anchor
-        : undefined) ||
-      (link.section_type ? anchors.find((entry) => entry.type === link.section_type)?.anchor : undefined);
+      (link.sectionType ? anchors.find((entry) => entry.type === link.sectionType)?.anchor : undefined);
 
     if (!anchor) {
       return [];
@@ -794,13 +785,20 @@ function resolveHeaderCTAs(
 }
 
 function resolveCTA(
-  config: { mode?: string; label?: string; href?: string; variant?: 'solid' | 'ghost' } | undefined,
+  config: HeaderCTAConfig | undefined,
   heroCTA: { label?: string; href?: string },
   downloadCTA: { label: string; href: string } | null,
   testId: string,
 ): HeaderCTAResolved | null {
-  const mode = config?.mode ?? 'inherit_hero';
-  const variant = config?.variant ?? (mode === 'downloads' ? 'ghost' : 'solid');
+  const mode = config?.mode || 'inherit_hero';
+  const variant: 'solid' | 'ghost' =
+    config?.variant === 'ghost'
+      ? 'ghost'
+      : config?.variant === 'solid'
+        ? 'solid'
+        : mode === 'downloads'
+          ? 'ghost'
+          : 'solid';
 
   if (mode === 'hidden') {
     return null;
@@ -811,7 +809,7 @@ function resolveCTA(
       return null;
     }
     return {
-      label: config?.label ?? downloadCTA.label,
+      label: config?.label || downloadCTA.label,
       href: downloadCTA.href,
       variant,
       testId: 'landing-nav-download',
@@ -823,7 +821,7 @@ function resolveCTA(
       return null;
     }
     return {
-      label: config?.label ?? heroCTA.label,
+      label: config?.label || heroCTA.label,
       href: heroCTA.href,
       variant,
       testId,

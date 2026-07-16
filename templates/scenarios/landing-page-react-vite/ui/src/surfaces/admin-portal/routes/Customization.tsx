@@ -5,6 +5,7 @@ import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { listVariants, archiveVariant, deleteVariant, type Variant, type AnalyticsSummary, type VariantStats } from '../../../shared/api';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { buildDateRange, fetchAnalyticsSummary } from '../controllers/analyticsController';
 import { loadVariantEditorData } from '../controllers/variantEditorController';
 
@@ -14,8 +15,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 type WeightStatus = 'empty' | 'balanced' | 'under' | 'over';
 
 const getTrendGlyph = (trend?: VariantStats['trend']) => {
-  if (trend === 'up') return <ArrowUpRight className="h-3 w-3 text-emerald-300" />;
-  if (trend === 'down') return <ArrowDownRight className="h-3 w-3 text-rose-300" />;
+  if (trend !== undefined && trend > 0) return <ArrowUpRight className="h-3 w-3 text-emerald-300" />;
+  if (trend !== undefined && trend < 0) return <ArrowDownRight className="h-3 w-3 text-rose-300" />;
   return <Minus className="h-3 w-3 text-slate-400" />;
 };
 
@@ -53,7 +54,7 @@ export function Customization() {
     try {
       setLoading(true);
       const data = await listVariants();
-      setVariants(data.variants);
+      setVariants(data);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load variants');
@@ -108,7 +109,7 @@ export function Customization() {
   const archivedVariants = variants.filter(v => v.status === 'archived');
   const statsBySlug = useMemo(() => {
     const map = new Map<string, VariantStats>();
-    analytics?.variant_stats.forEach((stat) => map.set(stat.variant_slug, stat));
+    analytics?.variantStats.forEach((stat) => map.set(stat.variantSlug, stat));
     return map;
   }, [analytics]);
   const totalAssignedWeight = activeVariants.reduce((sum, variant) => sum + (variant.weight ?? 0), 0);
@@ -123,10 +124,10 @@ export function Customization() {
     const now = Date.now();
     return activeVariants
       .map((variant) => {
-        if (!variant.updated_at) {
+        if (!variant.updatedAt) {
           return null;
         }
-        const updatedAt = new Date(variant.updated_at);
+        const updatedAt = timestampDate(variant.updatedAt);
         if (Number.isNaN(updatedAt.getTime())) {
           return null;
         }
@@ -141,15 +142,15 @@ export function Customization() {
       .slice(0, 3);
   }, [activeVariants]);
   const neverUpdatedVariants = useMemo(
-    () => activeVariants.filter((variant) => !variant.updated_at),
+    () => activeVariants.filter((variant) => !variant.updatedAt),
     [activeVariants]
   );
   const underperformingStat = useMemo(() => {
-    if (!analytics?.variant_stats?.length || activeVariants.length === 0) {
+    if (!analytics?.variantStats?.length || activeVariants.length === 0) {
       return null;
     }
     const activeSlugs = new Set(activeVariants.map((variant) => variant.slug));
-    const relevant = analytics.variant_stats.filter((stat) => activeSlugs.has(stat.variant_slug));
+    const relevant = analytics.variantStats.filter((stat) => activeSlugs.has(stat.variantSlug));
     if (relevant.length === 0) {
       return null;
     }
@@ -157,18 +158,18 @@ export function Customization() {
       if (!worst) {
         return stat;
       }
-      return stat.conversion_rate < worst.conversion_rate ? stat : worst;
+      return stat.conversionRate < worst.conversionRate ? stat : worst;
     }, null);
   }, [analytics, activeVariants]);
   const underperformingVariant = underperformingStat
-    ? activeVariants.find((variant) => variant.slug === underperformingStat.variant_slug)
+    ? activeVariants.find((variant) => variant.slug === underperformingStat.variantSlug)
     : undefined;
   const attentionCandidateSlugs = useMemo(() => {
     const slugs = new Set<string>();
     staleVariants.forEach(({ variant }) => slugs.add(variant.slug));
     neverUpdatedVariants.forEach((variant) => slugs.add(variant.slug));
     if (underperformingStat) {
-      slugs.add(underperformingStat.variant_slug);
+      slugs.add(underperformingStat.variantSlug);
     }
     return slugs;
   }, [staleVariants, neverUpdatedVariants, underperformingStat]);
@@ -183,8 +184,8 @@ export function Customization() {
     neverUpdatedVariants.forEach((variant) => {
       pushReason(variant.slug, 'Never customized');
     });
-    if (underperformingStat?.variant_slug) {
-      pushReason(underperformingStat.variant_slug, 'Lowest conversion');
+    if (underperformingStat?.variantSlug) {
+      pushReason(underperformingStat.variantSlug, 'Lowest conversion');
     }
     return map;
   }, [staleVariants, neverUpdatedVariants, underperformingStat]);
@@ -225,7 +226,7 @@ export function Customization() {
       const desiredType = options?.sectionType;
       const data = await loadVariantEditorData(slug);
       const target = desiredType
-        ? data.sections.find((section) => section.section_type === desiredType)
+        ? data.sections.find((section) => section.sectionType === desiredType)
         : data.sections[0];
 
       if (target?.id) {
@@ -445,7 +446,7 @@ export function Customization() {
                   <CardContent>
                     <VariantStatusBadges
                       slug={variant.slug}
-                      lastUpdatedLabel={formatVariantUpdatedLabel(variant.updated_at)}
+                      lastUpdatedLabel={formatVariantUpdatedLabel(variant.updatedAt ? timestampDate(variant.updatedAt).toISOString() : null)}
                       attentionReasons={variantAttentionReasons.get(variant.slug) ?? []}
                     />
                     <VariantPerformanceSummary
@@ -519,7 +520,7 @@ export function Customization() {
                   <CardHeader>
                     <CardTitle className="text-lg">{variant.name}</CardTitle>
                     <CardDescription className="text-slate-400 text-sm">
-                      {variant.slug} • Archived {variant.archived_at ? new Date(variant.archived_at).toLocaleDateString() : ''}
+                      {variant.slug} • Archived {variant.archivedAt ? timestampDate(variant.archivedAt).toLocaleDateString() : ''}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -692,7 +693,7 @@ function ExperienceOpsPanel({
     return `${totalWeight}% of traffic is assigned, exceeding 100% by ${remainder}%. Adjust weights so the API can honor intended splits.`;
   })();
   const neverTouchedNames = neverUpdatedVariants.map((variant) => variant.name || variant.slug);
-  const underperformingSlug = underperforming?.stats.variant_slug;
+  const underperformingSlug = underperforming?.stats.variantSlug;
   const underperformingName = underperforming?.variant?.name ?? underperformingSlug;
 
   return (
@@ -759,7 +760,7 @@ function ExperienceOpsPanel({
                   <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Lowest conversion</p>
                   <p className="text-xl font-semibold text-white">{underperformingName}</p>
                   <p className="text-2xl font-bold text-rose-300">
-                    {underperforming.stats.conversion_rate.toFixed(2)}%
+                    {underperforming.stats.conversionRate.toFixed(2)}%
                     <span className="text-xs text-slate-400 ml-2">last {analyticsRangeDays} day{analyticsRangeDays === 1 ? '' : 's'}</span>
                   </p>
                 </div>
@@ -840,7 +841,7 @@ function VariantPerformanceSummary({ slug, stats, loading }: VariantPerformanceS
           <span className="font-semibold text-white">{stats.conversions.toLocaleString()}</span> conversions
         </div>
         <div>
-          <span className="font-semibold text-white">{stats.conversion_rate.toFixed(2)}%</span> CVR
+          <span className="font-semibold text-white">{stats.conversionRate.toFixed(2)}%</span> CVR
         </div>
       </div>
     </div>

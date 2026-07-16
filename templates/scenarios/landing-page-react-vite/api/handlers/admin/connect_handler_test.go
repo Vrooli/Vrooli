@@ -25,7 +25,7 @@ func TestLoginSessionLogoutFlow(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)`, "admin@localhost", string(hash))
 	require.NoError(t, err)
 
-	h := adminH.NewConnectHandler(adminH.Deps{Service: internaladmin.NewService(db)})
+	h := adminH.NewConnectHandler(adminH.Deps{Service: internaladmin.NewService(db, []byte("test-session-secret"))})
 	ctx := context.Background()
 
 	// Bad credentials -> Unauthenticated.

@@ -1,5 +1,4 @@
-export * from './types';
-export * from './common';
+export * from './client';
 export * from './health';
 export * from './landing';
 export * from './downloads';
@@ -8,9 +7,9 @@ export * from './auth';
 export * from './variants';
 export * from './sections';
 export * from './metrics';
-export * from './customization';
 export * from './billing';
 export * from './admin';
 export * from './branding';
 export * from './assets';
 export * from './docs';
+export * from './seo';

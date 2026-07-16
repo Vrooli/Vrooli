@@ -347,5 +347,5 @@ Updates Stripe configuration.
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](overview.md)
 - [Admin Guide - Stripe Setup](../ADMIN_GUIDE.md#stripe-setup)

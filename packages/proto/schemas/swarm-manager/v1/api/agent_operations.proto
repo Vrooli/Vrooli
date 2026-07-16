@@ -411,6 +411,12 @@ message AgentOpsOperationProjection {
   int32 attempt = 16;
   // prior_execution_id is the previous attempt's execution id when attempt > 1.
   string prior_execution_id = 17;
+  // legacy_import is true when the execution snapshot is a Phase-8
+  // agentops-legacy-execution-import document: a verbatim pre-cutover
+  // execution-runs.json entry. Such records carry no compiled-mode/prompt
+  // provenance (those digests never existed for legacy runs), so the
+  // mode/binding fields are honestly empty rather than fabricated.
+  bool legacy_import = 18;
 }
 
 message AgentOpsGetWorkflowProjectionResponse {
@@ -453,6 +459,13 @@ message AgentOpsExecutionSummary {
   // the pinned provenance digests.
   bool reproducible = 11;
   string recorded_at = 12;
+  // legacy_import is true when this history row is a Phase-8
+  // agentops-legacy-execution-import document (a verbatim pre-cutover
+  // execution-runs.json entry). Mode/digest fields are honestly empty —
+  // that provenance never existed — and recorded_at is the import's
+  // deterministic imported_at; outcome is the legacy entry's own terminal
+  // status.
+  bool legacy_import = 13;
 }
 
 message AgentOpsListExecutionHistoryResponse {

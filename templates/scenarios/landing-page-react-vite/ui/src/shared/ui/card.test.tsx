@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithProviders as render } from '../../test-utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './card';
 
 /**

@@ -63,7 +63,23 @@
       "required": ["contract"],
       "properties": {
         "contract": { "const": "scenario-validation/v1" },
-        "includeExecution": { "type": "boolean" }
+        "includeExecution": { "type": "boolean" },
+        "deliveryMode": {
+          "type": "string",
+          "enum": ["inline", "durable-run"],
+          "default": "inline",
+          "description": "Inline calls ValidateScenario; durable-run starts and reattaches through DurableValidationRunService."
+        },
+        "execution": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this provider phase performs execution validation. Required for durable-run delivery."
+        },
+        "runService": {
+          "type": "string",
+          "enum": ["scenario-validation/v1.DurableValidationRunService"],
+          "description": "Required only for durable-run delivery."
+        }
       }
     },
     "applicability": {

@@ -69,11 +69,10 @@ service OperatingModeService {
   // initiative.
   rpc StartPhase(OperatingModeStartPhaseRequest) returns (OperatingModeRoundEnvelope);
 
-  // StartTargetPhase is the plan-first entry point: it starts a mode round
-  // directly on a non-initiative target (a plan-manager plan by execution
-  // id/slug, or a plan-ref path) — no initiative created, no backlog
-  // ceremony. Initiative-target modes are rejected here; they start through
-  // StartPhase.
+  // StartTargetPhase is the target-first entry point: it starts a mode round
+  // directly on a non-initiative target (a plan execution by id/slug, or a
+  // scenario by name) — no initiative created, no backlog ceremony.
+  // Initiative-target modes are rejected here; they start through StartPhase.
   rpc StartTargetPhase(OperatingModeStartTargetPhaseRequest) returns (OperatingModeRoundEnvelope);
 
   // RenderLivePrompt renders the literal agent prompt for one phase of a real
@@ -187,7 +186,7 @@ message OperatingModeStartPhaseRequest {
 // OperatingModeStartTargetPhaseRequest dispatches a round for a phase of a
 // non-initiative-target mode (the plan-first entry point). target_ref is the
 // handle the mode's target adapter resolves: a plan-manager execution id or
-// slug for `plan-manager-plan`, a repo-relative plan path for `plan-ref`.
+// slug for `plan-execution`, a scenario name for `scenario`.
 // phase defaults to the mode's start phase when empty.
 message OperatingModeStartTargetPhaseRequest {
   string mode = 1 [(buf.validate.field).string.min_len = 1];
@@ -251,7 +250,11 @@ message OperatingModeCapabilities {
   bool requires_acceptance_criteria = 5;
   bool supports_artifacts = 6;
   bool supports_handoffs = 7;
-  bool uses_item_execution_flow = 8;
+  // Field 8 was uses_item_execution_flow, retired with the item-level
+  // pseudo-mode: the member-item workflow strategy is domain configuration,
+  // not a mode capability.
+  reserved 8;
+  reserved "uses_item_execution_flow";
 }
 
 // OperatingModeArtifactDefinition is a declared output file (projection view).
@@ -572,7 +575,7 @@ message OperatingModeCatalogEntry {
   bool supports_phases = 15;
   repeated OperatingModeCatalogPhase phases = 16;
   OperatingModeCatalogPhaseGraph phase_graph = 17;
-  // The mode's declared unit of work: plan-manager-plan | plan-ref | initiative.
+  // The mode's declared unit of work: backlog-item | initiative | plan-execution | scenario.
   string target_kind = 18;
   // Complete parent + delegated execution-start input contract. UI and CLI
   // derive request shape from this projection rather than rebuilding it.
@@ -645,7 +648,7 @@ message OperatingModeWorkspaceMode {
   repeated string terminal = 7;
   map<string, OperatingModeStringList> transitions = 8;
   string run_strategy = 9;
-  // The mode's declared unit of work: plan-manager-plan | plan-ref | initiative.
+  // The mode's declared unit of work: backlog-item | initiative | plan-execution | scenario.
   string target_kind = 10;
   // Complete parent + delegated execution-start input contract.
   google.protobuf.Struct input_contract = 11;

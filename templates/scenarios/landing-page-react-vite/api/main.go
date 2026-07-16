@@ -14,6 +14,12 @@ import (
 	"landing-page-react-vite-api/internal/variantspace"
 	"log"
 
+	// Register the PostgreSQL driver so database.Connect's sql.Open("postgres", …)
+	// and PingContext succeed in the production binary. Without this blank import
+	// the driver is unregistered, Ping fails on every attempt, and Connect retries
+	// silently forever (main passes no Logger) until the lifecycle health check times out.
+	_ "github.com/lib/pq"
+
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -112,7 +118,11 @@ func main() {
 
 	// Admin cluster services: session auth, env-gated demo reset (reseeds via
 	// seedDefaultData), and the entitlement-gated download catalog.
-	adminService := adminsvc.NewService(db)
+	sessionSecret, err := adminsvc.SessionSecretFromEnv()
+	if err != nil {
+		log.Fatalf("admin session secret: %v", err)
+	}
+	adminService := adminsvc.NewService(db, sessionSecret)
 	resetService := adminresetsvc.NewService(db, func(ctx context.Context) error { return seedDefaultData(ctx, db) })
 	downloadService := downloadsvc.NewService(db)
 	downloadAuthorizer := downloadsvc.NewAuthorizer(downloadService, downloadEntitlements{svc: accountService}, planService.BundleKey())

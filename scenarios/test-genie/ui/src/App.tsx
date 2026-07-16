@@ -22,7 +22,7 @@ function AppContent() {
     <div className="min-h-screen bg-slate-950 text-slate-50">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
         {/* Tab Navigation */}
-        <nav className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <header className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Test Genie</p>
@@ -35,7 +35,7 @@ function AppContent() {
             </div>
             <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
           </div>
-        </nav>
+        </header>
 
         {/* Page Content */}
         <main>

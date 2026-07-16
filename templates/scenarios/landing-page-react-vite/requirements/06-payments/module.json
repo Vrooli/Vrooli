@@ -14,38 +14,38 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/stripe_service_test.go"
+          "ref": "api/internal/stripe/service_test.go"
         },
         {
           "type": "code",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/stripe_service.go (env var enforcement)"
+          "ref": "api/internal/stripe/service.go"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Env vars: STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET enforced in stripe_service.go constructor."
     },
     {
       "id": "STRIPE-ROUTES",
       "title": "Stripe routes",
-      "prd_ref": "OT-P0-025",
+      "prd_ref": "OT-P0-026",
       "description": "Each landing page includes routes for creating checkout sessions and handling webhook events",
       "validation": [
         {
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/stripe_service_test.go"
+          "ref": "api/internal/stripe/service_test.go"
         },
         {
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "api/stripe_handlers.go"
+          "ref": "api/handlers/payments/connect_handler.go"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "STRIPE-CONFIG"
       ],
@@ -54,23 +54,23 @@
     {
       "id": "STRIPE-SIG",
       "title": "Webhook signature verification",
-      "prd_ref": "OT-P0-025",
+      "prd_ref": "OT-P0-027",
       "description": "All webhook endpoints verify Stripe signature before processing",
       "validation": [
         {
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/stripe_service_test.go"
+          "ref": "api/internal/stripe/service_test.go"
         },
         {
           "type": "code",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/stripe_service.go"
+          "ref": "api/internal/stripe/service.go"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "STRIPE-ROUTES"
       ],
@@ -86,38 +86,44 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/stripe_service_test.go"
+          "ref": "api/internal/stripe/service_test.go"
         },
         {
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "api/stripe_handlers.go & api/stripe_service.go"
+          "ref": "api/handlers/payments/connect_handler.go"
+        },
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "api/internal/stripe/service.go"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "GET /api/subscription/verify endpoint implemented with user identity lookup (email or customer ID)"
     },
     {
       "id": "SUB-CACHE",
       "title": "Verification caching",
-      "prd_ref": "OT-P0-028",
+      "prd_ref": "OT-P0-029",
       "description": "Subscription verification responses cacheable (short TTL) with max 60s lag from webhook changes",
       "validation": [
         {
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/stripe_service_test.go"
+          "ref": "api/internal/stripe/service_test.go"
         },
         {
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "api/stripe_service.go (cache age check)"
+          "ref": "api/internal/stripe/service.go"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "SUB-VERIFY"
       ],
@@ -126,23 +132,29 @@
     {
       "id": "SUB-CANCEL",
       "title": "Subscription cancellation endpoint",
-      "prd_ref": "OT-P0-028",
+      "prd_ref": "OT-P0-030",
       "description": "API exposes POST /api/subscription/cancel validating user and returning status",
       "validation": [
         {
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/stripe_service_test.go"
+          "ref": "api/internal/stripe/service_test.go"
         },
         {
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "api/stripe_service.go & api/stripe_handlers.go"
+          "ref": "api/internal/stripe/service.go"
+        },
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "api/handlers/payments/connect_handler.go"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "SUB-VERIFY"
       ],
@@ -158,18 +170,18 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/plan_service_test.go",
+          "ref": "api/internal/plan/service_test.go",
           "notes": "PlanService tests validate monthly/yearly tier ordering and lookup by Stripe price."
         },
         {
           "type": "code",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/plan_service.go",
+          "ref": "api/internal/plan/service.go",
           "notes": "PlanService loads bundle metadata, sorts tiers, and exposes lookups used by /plans."
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Spec: Template PRD `OT-P0-032`. Backend displays the default bundle pricing with intro metadata."
     },
     {
@@ -182,18 +194,18 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/account_service_entitlements_test.go",
+          "ref": "api/internal/account/service_test.go",
           "notes": "AccountService credits test confirms bundle multipliers and labels are surfaced."
         },
         {
           "type": "code",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/account_service.go",
+          "ref": "api/internal/account/service.go",
           "notes": "AccountService reads bundle metadata and exposes credits via /me/credits."
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Spec: Template PRD `OT-P0-033`. Pricing UI now relies on account endpoints for credits."
     },
     {
@@ -206,18 +218,18 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/account_service_entitlements_test.go",
+          "ref": "api/internal/account/service_test.go",
           "notes": "Entitlements test ensures features/credits/subscription status reflect bundle metadata."
         },
         {
           "type": "code",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/account_service.go",
+          "ref": "api/internal/account/service.go",
           "notes": "AccountService exposes entitlements with cached subscription lookups and metadata."
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Spec: Template PRD `OT-P0-033`. Bundled apps can rely on /entitlements and card data."
     },
     {
@@ -230,18 +242,18 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/download_authorizer_test.go",
+          "ref": "api/internal/download/authorizer_test.go",
           "notes": "DownloadAuthorizer tests ensure entitlement-gated assets require an active subscription."
         },
         {
           "type": "code",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/download_service.go",
+          "ref": "api/internal/download/service.go",
           "notes": "Download service exposes metadata + gating helpers consumed by the UI download section."
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Spec: Template PRD `OT-P0-034`. DownloadSection + API now respect entitlement responses."
     }
   ],

@@ -80,6 +80,12 @@ func AllEndpoints() []module.EndpointDescriptor {
 type ProtoFileEntry struct {
 	Module string
 	File   protoreflect.FileDescriptor
+	// Services optionally narrows the parity contract to the named
+	// services when the proto file declares more services than this
+	// module implements (e.g. opt-in provider contracts that sit
+	// beside the base service in the same file). Empty means every
+	// service in File must have full endpoint parity.
+	Services []protoreflect.Name
 }
 
 // AllProtoFiles returns the proto FileDescriptor backing each
@@ -94,7 +100,10 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "measures", File: measuresv1.File_template_manager_v1_measures_measures_proto},
 		{Module: "monitor", File: monitorv1.File_template_manager_v1_monitor_monitor_proto},
 		{Module: "resource_template", File: resourceTemplatev1.File_template_manager_v1_resource_template_resource_template_proto},
-		{Module: "scenario-validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
+		// scenario-validation/v1 also declares DurableValidationRunService,
+		// an opt-in provider contract this module does not implement;
+		// parity is scoped to the static validation service it mounts.
+		{Module: "scenario-validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto, Services: []protoreflect.Name{"ScenarioValidationService"}},
 	}
 }
 

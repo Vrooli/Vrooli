@@ -1,8 +1,13 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
+import { renderWithProviders as renderWithBaseProviders } from '../../../test-utils';
+import { create } from '@bufbuild/protobuf';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { SiteBrandingSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/branding_pb';
+import { AssetSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/assets_pb';
 import { BrandingSettings } from './BrandingSettings';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
 import { LandingVariantProvider } from '../../../app/providers/LandingVariantProvider';
@@ -40,43 +45,38 @@ vi.mock('../../../shared/api', async () => {
     clearBrandingField: mockClearBrandingField,
     uploadAsset: mockUploadAsset,
     getAssetUrl: (path: string) => path,
-    checkAdminSession: vi.fn().mockResolvedValue({ authenticated: true, email: 'test@example.com', reset_enabled: true }),
-    listVariants: vi.fn().mockResolvedValue({ variants: [] }),
+    checkAdminSession: vi.fn().mockResolvedValue({ authenticated: true, email: 'test@example.com', resetEnabled: true }),
+    listVariants: vi.fn().mockResolvedValue([]),
     getLandingConfig: vi.fn().mockResolvedValue(fallbackConfig),
     adminLogout: vi.fn(),
-    adminLogin: vi.fn().mockResolvedValue({ authenticated: true, email: 'test@example.com', reset_enabled: true }),
+    adminLogin: vi.fn().mockResolvedValue({ authenticated: true, email: 'test@example.com', resetEnabled: true }),
   };
 });
 
-const mockBranding = {
-  id: 1,
-  site_name: 'Test Site',
+const mockBranding = create(SiteBrandingSchema, {
+  id: 1n,
+  siteName: 'Test Site',
   tagline: 'A test tagline',
-  logo_url: null,
-  logo_icon_url: null,
-  favicon_url: null,
-  apple_touch_icon_url: null,
-  default_title: 'Test Site | Home',
-  default_description: 'Welcome to Test Site',
-  default_og_image_url: null,
-  theme_primary_color: '#6366f1',
-  theme_background_color: '#07090F',
-  canonical_base_url: 'https://test.example.com',
-  google_site_verification: null,
-  robots_txt: 'User-agent: *\nAllow: /',
-  created_at: '2025-01-01T00:00:00Z',
-  updated_at: '2025-01-01T00:00:00Z',
-};
+  defaultTitle: 'Test Site | Home',
+  defaultDescription: 'Welcome to Test Site',
+  themePrimaryColor: '#6366f1',
+  themeBackgroundColor: '#07090F',
+  canonicalBaseUrl: 'https://test.example.com',
+  robotsTxt: 'User-agent: *\nAllow: /',
+  createdAt: timestampFromDate(new Date('2025-01-01T00:00:00Z')),
+  updatedAt: timestampFromDate(new Date('2025-01-01T00:00:00Z')),
+});
 
 const renderWithProviders = (component: React.ReactElement) => {
-  return render(
+  return renderWithBaseProviders(
     <BrowserRouter>
       <LandingVariantProvider>
         <AdminAuthProvider>
           {component}
         </AdminAuthProvider>
       </LandingVariantProvider>
-    </BrowserRouter>
+    </BrowserRouter>,
+    { withoutRouter: true }
   );
 };
 
@@ -138,7 +138,7 @@ describe('BrandingSettings', () => {
     const user = userEvent.setup();
     mockUpdateBranding.mockResolvedValue({
       ...mockBranding,
-      site_name: 'Updated Site Name',
+      siteName: 'Updated Site Name',
     });
 
     renderWithProviders(<BrandingSettings />);
@@ -157,7 +157,7 @@ describe('BrandingSettings', () => {
     await waitFor(() => {
       expect(mockUpdateBranding).toHaveBeenCalledWith(
         expect.objectContaining({
-          site_name: 'Updated Site Name',
+          siteName: 'Updated Site Name',
         })
       );
     });
@@ -222,30 +222,31 @@ describe('BrandingSettings', () => {
 
   it('uses generated derivatives from a single upload to populate related branding fields', async () => {
     const user = userEvent.setup();
-    mockUploadAsset.mockResolvedValue({
-      id: 10,
-      filename: 'logo.png',
-      original_filename: 'logo.png',
-      mime_type: 'image/png',
-      size_bytes: 1024,
-      storage_path: 'logos/logo.png',
-      url: '/api/v1/uploads/logos/logo.png',
-      category: 'logo',
-      uploaded_by: null,
-      created_at: new Date().toISOString(),
-      derivatives: {
-        logo_512: 'logos/logo-logo_512.png',
-        logo_icon: 'logos/logo-logo_icon.png',
-        favicon_32: 'logos/logo-favicon_32.png',
-        apple_touch_180: 'logos/logo-apple_touch_180.png',
-      },
-    });
+    mockUploadAsset.mockResolvedValue(
+      create(AssetSchema, {
+        id: 10n,
+        filename: 'logo.png',
+        originalFilename: 'logo.png',
+        mimeType: 'image/png',
+        sizeBytes: 1024n,
+        storagePath: 'logos/logo.png',
+        url: '/api/v1/uploads/logos/logo.png',
+        category: 'logo',
+        createdAt: timestampFromDate(new Date()),
+        derivatives: {
+          logo_512: 'logos/logo-logo_512.png',
+          logo_icon: 'logos/logo-logo_icon.png',
+          favicon_32: 'logos/logo-favicon_32.png',
+          apple_touch_180: 'logos/logo-apple_touch_180.png',
+        },
+      })
+    );
     mockUpdateBranding.mockResolvedValue({
       ...mockBranding,
-      logo_url: 'logos/logo-logo_512.png',
-      logo_icon_url: 'logos/logo-logo_icon.png',
-      favicon_url: 'logos/logo-favicon_32.png',
-      apple_touch_icon_url: 'logos/logo-apple_touch_180.png',
+      logoUrl: 'logos/logo-logo_512.png',
+      logoIconUrl: 'logos/logo-logo_icon.png',
+      faviconUrl: 'logos/logo-favicon_32.png',
+      appleTouchIconUrl: 'logos/logo-apple_touch_180.png',
     });
 
     const { container } = renderWithProviders(<BrandingSettings />);
@@ -254,8 +255,9 @@ describe('BrandingSettings', () => {
       expect(screen.getByTestId('branding-header')).toBeInTheDocument();
     });
 
-    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const fileInputs = container.querySelectorAll<HTMLInputElement>('input[type="file"]');
     const logoInput = fileInputs.item(0);
+    if (!logoInput) throw new Error('logo file input not found');
     const file = new File(['dummy'], 'logo.png', { type: 'image/png' });
     await user.upload(logoInput, file);
 
@@ -265,10 +267,10 @@ describe('BrandingSettings', () => {
     await waitFor(() => {
       expect(mockUpdateBranding).toHaveBeenCalledWith(
         expect.objectContaining({
-          logo_url: 'logos/logo-logo_512.png',
-          logo_icon_url: 'logos/logo-logo_icon.png',
-          favicon_url: 'logos/logo-favicon_32.png',
-          apple_touch_icon_url: 'logos/logo-apple_touch_180.png',
+          logoUrl: 'logos/logo-logo_512.png',
+          logoIconUrl: 'logos/logo-logo_icon.png',
+          faviconUrl: 'logos/logo-favicon_32.png',
+          appleTouchIconUrl: 'logos/logo-apple_touch_180.png',
         })
       );
     });
@@ -276,33 +278,35 @@ describe('BrandingSettings', () => {
 
   it('applies favicon upload to favicon and touch icon fields', async () => {
     const user = userEvent.setup();
-    mockUploadAsset.mockResolvedValue({
-      id: 11,
-      filename: 'favicon.png',
-      original_filename: 'favicon.png',
-      mime_type: 'image/png',
-      size_bytes: 512,
-      storage_path: 'favicons/favicon.png',
-      url: '/api/v1/uploads/favicons/favicon.png',
-      category: 'favicon',
-      uploaded_by: null,
-      created_at: new Date().toISOString(),
-      derivatives: {
-        favicon_32: 'favicons/favicon-favicon_32.png',
-        apple_touch_180: 'favicons/favicon-apple_touch_180.png',
-      },
-    });
+    mockUploadAsset.mockResolvedValue(
+      create(AssetSchema, {
+        id: 11n,
+        filename: 'favicon.png',
+        originalFilename: 'favicon.png',
+        mimeType: 'image/png',
+        sizeBytes: 512n,
+        storagePath: 'favicons/favicon.png',
+        url: '/api/v1/uploads/favicons/favicon.png',
+        category: 'favicon',
+        createdAt: timestampFromDate(new Date()),
+        derivatives: {
+          favicon_32: 'favicons/favicon-favicon_32.png',
+          apple_touch_180: 'favicons/favicon-apple_touch_180.png',
+        },
+      })
+    );
     mockUpdateBranding.mockResolvedValue({
       ...mockBranding,
-      favicon_url: 'favicons/favicon-favicon_32.png',
-      apple_touch_icon_url: 'favicons/favicon-apple_touch_180.png',
+      faviconUrl: 'favicons/favicon-favicon_32.png',
+      appleTouchIconUrl: 'favicons/favicon-apple_touch_180.png',
     });
 
     const { container } = renderWithProviders(<BrandingSettings />);
     await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
 
-    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const fileInputs = container.querySelectorAll<HTMLInputElement>('input[type="file"]');
     const faviconInput = fileInputs.item(2);
+    if (!faviconInput) throw new Error('favicon file input not found');
     const file = new File(['dummy'], 'favicon.png', { type: 'image/png' });
     await user.upload(faviconInput, file);
 
@@ -312,8 +316,8 @@ describe('BrandingSettings', () => {
     await waitFor(() => {
       expect(mockUpdateBranding).toHaveBeenCalledWith(
         expect.objectContaining({
-          favicon_url: 'favicons/favicon-favicon_32.png',
-          apple_touch_icon_url: 'favicons/favicon-apple_touch_180.png',
+          faviconUrl: 'favicons/favicon-favicon_32.png',
+          appleTouchIconUrl: 'favicons/favicon-apple_touch_180.png',
         })
       );
     });
@@ -321,31 +325,33 @@ describe('BrandingSettings', () => {
 
   it('applies og upload to default og image field', async () => {
     const user = userEvent.setup();
-    mockUploadAsset.mockResolvedValue({
-      id: 12,
-      filename: 'og.png',
-      original_filename: 'og.png',
-      mime_type: 'image/png',
-      size_bytes: 512,
-      storage_path: 'og-images/og.png',
-      url: '/api/v1/uploads/og-images/og.png',
-      category: 'og_image',
-      uploaded_by: null,
-      created_at: new Date().toISOString(),
-      derivatives: {
-        og_image_1200x630: 'og-images/og-og_image_1200x630.png',
-      },
-    });
+    mockUploadAsset.mockResolvedValue(
+      create(AssetSchema, {
+        id: 12n,
+        filename: 'og.png',
+        originalFilename: 'og.png',
+        mimeType: 'image/png',
+        sizeBytes: 512n,
+        storagePath: 'og-images/og.png',
+        url: '/api/v1/uploads/og-images/og.png',
+        category: 'og_image',
+        createdAt: timestampFromDate(new Date()),
+        derivatives: {
+          og_image_1200x630: 'og-images/og-og_image_1200x630.png',
+        },
+      })
+    );
     mockUpdateBranding.mockResolvedValue({
       ...mockBranding,
-      default_og_image_url: 'og-images/og-og_image_1200x630.png',
+      defaultOgImageUrl: 'og-images/og-og_image_1200x630.png',
     });
 
     const { container } = renderWithProviders(<BrandingSettings />);
     await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
 
-    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const fileInputs = container.querySelectorAll<HTMLInputElement>('input[type="file"]');
     const ogInput = fileInputs.item(4);
+    if (!ogInput) throw new Error('og file input not found');
     const file = new File(['dummy'], 'og.png', { type: 'image/png' });
     await user.upload(ogInput, file);
 
@@ -355,9 +361,139 @@ describe('BrandingSettings', () => {
     await waitFor(() => {
       expect(mockUpdateBranding).toHaveBeenCalledWith(
         expect.objectContaining({
-          default_og_image_url: 'og-images/og-og_image_1200x630.png',
+          defaultOgImageUrl: 'og-images/og-og_image_1200x630.png',
         })
       );
     });
+  });
+
+  it('applies a raw upload URL when no derivatives are generated', async () => {
+    const user = userEvent.setup();
+    mockUploadAsset.mockResolvedValue(
+      create(AssetSchema, {
+        id: 20n,
+        filename: 'logo.png',
+        originalFilename: 'logo.png',
+        mimeType: 'image/png',
+        sizeBytes: 1024n,
+        storagePath: 'logos/logo.png',
+        url: 'logos/raw-logo.png',
+        category: 'logo',
+        createdAt: timestampFromDate(new Date()),
+        derivatives: {},
+      }),
+    );
+    mockUpdateBranding.mockResolvedValue({ ...mockBranding, logoUrl: 'logos/raw-logo.png' });
+    const { container } = renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
+
+    const logoInput = container.querySelectorAll<HTMLInputElement>('input[type="file"]').item(0);
+    if (!logoInput) throw new Error('logo input missing');
+    await user.upload(logoInput, new File(['x'], 'logo.png', { type: 'image/png' }));
+    const saveButton = await screen.findByRole('button', { name: /save changes/i });
+    await user.click(saveButton);
+    await waitFor(() =>
+      expect(mockUpdateBranding).toHaveBeenCalledWith(expect.objectContaining({ logoUrl: 'logos/raw-logo.png' })),
+    );
+  });
+
+  it('previews the public landing in a new tab', async () => {
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
+    await user.click(screen.getByTestId('branding-preview'));
+    expect(openSpy).toHaveBeenCalledWith('/', '_blank', 'noopener,noreferrer');
+    openSpy.mockRestore();
+  });
+
+  it('clears the tagline field through the API', async () => {
+    const user = userEvent.setup();
+    mockClearBrandingField.mockResolvedValue({ ...mockBranding, tagline: '' });
+    renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
+    await user.click(screen.getByTitle('Clear tagline'));
+    await waitFor(() => expect(mockClearBrandingField).toHaveBeenCalledWith('tagline'));
+  });
+
+  it('edits the canonical URL and robots.txt advanced fields', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByText('Technical Settings')).toBeInTheDocument());
+    const robots = screen.getByPlaceholderText(/User-agent/i);
+    await user.type(robots, '\nDisallow: /admin');
+    expect((robots as HTMLTextAreaElement).value).toContain('Disallow: /admin');
+  });
+
+  it('reloads branding when refresh is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
+    mockGetBranding.mockClear();
+    await user.click(screen.getByTestId('branding-refresh'));
+    await waitFor(() => expect(mockGetBranding).toHaveBeenCalled());
+  });
+
+  it('saves multiple changed branding fields in one update', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
+
+    await user.type(screen.getByPlaceholderText(/my landing page/i), ' Updated');
+    const primary = screen.getByPlaceholderText('#3B82F6');
+    await user.clear(primary);
+    await user.type(primary, '#abcdef');
+    const robots = screen.getByPlaceholderText(/User-agent/i);
+    await user.type(robots, '\nSitemap: /sitemap.xml');
+
+    await user.click(await screen.findByRole('button', { name: /save changes/i }));
+    await waitFor(() =>
+      expect(mockUpdateBranding).toHaveBeenCalledWith(
+        expect.objectContaining({ themePrimaryColor: '#abcdef' }),
+      ),
+    );
+  });
+
+  it('keeps default form values when the branding fetch returns nothing', async () => {
+    mockGetBranding.mockResolvedValue(undefined);
+    renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
+    expect(screen.getByPlaceholderText(/my landing page/i)).toBeInTheDocument();
+  });
+
+  it('falls back to empty defaults when branding fields are absent', async () => {
+    mockGetBranding.mockResolvedValue(create(SiteBrandingSchema, { id: 2n, siteName: '' }));
+    renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
+    // With no site name, the identity input renders empty against its placeholder.
+    expect(screen.getByPlaceholderText(/my landing page/i)).toHaveValue('');
+  });
+
+  it('edits and clears the theme colors', async () => {
+    const user = userEvent.setup();
+    mockClearBrandingField.mockResolvedValue({ ...mockBranding, themePrimaryColor: '' });
+    const { container } = renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByText('Theme Colors')).toBeInTheDocument());
+
+    // Text field edit.
+    const primaryText = screen.getByPlaceholderText('#3B82F6');
+    await user.clear(primaryText);
+    await user.type(primaryText, '#123456');
+    // Native color pickers fire their own change handler.
+    const colorInputs = container.querySelectorAll<HTMLInputElement>('input[type="color"]');
+    fireEvent.change(colorInputs[0]!, { target: { value: '#abcdef' } });
+    fireEvent.change(colorInputs[1]!, { target: { value: '#000000' } });
+    // Clear a color via its dedicated button.
+    await user.click(screen.getAllByTitle('Clear color')[0]!);
+    await waitFor(() => expect(mockClearBrandingField).toHaveBeenCalledWith('theme_primary_color'));
+  });
+
+  it('surfaces an error when clearing a field fails', async () => {
+    const user = userEvent.setup();
+    mockClearBrandingField.mockRejectedValue(new Error('clear failed'));
+    renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
+    await user.click(screen.getByTitle('Clear tagline'));
+    expect(await screen.findByText(/clear failed/i)).toBeInTheDocument();
   });
 });

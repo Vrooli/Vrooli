@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "landing-page-react-vite template UI manifest",
+  "description": "Declares where UI building blocks live in scenarios generated from the landing-page-react-vite template. Consumed by react-component-library's adoption resolver to compute canonical filesystem paths for adopted components. This template organizes routed UI under feature surfaces (public-landing, admin-portal) rather than a flat pages/ directory.",
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v1",
+    "template": "landing-page-react-vite",
+    "extensionRule": "Scenarios may override individual slot `dir` values inside their own .vrooli/ui-manifest.json overlay. New slot names must be added to the template manifest, not the overlay."
+  },
+  "slots": {
+    "ui-primitive": {
+      "dir": "ui/src/shared/ui",
+      "description": "Headless primitives (button, input, card) shared across surfaces. Kebab-case filenames.",
+      "pathPattern": "{dir}/{kebab-name}.tsx"
+    },
+    "shared-component": {
+      "dir": "ui/src/shared/ui",
+      "description": "Cross-cutting components used by multiple surfaces (e.g. ErrorBoundary, RuntimeSignalStrip).",
+      "pathPattern": "{dir}/{ComponentName}.tsx"
+    },
+    "layout-shell": {
+      "dir": "ui/src/app",
+      "description": "App shell and route composition (App, providers). Owns the router and top-level layout.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "multiFile": true
+    },
+    "page": {
+      "dir": "ui/src/surfaces/{feature}/routes",
+      "description": "Routed pages within a feature surface (public-landing, admin-portal).",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "requiresFeature": true
+    },
+    "feature": {
+      "dir": "ui/src/surfaces/{feature}",
+      "description": "Feature surface folder. Owns its own routes, sections, and components.",
+      "pathPattern": "{dir}",
+      "multiFile": true,
+      "requiresFeature": true
+    },
+    "feature-component": {
+      "dir": "ui/src/surfaces/{feature}/components",
+      "description": "A single component inside a feature surface folder.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "requiresFeature": true
+    },
+    "hook": {
+      "dir": "ui/src/shared/hooks",
+      "description": "React hooks reusable across surfaces.",
+      "pathPattern": "{dir}/{camelName}.ts"
+    },
+    "api-client": {
+      "dir": "ui/src/shared/api",
+      "description": "Connect-RPC client modules and small API wrappers.",
+      "pathPattern": "{dir}/{camelName}.ts"
+    },
+    "lib-util": {
+      "dir": "ui/src/shared/lib",
+      "description": "Framework-agnostic utility modules.",
+      "pathPattern": "{dir}/{camelName}.ts"
+    },
+    "consts": {
+      "dir": "ui/src/shared/consts",
+      "description": "Compile-time constants (selectors, strings registry).",
+      "pathPattern": "{dir}/{camelName}.ts"
+    },
+    "test-util": {
+      "dir": "ui/src/test-utils",
+      "description": "Test-only helpers (renderWithProviders, factories, a11y).",
+      "pathPattern": "{dir}/{camelName}.ts"
+    }
+  },
+  "defaults": {
+    "slot": "shared-component"
+  }
+}

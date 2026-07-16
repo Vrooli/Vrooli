@@ -175,7 +175,7 @@ class OperatingModeApplyBacklogSyncRequest(_message.Message):
     def __init__(self, initiative_name: _Optional[str] = ..., mode: _Optional[str] = ..., round: _Optional[int] = ..., run_id: _Optional[str] = ..., accepted_mutation_ids: _Optional[_Iterable[str]] = ..., requested_by: _Optional[str] = ...) -> None: ...
 
 class OperatingModeCapabilities(_message.Message):
-    __slots__ = ("supports_phases", "can_start_phases", "can_complete_items", "can_apply_backlog_sync_proposals", "requires_acceptance_criteria", "supports_artifacts", "supports_handoffs", "uses_item_execution_flow")
+    __slots__ = ("supports_phases", "can_start_phases", "can_complete_items", "can_apply_backlog_sync_proposals", "requires_acceptance_criteria", "supports_artifacts", "supports_handoffs")
     SUPPORTS_PHASES_FIELD_NUMBER: _ClassVar[int]
     CAN_START_PHASES_FIELD_NUMBER: _ClassVar[int]
     CAN_COMPLETE_ITEMS_FIELD_NUMBER: _ClassVar[int]
@@ -183,7 +183,6 @@ class OperatingModeCapabilities(_message.Message):
     REQUIRES_ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_HANDOFFS_FIELD_NUMBER: _ClassVar[int]
-    USES_ITEM_EXECUTION_FLOW_FIELD_NUMBER: _ClassVar[int]
     supports_phases: bool
     can_start_phases: bool
     can_complete_items: bool
@@ -191,8 +190,7 @@ class OperatingModeCapabilities(_message.Message):
     requires_acceptance_criteria: bool
     supports_artifacts: bool
     supports_handoffs: bool
-    uses_item_execution_flow: bool
-    def __init__(self, supports_phases: _Optional[bool] = ..., can_start_phases: _Optional[bool] = ..., can_complete_items: _Optional[bool] = ..., can_apply_backlog_sync_proposals: _Optional[bool] = ..., requires_acceptance_criteria: _Optional[bool] = ..., supports_artifacts: _Optional[bool] = ..., supports_handoffs: _Optional[bool] = ..., uses_item_execution_flow: _Optional[bool] = ...) -> None: ...
+    def __init__(self, supports_phases: _Optional[bool] = ..., can_start_phases: _Optional[bool] = ..., can_complete_items: _Optional[bool] = ..., can_apply_backlog_sync_proposals: _Optional[bool] = ..., requires_acceptance_criteria: _Optional[bool] = ..., supports_artifacts: _Optional[bool] = ..., supports_handoffs: _Optional[bool] = ...) -> None: ...
 
 class OperatingModeArtifactDefinition(_message.Message):
     __slots__ = ("path", "content_type", "required")

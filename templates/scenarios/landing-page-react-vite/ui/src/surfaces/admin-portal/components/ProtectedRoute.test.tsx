@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { renderWithProviders } from '../../../test-utils';
 import { ProtectedRoute } from './ProtectedRoute';
 import * as AdminAuth from '../../../app/providers/AdminAuthProvider';
 
@@ -15,7 +16,7 @@ const renderWithAuth = (isAuthenticated: boolean) => {
     user: isAuthenticated ? { email: 'test@example.com' } : null,
   });
 
-  return render(
+  return renderWithProviders(
     <MemoryRouter initialEntries={['/admin']}>
       <Routes>
         <Route path="/admin/login" element={<div>Login Page</div>} />
@@ -28,7 +29,8 @@ const renderWithAuth = (isAuthenticated: boolean) => {
           }
         />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
+    { withoutRouter: true }
   );
 };
 
@@ -61,7 +63,7 @@ describe('ProtectedRoute [REQ:ADMIN-AUTH]', () => {
       user: { email: 'test@example.com' },
     });
 
-    render(
+    renderWithProviders(
       <MemoryRouter>
         <Routes>
           <Route
@@ -76,7 +78,8 @@ describe('ProtectedRoute [REQ:ADMIN-AUTH]', () => {
             }
           />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
+      { withoutRouter: true }
     );
 
     expect(screen.getByText('Title')).toBeInTheDocument();

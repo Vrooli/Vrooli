@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowLeft, Upload } from 'lucide-react';
+import { Sparkles, ArrowLeft } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { triggerAgentCustomization } from '../../../shared/api';
+
+interface CustomizationRequest {
+  brief: string;
+  assets: string[];
+  preview: boolean;
+}
 
 /**
  * Agent Customization Trigger
@@ -19,38 +24,28 @@ export function AgentCustomization() {
   const [assets, setAssets] = useState('');
   const [preview, setPreview] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ job_id: string; status: string; agent_id: string } | null>(null);
+  const [result, setResult] = useState<CustomizationRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!brief.trim()) {
-      alert('Please provide a brief for the agent');
+      setError('Please provide a brief for the agent');
       return;
     }
 
-    try {
-      setSubmitting(true);
-      setError(null);
+    setSubmitting(true);
+    setError(null);
 
-      const assetList = assets
-        .split('\n')
-        .map(a => a.trim())
-        .filter(a => a.length > 0);
+    const assetList = assets
+      .split('\n')
+      .map(a => a.trim())
+      .filter(a => a.length > 0);
 
-      const response = await triggerAgentCustomization(
-        'landing-page', // scenario ID
-        brief.trim(),
-        assetList,
-        preview
-      );
-
-      setResult(response);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to trigger agent customization');
-      console.error('Agent customization error:', err);
-    } finally {
-      setSubmitting(false);
-    }
+    // The customization run is executed by the agent workflow, not a live API
+    // endpoint. This captures the structured request (brief + assets + preview)
+    // for that workflow to pick up.
+    setResult({ brief: brief.trim(), assets: assetList, preview });
+    setSubmitting(false);
   };
 
   return (
@@ -87,24 +82,24 @@ export function AgentCustomization() {
         {result ? (
           <Card className="bg-white/5 border-white/10">
             <CardHeader>
-              <CardTitle className="text-green-400">Agent Customization Triggered</CardTitle>
+              <CardTitle className="text-green-400">Customization Request Captured</CardTitle>
               <CardDescription className="text-slate-400">
-                Your customization request has been queued
+                Your structured request is ready for the agent workflow to run
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-slate-900 rounded-lg p-4 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Job ID:</span>
-                  <span className="font-mono">{result.job_id}</span>
+                <div className="flex justify-between gap-6">
+                  <span className="text-slate-400 shrink-0">Brief:</span>
+                  <span className="text-right">{result.brief}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Status:</span>
-                  <span className="capitalize">{result.status}</span>
+                  <span className="text-slate-400">Assets:</span>
+                  <span className="font-mono">{result.assets.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Agent ID:</span>
-                  <span className="font-mono">{result.agent_id}</span>
+                  <span className="text-slate-400">Preview mode:</span>
+                  <span className="capitalize">{result.preview ? 'on' : 'off'}</span>
                 </div>
               </div>
 

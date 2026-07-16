@@ -35,6 +35,14 @@ type mockStore struct {
 	recordedArtifact *incidents.RemediationArtifact
 	recordedOutcome  *incidents.Outcome
 	savedInventories int
+	retentionCalls   int
+	retentionBefore  time.Time
+}
+
+func (m *mockStore) PruneOperationalHistory(_ context.Context, before time.Time, _ int) (persistence.RetentionResult, error) {
+	m.retentionCalls++
+	m.retentionBefore = before
+	return persistence.RetentionResult{}, nil
 }
 
 func (m *mockStore) Ping(ctx context.Context) error {

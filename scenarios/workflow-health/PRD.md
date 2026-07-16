@@ -26,7 +26,7 @@
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Workflow maturity intelligence | Track an L0-L5 workflow maturity ladder across discoverability, traceability, safety, executability, and operational richness.
-- [ ] OT-P2-002 | Fleet workflow rollout evidence | Support representative scenario checks, search-hub verification, routed mutating fixtures, and baseline diffs so workflow-health can roll out without weakening existing gates.
+- [x] OT-P2-002 | Fleet workflow rollout evidence | Support representative scenario checks, search-hub verification, routed mutating fixtures, and baseline diffs so workflow-health can roll out without weakening existing gates.
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: generated react-vite scenario with Go API, Go CLI, React/Vite/TypeScript UI, Connect RPC, maturity-go response construction, and structured JSON/proto parsing.

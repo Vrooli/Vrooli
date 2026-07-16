@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
-import { getBranding, updateBranding, clearBrandingField, type SiteBranding, type Asset } from '../../../shared/api';
+import { getBranding, updateBranding, clearBrandingField, type SiteBranding, type BrandingUpdate, type Asset } from '../../../shared/api';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface BrandingFormState {
@@ -43,22 +44,42 @@ const defaultForm: BrandingFormState = {
 
 function brandingToForm(branding: SiteBranding): BrandingFormState {
   return {
-    site_name: branding.site_name ?? '',
+    site_name: branding.siteName ?? '',
     tagline: branding.tagline ?? '',
-    logo_url: branding.logo_url ?? '',
-    logo_icon_url: branding.logo_icon_url ?? '',
-    favicon_url: branding.favicon_url ?? '',
-    apple_touch_icon_url: branding.apple_touch_icon_url ?? '',
-    default_title: branding.default_title ?? '',
-    default_description: branding.default_description ?? '',
-    default_og_image_url: branding.default_og_image_url ?? '',
-    theme_primary_color: branding.theme_primary_color ?? '',
-    theme_background_color: branding.theme_background_color ?? '',
-    canonical_base_url: branding.canonical_base_url ?? '',
-    google_site_verification: branding.google_site_verification ?? '',
-    robots_txt: branding.robots_txt ?? '',
+    logo_url: branding.logoUrl ?? '',
+    logo_icon_url: branding.logoIconUrl ?? '',
+    favicon_url: branding.faviconUrl ?? '',
+    apple_touch_icon_url: branding.appleTouchIconUrl ?? '',
+    default_title: branding.defaultTitle ?? '',
+    default_description: branding.defaultDescription ?? '',
+    default_og_image_url: branding.defaultOgImageUrl ?? '',
+    theme_primary_color: branding.themePrimaryColor ?? '',
+    theme_background_color: branding.themeBackgroundColor ?? '',
+    canonical_base_url: branding.canonicalBaseUrl ?? '',
+    google_site_verification: branding.googleSiteVerification ?? '',
+    robots_txt: branding.robotsTxt ?? '',
   };
 }
+
+// Maps the snake_case form keys to the camelCase proto field names the
+// updateBranding payload expects. The form keys intentionally mirror the
+// server's clearable-column whitelist (snake_case) used by clearBrandingField.
+const FORM_TO_BRANDING_FIELD: Record<keyof BrandingFormState, Exclude<keyof BrandingUpdate, '$typeName'>> = {
+  site_name: 'siteName',
+  tagline: 'tagline',
+  logo_url: 'logoUrl',
+  logo_icon_url: 'logoIconUrl',
+  favicon_url: 'faviconUrl',
+  apple_touch_icon_url: 'appleTouchIconUrl',
+  default_title: 'defaultTitle',
+  default_description: 'defaultDescription',
+  default_og_image_url: 'defaultOgImageUrl',
+  theme_primary_color: 'themePrimaryColor',
+  theme_background_color: 'themeBackgroundColor',
+  canonical_base_url: 'canonicalBaseUrl',
+  google_site_verification: 'googleSiteVerification',
+  robots_txt: 'robotsTxt',
+};
 
 export function BrandingSettings() {
   const [branding, setBranding] = useState<SiteBranding | null>(null);
@@ -74,6 +95,10 @@ export function BrandingSettings() {
     setError(null);
     try {
       const data = await getBranding();
+      if (!data) {
+        setError('Branding is not available');
+        return;
+      }
       setBranding(data);
       const formData = brandingToForm(data);
       setForm(formData);
@@ -155,6 +180,10 @@ export function BrandingSettings() {
   const handleClearField = async (field: keyof BrandingFormState) => {
     try {
       const data = await clearBrandingField(field);
+      if (!data) {
+        setError('Failed to clear field');
+        return;
+      }
       setBranding(data);
       const formData = brandingToForm(data);
       setForm(formData);
@@ -172,12 +201,12 @@ export function BrandingSettings() {
     setSuccessMessage(null);
 
     try {
-      const payload: Record<string, string> = {};
+      const payload: BrandingUpdate = {};
       (Object.keys(form) as (keyof BrandingFormState)[]).forEach((key) => {
         const current = form[key].trim();
         const original = originalForm[key].trim();
         if (current !== original && current.length > 0) {
-          payload[key] = current;
+          payload[FORM_TO_BRANDING_FIELD[key]] = current;
         }
       });
 
@@ -188,6 +217,10 @@ export function BrandingSettings() {
       }
 
       const updated = await updateBranding(payload);
+      if (!updated) {
+        setError('Failed to update branding');
+        return;
+      }
       setBranding(updated);
       const formData = brandingToForm(updated);
       setForm(formData);
@@ -648,9 +681,9 @@ export function BrandingSettings() {
               </Button>
               {error && <p className="text-sm text-rose-300">{error}</p>}
               {successMessage && <p className="text-sm text-emerald-300">{successMessage}</p>}
-              {branding?.updated_at && (
+              {branding?.updatedAt && (
                 <p className="text-xs text-slate-500">
-                  Last updated: {new Date(branding.updated_at).toLocaleString()}
+                  Last updated: {timestampDate(branding.updatedAt).toLocaleString()}
                 </p>
               )}
             </div>

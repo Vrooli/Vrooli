@@ -6,6 +6,14 @@ import type { IDisposable } from 'monaco-editor';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
+import { create } from '@bufbuild/protobuf';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
+import {
+  HeaderNavLinkSchema,
+  HeaderCTAConfigSchema,
+  HeaderVisibilityConfigSchema,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/variant_pb';
+import { LandingSectionSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/config_pb';
 import {
   type Variant,
   type ContentSection,
@@ -13,7 +21,6 @@ import {
   type VariantAxes,
   type LandingHeaderConfig,
   type LandingHeaderNavLink,
-  type LandingSection,
 } from '../../../shared/api';
 import {
   buildAxesSelection,
@@ -117,19 +124,21 @@ export function VariantEditor() {
       const markers = monaco.editor.getModelMarkers({ resource: uri });
       setSchemaIssues(
         markers.map(
-          (marker) =>
+          (marker: { message: string; startLineNumber: number; startColumn: number }) =>
             `${marker.message} (line ${marker.startLineNumber}:${marker.startColumn})`
         )
       );
     };
 
     markersListener.current?.dispose();
-    markersListener.current = monaco.editor.onDidChangeMarkers((changed) => {
-      const affected = changed.some((change) => change.resource.toString() === uri.toString());
-      if (affected) {
-        refreshMarkers();
-      }
-    });
+    markersListener.current = monaco.editor.onDidChangeMarkers(
+      (changed: readonly { resource: { toString(): string } }[]) => {
+        const affected = changed.some((change) => change.resource.toString() === uri.toString());
+        if (affected) {
+          refreshMarkers();
+        }
+      },
+    );
 
     refreshMarkers();
   };
@@ -210,7 +219,7 @@ export function VariantEditor() {
       setForm(hydrateFormFromVariant(data.variant));
       setAxesSelection(data.variant.axes || {});
       setSections(data.sections);
-      setHeaderConfig(normalizeHeaderConfig(data.variant.header_config, data.variant.name));
+      setHeaderConfig(normalizeHeaderConfig(data.variant.headerConfig, data.variant.name));
       rememberVariantSession({
         slug: data.variant.slug,
         name: data.variant.name,
@@ -691,9 +700,9 @@ export function VariantEditor() {
                                 </span>
                               </div>
                               <div>
-                                <div className="font-medium capitalize">{section.section_type}</div>
+                                <div className="font-medium capitalize">{section.sectionType}</div>
                                 <div className="text-xs text-slate-500">
-                                  Last updated {new Date(section.updated_at).toLocaleDateString()}
+                                  Last updated {section.updatedAt ? timestampDate(section.updatedAt).toLocaleDateString() : '—'}
                                 </div>
                               </div>
                             </div>
@@ -728,7 +737,7 @@ interface HeaderConfiguratorProps {
 
 function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderConfiguratorProps) {
   const [navTarget, setNavTarget] = useState('');
-  const downloadsSection = sections.some((section) => section.section_type === 'downloads');
+  const downloadsSection = sections.some((section) => section.sectionType === 'downloads');
 
   const updateConfig = (updater: (draft: LandingHeaderConfig) => void) => {
     onChange((prev) => {
@@ -746,23 +755,27 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
       const parsed = JSON.parse(navTarget) as { type: string; id?: number; section_type?: string; order?: number };
       if (parsed.type === 'downloads') {
         updateConfig((draft) => {
-          draft.nav.links.push({
-            id: generateNavLinkId('downloads'),
-            type: 'downloads',
-            label: 'Downloads',
-            anchor: DOWNLOAD_ANCHOR_ID,
-            visible_on: { desktop: true, mobile: true },
-          });
+          if (!draft.nav) return;
+          draft.nav.links.push(
+            create(HeaderNavLinkSchema, {
+              id: generateNavLinkId('downloads'),
+              type: 'downloads',
+              label: 'Downloads',
+              anchor: DOWNLOAD_ANCHOR_ID,
+              visibleOn: { desktop: true, mobile: true },
+            }),
+          );
         });
       } else if (parsed.type === 'section') {
         const targetSection = sections.find((section) => {
-          if (typeof parsed.id === 'number' && section.id) {
-            return section.id === parsed.id;
+          if (typeof parsed.id === 'number') {
+            return Number(section.id) === parsed.id;
           }
-          return section.section_type === parsed.section_type && section.order === parsed.order;
+          return section.sectionType === parsed.section_type && section.order === parsed.order;
         });
         if (targetSection) {
           updateConfig((draft) => {
+            if (!draft.nav) return;
             draft.nav.links.push(createNavLinkFromSection(targetSection));
           });
         }
@@ -775,7 +788,9 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
 
   const handleNavLabelChange = (index: number, value: string) => {
     updateConfig((draft) => {
-      draft.nav.links[index].label = value;
+      const link = draft.nav?.links[index];
+      if (!link) return;
+      link.label = value;
     });
   };
 
@@ -786,102 +801,107 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
     value: string,
   ) => {
     updateConfig((draft) => {
-      const link = draft.nav.links[linkIndex];
+      const link = draft.nav?.links[linkIndex];
       if (!link || link.type !== 'menu') return;
-      if (!Array.isArray(link.children)) {
-        link.children = [];
-      }
-      if (!link.children[childIndex]) {
-        link.children[childIndex] = {
+      let child = link.children[childIndex];
+      if (!child) {
+        child = create(HeaderNavLinkSchema, {
           id: generateNavLinkId('child'),
           type: 'custom',
           label: '',
           href: '',
-          visible_on: { desktop: true, mobile: true },
-        };
+          visibleOn: { desktop: true, mobile: true },
+        });
+        link.children[childIndex] = child;
       }
       if (field === 'label') {
-        link.children[childIndex].label = value;
+        child.label = value;
       } else {
-        link.children[childIndex].href = value;
+        child.href = value;
       }
     });
   };
 
   const handleAddMenuChild = (linkIndex: number) => {
     updateConfig((draft) => {
-      const link = draft.nav.links[linkIndex];
+      const link = draft.nav?.links[linkIndex];
       if (!link || link.type !== 'menu') return;
-      if (!Array.isArray(link.children)) {
-        link.children = [];
-      }
-      link.children.push({
-        id: generateNavLinkId('child'),
-        type: 'custom',
-        label: 'Menu item',
-        href: '#',
-        visible_on: { desktop: true, mobile: true },
-      });
+      link.children.push(
+        create(HeaderNavLinkSchema, {
+          id: generateNavLinkId('child'),
+          type: 'custom',
+          label: 'Menu item',
+          href: '#',
+          visibleOn: { desktop: true, mobile: true },
+        }),
+      );
     });
   };
 
   const handleRemoveMenuChild = (linkIndex: number, childIndex: number) => {
     updateConfig((draft) => {
-      const link = draft.nav.links[linkIndex];
-      if (!link || link.type !== 'menu' || !Array.isArray(link.children)) return;
+      const link = draft.nav?.links[linkIndex];
+      if (!link || link.type !== 'menu') return;
       link.children.splice(childIndex, 1);
     });
   };
 
   const handleVisibilityToggle = (index: number, key: 'desktop' | 'mobile', value: boolean) => {
     updateConfig((draft) => {
-      draft.nav.links[index].visible_on = {
-        desktop: key === 'desktop' ? value : draft.nav.links[index].visible_on?.desktop ?? true,
-        mobile: key === 'mobile' ? value : draft.nav.links[index].visible_on?.mobile ?? true,
-      };
+      const link = draft.nav?.links[index];
+      if (!link) return;
+      link.visibleOn = create(HeaderVisibilityConfigSchema, {
+        desktop: key === 'desktop' ? value : link.visibleOn?.desktop ?? true,
+        mobile: key === 'mobile' ? value : link.visibleOn?.mobile ?? true,
+      });
     });
   };
 
   const handleRemoveLink = (index: number) => {
     updateConfig((draft) => {
-      draft.nav.links.splice(index, 1);
+      draft.nav?.links.splice(index, 1);
     });
   };
 
   const handleAddMenu = () => {
     updateConfig((draft) => {
-      draft.nav.links.push({
-        id: generateNavLinkId('menu'),
-        type: 'menu',
-        label: 'Menu',
-        visible_on: { desktop: true, mobile: true },
-        children: [
-          {
-            id: generateNavLinkId('menu-item'),
-            type: 'custom',
-            label: 'First link',
-            href: '#',
-            visible_on: { desktop: true, mobile: true },
-          },
-          {
-            id: generateNavLinkId('menu-item'),
-            type: 'custom',
-            label: 'Second link',
-            href: '#',
-            visible_on: { desktop: true, mobile: true },
-          },
-        ],
-      });
+      if (!draft.nav) return;
+      draft.nav.links.push(
+        create(HeaderNavLinkSchema, {
+          id: generateNavLinkId('menu'),
+          type: 'menu',
+          label: 'Menu',
+          visibleOn: { desktop: true, mobile: true },
+          children: [
+            {
+              id: generateNavLinkId('menu-item'),
+              type: 'custom',
+              label: 'First link',
+              href: '#',
+              visibleOn: { desktop: true, mobile: true },
+            },
+            {
+              id: generateNavLinkId('menu-item'),
+              type: 'custom',
+              label: 'Second link',
+              href: '#',
+              visibleOn: { desktop: true, mobile: true },
+            },
+          ],
+        }),
+      );
     });
   };
 
   const handleMoveLink = (index: number, direction: -1 | 1) => {
     const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= config.nav.links.length) {
+    if (nextIndex < 0 || nextIndex >= (config.nav?.links.length ?? 0)) {
       return;
     }
     updateConfig((draft) => {
+      if (!draft.nav) return;
       const [link] = draft.nav.links.splice(index, 1);
+      if (!link) return;
       draft.nav.links.splice(nextIndex, 0, link);
     });
   };
@@ -891,10 +911,15 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
     updates: { mode?: string; label?: string; href?: string; variant?: 'solid' | 'ghost' },
   ) => {
     updateConfig((draft) => {
-      draft.ctas[target] = {
-        ...draft.ctas[target],
+      if (!draft.ctas) return;
+      const existing = draft.ctas[target];
+      draft.ctas[target] = create(HeaderCTAConfigSchema, {
+        mode: existing?.mode,
+        label: existing?.label,
+        href: existing?.href,
+        variant: existing?.variant,
         ...updates,
-      };
+      });
     });
   };
 
@@ -914,7 +939,8 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
                 value={config.branding?.mode ?? 'logo_and_name'}
                 onChange={(e) =>
                   updateConfig((draft) => {
-                    draft.branding.mode = e.target.value as LandingHeaderConfig['branding']['mode'];
+                    if (!draft.branding) return;
+                    draft.branding.mode = e.target.value;
                   })
                 }
                 className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
@@ -928,10 +954,11 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
             <div>
               <label className="text-sm text-slate-300 mb-1 block">Mobile emphasis</label>
               <select
-                value={config.branding?.mobile_preference ?? 'auto'}
+                value={config.branding?.mobilePreference ?? 'auto'}
                 onChange={(e) =>
                   updateConfig((draft) => {
-                    draft.branding.mobile_preference = e.target.value as LandingHeaderConfig['branding']['mobile_preference'];
+                    if (!draft.branding) return;
+                    draft.branding.mobilePreference = e.target.value;
                   })
                 }
                 className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
@@ -951,6 +978,7 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
                 value={config.branding?.label ?? variantName}
                 onChange={(e) =>
                   updateConfig((draft) => {
+                    if (!draft.branding) return;
                     draft.branding.label = e.target.value;
                   })
                 }
@@ -965,6 +993,7 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
                 value={config.branding?.subtitle ?? ''}
                 onChange={(e) =>
                   updateConfig((draft) => {
+                    if (!draft.branding) return;
                     draft.branding.subtitle = e.target.value;
                   })
                 }
@@ -985,17 +1014,17 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
                 className="bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
               >
                 <option value="">Select target</option>
-                {sections.map((section, index) => (
+                {sections.map((section) => (
                   <option
-                    key={`${section.section_type}-${section.id ?? index}`}
+                    key={`${section.sectionType}-${String(section.id)}`}
                     value={JSON.stringify({
                       type: 'section',
-                      id: section.id ?? null,
-                      section_type: section.section_type,
+                      id: Number(section.id),
+                      section_type: section.sectionType,
                       order: section.order,
                     })}
                   >
-                    Section · {section.section_type} #{section.order}
+                    Section · {section.sectionType} #{section.order}
                   </option>
                 ))}
                 <option
@@ -1005,7 +1034,7 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
                   Downloads anchor
                 </option>
               </select>
-              <Button variant="secondary" size="sm" onClick={handleAddLink}>
+              <Button variant="muted" size="sm" onClick={handleAddLink}>
                 Add link
               </Button>
               <Button variant="outline" size="sm" onClick={handleAddMenu}>
@@ -1013,13 +1042,13 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
               </Button>
             </div>
           </div>
-          {config.nav.links.length === 0 ? (
+          {(config.nav?.links.length ?? 0) === 0 ? (
             <p className="text-sm text-slate-400">
               No manual links added. The header will mirror section order automatically.
             </p>
           ) : (
             <div className="space-y-3">
-              {config.nav.links.map((link, index) => (
+              {config.nav?.links.map((link, index) => (
                 <div key={link.id} className="rounded-lg border border-white/5 bg-slate-900/40 p-3 space-y-2">
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div className="flex-1">
@@ -1035,7 +1064,7 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
                       <label className="flex items-center gap-1">
                         <input
                           type="checkbox"
-                          checked={link.visible_on?.desktop ?? true}
+                          checked={link.visibleOn?.desktop ?? true}
                           onChange={(e) => handleVisibilityToggle(index, 'desktop', e.target.checked)}
                         />
                         Desktop
@@ -1043,25 +1072,25 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
                       <label className="flex items-center gap-1">
                         <input
                           type="checkbox"
-                          checked={link.visible_on?.mobile ?? true}
+                          checked={link.visibleOn?.mobile ?? true}
                           onChange={(e) => handleVisibilityToggle(index, 'mobile', e.target.checked)}
                         />
                         Mobile
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleMoveLink(index, -1)} disabled={index === 0}>
+                      <Button variant="ghost" size="sm" onClick={() => handleMoveLink(index, -1)} disabled={index === 0}>
                         ↑
                       </Button>
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => handleMoveLink(index, 1)}
-                        disabled={index === config.nav.links.length - 1}
+                        disabled={index === (config.nav?.links.length ?? 0) - 1}
                       >
                         ↓
                       </Button>
-                      <Button variant="destructive" size="icon" onClick={() => handleRemoveLink(index)}>
+                      <Button variant="outline" size="sm" onClick={() => handleRemoveLink(index)}>
                         ×
                       </Button>
                     </div>
@@ -1071,13 +1100,13 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
                       ? 'Downloads anchor'
                       : link.type === 'menu'
                         ? 'Dropdown menu'
-                        : `Link to ${link.section_type ?? 'custom target'}`}
+                        : `Link to ${link.sectionType || 'custom target'}`}
                   </p>
                   {link.type === 'menu' && (
                     <div className="space-y-2 rounded-md border border-white/10 bg-slate-900/60 p-3">
                       <div className="flex items-center justify-between text-xs text-slate-400">
                         <span>Menu items</span>
-                        <Button size="sm" variant="secondary" onClick={() => handleAddMenuChild(index)}>
+                        <Button size="sm" variant="muted" onClick={() => handleAddMenuChild(index)}>
                           Add item
                         </Button>
                       </div>
@@ -1104,7 +1133,7 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
                               className="w-full bg-slate-900/60 border border-slate-800 rounded px-3 py-1.5 text-white"
                             />
                           </div>
-                          <Button variant="destructive" size="sm" onClick={() => handleRemoveMenuChild(index, childIndex)}>
+                          <Button variant="outline" size="sm" onClick={() => handleRemoveMenuChild(index, childIndex)}>
                             Remove
                           </Button>
                         </div>
@@ -1121,7 +1150,7 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
           <div className="space-y-2">
             <h3 className="text-slate-200 font-medium">Primary CTA</h3>
             <select
-              value={config.ctas.primary.mode ?? 'inherit_hero'}
+              value={config.ctas?.primary?.mode ?? 'inherit_hero'}
               onChange={(e) => handleCTAModeChange('primary', { mode: e.target.value })}
               className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
             >
@@ -1130,20 +1159,20 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
               <option value="custom">Custom link</option>
               <option value="hidden">Hidden</option>
             </select>
-            {config.ctas.primary.mode === 'custom' && (
+            {config.ctas?.primary?.mode === 'custom' && (
               <div className="space-y-2">
                 <input
                   type="text"
                   className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
                   placeholder="Button label"
-                  value={config.ctas.primary.label ?? ''}
+                  value={config.ctas?.primary?.label ?? ''}
                   onChange={(e) => handleCTAModeChange('primary', { label: e.target.value })}
                 />
                 <input
                   type="text"
                   className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
                   placeholder="https://example.com"
-                  value={config.ctas.primary.href ?? ''}
+                  value={config.ctas?.primary?.href ?? ''}
                   onChange={(e) => handleCTAModeChange('primary', { href: e.target.value })}
                 />
               </div>
@@ -1152,7 +1181,7 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
           <div className="space-y-2">
             <h3 className="text-slate-200 font-medium">Secondary CTA</h3>
             <select
-              value={config.ctas.secondary.mode ?? 'downloads'}
+              value={config.ctas?.secondary?.mode ?? 'downloads'}
               onChange={(e) => handleCTAModeChange('secondary', { mode: e.target.value })}
               className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
             >
@@ -1161,21 +1190,21 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
               <option value="custom">Custom link</option>
               <option value="hidden">Hidden</option>
             </select>
-            {(config.ctas.secondary.mode === 'custom' || config.ctas.secondary.mode === 'downloads') && (
+            {(config.ctas?.secondary?.mode === 'custom' || config.ctas?.secondary?.mode === 'downloads') && (
               <div className="space-y-2">
                 <input
                   type="text"
                   className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
                   placeholder="Button label"
-                  value={config.ctas.secondary.label ?? ''}
+                  value={config.ctas?.secondary?.label ?? ''}
                   onChange={(e) => handleCTAModeChange('secondary', { label: e.target.value })}
                 />
-                {config.ctas.secondary.mode === 'custom' && (
+                {config.ctas?.secondary?.mode === 'custom' && (
                   <input
                     type="text"
                     className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
                     placeholder="https://example.com"
-                    value={config.ctas.secondary.href ?? ''}
+                    value={config.ctas?.secondary?.href ?? ''}
                     onChange={(e) => handleCTAModeChange('secondary', { href: e.target.value })}
                   />
                 )}
@@ -1189,12 +1218,13 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
-              checked={config.behavior.sticky}
+              checked={config.behavior?.sticky ?? false}
               onChange={(e) =>
                 updateConfig((draft) => {
+                  if (!draft.behavior) return;
                   draft.behavior.sticky = e.target.checked;
                   if (!e.target.checked) {
-                    draft.behavior.hide_on_scroll = false;
+                    draft.behavior.hideOnScroll = false;
                   }
                 })
               }
@@ -1204,11 +1234,12 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
-              checked={config.behavior.hide_on_scroll}
-              disabled={!config.behavior.sticky}
+              checked={config.behavior?.hideOnScroll ?? false}
+              disabled={!config.behavior?.sticky}
               onChange={(e) =>
                 updateConfig((draft) => {
-                  draft.behavior.hide_on_scroll = e.target.checked;
+                  if (!draft.behavior) return;
+                  draft.behavior.hideOnScroll = e.target.checked;
                 })
               }
             />
@@ -1221,22 +1252,21 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
 }
 
 function createNavLinkFromSection(section: ContentSection): LandingHeaderNavLink {
-  const anchorSection = {
-    id: section.id,
-    section_type: section.section_type,
+  const anchorSection = create(LandingSectionSchema, {
+    sectionType: section.sectionType,
     order: section.order,
     content: section.content,
-  } as LandingSection;
+  });
 
-  return {
-    id: generateNavLinkId(section.section_type),
+  return create(HeaderNavLinkSchema, {
+    id: generateNavLinkId(section.sectionType),
     type: 'section',
-    label: section.section_type.replace(/_/g, ' '),
-    section_type: section.section_type,
-    section_id: section.id ?? undefined,
+    label: section.sectionType.replace(/_/g, ' '),
+    sectionType: section.sectionType,
+    sectionId: Number(section.id),
     anchor: getSectionAnchorId(anchorSection),
-    visible_on: { desktop: true, mobile: true },
-  };
+    visibleOn: { desktop: true, mobile: true },
+  });
 }
 
 function generateNavLinkId(prefix: string) {

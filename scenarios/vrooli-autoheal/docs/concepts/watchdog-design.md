@@ -153,6 +153,29 @@ launchctl list | grep vrooli
 Get-ScheduledTask -TaskName "VrooliAutoheal"
 ```
 
+## Operational-history retention
+
+Autoheal treats SQLite history as bounded operational evidence, not an
+unlimited log sink. On a normal health-check tick it reads the live
+`global.historyRetentionHours` configuration (default 24 hours) and, at most
+once per hour, incrementally prunes up to 1,000 expired rows from each of
+`health_results`, `action_logs`, `autoheal_actions`, and `system_events`.
+Incident records remain as the durable forensic rollup.
+
+Oversized health-result detail payloads and individual action-log text fields
+are capped at 64 KiB with an explicit truncation marker. Retention failures are
+logged and do not fail the health-check tick; the next tick retries the bounded
+pass. Autoheal owns liveness checks and their action cooldowns, while the
+runtime supervisor remains the sole owner of pressure-epoch scenario recovery.
+During a detected, regressed, or quiet-period-gated runtime pressure epoch,
+autoheal records the unhealthy result but suppresses restart-class actions. If
+the runtime registry cannot be read, it also fails closed for those actions.
+
+`GET /api/v1/status` exposes the SQLite footprint, oldest/newest retained
+health-result timestamps, last prune time and per-table prune counts. A failed
+retention status read or prune is shown as degraded so operators can diagnose
+storage pressure before it affects normal health checks.
+
 ## Self-Protection
 
 The watchdog protects autoheal, but autoheal also monitors the watchdog:

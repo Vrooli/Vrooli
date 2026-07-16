@@ -223,6 +223,6 @@ Returns robots.txt content.
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](overview.md)
 - [Variants](variants.md) - A/B testing endpoints
 - [Payments](payments.md) - Stripe integration

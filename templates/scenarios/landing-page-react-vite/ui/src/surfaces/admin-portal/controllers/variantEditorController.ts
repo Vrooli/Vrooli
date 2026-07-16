@@ -30,11 +30,11 @@ export interface VariantFormState {
 
 export async function loadVariantEditorData(slug: string): Promise<VariantEditorData> {
   const variant = await getVariant(slug);
-  if (!variant.id) {
-    throw new Error('Variant payload missing ID');
+  if (!variant) {
+    throw new Error('Variant not found');
   }
 
-  const { sections } = await getAdminSections(variant.id);
+  const sections = await getAdminSections(variant.id);
   return { variant, sections };
 }
 
@@ -118,7 +118,6 @@ export async function persistVariant(params: {
       description: normalized.description || undefined,
       weight: normalized.weight,
       axes: params.axesSelection,
-      header_config: params.headerConfig,
     });
   }
 
@@ -131,7 +130,7 @@ export async function persistVariant(params: {
     description: normalized.description || undefined,
     weight: normalized.weight,
     axes: params.axesSelection,
-    header_config: params.headerConfig,
+    headerConfig: params.headerConfig,
   });
 
   return undefined;

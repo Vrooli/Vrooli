@@ -2,14 +2,22 @@ import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
+import { create, clone } from '@bufbuild/protobuf';
+import { PlanOptionSchema, PricingOverviewSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/pricing_pb';
 import {
   getStripeSettings,
   updateStripeSettings,
   getBundleCatalog,
   updateBundlePrice,
-  type StripeSettingsResponse,
+  BillingInterval,
+  ConfigSource,
+  jsonMapToRecord,
+  recordToJsonMap,
+  type GetStripeSettingsResponse,
+  type StripeSettingsUpdate,
+  type BundlePriceUpdate,
 } from '../../../shared/api';
-import type { BundleCatalogEntry, PlanDisplayMetadata, PlanOption, PricingOverview } from '../../../shared/api';
+import type { BundleCatalogEntry, PlanOption, PricingOverview } from '../../../shared/api';
 import { MetricsModeProvider } from '../../../shared/hooks/useMetrics';
 import { PricingSection } from '../../public-landing/sections/PricingSection';
 import { AlertTriangle, CreditCard, RefreshCw, ShieldCheck } from 'lucide-react';
@@ -53,19 +61,30 @@ const PRICING_PREVIEW_CONTENT = {
   subtitle: 'Updates instantly with unsaved copy changes so you can validate the three-card layout visitors will see.',
 };
 
-const buildPriceValues = (metadata: PlanDisplayMetadata | undefined, defaults: { planName: string; displayWeight: number; displayEnabled: boolean }): PriceFormValues => {
-  const features = Array.isArray(metadata?.features)
-    ? (metadata?.features as string[]).map((entry) => String(entry))
+const asString = (value: unknown): string => (typeof value === 'string' ? value : '');
+
+const BILLING_INTERVAL_LABELS: Record<BillingInterval, string> = {
+  [BillingInterval.UNSPECIFIED]: 'unspecified',
+  [BillingInterval.MONTH]: 'month',
+  [BillingInterval.YEAR]: 'year',
+  [BillingInterval.ONE_TIME]: 'one_time',
+};
+
+const billingIntervalLabel = (interval: BillingInterval): string => BILLING_INTERVAL_LABELS[interval] ?? 'unspecified';
+
+const buildPriceValues = (metadata: Record<string, unknown>, defaults: { planName: string; displayWeight: number; displayEnabled: boolean }): PriceFormValues => {
+  const features = Array.isArray(metadata.features)
+    ? metadata.features.map((entry) => String(entry))
     : [];
 
   return {
     planName: defaults.planName,
     displayWeight: defaults.displayWeight,
     displayEnabled: defaults.displayEnabled,
-    subtitle: (metadata?.subtitle as string) || '',
-    badge: (metadata?.badge as string) || '',
-    ctaLabel: (metadata?.cta_label as string) || '',
-    highlight: Boolean(metadata?.highlight),
+    subtitle: asString(metadata.subtitle),
+    badge: asString(metadata.badge),
+    ctaLabel: asString(metadata.cta_label),
+    highlight: Boolean(metadata.highlight),
     featuresText: features.join('\n'),
   };
 };
@@ -75,7 +94,7 @@ const isDirty = (state: PriceFormState): boolean => {
 };
 
 export function BillingSettings() {
-  const [stripeSettings, setStripeSettings] = useState<StripeSettingsResponse | null>(null);
+  const [stripeSettings, setStripeSettings] = useState<GetStripeSettingsResponse | null>(null);
   const [stripeForm, setStripeForm] = useState<StripeFormState>(defaultStripeForm);
   const [loadingStripe, setLoadingStripe] = useState(true);
   const [savingStripe, setSavingStripe] = useState(false);
@@ -103,17 +122,17 @@ export function BillingSettings() {
     setLoadingBundles(true);
     setBundleError(null);
     try {
-      const { bundles: payload } = await getBundleCatalog();
+      const payload = await getBundleCatalog();
       const enrichedBundles = payload.map((entry) => injectDemoPlansForBundle(entry));
       setBundles(enrichedBundles);
       const nextForms: Record<string, PriceFormState> = {};
       enrichedBundles.forEach((entry) => {
         entry.prices.forEach((price) => {
-          const key = `${entry.bundle.bundle_key}:${price.stripe_price_id}`;
-          const values = buildPriceValues(price.metadata, {
-            planName: price.plan_name,
-            displayWeight: price.display_weight,
-            displayEnabled: price.display_enabled,
+          const key = `${entry.bundle?.bundleKey ?? ''}:${price.stripePriceId}`;
+          const values = buildPriceValues(jsonMapToRecord(price.metadata), {
+            planName: price.planName,
+            displayWeight: price.displayWeight,
+            displayEnabled: price.displayEnabled,
           });
           nextForms[key] = {
             values,
@@ -145,12 +164,11 @@ export function BillingSettings() {
     setSavingStripe(true);
     setStripeError(null);
     try {
-      const payload: Record<string, string> = {};
+      const payload: StripeSettingsUpdate = {};
       (Object.keys(stripeForm) as (keyof StripeFormState)[]).forEach((key) => {
         const value = stripeForm[key].trim();
         if (value.length > 0) {
-          const apiKey = key === 'dashboardUrl' ? 'dashboard_url' : key.replace(/[A-Z]/g, (match) => `_${match.toLowerCase()}`);
-          payload[apiKey] = value;
+          payload[key] = value;
         }
       });
 
@@ -170,24 +188,25 @@ export function BillingSettings() {
     }
   };
 
-  const currentDashboardUrl = stripeSettings?.dashboard_url;
+  const currentDashboardUrl = stripeSettings?.settings?.dashboardUrl;
 
   const renderStripeStatus = () => {
     if (!stripeSettings) {
       return null;
     }
+    const snapshot = stripeSettings.snapshot;
     const badges = [
       {
         label: 'Publishable Key',
-        ok: stripeSettings.publishable_key_set,
+        ok: Boolean(snapshot?.publishableKeySet),
       },
       {
         label: 'Secret Key',
-        ok: stripeSettings.secret_key_set,
+        ok: Boolean(snapshot?.secretKeySet),
       },
       {
         label: 'Webhook Secret',
-        ok: stripeSettings.webhook_secret_set,
+        ok: Boolean(snapshot?.webhookSecretSet),
       },
     ];
 
@@ -236,7 +255,8 @@ export function BillingSettings() {
       } else if (field === 'featuresText') {
         nextValues.featuresText = String(nextValue);
       } else {
-        (nextValues as Record<string, unknown>)[field] = nextValue;
+        // Remaining string fields: planName, subtitle, badge, ctaLabel.
+        nextValues[field] = String(nextValue);
       }
       return {
         ...prev,
@@ -282,34 +302,39 @@ export function BillingSettings() {
     }));
 
     try {
-      await updateBundlePrice(bundleKey, priceId, {
-        plan_name: formState.values.planName.trim() || undefined,
-        display_weight: formState.values.displayWeight,
-        display_enabled: formState.values.displayEnabled,
+      const update: BundlePriceUpdate = {
+        planName: formState.values.planName.trim() || undefined,
+        displayWeight: formState.values.displayWeight,
+        displayEnabled: formState.values.displayEnabled,
         subtitle: formState.values.subtitle.trim() || undefined,
         badge: formState.values.badge.trim() || undefined,
-        cta_label: formState.values.ctaLabel.trim() || undefined,
+        ctaLabel: formState.values.ctaLabel.trim() || undefined,
         highlight: formState.values.highlight,
         features,
-      });
+      };
+      await updateBundlePrice(bundleKey, priceId, update);
 
-      setPriceForms((prev) => ({
-        ...prev,
-        [key]: {
-          ...prev[key],
-          saving: false,
-          original: { ...formState.values },
-        },
-      }));
+      setPriceForms((prev) => {
+        const existing = prev[key];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          [key]: { ...existing, saving: false, original: { ...formState.values } },
+        };
+      });
     } catch (error) {
-      setPriceForms((prev) => ({
-        ...prev,
-        [key]: {
-          ...prev[key],
-          saving: false,
-          error: error instanceof Error ? error.message : 'Failed to update price',
-        },
-      }));
+      setPriceForms((prev) => {
+        const existing = prev[key];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          [key]: {
+            ...existing,
+            saving: false,
+            error: error instanceof Error ? error.message : 'Failed to update price',
+          },
+        };
+      });
     }
   };
 
@@ -327,11 +352,11 @@ export function BillingSettings() {
     }
 
     return bundles.map((entry) => (
-      <Card key={entry.bundle.bundle_key} className="border-white/10 bg-slate-900/40">
+      <Card key={(entry.bundle?.bundleKey ?? '')} className="border-white/10 bg-slate-900/40">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>{entry.bundle.name}</span>
-            <span className="text-xs text-slate-400">Bundle key: {entry.bundle.bundle_key}</span>
+            <span>{entry.bundle?.name}</span>
+            <span className="text-xs text-slate-400">Bundle key: {(entry.bundle?.bundleKey ?? '')}</span>
           </CardTitle>
           <CardDescription>
             Control which Stripe prices are surfaced on the landing page and customize their marketing copy.
@@ -341,7 +366,7 @@ export function BillingSettings() {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <div className="space-y-6">
           {entry.prices.map((price) => {
-            const key = `${entry.bundle.bundle_key}:${price.stripe_price_id}`;
+            const key = `${(entry.bundle?.bundleKey ?? '')}:${price.stripePriceId}`;
             const formState = priceForms[key];
             if (!formState) {
               return null;
@@ -349,11 +374,11 @@ export function BillingSettings() {
             const dirty = isDirty(formState);
             const demoPlan = formState.demo;
             return (
-              <div key={price.stripe_price_id} className="rounded-xl border border-white/10 p-4">
+              <div key={price.stripePriceId} className="rounded-xl border border-white/10 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">{price.plan_name}</h3>
-                    <p className="text-sm text-slate-400">{price.stripe_price_id} · {price.billing_interval}</p>
+                    <h3 className="text-lg font-semibold text-white">{price.planName}</h3>
+                    <p className="text-sm text-slate-400">{price.stripePriceId} · {billingIntervalLabel(price.billingInterval)}</p>
                     {demoPlan && (
                       <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
                         Demo placeholder · connect Stripe to replace this slot
@@ -364,7 +389,7 @@ export function BillingSettings() {
                     <input
                       type="checkbox"
                       checked={formState.values.displayEnabled}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'displayEnabled')}
+                          onChange={handlePriceChange((entry.bundle?.bundleKey ?? ''), price.stripePriceId, 'displayEnabled')}
                           className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500"
                         />
                         Visible on landing page
@@ -377,7 +402,7 @@ export function BillingSettings() {
                         <input
                           type="text"
                           value={formState.values.planName}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'planName')}
+                          onChange={handlePriceChange((entry.bundle?.bundleKey ?? ''), price.stripePriceId, 'planName')}
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
@@ -386,7 +411,7 @@ export function BillingSettings() {
                         <input
                           type="number"
                           value={formState.values.displayWeight}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'displayWeight')}
+                          onChange={handlePriceChange((entry.bundle?.bundleKey ?? ''), price.stripePriceId, 'displayWeight')}
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
@@ -398,7 +423,7 @@ export function BillingSettings() {
                         <input
                           type="text"
                           value={formState.values.subtitle}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'subtitle')}
+                          onChange={handlePriceChange((entry.bundle?.bundleKey ?? ''), price.stripePriceId, 'subtitle')}
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
@@ -407,7 +432,7 @@ export function BillingSettings() {
                         <input
                           type="text"
                           value={formState.values.badge}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'badge')}
+                          onChange={handlePriceChange((entry.bundle?.bundleKey ?? ''), price.stripePriceId, 'badge')}
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
@@ -419,7 +444,7 @@ export function BillingSettings() {
                         <input
                           type="text"
                           value={formState.values.ctaLabel}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'ctaLabel')}
+                          onChange={handlePriceChange((entry.bundle?.bundleKey ?? ''), price.stripePriceId, 'ctaLabel')}
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
@@ -427,7 +452,7 @@ export function BillingSettings() {
                         <input
                           type="checkbox"
                           checked={formState.values.highlight}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'highlight')}
+                          onChange={handlePriceChange((entry.bundle?.bundleKey ?? ''), price.stripePriceId, 'highlight')}
                           className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500"
                         />
                         Highlight tier (apply hero styling)
@@ -438,7 +463,7 @@ export function BillingSettings() {
                       <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Feature Bullets</label>
                       <textarea
                         value={formState.values.featuresText}
-                        onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'featuresText')}
+                        onChange={handlePriceChange((entry.bundle?.bundleKey ?? ''), price.stripePriceId, 'featuresText')}
                         rows={4}
                         className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         placeholder={'One feature per line\nDesktop downloads included\nWhite-glove onboarding'}
@@ -452,14 +477,14 @@ export function BillingSettings() {
                 <div className="mt-4 flex items-center gap-3">
                   <Button
                     type="button"
-                    onClick={() => handleSavePrice(entry.bundle.bundle_key, price.stripe_price_id)}
+                    onClick={() => handleSavePrice((entry.bundle?.bundleKey ?? ''), price.stripePriceId)}
                     disabled={!dirty || formState.saving || demoPlan}
                     className="gap-2"
                   >
                     {formState.saving && <RefreshCw className="h-4 w-4 animate-spin" />}
                     {demoPlan ? 'Demo plan' : dirty ? 'Save changes' : 'Up to date'}
                   </Button>
-                  {!price.display_enabled && (
+                  {!price.displayEnabled && (
                     <span className="text-xs text-slate-400">Hidden from landing page visitors</span>
                   )}
                   {demoPlan && (
@@ -505,9 +530,9 @@ export function BillingSettings() {
             ) : (
               <>
                 {renderStripeStatus()}
-                {stripeSettings?.source && (
+                {stripeSettings?.snapshot && (
                   <p className="text-xs uppercase tracking-wide text-slate-500">
-                    Source: {stripeSettings.source === 'database' ? 'Admin override' : 'Environment variables'}
+                    Source: {stripeSettings.snapshot.source === ConfigSource.DATABASE ? 'Admin override' : 'Environment variables'}
                   </p>
                 )}
                 {stripeError && <p className="text-sm text-rose-300">{stripeError}</p>}
@@ -589,41 +614,38 @@ interface PricingPreviewData {
 }
 
 function buildPricingPreviewData(entry: BundleCatalogEntry, priceForms: Record<string, PriceFormState>): PricingPreviewData {
-  const enhancedPlans = entry.prices.map((price) => applyFormOverrides(entry.bundle.bundle_key, price, priceForms));
+  const enhancedPlans = entry.prices.map((price) => applyFormOverrides((entry.bundle?.bundleKey ?? ''), price, priceForms));
   const monthlyPlans = sortPlans(
-    enhancedPlans.filter((plan) => plan.billing_interval === 'month' && plan.display_enabled),
+    enhancedPlans.filter((plan) => plan.billingInterval === BillingInterval.MONTH && plan.displayEnabled),
   );
   const yearlyPlans = sortPlans(
-    enhancedPlans.filter((plan) => plan.billing_interval === 'year' && plan.display_enabled),
+    enhancedPlans.filter((plan) => plan.billingInterval === BillingInterval.YEAR && plan.displayEnabled),
   );
 
   const placeholderCount = monthlyPlans.filter((plan) => isDemoPlanOption(plan)).length;
   const monthlyCount = monthlyPlans.length - placeholderCount;
 
   return {
-    overview: {
+    overview: create(PricingOverviewSchema, {
       bundle: entry.bundle,
       monthly: monthlyPlans,
       yearly: yearlyPlans,
-      updated_at: new Date().toISOString(),
-    },
+    }),
     monthlyCount,
     placeholderCount,
   };
 }
 
 function applyFormOverrides(bundleKey: string, price: PlanOption, priceForms: Record<string, PriceFormState>): PlanOption {
-  const key = `${bundleKey}:${price.stripe_price_id}`;
+  const key = `${bundleKey}:${price.stripePriceId}`;
   const formState = priceForms[key];
   if (!formState) {
-    return { ...price };
+    return price;
   }
 
-  const nextMetadata: PlanDisplayMetadata = {
-    ...(price.metadata ?? {}),
-  };
+  const nextMetadata = jsonMapToRecord(price.metadata);
 
-  const setOrDelete = (field: keyof PlanDisplayMetadata, value: string) => {
+  const setOrDelete = (field: string, value: string) => {
     const trimmed = value.trim();
     if (trimmed.length > 0) {
       nextMetadata[field] = trimmed;
@@ -635,7 +657,11 @@ function applyFormOverrides(bundleKey: string, price: PlanOption, priceForms: Re
   setOrDelete('subtitle', formState.values.subtitle);
   setOrDelete('badge', formState.values.badge);
   setOrDelete('cta_label', formState.values.ctaLabel);
-  nextMetadata.highlight = formState.values.highlight || undefined;
+  if (formState.values.highlight) {
+    nextMetadata.highlight = true;
+  } else {
+    delete nextMetadata.highlight;
+  }
   const features = parseFeaturesText(formState.values.featuresText);
   if (features.length > 0) {
     nextMetadata.features = features;
@@ -643,16 +669,14 @@ function applyFormOverrides(bundleKey: string, price: PlanOption, priceForms: Re
     delete nextMetadata.features;
   }
 
-  const metadata = Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;
-  const planName = formState.values.planName.trim().length > 0 ? formState.values.planName.trim() : price.plan_name;
+  const planName = formState.values.planName.trim().length > 0 ? formState.values.planName.trim() : price.planName;
 
-  return {
-    ...price,
-    plan_name: planName,
-    display_weight: formState.values.displayWeight,
-    display_enabled: formState.values.displayEnabled,
-    metadata,
-  };
+  const next = clone(PlanOptionSchema, price);
+  next.planName = planName;
+  next.displayWeight = formState.values.displayWeight;
+  next.displayEnabled = formState.values.displayEnabled;
+  next.metadata = recordToJsonMap(nextMetadata);
+  return next;
 }
 
 function parseFeaturesText(raw: string): string[] {
@@ -664,12 +688,10 @@ function parseFeaturesText(raw: string): string[] {
 
 function sortPlans(plans: PlanOption[]): PlanOption[] {
   return [...plans].sort((a, b) => {
-    if (a.display_weight === b.display_weight) {
-      const aRank = typeof a.plan_rank === 'number' ? a.plan_rank : Number.MAX_SAFE_INTEGER;
-      const bRank = typeof b.plan_rank === 'number' ? b.plan_rank : Number.MAX_SAFE_INTEGER;
-      return aRank - bRank;
+    if (a.displayWeight === b.displayWeight) {
+      return a.planRank - b.planRank;
     }
-    return b.display_weight - a.display_weight;
+    return b.displayWeight - a.displayWeight;
   });
 }
 

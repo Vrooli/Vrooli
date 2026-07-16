@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { Button } from '../../../shared/ui/button';
 import { useMetrics } from '../../../shared/hooks/useMetrics';
 import { useEntitlements } from '../../../shared/hooks/useEntitlements';
@@ -40,12 +41,12 @@ function formatCreditDisplay(amount?: number, multiplier?: number, label?: strin
 }
 
 export function getDownloadAssetKey(download: DownloadAsset): string {
-  if (typeof download.id === 'number') {
-    return `asset-${download.id}`;
+  if (download.id > 0n) {
+    return `asset-${String(download.id)}`;
   }
-  const version = download.release_version || 'unknown';
-  const artifact = download.artifact_url || 'na';
-  return `app-${download.app_key}-${download.platform}-${version}-${artifact}`;
+  const version = download.releaseVersion || 'unknown';
+  const artifact = download.artifactUrl || 'na';
+  return `app-${download.appKey}-${download.platform}-${version}-${artifact}`;
 }
 
 function sanitizeArtifactUrl(artifactUrl?: string) {
@@ -110,17 +111,17 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
     () => filteredApps.flatMap((app) => app.platforms ?? []),
     [filteredApps],
   );
-  const entitlementsRequired = allPlatforms.some((asset) => asset.requires_entitlement);
+  const entitlementsRequired = allPlatforms.some((asset) => asset.requiresEntitlement);
   const hasInstallers = allPlatforms.length > 0;
   const anyStorefronts = filteredApps.some((app) => (app.storefronts?.length ?? 0) > 0);
 
   const hasActiveSubscription = entitlements?.status === 'active' || entitlements?.status === 'trialing';
   const entitlementStatus = entitlements?.status ?? 'unknown';
-  const planTier = entitlements?.plan_tier ?? entitlements?.subscription?.plan_tier ?? 'unknown';
-  const creditsLabel = entitlements?.credits?.display_credits_label;
-  const creditsMultiplier = entitlements?.credits?.display_credits_multiplier;
-  const balanceDisplay = formatCreditDisplay(entitlements?.credits?.balance_credits, creditsMultiplier, creditsLabel);
-  const bonusDisplay = formatCreditDisplay(entitlements?.credits?.bonus_credits, creditsMultiplier, creditsLabel);
+  const planTier = entitlements?.planTier || entitlements?.subscription?.planTier || 'unknown';
+  const balanceCredits = entitlements?.credits?.balanceCredits;
+  const balanceDisplay = formatCreditDisplay(
+    balanceCredits != null ? Number(balanceCredits) : undefined,
+  );
 
   const showEntitlementSummary = entitlementsRequired && trimmedEmail.length > 0;
 
@@ -130,7 +131,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
       [assetKey]: { loading: true },
     }));
 
-    if (download.requires_entitlement && !trimmedEmail) {
+    if (download.requiresEntitlement && !trimmedEmail) {
       setDownloadStatus((prev) => ({
         ...prev,
         [assetKey]: {
@@ -141,7 +142,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
       return;
     }
 
-    if (download.requires_entitlement && !hasActiveSubscription) {
+    if (download.requiresEntitlement && !hasActiveSubscription) {
       setDownloadStatus((prev) => ({
         ...prev,
         [assetKey]: {
@@ -154,12 +155,11 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
     try {
       const asset = await requestDownload(
-        download.app_key || app.app_key,
+        download.appKey || app.appKey,
         download.platform,
-        download.requires_entitlement ? trimmedEmail : undefined,
       );
 
-      const artifactUrl = sanitizeArtifactUrl(asset?.artifact_url);
+      const artifactUrl = sanitizeArtifactUrl(asset?.artifactUrl);
       if (!artifactUrl) {
         setDownloadStatus((prev) => ({
           ...prev,
@@ -184,10 +184,10 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
       }
 
       trackDownload({
-        app_key: app.app_key,
+        app_key: app.appKey,
         platform: download.platform,
-        release_version: download.release_version,
-        requires_entitlement: download.requires_entitlement,
+        release_version: download.releaseVersion,
+        requires_entitlement: download.requiresEntitlement,
       });
 
       setDownloadStatus((prev) => ({
@@ -248,20 +248,21 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                   <p className="text-xs text-slate-400 uppercase tracking-[0.3em]">Subscription</p>
                   <p className="text-lg font-semibold text-white">{entitlementStatus}</p>
                   <p className="mt-1 text-xs text-slate-500">Plan tier: {planTier}</p>
-                  {entitlements?.subscription?.subscription_id && (
-                    <p className="mt-1 text-xs text-slate-500">ID: {entitlements.subscription.subscription_id}</p>
+                  {entitlements?.subscription?.subscriptionId && (
+                    <p className="mt-1 text-xs text-slate-500">ID: {entitlements.subscription.subscriptionId}</p>
                   )}
                 </div>
                 <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
                   <p className="text-xs text-slate-400 uppercase tracking-[0.3em]">Credits</p>
                   <p className="text-lg font-semibold text-white">{balanceDisplay}</p>
-                  <p className="mt-1 text-xs text-slate-500">Bonus: {bonusDisplay}</p>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
                   <p className="text-xs text-slate-400 uppercase tracking-[0.3em]">Pricing</p>
-                  <p className="text-lg font-semibold text-white">{entitlements?.price_id ?? 'Unknown price'}</p>
+                  <p className="text-lg font-semibold text-white">{entitlements?.priceId ?? 'Unknown price'}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Updated {entitlements?.subscription?.updated_at ?? 'recently'}
+                    Updated {entitlements?.subscription?.cachedAt
+                      ? timestampDate(entitlements.subscription.cachedAt).toLocaleString()
+                      : 'recently'}
                   </p>
                 </div>
               </div>
@@ -275,9 +276,9 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
             const storefronts = app.storefronts ?? [];
             return (
               <div
-                key={app.app_key}
+                key={app.appKey}
                 className="rounded-3xl border border-white/10 bg-[#07090F] p-8"
-                data-testid={`download-app-${app.app_key}`}
+                data-testid={`download-app-${app.appKey}`}
               >
                 <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
                   <div className="flex-1 space-y-4">
@@ -290,15 +291,15 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                       </p>
                     </div>
                     {app.description && <p className="text-sm text-slate-300">{app.description}</p>}
-                    {app.install_overview && (
+                    {app.installOverview && (
                       <div className="rounded-2xl border border-white/5 bg-white/5 p-4 text-sm text-slate-200">
-                        {app.install_overview}
+                        {app.installOverview}
                       </div>
                     )}
-                    {app.install_steps && app.install_steps.length > 0 && (
-                      <ol className="list-decimal list-inside space-y-1 text-sm text-slate-400" data-testid={`install-steps-${app.app_key}`}>
-                        {app.install_steps.map((step, idx) => (
-                          <li key={`${app.app_key}-step-${idx}`}>{step}</li>
+                    {app.installSteps && app.installSteps.length > 0 && (
+                      <ol className="list-decimal list-inside space-y-1 text-sm text-slate-400" data-testid={`install-steps-${app.appKey}`}>
+                        {app.installSteps.map((step, idx) => (
+                          <li key={`${app.appKey}-step-${idx}`}>{step}</li>
                         ))}
                       </ol>
                     )}
@@ -306,12 +307,12 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                       <div className="flex flex-wrap gap-3 pt-2">
                         {storefronts.map((store) => (
                           <a
-                            key={`${app.app_key}-${store.store}-${store.url}`}
+                            key={`${app.appKey}-${store.store}-${store.url}`}
                             href={store.url}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10"
-                            data-testid={`storefront-${app.app_key}-${store.store}`}
+                            data-testid={`storefront-${app.appKey}-${store.store}`}
                           >
                             {store.badge || store.label}
                           </a>
@@ -321,13 +322,16 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                   </div>
 
                   {installers.length > 0 && (
-                    <div className="flex-1 space-y-4" data-testid={`installer-list-${app.app_key}`}>
+                    <div className="flex-1 space-y-4" data-testid={`installer-list-${app.appKey}`}>
                       <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Desktop installers</p>
                       <div className="grid gap-4 md:grid-cols-2">
                         {installers.map((installer) => {
                           const assetKey = getDownloadAssetKey(installer);
                           const status = downloadStatus[assetKey];
-                          const buttonLabel = installer.requires_entitlement ? 'Verify & Download' : 'Download';
+                          const buttonLabel = installer.requiresEntitlement ? 'Verify & Download' : 'Download';
+                          const sizeMb = installer.metadata?.size_mb;
+                          const sizeLabel =
+                            typeof sizeMb === 'number' || typeof sizeMb === 'string' ? String(sizeMb) : null;
                           return (
                             <div
                               key={assetKey}
@@ -338,21 +342,21 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                                 <span className="text-xs uppercase tracking-[0.3em] text-slate-500">
                                   {formatPlatformLabel(installer.platform)}
                                 </span>
-                                <span className="text-xs text-slate-400">{installer.release_version}</span>
+                                <span className="text-xs text-slate-400">{installer.releaseVersion}</span>
                               </div>
                               <p className="text-sm text-slate-300">
-                                {installer.release_notes || 'Release notes coming soon.'}
+                                {installer.releaseNotes || 'Release notes coming soon.'}
                               </p>
                               <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                                <span>{installer.requires_entitlement ? 'Entitlement required' : 'Free download'}</span>
-                                {installer.metadata?.size_mb && <span>{installer.metadata.size_mb} MB</span>}
+                                <span>{installer.requiresEntitlement ? 'Entitlement required' : 'Free download'}</span>
+                                {sizeLabel && <span>{sizeLabel} MB</span>}
                               </div>
                               <Button
                                 variant="default"
                                 size="sm"
                                 onClick={() => handleDownload(app, installer, assetKey)}
                                 disabled={status?.loading}
-                                className={`w-full ${installer.requires_entitlement ? '' : 'bg-[#F97316]'}`}
+                                className={`w-full ${installer.requiresEntitlement ? '' : 'bg-[#F97316]'}`}
                               >
                                 {status?.loading ? 'Preparing…' : buttonLabel}
                               </Button>

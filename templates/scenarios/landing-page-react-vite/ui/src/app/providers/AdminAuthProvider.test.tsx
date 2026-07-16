@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { AdminAuthProvider, useAdminAuth } from './AdminAuthProvider';
-import { adminLogin, adminLogout, checkAdminSession } from '../../shared/api';
+
+// provider-free-exception: this suite mounts AdminAuthProvider itself and stubs
+// window.location to drive its session-check branches. Routing it through the
+// canonical renderWithProviders would double-mount the very provider under test
+// and hide the standalone behavior these cases assert.
 
 const { mockAdminLogin, mockAdminLogout, mockCheckAdminSession } = vi.hoisted(() => ({
   mockAdminLogin: vi.fn(),
@@ -39,20 +43,19 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
 
   beforeEach(() => {
     // Mock window.location
-    delete (window as { location?: Location }).location;
-    window.location = { ...originalLocation, pathname: '/admin/home' };
+    vi.stubGlobal('location', { ...originalLocation, pathname: '/admin/home' });
 
     mockCheckAdminSession.mockResolvedValue({
       authenticated: false,
       email: undefined,
-      reset_enabled: false,
+      resetEnabled: false,
     });
-    mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'test@example.com', reset_enabled: true });
+    mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'test@example.com', resetEnabled: true });
     mockAdminLogout.mockResolvedValue({});
   });
 
   afterEach(() => {
-    window.location = originalLocation;
+    vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
 
@@ -69,7 +72,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   });
 
   it('[REQ:ADMIN-AUTH] should check session on mount for admin routes', async () => {
-    const mockSessionData = { authenticated: true, email: 'admin@example.com', reset_enabled: true };
+    const mockSessionData = { authenticated: true, email: 'admin@example.com', resetEnabled: true };
 
     mockCheckAdminSession.mockResolvedValue(mockSessionData);
 
@@ -109,9 +112,9 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   });
 
   it('[REQ:ADMIN-AUTH] should handle login successfully', async () => {
-    const mockUserData = { email: 'test@example.com', reset_enabled: true };
+    const mockUserData = { email: 'test@example.com', resetEnabled: true };
 
-    mockCheckAdminSession.mockResolvedValue({ authenticated: false, reset_enabled: false });
+    mockCheckAdminSession.mockResolvedValue({ authenticated: false, resetEnabled: false });
     mockAdminLogin.mockResolvedValue({ authenticated: true, ...mockUserData });
 
     render(
@@ -135,7 +138,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   });
 
   it('[REQ:ADMIN-AUTH] should handle login failure', async () => {
-    mockCheckAdminSession.mockResolvedValue({ authenticated: false, reset_enabled: false });
+    mockCheckAdminSession.mockResolvedValue({ authenticated: false, resetEnabled: false });
     mockAdminLogin.mockRejectedValue(new Error('login failed'));
 
     // Create a component that catches the login error
@@ -185,7 +188,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   });
 
   it('[REQ:ADMIN-AUTH] should handle logout successfully', async () => {
-    const mockUserData = { email: 'test@example.com', reset_enabled: true };
+    const mockUserData = { email: 'test@example.com', resetEnabled: true };
 
     mockCheckAdminSession.mockResolvedValue({ authenticated: true, ...mockUserData });
     mockAdminLogout.mockResolvedValue({});

@@ -44,15 +44,19 @@ describe('getFallbackLandingConfig', () => {
     const config = module.getFallbackLandingConfig();
 
     expect(config.sections).toEqual([]);
-    expect(config.variant.slug).toBe('fallback');
+    expect(config.variant?.slug).toBe('fallback');
   });
 
-  it('normalizes section order and enabled flags', async () => {
+  // The proto LandingConfigResponse carries flattened LandingSection entries
+  // (sectionType/order/enabled, no id). getFallbackLandingConfig parses the
+  // authored JSON with fromJson, mapping snake_case keys and preserving the
+  // authored order/enabled values verbatim.
+  it('parses authored section order and enabled flags', async () => {
     vi.doMock(FALLBACK_PATH, () => ({
       default: {
         variant: baseVariant,
         sections: [
-          { section_type: 'hero', content: {}, enabled: undefined },
+          { section_type: 'hero', content: {}, order: 1, enabled: true },
           { section_type: 'cta', content: {}, order: 10, enabled: false },
         ],
         pricing: basePricing,
@@ -64,9 +68,11 @@ describe('getFallbackLandingConfig', () => {
     const config = module.getFallbackLandingConfig();
 
     expect(config.sections).toHaveLength(2);
-    expect(config.sections[0].order).toBe(1);
-    expect(config.sections[0].enabled).toBe(true);
-    expect(config.sections[1].order).toBe(10);
-    expect(config.sections[1].enabled).toBe(false);
+    expect(config.sections[0]?.sectionType).toBe('hero');
+    expect(config.sections[0]?.order).toBe(1);
+    expect(config.sections[0]?.enabled).toBe(true);
+    expect(config.sections[1]?.sectionType).toBe('cta');
+    expect(config.sections[1]?.order).toBe(10);
+    expect(config.sections[1]?.enabled).toBe(false);
   });
 });

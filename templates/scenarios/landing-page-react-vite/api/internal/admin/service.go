@@ -9,10 +9,13 @@ package admin
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -38,14 +41,30 @@ type Service struct {
 	secret []byte
 }
 
-// NewService constructs the admin Service, reading the cookie signing secret
-// from SESSION_SECRET (a development placeholder is used when unset).
-func NewService(db *sql.DB) *Service {
+// NewService constructs the admin Service with the cookie signing secret. The
+// secret is supplied by the caller (read and validated at boot via
+// SessionSecretFromEnv) so this package ships no default signing key.
+func NewService(db *sql.DB, secret []byte) *Service {
+	return &Service{db: db, secret: secret}
+}
+
+// SessionSecretFromEnv returns the cookie signing secret from SESSION_SECRET.
+// The template ships no default signing key: a shared or placeholder key would
+// let anyone forge admin sessions. When SESSION_SECRET is unset it mints an
+// ephemeral random key (logged) so development boots without a committed
+// secret. Set SESSION_SECRET in any real deployment so admin sessions survive
+// restarts and stay consistent across replicas.
+func SessionSecretFromEnv() ([]byte, error) {
 	secret := strings.TrimSpace(os.Getenv("SESSION_SECRET"))
 	if secret == "" {
-		secret = "dev-session-placeholder"
+		ephemeral := make([]byte, 32)
+		if _, err := rand.Read(ephemeral); err != nil {
+			return nil, fmt.Errorf("generate ephemeral session key: %w", err)
+		}
+		log.Println("admin: no session signing key configured; generated an ephemeral key. Admin sessions will not survive an API restart. Configure a stable signing key via environment for production.")
+		return ephemeral, nil
 	}
-	return &Service{db: db, secret: []byte(secret)}
+	return []byte(secret), nil
 }
 
 // Login verifies the email/password against admin_users and, on success, stamps

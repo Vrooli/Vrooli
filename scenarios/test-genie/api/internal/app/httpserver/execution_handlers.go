@@ -37,6 +37,23 @@ type suiteExecutionPayload struct {
 	LogicalScenarioRelPath string `json:"logicalScenarioRelPath"`
 }
 
+// handleAdmissionStatus exposes bounded-admission occupancy, configured caps,
+// and process-lifetime overload/coalescing counters for diagnosis.
+func (s *Server) handleAdmissionStatus(w http.ResponseWriter, _ *http.Request) {
+	if s.runManager == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "run admission is unavailable")
+		return
+	}
+	s.writeJSON(w, http.StatusOK, s.runManager.AdmissionStatus())
+}
+
+// admissionCaller is an intentionally small, bounded attribution seam. Trusted
+// gateways may attach X-Vrooli-Caller; absent identity is handled by the
+// runmanager's conservative anonymous bucket.
+func admissionCaller(r *http.Request) string {
+	return strings.TrimSpace(r.Header.Get("X-Vrooli-Caller"))
+}
+
 func decodeSuiteExecutionInput(r *http.Request) (execution.SuiteExecutionInput, error) {
 	defer r.Body.Close()
 
@@ -96,6 +113,22 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, "execution service unavailable")
 		return
 	}
+	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
+		status, waitErr := s.runManager.Wait(r.Context(), input.Request.ScenarioName, runID)
+		if waitErr != nil {
+			return
+		}
+		s.writeJSON(w, http.StatusOK, status.Result)
+		return
+	}
+	caller := admissionCaller(r)
+	releasePreview, err := s.runManager.TryAcquirePreviewFor(caller)
+	if err != nil {
+		w.Header().Set("Retry-After", "5")
+		s.writeError(w, http.StatusTooManyRequests, err.Error())
+		return
+	}
+	defer releasePreview()
 
 	// Synchronous plan validation (bad preset/phase → 400) + ETA.
 	preview, eta, err := s.previewExecutionPlan(r.Context(), input.Request)
@@ -108,11 +141,17 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 	}
 	applyPreviewPhaseSelection(&input, preview)
 
-	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: eta})
+	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, EstimatedTotalSeconds: eta})
 	if err != nil {
 		var busy *runmanager.BusyError
 		if errors.As(err, &busy) {
 			s.writeError(w, http.StatusConflict, busy.Error())
+			return
+		}
+		var saturated *runmanager.SaturatedError
+		if errors.As(err, &saturated) {
+			w.Header().Set("Retry-After", "5")
+			s.writeError(w, http.StatusTooManyRequests, saturated.Error())
 			return
 		}
 		s.writeError(w, http.StatusInternalServerError, err.Error())

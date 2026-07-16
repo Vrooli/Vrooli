@@ -3,14 +3,19 @@ package providerconformance
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/maturity-go/assessment"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 
 	"test-genie/internal/orchestrator/providerdescriptor"
 	"test-genie/internal/selfhealth"
@@ -31,6 +36,10 @@ type Service struct {
 	// Probe is the live provider contract seam. Nil disables live checks so
 	// the validator stays pure (descriptor-only findings).
 	Probe selfhealth.ConformanceProbe
+	// DurableProbe verifies the descriptor-declared DurableValidationRunService
+	// lifecycle. It is intentionally a generic transport seam, not a
+	// Workflow-Health-specific check.
+	DurableProbe DurableConformanceProbe
 	// ProbeTarget is the fixture scenario the target provider is asked to
 	// validate during the live probe (selfhealth.DefaultScanTarget when empty).
 	ProbeTarget string
@@ -223,6 +232,74 @@ func (s *Service) probeContract(ctx context.Context, report *Report, descriptor 
 			Remediation: "Attach ExecutionMetrics to every validation response, including degraded and error paths.",
 		})
 	}
+	if descriptor.Validation.DeliveryMode == "durable-run" {
+		if s.DurableProbe == nil {
+			report.add(Finding{
+				Code: CodeDurableContractInvalid, Severity: SeverityError,
+				Title:       "Durable provider lifecycle probe is unavailable",
+				Message:     "The provider declares durable-run delivery but Test Genie was not wired with the generic durable lifecycle probe.",
+				Location:    "scenario-validation/v1.DurableValidationRunService",
+				Remediation: "Wire the generic durable conformance probe and verify Start, replay, Get, Abort, and Wait before enabling durable delivery.",
+			})
+			return
+		}
+		if err := s.DurableProbe(ctx, report.Scenario, target, timeout); err != nil {
+			report.add(Finding{
+				Code: CodeDurableContractInvalid, Severity: SeverityError,
+				Title:   "Provider durable lifecycle contract is invalid",
+				Message: err.Error(), Location: "scenario-validation/v1.DurableValidationRunService",
+				Remediation: "Implement prompt idempotent Start, Get, explicit Abort, and server-owned Wait with a valid terminal lifecycle response.",
+			})
+		}
+	}
+}
+
+// DurableConformanceProbe validates the provider-neutral durable lifecycle.
+type DurableConformanceProbe func(context.Context, string, string, time.Duration) error
+
+// DefaultDurableConformanceProbe exercises one provider-owned lifecycle using
+// only the shared protocol. Abort makes the probe bounded and leaves no
+// potentially expensive validation work running after conformance returns.
+func DefaultDurableConformanceProbe(ctx context.Context, provider, target string, timeout time.Duration) error {
+	if timeout <= 0 {
+		timeout = defaultProbeTimeout
+	}
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, provider)
+	if err != nil {
+		return fmt.Errorf("resolve %s URL: %w", provider, err)
+	}
+	client := scenariovalidationconnect.NewDurableValidationRunServiceClient(&http.Client{Timeout: timeout}, strings.TrimRight(strings.TrimSpace(baseURL), "/"))
+	probeCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	key := "provider-conformance:" + strings.TrimSpace(target)
+	start, err := client.StartValidationRun(probeCtx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: target, IdempotencyKey: key}))
+	if err != nil || start == nil || start.Msg == nil || start.Msg.GetRun() == nil || start.Msg.GetRun().GetRunId() == "" {
+		return fmt.Errorf("StartValidationRun did not return a run: %w", err)
+	}
+	runID := start.Msg.GetRun().GetRunId()
+	replay, err := client.StartValidationRun(probeCtx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: target, IdempotencyKey: key}))
+	if err != nil || replay == nil || replay.Msg == nil || replay.Msg.GetRun().GetRunId() != runID {
+		return fmt.Errorf("StartValidationRun replay did not return the original run %q: %w", runID, err)
+	}
+	got, err := client.GetValidationRun(probeCtx, connect.NewRequest(&scenariovalidationv1.GetValidationRunRequest{RunId: runID}))
+	if err != nil || got == nil || got.Msg == nil || got.Msg.GetRun().GetRunId() != runID {
+		return fmt.Errorf("GetValidationRun did not reattach to %q: %w", runID, err)
+	}
+	if _, err := client.AbortValidationRun(probeCtx, connect.NewRequest(&scenariovalidationv1.AbortValidationRunRequest{RunId: runID, Reason: "provider conformance lifecycle probe"})); err != nil {
+		return fmt.Errorf("AbortValidationRun %q: %w", runID, err)
+	}
+	waited, err := client.WaitValidationRun(probeCtx, connect.NewRequest(&scenariovalidationv1.WaitValidationRunRequest{RunId: runID}))
+	if err != nil || waited == nil || waited.Msg == nil || waited.Msg.GetRun() == nil || !terminalState(waited.Msg.GetRun().GetState()) {
+		return fmt.Errorf("WaitValidationRun did not return a terminal run %q: %w", runID, err)
+	}
+	return nil
+}
+
+func terminalState(state scenariovalidationv1.ValidationRunState) bool {
+	return state == scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_SUCCEEDED ||
+		state == scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_FAILED ||
+		state == scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_CANCELED ||
+		state == scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_RECOVERY_FAILED
 }
 
 func findingFromDiagnostic(diagnostic providerdescriptor.Diagnostic) Finding {

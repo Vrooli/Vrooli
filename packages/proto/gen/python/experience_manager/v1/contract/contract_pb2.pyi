@@ -282,18 +282,20 @@ class ShowSpecResponse(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., page: _Optional[str] = ..., json: _Optional[str] = ...) -> None: ...
 
 class ListEvidenceRequest(_message.Message):
-    __slots__ = ("scenario", "path", "page", "claim", "limit")
+    __slots__ = ("scenario", "path", "page", "claim", "limit", "component")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     PAGE_FIELD_NUMBER: _ClassVar[int]
     CLAIM_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     path: str
     page: str
     claim: str
     limit: int
-    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., page: _Optional[str] = ..., claim: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    component: str
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., page: _Optional[str] = ..., claim: _Optional[str] = ..., limit: _Optional[int] = ..., component: _Optional[str] = ...) -> None: ...
 
 class ListEvidenceResponse(_message.Message):
     __slots__ = ("scenario", "page", "evidence")
@@ -306,7 +308,7 @@ class ListEvidenceResponse(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., page: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[ReconciliationEvidence, _Mapping]]] = ...) -> None: ...
 
 class ReconciliationEvidence(_message.Message):
-    __slots__ = ("id", "scenario", "page", "route", "state", "claim", "claim_type", "verdict", "capture_ref", "ax_node_json", "message", "checked_at", "viewport", "viewport_width", "viewport_height")
+    __slots__ = ("id", "scenario", "page", "route", "state", "claim", "claim_type", "verdict", "capture_ref", "ax_node_json", "message", "checked_at", "viewport", "viewport_width", "viewport_height", "document_kind", "component_id", "component_title", "example_name")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PAGE_FIELD_NUMBER: _ClassVar[int]
@@ -322,6 +324,10 @@ class ReconciliationEvidence(_message.Message):
     VIEWPORT_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_WIDTH_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    DOCUMENT_KIND_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    COMPONENT_TITLE_FIELD_NUMBER: _ClassVar[int]
+    EXAMPLE_NAME_FIELD_NUMBER: _ClassVar[int]
     id: str
     scenario: str
     page: str
@@ -337,7 +343,11 @@ class ReconciliationEvidence(_message.Message):
     viewport: str
     viewport_width: int
     viewport_height: int
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., page: _Optional[str] = ..., route: _Optional[str] = ..., state: _Optional[str] = ..., claim: _Optional[str] = ..., claim_type: _Optional[str] = ..., verdict: _Optional[str] = ..., capture_ref: _Optional[str] = ..., ax_node_json: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ...) -> None: ...
+    document_kind: str
+    component_id: str
+    component_title: str
+    example_name: str
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., page: _Optional[str] = ..., route: _Optional[str] = ..., state: _Optional[str] = ..., claim: _Optional[str] = ..., claim_type: _Optional[str] = ..., verdict: _Optional[str] = ..., capture_ref: _Optional[str] = ..., ax_node_json: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., document_kind: _Optional[str] = ..., component_id: _Optional[str] = ..., component_title: _Optional[str] = ..., example_name: _Optional[str] = ...) -> None: ...
 
 class SuggestBindingsRequest(_message.Message):
     __slots__ = ("scenario", "path", "page", "limit")

@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -116,8 +117,20 @@ func TestProtoConnectParity(t *testing.T) {
 		require.NotZero(t, services.Len(),
 			"module %q: proto file declares no services", entry.Module)
 
+		scoped := make(map[protoreflect.Name]bool, len(entry.Services))
+		for _, name := range entry.Services {
+			svc := services.ByName(name)
+			require.NotNil(t, svc,
+				"module %q: Services names %q but the proto file declares no such service",
+				entry.Module, name)
+			scoped[name] = true
+		}
+
 		for s := 0; s < services.Len(); s++ {
 			svc := services.Get(s)
+			if len(scoped) > 0 && !scoped[svc.Name()] {
+				continue
+			}
 			methods := svc.Methods()
 			for m := 0; m < methods.Len(); m++ {
 				method := methods.Get(m)

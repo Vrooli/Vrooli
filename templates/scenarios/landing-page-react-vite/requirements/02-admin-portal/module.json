@@ -14,7 +14,7 @@
           "type": "automation",
           "phase": "business",
           "status": "planned",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+          "ref": "bas/cases/admin-portal/ui/admin-portal.json"
         }
       ],
       "status": "in_progress",
@@ -30,7 +30,7 @@
           "type": "automation",
           "phase": "business",
           "status": "planned",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+          "ref": "bas/cases/admin-portal/ui/admin-portal.json"
         }
       ],
       "status": "in_progress",
@@ -49,10 +49,16 @@
           "type": "code",
           "phase": "integration",
           "status": "implemented",
-          "ref": "ui/src/pages/PublicHome.tsx (no admin links) & ui/src/App.tsx (admin routes protected)"
+          "ref": "ui/src/surfaces/public-landing/routes/PublicLanding.tsx"
+        },
+        {
+          "type": "code",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Admin portal routes are protected and not linked from the public landing; hidden link removed from public page."
     },
     {
@@ -65,10 +71,10 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "ui/src/contexts/AuthContext.test.tsx"
+          "ref": "ui/src/app/providers/AdminAuthProvider.test.tsx"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "bcrypt auth implemented in api/auth.go with session cookies; validated via AuthContext tests."
     },
     {
@@ -81,10 +87,10 @@
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "ui/src/pages/AdminHome.tsx (two mode cards only)"
+          "ref": "ui/src/surfaces/admin-portal/routes/AdminHome.tsx"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "ADMIN-AUTH"
       ],
@@ -100,10 +106,16 @@
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "ui/src/pages/AdminHome.tsx + ui/src/components/AdminLayout.tsx"
+          "ref": "ui/src/surfaces/admin-portal/routes/AdminHome.tsx"
+        },
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "ui/src/surfaces/admin-portal/components/AdminLayout.tsx"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "ADMIN-MODES"
       ],
@@ -119,10 +131,10 @@
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "ui/src/components/AdminLayout.tsx"
+          "ref": "ui/src/surfaces/admin-portal/components/AdminLayout.tsx"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "AdminLayout renders breadcrumb trail with dynamic segments for analytics/customization variants."
     }
   ],

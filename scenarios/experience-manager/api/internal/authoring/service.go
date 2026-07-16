@@ -234,6 +234,38 @@ func (s Service) ListEvidence(ctx context.Context, scenario, path, pageID, claim
 	return report, evidence, nil
 }
 
+// ListComponentEvidence returns persisted evidence for one component contract.
+// It validates the component through the parsed scenario spec before reading,
+// so callers cannot query arbitrary stale component identifiers.
+func (s Service) ListComponentEvidence(ctx context.Context, scenario, path, componentID, claimID string, limit int) (spec.Report, []reconcile.Evidence, error) {
+	if s.Evidence == nil {
+		return spec.Report{}, nil, fmt.Errorf("reconciliation evidence repository is not configured")
+	}
+	report, err := s.ListSpec(ctx, scenario, path)
+	if err != nil {
+		return spec.Report{}, nil, err
+	}
+	if report.Spec == nil {
+		return spec.Report{}, nil, fmt.Errorf("scenario %q has no parsed experience spec", report.Scenario)
+	}
+	if strings.TrimSpace(componentID) == "" {
+		return spec.Report{}, nil, fmt.Errorf("component id is required")
+	}
+	if _, ok := report.Spec.Components[componentID]; !ok {
+		return spec.Report{}, nil, fmt.Errorf("component %q not found", componentID)
+	}
+	evidence, err := s.Evidence.ListEvidence(ctx, reconcile.EvidenceFilter{
+		Scenario:    report.Scenario,
+		ComponentID: componentID,
+		ClaimID:     claimID,
+		Limit:       limit,
+	})
+	if err != nil {
+		return spec.Report{}, nil, err
+	}
+	return report, evidence, nil
+}
+
 func (s Service) SuggestBindings(ctx context.Context, scenario, path, pageID string, limit int) ([]Suggestion, error) {
 	report, err := s.ListSpec(ctx, scenario, path)
 	if err != nil {

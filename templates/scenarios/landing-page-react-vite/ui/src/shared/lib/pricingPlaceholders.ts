@@ -1,4 +1,14 @@
-import type { BundleCatalogEntry, BundleProduct, PlanOption, PlanDisplayMetadata } from '../api';
+import { create } from '@bufbuild/protobuf';
+import { PlanOptionSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/pricing_pb';
+import {
+  BillingInterval,
+  PlanKind,
+  jsonMapToRecord,
+  recordToJsonMap,
+  type BundleCatalogEntry,
+  type Bundle,
+  type PlanOption,
+} from '../api';
 
 const DEMO_PLAN_FLAG = '__demo_placeholder';
 
@@ -74,44 +84,43 @@ const TEST_PLAN_BLUEPRINTS: TestPlanBlueprint[] = [
   },
 ];
 
-function blueprintToPlan(bundle: BundleProduct, blueprint: TestPlanBlueprint): PlanOption {
-  const metadata: PlanDisplayMetadata = {
+function blueprintToPlan(bundle: Bundle, blueprint: TestPlanBlueprint): PlanOption {
+  const metadata = recordToJsonMap({
     subtitle: blueprint.subtitle,
     badge: blueprint.badge,
     cta_label: blueprint.ctaLabel,
     highlight: blueprint.highlight ?? false,
     features: blueprint.features,
     [DEMO_PLAN_FLAG]: true,
-  };
+  });
 
-  return {
-    plan_name: `${blueprint.planName} (Demo)`,
-    plan_tier: blueprint.planTier,
-    billing_interval: 'month',
-    amount_cents: blueprint.amountCents,
+  return create(PlanOptionSchema, {
+    planName: `${blueprint.planName} (Demo)`,
+    planTier: blueprint.planTier,
+    billingInterval: BillingInterval.MONTH,
+    amountCents: BigInt(blueprint.amountCents),
     currency: 'usd',
-    intro_enabled: Boolean(blueprint.introEnabled),
-    intro_amount_cents: blueprint.introAmountCents,
-    intro_periods: blueprint.introEnabled ? 1 : undefined,
-    intro_price_lookup_key: undefined,
-    stripe_price_id: `demo_${bundle.bundle_key}_${blueprint.id}`,
-    monthly_included_credits: blueprint.monthlyCredits,
-    one_time_bonus_credits: blueprint.bonusCredits,
-    plan_rank: blueprint.planRank,
-    bonus_type: 'none',
-    kind: 'subscription',
-    is_variable_amount: false,
-    display_enabled: true,
-    bundle_key: bundle.bundle_key,
-    display_weight: blueprint.displayWeight,
+    introEnabled: Boolean(blueprint.introEnabled),
+    introAmountCents: blueprint.introAmountCents != null ? BigInt(blueprint.introAmountCents) : undefined,
+    introPeriods: blueprint.introEnabled ? 1 : 0,
+    stripePriceId: `demo_${bundle.bundleKey}_${blueprint.id}`,
+    monthlyIncludedCredits: BigInt(blueprint.monthlyCredits),
+    oneTimeBonusCredits: BigInt(blueprint.bonusCredits),
+    planRank: blueprint.planRank,
+    bonusType: 'none',
+    kind: PlanKind.SUBSCRIPTION,
+    isVariableAmount: false,
+    displayEnabled: true,
+    bundleKey: bundle.bundleKey,
+    displayWeight: blueprint.displayWeight,
     metadata,
-  };
+  });
 }
 
-function generateDemoPlans(bundle: BundleProduct, needed: number, existingIds: Set<string>): PlanOption[] {
+function generateDemoPlans(bundle: Bundle, needed: number, existingIds: Set<string>): PlanOption[] {
   const plans: PlanOption[] = [];
   for (const blueprint of TEST_PLAN_BLUEPRINTS) {
-    const planId = `demo_${bundle.bundle_key}_${blueprint.id}`;
+    const planId = `demo_${bundle.bundleKey}_${blueprint.id}`;
     if (existingIds.has(planId)) {
       continue;
     }
@@ -123,24 +132,22 @@ function generateDemoPlans(bundle: BundleProduct, needed: number, existingIds: S
   return plans;
 }
 
-export function isDemoPlanOption(option: { metadata?: PlanDisplayMetadata }): boolean {
-  if (!option.metadata) {
-    return false;
-  }
-  return Boolean((option.metadata as Record<string, unknown>)[DEMO_PLAN_FLAG]);
+export function isDemoPlanOption(option: Pick<PlanOption, 'metadata'>): boolean {
+  const meta = jsonMapToRecord(option.metadata);
+  return Boolean(meta[DEMO_PLAN_FLAG]);
 }
 
 export function injectDemoPlansForBundle(entry: BundleCatalogEntry, minMonthlyCount = 3): BundleCatalogEntry {
   const monthlyRealCount = entry.prices.filter(
-    (plan) => plan.billing_interval === 'month' && !isDemoPlanOption(plan)
+    (plan) => plan.billingInterval === BillingInterval.MONTH && !isDemoPlanOption(plan)
   ).length;
   const needed = Math.max(0, minMonthlyCount - monthlyRealCount);
-  if (needed === 0) {
+  if (needed === 0 || !entry.bundle) {
     return entry;
   }
 
   const existingDemoIds = new Set(
-    entry.prices.filter(isDemoPlanOption).map((plan) => plan.stripe_price_id)
+    entry.prices.filter(isDemoPlanOption).map((plan) => plan.stripePriceId)
   );
   const placeholders = generateDemoPlans(entry.bundle, needed, existingDemoIds);
   return {
@@ -150,19 +157,19 @@ export function injectDemoPlansForBundle(entry: BundleCatalogEntry, minMonthlyCo
 }
 
 export function ensureDemoPlansForDisplay(
-  bundle: BundleProduct,
+  bundle: Bundle,
   plans: PlanOption[],
   minMonthlyCount = 3
 ): PlanOption[] {
   const monthlyRealCount = plans.filter(
-    (plan) => plan.billing_interval === 'month' && !isDemoPlanOption(plan)
+    (plan) => plan.billingInterval === BillingInterval.MONTH && !isDemoPlanOption(plan)
   ).length;
   const needed = Math.max(0, minMonthlyCount - monthlyRealCount);
   if (needed === 0) {
     return plans;
   }
 
-  const existingDemoIds = new Set(plans.filter(isDemoPlanOption).map((plan) => plan.stripe_price_id));
+  const existingDemoIds = new Set(plans.filter(isDemoPlanOption).map((plan) => plan.stripePriceId));
   const placeholders = generateDemoPlans(bundle, needed, existingDemoIds);
   return [...plans, ...placeholders];
 }

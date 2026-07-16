@@ -28,6 +28,9 @@ func TestDefaultConfig(t *testing.T) {
 	if !cfg.Monitoring.IsScenarioCritical("template-manager") {
 		t.Fatalf("template-manager should be monitored as a critical scenario by default")
 	}
+	if !cfg.Monitoring.IsScenarioCritical("system-monitor") {
+		t.Fatalf("system-monitor should be monitored as a critical scenario by default")
+	}
 }
 
 func TestGetCheckDefaults(t *testing.T) {

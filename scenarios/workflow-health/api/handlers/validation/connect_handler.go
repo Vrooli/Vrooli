@@ -8,11 +8,13 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"connectrpc.com/connect"
 
 	"workflow-health/internal/execution"
 	internalvalidation "workflow-health/internal/validation"
+	workflowrun "workflow-health/internal/validationrun"
 	"workflow-health/internal/workflows"
 
 	"github.com/vrooli/api-core/discovery"
@@ -33,10 +35,14 @@ type Deps struct {
 	RepoRoot     string
 	Environment  *commonv1.CaptureEnvironment
 	BASClient    execution.BASClient
+	Ledger       workflowrun.Repository
 }
 
 type connectHandler struct {
-	deps Deps
+	deps    Deps
+	mu      sync.Mutex
+	cancels map[string]context.CancelFunc
+	notices map[string]chan struct{}
 }
 
 func NewConnectHandler(d Deps) *connectHandler {
@@ -46,16 +52,22 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.Engine == nil {
 		d.Engine = internalvalidation.NewEngine()
 	}
-	return &connectHandler{deps: d}
+	return &connectHandler{deps: d, cancels: map[string]context.CancelFunc{}, notices: map[string]chan struct{}{}}
 }
 
 func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
-	if strings.TrimSpace(req.Msg.GetScenario()) == "" && strings.TrimSpace(req.Msg.GetPath()) == "" {
+	if req.Msg.GetIncludeExecution() {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("include_execution is retired; start a durable validation run and wait for its terminal result"))
+	}
+	return h.staticResponse(ctx, req.Msg.GetScenario(), req.Msg.GetPath())
+}
+
+func (h *connectHandler) staticResponse(ctx context.Context, scenario, path string) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	if strings.TrimSpace(scenario) == "" && strings.TrimSpace(path) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario or path is required"))
 	}
 	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
-	opts := execution.Options{IncludeExecution: req.Msg.GetIncludeExecution()}
-	report, err := h.run(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), opts)
+	report, err := h.run(ctx, scenario, path, execution.Options{})
 	if err != nil {
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

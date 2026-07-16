@@ -10,7 +10,7 @@ interface TabNavProps {
 
 export function TabNav({ activeTab, onTabChange }: TabNavProps) {
   return (
-    <nav className="flex flex-wrap gap-2" data-testid={selectors.tabs.nav}>
+    <nav aria-label="Test Genie sections" className="flex flex-wrap gap-2" data-testid={selectors.tabs.nav}>
       {DASHBOARD_TABS.map((tab) => (
         <button
           key={tab.key}

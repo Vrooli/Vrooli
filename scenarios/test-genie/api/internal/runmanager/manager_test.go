@@ -3,6 +3,7 @@ package runmanager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -555,6 +556,199 @@ func TestGlobalCapQueuesBeyondLimit(t *testing.T) {
 	if rec.Status != sharedruns.StatusQueued {
 		t.Fatalf("durable status = %q, want queued", rec.Status)
 	}
+}
+
+func TestPreviewAdmissionIsNonBlockingAndBounded(t *testing.T) {
+	m := New(newFakeExecutor(""), t.TempDir())
+	m.previewTokens = make(chan struct{}, 1)
+	m.maxPreviewPerCaller = 2 // exercise the global gate in this test
+	release, err := m.TryAcquirePreview()
+	if err != nil {
+		t.Fatalf("first TryAcquirePreview: %v", err)
+	}
+	if _, err := m.TryAcquirePreview(); err == nil {
+		t.Fatal("second TryAcquirePreview succeeded with a full gate")
+	} else {
+		var saturated *SaturatedError
+		if !errors.As(err, &saturated) || saturated.Limit != "preview capacity" {
+			t.Fatalf("preview saturation = %v, want preview-capacity SaturatedError", err)
+		}
+	}
+	release()
+	if release, err := m.TryAcquirePreview(); err != nil {
+		t.Fatalf("acquire after release: %v", err)
+	} else {
+		release()
+	}
+}
+
+func TestAdmissionStatusReportsOccupancyLimitsAndOutcomes(t *testing.T) {
+	fake := newFakeExecutor(t.TempDir())
+	m := New(fake, t.TempDir())
+	m.maxConcurrentRuns = 1
+	m.maxQueuedRuns = 1
+	m.previewTokens = make(chan struct{}, 1)
+	defer m.Shutdown()
+
+	if _, err := m.Start(StartOptions{Input: inputWith("alpha", "")}); err != nil {
+		t.Fatalf("start alpha: %v", err)
+	}
+	<-fake.started
+	if _, err := m.Start(StartOptions{Input: inputWith("beta", "")}); err != nil {
+		t.Fatalf("start beta: %v", err)
+	}
+	if _, err := m.Start(StartOptions{Input: inputWith("gamma", "")}); err == nil {
+		t.Fatal("start gamma succeeded despite full queue")
+	}
+	release, err := m.TryAcquirePreview()
+	if err != nil {
+		t.Fatalf("acquire preview: %v", err)
+	}
+	defer release()
+	if _, err := m.TryAcquirePreview(); err == nil {
+		t.Fatal("second preview acquire succeeded despite full gate")
+	}
+	if _, err := m.Start(StartOptions{Input: inputWith("alpha", "")}); err != nil {
+		t.Fatalf("coalesced alpha: %v", err)
+	}
+
+	status := m.AdmissionStatus()
+	if status.Running != 1 || status.Queued != 1 || status.PreviewInFlight != 1 {
+		t.Fatalf("occupancy = %#v, want running=1 queued=1 preview=1", status)
+	}
+	if status.MaxConcurrentRuns != 1 || status.MaxQueuedRuns != 1 || status.MaxPreviewRuns != 1 {
+		t.Fatalf("limits = %#v, want all 1", status)
+	}
+	if status.QueueRejectedTotal != 1 || status.PreviewRejectedTotal != 1 || status.CoalescedTotal != 1 {
+		t.Fatalf("outcomes = %#v, want one queue reject, preview reject, and coalesce", status)
+	}
+	close(fake.release)
+}
+
+func TestCoalescedRunBypassesPreviewSaturation(t *testing.T) {
+	fake := newFakeExecutor(t.TempDir())
+	m := New(fake, t.TempDir())
+	firstInput := inputWith("alpha", "")
+	first, err := m.Start(StartOptions{Input: firstInput})
+	if err != nil {
+		t.Fatalf("start first: %v", err)
+	}
+	<-fake.started
+	m.previewTokens = make(chan struct{}, 1)
+	release, err := m.TryAcquirePreview()
+	if err != nil {
+		t.Fatalf("fill preview gate: %v", err)
+	}
+	defer release()
+	if got := m.CoalescedRunID(firstInput.Request); got != first.RunID {
+		t.Fatalf("CoalescedRunID = %q, want %q while preview gate is full", got, first.RunID)
+	}
+	close(fake.release)
+	m.Shutdown()
+}
+
+func TestGlobalQueuedAdmissionIsBounded(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeExecutor(t.TempDir())
+	m := New(fake, t.TempDir())
+	m.maxConcurrentRuns = 1
+	m.maxQueuedRuns = 1
+	if _, err := m.Start(StartOptions{Input: inputWith("alpha", "")}); err != nil {
+		t.Fatalf("start alpha: %v", err)
+	}
+	<-fake.started
+	if _, err := m.Start(StartOptions{Input: inputWith("beta", "")}); err != nil {
+		t.Fatalf("start beta queued: %v", err)
+	}
+	if _, err := m.Start(StartOptions{Input: inputWith("gamma", "")}); err == nil {
+		t.Fatal("start gamma succeeded despite a full queued admission cap")
+	} else {
+		var saturated *SaturatedError
+		if !errors.As(err, &saturated) || saturated.Limit != "queued run capacity" {
+			t.Fatalf("queue saturation = %v", err)
+		}
+	}
+	_ = ctx
+	close(fake.release)
+	m.Shutdown()
+}
+
+func TestCallerQueueLimitDoesNotStarveOtherCallers(t *testing.T) {
+	fake := newFakeExecutor(t.TempDir())
+	m := New(fake, t.TempDir())
+	m.maxConcurrentRuns = 1
+	m.maxQueuedRuns = 3
+	m.maxQueuedPerCaller = 1
+	defer m.Shutdown()
+
+	if _, err := m.Start(StartOptions{Input: inputWith("running", ""), Caller: "alice"}); err != nil {
+		t.Fatalf("start running: %v", err)
+	}
+	<-fake.started
+	if _, err := m.Start(StartOptions{Input: inputWith("alice-queued", ""), Caller: "alice"}); err != nil {
+		t.Fatalf("queue alice: %v", err)
+	}
+	if _, err := m.Start(StartOptions{Input: inputWith("alice-rejected", ""), Caller: "alice"}); err == nil {
+		t.Fatal("second queued run for alice succeeded")
+	} else {
+		var saturated *SaturatedError
+		if !errors.As(err, &saturated) || saturated.Limit != "caller queued run capacity" {
+			t.Fatalf("alice saturation = %v", err)
+		}
+	}
+	if _, err := m.Start(StartOptions{Input: inputWith("bob-queued", ""), Caller: "bob"}); err != nil {
+		t.Fatalf("queue bob despite alice cap: %v", err)
+	}
+	close(fake.release)
+}
+
+func TestCallerPreviewLimitDoesNotStarveOtherCallers(t *testing.T) {
+	m := New(newFakeExecutor(""), t.TempDir())
+	m.previewTokens = make(chan struct{}, 2)
+	m.maxPreviewPerCaller = 1
+	aliceRelease, err := m.TryAcquirePreviewFor("alice")
+	if err != nil {
+		t.Fatalf("acquire alice preview: %v", err)
+	}
+	defer aliceRelease()
+	if _, err := m.TryAcquirePreviewFor("alice"); err == nil {
+		t.Fatal("second alice preview succeeded")
+	}
+	bobRelease, err := m.TryAcquirePreviewFor("bob")
+	if err != nil {
+		t.Fatalf("bob preview was starved by alice: %v", err)
+	}
+	defer bobRelease()
+}
+
+func TestMixedBurstKeepsAdmissionBounded(t *testing.T) {
+	fake := newFakeExecutor(t.TempDir())
+	m := New(fake, t.TempDir())
+	m.maxConcurrentRuns = 2
+	m.maxQueuedRuns = 16
+	m.maxQueuedPerCaller = 16
+	defer m.Shutdown()
+
+	const requests = 288
+	var wg sync.WaitGroup
+	for i := 0; i < requests; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			// Unique scenarios prevent per-scenario coalescing from masking the
+			// global queue bound; callers rotate to exercise fair-share state.
+			_, _ = m.Start(StartOptions{Input: inputWith(fmt.Sprintf("burst-%03d", i), ""), Caller: fmt.Sprintf("caller-%d", i%8)})
+		}(i)
+	}
+	wg.Wait()
+	status := m.AdmissionStatus()
+	if status.Running > m.maxConcurrentRuns || status.Queued > m.maxQueuedRuns {
+		t.Fatalf("burst exceeded admission bounds: %#v", status)
+	}
+	if status.QueueRejectedTotal < uint64(requests-m.maxConcurrentRuns-m.maxQueuedRuns) {
+		t.Fatalf("queue rejections = %d, want at least %d", status.QueueRejectedTotal, requests-m.maxConcurrentRuns-m.maxQueuedRuns)
+	}
+	close(fake.release)
 }
 
 // TestQueuedRunPromotedOnSlotFree verifies the dispatcher promotes a queued run

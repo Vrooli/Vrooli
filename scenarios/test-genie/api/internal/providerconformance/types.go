@@ -28,6 +28,7 @@ const (
 	CodeContractInvalid              = "PROVIDER_CONTRACT_INVALID"
 	CodeContractIdentityMismatch     = "PROVIDER_CONTRACT_IDENTITY_MISMATCH"
 	CodeMetricsMissing               = "PROVIDER_METRICS_MISSING"
+	CodeDurableContractInvalid       = "PROVIDER_DURABLE_CONTRACT_INVALID"
 )
 
 type Severity string

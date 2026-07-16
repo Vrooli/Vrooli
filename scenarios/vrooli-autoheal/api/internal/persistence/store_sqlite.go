@@ -15,6 +15,44 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 )
 
+// maxHealthResultDetailsBytes bounds one persisted observation. Health results
+// are diagnostic evidence, not an unbounded log transport; retaining a compact
+// truncation marker is safer than allowing one failed check to inflate SQLite.
+const (
+	maxHealthResultDetailsBytes = 64 * 1024
+	maxActionLogTextBytes       = 64 * 1024
+)
+
+const defaultRetentionBatchSize = 1000
+
+func (s *Store) operationalRetentionStatusSQLite(ctx context.Context) (RetentionStatus, error) {
+	var pageCount, pageSize int64
+	if err := s.db.QueryRowContext(ctx, "PRAGMA page_count").Scan(&pageCount); err != nil {
+		return RetentionStatus{}, fmt.Errorf("read page count: %w", err)
+	}
+	if err := s.db.QueryRowContext(ctx, "PRAGMA page_size").Scan(&pageSize); err != nil {
+		return RetentionStatus{}, fmt.Errorf("read page size: %w", err)
+	}
+	status := RetentionStatus{DatabaseBytes: pageCount * pageSize}
+	var oldest, newest sql.NullString
+	if err := s.db.QueryRowContext(ctx, "SELECT MIN(created_at), MAX(created_at) FROM health_results").Scan(&oldest, &newest); err != nil {
+		return RetentionStatus{}, fmt.Errorf("read retained range: %w", err)
+	}
+	if oldest.Valid {
+		parsed, err := time.Parse(time.RFC3339Nano, oldest.String)
+		if err == nil {
+			status.OldestAt = &parsed
+		}
+	}
+	if newest.Valid {
+		parsed, err := time.Parse(time.RFC3339Nano, newest.String)
+		if err == nil {
+			status.NewestAt = &parsed
+		}
+	}
+	return status, nil
+}
+
 // rfc3339NanoCutoff returns now-windowHours as an RFC3339Nano UTC string,
 // the canonical wire format for created_at columns. Computing the cutoff in
 // Go (rather than in SQL via datetime('now', ?)) lets the SQLite planner use
@@ -27,6 +65,12 @@ func (s *Store) saveResultSQLite(ctx context.Context, result checks.Result) erro
 	detailsJSON, err := json.Marshal(result.Details)
 	if err != nil {
 		detailsJSON = []byte("{}")
+	}
+	if len(detailsJSON) > maxHealthResultDetailsBytes {
+		detailsJSON, _ = json.Marshal(map[string]interface{}{
+			"truncated":      true,
+			"original_bytes": len(detailsJSON),
+		})
 	}
 
 	query := `
@@ -155,6 +199,43 @@ func (s *Store) cleanupOldResultsSQLite(ctx context.Context, retentionHours int)
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+func (s *Store) pruneOperationalHistorySQLite(ctx context.Context, before time.Time, batchSize int) (RetentionResult, error) {
+	if batchSize <= 0 {
+		batchSize = defaultRetentionBatchSize
+	}
+	cutoff := before.UTC().Format(time.RFC3339Nano)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return RetentionResult{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	prune := func(table, column string) (int64, error) {
+		query := fmt.Sprintf("DELETE FROM %s WHERE rowid IN (SELECT rowid FROM %s WHERE %s < ? ORDER BY %s LIMIT ?)", table, table, column, column)
+		result, err := tx.ExecContext(ctx, query, cutoff, batchSize)
+		if err != nil {
+			return 0, err
+		}
+		return result.RowsAffected()
+	}
+	var out RetentionResult
+	if out.HealthResults, err = prune("health_results", "created_at"); err != nil {
+		return RetentionResult{}, fmt.Errorf("prune health results: %w", err)
+	}
+	if out.ActionLogs, err = prune("action_logs", "created_at"); err != nil {
+		return RetentionResult{}, fmt.Errorf("prune action logs: %w", err)
+	}
+	if out.Actions, err = prune("autoheal_actions", "created_at"); err != nil {
+		return RetentionResult{}, fmt.Errorf("prune autoheal actions: %w", err)
+	}
+	if out.SystemEvents, err = prune("system_events", "occurred_at"); err != nil {
+		return RetentionResult{}, fmt.Errorf("prune system events: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return RetentionResult{}, err
+	}
+	return out, nil
 }
 
 func (s *Store) getTimelineEventsSQLite(ctx context.Context, limit int) ([]TimelineEvent, error) {
@@ -1457,13 +1538,26 @@ func (s *Store) saveActionLogSQLite(ctx context.Context, checkID, actionID strin
 		actionID,
 		success,
 		timedOut,
-		message,
-		output,
-		errMsg,
+		truncatePersistedText(message, maxActionLogTextBytes),
+		truncatePersistedText(output, maxActionLogTextBytes),
+		truncatePersistedText(errMsg, maxActionLogTextBytes),
 		durationMs,
 		time.Now().UTC().Format(time.RFC3339Nano),
 	)
 	return err
+}
+
+func truncatePersistedText(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+	// The marker makes truncation explicit in incident evidence and reserves
+	// space inside the hard persistence budget.
+	marker := fmt.Sprintf("\n[truncated: original_bytes=%d]", len(value))
+	if len(marker) >= limit {
+		return marker[:limit]
+	}
+	return value[:limit-len(marker)] + marker
 }
 
 func (s *Store) getActionLogsSQLite(ctx context.Context, limit int) (*ActionLogsResponse, error) {

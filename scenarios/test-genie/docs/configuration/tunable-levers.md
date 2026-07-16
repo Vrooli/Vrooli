@@ -21,10 +21,34 @@ These are normally provided by the Vrooli lifecycle system:
 |----------|-------|---------|---------|
 | `TEST_GENIE_EXECUTION_TIMEOUT` | CLI `execute` | `900` seconds | Blocking timeout for synchronous suite execution |
 | `TEST_GENIE_MAX_CONCURRENT_RUNS` | Run manager | `2` | GLOBAL cap on suites executing at once across ALL scenarios, shared by manually-started runs and the background fleet sweep. Requests beyond the cap are admitted as `queued` and promoted FIFO as slots free (not rejected). Floor 1. |
+| `TEST_GENIE_MAX_QUEUED_RUNS` | Run manager | `16` | Hard global cap on durable queued runs. Once full, a new divergent scenario request receives retryable saturation rather than adding another queued record. Floor 1. |
+| `TEST_GENIE_MAX_QUEUED_RUNS_PER_CALLER` | Run manager | `4` | Fair-share cap on queued runs for one caller identity. Requests without `X-Vrooli-Caller` share the conservative anonymous bucket. Floor 1. |
+| `TEST_GENIE_MAX_PREVIEW_RUNS` | Run manager | `2` | Non-blocking admission cap on expensive plan previews. Requests beyond it receive retryable saturation before preview work or queued-record allocation. Floor 1. |
+| `TEST_GENIE_MAX_PREVIEW_RUNS_PER_CALLER` | Run manager | `1` | Fair-share cap on concurrent expensive previews for one caller identity. Floor 1. |
 | `TEST_GENIE_MAX_RUNS_PER_SCENARIO` | Run manager | `1` | Per-scenario in-progress cap. `1` is a correctness invariant (one live instance per scenario); raising it is documented-unsafe until per-run isolation lands. |
 | `TEST_GENIE_PLAYBOOKS_RETAIN` | Workflow compatibility | `0` | Keep temporary isolated Postgres/Redis/SQLite resources alive after legacy seed/debug paths |
 | `TEST_GENIE_SKIP_PLAYBOOKS` | Workflow compatibility | unset | Hard-disable workflow execution through the legacy playbooks alias |
 | `TEST_GENIE_DOCS_DIR` | Docs handlers | scenario default | Override docs directory served by the API |
+
+## Admission diagnosis
+
+`GET /api/v1/admission` reports current running, queued, and preview occupancy,
+their configured limits, and process-lifetime rejection/coalescing counters.
+Use it before raising a limit: a full preview gate points to planning pressure,
+while a full queue points to execution throughput. Saturation responses are
+retryable; clients should back off rather than repeatedly submitting work.
+
+Trusted gateways may set `X-Vrooli-Caller` on REST or Connect requests to make
+the per-caller limits fair. It is an admission label, never written into run
+artifacts or returned by the status endpoint. Missing identity is deliberately
+limited as `anonymous` rather than treated as unrestricted.
+
+For an active incident only, set `TEST_GENIE_PROFILING_ENABLED=1` and a strong
+`TEST_GENIE_PROFILING_TOKEN`. A token-authenticated `POST /api/v1/admission/profile?kind=heap`
+returns a heap profile; `kind=cpu&seconds=1..30` captures a bounded CPU profile.
+Send `X-Test-Genie-Run-ID` to correlate the download with a run; it is echoed
+only in the response header. Keep profiling disabled normally and never expose
+the token through client-side configuration.
 
 ## Workflow Compatibility
 

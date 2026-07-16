@@ -272,6 +272,23 @@ VALUES (?, ?, ?, ?, ?, ?)`,
 	return nil
 }
 
+// SupersedePendingDriftSnapshots retires bootstrap placeholder snapshots once a
+// real fleet drift run has been recorded. The seed schema inserts a
+// 'pending-live-run' snapshot so the surface is never empty before the first
+// live run; that placeholder is meaningless afterwards and must not linger as an
+// un-actionable "pending" row.
+func (r *sqliteRepository) SupersedePendingDriftSnapshots(ctx context.Context, supersededAt time.Time) error {
+	_, err := r.db.ExecContext(ctx, `
+UPDATE drift_snapshots
+SET status = 'superseded', captured_at = ?
+WHERE status = 'pending-live-run'`,
+		supersededAt.UTC().Format(timeFormat))
+	if err != nil {
+		return fmt.Errorf("supersede pending drift snapshots: %w", err)
+	}
+	return nil
+}
+
 func (r *sqliteRepository) ListDriftSnapshots(ctx context.Context, templateID string) ([]DriftSnapshot, error) {
 	query := `SELECT id, template_id, target, status, drift_count, captured_at FROM drift_snapshots`
 	args := []any{}

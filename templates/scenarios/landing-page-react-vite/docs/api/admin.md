@@ -370,6 +370,6 @@ Resets all data to demo defaults.
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](overview.md)
 - [Admin Guide](../ADMIN_GUIDE.md) - Using the admin portal
 - [Payments](payments.md) - Stripe settings

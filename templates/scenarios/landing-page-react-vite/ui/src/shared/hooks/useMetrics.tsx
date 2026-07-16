@@ -1,6 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { useLandingVariant } from '../../app/providers/LandingVariantProvider';
-import { trackMetric, type MetricEvent as APIMetricEvent } from '../api';
+import { trackMetric } from '../api';
+
+/** Landing-page analytics event names (OT-P0-021 METRIC-EVENTS). */
+export type MetricEventType =
+  | 'page_view'
+  | 'scroll_depth'
+  | 'click'
+  | 'form_submit'
+  | 'conversion'
+  | 'download';
 
 const SESSION_STORAGE_KEY = 'metrics_session_id';
 const VISITOR_STORAGE_KEY = 'metrics_visitor_id';
@@ -108,10 +117,6 @@ function getVisitorID(): string {
   }
 }
 
-type MetricEventPayload = APIMetricEvent & {
-  event_id?: string;
-};
-
 /**
  * Hook to track analytics events with variant tagging
  * Implements OT-P0-019 (METRIC-TAG): All events include variant_id
@@ -127,7 +132,7 @@ export function useMetrics() {
 
   // Track event to API
   const trackEvent = useCallback(async (
-    eventType: APIMetricEvent['event_type'],
+    eventType: MetricEventType,
     eventData?: Record<string, unknown>
   ) => {
     if (previewMode) {
@@ -138,16 +143,14 @@ export function useMetrics() {
       return;
     }
 
-    const event: MetricEventPayload = {
-      event_type: eventType,
-      variant_id: variant.id ?? 0,
-      session_id: sessionID.current,
-      visitor_id: visitorID.current,
-      event_data: eventData,
-    };
-
     try {
-      await trackMetric(event);
+      await trackMetric({
+        eventType,
+        variantId: BigInt(variant.id ?? 0),
+        sessionId: sessionID.current,
+        visitorId: visitorID.current,
+        eventData,
+      });
     } catch (error) {
       console.error('[useMetrics] Error tracking event:', error);
     }

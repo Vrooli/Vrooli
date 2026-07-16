@@ -29,7 +29,7 @@ make start
 
 See [QUICKSTART.md](docs/QUICKSTART.md) for detailed first-time setup.
 
-Port bands declared in `.vrooli/service.json` follow the platform policy: `API_PORT` in `15000-19999` and `UI_PORT` in `20000-24999`. All sit below Linux's ephemeral floor (32768). Add more ports only for separate listener processes. See [docs/reference/port-allocation.md](../../../docs/reference/port-allocation.md) before changing.
+Port bands declared in `.vrooli/service.json` follow the platform policy: `API_PORT` in `15000-19999` and `UI_PORT` in `20000-24999`. All sit below Linux's ephemeral floor (32768). Add more ports only for separate listener processes. See the platform port-allocation policy under the repository's `docs/reference/` before changing.
 
 ## CLI
 
@@ -59,7 +59,7 @@ Port bands declared in `.vrooli/service.json` follow the platform policy: `API_P
 | [Documentation Index](docs/index.md) | Complete documentation hub |
 | [Quick Start Guide](docs/QUICKSTART.md) | 5-minute first landing page |
 | [Admin Guide](docs/ADMIN_GUIDE.md) | Managing content and A/B tests |
-| [API Reference](docs/api/README.md) | Connect-RPC API documentation |
+| [API Reference](docs/api/overview.md) | Connect-RPC API documentation |
 | [Configuration Guide](docs/CONFIGURATION_GUIDE.md) | All config file reference |
 | [Architecture](docs/ARCHITECTURE.md) | System design and components |
 
@@ -71,7 +71,7 @@ Port bands declared in `.vrooli/service.json` follow the platform policy: `API_P
 
 **Developers:**
 - [Architecture](docs/ARCHITECTURE.md) - System design
-- [API Reference](docs/api/README.md) - Endpoints
+- [API Reference](docs/api/overview.md) - Endpoints
 - [Seams & Testability](docs/SEAMS.md) - Code organization
 
 **AI Agents:**

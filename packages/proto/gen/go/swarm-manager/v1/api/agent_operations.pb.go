@@ -1745,8 +1745,14 @@ type AgentOpsOperationProjection struct {
 	Attempt int32 `protobuf:"varint,16,opt,name=attempt,proto3" json:"attempt,omitempty"`
 	// prior_execution_id is the previous attempt's execution id when attempt > 1.
 	PriorExecutionId string `protobuf:"bytes,17,opt,name=prior_execution_id,json=priorExecutionId,proto3" json:"prior_execution_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// legacy_import is true when the execution snapshot is a Phase-8
+	// agentops-legacy-execution-import document: a verbatim pre-cutover
+	// execution-runs.json entry. Such records carry no compiled-mode/prompt
+	// provenance (those digests never existed for legacy runs), so the
+	// mode/binding fields are honestly empty rather than fabricated.
+	LegacyImport  bool `protobuf:"varint,18,opt,name=legacy_import,json=legacyImport,proto3" json:"legacy_import,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AgentOpsOperationProjection) Reset() {
@@ -1896,6 +1902,13 @@ func (x *AgentOpsOperationProjection) GetPriorExecutionId() string {
 		return x.PriorExecutionId
 	}
 	return ""
+}
+
+func (x *AgentOpsOperationProjection) GetLegacyImport() bool {
+	if x != nil {
+		return x.LegacyImport
+	}
+	return false
 }
 
 type AgentOpsGetWorkflowProjectionResponse struct {
@@ -2048,8 +2061,15 @@ type AgentOpsExecutionSummary struct {
 	Outcome             string                      `protobuf:"bytes,10,opt,name=outcome,proto3" json:"outcome,omitempty"`
 	// reproducible is true when the snapshot's recomputed digests still equal
 	// the pinned provenance digests.
-	Reproducible  bool   `protobuf:"varint,11,opt,name=reproducible,proto3" json:"reproducible,omitempty"`
-	RecordedAt    string `protobuf:"bytes,12,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+	Reproducible bool   `protobuf:"varint,11,opt,name=reproducible,proto3" json:"reproducible,omitempty"`
+	RecordedAt   string `protobuf:"bytes,12,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+	// legacy_import is true when this history row is a Phase-8
+	// agentops-legacy-execution-import document (a verbatim pre-cutover
+	// execution-runs.json entry). Mode/digest fields are honestly empty —
+	// that provenance never existed — and recorded_at is the import's
+	// deterministic imported_at; outcome is the legacy entry's own terminal
+	// status.
+	LegacyImport  bool `protobuf:"varint,13,opt,name=legacy_import,json=legacyImport,proto3" json:"legacy_import,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2166,6 +2186,13 @@ func (x *AgentOpsExecutionSummary) GetRecordedAt() string {
 		return x.RecordedAt
 	}
 	return ""
+}
+
+func (x *AgentOpsExecutionSummary) GetLegacyImport() bool {
+	if x != nil {
+		return x.LegacyImport
+	}
+	return false
 }
 
 type AgentOpsListExecutionHistoryResponse struct {
@@ -2593,7 +2620,7 @@ const file_swarm_manager_v1_api_agent_operations_proto_rawDesc = "" +
 	"%AgentOpsDeleteBindingOverrideResponse\x12\x14\n" +
 	"\x05found\x18\x01 \x01(\bR\x05found\"h\n" +
 	"$AgentOpsGetWorkflowProjectionRequest\x12@\n" +
-	"\x06target\x18\x01 \x01(\v2(.swarm_manager.v1.AgentOpsTargetSelectorR\x06target\"\x96\x05\n" +
+	"\x06target\x18\x01 \x01(\v2(.swarm_manager.v1.AgentOpsTargetSelectorR\x06target\"\xbb\x05\n" +
 	"\x1bAgentOpsOperationProjection\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x12+\n" +
 	"\x11operation_version\x18\x02 \x01(\tR\x10operationVersion\x12!\n" +
@@ -2613,7 +2640,8 @@ const file_swarm_manager_v1_api_agent_operations_proto_rawDesc = "" +
 	"recordedAt\x12%\n" +
 	"\x0esnapshot_found\x18\x0f \x01(\bR\rsnapshotFound\x12\x18\n" +
 	"\aattempt\x18\x10 \x01(\x05R\aattempt\x12,\n" +
-	"\x12prior_execution_id\x18\x11 \x01(\tR\x10priorExecutionId\"\x9a\x02\n" +
+	"\x12prior_execution_id\x18\x11 \x01(\tR\x10priorExecutionId\x12#\n" +
+	"\rlegacy_import\x18\x12 \x01(\bR\flegacyImport\"\x9a\x02\n" +
 	"%AgentOpsGetWorkflowProjectionResponse\x12\x14\n" +
 	"\x05found\x18\x01 \x01(\bR\x05found\x12F\n" +
 	"\bworkflow\x18\x02 \x01(\v2*.swarm_manager.v1.AgentOpsWorkflowInstanceR\bworkflow\x12M\n" +
@@ -2624,7 +2652,7 @@ const file_swarm_manager_v1_api_agent_operations_proto_rawDesc = "" +
 	"\x0fpolicy_revision\x18\x05 \x01(\tR\x0epolicyRevision\"}\n" +
 	"#AgentOpsListExecutionHistoryRequest\x12@\n" +
 	"\x06target\x18\x01 \x01(\v2(.swarm_manager.v1.AgentOpsTargetSelectorR\x06target\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\x83\x04\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\xa8\x04\n" +
 	"\x18AgentOpsExecutionSummary\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1c\n" +
 	"\toperation\x18\x02 \x01(\tR\toperation\x12+\n" +
@@ -2639,7 +2667,8 @@ const file_swarm_manager_v1_api_agent_operations_proto_rawDesc = "" +
 	" \x01(\tR\aoutcome\x12\"\n" +
 	"\freproducible\x18\v \x01(\bR\freproducible\x12\x1f\n" +
 	"\vrecorded_at\x18\f \x01(\tR\n" +
-	"recordedAt\"r\n" +
+	"recordedAt\x12#\n" +
+	"\rlegacy_import\x18\r \x01(\bR\flegacyImport\"r\n" +
 	"$AgentOpsListExecutionHistoryResponse\x12J\n" +
 	"\n" +
 	"executions\x18\x01 \x03(\v2*.swarm_manager.v1.AgentOpsExecutionSummaryR\n" +

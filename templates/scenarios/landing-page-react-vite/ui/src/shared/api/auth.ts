@@ -1,24 +1,25 @@
-import { apiCall } from './common';
+import { createClient } from '@connectrpc/connect';
+import { AdminAuthService } from '@vrooli/proto-types/landing-page-react-vite/v1/admin_pb';
+import type { AdminSessionResponse } from '@vrooli/proto-types/landing-page-react-vite/v1/admin_pb';
 
-export interface AdminSessionResponse {
-  authenticated: boolean;
-  email?: string;
-  reset_enabled?: boolean;
+import { transport } from './client';
+
+const authClient = createClient(AdminAuthService, transport);
+
+/** Logs in an admin; the server sets an HMAC session cookie on success. */
+export function adminLogin(email: string, password: string): Promise<AdminSessionResponse> {
+  return authClient.login({ email, password });
 }
 
-export async function adminLogin(email: string, password: string) {
-  return apiCall<AdminSessionResponse>('/admin/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
+/** Logs out the current admin session. */
+export async function adminLogout(): Promise<boolean> {
+  const resp = await authClient.logout({});
+  return resp.success;
 }
 
-export async function adminLogout() {
-  return apiCall<{ success: boolean }>('/admin/logout', {
-    method: 'POST',
-  });
+/** Reports whether the current session is an authenticated admin. */
+export function checkAdminSession(): Promise<AdminSessionResponse> {
+  return authClient.session({});
 }
 
-export async function checkAdminSession() {
-  return apiCall<AdminSessionResponse>('/admin/session');
-}
+export type { AdminSessionResponse };

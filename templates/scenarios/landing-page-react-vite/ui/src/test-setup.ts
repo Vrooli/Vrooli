@@ -13,4 +13,9 @@ if (typeof Element !== 'undefined') {
   if (!Element.prototype.releasePointerCapture) {
     Element.prototype.releasePointerCapture = function () {};
   }
+  // jsdom does not implement scrollIntoView; components call it after focus
+  // highlights. Stub it so those code paths don't throw in tests.
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = function () {};
+  }
 }

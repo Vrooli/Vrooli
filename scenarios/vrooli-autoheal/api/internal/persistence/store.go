@@ -50,6 +50,35 @@ func (s *Store) CleanupOldResults(ctx context.Context, retentionHours int) (int6
 	return s.cleanupOldResultsSQLite(ctx, retentionHours)
 }
 
+// RetentionResult reports a bounded operational-history prune. Counts are
+// deliberately per data class so callers can surface retention work rather
+// than silently shrinking forensic history.
+type RetentionResult struct {
+	HealthResults int64 `json:"health_results"`
+	ActionLogs    int64 `json:"action_logs"`
+	Actions       int64 `json:"actions"`
+	SystemEvents  int64 `json:"system_events"`
+}
+
+// RetentionStatus is a read-only operational summary used by status surfaces.
+// It deliberately reports metadata rather than scanning retained evidence.
+type RetentionStatus struct {
+	DatabaseBytes int64      `json:"databaseBytes"`
+	OldestAt      *time.Time `json:"oldestAt,omitempty"`
+	NewestAt      *time.Time `json:"newestAt,omitempty"`
+}
+
+func (s *Store) OperationalRetentionStatus(ctx context.Context) (RetentionStatus, error) {
+	return s.operationalRetentionStatusSQLite(ctx)
+}
+
+// PruneOperationalHistory removes at most batchSize old rows from each
+// high-volume operational table. Incident records are intentionally retained:
+// they are the compact forensic rollup that survives raw-history pruning.
+func (s *Store) PruneOperationalHistory(ctx context.Context, before time.Time, batchSize int) (RetentionResult, error) {
+	return s.pruneOperationalHistorySQLite(ctx, before, batchSize)
+}
+
 // Close closes the database connection.
 func (s *Store) Close() error {
 	return s.db.Close()

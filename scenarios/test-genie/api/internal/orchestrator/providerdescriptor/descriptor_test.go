@@ -27,6 +27,9 @@ func TestLoadValidDescriptor(t *testing.T) {
 	if got.TimeoutValue == 0 {
 		t.Fatal("timeout was not parsed")
 	}
+	if got.Validation.DeliveryMode != "inline" || !got.Validation.Execution {
+		t.Fatalf("validation defaults = %+v, want inline execution provider", got.Validation)
+	}
 	if got.MaturitySpec == nil || got.MaturitySpec.Provider != "search-hub" || got.MaturitySpec.Phase != "search" {
 		t.Fatalf("embedded maturity identity not stamped: %#v", got.MaturitySpec)
 	}
@@ -94,6 +97,27 @@ func TestLoadRejectsDescriptorErrors(t *testing.T) {
 				`"applicability":{"default":"not_applicable","any":[{"fileExists":".vrooli/search.json"},{"serviceCapability":"search"}]}`,
 				`"applicability":{"default":"not_applicable","any":[{"serviceTag":"search"}],"all":[{"hasAPI":true}]}`, 1),
 			want: "ambiguous_applicability", scenario: "search-hub",
+		},
+		{
+			name: "durable delivery requires execution",
+			body: strings.Replace(validDescriptor("search-hub", "search"),
+				`"validation":{"contract":"scenario-validation/v1","includeExecution":true}`,
+				`"validation":{"contract":"scenario-validation/v1","deliveryMode":"durable-run","runService":"scenario-validation/v1.DurableValidationRunService"}`, 1),
+			want: "durable_delivery_requires_execution", scenario: "search-hub",
+		},
+		{
+			name: "durable delivery rejects legacy execution switch",
+			body: strings.Replace(validDescriptor("search-hub", "search"),
+				`"validation":{"contract":"scenario-validation/v1","includeExecution":true}`,
+				`"validation":{"contract":"scenario-validation/v1","deliveryMode":"durable-run","execution":true,"includeExecution":true,"runService":"scenario-validation/v1.DurableValidationRunService"}`, 1),
+			want: "durable_delivery_rejects_legacy_include_execution", scenario: "search-hub",
+		},
+		{
+			name: "durable delivery requires generic run service",
+			body: strings.Replace(validDescriptor("search-hub", "search"),
+				`"validation":{"contract":"scenario-validation/v1","includeExecution":true}`,
+				`"validation":{"contract":"scenario-validation/v1","deliveryMode":"durable-run","execution":true}`, 1),
+			want: "durable_delivery_requires_run_service", scenario: "search-hub",
 		},
 	}
 	for _, tc := range tests {

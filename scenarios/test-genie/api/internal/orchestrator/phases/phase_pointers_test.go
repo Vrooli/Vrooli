@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"test-genie/internal/orchestrator/phases/validationprovider"
 	"test-genie/internal/orchestrator/workspace"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
@@ -112,6 +113,32 @@ func TestWritePhasePointerPersistsExtras(t *testing.T) {
 	}
 	if payload.Summary != "1 check" {
 		t.Fatalf("pointer summary = %q, want 1 check", payload.Summary)
+	}
+}
+
+func TestWriteDurableChildReferencePersistsBeforeWait(t *testing.T) {
+	dir := t.TempDir()
+	env := workspace.Environment{RunID: "20260610-000003-testrun", ScenarioName: "fixture", ScenarioDir: dir}
+	writeDurableChildReference(env, "workflow", "workflow-health", validationprovider.RunReference{
+		RunID: "provider-run-1", ParentRunID: env.RunID, ETASeconds: 120, State: "queued",
+	}, io.Discard)
+
+	raw, err := os.ReadFile(filepath.Join(dir, "coverage", "runs", env.RunID, "phase-results", "workflow.json"))
+	if err != nil {
+		t.Fatalf("durable child reference not written: %v", err)
+	}
+	var payload struct {
+		Status        string `json:"status"`
+		DeliveryMode  string `json:"delivery_mode"`
+		ProviderRunID string `json:"provider_run_id"`
+		ParentRunID   string `json:"parent_run_id"`
+		ETASeconds    int64  `json:"provider_eta_secs"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("durable child reference not decodable: %v", err)
+	}
+	if payload.Status != "in_progress" || payload.DeliveryMode != "durable-run" || payload.ProviderRunID != "provider-run-1" || payload.ParentRunID != env.RunID || payload.ETASeconds != 120 {
+		t.Fatalf("durable child reference = %+v", payload)
 	}
 }
 

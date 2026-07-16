@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"test-genie/internal/execution"
@@ -77,7 +78,13 @@ func maxRunsPerScenarioFromEnv() int {
 // background agent sessions, the autoheal loop, and a supervisor. It is the one
 // shared budget for BOTH manually-started runs and the background fleet sweep,
 // because the fleet scheduler launches through this same Manager.Start path.
-const defaultMaxConcurrentRuns = 2
+const (
+	defaultMaxConcurrentRuns   = 2
+	defaultMaxQueuedRuns       = 16
+	defaultMaxPreviewRuns      = 2
+	defaultMaxQueuedPerCaller  = 4
+	defaultMaxPreviewPerCaller = 1
+)
 
 // maxConcurrentRunsFromEnv resolves the configured global concurrency cap from
 // TEST_GENIE_MAX_CONCURRENT_RUNS (the env lever; a settings-domain UI control is
@@ -89,6 +96,15 @@ func maxConcurrentRunsFromEnv() int {
 		}
 	}
 	return defaultMaxConcurrentRuns
+}
+
+func boundedIntFromEnv(name string, fallback int) int {
+	if raw := strings.TrimSpace(os.Getenv(name)); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 1 {
+			return n
+		}
+	}
+	return fallback
 }
 
 // HeartbeatInterval resolves the configured quiet-phase heartbeat cadence.
@@ -103,13 +119,18 @@ func HeartbeatInterval() time.Duration {
 
 // Manager owns durable run execution decoupled from any client request.
 type Manager struct {
-	base               context.Context
-	cancelBase         context.CancelFunc
-	exec               Executor
-	scenariosRoot      string
-	heartbeat          time.Duration
-	maxRunsPerScenario int
-	maxConcurrentRuns  int
+	base                context.Context
+	cancelBase          context.CancelFunc
+	exec                Executor
+	scenariosRoot       string
+	heartbeat           time.Duration
+	maxRunsPerScenario  int
+	maxConcurrentRuns   int
+	maxQueuedRuns       int
+	maxQueuedPerCaller  int
+	maxPreviewPerCaller int
+	previewTokens       chan struct{}
+	previewByCaller     map[string]int
 
 	// wg tracks live drive goroutines so Shutdown can wait for in-flight runs to
 	// finalize their durable records before returning.
@@ -117,6 +138,11 @@ type Manager struct {
 
 	mu   sync.Mutex
 	runs map[string]*activeRun
+
+	previewRejectedTotal  uint64
+	queueRejectedTotal    uint64
+	scenarioRejectedTotal uint64
+	coalescedTotal        uint64
 }
 
 // activeRun is the in-memory state for a run currently tracked by the manager.
@@ -128,6 +154,7 @@ type activeRun struct {
 	// admissionKey). Immutable after construction, so it is safe to read under
 	// the manager lock during admission.
 	admissionKey string
+	caller       string
 	startedAt    time.Time
 	cancel       context.CancelFunc
 	bc           *broadcaster
@@ -190,9 +217,30 @@ type LiveStatus struct {
 // StartOptions configures a run start.
 type StartOptions struct {
 	Input execution.SuiteExecutionInput
+	// Caller is a bounded transport identity used only for admission fairness
+	// and aggregate telemetry; it is never persisted in run artifacts.
+	Caller string
 	// EstimatedTotalSeconds is the summed plan-preview estimate, used for the
 	// remaining-ETA and recommended-next-check fields. Zero means unknown.
 	EstimatedTotalSeconds int
+}
+
+// AdmissionSnapshot is the bounded admission state exposed to operators. The
+// counters are process-lifetime totals while the occupancy fields are sampled
+// at the instant this snapshot is read.
+type AdmissionSnapshot struct {
+	Running                 int    `json:"running"`
+	Queued                  int    `json:"queued"`
+	MaxConcurrentRuns       int    `json:"maxConcurrentRuns"`
+	MaxQueuedRuns           int    `json:"maxQueuedRuns"`
+	MaxQueuedRunsPerCaller  int    `json:"maxQueuedRunsPerCaller"`
+	PreviewInFlight         int    `json:"previewInFlight"`
+	MaxPreviewRuns          int    `json:"maxPreviewRuns"`
+	MaxPreviewRunsPerCaller int    `json:"maxPreviewRunsPerCaller"`
+	PreviewRejectedTotal    uint64 `json:"previewRejectedTotal"`
+	QueueRejectedTotal      uint64 `json:"queueRejectedTotal"`
+	ScenarioRejectedTotal   uint64 `json:"scenarioRejectedTotal"`
+	CoalescedTotal          uint64 `json:"coalescedTotal"`
 }
 
 // New constructs a Manager driving exec, resolving scenario indexes under
@@ -201,15 +249,119 @@ type StartOptions struct {
 func New(exec Executor, scenariosRoot string) *Manager {
 	base, cancel := context.WithCancel(context.Background())
 	return &Manager{
-		base:               base,
-		cancelBase:         cancel,
-		exec:               exec,
-		scenariosRoot:      strings.TrimSpace(scenariosRoot),
-		heartbeat:          HeartbeatInterval(),
-		maxRunsPerScenario: maxRunsPerScenarioFromEnv(),
-		maxConcurrentRuns:  maxConcurrentRunsFromEnv(),
-		runs:               make(map[string]*activeRun),
+		base:                base,
+		cancelBase:          cancel,
+		exec:                exec,
+		scenariosRoot:       strings.TrimSpace(scenariosRoot),
+		heartbeat:           HeartbeatInterval(),
+		maxRunsPerScenario:  maxRunsPerScenarioFromEnv(),
+		maxConcurrentRuns:   maxConcurrentRunsFromEnv(),
+		maxQueuedRuns:       boundedIntFromEnv("TEST_GENIE_MAX_QUEUED_RUNS", defaultMaxQueuedRuns),
+		maxQueuedPerCaller:  boundedIntFromEnv("TEST_GENIE_MAX_QUEUED_RUNS_PER_CALLER", defaultMaxQueuedPerCaller),
+		maxPreviewPerCaller: boundedIntFromEnv("TEST_GENIE_MAX_PREVIEW_RUNS_PER_CALLER", defaultMaxPreviewPerCaller),
+		previewTokens:       make(chan struct{}, boundedIntFromEnv("TEST_GENIE_MAX_PREVIEW_RUNS", defaultMaxPreviewRuns)),
+		previewByCaller:     make(map[string]int),
+		runs:                make(map[string]*activeRun),
 	}
+}
+
+type SaturatedError struct{ Limit string }
+
+func (e *SaturatedError) Error() string {
+	return fmt.Sprintf("test-genie admission is saturated (%s); retry after an active run advances or completes", e.Limit)
+}
+
+// TryAcquirePreview is a non-blocking gate before plan preview. It prevents a
+// burst from creating unbounded preview work or waiting goroutines.
+func (m *Manager) TryAcquirePreview() (func(), error) {
+	return m.TryAcquirePreviewFor("")
+}
+
+// TryAcquirePreviewFor applies both the global and caller-specific preview
+// bounds. Empty caller identity intentionally uses the shared "anonymous"
+// bucket, which fails closed instead of granting unlimited work to callers
+// whose transport cannot supply attribution.
+func (m *Manager) TryAcquirePreviewFor(caller string) (func(), error) {
+	caller = normalizedCaller(caller)
+	m.mu.Lock()
+	if m.previewByCaller[caller] >= m.maxPreviewPerCaller {
+		m.mu.Unlock()
+		atomic.AddUint64(&m.previewRejectedTotal, 1)
+		return nil, &SaturatedError{Limit: "caller preview capacity"}
+	}
+	select {
+	case m.previewTokens <- struct{}{}:
+		m.previewByCaller[caller]++
+		m.mu.Unlock()
+		var once sync.Once
+		return func() {
+			once.Do(func() {
+				<-m.previewTokens
+				m.mu.Lock()
+				m.previewByCaller[caller]--
+				if m.previewByCaller[caller] == 0 {
+					delete(m.previewByCaller, caller)
+				}
+				m.mu.Unlock()
+			})
+		}, nil
+	default:
+		m.mu.Unlock()
+		atomic.AddUint64(&m.previewRejectedTotal, 1)
+		return nil, &SaturatedError{Limit: "preview capacity"}
+	}
+}
+
+func normalizedCaller(caller string) string {
+	caller = strings.TrimSpace(caller)
+	if caller == "" {
+		return "anonymous"
+	}
+	if len(caller) > 128 {
+		return caller[:128]
+	}
+	return caller
+}
+
+// AdmissionStatus reports both the configured bounds and their live usage.
+// It intentionally contains no request payload or caller data, so it is safe
+// to return from an operator-facing endpoint.
+func (m *Manager) AdmissionStatus() AdmissionSnapshot {
+	m.mu.Lock()
+	snapshot := AdmissionSnapshot{
+		Running:                 m.runningCountLocked(),
+		Queued:                  m.queuedCountLocked(),
+		MaxConcurrentRuns:       m.maxConcurrentRuns,
+		MaxQueuedRuns:           m.maxQueuedRuns,
+		MaxQueuedRunsPerCaller:  m.maxQueuedPerCaller,
+		PreviewInFlight:         len(m.previewTokens),
+		MaxPreviewRuns:          cap(m.previewTokens),
+		MaxPreviewRunsPerCaller: m.maxPreviewPerCaller,
+	}
+	m.mu.Unlock()
+	snapshot.PreviewRejectedTotal = atomic.LoadUint64(&m.previewRejectedTotal)
+	snapshot.QueueRejectedTotal = atomic.LoadUint64(&m.queueRejectedTotal)
+	snapshot.ScenarioRejectedTotal = atomic.LoadUint64(&m.scenarioRejectedTotal)
+	snapshot.CoalescedTotal = atomic.LoadUint64(&m.coalescedTotal)
+	return snapshot
+}
+
+// CoalescedRunID performs the cheap identity portion of admission before a
+// caller spends a preview token. It preserves identical-request coalescing
+// under preview saturation; divergent requests still go through the bounded
+// preview path and later full admission.
+func (m *Manager) CoalescedRunID(req orchestrator.SuiteExecutionRequest) string {
+	scenario := strings.TrimSpace(req.ScenarioName)
+	key := admissionKey(req)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, run := range m.runs {
+		if run.scenario == scenario && !isTerminal(run.currentStatus()) && run.admissionKey == key {
+			atomic.AddUint64(&m.coalescedTotal, 1)
+			return run.runID
+		}
+	}
+	return ""
 }
 
 func runKey(scenario, runID string) string { return scenario + "\x00" + runID }
@@ -306,6 +458,7 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	opts.Input.Request.RunID = runID
 	preset := strings.TrimSpace(opts.Input.Request.Preset)
 	key := admissionKey(opts.Input.Request)
+	caller := normalizedCaller(opts.Caller)
 
 	now := time.Now().UTC()
 	ar := &activeRun{
@@ -313,6 +466,7 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		scenario:     scenario,
 		preset:       preset,
 		admissionKey: key,
+		caller:       caller,
 		startedAt:    now,
 		bc:           newBroadcaster(),
 		done:         make(chan struct{}),
@@ -344,6 +498,7 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		if other.admissionKey == key {
 			m.mu.Unlock()
 			cancel()
+			atomic.AddUint64(&m.coalescedTotal, 1)
 			return StartResult{RunID: other.runID, Coalesced: true}, nil
 		}
 	}
@@ -352,6 +507,7 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		busy := oldestRun(inFlight)
 		m.mu.Unlock()
 		cancel()
+		atomic.AddUint64(&m.scenarioRejectedTotal, 1)
 		return StartResult{}, &BusyError{Scenario: scenario, RunID: busy.runID, Preset: busy.preset}
 	}
 	// Defensive: an explicitly pre-minted run id must be unique.
@@ -365,6 +521,18 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	// admit this one as queued rather than rejecting it. The dispatcher promotes
 	// it FIFO when a slot frees. Otherwise it starts immediately.
 	queued := m.runningCountLocked() >= m.maxConcurrentRuns
+	if queued && m.queuedCountLocked() >= m.maxQueuedRuns {
+		m.mu.Unlock()
+		cancel()
+		atomic.AddUint64(&m.queueRejectedTotal, 1)
+		return StartResult{}, &SaturatedError{Limit: "queued run capacity"}
+	}
+	if queued && m.queuedCountForCallerLocked(caller) >= m.maxQueuedPerCaller {
+		m.mu.Unlock()
+		cancel()
+		atomic.AddUint64(&m.queueRejectedTotal, 1)
+		return StartResult{}, &SaturatedError{Limit: "caller queued run capacity"}
+	}
 	if queued {
 		ar.setStatus(sharedruns.StatusQueued)
 	}
@@ -403,6 +571,26 @@ func (m *Manager) runningCountLocked() int {
 	n := 0
 	for _, ar := range m.runs {
 		if ar.currentStatus() == sharedruns.StatusInProgress {
+			n++
+		}
+	}
+	return n
+}
+
+func (m *Manager) queuedCountLocked() int {
+	n := 0
+	for _, ar := range m.runs {
+		if ar.currentStatus() == sharedruns.StatusQueued {
+			n++
+		}
+	}
+	return n
+}
+
+func (m *Manager) queuedCountForCallerLocked(caller string) int {
+	n := 0
+	for _, ar := range m.runs {
+		if ar.caller == caller && ar.currentStatus() == sharedruns.StatusQueued {
 			n++
 		}
 	}

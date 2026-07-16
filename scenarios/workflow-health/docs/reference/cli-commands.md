@@ -99,14 +99,38 @@ ScenarioValidationService provider contract.
 
 ```bash
 workflow-health validate scenario my-scenario
-workflow-health validate scenario my-scenario --include-execution
 workflow-health validate scenario my-scenario --path /abs/path/to/scenario --json
 ```
 
 | Flag | Purpose |
 |---|---|
 | `--path <dir>` | Validate an explicit scenario directory instead of resolving by scenario id |
-| `--include-execution` | Execute validation cases through BAS after static validation |
+
+### `workflow-health validate start <scenario> --idempotency-key <key>`
+
+Persist and start durable BAS execution validation. The command returns the
+provider-owned run handle, preliminary static evidence, and ETA; it never
+waits for execution or owns retry/recovery state.
+
+```bash
+workflow-health validate start my-scenario --idempotency-key operator-20260715
+workflow-health validate start my-scenario --path /abs/path/to/scenario --idempotency-key operator-20260715 --json
+```
+
+### `workflow-health validate get|wait|abort <run-id>`
+
+Reattach to an existing provider run, wait once for its terminal shared
+validation response, or explicitly request cancellation.
+
+```bash
+workflow-health validate get <run-id>
+workflow-health validate wait <run-id> --timeout 5m --json
+workflow-health validate abort <run-id> --reason "operator requested stop"
+```
+
+`wait` timeouts and caller disconnects never cancel provider work. There is no
+legacy `include-execution` CLI flag or blocking execution command; callers use
+the lifecycle commands above.
 
 ## Scenario commands — `workflows`
 

@@ -252,47 +252,12 @@ func (s *Service) UpdateVariant(slug string, name, description *string, weight *
 		return nil, errors.New("weight must be between 0 and 100")
 	}
 
-	var headerJSON []byte
-	if headerConfig != nil {
-		targetName := ""
-		if name != nil && strings.TrimSpace(*name) != "" {
-			targetName = strings.TrimSpace(*name)
-		} else if err := s.db.QueryRow(`SELECT name FROM variants WHERE slug = $1`, slug).Scan(&targetName); err != nil {
-			return nil, fmt.Errorf("fetch variant for header config: %w", err)
-		}
-		norm := normalizeLandingHeaderConfig(headerConfig, targetName)
-		var err error
-		if headerJSON, err = marshalHeaderConfig(norm); err != nil {
-			return nil, fmt.Errorf("marshal header config: %w", err)
-		}
+	headerJSON, err := s.resolveHeaderJSON(slug, name, headerConfig)
+	if err != nil {
+		return nil, err
 	}
 
-	query := "UPDATE variants SET updated_at = NOW()"
-	args := []interface{}{}
-	argIndex := 1
-	if name != nil {
-		query += fmt.Sprintf(", name = $%d", argIndex)
-		args = append(args, *name)
-		argIndex++
-	}
-	if description != nil {
-		query += fmt.Sprintf(", description = $%d", argIndex)
-		args = append(args, *description)
-		argIndex++
-	}
-	if weight != nil {
-		query += fmt.Sprintf(", weight = $%d", argIndex)
-		args = append(args, *weight)
-		argIndex++
-	}
-	if headerJSON != nil {
-		query += fmt.Sprintf(", header_config = $%d", argIndex)
-		args = append(args, headerJSON)
-		argIndex++
-	}
-	query += fmt.Sprintf(" WHERE slug = $%d", argIndex)
-	args = append(args, slug)
-	query += " RETURNING id, slug, name, description, weight, status, created_at, updated_at, archived_at, header_config"
+	query, args := buildVariantUpdateQuery(slug, name, description, weight, headerJSON)
 
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -336,6 +301,54 @@ func (s *Service) UpdateVariant(slug string, name, description *string, weight *
 		v.Axes = axesMap
 	}
 	return &v, nil
+}
+
+// resolveHeaderJSON normalizes and marshals the header config for an update,
+// resolving the target variant name (from the incoming update or the current
+// row) so the normalized config carries a stable title. Returns nil when no
+// header config is supplied.
+func (s *Service) resolveHeaderJSON(slug string, name *string, headerConfig *LandingHeaderConfig) ([]byte, error) {
+	if headerConfig == nil {
+		return nil, nil
+	}
+	targetName := ""
+	if name != nil && strings.TrimSpace(*name) != "" {
+		targetName = strings.TrimSpace(*name)
+	} else if err := s.db.QueryRow(`SELECT name FROM variants WHERE slug = $1`, slug).Scan(&targetName); err != nil {
+		return nil, fmt.Errorf("fetch variant for header config: %w", err)
+	}
+	headerJSON, err := marshalHeaderConfig(normalizeLandingHeaderConfig(headerConfig, targetName))
+	if err != nil {
+		return nil, fmt.Errorf("marshal header config: %w", err)
+	}
+	return headerJSON, nil
+}
+
+// buildVariantUpdateQuery assembles the partial UPDATE statement and its
+// positional args, appending only the fields present in the request.
+func buildVariantUpdateQuery(slug string, name, description *string, weight *int, headerJSON []byte) (string, []interface{}) {
+	query := "UPDATE variants SET updated_at = NOW()"
+	args := []interface{}{}
+	appendField := func(column string, value interface{}) {
+		query += fmt.Sprintf(", %s = $%d", column, len(args)+1)
+		args = append(args, value)
+	}
+	if name != nil {
+		appendField("name", *name)
+	}
+	if description != nil {
+		appendField("description", *description)
+	}
+	if weight != nil {
+		appendField("weight", *weight)
+	}
+	if headerJSON != nil {
+		appendField("header_config", headerJSON)
+	}
+	query += fmt.Sprintf(" WHERE slug = $%d", len(args)+1)
+	args = append(args, slug)
+	query += " RETURNING id, slug, name, description, weight, status, created_at, updated_at, archived_at, header_config"
+	return query, args
 }
 
 // ArchiveVariant marks a variant archived so it is no longer selected.

@@ -370,4 +370,4 @@ vrooli scenario status <slug>
 
 ---
 
-**Next**: [Admin Guide](ADMIN_GUIDE.md) | [API Reference](api/README.md) | [Troubleshooting](TROUBLESHOOTING.md)
+**Next**: [Admin Guide](ADMIN_GUIDE.md) | [API Reference](api/overview.md) | [Troubleshooting](TROUBLESHOOTING.md)

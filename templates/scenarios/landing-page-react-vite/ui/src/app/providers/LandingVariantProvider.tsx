@@ -68,7 +68,7 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
       if (nextConfig?.variant) {
         const status = nextConfig.fallback ? 'fallback' : 'active';
         setVariant({
-          id: nextConfig.variant.id,
+          id: Number(nextConfig.variant.id),
           slug: nextConfig.variant.slug,
           name: nextConfig.variant.name,
           description: nextConfig.variant.description,

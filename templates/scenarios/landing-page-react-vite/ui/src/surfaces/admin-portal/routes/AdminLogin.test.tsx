@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithProviders } from '../../../test-utils';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminLogin } from './AdminLogin';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
-import { adminLogin, checkAdminSession } from '../../../shared/api';
 
 const { mockAdminLogin, mockCheckAdminSession } = vi.hoisted(() => ({
   mockAdminLogin: vi.fn(),
@@ -27,12 +27,13 @@ vi.mock('react-router-dom', async () => {
 });
 
 const renderWithRouter = (component: React.ReactElement) => {
-  return render(
+  return renderWithProviders(
     <BrowserRouter>
       <AdminAuthProvider>
         {component}
       </AdminAuthProvider>
-    </BrowserRouter>
+    </BrowserRouter>,
+    { withoutRouter: true }
   );
 };
 
@@ -42,16 +43,15 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockCheckAdminSession.mockResolvedValue({ authenticated: false, reset_enabled: false });
+    mockCheckAdminSession.mockResolvedValue({ authenticated: false, resetEnabled: false });
     mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
 
     // Mock location to avoid session check trigger
-    delete (window as { location?: Location }).location;
-    window.location = { ...originalLocation, pathname: '/admin/login' };
+    vi.stubGlobal('location', { ...originalLocation, pathname: '/admin/login', search: '', hash: '' });
   });
 
   afterEach(() => {
-    window.location = originalLocation;
+    vi.unstubAllGlobals();
   });
 
   it('[REQ:ADMIN-AUTH] should render login form with email and password fields', () => {

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { getDocsTree, getDocContent, type DocEntry, type DocContent } from '../../../shared/api';
+import { getDocsTree, getDocContent, type DocEntry } from '../../../shared/api';
 import { Book, ChevronRight, ChevronDown, FileText, Folder, FolderOpen, RefreshCw, ExternalLink } from 'lucide-react';
+
+type DocContent = Awaited<ReturnType<typeof getDocContent>>;
 
 interface TreeNodeProps {
   entry: DocEntry;
@@ -81,16 +83,18 @@ function MarkdownRenderer({ content }: { content: string }) {
   let i = 0;
   let inCodeBlock = false;
   let codeBlockContent: string[] = [];
-  let codeBlockLang = '';
 
   while (i < lines.length) {
     const line = lines[i];
+    if (line === undefined) {
+      i++;
+      continue;
+    }
 
     // Code blocks
     if (line.startsWith('```')) {
       if (!inCodeBlock) {
         inCodeBlock = true;
-        codeBlockLang = line.slice(3).trim();
         codeBlockContent = [];
       } else {
         elements.push(
@@ -100,7 +104,6 @@ function MarkdownRenderer({ content }: { content: string }) {
         );
         inCodeBlock = false;
         codeBlockContent = [];
-        codeBlockLang = '';
       }
       i++;
       continue;
@@ -145,9 +148,11 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Unordered lists
     else if (line.match(/^[-*]\s/)) {
       const listItems: string[] = [line.replace(/^[-*]\s/, '')];
-      while (i + 1 < lines.length && lines[i + 1].match(/^[-*]\s/)) {
+      while (i + 1 < lines.length) {
+        const nextLine = lines[i + 1];
+        if (nextLine === undefined || !nextLine.match(/^[-*]\s/)) break;
         i++;
-        listItems.push(lines[i].replace(/^[-*]\s/, ''));
+        listItems.push(nextLine.replace(/^[-*]\s/, ''));
       }
       elements.push(
         <ul key={i} className="my-4 ml-6 list-disc space-y-1">
@@ -160,9 +165,11 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Ordered lists
     else if (line.match(/^\d+\.\s/)) {
       const listItems: string[] = [line.replace(/^\d+\.\s/, '')];
-      while (i + 1 < lines.length && lines[i + 1].match(/^\d+\.\s/)) {
+      while (i + 1 < lines.length) {
+        const nextLine = lines[i + 1];
+        if (nextLine === undefined || !nextLine.match(/^\d+\.\s/)) break;
         i++;
-        listItems.push(lines[i].replace(/^\d+\.\s/, ''));
+        listItems.push(nextLine.replace(/^\d+\.\s/, ''));
       }
       elements.push(
         <ol key={i} className="my-4 ml-6 list-decimal space-y-1">
@@ -175,9 +182,11 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Tables
     else if (line.includes('|') && line.trim().startsWith('|')) {
       const tableLines: string[] = [line];
-      while (i + 1 < lines.length && lines[i + 1].includes('|')) {
+      while (i + 1 < lines.length) {
+        const nextLine = lines[i + 1];
+        if (nextLine === undefined || !nextLine.includes('|')) break;
         i++;
-        tableLines.push(lines[i]);
+        tableLines.push(nextLine);
       }
       elements.push(renderTable(tableLines, i));
     }
@@ -196,12 +205,13 @@ function MarkdownRenderer({ content }: { content: string }) {
 
 function renderTable(lines: string[], key: number): JSX.Element {
   const rows = lines.filter(line => !line.match(/^[\s|:-]+$/));
-  if (rows.length === 0) return <></>;
+  const headerRow = rows[0];
+  if (headerRow === undefined) return <></>;
 
   const parseCells = (row: string) =>
     row.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
 
-  const headers = parseCells(rows[0]);
+  const headers = parseCells(headerRow);
   const bodyRows = rows.slice(1).map(parseCells);
 
   return (
@@ -270,13 +280,14 @@ function formatInlineMarkdown(text: string): (string | JSX.Element)[] {
       if (match.index > 0) {
         parts.push(remaining.slice(0, match.index));
       }
+      const href = match[2] ?? '';
       parts.push(
         <a
           key={keyIdx++}
-          href={match[2]}
+          href={href}
           className="text-blue-400 hover:text-blue-300 underline"
-          target={match[2].startsWith('http') ? '_blank' : undefined}
-          rel={match[2].startsWith('http') ? 'noopener noreferrer' : undefined}
+          target={href.startsWith('http') ? '_blank' : undefined}
+          rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}
         >
           {match[1]}
         </a>

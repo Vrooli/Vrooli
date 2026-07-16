@@ -317,6 +317,55 @@ func TestValidateScenarioLiveProbeClean(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioDurableProbeUsesGenericLifecycle(t *testing.T) {
+	repoRoot, _ := fixtureRepo(t, "demo-provider", func(d map[string]any) {
+		d["validation"] = map[string]any{
+			"contract": "scenario-validation/v1", "deliveryMode": "durable-run", "execution": true,
+			"runService": "scenario-validation/v1.DurableValidationRunService",
+		}
+	})
+	service := New(repoRoot)
+	service.Probe = func(_ context.Context, _ string, target string, _ time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
+		return probeResponse(t, repoRoot, "demo-provider", "demo", target, &commonv1.ExecutionMetrics{}), nil
+	}
+	called := false
+	service.DurableProbe = func(_ context.Context, provider, target string, _ time.Duration) error {
+		called = true
+		if provider != "demo-provider" || target == "" {
+			t.Fatalf("durable probe provider/target = %q/%q", provider, target)
+		}
+		return nil
+	}
+	report, err := service.ValidateScenario(context.Background(), "demo-provider", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if !called || len(report.Findings) != 0 {
+		t.Fatalf("durable probe called=%t findings=%v", called, findingCodes(report))
+	}
+}
+
+func TestValidateScenarioDurableProbeFailureIsContractError(t *testing.T) {
+	repoRoot, _ := fixtureRepo(t, "demo-provider", func(d map[string]any) {
+		d["validation"] = map[string]any{
+			"contract": "scenario-validation/v1", "deliveryMode": "durable-run", "execution": true,
+			"runService": "scenario-validation/v1.DurableValidationRunService",
+		}
+	})
+	service := New(repoRoot)
+	service.Probe = func(_ context.Context, _ string, target string, _ time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
+		return probeResponse(t, repoRoot, "demo-provider", "demo", target, &commonv1.ExecutionMetrics{}), nil
+	}
+	service.DurableProbe = func(context.Context, string, string, time.Duration) error {
+		return errors.New("wait returned non-terminal run")
+	}
+	report, err := service.ValidateScenario(context.Background(), "demo-provider", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	requireCode(t, report, CodeDurableContractInvalid)
+}
+
 func TestValidateScenarioLiveProbeUnreachable(t *testing.T) {
 	repoRoot, _ := fixtureRepo(t, "demo-provider", nil)
 	service := New(repoRoot)

@@ -41,8 +41,24 @@ type Provider struct {
 	Optional         bool
 	Timeout          time.Duration
 	IncludeExecution bool
+	DeliveryMode     string
 	GateEnvVar       string
 	DefaultGateMode  GateMode
+	// OnStarted receives the provider-owned child reference immediately after a
+	// durable Start acknowledgement is accepted and before the parent waits.
+	// Test Genie uses this to persist/reconcile the parent-child link; providers
+	// never depend on this callback for their own lifecycle authority.
+	OnStarted func(RunReference)
+}
+
+// RunReference is the durable provider child identity Test Genie persists in
+// its parent run artifacts. It intentionally carries only transport-neutral
+// lifecycle metadata; the provider ledger remains authoritative.
+type RunReference struct {
+	RunID       string
+	ParentRunID string
+	ETASeconds  int64
+	State       string
 }
 
 type Summary struct {
@@ -63,6 +79,10 @@ type Summary struct {
 	GatedBlockers             int                 `json:"gated_blockers,omitempty"`
 	Categories                []CategorySummary   `json:"categories,omitempty"`
 	Skipped                   bool                `json:"skipped,omitempty"`
+	ProviderRunID             string              `json:"provider_run_id,omitempty"`
+	ProviderParentRunID       string              `json:"provider_parent_run_id,omitempty"`
+	ProviderRunState          string              `json:"provider_run_state,omitempty"`
+	ProviderETASeconds        int64               `json:"provider_eta_seconds,omitempty"`
 }
 
 type CategorySummary struct {
@@ -138,12 +158,21 @@ type Client interface {
 	ValidateScenario(context.Context, *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error)
 }
 
+type DurableClient interface {
+	StartValidationRun(context.Context, *connect.Request[scenariovalidationv1.StartValidationRunRequest]) (*connect.Response[scenariovalidationv1.StartValidationRunResponse], error)
+	WaitValidationRun(context.Context, *connect.Request[scenariovalidationv1.WaitValidationRunRequest]) (*connect.Response[scenariovalidationv1.WaitValidationRunResponse], error)
+	AbortValidationRun(context.Context, *connect.Request[scenariovalidationv1.AbortValidationRunRequest]) (*connect.Response[scenariovalidationv1.AbortValidationRunResponse], error)
+}
+
 var (
 	ResolveBaseURL = func(ctx context.Context, scenario string) (string, error) {
 		return discovery.ResolveScenarioURLDefault(ctx, scenario)
 	}
 	NewClient = func(timeout time.Duration, baseURL string) Client {
 		return scenariovalidationconnect.NewScenarioValidationServiceClient(&http.Client{Timeout: timeout}, baseURL)
+	}
+	NewDurableClient = func(timeout time.Duration, baseURL string) DurableClient {
+		return scenariovalidationconnect.NewDurableValidationRunServiceClient(&http.Client{Timeout: timeout}, baseURL)
 	}
 )
 
@@ -183,6 +212,59 @@ func Run(ctx context.Context, provider Provider, targetScenario, scenarioPath st
 		return failure(provider, targetScenario, shared.FailureClassSystem, errors.New("provider returned an empty validation response"), "")
 	}
 	return translate(provider, targetScenario, resp.Msg)
+}
+
+// RunDurable performs one Start and one server-owned Wait. The parent run and
+// phase identity make retries replay-safe without any scenario-name branch.
+func RunDurable(ctx context.Context, provider Provider, targetScenario, scenarioPath, parentRunID string) *Result {
+	baseURL, err := ResolveBaseURL(ctx, provider.ProviderScenario)
+	if err != nil {
+		return unavailable(provider, targetScenario, fmt.Errorf("resolve %s URL: %w", provider.ProviderScenario, err))
+	}
+	key := strings.TrimSpace(parentRunID) + ":" + provider.Phase
+	if strings.TrimSpace(parentRunID) == "" {
+		return failure(provider, targetScenario, shared.FailureClassMisconfiguration, errors.New("durable provider requires parent run id"), "")
+	}
+	client := NewDurableClient(provider.Timeout+time.Minute, baseURL)
+	started, err := client.StartValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: targetScenario, Path: scenarioPath, IdempotencyKey: key, ParentRunId: parentRunID}))
+	if err != nil || started == nil || started.Msg == nil || started.Msg.GetRun() == nil {
+		if err == nil {
+			err = errors.New("provider returned empty durable start response")
+		}
+		return unavailable(provider, targetScenario, fmt.Errorf("start durable provider run: %w", err))
+	}
+	run := started.Msg.GetRun()
+	if provider.OnStarted != nil {
+		provider.OnStarted(RunReference{
+			RunID:       run.GetRunId(),
+			ParentRunID: parentRunID,
+			ETASeconds:  int64(run.GetEstimatedRemaining().AsDuration().Seconds()),
+			State:       strings.TrimPrefix(strings.ToLower(run.GetState().String()), "validation_run_state_"),
+		})
+	}
+	waited, err := client.WaitValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.WaitValidationRunRequest{RunId: run.GetRunId()}))
+	if err != nil || waited == nil || waited.Msg == nil || waited.Msg.GetRun() == nil {
+		if ctx.Err() != nil {
+			// A Test Genie parent cancellation is explicit lifecycle intent, unlike
+			// a lost client connection. Propagate it to the provider exactly once;
+			// the provider's own durable ledger remains authoritative for recovery.
+			_, _ = client.AbortValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.AbortValidationRunRequest{RunId: run.GetRunId(), Reason: "parent Test Genie run canceled"}))
+		}
+		if err == nil {
+			err = errors.New("provider returned empty durable wait response")
+		}
+		return unavailable(provider, targetScenario, fmt.Errorf("wait for durable provider run %s: %w", run.GetRunId(), err))
+	}
+	terminal := waited.Msg.GetRun().GetTerminalResult()
+	if terminal == nil {
+		return failure(provider, targetScenario, shared.FailureClassMaturityContract, errors.New("durable provider terminal run has no shared validation response"), maturityRemediation(provider, targetScenario))
+	}
+	out := translate(provider, targetScenario, terminal)
+	out.Summary.ProviderRunID = run.GetRunId()
+	out.Summary.ProviderParentRunID = parentRunID
+	out.Summary.ProviderRunState = strings.TrimPrefix(strings.ToLower(waited.Msg.GetRun().GetState().String()), "validation_run_state_")
+	out.Summary.ProviderETASeconds = int64(run.GetEstimatedRemaining().AsDuration().Seconds())
+	return out
 }
 
 func translate(provider Provider, fallbackScenario string, resp *scenariovalidationv1.ValidateScenarioResponse) *Result {

@@ -42,7 +42,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         }
         setIsAuthenticated(session.authenticated);
         setUser(session.authenticated && session.email ? { email: session.email } : null);
-        setCanResetDemoData(Boolean(session.reset_enabled));
+        setCanResetDemoData(Boolean(session.resetEnabled));
       } catch (e) {
         console.error('Session check failed:', e);
         setIsAuthenticated(false);
@@ -66,7 +66,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(Boolean(response?.authenticated));
     setUser(response?.authenticated && response.email ? { email: response.email } : { email });
     setIsSessionLoading(false);
-    setCanResetDemoData(Boolean(response?.reset_enabled));
+    setCanResetDemoData(Boolean(response?.resetEnabled));
   };
 
   const logout = async () => {

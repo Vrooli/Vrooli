@@ -13,6 +13,7 @@ type Repository interface {
 	ListValidationRuns(ctx context.Context, templateID string) ([]ValidationRun, error)
 	GetValidationRun(ctx context.Context, id string) (ValidationRun, error)
 	SaveDriftSnapshot(ctx context.Context, snapshot DriftSnapshot) error
+	SupersedePendingDriftSnapshots(ctx context.Context, supersededAt time.Time) error
 	ListDriftSnapshots(ctx context.Context, templateID string) ([]DriftSnapshot, error)
 	UpsertDebt(ctx context.Context, entry DebtEntry) error
 	ResolveSourceDebt(ctx context.Context, templateID string, resolvedAt time.Time) error

@@ -12,7 +12,11 @@ type EvidenceRepository interface {
 type Evidence struct {
 	ID             string
 	Scenario       string
+	DocumentKind   string
 	PageID         string
+	ComponentID    string
+	ComponentTitle string
+	ExampleName    string
 	Route          string
 	StateID        string
 	ViewportID     string
@@ -29,8 +33,9 @@ type Evidence struct {
 
 // EvidenceFilter narrows evidence reads.
 type EvidenceFilter struct {
-	Scenario string
-	PageID   string
-	ClaimID  string
-	Limit    int
+	Scenario    string
+	PageID      string
+	ComponentID string
+	ClaimID     string
+	Limit       int
 }

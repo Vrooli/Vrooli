@@ -81,6 +81,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.22(postcss@8.5.6)
+      axe-core:
+        specifier: ^4.10.2
+        version: 4.11.4
       eslint:
         specifier: ^9.9.1
         version: 9.39.1(jiti@1.21.7)
@@ -1109,6 +1112,10 @@ packages:
     hasBin: true
     peerDependencies:
       postcss: ^8.1.0
+
+  axe-core@4.11.4:
+    resolution: {integrity: sha512-KunSNx+TVpkAw/6ULfhnx+HWRecjqZGTOyquAoWHYLRSdK1tB5Ihce1ZW+UY3fj33bYAFWPu7W/GRSmmrCGuxA==}
+    engines: {node: '>=4'}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -3476,6 +3483,8 @@ snapshots:
   baseline-browser-mapping@2.8.30: {}
 
   binary-extensions@2.3.0: {}
+
+  axe-core@4.11.4: {}
 
   body-parser@1.20.3:
     dependencies:

@@ -112,7 +112,14 @@ func (h *handler) ListEvidence(ctx context.Context, req *connect.Request[contrac
 	if err := requireEvidenceRepository(h.service.Evidence); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	report, evidence, err := h.service.ListEvidence(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetPage(), req.Msg.GetClaim(), int(req.Msg.GetLimit()))
+	var report spec.Report
+	var evidence []reconcile.Evidence
+	var err error
+	if componentID := req.Msg.GetComponent(); componentID != "" {
+		report, evidence, err = h.service.ListComponentEvidence(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), componentID, req.Msg.GetClaim(), int(req.Msg.GetLimit()))
+	} else {
+		report, evidence, err = h.service.ListEvidence(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetPage(), req.Msg.GetClaim(), int(req.Msg.GetLimit()))
+	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -225,7 +232,11 @@ func protoEvidence(e reconcile.Evidence) *contractv1.ReconciliationEvidence {
 	return &contractv1.ReconciliationEvidence{
 		Id:             e.ID,
 		Scenario:       e.Scenario,
+		DocumentKind:   e.DocumentKind,
 		Page:           e.PageID,
+		ComponentId:    e.ComponentID,
+		ComponentTitle: e.ComponentTitle,
+		ExampleName:    e.ExampleName,
 		Route:          e.Route,
 		State:          e.StateID,
 		Viewport:       e.ViewportID,

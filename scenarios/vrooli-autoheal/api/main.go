@@ -86,6 +86,11 @@ func run() error {
 		}
 	}
 	registry := checks.NewRegistry(plat)
+	if home, err := os.UserHomeDir(); err != nil {
+		log.Printf("warning: runtime recovery ownership gate unavailable: %v", err)
+	} else {
+		registry.SetRecoveryOwnershipGate(checks.RuntimeRecoveryGate{HomeDir: home})
+	}
 
 	// Wire config manager into registry for enable/autoHeal checks
 	registry.SetConfigProvider(configMgr)
@@ -128,6 +133,7 @@ func run() error {
 	// Setup HTTP server
 	h := apiHandlers.New(registry, store, plat)
 	h.SetSystemEventService(systemEventService)
+	h.SetHistoryRetentionHoursProvider(func() int { return configMgr.GetGlobal().HistoryRetentionHours })
 	configHandlers := apiHandlers.NewConfigHandlers(configMgr, registry)
 	router := setupRouter(h, configHandlers, db)
 

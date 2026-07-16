@@ -31,7 +31,7 @@ const BRANDING_CACHE_TTL_MS = 60000; // 1 minute cache
 function refreshBrandingCache() {
   if (fetchInProgress) return;
 
-  const apiPort = process.env.API_PORT || 3001;
+  const apiPort = process.env.API_PORT;
   const apiUrl = `http://localhost:${apiPort}/api/v1/branding`;
 
   fetchInProgress = true;

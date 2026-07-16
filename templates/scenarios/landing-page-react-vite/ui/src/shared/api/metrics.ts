@@ -1,26 +1,58 @@
-import { apiCall } from './common';
-import type { AnalyticsSummary, MetricEvent, VariantStats } from './types';
+import type { JsonObject } from '@bufbuild/protobuf';
+import { createClient } from '@connectrpc/connect';
+import { MetricsService } from '@vrooli/proto-types/landing-page-react-vite/v1/metrics_pb';
+import type {
+  AnalyticsSummary,
+  VariantStats,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/metrics_pb';
 
-export function trackMetric(event: MetricEvent) {
-  return apiCall<{ success: boolean }>('/metrics/track', {
-    method: 'POST',
-    body: JSON.stringify(event),
+import { transport } from './client';
+
+const metricsClient = createClient(MetricsService, transport);
+
+export interface TrackMetricInput {
+  eventType: string;
+  variantId: bigint;
+  sessionId: string;
+  visitorId?: string;
+  eventId?: string;
+  // Dynamic JSON payload (proto google.protobuf.Struct); bridged at the boundary.
+  eventData?: Record<string, unknown>;
+}
+
+/** Records a visitor analytics event. */
+export async function trackMetric(event: TrackMetricInput): Promise<boolean> {
+  const resp = await metricsClient.trackEvent({
+    eventType: event.eventType,
+    variantId: event.variantId,
+    sessionId: event.sessionId,
+    visitorId: event.visitorId ?? '',
+    eventId: event.eventId ?? '',
+    eventData: event.eventData as JsonObject | undefined,
+  });
+  return resp.success;
+}
+
+/** Fetches the aggregate analytics summary across variants (admin). */
+export function getMetricsSummary(startDate?: string, endDate?: string): Promise<AnalyticsSummary> {
+  return metricsClient.getAnalyticsSummary({
+    startDate: startDate ?? '',
+    endDate: endDate ?? '',
   });
 }
 
-export function getMetricsSummary(startDate?: string, endDate?: string) {
-  const params = new URLSearchParams();
-  if (startDate) params.set('start_date', startDate);
-  if (endDate) params.set('end_date', endDate);
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return apiCall<AnalyticsSummary>(`/metrics/summary${query}`);
+/** Fetches per-variant analytics stats (admin). */
+export async function getVariantMetrics(
+  variant?: string,
+  startDate?: string,
+  endDate?: string,
+): Promise<VariantStats[]> {
+  const resp = await metricsClient.getVariantStats({
+    variant: variant ?? '',
+    startDate: startDate ?? '',
+    endDate: endDate ?? '',
+  });
+  return resp.stats;
 }
 
-export function getVariantMetrics(variantSlug?: string, startDate?: string, endDate?: string) {
-  const params = new URLSearchParams();
-  if (variantSlug) params.set('variant', variantSlug);
-  if (startDate) params.set('start_date', startDate);
-  if (endDate) params.set('end_date', endDate);
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return apiCall<{ start_date: string; end_date: string; stats: VariantStats[] }>(`/metrics/variants${query}`);
-}
+export type { AnalyticsSummary, VariantStats };

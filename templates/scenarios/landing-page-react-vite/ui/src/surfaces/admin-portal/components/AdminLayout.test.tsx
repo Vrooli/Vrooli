@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithProviders } from '../../../test-utils';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminLayout } from './AdminLayout';
@@ -14,10 +15,11 @@ vi.mock('./RuntimeSignalStrip', () => ({
 }));
 
 const renderWithRouter = (ui: React.ReactElement, { route = '/admin' } = {}) => {
-  return render(
+  return renderWithProviders(
     <MemoryRouter initialEntries={[route]}>
       {ui}
-    </MemoryRouter>
+    </MemoryRouter>,
+    { withoutRouter: true }
   );
 };
 

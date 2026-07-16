@@ -15,10 +15,10 @@
           "phase": "business",
           "status": "implemented",
           "notes": "Frontend aesthetics block implemented in catalog/saas/landing-page.json with style, colors, typography, layout, components, and animations guidelines",
-          "ref": "templates/scenarios/landing-page-react-vite/.vrooli/styling.json"
+          "ref": ".vrooli/styling.json"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Implemented: Comprehensive frontend_aesthetics block with guidelines for modern, bold, high-contrast design using custom typography, asymmetric layouts, and layered gradients"
     },
     {
@@ -35,7 +35,7 @@
           "ref": "ui/src/styles.css"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "DESIGN-GUIDE"
       ],
@@ -55,7 +55,7 @@
           "ref": "ui/src/styles.css"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Implemented: Comprehensive CSS custom properties (--color-*, --spacing-*, --radius-*, --shadow-*) for agent customization"
     },
     {
@@ -72,7 +72,7 @@
           "ref": "ui/src/styles.css"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Implemented: Multi-layered gradient backgrounds (.bg-mesh-gradient, .bg-gradient-elevated) using radial and linear gradients"
     },
     {
@@ -86,10 +86,10 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "VideoSection component with YouTube/Vimeo embed support, thumbnail overlay, and responsive layout",
-          "ref": "ui/src/components/sections/VideoSection.test.tsx"
+          "ref": "ui/src/surfaces/public-landing/sections/VideoSection.test.tsx"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Implemented: VideoSection component supports YouTube/Vimeo URLs, custom thumbnails with play button overlay, captions, and responsive iframe embedding. Database schema updated to include 'video' section type."
     }
   ],

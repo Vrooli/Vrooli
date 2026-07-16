@@ -310,6 +310,6 @@ track('click', { element_id: 'hero-cta' });
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](overview.md)
 - [Variants](variants.md) - A/B testing with metrics
 - [Admin Guide](../ADMIN_GUIDE.md#analytics-dashboard) - Using the analytics dashboard

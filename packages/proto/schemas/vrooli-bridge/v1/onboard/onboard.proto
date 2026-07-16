@@ -191,6 +191,15 @@ message OnboardingOp {
   // node-side setup) and two nodes on the same working tree are comparable. Empty
   // in PINNED_REVISION mode.
   string working_tree_digest = 17;
+
+  // On a terminal FAILED op, a bounded, multi-line tail of the node-side
+  // diagnostic output captured when the failing step ran — the concrete cause
+  // (e.g. the `make setup` error), not just the failure_reason taxonomy code.
+  // Empty on success/cancelled and whenever no node output was produced (a
+  // control-plane-side failure before the remote script ran). NEVER carries
+  // secret material: the node streams only its own build/setup diagnostics here;
+  // the SSH password and pairing code never reach the node's stdout/stderr.
+  string failure_detail = 18;
 }
 
 // OnboardingStepEvent is one entry in an op's append-only progress history. It
@@ -250,13 +259,6 @@ service OnboardService {
   // CANCELLED. Cancelling an already-terminal op is a no-op that returns the
   // terminal op. Owner-gated.
   rpc CancelOnboarding(CancelOnboardingRequest) returns (CancelOnboardingResponse);
-
-  // GetLocalNodeSuggestion returns onboarding defaults for the machine the
-  // control plane itself runs on, so the UI can offer a one-click "add this
-  // machine" prefill. The username is the OS user the control-plane process
-  // runs as (resolved server-side — the browser cannot know it); the host is
-  // the loopback address. Owner-gated, read-only, no side effects.
-  rpc GetLocalNodeSuggestion(GetLocalNodeSuggestionRequest) returns (GetLocalNodeSuggestionResponse);
 }
 
 message StartOnboardingRequest {
@@ -416,23 +418,4 @@ message CancelOnboardingResponse {
   // The op after the cancellation request (CANCELLED, or the already-terminal
   // state if it finished first).
   OnboardingOp op = 1;
-}
-
-message GetLocalNodeSuggestionRequest {}
-
-message GetLocalNodeSuggestionResponse {
-  // Loopback address of the control-plane machine ("127.0.0.1").
-  string host = 1;
-
-  // OS user the control-plane process runs as — the SSH user to onboard the
-  // local machine with. Resolved server-side; the browser cannot know it.
-  string user = 2;
-
-  // The control-plane machine's hostname, for display ("this machine (studio-01)").
-  string hostname = 3;
-
-  // False when the server could not resolve the local user (e.g. an unnamed
-  // container user); the UI then hides the "use this machine" affordance rather
-  // than prefilling a wrong value.
-  bool available = 4;
 }

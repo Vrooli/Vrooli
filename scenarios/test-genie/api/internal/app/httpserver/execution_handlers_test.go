@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/runmanager"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -74,6 +76,24 @@ func TestServer_handleGetExecution(t *testing.T) {
 	}
 	if history.lastGet != executionID {
 		t.Fatalf("expected handler to request execution %s, got %s", executionID, history.lastGet)
+	}
+}
+
+func TestServer_handleAdmissionStatus(t *testing.T) {
+	srv := &Server{runManager: runmanager.New(&stubSuiteExecutor{}, ""), logger: log.New(io.Discard, "", 0)}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admission", nil)
+	res := httptest.NewRecorder()
+
+	srv.handleAdmissionStatus(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", res.Code, res.Body.String())
+	}
+	var payload runmanager.AdmissionSnapshot
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode admission status: %v", err)
+	}
+	if payload.MaxConcurrentRuns < 1 || payload.MaxQueuedRuns < 1 || payload.MaxPreviewRuns < 1 {
+		t.Fatalf("invalid admission limits: %#v", payload)
 	}
 }
 

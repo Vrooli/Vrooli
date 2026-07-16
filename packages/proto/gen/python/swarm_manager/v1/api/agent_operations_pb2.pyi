@@ -272,7 +272,7 @@ class AgentOpsGetWorkflowProjectionRequest(_message.Message):
     def __init__(self, target: _Optional[_Union[AgentOpsTargetSelector, _Mapping]] = ...) -> None: ...
 
 class AgentOpsOperationProjection(_message.Message):
-    __slots__ = ("operation", "operation_version", "execution_id", "run_id", "state", "outcome", "idempotency_key", "provenance_digest", "mode", "mode_revision", "binding_layer", "binding_owner_kind", "binding_owner_id", "recorded_at", "snapshot_found", "attempt", "prior_execution_id")
+    __slots__ = ("operation", "operation_version", "execution_id", "run_id", "state", "outcome", "idempotency_key", "provenance_digest", "mode", "mode_revision", "binding_layer", "binding_owner_kind", "binding_owner_id", "recorded_at", "snapshot_found", "attempt", "prior_execution_id", "legacy_import")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     OPERATION_VERSION_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
@@ -290,6 +290,7 @@ class AgentOpsOperationProjection(_message.Message):
     SNAPSHOT_FOUND_FIELD_NUMBER: _ClassVar[int]
     ATTEMPT_FIELD_NUMBER: _ClassVar[int]
     PRIOR_EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    LEGACY_IMPORT_FIELD_NUMBER: _ClassVar[int]
     operation: str
     operation_version: str
     execution_id: str
@@ -307,7 +308,8 @@ class AgentOpsOperationProjection(_message.Message):
     snapshot_found: bool
     attempt: int
     prior_execution_id: str
-    def __init__(self, operation: _Optional[str] = ..., operation_version: _Optional[str] = ..., execution_id: _Optional[str] = ..., run_id: _Optional[str] = ..., state: _Optional[str] = ..., outcome: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., provenance_digest: _Optional[str] = ..., mode: _Optional[str] = ..., mode_revision: _Optional[str] = ..., binding_layer: _Optional[_Union[_agent_operations_pb2.AgentOpsBindingLayer, str]] = ..., binding_owner_kind: _Optional[str] = ..., binding_owner_id: _Optional[str] = ..., recorded_at: _Optional[str] = ..., snapshot_found: _Optional[bool] = ..., attempt: _Optional[int] = ..., prior_execution_id: _Optional[str] = ...) -> None: ...
+    legacy_import: bool
+    def __init__(self, operation: _Optional[str] = ..., operation_version: _Optional[str] = ..., execution_id: _Optional[str] = ..., run_id: _Optional[str] = ..., state: _Optional[str] = ..., outcome: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., provenance_digest: _Optional[str] = ..., mode: _Optional[str] = ..., mode_revision: _Optional[str] = ..., binding_layer: _Optional[_Union[_agent_operations_pb2.AgentOpsBindingLayer, str]] = ..., binding_owner_kind: _Optional[str] = ..., binding_owner_id: _Optional[str] = ..., recorded_at: _Optional[str] = ..., snapshot_found: _Optional[bool] = ..., attempt: _Optional[int] = ..., prior_execution_id: _Optional[str] = ..., legacy_import: _Optional[bool] = ...) -> None: ...
 
 class AgentOpsGetWorkflowProjectionResponse(_message.Message):
     __slots__ = ("found", "workflow", "operations", "policy_id", "policy_revision")
@@ -332,7 +334,7 @@ class AgentOpsListExecutionHistoryRequest(_message.Message):
     def __init__(self, target: _Optional[_Union[AgentOpsTargetSelector, _Mapping]] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class AgentOpsExecutionSummary(_message.Message):
-    __slots__ = ("execution_id", "operation", "operation_version", "mode", "mode_revision", "binding_layer", "compiled_mode_digest", "prompt_catalog_digest", "caller_input_digest", "outcome", "reproducible", "recorded_at")
+    __slots__ = ("execution_id", "operation", "operation_version", "mode", "mode_revision", "binding_layer", "compiled_mode_digest", "prompt_catalog_digest", "caller_input_digest", "outcome", "reproducible", "recorded_at", "legacy_import")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     OPERATION_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -345,6 +347,7 @@ class AgentOpsExecutionSummary(_message.Message):
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
     REPRODUCIBLE_FIELD_NUMBER: _ClassVar[int]
     RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
+    LEGACY_IMPORT_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     operation: str
     operation_version: str
@@ -357,7 +360,8 @@ class AgentOpsExecutionSummary(_message.Message):
     outcome: str
     reproducible: bool
     recorded_at: str
-    def __init__(self, execution_id: _Optional[str] = ..., operation: _Optional[str] = ..., operation_version: _Optional[str] = ..., mode: _Optional[str] = ..., mode_revision: _Optional[str] = ..., binding_layer: _Optional[_Union[_agent_operations_pb2.AgentOpsBindingLayer, str]] = ..., compiled_mode_digest: _Optional[str] = ..., prompt_catalog_digest: _Optional[str] = ..., caller_input_digest: _Optional[str] = ..., outcome: _Optional[str] = ..., reproducible: _Optional[bool] = ..., recorded_at: _Optional[str] = ...) -> None: ...
+    legacy_import: bool
+    def __init__(self, execution_id: _Optional[str] = ..., operation: _Optional[str] = ..., operation_version: _Optional[str] = ..., mode: _Optional[str] = ..., mode_revision: _Optional[str] = ..., binding_layer: _Optional[_Union[_agent_operations_pb2.AgentOpsBindingLayer, str]] = ..., compiled_mode_digest: _Optional[str] = ..., prompt_catalog_digest: _Optional[str] = ..., caller_input_digest: _Optional[str] = ..., outcome: _Optional[str] = ..., reproducible: _Optional[bool] = ..., recorded_at: _Optional[str] = ..., legacy_import: _Optional[bool] = ...) -> None: ...
 
 class AgentOpsListExecutionHistoryResponse(_message.Message):
     __slots__ = ("executions",)

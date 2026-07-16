@@ -8,7 +8,7 @@ export interface AnalyticsDateRange {
 function formatDate(daysAgo: number): string {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0] ?? '';
 }
 
 export function buildDateRange(days: number): AnalyticsDateRange {
@@ -18,19 +18,10 @@ export function buildDateRange(days: number): AnalyticsDateRange {
   };
 }
 
-function normalizeVariantStats(stats: VariantStats[] | null | undefined): VariantStats[] {
-  return Array.isArray(stats) ? stats : [];
-}
-
 export async function fetchAnalyticsSummary(range: AnalyticsDateRange): Promise<AnalyticsSummary> {
-  const data = await getMetricsSummary(range.startDate, range.endDate);
-  return {
-    ...data,
-    variant_stats: normalizeVariantStats(data.variant_stats),
-  };
+  return getMetricsSummary(range.startDate, range.endDate);
 }
 
 export async function fetchVariantAnalytics(variantSlug: string, range: AnalyticsDateRange): Promise<VariantStats[]> {
-  const data = await getVariantMetrics(variantSlug, range.startDate, range.endDate);
-  return normalizeVariantStats(data.stats);
+  return getVariantMetrics(variantSlug, range.startDate, range.endDate);
 }

@@ -215,6 +215,14 @@ type HealTrackerStore interface {
 	DeleteHealTracker(ctx context.Context, checkID string) error
 }
 
+// RecoveryOwnershipGate prevents autoheal from racing the runtime supervisor's
+// pressure-epoch recovery controller. It is intentionally narrow: health
+// checks continue to run, but restart-class actions defer while ownership is
+// held elsewhere.
+type RecoveryOwnershipGate interface {
+	AllowsAutoHealRestart(ctx context.Context, checkID, actionID string) (allowed bool, reason string)
+}
+
 // Registry manages health checks
 type Registry struct {
 	mu               sync.RWMutex
@@ -226,7 +234,22 @@ type Registry struct {
 	platform         *platform.Capabilities
 	config           ConfigProvider
 	healTrackerStore HealTrackerStore // Optional persistence for heal trackers
+	recoveryGate     RecoveryOwnershipGate
 	clock            Clock
+}
+
+// SetRecoveryOwnershipGate installs the cross-controller restart ownership
+// boundary. Nil restores standalone autoheal behavior.
+func (r *Registry) SetRecoveryOwnershipGate(gate RecoveryOwnershipGate) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.recoveryGate = gate
+}
+
+func (r *Registry) recoveryOwnershipGate() RecoveryOwnershipGate {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.recoveryGate
 }
 
 // Clock provides a seam for time-based logic.
@@ -712,6 +735,16 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 				Reason:    "no auto-heal recovery action available",
 			})
 			continue
+		}
+		if _, restartAction := restartActionIDs[selectedAction.ID]; restartAction {
+			if gate := r.recoveryOwnershipGate(); gate != nil {
+				if allowed, reason := gate.AllowsAutoHealRestart(ctx, result.CheckID, selectedAction.ID); !allowed {
+					autoHealResults = append(autoHealResults, AutoHealResult{
+						CheckID: result.CheckID, Attempted: false, Reason: reason,
+					})
+					continue
+				}
+			}
 		}
 
 		// Capture PID at detection time for TOCTOU protection.

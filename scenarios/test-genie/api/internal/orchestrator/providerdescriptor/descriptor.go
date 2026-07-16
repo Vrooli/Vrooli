@@ -73,6 +73,15 @@ func (d *Descriptor) UnmarshalJSON(raw []byte) error {
 
 type Validation struct {
 	Contract         string `json:"contract"`
+	// DeliveryMode defaults to inline so existing descriptors remain source and
+	// behavior compatible. Durable providers must declare execution and the
+	// generic durable-run service explicitly.
+	DeliveryMode     string `json:"deliveryMode,omitempty"`
+	Execution        bool   `json:"execution,omitempty"`
+	RunService       string `json:"runService,omitempty"`
+	// IncludeExecution is the retired inline delivery flag. It is retained only
+	// while existing inline provider descriptors migrate to the explicit
+	// execution field; durable descriptors must not use it.
 	IncludeExecution bool   `json:"includeExecution,omitempty"`
 }
 
@@ -320,6 +329,22 @@ func validateDescriptor(d *Descriptor) []Diagnostic {
 	if d.Validation.Contract != "scenario-validation/v1" {
 		add("invalid_validation_contract", "validation.contract must be scenario-validation/v1")
 	}
+	normalizeValidationDefaults(&d.Validation)
+	if !oneOf(d.Validation.DeliveryMode, "inline", "durable-run") {
+		add("invalid_validation_delivery_mode", "validation.deliveryMode must be inline or durable-run")
+	} else if d.Validation.DeliveryMode == "durable-run" {
+		if !d.Validation.Execution {
+			add("durable_delivery_requires_execution", "validation.execution must be true for durable-run delivery")
+		}
+		if d.Validation.IncludeExecution {
+			add("durable_delivery_rejects_legacy_include_execution", "durable-run delivery must use validation.execution, not includeExecution")
+		}
+		if d.Validation.RunService != "scenario-validation/v1.DurableValidationRunService" {
+			add("durable_delivery_requires_run_service", "durable-run delivery requires validation.runService=scenario-validation/v1.DurableValidationRunService")
+		}
+	} else if strings.TrimSpace(d.Validation.RunService) != "" {
+		add("inline_delivery_rejects_run_service", "inline delivery must not declare validation.runService")
+	}
 	if !oneOf(d.Runnability.DBIsolation, "", "none", "routed") {
 		add("invalid_db_isolation", "runnability.dbIsolation must be none or routed")
 	}
@@ -334,6 +359,22 @@ func validateDescriptor(d *Descriptor) []Diagnostic {
 		add("missing_maturity", "maturity is required")
 	}
 	return out
+}
+
+func normalizeValidationDefaults(validation *Validation) {
+	if validation == nil {
+		return
+	}
+	validation.DeliveryMode = strings.TrimSpace(validation.DeliveryMode)
+	if validation.DeliveryMode == "" {
+		validation.DeliveryMode = "inline"
+	}
+	validation.RunService = strings.TrimSpace(validation.RunService)
+	// Existing inline descriptors use includeExecution. Preserve their behavior
+	// while giving the orchestrator a single semantic execution field.
+	if validation.DeliveryMode == "inline" && validation.IncludeExecution {
+		validation.Execution = true
+	}
 }
 
 func normalizeOrchestrationDefaults(d *Descriptor) {

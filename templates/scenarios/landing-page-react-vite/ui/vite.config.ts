@@ -1,19 +1,8 @@
-import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   base: './',  // Required for tunnel/proxy contexts
-  resolve: {
-    alias: {
-      "@proto-lprv": path.resolve(__dirname, "../../../../../packages/proto/gen/typescript/landing-page-react-vite/v1"),
-    },
-  },
-  server: {
-    fs: {
-      allow: [path.resolve(__dirname, "../../../../../packages")],
-    },
-  },
   plugins: [react()],
   test: {
     globals: true,
@@ -21,13 +10,33 @@ export default defineConfig({
     setupFiles: ['./src/test-setup.ts'],
     coverage: {
       provider: 'v8',
-      reporter: ['json-summary', 'json', 'text'],
+      reporter: ['text', 'json-summary', 'json'],
       reportOnFailure: true,
+      // Scope coverage to the source tree so the denominator stays on
+      // production source files rather than config/codegen/test scaffolding.
+      include: ['src/**/*.{ts,tsx}'],
+      // Exclusions cover test scaffolding and codegen only; production source
+      // under src/ is exhaustively included so removing a test can never
+      // silently shrink the denominator.
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.spec.{ts,tsx}',
+        'src/**/*.d.ts',
+        'src/main.tsx',
+        'src/test-setup.ts',
+        'src/test-utils/**',
+        'src/consts/strings.generated.ts',
+        'src/i18n/locales/**',
+        'src/**/generated/**'
+      ],
+      // Policy floor for the react_vite_ui class. New surfaces ship with their
+      // own *.test.{ts,tsx}; prefer narrow file exclusions with a rationale
+      // over loosening these thresholds.
       thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0
+        lines: 85,
+        functions: 85,
+        branches: 85,
+        statements: 85
       }
     }
   }

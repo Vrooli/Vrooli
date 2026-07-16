@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithProviders as render } from '../../../test-utils';
 import userEvent from '@testing-library/user-event';
+import { create } from '@bufbuild/protobuf';
+import {
+  DownloadAppSchema,
+  DownloadAssetSchema,
+  DownloadStorefrontSchema,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/download_pb';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
 import { DownloadSection, getDownloadAssetKey } from './DownloadSection';
 
@@ -14,15 +21,18 @@ vi.mock('../../../shared/api', async () => {
   };
 });
 
-vi.mock('../../../shared/hooks/useEntitlements', () => ({
-  useEntitlements: () => ({
+const entHolder = vi.hoisted(() => ({
+  value: {
     email: '',
     setEmail: vi.fn(),
-    entitlements: null,
+    entitlements: null as unknown,
     loading: false,
-    error: null,
+    error: null as string | null,
     refresh: vi.fn(),
-  }),
+  },
+}));
+vi.mock('../../../shared/hooks/useEntitlements', () => ({
+  useEntitlements: () => entHolder.value,
 }));
 
 vi.mock('../../../shared/hooks/useMetrics', () => ({
@@ -37,28 +47,28 @@ vi.mock('../../../shared/hooks/useMetrics', () => ({
 
 describe('getDownloadAssetKey', () => {
   it('uses numeric id when present', () => {
-    const asset: DownloadAsset = {
-      id: 42,
-      bundle_key: 'bundle',
-      app_key: 'app',
+    const asset: DownloadAsset = create(DownloadAssetSchema, {
+      id: 42n,
+      bundleKey: 'bundle',
+      appKey: 'app',
       platform: 'windows',
-      artifact_url: 'https://example.com/app.exe',
-      release_version: '1.0.0',
-      requires_entitlement: true,
-    };
+      artifactUrl: 'https://example.com/app.exe',
+      releaseVersion: '1.0.0',
+      requiresEntitlement: true,
+    });
 
     expect(getDownloadAssetKey(asset)).toBe('asset-42');
   });
 
   it('falls back to composite key when id missing', () => {
-    const asset: DownloadAsset = {
-      bundle_key: 'bundle',
-      app_key: 'studio',
+    const asset: DownloadAsset = create(DownloadAssetSchema, {
+      bundleKey: 'bundle',
+      appKey: 'studio',
       platform: 'mac',
-      artifact_url: 'https://example.com/app.dmg',
-      release_version: '1.0.0',
-      requires_entitlement: false,
-    };
+      artifactUrl: 'https://example.com/app.dmg',
+      releaseVersion: '1.0.0',
+      requiresEntitlement: false,
+    });
 
     expect(getDownloadAssetKey(asset)).toContain('app-studio-mac-1.0.0-https://example.com/app.dmg');
   });
@@ -70,49 +80,203 @@ describe('DownloadSection', () => {
   afterEach(() => {
     requestDownloadMock.mockReset();
     window.open = originalWindowOpen;
+    entHolder.value = { email: '', setEmail: vi.fn(), entitlements: null, loading: false, error: null, refresh: vi.fn() };
   });
 
-  const buildApp = (overrides?: Partial<DownloadApp>, platforms?: DownloadAsset[]): DownloadApp => ({
-    bundle_key: 'bundle',
-    app_key: 'automation',
-    name: 'Automation Studio',
-    tagline: 'Desktop automation suite',
-    description: 'Default description',
-    install_overview: 'Download and sign in.',
-    install_steps: ['Download installer', 'Launch setup', 'Sign in'],
-    storefronts: [],
-    display_order: 0,
-    platforms: platforms ?? [
-      {
-        bundle_key: 'bundle',
-        app_key: 'automation',
-        platform: 'windows',
-        artifact_url: 'https://example.com/app.exe',
-        release_version: '1.0.0',
-        requires_entitlement: false,
-      },
-    ],
-    ...overrides,
+  const gatedApp = () =>
+    create(DownloadAppSchema, {
+      bundleKey: 'bundle',
+      appKey: 'automation',
+      name: 'Automation Studio',
+      storefronts: [],
+      displayOrder: 0,
+      platforms: [
+        create(DownloadAssetSchema, {
+          bundleKey: 'bundle',
+          appKey: 'automation',
+          platform: 'windows',
+          artifactUrl: 'https://example.com/app.exe',
+          releaseVersion: '1.0.0',
+          requiresEntitlement: true,
+        }),
+      ],
+    });
+
+  it('renders the full app detail matrix (steps, storefronts, installers)', () => {
+    const richApp = create(DownloadAppSchema, {
+      bundleKey: 'bundle',
+      appKey: 'suite',
+      name: 'Suite',
+      tagline: 'Ship faster',
+      description: 'A rich desktop bundle.',
+      installOverview: 'Install in one click.',
+      installSteps: ['Download', 'Run', 'Sign in'],
+      displayOrder: 0,
+      storefronts: [
+        create(DownloadStorefrontSchema, { store: 'app_store', label: 'App Store', url: 'https://apple/x', badge: 'New' }),
+        create(DownloadStorefrontSchema, { store: 'play_store', label: 'Google Play', url: 'https://play/x', badge: '' }),
+      ],
+      platforms: [
+        create(DownloadAssetSchema, { appKey: 'suite', platform: 'mac', artifactUrl: 'https://cdn/mac.dmg', releaseVersion: '1.0.0', releaseNotes: 'First release', requiresEntitlement: false, metadata: { size_mb: 88 } }),
+        create(DownloadAssetSchema, { appKey: 'suite', platform: 'windows', artifactUrl: 'https://cdn/win.exe', releaseVersion: '1.0.0', requiresEntitlement: true }),
+      ],
+    });
+    render(<DownloadSection downloads={[richApp]} />);
+    expect(screen.getByText('A rich desktop bundle.')).toBeInTheDocument();
+    expect(screen.getByTestId('install-steps-suite')).toBeInTheDocument();
+    expect(screen.getByTestId('storefront-suite-app_store')).toHaveTextContent('New');
+    // Empty badge falls back to the store label.
+    expect(screen.getByTestId('storefront-suite-play_store')).toHaveTextContent('Google Play');
+    expect(screen.getByText('88 MB')).toBeInTheDocument();
+    expect(screen.getByText('First release')).toBeInTheDocument();
+    expect(screen.getByText('Release notes coming soon.')).toBeInTheDocument();
   });
+
+  it('formats a large credit balance and tolerates missing version/artifact', () => {
+    entHolder.value = {
+      ...entHolder.value,
+      email: 'user@example.com',
+      entitlements: {
+        status: 'active',
+        planTier: 'pro',
+        priceId: 'price_1',
+        credits: { balanceCredits: 5_000_000_000n },
+      },
+    };
+    const app = create(DownloadAppSchema, {
+      appKey: 'suite',
+      name: 'Suite',
+      storefronts: [],
+      platforms: [
+        create(DownloadAssetSchema, { appKey: 'suite', platform: 'mac', artifactUrl: '', releaseVersion: '', requiresEntitlement: true }),
+      ],
+    });
+    render(<DownloadSection downloads={[app]} />);
+    expect(screen.getByText('active')).toBeInTheDocument();
+  });
+
+  it('shows the entitlement checking state while status loads', () => {
+    entHolder.value = { ...entHolder.value, email: 'user@example.com', loading: true };
+    render(<DownloadSection downloads={[gatedApp()]} />);
+    expect(screen.getByText(/Checking status/i)).toBeInTheDocument();
+  });
+
+  it('surfaces an entitlement lookup error', () => {
+    entHolder.value = { ...entHolder.value, email: 'user@example.com', error: 'lookup failed' };
+    render(<DownloadSection downloads={[gatedApp()]} />);
+    expect(screen.getByText('lookup failed')).toBeInTheDocument();
+  });
+
+  it('prompts for an email on an entitlement-gated download', async () => {
+    const user = userEvent.setup();
+    render(<DownloadSection downloads={[gatedApp()]} />);
+    await user.click(screen.getByRole('button', { name: /download/i }));
+    expect(
+      await screen.findByText(/Enter the email tied to your subscription/i),
+    ).toBeInTheDocument();
+    expect(requestDownloadMock).not.toHaveBeenCalled();
+  });
+
+  it('blocks a gated download when the subscription is inactive', async () => {
+    entHolder.value = {
+      ...entHolder.value,
+      email: 'user@example.com',
+      entitlements: { status: 'canceled' },
+    };
+    const user = userEvent.setup();
+    render(<DownloadSection downloads={[gatedApp()]} />);
+    await user.click(screen.getByRole('button', { name: /download/i }));
+    expect(await screen.findByText(/Subscription status is canceled/i)).toBeInTheDocument();
+    expect(requestDownloadMock).not.toHaveBeenCalled();
+  });
+
+  it('treats a trialing subscription as active and shows credits + subscription id', () => {
+    entHolder.value = {
+      ...entHolder.value,
+      email: 'user@example.com',
+      entitlements: {
+        status: 'trialing',
+        planTier: 'pro',
+        priceId: 'price_1',
+        credits: { balanceCredits: 5000n },
+        subscription: { subscriptionId: 'sub_123', cachedAt: undefined },
+      },
+    };
+    render(<DownloadSection downloads={[gatedApp()]} />);
+    expect(screen.getByText('trialing')).toBeInTheDocument();
+    expect(screen.getByText(/sub_123/)).toBeInTheDocument();
+  });
+
+  it('allows a gated download with an active subscription', async () => {
+    entHolder.value = {
+      ...entHolder.value,
+      email: 'user@example.com',
+      entitlements: {
+        status: 'active',
+        planTier: 'pro',
+        priceId: 'price_1',
+        credits: { balanceCredits: 1000n },
+      },
+    };
+    requestDownloadMock.mockResolvedValueOnce(
+      create(DownloadAssetSchema, {
+        appKey: 'automation',
+        platform: 'windows',
+        releaseVersion: '1.0.0',
+        artifactUrl: 'https://example.com/app.exe',
+      }),
+    );
+    window.open = vi.fn().mockReturnValue({});
+    const user = userEvent.setup();
+    render(<DownloadSection downloads={[gatedApp()]} />);
+    // The entitlement summary reflects the active subscription.
+    expect(screen.getByText('active')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /download/i }));
+    expect(await screen.findByText('Download started in a new tab.')).toBeInTheDocument();
+  });
+
+  const buildApp = (overrides?: Partial<DownloadApp>, platforms?: DownloadAsset[]): DownloadApp =>
+    create(DownloadAppSchema, {
+      bundleKey: 'bundle',
+      appKey: 'automation',
+      name: 'Automation Studio',
+      tagline: 'Desktop automation suite',
+      description: 'Default description',
+      installOverview: 'Download and sign in.',
+      installSteps: ['Download installer', 'Launch setup', 'Sign in'],
+      storefronts: [],
+      displayOrder: 0,
+      platforms: platforms ?? [
+        create(DownloadAssetSchema, {
+          bundleKey: 'bundle',
+          appKey: 'automation',
+          platform: 'windows',
+          artifactUrl: 'https://example.com/app.exe',
+          releaseVersion: '1.0.0',
+          requiresEntitlement: false,
+        }),
+      ],
+      ...overrides,
+    });
 
   it('renders unique cards even when platforms repeat within an app', () => {
     const platforms: DownloadAsset[] = [
-      {
-        bundle_key: 'bundle',
-        app_key: 'automation',
+      create(DownloadAssetSchema, {
+        bundleKey: 'bundle',
+        appKey: 'automation',
         platform: 'windows',
-        artifact_url: 'https://example.com/app.exe',
-        release_version: '1.0.0',
-        requires_entitlement: false,
-      },
-      {
-        bundle_key: 'bundle',
-        app_key: 'automation',
+        artifactUrl: 'https://example.com/app.exe',
+        releaseVersion: '1.0.0',
+        requiresEntitlement: false,
+      }),
+      create(DownloadAssetSchema, {
+        bundleKey: 'bundle',
+        appKey: 'automation',
         platform: 'windows',
-        artifact_url: 'https://example.com/app-beta.exe',
-        release_version: '1.1.0-beta',
-        requires_entitlement: false,
-      },
+        artifactUrl: 'https://example.com/app-beta.exe',
+        releaseVersion: '1.1.0-beta',
+        requiresEntitlement: false,
+      }),
     ];
 
     render(<DownloadSection downloads={[buildApp(undefined, platforms)]} />);
@@ -125,25 +289,27 @@ describe('DownloadSection', () => {
   it('shows a helpful message when an artifact URL is missing', async () => {
     const apps: DownloadApp[] = [
       buildApp(undefined, [
-        {
-          bundle_key: 'bundle',
-          app_key: 'automation',
+        create(DownloadAssetSchema, {
+          bundleKey: 'bundle',
+          appKey: 'automation',
           platform: 'windows',
-          artifact_url: 'not-used',
-          release_version: '1.0.0',
-          requires_entitlement: false,
-        },
+          artifactUrl: 'not-used',
+          releaseVersion: '1.0.0',
+          requiresEntitlement: false,
+        }),
       ]),
     ];
 
-    requestDownloadMock.mockResolvedValueOnce({
-      bundle_key: 'bundle',
-      app_key: 'automation',
-      platform: 'windows',
-      release_version: '1.0.0',
-      requires_entitlement: false,
-      artifact_url: '   ',
-    });
+    requestDownloadMock.mockResolvedValueOnce(
+      create(DownloadAssetSchema, {
+        bundleKey: 'bundle',
+        appKey: 'automation',
+        platform: 'windows',
+        releaseVersion: '1.0.0',
+        requiresEntitlement: false,
+        artifactUrl: '   ',
+      }),
+    );
 
     window.open = vi.fn();
 
@@ -158,14 +324,14 @@ describe('DownloadSection', () => {
 
   it('warns when the browser blocks pop-ups', async () => {
     const app = buildApp(undefined, [
-      {
-        bundle_key: 'bundle',
-        app_key: 'automation',
+      create(DownloadAssetSchema, {
+        bundleKey: 'bundle',
+        appKey: 'automation',
         platform: 'mac',
-        artifact_url: 'https://example.com/app.dmg',
-        release_version: '1.2.3',
-        requires_entitlement: false,
-      },
+        artifactUrl: 'https://example.com/app.dmg',
+        releaseVersion: '1.2.3',
+        requiresEntitlement: false,
+      }),
     ]);
 
     requestDownloadMock.mockResolvedValueOnce(app.platforms[0]);
@@ -183,20 +349,26 @@ describe('DownloadSection', () => {
 
   it('allows safe relative artifact URLs returned by the API', async () => {
     const app = buildApp(undefined, [
-      {
-        bundle_key: 'bundle',
-        app_key: 'automation',
+      create(DownloadAssetSchema, {
+        bundleKey: 'bundle',
+        appKey: 'automation',
         platform: 'linux',
-        artifact_url: '/downloads/app.tar.gz',
-        release_version: '0.9.0',
-        requires_entitlement: false,
-      },
+        artifactUrl: '/downloads/app.tar.gz',
+        releaseVersion: '0.9.0',
+        requiresEntitlement: false,
+      }),
     ]);
 
-    requestDownloadMock.mockResolvedValueOnce({
-      ...app.platforms[0],
-      artifact_url: '/downloads/app.tar.gz',
-    });
+    requestDownloadMock.mockResolvedValueOnce(
+      create(DownloadAssetSchema, {
+        bundleKey: 'bundle',
+        appKey: 'automation',
+        platform: 'linux',
+        releaseVersion: '0.9.0',
+        requiresEntitlement: false,
+        artifactUrl: '/downloads/app.tar.gz',
+      }),
+    );
 
     window.open = vi.fn(() => ({} as Window));
 
@@ -211,20 +383,26 @@ describe('DownloadSection', () => {
 
   it('rejects dangerous artifact URL schemes before opening a new window', async () => {
     const app = buildApp(undefined, [
-      {
-        bundle_key: 'bundle',
-        app_key: 'automation',
+      create(DownloadAssetSchema, {
+        bundleKey: 'bundle',
+        appKey: 'automation',
         platform: 'mac',
-        artifact_url: 'placeholder',
-        release_version: '2.0.0',
-        requires_entitlement: false,
-      },
+        artifactUrl: 'placeholder',
+        releaseVersion: '2.0.0',
+        requiresEntitlement: false,
+      }),
     ]);
 
-    requestDownloadMock.mockResolvedValueOnce({
-      ...app.platforms[0],
-      artifact_url: 'javascript:alert(1)',
-    });
+    requestDownloadMock.mockResolvedValueOnce(
+      create(DownloadAssetSchema, {
+        bundleKey: 'bundle',
+        appKey: 'automation',
+        platform: 'mac',
+        releaseVersion: '2.0.0',
+        requiresEntitlement: false,
+        artifactUrl: 'javascript:alert(1)',
+      }),
+    );
 
     window.open = vi.fn(() => ({} as Window));
 

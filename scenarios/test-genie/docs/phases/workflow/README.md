@@ -70,7 +70,7 @@ test-genie runs findings --scenario <scenario>
 
 ```mermaid
 graph LR
-    TG[Test Genie<br/>workflow phase] -->|ScenarioValidationService<br/>include_execution=true| WH[workflow-health]
+    TG[Test Genie<br/>workflow phase] -->|Start + Wait<br/>DurableValidationRunService| WH[workflow-health]
     WH -->|scan bas/cases, bas/flows, bas/actions| BASFILES[BAS assets]
     WH -->|execute validation cases| BAS[browser-automation-studio]
     WH -->|status + assessment.findings + artifacts| TG
@@ -81,8 +81,8 @@ graph LR
 The phase calls:
 
 ```text
-scenario-validation/v1.ScenarioValidationService.ValidateScenario
-include_execution=true
+scenario-validation/v1.DurableValidationRunService
+StartValidationRun → WaitValidationRun
 ```
 
 and maps the result:

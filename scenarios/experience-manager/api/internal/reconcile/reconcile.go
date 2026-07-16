@@ -1104,8 +1104,20 @@ func (c Check) persistEvidence(ctx context.Context, scenario, loc string, page s
 	}
 	for _, item := range evidence {
 		item.Scenario = scenario
+		if item.DocumentKind == "" {
+			item.DocumentKind = target.DocumentKind
+		}
 		if item.PageID == "" {
 			item.PageID = page.Page.ID
+		}
+		if item.ComponentID == "" {
+			item.ComponentID = target.ComponentID
+		}
+		if item.ComponentTitle == "" {
+			item.ComponentTitle = target.ComponentTitle
+		}
+		if item.ExampleName == "" {
+			item.ExampleName = target.ExampleName
 		}
 		if item.Route == "" {
 			item.Route = target.Route

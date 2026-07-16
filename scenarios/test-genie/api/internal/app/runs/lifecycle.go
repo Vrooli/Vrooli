@@ -48,16 +48,29 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 			LogicalScenarioRelPath: strings.TrimSpace(req.Msg.GetLogicalScenarioRelPath()),
 		},
 	}
+	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
+		return connect.NewResponse(&runspb.StartRunResponse{RunId: runID, Scenario: scenario, Coalesced: true}), nil
+	}
+	caller := strings.TrimSpace(req.Header().Get("X-Vrooli-Caller"))
+	releasePreview, err := s.runManager.TryAcquirePreviewFor(caller)
+	if err != nil {
+		return nil, saturationError(err)
+	}
+	defer releasePreview()
 	etaTotal, etaKnown, err := s.previewPlan(ctx, input.Request)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: etaTotal})
+	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, EstimatedTotalSeconds: etaTotal})
 	if err != nil {
 		var busy *runmanager.BusyError
 		if errors.As(err, &busy) {
 			return nil, busyError(busy)
+		}
+		var saturated *runmanager.SaturatedError
+		if errors.As(err, &saturated) {
+			return nil, saturationError(saturated)
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -68,6 +81,10 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 		EtaKnown:              etaKnown,
 		Coalesced:             res.Coalesced,
 	}), nil
+}
+
+func saturationError(err error) *connect.Error {
+	return connect.NewError(connect.CodeResourceExhausted, err)
 }
 
 // busyError maps a run-admission rejection to a FailedPrecondition carrying a

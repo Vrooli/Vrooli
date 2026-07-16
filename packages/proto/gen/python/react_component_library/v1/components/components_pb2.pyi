@@ -159,16 +159,20 @@ class ListComponentsResponse(_message.Message):
     def __init__(self, components: _Optional[_Iterable[_Union[Component, _Mapping]]] = ...) -> None: ...
 
 class GetComponentRequest(_message.Message):
-    __slots__ = ("id",)
+    __slots__ = ("id", "include_experience")
     ID_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_EXPERIENCE_FIELD_NUMBER: _ClassVar[int]
     id: str
-    def __init__(self, id: _Optional[str] = ...) -> None: ...
+    include_experience: bool
+    def __init__(self, id: _Optional[str] = ..., include_experience: _Optional[bool] = ...) -> None: ...
 
 class GetComponentResponse(_message.Message):
-    __slots__ = ("component",)
+    __slots__ = ("component", "experience")
     COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    EXPERIENCE_FIELD_NUMBER: _ClassVar[int]
     component: Component
-    def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ...) -> None: ...
+    experience: ComponentExperience
+    def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., experience: _Optional[_Union[ComponentExperience, _Mapping]] = ...) -> None: ...
 
 class GetComponentByLibraryIdRequest(_message.Message):
     __slots__ = ("library_id",)
@@ -181,6 +185,80 @@ class GetComponentByLibraryIdResponse(_message.Message):
     COMPONENT_FIELD_NUMBER: _ClassVar[int]
     component: Component
     def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ...) -> None: ...
+
+class ComponentExperience(_message.Message):
+    __slots__ = ("component_id", "library_id", "version", "contract_id", "title", "purpose", "states", "claims", "evidence", "evidence_status", "evidence_message")
+    COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_ID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    PURPOSE_FIELD_NUMBER: _ClassVar[int]
+    STATES_FIELD_NUMBER: _ClassVar[int]
+    CLAIMS_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_STATUS_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    component_id: str
+    library_id: str
+    version: str
+    contract_id: str
+    title: str
+    purpose: str
+    states: _containers.RepeatedCompositeFieldContainer[ComponentExperienceState]
+    claims: _containers.RepeatedCompositeFieldContainer[ComponentExperienceClaim]
+    evidence: _containers.RepeatedCompositeFieldContainer[ComponentExperienceEvidence]
+    evidence_status: str
+    evidence_message: str
+    def __init__(self, component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., contract_id: _Optional[str] = ..., title: _Optional[str] = ..., purpose: _Optional[str] = ..., states: _Optional[_Iterable[_Union[ComponentExperienceState, _Mapping]]] = ..., claims: _Optional[_Iterable[_Union[ComponentExperienceClaim, _Mapping]]] = ..., evidence: _Optional[_Iterable[_Union[ComponentExperienceEvidence, _Mapping]]] = ..., evidence_status: _Optional[str] = ..., evidence_message: _Optional[str] = ...) -> None: ...
+
+class ComponentExperienceState(_message.Message):
+    __slots__ = ("id", "example_name", "description")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    EXAMPLE_NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    example_name: str
+    description: str
+    def __init__(self, id: _Optional[str] = ..., example_name: _Optional[str] = ..., description: _Optional[str] = ...) -> None: ...
+
+class ComponentExperienceClaim(_message.Message):
+    __slots__ = ("id", "type", "statement", "tier", "states")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    STATEMENT_FIELD_NUMBER: _ClassVar[int]
+    TIER_FIELD_NUMBER: _ClassVar[int]
+    STATES_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    type: str
+    statement: str
+    tier: str
+    states: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[str] = ..., statement: _Optional[str] = ..., tier: _Optional[str] = ..., states: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ComponentExperienceEvidence(_message.Message):
+    __slots__ = ("claim_id", "verdict", "state_id", "example_name", "capture_ref", "checked_at", "message", "viewport", "viewport_width", "viewport_height")
+    CLAIM_ID_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    STATE_ID_FIELD_NUMBER: _ClassVar[int]
+    EXAMPLE_NAME_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_REF_FIELD_NUMBER: _ClassVar[int]
+    CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    VIEWPORT_FIELD_NUMBER: _ClassVar[int]
+    VIEWPORT_WIDTH_FIELD_NUMBER: _ClassVar[int]
+    VIEWPORT_HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    claim_id: str
+    verdict: str
+    state_id: str
+    example_name: str
+    capture_ref: str
+    checked_at: str
+    message: str
+    viewport: str
+    viewport_width: int
+    viewport_height: int
+    def __init__(self, claim_id: _Optional[str] = ..., verdict: _Optional[str] = ..., state_id: _Optional[str] = ..., example_name: _Optional[str] = ..., capture_ref: _Optional[str] = ..., checked_at: _Optional[str] = ..., message: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ...) -> None: ...
 
 class IndexComponentsRequest(_message.Message):
     __slots__ = ()

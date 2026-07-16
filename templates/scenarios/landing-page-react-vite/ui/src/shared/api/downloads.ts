@@ -1,64 +1,49 @@
-import { apiCall } from './common';
-import type { DownloadAsset, DownloadApp, DownloadStorefront } from './types';
+import type { MessageInitShape } from '@bufbuild/protobuf';
+import { createClient } from '@connectrpc/connect';
+import {
+  DownloadService,
+  DownloadAppSchema,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/download_pb';
+import type {
+  DownloadApp,
+  DownloadAsset,
+  DownloadStorefront,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/download_pb';
 
-export interface DownloadAssetInput {
-  platform: string;
-  artifact_url: string;
-  release_version: string;
-  release_notes?: string;
-  checksum?: string;
-  requires_entitlement?: boolean;
-  metadata?: Record<string, unknown>;
+import { transport } from './client';
+
+const downloadClient = createClient(DownloadService, transport);
+
+export type DownloadAppInput = MessageInitShape<typeof DownloadAppSchema>;
+
+/** Authorizes a download for an app/platform and returns the release asset. */
+export async function requestDownload(
+  appKey: string,
+  platform: string,
+): Promise<DownloadAsset | undefined> {
+  const resp = await downloadClient.authorizeDownload({ app: appKey, platform });
+  return resp.asset;
 }
 
-export interface DownloadAppInput {
-  app_key?: string;
-  name: string;
-  tagline?: string;
-  description?: string;
-  install_overview?: string;
-  install_steps?: string[];
-  storefronts?: DownloadStorefront[];
-  metadata?: Record<string, unknown>;
-  display_order?: number;
-  platforms: DownloadAssetInput[];
+/** Lists all configured download apps (admin). */
+export async function listDownloadAppsAdmin(): Promise<DownloadApp[]> {
+  const resp = await downloadClient.listDownloadApps({});
+  return resp.apps;
 }
 
-export function requestDownload(appKey: string, platform: string, user?: string) {
-  const params = new URLSearchParams({ app: appKey, platform });
-  if (user) {
-    params.set('user', user);
-  }
-
-  return apiCall<DownloadAsset>(`/downloads?${params.toString()}`);
+/** Creates a new download app (admin). */
+export async function createDownloadAppAdmin(app: DownloadAppInput): Promise<DownloadApp | undefined> {
+  const resp = await downloadClient.createDownloadApp({ app });
+  return resp.app;
 }
 
-export function listDownloadAppsAdmin() {
-  return apiCall<{ apps: DownloadApp[] }>('/admin/download-apps');
+/** Creates or replaces a download app by key (admin). */
+export async function saveDownloadAppAdmin(
+  appKey: string,
+  app: DownloadAppInput,
+): Promise<DownloadApp | undefined> {
+  const resp = await downloadClient.saveDownloadApp({ appKey, app });
+  return resp.app;
 }
 
-export function saveDownloadAppAdmin(appKey: string, payload: DownloadAppInput) {
-  return apiCall<DownloadApp>(`/admin/download-apps/${appKey}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-}
-
-export function createDownloadAppAdmin(payload: DownloadAppInput) {
-  return apiCall<DownloadApp>('/admin/download-apps', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-}
-
-export function deleteDownloadAppAdmin(appKey: string) {
-  return apiCall<{ success: boolean }>(`/admin/download-apps/${appKey}`, {
-    method: 'DELETE',
-  });
-}
+export type { DownloadApp, DownloadAsset, DownloadStorefront };

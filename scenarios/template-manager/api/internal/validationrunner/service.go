@@ -190,6 +190,12 @@ func (s *Service) RecordFleetDrift(ctx context.Context) (catalog.DriftSnapshot, 
 	if err := s.repo.SaveDriftSnapshot(ctx, snapshot); err != nil {
 		return catalog.DriftSnapshot{}, err
 	}
+	// A real live run just landed, so retire any bootstrap 'pending-live-run'
+	// placeholder snapshot — it exists only to keep the surface non-empty before
+	// the first live run and would otherwise linger as an un-actionable row.
+	if err := s.repo.SupersedePendingDriftSnapshots(ctx, started); err != nil {
+		return catalog.DriftSnapshot{}, err
+	}
 	return snapshot, nil
 }
 

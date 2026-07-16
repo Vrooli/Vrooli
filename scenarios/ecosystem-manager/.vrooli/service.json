@@ -4,14 +4,17 @@
   "generation": {
     "template": {
       "id": "react-vite",
-      "version": "1.1.0"
+      "version": "1.6.5"
     },
     "generated_at": "2026-06-08T00:00:00Z",
     "design": {
       "id": "vrooli-default",
       "version": "0.2.0",
       "adapter": "react-vite-tailwind"
-    }
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "b016b9e7a5d7a21f40712aee481354ba02720d3bc8ae2aa0b2fa94655c240c56",
+    "adopted": true
   },
   "service": {
     "name": "ecosystem-manager",

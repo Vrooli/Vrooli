@@ -1,11 +1,37 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { create } from '@bufbuild/protobuf';
+import {
+  LandingConfigResponseSchema,
+  LandingVariantSummarySchema,
+  LandingSectionSchema,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/config_pb';
 import { LandingVariantProvider, useLandingVariant } from './LandingVariantProvider';
 import { getFallbackLandingConfig } from '../../shared/lib/fallbackLandingConfig';
 import type { ReactNode } from 'react';
 
-// Mock fetch globally
-global.fetch = vi.fn();
+// The provider resolves the landing payload through the proto/Connect api layer
+// (getLandingConfig), not raw fetch. Mock that boundary and resolve real
+// LandingConfigResponse messages.
+const { mockGetLandingConfig } = vi.hoisted(() => ({ mockGetLandingConfig: vi.fn() }));
+
+vi.mock('../../shared/api', () => ({
+  getLandingConfig: mockGetLandingConfig,
+}));
+
+const makeConfig = (slug: string, fallback = false) =>
+  create(LandingConfigResponseSchema, {
+    variant: create(LandingVariantSummarySchema, {
+      id: 101n,
+      slug,
+      name: 'Test Variant',
+      description: 'Test description',
+      axes: { persona: 'ops_leader', jtbd: 'launch_bundle', conversionStyle: 'demo_led' },
+    }),
+    sections: [create(LandingSectionSchema, { sectionType: 'hero', order: 1, enabled: true, content: {} })],
+    downloads: [],
+    fallback,
+  });
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -30,8 +56,7 @@ Object.defineProperty(window, 'localStorage', {
 
 // Mock location search
 const setLocationSearch = (search: string) => {
-  delete (window as any).location;
-  (window as any).location = { search };
+  vi.stubGlobal('location', { search });
 };
 
 describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
@@ -42,28 +67,9 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
-
-  const mockConfig = {
-    variant: {
-      id: 101,
-      slug: 'test-variant',
-      name: 'Test Variant',
-      description: 'Test description',
-      axes: {
-        persona: 'ops_leader',
-        jtbd: 'launch_bundle',
-        conversionStyle: 'demo_led',
-      },
-    },
-    sections: [
-      { id: 1, section_type: 'hero', content: {}, order: 1, enabled: true },
-    ],
-    pricing: undefined,
-    downloads: [],
-    fallback: false,
-  };
 
   const wrapper = ({ children }: { children: ReactNode }) => <LandingVariantProvider>{children}</LandingVariantProvider>;
   const bakedFallback = getFallbackLandingConfig();
@@ -71,10 +77,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
   it('[REQ:AB-URL] should fetch variant from URL parameter', async () => {
     setLocationSearch('?variant=test-variant');
 
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockConfig,
-    });
+    mockGetLandingConfig.mockResolvedValueOnce(makeConfig('test-variant'));
 
     const { result } = renderHook(() => useLandingVariant(), { wrapper });
 
@@ -87,13 +90,10 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/landing-config?variant=test-variant'),
-      expect.any(Object)
-    );
+    expect(mockGetLandingConfig).toHaveBeenCalledWith('test-variant');
 
     expect(result.current.variant?.slug).toEqual('test-variant');
-    expect(result.current.config?.variant.slug).toEqual('test-variant');
+    expect(result.current.config?.variant?.slug).toEqual('test-variant');
     expect(result.current.error).toBe(null);
     expect(result.current.resolution).toEqual('url_param');
     expect(result.current.statusNote).toContain('URL parameter');
@@ -107,10 +107,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
   it('[REQ:AB-STORAGE] should use stored variant from localStorage', async () => {
     localStorageMock.setItem('landing_manager_variant_slug', 'stored-variant');
 
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ ...mockConfig, variant: { ...mockConfig.variant, slug: 'stored-variant' } }),
-    });
+    mockGetLandingConfig.mockResolvedValueOnce(makeConfig('stored-variant'));
 
     const { result } = renderHook(() => useLandingVariant(), { wrapper });
 
@@ -119,10 +116,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/landing-config?variant=stored-variant'),
-      expect.any(Object)
-    );
+    expect(mockGetLandingConfig).toHaveBeenCalledWith('stored-variant');
 
     expect(result.current.variant?.slug).toEqual('stored-variant');
     expect(result.current.error).toBe(null);
@@ -130,10 +124,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
   });
 
   it('[REQ:AB-API] should select variant via API when no URL or localStorage', async () => {
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockConfig,
-    });
+    mockGetLandingConfig.mockResolvedValueOnce(makeConfig('test-variant'));
 
     const { result } = renderHook(() => useLandingVariant(), { wrapper });
 
@@ -142,7 +133,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/v1/landing-config'), expect.any(Object));
+    expect(mockGetLandingConfig).toHaveBeenCalledWith(undefined);
 
     expect(result.current.variant?.slug).toEqual('test-variant');
     expect(result.current.error).toBe(null);
@@ -155,10 +146,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
 
     setLocationSearch('?variant=url-variant');
 
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ ...mockConfig, variant: { ...mockConfig.variant, slug: 'url-variant' } }),
-    });
+    mockGetLandingConfig.mockResolvedValueOnce(makeConfig('url-variant'));
 
     const { result } = renderHook(() => useLandingVariant(), { wrapper });
 
@@ -167,17 +155,14 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/landing-config?variant=url-variant'),
-      expect.any(Object)
-    );
+    expect(mockGetLandingConfig).toHaveBeenCalledWith('url-variant');
 
     expect(result.current.variant?.slug).toEqual('url-variant');
   });
 
   // [REQ:AB-FALLBACK] Baked fallback is used when landing config fetch fails.
   it('should fall back to baked config when API errors occur', async () => {
-    (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+    mockGetLandingConfig.mockRejectedValueOnce(new Error('Network error'));
 
     const { result } = renderHook(() => useLandingVariant(), { wrapper });
 
@@ -186,22 +171,20 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.variant?.slug).toEqual(bakedFallback.variant.slug);
+    expect(result.current.variant?.slug).toEqual(bakedFallback.variant?.slug);
     expect(result.current.config?.fallback).toBe(true);
     expect(result.current.error).toBe(null);
     expect(result.current.resolution).toEqual('fallback');
     expect(result.current.statusNote).toContain('API unavailable');
   });
 
-  // [REQ:AB-FALLBACK] Invalid slugs also trigger the fallback configuration.
-  it('should use fallback config for invalid variant slugs', async () => {
+  // [REQ:AB-FALLBACK] A payload missing its variant also triggers the fallback.
+  it('should use fallback config when the payload has no resolved variant', async () => {
     setLocationSearch('?variant=invalid-slug');
 
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: false,
-      status: 404,
-      text: async () => 'Not found',
-    });
+    mockGetLandingConfig.mockResolvedValueOnce(
+      create(LandingConfigResponseSchema, { sections: [], downloads: [], fallback: false })
+    );
 
     const { result } = renderHook(() => useLandingVariant(), { wrapper });
 
@@ -210,7 +193,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.variant?.slug).toEqual(bakedFallback.variant.slug);
+    expect(result.current.variant?.slug).toEqual(bakedFallback.variant?.slug);
     expect(result.current.config?.fallback).toBe(true);
     expect(result.current.error).toBe(null);
     expect(result.current.resolution).toEqual('fallback');
@@ -219,10 +202,7 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
   it('should support variant_slug parameter for backwards compatibility', async () => {
     setLocationSearch('?variant_slug=test-variant');
 
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockConfig,
-    });
+    mockGetLandingConfig.mockResolvedValueOnce(makeConfig('test-variant'));
 
     const { result } = renderHook(() => useLandingVariant(), { wrapper });
 
@@ -230,17 +210,12 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/landing-config?variant=test-variant'),
-      expect.any(Object)
-    );
+    expect(mockGetLandingConfig).toHaveBeenCalledWith('test-variant');
     expect(result.current.variant?.slug).toEqual('test-variant');
   });
+
   it('supports manual refresh to re-sync landing config', async () => {
-    (global.fetch as any).mockResolvedValue({
-      ok: true,
-      json: async () => mockConfig,
-    });
+    mockGetLandingConfig.mockResolvedValue(makeConfig('test-variant'));
 
     const { result } = renderHook(() => useLandingVariant(), { wrapper });
 
@@ -248,16 +223,13 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ ...mockConfig, variant: { ...mockConfig.variant, slug: 'next-variant' } }),
-    });
+    mockGetLandingConfig.mockResolvedValueOnce(makeConfig('next-variant'));
 
     await act(async () => {
       await result.current.refresh();
     });
 
-    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(mockGetLandingConfig).toHaveBeenCalledTimes(2);
     await waitFor(() => {
       expect(result.current.variant?.slug).toEqual('next-variant');
     });

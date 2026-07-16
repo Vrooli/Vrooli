@@ -67,7 +67,7 @@ This document describes the system architecture of landing pages generated from 
 
 | Boundary | Purpose |
 |----------|---------|
-| **UI ↔ API** | REST/JSON over HTTP. All business logic server-side. |
+| **UI ↔ API** | Proto + Connect-RPC over HTTP (typed clients from `@vrooli/proto-types`). A few surfaces stay REST by necessity: multipart asset upload, static `/uploads` serving, `/sitemap.xml`, `/robots.txt`, and the Stripe webhook receiver. All business logic server-side. |
 | **API ↔ Database** | Direct PostgreSQL via `database/sql`. No ORM. |
 | **API ↔ Stripe** | HTTPS to Stripe APIs. Webhook verification. |
 | **Public ↔ Admin** | Route-based separation. Session auth for admin. |
@@ -95,11 +95,12 @@ ui/src/
 │       ├── components/      # Admin UI components
 │       └── controllers/     # Thin orchestration layer
 └── shared/
-    ├── api/                 # API client functions
-    │   ├── landing.ts       # Public endpoints
+    ├── api/                 # Connect-RPC clients (one module per proto service)
+    │   ├── client.ts        # Shared transport (credentialed for admin session cookies) + helpers
+    │   ├── landing.ts       # Public landing config + pricing
     │   ├── variants.ts      # Variant management
     │   ├── metrics.ts       # Analytics tracking
-    │   └── payments.ts      # Stripe integration
+    │   └── billing.ts       # Stripe settings + bundle pricing
     ├── hooks/               # Custom React hooks
     ├── lib/                 # Utilities
     │   ├── fallbackLandingConfig.ts  # Offline fallback

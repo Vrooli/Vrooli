@@ -10,7 +10,9 @@
   "findingSource": "workflow",
   "validation": {
     "contract": "scenario-validation/v1",
-    "includeExecution": true
+    "deliveryMode": "durable-run",
+    "execution": true,
+    "runService": "scenario-validation/v1.DurableValidationRunService"
   },
   "applicability": {
     "default": "applies"

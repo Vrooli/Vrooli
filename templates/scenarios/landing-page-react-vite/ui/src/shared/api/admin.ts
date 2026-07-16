@@ -1,12 +1,14 @@
-import { apiCall } from './common';
+import { createClient } from '@connectrpc/connect';
+import { AdminResetService } from '@vrooli/proto-types/landing-page-react-vite/v1/admin_pb';
+import type { ResetDemoDataResponse } from '@vrooli/proto-types/landing-page-react-vite/v1/admin_pb';
 
-export interface ResetDemoDataResponse {
-  reset: boolean;
-  timestamp: string;
+import { transport } from './client';
+
+const resetClient = createClient(AdminResetService, transport);
+
+/** Resets the demo dataset to its seeded state (admin). */
+export function resetDemoData(): Promise<ResetDemoDataResponse> {
+  return resetClient.resetDemoData({});
 }
 
-export function resetDemoData() {
-  return apiCall<ResetDemoDataResponse>('/admin/reset-demo-data', {
-    method: 'POST',
-  });
-}
+export type { ResetDemoDataResponse };

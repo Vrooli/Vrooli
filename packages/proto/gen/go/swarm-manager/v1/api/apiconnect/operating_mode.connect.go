@@ -109,11 +109,10 @@ type OperatingModeServiceClient interface {
 	// StartPhase reserves and dispatches a round for one phase of a linked
 	// initiative.
 	StartPhase(context.Context, *connect.Request[api.OperatingModeStartPhaseRequest]) (*connect.Response[api.OperatingModeRoundEnvelope], error)
-	// StartTargetPhase is the plan-first entry point: it starts a mode round
-	// directly on a non-initiative target (a plan-manager plan by execution
-	// id/slug, or a plan-ref path) — no initiative created, no backlog
-	// ceremony. Initiative-target modes are rejected here; they start through
-	// StartPhase.
+	// StartTargetPhase is the target-first entry point: it starts a mode round
+	// directly on a non-initiative target (a plan execution by id/slug, or a
+	// scenario by name) — no initiative created, no backlog ceremony.
+	// Initiative-target modes are rejected here; they start through StartPhase.
 	StartTargetPhase(context.Context, *connect.Request[api.OperatingModeStartTargetPhaseRequest]) (*connect.Response[api.OperatingModeRoundEnvelope], error)
 	// RenderLivePrompt renders the literal agent prompt for one phase of a real
 	// linked initiative with its live data substituted.
@@ -373,11 +372,10 @@ type OperatingModeServiceHandler interface {
 	// StartPhase reserves and dispatches a round for one phase of a linked
 	// initiative.
 	StartPhase(context.Context, *connect.Request[api.OperatingModeStartPhaseRequest]) (*connect.Response[api.OperatingModeRoundEnvelope], error)
-	// StartTargetPhase is the plan-first entry point: it starts a mode round
-	// directly on a non-initiative target (a plan-manager plan by execution
-	// id/slug, or a plan-ref path) — no initiative created, no backlog
-	// ceremony. Initiative-target modes are rejected here; they start through
-	// StartPhase.
+	// StartTargetPhase is the target-first entry point: it starts a mode round
+	// directly on a non-initiative target (a plan execution by id/slug, or a
+	// scenario by name) — no initiative created, no backlog ceremony.
+	// Initiative-target modes are rejected here; they start through StartPhase.
 	StartTargetPhase(context.Context, *connect.Request[api.OperatingModeStartTargetPhaseRequest]) (*connect.Response[api.OperatingModeRoundEnvelope], error)
 	// RenderLivePrompt renders the literal agent prompt for one phase of a real
 	// linked initiative with its live data substituted.

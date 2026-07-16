@@ -1,5 +1,16 @@
-import { API_BASE } from './common';
-import type { Asset, AssetCategory } from './types';
+import { fromJson, type JsonValue } from '@bufbuild/protobuf';
+import { createClient } from '@connectrpc/connect';
+import {
+  AssetsService,
+  AssetSchema,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/assets_pb';
+import type { Asset } from '@vrooli/proto-types/landing-page-react-vite/v1/assets_pb';
+
+import { REST_API_BASE, decodeApiError, uploadFile, transport } from './client';
+
+const assetsClient = createClient(AssetsService, transport);
+
+export type AssetCategory = 'logo' | 'favicon' | 'og_image' | 'general';
 
 export interface UploadAssetOptions {
   category?: AssetCategory;
@@ -8,18 +19,13 @@ export interface UploadAssetOptions {
 }
 
 /**
- * Upload an asset file to the server.
- * @param file - The file to upload
- * @param options - Optional metadata (category, alt text, uploader)
- * @returns The created Asset with its URL
+ * Uploads an asset file. Multipart upload is a deliberate REST exception (it
+ * cannot be a Connect RPC), so this posts FormData to /api/v1/admin/assets/upload
+ * and decodes the returned Asset JSON with the proto schema.
  */
-export async function uploadAsset(
-  file: File,
-  options: UploadAssetOptions = {}
-): Promise<Asset> {
+export async function uploadAsset(file: File, options: UploadAssetOptions = {}): Promise<Asset> {
   const formData = new FormData();
   formData.append('file', file);
-
   if (options.category) {
     formData.append('category', options.category);
   }
@@ -30,88 +36,45 @@ export async function uploadAsset(
     formData.append('uploaded_by', options.uploadedBy);
   }
 
-  const response = await fetch(`${API_BASE}/admin/assets/upload`, {
-    method: 'POST',
-    credentials: 'include',
-    body: formData,
-    // Note: Don't set Content-Type header - browser sets it with boundary for multipart
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Upload failed with status ${response.status}`);
+  const res = await uploadFile('/admin/assets/upload', formData);
+  if (!res.ok) {
+    throw await decodeApiError(res);
   }
-
-  return response.json();
+  return fromJson(AssetSchema, (await res.json()) as JsonValue, { ignoreUnknownFields: true });
 }
 
 /**
- * Resolve an asset URL. Handles:
- * - Full URLs (https://...) - returned as-is
- * - Relative paths (uploads/...) - prefixed with API base
- * - Already-resolved URLs - returned as-is
- *
- * @param urlOrPath - The URL or storage path to resolve
- * @returns The fully-qualified URL
+ * Resolves an asset URL. Full URLs and data URLs pass through; storage paths
+ * are prefixed with the static /uploads REST base.
  */
 export function getAssetUrl(urlOrPath: string): string {
   if (!urlOrPath) {
     return '';
   }
-
-  // Already a full URL
   if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
     return urlOrPath;
   }
-
-  // Data URL (base64 embedded)
   if (urlOrPath.startsWith('data:')) {
     return urlOrPath;
   }
-
-  // Already includes /api/v1/uploads prefix
+  const host = REST_API_BASE.replace(/\/api\/v1$/, '');
   if (urlOrPath.startsWith('/api/v1/uploads/')) {
-    return `${API_BASE.replace('/api/v1', '')}${urlOrPath}`;
+    return `${host}${urlOrPath}`;
   }
-
-  // Relative path - prefix with uploads endpoint
   const cleanPath = urlOrPath.startsWith('/') ? urlOrPath.slice(1) : urlOrPath;
-  return `${API_BASE}/uploads/${cleanPath}`;
+  return `${REST_API_BASE}/uploads/${cleanPath}`;
 }
 
-/**
- * List assets, optionally filtered by category.
- * @param category - Optional category filter
- * @returns Array of assets
- */
+/** Lists uploaded assets, optionally filtered by category (admin). */
 export async function listAssets(category?: AssetCategory): Promise<Asset[]> {
-  const url = category
-    ? `${API_BASE}/admin/assets?category=${encodeURIComponent(category)}`
-    : `${API_BASE}/admin/assets`;
-
-  const response = await fetch(url, {
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to list assets: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.assets || [];
+  const resp = await assetsClient.listAssets({ category: category ?? '' });
+  return resp.assets;
 }
 
-/**
- * Delete an asset by ID.
- * @param id - The asset ID to delete
- */
-export async function deleteAsset(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE}/admin/assets/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to delete asset: ${response.status}`);
-  }
+/** Deletes an asset by id (admin). */
+export async function deleteAsset(id: bigint): Promise<boolean> {
+  const resp = await assetsClient.deleteAsset({ id });
+  return resp.deleted;
 }
+
+export type { Asset };

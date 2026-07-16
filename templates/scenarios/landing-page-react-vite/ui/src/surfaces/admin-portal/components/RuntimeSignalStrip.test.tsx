@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithProviders as render } from '../../../test-utils';
 import userEvent from '@testing-library/user-event';
 import { RuntimeSignalStrip } from './RuntimeSignalStrip';
 

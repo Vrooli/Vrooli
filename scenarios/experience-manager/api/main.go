@@ -12,6 +12,7 @@ import (
 
 	"experience-manager/internal/clock"
 	"experience-manager/internal/modules"
+	"experience-manager/internal/reconcile"
 	"experience-manager/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -131,6 +132,9 @@ func main() {
 
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
+	}
+	if err := reconcile.EnsureMigrations(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("reconcile evidence migration failed: %v", err)
 	}
 
 	srv := server.New(

@@ -268,6 +268,6 @@ If you set weights to 1, 1, 1, each gets 33.3% of traffic.
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](overview.md)
 - [Sections](sections.md) - Managing section content
 - [Metrics](metrics.md) - Analytics per variant

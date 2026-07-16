@@ -1648,12 +1648,15 @@ func (x *ShowSpecResponse) GetJson() string {
 }
 
 type ListEvidenceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Page          string                 `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
-	Claim         string                 `protobuf:"bytes,4,opt,name=claim,proto3" json:"claim,omitempty"`
-	Limit         int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Path     string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Page     string                 `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	Claim    string                 `protobuf:"bytes,4,opt,name=claim,proto3" json:"claim,omitempty"`
+	Limit    int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Component contract id. When supplied, reads evidence for a reusable
+	// component rather than a page contract.
+	Component     string `protobuf:"bytes,6,opt,name=component,proto3" json:"component,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1721,6 +1724,13 @@ func (x *ListEvidenceRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListEvidenceRequest) GetComponent() string {
+	if x != nil {
+		return x.Component
+	}
+	return ""
 }
 
 type ListEvidenceResponse struct {
@@ -1800,6 +1810,10 @@ type ReconciliationEvidence struct {
 	Viewport       string                 `protobuf:"bytes,13,opt,name=viewport,proto3" json:"viewport,omitempty"`
 	ViewportWidth  int32                  `protobuf:"varint,14,opt,name=viewport_width,json=viewportWidth,proto3" json:"viewport_width,omitempty"`
 	ViewportHeight int32                  `protobuf:"varint,15,opt,name=viewport_height,json=viewportHeight,proto3" json:"viewport_height,omitempty"`
+	DocumentKind   string                 `protobuf:"bytes,16,opt,name=document_kind,json=documentKind,proto3" json:"document_kind,omitempty"`
+	ComponentId    string                 `protobuf:"bytes,17,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
+	ComponentTitle string                 `protobuf:"bytes,18,opt,name=component_title,json=componentTitle,proto3" json:"component_title,omitempty"`
+	ExampleName    string                 `protobuf:"bytes,19,opt,name=example_name,json=exampleName,proto3" json:"example_name,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1937,6 +1951,34 @@ func (x *ReconciliationEvidence) GetViewportHeight() int32 {
 		return x.ViewportHeight
 	}
 	return 0
+}
+
+func (x *ReconciliationEvidence) GetDocumentKind() string {
+	if x != nil {
+		return x.DocumentKind
+	}
+	return ""
+}
+
+func (x *ReconciliationEvidence) GetComponentId() string {
+	if x != nil {
+		return x.ComponentId
+	}
+	return ""
+}
+
+func (x *ReconciliationEvidence) GetComponentTitle() string {
+	if x != nil {
+		return x.ComponentTitle
+	}
+	return ""
+}
+
+func (x *ReconciliationEvidence) GetExampleName() string {
+	if x != nil {
+		return x.ExampleName
+	}
+	return ""
 }
 
 type SuggestBindingsRequest struct {
@@ -3695,17 +3737,18 @@ const file_experience_manager_v1_contract_contract_proto_rawDesc = "" +
 	"\x10ShowSpecResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04page\x18\x02 \x01(\tR\x04page\x12\x12\n" +
-	"\x04json\x18\x03 \x01(\tR\x04json\"\x85\x01\n" +
+	"\x04json\x18\x03 \x01(\tR\x04json\"\xa3\x01\n" +
 	"\x13ListEvidenceRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
 	"\x04page\x18\x03 \x01(\tR\x04page\x12\x14\n" +
 	"\x05claim\x18\x04 \x01(\tR\x05claim\x12\x14\n" +
-	"\x05limit\x18\x05 \x01(\x05R\x05limit\"\xa1\x01\n" +
+	"\x05limit\x18\x05 \x01(\x05R\x05limit\x12\x1c\n" +
+	"\tcomponent\x18\x06 \x01(\tR\tcomponent\"\xa1\x01\n" +
 	"\x14ListEvidenceResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04page\x18\x02 \x01(\tR\x04page\x12Y\n" +
-	"\bevidence\x18\x03 \x03(\v2=.vrooli.experience_manager.v1.contract.ReconciliationEvidenceR\bevidence\"\xbb\x03\n" +
+	"\bevidence\x18\x03 \x03(\v2=.vrooli.experience_manager.v1.contract.ReconciliationEvidenceR\bevidence\"\xcf\x04\n" +
 	"\x16ReconciliationEvidence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
@@ -3726,7 +3769,11 @@ const file_experience_manager_v1_contract_contract_proto_rawDesc = "" +
 	"checked_at\x18\f \x01(\tR\tcheckedAt\x12\x1a\n" +
 	"\bviewport\x18\r \x01(\tR\bviewport\x12%\n" +
 	"\x0eviewport_width\x18\x0e \x01(\x05R\rviewportWidth\x12'\n" +
-	"\x0fviewport_height\x18\x0f \x01(\x05R\x0eviewportHeight\"r\n" +
+	"\x0fviewport_height\x18\x0f \x01(\x05R\x0eviewportHeight\x12#\n" +
+	"\rdocument_kind\x18\x10 \x01(\tR\fdocumentKind\x12!\n" +
+	"\fcomponent_id\x18\x11 \x01(\tR\vcomponentId\x12'\n" +
+	"\x0fcomponent_title\x18\x12 \x01(\tR\x0ecomponentTitle\x12!\n" +
+	"\fexample_name\x18\x13 \x01(\tR\vexampleName\"r\n" +
 	"\x16SuggestBindingsRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +

@@ -1,5 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from '../../test-utils';
+import { create } from '@bufbuild/protobuf';
+import { LandingBrandingSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/config_pb';
+import { VariantSEOConfigSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/variant_pb';
 import { SEOHead } from './SEOHead';
 import type { LandingBranding, VariantSEOConfig } from '../api';
 
@@ -30,9 +34,9 @@ describe('SEOHead', () => {
   });
 
   it('updates document title from branding', async () => {
-    const branding: LandingBranding = {
-      site_name: 'Test Brand',
-    };
+    const branding: LandingBranding = create(LandingBrandingSchema, {
+      siteName: 'Test Brand',
+    });
 
     render(<SEOHead branding={branding} />);
 
@@ -42,10 +46,10 @@ describe('SEOHead', () => {
   });
 
   it('updates meta description', async () => {
-    const seoConfig: VariantSEOConfig = {
+    const seoConfig: VariantSEOConfig = create(VariantSEOConfigSchema, {
       title: 'SEO Title',
       description: 'This is a test description',
-    };
+    });
 
     render(<SEOHead seoConfig={seoConfig} />);
 
@@ -57,12 +61,12 @@ describe('SEOHead', () => {
   });
 
   it('updates Open Graph meta tags', async () => {
-    const seoConfig: VariantSEOConfig = {
+    const seoConfig: VariantSEOConfig = create(VariantSEOConfigSchema, {
       title: 'OG Test',
-      og_title: 'Custom OG Title',
-      og_description: 'Custom OG Description',
-      og_image_url: 'https://example.com/og-image.jpg',
-    };
+      ogTitle: 'Custom OG Title',
+      ogDescription: 'Custom OG Description',
+      ogImageUrl: 'https://example.com/og-image.jpg',
+    });
 
     render(<SEOHead seoConfig={seoConfig} />);
 
@@ -74,10 +78,10 @@ describe('SEOHead', () => {
   });
 
   it('updates Twitter card meta tags', async () => {
-    const seoConfig: VariantSEOConfig = {
+    const seoConfig: VariantSEOConfig = create(VariantSEOConfigSchema, {
       title: 'Twitter Test',
-      twitter_card: 'summary',
-    };
+      twitterCard: 'summary',
+    });
 
     render(<SEOHead seoConfig={seoConfig} />);
 
@@ -88,10 +92,10 @@ describe('SEOHead', () => {
   });
 
   it('sets favicon from branding', async () => {
-    const branding: LandingBranding = {
-      site_name: 'Test',
-      favicon_url: 'https://example.com/favicon.ico',
-    };
+    const branding: LandingBranding = create(LandingBrandingSchema, {
+      siteName: 'Test',
+      faviconUrl: 'https://example.com/favicon.ico',
+    });
 
     render(<SEOHead branding={branding} />);
 
@@ -103,10 +107,10 @@ describe('SEOHead', () => {
   });
 
   it('sets theme color from branding', async () => {
-    const branding: LandingBranding = {
-      site_name: 'Test',
-      theme_primary_color: '#6366f1',
-    };
+    const branding: LandingBranding = create(LandingBrandingSchema, {
+      siteName: 'Test',
+      themePrimaryColor: '#6366f1',
+    });
 
     render(<SEOHead branding={branding} />);
 
@@ -118,9 +122,9 @@ describe('SEOHead', () => {
   });
 
   it('sets canonical URL', async () => {
-    const seoConfig: VariantSEOConfig = {
-      canonical_path: '/landing',
-    };
+    const seoConfig: VariantSEOConfig = create(VariantSEOConfigSchema, {
+      canonicalPath: '/landing',
+    });
 
     render(<SEOHead seoConfig={seoConfig} baseUrl="https://example.com" />);
 
@@ -132,13 +136,13 @@ describe('SEOHead', () => {
   });
 
   it('variant SEO config overrides branding defaults', async () => {
-    const branding: LandingBranding = {
-      site_name: 'Default Site Name',
-    };
+    const branding: LandingBranding = create(LandingBrandingSchema, {
+      siteName: 'Default Site Name',
+    });
 
-    const seoConfig: VariantSEOConfig = {
+    const seoConfig: VariantSEOConfig = create(VariantSEOConfigSchema, {
       title: 'Custom Variant Title',
-    };
+    });
 
     render(<SEOHead branding={branding} seoConfig={seoConfig} />);
 
@@ -148,11 +152,11 @@ describe('SEOHead', () => {
   });
 
   it('falls back to branding when SEO config is empty', async () => {
-    const branding: LandingBranding = {
-      site_name: 'Fallback Site',
-    };
+    const branding: LandingBranding = create(LandingBrandingSchema, {
+      siteName: 'Fallback Site',
+    });
 
-    render(<SEOHead branding={branding} seoConfig={{}} />);
+    render(<SEOHead branding={branding} seoConfig={create(VariantSEOConfigSchema, {})} />);
 
     await waitFor(() => {
       expect(document.title).toBe('Fallback Site');
@@ -160,9 +164,9 @@ describe('SEOHead', () => {
   });
 
   it('handles noindex directive', async () => {
-    const seoConfig: VariantSEOConfig = {
+    const seoConfig: VariantSEOConfig = create(VariantSEOConfigSchema, {
       noindex: true,
-    };
+    });
 
     render(<SEOHead seoConfig={seoConfig} />);
 
@@ -180,9 +184,9 @@ describe('SEOHead', () => {
     robotsMeta.content = 'noindex';
     document.head.appendChild(robotsMeta);
 
-    const seoConfig: VariantSEOConfig = {
+    const seoConfig: VariantSEOConfig = create(VariantSEOConfigSchema, {
       noindex: false,
-    };
+    });
 
     render(<SEOHead seoConfig={seoConfig} />);
 

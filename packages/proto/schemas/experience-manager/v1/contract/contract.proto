@@ -230,6 +230,9 @@ message ListEvidenceRequest {
   string page = 3;
   string claim = 4;
   int32 limit = 5;
+  // Component contract id. When supplied, reads evidence for a reusable
+  // component rather than a page contract.
+  string component = 6;
 }
 
 message ListEvidenceResponse {
@@ -254,6 +257,10 @@ message ReconciliationEvidence {
   string viewport = 13;
   int32 viewport_width = 14;
   int32 viewport_height = 15;
+  string document_kind = 16;
+  string component_id = 17;
+  string component_title = 18;
+  string example_name = 19;
 }
 
 message SuggestBindingsRequest {

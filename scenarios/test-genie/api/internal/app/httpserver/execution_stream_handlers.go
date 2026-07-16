@@ -73,6 +73,29 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 		s.writeSSEError(w, flusher, "execution service unavailable")
 		return
 	}
+	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
+		replay, ch, followErr := s.runManager.Follow(r.Context(), input.Request.ScenarioName, runID)
+		if followErr != nil {
+			s.writeSSEError(w, flusher, followErr.Error())
+			return
+		}
+		startTime := time.Now()
+		for _, ev := range replay {
+			s.writeCanonicalSSE(w, flusher, ev, startTime)
+		}
+		for ev := range ch {
+			s.writeCanonicalSSE(w, flusher, ev, startTime)
+		}
+		return
+	}
+	caller := admissionCaller(r)
+	releasePreview, err := s.runManager.TryAcquirePreviewFor(caller)
+	if err != nil {
+		w.Header().Set("Retry-After", "5")
+		s.writeSSEError(w, flusher, err.Error())
+		return
+	}
+	defer releasePreview()
 
 	// Synchronous plan validation + ETA. A malformed request (bad preset/phase)
 	// is reported as an SSE error before the run starts.
@@ -83,8 +106,12 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 	}
 	applyPreviewPhaseSelection(&input, preview)
 
-	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: eta})
+	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, EstimatedTotalSeconds: eta})
 	if err != nil {
+		var saturated *runmanager.SaturatedError
+		if errors.As(err, &saturated) {
+			w.Header().Set("Retry-After", "5")
+		}
 		s.writeSSEError(w, flusher, err.Error())
 		return
 	}

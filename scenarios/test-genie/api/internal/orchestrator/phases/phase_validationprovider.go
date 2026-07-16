@@ -35,6 +35,7 @@ type Delegated struct {
 	DisplayName      string
 	Description      string
 	IncludeExecution bool
+	DeliveryMode     string
 	GateEnvVar       string
 	DefaultGateMode  validationprovider.GateMode
 	Client           DelegatedClient
@@ -99,7 +100,8 @@ func ValidationProviderSpecFromDescriptor(descriptor providerdescriptor.Descript
 		Timeout:          descriptor.TimeoutValue,
 		DisplayName:      descriptor.DisplayName,
 		Description:      descriptor.Description,
-		IncludeExecution: descriptor.Validation.IncludeExecution,
+		IncludeExecution: descriptor.Validation.Execution,
+		DeliveryMode:     descriptor.Validation.DeliveryMode,
 	}
 	spec := delegatedSpec(delegated)
 	spec.Description = descriptor.Description
@@ -155,6 +157,7 @@ func (d Delegated) provider() validationprovider.Provider {
 		Optional:         d.Optional,
 		Timeout:          d.Timeout,
 		IncludeExecution: d.IncludeExecution,
+		DeliveryMode:     d.DeliveryMode,
 		GateEnvVar:       d.GateEnvVar,
 		DefaultGateMode:  d.DefaultGateMode,
 	}
@@ -165,7 +168,13 @@ func providerRunner(provider validationprovider.Provider, client DelegatedClient
 		client = defaultDelegatedClient
 	}
 	return func(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-		return runValidationProviderPhase(ctx, env, logWriter, provider, client)
+		bound := provider
+		if bound.DeliveryMode == "durable-run" {
+			bound.OnStarted = func(ref validationprovider.RunReference) {
+				writeDurableChildReference(env, bound.Phase, bound.ProviderScenario, ref, logWriter)
+			}
+		}
+		return runValidationProviderPhase(ctx, env, logWriter, bound, client)
 	}
 }
 
@@ -173,6 +182,9 @@ func defaultDelegatedClient(ctx context.Context, env workspace.Environment, _ io
 	// env.ScenarioDir is the resolved physical scenario directory; sending it as
 	// the request path lets providers validate scenarios that live outside the
 	// repo scenarios/ registry (e.g. deep template validation's temp scenario).
+	if provider.DeliveryMode == "durable-run" {
+		return validationprovider.RunDurable(ctx, provider, env.ScenarioName, env.ScenarioDir, env.RunID)
+	}
 	return validationprovider.Run(ctx, provider, env.ScenarioName, env.ScenarioDir)
 }
 

@@ -1,22 +1,23 @@
-import { apiCall } from './common';
+import { createClient } from '@connectrpc/connect';
+import { DocsService } from '@vrooli/proto-types/landing-page-react-vite/v1/docs_pb';
+import type {
+  DocEntry,
+  GetDocContentResponse,
+} from '@vrooli/proto-types/landing-page-react-vite/v1/docs_pb';
 
-export interface DocEntry {
-  name: string;
-  path: string;
-  isDir: boolean;
-  children?: DocEntry[];
+import { transport } from './client';
+
+const docsClient = createClient(DocsService, transport);
+
+/** Fetches the documentation tree (admin). */
+export async function getDocsTree(): Promise<DocEntry[]> {
+  const resp = await docsClient.getDocsTree({});
+  return resp.entries;
 }
 
-export interface DocContent {
-  path: string;
-  content: string;
-  title: string;
+/** Fetches a single documentation file's rendered content (admin). */
+export function getDocContent(path: string): Promise<GetDocContentResponse> {
+  return docsClient.getDocContent({ path });
 }
 
-export function getDocsTree() {
-  return apiCall<DocEntry[]>('/admin/docs/tree');
-}
-
-export function getDocContent(path: string) {
-  return apiCall<DocContent>(`/admin/docs/content?path=${encodeURIComponent(path)}`);
-}
+export type { DocEntry, GetDocContentResponse };

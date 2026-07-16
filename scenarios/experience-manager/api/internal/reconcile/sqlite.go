@@ -32,12 +32,16 @@ const evidenceTimeFormat = time.RFC3339Nano
 const (
 	insertEvidenceSQL = `
 INSERT INTO reconcile_evidence (
-  id, scenario, page_id, route, state_id, claim_id, claim_type, verdict,
+  id, scenario, document_kind, page_id, component_id, component_title, example_name, route, state_id, claim_id, claim_type, verdict,
   capture_ref, ax_node_json, message, checked_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   scenario=excluded.scenario,
+  document_kind=excluded.document_kind,
   page_id=excluded.page_id,
+  component_id=excluded.component_id,
+  component_title=excluded.component_title,
+  example_name=excluded.example_name,
   route=excluded.route,
   state_id=excluded.state_id,
   claim_id=excluded.claim_id,
@@ -58,7 +62,7 @@ ON CONFLICT(evidence_id) DO UPDATE SET
   viewport_height=excluded.viewport_height`
 
 	evidenceColumns = `
-reconcile_evidence.id, scenario, page_id, route, state_id,
+reconcile_evidence.id, scenario, document_kind, page_id, component_id, component_title, example_name, route, state_id,
 COALESCE(viewport_id, ''), COALESCE(viewport_width, 0), COALESCE(viewport_height, 0),
 claim_id, claim_type, verdict, capture_ref, ax_node_json, message, checked_at`
 )
@@ -70,7 +74,11 @@ func (r *sqliteRepository) SaveEvidence(ctx context.Context, evidence Evidence) 
 	if _, err := r.db.ExecContext(ctx, insertEvidenceSQL,
 		evidence.ID,
 		evidence.Scenario,
+		evidence.DocumentKind,
 		evidence.PageID,
+		evidence.ComponentID,
+		evidence.ComponentTitle,
+		evidence.ExampleName,
 		evidence.Route,
 		evidence.StateID,
 		evidence.ClaimID,
@@ -107,6 +115,10 @@ LEFT JOIN reconcile_evidence_viewports ON reconcile_evidence_viewports.evidence_
 		clauses = append(clauses, "page_id = ?")
 		args = append(args, filter.PageID)
 	}
+	if filter.ComponentID != "" {
+		clauses = append(clauses, "component_id = ?")
+		args = append(args, filter.ComponentID)
+	}
 	if filter.ClaimID != "" {
 		clauses = append(clauses, "claim_id = ?")
 		args = append(args, filter.ClaimID)
@@ -131,7 +143,11 @@ LEFT JOIN reconcile_evidence_viewports ON reconcile_evidence_viewports.evidence_
 		if err := rows.Scan(
 			&e.ID,
 			&e.Scenario,
+			&e.DocumentKind,
 			&e.PageID,
+			&e.ComponentID,
+			&e.ComponentTitle,
+			&e.ExampleName,
 			&e.Route,
 			&e.StateID,
 			&e.ViewportID,

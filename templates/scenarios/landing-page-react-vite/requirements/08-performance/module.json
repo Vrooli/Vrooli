@@ -17,7 +17,7 @@
           "status": "implemented"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Lighthouse performance test integrated in performance phase; threshold: ≥75% (passing at 87%)"
     },
     {
@@ -33,7 +33,7 @@
           "status": "implemented"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "TTI measured via Lighthouse audit in performance phase (included in performance score)"
     },
     {
@@ -49,7 +49,7 @@
           "status": "implemented"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Lighthouse accessibility audit passing at 100% (exceeds ≥90% target)"
     },
     {
@@ -65,7 +65,7 @@
           "status": "implemented"
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "notes": "Keyboard accessibility validated via Lighthouse audit (100% accessibility score includes keyboard navigation checks)"
     }
   ],

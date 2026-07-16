@@ -25,34 +25,34 @@ interface SEOHeadProps {
 export function SEOHead({ branding, seoConfig, baseUrl }: SEOHeadProps) {
   useEffect(() => {
     // Merge SEO config (variant overrides branding defaults)
-    const title = seoConfig?.title || branding?.site_name || undefined;
+    const title = seoConfig?.title || branding?.siteName || undefined;
     const description = seoConfig?.description || undefined;
 
     const config: SEOConfig = {
       title,
       description,
-      ogTitle: seoConfig?.og_title || title,
-      ogDescription: seoConfig?.og_description || description,
-      ogImage: seoConfig?.og_image_url || undefined,
-      twitterCard: seoConfig?.twitter_card || 'summary_large_image',
+      ogTitle: seoConfig?.ogTitle || title,
+      ogDescription: seoConfig?.ogDescription || description,
+      ogImage: seoConfig?.ogImageUrl || undefined,
+      twitterCard: seoConfig?.twitterCard === 'summary' ? 'summary' : 'summary_large_image',
       noindex: seoConfig?.noindex || false,
     };
 
     // Build canonical URL
-    if (baseUrl && seoConfig?.canonical_path) {
-      config.canonical = baseUrl.replace(/\/$/, '') + seoConfig.canonical_path;
+    if (baseUrl && seoConfig?.canonicalPath) {
+      config.canonical = baseUrl.replace(/\/$/, '') + seoConfig.canonicalPath;
     }
 
     updateMetaTags(config);
 
     // Update favicon from branding
-    if (branding?.favicon_url) {
-      updateFavicon(branding.favicon_url);
+    if (branding?.faviconUrl) {
+      updateFavicon(branding.faviconUrl);
     }
 
     // Update theme color from branding
-    if (branding?.theme_primary_color) {
-      updateThemeColor(branding.theme_primary_color);
+    if (branding?.themePrimaryColor) {
+      updateThemeColor(branding.themePrimaryColor);
     }
   }, [branding, seoConfig, baseUrl]);
 

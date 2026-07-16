@@ -5,18 +5,23 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
 	"workflow-health/internal/execution"
+	"workflow-health/internal/testutil/db"
 	internalvalidation "workflow-health/internal/validation"
+	workflowrun "workflow-health/internal/validationrun"
 
 	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/maturity-go/assessment"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestValidateScenarioReturnsSharedProviderResponse(t *testing.T) {
@@ -68,18 +73,39 @@ func TestValidateScenarioExecutionFailureReturnsSharedFinding(t *testing.T) {
 		},
 	})
 
-	resp, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
-		Scenario:         "failed-workflow",
-		Path:             target,
-		IncludeExecution: true,
-	}))
+	report, err := handler.run(context.Background(), "failed-workflow", target, execution.Options{IncludeExecution: true})
 	require.NoError(t, err)
-	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, resp.Msg.GetStatus())
-	require.NotNil(t, resp.Msg.GetAssessment())
-	finding := requireAssessmentFindingCode(t, resp.Msg.GetAssessment().GetFindings(), internalvalidation.CodeExecutionFailed)
+	terminal, err := handler.responseForReport(report)
+	require.NoError(t, err)
+	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, terminal.GetStatus())
+	require.NotNil(t, terminal.GetAssessment())
+	finding := requireAssessmentFindingCode(t, terminal.GetAssessment().GetFindings(), internalvalidation.CodeExecutionFailed)
 	require.Equal(t, internalvalidation.CodeExecutionFailed, finding.GetCode())
 	require.Equal(t, "bas/cases/smoke.json", finding.GetLocation())
 	require.Contains(t, finding.GetMessage(), "selector timed out")
+}
+
+func TestDurableValidationRunStartsPromptlyAndWaitsForTerminalResult(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(workflowrun.Schema)))
+	handler := testHandlerWithBAS(t, &validationFakeBASClient{})
+	handler.deps.Ledger = workflowrun.Repository{DB: database}
+	target := filepath.Join(t.TempDir(), "empty-workflows")
+	require.NoError(t, mkdir(target))
+
+	started, err := handler.StartValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: "empty-workflows", Path: target, IdempotencyKey: "request-1", ParentRunId: "parent-1"}))
+	require.NoError(t, err)
+	require.NotEmpty(t, started.Msg.GetRun().GetRunId())
+	require.NotNil(t, started.Msg.GetRun().GetPreliminaryStaticResult())
+
+	replay, err := handler.StartValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: "empty-workflows", Path: target, IdempotencyKey: "request-1", ParentRunId: "parent-1"}))
+	require.NoError(t, err)
+	require.Equal(t, started.Msg.GetRun().GetRunId(), replay.Msg.GetRun().GetRunId())
+
+	completed, err := handler.WaitValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.WaitValidationRunRequest{RunId: started.Msg.GetRun().GetRunId(), Timeout: durationpb.New(time.Second)}))
+	require.NoError(t, err)
+	require.True(t, completed.Msg.GetRun().GetState() == scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_SUCCEEDED || completed.Msg.GetRun().GetState() == scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_FAILED)
+	require.NotNil(t, completed.Msg.GetRun().GetTerminalResult())
 }
 
 func TestPreviewFixReturnsWorkflowCandidates(t *testing.T) {

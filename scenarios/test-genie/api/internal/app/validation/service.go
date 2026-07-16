@@ -38,6 +38,7 @@ func NewService(logger *log.Logger, repoRoot string, spec *assessment.Spec) *Ser
 	}
 	validator := providerconformance.New(repoRoot)
 	validator.Probe = selfhealth.DefaultConformanceProbe
+	validator.DurableProbe = providerconformance.DefaultDurableConformanceProbe
 	return &Service{logger: logger, validator: validator, spec: spec}
 }
 
