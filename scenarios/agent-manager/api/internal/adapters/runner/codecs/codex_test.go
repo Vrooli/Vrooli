@@ -702,14 +702,15 @@ func TestCodex_FullStream(t *testing.T) {
 		}
 	}
 
-	if len(allEvents) != 6 {
-		t.Errorf("expected 6 events, got %d", len(allEvents))
+	if len(allEvents) != 7 {
+		t.Errorf("expected 7 events, got %d", len(allEvents))
 	}
 	expected := []domain.RunEventType{
 		domain.EventTypeLog,
 		domain.EventTypeLog,
 		domain.EventTypeLog,
 		domain.EventTypeToolCall,
+		domain.EventTypeMessage,
 		domain.EventTypeMessage,
 		domain.EventTypeMetric,
 	}

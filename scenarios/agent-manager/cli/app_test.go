@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // =============================================================================
@@ -123,6 +125,7 @@ func TestApp_RegisterCommands_Groups(t *testing.T) {
 		"Health",
 		"Configuration",
 		"Profiles",
+		"Workflows",
 		"Tasks",
 		"Runs",
 		"Runners",
@@ -463,6 +466,25 @@ func TestApp_RunCreate_MissingTaskID(t *testing.T) {
 	err = app.runCreate([]string{})
 	if err == nil {
 		t.Error("expected error for missing task ID")
+	}
+}
+
+func TestParseResultSpecClassificationUsesCanonicalContract(t *testing.T) { // [REQ:REQ-P2-001]
+	spec, err := parseResultSpec("", "", "complete, blocked", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Kind != domainpb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION || len(spec.ClassificationValues) != 2 {
+		t.Fatalf("spec = %+v", spec)
+	}
+	if spec.ExtractionMode != domainpb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK || spec.ExtractionRole != "extract.structured" {
+		t.Fatalf("extraction = %+v", spec)
+	}
+}
+
+func TestParseResultSpecRejectsParallelSchemaSystems(t *testing.T) {
+	if _, err := parseResultSpec(`{"type":"string"}`, "", "yes,no", false); err == nil {
+		t.Fatal("expected mutually exclusive result-spec inputs to fail")
 	}
 }
 

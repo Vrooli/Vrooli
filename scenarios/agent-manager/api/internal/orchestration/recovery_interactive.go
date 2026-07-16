@@ -110,22 +110,19 @@ func (r *Reconciler) interactiveCoordinator() *interactive.Coordinator {
 		NewSink: func(runID uuid.UUID) runner.EventSink {
 			return r.recoveryEventSink(runID)
 		},
-		Summary:     r.recoveredSummary,
+		Result:      r.recoveredResult,
 		Heartbeat:   -1,
 		Debounce:    r.interactiveDebounce,
 		SessionPoll: r.interactiveSessionPoll,
 	})
 }
 
-// recoveredSummary adapts buildRecoveredSummary to the coordinator's
-// SummaryBuilder seam, returning nil when the reconstructed summary is empty so
-// the coordinator falls back to the terminal marker's own summary.
-func (r *Reconciler) recoveredSummary(ctx context.Context, runID uuid.UUID) *domain.RunSummary {
-	summary, err := r.buildRecoveredSummary(ctx, runID)
-	if err != nil || !recoveredSummaryHasContent(summary) {
-		return nil
+func (r *Reconciler) recoveredResult(ctx context.Context, runID uuid.UUID, success bool, exitCode int, terminalReason string) (*domain.RunResult, *domain.RunSummary) {
+	result, summary, err := r.buildRecoveredResult(ctx, runID, success, exitCode, terminalReason)
+	if err != nil {
+		return nil, nil
 	}
-	return summary
+	return result, summary
 }
 
 // startInteractiveTailer reattaches an interactive tailer to a live run in the

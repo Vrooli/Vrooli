@@ -10,6 +10,7 @@ import {
   Cog,
   HeartPulse,
   Play,
+  GitBranch,
   Settings2,
   Wifi,
   WifiOff,
@@ -42,6 +43,7 @@ const navItems: Array<{
   { id: "profiles", label: "Profiles", icon: Settings2 },
   { id: "tasks", label: "Tasks", icon: ClipboardList },
   { id: "runs", label: "Runs", icon: Play },
+  { id: "workflows", label: "Workflows", icon: GitBranch },
   { id: "stats", label: "Stats", icon: BarChart3 },
   { id: "health", label: "Health", icon: HeartPulse },
 ];

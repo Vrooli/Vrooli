@@ -67,7 +67,13 @@ import {
   ValidatePermissionPolicyCatalogResponseSchema,
   UpdateProfileRequestSchema,
   UpdateProfileResponseSchema,
+  GetWorkflowExecutionTraceResponseSchema,
+  ListWorkflowExecutionsResponseSchema,
+  SignalWorkflowExecutionRequestSchema,
+  WorkflowExecutionOperationRequestSchema,
+  WorkflowExecutionOperationResponseSchema,
 } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
+import type { WorkflowExecution, WorkflowJournalEntry, WorkflowNodeAttempt } from "@vrooli/proto-types/agent-manager/v1/domain/workflow_pb";
 import {
   ErrorResponseSchema,
   HealthResponseSchema,
@@ -299,6 +305,81 @@ function durationFromMinutes(minutes?: number) {
     return undefined;
   }
   return durationFromMs(minutes * 60_000);
+}
+
+export interface WorkflowTraceView {
+  execution?: WorkflowExecution;
+  attempts: WorkflowNodeAttempt[];
+  journal: WorkflowJournalEntry[];
+}
+
+export function useWorkflowExecutions() {
+  const { data, loading, error, setData, setLoading, setError } = useApiState<WorkflowExecution[]>([]);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const raw = await apiRequest<unknown>("/api/v1/workflow-executions?limit=100");
+      const response = parseProto(ListWorkflowExecutionsResponseSchema, raw);
+      setData(response.executions);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to load workflow executions");
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setError, setLoading]);
+
+  useEffect(() => {
+    void refetch();
+  }, [refetch]);
+
+  useEffect(() => {
+    const refresh = () => void refetch();
+    window.addEventListener("agent-manager:workflow-lifecycle", refresh);
+    return () => window.removeEventListener("agent-manager:workflow-lifecycle", refresh);
+  }, [refetch]);
+
+  const getTrace = useCallback(async (executionId: string): Promise<WorkflowTraceView> => {
+    const raw = await apiRequest<unknown>(`/api/v1/workflow-executions/${encodeURIComponent(executionId)}/trace?limit=500`);
+    const response = parseProto(GetWorkflowExecutionTraceResponseSchema, raw);
+    return { execution: response.execution, attempts: response.attempts, journal: response.journal };
+  }, []);
+
+  const control = useCallback(async (execution: WorkflowExecution, operation: "cancel" | "retry" | "resume") => {
+    const request = create(WorkflowExecutionOperationRequestSchema, {
+      executionId: execution.id,
+      idempotencyKey: `ui-${operation}-${execution.id}-${execution.version.toString()}`,
+      expectedVersion: execution.version,
+      reason: "Operator action from Agent Manager workflow console",
+    });
+    const raw = await apiRequest<unknown>(`/api/v1/workflow-executions/${encodeURIComponent(execution.id)}/${operation}`, {
+      method: "POST",
+      body: JSON.stringify(toProtoJson(WorkflowExecutionOperationRequestSchema, request)),
+    });
+    const response = parseProto(WorkflowExecutionOperationResponseSchema, raw);
+    await refetch();
+    return response.execution;
+  }, [refetch]);
+
+  const signal = useCallback(async (execution: WorkflowExecution, name: string, payload: unknown) => {
+    const request = create(SignalWorkflowExecutionRequestSchema, {
+      executionId: execution.id,
+      signal: name,
+      payload: normalizeJsonValueInput(payload),
+      idempotencyKey: `ui-signal-${execution.id}-${execution.version.toString()}-${name}`,
+      expectedVersion: execution.version,
+    });
+    const raw = await apiRequest<unknown>(`/api/v1/workflow-executions/${encodeURIComponent(execution.id)}/signals`, {
+      method: "POST",
+      body: JSON.stringify(toProtoJson(SignalWorkflowExecutionRequestSchema, request)),
+    });
+    const response = parseProto(WorkflowExecutionOperationResponseSchema, raw);
+    await refetch();
+    return response.execution;
+  }, [refetch]);
+
+  return { data, loading, error, refetch, getTrace, control, signal };
 }
 
 function generateProfileKey(name: string): string {

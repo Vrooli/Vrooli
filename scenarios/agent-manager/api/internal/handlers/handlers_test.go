@@ -85,6 +85,8 @@ func setupTestHandler(t *testing.T) (*Handler, *mux.Router) {
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
 		orchestration.WithRolePolicyState(roleState, handlerRoleResolver{}),
+		orchestration.WithWorkflowRepository(repos.Workflows),
+		orchestration.WithWorkflowExecutionRepository(repos.WorkflowExecutions),
 	)
 
 	// Create handler
@@ -667,6 +669,10 @@ func TestCreateRun_Success(t *testing.T) {
 	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
 		TaskId:         createdTask.Id,
 		AgentProfileId: &agentProfileID,
+		InlineConfig: &pb.RunConfigOverrides{ResultSpec: &pb.ResultSpec{
+			Version: "result-spec/v1", Kind: pb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION,
+			ClassificationValues: []string{"complete", "blocked"},
+		}},
 	})
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -686,6 +692,12 @@ func TestCreateRun_Success(t *testing.T) {
 	}
 	if createdRun.AgentProfileId == nil || *createdRun.AgentProfileId != createdProfile.Id {
 		t.Errorf("expected profile ID %s, got %v", createdProfile.Id, createdRun.AgentProfileId)
+	}
+	if createdRun.ResolvedConfig == nil || createdRun.ResolvedConfig.ResultSpec == nil || createdRun.ResolvedConfig.ResultSpec.SchemaDigest == "" {
+		t.Fatalf("expected normalized result spec in create response, got %+v", createdRun.ResolvedConfig)
+	}
+	if len(createdRun.ResolvedConfig.ResultSpec.ClassificationValues) != 0 || len(createdRun.ResolvedConfig.ResultSpec.Schema) == 0 {
+		t.Fatalf("result spec was not canonicalized: %+v", createdRun.ResolvedConfig.ResultSpec)
 	}
 }
 

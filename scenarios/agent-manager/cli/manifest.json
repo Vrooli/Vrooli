@@ -1,0 +1,209 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "agent-manager",
+  "description": "Generated workflow operator commands. Routine inspection is metadata-only; payload results require explicit authorization.",
+  "groups": [
+    {
+      "name": "workflow",
+      "description": "Catalog, simulate, run, inspect, and control durable agent workflows",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate and canonicalize one workflow definition without writes",
+          "flags": [{"name":"file","required":true,"description":"Workflow definition JSON"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ValidateWorkflow"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["filesystem:read"]},
+          "architecture": {"primitive":"action"}
+        },
+        {
+          "name": "plan",
+          "description": "Dry-run all scenario workflow sources without catalog writes",
+          "flags": [{"name":"scenario","required":true,"description":"Owning scenario"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"PlanScenarioWorkflows"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "reconcile-scenario",
+          "description": "Atomically reconcile all valid scenario-owned workflow sources",
+          "flags": [{"name":"scenario","required":true,"description":"Owning scenario"},{"name":"dry-run","bool":true,"description":"Validate without writes"},{"name":"validate-only","bool":true,"description":"Validate sources only"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ReconcileScenarioWorkflows"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "reload",
+          "description": "Reload and atomically activate one scenario's valid workflow source set",
+          "flags": [{"name":"scenario","required":true,"description":"Owning scenario"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ReloadScenarioWorkflows"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "list",
+          "description": "List immutable workflow revisions for an owner",
+          "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"limit","description":"Maximum revisions"},{"name":"offset","description":"Revisions to skip"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListWorkflowRevisions"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        },
+        {
+          "name": "get",
+          "description": "Get one immutable workflow revision by key or digest",
+          "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"digest","description":"Pinned revision digest"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"GetWorkflowRevision"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        },
+        {
+          "name": "explain",
+          "description": "Explain a workflow revision and its authored provenance",
+          "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"digest","description":"Pinned revision digest"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ExplainWorkflow"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        },
+        {
+          "name": "simulate",
+          "description": "Statically plan node identities, strategies, waits, joins, and child workflows without side effects",
+          "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"digest","description":"Pinned revision digest"},{"name":"input-file","required":true,"description":"Workflow input JSON"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"SimulateWorkflow"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]},
+          "architecture": {"primitive":"action"}
+        },
+        {
+          "name": "start",
+          "description": "Start an idempotent execution pinned to one immutable workflow revision",
+          "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"digest","description":"Pinned revision digest"},{"name":"input-file","required":true,"description":"Workflow input JSON"},{"name":"idempotency-key","required":true,"description":"Replay-safe caller key"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"StartWorkflowExecution"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "execution-list",
+          "description": "List bounded metadata-only workflow execution history",
+          "flags": [{"name":"owner","description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"status","description":"Execution status"},{"name":"limit","description":"Maximum executions, bounded to 200"},{"name":"offset","description":"Executions to skip"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListWorkflowExecutions"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        },
+        {
+          "name": "execution-get",
+          "description": "Inspect one execution with input and output redacted",
+          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"GetWorkflowExecution"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        },
+        {
+          "name": "execution-result",
+          "description": "Inspect input and output only after explicit operator authorization",
+          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
+          "flags": [{"name":"explicitly-authorized","bool":true,"required":true,"description":"Confirm authorization to reveal payloads"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"GetWorkflowExecutionResult"},
+          "governance": {"effect":"read","run_eligible":false,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "execution-advance",
+          "description": "Reconcile one execution from its durable state without duplicating dispatched work",
+          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"AdvanceWorkflowExecution"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "trace",
+          "description": "Inspect metadata-only attempt and durable journal history",
+          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
+          "flags": [{"name":"after-sequence","description":"Only events after this sequence"},{"name":"limit","description":"Maximum journal events"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"GetWorkflowExecutionTrace"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        },
+        {
+          "name": "signal",
+          "description": "Deliver one typed, idempotent signal to the exact durable wait",
+          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
+          "flags": [{"name":"signal","required":true,"description":"Expected signal name"},{"name":"payload-file","required":true,"description":"Typed JSON payload"},{"name":"idempotency-key","required":true,"description":"Replay-safe caller key"},{"name":"expected-version","description":"Optimistic concurrency version"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"SignalWorkflowExecution"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "cancel",
+          "description": "Idempotently cancel an execution and propagate cancellation to active runs and children",
+          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
+          "flags": [{"name":"idempotency-key","required":true,"description":"Replay-safe caller key"},{"name":"expected-version","description":"Optimistic concurrency version"},{"name":"reason","description":"Operator reason"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"CancelWorkflowExecution"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "retry",
+          "description": "Retry the failed node using its durable attempt lineage and retry budget",
+          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
+          "flags": [{"name":"idempotency-key","required":true,"description":"Replay-safe caller key"},{"name":"expected-version","description":"Optimistic concurrency version"},{"name":"reason","description":"Operator reason"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"RetryWorkflowExecution"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "resume",
+          "description": "Resume a recoverable execution without creating duplicate node work",
+          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
+          "flags": [{"name":"idempotency-key","required":true,"description":"Replay-safe caller key"},{"name":"expected-version","description":"Optimistic concurrency version"},{"name":"reason","description":"Operator reason"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ResumeWorkflowExecution"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {"service":"AgentManagerService","method":"ApproveRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"CancelTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"CreateProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"CreateRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"CreateTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"DeleteProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"DeleteRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"DeleteTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"DoctorPermissionPolicy","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"EnsureProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ExplainRolePolicy","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetPermissionPolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetPermissionPolicyStatus","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetRolePolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetRolePolicyStatus","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetRunByTag","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetRunDiff","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetRunEvents","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetRunnerStatus","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"GetTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"Health","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ListProfiles","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ListRuns","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ListTasks","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"PlanPermissionPolicy","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ProbeRunner","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"PurgeData","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"QuiesceScenario","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ReconcilePermissionPolicy","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ReconcileScenarioProfiles","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"RecoverRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"RejectRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ReloadPermissionPolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ReloadRolePolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"StopAllRuns","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"StopRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"StopRunByTag","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"UpdateProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"UpdateTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ValidatePermissionPolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
+    {"service":"AgentManagerService","method":"ValidateRolePolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."}
+  ],
+  "measures": {"domains": []}
+}

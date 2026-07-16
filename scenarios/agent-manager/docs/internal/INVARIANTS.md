@@ -155,7 +155,37 @@ configuration.
 - `internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackUsesPersistedCandidatesAcrossRunners` — fallback execution never mutates the stored snapshot.
 - `internal/orchestration/phases/execute_test.go::TestPolicySnapshotResumeStartsAtPersistedCandidate` — resume continues from stored evidence rather than current policy.
 
+## I11. Workflow agent identity is explicit per attempt
+
+**Statement.** Every run node attempt creates a distinct fresh Run with its
+own node-local profile or role. Only a continue node may reuse conversation
+state, and it names a completed ancestor run node; no current/latest Run is
+inferred.
+
+**Why.** Silent conversation reuse couples unrelated slices, defeats bounded
+context, and makes restart or fan-out ancestry ambiguous.
+
+**Tests:** `internal/workflowruntime/engine_test.go` covers distinct loop Run
+ids and named continuation; `internal/workflowcatalog/catalog_test.go` covers
+invalid continuation sources and order.
+
+## I12. Workflow side effects follow durable intent
+
+**Statement.** Input/prompt snapshots and a stable attempt idempotency key are
+committed before Run creation or continuation. Completion evidence, journal
+entries, budget usage, and edge movement commit atomically under execution CAS.
+
+**Why.** A crash at either side-effect boundary must recover by observation,
+never by guessing whether an agent turn was sent.
+
+**Tests:** `internal/workflowruntime/engine_test.go::TestRecoveryReusesPersistedDispatchIntentExactlyOnce`
+and `internal/database/repository_workflow_test.go::TestWorkflowExecutionRepositoryCASAndJournalSurviveReload`.
+
 ## How to add an invariant here
+
+Additional `OT-P2-001` constraints stay in the architecture decision table
+until their executable enforcement tests land. Promote them here only with
+those tests; an invariant without a failing test is not yet an invariant.
 
 1. The statement must be checkable. "Don't do X" without a test that fails when someone does X is not an invariant — it's wishful thinking.
 2. Pair the statement with the test that pins it. If the test doesn't exist yet, add it before adding the invariant.

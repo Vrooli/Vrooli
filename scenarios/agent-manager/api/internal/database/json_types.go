@@ -110,6 +110,37 @@ type NullableRunSummary struct {
 	V *domain.RunSummary
 }
 
+// NullableRunResult wraps *domain.RunResult for JSON scanning. NULL is an
+// honest historical absence, distinct from an unavailable selection outcome.
+type NullableRunResult struct {
+	V *domain.RunResult
+}
+
+func (n *NullableRunResult) Scan(src interface{}) error {
+	if src == nil {
+		n.V = nil
+		return nil
+	}
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return scanTypeError("NullableRunResult", src)
+	}
+	n.V = &domain.RunResult{}
+	return wrapScanError("NullableRunResult", json.Unmarshal(data, n.V))
+}
+
+func (n NullableRunResult) Value() (driver.Value, error) {
+	if n.V == nil {
+		return nil, nil
+	}
+	return json.Marshal(n.V)
+}
+
 // Scan implements sql.Scanner for NullableRunSummary.
 func (n *NullableRunSummary) Scan(src interface{}) error {
 	if src == nil {

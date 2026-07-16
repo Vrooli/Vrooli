@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"agent-manager/internal/domain"
@@ -132,7 +133,7 @@ func TestRunExecutionModeDefaultsToCodecPipe(t *testing.T) {
 }
 
 // TestMigrateRunColumnsAddsMissingColumns builds a runs table WITHOUT the
-// interactive columns, seeds a row, then runs the additive migration and
+// interactive/result columns, seeds a row, then runs the additive migration and
 // asserts the columns appear with their defaults while the existing row's data
 // is preserved (migrate-never-recreate).
 func TestMigrateRunColumnsAddsMissingColumns(t *testing.T) {
@@ -171,7 +172,7 @@ func TestMigrateRunColumnsAddsMissingColumns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("table columns: %v", err)
 	}
-	for _, want := range []string{"execution_mode", "web_console_session_id"} {
+	for _, want := range []string{"execution_mode", "web_console_session_id", "run_result"} {
 		if _, ok := cols[want]; !ok {
 			t.Errorf("expected column %q after migration", want)
 		}
@@ -187,5 +188,12 @@ func TestMigrateRunColumnsAddsMissingColumns(t *testing.T) {
 	}
 	if execMode != "codec_pipe" {
 		t.Errorf("default execution_mode: got %q, want codec_pipe", execMode)
+	}
+	var runResult sql.NullString
+	if err := sqlDB.QueryRowContext(ctx, `SELECT run_result FROM runs WHERE id = 'r1'`).Scan(&runResult); err != nil {
+		t.Fatalf("read historical run_result: %v", err)
+	}
+	if runResult.Valid {
+		t.Errorf("historical run_result should remain NULL, got %q", runResult.String)
 	}
 }

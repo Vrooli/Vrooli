@@ -264,15 +264,17 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 
 	metrics := runner.ExecutionMetrics{}
 	var lastAssistantMessage string
+	var observedEvents []*domain.RunEvent
 	errorOutput := r.spawnStderrAccumulator(proc)
 
 	r.scanStream(ctx, scanInputs{
-		runID:         req.RunID,
-		state:         state,
-		proc:          proc,
-		sink:          req.EventSink,
-		metrics:       &metrics,
-		lastAssistant: &lastAssistantMessage,
+		runID:          req.RunID,
+		state:          state,
+		proc:           proc,
+		sink:           req.EventSink,
+		metrics:        &metrics,
+		lastAssistant:  &lastAssistantMessage,
+		observedEvents: &observedEvents,
 	})
 
 	waitErr := proc.Wait()
@@ -280,7 +282,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 	stderr := errorOutput.String()
 
 	duration := time.Since(startTime)
-	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, lastAssistantMessage, duration, false)
+	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, observedEvents, duration, false)
 
 	if result.Success {
 		runner.EmitStderrAsWarnOnSuccess(req.RunID, req.EventSink, stderr)
@@ -405,15 +407,17 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 
 	metrics := runner.ExecutionMetrics{}
 	var lastAssistantMessage string
+	var observedEvents []*domain.RunEvent
 	errorOutput := r.spawnStderrAccumulator(proc)
 
 	r.scanStream(ctx, scanInputs{
-		runID:         req.RunID,
-		state:         state,
-		proc:          proc,
-		sink:          req.EventSink,
-		metrics:       &metrics,
-		lastAssistant: &lastAssistantMessage,
+		runID:          req.RunID,
+		state:          state,
+		proc:           proc,
+		sink:           req.EventSink,
+		metrics:        &metrics,
+		lastAssistant:  &lastAssistantMessage,
+		observedEvents: &observedEvents,
 	})
 
 	waitErr := proc.Wait()
@@ -421,7 +425,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 	stderr := errorOutput.String()
 
 	duration := time.Since(startTime)
-	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, lastAssistantMessage, duration, true)
+	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, observedEvents, duration, true)
 
 	if result.Success {
 		runner.EmitStderrAsWarnOnSuccess(req.RunID, req.EventSink, stderr)
@@ -461,12 +465,13 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 // a long parameter list and keeps each scan-loop iteration focused on
 // one line.
 type scanInputs struct {
-	runID         uuid.UUID
-	state         codecs.State
-	proc          runner.LaunchedProcess
-	sink          runner.EventSink
-	metrics       *runner.ExecutionMetrics
-	lastAssistant *string
+	runID          uuid.UUID
+	state          codecs.State
+	proc           runner.LaunchedProcess
+	sink           runner.EventSink
+	metrics        *runner.ExecutionMetrics
+	lastAssistant  *string
+	observedEvents *[]*domain.RunEvent
 }
 
 // scanStream consumes proc.Stdout() line by line, dispatching to the
@@ -499,6 +504,9 @@ func (r *Runner) scanStream(ctx context.Context, in scanInputs) {
 				continue
 			}
 			r.codec.UpdateMetrics(event, in.metrics, in.lastAssistant)
+			if in.observedEvents != nil {
+				*in.observedEvents = append(*in.observedEvents, event)
+			}
 			if in.sink != nil {
 				_ = in.sink.Emit(event)
 			}
@@ -539,7 +547,7 @@ func (r *Runner) classifyResult(
 	errorOutput string,
 	state codecs.State,
 	metrics *runner.ExecutionMetrics,
-	lastAssistant string,
+	observedEvents []*domain.RunEvent,
 	duration time.Duration,
 	isContinue bool,
 ) *runner.ExecuteResult {
@@ -575,16 +583,23 @@ func (r *Runner) classifyResult(
 	} else {
 		result.Success = true
 		result.ExitCode = 0
-		result.Summary = &domain.RunSummary{
-			Description:   lastAssistant,
-			TurnsUsed:     metrics.TurnsUsed,
-			TokensUsed:    runner.TotalTokens(*metrics),
-			CostEstimate:  metrics.CostEstimateUSD,
-			ContextTokens: metrics.TokensInput,
-		}
 	}
 
 	r.codec.PostClassify(state, result)
+	terminalReason := "completed"
+	if ctx.Err() == context.Canceled {
+		terminalReason = "cancelled"
+	} else if !result.Success {
+		terminalReason = "failed"
+	}
+	result.Result = domain.ResolveRunResult(observedEvents, result.Success, result.ExitCode, terminalReason)
+	result.Summary = domain.SummaryFromRunResult(
+		result.Result,
+		metrics.TurnsUsed,
+		runner.TotalTokens(*metrics),
+		metrics.TokensInput,
+		metrics.CostEstimateUSD,
+	)
 
 	if sid := state.SessionID(); sid != "" {
 		result.SessionID = sid
@@ -868,6 +883,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 
 	metrics := runner.ExecutionMetrics{}
 	var lastAssistantMessage string
+	var observedEvents []*domain.RunEvent
 	var errorOutput strings.Builder
 	var terminal *runner.TranscriptTerminal
 
@@ -910,6 +926,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 			OnEvents: func(events []*domain.RunEvent) {
 				for _, evt := range events {
 					r.codec.UpdateMetrics(evt, &metrics, &lastAssistantMessage)
+					observedEvents = append(observedEvents, evt)
 				}
 			},
 		})
@@ -936,6 +953,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		OnEvents: func(events []*domain.RunEvent) {
 			for _, evt := range events {
 				r.codec.UpdateMetrics(evt, &metrics, &lastAssistantMessage)
+				observedEvents = append(observedEvents, evt)
 			}
 		},
 	})
@@ -989,13 +1007,25 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		result.ExitCode = -1
 		result.ErrorMessage = drainErr.Error()
 	}
-	if result.Success && result.Summary == nil {
-		result.Summary = runner.TerminalSummaryFromMessage(lastAssistantMessage, metrics)
-	} else if !result.Success && strings.TrimSpace(result.ErrorMessage) == "" {
+	if !result.Success && strings.TrimSpace(result.ErrorMessage) == "" {
 		result.ErrorMessage = strings.TrimSpace(errorOutput.String())
 	}
 
 	r.codec.PostClassify(in.state, result)
+	terminalReason := "completed"
+	if ctx.Err() == context.Canceled {
+		terminalReason = "cancelled"
+	} else if !result.Success {
+		terminalReason = "failed"
+	}
+	result.Result = domain.ResolveRunResult(observedEvents, result.Success, result.ExitCode, terminalReason)
+	result.Summary = domain.SummaryFromRunResult(
+		result.Result,
+		metrics.TurnsUsed,
+		runner.TotalTokens(metrics),
+		metrics.TokensInput,
+		metrics.CostEstimateUSD,
+	)
 
 	if result.Success {
 		runner.EmitStderrAsWarnOnSuccess(in.runID, in.sink, errorOutput.String())

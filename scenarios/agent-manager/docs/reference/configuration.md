@@ -234,6 +234,81 @@ Heuristic windows used by `phases.ValidateRunOutcome` and stderr truncation.
 | `LaunchFailedMaxDuration` | 2s | Sub-2s sandboxed runs with zero message events get demoted to `SANDBOX_LAUNCH_FAILED`. Pin this when bwrap chdir failures masquerade as success. |
 | `RateLimitTruncate` | 512B | How much error-message text is preserved in rate-limit warnings. |
 
+## Workflow-runtime controls
+
+Workflow budgets are authored controls owned by the scenario that owns the
+definition. There is intentionally no implicit runtime default: every value is
+required, finite, and positive, so omission is a validation error. Agent
+Manager owns immutable safety ceilings; changing a ceiling is a contract review
+rather than an environment tweak. This keeps a reconciled definition equally
+bounded after restart and on every deployment.
+
+| Authored field | Default | Valid range | Authoritative owner |
+|---|---:|---:|---|
+| `wallTimeSeconds` | none (required) | 1–86,400 | Scenario workflow author |
+| `maxTurns` | none (required) | 1–1,000 | Scenario workflow author |
+| `maxTokens` | none (required) | 1–10,000,000 | Scenario workflow author |
+| `maxCostUsd` | none (required) | >0–10,000 | Scenario workflow author |
+| `maxNodeAttempts` | none (required) | 1–10,000 | Scenario workflow author |
+| `maxChildren` | none (required) | 1–1,000 | Scenario workflow author |
+| `maxConcurrency` | none (required) | 1–64 | Scenario workflow author |
+| `maxRecursion` | none (required) | 1–16 | Scenario workflow author |
+| `maxRetries` | none (required) | 1–100 | Scenario workflow author |
+| `maxWaitSeconds` | none (required) | 1–86,400 | Scenario workflow author |
+| edge `maxTraversals` | 0 only for acyclic edges; required for cycle edges | 0–10,000 | Scenario workflow author |
+
+Runtime semantics are fixed: wall time is measured from the durable execution
+creation timestamp; wait time consumes neither turns nor tokens; parallel
+dispatch never exceeds `maxConcurrency`; child consumption rolls into the
+parent budget tree; retry and recursion checks occur before dispatch; and an
+exceeded bound produces a typed terminal reason instead of silent truncation.
+Catalog validation rejects a definition above any ceiling before activation.
+
+| Control group | Safety rule |
+|---|---|
+| Result selection | No confidence percentage; weak evidence abstains and extraction output is always locally revalidated. |
+| Bindings | Selected items and serialized bytes are bounded; overflow fails with a typed diagnostic and full transcript selection is unsupported. |
+| Structured output | Source, schema, candidate, depth, and diagnostics are bounded; secrets are redacted from diagnostics. |
+
+The V1 structured-output bounds are currently contract constants: 32 KiB
+canonical schema, depth 32, 64 KiB selected source, 64 KiB candidate, and 8 KiB
+diagnostic message. Unknown keywords are rejected. Remote/dynamic references,
+recursive schemas, unevaluated keywords, and custom validation code are not
+supported. These are safety boundaries rather than runtime operator knobs;
+changing them requires a ResultSpec contract review.
+
+`extractionMode` defaults to `deterministic_only`. A caller may explicitly set
+`constrained_fallback`; its blank role defaults to the portable
+`extract.structured` role. Agent Manager core does not select an Ollama model or
+consumer-specific categories. If no extractor adapter is wired, fallback
+degrades to the durable `abstained` outcome.
+
+Node-local execution choices are authored contract data, not operator tunables:
+a node must say `fresh_run` with its own profile/role or `continue` with a named
+prior conversation. There is deliberately no workflow-wide default profile or
+implicit conversation-reuse switch.
+
+## Scenario-owned workflow sources
+
+Consumers declare workflow desired state alongside profiles in their Agent
+Manager dependency configuration:
+
+```json
+{
+  "profiles": {"reconcile": true, "mode": "update_if_unmodified", "sources": [".vrooli/agent-profiles/default.json"]},
+  "workflows": {"reconcile": true, "sources": [".vrooli/agent-workflows/review.json"]}
+}
+```
+
+Workflow paths must be unique, relative, symlink-contained regular files no
+larger than 256 KiB. `agent-manager workflow validate --file <path>` validates
+one document without catalog access. `workflow plan` and
+`workflow reconcile-scenario --dry-run` validate all manifest sources without
+writes. `workflow reconcile-scenario` and `workflow reload` atomically activate
+the complete valid source set; a failed reload preserves the prior revision.
+`workflow list`, `get`, and `explain` expose provenance and definitions by
+owner/key or digest.
+
 ## Adding a new lever
 
 1. Pick the section that owns the behavior. If none fits, add a new section type.

@@ -174,6 +174,12 @@ export function parseWebSocketMessage(raw: unknown): WebSocketMessage | null {
           status: enumValue(raw.task_status.status, TASK_STATUS_VALUES) as Task["status"],
         } satisfies Partial<Task>,
       };
+    case "AGENT_MANAGER_WS_MESSAGE_TYPE_WORKFLOW_LIFECYCLE":
+      if (!isRecord(raw.workflow_lifecycle) || typeof raw.workflow_lifecycle.execution_id !== "string") return null;
+      return {
+        type: "workflow_lifecycle",
+        payload: camelizeValue(raw.workflow_lifecycle),
+      };
     case "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS":
       if (!isRecord(raw.run_progress)) return null;
       return {

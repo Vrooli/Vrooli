@@ -57,6 +57,10 @@ type StatusBroadcaster interface {
 // live path relies on the terminal marker's own summary. Nil is safe.
 type SummaryBuilder func(ctx context.Context, runID uuid.UUID) *domain.RunSummary
 
+// ResultBuilder reconstructs the canonical terminal result and its legacy
+// summary projection from persisted events.
+type ResultBuilder func(ctx context.Context, runID uuid.UUID, success bool, exitCode int, terminalReason string) (*domain.RunResult, *domain.RunSummary)
+
 // CoordinatorDeps bundles the collaborators an interactive Coordinator drives.
 type CoordinatorDeps struct {
 	// Substrate creates/tears down the web-console session and resolves the
@@ -78,6 +82,7 @@ type CoordinatorDeps struct {
 	NewSink func(runID uuid.UUID) runner.EventSink
 	// Summary optionally builds the completion summary from stored events.
 	Summary SummaryBuilder
+	Result  ResultBuilder
 	// Clock overrides time.Now for run timestamps (tests). Nil uses time.Now.
 	Clock func() time.Time
 	// Debounce overrides the turn-boundary idle window (0 uses the default).
@@ -444,7 +449,9 @@ func (c *Coordinator) finalizeComplete(ctx context.Context, run *domain.Run, ter
 	run.UpdatedAt = now
 	exit := terminal.ExitCode
 	run.ExitCode = &exit
-	if summary := c.buildSummary(ctx, run, terminal); summary != nil {
+	if c.deps.Result != nil {
+		run.Result, run.Summary = c.deps.Result(ctx, run.ID, true, exit, "completed")
+	} else if summary := c.buildSummary(ctx, run, terminal); summary != nil {
 		run.Summary = summary
 	}
 	mu.Unlock()
@@ -462,6 +469,9 @@ func (c *Coordinator) finalizeFailed(ctx context.Context, run *domain.Run, reaso
 	run.Status = domain.RunStatusFailed
 	run.Phase = domain.RunPhaseCompleted
 	run.ErrorMsg = reason
+	if c.deps.Result != nil {
+		run.Result, run.Summary = c.deps.Result(ctx, run.ID, false, 1, "failed")
+	}
 	run.EndedAt = &now
 	run.UpdatedAt = now
 	mu.Unlock()

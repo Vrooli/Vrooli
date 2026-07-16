@@ -48,13 +48,13 @@ func TestCodecGoldenTrace(t *testing.T) {
 			// L1 assistant text          → message
 			// L2 assistant tool_use      → tool_call
 			// L3 user tool_result        → tool_result
-			// L4 result.success          → metric (cost/usage rollup)
+			// L4 result.success          → terminal message + metric (cost/usage rollup)
 			expectedTypes: [][]domain.RunEventType{
 				{domain.EventTypeLog},
 				{domain.EventTypeMessage},
 				{domain.EventTypeToolCall},
 				{domain.EventTypeToolResult},
-				{domain.EventTypeMetric},
+				{domain.EventTypeMessage, domain.EventTypeMetric},
 			},
 			requireMessage: true,
 			requireTool:    true,
@@ -70,7 +70,7 @@ func TestCodecGoldenTrace(t *testing.T) {
 			// L4 command_execution completed    → tool_result
 			// L5 file_change                    → tool_call
 			// L6 agent_message                  → message
-			// L7 turn.completed                 → metric
+			// L7 turn.completed                 → terminal evidence + metric
 			expectedTypes: [][]domain.RunEventType{
 				{domain.EventTypeLog},
 				{domain.EventTypeLog},
@@ -79,7 +79,7 @@ func TestCodecGoldenTrace(t *testing.T) {
 				{domain.EventTypeToolResult},
 				{domain.EventTypeToolCall},
 				{domain.EventTypeMessage},
-				{domain.EventTypeMetric},
+				{domain.EventTypeMessage, domain.EventTypeMetric},
 			},
 			requireMessage: true,
 			requireTool:    true,
@@ -276,7 +276,7 @@ func TestCodecOnDiskTranscriptTrace(t *testing.T) {
 			// L5 custom_tool_call_output    → tool_result
 			// L6 token_count                → (dropped)
 			// L7 agent_message              → message
-			// L8 task_complete              → (terminal)
+			// L8 task_complete              → terminal evidence
 			expectedTypes: [][]domain.RunEventType{
 				{},
 				{},
@@ -286,7 +286,7 @@ func TestCodecOnDiskTranscriptTrace(t *testing.T) {
 				{domain.EventTypeToolResult},
 				{},
 				{domain.EventTypeMessage},
-				{},
+				{domain.EventTypeMessage},
 			},
 			wantSessionID:       true,
 			wantTerminalSuccess: true,

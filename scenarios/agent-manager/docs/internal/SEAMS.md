@@ -127,12 +127,33 @@ type Runner interface {
 
 **Dependencies:**
 - Receives: `ExecuteRequest` with profile, task, working directory
-- Produces: `ExecuteResult` with summary, metrics, exit code
+- Produces: `ExecuteResult` with canonical `RunResult`, its compatibility-only
+  summary projection, metrics, and exit code
 - Side effects: Streams `RunEvent` to `EventSink`
 
 ---
 
-### 1a. Codec + baseCodec + Pricing (`adapters/runner/codecs`)
+### 1a. StructuredResult resolver + extractor (`internal/structuredresult`)
+
+**Purpose:** Turn the canonical final handoff into an optional typed value
+without trusting provider formatting or creating a second classifier model.
+
+**Seam shape:**
+- `NormalizeSpec` validates the closed `result-spec/v1` JSON Schema subset,
+  canonicalizes schema bytes, and calculates the persisted digest.
+- `Resolver.Resolve` owns the deterministic parse → local validate → optional
+  constrained extraction → local revalidate ladder.
+- `Extractor` accepts only bounded source/schema plus a portable role and
+  returns an untrusted candidate with provider/policy provenance.
+
+**Boundary rule:** An extractor error, outage, or abstention is a structured
+`abstained` result. An extractor candidate that fails local validation is
+`invalid`. Neither path can manufacture success, and diagnostic text never
+includes provider errors or source output.
+
+---
+
+### 1b. Codec + baseCodec + Pricing (`adapters/runner/codecs`)
 
 **Purpose:** Isolate the per-runner glue (CLI args, stdout decode, classify,
 metrics, cost) from the generic `core.Runner` pipeline. One file per runner
@@ -1618,6 +1639,39 @@ useful message.
 [CODE: api/internal/orchestration/run_executor.go#emitGenericFailureEvent]
 
 ---
+
+## Reliable-result and workflow seams
+
+These seams are pinned for `OT-P2-001`. The result resolver, structured-result
+pipeline, workflow catalog, and durable interpreter are implemented contracts.
+They extend the existing
+runner, codec, repository, reconciliation, and park/wake boundaries.
+
+| Seam | Pure/side-effect boundary | Failure signal |
+|---|---|---|
+| Final-output resolver | Pure function over normalized provider evidence; provider policies are data/strategy inputs. | `ambiguous` or `unavailable` with candidate evidence and algorithm version. |
+| Structured-result pipeline | Deterministic parse, local schema validation, optional bounded extractor, local revalidation. | `invalid`, `unsupported`, `extractor_unavailable`, or `abstained`; never unvalidated success. |
+| Workflow catalog | Scenario-local source loader and immutable digest repository; activation is atomic. | Previous revision stays active and readiness exposes digest/count diagnostics only. |
+| Workflow interpreter | Pure transition decision over pinned definition, journal projection, signals, and budgets. | Typed terminal reason; no consumer lifecycle vocabulary. |
+| Node dispatcher | Persists dispatch intent/idempotency identity before fresh Run, continuation, or child-workflow side effects. | Recovery reuses the intent and never duplicates the child operation. |
+| Journal binding evaluator | Deterministic selectors and bounded JSON/text rendering over declared inputs and typed journal entries. | Typed binding diagnostic; no transcript or hidden-state fallback. |
+| External signal gate | Validates correlation, idempotency key, wait state, payload schema, and deadline before append. | Duplicate is a no-op; stale/invalid signal is rejected without advancing. |
+| Subworkflow boundary | Maps declared typed input into a separately pinned child execution with parent attempt and depth identity, then aggregates its budget ledger. | Missing revision, recursion/child budget exhaustion, or typed child terminal; no catalog inference during recovery. |
+| Parallel join boundary | Atomically persists membership and intents, dispatches within concurrency bounds, and converges through `all`, `any`, or positive `quorum`. | Unsatisfied join or member failure is journaled without merging child conversations. |
+| Cancellation boundary | Commits cancellation intent, propagates to active Runs and child workflows, then records disposition. | Terminal reason distinguishes complete propagation from non-cancellable or failed child stops. |
+
+The operator-visible story is intentionally compact: catalog activation emits
+revision digest/counts; each execution shows current node, attempt, strategy,
+child identity, budget use, wait deadline, and terminal reason; each RunResult
+shows selection status/rule and structured-validation status. Prompts,
+transcripts, structured values, schemas, and handoffs are not copied into list
+signals or logs.
+
+- Agent Manager owns provider interpretation and workflow progress.
+- A consumer owns its DTO mapping, semantic validation, approvals, and domain
+  mutation.
+- The handshake is idempotent command in, typed result out; neither side
+  mirrors the other's lifecycle.
 
 ## Related Documentation
 

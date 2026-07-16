@@ -15,6 +15,7 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/workflowcatalog"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -32,6 +33,9 @@ const (
 	CodeRoleUnresolved     = "agent_conformance.role_unresolved"
 	CodeDirectSpawnBypass  = "agent_conformance.direct_spawn_bypass"
 	CodePermissionPosture  = "agent_conformance.permission_posture"
+	CodeWorkflowInvalid    = "agent_conformance.workflow_invalid"
+	CodeWorkflowOrphan     = "agent_conformance.workflow_orphan"
+	CodeWorkflowOwnership  = "agent_conformance.workflow_ownership_mismatch"
 )
 
 type Finding struct {
@@ -127,6 +131,9 @@ func (s Service) Validate(scenario, explicitPath string) (Report, error) {
 		Profiles struct {
 			Sources []string `json:"sources"`
 		} `json:"profiles"`
+		Workflows struct {
+			Sources []string `json:"sources"`
+		} `json:"workflows"`
 	}
 	// A consumer may request a portable role directly at runtime and therefore
 	// legitimately have no scenario-owned profile sources. Once it supplies
@@ -135,6 +142,10 @@ func (s Service) Validate(scenario, explicitPath string) (Report, error) {
 	if len(dep.Config) > 0 {
 		if err := orchestration.ValidateScenarioProfileConfig(manifestPath); err != nil {
 			report.add(CodeProfileInvalid, "Agent profile configuration invalid", manifestPath, err.Error())
+			return report, nil
+		}
+		if err := orchestration.ValidateScenarioWorkflowConfig(manifestPath); err != nil {
+			report.add(CodeWorkflowInvalid, "Agent workflow configuration invalid", manifestPath, err.Error())
 			return report, nil
 		}
 		if json.Unmarshal(dep.Config, &config) != nil {
@@ -178,10 +189,66 @@ func (s Service) Validate(scenario, explicitPath string) (Report, error) {
 		}
 	}
 	reportOrphanProfiles(&report, abs, declaredSources)
+	declaredWorkflows := make(map[string]bool, len(config.Workflows.Sources))
+	for _, source := range config.Workflows.Sources {
+		path, err := resolveSource(abs, source)
+		if err != nil {
+			report.add(CodeWorkflowInvalid, "Agent workflow source invalid", manifestPath, err.Error())
+			continue
+		}
+		if rel, err := filepath.Rel(abs, path); err == nil {
+			declaredWorkflows[filepath.ToSlash(rel)] = true
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			report.add(CodeWorkflowInvalid, "Agent workflow unreadable", path, err.Error())
+			continue
+		}
+		parsed, err := workflowcatalog.Parse(data, nil)
+		if err != nil {
+			report.add(CodeWorkflowInvalid, "Agent workflow is malformed", path, err.Error())
+			continue
+		}
+		if len(parsed.Diagnostics) != 0 {
+			report.add(CodeWorkflowInvalid, "Agent workflow contract is invalid", path, parsed.Diagnostics[0].Message)
+			continue
+		}
+		if parsed.Definition.Owner != scenario || !strings.HasPrefix(parsed.Definition.Key, scenario+"/") {
+			report.add(CodeWorkflowOwnership, "Agent workflow is owned by another scenario", path, "Use owner "+scenario+" and a key prefixed by "+scenario+"/.")
+		}
+		for _, node := range parsed.Definition.Nodes {
+			if node.Run != nil && node.Run.RoleRef != "" && !roles[node.Run.RoleRef] {
+				report.add(CodeRoleUnresolved, "Agent workflow roleRef is unresolved", path, "Choose a role declared by Agent Manager's role-policy catalog.")
+			}
+		}
+	}
+	reportOrphanWorkflows(&report, abs, declaredWorkflows)
 	reportDirectSpawnBypasses(&report, abs)
 	reportPermissionPosture(&report, s.PermissionPosture)
 	sortFindings(report.Findings)
 	return report, nil
+}
+
+func reportOrphanWorkflows(report *Report, root string, declared map[string]bool) {
+	for _, source := range jsonFiles(filepath.Join(root, ".vrooli", "agent-workflows"), root) {
+		if !declared[source] {
+			report.add(CodeWorkflowOrphan, "Agent workflow source is undeclared", filepath.Join(root, filepath.FromSlash(source)), "Register this workflow under dependencies.scenarios.agent-manager.config.workflows.sources.")
+		}
+	}
+}
+
+func jsonFiles(searchRoot, relativeRoot string) []string {
+	var files []string
+	_ = filepath.WalkDir(searchRoot, func(path string, entry os.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() && strings.EqualFold(filepath.Ext(path), ".json") {
+			if rel, e := filepath.Rel(relativeRoot, path); e == nil {
+				files = append(files, filepath.ToSlash(rel))
+			}
+		}
+		return nil
+	})
+	sort.Strings(files)
+	return files
 }
 
 func loadRoles(repoRoot string) (map[string]bool, error) {

@@ -1,5 +1,6 @@
 | Date       | Author            | Status Snapshot | Notes |
 |------------|-------------------|-----------------|-------|
+| 2026-07-16 | Codex | Agent-workflow runtime foundation | Implemented durable authored workflows with provider-aware final-output collection, schema-validated structured results and explicit abstention, fresh/continue/child/wait/branch semantics, bounded bindings and budgets, restart-safe dispatch, and immutable definition digests. Added persistence, HTTP/CLI/config documentation, workflow catalog/reconciliation, and race coverage. Focused and race gates pass; comprehensive run `20260716-083058-10914815` remains red on inherited scenario debt, with its two changed-surface findings fixed afterward. |
 | 2025-12-19 | Generator Agent | Initialization complete | Scenario scaffold & PRD seeded |
 | 2025-12-18 | Claude Opus 4.5   | Core implementation complete | main.go wired to orchestration, in-memory repos, all tests passing |
 | 2025-12-18 | Claude Opus 4.5   | Runner & Sandbox integration | ClaudeCodeRunner and WorkspaceSandboxProvider implemented |

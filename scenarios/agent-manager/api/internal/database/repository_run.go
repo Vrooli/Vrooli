@@ -46,6 +46,7 @@ type runRow struct {
 	ProgressPercent          int                   `db:"progress_percent"`
 	IdempotencyKey           sql.NullString        `db:"idempotency_key"`
 	Summary                  NullableRunSummary    `db:"summary"`
+	RunResult                NullableRunResult     `db:"run_result"`
 	ErrorMsg                 string                `db:"error_msg"`
 	ExitCode                 sql.NullInt32         `db:"exit_code"`
 	ApprovalState            string                `db:"approval_state"`
@@ -116,6 +117,7 @@ func (row *runRow) toDomain() *domain.Run {
 		ProgressPercent:          row.ProgressPercent,
 		IdempotencyKey:           row.IdempotencyKey.String, // Empty string if NULL
 		Summary:                  row.Summary.V,
+		Result:                   row.RunResult.V,
 		ErrorMsg:                 row.ErrorMsg,
 		ApprovalState:            domain.ApprovalState(row.ApprovalState),
 		ApprovedBy:               row.ApprovedBy,
@@ -192,6 +194,7 @@ func runFromDomain(r *domain.Run) *runRow {
 		ProgressPercent:          r.ProgressPercent,
 		IdempotencyKey:           sql.NullString{String: r.IdempotencyKey, Valid: r.IdempotencyKey != ""},
 		Summary:                  NullableRunSummary{V: r.Summary},
+		RunResult:                NullableRunResult{V: r.Result},
 		ErrorMsg:                 r.ErrorMsg,
 		ApprovalState:            string(r.ApprovalState),
 		ApprovedBy:               r.ApprovedBy,
@@ -337,7 +340,7 @@ func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
 	execution_mode, web_console_session_id, status,
 	started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
-	idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
+	idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 	finalization_status, finalization_error, finalized_at,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
@@ -469,7 +472,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
 			execution_mode, web_console_session_id, status,
 			started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
-			idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
+			idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 			finalization_status, finalization_error, finalized_at,
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
 			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
@@ -482,7 +485,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode,
 			:execution_mode, :web_console_session_id, :status,
 			:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
-			:idempotency_key, :summary, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
+			:idempotency_key, :summary, :run_result, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
 			:finalization_status, :finalization_error, :finalized_at,
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id,
 			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq,
@@ -606,7 +609,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		started_at = :started_at, ended_at = :ended_at, phase = :phase,
 		last_checkpoint_id = :last_checkpoint_id, last_heartbeat = :last_heartbeat,
 		progress_percent = :progress_percent, idempotency_key = :idempotency_key,
-		summary = :summary, error_msg = :error_msg, exit_code = :exit_code,
+		summary = :summary, run_result = :run_result, error_msg = :error_msg, exit_code = :exit_code,
 		approval_state = :approval_state, approved_by = :approved_by, approved_at = :approved_at,
 		finalization_status = :finalization_status, finalization_error = :finalization_error, finalized_at = :finalized_at,
 		resolved_config = :resolved_config, diff_path = :diff_path, log_path = :log_path,

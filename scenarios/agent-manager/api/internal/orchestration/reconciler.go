@@ -33,6 +33,7 @@ import (
 	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
@@ -85,10 +86,11 @@ func DefaultReconcilerConfig() ReconcilerConfig {
 
 // Reconciler manages orphan detection and stale run recovery.
 type Reconciler struct {
-	runs    repository.RunRepository
-	events  event.Store
-	runners runner.Registry
-	sandbox sandbox.Provider
+	runs              repository.RunRepository
+	events            event.Store
+	runners           runner.Registry
+	sandbox           sandbox.Provider
+	structuredResults phases.StructuredResultResolver
 
 	// sessions is the web-console session controller used to verify interactive
 	// runs' liveness (GetSession) during recovery — interactive CLIs live in
@@ -125,23 +127,27 @@ type Reconciler struct {
 	// Broadcaster for real-time updates
 	broadcaster EventBroadcaster
 
-	recoveryMu sync.Mutex
-	tailers    map[uuid.UUID]context.CancelFunc
+	recoveryMu       sync.Mutex
+	tailers          map[uuid.UUID]context.CancelFunc
+	workflowRecovery WorkflowExecutionRecoverer
 }
 
 // ReconcileStats contains statistics from a reconciliation cycle.
 type ReconcileStats struct {
-	Timestamp     time.Time
-	Duration      time.Duration
-	RunsChecked   int
-	StaleRuns     int
-	OrphansFound  int
-	RunsRecovered int
-	OrphansKilled int
-	ReviewChecked int
-	ReviewSynced  int
-	Errors        []string
+	Timestamp            time.Time
+	Duration             time.Duration
+	RunsChecked          int
+	StaleRuns            int
+	OrphansFound         int
+	RunsRecovered        int
+	OrphansKilled        int
+	ReviewChecked        int
+	ReviewSynced         int
+	WorkflowRecoveryRuns int
+	Errors               []string
 }
+
+type WorkflowExecutionRecoverer interface{ RecoverWorkflowExecutions(context.Context) error }
 
 // NewReconciler creates a new reconciler with the given dependencies.
 func NewReconciler(
@@ -213,6 +219,10 @@ func WithReconcilerInteractive(sessions webconsole.SessionController) Reconciler
 	return func(r *Reconciler) {
 		r.sessions = sessions
 	}
+}
+
+func WithReconcilerWorkflowRecovery(recoverer WorkflowExecutionRecoverer) ReconcilerOption {
+	return func(r *Reconciler) { r.workflowRecovery = recoverer }
 }
 
 // Start begins the reconciliation loop.
@@ -353,6 +363,13 @@ func (r *Reconciler) updateStats(stats ReconcileStats) {
 func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	start := time.Now()
 	stats := ReconcileStats{Timestamp: start}
+	if r.workflowRecovery != nil {
+		if err := r.workflowRecovery.RecoverWorkflowExecutions(ctx); err != nil {
+			stats.Errors = append(stats.Errors, "workflow recovery: "+err.Error())
+		} else {
+			stats.WorkflowRecoveryRuns++
+		}
+	}
 
 	// Step 1: List every run whose LivenessPolicy marks it for scanning. The
 	// per-status policy table (domain.LivenessPolicy) is the single source of

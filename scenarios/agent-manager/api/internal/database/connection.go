@@ -177,6 +177,12 @@ func (db *DB) initSchema() error {
 		}
 		return err
 	}
+	if err := db.migrateColumns(ctx, "workflow_executions", []columnMigration{{column: "parent_attempt_id", ddl: "ALTER TABLE workflow_executions ADD COLUMN parent_attempt_id TEXT"}, {column: "depth", ddl: "ALTER TABLE workflow_executions ADD COLUMN depth INTEGER NOT NULL DEFAULT 0"}}); err != nil {
+		return err
+	}
+	if err := db.migrateColumns(ctx, "workflow_node_attempts", []columnMigration{{column: "child_execution_id", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN child_execution_id TEXT"}}); err != nil {
+		return err
+	}
 	if db.log != nil {
 		db.log.Info("Database schema initialized successfully")
 	}
@@ -195,15 +201,20 @@ type columnMigration struct {
 var runColumnMigrations = []columnMigration{
 	{column: "execution_mode", ddl: "ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe'"},
 	{column: "web_console_session_id", ddl: "ALTER TABLE runs ADD COLUMN web_console_session_id TEXT DEFAULT ''"},
+	{column: "run_result", ddl: "ALTER TABLE runs ADD COLUMN run_result TEXT"},
 }
 
 // migrateRunColumns adds any missing additive columns to the runs table.
 func (db *DB) migrateRunColumns(ctx context.Context) error {
-	existing, err := db.tableColumns(ctx, "runs")
+	return db.migrateColumns(ctx, "runs", runColumnMigrations)
+}
+
+func (db *DB) migrateColumns(ctx context.Context, table string, migrations []columnMigration) error {
+	existing, err := db.tableColumns(ctx, table)
 	if err != nil {
 		return err
 	}
-	for _, m := range runColumnMigrations {
+	for _, m := range migrations {
 		if _, ok := existing[m.column]; ok {
 			continue
 		}
@@ -211,7 +222,7 @@ func (db *DB) migrateRunColumns(ctx context.Context) error {
 			return &domain.DatabaseError{Operation: "schema_migrate", EntityType: "Schema", Cause: err}
 		}
 		if db.log != nil {
-			db.log.WithField("column", m.column).Info("Applied additive runs-table migration")
+			db.log.WithFields(logrus.Fields{"table": table, "column": m.column}).Info("Applied additive table migration")
 		}
 	}
 	return nil

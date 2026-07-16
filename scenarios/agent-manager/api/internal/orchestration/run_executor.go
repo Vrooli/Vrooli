@@ -61,14 +61,15 @@ type ModelHealthReporter = phases.ModelHealthReporter
 // functions. Phase logic does not live here.
 type RunExecutor struct {
 	// Dependencies
-	runs             repository.RunRepository
-	runners          runner.Registry
-	sandbox          sandbox.Provider
-	events           event.Store
-	checkpoints      repository.CheckpointRepository
-	broadcaster      phases.EventBroadcaster
-	workspaceSandbox phases.WorkspaceSandboxEnsurer
-	modelHealth      ModelHealthReporter
+	runs              repository.RunRepository
+	runners           runner.Registry
+	sandbox           sandbox.Provider
+	events            event.Store
+	checkpoints       repository.CheckpointRepository
+	broadcaster       phases.EventBroadcaster
+	workspaceSandbox  phases.WorkspaceSandboxEnsurer
+	modelHealth       ModelHealthReporter
+	structuredResults phases.StructuredResultResolver
 
 	// Configuration
 	levers config.Levers
@@ -175,6 +176,11 @@ func (e *RunExecutor) WithCheckpointRepository(repo repository.CheckpointReposit
 
 func (e *RunExecutor) WithModelHealthReporter(reporter ModelHealthReporter) *RunExecutor {
 	e.modelHealth = reporter
+	return e
+}
+
+func (e *RunExecutor) WithStructuredResultResolver(resolver phases.StructuredResultResolver) *RunExecutor {
+	e.structuredResults = resolver
 	return e
 }
 
@@ -415,13 +421,14 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 // deps returns the bundled dependency struct phase functions consume.
 func (e *RunExecutor) deps() phases.Deps {
 	return phases.Deps{
-		Runs:             e.runs,
-		Events:           e.events,
-		Broadcaster:      e.broadcaster,
-		Checkpoints:      e.checkpoints,
-		Gate:             e.gate,
-		Levers:           e.levers,
-		WorkspaceSandbox: e.workspaceSandbox,
+		Runs:              e.runs,
+		Events:            e.events,
+		Broadcaster:       e.broadcaster,
+		Checkpoints:       e.checkpoints,
+		Gate:              e.gate,
+		Levers:            e.levers,
+		WorkspaceSandbox:  e.workspaceSandbox,
+		StructuredResults: e.structuredResults,
 	}
 }
 

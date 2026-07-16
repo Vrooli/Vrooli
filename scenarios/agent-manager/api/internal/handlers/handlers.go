@@ -136,6 +136,26 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/profiles/{id}", h.UpdateProfile).Methods("PUT")
 	r.HandleFunc("/api/v1/profiles/{id}", h.DeleteProfile).Methods("DELETE")
 
+	// Scenario-owned immutable workflow catalog.
+	r.HandleFunc("/api/v1/workflows/validate", h.ValidateWorkflow).Methods("POST")
+	r.HandleFunc("/api/v1/workflows/plan", h.PlanScenarioWorkflows).Methods("POST")
+	r.HandleFunc("/api/v1/workflows/reconcile-scenario", h.ReconcileScenarioWorkflows).Methods("POST")
+	r.HandleFunc("/api/v1/workflows/reload", h.ReconcileScenarioWorkflows).Methods("POST")
+	r.HandleFunc("/api/v1/workflows", h.ListWorkflowRevisions).Methods("GET")
+	r.HandleFunc("/api/v1/workflows/revision", h.GetWorkflowRevision).Methods("GET")
+	r.HandleFunc("/api/v1/workflows/explain", h.GetWorkflowRevision).Methods("GET")
+	r.HandleFunc("/api/v1/workflows/simulate", h.SimulateWorkflow).Methods("POST")
+	r.HandleFunc("/api/v1/workflow-executions", h.StartWorkflowExecution).Methods("POST")
+	r.HandleFunc("/api/v1/workflow-executions", h.ListWorkflowExecutions).Methods("GET")
+	r.HandleFunc("/api/v1/workflow-executions/{id}", h.GetWorkflowExecution).Methods("GET")
+	r.HandleFunc("/api/v1/workflow-executions/{id}/result", h.GetWorkflowExecutionResult).Methods("GET")
+	r.HandleFunc("/api/v1/workflow-executions/{id}/advance", h.AdvanceWorkflowExecution).Methods("POST")
+	r.HandleFunc("/api/v1/workflow-executions/{id}/trace", h.GetWorkflowExecutionTrace).Methods("GET")
+	r.HandleFunc("/api/v1/workflow-executions/{id}/signals", h.SignalWorkflowExecution).Methods("POST")
+	r.HandleFunc("/api/v1/workflow-executions/{id}/cancel", h.CancelWorkflowExecution).Methods("POST")
+	r.HandleFunc("/api/v1/workflow-executions/{id}/retry", h.RetryWorkflowExecution).Methods("POST")
+	r.HandleFunc("/api/v1/workflow-executions/{id}/resume", h.ResumeWorkflowExecution).Methods("POST")
+
 	// Task endpoints
 	r.HandleFunc("/api/v1/tasks", h.CreateTask).Methods("POST")
 	r.HandleFunc("/api/v1/tasks", h.ListTasks).Methods("GET")
@@ -768,6 +788,9 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	if status.Dependencies != nil {
 		if dep := dependencyToJsonValue(status.Dependencies.Database); dep != nil {
 			dependencies["database"] = dep
+		}
+		if dep := dependencyToJsonValue(status.Dependencies.WorkflowRuntime); dep != nil {
+			dependencies["workflow_runtime"] = dep
 		}
 		if dep := dependencyToJsonValue(status.Dependencies.Sandbox); dep != nil {
 			dependencies["sandbox"] = dep
@@ -1416,6 +1439,9 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if protoReq.InlineConfig != nil {
 		inline := protoReq.InlineConfig
+		if inline.ResultSpec != nil {
+			req.ResultSpec = protoconv.ResultSpecFromProto(inline.ResultSpec)
+		}
 		if inline.RoleRef != nil {
 			roleRef := inline.GetRoleRef()
 			req.RoleRef = &roleRef
@@ -1872,9 +1898,10 @@ func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	run, err := h.svc.ContinueRun(r.Context(), orchestration.ContinueRunRequest{
-		RunID:         id,
-		Message:       req.Message,
-		AttachmentIDs: req.AttachmentIds,
+		RunID:          id,
+		Message:        req.Message,
+		AttachmentIDs:  req.AttachmentIds,
+		IdempotencyKey: req.IdempotencyKey,
 	})
 	if err != nil {
 		writeError(w, r, err)

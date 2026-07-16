@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
@@ -114,11 +113,24 @@ func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, 
 		run.EndedAt = &now
 		run.UpdatedAt = now
 		run.ExitCode = intPtr(terminal.ExitCode)
-		summary, summaryErr := r.buildRecoveredSummary(ctx, run.ID)
-		if summaryErr == nil && recoveredSummaryHasContent(summary) {
+		result, summary, resultErr := r.buildRecoveredResult(ctx, run.ID, true, terminal.ExitCode, "completed")
+		if resultErr == nil {
+			if result.Selection.Status == domain.FinalOutputSelectionUnavailable && terminal.Summary != nil && terminal.Summary.Description != "" {
+				evidence := domain.NewProviderMessageEvent(run.ID, "assistant", terminal.Summary.Description, domain.MessageEventData{
+					ProviderOrigin:    "recovery",
+					CompletionReason:  "terminal_summary",
+					Terminal:          true,
+					ProviderEventType: "transcript_terminal",
+					RawEvidenceRef:    "transcript:terminal.summary",
+				})
+				result = domain.ResolveRunResult([]*domain.RunEvent{evidence}, true, terminal.ExitCode, "completed")
+				summary = domain.SummaryFromRunResult(result, terminal.Summary.TurnsUsed, terminal.Summary.TokensUsed, terminal.Summary.ContextTokens, terminal.Summary.CostEstimate)
+			}
+			if r.structuredResults != nil && run.ResolvedConfig != nil {
+				result.Structured = r.structuredResults.Resolve(ctx, run.ResolvedConfig.ResultSpec, result)
+			}
+			run.Result = result
 			run.Summary = summary
-		} else if terminal.Summary != nil {
-			run.Summary = terminal.Summary
 		}
 		if err := r.runs.Update(ctx, run); err != nil {
 			return nil, err
@@ -135,6 +147,14 @@ func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, 
 		run.EndedAt = &now
 		run.UpdatedAt = now
 		run.ExitCode = intPtr(terminal.ExitCode)
+		result, summary, resultErr := r.buildRecoveredResult(ctx, run.ID, false, terminal.ExitCode, "failed")
+		if resultErr == nil {
+			if r.structuredResults != nil && run.ResolvedConfig != nil {
+				result.Structured = r.structuredResults.Resolve(ctx, run.ResolvedConfig.ResultSpec, result)
+			}
+			run.Result = result
+			run.Summary = summary
+		}
 		if err := r.runs.Update(ctx, run); err != nil {
 			return nil, err
 		}
@@ -286,29 +306,8 @@ func (r *Reconciler) startTailer(run *domain.Run, transcriptPath string, state *
 	}()
 }
 
-func (r *Reconciler) buildRecoveredSummary(ctx context.Context, runID uuid.UUID) (*domain.RunSummary, error) {
-	if r.events == nil {
-		return nil, nil
-	}
-	events, err := r.events.Get(ctx, runID, event.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	var summary domain.RunSummary
-	for _, evt := range events {
-		switch data := evt.Data.(type) {
-		case *domain.MessageEventData:
-			if data.Role == "assistant" && data.Content != "" {
-				summary.Description = data.Content
-				summary.TurnsUsed++
-			}
-		case *domain.CostEventData:
-			summary.TokensUsed = data.InputTokens + data.OutputTokens + data.CacheReadTokens + data.CacheCreationTokens
-			summary.ContextTokens = data.InputTokens
-			summary.CostEstimate = data.TotalCostUSD
-		}
-	}
-	return &summary, nil
+func (r *Reconciler) buildRecoveredResult(ctx context.Context, runID uuid.UUID, success bool, exitCode int, terminalReason string) (*domain.RunResult, *domain.RunSummary, error) {
+	return resolvePersistedRunResult(ctx, r.events, runID, success, exitCode, terminalReason)
 }
 
 func findClaudeNativeTranscript(sessionID string) (string, error) {

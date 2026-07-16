@@ -195,15 +195,16 @@ func (c *Claude) BuildContinueArgs(_ State, req runner.ContinueRequest) []string
 // claudeState carries per-run mutable state through the stream decode loop.
 // Implements [State].
 type claudeState struct {
-	textBuffer     strings.Builder
-	toolUseActive  bool
-	toolUseID      string
-	toolUseName    string
-	toolUsePayload strings.Builder
-	lastAssistant  string
-	sessionID      string
-	gotResult      bool
-	resultIsError  bool
+	textBuffer       strings.Builder
+	toolUseActive    bool
+	toolUseID        string
+	toolUseName      string
+	toolUsePayload   strings.Builder
+	lastAssistant    string
+	lastMessageEvent *domain.RunEvent
+	sessionID        string
+	gotResult        bool
+	resultIsError    bool
 
 	// /compact command tracking
 	pendingCompact bool
@@ -253,15 +254,17 @@ type ClaudeStreamEvent struct {
 	// system/api_retry payload (HTTP status + retry counters). The
 	// "error" field on api_retry is a bare string ("rate_limit"); we let
 	// ClaudeError.UnmarshalJSON absorb it.
-	ErrorStatus  int `json:"error_status,omitempty"`
-	Attempt      int `json:"attempt,omitempty"`
-	MaxRetries   int `json:"max_retries,omitempty"`
-	RetryDelayMs int `json:"retry_delay_ms,omitempty"`
+	ErrorStatus     int    `json:"error_status,omitempty"`
+	Attempt         int    `json:"attempt,omitempty"`
+	MaxRetries      int    `json:"max_retries,omitempty"`
+	RetryDelayMs    int    `json:"retry_delay_ms,omitempty"`
+	ParentToolUseID string `json:"parent_tool_use_id,omitempty"`
 }
 
 // ClaudeMessage carries the role + content of a stream message. Content
 // can be either a JSON string or an array of content blocks.
 type ClaudeMessage struct {
+	ID      string          `json:"id,omitempty"`
 	Role    string          `json:"role"`
 	Content json.RawMessage `json:"content"`
 	// StopReason is present on assistant messages in the on-disk
@@ -507,7 +510,7 @@ func (c *Claude) UpdateMetrics(event *domain.RunEvent, metrics *runner.Execution
 	}
 	switch data := event.Data.(type) {
 	case *domain.MessageEventData:
-		if data.Role == "assistant" {
+		if data.Role == "assistant" && !data.EvidenceOnly {
 			*lastAssistant = data.Content
 			metrics.TurnsUsed++
 		}
@@ -702,9 +705,28 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 		if streamEvent.Result != nil {
 			_ = json.Unmarshal(streamEvent.Result, &resultStr)
 		}
-		if !streamEvent.IsError && resultStr != "" && state.lastAssistant == "" {
-			state.lastAssistant = resultStr
-			events = append(events, domain.NewMessageEvent(runID, "assistant", resultStr))
+		if !streamEvent.IsError {
+			if resultStr == "" {
+				resultStr = state.lastAssistant
+			}
+			if resultStr != "" {
+				state.lastAssistant = resultStr
+				if state.lastMessageEvent != nil && messageEventContent(state.lastMessageEvent) == resultStr {
+					markProviderMessageTerminal(state.lastMessageEvent, streamEvent.Subtype, "result", "stdout:result")
+					events = append(events, newProviderTerminalEvidence(runID, state.lastMessageEvent, streamEvent.Subtype, "result", "stdout:result"))
+				} else {
+					terminalEvent := domain.NewProviderMessageEvent(runID, "assistant", resultStr, domain.MessageEventData{
+						ConversationID:    streamEvent.SessionID,
+						ProviderOrigin:    "claude",
+						CompletionReason:  streamEvent.Subtype,
+						Terminal:          true,
+						ProviderEventType: "result",
+						RawEvidenceRef:    "stdout:result",
+					})
+					state.lastMessageEvent = terminalEvent
+					events = append(events, terminalEvent)
+				}
+			}
 		}
 		event, err := parseClaudeResultEvent(runID, &streamEvent)
 		if err != nil || event == nil {
@@ -864,9 +886,11 @@ func parseMessageEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEven
 			if ev.Message.Role == "assistant" {
 				state.lastAssistant = textContent
 			}
-			events = append(events, domain.NewMessageEvent(
-				runID, ev.Message.Role, textContent,
-			))
+			messageEvent := newClaudeMessageEvent(runID, ev, textContent, false)
+			if ev.Message.Role == "assistant" {
+				state.lastMessageEvent = messageEvent
+			}
+			events = append(events, messageEvent)
 			state.textBuffer.Reset()
 		}
 	}
@@ -909,7 +933,9 @@ func parseAssistantEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEv
 			state.pendingCompact = false
 		}
 		state.lastAssistant = textContent
-		events = append(events, domain.NewMessageEvent(runID, "assistant", textContent))
+		messageEvent := newClaudeMessageEvent(runID, ev, textContent, ev.Message.StopReason == "end_turn")
+		state.lastMessageEvent = messageEvent
+		events = append(events, messageEvent)
 		state.textBuffer.Reset()
 	}
 	toolUses := ev.Message.ExtractToolUses()
@@ -924,6 +950,31 @@ func parseAssistantEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEv
 		return events
 	}
 	return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Assistant turn started")}
+}
+
+func newClaudeMessageEvent(runID uuid.UUID, ev *ClaudeStreamEvent, content string, terminal bool) *domain.RunEvent {
+	messageID := ""
+	role := "assistant"
+	stopReason := ""
+	if ev.Message != nil {
+		messageID = ev.Message.ID
+		role = ev.Message.Role
+		stopReason = ev.Message.StopReason
+	}
+	conversationID := ev.SessionID
+	if conversationID == "" {
+		conversationID = ev.SessionIDAlt
+	}
+	return domain.NewProviderMessageEvent(runID, role, content, domain.MessageEventData{
+		MessageID:         messageID,
+		ConversationID:    conversationID,
+		ProviderOrigin:    "claude",
+		CompletionReason:  stopReason,
+		Terminal:          terminal,
+		ParentMessageID:   ev.ParentToolUseID,
+		ProviderEventType: ev.Type,
+		RawEvidenceRef:    "claude:" + ev.Type,
+	})
 }
 
 func parseUserEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEvent) []*domain.RunEvent {
@@ -970,7 +1021,11 @@ func flushStreamMessage(runID uuid.UUID, state *claudeState) []*domain.RunEvent 
 	message := runner.StripANSI(state.textBuffer.String())
 	state.textBuffer.Reset()
 	state.lastAssistant = message
-	return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", message)}
+	return []*domain.RunEvent{domain.NewProviderMessageEvent(runID, "assistant", message, domain.MessageEventData{
+		ProviderOrigin:    "claude",
+		ProviderEventType: "content_block_delta",
+		RawEvidenceRef:    "claude:content_block_delta",
+	})}
 }
 
 func toolCallFromState(runID uuid.UUID, state *claudeState) *domain.RunEvent {

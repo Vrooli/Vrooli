@@ -1,5 +1,5 @@
 {
-  "description": "Support sequential agent prompts",
+  "description": "Provide trustworthy run results and durable, consumer-neutral agent workflow composition",
   "module_id": "MOD-P2-021",
   "prd_ref": "OT-P2-001",
   "priority": "P2",
@@ -9,11 +9,11 @@
       "dependencies": [
         "REQ-P0-005"
       ],
-      "description": "Enable runs with multiple sequential agent interaction phases",
+      "description": "Keep each Run atomic while exposing a separate durable, explainable RunResult and a consumer-neutral WorkflowExecution that reconciles scenario-owned definitions; requires provider-aware final-output abstention, one schema-validated structured-result mechanism, explicit fresh-run or named-continuation identity per agent node with node-local profiles, deterministic size-bounded append-only journal context, a closed node vocabulary, positive traversal caps on every cycle-forming edge, finite execution budgets, restart-safe dispatch idempotency, and typed terminal outcomes without consumer-domain mutations",
       "id": "REQ-P2-001",
       "prd_ref": "OT-P2-001",
       "status": "planned",
-      "title": "Multi-Phase Run Support",
+      "title": "Atomic Runs and Durable Workflow Executions",
       "validation": [
         {
           "notes": "Test phase transitions",
@@ -35,9 +35,37 @@
           "ref": "",
           "status": "pending",
           "type": "test"
-        }
+        },
+        {
+          "notes": "Verify deterministic parsing, schema validation, bounded extraction fallback, abstention, and redacted diagnostics",
+          "phase": "unit",
+          "ref": "api/internal/structuredresult/resolver_test.go",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify structured results attach to the canonical Run projection before repository persistence",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/phases/result_structured_test.go",
+          "status": "complete",
+          "type": "test"
+        },
+    {
+      "notes": "Verify fresh Run identity per loop attempt, explicit named continuation, bounded bindings, safe CEL, budget exhaustion, and restart-safe idempotent dispatch",
+      "phase": "unit",
+      "ref": "api/internal/workflowruntime/engine_test.go",
+      "status": "complete",
+      "type": "test"
+    },
+    {
+      "notes": "Verify metadata-only operator projections, explicit payload authorization, bounded execution history, generated workflow controls, CLI parity, lifecycle WebSocket parsing, and workflow safety ceilings",
+      "phase": "integration",
+      "ref": "api/internal/handlers/workflow_test.go",
+      "status": "complete",
+      "type": "test"
+    }
       ]
     }
   ],
-  "title": "Multi-phase Runs"
+  "title": "Reliable Results and Agent Workflow Runtime"
 }

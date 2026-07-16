@@ -263,7 +263,7 @@ func (c *Grok) decode(s *grokState, runID uuid.UUID, line string) []*domain.RunE
 
 	case "end":
 		s.gotEnd = true
-		return flushGrokMessage(runID, s)
+		return flushGrokMessage(runID, s, ev)
 
 	case "error":
 		if msg := strings.TrimSpace(ev.Message); msg != "" {
@@ -274,14 +274,22 @@ func (c *Grok) decode(s *grokState, runID uuid.UUID, line string) []*domain.RunE
 }
 
 // flushGrokMessage emits the accumulated assistant text as one message event.
-func flushGrokMessage(runID uuid.UUID, s *grokState) []*domain.RunEvent {
+func flushGrokMessage(runID uuid.UUID, s *grokState, ev *GrokStreamEvent) []*domain.RunEvent {
 	text := runner.StripANSI(strings.TrimSpace(s.textBuffer.String()))
 	s.textBuffer.Reset()
 	if text == "" || text == s.lastAssistant {
 		return nil
 	}
 	s.lastAssistant = text
-	return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", text)}
+	return []*domain.RunEvent{domain.NewProviderMessageEvent(runID, "assistant", text, domain.MessageEventData{
+		MessageID:         ev.RequestID,
+		ConversationID:    ev.SessionID,
+		ProviderOrigin:    "grok",
+		CompletionReason:  ev.StopReason,
+		Terminal:          true,
+		ProviderEventType: ev.Type,
+		RawEvidenceRef:    "grok:" + ev.Type,
+	})}
 }
 
 // decodeGrokStreamEvent unwraps a single stdout/transcript line. Returns
@@ -452,7 +460,7 @@ func (p *grokTranscriptParser) parseACPLine(runID uuid.UUID, line string) (runne
 			)}
 		}
 	case "turn_completed":
-		result.Events = flushGrokMessage(runID, p.state)
+		result.Events = flushGrokMessage(runID, p.state, &GrokStreamEvent{Type: "turn_completed", StopReason: "turn_completed", SessionID: p.state.sessionID})
 		result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0}
 	}
 	return result, true

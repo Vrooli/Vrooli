@@ -130,15 +130,23 @@ func (h *WebSocketHub) BroadcastEvent(event *domain.RunEvent) {
 // BroadcastRunStatus broadcasts a run status change
 func (h *WebSocketHub) BroadcastRunStatus(run *domain.Run) {
 	runID := run.ID.String()
+	selectionStatus := domainpb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_UNSPECIFIED
+	selectionRule := ""
+	if run.Result != nil {
+		selectionStatus = protoconv.FinalOutputSelectionStatusToProto(run.Result.Selection.Status)
+		selectionRule = run.Result.Selection.Rule
+	}
 	h.broadcast <- &domainpb.AgentManagerWsMessage{
 		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
 		RunId: &runID,
 		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
 			RunStatus: &domainpb.RunStatusUpdate{
-				RunId:         runID,
-				Status:        protoconv.RunStatusToProto(run.Status),
-				TaskId:        run.TaskID.String(),
-				PromptPreview: run.PromptPreview,
+				RunId:                 runID,
+				Status:                protoconv.RunStatusToProto(run.Status),
+				TaskId:                run.TaskID.String(),
+				PromptPreview:         run.PromptPreview,
+				ResultSelectionStatus: selectionStatus,
+				ResultSelectionRule:   selectionRule,
 			},
 		},
 	}
@@ -177,6 +185,23 @@ func (h *WebSocketHub) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase,
 			},
 		},
 	}
+}
+
+func (h *WebSocketHub) BroadcastWorkflowLifecycle(event *domain.WorkflowLifecycleEvent) {
+	if event == nil {
+		return
+	}
+	update := &domainpb.WorkflowLifecycleUpdate{ExecutionId: event.ExecutionID.String(), DefinitionDigest: event.DefinitionDigest, Status: string(event.Status), NodeId: event.NodeID, Strategy: string(event.Strategy), ProfileIdentity: event.ProfileIdentity, ConversationId: event.ConversationID, JournalSequence: event.JournalSequence, JournalKind: string(event.JournalKind), JournalPayloadDigest: event.JournalPayloadDigest, BudgetUsage: &domainpb.WorkflowBudgetUsage{Turns: int32(event.BudgetUsage.Turns), Tokens: int32(event.BudgetUsage.Tokens), CostUsd: event.BudgetUsage.CostUSD, NodeAttempts: int32(event.BudgetUsage.NodeAttempts), Children: int32(event.BudgetUsage.Children), Retries: int32(event.BudgetUsage.Retries)}}
+	if event.RunID != nil {
+		update.RunId = event.RunID.String()
+	}
+	if event.SourceAttemptID != nil {
+		update.SourceAttemptId = event.SourceAttemptID.String()
+	}
+	if event.TerminalReason != nil {
+		update.TerminalReason = &domainpb.WorkflowTerminalReason{Code: event.TerminalReason.Code, Message: event.TerminalReason.Message, Retryable: event.TerminalReason.Retryable, BudgetName: event.TerminalReason.BudgetName}
+	}
+	h.broadcast <- &domainpb.AgentManagerWsMessage{Type: domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_WORKFLOW_LIFECYCLE, Payload: &domainpb.AgentManagerWsMessage_WorkflowLifecycle{WorkflowLifecycle: update}}
 }
 
 // HandleWebSocket handles WebSocket connections

@@ -16,6 +16,7 @@ const DashboardPage = lazy(async () => ({ default: (await import("./pages/Dashbo
 const ProfilesPage = lazy(async () => ({ default: (await import("./pages/ProfilesPage")).ProfilesPage }));
 const TasksPage = lazy(async () => ({ default: (await import("./pages/TasksPage")).TasksPage }));
 const RunsPage = lazy(async () => ({ default: (await import("./pages/RunsPage")).RunsPage }));
+const WorkflowsPage = lazy(async () => ({ default: (await import("./pages/WorkflowsPage")).WorkflowsPage }));
 const StatsPage = lazy(async () => ({ default: (await import("./features/stats")).StatsPage }));
 const HealthPage = lazy(async () => ({ default: (await import("./features/health")).HealthPage }));
 const StatusDialog = lazy(async () => ({ default: (await import("./components/dialogs/StatusDialog")).StatusDialog }));
@@ -73,6 +74,7 @@ export default function App() {
     if (path.startsWith("/profiles")) return "profiles";
     if (path.startsWith("/tasks")) return "tasks";
     if (path.startsWith("/runs")) return "runs";
+    if (path.startsWith("/workflows")) return "workflows";
     if (path.startsWith("/stats")) return "stats";
     if (path.startsWith("/observability")) return "health";
     return "dashboard";
@@ -120,6 +122,9 @@ export default function App() {
           if (needsTaskData) {
             tasks.refetch();
           }
+          break;
+        case "workflow_lifecycle":
+          window.dispatchEvent(new CustomEvent("agent-manager:workflow-lifecycle", { detail: message.payload }));
           break;
       }
     },
@@ -201,7 +206,7 @@ export default function App() {
 
   return (
     <QueryProvider>
-      <div className="h-screen bg-transparent text-foreground flex flex-col overflow-hidden">
+      <div className="h-full bg-transparent text-foreground flex flex-col overflow-hidden">
         <AppHeader
           health={health.data}
           wsStatus={ws.status}
@@ -372,6 +377,16 @@ export default function App() {
                         wsUnsubscribe={ws.unsubscribe}
                       />
                     </ProfiledPage>
+                  </ErrorBoundary>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/workflows"
+              element={
+                <Suspense fallback={pageFallback}>
+                  <ErrorBoundary section="Workflows">
+                    <ProfiledPage id="WorkflowsPage"><WorkflowsPage /></ProfiledPage>
                   </ErrorBoundary>
                 </Suspense>
               }

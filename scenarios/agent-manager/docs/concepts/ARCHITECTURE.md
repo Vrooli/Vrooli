@@ -405,6 +405,234 @@ internal/domain/
 - Safe accessors are zero-cost when values are non-nil
 - Decision functions are pure and stateless (easily cached)
 
+## Reliable results and workflow-runtime boundary
+
+This section describes the implemented `OT-P2-001` reliable-results and
+workflow-runtime boundary. The contracts, persistence, APIs, CLI, operator UI,
+and scenario reconciliation described here are live; consumer adoption remains
+intentionally limited to the two Swarm pilots.
+
+Agent Manager is a programmatic meta-scenario. Its reusable boundary is a
+command-result handshake: a consumer supplies typed workflow input, Agent
+Manager executes agent work and returns a typed terminal result, and the
+consumer applies its own business transition. Agent Manager does not fetch or
+mutate consumer entities.
+
+### Aggregate split
+
+- `Run` remains one atomic agent conversation. It owns runner identity,
+  transcript recovery, lifecycle, and one or more explicitly continued turns.
+- `RunResult` is the durable interpretation of a terminal run turn. It owns
+  canonical final-output selection, provenance, optional structured output,
+  and honest ambiguity or abstention.
+- `WorkflowDefinition` is immutable, versioned authored data.
+- `WorkflowExecution` is a durable execution pinned to one definition digest.
+  It links node attempts to fresh Runs, explicit continuations, waits, and child
+  workflows without pretending those children are one conversation.
+
+There is no workflow-global Run, profile, transcript, or mutable context bag.
+Every agent-executing node declares an `AgentExecutionBinding`:
+
+- `fresh_run` resolves that node's profile or portable role and creates a new
+  Run identity on every attempt, including loop revisits.
+- `continue` selects one earlier Run or conversation from the same execution,
+  preserves that conversation ancestry, and permits only continuation-safe
+  overrides.
+
+### Responsibility decision table
+
+| Concern | Authoritative owner | Boundary rule |
+|---|---|---|
+| Prompt and skill content | Prompt Manager or scenario-authored source | Agent Manager renders declared references; it does not become the content owner. |
+| Agent profiles and portable roles | Scenario source plus Agent Manager reconciliation and role policy | A workflow node references a profile or role; a workflow has no implicit global profile. |
+| Run and conversation identity | Agent Manager | Fresh nodes create distinct Runs; only explicit continue nodes reuse conversation state. |
+| Canonical final output and RunResult | Agent Manager | Provider evidence is primary; ambiguous evidence abstains. |
+| Workflow definition source | Owning scenario | `.vrooli/agent-workflows` remains desired state; the catalog is a digest-pinned projection. |
+| Execution journal and binding evaluation | Agent Manager | Append-only entries are authoritative; bindings select declared, size-bounded values only. |
+| Workflow execution and external signals | Agent Manager | Signals advance waits idempotently but do not encode consumer business approval. |
+| Consumer input/output DTOs | Consumer scenario | The consumer maps domain state to workflow input and validates result semantics. |
+| Human approvals and domain mutations | Consumer scenario | Agent Manager returns a terminal outcome; it never invokes consumer transition actions. |
+
+### Versioned contract vocabulary
+
+| Contract | Required invariant |
+|---|---|
+| `FinalOutputSelection` | Carries candidates, selected candidate when unique, stable rule/version, evidence, competing candidates, and `selected`, `ambiguous`, or `unavailable` status. |
+| `ResultSpec` | Carries a canonical JSON Schema boundary and digest; classification is an enum/discriminated schema, not a second framework. |
+| `StructuredResult` | Contains only locally validated JSON plus extraction and validation provenance; invalid extraction cannot be success. |
+| `NodeAttempt` | Has a stable attempt identity, node id, dispatch intent, child link, input snapshot, counters, and terminal record. |
+| `ExecutionJournalEntry` | Is append-only and typed; prompt bindings cannot request undeclared full transcripts or hidden mutable state. |
+| `ExternalSignal` | Is idempotent, correlated to one wait, payload-validated, and durably recorded before advancement. |
+| `Budget` | Bounds time, turns, tokens, cost, attempts, children, concurrency, recursion, retries, waits, and serialized binding size. |
+
+The closed V1 node vocabulary is `run`, `continue`, `child_workflow`, `wait`,
+`branch`, `join`, and `end`. V1 has no arbitrary shell, CLI, HTTP callback,
+tool, or consumer-mutation node. Every edge that participates in a graph cycle
+must declare a positive traversal cap in addition to execution-wide budgets.
+
+The V1 `ResultSpec` subset supports object, array, string, number, integer,
+boolean, and null types; `properties`, `required`, `additionalProperties`,
+`items`, `enum`, `const`, `oneOf`, and bounded string/array/number constraints.
+Schemas must be rooted, finite, depth/byte bounded, and canonicalizable to a
+stable digest. Remote references, dynamic references, unevaluated keywords,
+custom code, and recursive schemas are rejected as unsupported rather than
+silently ignored. A discriminated union uses `oneOf` plus a required `const`
+tag. Consumer semantic truth remains outside JSON Schema and outside Agent
+Manager.
+
+The implemented `result-spec/v1` pipeline is deterministic-first. A caller may
+omit `ResultSpec`, provide a bounded JSON Schema, or use the classification
+convenience form; classification values are compiled into a canonical string
+`enum` schema before the run is persisted. Canonical schema bytes and their
+SHA-256 digest live in `Run.resolved_config.result_spec`, while the terminal
+validation outcome lives in `Run.result.structured`. There is no separate
+classifier record.
+
+Only a whole-document JSON value or exactly one `json` fenced block is a
+deterministic candidate. Multiple JSON fences are `ambiguous`; prose containing
+an unfenced object is not guessed. Candidates are locally validated against the
+canonical schema. When `constrained_fallback` is requested, the optional
+`extract.structured` portable-role seam receives bounded source and schema
+bytes. Its response is untrusted and must pass the same local validation.
+Missing/outage extraction therefore becomes `abstained`, never success.
+Structured terminal statuses are `success`, `unavailable`, `invalid`,
+`ambiguous`, and `abstained`; only `success` carries a value. Diagnostics expose
+stable codes and instance paths but never source text, schema fragments, or
+provider error strings.
+
+### Workflow terminal and error semantics
+
+| Terminal | Meaning | Consumer guidance |
+|---|---|---|
+| `succeeded` | The declared end result validated successfully. | Apply the typed result idempotently. |
+| `blocked` | Agent work produced a valid typed blocker result. | Decide the consumer-domain attention/approval transition. |
+| `abstained` | Final-output or structured-result evidence was unavailable, ambiguous, or invalid after allowed policy. | Inspect provenance; retry only through an explicit bounded policy. |
+| `budget_exhausted` | A named edge or execution-wide limit stopped further work. | Raise the limit only after reviewing consumption and graph behavior. |
+| `failed` | Infrastructure, dispatch, definition, binding, or child execution failed without a valid business result. | Use the typed diagnostic and retryability signal. |
+| `cancelled` | An authorized cancellation won the terminal transition race. | Do not apply a result; a new execution needs a new idempotency intent. |
+
+These are workflow execution outcomes only. They do not mirror a consumer
+entity state. Result-selection states (`selected`, `ambiguous`, `unavailable`)
+and structured-validation states (`valid`, `invalid`, `unsupported`,
+`extractor_unavailable`, `abstained`) remain nested provenance, so operators
+can distinguish why a workflow abstained without parsing prose.
+
+The durable trace endpoint and `agent-manager workflow trace` expose execution,
+attempt, child Run/conversation, journal sequence/kind, budget, and terminal
+metadata. Journal bodies, prompt snapshots, and model result bodies remain in
+the protected persistence boundary. WebSocket workflow lifecycle messages use
+the same metadata-only projection after each committed journal transition.
+
+The generated operator surface is one contract across REST, CLI, and browser:
+`GET /api/v1/workflow-executions` lists bounded execution history;
+execution get, trace, signal, cancel, retry, resume, and advance endpoints own
+all transitions; and `/workflows` renders those same metadata projections. The
+page refreshes from metadata-only `workflow_lifecycle` WebSocket messages and
+falls back to REST, so a dropped socket cannot become a second state model.
+Mixed node profiles remain attempt-local, Run/conversation IDs remain
+independent, continuation and child ancestry are explicit, and budget usage is
+shown on the execution that owns it.
+
+Routine execution, list, trace, operation, CLI, UI, and WebSocket responses
+omit workflow input, prompt snapshots, journal bodies, and output. Payload
+inspection is a deliberately separate `execution-result` path that requires an
+explicit authorization switch; the API rejects a payload request without that
+second signal. This is disclosure friction, not a replacement for deployment
+authentication and authorization.
+
+Composition remains a tree of separate identities. A `child_workflow` creates
+a separately pinned child execution with explicit parent execution/attempt and
+depth fields; its consumption is rolled into the parent budget ledger. A
+parallel branch persists all member intents before dispatch and converges only
+through an authored `all`, `any`, or positive `quorum` join. Fresh Runs,
+continuations, and child executions are never collapsed into a synthetic
+current conversation.
+
+External waits belong to `WorkflowExecution`, not Run park/wake state. Their
+signal contract, correlation key, opaque resume token, and deadline are
+durable. Signal, cancel, retry, and resume writes require idempotency keys and
+support compare-and-swap preconditions; cancellation disposition reports
+which active children stopped and which external work could not be stopped.
+
+### Final-output evidence tiers
+
+1. A provider-native terminal result or terminal turn associated with a main
+   assistant message.
+2. Provider-native message/turn identity, origin, stop reason, parent relation,
+   and completion marker that uniquely identify the handoff.
+3. Conservative generic terminal evidence when the provider exposes no richer
+   semantics.
+4. Schema satisfaction only as secondary disambiguation after terminal
+   identity; it never makes an incidental earlier message "final."
+
+Tail position alone is never authoritative. If equally supported candidates
+remain, selection is `ambiguous`; if no supported candidate exists, it is
+`unavailable`. Both are successful acts of abstention, not fabricated output.
+
+### Consumer impact matrix
+
+The Phase 1 inventory found direct generated-contract or Agent Manager client
+consumers in `agent-inbox`, `development-toolchain-validator`,
+`ecosystem-manager`, `knowledge-observatory`, `prompt-manager`,
+`react-component-library`, `scenario-auditor`, `scenario-to-cloud`,
+`scenario-to-desktop`, `swarm-manager`, `system-monitor`, `test-genie`, and
+`web-search`. Within Agent Manager, the primary writable/readable summary path
+is:
+
+| Surface | Current summary/event dependency | Migration obligation |
+|---|---|---|
+| Codec/core runner | `UpdateMetrics` writes a mutable last-assistant string; `classifyResult` creates `RunSummary` from it. | Preserve provider evidence and resolve a canonical RunResult before projecting the legacy summary. |
+| Recovery | Transcript replay rebuilds a summary from message events or a terminal summary. | Re-run the same pure resolver and persist identical provenance; never invent evidence for old rows. |
+| Repository | `runs.summary` is nullable JSON and list projections intentionally omit it. | Store RunResult independently and keep historical rows readable with an absent result. |
+| Proto conversion/API | `Run.summary` is mapped in `protoconv/entities.go` and returned by run detail/create/continue flows. | Add backward-readable result fields; retain one documented legacy projection. |
+| CLI/UI/WebSocket | Run detail renders summary; status broadcasts carry run projections. | Expose compact result status/provenance without broadcasting transcript bodies. |
+| Recommendation/investigation | Falls back from summary description to event text. | Consume canonical selected text when available and retain explicit fallback provenance. |
+| External scenario clients | Mostly inspect Run status, summary, session id, cost, or events through generated contracts/manual DTOs. | Inventory compilation and JSON-shape tests before changing or removing any existing field. |
+
+### Canonical result implementation
+
+`Run.result` is now the sole terminal-output owner for codec-pipe and interactive
+execution. The pure `domain.ResolveRunResult` resolver consumes persisted
+`MessageEventData` provider evidence and returns every viable candidate plus a
+`selected`, `ambiguous`, or `unavailable` decision. It never selects by
+transcript tail position. Terminal main-assistant evidence outranks explicit
+completion reasons, which outrank the conservative fallback; an equal best tier
+abstains, and parent/subagent output is retained for audit but cannot win.
+When a provider reports completion after its message (for example Codex
+`turn.completed`), an evidence-only message record correlates the terminal
+marker to the earlier event id without duplicating assistant content.
+
+The `runs.run_result` JSON column is additive and nullable. A null value means a
+historical run predating this contract, whereas a present result with an
+`unavailable` selection is an explicit modern outcome. Live completion and
+restart recovery both resolve the same domain model before the terminal run
+update. `Run.summary` remains backward readable but is generated only by
+`SummaryFromRunResult`; ambiguous or unavailable text is never copied into it.
+Run detail and CLI JSON expose the full result. WebSocket run-status messages
+carry only selection status and rule, not transcript or candidate bodies.
+
+Profile reconciliation remains the pattern for workflow desired-state
+reconciliation, not a contract to overload: bounded scenario-local sources are
+validated and atomically projected while the authored files stay authoritative.
+
+### Workflow catalog boundary
+
+Scenario manifests may declare JSON files beneath `.vrooli/agent-workflows`.
+`workflowcatalog` strictly decodes the closed `agent-workflow/v1` contract,
+normalizes every supported JSON Schema and ResultSpec, validates graph
+reachability and explicit continuation ancestry, and requires a positive
+traversal limit on every cycle edge. Bindings select only typed append-only
+journal projections and always carry item and byte limits; transcript and
+mutable-variable sources do not exist in the enum.
+
+Validated definitions are canonicalized and addressed by a SHA-256 digest.
+SQLite stores immutable revisions, while one partial unique index represents
+the active `(owner,key)` pointer. A scenario reload parses and resolves every
+source before one transaction inserts revisions and moves active pointers, so
+a malformed sibling cannot partially activate a catalog. Source files remain
+the sole desired-state writer. The catalog contains no command, callback, or
+consumer-domain action node.
+
 ## Related Documentation
 
 - [SEAMS.md](../internal/SEAMS.md) - Architectural boundaries and interfaces

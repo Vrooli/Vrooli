@@ -325,6 +325,97 @@ executor.WithLevers(levers)
 
 Production defaults stay realistic; only tests override.
 
+## Workflow-execution timeline
+
+The workflow runtime extends the existing detached Run and durable park/wake
+mechanisms. The implemented ordering is:
+
+```text
+start idempotency reservation
+  -> pin workflow definition digest and typed input snapshot
+  -> append execution-created journal entry
+  -> choose runnable nodes from graph + join + budget state
+  -> persist node-attempt dispatch intent and child idempotency identity
+  -> dispatch fresh Run / named continuation / child workflow, or enter wait
+  -> persist canonical child result and budget consumption
+  -> append node-completed journal entry
+  -> evaluate declared branch/edge and increment traversal counter
+  -> repeat, wait, or persist one typed terminal outcome
+```
+
+Recovery may occur between any two arrows. It reads the persisted intent before
+performing a side effect and the persisted completion before advancing an edge.
+Revisiting a `run` node creates a new Run identity; recovery of an already
+dispatched attempt reattaches to that same Run. A `continue` node carries a
+separate idempotency identity and must reference an earlier conversation in the
+same execution.
+
+The append-only journal is the only cross-node context source. A later prompt
+receives only explicitly selected, ordered entries rendered within declared
+byte/item/depth limits. No prior transcript, tool event, or mutable variable bag
+is inherited implicitly. Waits persist their deadline and resume only through a
+validated external signal or timeout transition.
+
+Every cycle-forming edge has a positive per-edge traversal cap. Traversals,
+retries, child runs, subworkflows, continuations, and waits also consume global
+time/turn/token/cost/attempt/child/concurrency/recursion budgets. Exhaustion is a
+typed `budget_exhausted` terminal, never an unbounded retry or silent failure.
+
+### Durable core interpreter commit sequence
+
+1. Start validates the input against the pinned revision and atomically creates
+   `WorkflowExecution(version=1)` plus journal sequence 1.
+2. At a run or continue node, the interpreter renders only declared bounded
+   bindings, then atomically commits a `dispatch_pending` attempt containing
+   immutable input and prompt snapshots. No agent side effect precedes this.
+3. The canonical Run creation or continuation service receives the persisted
+   attempt idempotency key. A crash/retry therefore returns the same Run or
+   continuation instead of sending twice.
+4. A second compare-and-swap commit attaches Run and conversation identity.
+   Waiting consumes no agent turn. The reconciler inspects recoverable
+   executions on boot and every normal reconciliation cycle.
+5. Terminal child evidence, canonical RunResult, structured result, compact
+   handoff, attempt completion, budget usage, edge traversal, and next-node
+   pointer commit atomically. Recovery can never observe a completed attempt
+   without its journal evidence or an edge advance without its counter.
+
+All execution updates require the previously read version. A competing API or
+reconciler advance loses the compare-and-swap and rereads; it cannot duplicate
+the child side effect because the attempt intent and child idempotency key are
+already durable.
+
+After each successful journal commit, the orchestration layer emits a
+metadata-only WebSocket lifecycle projection. It includes correlation ids,
+node strategy/profile, child Run and conversation ancestry, journal sequence
+and digest, counters, budgets, and terminal reason. Prompt snapshots and result
+bodies are never broadcast. Operators can recover the same ordered metadata
+from `GET /api/v1/workflow-executions/{id}/trace` after reconnect or restart.
+
+### Wait, signal, composition, and cancellation sequence
+
+Wait nodes commit a workflow-owned correlation key, opaque resume token,
+payload schema, and bounded deadline before entering `waiting`. They do not
+park a Run and consume no agent turn. A signal validates execution identity,
+signal name, payload schema, idempotency key, and optional expected execution
+version before its journal commit. Duplicate signals return the committed
+state; late, wrong-type, and wrong-execution signals are typed conflicts. Boot
+reconciliation revisits waiting executions to observe a committed signal or a
+deadline, without keeping a goroutine alive per wait.
+
+Child-workflow attempts commit input and dispatch identity before creating a
+digest-pinned child `WorkflowExecution`. The child records parent execution and
+attempt IDs plus recursion depth. Recovery reuses the attempt idempotency key
+and child ID; completion aggregates the child's budget ledger into the parent
+tree before the parent edge advances.
+
+A parallel branch atomically commits its complete membership and every member
+dispatch intent. Members may be fresh Runs, named continuations, or child
+workflows and are dispatched only up to the workflow concurrency bound. All
+members converge on one `all`, `any`, or positive `quorum` join; their child
+identities and completion evidence remain separate in the journal. Cancellation
+first commits the parent terminal intent, propagates to active Runs and child
+workflows, then durably records stopped counts and partial failures.
+
 ## Adding a new temporal flow
 
 Following the architectural invariant 4 (Levers is the only home for adjustable thresholds):

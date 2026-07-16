@@ -615,6 +615,10 @@ type Run struct {
 	IdempotencyKey string `json:"idempotencyKey,omitempty" db:"idempotency_key"`
 
 	// Results
+	// Result is the canonical, provenance-bearing terminal output projection.
+	// Summary is a compatibility view derived from Result and must never be
+	// independently authored for new runner completions.
+	Result   *RunResult  `json:"result,omitempty" db:"run_result"`
 	Summary  *RunSummary `json:"summary,omitempty" db:"summary"`
 	ErrorMsg string      `json:"errorMsg,omitempty" db:"error_msg"`
 	ExitCode *int        `json:"exitCode,omitempty" db:"exit_code"`
@@ -951,6 +955,137 @@ type RunSummary struct {
 	ContextTokens int      `json:"contextTokens,omitempty"`
 }
 
+// FinalOutputSelectionStatus describes whether terminal evidence identifies a
+// unique final assistant handoff. Historical runs may have no RunResult at all;
+// a present result always carries one of these explicit outcomes.
+type FinalOutputSelectionStatus string
+
+const (
+	FinalOutputSelectionSelected    FinalOutputSelectionStatus = "selected"
+	FinalOutputSelectionAmbiguous   FinalOutputSelectionStatus = "ambiguous"
+	FinalOutputSelectionUnavailable FinalOutputSelectionStatus = "unavailable"
+)
+
+// FinalOutputCandidate is an immutable projection of one assistant message
+// considered by the final-output resolver.
+type FinalOutputCandidate struct {
+	ID                string `json:"id"`
+	EventID           string `json:"eventId,omitempty"`
+	Sequence          int64  `json:"sequence,omitempty"`
+	Content           string `json:"content"`
+	MessageID         string `json:"messageId,omitempty"`
+	ConversationID    string `json:"conversationId,omitempty"`
+	TurnID            string `json:"turnId,omitempty"`
+	ProviderOrigin    string `json:"providerOrigin,omitempty"`
+	CompletionReason  string `json:"completionReason,omitempty"`
+	Terminal          bool   `json:"terminal,omitempty"`
+	ParentMessageID   string `json:"parentMessageId,omitempty"`
+	ProviderEventType string `json:"providerEventType,omitempty"`
+	RawEvidenceRef    string `json:"rawEvidenceRef,omitempty"`
+	EvidenceTier      int    `json:"evidenceTier"`
+}
+
+// FinalOutputSelection records the deterministic resolver decision and the
+// exact rule/version needed to explain or reproduce it.
+type FinalOutputSelection struct {
+	Status              FinalOutputSelectionStatus `json:"status"`
+	SelectedCandidateID string                     `json:"selectedCandidateId,omitempty"`
+	Rule                string                     `json:"rule"`
+	AlgorithmVersion    string                     `json:"algorithmVersion"`
+	Evidence            []string                   `json:"evidence,omitempty"`
+}
+
+// RunResult is the canonical terminal result for one execute or continue turn.
+// It intentionally remains useful when selection is ambiguous/unavailable.
+type RunResult struct {
+	FinalOutput    string                 `json:"finalOutput,omitempty"`
+	Selection      FinalOutputSelection   `json:"selection"`
+	Candidates     []FinalOutputCandidate `json:"candidates,omitempty"`
+	Success        bool                   `json:"success"`
+	ExitCode       int                    `json:"exitCode"`
+	TerminalReason string                 `json:"terminalReason,omitempty"`
+	Structured     *StructuredResult      `json:"structured,omitempty"`
+}
+
+// ResultSpecKind selects the one canonical typed-result contract. Enum
+// classification is represented as a schema-shaped ResultSpec rather than a
+// separate classifier persistence model.
+type ResultSpecKind string
+
+const (
+	ResultSpecKindNone           ResultSpecKind = "none"
+	ResultSpecKindJSONSchema     ResultSpecKind = "json_schema"
+	ResultSpecKindClassification ResultSpecKind = "classification"
+)
+
+// StructuredExtractionMode controls whether deterministic parsing may fall
+// back to the portable extraction seam. The fallback is never trusted without
+// the same local schema validation as deterministic candidates.
+type StructuredExtractionMode string
+
+const (
+	StructuredExtractionDeterministic StructuredExtractionMode = "deterministic_only"
+	StructuredExtractionConstrained   StructuredExtractionMode = "constrained_fallback"
+)
+
+// ResultSpec is the versioned request for a typed result. Schema contains
+// canonical JSON bytes after creation-time normalization. ClassificationValues
+// is a create-surface convenience that is compiled into Schema and then
+// cleared, keeping Schema as the sole persisted validation authority.
+type ResultSpec struct {
+	Version              string                   `json:"version"`
+	Kind                 ResultSpecKind           `json:"kind"`
+	Schema               json.RawMessage          `json:"schema,omitempty"`
+	SchemaDigest         string                   `json:"schemaDigest,omitempty"`
+	ClassificationValues []string                 `json:"classificationValues,omitempty"`
+	ExtractionMode       StructuredExtractionMode `json:"extractionMode,omitempty"`
+	ExtractionRole       string                   `json:"extractionRole,omitempty"`
+}
+
+// StructuredResultStatus separates all honest terminal outcomes. Only
+// StructuredResultSuccess may carry Value.
+type StructuredResultStatus string
+
+const (
+	StructuredResultSuccess     StructuredResultStatus = "success"
+	StructuredResultUnavailable StructuredResultStatus = "unavailable"
+	StructuredResultInvalid     StructuredResultStatus = "invalid"
+	StructuredResultAmbiguous   StructuredResultStatus = "ambiguous"
+	StructuredResultAbstained   StructuredResultStatus = "abstained"
+)
+
+// StructuredDiagnostic is bounded, normalized, and safe to expose. It never
+// includes source output or schema fragments, which prevents secret-bearing
+// agent text from leaking through validation errors.
+type StructuredDiagnostic struct {
+	Code    string `json:"code"`
+	Path    string `json:"path,omitempty"`
+	Message string `json:"message"`
+}
+
+// StructuredExtractionProvenance explains how a fallback candidate was
+// produced without making provider output authoritative.
+type StructuredExtractionProvenance struct {
+	RoleRef        string                   `json:"roleRef,omitempty"`
+	Provider       string                   `json:"provider,omitempty"`
+	Model          string                   `json:"model,omitempty"`
+	PolicySnapshot *ExecutionPolicySnapshot `json:"policySnapshot,omitempty"`
+}
+
+// StructuredResult is the locally validated typed projection attached to the
+// canonical RunResult. Requested schema digest, method, and diagnostics remain
+// durable even when resolution abstains or fails.
+type StructuredResult struct {
+	Status            StructuredResultStatus          `json:"status"`
+	SpecKind          ResultSpecKind                  `json:"specKind"`
+	SchemaDigest      string                          `json:"schemaDigest"`
+	Value             json.RawMessage                 `json:"value,omitempty"`
+	Method            string                          `json:"method,omitempty"`
+	SourceCandidateID string                          `json:"sourceCandidateId,omitempty"`
+	Extractor         *StructuredExtractionProvenance `json:"extractor,omitempty"`
+	Diagnostics       []StructuredDiagnostic          `json:"diagnostics,omitempty"`
+}
+
 // RunConfig contains the resolved configuration for a run.
 // This can be loaded from a profile, provided inline, or a combination of both.
 type RunConfig struct {
@@ -964,6 +1099,10 @@ type RunConfig struct {
 	// PolicySnapshot pins the exact active catalog revision and ordered
 	// candidate sequence selected before this run was persisted.
 	PolicySnapshot *ExecutionPolicySnapshot `json:"policySnapshot,omitempty"`
+
+	// ResultSpec is normalized before the run is persisted. Nil/none preserves
+	// the historical unstructured behavior.
+	ResultSpec *ResultSpec `json:"resultSpec,omitempty"`
 
 	// Tool permissions
 	AllowedTools []string `json:"allowedTools,omitempty"`
@@ -1244,6 +1383,20 @@ type MessageEventData struct {
 	Role        string                  `json:"role"`                  // user, assistant, system
 	Content     string                  `json:"content"`               // Message content
 	Attachments []MessageAttachmentInfo `json:"attachments,omitempty"` // Image/file attachments
+
+	// Optional provider evidence. Empty fields mean the provider did not emit
+	// that fact; callers must not infer it from transcript position.
+	MessageID          string `json:"messageId,omitempty"`
+	ConversationID     string `json:"conversationId,omitempty"`
+	TurnID             string `json:"turnId,omitempty"`
+	ProviderOrigin     string `json:"providerOrigin,omitempty"`
+	CompletionReason   string `json:"completionReason,omitempty"`
+	Terminal           bool   `json:"terminal,omitempty"`
+	ParentMessageID    string `json:"parentMessageId,omitempty"`
+	ProviderEventType  string `json:"providerEventType,omitempty"`
+	RawEvidenceRef     string `json:"rawEvidenceRef,omitempty"`
+	EvidenceOnly       bool   `json:"evidenceOnly,omitempty"`
+	EvidenceForEventID string `json:"evidenceForEventId,omitempty"`
 }
 
 // MessageAttachmentInfo stores metadata about attachments included with a message.
@@ -1266,6 +1419,21 @@ func NewMessageEvent(runID uuid.UUID, role, content string) *RunEvent {
 		EventType: EventTypeMessage,
 		Timestamp: time.Now(),
 		Data:      &MessageEventData{Role: role, Content: content},
+	}
+}
+
+// NewProviderMessageEvent creates a message carrying only evidence the
+// provider actually emitted. The evidence value is copied so codecs can reuse
+// their decode structs without mutating an already-emitted event.
+func NewProviderMessageEvent(runID uuid.UUID, role, content string, evidence MessageEventData) *RunEvent {
+	evidence.Role = role
+	evidence.Content = content
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeMessage,
+		Timestamp: time.Now(),
+		Data:      &evidence,
 	}
 }
 

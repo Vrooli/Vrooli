@@ -58,6 +58,9 @@ type HandleResultOutput struct {
 // HandleResult is the post-execute seam: classify the outcome, dispatch
 // to the matching handler, persist the result, broadcast terminal status.
 func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput {
+	if in.Result != nil && in.Result.Result != nil && in.Run != nil && in.Run.ResolvedConfig != nil && in.Deps.StructuredResults != nil {
+		in.Result.Result.Structured = in.Deps.StructuredResults.Resolve(ctx, in.Run.ResolvedConfig.ResultSpec, in.Result.Result)
+	}
 	outcome := classifyOutcome(in.ExecErr, in.Result)
 	out := HandleResultOutput{Outcome: outcome}
 
@@ -93,6 +96,7 @@ func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput 
 // extraction (when applicable), and runs ApplyAtRunEnd for sandboxed runs.
 func HandleSuccessfulCompletion(ctx context.Context, in HandleResultInput) {
 	if in.Result != nil {
+		in.Run.Result = in.Result.Result
 		in.Run.Summary = in.Result.Summary
 		in.Run.ExitCode = &in.Result.ExitCode
 		if in.Result.SessionID != "" {
@@ -138,6 +142,10 @@ func HandleSuccessfulCompletion(ctx context.Context, in HandleResultInput) {
 // apply).
 func HandleFailure(ctx context.Context, in HandleResultInput) {
 	in.Run.Status = domain.RunStatusFailed
+	if in.Result != nil {
+		in.Run.Result = in.Result.Result
+		in.Run.Summary = in.Result.Summary
+	}
 
 	if in.ExecErr != nil {
 		in.Run.ErrorMsg = in.ExecErr.Error()

@@ -286,6 +286,19 @@ func (a *App) runGet(args []string) error {
 			fmt.Printf("  Cost Estimate: $%.4f\n", run.Summary.CostEstimate)
 		}
 	}
+	if run.Result != nil {
+		fmt.Printf("Result Selection: %s\n", formatEnumValue(run.Result.Selection.Status, "FINAL_OUTPUT_SELECTION_STATUS_", "_"))
+		if run.Result.Structured != nil {
+			fmt.Printf("Structured:      %s", formatEnumValue(run.Result.Structured.Status, "STRUCTURED_RESULT_STATUS_", "_"))
+			if run.Result.Structured.Method != "" {
+				fmt.Printf(" (%s)", run.Result.Structured.Method)
+			}
+			fmt.Println()
+			if len(run.Result.Structured.Value) > 0 {
+				fmt.Printf("Structured Value: %s\n", string(run.Result.Structured.Value))
+			}
+		}
+	}
 	if run.ErrorMsg != "" {
 		fmt.Printf("Error:           %s\n", run.ErrorMsg)
 	}
@@ -318,6 +331,10 @@ func (a *App) runCreate(args []string) error {
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
 	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Sandbox retention TTL (e.g., 2h, 30m)")
+	resultSchema := fs.String("result-schema", "", "JSON Schema for the canonical structured result")
+	resultSchemaFile := fs.String("result-schema-file", "", "Path to a JSON Schema for the canonical structured result")
+	classify := fs.String("classify", "", "Comma-separated classification values (convenience ResultSpec)")
+	structuredExtraction := fs.Bool("structured-extraction", false, "Allow portable extract.structured fallback after deterministic parsing")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -362,6 +379,13 @@ func (a *App) runCreate(args []string) error {
 		}
 		req.ExecutionMode = &mode
 	}
+	spec, err := parseResultSpec(*resultSchema, *resultSchemaFile, *classify, *structuredExtraction)
+	if err != nil {
+		return err
+	}
+	if spec != nil {
+		req.InlineConfig = &domainpb.RunConfigOverrides{ResultSpec: spec}
+	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err
 	} else {
@@ -370,9 +394,10 @@ func (a *App) runCreate(args []string) error {
 			return err
 		}
 		if cfg != nil {
-			req.InlineConfig = &domainpb.RunConfigOverrides{
-				SandboxConfig: cfg,
+			if req.InlineConfig == nil {
+				req.InlineConfig = &domainpb.RunConfigOverrides{}
 			}
+			req.InlineConfig.SandboxConfig = cfg
 		}
 	}
 
@@ -397,6 +422,58 @@ func (a *App) runCreate(args []string) error {
 		}
 	}
 	return nil
+}
+
+func parseResultSpec(schemaText, schemaFile, classification string, extraction bool) (*domainpb.ResultSpec, error) {
+	configured := 0
+	if strings.TrimSpace(schemaText) != "" {
+		configured++
+	}
+	if strings.TrimSpace(schemaFile) != "" {
+		configured++
+	}
+	if strings.TrimSpace(classification) != "" {
+		configured++
+	}
+	if configured == 0 {
+		return nil, nil
+	}
+	if configured > 1 {
+		return nil, fmt.Errorf("use exactly one of --result-schema, --result-schema-file, or --classify")
+	}
+	mode := domainpb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY
+	role := ""
+	if extraction {
+		mode = domainpb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK
+		role = "extract.structured"
+	}
+	spec := &domainpb.ResultSpec{Version: "result-spec/v1", ExtractionMode: mode, ExtractionRole: role}
+	if strings.TrimSpace(classification) != "" {
+		spec.Kind = domainpb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION
+		for _, value := range strings.Split(classification, ",") {
+			if value = strings.TrimSpace(value); value != "" {
+				spec.ClassificationValues = append(spec.ClassificationValues, value)
+			}
+		}
+		if len(spec.ClassificationValues) == 0 {
+			return nil, fmt.Errorf("--classify must contain at least one non-empty value")
+		}
+		return spec, nil
+	}
+	raw := []byte(schemaText)
+	if strings.TrimSpace(schemaFile) != "" {
+		var err error
+		raw, err = os.ReadFile(schemaFile)
+		if err != nil {
+			return nil, fmt.Errorf("read result schema: %w", err)
+		}
+	}
+	if !json.Valid(raw) {
+		return nil, fmt.Errorf("result schema is not valid JSON")
+	}
+	spec.Kind = domainpb.ResultSpecKind_RESULT_SPEC_KIND_JSON_SCHEMA
+	spec.Schema = raw
+	return spec, nil
 }
 
 // =============================================================================

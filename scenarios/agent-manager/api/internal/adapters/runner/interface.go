@@ -302,6 +302,10 @@ type ExecuteResult struct {
 	// Summary contains the structured output from the agent.
 	Summary *domain.RunSummary
 
+	// Result is the canonical provenance-bearing terminal output. Summary is
+	// derived from it for compatibility after resolution.
+	Result *domain.RunResult
+
 	// ErrorMessage contains any error message if Success is false.
 	ErrorMessage string
 

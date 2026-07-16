@@ -18,6 +18,8 @@ import (
 // Repositories holds all repository implementations.
 type Repositories struct {
 	Profiles              repository.ProfileRepository
+	Workflows             repository.WorkflowRepository
+	WorkflowExecutions    repository.WorkflowExecutionRepository
 	Tasks                 repository.TaskRepository
 	Runs                  repository.RunRepository
 	Events                repository.EventRepository
@@ -33,6 +35,8 @@ type Repositories struct {
 func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 	return &Repositories{
 		Profiles:              &profileRepository{db: db, log: log},
+		Workflows:             &workflowRepository{db: db, log: log},
+		WorkflowExecutions:    &workflowExecutionRepository{db: db, log: log},
 		Tasks:                 &taskRepository{db: db, log: log},
 		Runs:                  &runRepository{db: db, log: log},
 		Events:                &eventRepository{db: db, log: log},

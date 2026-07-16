@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -322,6 +323,10 @@ func TestBroadcastRunStatus_IncludesDisplayFields(t *testing.T) {
 		TaskID:        uuid.New(),
 		Status:        domain.RunStatusComplete,
 		PromptPreview: "Fix the authentication bug in login flow",
+		Result: &domain.RunResult{Selection: domain.FinalOutputSelection{
+			Status: domain.FinalOutputSelectionSelected,
+			Rule:   "unique_terminal_main_assistant",
+		}},
 	}
 
 	hub.BroadcastRunStatus(run)
@@ -344,6 +349,12 @@ func TestBroadcastRunStatus_IncludesDisplayFields(t *testing.T) {
 		}
 		if status.PromptPreview != run.PromptPreview {
 			t.Errorf("expected prompt_preview %q, got %q", run.PromptPreview, status.PromptPreview)
+		}
+		if status.ResultSelectionStatus != domainpb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_SELECTED {
+			t.Errorf("expected selected result status, got %v", status.ResultSelectionStatus)
+		}
+		if status.ResultSelectionRule != "unique_terminal_main_assistant" {
+			t.Errorf("unexpected result selection rule %q", status.ResultSelectionRule)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for broadcast")
@@ -474,6 +485,28 @@ func TestBroadcastRunStatus_EmptyPromptPreview(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for broadcast")
+	}
+}
+
+func TestBroadcastWorkflowLifecycleContainsMetadataOnly(t *testing.T) {
+	hub := NewWebSocketHub()
+	executionID := uuid.New()
+	runID := uuid.New()
+	hub.BroadcastWorkflowLifecycle(&domain.WorkflowLifecycleEvent{ExecutionID: executionID, DefinitionDigest: "sha256:def", Status: domain.WorkflowExecutionRunning, NodeID: "review", Strategy: domain.WorkflowAttemptFreshRun, ProfileIdentity: "reviewer", RunID: &runID, JournalSequence: 4, JournalKind: domain.WorkflowJournalAttempt, JournalPayloadDigest: "sha256:payload", BudgetUsage: domain.WorkflowBudgetUsage{NodeAttempts: 1}})
+
+	message := <-hub.broadcast
+	update := message.GetWorkflowLifecycle()
+	if update == nil || update.ExecutionId != executionID.String() || update.RunId != runID.String() || update.JournalSequence != 4 {
+		t.Fatalf("unexpected workflow lifecycle update: %+v", update)
+	}
+	data, err := protoconv.MarshalJSON(message)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"promptSnapshot", "\"result\":", "\"payload\":"} {
+		if strings.Contains(string(data), forbidden) {
+			t.Fatalf("workflow lifecycle broadcast leaked content field %q: %s", forbidden, data)
+		}
 	}
 }
 

@@ -18,6 +18,7 @@ type RunStatusTransitionInput struct {
 	LastHeartbeat   *time.Time
 	ProgressPercent *int
 	Summary         *domain.RunSummary
+	Result          *domain.RunResult
 }
 
 func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunStatusTransitionInput) (*domain.Run, error) {
@@ -66,6 +67,9 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	}
 	if input.Summary != nil {
 		run.Summary = input.Summary
+	}
+	if input.Result != nil {
+		run.Result = input.Result
 	}
 	run.UpdatedAt = now
 

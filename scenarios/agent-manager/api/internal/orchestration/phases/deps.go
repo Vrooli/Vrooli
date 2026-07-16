@@ -41,6 +41,13 @@ type WorkspaceSandboxEnsurer interface {
 	EnsureAvailable(ctx context.Context) error
 }
 
+// StructuredResultResolver applies the typed-output policy to an already
+// canonical final result. Implementations may use a constrained extractor, but
+// must locally validate every candidate before returning success.
+type StructuredResultResolver interface {
+	Resolve(context.Context, *domain.ResultSpec, *domain.RunResult) *domain.StructuredResult
+}
+
 // Deps bundles the common dependencies every phase shares. Each phase's
 // input struct carries a Deps so the call site is explicit about what the
 // phase touches without each phase repeating the same handful of fields.
@@ -49,11 +56,12 @@ type WorkspaceSandboxEnsurer interface {
 // each phase. Phase mutations to the run/checkpoint happen via pointers
 // carried in each phase's specific input struct, not via Deps.
 type Deps struct {
-	Runs             repository.RunRepository
-	Events           event.Store
-	Broadcaster      EventBroadcaster
-	Checkpoints      repository.CheckpointRepository
-	Gate             *emit.Gate
-	Levers           config.Levers
-	WorkspaceSandbox WorkspaceSandboxEnsurer
+	Runs              repository.RunRepository
+	Events            event.Store
+	Broadcaster       EventBroadcaster
+	Checkpoints       repository.CheckpointRepository
+	Gate              *emit.Gate
+	Levers            config.Levers
+	WorkspaceSandbox  WorkspaceSandboxEnsurer
+	StructuredResults StructuredResultResolver
 }

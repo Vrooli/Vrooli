@@ -688,7 +688,7 @@ func (c *OpenCode) parseOpenCodeStreamEvent(state *opencodeState, runID uuid.UUI
 
 	case "text":
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
-			return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", runner.StripANSI(streamEvent.Part.Text))}, nil
+			return []*domain.RunEvent{newOpenCodeMessageEvent(runID, streamEvent, "assistant", runner.StripANSI(streamEvent.Part.Text), false)}, nil
 		}
 
 	case "tool_call", "tool_use", "tool-call":
@@ -728,7 +728,7 @@ func (c *OpenCode) parseOpenCodeStreamEvent(state *opencodeState, runID uuid.UUI
 				text = runner.StripANSI(streamEvent.Part.Output)
 			}
 			if text != "" {
-				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", text)}, nil
+				return []*domain.RunEvent{newOpenCodeMessageEvent(runID, streamEvent, "assistant", text, false)}, nil
 			}
 		}
 
@@ -738,7 +738,7 @@ func (c *OpenCode) parseOpenCodeStreamEvent(state *opencodeState, runID uuid.UUI
 			if streamEvent.Part.Type == "user" {
 				role = "user"
 			}
-			return []*domain.RunEvent{domain.NewMessageEvent(runID, role, runner.StripANSI(streamEvent.Part.Text))}, nil
+			return []*domain.RunEvent{newOpenCodeMessageEvent(runID, streamEvent, role, runner.StripANSI(streamEvent.Part.Text), false)}, nil
 		}
 	}
 
@@ -748,7 +748,7 @@ func (c *OpenCode) parseOpenCodeStreamEvent(state *opencodeState, runID uuid.UUI
 		switch streamEvent.Part.Type {
 		case "text", "assistant":
 			if streamEvent.Part.Text != "" {
-				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", runner.StripANSI(streamEvent.Part.Text))}, nil
+				return []*domain.RunEvent{newOpenCodeMessageEvent(runID, streamEvent, "assistant", runner.StripANSI(streamEvent.Part.Text), false)}, nil
 			}
 		case "tool", "tool-call", "tool_call", "tool_use":
 			return parseOpenCodeToolUse(runID, streamEvent.Part, state.workingDir), nil
@@ -900,11 +900,12 @@ func (c *OpenCode) handleStepFinish(state *opencodeState, runID uuid.UUID, part 
 	if costEvent := buildOpenCodeCostEvent(runID, part); costEvent != nil {
 		events = append(events, costEvent)
 	}
-	if msgEvent := extractOpenCodeAssistantMessage(runID, part); msgEvent != nil {
+	terminal := isTerminalStepFinish(part)
+	if msgEvent := extractOpenCodeAssistantMessage(runID, part, terminal); msgEvent != nil {
 		events = append(events, msgEvent)
 	}
 
-	if isTerminalStepFinish(part) {
+	if terminal {
 		state.stepTermina = true
 	}
 	return events
@@ -939,17 +940,44 @@ func buildOpenCodeCostEvent(runID uuid.UUID, part *OpenCodePart) *domain.RunEven
 
 // extractOpenCodeAssistantMessage tries Text → Output → Snapshot (when
 // not a hash) for the assistant's final message in a step_finish.
-func extractOpenCodeAssistantMessage(runID uuid.UUID, part *OpenCodePart) *domain.RunEvent {
+
+func extractOpenCodeAssistantMessage(runID uuid.UUID, part *OpenCodePart, terminal bool) *domain.RunEvent {
+	content := ""
 	if part.Text != "" {
-		return domain.NewMessageEvent(runID, "assistant", runner.StripANSI(part.Text))
+		content = runner.StripANSI(part.Text)
+	} else if part.Output != "" {
+		content = runner.StripANSI(part.Output)
+	} else if part.Snapshot != "" && !isLikelyHash(part.Snapshot) {
+		content = runner.StripANSI(part.Snapshot)
 	}
-	if part.Output != "" {
-		return domain.NewMessageEvent(runID, "assistant", runner.StripANSI(part.Output))
+	if content == "" {
+		return nil
 	}
-	if part.Snapshot != "" && !isLikelyHash(part.Snapshot) {
-		return domain.NewMessageEvent(runID, "assistant", runner.StripANSI(part.Snapshot))
+	return domain.NewProviderMessageEvent(runID, "assistant", content, domain.MessageEventData{
+		MessageID:         part.MessageID,
+		ConversationID:    part.SessionID,
+		TurnID:            part.ID,
+		ProviderOrigin:    "opencode",
+		CompletionReason:  part.Reason,
+		Terminal:          terminal,
+		ProviderEventType: "step_finish",
+		RawEvidenceRef:    "opencode:step_finish",
+	})
+}
+
+func newOpenCodeMessageEvent(runID uuid.UUID, event OpenCodeStreamEvent, role, content string, terminal bool) *domain.RunEvent {
+	part := event.Part
+	evidence := domain.MessageEventData{ProviderOrigin: "opencode", ProviderEventType: event.Type, RawEvidenceRef: "opencode:" + event.Type, Terminal: terminal}
+	if part != nil {
+		evidence.MessageID = part.MessageID
+		evidence.ConversationID = part.SessionID
+		if evidence.ConversationID == "" {
+			evidence.ConversationID = event.SessionID
+		}
+		evidence.TurnID = part.ID
+		evidence.CompletionReason = part.Reason
 	}
-	return nil
+	return domain.NewProviderMessageEvent(runID, role, content, evidence)
 }
 
 // isTerminalStepFinish reports whether a step_finish reason should end

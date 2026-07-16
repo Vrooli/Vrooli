@@ -214,3 +214,52 @@ type Labels struct {
 	ContinueStartMessage string // emitted on Continue start
 	ContinueEndMessage   string // emitted on Continue completion
 }
+
+func messageEventContent(event *domain.RunEvent) string {
+	if event == nil {
+		return ""
+	}
+	if message, ok := event.Data.(*domain.MessageEventData); ok {
+		return message.Content
+	}
+	return ""
+}
+
+func markProviderMessageTerminal(event *domain.RunEvent, reason, eventType, rawRef string) {
+	if event == nil {
+		return
+	}
+	message, ok := event.Data.(*domain.MessageEventData)
+	if !ok {
+		return
+	}
+	message.Terminal = true
+	message.CompletionReason = reason
+	message.ProviderEventType = eventType
+	message.RawEvidenceRef = rawRef
+}
+
+func newProviderTerminalEvidence(runID uuid.UUID, candidate *domain.RunEvent, reason, eventType, rawRef string) *domain.RunEvent {
+	if candidate == nil {
+		return nil
+	}
+	provider := ""
+	conversationID := ""
+	turnID := ""
+	if message, ok := candidate.Data.(*domain.MessageEventData); ok {
+		provider = message.ProviderOrigin
+		conversationID = message.ConversationID
+		turnID = message.TurnID
+	}
+	return domain.NewProviderMessageEvent(runID, "system", "", domain.MessageEventData{
+		ConversationID:     conversationID,
+		TurnID:             turnID,
+		ProviderOrigin:     provider,
+		CompletionReason:   reason,
+		Terminal:           true,
+		ProviderEventType:  eventType,
+		RawEvidenceRef:     rawRef,
+		EvidenceOnly:       true,
+		EvidenceForEventID: candidate.ID.String(),
+	})
+}

@@ -2,6 +2,7 @@
 package protoconv
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 	"time"
@@ -130,10 +131,39 @@ func TestRunToProtoInteractiveFields(t *testing.T) {
 	}
 }
 
+func TestRunResultProtoRoundTrip(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), Result: &domain.RunResult{
+		FinalOutput: "canonical handoff",
+		Selection: domain.FinalOutputSelection{
+			Status: domain.FinalOutputSelectionSelected, SelectedCandidateID: "candidate-1",
+			Rule: "unique_terminal_main_assistant", AlgorithmVersion: domain.FinalOutputResolverVersion,
+			Evidence: []string{"event=result"},
+		},
+		Candidates: []domain.FinalOutputCandidate{{ID: "candidate-1", Content: "canonical handoff", MessageID: "msg-1", Terminal: true, EvidenceTier: 3}},
+		Success:    true,
+		Structured: &domain.StructuredResult{
+			Status: domain.StructuredResultSuccess, SpecKind: domain.ResultSpecKindJSONSchema,
+			SchemaDigest: "sha256:test", Value: json.RawMessage(`{"answer":"yes"}`), Method: "whole_document",
+			Diagnostics: []domain.StructuredDiagnostic{{Code: "note", Path: "/answer", Message: "safe"}},
+		},
+	}}
+	converted := RunFromProto(RunToProto(run))
+	if converted.Result == nil || converted.Result.FinalOutput != "canonical handoff" {
+		t.Fatalf("result round trip = %#v", converted.Result)
+	}
+	if converted.Result.Selection.Status != domain.FinalOutputSelectionSelected || len(converted.Result.Candidates) != 1 {
+		t.Fatalf("selection round trip = %#v", converted.Result)
+	}
+	if converted.Result.Structured == nil || converted.Result.Structured.Status != domain.StructuredResultSuccess || string(converted.Result.Structured.Value) != `{"answer":"yes"}` {
+		t.Fatalf("structured result round trip = %#v", converted.Result.Structured)
+	}
+}
+
 func TestExecutionPolicySnapshotRoundTrip(t *testing.T) {
 	original := &domain.RunConfig{
 		RunnerType: domain.RunnerTypeCodex,
 		Model:      "gpt-primary",
+		ResultSpec: &domain.ResultSpec{Version: "result-spec/v1", Kind: domain.ResultSpecKindClassification, Schema: json.RawMessage(`{"enum":["yes","no"],"type":"string"}`), SchemaDigest: "sha256:spec", ExtractionMode: domain.StructuredExtractionConstrained, ExtractionRole: "extract.structured"},
 		PolicySnapshot: &domain.ExecutionPolicySnapshot{
 			CatalogDigest: "sha256:catalog-revision",
 			RoleRef:       "code.smart",
@@ -173,6 +203,9 @@ func TestExecutionPolicySnapshotRoundTrip(t *testing.T) {
 	roundTrip := RunConfigFromProto(protoConfig)
 	if !reflect.DeepEqual(roundTrip.PolicySnapshot, original.PolicySnapshot) {
 		t.Fatalf("policy snapshot round trip mismatch\n got: %#v\nwant: %#v", roundTrip.PolicySnapshot, original.PolicySnapshot)
+	}
+	if !reflect.DeepEqual(roundTrip.ResultSpec, original.ResultSpec) {
+		t.Fatalf("result spec round trip mismatch\n got: %#v\nwant: %#v", roundTrip.ResultSpec, original.ResultSpec)
 	}
 }
 
@@ -583,6 +616,19 @@ func TestRunNilHandling(t *testing.T) {
 func TestRunEventToProtoPayloads(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	runID := uuid.New()
+
+	t.Run("message provider evidence", func(t *testing.T) {
+		event := domain.NewProviderMessageEvent(runID, "assistant", "done", domain.MessageEventData{
+			MessageID: "msg-1", ConversationID: "session-1", TurnID: "turn-1",
+			ProviderOrigin: "codex", CompletionReason: "turn_completed", Terminal: true,
+			ParentMessageID: "", ProviderEventType: "turn.completed", RawEvidenceRef: "codex:turn.completed",
+			EvidenceOnly: true, EvidenceForEventID: "event-1",
+		})
+		message := RunEventToProto(event).GetMessage()
+		if message == nil || !message.Terminal || message.MessageId != "msg-1" || message.CompletionReason != "turn_completed" || !message.EvidenceOnly || message.EvidenceForEventId != "event-1" {
+			t.Fatalf("message evidence proto = %#v", message)
+		}
+	})
 
 	t.Run("tool call", func(t *testing.T) {
 		event := &domain.RunEvent{

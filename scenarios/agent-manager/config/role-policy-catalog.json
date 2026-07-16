@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "metadata": {
     "catalogId": "agent-manager-coding-role-policy",
-    "updatedAt": "2026-07-10"
+    "updatedAt": "2026-07-15"
   },
   "defaultRole": "code.default",
   "roles": {
@@ -44,6 +44,16 @@
         {"runner": "claude-code", "resourceRole": "code.cheap"},
         {"runner": "opencode", "resourceRole": "code.cheap"},
         {"runner": "grok", "resourceRole": "code.cheap"}
+      ]
+    },
+    "extract.structured": {
+      "description": "Bounded constrained extraction of one schema-shaped value.",
+      "intent": "structured data extraction",
+      "candidates": [
+        {"runner": "codex", "resourceRole": "code.fast"},
+        {"runner": "claude-code", "resourceRole": "code.fast"},
+        {"runner": "opencode", "resourceRole": "code.fast"},
+        {"runner": "grok", "resourceRole": "code.fast"}
       ]
     }
   }

@@ -13,6 +13,7 @@ package orchestration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -42,6 +43,8 @@ import (
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/storage"
+	"agent-manager/internal/structuredresult"
+	"agent-manager/internal/workflowruntime"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -63,6 +66,21 @@ type Service interface {
 	DeleteProfile(ctx context.Context, id uuid.UUID) error
 	EnsureProfile(ctx context.Context, req EnsureProfileRequest) (*EnsureProfileResult, error)
 	ReconcileScenarioProfiles(ctx context.Context, req ReconcileScenarioProfilesRequest) (*ReconcileScenarioProfilesResult, error)
+	ValidateWorkflow(ctx context.Context, data []byte) (*WorkflowValidationResult, error)
+	ReconcileScenarioWorkflows(ctx context.Context, req ReconcileScenarioWorkflowsRequest) (*ReconcileScenarioWorkflowsResult, error)
+	ListWorkflowRevisions(ctx context.Context, owner, key string, opts ListOptions) ([]*domain.WorkflowRevision, error)
+	GetWorkflowRevision(ctx context.Context, owner, key, digest string) (*domain.WorkflowRevision, error)
+	StartWorkflowExecution(ctx context.Context, req StartWorkflowExecutionRequest) (*domain.WorkflowExecution, error)
+	ListWorkflowExecutions(ctx context.Context, req ListWorkflowExecutionsRequest) ([]*domain.WorkflowExecution, error)
+	GetWorkflowExecution(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error)
+	AdvanceWorkflowExecution(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error)
+	GetWorkflowExecutionTrace(ctx context.Context, id uuid.UUID, afterSequence int64, limit int) (*WorkflowExecutionTrace, error)
+	SignalWorkflowExecution(ctx context.Context, req WorkflowExecutionSignalRequest) (*WorkflowExecutionOperationResult, error)
+	CancelWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error)
+	RetryWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error)
+	ResumeWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error)
+	RecoverWorkflowExecutions(ctx context.Context) error
+	SimulateWorkflow(ctx context.Context, req SimulateWorkflowRequest) (*WorkflowSimulation, error)
 
 	// --- Task Operations ---
 	CreateTask(ctx context.Context, task *domain.Task) (*domain.Task, error)
@@ -239,6 +257,7 @@ type CreateRunRequest struct {
 	NetworkAccess        *domain.NetworkAccess   `json:"networkAccess,omitempty"`
 	AllowedPaths         []string                `json:"allowedPaths,omitempty"`
 	DeniedPaths          []string                `json:"deniedPaths,omitempty"`
+	ResultSpec           *domain.ResultSpec      `json:"resultSpec,omitempty"`
 
 	// Sandbox behavior overrides (optional)
 	SandboxConfig *domain.SandboxConfig `json:"sandboxConfig,omitempty"`
@@ -350,6 +369,122 @@ type ReconcileScenarioProfilesResult struct {
 	DryRun     bool                     `json:"dryRun"`
 }
 
+type WorkflowValidationResult struct {
+	Valid       bool                        `json:"valid"`
+	Digest      string                      `json:"digest,omitempty"`
+	Definition  *domain.WorkflowDefinition  `json:"definition,omitempty"`
+	Diagnostics []domain.WorkflowDiagnostic `json:"diagnostics,omitempty"`
+}
+
+type ReconcileScenarioWorkflowsRequest struct {
+	Scenario     string `json:"scenario"`
+	DryRun       bool   `json:"dryRun,omitempty"`
+	ValidateOnly bool   `json:"validateOnly,omitempty"`
+}
+
+type WorkflowReconcileStatus string
+
+const (
+	WorkflowReconcileCreated          WorkflowReconcileStatus = "created"
+	WorkflowReconcileActivated        WorkflowReconcileStatus = "activated"
+	WorkflowReconcileUnchanged        WorkflowReconcileStatus = "unchanged"
+	WorkflowReconcileSkipped          WorkflowReconcileStatus = "skipped"
+	WorkflowReconcileFailedValidation WorkflowReconcileStatus = "failed_validation"
+)
+
+type WorkflowReconcileResult struct {
+	WorkflowKey string                      `json:"workflowKey,omitempty"`
+	Version     string                      `json:"version,omitempty"`
+	Digest      string                      `json:"digest,omitempty"`
+	SourcePath  string                      `json:"sourcePath,omitempty"`
+	Status      WorkflowReconcileStatus     `json:"status"`
+	Message     string                      `json:"message,omitempty"`
+	Diagnostics []domain.WorkflowDiagnostic `json:"diagnostics,omitempty"`
+}
+
+type ReconcileScenarioWorkflowsResult struct {
+	Scenario     string                    `json:"scenario"`
+	Results      []WorkflowReconcileResult `json:"results"`
+	Created      int                       `json:"created"`
+	Activated    int                       `json:"activated"`
+	Unchanged    int                       `json:"unchanged"`
+	Skipped      int                       `json:"skipped"`
+	Failed       int                       `json:"failed"`
+	DryRun       bool                      `json:"dryRun"`
+	ValidateOnly bool                      `json:"validateOnly"`
+}
+
+type StartWorkflowExecutionRequest struct {
+	Owner            string          `json:"owner"`
+	WorkflowKey      string          `json:"workflowKey"`
+	DefinitionDigest string          `json:"definitionDigest,omitempty"`
+	Input            json.RawMessage `json:"input"`
+	IdempotencyKey   string          `json:"idempotencyKey"`
+}
+
+type ListWorkflowExecutionsRequest struct {
+	Owner       string
+	WorkflowKey string
+	Status      domain.WorkflowExecutionStatus
+	Limit       int
+	Offset      int
+}
+
+type WorkflowExecutionTrace struct {
+	Execution *domain.WorkflowExecution
+	Attempts  []*domain.WorkflowNodeAttempt
+	Journal   []*domain.WorkflowJournalEntry
+}
+
+type WorkflowExecutionSignalRequest struct {
+	ExecutionID     uuid.UUID
+	Signal          string
+	Payload         json.RawMessage
+	IdempotencyKey  string
+	ExpectedVersion int64
+}
+
+type WorkflowExecutionOperationRequest struct {
+	ExecutionID     uuid.UUID
+	IdempotencyKey  string
+	ExpectedVersion int64
+	Reason          string
+}
+
+type WorkflowExecutionOperationResult struct {
+	Execution  *domain.WorkflowExecution
+	Idempotent bool
+}
+
+type (
+	SimulateWorkflowRequest struct {
+		Owner, WorkflowKey, DefinitionDigest string
+		Input                                json.RawMessage
+	}
+	WorkflowNodePlan struct {
+		NodeID               string                  `json:"nodeId"`
+		Kind                 domain.WorkflowNodeKind `json:"kind"`
+		ExecutionStrategy    string                  `json:"executionStrategy,omitempty"`
+		ProfileKey           string                  `json:"profileKey,omitempty"`
+		RoleRef              string                  `json:"roleRef,omitempty"`
+		ContinuationSource   string                  `json:"continuationSource,omitempty"`
+		ChildWorkflowKey     string                  `json:"childWorkflowKey,omitempty"`
+		ChildWorkflowVersion string                  `json:"childWorkflowVersion,omitempty"`
+		WaitSignal           string                  `json:"waitSignal,omitempty"`
+		WaitTimeoutSeconds   int                     `json:"waitTimeoutSeconds,omitempty"`
+		JoinStrategy         string                  `json:"joinStrategy,omitempty"`
+		JoinQuorum           int                     `json:"joinQuorum,omitempty"`
+		Parallel             bool                    `json:"parallel,omitempty"`
+	}
+	WorkflowSimulation struct {
+		Valid                 bool                        `json:"valid"`
+		DefinitionDigest      string                      `json:"definitionDigest"`
+		Nodes                 []WorkflowNodePlan          `json:"nodes"`
+		PossibleTerminalNodes []string                    `json:"possibleTerminalNodes"`
+		Diagnostics           []domain.WorkflowDiagnostic `json:"diagnostics,omitempty"`
+	}
+)
+
 // StopAllOptions specifies which runs to stop in a bulk operation.
 type StopAllOptions struct {
 	TagPrefix string // Only stop runs with this tag prefix (empty = all)
@@ -366,9 +501,10 @@ type StopAllResult struct {
 
 // ContinueRunRequest contains parameters for continuing an existing run conversation.
 type ContinueRunRequest struct {
-	RunID         uuid.UUID `json:"runId"`
-	Message       string    `json:"message"`
-	AttachmentIDs []string  `json:"attachmentIds,omitempty"`
+	RunID          uuid.UUID `json:"runId"`
+	Message        string    `json:"message"`
+	AttachmentIDs  []string  `json:"attachmentIds,omitempty"`
+	IdempotencyKey string    `json:"idempotencyKey,omitempty"`
 }
 
 // ResumeFromFailedRunRequest contains parameters for creating a new run that
@@ -466,9 +602,10 @@ type HealthStatus struct {
 
 // HealthDependencies contains dependency health status.
 type HealthDependencies struct {
-	Database *DependencyStatus            `json:"database,omitempty"`
-	Sandbox  *DependencyStatus            `json:"sandbox,omitempty"`
-	Runners  map[string]*DependencyStatus `json:"runners,omitempty"`
+	Database        *DependencyStatus            `json:"database,omitempty"`
+	WorkflowRuntime *DependencyStatus            `json:"workflow_runtime,omitempty"`
+	Sandbox         *DependencyStatus            `json:"sandbox,omitempty"`
+	Runners         map[string]*DependencyStatus `json:"runners,omitempty"`
 }
 
 // DependencyStatus describes a dependency's health (matches schema).
@@ -510,6 +647,8 @@ type ProbeResult struct {
 type Orchestrator struct {
 	// Repositories (persistence)
 	profiles              repository.ProfileRepository
+	workflows             repository.WorkflowRepository
+	workflowExecutions    repository.WorkflowExecutionRepository
 	tasks                 repository.TaskRepository
 	runs                  repository.RunRepository
 	checkpoints           repository.CheckpointRepository            // For resumption support
@@ -605,6 +744,11 @@ type Orchestrator struct {
 	// exit before finalizing — see stopInteractiveRun. Always non-nil (set in
 	// New).
 	interactiveDrivers *interactiveDriverRegistry
+
+	// structuredResults owns the deterministic-first typed-output projection.
+	// It is always present; its optional extractor is selected by portable role.
+	structuredResults phases.StructuredResultResolver
+	workflowEngine    *workflowruntime.Engine
 }
 
 // OrchestratorConfig holds service configuration.
@@ -698,6 +842,14 @@ func WithIdempotency(i repository.IdempotencyRepository) Option {
 	}
 }
 
+func WithWorkflowRepository(repo repository.WorkflowRepository) Option {
+	return func(o *Orchestrator) { o.workflows = repo }
+}
+
+func WithWorkflowExecutionRepository(repo repository.WorkflowExecutionRepository) Option {
+	return func(o *Orchestrator) { o.workflowExecutions = repo }
+}
+
 // WithBroadcaster sets the event broadcaster for real-time WebSocket updates.
 func WithBroadcaster(b EventBroadcaster) Option {
 	return func(o *Orchestrator) {
@@ -725,6 +877,15 @@ func WithRolePolicyState(state *rolepolicy.State, resolver rolepolicy.Resolver) 
 	return func(o *Orchestrator) {
 		o.rolePolicy = state
 		o.roleResolver = resolver
+	}
+}
+
+// WithStructuredExtractor wires the optional constrained extraction backend.
+// The backend receives the portable role from ResultSpec and cannot bypass
+// local schema validation.
+func WithStructuredExtractor(extractor structuredresult.Extractor) Option {
+	return func(o *Orchestrator) {
+		o.structuredResults = structuredresult.Resolver{Extractor: extractor}
 	}
 }
 
@@ -821,6 +982,9 @@ func WithWebConsoleUIBase(base string) Option {
 // This is called after construction because the reconciler depends on the orchestrator.
 func (o *Orchestrator) SetReconciler(r *Reconciler) {
 	o.reconciler = r
+	if r != nil {
+		r.structuredResults = o.structuredResults
+	}
 }
 
 // SetAwaitRegistry wires the durable park/wait registry after construction. The
@@ -859,10 +1023,15 @@ func New(
 		runs:               runs,
 		config:             DefaultConfig(),
 		interactiveDrivers: newInteractiveDriverRegistry(),
+		structuredResults:  structuredresult.Resolver{},
 	}
 
 	for _, opt := range opts {
 		opt(o)
+	}
+	if o.workflowExecutions != nil && o.workflows != nil {
+		expressions, _ := workflowruntime.NewExpressionEvaluator()
+		o.workflowEngine = &workflowruntime.Engine{Store: o.workflowExecutions, Catalog: o.workflows, Children: workflowChildLauncher{o: o}, Subworkflows: workflowSubworkflowLauncher{o: o}, Expressions: expressions}
 	}
 
 	if o.dispatcher == nil {
@@ -1677,6 +1846,14 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.DeniedPaths != nil {
 		cfg.DeniedPaths = req.DeniedPaths
 	}
+	if req.ResultSpec != nil {
+		normalized, err := structuredresult.NormalizeSpec(req.ResultSpec)
+		if err != nil {
+			return nil, nil, domain.NewValidationErrorWithHint("resultSpec", err.Error(),
+				"Use result-spec/v1 with the documented bounded JSON Schema subset")
+		}
+		cfg.ResultSpec = normalized
+	}
 	// Validate the resolved config
 	if strings.TrimSpace(cfg.RoleRef) == "" {
 		return nil, nil, domain.NewValidationErrorWithHint("roleRef", "field is required",
@@ -2284,6 +2461,18 @@ func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverRe
 // ContinueRun continues an existing run's conversation with a follow-up message.
 // The message is appended to the run's event stream and the response is streamed back.
 func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error) {
+	if req.IdempotencyKey != "" && o.idempotency != nil {
+		existing, err := o.idempotency.Check(ctx, req.IdempotencyKey)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil && existing.Status == domain.IdempotencyStatusComplete && existing.EntityID != nil {
+			return o.GetRun(ctx, *existing.EntityID)
+		}
+		if existing != nil && existing.Status == domain.IdempotencyStatusPending {
+			return nil, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress")
+		}
+	}
 	// Validate message
 	if strings.TrimSpace(req.Message) == "" {
 		return nil, domain.NewValidationError("message", "message is required")
@@ -2298,15 +2487,31 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	if allowed, reason := domain.CanContinueRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "continue", reason)
 	}
+	if req.IdempotencyKey != "" && o.idempotency != nil {
+		if _, err := o.idempotency.Reserve(ctx, req.IdempotencyKey, time.Hour); err != nil {
+			return nil, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress")
+		}
+	}
 
 	// Interactive runs continue by typing the follow-up into the still-live
 	// web-console session (never a process respawn) and reattaching a tailer to
 	// drive the new turn to completion — see continueInteractiveRun.
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
-		return o.continueInteractiveRun(ctx, run, req.Message, req.AttachmentIDs)
+		continued, err := o.continueInteractiveRun(ctx, run, req.Message, req.AttachmentIDs)
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, err
+		}
+		o.markIdempotencyComplete(ctx, req.IdempotencyKey, continued.ID, "Run")
+		return continued, nil
 	}
-
-	return o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested")
+	continued, err := o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested")
+	if err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+	o.markIdempotencyComplete(ctx, req.IdempotencyKey, continued.ID, "Run")
+	return continued, nil
 }
 
 // resumeConversation drives a single session-resume turn shared by both
@@ -2728,6 +2933,9 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 
 	// Execute continuation with per-turn timeout
 	result, err := r.Continue(execCtx, continueReq)
+	if result != nil && result.Result != nil && run.ResolvedConfig != nil && o.structuredResults != nil {
+		result.Result.Structured = o.structuredResults.Resolve(execCtx, run.ResolvedConfig.ResultSpec, result.Result)
+	}
 
 	// Stop the heartbeat loop before the terminal transition so its run writes
 	// cannot race the transition's run writes (see stopHeartbeat above).
@@ -2750,6 +2958,10 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		Run:     run,
 		EndedAt: &now,
 		Reason:  "Continuation completed",
+	}
+	if result != nil {
+		transition.Result = result.Result
+		transition.Summary = result.Summary
 	}
 
 	if execCtx.Err() == context.DeadlineExceeded {
@@ -2780,6 +2992,8 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		transition.Phase = domain.RunPhaseCompleted
 		transition.ErrorMsg = result.ErrorMessage
 		transition.ExitCode = &result.ExitCode
+		transition.Result = result.Result
+		transition.Summary = result.Summary
 		run.ErrorMsg = transition.ErrorMsg
 		if o.events != nil && result.ErrorMessage != "" {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", result.ErrorMessage, false)
@@ -2789,6 +3003,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		transition.NewStatus = domain.RunStatusComplete
 		transition.Phase = domain.RunPhaseCompleted
 		transition.Summary = result.Summary
+		transition.Result = result.Result
 	} else {
 		transition.NewStatus = domain.RunStatusComplete
 		transition.Phase = domain.RunPhaseCompleted
@@ -2874,6 +3089,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		prompt,
 		systemPrompt,
 	)
+	executor.WithStructuredResultResolver(o.structuredResults)
 	// Apply orchestration-settings overrides to executor levers when a store
 	// is wired. Defaults come from config.DefaultLevers().
 	if levers, ok := o.executorLevers(); ok {
@@ -2984,6 +3200,7 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		Runs:        o.runs,
 		Broadcaster: o.broadcaster,
 		NewSink:     o.interactiveEventSink,
+		Result:      o.persistedResultBuilder,
 	})
 
 	// Register the live coordinator so StopRun can cancel it deterministically and
@@ -3161,6 +3378,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 		"", // No new prompt for resume
 		"", // No system prompt for resume (session persists instructions)
 	)
+	executor.WithStructuredResultResolver(o.structuredResults)
 	// Apply orchestration-settings overrides to executor levers when a store
 	// is wired. Defaults come from config.DefaultLevers().
 	if levers, ok := o.executorLevers(); ok {
@@ -3389,15 +3607,23 @@ func (o *Orchestrator) GetHealth(ctx context.Context) (*HealthStatus, error) {
 	}
 
 	// Check database (repositories configured)
-	if o.profiles != nil && o.tasks != nil && o.runs != nil {
+	if o.profiles != nil && o.workflows != nil && o.tasks != nil && o.runs != nil {
 		status.Dependencies.Database = &DependencyStatus{Connected: true, Storage: o.storageLabel}
 	} else {
-		msg := "not configured"
+		msg := "core or workflow repository not configured"
 		status.Dependencies.Database = &DependencyStatus{
 			Connected: false,
 			Error:     &msg,
 			Storage:   o.storageLabel,
 		}
+	}
+	if o.workflows != nil && o.workflowExecutions != nil && o.workflowEngine != nil {
+		status.Dependencies.WorkflowRuntime = &DependencyStatus{Connected: true, Storage: o.storageLabel}
+	} else {
+		msg := "workflow catalog, execution repository, or interpreter is not configured"
+		status.Dependencies.WorkflowRuntime = &DependencyStatus{Connected: false, Error: &msg, Storage: o.storageLabel}
+		status.Readiness = false
+		status.Status = "degraded"
 	}
 
 	// Check sandbox

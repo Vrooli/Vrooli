@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1820,10 +1821,31 @@ func TestRunWithComplexFields(t *testing.T) {
 			TurnsUsed:     10,
 			CostEstimate:  0.05,
 		},
+		Result: &domain.RunResult{
+			FinalOutput: "Completed successfully",
+			Selection: domain.FinalOutputSelection{
+				Status:              domain.FinalOutputSelectionSelected,
+				SelectedCandidateID: "candidate-1",
+				Rule:                "unique_terminal_main_assistant",
+				AlgorithmVersion:    domain.FinalOutputResolverVersion,
+			},
+			Candidates: []domain.FinalOutputCandidate{{ID: "candidate-1", Content: "Completed successfully", Terminal: true, EvidenceTier: 3}},
+			Success:    true,
+			Structured: &domain.StructuredResult{
+				Status: domain.StructuredResultSuccess, SpecKind: domain.ResultSpecKindClassification,
+				SchemaDigest: "sha256:result-schema", Value: json.RawMessage(`"complete"`),
+				Method: "whole_document", SourceCandidateID: "candidate-1",
+			},
+		},
 		ResolvedConfig: &domain.RunConfig{
 			MaxTurns:     100,
 			AllowedTools: []string{"read", "write", "bash"},
 			DeniedTools:  []string{},
+			ResultSpec: &domain.ResultSpec{
+				Version: "result-spec/v1", Kind: domain.ResultSpecKindClassification,
+				Schema: json.RawMessage(`{"enum":["complete"],"type":"string"}`), SchemaDigest: "sha256:result-schema",
+				ExtractionMode: domain.StructuredExtractionDeterministic,
+			},
 			PolicySnapshot: &domain.ExecutionPolicySnapshot{
 				CatalogDigest: "sha256:test-revision",
 				RoleRef:       "code.smart",
@@ -1887,6 +1909,12 @@ func TestRunWithComplexFields(t *testing.T) {
 	if got.Summary.TokensUsed != 1000 {
 		t.Errorf("expected 1000 tokens used, got %d", got.Summary.TokensUsed)
 	}
+	if got.Result == nil || got.Result.Selection.Status != domain.FinalOutputSelectionSelected || got.Result.FinalOutput != "Completed successfully" {
+		t.Fatalf("run result round trip = %#v", got.Result)
+	}
+	if got.Result.Structured == nil || got.Result.Structured.Status != domain.StructuredResultSuccess || string(got.Result.Structured.Value) != `"complete"` {
+		t.Fatalf("structured result round trip = %#v", got.Result.Structured)
+	}
 
 	// Verify resolved config JSONB
 	if got.ResolvedConfig == nil {
@@ -1900,6 +1928,9 @@ func TestRunWithComplexFields(t *testing.T) {
 	}
 	if got.ResolvedConfig.PolicySnapshot == nil {
 		t.Fatal("expected policy snapshot to be persisted")
+	}
+	if got.ResolvedConfig.ResultSpec == nil || got.ResolvedConfig.ResultSpec.SchemaDigest != "sha256:result-schema" {
+		t.Fatalf("result spec round trip = %+v", got.ResolvedConfig.ResultSpec)
 	}
 	if got.ResolvedConfig.PolicySnapshot.CatalogDigest != "sha256:test-revision" ||
 		got.ResolvedConfig.PolicySnapshot.SelectedCandidate.Model != "gpt-test" {

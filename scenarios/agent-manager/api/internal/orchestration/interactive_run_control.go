@@ -247,6 +247,7 @@ func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run) {
 		Runs:        o.runs,
 		Broadcaster: o.broadcaster,
 		NewSink:     o.interactiveEventSink,
+		Result:      o.persistedResultBuilder,
 	})
 
 	runCopy := *run

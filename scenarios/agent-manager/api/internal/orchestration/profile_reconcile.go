@@ -43,6 +43,9 @@ type profileSourcesConfig struct {
 		Mode      string   `json:"mode"`
 		Sources   []string `json:"sources"`
 	} `json:"profiles"`
+	// Workflows is parsed by the workflow catalog reconciler. Keeping it as raw
+	// JSON lets each subsystem remain strict about its own versioned config.
+	Workflows json.RawMessage `json:"workflows,omitempty"`
 }
 
 // ReconcileScenarioProfiles reads a scenario-owned profile declaration and
@@ -186,7 +189,26 @@ func readScenarioProfileConfig(servicePath string) (*profileSourcesConfig, error
 // shared by read-only conformance and mutating reconciliation to prevent the
 // two surfaces from accepting different manifests.
 func ValidateScenarioProfileConfig(servicePath string) error {
-	_, err := readScenarioProfileConfig(servicePath)
+	data, err := os.ReadFile(servicePath)
+	if err != nil {
+		return err
+	}
+	var manifest scenarioServiceProfileConfig
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return err
+	}
+	dep, ok := manifest.Dependencies.Scenarios["agent-manager"]
+	if !ok || len(dep.Config) == 0 {
+		return nil
+	}
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(dep.Config, &object); err != nil {
+		return err
+	}
+	if _, hasProfiles := object["profiles"]; !hasProfiles {
+		return nil
+	}
+	_, err = readScenarioProfileConfig(servicePath)
 	return err
 }
 

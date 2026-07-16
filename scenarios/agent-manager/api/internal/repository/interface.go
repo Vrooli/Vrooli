@@ -65,6 +65,49 @@ type ProfileRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
+// WorkflowRepository stores immutable, digest-addressed workflow revisions.
+// ActivateBatch validates and activates an entire scenario reload atomically;
+// a failed reload therefore leaves every previously active revision intact.
+type WorkflowRepository interface {
+	ActivateBatch(ctx context.Context, revisions []*domain.WorkflowRevision) error
+	GetActive(ctx context.Context, owner, key string) (*domain.WorkflowRevision, error)
+	GetByDigest(ctx context.Context, digest string) (*domain.WorkflowRevision, error)
+	List(ctx context.Context, owner, key string, filter ListFilter) ([]*domain.WorkflowRevision, error)
+}
+
+type WorkflowCommit struct {
+	ExpectedVersion int64
+	Execution       *domain.WorkflowExecution
+	Attempt         *domain.WorkflowNodeAttempt
+	Attempts        []*domain.WorkflowNodeAttempt
+	Journal         []*domain.WorkflowJournalEntry
+}
+
+// WorkflowExecutionListFilter bounds operator history queries. Empty owner,
+// workflow key, and status values mean "all"; pagination is always bounded by
+// the repository implementation.
+type WorkflowExecutionListFilter struct {
+	ListFilter
+	Owner       string
+	WorkflowKey string
+	Status      domain.WorkflowExecutionStatus
+}
+
+// WorkflowExecutionRepository is the durable interpreter commit boundary.
+// Commit is compare-and-swap and atomically persists execution state, one
+// attempt projection, and append-only journal entries.
+type WorkflowExecutionRepository interface {
+	Create(ctx context.Context, execution *domain.WorkflowExecution, initial *domain.WorkflowJournalEntry) error
+	Get(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error)
+	GetByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowExecution, error)
+	List(ctx context.Context, filter WorkflowExecutionListFilter) ([]*domain.WorkflowExecution, error)
+	Commit(ctx context.Context, commit WorkflowCommit) (bool, error)
+	GetAttemptByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowNodeAttempt, error)
+	ListAttempts(ctx context.Context, executionID uuid.UUID) ([]*domain.WorkflowNodeAttempt, error)
+	ListJournal(ctx context.Context, executionID uuid.UUID, afterSequence int64, limit int) ([]*domain.WorkflowJournalEntry, error)
+	ListRecoverable(ctx context.Context, limit int) ([]*domain.WorkflowExecution, error)
+}
+
 // -----------------------------------------------------------------------------
 // TaskRepository - Task persistence
 // -----------------------------------------------------------------------------

@@ -49,6 +49,9 @@ func TestRecoverRun_DeadProcessWithTerminalSuccess(t *testing.T) {
 	if got.Summary == nil || got.Summary.Description != "Recovered final answer" {
 		t.Fatalf("summary = %+v, want recovered final answer", got.Summary)
 	}
+	if got.Result == nil || got.Result.Selection.Status != domain.FinalOutputSelectionSelected || got.Result.FinalOutput != "Recovered final answer" {
+		t.Fatalf("result = %+v, want selected recovered final answer", got.Result)
+	}
 	if got.ExitCode == nil || *got.ExitCode != 0 {
 		t.Fatalf("exit_code = %+v, want 0", got.ExitCode)
 	}

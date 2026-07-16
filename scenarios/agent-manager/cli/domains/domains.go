@@ -11,6 +11,7 @@ import (
 	"agent-manager/cli/domains/runs"
 	"agent-manager/cli/domains/settings"
 	"agent-manager/cli/domains/tasks"
+	"agent-manager/cli/domains/workflows"
 	"agent-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -19,6 +20,7 @@ import (
 func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{
 		profiles.Register(deps),
+		workflows.Register(deps),
 		tasks.Register(deps),
 		runs.Register(deps),
 		runners.Register(deps),

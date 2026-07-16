@@ -226,8 +226,12 @@ func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []str
 
 // codexState carries per-run mutable state through the stream decode loop.
 type codexState struct {
-	threadID string // captured from stream events; used as SessionID
-	runModel string // captured at BuildArgs time for cost event labelling
+	threadID         string // captured from stream events; used as SessionID
+	runModel         string // captured at BuildArgs time for cost event labelling
+	turn             int
+	lastMessageID    string
+	lastMessage      string
+	lastMessageEvent *domain.RunEvent
 }
 
 func (s *codexState) SessionID() string { return s.threadID }
@@ -377,7 +381,7 @@ func (c *Codex) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionM
 	}
 	switch data := event.Data.(type) {
 	case *domain.MessageEventData:
-		if data.Role == "assistant" {
+		if data.Role == "assistant" && !data.EvidenceOnly {
 			*lastAssistant = data.Content
 			metrics.TurnsUsed++
 		}
@@ -528,6 +532,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		return result, true
 
 	case "turn_context":
+		p.state.turn++
 		return result, true
 
 	case "response_item":
@@ -538,12 +543,20 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		switch pl.Type {
 		case "agent_message":
 			if text := runner.StripANSI(strings.TrimSpace(pl.Message)); text != "" {
-				result.Events = []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", text)}
+				p.state.lastMessage = text
+				p.state.lastMessageID = pl.ID
+				messageEvent := newCodexMessageEvent(runID, p.state, text, pl.ID, "event_msg.agent_message", false, "")
+				p.state.lastMessageEvent = messageEvent
+				result.Events = []*domain.RunEvent{messageEvent}
 			}
 		case "user_message":
 			// Suppressed: the orchestrator already records the user prompt,
 			// mirroring the claude/codex handling of echoed user turns.
 		case "task_complete", "turn_completed":
+			if p.state.lastMessageEvent != nil {
+				markProviderMessageTerminal(p.state.lastMessageEvent, pl.Type, "event_msg."+pl.Type, "codex:event_msg."+pl.Type)
+				result.Events = append(result.Events, newProviderTerminalEvidence(runID, p.state.lastMessageEvent, pl.Type, "event_msg."+pl.Type, "codex:event_msg."+pl.Type))
+			}
 			result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0}
 		case "turn_aborted":
 			msg := "turn aborted"
@@ -635,7 +648,7 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 	}
 
 	if strings.HasPrefix(streamEvent.Type, "item.") && streamEvent.Item != nil {
-		return parseCodexItemEvents(runID, streamEvent.Item)
+		return parseCodexItemEvents(state, runID, streamEvent.Item)
 	}
 
 	switch streamEvent.Type {
@@ -643,16 +656,22 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Thread started: "+streamEvent.ThreadID)}
 
 	case "turn.started":
+		state.turn++
 		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Turn started")}
 
 	case "turn.completed":
+		if state.lastMessageEvent != nil {
+			markProviderMessageTerminal(state.lastMessageEvent, "turn_completed", "turn.completed", "codex:turn.completed")
+			events = append(events, newProviderTerminalEvidence(runID, state.lastMessageEvent, "turn_completed", "turn.completed", "codex:turn.completed"))
+		}
 		if streamEvent.Usage != nil {
-			return []*domain.RunEvent{buildCostEvent(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel, usageTokens{
+			events = append(events, buildCostEvent(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel, usageTokens{
 				InputTokens:     streamEvent.Usage.InputTokens,
 				OutputTokens:    streamEvent.Usage.OutputTokens,
 				CacheReadTokens: streamEvent.Usage.CachedInputTokens,
-			})}
+			}))
 		}
+		return events
 
 	case "error":
 		if streamEvent.Error != nil {
@@ -671,14 +690,19 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 // parseCodexItemEvents handles item.* events (item.completed, item.started,
 // etc.). Codex emits items for messages, reasoning, file_changes, tool
 // calls/results, and command_executions.
-func parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*domain.RunEvent {
+func parseCodexItemEvents(state *codexState, runID uuid.UUID, item *CodexItem) []*domain.RunEvent {
 	if item == nil {
 		return nil
 	}
 	switch item.Type {
 	case "agent_message":
 		if item.Text != "" {
-			return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", runner.StripANSI(item.Text))}
+			text := runner.StripANSI(item.Text)
+			state.lastMessage = text
+			state.lastMessageID = item.ID
+			messageEvent := newCodexMessageEvent(runID, state, text, item.ID, "item.completed", false, "")
+			state.lastMessageEvent = messageEvent
+			return []*domain.RunEvent{messageEvent}
 		}
 	case "reasoning":
 		if item.Text != "" {
@@ -718,6 +742,27 @@ func parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*domain.RunEvent {
 		return parseCodexCommandExecution(runID, item)
 	}
 	return nil
+}
+
+func newCodexMessageEvent(runID uuid.UUID, state *codexState, content, messageID, eventType string, terminal bool, reason string) *domain.RunEvent {
+	turnID := ""
+	conversationID := ""
+	if state != nil {
+		conversationID = state.threadID
+		if state.turn > 0 {
+			turnID = fmt.Sprintf("%s:turn-%d", conversationID, state.turn)
+		}
+	}
+	return domain.NewProviderMessageEvent(runID, "assistant", content, domain.MessageEventData{
+		MessageID:         messageID,
+		ConversationID:    conversationID,
+		TurnID:            turnID,
+		ProviderOrigin:    "codex",
+		CompletionReason:  reason,
+		Terminal:          terminal,
+		ProviderEventType: eventType,
+		RawEvidenceRef:    "codex:" + eventType,
+	})
 }
 
 // parseCodexCommandExecution extracts shell commands as bash tool events.

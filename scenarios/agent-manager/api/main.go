@@ -160,6 +160,9 @@ func NewServer() (*Server, error) {
 			obs.Logger().Warn("reconciler start failed", obs.KeyError, err.Error())
 		}
 	}
+	if err := srv.orchestrator.RecoverWorkflowExecutions(context.Background()); err != nil {
+		obs.Logger().Warn("initial workflow recovery failed", obs.KeyError, err.Error())
+	}
 
 	// Re-spawn waiters for any runs that were parked when agent-manager last
 	// stopped (durable park/resume restart recovery).
@@ -225,6 +228,8 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	eventStore := event.NewSQLiteStore(db.DB, logger)
 	repos := database.NewRepositories(db, logger)
 	profileRepo := repos.Profiles
+	workflowRepo := repos.Workflows
+	workflowExecutionRepo := repos.WorkflowExecutions
 	taskRepo := repos.Tasks
 	runRepo := repos.Runs
 	checkpointRepo := repos.Checkpoints
@@ -511,6 +516,8 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithWorkspaceSandboxEnsurer(workspaceSandboxEnsurer),
 		orchestration.WithCheckpoints(checkpointRepo),
 		orchestration.WithIdempotency(idempotencyRepo),
+		orchestration.WithWorkflowRepository(workflowRepo),
+		orchestration.WithWorkflowExecutionRepository(workflowExecutionRepo),
 		orchestration.WithBroadcaster(wsHub),
 		orchestration.WithTerminator(terminator),
 		orchestration.WithStorageLabel(storageLabel),
@@ -550,6 +557,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithReconcilerEvents(eventStore),
 		orchestration.WithReconcilerBroadcaster(wsHub),
 		orchestration.WithReconcilerSandbox(sandboxProvider),
+		orchestration.WithReconcilerWorkflowRecovery(orch),
 	}
 	if interactiveSessions != nil {
 		reconcilerOpts = append(reconcilerOpts, orchestration.WithReconcilerInteractive(interactiveSessions))
