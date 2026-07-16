@@ -184,6 +184,57 @@ message Run {
   // resolvable server-side; empty otherwise so the client can fall back to
   // showing web_console_session_id alone.
   string web_console_session_url = 39;
+
+  // Canonical, provenance-bearing terminal result. Historical rows created
+  // before RunResult adoption leave this absent; clients must not synthesize
+  // provenance from summary or transcript tail position.
+  optional RunResult result = 40;
+}
+
+// FinalOutputSelectionStatus describes whether provider evidence identifies a
+// unique final assistant handoff.
+enum FinalOutputSelectionStatus {
+  FINAL_OUTPUT_SELECTION_STATUS_UNSPECIFIED = 0;
+  FINAL_OUTPUT_SELECTION_STATUS_SELECTED = 1;
+  FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS = 2;
+  FINAL_OUTPUT_SELECTION_STATUS_UNAVAILABLE = 3;
+}
+
+// FinalOutputCandidate is one assistant message considered by the resolver.
+message FinalOutputCandidate {
+  string id = 1;
+  string event_id = 2;
+  int64 sequence = 3;
+  string content = 4;
+  string message_id = 5;
+  string conversation_id = 6;
+  string turn_id = 7;
+  string provider_origin = 8;
+  string completion_reason = 9;
+  bool terminal = 10;
+  string parent_message_id = 11;
+  string provider_event_type = 12;
+  string raw_evidence_ref = 13;
+  int32 evidence_tier = 14;
+}
+
+// FinalOutputSelection explains the deterministic resolver decision.
+message FinalOutputSelection {
+  FinalOutputSelectionStatus status = 1;
+  string selected_candidate_id = 2;
+  string rule = 3;
+  string algorithm_version = 4;
+  repeated string evidence = 5;
+}
+
+// RunResult is the canonical terminal result for one execute or continue turn.
+message RunResult {
+  string final_output = 1;
+  FinalOutputSelection selection = 2;
+  repeated FinalOutputCandidate candidates = 3;
+  bool success = 4;
+  int32 exit_code = 5;
+  string terminal_reason = 6;
 }
 
 // AwaitHandle identifies the externally-owned async work a parked run is

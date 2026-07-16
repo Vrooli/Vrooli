@@ -91,9 +91,7 @@ func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) *star
 			_ = store.Close()
 		}
 		signal.Stop(sigCh)
-		if s, okSig := sig.(syscall.Signal); okSig {
-			_ = syscall.Kill(os.Getpid(), s)
-		}
+		_ = reraiseSignal(sig)
 	}(op.OperationID, r.Home, rec.sigCh)
 	return rec
 }

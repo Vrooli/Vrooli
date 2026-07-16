@@ -55,6 +55,10 @@ type fakeHostProvider struct {
 	snapshot hostsession.Snapshot
 }
 
+type fakePressureProvider struct{ state PressureState }
+
+func (p *fakePressureProvider) Snapshot(context.Context) PressureState { return p.state }
+
 func (p fakeHostProvider) Current(context.Context, string) (hostsession.Snapshot, error) {
 	return p.snapshot, nil
 }
@@ -67,6 +71,118 @@ func TestModeFromEnvDefaultsToAuto(t *testing.T) {
 	t.Setenv(ModeEnv, ModeOff)
 	if got := ModeFromEnv(); got != ModeOff {
 		t.Fatalf("ModeFromEnv(off) = %q, want %q", got, ModeOff)
+	}
+}
+
+func TestServiceStatusExposesDurableRecoveryContract(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	if _, err := store.UpsertRecoveryPolicy(ctx, scenarioruntime.RecoveryPolicy{
+		Scenario: "critical-api", Critical: true, Enabled: true, DependencyTier: 1, RetryBudget: 2,
+	}); err != nil {
+		t.Fatalf("UpsertRecoveryPolicy: %v", err)
+	}
+	if _, err := store.CreatePressureEpoch(ctx, scenarioruntime.PressureEpoch{EpochID: "epoch-1", Source: "test"}); err != nil {
+		t.Fatalf("CreatePressureEpoch: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	svc := New(Config{DBPath: dbPath, Clock: clk, HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}}})
+	defer svc.Close()
+	report, err := svc.Status(ctx)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if len(report.RecoveryPolicies) != 1 || report.RecoveryPolicies[0].Scenario != "critical-api" {
+		t.Fatalf("RecoveryPolicies = %#v", report.RecoveryPolicies)
+	}
+	if len(report.PressureEpochs) != 1 || report.PressureEpochs[0].EpochID != "epoch-1" {
+		t.Fatalf("PressureEpochs = %#v", report.PressureEpochs)
+	}
+}
+
+func TestServiceRecoveryWaitsForPressureClearAndRestoresOnlyDeclaredCriticalWorkload(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	for _, scenarioName := range []string{"critical-api", "ordinary-api"} {
+		if _, err := store.CreateInstance(ctx, scenarioruntime.Instance{Scenario: scenarioName, Status: scenarioruntime.StatusExpired}); err != nil {
+			t.Fatalf("CreateInstance(%s): %v", scenarioName, err)
+		}
+	}
+	if _, err := store.UpsertRecoveryPolicy(ctx, scenarioruntime.RecoveryPolicy{Scenario: "critical-api", Critical: true, Enabled: true, RetryBudget: 1}); err != nil {
+		t.Fatalf("UpsertRecoveryPolicy: %v", err)
+	}
+	if _, err := store.UpsertRecoveryPolicy(ctx, scenarioruntime.RecoveryPolicy{Scenario: "ordinary-api", Critical: false, Enabled: true, RetryBudget: 1}); err != nil {
+		t.Fatalf("UpsertRecoveryPolicy ordinary: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	pressure := &fakePressureProvider{state: PressureState{Known: true, UnderPressure: true, ObservedAt: clk.Now(), Source: "fixture"}}
+	var launches []RecoveryLaunchRequest
+	svc := New(Config{
+		DBPath: dbPath, SupervisorID: "sup-recovery", Clock: clk,
+		HostProvider:     fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}},
+		PressureProvider: pressure, RecoveryQuietPeriod: time.Minute,
+		RecoveryLaunch: func(_ context.Context, request RecoveryLaunchRequest) error {
+			launches = append(launches, request)
+			return nil
+		},
+	})
+	defer svc.Close()
+	first, err := svc.Tick(ctx)
+	if err != nil {
+		t.Fatalf("Tick(pressure): %v", err)
+	}
+	if first.Recovery.Gated != 1 || len(launches) != 0 {
+		t.Fatalf("pressure tick = %#v launches=%#v, want gated no launch", first.Recovery, launches)
+	}
+	pressure.state.UnderPressure = false
+	clk.Advance(30 * time.Second)
+	pressure.state.ObservedAt = clk.Now()
+	second, err := svc.Tick(ctx)
+	if err != nil {
+		t.Fatalf("Tick(initial clear): %v", err)
+	}
+	if second.Recovery.Gated != 1 || len(launches) != 0 {
+		t.Fatalf("initial clear tick = %#v launches=%#v, want gated no launch", second.Recovery, launches)
+	}
+	epochs, err := svc.store.ListPressureEpochs(ctx, 1)
+	if err != nil || len(epochs) != 1 || epochs[0].Status != scenarioruntime.PressureEpochGated {
+		t.Fatalf("pressure epoch after clear = %#v err=%v, want gated", epochs, err)
+	}
+	clk.Advance(time.Minute)
+	pressure.state.ObservedAt = clk.Now()
+	third, err := svc.Tick(ctx)
+	if err != nil {
+		t.Fatalf("Tick(stable clear): %v", err)
+	}
+	if third.Recovery.Restored != 1 || len(launches) != 1 || launches[0].Scenario != "critical-api" {
+		t.Fatalf("stable clear = %#v launches=%#v, want only critical-api restored", third.Recovery, launches)
+	}
+	epochs, err = svc.store.ListPressureEpochs(ctx, 1)
+	if err != nil || len(epochs) != 1 || epochs[0].Status != scenarioruntime.PressureEpochCleared {
+		t.Fatalf("pressure epoch after dispatch = %#v err=%v, want cleared", epochs, err)
+	}
+	// The observed expired lease remains until lifecycle reconciliation sees the
+	// restart. A later tick must not replay an already accepted launch.
+	if _, err := svc.Tick(ctx); err != nil {
+		t.Fatalf("Tick(duplicate clear): %v", err)
+	}
+	if len(launches) != 1 {
+		t.Fatalf("launches after duplicate tick = %#v, want exactly one", launches)
 	}
 }
 

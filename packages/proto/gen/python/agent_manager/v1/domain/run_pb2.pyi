@@ -6,6 +6,7 @@ from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
@@ -13,8 +14,19 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class FinalOutputSelectionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    FINAL_OUTPUT_SELECTION_STATUS_UNSPECIFIED: _ClassVar[FinalOutputSelectionStatus]
+    FINAL_OUTPUT_SELECTION_STATUS_SELECTED: _ClassVar[FinalOutputSelectionStatus]
+    FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS: _ClassVar[FinalOutputSelectionStatus]
+    FINAL_OUTPUT_SELECTION_STATUS_UNAVAILABLE: _ClassVar[FinalOutputSelectionStatus]
+FINAL_OUTPUT_SELECTION_STATUS_UNSPECIFIED: FinalOutputSelectionStatus
+FINAL_OUTPUT_SELECTION_STATUS_SELECTED: FinalOutputSelectionStatus
+FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS: FinalOutputSelectionStatus
+FINAL_OUTPUT_SELECTION_STATUS_UNAVAILABLE: FinalOutputSelectionStatus
+
 class Run(_message.Message):
-    __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "session_id", "created_at", "updated_at", "actions", "prompt_preview", "requested_model", "actual_model", "finalization_status", "finalization_error", "finalized_at", "await_handle", "execution_mode", "web_console_session_id", "web_console_session_url")
+    __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "session_id", "created_at", "updated_at", "actions", "prompt_preview", "requested_model", "actual_model", "finalization_status", "finalization_error", "finalized_at", "await_handle", "execution_mode", "web_console_session_id", "web_console_session_url", "result")
     ID_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -54,6 +66,7 @@ class Run(_message.Message):
     EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
     WEB_CONSOLE_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     WEB_CONSOLE_SESSION_URL_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
     id: str
     task_id: str
     agent_profile_id: str
@@ -93,7 +106,70 @@ class Run(_message.Message):
     execution_mode: _types_pb2.ExecutionMode
     web_console_session_id: str
     web_console_session_url: str
-    def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actions: _Optional[_Union[RunActions, _Mapping]] = ..., prompt_preview: _Optional[str] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., finalization_status: _Optional[_Union[_types_pb2.RunFinalizationStatus, str]] = ..., finalization_error: _Optional[str] = ..., finalized_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., await_handle: _Optional[_Union[AwaitHandle, _Mapping]] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ..., web_console_session_id: _Optional[str] = ..., web_console_session_url: _Optional[str] = ...) -> None: ...
+    result: RunResult
+    def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actions: _Optional[_Union[RunActions, _Mapping]] = ..., prompt_preview: _Optional[str] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., finalization_status: _Optional[_Union[_types_pb2.RunFinalizationStatus, str]] = ..., finalization_error: _Optional[str] = ..., finalized_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., await_handle: _Optional[_Union[AwaitHandle, _Mapping]] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ..., web_console_session_id: _Optional[str] = ..., web_console_session_url: _Optional[str] = ..., result: _Optional[_Union[RunResult, _Mapping]] = ...) -> None: ...
+
+class FinalOutputCandidate(_message.Message):
+    __slots__ = ("id", "event_id", "sequence", "content", "message_id", "conversation_id", "turn_id", "provider_origin", "completion_reason", "terminal", "parent_message_id", "provider_event_type", "raw_evidence_ref", "evidence_tier")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    CONVERSATION_ID_FIELD_NUMBER: _ClassVar[int]
+    TURN_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    COMPLETION_REASON_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    PARENT_MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_EVENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    RAW_EVIDENCE_REF_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_TIER_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    event_id: str
+    sequence: int
+    content: str
+    message_id: str
+    conversation_id: str
+    turn_id: str
+    provider_origin: str
+    completion_reason: str
+    terminal: bool
+    parent_message_id: str
+    provider_event_type: str
+    raw_evidence_ref: str
+    evidence_tier: int
+    def __init__(self, id: _Optional[str] = ..., event_id: _Optional[str] = ..., sequence: _Optional[int] = ..., content: _Optional[str] = ..., message_id: _Optional[str] = ..., conversation_id: _Optional[str] = ..., turn_id: _Optional[str] = ..., provider_origin: _Optional[str] = ..., completion_reason: _Optional[str] = ..., terminal: _Optional[bool] = ..., parent_message_id: _Optional[str] = ..., provider_event_type: _Optional[str] = ..., raw_evidence_ref: _Optional[str] = ..., evidence_tier: _Optional[int] = ...) -> None: ...
+
+class FinalOutputSelection(_message.Message):
+    __slots__ = ("status", "selected_candidate_id", "rule", "algorithm_version", "evidence")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    RULE_FIELD_NUMBER: _ClassVar[int]
+    ALGORITHM_VERSION_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    status: FinalOutputSelectionStatus
+    selected_candidate_id: str
+    rule: str
+    algorithm_version: str
+    evidence: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: _Optional[_Union[FinalOutputSelectionStatus, str]] = ..., selected_candidate_id: _Optional[str] = ..., rule: _Optional[str] = ..., algorithm_version: _Optional[str] = ..., evidence: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class RunResult(_message.Message):
+    __slots__ = ("final_output", "selection", "candidates", "success", "exit_code", "terminal_reason")
+    FINAL_OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_REASON_FIELD_NUMBER: _ClassVar[int]
+    final_output: str
+    selection: FinalOutputSelection
+    candidates: _containers.RepeatedCompositeFieldContainer[FinalOutputCandidate]
+    success: bool
+    exit_code: int
+    terminal_reason: str
+    def __init__(self, final_output: _Optional[str] = ..., selection: _Optional[_Union[FinalOutputSelection, _Mapping]] = ..., candidates: _Optional[_Iterable[_Union[FinalOutputCandidate, _Mapping]]] = ..., success: _Optional[bool] = ..., exit_code: _Optional[int] = ..., terminal_reason: _Optional[str] = ...) -> None: ...
 
 class AwaitHandle(_message.Message):
     __slots__ = ("producer", "key", "deadline", "registered_at")

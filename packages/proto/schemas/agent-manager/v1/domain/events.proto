@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package agent_manager.v1;
 
+import "agent-manager/v1/domain/run.proto";
 import "agent-manager/v1/domain/types.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
@@ -160,6 +161,11 @@ message RunStatusUpdate {
 
   // First ~120 characters of the task description for display.
   string prompt_preview = 4;
+
+  // Compact canonical-result metadata. Full candidate bodies remain on the
+  // run detail response and are never broadcast globally.
+  FinalOutputSelectionStatus result_selection_status = 5;
+  string result_selection_rule = 6;
 }
 
 // TaskStatusUpdate reports a task status change.
@@ -264,6 +270,22 @@ message MessageEventData {
 
   // Image/file attachments included with this message.
   repeated MessageAttachmentInfo attachments = 3;
+
+  // Optional provider evidence. Empty means unavailable, never inferred.
+  string message_id = 4;
+  string conversation_id = 5;
+  string turn_id = 6;
+  string provider_origin = 7;
+  string completion_reason = 8;
+  bool terminal = 9;
+  string parent_message_id = 10;
+  string provider_event_type = 11;
+  string raw_evidence_ref = 12;
+
+  // Evidence-only records correlate a later provider terminal marker to an
+  // earlier assistant message without duplicating its content.
+  bool evidence_only = 13;
+  string evidence_for_event_id = 14;
 }
 
 // MessageAttachmentInfo stores metadata about an attachment included with a message.

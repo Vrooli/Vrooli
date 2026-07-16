@@ -178,10 +178,10 @@ CREATE TABLE runtime_events (
 // TestSQLiteStoreRejectsStampedOlderVersion proves there is no in-code
 // migration ladder: a database stamped at any older version is a hard error
 // pointing at the one-shot conversion path, never auto-migrated or recreated.
-func TestSQLiteStoreRejectsStampedOlderVersion(t *testing.T) {
+func TestSQLiteStoreRejectsUnsupportedStampedOlderVersion(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
-	stampUserVersion(t, dbPath, SchemaVersion-1)
+	stampUserVersion(t, dbPath, SchemaVersion-2)
 
 	_, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
 	if err == nil {
@@ -189,6 +189,49 @@ func TestSQLiteStoreRejectsStampedOlderVersion(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "operator-run temporary conversion script") {
 		t.Fatalf("NewSQLiteStore error = %v, want one-shot conversion guidance", err)
+	}
+}
+
+func TestSQLiteStoreMigratesVersion6RecoverySchema(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore(fresh): %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("close fresh store: %v", err)
+	}
+	db, err := sql.Open("sqlite", buildDSN(dbPath))
+	if err != nil {
+		t.Fatalf("open v6 fixture: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+DROP TABLE runtime_recovery_decisions;
+DROP TABLE runtime_pressure_epochs;
+DROP TABLE runtime_recovery_policies;`); err != nil {
+		_ = db.Close()
+		t.Fatalf("remove v7 tables from fixture: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close v6 fixture: %v", err)
+	}
+	stampUserVersion(t, dbPath, 6)
+
+	migrated, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore(migrate v6): %v", err)
+	}
+	t.Cleanup(func() { _ = migrated.Close() })
+	if got := tableColumns(t, migrated.db, "runtime_recovery_policies"); !got["retry_budget"] {
+		t.Fatalf("migration missing runtime_recovery_policies.retry_budget: %#v", got)
+	}
+	var version int
+	if err := migrated.db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version); err != nil {
+		t.Fatalf("read migrated version: %v", err)
+	}
+	if version != SchemaVersion {
+		t.Fatalf("migrated version = %d, want %d", version, SchemaVersion)
 	}
 }
 

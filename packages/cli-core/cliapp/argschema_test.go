@@ -79,6 +79,82 @@ func TestArgSchemaValidate(t *testing.T) {
 			t.Fatal("expected bool+default error")
 		}
 	})
+
+	t.Run("values declarations", func(t *testing.T) {
+		cases := []struct {
+			name    string
+			flag    Flag
+			wantErr string // "" = valid
+		}{
+			{
+				name: "values with aliases and default",
+				flag: Flag{
+					Name:         "complexity",
+					Values:       []string{"minor", "moderate", "major", "architectural"},
+					ValueAliases: map[string]string{"low": "minor", "medium": "moderate", "high": "major"},
+					Default:      "moderate",
+				},
+			},
+			{
+				name: "default may be an alias",
+				flag: Flag{
+					Name:         "complexity",
+					Values:       []string{"minor", "moderate"},
+					ValueAliases: map[string]string{"low": "minor"},
+					Default:      "low",
+				},
+			},
+			{
+				name:    "values on bool flag rejected",
+				flag:    Flag{Name: "verbose", Bool: true, Values: []string{"yes", "no"}},
+				wantErr: "Values requires a valued flag",
+			},
+			{
+				name:    "empty value rejected",
+				flag:    Flag{Name: "kind", Values: []string{"a", " "}},
+				wantErr: "is empty",
+			},
+			{
+				name:    "duplicate value rejected",
+				flag:    Flag{Name: "kind", Values: []string{"a", "a"}},
+				wantErr: "duplicate",
+			},
+			{
+				name:    "alias to undeclared value rejected",
+				flag:    Flag{Name: "kind", Values: []string{"a"}, ValueAliases: map[string]string{"b": "c"}},
+				wantErr: "not a declared value",
+			},
+			{
+				name:    "alias shadowing a value rejected",
+				flag:    Flag{Name: "kind", Values: []string{"a", "b"}, ValueAliases: map[string]string{"a": "b"}},
+				wantErr: "duplicates a declared value",
+			},
+			{
+				name:    "aliases without values rejected",
+				flag:    Flag{Name: "kind", ValueAliases: map[string]string{"a": "b"}},
+				wantErr: "ValueAliases without Values",
+			},
+			{
+				name:    "default outside vocabulary rejected",
+				flag:    Flag{Name: "kind", Values: []string{"a", "b"}, Default: "c"},
+				wantErr: "neither a declared value nor an alias",
+			},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				err := (ArgSchema{Flags: []Flag{tc.flag}}).Validate()
+				if tc.wantErr == "" {
+					if err != nil {
+						t.Fatalf("valid flag rejected: %v", err)
+					}
+					return
+				}
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected error containing %q, got: %v", tc.wantErr, err)
+				}
+			})
+		}
+	})
 }
 
 func TestArgSchemaFlagByName(t *testing.T) {

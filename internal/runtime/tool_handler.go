@@ -51,6 +51,13 @@ type toolHandler struct {
 	manifest hostreqkit.ToolManifest
 }
 
+type toolInstallStrategy uint8
+
+const (
+	toolInstallPackage toolInstallStrategy = iota
+	toolInstallFetch
+)
+
 func newGenericToolHandler(m hostreqkit.ToolManifest) hostreqkit.Handler {
 	return toolHandler{manifest: m}
 }
@@ -74,10 +81,28 @@ func (h toolHandler) Inspect(host hostreqkit.Host, requirement hostreqspec.Resol
 	// manual-action-required with their installHint, not a bare "unsupported".
 	requirement.Manual = requirement.Manual || h.manifest.Manual
 
-	if h.manifest.SourceType() != "package" {
+	if h.installStrategy(host) == toolInstallFetch {
 		return h.inspectFetch(host, requirement, status)
 	}
 	return h.inspectPackage(host, requirement, status)
+}
+
+// installStrategy resolves a mixed source/packages manifest for this host.
+// A matching verified source target wins. When the source has no target for
+// this OS/architecture, an explicitly declared host package remains a valid
+// fallback. A source-only manifest stays on the fetch path so inspectFetch can
+// report the precise missing-target reason.
+func (h toolHandler) installStrategy(host hostreqkit.Host) toolInstallStrategy {
+	if h.manifest.SourceType() == "package" {
+		return toolInstallPackage
+	}
+	if _, ok := h.manifest.Source.TargetFor(host.OS, runtimeArch()); ok {
+		return toolInstallFetch
+	}
+	if strings.TrimSpace(h.manifest.PackageNameForHost(host)) != "" {
+		return toolInstallPackage
+	}
+	return toolInstallFetch
 }
 
 // capabilityGate evaluates the effective `requires` predicate (manifest first,
@@ -209,7 +234,7 @@ func (h toolHandler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, o
 		return status, nil
 	}
 
-	if h.manifest.SourceType() != "package" {
+	if h.installStrategy(host) == toolInstallFetch {
 		return h.applyFetch(host, status, opts)
 	}
 	return h.applyPackage(host, status, opts)

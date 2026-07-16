@@ -3,6 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../.." && builtin pwd)"
+# shellcheck source=install/platform.sh
+source "${SCRIPT_DIR}/install/platform.sh"
 
 usage() {
     echo "Usage: $0 <module_path> [--name binary-name] [--manifest path] [--install-dir path] [--context-root path] [--freshness-input pattern]"
@@ -22,7 +24,7 @@ shift
 
 NAME=""
 MANIFEST=""
-INSTALL_DIR="${HOME}/.vrooli/bin"
+INSTALL_DIR="$(vrooli_default_install_dir)"
 CONTEXT_ROOT=""
 FRESHNESS_INPUTS=()
 

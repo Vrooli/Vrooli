@@ -25,6 +25,10 @@ const (
 	DefaultHealthInterval       = 45 * time.Second
 	DefaultMaxHealthConcurrency = 16
 	DefaultBatchSize            = 250
+	DefaultRecoveryQuietPeriod  = 2 * time.Minute
+	DefaultRecoveryCooldown     = 5 * time.Minute
+	DefaultRecoveryConcurrency  = 1
+	DefaultPressureSomeAvg10    = 10.0
 
 	ModeEnv  = "VROOLI_RUNTIME_SUPERVISOR"
 	ModeOff  = "off"
@@ -43,6 +47,7 @@ type Store interface {
 	scenarioruntime.ProcessRefRepository
 	scenarioruntime.CleanupRepository
 	scenarioruntime.HealthRepository
+	scenarioruntime.RecoveryRepository
 	Close() error
 }
 
@@ -51,7 +56,33 @@ type (
 	PIDRunningFunc   func(pid int) bool
 	PortListenerFunc func(port int) scenarioruntime.ListenerEvidence
 	HealthProberFunc func(ctx context.Context, instance scenarioruntime.Instance, claims []scenarioruntime.PortClaim) scenarioruntime.HealthSnapshot
+	// PressureProvider is the boundary between the recovery controller and a
+	// host/monitor implementation. Unknown evidence is intentionally distinct
+	// from clear pressure so recovery can fail closed on collector degradation.
+	PressureProvider interface {
+		Snapshot(ctx context.Context) PressureState
+	}
+	// RecoveryLaunchFunc is the only launch seam recovery is allowed to use.
+	// Its production adapter will invoke lifecycle start/restart rather than a
+	// binary or shell process directly.
+	RecoveryLaunchFunc func(ctx context.Context, request RecoveryLaunchRequest) error
 )
+
+type PressureState struct {
+	Known         bool
+	UnderPressure bool
+	ObservedAt    time.Time
+	Source        string
+	Reason        string
+}
+
+type RecoveryLaunchRequest struct {
+	Scenario string
+	Variant  string
+	EpochID  string
+	Attempt  int
+	DryRun   bool
+}
 
 type Config struct {
 	HomeDir              string
@@ -69,6 +100,12 @@ type Config struct {
 	PIDRunning           PIDRunningFunc
 	PortListener         PortListenerFunc
 	HealthProber         HealthProberFunc
+	PressureProvider     PressureProvider
+	RecoveryLaunch       RecoveryLaunchFunc
+	RecoveryQuietPeriod  time.Duration
+	RecoveryCooldown     time.Duration
+	RecoveryConcurrency  int
+	PressureSomeAvg10    float64
 	Stdout               io.Writer
 	Stderr               io.Writer
 	Executable           string
@@ -84,30 +121,45 @@ type Service struct {
 }
 
 type TickReport struct {
-	SupervisorID     string `json:"supervisor_id"`
-	Renewed          int    `json:"renewed"`
-	Expired          int    `json:"expired"`
-	Unverified       int    `json:"unverified"`
-	HealthProbeCount int    `json:"health_probe_count"`
+	SupervisorID     string         `json:"supervisor_id"`
+	Renewed          int            `json:"renewed"`
+	Expired          int            `json:"expired"`
+	Unverified       int            `json:"unverified"`
+	HealthProbeCount int            `json:"health_probe_count"`
+	Recovery         RecoveryReport `json:"recovery"`
+}
+
+type RecoveryReport struct {
+	EpochID  string `json:"epoch_id,omitempty"`
+	Gated    int    `json:"gated"`
+	Queued   int    `json:"queued"`
+	Restored int    `json:"restored"`
+	Skipped  int    `json:"skipped"`
+	Failed   int    `json:"failed"`
 }
 
 type StatusReport struct {
-	SupervisorID                  string        `json:"supervisor_id"`
-	Status                        string        `json:"status"`
-	StatusReason                  string        `json:"status_reason,omitempty"`
-	HostBootID                    string        `json:"host_boot_id"`
-	HostSessionID                 string        `json:"host_session_id"`
-	PID                           *int          `json:"pid,omitempty"`
-	LastHeartbeatAt               time.Time     `json:"last_heartbeat_at"`
-	HeartbeatDeadlineAt           time.Time     `json:"heartbeat_deadline_at"`
-	SupervisedInstanceCount       int           `json:"supervised_instance_count"`
-	UnverifiedInstanceCount       int           `json:"unverified_instance_count"`
-	EffectiveRenewInterval        time.Duration `json:"effective_renew_interval"`
-	EffectiveLeaseTTL             time.Duration `json:"effective_lease_ttl"`
-	EffectiveHealthInterval       time.Duration `json:"effective_health_interval"`
-	EffectiveMaxHealthConcurrency int           `json:"effective_max_health_concurrency"`
-	EffectiveBatchSize            int           `json:"effective_batch_size"`
-	LastTick                      TickReport    `json:"last_tick"`
+	SupervisorID                  string                           `json:"supervisor_id"`
+	Status                        string                           `json:"status"`
+	StatusReason                  string                           `json:"status_reason,omitempty"`
+	HostBootID                    string                           `json:"host_boot_id"`
+	HostSessionID                 string                           `json:"host_session_id"`
+	PID                           *int                             `json:"pid,omitempty"`
+	LastHeartbeatAt               time.Time                        `json:"last_heartbeat_at"`
+	HeartbeatDeadlineAt           time.Time                        `json:"heartbeat_deadline_at"`
+	SupervisedInstanceCount       int                              `json:"supervised_instance_count"`
+	UnverifiedInstanceCount       int                              `json:"unverified_instance_count"`
+	EffectiveRenewInterval        time.Duration                    `json:"effective_renew_interval"`
+	EffectiveLeaseTTL             time.Duration                    `json:"effective_lease_ttl"`
+	EffectiveHealthInterval       time.Duration                    `json:"effective_health_interval"`
+	EffectiveMaxHealthConcurrency int                              `json:"effective_max_health_concurrency"`
+	EffectiveBatchSize            int                              `json:"effective_batch_size"`
+	EffectiveRecoveryQuietPeriod  time.Duration                    `json:"effective_recovery_quiet_period"`
+	EffectiveRecoveryCooldown     time.Duration                    `json:"effective_recovery_cooldown"`
+	EffectiveRecoveryConcurrency  int                              `json:"effective_recovery_concurrency"`
+	RecoveryPolicies              []scenarioruntime.RecoveryPolicy `json:"recovery_policies"`
+	PressureEpochs                []scenarioruntime.PressureEpoch  `json:"pressure_epochs"`
+	LastTick                      TickReport                       `json:"last_tick"`
 }
 
 func New(cfg Config) *Service {
@@ -275,6 +327,11 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 		return TickReport{}, err
 	}
 	report.HealthProbeCount = probed
+	recovery, err := s.reconcileRecovery(ctx)
+	if err != nil {
+		return TickReport{}, err
+	}
+	report.Recovery = recovery
 	s.lastReport = report
 	return report, nil
 }
@@ -410,6 +467,14 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 	if len(sessions) > 0 {
 		session = sessions[0]
 	}
+	policies, err := s.store.ListRecoveryPolicies(ctx, scenarioruntime.RecoveryPolicyFilter{})
+	if err != nil {
+		return StatusReport{}, fmt.Errorf("list runtime recovery policies: %w", err)
+	}
+	epochs, err := s.store.ListPressureEpochs(ctx, 20)
+	if err != nil {
+		return StatusReport{}, fmt.Errorf("list runtime pressure epochs: %w", err)
+	}
 	if session.SupervisorID == "" {
 		return StatusReport{
 			Status:                        scenarioruntime.SupervisorStatusStopped,
@@ -418,6 +483,11 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 			EffectiveHealthInterval:       normalizeHealthInterval(s.cfg.HealthInterval),
 			EffectiveMaxHealthConcurrency: normalizeMaxHealthConcurrency(s.cfg.MaxHealthConcurrency),
 			EffectiveBatchSize:            normalizeBatchSize(s.cfg.BatchSize),
+			EffectiveRecoveryQuietPeriod:  s.recoveryQuietPeriod(),
+			EffectiveRecoveryCooldown:     s.recoveryCooldown(),
+			EffectiveRecoveryConcurrency:  s.recoveryConcurrency(),
+			RecoveryPolicies:              policies,
+			PressureEpochs:                epochs,
 			LastTick:                      s.lastReport,
 		}, nil
 	}
@@ -448,6 +518,11 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 		EffectiveHealthInterval:       normalizeHealthInterval(s.cfg.HealthInterval),
 		EffectiveMaxHealthConcurrency: normalizeMaxHealthConcurrency(s.cfg.MaxHealthConcurrency),
 		EffectiveBatchSize:            normalizeBatchSize(s.cfg.BatchSize),
+		EffectiveRecoveryQuietPeriod:  s.recoveryQuietPeriod(),
+		EffectiveRecoveryCooldown:     s.recoveryCooldown(),
+		EffectiveRecoveryConcurrency:  s.recoveryConcurrency(),
+		RecoveryPolicies:              policies,
+		PressureEpochs:                epochs,
 		LastTick:                      s.lastReport,
 	}, nil
 }
@@ -726,12 +801,18 @@ func normalizeBatchSize(v int) int {
 }
 
 func EnvConfig() Config {
+	pressureThreshold := floatEnv("VROOLI_RUNTIME_PRESSURE_SOME_AVG10", DefaultPressureSomeAvg10)
 	return Config{
 		RenewInterval:        durationEnv("VROOLI_RUNTIME_SUPERVISOR_RENEW_INTERVAL", DefaultRenewInterval),
 		LeaseTTL:             durationEnv("VROOLI_RUNTIME_SUPERVISOR_LEASE_TTL", DefaultLeaseTTL),
 		HealthInterval:       durationEnv("VROOLI_RUNTIME_SUPERVISOR_HEALTH_INTERVAL", DefaultHealthInterval),
 		MaxHealthConcurrency: intEnv("VROOLI_RUNTIME_SUPERVISOR_MAX_HEALTH_CONCURRENCY", DefaultMaxHealthConcurrency),
 		BatchSize:            intEnv("VROOLI_RUNTIME_SUPERVISOR_BATCH_SIZE", DefaultBatchSize),
+		RecoveryQuietPeriod:  durationEnv("VROOLI_RUNTIME_RECOVERY_QUIET_PERIOD", DefaultRecoveryQuietPeriod),
+		RecoveryCooldown:     durationEnv("VROOLI_RUNTIME_RECOVERY_COOLDOWN", DefaultRecoveryCooldown),
+		RecoveryConcurrency:  intEnv("VROOLI_RUNTIME_RECOVERY_CONCURRENCY", DefaultRecoveryConcurrency),
+		PressureSomeAvg10:    pressureThreshold,
+		PressureProvider:     NewHostPressureProvider(pressureThreshold),
 	}
 }
 
@@ -836,4 +917,16 @@ func intEnv(name string, fallback int) int {
 		return fallback
 	}
 	return parsed
+}
+
+func floatEnv(name string, fallback float64) float64 {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil || value <= 0 {
+		return fallback
+	}
+	return value
 }

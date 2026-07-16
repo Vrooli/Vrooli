@@ -94,7 +94,6 @@ type InfoScenarioData struct {
 	Ports            []scenariomodel.PortSummary       `json:"ports"`
 	Phases           []scenariomodel.PhaseSummary      `json:"phases"`
 	Generation       *scenariomodel.GenerationMetadata `json:"generation,omitempty"`
-	TemplateDrifted  bool                              `json:"template_drifted,omitempty"`
 }
 
 type InfoRuntimeData struct {
@@ -582,9 +581,6 @@ func WriteInfoHuman(w io.Writer, info InfoScenarioData, runtime InfoRuntimeData)
 		line := fmt.Sprintf("Template: %s", info.Generation.Template.ID)
 		if v := strings.TrimSpace(info.Generation.Template.Version); v != "" {
 			line += fmt.Sprintf(" (%s)", v)
-		}
-		if info.TemplateDrifted {
-			line += " — drifted from current (run `template-manager template drift " + info.Name + "`)"
 		}
 		_, _ = fmt.Fprintln(w, line)
 	}

@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 )
 
 // scenarioLockDirName is the subdirectory under Home where per-scenario
@@ -29,8 +28,6 @@ var ErrScenarioBusy = errors.New("scenario is already being started, stopped, or
 // lockFileFlockFn is the kernel call used to take the advisory lock.
 // Tests override it to simulate contention without taking real kernel
 // locks.
-var lockFileFlockFn = func(fd int, how int) error { return syscall.Flock(fd, how) }
-
 // lockFileOpenFn opens the lock file; tests override to inject failures.
 var lockFileOpenFn = func(name string, flag int, perm os.FileMode) (*os.File, error) {
 	return os.OpenFile(name, flag, perm)
@@ -89,11 +86,11 @@ func (r *Runner) acquireScenarioLock(name string) (func(), error) {
 		mu.Unlock()
 		return nil, fmt.Errorf("open scenario lock %s: %w", lockPath, err)
 	}
-	if err := lockFileFlockFn(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err := lockFileFlockFn(int(f.Fd()), scenarioLockExclusiveNonblock); err != nil {
 		holder := readLockHolderPID(f)
 		_ = f.Close()
 		mu.Unlock()
-		if errors.Is(err, syscall.EWOULDBLOCK) {
+		if isScenarioLockContention(err) {
 			if holder > 0 {
 				return nil, fmt.Errorf("%w: %q (held by pid %d)", ErrScenarioBusy, name, holder)
 			}
@@ -115,7 +112,7 @@ func (r *Runner) acquireScenarioLock(name string) (func(), error) {
 			return
 		}
 		released = true
-		_ = lockFileFlockFn(int(f.Fd()), syscall.LOCK_UN)
+		_ = lockFileFlockFn(int(f.Fd()), scenarioLockUnlock)
 		_ = f.Close()
 		mu.Unlock()
 	}, nil

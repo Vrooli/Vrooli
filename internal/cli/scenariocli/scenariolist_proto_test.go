@@ -25,7 +25,7 @@ func TestRenderListResponseJSONContract(t *testing.T) {
 				Ports:       []ListPortOutput{{Key: "API_PORT", Step: "develop", Port: 16542, ListenerStatus: "listening"}},
 			},
 			// Sparse: nil tags. The contract normalizes empty tags to [] (never null).
-			{Name: "accessibility-compliance-hub", Status: "available", Path: "/s/ach"},
+			{Name: "template-manager", Status: "available", Path: "/s/templates"},
 		},
 		RunningCount: 1,
 		Failures:     []discovery.Failure{{Kind: "scenario", Name: "broken", Error: "boom"}},

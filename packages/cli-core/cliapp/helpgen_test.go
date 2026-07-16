@@ -59,6 +59,38 @@ func TestRenderHelpFlagsAndPositionals(t *testing.T) {
 	}
 }
 
+func TestRenderHelpFlagChoices(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := Command{
+		Name: "skill-pack",
+		Args: ArgSchema{Flags: []Flag{
+			{
+				Name:         "complexity",
+				Description:  "Plan complexity",
+				Values:       []string{"minor", "moderate", "major", "architectural"},
+				ValueAliases: map[string]string{"low": "minor", "medium": "moderate", "high": "major"},
+				Default:      "moderate",
+			},
+			{Name: "title", Description: "Free-form title"},
+		}},
+	}
+	if err := renderHelp("plan-manager author", cmd, &buf); err != nil {
+		t.Fatalf("renderHelp: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"(choices: minor, moderate, major, architectural; synonyms: high=major, low=minor, medium=moderate)",
+		"(default: moderate)",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("help missing %q\n--- output ---\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Free-form title (choices") {
+		t.Errorf("flag without values must not render choices\n--- output ---\n%s", out)
+	}
+}
+
 func TestUsageLine(t *testing.T) {
 	tests := []struct {
 		name   string

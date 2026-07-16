@@ -171,6 +171,52 @@ CREATE TABLE IF NOT EXISTS runtime_phase_durations (
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_phase_durations_key
   ON runtime_phase_durations(scenario, variant, phase);
+
+CREATE TABLE IF NOT EXISTS runtime_recovery_policies (
+  scenario TEXT NOT NULL,
+  variant TEXT NOT NULL DEFAULT 'live',
+  critical INTEGER NOT NULL DEFAULT 0,
+  dependency_tier INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  retry_budget INTEGER NOT NULL DEFAULT 0,
+  opt_out INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (scenario, variant)
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_recovery_policies_enabled
+  ON runtime_recovery_policies(enabled, critical, opt_out, dependency_tier);
+
+CREATE TABLE IF NOT EXISTS runtime_pressure_epochs (
+  epoch_id TEXT PRIMARY KEY,
+  status TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT '',
+  detected_at TEXT NOT NULL,
+  cleared_at TEXT,
+  updated_at TEXT NOT NULL,
+  details_json TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_pressure_epochs_status
+  ON runtime_pressure_epochs(status, detected_at DESC);
+
+CREATE TABLE IF NOT EXISTS runtime_recovery_decisions (
+  decision_id TEXT PRIMARY KEY,
+  epoch_id TEXT NOT NULL,
+  scenario TEXT NOT NULL,
+  variant TEXT NOT NULL DEFAULT 'live',
+  state TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  attempt INTEGER NOT NULL DEFAULT 0,
+  cooldown_until TEXT,
+  idempotency_key TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  details_json TEXT NOT NULL DEFAULT '',
+  FOREIGN KEY(epoch_id) REFERENCES runtime_pressure_epochs(epoch_id) ON DELETE CASCADE,
+  UNIQUE(idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_recovery_decisions_epoch
+  ON runtime_recovery_decisions(epoch_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_runtime_recovery_decisions_instance
+  ON runtime_recovery_decisions(scenario, variant, created_at DESC);
 `
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
@@ -182,6 +228,22 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 		return fmt.Errorf("runtime registry schema_version %d > expected %d: binary is older than database", current, SchemaVersion)
 	}
 	if current == SchemaVersion {
+		return nil
+	}
+	if current == 6 {
+		existing, err := runtimeSchemaExists(ctx, s.db)
+		if err != nil {
+			return fmt.Errorf("inspect runtime registry before migration: %w", err)
+		}
+		if !existing {
+			return fmt.Errorf("runtime registry schema_version 6 is unstamped or incomplete: requires greenfield rebuild or an operator-run temporary conversion script")
+		}
+		if _, err := s.db.ExecContext(ctx, recoverySchemaSQL); err != nil {
+			return fmt.Errorf("migrate runtime registry schema 6 -> 7: %w", err)
+		}
+		if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`PRAGMA user_version = %d`, SchemaVersion)); err != nil {
+			return fmt.Errorf("stamp migrated runtime registry schema version: %w", err)
+		}
 		return nil
 	}
 	if current != 0 {
@@ -202,6 +264,52 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 	}
 	return nil
 }
+
+const recoverySchemaSQL = `
+CREATE TABLE IF NOT EXISTS runtime_recovery_policies (
+  scenario TEXT NOT NULL,
+  variant TEXT NOT NULL DEFAULT 'live',
+  critical INTEGER NOT NULL DEFAULT 0,
+  dependency_tier INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  retry_budget INTEGER NOT NULL DEFAULT 0,
+  opt_out INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (scenario, variant)
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_recovery_policies_enabled
+  ON runtime_recovery_policies(enabled, critical, opt_out, dependency_tier);
+CREATE TABLE IF NOT EXISTS runtime_pressure_epochs (
+  epoch_id TEXT PRIMARY KEY,
+  status TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT '',
+  detected_at TEXT NOT NULL,
+  cleared_at TEXT,
+  updated_at TEXT NOT NULL,
+  details_json TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_pressure_epochs_status
+  ON runtime_pressure_epochs(status, detected_at DESC);
+CREATE TABLE IF NOT EXISTS runtime_recovery_decisions (
+  decision_id TEXT PRIMARY KEY,
+  epoch_id TEXT NOT NULL,
+  scenario TEXT NOT NULL,
+  variant TEXT NOT NULL DEFAULT 'live',
+  state TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  attempt INTEGER NOT NULL DEFAULT 0,
+  cooldown_until TEXT,
+  idempotency_key TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  details_json TEXT NOT NULL DEFAULT '',
+  FOREIGN KEY(epoch_id) REFERENCES runtime_pressure_epochs(epoch_id) ON DELETE CASCADE,
+  UNIQUE(idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_recovery_decisions_epoch
+  ON runtime_recovery_decisions(epoch_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_runtime_recovery_decisions_instance
+  ON runtime_recovery_decisions(scenario, variant, created_at DESC);
+`
 
 func readSchemaVersion(ctx context.Context, db *sql.DB) (int, error) {
 	var v int

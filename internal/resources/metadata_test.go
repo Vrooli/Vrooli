@@ -39,7 +39,7 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 	home := t.TempDir()
 
 	testresource.WritePortRegistryState(t, root, PortRegistry{
-		ResourcePorts:  map[string]int{"browserless": 4110, "postgres": 5433},
+		ResourcePorts:  map[string]int{"fixturehttp": 4110, "postgres": 5433},
 		ReservedRanges: map[string]string{},
 	})
 	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
@@ -64,19 +64,19 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 			},
 		},
 	})
-	writeEnvManifestFixture(t, root, "browserless", manifestpkg.ResourceManifest{
-		Name:            "browserless",
+	writeEnvManifestFixture(t, root, "fixturehttp", manifestpkg.ResourceManifest{
+		Name:            "fixturehttp",
 		Driver:          "docker-service",
 		PortabilityTier: "full",
 		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 3000, Host: 4110}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "browserless/chrome:stable"},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "example/fixturehttp:stable"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
-			Static:         map[string]string{"BROWSERLESS_HOST": "localhost"},
-			FromPorts:      map[string]string{"BROWSERLESS_PORT": "http"},
-			FromRuntimeEnv: []string{"BROWSERLESS_TOKEN"},
+			Static:         map[string]string{"FIXTUREHTTP_HOST": "localhost"},
+			FromPorts:      map[string]string{"FIXTUREHTTP_PORT": "http"},
+			FromRuntimeEnv: []string{"FIXTUREHTTP_TOKEN"},
 			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
-				"BROWSERLESS_URL":      {Template: "http://${BROWSERLESS_HOST}:${BROWSERLESS_PORT}"},
-				"BROWSERLESS_BASE_URL": {Template: "${BROWSERLESS_URL}"},
+				"FIXTUREHTTP_URL":      {Template: "http://${FIXTUREHTTP_HOST}:${FIXTUREHTTP_PORT}"},
+				"FIXTUREHTTP_BASE_URL": {Template: "${FIXTUREHTTP_URL}"},
 			},
 		},
 	})
@@ -85,7 +85,7 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 	if err := store.Save(map[string]string{
 		"POSTGRES_PASSWORD": "secret",
 		"POSTGRES_USER":     "vrooli",
-		"BROWSERLESS_TOKEN": "abc123",
+		"FIXTUREHTTP_TOKEN": "abc123",
 	}); err != nil {
 		t.Fatalf("Save encrypted secrets: %v", err)
 	}
@@ -104,21 +104,21 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 		t.Fatalf("POSTGRES_PASSWORD = %q, want secret", got)
 	}
 
-	browserlessEnv, err := LoadResourceEnvironment(root, home, "browserless")
+	fixtureEnv, err := LoadResourceEnvironment(root, home, "fixturehttp")
 	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(browserless): %v", err)
+		t.Fatalf("LoadResourceEnvironment(fixturehttp): %v", err)
 	}
-	if got := browserlessEnv["BROWSERLESS_PORT"]; got != "4110" {
-		t.Fatalf("BROWSERLESS_PORT = %q, want 4110", got)
+	if got := fixtureEnv["FIXTUREHTTP_PORT"]; got != "4110" {
+		t.Fatalf("FIXTUREHTTP_PORT = %q, want 4110", got)
 	}
-	if got := browserlessEnv["BROWSERLESS_BASE_URL"]; got != "http://localhost:4110" {
-		t.Fatalf("BROWSERLESS_BASE_URL = %q", got)
+	if got := fixtureEnv["FIXTUREHTTP_BASE_URL"]; got != "http://localhost:4110" {
+		t.Fatalf("FIXTUREHTTP_BASE_URL = %q", got)
 	}
-	if got := browserlessEnv["BROWSERLESS_URL"]; got != "http://localhost:4110" {
-		t.Fatalf("BROWSERLESS_URL = %q, want http://localhost:4110", got)
+	if got := fixtureEnv["FIXTUREHTTP_URL"]; got != "http://localhost:4110" {
+		t.Fatalf("FIXTUREHTTP_URL = %q, want http://localhost:4110", got)
 	}
-	if got := browserlessEnv["BROWSERLESS_TOKEN"]; got != "abc123" {
-		t.Fatalf("BROWSERLESS_TOKEN = %q, want abc123", got)
+	if got := fixtureEnv["FIXTUREHTTP_TOKEN"]; got != "abc123" {
+		t.Fatalf("FIXTUREHTTP_TOKEN = %q, want abc123", got)
 	}
 }
 

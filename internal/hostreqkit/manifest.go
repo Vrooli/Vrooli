@@ -21,17 +21,19 @@ type ToolManifest struct {
 	Notes             string                             `json:"notes,omitempty"`
 }
 
-// ToolSource declares how the generic tool handler installs a tool. An absent
-// Source (or Type=="package") keeps the OS-package-manager path; Type=="url" or
-// "release" fetches a verified binary into the user-local ~/.vrooli/bin with no
-// sudo.
+// ToolSource declares verified fetch targets for the generic tool handler. An
+// absent Source (or Type=="package") keeps the OS-package-manager path. For
+// Type=="url" or "release", a matching target is preferred and installs into
+// the user-local ~/.vrooli/bin with no sudo; a host without a matching target
+// can still use an explicitly declared package fallback.
 type ToolSource struct {
 	// Type is package (default), url, or release. url and release are
 	// behaviourally identical at fetch time; release documents that the URL is a
 	// tagged release asset.
 	Type string `json:"type"`
 	// Targets maps "<os>/<arch>" (Go GOOS/GOARCH) to its fetch spec. A host with
-	// no matching target is cleanly unsupported.
+	// no matching target falls back to its declared package, when present, and is
+	// otherwise cleanly unsupported.
 	Targets map[string]ToolSourceTarget `json:"targets,omitempty"`
 }
 
@@ -49,9 +51,9 @@ type ToolSourceTarget struct {
 // per-tool opt directory (with a launcher) rather than a single binary.
 func (t ToolSourceTarget) IsDir() bool { return t.Layout == "dir" }
 
-// SourceType returns the effective source type, defaulting to "package" when no
-// Source is declared. This is the single branch point distinguishing the
-// package-manager path from the fetch path.
+// SourceType returns the declared source type, defaulting to "package" when no
+// Source is declared. The runtime combines this with target and host-package
+// availability to choose the effective installation strategy for each host.
 func (m ToolManifest) SourceType() string {
 	if m.Source == nil || m.Source.Type == "" {
 		return "package"

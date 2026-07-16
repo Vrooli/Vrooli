@@ -7,6 +7,8 @@ param(
 	[string]$AppRoot
 )
 
+. (Join-Path $PSScriptRoot 'install/Platform.ps1')
+
 $repoRoot = $AppRoot
 if (-not $repoRoot) {
 	$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
@@ -18,14 +20,7 @@ if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
 }
 
 if (-not $InstallDir) {
-	$home = $env:HOME
-	if (-not $home) { $home = $env:USERPROFILE }
-	if (-not $home) { $home = [Environment]::GetFolderPath('UserProfile') }
-	if (-not $home) {
-		Write-Error "Unable to resolve home directory for install path."
-		exit 1
-	}
-	$InstallDir = Join-Path $home ".vrooli/bin"
+	$InstallDir = Get-VrooliDefaultInstallDir
 }
 
 if (-not [System.IO.Path]::IsPathRooted($ModulePath)) {

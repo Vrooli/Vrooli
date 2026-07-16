@@ -30,7 +30,7 @@ This produces compounding intelligence. The system literally cannot forget how t
 
 Three layers, each running on your own hardware:
 
-1. **Resources.** Local services that provide raw capability — Postgres, Redis, Qdrant, Ollama, Browserless, secret stores, browser automation, inference. Vrooli orchestrates these without requiring you to wire them up by hand.
+1. **Resources.** Local services that provide raw capability — Postgres, Redis, Qdrant, Ollama, Searxng, secret stores, browser automation, inference. Vrooli orchestrates these without requiring you to wire them up by hand.
 
 2. **Scenarios.** Full apps composed from resources and other scenarios. Each scenario simultaneously serves as a *product* (something a customer or you-personally can use), a *capability* (a tool future agents can compose), and a *test* (it validates that the underlying resources work together correctly).
 

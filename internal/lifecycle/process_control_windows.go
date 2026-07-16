@@ -28,3 +28,11 @@ func signalPID(pid int, force bool) error {
 	}
 	return process.Kill()
 }
+
+func reraiseSignal(signal os.Signal) error {
+	process, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		return err
+	}
+	return process.Signal(signal)
+}

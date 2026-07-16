@@ -189,7 +189,6 @@ type InfoScenarioData struct {
 	Ports            []scenariomodel.PortSummary       `json:"ports"`
 	Phases           []scenariomodel.PhaseSummary      `json:"phases"`
 	Generation       *scenariomodel.GenerationMetadata `json:"generation,omitempty"`
-	TemplateDrifted  bool                              `json:"template_drifted,omitempty"`
 }
 
 type InfoRuntimeData struct {

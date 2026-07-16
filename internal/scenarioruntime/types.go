@@ -15,7 +15,7 @@ const (
 	// this constant, and convert any existing local DB with a one-shot
 	// operator-run script (see docs/plans/
 	// project-internal-greenfield-migration-purge-plan.md).
-	SchemaVersion = 6
+	SchemaVersion = 7
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -230,6 +230,80 @@ type Event struct {
 	DetailsJSON string
 }
 
+// RecoveryPolicy is the durable declaration that permits a workload to be
+// restored after a pressure incident. It is intentionally independent of an
+// observed lease: a dead instance is never recoverable merely because it was
+// once running. Recovery is disabled unless Enabled and Critical are both
+// true, and OptOut always wins over every other field.
+type RecoveryPolicy struct {
+	Scenario       string
+	Variant        string
+	Critical       bool
+	DependencyTier int
+	Enabled        bool
+	RetryBudget    int
+	OptOut         bool
+	UpdatedAt      time.Time
+}
+
+// RecoveryPolicyFilter narrows policy inspection. Empty fields are wildcards.
+type RecoveryPolicyFilter struct {
+	Scenario string
+	Variant  string
+	Enabled  *bool
+}
+
+// PressureEpoch is a correlated period of host pressure. The controller owns
+// its state transitions; signal collectors only create or update evidence.
+type PressureEpoch struct {
+	EpochID     string
+	Status      string
+	Source      string
+	DetectedAt  time.Time
+	ClearedAt   *time.Time
+	UpdatedAt   time.Time
+	DetailsJSON string
+}
+
+const (
+	PressureEpochDetected  = "detected"
+	PressureEpochGated     = "gated"
+	PressureEpochCleared   = "cleared"
+	PressureEpochRegressed = "regressed"
+)
+
+// RecoveryDecision is the immutable audit record for one controller outcome.
+// A stable IdempotencyKey deduplicates replay after a controller restart.
+type RecoveryDecision struct {
+	DecisionID     string
+	EpochID        string
+	Scenario       string
+	Variant        string
+	State          string
+	Reason         string
+	Attempt        int
+	CooldownUntil  *time.Time
+	IdempotencyKey string
+	CreatedAt      time.Time
+	DetailsJSON    string
+}
+
+const (
+	RecoveryDecisionDetected = "detected"
+	RecoveryDecisionGated    = "gated"
+	RecoveryDecisionQueued   = "queued"
+	RecoveryDecisionRestored = "restored"
+	RecoveryDecisionSkipped  = "skipped"
+	RecoveryDecisionFailed   = "failed"
+)
+
+type RecoveryDecisionFilter struct {
+	EpochID  string
+	Scenario string
+	Variant  string
+	Limit    int
+}
+
 type InstanceFilter struct {
 	Scenario string
 	// Variant, when non-empty, restricts the query to one variant so live and
@@ -316,6 +390,21 @@ type ProcessRefRepository interface {
 
 type EventRepository interface {
 	RecordEvent(ctx context.Context, event Event) (Event, error)
+}
+
+// RecoveryRepository persists the explicit desired-state/recovery contract.
+// It deliberately exposes no implicit default policy: callers must upsert an
+// explicit declaration before a workload can be selected for restoration.
+type RecoveryRepository interface {
+	UpsertRecoveryPolicy(ctx context.Context, policy RecoveryPolicy) (RecoveryPolicy, error)
+	GetRecoveryPolicy(ctx context.Context, scenario, variant string) (RecoveryPolicy, error)
+	ListRecoveryPolicies(ctx context.Context, filter RecoveryPolicyFilter) ([]RecoveryPolicy, error)
+	CreatePressureEpoch(ctx context.Context, epoch PressureEpoch) (PressureEpoch, error)
+	UpdatePressureEpoch(ctx context.Context, epoch PressureEpoch) (PressureEpoch, error)
+	GetPressureEpoch(ctx context.Context, epochID string) (PressureEpoch, error)
+	ListPressureEpochs(ctx context.Context, limit int) ([]PressureEpoch, error)
+	RecordRecoveryDecision(ctx context.Context, decision RecoveryDecision) (RecoveryDecision, error)
+	ListRecoveryDecisions(ctx context.Context, filter RecoveryDecisionFilter) ([]RecoveryDecision, error)
 }
 
 // LocalPortURL returns the canonical loopback URL stored with runtime port

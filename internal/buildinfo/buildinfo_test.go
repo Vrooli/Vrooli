@@ -486,6 +486,7 @@ func TestResolveSourceRootUsesFallbackEnv(t *testing.T) {
 
 func TestResolveSourceRootFailsWithoutHints(t *testing.T) {
 	temp := t.TempDir()
+	t.Setenv("HOME", t.TempDir())
 	originalWD, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
@@ -502,6 +503,44 @@ func TestResolveSourceRootFailsWithoutHints(t *testing.T) {
 
 	if _, err := ResolveSourceRoot(); err == nil {
 		t.Fatalf("expected ResolveSourceRoot to fail without env hints or a module root")
+	}
+}
+
+func TestResolveSourceRootUsesInstalledSourcePointer(t *testing.T) {
+	originalExecutablePathFn := executablePathFn
+	t.Cleanup(func() { executablePathFn = originalExecutablePathFn })
+
+	home := t.TempDir()
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module github.com/vrooli/vrooli\n\ngo 1.25\n")
+	pointer := filepath.Join(home, filepath.FromSlash(SourceRootPointerFile))
+	if err := os.MkdirAll(filepath.Dir(pointer), 0o755); err != nil {
+		t.Fatalf("mkdir pointer dir: %v", err)
+	}
+	if err := os.WriteFile(pointer, []byte(root+"\n"), 0o644); err != nil {
+		t.Fatalf("write source pointer: %v", err)
+	}
+
+	outside := t.TempDir()
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(outside); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(originalWD) })
+	t.Setenv("HOME", home)
+	t.Setenv(SourceRootEnvVar, "")
+	t.Setenv(SourceRootFallbackEnvVar, "")
+	executablePathFn = func() (string, error) { return filepath.Join(outside, "vrooli"), nil }
+
+	resolved, err := ResolveSourceRoot()
+	if err != nil {
+		t.Fatalf("ResolveSourceRoot: %v", err)
+	}
+	if resolved != root {
+		t.Fatalf("ResolveSourceRoot = %q, want pointer root %q", resolved, root)
 	}
 }
 

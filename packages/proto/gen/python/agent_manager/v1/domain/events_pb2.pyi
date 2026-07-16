@@ -1,5 +1,6 @@
 import datetime
 
+from agent_manager.v1.domain import run_pb2 as _run_pb2
 from agent_manager.v1.domain import types_pb2 as _types_pb2
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
@@ -105,16 +106,20 @@ class AgentManagerWsMessage(_message.Message):
     def __init__(self, type: _Optional[_Union[AgentManagerWsMessageType, str]] = ..., run_id: _Optional[str] = ..., run_event: _Optional[_Union[RunEvent, _Mapping]] = ..., run_status: _Optional[_Union[RunStatusUpdate, _Mapping]] = ..., task_status: _Optional[_Union[TaskStatusUpdate, _Mapping]] = ..., run_progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., connected: _Optional[_Union[WsConnected, _Mapping]] = ..., pong: _Optional[_Union[WsPong, _Mapping]] = ...) -> None: ...
 
 class RunStatusUpdate(_message.Message):
-    __slots__ = ("run_id", "status", "task_id", "prompt_preview")
+    __slots__ = ("run_id", "status", "task_id", "prompt_preview", "result_selection_status", "result_selection_rule")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     PROMPT_PREVIEW_FIELD_NUMBER: _ClassVar[int]
+    RESULT_SELECTION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULT_SELECTION_RULE_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: _types_pb2.RunStatus
     task_id: str
     prompt_preview: str
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., task_id: _Optional[str] = ..., prompt_preview: _Optional[str] = ...) -> None: ...
+    result_selection_status: _run_pb2.FinalOutputSelectionStatus
+    result_selection_rule: str
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., task_id: _Optional[str] = ..., prompt_preview: _Optional[str] = ..., result_selection_status: _Optional[_Union[_run_pb2.FinalOutputSelectionStatus, str]] = ..., result_selection_rule: _Optional[str] = ...) -> None: ...
 
 class TaskStatusUpdate(_message.Message):
     __slots__ = ("task_id", "status")
@@ -161,14 +166,36 @@ class LogEventData(_message.Message):
     def __init__(self, level: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class MessageEventData(_message.Message):
-    __slots__ = ("role", "content", "attachments")
+    __slots__ = ("role", "content", "attachments", "message_id", "conversation_id", "turn_id", "provider_origin", "completion_reason", "terminal", "parent_message_id", "provider_event_type", "raw_evidence_ref", "evidence_only", "evidence_for_event_id")
     ROLE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    CONVERSATION_ID_FIELD_NUMBER: _ClassVar[int]
+    TURN_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    COMPLETION_REASON_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    PARENT_MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_EVENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    RAW_EVIDENCE_REF_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FOR_EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     role: str
     content: str
     attachments: _containers.RepeatedCompositeFieldContainer[MessageAttachmentInfo]
-    def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ..., attachments: _Optional[_Iterable[_Union[MessageAttachmentInfo, _Mapping]]] = ...) -> None: ...
+    message_id: str
+    conversation_id: str
+    turn_id: str
+    provider_origin: str
+    completion_reason: str
+    terminal: bool
+    parent_message_id: str
+    provider_event_type: str
+    raw_evidence_ref: str
+    evidence_only: bool
+    evidence_for_event_id: str
+    def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ..., attachments: _Optional[_Iterable[_Union[MessageAttachmentInfo, _Mapping]]] = ..., message_id: _Optional[str] = ..., conversation_id: _Optional[str] = ..., turn_id: _Optional[str] = ..., provider_origin: _Optional[str] = ..., completion_reason: _Optional[str] = ..., terminal: _Optional[bool] = ..., parent_message_id: _Optional[str] = ..., provider_event_type: _Optional[str] = ..., raw_evidence_ref: _Optional[str] = ..., evidence_only: _Optional[bool] = ..., evidence_for_event_id: _Optional[str] = ...) -> None: ...
 
 class MessageAttachmentInfo(_message.Message):
     __slots__ = ("id", "file_name", "content_type", "url")

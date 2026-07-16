@@ -88,7 +88,7 @@ Pull from [`PITCH.md` § Universal one-line pitch](PITCH.md#universal-one-line-p
 
 **Content slots:**
 - Three layers (visual diagram preferred):
-  1. Resources (local services: Postgres, Redis, Ollama, Browserless, etc.)
+  1. Resources (local services: Postgres, Redis, Ollama, Qdrant, etc.)
   2. Scenarios (full apps composed from resources + other scenarios)
   3. Agents and teams (build, review, coordinate via vision walks)
 - Optional: a recursive-arrow diagram showing scenarios being composed by future scenarios.

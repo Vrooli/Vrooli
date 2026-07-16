@@ -39,6 +39,16 @@ type Flag struct {
 	Required    bool
 	Default     string
 	Bool        bool
+	// Values, when non-empty, is the closed vocabulary this flag accepts.
+	// The parser rejects any supplied value that is neither a member of
+	// Values nor a key of ValueAliases, and helpgen renders the choices.
+	// Only valid on non-Bool flags.
+	Values []string
+	// ValueAliases maps accepted synonyms to a member of Values
+	// (e.g. "low" → "minor"). The parser accepts an alias and passes the
+	// raw supplied string through unchanged — canonicalization stays
+	// server-side.
+	ValueAliases map[string]string
 	// Bind, when non-zero, tells the protodispatch handler that this
 	// flag's value populates a specific proto field via a specific
 	// encoding. Without it, hydrateFromContext falls back to matching
@@ -115,6 +125,9 @@ func (s ArgSchema) Validate() error {
 		if f.Bool && f.Default != "" {
 			return fmt.Errorf("flag %q is Bool; Default must be empty (presence implies true)", name)
 		}
+		if err := validateFlagValues(f, name); err != nil {
+			return err
+		}
 		if !f.Bind.IsZero() {
 			if strings.TrimSpace(f.Bind.Field) == "" {
 				return fmt.Errorf("flag %q has bind with empty field", name)
@@ -130,6 +143,59 @@ func (s ArgSchema) Validate() error {
 		}
 	}
 	return nil
+}
+
+// validateFlagValues checks the Values/ValueAliases declaration on one flag.
+func validateFlagValues(f Flag, name string) error {
+	if len(f.Values) == 0 {
+		if len(f.ValueAliases) > 0 {
+			return fmt.Errorf("flag %q declares ValueAliases without Values", name)
+		}
+		return nil
+	}
+	if f.Bool {
+		return fmt.Errorf("flag %q is Bool; Values requires a valued flag", name)
+	}
+	members := make(map[string]bool, len(f.Values))
+	for i, v := range f.Values {
+		if strings.TrimSpace(v) == "" {
+			return fmt.Errorf("flag %q Values[%d] is empty", name, i)
+		}
+		if members[v] {
+			return fmt.Errorf("flag %q Values contains duplicate %q", name, v)
+		}
+		members[v] = true
+	}
+	for alias, target := range f.ValueAliases {
+		if strings.TrimSpace(alias) == "" {
+			return fmt.Errorf("flag %q has empty value alias", name)
+		}
+		if members[alias] {
+			return fmt.Errorf("flag %q value alias %q duplicates a declared value", name, alias)
+		}
+		if !members[target] {
+			return fmt.Errorf("flag %q value alias %q maps to %q which is not a declared value", name, alias, target)
+		}
+	}
+	if f.Default != "" && !f.acceptsValue(f.Default) {
+		return fmt.Errorf("flag %q Default %q is neither a declared value nor an alias", name, f.Default)
+	}
+	return nil
+}
+
+// acceptsValue reports whether v is a member of the flag's declared
+// vocabulary (a value or an alias). Flags without Values accept anything.
+func (f Flag) acceptsValue(v string) bool {
+	if len(f.Values) == 0 {
+		return true
+	}
+	for _, allowed := range f.Values {
+		if v == allowed {
+			return true
+		}
+	}
+	_, ok := f.ValueAliases[v]
+	return ok
 }
 
 // flagByName returns the Flag matching a parser token (canonical name or alias).

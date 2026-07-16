@@ -8,6 +8,24 @@
     "brew": "yq",
     "winget": "MikeF.yq"
   },
-  "installHint": "apt's yq is a different tool. Install mikefarah/yq via: snap install yq — or download from https://github.com/mikefarah/yq/releases",
+  "source": {
+    "type": "release",
+    "targets": {
+      "linux/amd64": {
+        "url": "https://github.com/mikefarah/yq/releases/download/v4.53.2/yq_linux_amd64",
+        "sha256": "d56bf5c6819e8e696340c312bd70f849dc1678a7cda9c2ad63eebd906371d56b",
+        "layout": "file",
+        "mode": "0755"
+      },
+      "linux/arm64": {
+        "url": "https://github.com/mikefarah/yq/releases/download/v4.53.2/yq_linux_arm64",
+        "sha256": "03061b2a50c7a498de2bbb92d7cb078ce433011f085a4994117c2726be4106ea",
+        "layout": "file",
+        "mode": "0755"
+      }
+    }
+  },
+  "installHint": "Linux installs the pinned Mike Farah yq v4.53.2 release into ~/.vrooli/bin with SHA-256 verification; macOS and Windows fall back to the declared Homebrew and winget packages. apt's yq is a different tool and is intentionally not used.",
+  "notes": "Linux release checksums were verified against the official v4.53.2 checksums asset.",
   "platforms": ["linux", "macos", "windows"]
 }

@@ -14,7 +14,8 @@ func currentHost() Host {
 		SupportsSystemd: false,
 		Notes: []string{
 			"docker-service resources require Docker Desktop (or a docker-compatible runtime) to be installed and running",
-			"workspace-sandbox protected mode and X11 desktop automation are unavailable on macOS",
+			"workspace-sandbox protected mode is partial on macOS via Seatbelt (sandbox-exec): filesystem write-containment and network denial are enforced; path illusion and pid-namespace isolation are not",
+			"X11 desktop automation is unavailable on macOS",
 		},
 	}
 }

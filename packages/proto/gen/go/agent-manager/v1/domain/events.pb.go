@@ -664,8 +664,12 @@ type RunStatusUpdate struct {
 	TaskId string `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	// First ~120 characters of the task description for display.
 	PromptPreview string `protobuf:"bytes,4,opt,name=prompt_preview,json=promptPreview,proto3" json:"prompt_preview,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Compact canonical-result metadata. Full candidate bodies remain on the
+	// run detail response and are never broadcast globally.
+	ResultSelectionStatus FinalOutputSelectionStatus `protobuf:"varint,5,opt,name=result_selection_status,json=resultSelectionStatus,proto3,enum=agent_manager.v1.FinalOutputSelectionStatus" json:"result_selection_status,omitempty"`
+	ResultSelectionRule   string                     `protobuf:"bytes,6,opt,name=result_selection_rule,json=resultSelectionRule,proto3" json:"result_selection_rule,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *RunStatusUpdate) Reset() {
@@ -722,6 +726,20 @@ func (x *RunStatusUpdate) GetTaskId() string {
 func (x *RunStatusUpdate) GetPromptPreview() string {
 	if x != nil {
 		return x.PromptPreview
+	}
+	return ""
+}
+
+func (x *RunStatusUpdate) GetResultSelectionStatus() FinalOutputSelectionStatus {
+	if x != nil {
+		return x.ResultSelectionStatus
+	}
+	return FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_UNSPECIFIED
+}
+
+func (x *RunStatusUpdate) GetResultSelectionRule() string {
+	if x != nil {
+		return x.ResultSelectionRule
 	}
 	return ""
 }
@@ -1091,9 +1109,23 @@ type MessageEventData struct {
 	// Message content.
 	Content string `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
 	// Image/file attachments included with this message.
-	Attachments   []*MessageAttachmentInfo `protobuf:"bytes,3,rep,name=attachments,proto3" json:"attachments,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Attachments []*MessageAttachmentInfo `protobuf:"bytes,3,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	// Optional provider evidence. Empty means unavailable, never inferred.
+	MessageId         string `protobuf:"bytes,4,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	ConversationId    string `protobuf:"bytes,5,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	TurnId            string `protobuf:"bytes,6,opt,name=turn_id,json=turnId,proto3" json:"turn_id,omitempty"`
+	ProviderOrigin    string `protobuf:"bytes,7,opt,name=provider_origin,json=providerOrigin,proto3" json:"provider_origin,omitempty"`
+	CompletionReason  string `protobuf:"bytes,8,opt,name=completion_reason,json=completionReason,proto3" json:"completion_reason,omitempty"`
+	Terminal          bool   `protobuf:"varint,9,opt,name=terminal,proto3" json:"terminal,omitempty"`
+	ParentMessageId   string `protobuf:"bytes,10,opt,name=parent_message_id,json=parentMessageId,proto3" json:"parent_message_id,omitempty"`
+	ProviderEventType string `protobuf:"bytes,11,opt,name=provider_event_type,json=providerEventType,proto3" json:"provider_event_type,omitempty"`
+	RawEvidenceRef    string `protobuf:"bytes,12,opt,name=raw_evidence_ref,json=rawEvidenceRef,proto3" json:"raw_evidence_ref,omitempty"`
+	// Evidence-only records correlate a later provider terminal marker to an
+	// earlier assistant message without duplicating its content.
+	EvidenceOnly       bool   `protobuf:"varint,13,opt,name=evidence_only,json=evidenceOnly,proto3" json:"evidence_only,omitempty"`
+	EvidenceForEventId string `protobuf:"bytes,14,opt,name=evidence_for_event_id,json=evidenceForEventId,proto3" json:"evidence_for_event_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *MessageEventData) Reset() {
@@ -1145,6 +1177,83 @@ func (x *MessageEventData) GetAttachments() []*MessageAttachmentInfo {
 		return x.Attachments
 	}
 	return nil
+}
+
+func (x *MessageEventData) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+func (x *MessageEventData) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *MessageEventData) GetTurnId() string {
+	if x != nil {
+		return x.TurnId
+	}
+	return ""
+}
+
+func (x *MessageEventData) GetProviderOrigin() string {
+	if x != nil {
+		return x.ProviderOrigin
+	}
+	return ""
+}
+
+func (x *MessageEventData) GetCompletionReason() string {
+	if x != nil {
+		return x.CompletionReason
+	}
+	return ""
+}
+
+func (x *MessageEventData) GetTerminal() bool {
+	if x != nil {
+		return x.Terminal
+	}
+	return false
+}
+
+func (x *MessageEventData) GetParentMessageId() string {
+	if x != nil {
+		return x.ParentMessageId
+	}
+	return ""
+}
+
+func (x *MessageEventData) GetProviderEventType() string {
+	if x != nil {
+		return x.ProviderEventType
+	}
+	return ""
+}
+
+func (x *MessageEventData) GetRawEvidenceRef() string {
+	if x != nil {
+		return x.RawEvidenceRef
+	}
+	return ""
+}
+
+func (x *MessageEventData) GetEvidenceOnly() bool {
+	if x != nil {
+		return x.EvidenceOnly
+	}
+	return false
+}
+
+func (x *MessageEventData) GetEvidenceForEventId() string {
+	if x != nil {
+		return x.EvidenceForEventId
+	}
+	return ""
 }
 
 // MessageAttachmentInfo stores metadata about an attachment included with a message.
@@ -2190,7 +2299,7 @@ var File_agent_manager_v1_domain_events_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\n" +
-	"$agent-manager/v1/domain/events.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\b\n" +
+	"$agent-manager/v1/domain/events.proto\x12\x10agent_manager.v1\x1a!agent-manager/v1/domain/run.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\b\n" +
 	"\bRunEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1a\n" +
@@ -2230,12 +2339,14 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\tconnected\x18\x0e \x01(\v2\x1d.agent_manager.v1.WsConnectedH\x00R\tconnected\x12.\n" +
 	"\x04pong\x18\x0f \x01(\v2\x18.agent_manager.v1.WsPongH\x00R\x04pongB\t\n" +
 	"\apayloadB\t\n" +
-	"\a_run_id\"\x9d\x01\n" +
+	"\a_run_id\"\xb7\x02\n" +
 	"\x0fRunStatusUpdate\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x123\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1b.agent_manager.v1.RunStatusR\x06status\x12\x17\n" +
 	"\atask_id\x18\x03 \x01(\tR\x06taskId\x12%\n" +
-	"\x0eprompt_preview\x18\x04 \x01(\tR\rpromptPreview\"a\n" +
+	"\x0eprompt_preview\x18\x04 \x01(\tR\rpromptPreview\x12d\n" +
+	"\x17result_selection_status\x18\x05 \x01(\x0e2,.agent_manager.v1.FinalOutputSelectionStatusR\x15resultSelectionStatus\x122\n" +
+	"\x15result_selection_rule\x18\x06 \x01(\tR\x13resultSelectionRule\"a\n" +
 	"\x10TaskStatusUpdate\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x124\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1c.agent_manager.v1.TaskStatusR\x06status\"a\n" +
@@ -2253,11 +2364,24 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\">\n" +
 	"\fLogEventData\x12\x14\n" +
 	"\x05level\x18\x01 \x01(\tR\x05level\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x8b\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xbc\x04\n" +
 	"\x10MessageEventData\x12\x12\n" +
 	"\x04role\x18\x01 \x01(\tR\x04role\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12I\n" +
-	"\vattachments\x18\x03 \x03(\v2'.agent_manager.v1.MessageAttachmentInfoR\vattachments\"y\n" +
+	"\vattachments\x18\x03 \x03(\v2'.agent_manager.v1.MessageAttachmentInfoR\vattachments\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x04 \x01(\tR\tmessageId\x12'\n" +
+	"\x0fconversation_id\x18\x05 \x01(\tR\x0econversationId\x12\x17\n" +
+	"\aturn_id\x18\x06 \x01(\tR\x06turnId\x12'\n" +
+	"\x0fprovider_origin\x18\a \x01(\tR\x0eproviderOrigin\x12+\n" +
+	"\x11completion_reason\x18\b \x01(\tR\x10completionReason\x12\x1a\n" +
+	"\bterminal\x18\t \x01(\bR\bterminal\x12*\n" +
+	"\x11parent_message_id\x18\n" +
+	" \x01(\tR\x0fparentMessageId\x12.\n" +
+	"\x13provider_event_type\x18\v \x01(\tR\x11providerEventType\x12(\n" +
+	"\x10raw_evidence_ref\x18\f \x01(\tR\x0erawEvidenceRef\x12#\n" +
+	"\revidence_only\x18\r \x01(\bR\fevidenceOnly\x121\n" +
+	"\x15evidence_for_event_id\x18\x0e \x01(\tR\x12evidenceForEventId\"y\n" +
 	"\x15MessageAttachmentInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tfile_name\x18\x02 \x01(\tR\bfileName\x12!\n" +
@@ -2403,10 +2527,11 @@ var file_agent_manager_v1_domain_events_proto_goTypes = []any{
 	(RunEventType)(0),                    // 25: agent_manager.v1.RunEventType
 	(*timestamppb.Timestamp)(nil),        // 26: google.protobuf.Timestamp
 	(RunStatus)(0),                       // 27: agent_manager.v1.RunStatus
-	(TaskStatus)(0),                      // 28: agent_manager.v1.TaskStatus
-	(*structpb.Struct)(nil),              // 29: google.protobuf.Struct
-	(RecoveryAction)(0),                  // 30: agent_manager.v1.RecoveryAction
-	(RunPhase)(0),                        // 31: agent_manager.v1.RunPhase
+	(FinalOutputSelectionStatus)(0),      // 28: agent_manager.v1.FinalOutputSelectionStatus
+	(TaskStatus)(0),                      // 29: agent_manager.v1.TaskStatus
+	(*structpb.Struct)(nil),              // 30: google.protobuf.Struct
+	(RecoveryAction)(0),                  // 31: agent_manager.v1.RecoveryAction
+	(RunPhase)(0),                        // 32: agent_manager.v1.RunPhase
 }
 var file_agent_manager_v1_domain_events_proto_depIdxs = []int32{
 	25, // 0: agent_manager.v1.RunEvent.event_type:type_name -> agent_manager.v1.RunEventType
@@ -2432,23 +2557,24 @@ var file_agent_manager_v1_domain_events_proto_depIdxs = []int32{
 	6,  // 20: agent_manager.v1.AgentManagerWsMessage.connected:type_name -> agent_manager.v1.WsConnected
 	7,  // 21: agent_manager.v1.AgentManagerWsMessage.pong:type_name -> agent_manager.v1.WsPong
 	27, // 22: agent_manager.v1.RunStatusUpdate.status:type_name -> agent_manager.v1.RunStatus
-	28, // 23: agent_manager.v1.TaskStatusUpdate.status:type_name -> agent_manager.v1.TaskStatus
-	26, // 24: agent_manager.v1.WsConnected.timestamp:type_name -> google.protobuf.Timestamp
-	26, // 25: agent_manager.v1.WsPong.timestamp:type_name -> google.protobuf.Timestamp
-	1,  // 26: agent_manager.v1.AgentManagerWsClientMessage.type:type_name -> agent_manager.v1.AgentManagerWsClientMessageType
-	9,  // 27: agent_manager.v1.AgentManagerWsClientMessage.run_subscription:type_name -> agent_manager.v1.RunSubscription
-	12, // 28: agent_manager.v1.MessageEventData.attachments:type_name -> agent_manager.v1.MessageAttachmentInfo
-	29, // 29: agent_manager.v1.ToolCallEventData.input:type_name -> google.protobuf.Struct
-	24, // 30: agent_manager.v1.MetricEventData.tags:type_name -> agent_manager.v1.MetricEventData.TagsEntry
-	30, // 31: agent_manager.v1.ErrorEventData.recovery:type_name -> agent_manager.v1.RecoveryAction
-	29, // 32: agent_manager.v1.ErrorEventData.details:type_name -> google.protobuf.Struct
-	31, // 33: agent_manager.v1.ProgressEventData.phase:type_name -> agent_manager.v1.RunPhase
-	26, // 34: agent_manager.v1.RateLimitEventData.reset_time:type_name -> google.protobuf.Timestamp
-	35, // [35:35] is the sub-list for method output_type
-	35, // [35:35] is the sub-list for method input_type
-	35, // [35:35] is the sub-list for extension type_name
-	35, // [35:35] is the sub-list for extension extendee
-	0,  // [0:35] is the sub-list for field type_name
+	28, // 23: agent_manager.v1.RunStatusUpdate.result_selection_status:type_name -> agent_manager.v1.FinalOutputSelectionStatus
+	29, // 24: agent_manager.v1.TaskStatusUpdate.status:type_name -> agent_manager.v1.TaskStatus
+	26, // 25: agent_manager.v1.WsConnected.timestamp:type_name -> google.protobuf.Timestamp
+	26, // 26: agent_manager.v1.WsPong.timestamp:type_name -> google.protobuf.Timestamp
+	1,  // 27: agent_manager.v1.AgentManagerWsClientMessage.type:type_name -> agent_manager.v1.AgentManagerWsClientMessageType
+	9,  // 28: agent_manager.v1.AgentManagerWsClientMessage.run_subscription:type_name -> agent_manager.v1.RunSubscription
+	12, // 29: agent_manager.v1.MessageEventData.attachments:type_name -> agent_manager.v1.MessageAttachmentInfo
+	30, // 30: agent_manager.v1.ToolCallEventData.input:type_name -> google.protobuf.Struct
+	24, // 31: agent_manager.v1.MetricEventData.tags:type_name -> agent_manager.v1.MetricEventData.TagsEntry
+	31, // 32: agent_manager.v1.ErrorEventData.recovery:type_name -> agent_manager.v1.RecoveryAction
+	30, // 33: agent_manager.v1.ErrorEventData.details:type_name -> google.protobuf.Struct
+	32, // 34: agent_manager.v1.ProgressEventData.phase:type_name -> agent_manager.v1.RunPhase
+	26, // 35: agent_manager.v1.RateLimitEventData.reset_time:type_name -> google.protobuf.Timestamp
+	36, // [36:36] is the sub-list for method output_type
+	36, // [36:36] is the sub-list for method input_type
+	36, // [36:36] is the sub-list for extension type_name
+	36, // [36:36] is the sub-list for extension extendee
+	0,  // [0:36] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_events_proto_init() }
@@ -2456,6 +2582,7 @@ func file_agent_manager_v1_domain_events_proto_init() {
 	if File_agent_manager_v1_domain_events_proto != nil {
 		return
 	}
+	file_agent_manager_v1_domain_run_proto_init()
 	file_agent_manager_v1_domain_types_proto_init()
 	file_agent_manager_v1_domain_events_proto_msgTypes[0].OneofWrappers = []any{
 		(*RunEvent_Log)(nil),

@@ -2,7 +2,10 @@
 
 package lifecycle
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 func backgroundProcessAttr() *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{Setsid: true}
@@ -28,4 +31,12 @@ func signalPID(pid int, force bool) error {
 		signal = syscall.SIGKILL
 	}
 	return syscall.Kill(pid, signal)
+}
+
+func reraiseSignal(signal os.Signal) error {
+	s, ok := signal.(syscall.Signal)
+	if !ok {
+		return nil
+	}
+	return syscall.Kill(os.Getpid(), s)
 }

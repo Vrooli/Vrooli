@@ -981,7 +981,6 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 		"postgres":              "docker-service",
 		"redis":                 "docker-service",
 		"qdrant":                "docker-service",
-		"browserless":           "docker-service",
 		"vault":                 "docker-service",
 		"minio":                 "docker-service",
 		"neo4j":                 "docker-service",
@@ -1033,7 +1032,7 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault", "minio", "neo4j", "questdb", "searxng", "comfyui", "home-assistant", "kokoro", "mail-in-a-box", "sagemath", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "judge0", "postgis", "unstructured-io", "gemini", "openrouter", "twilio", "cloudflare-ai-gateway"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "vault", "minio", "neo4j", "questdb", "searxng", "comfyui", "home-assistant", "kokoro", "mail-in-a-box", "sagemath", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "judge0", "postgis", "unstructured-io", "gemini", "openrouter", "twilio", "cloudflare-ai-gateway"} {
 		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
 		if err != nil {
 			t.Fatalf("loadResourceManifest(%s): %v", name, err)
@@ -1149,20 +1148,17 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 	testscenario.WriteProjectResourceConfig(t, root, "postgres", true)
 	testscenario.WriteProjectResourceConfig(t, root, "redis", true)
 	testscenario.WriteProjectResourceConfig(t, root, "qdrant", true)
-	testscenario.WriteProjectResourceConfig(t, root, "browserless", true)
 	testscenario.WriteProjectResourceConfig(t, root, "vault", true)
 
 	postgresPort := mustAllocatePort(t)
 	redisPort := mustAllocatePort(t)
 	qdrantPort := mustAllocatePort(t)
 	qdrantGRPCPort := mustAllocatePort(t)
-	browserlessPort := mustAllocatePort(t)
 	vaultPort := mustAllocatePort(t)
 
 	copyManifestWithOverrides(t, projectRoot, root, "postgres", postgresPort, postgresPort, "tcp", "")
 	copyManifestWithOverrides(t, projectRoot, root, "redis", redisPort, redisPort, "tcp", "")
 	copyManifestWithOverrides(t, projectRoot, root, "qdrant", qdrantPort, qdrantGRPCPort, "http", "/")
-	copyManifestWithOverrides(t, projectRoot, root, "browserless", browserlessPort, browserlessPort, "http", "/pressure")
 	copyManifestWithOverrides(t, projectRoot, root, "vault", vaultPort, vaultPort, "http", "/v1/sys/health")
 
 	postgresListener := mustListenTCP(t, "127.0.0.1:"+strconv.Itoa(postgresPort))
@@ -1174,15 +1170,6 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 		_, _ = w.Write([]byte(`{"title":"qdrant"}`))
 	})
 	defer qdrantServer.Shutdown(context.Background())
-
-	browserlessServer := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(browserlessPort), func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/pressure" {
-			http.NotFound(w, r)
-			return
-		}
-		_, _ = w.Write([]byte(`{"pressure":0}`))
-	})
-	defer browserlessServer.Shutdown(context.Background())
 
 	vaultServer := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(vaultPort), func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/sys/health" {
@@ -1197,7 +1184,7 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 		t.Fatalf("write fake docker state: %v", err)
 	}
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "vault"} {
 		status, err := controller.Status(name, true)
 		if err != nil {
 			t.Fatalf("Status(%s): %v", name, err)
@@ -1362,14 +1349,6 @@ func copyManifestWithOverrides(t *testing.T, srcRoot, dstRoot, name string, prim
 		}
 		if len(manifest.Ports) > 1 {
 			manifest.Ports[1].Host = secondaryPort
-		}
-		if len(manifest.HealthChecks) > 0 {
-			manifest.HealthChecks[0].Type = healthType
-			manifest.HealthChecks[0].Target = "http://127.0.0.1:" + strconv.Itoa(primaryPort) + healthPath
-		}
-	case "browserless":
-		if len(manifest.Ports) > 0 {
-			manifest.Ports[0].Host = primaryPort
 		}
 		if len(manifest.HealthChecks) > 0 {
 			manifest.HealthChecks[0].Type = healthType

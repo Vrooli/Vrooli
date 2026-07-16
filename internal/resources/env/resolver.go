@@ -513,10 +513,6 @@ func applyFallbackDefaults(resourceName string, values map[string]string, hostPo
 		if strings.TrimSpace(values["OLLAMA_HOST"]) == "" {
 			values["OLLAMA_HOST"] = "localhost"
 		}
-	case "browserless":
-		if strings.TrimSpace(values["BROWSERLESS_HOST"]) == "" {
-			values["BROWSERLESS_HOST"] = "localhost"
-		}
 	}
 }
 

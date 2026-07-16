@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/shell"
@@ -21,6 +20,9 @@ const (
 	SourceRootEnvVar = "VROOLI_SOURCE_ROOT"
 	// SourceRootFallbackEnvVar falls back to the active Vrooli root when set.
 	SourceRootFallbackEnvVar = "VROOLI_ROOT"
+	// SourceRootPointerFile is written by the authenticated prebuilt installer so
+	// an installed CLI can find its matching source tree outside a checkout.
+	SourceRootPointerFile = ".vrooli/source-root"
 	// FingerprintPathsEnvVar overrides which relative paths participate in the fingerprint.
 	FingerprintPathsEnvVar = "VROOLI_FINGERPRINT_PATHS"
 	// BuildTargetEnvVar overrides the go build target used by RebuildAndReexec.
@@ -63,12 +65,6 @@ var (
 			Stdin:  os.Stdin,
 		})
 	}
-	execFn = func(argv0 string, argv []string, envv []string) error {
-		return syscall.Exec(argv0, argv, envv)
-	}
-	// flockFn calls syscall.Flock; injectable so tests can simulate contention
-	// without taking real kernel locks.
-	flockFn = func(fd int, how int) error { return syscall.Flock(fd, how) }
 	// openFileFn opens lock files; injectable for test fault injection.
 	openFileFn = func(name string, flag int, perm os.FileMode) (*os.File, error) {
 		return os.OpenFile(name, flag, perm)
@@ -286,6 +282,16 @@ func ResolveSourceRoot() (string, error) {
 		return root, nil
 	}
 
+	if home, homeErr := os.UserHomeDir(); homeErr == nil {
+		pointer := filepath.Join(home, filepath.FromSlash(SourceRootPointerFile))
+		if contents, readErr := os.ReadFile(pointer); readErr == nil {
+			candidate := filepath.Clean(strings.TrimSpace(string(contents)))
+			if root, ok := findModuleRoot(candidate); ok && root == candidate {
+				return root, nil
+			}
+		}
+	}
+
 	return "", errors.New("unable to resolve source root")
 }
 
@@ -314,6 +320,22 @@ func CurrentFingerprintReport() (FingerprintReport, error) {
 		RequireExistingTargets: true,
 		RequireGoFiles:         true,
 	}, targets...)
+}
+
+// FingerprintTargetsForExecutable returns the canonical source targets used to
+// decide whether a project-level binary is fresh. Build and distribution tools
+// must use this function rather than maintaining a second target list, otherwise
+// a transferred sidecar can never be authoritative on the destination host.
+func FingerprintTargetsForExecutable(executableName string) []string {
+	executableName = strings.TrimSuffix(filepath.Base(strings.TrimSpace(executableName)), ".exe")
+	switch executableName {
+	case "vrooli-api":
+		return []string{"cmd/vrooli-api", "internal"}
+	case "vrooli":
+		return []string{"cmd/vrooli", "internal"}
+	default:
+		return nil
+	}
 }
 
 // IsStale returns true when the embedded fingerprint differs from current sources.
@@ -365,6 +387,14 @@ func sidecarMatches(currentFingerprint string) bool {
 	if err != nil || executable == "" {
 		return false
 	}
+	return SidecarMatches(executable, currentFingerprint)
+}
+
+// SidecarMatches reports whether executable.fp contains the supplied source
+// fingerprint and is not older than the executable. Taking the executable path
+// explicitly lets build/transfer tooling validate an artifact before executing
+// it, while CheckStaleness continues to use the current process executable.
+func SidecarMatches(executable, currentFingerprint string) bool {
 	sidecar := executable + ".fp"
 	sidecarInfo, err := os.Stat(sidecar)
 	if err != nil {
@@ -381,10 +411,10 @@ func sidecarMatches(currentFingerprint string) bool {
 	return strings.TrimSpace(string(contents)) == currentFingerprint
 }
 
-// writeSidecarFingerprint writes <executable>.fp atomically via temp-file +
-// os.Rename. Best-effort: errors are returned but callers should treat the
-// sidecar as a strict optimization, not a load-bearing artifact.
-func writeSidecarFingerprint(executable, fingerprint string) error {
+// WriteSidecarFingerprint writes <executable>.fp atomically via temp-file +
+// os.Rename. Its mtime is clamped to at least the binary mtime so copied or
+// reproducibly timestamped binaries remain fresh even under clock skew.
+func WriteSidecarFingerprint(executable, fingerprint string) error {
 	sidecar := executable + ".fp"
 	tmp := fmt.Sprintf("%s.tmp.%d", sidecar, os.Getpid())
 	if err := os.WriteFile(tmp, []byte(fingerprint+"\n"), 0o644); err != nil {
@@ -392,6 +422,13 @@ func writeSidecarFingerprint(executable, fingerprint string) error {
 	}
 	if err := renameFn(tmp, sidecar); err != nil {
 		_ = os.Remove(tmp)
+		return err
+	}
+	mtime := nowFunc()
+	if info, err := os.Stat(executable); err == nil && info.ModTime().After(mtime) {
+		mtime = info.ModTime()
+	}
+	if err := os.Chtimes(sidecar, mtime, mtime); err != nil {
 		return err
 	}
 	return nil
@@ -474,30 +511,10 @@ func RebuildAndReexec(argv []string) error {
 	// Sidecar is a strict optimization for sibling processes whose embedded
 	// symbol still reflects the pre-rebuild fingerprint. Failures are
 	// non-fatal: the embedded-fingerprint compare remains authoritative.
-	_ = writeSidecarFingerprint(executable, currentFingerprint)
+	_ = WriteSidecarFingerprint(executable, currentFingerprint)
 
 	execArgs := append([]string{executable}, argv...)
 	return execFn(executable, execArgs, setEnvValue(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
-}
-
-// acquireRebuildLock takes a host-wide LOCK_EX flock at <executable>.lock and
-// returns a release closure. The lock auto-releases on process death (kernel
-// closes the fd), so no stale-lock recovery is needed. Linux-only by project
-// posture.
-func acquireRebuildLock(executable string) (func(), error) {
-	lockPath := executable + ".lock"
-	f, err := openFileFn(lockPath, os.O_RDWR|os.O_CREATE, 0o644)
-	if err != nil {
-		return nil, fmt.Errorf("open lock %s: %w", lockPath, err)
-	}
-	if err := flockFn(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		_ = f.Close()
-		return nil, fmt.Errorf("flock %s: %w", lockPath, err)
-	}
-	return func() {
-		_ = flockFn(int(f.Fd()), syscall.LOCK_UN)
-		_ = f.Close()
-	}, nil
 }
 
 func isFingerprintDebugEnabled() bool {
@@ -672,14 +689,7 @@ func fingerprintTargets() ([]string, error) {
 		return nil, fmt.Errorf("resolve executable: %w", err)
 	}
 
-	switch filepath.Base(executable) {
-	case "vrooli-api":
-		return []string{"cmd/vrooli-api", "internal"}, nil
-	case "vrooli":
-		return []string{"cmd/vrooli", "internal"}, nil
-	default:
-		return nil, nil
-	}
+	return FingerprintTargetsForExecutable(executable), nil
 }
 
 func buildTargetForExecutable(executable string) (string, error) {

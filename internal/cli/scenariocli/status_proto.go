@@ -185,7 +185,6 @@ func scenarioInfoData(info InfoScenarioData) *cliv1.ScenarioInfoData {
 		ConfigVersion:     info.ConfigVersion,
 		LifecycleVersion:  info.LifecycleVersion,
 		Generation:        scenarioGenerationMetadata(info.Generation),
-		TemplateDrifted:   info.TemplateDrifted,
 	}
 	for _, p := range info.Ports {
 		msg.Ports = append(msg.Ports, scenarioPortSummary(p))

@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/projectstate"
@@ -17,6 +19,7 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/shell"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
@@ -49,6 +52,64 @@ func TestMarkCompleteWritesSetupMarker(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, ".vrooli", "state")); !os.IsNotExist(err) {
 		t.Fatalf("expected no repo-local setup state, got %v", err)
+	}
+}
+
+func TestEnsureBootstrapPackageManagerInstallsHomebrewOnFreshDarwin(t *testing.T) {
+	brewReady := false
+	lookPath := func(name string) (string, error) {
+		switch name {
+		case "curl":
+			return "/usr/bin/curl", nil
+		case "brew":
+			if brewReady {
+				return "/opt/homebrew/bin/brew", nil
+			}
+		}
+		return "", exec.ErrNotFound
+	}
+	var calls []shell.Spec
+	run := func(spec shell.Spec) error {
+		calls = append(calls, spec)
+		switch spec.Name {
+		case "curl":
+			for index, arg := range spec.Args {
+				if arg == "-o" && index+1 < len(spec.Args) {
+					return os.WriteFile(spec.Args[index+1], []byte("#!/bin/bash\n"), 0o700)
+				}
+			}
+			t.Fatal("curl did not receive an output path")
+		case "/bin/bash":
+			brewReady = true
+			if !strings.Contains(strings.Join(spec.Env, "\n"), "NONINTERACTIVE=1") {
+				t.Fatal("Homebrew installer was not made non-interactive")
+			}
+		}
+		return nil
+	}
+	err := ensureBootstrapPackageManager(
+		vrooliruntime.Host{OS: "darwin"}, t.TempDir(), vrooliruntime.EnsureOptions{}, lookPath, run,
+	)
+	if err != nil {
+		t.Fatalf("ensureBootstrapPackageManager: %v", err)
+	}
+	if len(calls) != 2 || calls[0].Name != "curl" || calls[1].Name != "/bin/bash" {
+		t.Fatalf("calls = %#v, want curl then /bin/bash", calls)
+	}
+}
+
+func TestEnsureBootstrapPackageManagerLeavesLinuxPackageManagerAlone(t *testing.T) {
+	calls := 0
+	err := ensureBootstrapPackageManager(
+		vrooliruntime.Host{OS: "linux", PackageManager: "apt-get"}, t.TempDir(), vrooliruntime.EnsureOptions{},
+		func(string) (string, error) { calls++; return "", exec.ErrNotFound },
+		func(shell.Spec) error { calls++; return nil },
+	)
+	if err != nil {
+		t.Fatalf("ensureBootstrapPackageManager: %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("linux package-manager bootstrap made %d calls, want none", calls)
 	}
 }
 
@@ -85,8 +146,17 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
 
+	sequence := []string{}
+	svc.deps.ensureBootstrapTools = func(gotHome string, opts vrooliruntime.EnsureOptions) error {
+		sequence = append(sequence, "bootstrap")
+		if gotHome != home {
+			t.Fatalf("bootstrap home = %q, want %q", gotHome, home)
+		}
+		return nil
+	}
 	runtimeCalls := 0
 	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		sequence = append(sequence, "requirements")
 		runtimeCalls++
 		if opts.DryRun {
 			t.Fatal("expected non-dry-run setup to execute real install/apply path")
@@ -122,17 +192,20 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	if runtimeCalls != 1 {
 		t.Fatalf("ensureRequirements calls = %d, want 1", runtimeCalls)
 	}
+	if got := strings.Join(sequence, ","); got != "bootstrap,requirements" {
+		t.Fatalf("setup order = %q, want bootstrap,requirements", got)
+	}
 	if !markCompleteCalled {
 		t.Fatal("expected markCompleteFn to be called")
 	}
 	if !schemaSyncCalled {
 		t.Fatal("expected syncResourceSchemaFn to be called")
 	}
-	if manager.installEnabledResourceCalls != 1 {
-		t.Fatalf("InstallEnabledResourceCLIs calls = %d, want 1", manager.installEnabledResourceCalls)
+	if manager.installEnabledResourceCalls != 0 {
+		t.Fatalf("InstallEnabledResourceCLIs calls = %d, want 0 for resources=none", manager.installEnabledResourceCalls)
 	}
-	if manager.installAllScenarioCalls != 1 {
-		t.Fatalf("InstallAllScenarioCLIs calls = %d, want 1", manager.installAllScenarioCalls)
+	if manager.installAllScenarioCalls != 0 {
+		t.Fatalf("InstallAllScenarioCLIs calls = %d, want 0 for scenarios=none", manager.installAllScenarioCalls)
 	}
 	if manager.root != root || manager.home != home {
 		t.Fatalf("manager inputs = (%q, %q), want (%q, %q)", manager.root, manager.home, root, home)
@@ -152,6 +225,105 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	}
 	if _, err := os.Stat(locator.SetupStateDir()); err != nil {
 		t.Fatalf("expected user-home setup state dir: %v", err)
+	}
+}
+
+func TestInstallSelectedCLIsHonorsExplicitSelections(t *testing.T) {
+	manager := &stubCLIInstallManager{}
+	if err := installSelectedCLIs(manager, " postgres,redis ", "alpha, beta"); err != nil {
+		t.Fatalf("installSelectedCLIs: %v", err)
+	}
+	if got := strings.Join(manager.installedResources, ","); got != "postgres,redis" {
+		t.Fatalf("installed resources = %q", got)
+	}
+	if got := strings.Join(manager.installedScenarios, ","); got != "alpha,beta" {
+		t.Fatalf("installed scenarios = %q", got)
+	}
+	if manager.installEnabledResourceCalls != 0 || manager.installAllScenarioCalls != 0 {
+		t.Fatalf("bulk installers unexpectedly called: %#v", manager)
+	}
+}
+
+func TestInstallSelectedCLIsPreservesEnabledAndAllSelectors(t *testing.T) {
+	manager := &stubCLIInstallManager{}
+	if err := installSelectedCLIs(manager, "enabled", "all"); err != nil {
+		t.Fatalf("installSelectedCLIs: %v", err)
+	}
+	if manager.installEnabledResourceCalls != 1 || manager.installAllScenarioCalls != 1 {
+		t.Fatalf("bulk installer calls = resources:%d scenarios:%d", manager.installEnabledResourceCalls, manager.installAllScenarioCalls)
+	}
+}
+
+func TestBootstrapAwareRequirementsRequiresGitAndGoButNotDocker(t *testing.T) {
+	resolution := bootstrapAwareRequirements(hostreq.Resolution{Tools: []hostreq.ResolvedRequirement{
+		{Name: "docker", Kind: hostreq.KindTool, Required: true},
+		{Name: "tmux", Kind: hostreq.KindTool, Required: true},
+		{Name: "go", Kind: hostreq.KindTool, Required: false, Environments: []string{"development"}},
+	}})
+	if got := len(resolution.Tools); got != 3 {
+		t.Fatalf("tool count = %d, want git/go/tmux", got)
+	}
+	if resolution.Tools[0].Name != "git" || resolution.Tools[1].Name != "go" {
+		t.Fatalf("bootstrap tools are not first: %#v", resolution.Tools)
+	}
+	for _, name := range []string{"git", "go"} {
+		item := findResolvedRequirement(resolution.Tools, name)
+		if item == nil || !item.Required {
+			t.Fatalf("%s is not required: %#v", name, item)
+		}
+		if got := strings.Join(item.Environments, ","); got != "development,production,minimal" {
+			t.Fatalf("%s environments = %q", name, got)
+		}
+	}
+	if findResolvedRequirement(resolution.Tools, "docker") != nil {
+		t.Fatal("Docker remained a global bootstrap requirement")
+	}
+}
+
+func TestBootstrapAwareRequirementsOrdersRasdaemonBeforeMcelog(t *testing.T) {
+	resolution := bootstrapAwareRequirements(hostreq.Resolution{Tools: []hostreq.ResolvedRequirement{
+		{Name: "mcelog", Kind: hostreq.KindTool, Required: true},
+		{Name: "rasdaemon", Kind: hostreq.KindTool, Required: true},
+	}})
+
+	rasdaemonIndex := -1
+	mcelogIndex := -1
+	for i, requirement := range resolution.Tools {
+		switch requirement.Name {
+		case "rasdaemon":
+			rasdaemonIndex = i
+		case "mcelog":
+			mcelogIndex = i
+		}
+	}
+	if rasdaemonIndex == -1 || mcelogIndex == -1 {
+		t.Fatalf("requirements missing from ordered result: %#v", resolution.Tools)
+	}
+	if rasdaemonIndex >= mcelogIndex {
+		t.Fatalf("rasdaemon index %d must precede mcelog index %d: %#v", rasdaemonIndex, mcelogIndex, resolution.Tools)
+	}
+}
+
+func TestRecoverHostToolPATHFindsOffPathGo(t *testing.T) {
+	home := t.TempDir()
+	goBin := filepath.Join(home, "go", "bin")
+	if err := os.MkdirAll(goBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(goBin, "go"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", t.TempDir())
+	recoverHostToolPATH(home)
+	resolved, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatalf("go remains off PATH: %v", err)
+	}
+	if resolved == "" {
+		t.Fatal("go resolved to an empty path")
+	}
+	if !strings.Contains(os.Getenv("PATH"), goBin) {
+		t.Fatalf("recovered PATH does not include %q: %s", goBin, os.Getenv("PATH"))
 	}
 }
 
@@ -543,8 +715,11 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 	if findResolvedRequirement(plannedResolution.Tools, "git") == nil {
 		t.Fatal("expected root git declaration")
 	}
-	if findResolvedRequirement(plannedResolution.Tools, "docker") == nil {
-		t.Fatal("expected root docker declaration")
+	if findResolvedRequirement(plannedResolution.Tools, "docker") != nil {
+		t.Fatal("did not expect Docker in global setup requirements")
+	}
+	if findResolvedRequirement(plannedResolution.Tools, "go") == nil {
+		t.Fatal("expected bootstrap Go declaration")
 	}
 	if findResolvedRequirement(plannedResolution.Tools, "tmux") == nil {
 		t.Fatal("expected scenario tmux declaration")
@@ -560,7 +735,7 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 	for _, expected := range []string{
 		"Already present",
 		"git",
-		"docker",
+		"go",
 		"tmux",
 		"remote_session_protection",
 	} {
@@ -602,6 +777,53 @@ func TestRunSetupDryRunSkipsResourceInstallEvenWhenResourcesSelected(t *testing.
 	}
 	if resourceInstallCalls != 0 {
 		t.Fatalf("resource install calls = %d, want 0", resourceInstallCalls)
+	}
+}
+
+func TestDockerIsDemandedOnlyBySelectedContainerResources(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WriteResourceManifest(t, root, "native", testresource.ResourceManifest(
+		"native",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceBinary("native-server"),
+	))
+	testresource.WriteResourceManifest(t, root, "containerized", testresource.ResourceManifest(
+		"containerized",
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceComposeFile("docker-compose.yml"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{Image: "fixture:latest"}),
+	))
+	manifest, err := resources.NewController(root, home).ResourceManifest("containerized")
+	if err != nil {
+		t.Fatalf("load container fixture: %v", err)
+	}
+	if manifest.Driver != "docker-service" {
+		t.Fatalf("container fixture driver = %q", manifest.Driver)
+	}
+
+	originalInspect := inspectDockerHealthFn
+	t.Cleanup(func() { inspectDockerHealthFn = originalInspect })
+	inspections := 0
+	inspectDockerHealthFn = func() dockerhost.Health {
+		inspections++
+		return dockerhost.Health{Detail: "daemon unavailable"}
+	}
+	if err := preflightDockerResources(root, home, nil); err != nil {
+		t.Fatalf("empty selection: %v", err)
+	}
+	if err := preflightDockerResources(root, home, []string{"native"}); err != nil {
+		t.Fatalf("native resource: %v", err)
+	}
+	if inspections != 0 {
+		t.Fatalf("Docker inspected %d times without a container resource", inspections)
+	}
+	err = preflightDockerResources(root, home, []string{"containerized"})
+	if err == nil || !strings.Contains(err.Error(), "selected resources require Docker (containerized)") {
+		t.Fatalf("container resource error = %v", err)
+	}
+	if inspections != 1 {
+		t.Fatalf("Docker inspections = %d, want 1", inspections)
 	}
 }
 
@@ -677,6 +899,15 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	}
 }
 
+func TestDevelopHealthTimeoutAllowsColdGoRun(t *testing.T) {
+	if got := developHealthTimeout(apiLaunchSpec{Command: "go", Args: []string{"run", "./cmd/vrooli-api"}}); got != 2*time.Minute {
+		t.Fatalf("cold go-run timeout = %s, want 2m", got)
+	}
+	if got := developHealthTimeout(apiLaunchSpec{Command: "/tmp/vrooli-api"}); got != 30*time.Second {
+		t.Fatalf("prebuilt timeout = %s, want 30s", got)
+	}
+}
+
 func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	svc := stubSetupDeps(t)
 
@@ -715,6 +946,40 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	}
 	if setupCalls != 0 {
 		t.Fatalf("setup calls = %d, want 0", setupCalls)
+	}
+}
+
+func TestRunDevelopSkipsOrchestratorWhenScenariosAreNone(t *testing.T) {
+	svc := stubSetupDeps(t)
+
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+	testresource.WritePortRegistry(t, root, nil)
+	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
+	if err := writeSetupCompleteMarker(t, home, root); err != nil {
+		t.Fatalf("write setup marker: %v", err)
+	}
+
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.startProjectAPI = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error { return nil }
+	svc.deps.healthCheck = func(port int, timeout time.Duration) error { return nil }
+	orchestratorCalls := 0
+	svc.deps.startOrchestrator = func(root, home string, stdout, stderr io.Writer) error {
+		orchestratorCalls++
+		return nil
+	}
+
+	stdout := &strings.Builder{}
+	if err := svc.RunDevelopWithOptions(root, home, Options{Scenarios: "none"}, stdout, io.Discard); err != nil {
+		t.Fatalf("RunDevelopWithOptions: %v", err)
+	}
+	if orchestratorCalls != 0 {
+		t.Fatalf("orchestrator calls = %d, want 0", orchestratorCalls)
+	}
+	if !strings.Contains(stdout.String(), "orchestrator skipped") {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
 
@@ -1003,6 +1268,7 @@ func stubSetupDeps(t *testing.T) *setupService {
 	t.Helper()
 	deps := defaultSetupDeps()
 	deps.syncResourceSchema = func(root string) error { return nil }
+	deps.ensureBootstrapTools = func(string, vrooliruntime.EnsureOptions) error { return nil }
 	deps.newCLIInstallManager = func(root, home string) (cliInstallManager, error) { return &stubCLIInstallManager{}, nil }
 	return newSetupService(deps)
 }
@@ -1012,6 +1278,18 @@ type stubCLIInstallManager struct {
 	home                        string
 	installAllScenarioCalls     int
 	installEnabledResourceCalls int
+	installedScenarios          []string
+	installedResources          []string
+}
+
+func (s *stubCLIInstallManager) InstallScenarioCLI(name string) error {
+	s.installedScenarios = append(s.installedScenarios, name)
+	return nil
+}
+
+func (s *stubCLIInstallManager) InstallResourceCLI(name string) error {
+	s.installedResources = append(s.installedResources, name)
+	return nil
 }
 
 func (s *stubCLIInstallManager) InstallAllScenarioCLIs() error {

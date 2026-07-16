@@ -203,3 +203,109 @@ func TestCLIManifestSchemaRejectsBrokenVariants(t *testing.T) {
 		})
 	}
 }
+
+// manifestWithFlag wraps a single flag JSON object in a minimal valid manifest.
+func manifestWithFlag(flagJSON string) string {
+	return `{
+		"name": "demo",
+		"groups": [{
+			"name": "g",
+			"commands": [{
+				"name": "c",
+				"flags": [` + flagJSON + `],
+				"binding": { "kind": "connect-rpc", "service": "S", "method": "M" },
+				"governance": { "effect": "read", "run_eligible": true }
+			}]
+		}]
+	}`
+}
+
+func TestCLIManifestSchemaFlagValues(t *testing.T) {
+	schema := compileCLIManifestSchema(t)
+
+	cases := []struct {
+		name     string
+		flagJSON string
+		wantErr  bool
+	}{
+		{
+			name:     "values with value_aliases accepted",
+			flagJSON: `{"name": "complexity", "values": ["minor", "moderate", "major", "architectural"], "value_aliases": {"low": "minor", "medium": "moderate", "high": "major"}}`,
+		},
+		{
+			name:     "values alone accepted",
+			flagJSON: `{"name": "kind", "values": ["a", "b"]}`,
+		},
+		{
+			name:     "empty values array rejected",
+			flagJSON: `{"name": "kind", "values": []}`,
+			wantErr:  true,
+		},
+		{
+			name:     "duplicate values rejected",
+			flagJSON: `{"name": "kind", "values": ["a", "a"]}`,
+			wantErr:  true,
+		},
+		{
+			name:     "values on bool flag rejected",
+			flagJSON: `{"name": "verbose", "bool": true, "values": ["yes"]}`,
+			wantErr:  true,
+		},
+		{
+			name:     "value_aliases without values rejected",
+			flagJSON: `{"name": "kind", "value_aliases": {"a": "b"}}`,
+			wantErr:  true,
+		},
+		{
+			name:     "non-string alias target rejected",
+			flagJSON: `{"name": "kind", "values": ["a"], "value_aliases": {"b": 1}}`,
+			wantErr:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateCLIManifestBytes(t, schema, []byte(manifestWithFlag(tc.flagJSON)))
+			if tc.wantErr && err == nil {
+				t.Fatalf("expected validation error for %q; got nil", tc.name)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("expected %q to validate cleanly; got: %v", tc.name, err)
+			}
+		})
+	}
+}
+
+// TestCLIManifestSchemaValuesFieldsAdditiveAcrossScenarios proves the
+// values/value_aliases schema addition never causes a shipped scenario
+// manifest to fail. Manifests with unrelated pre-existing schema violations
+// (owned by their scenarios and surfaced by cli-health) are out of scope here,
+// so only failures attributable to the new fields fail this test.
+func TestCLIManifestSchemaValuesFieldsAdditiveAcrossScenarios(t *testing.T) {
+	schema := compileCLIManifestSchema(t)
+	repoRoot := locateRepoRoot(t)
+	matches, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", "cli", "manifest.json"))
+	if err != nil {
+		t.Fatalf("glob: %v", err)
+	}
+	if len(matches) == 0 {
+		t.Skip("no scenario manifests found")
+	}
+	for _, path := range matches {
+		rel, _ := filepath.Rel(repoRoot, path)
+		t.Run(rel, func(t *testing.T) {
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read: %v", err)
+			}
+			err = validateCLIManifestBytes(t, schema, raw)
+			if err == nil {
+				return
+			}
+			msg := err.Error()
+			if strings.Contains(msg, "values") || strings.Contains(msg, "value_aliases") {
+				t.Errorf("manifest %s fails on the new values fields: %v", rel, err)
+			}
+		})
+	}
+}

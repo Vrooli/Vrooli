@@ -11,6 +11,8 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const fetchTestTool = "vrooli-runtime-fetch-test-tool"
+
 func writeFile(path string, data []byte) error { return os.WriteFile(path, data, 0o755) }
 
 func fileExists(path string) bool {
@@ -34,6 +36,16 @@ func releaseManifest(name string, requires *hostreqspec.CapabilityRequirement) h
 			},
 		},
 	}
+}
+
+func hybridReleaseManifest(name string) hostreqkit.ToolManifest {
+	manifest := releaseManifest(name, nil)
+	manifest.Packages = map[string]string{
+		"apt":    "distro-" + name,
+		"brew":   "homebrew-" + name,
+		"winget": "winget-" + name,
+	}
+	return manifest
 }
 
 func resolved(name string) hostreqspec.ResolvedRequirement {
@@ -67,8 +79,8 @@ func withUserBin(t *testing.T) string {
 
 func TestInspectFetch_GPURequiredSkippedOnCPUHost(t *testing.T) {
 	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64", RAMGb: 32}) // no GPU
-	h := toolHandler{manifest: releaseManifest("sd", &hostreqspec.CapabilityRequirement{GPU: boolPtr(true)})}
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("sd"))
+	h := toolHandler{manifest: releaseManifest(fetchTestTool, &hostreqspec.CapabilityRequirement{GPU: boolPtr(true)})}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
 	if status.ExecutionState != hostreqkit.ExecutionNotApplicable {
 		t.Fatalf("state = %q, want not_applicable", status.ExecutionState)
 	}
@@ -90,10 +102,79 @@ func TestInspectFetch_NoTargetForHostIsUnsupported(t *testing.T) {
 	withFacts(t, hostreqspec.CapabilityFacts{Arch: "arm64"})
 	withArch(t, "arm64") // manifest only declares linux/amd64
 	withUserBin(t)
-	h := toolHandler{manifest: releaseManifest("sd", nil)}
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("sd"))
+	h := toolHandler{manifest: releaseManifest("source-only-no-target-test-command", nil)}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("source-only-no-target-test-command"))
 	if status.ExecutionState != hostreqkit.ExecutionUnsupported {
 		t.Fatalf("state = %q, want unsupported", status.ExecutionState)
+	}
+}
+
+func TestInspectHybrid_MatchingReleaseTargetPreferredOverPackage(t *testing.T) {
+	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
+	withArch(t, "amd64")
+	withUserBin(t)
+	h := toolHandler{manifest: hybridReleaseManifest("hybrid-target-preference")}
+
+	status := h.Inspect(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, resolved("hybrid-target-preference"))
+
+	if !status.InstallSupported {
+		t.Fatal("expected matching release target to be installable")
+	}
+	if status.PackageName != "" {
+		t.Fatalf("package name = %q, want empty when release target is preferred", status.PackageName)
+	}
+	if !notesContain(status.Notes, "example.test/hybrid-target-preference.tar.gz") {
+		t.Fatalf("release target URL missing from notes: %v", status.Notes)
+	}
+}
+
+func TestInspectHybrid_MissingReleaseTargetFallsBackToHostPackage(t *testing.T) {
+	withFacts(t, hostreqspec.CapabilityFacts{Arch: "arm64"})
+	withArch(t, "arm64")
+	withUserBin(t)
+	h := toolHandler{manifest: hybridReleaseManifest("hybrid-package-fallback")}
+
+	cases := []struct {
+		name        string
+		host        hostreqkit.Host
+		wantPackage string
+	}{
+		{name: "macos", host: hostreqkit.Host{OS: "darwin", PackageManager: "brew"}, wantPackage: "homebrew-hybrid-package-fallback"},
+		{name: "windows", host: hostreqkit.Host{OS: "windows", PackageManager: "winget"}, wantPackage: "winget-hybrid-package-fallback"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			status := h.Inspect(tc.host, resolved("hybrid-package-fallback"))
+			if status.ExecutionState == hostreqkit.ExecutionUnsupported {
+				t.Fatalf("state = %q, want package fallback to remain supported", status.ExecutionState)
+			}
+			if !status.InstallSupported {
+				t.Fatal("expected package fallback to be installable")
+			}
+			if status.PackageName != tc.wantPackage {
+				t.Fatalf("package name = %q, want %q", status.PackageName, tc.wantPackage)
+			}
+		})
+	}
+}
+
+func TestApplyHybrid_MissingReleaseTargetUsesHostPackage(t *testing.T) {
+	withFacts(t, hostreqspec.CapabilityFacts{Arch: "arm64"})
+	withArch(t, "arm64")
+	withUserBin(t)
+	h := toolHandler{manifest: hybridReleaseManifest("hybrid-package-apply")}
+	host := hostreqkit.Host{OS: "darwin", PackageManager: "brew"}
+	status := h.Inspect(host, resolved("hybrid-package-apply"))
+
+	applied, err := h.Apply(host, status, hostreqkit.EnsureOptions{DryRun: true})
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if applied.ExecutionState != hostreqkit.ExecutionWouldInstall {
+		t.Fatalf("state = %q (notes %v), want would_install", applied.ExecutionState, applied.Notes)
+	}
+	if !notesContain(applied.Notes, "brew install homebrew-hybrid-package-apply") {
+		t.Fatalf("package install command missing from notes: %v", applied.Notes)
 	}
 }
 
@@ -101,8 +182,8 @@ func TestApplyFetch_DryRunListsTargetURL(t *testing.T) {
 	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
 	withArch(t, "amd64")
 	withUserBin(t)
-	h := toolHandler{manifest: releaseManifest("sd", nil)}
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("sd"))
+	h := toolHandler{manifest: releaseManifest(fetchTestTool, nil)}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
 	if !status.InstallSupported {
 		t.Fatalf("expected InstallSupported for a host with a target")
 	}
@@ -113,7 +194,7 @@ func TestApplyFetch_DryRunListsTargetURL(t *testing.T) {
 	if applied.ExecutionState != hostreqkit.ExecutionWouldInstall {
 		t.Fatalf("state = %q, want would_install", applied.ExecutionState)
 	}
-	if !notesContain(applied.Notes, "example.test/sd.tar.gz") {
+	if !notesContain(applied.Notes, "example.test/"+fetchTestTool+".tar.gz") {
 		t.Fatalf("dry-run notes should name the target URL: %v", applied.Notes)
 	}
 }
@@ -136,8 +217,8 @@ func TestApplyFetch_SuccessViaStubFetcher(t *testing.T) {
 	}
 	t.Cleanup(func() { fetchBinaryFn = prevFetch })
 
-	h := toolHandler{manifest: releaseManifest("sd", nil)}
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("sd"))
+	h := toolHandler{manifest: releaseManifest(fetchTestTool, nil)}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
 	applied, err := h.Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{})
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
@@ -145,13 +226,13 @@ func TestApplyFetch_SuccessViaStubFetcher(t *testing.T) {
 	if applied.ExecutionState != hostreqkit.ExecutionInstalled {
 		t.Fatalf("state = %q (notes %v), want installed", applied.ExecutionState, applied.Notes)
 	}
-	if fetched.URL != "https://example.test/sd.tar.gz" || fetched.SHA256 != "deadbeef" {
+	if fetched.URL != "https://example.test/"+fetchTestTool+".tar.gz" || fetched.SHA256 != "deadbeef" {
 		t.Fatalf("fetcher received wrong spec: %+v", fetched)
 	}
-	if fetched.BinPath != "bin/sd" || fetched.Archive != "tar.gz" {
+	if fetched.BinPath != "bin/"+fetchTestTool || fetched.Archive != "tar.gz" {
 		t.Fatalf("fetcher spec archive/binpath wrong: %+v", fetched)
 	}
-	if !fileExists(binDir + "/sd") {
+	if !fileExists(binDir + "/" + fetchTestTool) {
 		t.Fatalf("expected binary written into ~/.vrooli/bin")
 	}
 }
@@ -166,8 +247,8 @@ func TestApplyFetch_FetchFailureIsFailed(t *testing.T) {
 	}
 	t.Cleanup(func() { fetchBinaryFn = prevFetch })
 
-	h := toolHandler{manifest: releaseManifest("sd", nil)}
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("sd"))
+	h := toolHandler{manifest: releaseManifest(fetchTestTool, nil)}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
 	applied, _ := h.Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{})
 	if applied.ExecutionState != hostreqkit.ExecutionFailed {
 		t.Fatalf("state = %q, want failed", applied.ExecutionState)
@@ -178,11 +259,11 @@ func TestInspectFetch_AlreadyPresentWhenInUserBin(t *testing.T) {
 	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
 	withArch(t, "amd64")
 	binDir := withUserBin(t)
-	if err := writeFile(binDir+"/sd", []byte("bin")); err != nil {
+	if err := writeFile(binDir+"/"+fetchTestTool, []byte("bin")); err != nil {
 		t.Fatal(err)
 	}
-	h := toolHandler{manifest: releaseManifest("sd", nil)}
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("sd"))
+	h := toolHandler{manifest: releaseManifest(fetchTestTool, nil)}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
 	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
 		t.Fatalf("state = %q, want already_present", status.ExecutionState)
 	}
@@ -192,8 +273,8 @@ func TestCapabilityGate_MetProceeds(t *testing.T) {
 	withFacts(t, hostreqspec.CapabilityFacts{HasGPU: true, MaxVRAMGb: 8, Arch: "amd64", RAMGb: 32})
 	withArch(t, "amd64")
 	withUserBin(t)
-	h := toolHandler{manifest: releaseManifest("sd", &hostreqspec.CapabilityRequirement{GPU: boolPtr(true), MinVRAMGb: 4})}
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("sd"))
+	h := toolHandler{manifest: releaseManifest(fetchTestTool, &hostreqspec.CapabilityRequirement{GPU: boolPtr(true), MinVRAMGb: 4})}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
 	if status.ExecutionState == hostreqkit.ExecutionNotApplicable {
 		t.Fatalf("gate should pass with GPU+8GiB VRAM; got not_applicable")
 	}
@@ -251,8 +332,8 @@ func TestApplyFetch_DirLayoutWritesLauncher(t *testing.T) {
 	}
 	t.Cleanup(func() { fetchDirFn = prev })
 
-	h := toolHandler{manifest: dirReleaseManifest("sd")}
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("sd"))
+	h := toolHandler{manifest: dirReleaseManifest(fetchTestTool)}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
 	if !status.InstallSupported {
 		t.Fatalf("expected InstallSupported for dir-layout target")
 	}
@@ -263,13 +344,13 @@ func TestApplyFetch_DirLayoutWritesLauncher(t *testing.T) {
 	if applied.ExecutionState != hostreqkit.ExecutionInstalled {
 		t.Fatalf("state = %q (notes %v), want installed", applied.ExecutionState, applied.Notes)
 	}
-	if gotSpec.Layout != "dir" || gotSpec.BinPath != "sd-cli" {
+	if gotSpec.Layout != "dir" || gotSpec.BinPath != fetchTestTool+"-cli" {
 		t.Fatalf("fetchDir received wrong spec: %+v", gotSpec)
 	}
-	if gotOptDir != optRoot+"/sd" {
-		t.Fatalf("opt dir = %q, want %q", gotOptDir, optRoot+"/sd")
+	if gotOptDir != optRoot+"/"+fetchTestTool {
+		t.Fatalf("opt dir = %q, want %q", gotOptDir, optRoot+"/"+fetchTestTool)
 	}
-	launcher := binDir + "/sd"
+	launcher := binDir + "/" + fetchTestTool
 	data, err := os.ReadFile(launcher)
 	if err != nil {
 		t.Fatalf("launcher not written: %v", err)
@@ -281,7 +362,7 @@ func TestApplyFetch_DirLayoutWritesLauncher(t *testing.T) {
 	if !strings.Contains(script, "LD_LIBRARY_PATH") {
 		t.Fatalf("launcher must export LD_LIBRARY_PATH: %q", script)
 	}
-	if !strings.Contains(script, optRoot+"/sd") {
+	if !strings.Contains(script, optRoot+"/"+fetchTestTool) {
 		t.Fatalf("launcher must exec the opt-dir binary: %q", script)
 	}
 	info, _ := os.Stat(launcher)
@@ -295,8 +376,8 @@ func TestApplyFetch_DirLayoutDryRunNotesOptDir(t *testing.T) {
 	withArch(t, "amd64")
 	withUserBin(t)
 	withUserOpt(t)
-	h := toolHandler{manifest: dirReleaseManifest("sd")}
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("sd"))
+	h := toolHandler{manifest: dirReleaseManifest(fetchTestTool)}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
 	applied, err := h.Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{DryRun: true})
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
@@ -304,7 +385,7 @@ func TestApplyFetch_DirLayoutDryRunNotesOptDir(t *testing.T) {
 	if applied.ExecutionState != hostreqkit.ExecutionWouldInstall {
 		t.Fatalf("state = %q, want would_install", applied.ExecutionState)
 	}
-	if !notesContain(applied.Notes, "~/.vrooli/opt/sd") {
+	if !notesContain(applied.Notes, "~/.vrooli/opt/"+fetchTestTool) {
 		t.Fatalf("dry-run notes should mention the opt dir: %v", applied.Notes)
 	}
 }
@@ -315,11 +396,11 @@ func TestInspectFetch_DirLayoutInstalledWhenLauncherPresent(t *testing.T) {
 	binDir := withUserBin(t)
 	withUserOpt(t)
 	// The launcher's mere presence in ~/.vrooli/bin counts as installed.
-	if err := writeFile(binDir+"/sd", []byte("#!/bin/sh\nexec opt/sd/sd-cli \"$@\"\n")); err != nil {
+	if err := writeFile(binDir+"/"+fetchTestTool, []byte("#!/bin/sh\nexec opt/test/tool \"$@\"\n")); err != nil {
 		t.Fatal(err)
 	}
-	h := toolHandler{manifest: dirReleaseManifest("sd")}
-	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved("sd"))
+	h := toolHandler{manifest: dirReleaseManifest(fetchTestTool)}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
 	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
 		t.Fatalf("state = %q, want already_present", status.ExecutionState)
 	}

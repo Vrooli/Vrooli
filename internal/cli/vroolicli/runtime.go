@@ -632,6 +632,8 @@ Usage:
   vrooli runtime supervisor status [--json]
   vrooli runtime supervisor install [--user]
   vrooli runtime supervisor uninstall [--user]
+  vrooli runtime recovery policy set <scenario> [options]
+  vrooli runtime recovery policy list
 
 Options:
   --json                    Emit JSON output when supported
@@ -645,12 +647,19 @@ Environment:
   VROOLI_RUNTIME_SUPERVISOR_MAX_HEALTH_CONCURRENCY
                                              Maximum concurrent health probes (default 16)
   VROOLI_RUNTIME_SUPERVISOR_BATCH_SIZE       Lease renewal batch size (default 250)
+  VROOLI_RUNTIME_RECOVERY_QUIET_PERIOD       Pressure-clear duration before recovery (default 2m)
+  VROOLI_RUNTIME_RECOVERY_COOLDOWN           Delay after a failed recovery (default 5m)
+  VROOLI_RUNTIME_RECOVERY_CONCURRENCY        Maximum lifecycle recoveries per tier/tick (default 1)
+  VROOLI_RUNTIME_PRESSURE_SOME_AVG10         Memory PSI some.avg10 recovery threshold (default 10)
 `
 
 func (app *App) runRuntimeCommand(ctx *CommandContext, args []string) error {
 	if len(args) == 0 || commandWantsHelp(args) {
 		_, _ = io.WriteString(ctx.Stdout, runtimeHelpText)
 		return nil
+	}
+	if args[0] == "recovery" {
+		return app.runRuntimeRecovery(ctx, args[1:])
 	}
 	if args[0] != "supervisor" {
 		return rootcli.UsageErrorf("runtime", "unknown runtime command: %s", args[0])
@@ -736,6 +745,9 @@ func (app *App) statusRuntimeSupervisor(ctx *CommandContext, args []string) erro
 	_, _ = fmt.Fprintf(ctx.Stdout, "Health interval: %s\n", report.EffectiveHealthInterval)
 	_, _ = fmt.Fprintf(ctx.Stdout, "Max health concurrency: %d\n", report.EffectiveMaxHealthConcurrency)
 	_, _ = fmt.Fprintf(ctx.Stdout, "Batch size: %d\n", report.EffectiveBatchSize)
+	_, _ = fmt.Fprintf(ctx.Stdout, "Recovery quiet period: %s\n", report.EffectiveRecoveryQuietPeriod)
+	_, _ = fmt.Fprintf(ctx.Stdout, "Recovery cooldown: %s\n", report.EffectiveRecoveryCooldown)
+	_, _ = fmt.Fprintf(ctx.Stdout, "Recovery concurrency: %d\n", report.EffectiveRecoveryConcurrency)
 	if report.Status != scenarioruntime.SupervisorStatusRunning {
 		_, _ = io.WriteString(ctx.Stdout, "Next steps:\n")
 		_, _ = io.WriteString(ctx.Stdout, "  vrooli runtime supervisor install --user\n")
