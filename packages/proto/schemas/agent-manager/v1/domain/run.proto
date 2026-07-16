@@ -227,6 +227,41 @@ message FinalOutputSelection {
   repeated string evidence = 5;
 }
 
+// StructuredResultStatus separates every honest typed-output terminal state.
+enum StructuredResultStatus {
+  STRUCTURED_RESULT_STATUS_UNSPECIFIED = 0;
+  STRUCTURED_RESULT_STATUS_SUCCESS = 1;
+  STRUCTURED_RESULT_STATUS_UNAVAILABLE = 2;
+  STRUCTURED_RESULT_STATUS_INVALID = 3;
+  STRUCTURED_RESULT_STATUS_AMBIGUOUS = 4;
+  STRUCTURED_RESULT_STATUS_ABSTAINED = 5;
+}
+
+message StructuredDiagnostic {
+  string code = 1;
+  string path = 2;
+  string message = 3;
+}
+
+message StructuredExtractionProvenance {
+  string role_ref = 1;
+  string provider = 2;
+  string model = 3;
+  ExecutionPolicySnapshot policy_snapshot = 4;
+}
+
+// StructuredResult contains a value only after local schema validation.
+message StructuredResult {
+  StructuredResultStatus status = 1;
+  ResultSpecKind spec_kind = 2;
+  string schema_digest = 3;
+  bytes value = 4;
+  string method = 5;
+  string source_candidate_id = 6;
+  StructuredExtractionProvenance extractor = 7;
+  repeated StructuredDiagnostic diagnostics = 8;
+}
+
 // RunResult is the canonical terminal result for one execute or continue turn.
 message RunResult {
   string final_output = 1;
@@ -235,6 +270,7 @@ message RunResult {
   bool success = 4;
   int32 exit_code = 5;
   string terminal_reason = 6;
+  StructuredResult structured = 7;
 }
 
 // AwaitHandle identifies the externally-owned async work a parked run is
@@ -675,6 +711,9 @@ message ContinueRunRequest {
 
   // IDs of uploaded attachments to include with this message.
   repeated string attachment_ids = 3;
+
+  // Optional replay-safe key for programmatic continuation callers.
+  string idempotency_key = 4;
 }
 
 // ContinueRunResponse contains the result of continuing a run.

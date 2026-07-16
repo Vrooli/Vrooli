@@ -46,6 +46,9 @@ const (
 	// ExecutionServiceContinueExecutionProcedure is the fully-qualified name of the ExecutionService's
 	// ContinueExecution RPC.
 	ExecutionServiceContinueExecutionProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/ContinueExecution"
+	// ExecutionServiceAbandonExecutionProcedure is the fully-qualified name of the ExecutionService's
+	// AbandonExecution RPC.
+	ExecutionServiceAbandonExecutionProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/AbandonExecution"
 	// ExecutionServiceSyncBaselineProcedure is the fully-qualified name of the ExecutionService's
 	// SyncBaseline RPC.
 	ExecutionServiceSyncBaselineProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/SyncBaseline"
@@ -94,6 +97,9 @@ type ExecutionServiceClient interface {
 	// ContinueExecution resumes or starts a run for a plan/execution id and
 	// returns the single recommended next runner action without advancing.
 	ContinueExecution(context.Context, *connect.Request[execution.ContinueExecutionRequest]) (*connect.Response[execution.ContinueExecutionResponse], error)
+	// AbandonExecution terminalizes an accidental execution without deleting its
+	// audit history. Replaying the same abandonment is idempotent.
+	AbandonExecution(context.Context, *connect.Request[execution.AbandonExecutionRequest]) (*connect.Response[execution.AbandonExecutionResponse], error)
 	// SyncBaseline performs one nonblocking typed read of the producer-owned GCT
 	// collection attached to an execution. It never starts or waits for capture.
 	SyncBaseline(context.Context, *connect.Request[execution.SyncBaselineRequest]) (*connect.Response[execution.SyncBaselineResponse], error)
@@ -166,6 +172,12 @@ func NewExecutionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(executionServiceMethods.ByName("ContinueExecution")),
 			connect.WithClientOptions(opts...),
 		),
+		abandonExecution: connect.NewClient[execution.AbandonExecutionRequest, execution.AbandonExecutionResponse](
+			httpClient,
+			baseURL+ExecutionServiceAbandonExecutionProcedure,
+			connect.WithSchema(executionServiceMethods.ByName("AbandonExecution")),
+			connect.WithClientOptions(opts...),
+		),
 		syncBaseline: connect.NewClient[execution.SyncBaselineRequest, execution.SyncBaselineResponse](
 			httpClient,
 			baseURL+ExecutionServiceSyncBaselineProcedure,
@@ -236,6 +248,7 @@ type executionServiceClient struct {
 	getContext        *connect.Client[execution.GetContextRequest, execution.GetContextResponse]
 	resume            *connect.Client[execution.ResumeRequest, execution.ResumeResponse]
 	continueExecution *connect.Client[execution.ContinueExecutionRequest, execution.ContinueExecutionResponse]
+	abandonExecution  *connect.Client[execution.AbandonExecutionRequest, execution.AbandonExecutionResponse]
 	syncBaseline      *connect.Client[execution.SyncBaselineRequest, execution.SyncBaselineResponse]
 	amendScope        *connect.Client[execution.AmendScopeRequest, execution.AmendScopeResponse]
 	adoptBaseline     *connect.Client[execution.AdoptBaselineRequest, execution.AdoptBaselineResponse]
@@ -271,6 +284,11 @@ func (c *executionServiceClient) Resume(ctx context.Context, req *connect.Reques
 // ContinueExecution calls vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution.
 func (c *executionServiceClient) ContinueExecution(ctx context.Context, req *connect.Request[execution.ContinueExecutionRequest]) (*connect.Response[execution.ContinueExecutionResponse], error) {
 	return c.continueExecution.CallUnary(ctx, req)
+}
+
+// AbandonExecution calls vrooli.plan_manager.v1.execution.ExecutionService.AbandonExecution.
+func (c *executionServiceClient) AbandonExecution(ctx context.Context, req *connect.Request[execution.AbandonExecutionRequest]) (*connect.Response[execution.AbandonExecutionResponse], error) {
+	return c.abandonExecution.CallUnary(ctx, req)
 }
 
 // SyncBaseline calls vrooli.plan_manager.v1.execution.ExecutionService.SyncBaseline.
@@ -339,6 +357,9 @@ type ExecutionServiceHandler interface {
 	// ContinueExecution resumes or starts a run for a plan/execution id and
 	// returns the single recommended next runner action without advancing.
 	ContinueExecution(context.Context, *connect.Request[execution.ContinueExecutionRequest]) (*connect.Response[execution.ContinueExecutionResponse], error)
+	// AbandonExecution terminalizes an accidental execution without deleting its
+	// audit history. Replaying the same abandonment is idempotent.
+	AbandonExecution(context.Context, *connect.Request[execution.AbandonExecutionRequest]) (*connect.Response[execution.AbandonExecutionResponse], error)
 	// SyncBaseline performs one nonblocking typed read of the producer-owned GCT
 	// collection attached to an execution. It never starts or waits for capture.
 	SyncBaseline(context.Context, *connect.Request[execution.SyncBaselineRequest]) (*connect.Response[execution.SyncBaselineResponse], error)
@@ -404,6 +425,12 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 		ExecutionServiceContinueExecutionProcedure,
 		svc.ContinueExecution,
 		connect.WithSchema(executionServiceMethods.ByName("ContinueExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionServiceAbandonExecutionHandler := connect.NewUnaryHandler(
+		ExecutionServiceAbandonExecutionProcedure,
+		svc.AbandonExecution,
+		connect.WithSchema(executionServiceMethods.ByName("AbandonExecution")),
 		connect.WithHandlerOptions(opts...),
 	)
 	executionServiceSyncBaselineHandler := connect.NewUnaryHandler(
@@ -478,6 +505,8 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 			executionServiceResumeHandler.ServeHTTP(w, r)
 		case ExecutionServiceContinueExecutionProcedure:
 			executionServiceContinueExecutionHandler.ServeHTTP(w, r)
+		case ExecutionServiceAbandonExecutionProcedure:
+			executionServiceAbandonExecutionHandler.ServeHTTP(w, r)
 		case ExecutionServiceSyncBaselineProcedure:
 			executionServiceSyncBaselineHandler.ServeHTTP(w, r)
 		case ExecutionServiceAmendScopeProcedure:
@@ -525,6 +554,10 @@ func (UnimplementedExecutionServiceHandler) Resume(context.Context, *connect.Req
 
 func (UnimplementedExecutionServiceHandler) ContinueExecution(context.Context, *connect.Request[execution.ContinueExecutionRequest]) (*connect.Response[execution.ContinueExecutionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution is not implemented"))
+}
+
+func (UnimplementedExecutionServiceHandler) AbandonExecution(context.Context, *connect.Request[execution.AbandonExecutionRequest]) (*connect.Response[execution.AbandonExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.AbandonExecution is not implemented"))
 }
 
 func (UnimplementedExecutionServiceHandler) SyncBaseline(context.Context, *connect.Request[execution.SyncBaselineRequest]) (*connect.Response[execution.SyncBaselineResponse], error) {

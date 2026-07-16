@@ -184,8 +184,7 @@ message DeleteBrandRequest {
 
 // DeleteBrandResponse is empty; a successful call means the brand no longer
 // exists (whether or not it existed before).
-message DeleteBrandResponse {
-}
+message DeleteBrandResponse {}
 
 // ListBrandVersionsRequest identifies the brand whose history to read.
 message ListBrandVersionsRequest {

@@ -11,13 +11,33 @@ Vrooli is a local, cross-platform platform for orchestrating:
 
 The root control surface is the Go-native `vrooli` CLI.
 
+## Prerequisites
+
+The fresh-machine bootstrap needs only a POSIX shell and `curl`. If the OS does
+not already ship `tar` or OpenSSL, the installer obtains them through the native
+package manager before authenticating the release. Go, git, Homebrew, Node,
+pnpm, and Docker are **not** manual bootstrap prerequisites.
+
+- **Linux**: setup uses the available apt/dnf/yum/pacman/apk package manager.
+- **macOS (Apple Silicon or Intel)**: setup bootstraps Homebrew when absent, then
+  installs git, Go, and the selected host tools through it.
+- **Windows**: use WSL2 with a Linux distribution and follow the POSIX flow.
+- **Docker**: required lazily only when an enabled resource declares a
+  Docker-service or Compose runtime; `--resources none` does not demand it.
+
+macOS caveats: workspace-sandbox protected mode (Linux user namespaces + bubblewrap) and X11 desktop automation tools are unavailable and skip cleanly; containerized ollama runs CPU-only (no Metal passthrough); a handful of resources are Linux-only (check `resource.json` platform support). Background supervisor persistence uses a launchd LaunchAgent (`vrooli runtime supervisor install --user`) instead of systemd.
+
 ## Setup
 
 ```bash
-git clone https://github.com/Vrooli/Vrooli.git
-cd Vrooli
-make setup
+curl -fsSL https://raw.githubusercontent.com/Vrooli/Vrooli/main/install/install.sh | sh
+export PATH="$HOME/.vrooli/bin:$PATH"
+vrooli setup
 ```
+
+The signed installer downloads the matching prebuilt CLI and source archive.
+For an existing checkout, `make setup` remains a convenience wrapper and uses
+the installed CLI when present.
 
 ## Start The Development Stack
 

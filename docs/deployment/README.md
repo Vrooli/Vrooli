@@ -14,13 +14,17 @@ The current production-ready path is the Tier 1 local stack.
 
 That means:
 
-- a full Vrooli installation on infrastructure you control
+- a full Vrooli installation on Linux, macOS, or Windows through WSL2 on
+  infrastructure you control
+- an authenticated public installer that supplies a prebuilt `vrooli` CLI and
+  its exact matching source tree before `vrooli setup` installs host tools
 - scenario and resource lifecycle managed through the current `vrooli` CLI and scenario-local Makefiles
 - operator-controlled access patterns such as app-monitor and related remote-access surfaces where appropriate
 - local or dev-server style operation as the real current baseline
 
 For active operations on that path, use:
 
+- [../QUICKSTART.md](../QUICKSTART.md)
 - [../operations/production-guide.md](../operations/production-guide.md)
 - [../operations/logging.md](../operations/logging.md)
 - [../operations/troubleshooting.md](../operations/troubleshooting.md)
@@ -41,7 +45,7 @@ The tier model prevents project docs from pretending that every target is equall
 | Tier | Meaning | Status | Where To Read |
 |------|---------|--------|---------------|
 | 1 | Full local stack on a local machine or operator-controlled server | Canonical current path | [../operations/production-guide.md](../operations/production-guide.md) |
-| 2 | Portable desktop bundles carrying scenario runtime pieces together | Active planning; not general production canon | [../plans/desktop-bundle-health-readiness-plan.md](../plans/desktop-bundle-health-readiness-plan.md) |
+| 2 | Portable desktop bundles carrying scenario runtime pieces together | Roadmap direction; not general production canon | [../strategy/roadmap.md](../strategy/roadmap.md) |
 | 3 | Mobile delivery targets | Directional roadmap only | [../strategy/roadmap.md](../strategy/roadmap.md) |
 | 4 | Server-hosted or SaaS-style installs | Reference and planning, not a fully standardized project-wide path | [reference/server-deployment.md](reference/server-deployment.md) |
 | 5 | Enterprise or hardware-appliance style deployments | Strategic framing only | [../strategy/business-solutions.md](../strategy/business-solutions.md) |
@@ -50,12 +54,12 @@ The tier model prevents project docs from pretending that every target is equall
 
 Use these according to their role:
 
+- [../QUICKSTART.md](../QUICKSTART.md): canonical fresh-machine installation path
 - [../operations/production-guide.md](../operations/production-guide.md): canonical Tier 1 operating baseline
 - [reference/server-deployment.md](reference/server-deployment.md): server-oriented deployment reference
 - [storage.md](storage.md): specialized bundle-storage reference
 - [../strategy/personal-ai-server.md](../strategy/personal-ai-server.md): exploratory infrastructure and appliance-style thinking
-- [../plans/desktop-bundle-health-readiness-plan.md](../plans/desktop-bundle-health-readiness-plan.md): active desktop portability planning
-- [../plans/resource-cross-platform-migration-plan.md](../plans/resource-cross-platform-migration-plan.md): active cross-platform resource migration planning
+- [../strategy/roadmap.md](../strategy/roadmap.md): current desktop, mobile, and cross-platform direction
 
 ## Deployment Intelligence Direction
 

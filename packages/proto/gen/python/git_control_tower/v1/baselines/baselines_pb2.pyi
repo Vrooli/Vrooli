@@ -120,20 +120,26 @@ class VisualDelta(_message.Message):
     def __init__(self, page: _Optional[str] = ..., label: _Optional[str] = ..., status: _Optional[str] = ..., changed_fraction: _Optional[float] = ...) -> None: ...
 
 class EvidenceComparison(_message.Message):
-    __slots__ = ("base_run_id", "current_run_id", "base_catalog", "current_catalog", "visual_deltas", "degraded_reasons")
+    __slots__ = ("base_run_id", "current_run_id", "base_catalog", "current_catalog", "visual_deltas", "degraded_reasons", "blocking_reasons", "advisory_warnings", "evidence_status")
     BASE_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     CURRENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     BASE_CATALOG_FIELD_NUMBER: _ClassVar[int]
     CURRENT_CATALOG_FIELD_NUMBER: _ClassVar[int]
     VISUAL_DELTAS_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_REASONS_FIELD_NUMBER: _ClassVar[int]
+    ADVISORY_WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_STATUS_FIELD_NUMBER: _ClassVar[int]
     base_run_id: str
     current_run_id: str
     base_catalog: RunArtifactCatalog
     current_catalog: RunArtifactCatalog
     visual_deltas: _containers.RepeatedCompositeFieldContainer[VisualDelta]
     degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, base_run_id: _Optional[str] = ..., current_run_id: _Optional[str] = ..., base_catalog: _Optional[_Union[RunArtifactCatalog, _Mapping]] = ..., current_catalog: _Optional[_Union[RunArtifactCatalog, _Mapping]] = ..., visual_deltas: _Optional[_Iterable[_Union[VisualDelta, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
+    blocking_reasons: _containers.RepeatedScalarFieldContainer[str]
+    advisory_warnings: _containers.RepeatedScalarFieldContainer[str]
+    evidence_status: str
+    def __init__(self, base_run_id: _Optional[str] = ..., current_run_id: _Optional[str] = ..., base_catalog: _Optional[_Union[RunArtifactCatalog, _Mapping]] = ..., current_catalog: _Optional[_Union[RunArtifactCatalog, _Mapping]] = ..., visual_deltas: _Optional[_Iterable[_Union[VisualDelta, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ..., blocking_reasons: _Optional[_Iterable[str]] = ..., advisory_warnings: _Optional[_Iterable[str]] = ..., evidence_status: _Optional[str] = ...) -> None: ...
 
 class SnapshotForBaselineRequest(_message.Message):
     __slots__ = ("scenario", "name", "branch", "created_by", "reason", "repo_id")
@@ -472,10 +478,24 @@ class GetCollectionRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ...) -> None: ...
 
 class GetCollectionResponse(_message.Message):
-    __slots__ = ("collection",)
+    __slots__ = ("collection", "wait_outcome")
     COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    WAIT_OUTCOME_FIELD_NUMBER: _ClassVar[int]
     collection: BaselineCollection
-    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ...) -> None: ...
+    wait_outcome: CollectionWaitOutcome
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., wait_outcome: _Optional[_Union[CollectionWaitOutcome, _Mapping]] = ...) -> None: ...
+
+class CollectionWaitOutcome(_message.Message):
+    __slots__ = ("kind", "pending_run_ids", "recovery_commands", "detail")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    PENDING_RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_COMMANDS_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    pending_run_ids: _containers.RepeatedScalarFieldContainer[str]
+    recovery_commands: _containers.RepeatedScalarFieldContainer[str]
+    detail: str
+    def __init__(self, kind: _Optional[str] = ..., pending_run_ids: _Optional[_Iterable[str]] = ..., recovery_commands: _Optional[_Iterable[str]] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class ExtendCollectionRequest(_message.Message):
     __slots__ = ("name", "branch", "targets", "created_by", "reason", "repo_id")
@@ -560,16 +580,18 @@ class GetCollectionDiffRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., operation_id: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ...) -> None: ...
 
 class GetCollectionDiffResponse(_message.Message):
-    __slots__ = ("collection", "members", "classification", "operation_id")
+    __slots__ = ("collection", "members", "classification", "operation_id", "wait_outcome")
     COLLECTION_FIELD_NUMBER: _ClassVar[int]
     MEMBERS_FIELD_NUMBER: _ClassVar[int]
     CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    WAIT_OUTCOME_FIELD_NUMBER: _ClassVar[int]
     collection: BaselineCollection
     members: _containers.RepeatedCompositeFieldContainer[CollectionDiffMember]
     classification: str
     operation_id: str
-    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ...) -> None: ...
+    wait_outcome: CollectionWaitOutcome
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ..., wait_outcome: _Optional[_Union[CollectionWaitOutcome, _Mapping]] = ...) -> None: ...
 
 class DeleteCollectionRequest(_message.Message):
     __slots__ = ("name", "branch", "repo_id")

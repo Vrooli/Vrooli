@@ -16,10 +16,11 @@ import (
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
-const (
-	vrooliVersion = "2.0.0"
-	cliVersion    = "1.0.0"
-)
+const cliVersion = "1.0.0"
+
+// vrooliVersion is a variable so release builds can embed the git-tag version
+// with -ldflags while local development builds retain the repository default.
+var vrooliVersion = "2.0.0"
 
 var (
 	resolveSourceRootFn = buildinfo.ResolveSourceRoot

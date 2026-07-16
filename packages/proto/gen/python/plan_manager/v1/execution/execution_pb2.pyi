@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Execution(_message.Message):
-    __slots__ = ("id", "plan_id", "run_id", "current_phase_id", "complete", "started_at", "updated_at", "baseline_set", "scope_amendments", "degraded_reason")
+    __slots__ = ("id", "plan_id", "run_id", "current_phase_id", "complete", "started_at", "updated_at", "baseline_set", "scope_amendments", "degraded_reason", "lifecycle_state", "abandoned_reason", "abandoned_at", "abandoned_by")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -19,6 +19,10 @@ class Execution(_message.Message):
     BASELINE_SET_FIELD_NUMBER: _ClassVar[int]
     SCOPE_AMENDMENTS_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_REASON_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_STATE_FIELD_NUMBER: _ClassVar[int]
+    ABANDONED_REASON_FIELD_NUMBER: _ClassVar[int]
+    ABANDONED_AT_FIELD_NUMBER: _ClassVar[int]
+    ABANDONED_BY_FIELD_NUMBER: _ClassVar[int]
     id: str
     plan_id: str
     run_id: str
@@ -29,7 +33,11 @@ class Execution(_message.Message):
     baseline_set: BaselineSetState
     scope_amendments: _containers.RepeatedCompositeFieldContainer[ScopeAmendment]
     degraded_reason: str
-    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., current_phase_id: _Optional[str] = ..., complete: _Optional[bool] = ..., started_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., baseline_set: _Optional[_Union[BaselineSetState, _Mapping]] = ..., scope_amendments: _Optional[_Iterable[_Union[ScopeAmendment, _Mapping]]] = ..., degraded_reason: _Optional[str] = ...) -> None: ...
+    lifecycle_state: str
+    abandoned_reason: str
+    abandoned_at: str
+    abandoned_by: str
+    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., current_phase_id: _Optional[str] = ..., complete: _Optional[bool] = ..., started_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., baseline_set: _Optional[_Union[BaselineSetState, _Mapping]] = ..., scope_amendments: _Optional[_Iterable[_Union[ScopeAmendment, _Mapping]]] = ..., degraded_reason: _Optional[str] = ..., lifecycle_state: _Optional[str] = ..., abandoned_reason: _Optional[str] = ..., abandoned_at: _Optional[str] = ..., abandoned_by: _Optional[str] = ...) -> None: ...
 
 class BaselineSetState(_message.Message):
     __slots__ = ("version", "name", "scenario_targets", "repo_paths", "captured_at", "status", "required", "ready", "pending", "failed", "skipped", "stale", "detail", "collection_branch", "members", "path_snapshots", "capture_argv", "wait_argv", "sync_argv", "last_synced_at", "source_preflight", "preflight_unavailable")
@@ -360,6 +368,36 @@ class ContinueExecutionResponse(_message.Message):
     context: PhaseContext
     step: _model_pb2.GuidedStep
     def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ..., context: _Optional[_Union[PhaseContext, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
+class AbandonExecutionRequest(_message.Message):
+    __slots__ = ("execution_id", "reason", "actor")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    reason: str
+    actor: str
+    def __init__(self, execution_id: _Optional[str] = ..., reason: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...
+
+class AbandonExecutionResponse(_message.Message):
+    __slots__ = ("execution", "already_abandoned", "step")
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    ALREADY_ABANDONED_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    execution: Execution
+    already_abandoned: bool
+    step: _model_pb2.GuidedStep
+    def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ..., already_abandoned: _Optional[bool] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
+class ActiveExecutionConflict(_message.Message):
+    __slots__ = ("execution_ids", "resume_commands", "abandon_commands")
+    EXECUTION_IDS_FIELD_NUMBER: _ClassVar[int]
+    RESUME_COMMANDS_FIELD_NUMBER: _ClassVar[int]
+    ABANDON_COMMANDS_FIELD_NUMBER: _ClassVar[int]
+    execution_ids: _containers.RepeatedScalarFieldContainer[str]
+    resume_commands: _containers.RepeatedScalarFieldContainer[str]
+    abandon_commands: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, execution_ids: _Optional[_Iterable[str]] = ..., resume_commands: _Optional[_Iterable[str]] = ..., abandon_commands: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SyncBaselineRequest(_message.Message):
     __slots__ = ("execution_id",)

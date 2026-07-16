@@ -125,5 +125,4 @@ message DeleteAssetRequest {
 
 // DeleteAssetResponse is empty; a successful call means the asset no longer
 // exists (whether or not it existed before).
-message DeleteAssetResponse {
-}
+message DeleteAssetResponse {}

@@ -42,6 +42,9 @@ service ExecutionService {
   // ContinueExecution resumes or starts a run for a plan/execution id and
   // returns the single recommended next runner action without advancing.
   rpc ContinueExecution(ContinueExecutionRequest) returns (ContinueExecutionResponse);
+  // AbandonExecution terminalizes an accidental execution without deleting its
+  // audit history. Replaying the same abandonment is idempotent.
+  rpc AbandonExecution(AbandonExecutionRequest) returns (AbandonExecutionResponse);
   // SyncBaseline performs one nonblocking typed read of the producer-owned GCT
   // collection attached to an execution. It never starts or waits for capture.
   rpc SyncBaseline(SyncBaselineRequest) returns (SyncBaselineResponse);
@@ -88,9 +91,14 @@ message Execution {
   bool complete = 5;
   string started_at = 6;
   string updated_at = 7;
-	BaselineSetState baseline_set = 8;
-	repeated ScopeAmendment scope_amendments = 9;
-	string degraded_reason = 10;
+  BaselineSetState baseline_set = 8;
+  repeated ScopeAmendment scope_amendments = 9;
+  string degraded_reason = 10;
+  // active | completed | abandoned
+  string lifecycle_state = 11;
+  string abandoned_reason = 12;
+  string abandoned_at = 13;
+  string abandoned_by = 14;
 }
 
 // Execution-owned checkpoint for a resolved GCT collection. Source paths are
@@ -140,9 +148,20 @@ message SourceEvidencePreflight {
   int32 oversized_files = 14;
   repeated SourceEvidenceContributor top_contributors = 15;
 }
-message SourceEvidenceIssue { string code = 1; string severity = 2; string detail = 3; }
-message SourceEvidenceRecommendation { string selection = 1; string reason = 2; }
-message SourceEvidenceContributor { string path = 1; int32 files = 2; int64 bytes = 3; }
+message SourceEvidenceIssue {
+  string code = 1;
+  string severity = 2;
+  string detail = 3;
+}
+message SourceEvidenceRecommendation {
+  string selection = 1;
+  string reason = 2;
+}
+message SourceEvidenceContributor {
+  string path = 1;
+  int32 files = 2;
+  int64 bytes = 3;
+}
 
 message BaselineSetMember {
   string scenario = 1;
@@ -210,8 +229,8 @@ message PhaseContext {
   // a smaller agent gets an explicit "capture or confirm none" gate before a
   // phase is recommended done.
   PhaseFeedbackCheckpoint feedback_checkpoint = 15;
-	BaselineSetState baseline_set = 16;
-	int32 scope_generation = 17;
+  BaselineSetState baseline_set = 16;
+  int32 scope_generation = 17;
 }
 
 // PhaseFeedbackCheckpoint reports whether the current phase has durable feedback
@@ -310,7 +329,29 @@ message ContinueExecutionResponse {
   shared.GuidedStep step = 3;
 }
 
-message SyncBaselineRequest { string execution_id = 1; }
+message AbandonExecutionRequest {
+  string execution_id = 1;
+  string reason = 2;
+  string actor = 3;
+}
+
+message AbandonExecutionResponse {
+  Execution execution = 1;
+  bool already_abandoned = 2;
+  shared.GuidedStep step = 3;
+}
+
+// Returned as a typed failed-precondition detail when Start would violate the
+// single-active-execution invariant.
+message ActiveExecutionConflict {
+  repeated string execution_ids = 1;
+  repeated string resume_commands = 2;
+  repeated string abandon_commands = 3;
+}
+
+message SyncBaselineRequest {
+  string execution_id = 1;
+}
 
 message SyncBaselineResponse {
   Execution execution = 1;

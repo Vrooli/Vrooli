@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package vrooli.search_hub.v1.routing;
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1";
-
 import "common/v1/attestation.proto";
 import "common/v1/confidence.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1";
 
 // =============================================================================
 // SEARCH-HUB ROUTING DOMAIN — federated query + status

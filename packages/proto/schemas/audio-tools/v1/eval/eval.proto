@@ -22,7 +22,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/
 // negative overlap_max_stall_rejects means "use default" (0 is a valid
 // value meaning "disabled").
 message EvalStrategy {
-  string kind = 1;  // "batch" | "vad_segment" | "overlap_agree"
+  string kind = 1; // "batch" | "vad_segment" | "overlap_agree"
   string label = 2; // display label; defaults to kind when empty
   // overlap_agree config overrides.
   int32 overlap_max_stall_rejects = 3; // <0 = default; 0 = disabled

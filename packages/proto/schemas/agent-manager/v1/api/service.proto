@@ -7,9 +7,11 @@ import "agent-manager/v1/domain/profile.proto";
 import "agent-manager/v1/domain/run.proto";
 import "agent-manager/v1/domain/task.proto";
 import "agent-manager/v1/domain/types.proto";
+import "agent-manager/v1/domain/workflow.proto";
 import "buf/validate/validate.proto";
 import "common/v1/types.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api;api";
@@ -76,6 +78,113 @@ service AgentManagerService {
   rpc ReconcileScenarioProfiles(ReconcileScenarioProfilesRequest) returns (ReconcileScenarioProfilesResponse) {
     option (google.api.http) = {
       post: "/api/v1/profiles/reconcile-scenario"
+      body: "*"
+    };
+  }
+
+  // ValidateWorkflow validates and canonicalizes one workflow without writes.
+  rpc ValidateWorkflow(ValidateWorkflowRequest) returns (ValidateWorkflowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/validate"
+      body: "*"
+    };
+  }
+
+  // ReconcileScenarioWorkflows atomically reloads scenario-owned sources.
+  rpc ReconcileScenarioWorkflows(ReconcileScenarioWorkflowsRequest) returns (ReconcileScenarioWorkflowsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/reconcile-scenario"
+      body: "*"
+    };
+  }
+
+  // PlanScenarioWorkflows validates every source but never changes the catalog.
+  rpc PlanScenarioWorkflows(ReconcileScenarioWorkflowsRequest) returns (ReconcileScenarioWorkflowsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/plan"
+      body: "*"
+    };
+  }
+
+  rpc ListWorkflowRevisions(ListWorkflowRevisionsRequest) returns (ListWorkflowRevisionsResponse) {
+    option (google.api.http) = {get: "/api/v1/workflows"};
+  }
+
+  rpc GetWorkflowRevision(GetWorkflowRevisionRequest) returns (GetWorkflowRevisionResponse) {
+    option (google.api.http) = {get: "/api/v1/workflows/{key}"};
+  }
+
+  rpc ReloadScenarioWorkflows(ReconcileScenarioWorkflowsRequest) returns (ReconcileScenarioWorkflowsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/reload"
+      body: "*"
+    };
+  }
+
+  rpc ExplainWorkflow(GetWorkflowRevisionRequest) returns (GetWorkflowRevisionResponse) {
+    option (google.api.http) = {get: "/api/v1/workflows/{key}/explain"};
+  }
+
+  rpc StartWorkflowExecution(StartWorkflowExecutionRequest) returns (WorkflowExecutionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions"
+      body: "*"
+    };
+  }
+
+  // ListWorkflowExecutions returns bounded, metadata-only execution history.
+  rpc ListWorkflowExecutions(ListWorkflowExecutionsRequest) returns (ListWorkflowExecutionsResponse) {
+    option (google.api.http) = {get: "/api/v1/workflow-executions"};
+  }
+
+  rpc GetWorkflowExecution(GetWorkflowExecutionRequest) returns (WorkflowExecutionResponse) {
+    option (google.api.http) = {get: "/api/v1/workflow-executions/{execution_id}"};
+  }
+
+  // GetWorkflowExecutionResult is the explicit payload-bearing inspection path.
+  rpc GetWorkflowExecutionResult(GetWorkflowExecutionResultRequest) returns (WorkflowExecutionResponse) {
+    option (google.api.http) = {get: "/api/v1/workflow-executions/{execution_id}/result"};
+  }
+
+  rpc AdvanceWorkflowExecution(GetWorkflowExecutionRequest) returns (WorkflowExecutionResponse) {
+    option (google.api.http) = {post: "/api/v1/workflow-executions/{execution_id}/advance"};
+  }
+
+  rpc GetWorkflowExecutionTrace(GetWorkflowExecutionTraceRequest) returns (GetWorkflowExecutionTraceResponse) {
+    option (google.api.http) = {get: "/api/v1/workflow-executions/{execution_id}/trace"};
+  }
+
+  rpc SignalWorkflowExecution(SignalWorkflowExecutionRequest) returns (WorkflowExecutionOperationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions/{execution_id}/signals"
+      body: "*"
+    };
+  }
+
+  rpc CancelWorkflowExecution(WorkflowExecutionOperationRequest) returns (WorkflowExecutionOperationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions/{execution_id}/cancel"
+      body: "*"
+    };
+  }
+
+  rpc RetryWorkflowExecution(WorkflowExecutionOperationRequest) returns (WorkflowExecutionOperationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions/{execution_id}/retry"
+      body: "*"
+    };
+  }
+
+  rpc ResumeWorkflowExecution(WorkflowExecutionOperationRequest) returns (WorkflowExecutionOperationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions/{execution_id}/resume"
+      body: "*"
+    };
+  }
+
+  rpc SimulateWorkflow(SimulateWorkflowRequest) returns (SimulateWorkflowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/simulate"
       body: "*"
     };
   }
@@ -455,6 +564,209 @@ message ReconcileScenarioProfilesResponse {
   int32 conflicted = 7;
   int32 failed = 8;
   bool dry_run = 9;
+}
+
+message ValidateWorkflowRequest {
+  google.protobuf.Struct definition = 1 [(buf.validate.field).required = true];
+}
+
+message ValidateWorkflowResponse {
+  bool valid = 1;
+  string digest = 2;
+  google.protobuf.Struct definition = 3;
+  repeated WorkflowDiagnostic diagnostics = 4;
+}
+
+message ReconcileScenarioWorkflowsRequest {
+  string scenario = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  bool dry_run = 2;
+  bool validate_only = 3;
+}
+
+enum WorkflowReconcileStatus {
+  WORKFLOW_RECONCILE_STATUS_UNSPECIFIED = 0;
+  WORKFLOW_RECONCILE_STATUS_CREATED = 1;
+  WORKFLOW_RECONCILE_STATUS_ACTIVATED = 2;
+  WORKFLOW_RECONCILE_STATUS_UNCHANGED = 3;
+  WORKFLOW_RECONCILE_STATUS_SKIPPED = 4;
+  WORKFLOW_RECONCILE_STATUS_FAILED_VALIDATION = 5;
+}
+
+message WorkflowReconcileResult {
+  string workflow_key = 1;
+  string version = 2;
+  string digest = 3;
+  string source_path = 4;
+  WorkflowReconcileStatus status = 5;
+  string message = 6;
+  repeated WorkflowDiagnostic diagnostics = 7;
+}
+
+message ReconcileScenarioWorkflowsResponse {
+  string scenario = 1;
+  repeated WorkflowReconcileResult results = 2;
+  int32 created = 3;
+  int32 activated = 4;
+  int32 unchanged = 5;
+  int32 skipped = 6;
+  int32 failed = 7;
+  bool dry_run = 8;
+  bool validate_only = 9;
+}
+
+message ListWorkflowRevisionsRequest {
+  string owner = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string key = 2;
+  int32 limit = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000
+  }];
+  int32 offset = 4 [(buf.validate.field).int32.gte = 0];
+}
+
+message ListWorkflowRevisionsResponse {
+  repeated WorkflowRevision revisions = 1;
+}
+
+message GetWorkflowRevisionRequest {
+  string owner = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string key = 2;
+  string digest = 3;
+}
+
+message GetWorkflowRevisionResponse {
+  WorkflowRevision revision = 1;
+}
+
+message StartWorkflowExecutionRequest {
+  string owner = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string workflow_key = 2;
+  string definition_digest = 3;
+  google.protobuf.Value input = 4 [(buf.validate.field).required = true];
+  string idempotency_key = 5 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+}
+
+message GetWorkflowExecutionRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetWorkflowExecutionResultRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  // The dedicated RPC still requires an explicit caller assertion so routine
+  // tooling cannot reveal workflow input or output accidentally.
+  bool explicitly_authorized = 2;
+}
+
+message WorkflowExecutionResponse {
+  WorkflowExecution execution = 1;
+}
+
+message ListWorkflowExecutionsRequest {
+  string owner = 1 [(buf.validate.field).string.max_len = 255];
+  string workflow_key = 2 [(buf.validate.field).string.max_len = 255];
+  WorkflowExecutionStatus status = 3;
+  int32 limit = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  int32 offset = 5 [(buf.validate.field).int32.gte = 0];
+}
+
+message ListWorkflowExecutionsResponse {
+  repeated WorkflowExecution executions = 1;
+}
+
+message GetWorkflowExecutionTraceRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  int64 after_sequence = 2 [(buf.validate.field).int64.gte = 0];
+  int32 limit = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000
+  }];
+}
+
+message GetWorkflowExecutionTraceResponse {
+  WorkflowExecution execution = 1;
+  repeated WorkflowNodeAttempt attempts = 2;
+  repeated WorkflowJournalEntry journal = 3;
+}
+
+message SignalWorkflowExecutionRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  string signal = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 128
+  }];
+  google.protobuf.Value payload = 3 [(buf.validate.field).required = true];
+  string idempotency_key = 4 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  int64 expected_version = 5 [(buf.validate.field).int64.gte = 0];
+}
+
+message WorkflowExecutionOperationRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  string idempotency_key = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  int64 expected_version = 3 [(buf.validate.field).int64.gte = 0];
+  string reason = 4 [(buf.validate.field).string.max_len = 1024];
+}
+
+message WorkflowExecutionOperationResponse {
+  WorkflowExecution execution = 1;
+  bool idempotent = 2;
+}
+
+message SimulateWorkflowRequest {
+  string owner = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string workflow_key = 2;
+  string definition_digest = 3;
+  google.protobuf.Value input = 4 [(buf.validate.field).required = true];
+}
+
+message WorkflowNodePlan {
+  string node_id = 1;
+  string kind = 2;
+  string execution_strategy = 3;
+  string profile_key = 4;
+  string role_ref = 5;
+  string continuation_source = 6;
+  string child_workflow_key = 7;
+  string child_workflow_version = 8;
+  string wait_signal = 9;
+  int32 wait_timeout_seconds = 10;
+  string join_strategy = 11;
+  int32 join_quorum = 12;
+  bool parallel = 13;
+}
+
+message SimulateWorkflowResponse {
+  bool valid = 1;
+  string definition_digest = 2;
+  repeated WorkflowNodePlan nodes = 3;
+  repeated string possible_terminal_nodes = 4;
+  repeated WorkflowDiagnostic diagnostics = 5;
 }
 
 // GetProfileRequest identifies a profile to retrieve.

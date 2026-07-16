@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "web-console",
-  "input_digest": "sha256:07a7c079323bd7f44176836cc824d74281bd1cbc37b262210316374b77c64c50",
+  "input_digest": "sha256:204959d7c99098f9917210a03766f45731a4b89a7be26b29ddc234a16040f263",
   "input_files": [
     "schemas/web-console/v1/ai/ai.proto",
     "schemas/web-console/v1/audio_admin/audio_admin.proto",

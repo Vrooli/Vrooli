@@ -1,3 +1,4 @@
+from google.protobuf import field_mask_pb2 as _field_mask_pb2
 from plan_manager.v1.shared import model_pb2 as _model_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -135,36 +136,62 @@ class RenderMarkdownResponse(_message.Message):
     def __init__(self, markdown: _Optional[str] = ..., mirror: _Optional[_Union[_model_pb2.RenderedPlanMirror, _Mapping]] = ..., repaired: _Optional[bool] = ..., plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., quality_status: _Optional[str] = ..., quality_findings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class AddPhaseRequest(_message.Message):
-    __slots__ = ("plan_id", "phase", "workspace")
+    __slots__ = ("plan_id", "phase", "workspace", "allow_quality_regression")
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_QUALITY_REGRESSION_FIELD_NUMBER: _ClassVar[int]
     plan_id: str
     phase: _model_pb2.Phase
     workspace: WorkspaceScope
-    def __init__(self, plan_id: _Optional[str] = ..., phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ...) -> None: ...
+    allow_quality_regression: bool
+    def __init__(self, plan_id: _Optional[str] = ..., phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., allow_quality_regression: _Optional[bool] = ...) -> None: ...
 
 class AddPhaseResponse(_message.Message):
-    __slots__ = ("plan",)
+    __slots__ = ("plan", "impact")
     PLAN_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
     plan: _model_pb2.Plan
-    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+    impact: PlanMutationImpact
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., impact: _Optional[_Union[PlanMutationImpact, _Mapping]] = ...) -> None: ...
 
 class UpdatePhaseRequest(_message.Message):
-    __slots__ = ("plan_id", "phase", "workspace")
+    __slots__ = ("plan_id", "phase", "workspace", "update_mask", "allow_quality_regression")
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_MASK_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_QUALITY_REGRESSION_FIELD_NUMBER: _ClassVar[int]
     plan_id: str
     phase: _model_pb2.Phase
     workspace: WorkspaceScope
-    def __init__(self, plan_id: _Optional[str] = ..., phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ...) -> None: ...
+    update_mask: _field_mask_pb2.FieldMask
+    allow_quality_regression: bool
+    def __init__(self, plan_id: _Optional[str] = ..., phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., update_mask: _Optional[_Union[_field_mask_pb2.FieldMask, _Mapping]] = ..., allow_quality_regression: _Optional[bool] = ...) -> None: ...
 
 class UpdatePhaseResponse(_message.Message):
-    __slots__ = ("plan",)
+    __slots__ = ("plan", "impact")
     PLAN_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
     plan: _model_pb2.Plan
-    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+    impact: PlanMutationImpact
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., impact: _Optional[_Union[PlanMutationImpact, _Mapping]] = ...) -> None: ...
+
+class PlanMutationImpact(_message.Message):
+    __slots__ = ("before_grade", "after_grade", "added_issue_codes", "cleared_issue_codes", "execution_grade_regression", "regression_acknowledged")
+    BEFORE_GRADE_FIELD_NUMBER: _ClassVar[int]
+    AFTER_GRADE_FIELD_NUMBER: _ClassVar[int]
+    ADDED_ISSUE_CODES_FIELD_NUMBER: _ClassVar[int]
+    CLEARED_ISSUE_CODES_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_GRADE_REGRESSION_FIELD_NUMBER: _ClassVar[int]
+    REGRESSION_ACKNOWLEDGED_FIELD_NUMBER: _ClassVar[int]
+    before_grade: str
+    after_grade: str
+    added_issue_codes: _containers.RepeatedScalarFieldContainer[str]
+    cleared_issue_codes: _containers.RepeatedScalarFieldContainer[str]
+    execution_grade_regression: bool
+    regression_acknowledged: bool
+    def __init__(self, before_grade: _Optional[str] = ..., after_grade: _Optional[str] = ..., added_issue_codes: _Optional[_Iterable[str]] = ..., cleared_issue_codes: _Optional[_Iterable[str]] = ..., execution_grade_regression: _Optional[bool] = ..., regression_acknowledged: _Optional[bool] = ...) -> None: ...
 
 class ListRelevantContextRequest(_message.Message):
     __slots__ = ("id", "workspace", "phase_id")
@@ -182,43 +209,73 @@ class ListRelevantContextResponse(_message.Message):
     items: _containers.RepeatedCompositeFieldContainer[_model_pb2.RelevantContextItem]
     def __init__(self, items: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ...) -> None: ...
 
+class AddRelevantContextRequest(_message.Message):
+    __slots__ = ("id", "workspace", "phase_id", "item", "allow_quality_regression")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_QUALITY_REGRESSION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    workspace: WorkspaceScope
+    phase_id: str
+    item: _model_pb2.RelevantContextItem
+    allow_quality_regression: bool
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., item: _Optional[_Union[_model_pb2.RelevantContextItem, _Mapping]] = ..., allow_quality_regression: _Optional[bool] = ...) -> None: ...
+
+class AddRelevantContextResponse(_message.Message):
+    __slots__ = ("plan", "impact")
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
+    plan: _model_pb2.Plan
+    impact: PlanMutationImpact
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., impact: _Optional[_Union[PlanMutationImpact, _Mapping]] = ...) -> None: ...
+
 class UpdateRelevantContextRequest(_message.Message):
-    __slots__ = ("id", "workspace", "phase_id", "item_id", "item")
+    __slots__ = ("id", "workspace", "phase_id", "item_id", "item", "allow_quality_regression")
     ID_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     ITEM_ID_FIELD_NUMBER: _ClassVar[int]
     ITEM_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_QUALITY_REGRESSION_FIELD_NUMBER: _ClassVar[int]
     id: str
     workspace: WorkspaceScope
     phase_id: str
     item_id: str
     item: _model_pb2.RelevantContextItem
-    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., item_id: _Optional[str] = ..., item: _Optional[_Union[_model_pb2.RelevantContextItem, _Mapping]] = ...) -> None: ...
+    allow_quality_regression: bool
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., item_id: _Optional[str] = ..., item: _Optional[_Union[_model_pb2.RelevantContextItem, _Mapping]] = ..., allow_quality_regression: _Optional[bool] = ...) -> None: ...
 
 class UpdateRelevantContextResponse(_message.Message):
-    __slots__ = ("plan",)
+    __slots__ = ("plan", "impact")
     PLAN_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
     plan: _model_pb2.Plan
-    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+    impact: PlanMutationImpact
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., impact: _Optional[_Union[PlanMutationImpact, _Mapping]] = ...) -> None: ...
 
 class RemoveRelevantContextRequest(_message.Message):
-    __slots__ = ("id", "workspace", "phase_id", "item_id")
+    __slots__ = ("id", "workspace", "phase_id", "item_id", "allow_quality_regression")
     ID_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_QUALITY_REGRESSION_FIELD_NUMBER: _ClassVar[int]
     id: str
     workspace: WorkspaceScope
     phase_id: str
     item_id: str
-    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., item_id: _Optional[str] = ...) -> None: ...
+    allow_quality_regression: bool
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., item_id: _Optional[str] = ..., allow_quality_regression: _Optional[bool] = ...) -> None: ...
 
 class RemoveRelevantContextResponse(_message.Message):
-    __slots__ = ("plan",)
+    __slots__ = ("plan", "impact")
     PLAN_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
     plan: _model_pb2.Plan
-    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+    impact: PlanMutationImpact
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., impact: _Optional[_Union[PlanMutationImpact, _Mapping]] = ...) -> None: ...
 
 class ListReferencesRequest(_message.Message):
     __slots__ = ("id", "workspace", "phase_id")
@@ -236,43 +293,73 @@ class ListReferencesResponse(_message.Message):
     references: _containers.RepeatedCompositeFieldContainer[_model_pb2.Reference]
     def __init__(self, references: _Optional[_Iterable[_Union[_model_pb2.Reference, _Mapping]]] = ...) -> None: ...
 
+class AddReferenceRequest(_message.Message):
+    __slots__ = ("id", "workspace", "phase_id", "reference", "allow_quality_regression")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_QUALITY_REGRESSION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    workspace: WorkspaceScope
+    phase_id: str
+    reference: _model_pb2.Reference
+    allow_quality_regression: bool
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., reference: _Optional[_Union[_model_pb2.Reference, _Mapping]] = ..., allow_quality_regression: _Optional[bool] = ...) -> None: ...
+
+class AddReferenceResponse(_message.Message):
+    __slots__ = ("plan", "impact")
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
+    plan: _model_pb2.Plan
+    impact: PlanMutationImpact
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., impact: _Optional[_Union[PlanMutationImpact, _Mapping]] = ...) -> None: ...
+
 class UpdateReferenceRequest(_message.Message):
-    __slots__ = ("id", "workspace", "phase_id", "reference_id", "reference")
+    __slots__ = ("id", "workspace", "phase_id", "reference_id", "reference", "allow_quality_regression")
     ID_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     REFERENCE_ID_FIELD_NUMBER: _ClassVar[int]
     REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_QUALITY_REGRESSION_FIELD_NUMBER: _ClassVar[int]
     id: str
     workspace: WorkspaceScope
     phase_id: str
     reference_id: str
     reference: _model_pb2.Reference
-    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., reference_id: _Optional[str] = ..., reference: _Optional[_Union[_model_pb2.Reference, _Mapping]] = ...) -> None: ...
+    allow_quality_regression: bool
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., reference_id: _Optional[str] = ..., reference: _Optional[_Union[_model_pb2.Reference, _Mapping]] = ..., allow_quality_regression: _Optional[bool] = ...) -> None: ...
 
 class UpdateReferenceResponse(_message.Message):
-    __slots__ = ("plan",)
+    __slots__ = ("plan", "impact")
     PLAN_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
     plan: _model_pb2.Plan
-    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+    impact: PlanMutationImpact
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., impact: _Optional[_Union[PlanMutationImpact, _Mapping]] = ...) -> None: ...
 
 class RemoveReferenceRequest(_message.Message):
-    __slots__ = ("id", "workspace", "phase_id", "reference_id")
+    __slots__ = ("id", "workspace", "phase_id", "reference_id", "allow_quality_regression")
     ID_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     REFERENCE_ID_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_QUALITY_REGRESSION_FIELD_NUMBER: _ClassVar[int]
     id: str
     workspace: WorkspaceScope
     phase_id: str
     reference_id: str
-    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., reference_id: _Optional[str] = ...) -> None: ...
+    allow_quality_regression: bool
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., reference_id: _Optional[str] = ..., allow_quality_regression: _Optional[bool] = ...) -> None: ...
 
 class RemoveReferenceResponse(_message.Message):
-    __slots__ = ("plan",)
+    __slots__ = ("plan", "impact")
     PLAN_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
     plan: _model_pb2.Plan
-    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+    impact: PlanMutationImpact
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., impact: _Optional[_Union[PlanMutationImpact, _Mapping]] = ...) -> None: ...
 
 class GetGraphRequest(_message.Message):
     __slots__ = ("plan_id",)
@@ -315,24 +402,28 @@ class LinkDependencyResponse(_message.Message):
     def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
 
 class ImportPlanRequest(_message.Message):
-    __slots__ = ("source_path", "markdown", "title", "slug", "workspace")
+    __slots__ = ("source_path", "markdown", "title", "slug", "workspace", "supersede")
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     MARKDOWN_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    SUPERSEDE_FIELD_NUMBER: _ClassVar[int]
     source_path: str
     markdown: str
     title: str
     slug: str
     workspace: WorkspaceScope
-    def __init__(self, source_path: _Optional[str] = ..., markdown: _Optional[str] = ..., title: _Optional[str] = ..., slug: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ...) -> None: ...
+    supersede: str
+    def __init__(self, source_path: _Optional[str] = ..., markdown: _Optional[str] = ..., title: _Optional[str] = ..., slug: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., supersede: _Optional[str] = ...) -> None: ...
 
 class ImportPlanResponse(_message.Message):
-    __slots__ = ("plan",)
+    __slots__ = ("plan", "superseded_plan")
     PLAN_FIELD_NUMBER: _ClassVar[int]
+    SUPERSEDED_PLAN_FIELD_NUMBER: _ClassVar[int]
     plan: _model_pb2.Plan
-    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+    superseded_plan: _model_pb2.Plan
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., superseded_plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
 
 class MigratePlanRequest(_message.Message):
     __slots__ = ("id",)

@@ -8,6 +8,8 @@ import type { FinalOutputSelectionStatus } from "./run_pb";
 import { file_agent_manager_v1_domain_run } from "./run_pb";
 import type { RecoveryAction, RunEventType, RunPhase, RunStatus, TaskStatus } from "./types_pb";
 import { file_agent_manager_v1_domain_types } from "./types_pb";
+import type { WorkflowBudgetUsage, WorkflowTerminalReason } from "./workflow_pb";
+import { file_agent_manager_v1_domain_workflow } from "./workflow_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
@@ -16,7 +18,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file agent-manager/v1/domain/events.proto.
  */
 export const file_agent_manager_v1_domain_events: GenFile = /*@__PURE__*/
-  fileDesc("CiRhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9ldmVudHMucHJvdG8SEGFnZW50X21hbmFnZXIudjEigAcKCFJ1bkV2ZW50EgoKAmlkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIQCghzZXF1ZW5jZRgDIAEoAxIyCgpldmVudF90eXBlGAQgASgOMh4uYWdlbnRfbWFuYWdlci52MS5SdW5FdmVudFR5cGUSLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBItCgNsb2cYCiABKAsyHi5hZ2VudF9tYW5hZ2VyLnYxLkxvZ0V2ZW50RGF0YUgAEjUKB21lc3NhZ2UYCyABKAsyIi5hZ2VudF9tYW5hZ2VyLnYxLk1lc3NhZ2VFdmVudERhdGFIABJECg9tZXNzYWdlX2RlbGV0ZWQYFSABKAsyKS5hZ2VudF9tYW5hZ2VyLnYxLk1lc3NhZ2VEZWxldGVkRXZlbnREYXRhSAASOAoJdG9vbF9jYWxsGAwgASgLMiMuYWdlbnRfbWFuYWdlci52MS5Ub29sQ2FsbEV2ZW50RGF0YUgAEjwKC3Rvb2xfcmVzdWx0GA0gASgLMiUuYWdlbnRfbWFuYWdlci52MS5Ub29sUmVzdWx0RXZlbnREYXRhSAASMwoGc3RhdHVzGA4gASgLMiEuYWdlbnRfbWFuYWdlci52MS5TdGF0dXNFdmVudERhdGFIABIzCgZtZXRyaWMYDyABKAsyIS5hZ2VudF9tYW5hZ2VyLnYxLk1ldHJpY0V2ZW50RGF0YUgAEjcKCGFydGlmYWN0GBAgASgLMiMuYWdlbnRfbWFuYWdlci52MS5BcnRpZmFjdEV2ZW50RGF0YUgAEjEKBWVycm9yGBEgASgLMiAuYWdlbnRfbWFuYWdlci52MS5FcnJvckV2ZW50RGF0YUgAEjcKCHByb2dyZXNzGBIgASgLMiMuYWdlbnRfbWFuYWdlci52MS5Qcm9ncmVzc0V2ZW50RGF0YUgAEi8KBGNvc3QYEyABKAsyHy5hZ2VudF9tYW5hZ2VyLnYxLkNvc3RFdmVudERhdGFIABI6CgpyYXRlX2xpbWl0GBQgASgLMiQuYWdlbnRfbWFuYWdlci52MS5SYXRlTGltaXRFdmVudERhdGFIABI7Cgpjb21wYWN0aW9uGBYgASgLMiUuYWdlbnRfbWFuYWdlci52MS5Db21wYWN0aW9uRXZlbnREYXRhSABCBgoEZGF0YSK9AwoVQWdlbnRNYW5hZ2VyV3NNZXNzYWdlEjkKBHR5cGUYASABKA4yKy5hZ2VudF9tYW5hZ2VyLnYxLkFnZW50TWFuYWdlcldzTWVzc2FnZVR5cGUSEwoGcnVuX2lkGAIgASgJSAGIAQESLwoJcnVuX2V2ZW50GAogASgLMhouYWdlbnRfbWFuYWdlci52MS5SdW5FdmVudEgAEjcKCnJ1bl9zdGF0dXMYCyABKAsyIS5hZ2VudF9tYW5hZ2VyLnYxLlJ1blN0YXR1c1VwZGF0ZUgAEjkKC3Rhc2tfc3RhdHVzGAwgASgLMiIuYWdlbnRfbWFuYWdlci52MS5UYXNrU3RhdHVzVXBkYXRlSAASOwoMcnVuX3Byb2dyZXNzGA0gASgLMiMuYWdlbnRfbWFuYWdlci52MS5Qcm9ncmVzc0V2ZW50RGF0YUgAEjIKCWNvbm5lY3RlZBgOIAEoCzIdLmFnZW50X21hbmFnZXIudjEuV3NDb25uZWN0ZWRIABIoCgRwb25nGA8gASgLMhguYWdlbnRfbWFuYWdlci52MS5Xc1BvbmdIAEIJCgdwYXlsb2FkQgkKB19ydW5faWQi5QEKD1J1blN0YXR1c1VwZGF0ZRIOCgZydW5faWQYASABKAkSKwoGc3RhdHVzGAIgASgOMhsuYWdlbnRfbWFuYWdlci52MS5SdW5TdGF0dXMSDwoHdGFza19pZBgDIAEoCRIWCg5wcm9tcHRfcHJldmlldxgEIAEoCRJNChdyZXN1bHRfc2VsZWN0aW9uX3N0YXR1cxgFIAEoDjIsLmFnZW50X21hbmFnZXIudjEuRmluYWxPdXRwdXRTZWxlY3Rpb25TdGF0dXMSHQoVcmVzdWx0X3NlbGVjdGlvbl9ydWxlGAYgASgJIlEKEFRhc2tTdGF0dXNVcGRhdGUSDwoHdGFza19pZBgBIAEoCRIsCgZzdGF0dXMYAiABKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlRhc2tTdGF0dXMiTQoLV3NDb25uZWN0ZWQSDwoHbWVzc2FnZRgBIAEoCRItCgl0aW1lc3RhbXAYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjcKBldzUG9uZxItCgl0aW1lc3RhbXAYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIqgBChtBZ2VudE1hbmFnZXJXc0NsaWVudE1lc3NhZ2USPwoEdHlwZRgBIAEoDjIxLmFnZW50X21hbmFnZXIudjEuQWdlbnRNYW5hZ2VyV3NDbGllbnRNZXNzYWdlVHlwZRI9ChBydW5fc3Vic2NyaXB0aW9uGAogASgLMiEuYWdlbnRfbWFuYWdlci52MS5SdW5TdWJzY3JpcHRpb25IAEIJCgdwYXlsb2FkIiEKD1J1blN1YnNjcmlwdGlvbhIOCgZydW5faWQYASABKAkiLgoMTG9nRXZlbnREYXRhEg0KBWxldmVsGAEgASgJEg8KB21lc3NhZ2UYAiABKAki+wIKEE1lc3NhZ2VFdmVudERhdGESDAoEcm9sZRgBIAEoCRIPCgdjb250ZW50GAIgASgJEjwKC2F0dGFjaG1lbnRzGAMgAygLMicuYWdlbnRfbWFuYWdlci52MS5NZXNzYWdlQXR0YWNobWVudEluZm8SEgoKbWVzc2FnZV9pZBgEIAEoCRIXCg9jb252ZXJzYXRpb25faWQYBSABKAkSDwoHdHVybl9pZBgGIAEoCRIXCg9wcm92aWRlcl9vcmlnaW4YByABKAkSGQoRY29tcGxldGlvbl9yZWFzb24YCCABKAkSEAoIdGVybWluYWwYCSABKAgSGQoRcGFyZW50X21lc3NhZ2VfaWQYCiABKAkSGwoTcHJvdmlkZXJfZXZlbnRfdHlwZRgLIAEoCRIYChByYXdfZXZpZGVuY2VfcmVmGAwgASgJEhUKDWV2aWRlbmNlX29ubHkYDSABKAgSHQoVZXZpZGVuY2VfZm9yX2V2ZW50X2lkGA4gASgJIlkKFU1lc3NhZ2VBdHRhY2htZW50SW5mbxIKCgJpZBgBIAEoCRIRCglmaWxlX25hbWUYAiABKAkSFAoMY29udGVudF90eXBlGAMgASgJEgsKA3VybBgEIAEoCSIyChdNZXNzYWdlRGVsZXRlZEV2ZW50RGF0YRIXCg90YXJnZXRfZXZlbnRfaWQYASABKAkiZAoRVG9vbENhbGxFdmVudERhdGESEQoJdG9vbF9uYW1lGAEgASgJEiYKBWlucHV0GAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIUCgx0b29sX2NhbGxfaWQYAyABKAkibgoTVG9vbFJlc3VsdEV2ZW50RGF0YRIRCgl0b29sX25hbWUYASABKAkSFAoMdG9vbF9jYWxsX2lkGAIgASgJEg4KBm91dHB1dBgDIAEoCRINCgVlcnJvchgEIAEoCRIPCgdzdWNjZXNzGAUgASgIIkkKD1N0YXR1c0V2ZW50RGF0YRISCgpvbGRfc3RhdHVzGAEgASgJEhIKCm5ld19zdGF0dXMYAiABKAkSDgoGcmVhc29uGAMgASgJIqQBCg9NZXRyaWNFdmVudERhdGESDAoEbmFtZRgBIAEoCRINCgV2YWx1ZRgCIAEoARIMCgR1bml0GAMgASgJEjkKBHRhZ3MYBCADKAsyKy5hZ2VudF9tYW5hZ2VyLnYxLk1ldHJpY0V2ZW50RGF0YS5UYWdzRW50cnkaKwoJVGFnc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiUAoRQXJ0aWZhY3RFdmVudERhdGESDAoEdHlwZRgBIAEoCRIMCgRwYXRoGAIgASgJEgwKBHNpemUYAyABKAMSEQoJbWltZV90eXBlGAQgASgJIrUBCg5FcnJvckV2ZW50RGF0YRIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEQoJcmV0cnlhYmxlGAMgASgIEjIKCHJlY292ZXJ5GAQgASgOMiAuYWdlbnRfbWFuYWdlci52MS5SZWNvdmVyeUFjdGlvbhITCgtzdGFja190cmFjZRgFIAEoCRIoCgdkZXRhaWxzGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCLpAQoRUHJvZ3Jlc3NFdmVudERhdGESKQoFcGhhc2UYASABKA4yGi5hZ2VudF9tYW5hZ2VyLnYxLlJ1blBoYXNlEhgKEHBlcmNlbnRfY29tcGxldGUYAiABKAUSFgoOY3VycmVudF9hY3Rpb24YAyABKAkSFwoPdHVybnNfY29tcGxldGVkGAQgASgFEhMKC3R1cm5zX3RvdGFsGAUgASgFEhMKC3Rva2Vuc191c2VkGAYgASgFEhcKD2VsYXBzZWRfc2Vjb25kcxgHIAEoARIbChNlc3RpbWF0ZWRfcmVtYWluaW5nGAggASgBIvIBCg1Db3N0RXZlbnREYXRhEhQKDGlucHV0X3Rva2VucxgBIAEoBRIVCg1vdXRwdXRfdG9rZW5zGAIgASgFEh0KFWNhY2hlX2NyZWF0aW9uX3Rva2VucxgDIAEoBRIZChFjYWNoZV9yZWFkX3Rva2VucxgEIAEoBRIWCg50b3RhbF9jb3N0X3VzZBgFIAEoARIUCgxzZXJ2aWNlX3RpZXIYBiABKAkSDQoFbW9kZWwYByABKAkSGwoTd2ViX3NlYXJjaF9yZXF1ZXN0cxgIIAEoBRIgChhzZXJ2ZXJfdG9vbF91c2VfcmVxdWVzdHMYCSABKAUitwEKElJhdGVMaW1pdEV2ZW50RGF0YRISCgpsaW1pdF90eXBlGAEgASgJEjMKCnJlc2V0X3RpbWUYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSACIAQESEwoLcmV0cnlfYWZ0ZXIYAyABKAUSFAoMY3VycmVudF91c2VkGAQgASgFEg0KBWxpbWl0GAUgASgFEg8KB21lc3NhZ2UYBiABKAlCDQoLX3Jlc2V0X3RpbWUiqQEKE0NvbXBhY3Rpb25FdmVudERhdGESDwoHc3VtbWFyeRgBIAEoCRIPCgd0cmlnZ2VyGAIgASgJEg0KBWZvY3VzGAMgASgJEhoKEm1lc3NhZ2VzX2NvbXBhY3RlZBgEIAEoAxIVCg10b2tlbnNfYmVmb3JlGAUgASgDEhQKDHRva2Vuc19hZnRlchgGIAEoAxIYChBvcmlnaW5hbF9jb21tYW5kGAcgASgJKtkCChlBZ2VudE1hbmFnZXJXc01lc3NhZ2VUeXBlEi0KKUFHRU5UX01BTkFHRVJfV1NfTUVTU0FHRV9UWVBFX1VOU1BFQ0lGSUVEEAASKwonQUdFTlRfTUFOQUdFUl9XU19NRVNTQUdFX1RZUEVfUlVOX0VWRU5UEAESLAooQUdFTlRfTUFOQUdFUl9XU19NRVNTQUdFX1RZUEVfUlVOX1NUQVRVUxACEi0KKUFHRU5UX01BTkFHRVJfV1NfTUVTU0FHRV9UWVBFX1RBU0tfU1RBVFVTEAMSLgoqQUdFTlRfTUFOQUdFUl9XU19NRVNTQUdFX1RZUEVfUlVOX1BST0dSRVNTEAQSKwonQUdFTlRfTUFOQUdFUl9XU19NRVNTQUdFX1RZUEVfQ09OTkVDVEVEEAUSJgoiQUdFTlRfTUFOQUdFUl9XU19NRVNTQUdFX1RZUEVfUE9ORxAGKuICCh9BZ2VudE1hbmFnZXJXc0NsaWVudE1lc3NhZ2VUeXBlEjQKMEFHRU5UX01BTkFHRVJfV1NfQ0xJRU5UX01FU1NBR0VfVFlQRV9VTlNQRUNJRklFRBAAEjIKLkFHRU5UX01BTkFHRVJfV1NfQ0xJRU5UX01FU1NBR0VfVFlQRV9TVUJTQ1JJQkUQARI0CjBBR0VOVF9NQU5BR0VSX1dTX0NMSUVOVF9NRVNTQUdFX1RZUEVfVU5TVUJTQ1JJQkUQAhI2CjJBR0VOVF9NQU5BR0VSX1dTX0NMSUVOVF9NRVNTQUdFX1RZUEVfU1VCU0NSSUJFX0FMTBADEjgKNEFHRU5UX01BTkFHRVJfV1NfQ0xJRU5UX01FU1NBR0VfVFlQRV9VTlNVQlNDUklCRV9BTEwQBBItCilBR0VOVF9NQU5BR0VSX1dTX0NMSUVOVF9NRVNTQUdFX1RZUEVfUElORxAFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWdlbnQtbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_agent_manager_v1_domain_run, file_agent_manager_v1_domain_types, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("CiRhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9ldmVudHMucHJvdG8SEGFnZW50X21hbmFnZXIudjEigAcKCFJ1bkV2ZW50EgoKAmlkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIQCghzZXF1ZW5jZRgDIAEoAxIyCgpldmVudF90eXBlGAQgASgOMh4uYWdlbnRfbWFuYWdlci52MS5SdW5FdmVudFR5cGUSLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBItCgNsb2cYCiABKAsyHi5hZ2VudF9tYW5hZ2VyLnYxLkxvZ0V2ZW50RGF0YUgAEjUKB21lc3NhZ2UYCyABKAsyIi5hZ2VudF9tYW5hZ2VyLnYxLk1lc3NhZ2VFdmVudERhdGFIABJECg9tZXNzYWdlX2RlbGV0ZWQYFSABKAsyKS5hZ2VudF9tYW5hZ2VyLnYxLk1lc3NhZ2VEZWxldGVkRXZlbnREYXRhSAASOAoJdG9vbF9jYWxsGAwgASgLMiMuYWdlbnRfbWFuYWdlci52MS5Ub29sQ2FsbEV2ZW50RGF0YUgAEjwKC3Rvb2xfcmVzdWx0GA0gASgLMiUuYWdlbnRfbWFuYWdlci52MS5Ub29sUmVzdWx0RXZlbnREYXRhSAASMwoGc3RhdHVzGA4gASgLMiEuYWdlbnRfbWFuYWdlci52MS5TdGF0dXNFdmVudERhdGFIABIzCgZtZXRyaWMYDyABKAsyIS5hZ2VudF9tYW5hZ2VyLnYxLk1ldHJpY0V2ZW50RGF0YUgAEjcKCGFydGlmYWN0GBAgASgLMiMuYWdlbnRfbWFuYWdlci52MS5BcnRpZmFjdEV2ZW50RGF0YUgAEjEKBWVycm9yGBEgASgLMiAuYWdlbnRfbWFuYWdlci52MS5FcnJvckV2ZW50RGF0YUgAEjcKCHByb2dyZXNzGBIgASgLMiMuYWdlbnRfbWFuYWdlci52MS5Qcm9ncmVzc0V2ZW50RGF0YUgAEi8KBGNvc3QYEyABKAsyHy5hZ2VudF9tYW5hZ2VyLnYxLkNvc3RFdmVudERhdGFIABI6CgpyYXRlX2xpbWl0GBQgASgLMiQuYWdlbnRfbWFuYWdlci52MS5SYXRlTGltaXRFdmVudERhdGFIABI7Cgpjb21wYWN0aW9uGBYgASgLMiUuYWdlbnRfbWFuYWdlci52MS5Db21wYWN0aW9uRXZlbnREYXRhSABCBgoEZGF0YSKGBAoVQWdlbnRNYW5hZ2VyV3NNZXNzYWdlEjkKBHR5cGUYASABKA4yKy5hZ2VudF9tYW5hZ2VyLnYxLkFnZW50TWFuYWdlcldzTWVzc2FnZVR5cGUSEwoGcnVuX2lkGAIgASgJSAGIAQESLwoJcnVuX2V2ZW50GAogASgLMhouYWdlbnRfbWFuYWdlci52MS5SdW5FdmVudEgAEjcKCnJ1bl9zdGF0dXMYCyABKAsyIS5hZ2VudF9tYW5hZ2VyLnYxLlJ1blN0YXR1c1VwZGF0ZUgAEjkKC3Rhc2tfc3RhdHVzGAwgASgLMiIuYWdlbnRfbWFuYWdlci52MS5UYXNrU3RhdHVzVXBkYXRlSAASOwoMcnVuX3Byb2dyZXNzGA0gASgLMiMuYWdlbnRfbWFuYWdlci52MS5Qcm9ncmVzc0V2ZW50RGF0YUgAEjIKCWNvbm5lY3RlZBgOIAEoCzIdLmFnZW50X21hbmFnZXIudjEuV3NDb25uZWN0ZWRIABIoCgRwb25nGA8gASgLMhguYWdlbnRfbWFuYWdlci52MS5Xc1BvbmdIABJHChJ3b3JrZmxvd19saWZlY3ljbGUYECABKAsyKS5hZ2VudF9tYW5hZ2VyLnYxLldvcmtmbG93TGlmZWN5Y2xlVXBkYXRlSABCCQoHcGF5bG9hZEIJCgdfcnVuX2lkIqsDChdXb3JrZmxvd0xpZmVjeWNsZVVwZGF0ZRIUCgxleGVjdXRpb25faWQYASABKAkSGQoRZGVmaW5pdGlvbl9kaWdlc3QYAiABKAkSDgoGc3RhdHVzGAMgASgJEg8KB25vZGVfaWQYBCABKAkSEAoIc3RyYXRlZ3kYBSABKAkSGAoQcHJvZmlsZV9pZGVudGl0eRgGIAEoCRIOCgZydW5faWQYByABKAkSFwoPY29udmVyc2F0aW9uX2lkGAggASgJEhkKEXNvdXJjZV9hdHRlbXB0X2lkGAkgASgJEhgKEGpvdXJuYWxfc2VxdWVuY2UYCiABKAMSFAoMam91cm5hbF9raW5kGAsgASgJEh4KFmpvdXJuYWxfcGF5bG9hZF9kaWdlc3QYDCABKAkSOwoMYnVkZ2V0X3VzYWdlGA0gASgLMiUuYWdlbnRfbWFuYWdlci52MS5Xb3JrZmxvd0J1ZGdldFVzYWdlEkEKD3Rlcm1pbmFsX3JlYXNvbhgOIAEoCzIoLmFnZW50X21hbmFnZXIudjEuV29ya2Zsb3dUZXJtaW5hbFJlYXNvbiLlAQoPUnVuU3RhdHVzVXBkYXRlEg4KBnJ1bl9pZBgBIAEoCRIrCgZzdGF0dXMYAiABKA4yGy5hZ2VudF9tYW5hZ2VyLnYxLlJ1blN0YXR1cxIPCgd0YXNrX2lkGAMgASgJEhYKDnByb21wdF9wcmV2aWV3GAQgASgJEk0KF3Jlc3VsdF9zZWxlY3Rpb25fc3RhdHVzGAUgASgOMiwuYWdlbnRfbWFuYWdlci52MS5GaW5hbE91dHB1dFNlbGVjdGlvblN0YXR1cxIdChVyZXN1bHRfc2VsZWN0aW9uX3J1bGUYBiABKAkiUQoQVGFza1N0YXR1c1VwZGF0ZRIPCgd0YXNrX2lkGAEgASgJEiwKBnN0YXR1cxgCIAEoDjIcLmFnZW50X21hbmFnZXIudjEuVGFza1N0YXR1cyJNCgtXc0Nvbm5lY3RlZBIPCgdtZXNzYWdlGAEgASgJEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiNwoGV3NQb25nEi0KCXRpbWVzdGFtcBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiqAEKG0FnZW50TWFuYWdlcldzQ2xpZW50TWVzc2FnZRI/CgR0eXBlGAEgASgOMjEuYWdlbnRfbWFuYWdlci52MS5BZ2VudE1hbmFnZXJXc0NsaWVudE1lc3NhZ2VUeXBlEj0KEHJ1bl9zdWJzY3JpcHRpb24YCiABKAsyIS5hZ2VudF9tYW5hZ2VyLnYxLlJ1blN1YnNjcmlwdGlvbkgAQgkKB3BheWxvYWQiIQoPUnVuU3Vic2NyaXB0aW9uEg4KBnJ1bl9pZBgBIAEoCSIuCgxMb2dFdmVudERhdGESDQoFbGV2ZWwYASABKAkSDwoHbWVzc2FnZRgCIAEoCSL7AgoQTWVzc2FnZUV2ZW50RGF0YRIMCgRyb2xlGAEgASgJEg8KB2NvbnRlbnQYAiABKAkSPAoLYXR0YWNobWVudHMYAyADKAsyJy5hZ2VudF9tYW5hZ2VyLnYxLk1lc3NhZ2VBdHRhY2htZW50SW5mbxISCgptZXNzYWdlX2lkGAQgASgJEhcKD2NvbnZlcnNhdGlvbl9pZBgFIAEoCRIPCgd0dXJuX2lkGAYgASgJEhcKD3Byb3ZpZGVyX29yaWdpbhgHIAEoCRIZChFjb21wbGV0aW9uX3JlYXNvbhgIIAEoCRIQCgh0ZXJtaW5hbBgJIAEoCBIZChFwYXJlbnRfbWVzc2FnZV9pZBgKIAEoCRIbChNwcm92aWRlcl9ldmVudF90eXBlGAsgASgJEhgKEHJhd19ldmlkZW5jZV9yZWYYDCABKAkSFQoNZXZpZGVuY2Vfb25seRgNIAEoCBIdChVldmlkZW5jZV9mb3JfZXZlbnRfaWQYDiABKAkiWQoVTWVzc2FnZUF0dGFjaG1lbnRJbmZvEgoKAmlkGAEgASgJEhEKCWZpbGVfbmFtZRgCIAEoCRIUCgxjb250ZW50X3R5cGUYAyABKAkSCwoDdXJsGAQgASgJIjIKF01lc3NhZ2VEZWxldGVkRXZlbnREYXRhEhcKD3RhcmdldF9ldmVudF9pZBgBIAEoCSJkChFUb29sQ2FsbEV2ZW50RGF0YRIRCgl0b29sX25hbWUYASABKAkSJgoFaW5wdXQYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhQKDHRvb2xfY2FsbF9pZBgDIAEoCSJuChNUb29sUmVzdWx0RXZlbnREYXRhEhEKCXRvb2xfbmFtZRgBIAEoCRIUCgx0b29sX2NhbGxfaWQYAiABKAkSDgoGb3V0cHV0GAMgASgJEg0KBWVycm9yGAQgASgJEg8KB3N1Y2Nlc3MYBSABKAgiSQoPU3RhdHVzRXZlbnREYXRhEhIKCm9sZF9zdGF0dXMYASABKAkSEgoKbmV3X3N0YXR1cxgCIAEoCRIOCgZyZWFzb24YAyABKAkipAEKD01ldHJpY0V2ZW50RGF0YRIMCgRuYW1lGAEgASgJEg0KBXZhbHVlGAIgASgBEgwKBHVuaXQYAyABKAkSOQoEdGFncxgEIAMoCzIrLmFnZW50X21hbmFnZXIudjEuTWV0cmljRXZlbnREYXRhLlRhZ3NFbnRyeRorCglUYWdzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJQChFBcnRpZmFjdEV2ZW50RGF0YRIMCgR0eXBlGAEgASgJEgwKBHBhdGgYAiABKAkSDAoEc2l6ZRgDIAEoAxIRCgltaW1lX3R5cGUYBCABKAkitQEKDkVycm9yRXZlbnREYXRhEgwKBGNvZGUYASABKAkSDwoHbWVzc2FnZRgCIAEoCRIRCglyZXRyeWFibGUYAyABKAgSMgoIcmVjb3ZlcnkYBCABKA4yIC5hZ2VudF9tYW5hZ2VyLnYxLlJlY292ZXJ5QWN0aW9uEhMKC3N0YWNrX3RyYWNlGAUgASgJEigKB2RldGFpbHMYBiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IukBChFQcm9ncmVzc0V2ZW50RGF0YRIpCgVwaGFzZRgBIAEoDjIaLmFnZW50X21hbmFnZXIudjEuUnVuUGhhc2USGAoQcGVyY2VudF9jb21wbGV0ZRgCIAEoBRIWCg5jdXJyZW50X2FjdGlvbhgDIAEoCRIXCg90dXJuc19jb21wbGV0ZWQYBCABKAUSEwoLdHVybnNfdG90YWwYBSABKAUSEwoLdG9rZW5zX3VzZWQYBiABKAUSFwoPZWxhcHNlZF9zZWNvbmRzGAcgASgBEhsKE2VzdGltYXRlZF9yZW1haW5pbmcYCCABKAEi8gEKDUNvc3RFdmVudERhdGESFAoMaW5wdXRfdG9rZW5zGAEgASgFEhUKDW91dHB1dF90b2tlbnMYAiABKAUSHQoVY2FjaGVfY3JlYXRpb25fdG9rZW5zGAMgASgFEhkKEWNhY2hlX3JlYWRfdG9rZW5zGAQgASgFEhYKDnRvdGFsX2Nvc3RfdXNkGAUgASgBEhQKDHNlcnZpY2VfdGllchgGIAEoCRINCgVtb2RlbBgHIAEoCRIbChN3ZWJfc2VhcmNoX3JlcXVlc3RzGAggASgFEiAKGHNlcnZlcl90b29sX3VzZV9yZXF1ZXN0cxgJIAEoBSK3AQoSUmF0ZUxpbWl0RXZlbnREYXRhEhIKCmxpbWl0X3R5cGUYASABKAkSMwoKcmVzZXRfdGltZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARITCgtyZXRyeV9hZnRlchgDIAEoBRIUCgxjdXJyZW50X3VzZWQYBCABKAUSDQoFbGltaXQYBSABKAUSDwoHbWVzc2FnZRgGIAEoCUINCgtfcmVzZXRfdGltZSKpAQoTQ29tcGFjdGlvbkV2ZW50RGF0YRIPCgdzdW1tYXJ5GAEgASgJEg8KB3RyaWdnZXIYAiABKAkSDQoFZm9jdXMYAyABKAkSGgoSbWVzc2FnZXNfY29tcGFjdGVkGAQgASgDEhUKDXRva2Vuc19iZWZvcmUYBSABKAMSFAoMdG9rZW5zX2FmdGVyGAYgASgDEhgKEG9yaWdpbmFsX2NvbW1hbmQYByABKAkqjwMKGUFnZW50TWFuYWdlcldzTWVzc2FnZVR5cGUSLQopQUdFTlRfTUFOQUdFUl9XU19NRVNTQUdFX1RZUEVfVU5TUEVDSUZJRUQQABIrCidBR0VOVF9NQU5BR0VSX1dTX01FU1NBR0VfVFlQRV9SVU5fRVZFTlQQARIsCihBR0VOVF9NQU5BR0VSX1dTX01FU1NBR0VfVFlQRV9SVU5fU1RBVFVTEAISLQopQUdFTlRfTUFOQUdFUl9XU19NRVNTQUdFX1RZUEVfVEFTS19TVEFUVVMQAxIuCipBR0VOVF9NQU5BR0VSX1dTX01FU1NBR0VfVFlQRV9SVU5fUFJPR1JFU1MQBBIrCidBR0VOVF9NQU5BR0VSX1dTX01FU1NBR0VfVFlQRV9DT05ORUNURUQQBRImCiJBR0VOVF9NQU5BR0VSX1dTX01FU1NBR0VfVFlQRV9QT05HEAYSNAowQUdFTlRfTUFOQUdFUl9XU19NRVNTQUdFX1RZUEVfV09SS0ZMT1dfTElGRUNZQ0xFEAcq4gIKH0FnZW50TWFuYWdlcldzQ2xpZW50TWVzc2FnZVR5cGUSNAowQUdFTlRfTUFOQUdFUl9XU19DTElFTlRfTUVTU0FHRV9UWVBFX1VOU1BFQ0lGSUVEEAASMgouQUdFTlRfTUFOQUdFUl9XU19DTElFTlRfTUVTU0FHRV9UWVBFX1NVQlNDUklCRRABEjQKMEFHRU5UX01BTkFHRVJfV1NfQ0xJRU5UX01FU1NBR0VfVFlQRV9VTlNVQlNDUklCRRACEjYKMkFHRU5UX01BTkFHRVJfV1NfQ0xJRU5UX01FU1NBR0VfVFlQRV9TVUJTQ1JJQkVfQUxMEAMSOAo0QUdFTlRfTUFOQUdFUl9XU19DTElFTlRfTUVTU0FHRV9UWVBFX1VOU1VCU0NSSUJFX0FMTBAEEi0KKUFHRU5UX01BTkFHRVJfV1NfQ0xJRU5UX01FU1NBR0VfVFlQRV9QSU5HEAVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_agent_manager_v1_domain_run, file_agent_manager_v1_domain_types, file_agent_manager_v1_domain_workflow, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * RunEvent represents a single event in a run's event stream.
@@ -263,6 +265,14 @@ export type AgentManagerWsMessage = Message<"agent_manager.v1.AgentManagerWsMess
      */
     value: WsPong;
     case: "pong";
+  } | {
+    /**
+     * AGENT_MANAGER_WS_MESSAGE_TYPE_WORKFLOW_LIFECYCLE
+     *
+     * @generated from field: agent_manager.v1.WorkflowLifecycleUpdate workflow_lifecycle = 16;
+     */
+    value: WorkflowLifecycleUpdate;
+    case: "workflowLifecycle";
   } | { case: undefined; value?: undefined };
 };
 
@@ -272,6 +282,91 @@ export type AgentManagerWsMessage = Message<"agent_manager.v1.AgentManagerWsMess
  */
 export const AgentManagerWsMessageSchema: GenMessage<AgentManagerWsMessage> = /*@__PURE__*/
   messageDesc(file_agent_manager_v1_domain_events, 1);
+
+/**
+ * WorkflowLifecycleUpdate is a metadata-only projection of a durable workflow
+ * journal commit. It never contains prompts, model output, or result bodies.
+ *
+ * @generated from message agent_manager.v1.WorkflowLifecycleUpdate
+ */
+export type WorkflowLifecycleUpdate = Message<"agent_manager.v1.WorkflowLifecycleUpdate"> & {
+  /**
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * @generated from field: string definition_digest = 2;
+   */
+  definitionDigest: string;
+
+  /**
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string node_id = 4;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string strategy = 5;
+   */
+  strategy: string;
+
+  /**
+   * @generated from field: string profile_identity = 6;
+   */
+  profileIdentity: string;
+
+  /**
+   * @generated from field: string run_id = 7;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string conversation_id = 8;
+   */
+  conversationId: string;
+
+  /**
+   * @generated from field: string source_attempt_id = 9;
+   */
+  sourceAttemptId: string;
+
+  /**
+   * @generated from field: int64 journal_sequence = 10;
+   */
+  journalSequence: bigint;
+
+  /**
+   * @generated from field: string journal_kind = 11;
+   */
+  journalKind: string;
+
+  /**
+   * @generated from field: string journal_payload_digest = 12;
+   */
+  journalPayloadDigest: string;
+
+  /**
+   * @generated from field: agent_manager.v1.WorkflowBudgetUsage budget_usage = 13;
+   */
+  budgetUsage?: WorkflowBudgetUsage | undefined;
+
+  /**
+   * @generated from field: agent_manager.v1.WorkflowTerminalReason terminal_reason = 14;
+   */
+  terminalReason?: WorkflowTerminalReason | undefined;
+};
+
+/**
+ * Describes the message agent_manager.v1.WorkflowLifecycleUpdate.
+ * Use `create(WorkflowLifecycleUpdateSchema)` to create a new message.
+ */
+export const WorkflowLifecycleUpdateSchema: GenMessage<WorkflowLifecycleUpdate> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_events, 2);
 
 /**
  * RunStatusUpdate reports a run status change.
@@ -333,7 +428,7 @@ export type RunStatusUpdate = Message<"agent_manager.v1.RunStatusUpdate"> & {
  * Use `create(RunStatusUpdateSchema)` to create a new message.
  */
 export const RunStatusUpdateSchema: GenMessage<RunStatusUpdate> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 2);
+  messageDesc(file_agent_manager_v1_domain_events, 3);
 
 /**
  * TaskStatusUpdate reports a task status change.
@@ -364,7 +459,7 @@ export type TaskStatusUpdate = Message<"agent_manager.v1.TaskStatusUpdate"> & {
  * Use `create(TaskStatusUpdateSchema)` to create a new message.
  */
 export const TaskStatusUpdateSchema: GenMessage<TaskStatusUpdate> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 3);
+  messageDesc(file_agent_manager_v1_domain_events, 4);
 
 /**
  * WsConnected confirms WebSocket connectivity.
@@ -394,7 +489,7 @@ export type WsConnected = Message<"agent_manager.v1.WsConnected"> & {
  * Use `create(WsConnectedSchema)` to create a new message.
  */
 export const WsConnectedSchema: GenMessage<WsConnected> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 4);
+  messageDesc(file_agent_manager_v1_domain_events, 5);
 
 /**
  * WsPong responds to a ping.
@@ -417,7 +512,7 @@ export type WsPong = Message<"agent_manager.v1.WsPong"> & {
  * Use `create(WsPongSchema)` to create a new message.
  */
 export const WsPongSchema: GenMessage<WsPong> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 5);
+  messageDesc(file_agent_manager_v1_domain_events, 6);
 
 /**
  * AgentManagerWsClientMessage is the client -> server envelope.
@@ -455,7 +550,7 @@ export type AgentManagerWsClientMessage = Message<"agent_manager.v1.AgentManager
  * Use `create(AgentManagerWsClientMessageSchema)` to create a new message.
  */
 export const AgentManagerWsClientMessageSchema: GenMessage<AgentManagerWsClientMessage> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 6);
+  messageDesc(file_agent_manager_v1_domain_events, 7);
 
 /**
  * RunSubscription identifies a run to subscribe or unsubscribe from.
@@ -479,7 +574,7 @@ export type RunSubscription = Message<"agent_manager.v1.RunSubscription"> & {
  * Use `create(RunSubscriptionSchema)` to create a new message.
  */
 export const RunSubscriptionSchema: GenMessage<RunSubscription> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 7);
+  messageDesc(file_agent_manager_v1_domain_events, 8);
 
 /**
  * LogEventData contains data for log events.
@@ -512,7 +607,7 @@ export type LogEventData = Message<"agent_manager.v1.LogEventData"> & {
  * Use `create(LogEventDataSchema)` to create a new message.
  */
 export const LogEventDataSchema: GenMessage<LogEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 8);
+  messageDesc(file_agent_manager_v1_domain_events, 9);
 
 /**
  * MessageEventData contains data for conversation messages.
@@ -612,7 +707,7 @@ export type MessageEventData = Message<"agent_manager.v1.MessageEventData"> & {
  * Use `create(MessageEventDataSchema)` to create a new message.
  */
 export const MessageEventDataSchema: GenMessage<MessageEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 9);
+  messageDesc(file_agent_manager_v1_domain_events, 10);
 
 /**
  * MessageAttachmentInfo stores metadata about an attachment included with a message.
@@ -654,7 +749,7 @@ export type MessageAttachmentInfo = Message<"agent_manager.v1.MessageAttachmentI
  * Use `create(MessageAttachmentInfoSchema)` to create a new message.
  */
 export const MessageAttachmentInfoSchema: GenMessage<MessageAttachmentInfo> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 10);
+  messageDesc(file_agent_manager_v1_domain_events, 11);
 
 /**
  * MessageDeletedEventData marks a prior message as deleted/redacted.
@@ -681,7 +776,7 @@ export type MessageDeletedEventData = Message<"agent_manager.v1.MessageDeletedEv
  * Use `create(MessageDeletedEventDataSchema)` to create a new message.
  */
 export const MessageDeletedEventDataSchema: GenMessage<MessageDeletedEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 11);
+  messageDesc(file_agent_manager_v1_domain_events, 12);
 
 /**
  * ToolCallEventData contains data for tool invocation events.
@@ -722,7 +817,7 @@ export type ToolCallEventData = Message<"agent_manager.v1.ToolCallEventData"> & 
  * Use `create(ToolCallEventDataSchema)` to create a new message.
  */
 export const ToolCallEventDataSchema: GenMessage<ToolCallEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 12);
+  messageDesc(file_agent_manager_v1_domain_events, 13);
 
 /**
  * ToolResultEventData contains data for tool result events.
@@ -775,7 +870,7 @@ export type ToolResultEventData = Message<"agent_manager.v1.ToolResultEventData"
  * Use `create(ToolResultEventDataSchema)` to create a new message.
  */
 export const ToolResultEventDataSchema: GenMessage<ToolResultEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 13);
+  messageDesc(file_agent_manager_v1_domain_events, 14);
 
 /**
  * StatusEventData contains data for status transition events.
@@ -814,7 +909,7 @@ export type StatusEventData = Message<"agent_manager.v1.StatusEventData"> & {
  * Use `create(StatusEventDataSchema)` to create a new message.
  */
 export const StatusEventDataSchema: GenMessage<StatusEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 14);
+  messageDesc(file_agent_manager_v1_domain_events, 15);
 
 /**
  * MetricEventData contains data for metric/telemetry events.
@@ -861,7 +956,7 @@ export type MetricEventData = Message<"agent_manager.v1.MetricEventData"> & {
  * Use `create(MetricEventDataSchema)` to create a new message.
  */
 export const MetricEventDataSchema: GenMessage<MetricEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 15);
+  messageDesc(file_agent_manager_v1_domain_events, 16);
 
 /**
  * ArtifactEventData contains data for artifact creation events.
@@ -907,7 +1002,7 @@ export type ArtifactEventData = Message<"agent_manager.v1.ArtifactEventData"> & 
  * Use `create(ArtifactEventDataSchema)` to create a new message.
  */
 export const ArtifactEventDataSchema: GenMessage<ArtifactEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 16);
+  messageDesc(file_agent_manager_v1_domain_events, 17);
 
 /**
  * ErrorEventData contains data for error events.
@@ -968,7 +1063,7 @@ export type ErrorEventData = Message<"agent_manager.v1.ErrorEventData"> & {
  * Use `create(ErrorEventDataSchema)` to create a new message.
  */
 export const ErrorEventDataSchema: GenMessage<ErrorEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 17);
+  messageDesc(file_agent_manager_v1_domain_events, 18);
 
 /**
  * ProgressEventData contains data for progress tracking events.
@@ -1043,7 +1138,7 @@ export type ProgressEventData = Message<"agent_manager.v1.ProgressEventData"> & 
  * Use `create(ProgressEventDataSchema)` to create a new message.
  */
 export const ProgressEventDataSchema: GenMessage<ProgressEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 18);
+  messageDesc(file_agent_manager_v1_domain_events, 19);
 
 /**
  * CostEventData contains data for cost/usage tracking events.
@@ -1125,7 +1220,7 @@ export type CostEventData = Message<"agent_manager.v1.CostEventData"> & {
  * Use `create(CostEventDataSchema)` to create a new message.
  */
 export const CostEventDataSchema: GenMessage<CostEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 19);
+  messageDesc(file_agent_manager_v1_domain_events, 20);
 
 /**
  * RateLimitEventData contains data for rate limit events.
@@ -1187,7 +1282,7 @@ export type RateLimitEventData = Message<"agent_manager.v1.RateLimitEventData"> 
  * Use `create(RateLimitEventDataSchema)` to create a new message.
  */
 export const RateLimitEventDataSchema: GenMessage<RateLimitEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 20);
+  messageDesc(file_agent_manager_v1_domain_events, 21);
 
 /**
  * CompactionEventData represents a context compaction/summarization event
@@ -1255,7 +1350,7 @@ export type CompactionEventData = Message<"agent_manager.v1.CompactionEventData"
  * Use `create(CompactionEventDataSchema)` to create a new message.
  */
 export const CompactionEventDataSchema: GenMessage<CompactionEventData> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_events, 21);
+  messageDesc(file_agent_manager_v1_domain_events, 22);
 
 /**
  * AgentManagerWsMessageType enumerates WebSocket message types.
@@ -1299,6 +1394,11 @@ export enum AgentManagerWsMessageType {
    * @generated from enum value: AGENT_MANAGER_WS_MESSAGE_TYPE_PONG = 6;
    */
   PONG = 6,
+
+  /**
+   * @generated from enum value: AGENT_MANAGER_WS_MESSAGE_TYPE_WORKFLOW_LIFECYCLE = 7;
+   */
+  WORKFLOW_LIFECYCLE = 7,
 }
 
 /**

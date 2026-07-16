@@ -194,8 +194,12 @@ message GetValidationOperationResponse {
   ValidationOperation operation = 1;
 }
 
-message SyncValidationRequest { string operation_id = 1; }
-message SyncValidationResponse { ValidationOperation operation = 1; }
+message SyncValidationRequest {
+  string operation_id = 1;
+}
+message SyncValidationResponse {
+  ValidationOperation operation = 1;
+}
 
 message RunValidationRequest {
   string plan_id = 1;

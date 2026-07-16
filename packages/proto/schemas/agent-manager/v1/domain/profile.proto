@@ -59,7 +59,10 @@ message AgentProfile {
 
   // Portable coding intent. Concrete runner/model selection is output-only
   // evidence in the immutable execution snapshot.
-  string role_ref = 33 [(buf.validate.field).string = {min_len: 1 max_len: 255}];
+  string role_ref = 33 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
 
   // Maximum number of conversation turns before stopping.
   // 0 means unlimited (use with caution).
@@ -157,6 +160,35 @@ message AgentProfile {
 // The orchestrator resolves the final config before execution.
 //
 // @usage Run.resolved_config, CreateRunRequest.inline_config
+// ResultSpecKind selects the one canonical structured-result contract.
+enum ResultSpecKind {
+  RESULT_SPEC_KIND_UNSPECIFIED = 0;
+  RESULT_SPEC_KIND_NONE = 1;
+  RESULT_SPEC_KIND_JSON_SCHEMA = 2;
+  RESULT_SPEC_KIND_CLASSIFICATION = 3;
+}
+
+// StructuredExtractionMode controls deterministic-only versus optional
+// constrained fallback. Every fallback candidate is locally revalidated.
+enum StructuredExtractionMode {
+  STRUCTURED_EXTRACTION_MODE_UNSPECIFIED = 0;
+  STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY = 1;
+  STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK = 2;
+}
+
+// ResultSpec is normalized before persistence. schema contains canonical JSON
+// bytes and schema_digest identifies those exact bytes. classification_values
+// is a create convenience compiled into schema and omitted after resolution.
+message ResultSpec {
+  string version = 1;
+  ResultSpecKind kind = 2;
+  bytes schema = 3;
+  string schema_digest = 4;
+  repeated string classification_values = 5;
+  StructuredExtractionMode extraction_mode = 6;
+  string extraction_role = 7;
+}
+
 message RunConfig {
   // Which agent runner to use.
   RunnerType runner_type = 1;
@@ -166,6 +198,9 @@ message RunConfig {
 
   // Portable role selected before policy_snapshot was created.
   string role_ref = 21;
+
+  // Optional normalized typed-result request.
+  ResultSpec result_spec = 22;
 
   // Maximum conversation turns.
   int32 max_turns = 3;
@@ -289,6 +324,10 @@ message RunConfigOverrides {
   // active resource-owned role policy and persisted only in the run snapshot.
   optional string role_ref = 26;
 
+  // Optional typed-result request. The server validates, canonicalizes, and
+  // persists it with the resolved run configuration.
+  ResultSpec result_spec = 27;
+
   // Maximum conversation turns.
   optional int32 max_turns = 3;
 
@@ -343,7 +382,6 @@ message RunConfigOverrides {
 
   // Clear denied paths inherited from profile.
   bool clear_denied_paths = 15;
-
 }
 
 // =============================================================================

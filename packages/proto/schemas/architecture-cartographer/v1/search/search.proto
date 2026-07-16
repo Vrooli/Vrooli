@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package vrooli.architecture_cartographer.v1.search;
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/search;search_v1";
-
 import "common/v1/confidence.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/search;search_v1";
 
 // =============================================================================
 // SEARCH DOMAIN — cross-scenario domain-map semantic discovery

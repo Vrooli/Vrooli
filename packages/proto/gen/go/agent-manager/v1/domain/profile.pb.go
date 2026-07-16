@@ -24,6 +24,120 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// RunConfig contains the resolved configuration for a run.
+//
+// This can be:
+// - Loaded from a profile
+// - Provided inline with the run request
+// - A combination (profile as base, overrides applied)
+//
+// The orchestrator resolves the final config before execution.
+//
+// @usage Run.resolved_config, CreateRunRequest.inline_config
+// ResultSpecKind selects the one canonical structured-result contract.
+type ResultSpecKind int32
+
+const (
+	ResultSpecKind_RESULT_SPEC_KIND_UNSPECIFIED    ResultSpecKind = 0
+	ResultSpecKind_RESULT_SPEC_KIND_NONE           ResultSpecKind = 1
+	ResultSpecKind_RESULT_SPEC_KIND_JSON_SCHEMA    ResultSpecKind = 2
+	ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION ResultSpecKind = 3
+)
+
+// Enum value maps for ResultSpecKind.
+var (
+	ResultSpecKind_name = map[int32]string{
+		0: "RESULT_SPEC_KIND_UNSPECIFIED",
+		1: "RESULT_SPEC_KIND_NONE",
+		2: "RESULT_SPEC_KIND_JSON_SCHEMA",
+		3: "RESULT_SPEC_KIND_CLASSIFICATION",
+	}
+	ResultSpecKind_value = map[string]int32{
+		"RESULT_SPEC_KIND_UNSPECIFIED":    0,
+		"RESULT_SPEC_KIND_NONE":           1,
+		"RESULT_SPEC_KIND_JSON_SCHEMA":    2,
+		"RESULT_SPEC_KIND_CLASSIFICATION": 3,
+	}
+)
+
+func (x ResultSpecKind) Enum() *ResultSpecKind {
+	p := new(ResultSpecKind)
+	*p = x
+	return p
+}
+
+func (x ResultSpecKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ResultSpecKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_agent_manager_v1_domain_profile_proto_enumTypes[0].Descriptor()
+}
+
+func (ResultSpecKind) Type() protoreflect.EnumType {
+	return &file_agent_manager_v1_domain_profile_proto_enumTypes[0]
+}
+
+func (x ResultSpecKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ResultSpecKind.Descriptor instead.
+func (ResultSpecKind) EnumDescriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{0}
+}
+
+// StructuredExtractionMode controls deterministic-only versus optional
+// constrained fallback. Every fallback candidate is locally revalidated.
+type StructuredExtractionMode int32
+
+const (
+	StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_UNSPECIFIED          StructuredExtractionMode = 0
+	StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY   StructuredExtractionMode = 1
+	StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK StructuredExtractionMode = 2
+)
+
+// Enum value maps for StructuredExtractionMode.
+var (
+	StructuredExtractionMode_name = map[int32]string{
+		0: "STRUCTURED_EXTRACTION_MODE_UNSPECIFIED",
+		1: "STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY",
+		2: "STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK",
+	}
+	StructuredExtractionMode_value = map[string]int32{
+		"STRUCTURED_EXTRACTION_MODE_UNSPECIFIED":          0,
+		"STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY":   1,
+		"STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK": 2,
+	}
+)
+
+func (x StructuredExtractionMode) Enum() *StructuredExtractionMode {
+	p := new(StructuredExtractionMode)
+	*p = x
+	return p
+}
+
+func (x StructuredExtractionMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StructuredExtractionMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_agent_manager_v1_domain_profile_proto_enumTypes[1].Descriptor()
+}
+
+func (StructuredExtractionMode) Type() protoreflect.EnumType {
+	return &file_agent_manager_v1_domain_profile_proto_enumTypes[1]
+}
+
+func (x StructuredExtractionMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StructuredExtractionMode.Descriptor instead.
+func (StructuredExtractionMode) EnumDescriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{1}
+}
+
 // AgentProfile defines the configuration for running an agent.
 //
 // This is a reusable definition that can be applied to many tasks.
@@ -304,16 +418,101 @@ func (x *AgentProfile) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// RunConfig contains the resolved configuration for a run.
-//
-// This can be:
-// - Loaded from a profile
-// - Provided inline with the run request
-// - A combination (profile as base, overrides applied)
-//
-// The orchestrator resolves the final config before execution.
-//
-// @usage Run.resolved_config, CreateRunRequest.inline_config
+// ResultSpec is normalized before persistence. schema contains canonical JSON
+// bytes and schema_digest identifies those exact bytes. classification_values
+// is a create convenience compiled into schema and omitted after resolution.
+type ResultSpec struct {
+	state                protoimpl.MessageState   `protogen:"open.v1"`
+	Version              string                   `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	Kind                 ResultSpecKind           `protobuf:"varint,2,opt,name=kind,proto3,enum=agent_manager.v1.ResultSpecKind" json:"kind,omitempty"`
+	Schema               []byte                   `protobuf:"bytes,3,opt,name=schema,proto3" json:"schema,omitempty"`
+	SchemaDigest         string                   `protobuf:"bytes,4,opt,name=schema_digest,json=schemaDigest,proto3" json:"schema_digest,omitempty"`
+	ClassificationValues []string                 `protobuf:"bytes,5,rep,name=classification_values,json=classificationValues,proto3" json:"classification_values,omitempty"`
+	ExtractionMode       StructuredExtractionMode `protobuf:"varint,6,opt,name=extraction_mode,json=extractionMode,proto3,enum=agent_manager.v1.StructuredExtractionMode" json:"extraction_mode,omitempty"`
+	ExtractionRole       string                   `protobuf:"bytes,7,opt,name=extraction_role,json=extractionRole,proto3" json:"extraction_role,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ResultSpec) Reset() {
+	*x = ResultSpec{}
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResultSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResultSpec) ProtoMessage() {}
+
+func (x *ResultSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResultSpec.ProtoReflect.Descriptor instead.
+func (*ResultSpec) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ResultSpec) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *ResultSpec) GetKind() ResultSpecKind {
+	if x != nil {
+		return x.Kind
+	}
+	return ResultSpecKind_RESULT_SPEC_KIND_UNSPECIFIED
+}
+
+func (x *ResultSpec) GetSchema() []byte {
+	if x != nil {
+		return x.Schema
+	}
+	return nil
+}
+
+func (x *ResultSpec) GetSchemaDigest() string {
+	if x != nil {
+		return x.SchemaDigest
+	}
+	return ""
+}
+
+func (x *ResultSpec) GetClassificationValues() []string {
+	if x != nil {
+		return x.ClassificationValues
+	}
+	return nil
+}
+
+func (x *ResultSpec) GetExtractionMode() StructuredExtractionMode {
+	if x != nil {
+		return x.ExtractionMode
+	}
+	return StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_UNSPECIFIED
+}
+
+func (x *ResultSpec) GetExtractionRole() string {
+	if x != nil {
+		return x.ExtractionRole
+	}
+	return ""
+}
+
 type RunConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Which agent runner to use.
@@ -322,6 +521,8 @@ type RunConfig struct {
 	Model string `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"`
 	// Portable role selected before policy_snapshot was created.
 	RoleRef string `protobuf:"bytes,21,opt,name=role_ref,json=roleRef,proto3" json:"role_ref,omitempty"`
+	// Optional normalized typed-result request.
+	ResultSpec *ResultSpec `protobuf:"bytes,22,opt,name=result_spec,json=resultSpec,proto3" json:"result_spec,omitempty"`
 	// Maximum conversation turns.
 	MaxTurns int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
 	// Maximum execution time.
@@ -354,7 +555,7 @@ type RunConfig struct {
 
 func (x *RunConfig) Reset() {
 	*x = RunConfig{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[1]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -366,7 +567,7 @@ func (x *RunConfig) String() string {
 func (*RunConfig) ProtoMessage() {}
 
 func (x *RunConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[1]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -379,7 +580,7 @@ func (x *RunConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunConfig.ProtoReflect.Descriptor instead.
 func (*RunConfig) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{1}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RunConfig) GetRunnerType() RunnerType {
@@ -401,6 +602,13 @@ func (x *RunConfig) GetRoleRef() string {
 		return x.RoleRef
 	}
 	return ""
+}
+
+func (x *RunConfig) GetResultSpec() *ResultSpec {
+	if x != nil {
+		return x.ResultSpec
+	}
+	return nil
 }
 
 func (x *RunConfig) GetMaxTurns() int32 {
@@ -508,7 +716,7 @@ type ExecutionCandidate struct {
 
 func (x *ExecutionCandidate) Reset() {
 	*x = ExecutionCandidate{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[2]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -520,7 +728,7 @@ func (x *ExecutionCandidate) String() string {
 func (*ExecutionCandidate) ProtoMessage() {}
 
 func (x *ExecutionCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[2]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -533,7 +741,7 @@ func (x *ExecutionCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionCandidate.ProtoReflect.Descriptor instead.
 func (*ExecutionCandidate) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{2}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ExecutionCandidate) GetRunnerType() RunnerType {
@@ -632,7 +840,7 @@ type ResourceProvenance struct {
 
 func (x *ResourceProvenance) Reset() {
 	*x = ResourceProvenance{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[3]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -644,7 +852,7 @@ func (x *ResourceProvenance) String() string {
 func (*ResourceProvenance) ProtoMessage() {}
 
 func (x *ResourceProvenance) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[3]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -657,7 +865,7 @@ func (x *ResourceProvenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceProvenance.ProtoReflect.Descriptor instead.
 func (*ResourceProvenance) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{3}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ResourceProvenance) GetSource() string {
@@ -685,7 +893,7 @@ type PermissionEnforcement struct {
 
 func (x *PermissionEnforcement) Reset() {
 	*x = PermissionEnforcement{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -697,7 +905,7 @@ func (x *PermissionEnforcement) String() string {
 func (*PermissionEnforcement) ProtoMessage() {}
 
 func (x *PermissionEnforcement) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -710,7 +918,7 @@ func (x *PermissionEnforcement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionEnforcement.ProtoReflect.Descriptor instead.
 func (*PermissionEnforcement) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{4}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PermissionEnforcement) GetPermissions() string {
@@ -741,7 +949,7 @@ type CandidatePreflight struct {
 
 func (x *CandidatePreflight) Reset() {
 	*x = CandidatePreflight{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -753,7 +961,7 @@ func (x *CandidatePreflight) String() string {
 func (*CandidatePreflight) ProtoMessage() {}
 
 func (x *CandidatePreflight) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -766,7 +974,7 @@ func (x *CandidatePreflight) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CandidatePreflight.ProtoReflect.Descriptor instead.
 func (*CandidatePreflight) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{5}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CandidatePreflight) GetIndex() int32 {
@@ -813,7 +1021,7 @@ type PolicyResolutionExplanation struct {
 
 func (x *PolicyResolutionExplanation) Reset() {
 	*x = PolicyResolutionExplanation{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -825,7 +1033,7 @@ func (x *PolicyResolutionExplanation) String() string {
 func (*PolicyResolutionExplanation) ProtoMessage() {}
 
 func (x *PolicyResolutionExplanation) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -838,7 +1046,7 @@ func (x *PolicyResolutionExplanation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyResolutionExplanation.ProtoReflect.Descriptor instead.
 func (*PolicyResolutionExplanation) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{6}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PolicyResolutionExplanation) GetSource() string {
@@ -899,7 +1107,7 @@ type ExecutionPolicySnapshot struct {
 
 func (x *ExecutionPolicySnapshot) Reset() {
 	*x = ExecutionPolicySnapshot{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -911,7 +1119,7 @@ func (x *ExecutionPolicySnapshot) String() string {
 func (*ExecutionPolicySnapshot) ProtoMessage() {}
 
 func (x *ExecutionPolicySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -924,7 +1132,7 @@ func (x *ExecutionPolicySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionPolicySnapshot.ProtoReflect.Descriptor instead.
 func (*ExecutionPolicySnapshot) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{7}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ExecutionPolicySnapshot) GetCatalogDigest() string {
@@ -980,6 +1188,9 @@ type RunConfigOverrides struct {
 	// Portable role intent. Concrete runner/model selection is resolved by the
 	// active resource-owned role policy and persisted only in the run snapshot.
 	RoleRef *string `protobuf:"bytes,26,opt,name=role_ref,json=roleRef,proto3,oneof" json:"role_ref,omitempty"`
+	// Optional typed-result request. The server validates, canonicalizes, and
+	// persists it with the resolved run configuration.
+	ResultSpec *ResultSpec `protobuf:"bytes,27,opt,name=result_spec,json=resultSpec,proto3" json:"result_spec,omitempty"`
 	// Maximum conversation turns.
 	MaxTurns *int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3,oneof" json:"max_turns,omitempty"`
 	// Maximum execution time.
@@ -1018,7 +1229,7 @@ type RunConfigOverrides struct {
 
 func (x *RunConfigOverrides) Reset() {
 	*x = RunConfigOverrides{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[8]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1030,7 +1241,7 @@ func (x *RunConfigOverrides) String() string {
 func (*RunConfigOverrides) ProtoMessage() {}
 
 func (x *RunConfigOverrides) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[8]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1043,7 +1254,7 @@ func (x *RunConfigOverrides) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunConfigOverrides.ProtoReflect.Descriptor instead.
 func (*RunConfigOverrides) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{8}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RunConfigOverrides) GetRoleRef() string {
@@ -1051,6 +1262,13 @@ func (x *RunConfigOverrides) GetRoleRef() string {
 		return *x.RoleRef
 	}
 	return ""
+}
+
+func (x *RunConfigOverrides) GetResultSpec() *ResultSpec {
+	if x != nil {
+		return x.ResultSpec
+	}
+	return nil
 }
 
 func (x *RunConfigOverrides) GetMaxTurns() int32 {
@@ -1187,7 +1405,7 @@ type HeartbeatConfig struct {
 
 func (x *HeartbeatConfig) Reset() {
 	*x = HeartbeatConfig{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1199,7 +1417,7 @@ func (x *HeartbeatConfig) String() string {
 func (*HeartbeatConfig) ProtoMessage() {}
 
 func (x *HeartbeatConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1212,7 +1430,7 @@ func (x *HeartbeatConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatConfig.ProtoReflect.Descriptor instead.
 func (*HeartbeatConfig) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{9}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *HeartbeatConfig) GetInterval() *durationpb.Duration {
@@ -1282,12 +1500,23 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
 	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x13\x10\x14J\x04\b\x16\x10\x17J\x04\b \x10!R\vrunner_typeR\x05modelR\n" +
-	"policy_refR\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_types\"\xd5\a\n" +
+	"policy_refR\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_types\"\xcc\x02\n" +
+	"\n" +
+	"ResultSpec\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\x124\n" +
+	"\x04kind\x18\x02 \x01(\x0e2 .agent_manager.v1.ResultSpecKindR\x04kind\x12\x16\n" +
+	"\x06schema\x18\x03 \x01(\fR\x06schema\x12#\n" +
+	"\rschema_digest\x18\x04 \x01(\tR\fschemaDigest\x123\n" +
+	"\x15classification_values\x18\x05 \x03(\tR\x14classificationValues\x12S\n" +
+	"\x0fextraction_mode\x18\x06 \x01(\x0e2*.agent_manager.v1.StructuredExtractionModeR\x0eextractionMode\x12'\n" +
+	"\x0fextraction_role\x18\a \x01(\tR\x0eextractionRole\"\x94\b\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
 	"\x05model\x18\x02 \x01(\tR\x05model\x12\x19\n" +
-	"\brole_ref\x18\x15 \x01(\tR\aroleRef\x12\x1b\n" +
+	"\brole_ref\x18\x15 \x01(\tR\aroleRef\x12=\n" +
+	"\vresult_spec\x18\x16 \x01(\v2\x1c.agent_manager.v1.ResultSpecR\n" +
+	"resultSpec\x12\x1b\n" +
 	"\tmax_turns\x18\x03 \x01(\x05R\bmaxTurns\x123\n" +
 	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
@@ -1353,9 +1582,12 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x12selected_candidate\x18\x05 \x01(\v2$.agent_manager.v1.ExecutionCandidateR\x11selectedCandidate\x12O\n" +
 	"\vexplanation\x18\x06 \x01(\v2-.agent_manager.v1.PolicyResolutionExplanationR\vexplanation\x12\x19\n" +
 	"\brole_ref\x18\a \x01(\tR\aroleRefJ\x04\b\x02\x10\x03R\n" +
-	"policy_ref\"\xe9\t\n" +
+	"policy_ref\"\xa8\n" +
+	"\n" +
 	"\x12RunConfigOverrides\x12\x1e\n" +
-	"\brole_ref\x18\x1a \x01(\tH\x00R\aroleRef\x88\x01\x01\x12 \n" +
+	"\brole_ref\x18\x1a \x01(\tH\x00R\aroleRef\x88\x01\x01\x12=\n" +
+	"\vresult_spec\x18\x1b \x01(\v2\x1c.agent_manager.v1.ResultSpecR\n" +
+	"resultSpec\x12 \n" +
 	"\tmax_turns\x18\x03 \x01(\x05H\x01R\bmaxTurns\x88\x01\x01\x128\n" +
 	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x02R\atimeout\x88\x01\x01\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
@@ -1390,7 +1622,16 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0fHeartbeatConfig\x125\n" +
 	"\binterval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\binterval\x123\n" +
 	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12(\n" +
-	"\x10max_missed_beats\x18\x03 \x01(\x05R\x0emaxMissedBeatsBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domainb\x06proto3"
+	"\x10max_missed_beats\x18\x03 \x01(\x05R\x0emaxMissedBeats*\x94\x01\n" +
+	"\x0eResultSpecKind\x12 \n" +
+	"\x1cRESULT_SPEC_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15RESULT_SPEC_KIND_NONE\x10\x01\x12 \n" +
+	"\x1cRESULT_SPEC_KIND_JSON_SCHEMA\x10\x02\x12#\n" +
+	"\x1fRESULT_SPEC_KIND_CLASSIFICATION\x10\x03*\xae\x01\n" +
+	"\x18StructuredExtractionMode\x12*\n" +
+	"&STRUCTURED_EXTRACTION_MODE_UNSPECIFIED\x10\x00\x121\n" +
+	"-STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY\x10\x01\x123\n" +
+	"/STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK\x10\x02BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_agent_manager_v1_domain_profile_proto_rawDescOnce sync.Once
@@ -1404,71 +1645,79 @@ func file_agent_manager_v1_domain_profile_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_domain_profile_proto_rawDescData
 }
 
-var file_agent_manager_v1_domain_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_agent_manager_v1_domain_profile_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_agent_manager_v1_domain_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_agent_manager_v1_domain_profile_proto_goTypes = []any{
-	(*AgentProfile)(nil),                // 0: agent_manager.v1.AgentProfile
-	(*RunConfig)(nil),                   // 1: agent_manager.v1.RunConfig
-	(*ExecutionCandidate)(nil),          // 2: agent_manager.v1.ExecutionCandidate
-	(*ResourceProvenance)(nil),          // 3: agent_manager.v1.ResourceProvenance
-	(*PermissionEnforcement)(nil),       // 4: agent_manager.v1.PermissionEnforcement
-	(*CandidatePreflight)(nil),          // 5: agent_manager.v1.CandidatePreflight
-	(*PolicyResolutionExplanation)(nil), // 6: agent_manager.v1.PolicyResolutionExplanation
-	(*ExecutionPolicySnapshot)(nil),     // 7: agent_manager.v1.ExecutionPolicySnapshot
-	(*RunConfigOverrides)(nil),          // 8: agent_manager.v1.RunConfigOverrides
-	(*HeartbeatConfig)(nil),             // 9: agent_manager.v1.HeartbeatConfig
-	nil,                                 // 10: agent_manager.v1.AgentProfile.ExtraFlagsEntry
-	nil,                                 // 11: agent_manager.v1.RunConfig.ExtraFlagsEntry
-	nil,                                 // 12: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
-	(*durationpb.Duration)(nil),         // 13: google.protobuf.Duration
-	(*FeatureFlags)(nil),                // 14: agent_manager.v1.FeatureFlags
-	(NetworkAccess)(0),                  // 15: agent_manager.v1.NetworkAccess
-	(*timestamppb.Timestamp)(nil),       // 16: google.protobuf.Timestamp
-	(*SandboxConfig)(nil),               // 17: agent_manager.v1.SandboxConfig
-	(RunnerType)(0),                     // 18: agent_manager.v1.RunnerType
-	(ModelSelectionType)(0),             // 19: agent_manager.v1.ModelSelectionType
-	(*ExtraFlagList)(nil),               // 20: agent_manager.v1.ExtraFlagList
+	(ResultSpecKind)(0),                 // 0: agent_manager.v1.ResultSpecKind
+	(StructuredExtractionMode)(0),       // 1: agent_manager.v1.StructuredExtractionMode
+	(*AgentProfile)(nil),                // 2: agent_manager.v1.AgentProfile
+	(*ResultSpec)(nil),                  // 3: agent_manager.v1.ResultSpec
+	(*RunConfig)(nil),                   // 4: agent_manager.v1.RunConfig
+	(*ExecutionCandidate)(nil),          // 5: agent_manager.v1.ExecutionCandidate
+	(*ResourceProvenance)(nil),          // 6: agent_manager.v1.ResourceProvenance
+	(*PermissionEnforcement)(nil),       // 7: agent_manager.v1.PermissionEnforcement
+	(*CandidatePreflight)(nil),          // 8: agent_manager.v1.CandidatePreflight
+	(*PolicyResolutionExplanation)(nil), // 9: agent_manager.v1.PolicyResolutionExplanation
+	(*ExecutionPolicySnapshot)(nil),     // 10: agent_manager.v1.ExecutionPolicySnapshot
+	(*RunConfigOverrides)(nil),          // 11: agent_manager.v1.RunConfigOverrides
+	(*HeartbeatConfig)(nil),             // 12: agent_manager.v1.HeartbeatConfig
+	nil,                                 // 13: agent_manager.v1.AgentProfile.ExtraFlagsEntry
+	nil,                                 // 14: agent_manager.v1.RunConfig.ExtraFlagsEntry
+	nil,                                 // 15: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
+	(*durationpb.Duration)(nil),         // 16: google.protobuf.Duration
+	(*FeatureFlags)(nil),                // 17: agent_manager.v1.FeatureFlags
+	(NetworkAccess)(0),                  // 18: agent_manager.v1.NetworkAccess
+	(*timestamppb.Timestamp)(nil),       // 19: google.protobuf.Timestamp
+	(*SandboxConfig)(nil),               // 20: agent_manager.v1.SandboxConfig
+	(RunnerType)(0),                     // 21: agent_manager.v1.RunnerType
+	(ModelSelectionType)(0),             // 22: agent_manager.v1.ModelSelectionType
+	(*ExtraFlagList)(nil),               // 23: agent_manager.v1.ExtraFlagList
 }
 var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
-	13, // 0: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
-	14, // 1: agent_manager.v1.AgentProfile.features:type_name -> agent_manager.v1.FeatureFlags
-	10, // 2: agent_manager.v1.AgentProfile.extra_flags:type_name -> agent_manager.v1.AgentProfile.ExtraFlagsEntry
-	15, // 3: agent_manager.v1.AgentProfile.network_access:type_name -> agent_manager.v1.NetworkAccess
-	16, // 4: agent_manager.v1.AgentProfile.source_updated_at:type_name -> google.protobuf.Timestamp
-	17, // 5: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	16, // 6: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
-	16, // 7: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
-	18, // 8: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
-	13, // 9: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
-	14, // 10: agent_manager.v1.RunConfig.features:type_name -> agent_manager.v1.FeatureFlags
-	11, // 11: agent_manager.v1.RunConfig.extra_flags:type_name -> agent_manager.v1.RunConfig.ExtraFlagsEntry
-	15, // 12: agent_manager.v1.RunConfig.network_access:type_name -> agent_manager.v1.NetworkAccess
-	7,  // 13: agent_manager.v1.RunConfig.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
-	17, // 14: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	18, // 15: agent_manager.v1.ExecutionCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
-	19, // 16: agent_manager.v1.ExecutionCandidate.selection_type:type_name -> agent_manager.v1.ModelSelectionType
-	3,  // 17: agent_manager.v1.ExecutionCandidate.provenance:type_name -> agent_manager.v1.ResourceProvenance
-	4,  // 18: agent_manager.v1.ExecutionCandidate.enforcement:type_name -> agent_manager.v1.PermissionEnforcement
-	2,  // 19: agent_manager.v1.CandidatePreflight.candidate:type_name -> agent_manager.v1.ExecutionCandidate
-	18, // 20: agent_manager.v1.PolicyResolutionExplanation.requested_runner:type_name -> agent_manager.v1.RunnerType
-	5,  // 21: agent_manager.v1.PolicyResolutionExplanation.preflight:type_name -> agent_manager.v1.CandidatePreflight
-	2,  // 22: agent_manager.v1.ExecutionPolicySnapshot.candidates:type_name -> agent_manager.v1.ExecutionCandidate
-	2,  // 23: agent_manager.v1.ExecutionPolicySnapshot.selected_candidate:type_name -> agent_manager.v1.ExecutionCandidate
-	6,  // 24: agent_manager.v1.ExecutionPolicySnapshot.explanation:type_name -> agent_manager.v1.PolicyResolutionExplanation
-	13, // 25: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
-	14, // 26: agent_manager.v1.RunConfigOverrides.features:type_name -> agent_manager.v1.FeatureFlags
-	12, // 27: agent_manager.v1.RunConfigOverrides.extra_flags:type_name -> agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
-	15, // 28: agent_manager.v1.RunConfigOverrides.network_access:type_name -> agent_manager.v1.NetworkAccess
-	17, // 29: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
-	13, // 30: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
-	13, // 31: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
-	20, // 32: agent_manager.v1.AgentProfile.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	20, // 33: agent_manager.v1.RunConfig.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	20, // 34: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
-	35, // [35:35] is the sub-list for method output_type
-	35, // [35:35] is the sub-list for method input_type
-	35, // [35:35] is the sub-list for extension type_name
-	35, // [35:35] is the sub-list for extension extendee
-	0,  // [0:35] is the sub-list for field type_name
+	16, // 0: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
+	17, // 1: agent_manager.v1.AgentProfile.features:type_name -> agent_manager.v1.FeatureFlags
+	13, // 2: agent_manager.v1.AgentProfile.extra_flags:type_name -> agent_manager.v1.AgentProfile.ExtraFlagsEntry
+	18, // 3: agent_manager.v1.AgentProfile.network_access:type_name -> agent_manager.v1.NetworkAccess
+	19, // 4: agent_manager.v1.AgentProfile.source_updated_at:type_name -> google.protobuf.Timestamp
+	20, // 5: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	19, // 6: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
+	19, // 7: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 8: agent_manager.v1.ResultSpec.kind:type_name -> agent_manager.v1.ResultSpecKind
+	1,  // 9: agent_manager.v1.ResultSpec.extraction_mode:type_name -> agent_manager.v1.StructuredExtractionMode
+	21, // 10: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
+	3,  // 11: agent_manager.v1.RunConfig.result_spec:type_name -> agent_manager.v1.ResultSpec
+	16, // 12: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
+	17, // 13: agent_manager.v1.RunConfig.features:type_name -> agent_manager.v1.FeatureFlags
+	14, // 14: agent_manager.v1.RunConfig.extra_flags:type_name -> agent_manager.v1.RunConfig.ExtraFlagsEntry
+	18, // 15: agent_manager.v1.RunConfig.network_access:type_name -> agent_manager.v1.NetworkAccess
+	10, // 16: agent_manager.v1.RunConfig.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
+	20, // 17: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	21, // 18: agent_manager.v1.ExecutionCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
+	22, // 19: agent_manager.v1.ExecutionCandidate.selection_type:type_name -> agent_manager.v1.ModelSelectionType
+	6,  // 20: agent_manager.v1.ExecutionCandidate.provenance:type_name -> agent_manager.v1.ResourceProvenance
+	7,  // 21: agent_manager.v1.ExecutionCandidate.enforcement:type_name -> agent_manager.v1.PermissionEnforcement
+	5,  // 22: agent_manager.v1.CandidatePreflight.candidate:type_name -> agent_manager.v1.ExecutionCandidate
+	21, // 23: agent_manager.v1.PolicyResolutionExplanation.requested_runner:type_name -> agent_manager.v1.RunnerType
+	8,  // 24: agent_manager.v1.PolicyResolutionExplanation.preflight:type_name -> agent_manager.v1.CandidatePreflight
+	5,  // 25: agent_manager.v1.ExecutionPolicySnapshot.candidates:type_name -> agent_manager.v1.ExecutionCandidate
+	5,  // 26: agent_manager.v1.ExecutionPolicySnapshot.selected_candidate:type_name -> agent_manager.v1.ExecutionCandidate
+	9,  // 27: agent_manager.v1.ExecutionPolicySnapshot.explanation:type_name -> agent_manager.v1.PolicyResolutionExplanation
+	3,  // 28: agent_manager.v1.RunConfigOverrides.result_spec:type_name -> agent_manager.v1.ResultSpec
+	16, // 29: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
+	17, // 30: agent_manager.v1.RunConfigOverrides.features:type_name -> agent_manager.v1.FeatureFlags
+	15, // 31: agent_manager.v1.RunConfigOverrides.extra_flags:type_name -> agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry
+	18, // 32: agent_manager.v1.RunConfigOverrides.network_access:type_name -> agent_manager.v1.NetworkAccess
+	20, // 33: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	16, // 34: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
+	16, // 35: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
+	23, // 36: agent_manager.v1.AgentProfile.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	23, // 37: agent_manager.v1.RunConfig.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	23, // 38: agent_manager.v1.RunConfigOverrides.ExtraFlagsEntry.value:type_name -> agent_manager.v1.ExtraFlagList
+	39, // [39:39] is the sub-list for method output_type
+	39, // [39:39] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_profile_proto_init() }
@@ -1477,19 +1726,20 @@ func file_agent_manager_v1_domain_profile_proto_init() {
 		return
 	}
 	file_agent_manager_v1_domain_types_proto_init()
-	file_agent_manager_v1_domain_profile_proto_msgTypes[8].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_profile_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_profile_proto_rawDesc), len(file_agent_manager_v1_domain_profile_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   13,
+			NumEnums:      2,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_agent_manager_v1_domain_profile_proto_goTypes,
 		DependencyIndexes: file_agent_manager_v1_domain_profile_proto_depIdxs,
+		EnumInfos:         file_agent_manager_v1_domain_profile_proto_enumTypes,
 		MessageInfos:      file_agent_manager_v1_domain_profile_proto_msgTypes,
 	}.Build()
 	File_agent_manager_v1_domain_profile_proto = out.File

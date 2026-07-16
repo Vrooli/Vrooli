@@ -4,7 +4,7 @@
 
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { RunConfig } from "./profile_pb";
+import type { ExecutionPolicySnapshot, ResultSpecKind, RunConfig } from "./profile_pb";
 import { file_agent_manager_v1_domain_profile } from "./profile_pb";
 import type { ApprovalState, ExecutionMode, IdempotencyStatus, RunFinalizationStatus, RunMode, RunnerType, RunPhase, RunStatus } from "./types_pb";
 import { file_agent_manager_v1_domain_types } from "./types_pb";
@@ -17,7 +17,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file agent-manager/v1/domain/run.proto.
  */
 export const file_agent_manager_v1_domain_run: GenFile = /*@__PURE__*/
-  fileDesc("CiFhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9ydW4ucHJvdG8SEGFnZW50X21hbmFnZXIudjEiqA0KA1J1bhIKCgJpZBgBIAEoCRIZCgd0YXNrX2lkGAIgASgJQgi6SAVyA7ABARIdChBhZ2VudF9wcm9maWxlX2lkGAMgASgJSACIAQESCwoDdGFnGAQgASgJEhcKCnNhbmRib3hfaWQYBSABKAlIAYgBARIrCghydW5fbW9kZRgGIAEoDjIZLmFnZW50X21hbmFnZXIudjEuUnVuTW9kZRIrCgZzdGF0dXMYByABKA4yGy5hZ2VudF9tYW5hZ2VyLnYxLlJ1blN0YXR1cxIzCgpzdGFydGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgCiAEBEjEKCGVuZGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgDiAEBEikKBXBoYXNlGAogASgOMhouYWdlbnRfbWFuYWdlci52MS5SdW5QaGFzZRIfChJsYXN0X2NoZWNrcG9pbnRfaWQYCyABKAlIBIgBARI3Cg5sYXN0X2hlYXJ0YmVhdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIBYgBARIjChBwcm9ncmVzc19wZXJjZW50GA0gASgFQgm6SAYaBBhkKAASFwoPaWRlbXBvdGVuY3lfa2V5GA4gASgJEjIKB3N1bW1hcnkYDyABKAsyHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1blN1bW1hcnlIBogBARIRCgllcnJvcl9tc2cYECABKAkSFgoJZXhpdF9jb2RlGBEgASgFSAeIAQESNwoOYXBwcm92YWxfc3RhdGUYEiABKA4yHy5hZ2VudF9tYW5hZ2VyLnYxLkFwcHJvdmFsU3RhdGUSEwoLYXBwcm92ZWRfYnkYEyABKAkSNAoLYXBwcm92ZWRfYXQYFCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAiIAQESOQoPcmVzb2x2ZWRfY29uZmlnGBUgASgLMhsuYWdlbnRfbWFuYWdlci52MS5SdW5Db25maWdICYgBARIRCglkaWZmX3BhdGgYFiABKAkSEAoIbG9nX3BhdGgYFyABKAkSFQoNY2hhbmdlZF9maWxlcxgYIAEoBRIYChB0b3RhbF9zaXplX2J5dGVzGBkgASgDEhIKCnNlc3Npb25faWQYHCABKAkSLgoKY3JlYXRlZF9hdBgaIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgbIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLQoHYWN0aW9ucxgdIAEoCzIcLmFnZW50X21hbmFnZXIudjEuUnVuQWN0aW9ucxIWCg5wcm9tcHRfcHJldmlldxgeIAEoCRIXCg9yZXF1ZXN0ZWRfbW9kZWwYHyABKAkSFAoMYWN0dWFsX21vZGVsGCAgASgJEkQKE2ZpbmFsaXphdGlvbl9zdGF0dXMYISABKA4yJy5hZ2VudF9tYW5hZ2VyLnYxLlJ1bkZpbmFsaXphdGlvblN0YXR1cxIaChJmaW5hbGl6YXRpb25fZXJyb3IYIiABKAkSNQoMZmluYWxpemVkX2F0GCMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgKiAEBEjgKDGF3YWl0X2hhbmRsZRgkIAEoCzIdLmFnZW50X21hbmFnZXIudjEuQXdhaXRIYW5kbGVIC4gBARI3Cg5leGVjdXRpb25fbW9kZRglIAEoDjIfLmFnZW50X21hbmFnZXIudjEuRXhlY3V0aW9uTW9kZRIeChZ3ZWJfY29uc29sZV9zZXNzaW9uX2lkGCYgASgJEh8KF3dlYl9jb25zb2xlX3Nlc3Npb25fdXJsGCcgASgJEjAKBnJlc3VsdBgoIAEoCzIbLmFnZW50X21hbmFnZXIudjEuUnVuUmVzdWx0SAyIAQFCEwoRX2FnZW50X3Byb2ZpbGVfaWRCDQoLX3NhbmRib3hfaWRCDQoLX3N0YXJ0ZWRfYXRCCwoJX2VuZGVkX2F0QhUKE19sYXN0X2NoZWNrcG9pbnRfaWRCEQoPX2xhc3RfaGVhcnRiZWF0QgoKCF9zdW1tYXJ5QgwKCl9leGl0X2NvZGVCDgoMX2FwcHJvdmVkX2F0QhIKEF9yZXNvbHZlZF9jb25maWdCDwoNX2ZpbmFsaXplZF9hdEIPCg1fYXdhaXRfaGFuZGxlQgkKB19yZXN1bHQixAIKFEZpbmFsT3V0cHV0Q2FuZGlkYXRlEgoKAmlkGAEgASgJEhAKCGV2ZW50X2lkGAIgASgJEhAKCHNlcXVlbmNlGAMgASgDEg8KB2NvbnRlbnQYBCABKAkSEgoKbWVzc2FnZV9pZBgFIAEoCRIXCg9jb252ZXJzYXRpb25faWQYBiABKAkSDwoHdHVybl9pZBgHIAEoCRIXCg9wcm92aWRlcl9vcmlnaW4YCCABKAkSGQoRY29tcGxldGlvbl9yZWFzb24YCSABKAkSEAoIdGVybWluYWwYCiABKAgSGQoRcGFyZW50X21lc3NhZ2VfaWQYCyABKAkSGwoTcHJvdmlkZXJfZXZlbnRfdHlwZRgMIAEoCRIYChByYXdfZXZpZGVuY2VfcmVmGA0gASgJEhUKDWV2aWRlbmNlX3RpZXIYDiABKAUirgEKFEZpbmFsT3V0cHV0U2VsZWN0aW9uEjwKBnN0YXR1cxgBIAEoDjIsLmFnZW50X21hbmFnZXIudjEuRmluYWxPdXRwdXRTZWxlY3Rpb25TdGF0dXMSHQoVc2VsZWN0ZWRfY2FuZGlkYXRlX2lkGAIgASgJEgwKBHJ1bGUYAyABKAkSGQoRYWxnb3JpdGhtX3ZlcnNpb24YBCABKAkSEAoIZXZpZGVuY2UYBSADKAki1QEKCVJ1blJlc3VsdBIUCgxmaW5hbF9vdXRwdXQYASABKAkSOQoJc2VsZWN0aW9uGAIgASgLMiYuYWdlbnRfbWFuYWdlci52MS5GaW5hbE91dHB1dFNlbGVjdGlvbhI6CgpjYW5kaWRhdGVzGAMgAygLMiYuYWdlbnRfbWFuYWdlci52MS5GaW5hbE91dHB1dENhbmRpZGF0ZRIPCgdzdWNjZXNzGAQgASgIEhEKCWV4aXRfY29kZRgFIAEoBRIXCg90ZXJtaW5hbF9yZWFzb24YBiABKAkinwEKC0F3YWl0SGFuZGxlEhAKCHByb2R1Y2VyGAEgASgJEgsKA2tleRgCIAEoCRIxCghkZWFkbGluZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARIxCg1yZWdpc3RlcmVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEILCglfZGVhZGxpbmUiwwMKClJ1bkFjdGlvbnMSFwoPY2FuX2ludmVzdGlnYXRlGAEgASgIEh8KF2Nhbl9hcHBseV9pbnZlc3RpZ2F0aW9uGAIgASgIEhIKCmNhbl9kZWxldGUYAyABKAgSEAoIY2FuX3N0b3AYBCABKAgSEQoJY2FuX3JldHJ5GAUgASgIEhQKDGNhbl9jb250aW51ZRgGIAEoCBITCgtjYW5fYXBwcm92ZRgHIAEoCBISCgpjYW5fcmVqZWN0GAggASgIEhIKCmNhbl9yZXZpZXcYCSABKAgSIwobY2FuX2V4dHJhY3RfcmVjb21tZW5kYXRpb25zGAogASgIEiYKHmNhbl9yZWdlbmVyYXRlX3JlY29tbWVuZGF0aW9ucxgLIAEoCBIbChNjYW5fY29udGludWVfcmVhc29uGAwgASgJEh8KF2Nhbl9yZXN1bWVfZnJvbV9mYWlsdXJlGA0gASgIEiYKHmNhbl9yZXN1bWVfZnJvbV9mYWlsdXJlX3JlYXNvbhgOIAEoCRIcChRmaW5hbGl6YXRpb25fd2FybmluZxgPIAEoCRIeChZjYW5fcmV0cnlfZmluYWxpemF0aW9uGBAgASgIIr8BCgpSdW5TdW1tYXJ5EhMKC2Rlc2NyaXB0aW9uGAEgASgJEhYKDmZpbGVzX21vZGlmaWVkGAIgAygJEhUKDWZpbGVzX2NyZWF0ZWQYAyADKAkSFQoNZmlsZXNfZGVsZXRlZBgEIAMoCRITCgt0b2tlbnNfdXNlZBgFIAEoBRISCgp0dXJuc191c2VkGAYgASgFEhUKDWNvc3RfZXN0aW1hdGUYByABKAESFgoOY29udGV4dF90b2tlbnMYCCABKAUixwMKDVJ1bkNoZWNrcG9pbnQSDgoGcnVuX2lkGAEgASgJEikKBXBoYXNlGAIgASgOMhouYWdlbnRfbWFuYWdlci52MS5SdW5QaGFzZRIZChFzdGVwX3dpdGhpbl9waGFzZRgDIAEoBRIXCgpzYW5kYm94X2lkGAQgASgJSACIAQESEAoId29ya19kaXIYBSABKAkSFAoHbG9ja19pZBgGIAEoCUgBiAEBEhsKE2xhc3RfZXZlbnRfc2VxdWVuY2UYByABKAMSMgoObGFzdF9oZWFydGJlYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC3JldHJ5X2NvdW50GAkgASgFEiwKCHNhdmVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI/CghtZXRhZGF0YRgLIAMoCzItLmFnZW50X21hbmFnZXIudjEuUnVuQ2hlY2twb2ludC5NZXRhZGF0YUVudHJ5Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUINCgtfc2FuZGJveF9pZEIKCghfbG9ja19pZCK8AgoLUnVuUHJvZ3Jlc3MSKQoFcGhhc2UYASABKA4yGi5hZ2VudF9tYW5hZ2VyLnYxLlJ1blBoYXNlEhkKEXBoYXNlX2Rlc2NyaXB0aW9uGAIgASgJEhgKEHBlcmNlbnRfY29tcGxldGUYAyABKAUSFgoOY3VycmVudF9hY3Rpb24YBCABKAkSLwoMZWxhcHNlZF90aW1lGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEjsKE2VzdGltYXRlZF9yZW1haW5pbmcYBiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25IAIgBARIvCgtsYXN0X3VwZGF0ZRgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCFgoUX2VzdGltYXRlZF9yZW1haW5pbmciggIKEUlkZW1wb3RlbmN5UmVjb3JkEgsKA2tleRgBIAEoCRIzCgZzdGF0dXMYAiABKA4yIy5hZ2VudF9tYW5hZ2VyLnYxLklkZW1wb3RlbmN5U3RhdHVzEhYKCWVudGl0eV9pZBgDIAEoCUgAiAEBEhMKC2VudGl0eV90eXBlGAQgASgJEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmV4cGlyZXNfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHJlc3BvbnNlGAcgASgMQgwKCl9lbnRpdHlfaWQi0QEKDFJ1bm5lclN0YXR1cxIxCgtydW5uZXJfdHlwZRgBIAEoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZRIRCglhdmFpbGFibGUYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRIUCgxpbnN0YWxsX2hpbnQYBCABKAkSGAoQc3VwcG9ydGVkX21vZGVscxgFIAMoCRI6CgxjYXBhYmlsaXRpZXMYBiABKAsyJC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lckNhcGFiaWxpdGllcyKTAgoSUnVubmVyQ2FwYWJpbGl0aWVzEhoKEnN1cHBvcnRzX3N0cmVhbWluZxgBIAEoCBIZChFzdXBwb3J0c19tZXNzYWdlcxgCIAEoCBIcChRzdXBwb3J0c190b29sX2V2ZW50cxgDIAEoCBIeChZzdXBwb3J0c19jb3N0X3RyYWNraW5nGAQgASgIEh0KFXN1cHBvcnRzX2NhbmNlbGxhdGlvbhgFIAEoCBIRCgltYXhfdHVybnMYBiABKAUSHQoVc3VwcG9ydHNfY29udGludWF0aW9uGAcgASgIEhoKEnN1cHBvcnRlZF9mZWF0dXJlcxgIIAMoCRIbChNhbGxvd2VkX2V4dHJhX2ZsYWdzGAkgAygJIq4BCgtQcm9iZVJlc3VsdBIPCgdzdWNjZXNzGAEgASgIEhIKCmxhdGVuY3lfbXMYAiABKAMSDQoFZXJyb3IYAyABKAkSOwoHZGV0YWlscxgEIAMoCzIqLmFnZW50X21hbmFnZXIudjEuUHJvYmVSZXN1bHQuRGV0YWlsc0VudHJ5Gi4KDERldGFpbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIlcKDVN0b3BBbGxSZXN1bHQSFQoNc3RvcHBlZF9jb3VudBgBIAEoBRIvCghmYWlsdXJlcxgCIAMoCzIdLmFnZW50X21hbmFnZXIudjEuU3RvcEZhaWx1cmUiLAoLU3RvcEZhaWx1cmUSDgoGcnVuX2lkGAEgASgJEg0KBWVycm9yGAIgASgJIoQBCg1BcHByb3ZlUmVzdWx0Eg8KB3N1Y2Nlc3MYASABKAgSFQoNZmlsZXNfYXBwbGllZBgCIAEoBRITCgtjb21taXRfaGFzaBgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhEKCXJlbWFpbmluZxgFIAEoBRISCgppc19wYXJ0aWFsGAYgASgIIocBCgdSdW5EaWZmEg4KBnJ1bl9pZBgBIAEoCRIPCgdjb250ZW50GAIgASgJEikKBWZpbGVzGAMgAygLMhouYWdlbnRfbWFuYWdlci52MS5GaWxlRGlmZhIwCgxnZW5lcmF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIoEBCghGaWxlRGlmZhIMCgRwYXRoGAEgASgJEhMKC2NoYW5nZV90eXBlGAIgASgJEhEKCWFkZGl0aW9ucxgDIAEoBRIRCglkZWxldGlvbnMYBCABKAUSEQoJaXNfYmluYXJ5GAUgASgIEg0KBXBhdGNoGAYgASgJEgoKAmlkGAcgASgJIncKCkF0dGFjaG1lbnQSCgoCaWQYASABKAkSEQoJZmlsZV9uYW1lGAIgASgJEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRIRCglmaWxlX3NpemUYBCABKAMSFAoMc3RvcmFnZV9wYXRoGAUgASgJEgsKA3VybBgGIAEoCSJgChJDb250aW51ZVJ1blJlcXVlc3QSGAoGcnVuX2lkGAEgASgJQgi6SAVyA7ABARIYCgdtZXNzYWdlGAIgASgJQge6SARyAhABEhYKDmF0dGFjaG1lbnRfaWRzGAMgAygJIm0KE0NvbnRpbnVlUnVuUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIiCgNydW4YAiABKAsyFS5hZ2VudF9tYW5hZ2VyLnYxLlJ1bhINCgVlcnJvchgDIAEoCRISCgplcnJvcl9jb2RlGAQgASgJIk8KF0RlbGV0ZVJ1bk1lc3NhZ2VSZXF1ZXN0EhgKBnJ1bl9pZBgBIAEoCUIIukgFcgOwAQESGgoIZXZlbnRfaWQYAiABKAlCCLpIBXIDsAEBIisKGERlbGV0ZVJ1bk1lc3NhZ2VSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIIooBCg5QYXJrUnVuUmVxdWVzdBIYCgZydW5faWQYASABKAlCCLpIBXIDsAEBEhkKCHByb2R1Y2VyGAIgASgJQge6SARyAhABEhQKA2tleRgDIAEoCUIHukgEcgIQARIVCg1kZWFkbGluZV91bml4GAQgASgDEhYKDmlkZW50aXR5X3Rva2VuGAUgASgJIngKD1BhcmtSdW5SZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEiIKA3J1bhgCIAEoCzIVLmFnZW50X21hbmFnZXIudjEuUnVuEg8KB21lc3NhZ2UYAyABKAkSDwoHcmVmdXNlZBgEIAEoCBIOCgZyZXN1bHQYBSABKAkiWQoWR2V0QXdhaXRSZXN1bHRSZXNwb25zZRINCgVmb3VuZBgBIAEoCBILCgNrZXkYAiABKAkSDgoGcmVzdWx0GAMgASgJEhMKC3Jlc29sdmVkX2F0GAQgASgJIk0KDldha2VSdW5SZXF1ZXN0EhgKBnJ1bl9pZBgBIAEoCUIIukgFcgOwAQESDgoGcmVzdWx0GAIgASgJEhEKCXRpbWVkX291dBgDIAEoCCJGCg9XYWtlUnVuUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIiCgNydW4YAiABKAsyFS5hZ2VudF9tYW5hZ2VyLnYxLlJ1birTAQoaRmluYWxPdXRwdXRTZWxlY3Rpb25TdGF0dXMSLQopRklOQUxfT1VUUFVUX1NFTEVDVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIqCiZGSU5BTF9PVVRQVVRfU0VMRUNUSU9OX1NUQVRVU19TRUxFQ1RFRBABEisKJ0ZJTkFMX09VVFBVVF9TRUxFQ1RJT05fU1RBVFVTX0FNQklHVU9VUxACEi0KKUZJTkFMX09VVFBVVF9TRUxFQ1RJT05fU1RBVFVTX1VOQVZBSUxBQkxFEANCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_agent_manager_v1_domain_profile, file_agent_manager_v1_domain_types, file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("CiFhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9ydW4ucHJvdG8SEGFnZW50X21hbmFnZXIudjEiqA0KA1J1bhIKCgJpZBgBIAEoCRIZCgd0YXNrX2lkGAIgASgJQgi6SAVyA7ABARIdChBhZ2VudF9wcm9maWxlX2lkGAMgASgJSACIAQESCwoDdGFnGAQgASgJEhcKCnNhbmRib3hfaWQYBSABKAlIAYgBARIrCghydW5fbW9kZRgGIAEoDjIZLmFnZW50X21hbmFnZXIudjEuUnVuTW9kZRIrCgZzdGF0dXMYByABKA4yGy5hZ2VudF9tYW5hZ2VyLnYxLlJ1blN0YXR1cxIzCgpzdGFydGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgCiAEBEjEKCGVuZGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgDiAEBEikKBXBoYXNlGAogASgOMhouYWdlbnRfbWFuYWdlci52MS5SdW5QaGFzZRIfChJsYXN0X2NoZWNrcG9pbnRfaWQYCyABKAlIBIgBARI3Cg5sYXN0X2hlYXJ0YmVhdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIBYgBARIjChBwcm9ncmVzc19wZXJjZW50GA0gASgFQgm6SAYaBBhkKAASFwoPaWRlbXBvdGVuY3lfa2V5GA4gASgJEjIKB3N1bW1hcnkYDyABKAsyHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1blN1bW1hcnlIBogBARIRCgllcnJvcl9tc2cYECABKAkSFgoJZXhpdF9jb2RlGBEgASgFSAeIAQESNwoOYXBwcm92YWxfc3RhdGUYEiABKA4yHy5hZ2VudF9tYW5hZ2VyLnYxLkFwcHJvdmFsU3RhdGUSEwoLYXBwcm92ZWRfYnkYEyABKAkSNAoLYXBwcm92ZWRfYXQYFCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAiIAQESOQoPcmVzb2x2ZWRfY29uZmlnGBUgASgLMhsuYWdlbnRfbWFuYWdlci52MS5SdW5Db25maWdICYgBARIRCglkaWZmX3BhdGgYFiABKAkSEAoIbG9nX3BhdGgYFyABKAkSFQoNY2hhbmdlZF9maWxlcxgYIAEoBRIYChB0b3RhbF9zaXplX2J5dGVzGBkgASgDEhIKCnNlc3Npb25faWQYHCABKAkSLgoKY3JlYXRlZF9hdBgaIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgbIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLQoHYWN0aW9ucxgdIAEoCzIcLmFnZW50X21hbmFnZXIudjEuUnVuQWN0aW9ucxIWCg5wcm9tcHRfcHJldmlldxgeIAEoCRIXCg9yZXF1ZXN0ZWRfbW9kZWwYHyABKAkSFAoMYWN0dWFsX21vZGVsGCAgASgJEkQKE2ZpbmFsaXphdGlvbl9zdGF0dXMYISABKA4yJy5hZ2VudF9tYW5hZ2VyLnYxLlJ1bkZpbmFsaXphdGlvblN0YXR1cxIaChJmaW5hbGl6YXRpb25fZXJyb3IYIiABKAkSNQoMZmluYWxpemVkX2F0GCMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgKiAEBEjgKDGF3YWl0X2hhbmRsZRgkIAEoCzIdLmFnZW50X21hbmFnZXIudjEuQXdhaXRIYW5kbGVIC4gBARI3Cg5leGVjdXRpb25fbW9kZRglIAEoDjIfLmFnZW50X21hbmFnZXIudjEuRXhlY3V0aW9uTW9kZRIeChZ3ZWJfY29uc29sZV9zZXNzaW9uX2lkGCYgASgJEh8KF3dlYl9jb25zb2xlX3Nlc3Npb25fdXJsGCcgASgJEjAKBnJlc3VsdBgoIAEoCzIbLmFnZW50X21hbmFnZXIudjEuUnVuUmVzdWx0SAyIAQFCEwoRX2FnZW50X3Byb2ZpbGVfaWRCDQoLX3NhbmRib3hfaWRCDQoLX3N0YXJ0ZWRfYXRCCwoJX2VuZGVkX2F0QhUKE19sYXN0X2NoZWNrcG9pbnRfaWRCEQoPX2xhc3RfaGVhcnRiZWF0QgoKCF9zdW1tYXJ5QgwKCl9leGl0X2NvZGVCDgoMX2FwcHJvdmVkX2F0QhIKEF9yZXNvbHZlZF9jb25maWdCDwoNX2ZpbmFsaXplZF9hdEIPCg1fYXdhaXRfaGFuZGxlQgkKB19yZXN1bHQixAIKFEZpbmFsT3V0cHV0Q2FuZGlkYXRlEgoKAmlkGAEgASgJEhAKCGV2ZW50X2lkGAIgASgJEhAKCHNlcXVlbmNlGAMgASgDEg8KB2NvbnRlbnQYBCABKAkSEgoKbWVzc2FnZV9pZBgFIAEoCRIXCg9jb252ZXJzYXRpb25faWQYBiABKAkSDwoHdHVybl9pZBgHIAEoCRIXCg9wcm92aWRlcl9vcmlnaW4YCCABKAkSGQoRY29tcGxldGlvbl9yZWFzb24YCSABKAkSEAoIdGVybWluYWwYCiABKAgSGQoRcGFyZW50X21lc3NhZ2VfaWQYCyABKAkSGwoTcHJvdmlkZXJfZXZlbnRfdHlwZRgMIAEoCRIYChByYXdfZXZpZGVuY2VfcmVmGA0gASgJEhUKDWV2aWRlbmNlX3RpZXIYDiABKAUirgEKFEZpbmFsT3V0cHV0U2VsZWN0aW9uEjwKBnN0YXR1cxgBIAEoDjIsLmFnZW50X21hbmFnZXIudjEuRmluYWxPdXRwdXRTZWxlY3Rpb25TdGF0dXMSHQoVc2VsZWN0ZWRfY2FuZGlkYXRlX2lkGAIgASgJEgwKBHJ1bGUYAyABKAkSGQoRYWxnb3JpdGhtX3ZlcnNpb24YBCABKAkSEAoIZXZpZGVuY2UYBSADKAkiQwoUU3RydWN0dXJlZERpYWdub3N0aWMSDAoEY29kZRgBIAEoCRIMCgRwYXRoGAIgASgJEg8KB21lc3NhZ2UYAyABKAkilwEKHlN0cnVjdHVyZWRFeHRyYWN0aW9uUHJvdmVuYW5jZRIQCghyb2xlX3JlZhgBIAEoCRIQCghwcm92aWRlchgCIAEoCRINCgVtb2RlbBgDIAEoCRJCCg9wb2xpY3lfc25hcHNob3QYBCABKAsyKS5hZ2VudF9tYW5hZ2VyLnYxLkV4ZWN1dGlvblBvbGljeVNuYXBzaG90ItYCChBTdHJ1Y3R1cmVkUmVzdWx0EjgKBnN0YXR1cxgBIAEoDjIoLmFnZW50X21hbmFnZXIudjEuU3RydWN0dXJlZFJlc3VsdFN0YXR1cxIzCglzcGVjX2tpbmQYAiABKA4yIC5hZ2VudF9tYW5hZ2VyLnYxLlJlc3VsdFNwZWNLaW5kEhUKDXNjaGVtYV9kaWdlc3QYAyABKAkSDQoFdmFsdWUYBCABKAwSDgoGbWV0aG9kGAUgASgJEhsKE3NvdXJjZV9jYW5kaWRhdGVfaWQYBiABKAkSQwoJZXh0cmFjdG9yGAcgASgLMjAuYWdlbnRfbWFuYWdlci52MS5TdHJ1Y3R1cmVkRXh0cmFjdGlvblByb3ZlbmFuY2USOwoLZGlhZ25vc3RpY3MYCCADKAsyJi5hZ2VudF9tYW5hZ2VyLnYxLlN0cnVjdHVyZWREaWFnbm9zdGljIo0CCglSdW5SZXN1bHQSFAoMZmluYWxfb3V0cHV0GAEgASgJEjkKCXNlbGVjdGlvbhgCIAEoCzImLmFnZW50X21hbmFnZXIudjEuRmluYWxPdXRwdXRTZWxlY3Rpb24SOgoKY2FuZGlkYXRlcxgDIAMoCzImLmFnZW50X21hbmFnZXIudjEuRmluYWxPdXRwdXRDYW5kaWRhdGUSDwoHc3VjY2VzcxgEIAEoCBIRCglleGl0X2NvZGUYBSABKAUSFwoPdGVybWluYWxfcmVhc29uGAYgASgJEjYKCnN0cnVjdHVyZWQYByABKAsyIi5hZ2VudF9tYW5hZ2VyLnYxLlN0cnVjdHVyZWRSZXN1bHQinwEKC0F3YWl0SGFuZGxlEhAKCHByb2R1Y2VyGAEgASgJEgsKA2tleRgCIAEoCRIxCghkZWFkbGluZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARIxCg1yZWdpc3RlcmVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEILCglfZGVhZGxpbmUiwwMKClJ1bkFjdGlvbnMSFwoPY2FuX2ludmVzdGlnYXRlGAEgASgIEh8KF2Nhbl9hcHBseV9pbnZlc3RpZ2F0aW9uGAIgASgIEhIKCmNhbl9kZWxldGUYAyABKAgSEAoIY2FuX3N0b3AYBCABKAgSEQoJY2FuX3JldHJ5GAUgASgIEhQKDGNhbl9jb250aW51ZRgGIAEoCBITCgtjYW5fYXBwcm92ZRgHIAEoCBISCgpjYW5fcmVqZWN0GAggASgIEhIKCmNhbl9yZXZpZXcYCSABKAgSIwobY2FuX2V4dHJhY3RfcmVjb21tZW5kYXRpb25zGAogASgIEiYKHmNhbl9yZWdlbmVyYXRlX3JlY29tbWVuZGF0aW9ucxgLIAEoCBIbChNjYW5fY29udGludWVfcmVhc29uGAwgASgJEh8KF2Nhbl9yZXN1bWVfZnJvbV9mYWlsdXJlGA0gASgIEiYKHmNhbl9yZXN1bWVfZnJvbV9mYWlsdXJlX3JlYXNvbhgOIAEoCRIcChRmaW5hbGl6YXRpb25fd2FybmluZxgPIAEoCRIeChZjYW5fcmV0cnlfZmluYWxpemF0aW9uGBAgASgIIr8BCgpSdW5TdW1tYXJ5EhMKC2Rlc2NyaXB0aW9uGAEgASgJEhYKDmZpbGVzX21vZGlmaWVkGAIgAygJEhUKDWZpbGVzX2NyZWF0ZWQYAyADKAkSFQoNZmlsZXNfZGVsZXRlZBgEIAMoCRITCgt0b2tlbnNfdXNlZBgFIAEoBRISCgp0dXJuc191c2VkGAYgASgFEhUKDWNvc3RfZXN0aW1hdGUYByABKAESFgoOY29udGV4dF90b2tlbnMYCCABKAUixwMKDVJ1bkNoZWNrcG9pbnQSDgoGcnVuX2lkGAEgASgJEikKBXBoYXNlGAIgASgOMhouYWdlbnRfbWFuYWdlci52MS5SdW5QaGFzZRIZChFzdGVwX3dpdGhpbl9waGFzZRgDIAEoBRIXCgpzYW5kYm94X2lkGAQgASgJSACIAQESEAoId29ya19kaXIYBSABKAkSFAoHbG9ja19pZBgGIAEoCUgBiAEBEhsKE2xhc3RfZXZlbnRfc2VxdWVuY2UYByABKAMSMgoObGFzdF9oZWFydGJlYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC3JldHJ5X2NvdW50GAkgASgFEiwKCHNhdmVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI/CghtZXRhZGF0YRgLIAMoCzItLmFnZW50X21hbmFnZXIudjEuUnVuQ2hlY2twb2ludC5NZXRhZGF0YUVudHJ5Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUINCgtfc2FuZGJveF9pZEIKCghfbG9ja19pZCK8AgoLUnVuUHJvZ3Jlc3MSKQoFcGhhc2UYASABKA4yGi5hZ2VudF9tYW5hZ2VyLnYxLlJ1blBoYXNlEhkKEXBoYXNlX2Rlc2NyaXB0aW9uGAIgASgJEhgKEHBlcmNlbnRfY29tcGxldGUYAyABKAUSFgoOY3VycmVudF9hY3Rpb24YBCABKAkSLwoMZWxhcHNlZF90aW1lGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEjsKE2VzdGltYXRlZF9yZW1haW5pbmcYBiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25IAIgBARIvCgtsYXN0X3VwZGF0ZRgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCFgoUX2VzdGltYXRlZF9yZW1haW5pbmciggIKEUlkZW1wb3RlbmN5UmVjb3JkEgsKA2tleRgBIAEoCRIzCgZzdGF0dXMYAiABKA4yIy5hZ2VudF9tYW5hZ2VyLnYxLklkZW1wb3RlbmN5U3RhdHVzEhYKCWVudGl0eV9pZBgDIAEoCUgAiAEBEhMKC2VudGl0eV90eXBlGAQgASgJEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmV4cGlyZXNfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHJlc3BvbnNlGAcgASgMQgwKCl9lbnRpdHlfaWQi0QEKDFJ1bm5lclN0YXR1cxIxCgtydW5uZXJfdHlwZRgBIAEoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZRIRCglhdmFpbGFibGUYAiABKAgSDwoHbWVzc2FnZRgDIAEoCRIUCgxpbnN0YWxsX2hpbnQYBCABKAkSGAoQc3VwcG9ydGVkX21vZGVscxgFIAMoCRI6CgxjYXBhYmlsaXRpZXMYBiABKAsyJC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lckNhcGFiaWxpdGllcyKTAgoSUnVubmVyQ2FwYWJpbGl0aWVzEhoKEnN1cHBvcnRzX3N0cmVhbWluZxgBIAEoCBIZChFzdXBwb3J0c19tZXNzYWdlcxgCIAEoCBIcChRzdXBwb3J0c190b29sX2V2ZW50cxgDIAEoCBIeChZzdXBwb3J0c19jb3N0X3RyYWNraW5nGAQgASgIEh0KFXN1cHBvcnRzX2NhbmNlbGxhdGlvbhgFIAEoCBIRCgltYXhfdHVybnMYBiABKAUSHQoVc3VwcG9ydHNfY29udGludWF0aW9uGAcgASgIEhoKEnN1cHBvcnRlZF9mZWF0dXJlcxgIIAMoCRIbChNhbGxvd2VkX2V4dHJhX2ZsYWdzGAkgAygJIq4BCgtQcm9iZVJlc3VsdBIPCgdzdWNjZXNzGAEgASgIEhIKCmxhdGVuY3lfbXMYAiABKAMSDQoFZXJyb3IYAyABKAkSOwoHZGV0YWlscxgEIAMoCzIqLmFnZW50X21hbmFnZXIudjEuUHJvYmVSZXN1bHQuRGV0YWlsc0VudHJ5Gi4KDERldGFpbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIlcKDVN0b3BBbGxSZXN1bHQSFQoNc3RvcHBlZF9jb3VudBgBIAEoBRIvCghmYWlsdXJlcxgCIAMoCzIdLmFnZW50X21hbmFnZXIudjEuU3RvcEZhaWx1cmUiLAoLU3RvcEZhaWx1cmUSDgoGcnVuX2lkGAEgASgJEg0KBWVycm9yGAIgASgJIoQBCg1BcHByb3ZlUmVzdWx0Eg8KB3N1Y2Nlc3MYASABKAgSFQoNZmlsZXNfYXBwbGllZBgCIAEoBRITCgtjb21taXRfaGFzaBgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhEKCXJlbWFpbmluZxgFIAEoBRISCgppc19wYXJ0aWFsGAYgASgIIocBCgdSdW5EaWZmEg4KBnJ1bl9pZBgBIAEoCRIPCgdjb250ZW50GAIgASgJEikKBWZpbGVzGAMgAygLMhouYWdlbnRfbWFuYWdlci52MS5GaWxlRGlmZhIwCgxnZW5lcmF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIoEBCghGaWxlRGlmZhIMCgRwYXRoGAEgASgJEhMKC2NoYW5nZV90eXBlGAIgASgJEhEKCWFkZGl0aW9ucxgDIAEoBRIRCglkZWxldGlvbnMYBCABKAUSEQoJaXNfYmluYXJ5GAUgASgIEg0KBXBhdGNoGAYgASgJEgoKAmlkGAcgASgJIncKCkF0dGFjaG1lbnQSCgoCaWQYASABKAkSEQoJZmlsZV9uYW1lGAIgASgJEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRIRCglmaWxlX3NpemUYBCABKAMSFAoMc3RvcmFnZV9wYXRoGAUgASgJEgsKA3VybBgGIAEoCSJ5ChJDb250aW51ZVJ1blJlcXVlc3QSGAoGcnVuX2lkGAEgASgJQgi6SAVyA7ABARIYCgdtZXNzYWdlGAIgASgJQge6SARyAhABEhYKDmF0dGFjaG1lbnRfaWRzGAMgAygJEhcKD2lkZW1wb3RlbmN5X2tleRgEIAEoCSJtChNDb250aW51ZVJ1blJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSIgoDcnVuGAIgASgLMhUuYWdlbnRfbWFuYWdlci52MS5SdW4SDQoFZXJyb3IYAyABKAkSEgoKZXJyb3JfY29kZRgEIAEoCSJPChdEZWxldGVSdW5NZXNzYWdlUmVxdWVzdBIYCgZydW5faWQYASABKAlCCLpIBXIDsAEBEhoKCGV2ZW50X2lkGAIgASgJQgi6SAVyA7ABASIrChhEZWxldGVSdW5NZXNzYWdlUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCKKAQoOUGFya1J1blJlcXVlc3QSGAoGcnVuX2lkGAEgASgJQgi6SAVyA7ABARIZCghwcm9kdWNlchgCIAEoCUIHukgEcgIQARIUCgNrZXkYAyABKAlCB7pIBHICEAESFQoNZGVhZGxpbmVfdW5peBgEIAEoAxIWCg5pZGVudGl0eV90b2tlbhgFIAEoCSJ4Cg9QYXJrUnVuUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIiCgNydW4YAiABKAsyFS5hZ2VudF9tYW5hZ2VyLnYxLlJ1bhIPCgdtZXNzYWdlGAMgASgJEg8KB3JlZnVzZWQYBCABKAgSDgoGcmVzdWx0GAUgASgJIlkKFkdldEF3YWl0UmVzdWx0UmVzcG9uc2USDQoFZm91bmQYASABKAgSCwoDa2V5GAIgASgJEg4KBnJlc3VsdBgDIAEoCRITCgtyZXNvbHZlZF9hdBgEIAEoCSJNCg5XYWtlUnVuUmVxdWVzdBIYCgZydW5faWQYASABKAlCCLpIBXIDsAEBEg4KBnJlc3VsdBgCIAEoCRIRCgl0aW1lZF9vdXQYAyABKAgiRgoPV2FrZVJ1blJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSIgoDcnVuGAIgASgLMhUuYWdlbnRfbWFuYWdlci52MS5SdW4q0wEKGkZpbmFsT3V0cHV0U2VsZWN0aW9uU3RhdHVzEi0KKUZJTkFMX09VVFBVVF9TRUxFQ1RJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASKgomRklOQUxfT1VUUFVUX1NFTEVDVElPTl9TVEFUVVNfU0VMRUNURUQQARIrCidGSU5BTF9PVVRQVVRfU0VMRUNUSU9OX1NUQVRVU19BTUJJR1VPVVMQAhItCilGSU5BTF9PVVRQVVRfU0VMRUNUSU9OX1NUQVRVU19VTkFWQUlMQUJMRRADKogCChZTdHJ1Y3R1cmVkUmVzdWx0U3RhdHVzEigKJFNUUlVDVFVSRURfUkVTVUxUX1NUQVRVU19VTlNQRUNJRklFRBAAEiQKIFNUUlVDVFVSRURfUkVTVUxUX1NUQVRVU19TVUNDRVNTEAESKAokU1RSVUNUVVJFRF9SRVNVTFRfU1RBVFVTX1VOQVZBSUxBQkxFEAISJAogU1RSVUNUVVJFRF9SRVNVTFRfU1RBVFVTX0lOVkFMSUQQAxImCiJTVFJVQ1RVUkVEX1JFU1VMVF9TVEFUVVNfQU1CSUdVT1VTEAQSJgoiU1RSVUNUVVJFRF9SRVNVTFRfU1RBVFVTX0FCU1RBSU5FRBAFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWdlbnQtbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_agent_manager_v1_domain_profile, file_agent_manager_v1_domain_types, file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp]);
 
 /**
  * Run represents a single execution attempt of a task.
@@ -472,6 +472,119 @@ export const FinalOutputSelectionSchema: GenMessage<FinalOutputSelection> = /*@_
   messageDesc(file_agent_manager_v1_domain_run, 2);
 
 /**
+ * @generated from message agent_manager.v1.StructuredDiagnostic
+ */
+export type StructuredDiagnostic = Message<"agent_manager.v1.StructuredDiagnostic"> & {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message agent_manager.v1.StructuredDiagnostic.
+ * Use `create(StructuredDiagnosticSchema)` to create a new message.
+ */
+export const StructuredDiagnosticSchema: GenMessage<StructuredDiagnostic> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_run, 3);
+
+/**
+ * @generated from message agent_manager.v1.StructuredExtractionProvenance
+ */
+export type StructuredExtractionProvenance = Message<"agent_manager.v1.StructuredExtractionProvenance"> & {
+  /**
+   * @generated from field: string role_ref = 1;
+   */
+  roleRef: string;
+
+  /**
+   * @generated from field: string provider = 2;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string model = 3;
+   */
+  model: string;
+
+  /**
+   * @generated from field: agent_manager.v1.ExecutionPolicySnapshot policy_snapshot = 4;
+   */
+  policySnapshot?: ExecutionPolicySnapshot | undefined;
+};
+
+/**
+ * Describes the message agent_manager.v1.StructuredExtractionProvenance.
+ * Use `create(StructuredExtractionProvenanceSchema)` to create a new message.
+ */
+export const StructuredExtractionProvenanceSchema: GenMessage<StructuredExtractionProvenance> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_run, 4);
+
+/**
+ * StructuredResult contains a value only after local schema validation.
+ *
+ * @generated from message agent_manager.v1.StructuredResult
+ */
+export type StructuredResult = Message<"agent_manager.v1.StructuredResult"> & {
+  /**
+   * @generated from field: agent_manager.v1.StructuredResultStatus status = 1;
+   */
+  status: StructuredResultStatus;
+
+  /**
+   * @generated from field: agent_manager.v1.ResultSpecKind spec_kind = 2;
+   */
+  specKind: ResultSpecKind;
+
+  /**
+   * @generated from field: string schema_digest = 3;
+   */
+  schemaDigest: string;
+
+  /**
+   * @generated from field: bytes value = 4;
+   */
+  value: Uint8Array;
+
+  /**
+   * @generated from field: string method = 5;
+   */
+  method: string;
+
+  /**
+   * @generated from field: string source_candidate_id = 6;
+   */
+  sourceCandidateId: string;
+
+  /**
+   * @generated from field: agent_manager.v1.StructuredExtractionProvenance extractor = 7;
+   */
+  extractor?: StructuredExtractionProvenance | undefined;
+
+  /**
+   * @generated from field: repeated agent_manager.v1.StructuredDiagnostic diagnostics = 8;
+   */
+  diagnostics: StructuredDiagnostic[];
+};
+
+/**
+ * Describes the message agent_manager.v1.StructuredResult.
+ * Use `create(StructuredResultSchema)` to create a new message.
+ */
+export const StructuredResultSchema: GenMessage<StructuredResult> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_run, 5);
+
+/**
  * RunResult is the canonical terminal result for one execute or continue turn.
  *
  * @generated from message agent_manager.v1.RunResult
@@ -506,6 +619,11 @@ export type RunResult = Message<"agent_manager.v1.RunResult"> & {
    * @generated from field: string terminal_reason = 6;
    */
   terminalReason: string;
+
+  /**
+   * @generated from field: agent_manager.v1.StructuredResult structured = 7;
+   */
+  structured?: StructuredResult | undefined;
 };
 
 /**
@@ -513,7 +631,7 @@ export type RunResult = Message<"agent_manager.v1.RunResult"> & {
  * Use `create(RunResultSchema)` to create a new message.
  */
 export const RunResultSchema: GenMessage<RunResult> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 3);
+  messageDesc(file_agent_manager_v1_domain_run, 6);
 
 /**
  * AwaitHandle identifies the externally-owned async work a parked run is
@@ -564,7 +682,7 @@ export type AwaitHandle = Message<"agent_manager.v1.AwaitHandle"> & {
  * Use `create(AwaitHandleSchema)` to create a new message.
  */
 export const AwaitHandleSchema: GenMessage<AwaitHandle> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 4);
+  messageDesc(file_agent_manager_v1_domain_run, 7);
 
 /**
  * RunActions captures which operations are currently allowed for a run.
@@ -672,7 +790,7 @@ export type RunActions = Message<"agent_manager.v1.RunActions"> & {
  * Use `create(RunActionsSchema)` to create a new message.
  */
 export const RunActionsSchema: GenMessage<RunActions> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 5);
+  messageDesc(file_agent_manager_v1_domain_run, 8);
 
 /**
  * RunSummary contains the structured summary from an agent run.
@@ -747,7 +865,7 @@ export type RunSummary = Message<"agent_manager.v1.RunSummary"> & {
  * Use `create(RunSummarySchema)` to create a new message.
  */
 export const RunSummarySchema: GenMessage<RunSummary> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 6);
+  messageDesc(file_agent_manager_v1_domain_run, 9);
 
 /**
  * RunCheckpoint captures the state needed to resume a run.
@@ -846,7 +964,7 @@ export type RunCheckpoint = Message<"agent_manager.v1.RunCheckpoint"> & {
  * Use `create(RunCheckpointSchema)` to create a new message.
  */
 export const RunCheckpointSchema: GenMessage<RunCheckpoint> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 7);
+  messageDesc(file_agent_manager_v1_domain_run, 10);
 
 /**
  * RunProgress represents the current progress of a run for display.
@@ -913,7 +1031,7 @@ export type RunProgress = Message<"agent_manager.v1.RunProgress"> & {
  * Use `create(RunProgressSchema)` to create a new message.
  */
 export const RunProgressSchema: GenMessage<RunProgress> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 8);
+  messageDesc(file_agent_manager_v1_domain_run, 11);
 
 /**
  * IdempotencyRecord tracks whether an operation has been performed.
@@ -983,7 +1101,7 @@ export type IdempotencyRecord = Message<"agent_manager.v1.IdempotencyRecord"> & 
  * Use `create(IdempotencyRecordSchema)` to create a new message.
  */
 export const IdempotencyRecordSchema: GenMessage<IdempotencyRecord> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 9);
+  messageDesc(file_agent_manager_v1_domain_run, 12);
 
 /**
  * RunnerStatus provides status information for a runner type.
@@ -1043,7 +1161,7 @@ export type RunnerStatus = Message<"agent_manager.v1.RunnerStatus"> & {
  * Use `create(RunnerStatusSchema)` to create a new message.
  */
 export const RunnerStatusSchema: GenMessage<RunnerStatus> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 10);
+  messageDesc(file_agent_manager_v1_domain_run, 13);
 
 /**
  * RunnerCapabilities describes what a runner supports.
@@ -1122,7 +1240,7 @@ export type RunnerCapabilities = Message<"agent_manager.v1.RunnerCapabilities"> 
  * Use `create(RunnerCapabilitiesSchema)` to create a new message.
  */
 export const RunnerCapabilitiesSchema: GenMessage<RunnerCapabilities> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 11);
+  messageDesc(file_agent_manager_v1_domain_run, 14);
 
 /**
  * ProbeResult contains the result of a runner connectivity probe.
@@ -1166,7 +1284,7 @@ export type ProbeResult = Message<"agent_manager.v1.ProbeResult"> & {
  * Use `create(ProbeResultSchema)` to create a new message.
  */
 export const ProbeResultSchema: GenMessage<ProbeResult> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 12);
+  messageDesc(file_agent_manager_v1_domain_run, 15);
 
 /**
  * StopAllResult contains the result of stopping multiple runs.
@@ -1196,7 +1314,7 @@ export type StopAllResult = Message<"agent_manager.v1.StopAllResult"> & {
  * Use `create(StopAllResultSchema)` to create a new message.
  */
 export const StopAllResultSchema: GenMessage<StopAllResult> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 13);
+  messageDesc(file_agent_manager_v1_domain_run, 16);
 
 /**
  * StopFailure describes a run that failed to stop.
@@ -1225,7 +1343,7 @@ export type StopFailure = Message<"agent_manager.v1.StopFailure"> & {
  * Use `create(StopFailureSchema)` to create a new message.
  */
 export const StopFailureSchema: GenMessage<StopFailure> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 14);
+  messageDesc(file_agent_manager_v1_domain_run, 17);
 
 /**
  * ApproveResult contains the result of approving a run.
@@ -1283,7 +1401,7 @@ export type ApproveResult = Message<"agent_manager.v1.ApproveResult"> & {
  * Use `create(ApproveResultSchema)` to create a new message.
  */
 export const ApproveResultSchema: GenMessage<ApproveResult> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 15);
+  messageDesc(file_agent_manager_v1_domain_run, 18);
 
 /**
  * RunDiff contains the diff output for a run.
@@ -1328,7 +1446,7 @@ export type RunDiff = Message<"agent_manager.v1.RunDiff"> & {
  * Use `create(RunDiffSchema)` to create a new message.
  */
 export const RunDiffSchema: GenMessage<RunDiff> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 16);
+  messageDesc(file_agent_manager_v1_domain_run, 19);
 
 /**
  * FileDiff represents changes to a single file.
@@ -1392,7 +1510,7 @@ export type FileDiff = Message<"agent_manager.v1.FileDiff"> & {
  * Use `create(FileDiffSchema)` to create a new message.
  */
 export const FileDiffSchema: GenMessage<FileDiff> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 17);
+  messageDesc(file_agent_manager_v1_domain_run, 20);
 
 /**
  * Attachment represents an uploaded file (image, PDF, etc.) associated with a run.
@@ -1451,7 +1569,7 @@ export type Attachment = Message<"agent_manager.v1.Attachment"> & {
  * Use `create(AttachmentSchema)` to create a new message.
  */
 export const AttachmentSchema: GenMessage<Attachment> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 18);
+  messageDesc(file_agent_manager_v1_domain_run, 21);
 
 /**
  * ContinueRunRequest contains parameters for continuing a run's conversation.
@@ -1485,6 +1603,13 @@ export type ContinueRunRequest = Message<"agent_manager.v1.ContinueRunRequest"> 
    * @generated from field: repeated string attachment_ids = 3;
    */
   attachmentIds: string[];
+
+  /**
+   * Optional replay-safe key for programmatic continuation callers.
+   *
+   * @generated from field: string idempotency_key = 4;
+   */
+  idempotencyKey: string;
 };
 
 /**
@@ -1492,7 +1617,7 @@ export type ContinueRunRequest = Message<"agent_manager.v1.ContinueRunRequest"> 
  * Use `create(ContinueRunRequestSchema)` to create a new message.
  */
 export const ContinueRunRequestSchema: GenMessage<ContinueRunRequest> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 19);
+  messageDesc(file_agent_manager_v1_domain_run, 22);
 
 /**
  * ContinueRunResponse contains the result of continuing a run.
@@ -1537,7 +1662,7 @@ export type ContinueRunResponse = Message<"agent_manager.v1.ContinueRunResponse"
  * Use `create(ContinueRunResponseSchema)` to create a new message.
  */
 export const ContinueRunResponseSchema: GenMessage<ContinueRunResponse> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 20);
+  messageDesc(file_agent_manager_v1_domain_run, 23);
 
 /**
  * DeleteRunMessageRequest marks a message event as deleted.
@@ -1571,7 +1696,7 @@ export type DeleteRunMessageRequest = Message<"agent_manager.v1.DeleteRunMessage
  * Use `create(DeleteRunMessageRequestSchema)` to create a new message.
  */
 export const DeleteRunMessageRequestSchema: GenMessage<DeleteRunMessageRequest> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 21);
+  messageDesc(file_agent_manager_v1_domain_run, 24);
 
 /**
  * DeleteRunMessageResponse confirms deletion.
@@ -1594,7 +1719,7 @@ export type DeleteRunMessageResponse = Message<"agent_manager.v1.DeleteRunMessag
  * Use `create(DeleteRunMessageResponseSchema)` to create a new message.
  */
 export const DeleteRunMessageResponseSchema: GenMessage<DeleteRunMessageResponse> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 22);
+  messageDesc(file_agent_manager_v1_domain_run, 25);
 
 /**
  * ParkRunRequest suspends a running run on externally-owned async work.
@@ -1659,7 +1784,7 @@ export type ParkRunRequest = Message<"agent_manager.v1.ParkRunRequest"> & {
  * Use `create(ParkRunRequestSchema)` to create a new message.
  */
 export const ParkRunRequestSchema: GenMessage<ParkRunRequest> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 23);
+  messageDesc(file_agent_manager_v1_domain_run, 26);
 
 /**
  * ParkRunResponse confirms a park and carries the clean turn-ending message.
@@ -1716,7 +1841,7 @@ export type ParkRunResponse = Message<"agent_manager.v1.ParkRunResponse"> & {
  * Use `create(ParkRunResponseSchema)` to create a new message.
  */
 export const ParkRunResponseSchema: GenMessage<ParkRunResponse> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 24);
+  messageDesc(file_agent_manager_v1_domain_run, 27);
 
 /**
  * GetAwaitResultResponse returns a run's most recently resolved await result —
@@ -1762,7 +1887,7 @@ export type GetAwaitResultResponse = Message<"agent_manager.v1.GetAwaitResultRes
  * Use `create(GetAwaitResultResponseSchema)` to create a new message.
  */
 export const GetAwaitResultResponseSchema: GenMessage<GetAwaitResultResponse> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 25);
+  messageDesc(file_agent_manager_v1_domain_run, 28);
 
 /**
  * WakeRunRequest resumes a parked run with the awaited result injected as the
@@ -1803,7 +1928,7 @@ export type WakeRunRequest = Message<"agent_manager.v1.WakeRunRequest"> & {
  * Use `create(WakeRunRequestSchema)` to create a new message.
  */
 export const WakeRunRequestSchema: GenMessage<WakeRunRequest> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 26);
+  messageDesc(file_agent_manager_v1_domain_run, 29);
 
 /**
  * WakeRunResponse confirms a wake.
@@ -1834,7 +1959,7 @@ export type WakeRunResponse = Message<"agent_manager.v1.WakeRunResponse"> & {
  * Use `create(WakeRunResponseSchema)` to create a new message.
  */
 export const WakeRunResponseSchema: GenMessage<WakeRunResponse> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_run, 27);
+  messageDesc(file_agent_manager_v1_domain_run, 30);
 
 /**
  * FinalOutputSelectionStatus describes whether provider evidence identifies a
@@ -1869,4 +1994,47 @@ export enum FinalOutputSelectionStatus {
  */
 export const FinalOutputSelectionStatusSchema: GenEnum<FinalOutputSelectionStatus> = /*@__PURE__*/
   enumDesc(file_agent_manager_v1_domain_run, 0);
+
+/**
+ * StructuredResultStatus separates every honest typed-output terminal state.
+ *
+ * @generated from enum agent_manager.v1.StructuredResultStatus
+ */
+export enum StructuredResultStatus {
+  /**
+   * @generated from enum value: STRUCTURED_RESULT_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: STRUCTURED_RESULT_STATUS_SUCCESS = 1;
+   */
+  SUCCESS = 1,
+
+  /**
+   * @generated from enum value: STRUCTURED_RESULT_STATUS_UNAVAILABLE = 2;
+   */
+  UNAVAILABLE = 2,
+
+  /**
+   * @generated from enum value: STRUCTURED_RESULT_STATUS_INVALID = 3;
+   */
+  INVALID = 3,
+
+  /**
+   * @generated from enum value: STRUCTURED_RESULT_STATUS_AMBIGUOUS = 4;
+   */
+  AMBIGUOUS = 4,
+
+  /**
+   * @generated from enum value: STRUCTURED_RESULT_STATUS_ABSTAINED = 5;
+   */
+  ABSTAINED = 5,
+}
+
+/**
+ * Describes the enum agent_manager.v1.StructuredResultStatus.
+ */
+export const StructuredResultStatusSchema: GenEnum<StructuredResultStatus> = /*@__PURE__*/
+  enumDesc(file_agent_manager_v1_domain_run, 1);
 

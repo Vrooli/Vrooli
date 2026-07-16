@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "brand-manager",
-  "input_digest": "sha256:66720257e11769bed67f88fed9559670783bfabc199f6c0befcaa446f6229607",
+  "input_digest": "sha256:cc42d9a5be407e1890b45da99c588bb47f10d476353187610c5a81f59b3f2b75",
   "input_files": [
     "schemas/brand-manager/v1/apply/apply.proto",
     "schemas/brand-manager/v1/assets/assets.proto",

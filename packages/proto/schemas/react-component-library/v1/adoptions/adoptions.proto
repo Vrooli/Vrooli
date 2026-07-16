@@ -348,7 +348,9 @@ message RefreshAdoptionsResponse {
 
 // ReconcileAdoptions inventories existing provenance-headed scenario UI files.
 // Dry-run is the default; apply=true only writes RCL's adoption store.
-message ReconcileAdoptionsRequest { bool apply = 1; }
+message ReconcileAdoptionsRequest {
+  bool apply = 1;
+}
 
 message ReconcileFinding {
   string scenario = 1;

@@ -20,10 +20,25 @@ class FinalOutputSelectionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapp
     FINAL_OUTPUT_SELECTION_STATUS_SELECTED: _ClassVar[FinalOutputSelectionStatus]
     FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS: _ClassVar[FinalOutputSelectionStatus]
     FINAL_OUTPUT_SELECTION_STATUS_UNAVAILABLE: _ClassVar[FinalOutputSelectionStatus]
+
+class StructuredResultStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STRUCTURED_RESULT_STATUS_UNSPECIFIED: _ClassVar[StructuredResultStatus]
+    STRUCTURED_RESULT_STATUS_SUCCESS: _ClassVar[StructuredResultStatus]
+    STRUCTURED_RESULT_STATUS_UNAVAILABLE: _ClassVar[StructuredResultStatus]
+    STRUCTURED_RESULT_STATUS_INVALID: _ClassVar[StructuredResultStatus]
+    STRUCTURED_RESULT_STATUS_AMBIGUOUS: _ClassVar[StructuredResultStatus]
+    STRUCTURED_RESULT_STATUS_ABSTAINED: _ClassVar[StructuredResultStatus]
 FINAL_OUTPUT_SELECTION_STATUS_UNSPECIFIED: FinalOutputSelectionStatus
 FINAL_OUTPUT_SELECTION_STATUS_SELECTED: FinalOutputSelectionStatus
 FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS: FinalOutputSelectionStatus
 FINAL_OUTPUT_SELECTION_STATUS_UNAVAILABLE: FinalOutputSelectionStatus
+STRUCTURED_RESULT_STATUS_UNSPECIFIED: StructuredResultStatus
+STRUCTURED_RESULT_STATUS_SUCCESS: StructuredResultStatus
+STRUCTURED_RESULT_STATUS_UNAVAILABLE: StructuredResultStatus
+STRUCTURED_RESULT_STATUS_INVALID: StructuredResultStatus
+STRUCTURED_RESULT_STATUS_AMBIGUOUS: StructuredResultStatus
+STRUCTURED_RESULT_STATUS_ABSTAINED: StructuredResultStatus
 
 class Run(_message.Message):
     __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "session_id", "created_at", "updated_at", "actions", "prompt_preview", "requested_model", "actual_model", "finalization_status", "finalization_error", "finalized_at", "await_handle", "execution_mode", "web_console_session_id", "web_console_session_url", "result")
@@ -155,21 +170,65 @@ class FinalOutputSelection(_message.Message):
     evidence: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, status: _Optional[_Union[FinalOutputSelectionStatus, str]] = ..., selected_candidate_id: _Optional[str] = ..., rule: _Optional[str] = ..., algorithm_version: _Optional[str] = ..., evidence: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class StructuredDiagnostic(_message.Message):
+    __slots__ = ("code", "path", "message")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    path: str
+    message: str
+    def __init__(self, code: _Optional[str] = ..., path: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class StructuredExtractionProvenance(_message.Message):
+    __slots__ = ("role_ref", "provider", "model", "policy_snapshot")
+    ROLE_REF_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    POLICY_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    role_ref: str
+    provider: str
+    model: str
+    policy_snapshot: _profile_pb2.ExecutionPolicySnapshot
+    def __init__(self, role_ref: _Optional[str] = ..., provider: _Optional[str] = ..., model: _Optional[str] = ..., policy_snapshot: _Optional[_Union[_profile_pb2.ExecutionPolicySnapshot, _Mapping]] = ...) -> None: ...
+
+class StructuredResult(_message.Message):
+    __slots__ = ("status", "spec_kind", "schema_digest", "value", "method", "source_candidate_id", "extractor", "diagnostics")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SPEC_KIND_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    METHOD_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    EXTRACTOR_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    status: StructuredResultStatus
+    spec_kind: _profile_pb2.ResultSpecKind
+    schema_digest: str
+    value: bytes
+    method: str
+    source_candidate_id: str
+    extractor: StructuredExtractionProvenance
+    diagnostics: _containers.RepeatedCompositeFieldContainer[StructuredDiagnostic]
+    def __init__(self, status: _Optional[_Union[StructuredResultStatus, str]] = ..., spec_kind: _Optional[_Union[_profile_pb2.ResultSpecKind, str]] = ..., schema_digest: _Optional[str] = ..., value: _Optional[bytes] = ..., method: _Optional[str] = ..., source_candidate_id: _Optional[str] = ..., extractor: _Optional[_Union[StructuredExtractionProvenance, _Mapping]] = ..., diagnostics: _Optional[_Iterable[_Union[StructuredDiagnostic, _Mapping]]] = ...) -> None: ...
+
 class RunResult(_message.Message):
-    __slots__ = ("final_output", "selection", "candidates", "success", "exit_code", "terminal_reason")
+    __slots__ = ("final_output", "selection", "candidates", "success", "exit_code", "terminal_reason", "structured")
     FINAL_OUTPUT_FIELD_NUMBER: _ClassVar[int]
     SELECTION_FIELD_NUMBER: _ClassVar[int]
     CANDIDATES_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_REASON_FIELD_NUMBER: _ClassVar[int]
+    STRUCTURED_FIELD_NUMBER: _ClassVar[int]
     final_output: str
     selection: FinalOutputSelection
     candidates: _containers.RepeatedCompositeFieldContainer[FinalOutputCandidate]
     success: bool
     exit_code: int
     terminal_reason: str
-    def __init__(self, final_output: _Optional[str] = ..., selection: _Optional[_Union[FinalOutputSelection, _Mapping]] = ..., candidates: _Optional[_Iterable[_Union[FinalOutputCandidate, _Mapping]]] = ..., success: _Optional[bool] = ..., exit_code: _Optional[int] = ..., terminal_reason: _Optional[str] = ...) -> None: ...
+    structured: StructuredResult
+    def __init__(self, final_output: _Optional[str] = ..., selection: _Optional[_Union[FinalOutputSelection, _Mapping]] = ..., candidates: _Optional[_Iterable[_Union[FinalOutputCandidate, _Mapping]]] = ..., success: _Optional[bool] = ..., exit_code: _Optional[int] = ..., terminal_reason: _Optional[str] = ..., structured: _Optional[_Union[StructuredResult, _Mapping]] = ...) -> None: ...
 
 class AwaitHandle(_message.Message):
     __slots__ = ("producer", "key", "deadline", "registered_at")
@@ -444,14 +503,16 @@ class Attachment(_message.Message):
     def __init__(self, id: _Optional[str] = ..., file_name: _Optional[str] = ..., content_type: _Optional[str] = ..., file_size: _Optional[int] = ..., storage_path: _Optional[str] = ..., url: _Optional[str] = ...) -> None: ...
 
 class ContinueRunRequest(_message.Message):
-    __slots__ = ("run_id", "message", "attachment_ids")
+    __slots__ = ("run_id", "message", "attachment_ids", "idempotency_key")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     message: str
     attachment_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, run_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    idempotency_key: str
+    def __init__(self, run_id: _Optional[str] = ..., message: _Optional[str] = ..., attachment_ids: _Optional[_Iterable[str]] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
 
 class ContinueRunResponse(_message.Message):
     __slots__ = ("success", "run", "error", "error_code")

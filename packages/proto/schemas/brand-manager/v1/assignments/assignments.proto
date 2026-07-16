@@ -122,5 +122,4 @@ message UnassignScenarioRequest {
 
 // UnassignScenarioResponse is empty; a successful call means the scenario has no
 // brand assignment (whether or not it had one before).
-message UnassignScenarioResponse {
-}
+message UnassignScenarioResponse {}

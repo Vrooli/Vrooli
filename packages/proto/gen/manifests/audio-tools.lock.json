@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "audio-tools",
-  "input_digest": "sha256:d36f7463e4beae0f06f18ade027c8612d6cb195e6e6ad645fb6a09b1200d3bbf",
+  "input_digest": "sha256:bff66a7472dfe3f68467fceafff7970950e1e00a00b28a35ac2a963dfa978236",
   "input_files": [
     "schemas/audio-tools/v1/audio/audio.proto",
     "schemas/audio-tools/v1/auth/auth.proto",

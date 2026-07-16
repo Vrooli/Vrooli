@@ -45,6 +45,60 @@ const (
 	// AgentManagerServiceReconcileScenarioProfilesProcedure is the fully-qualified name of the
 	// AgentManagerService's ReconcileScenarioProfiles RPC.
 	AgentManagerServiceReconcileScenarioProfilesProcedure = "/agent_manager.v1.AgentManagerService/ReconcileScenarioProfiles"
+	// AgentManagerServiceValidateWorkflowProcedure is the fully-qualified name of the
+	// AgentManagerService's ValidateWorkflow RPC.
+	AgentManagerServiceValidateWorkflowProcedure = "/agent_manager.v1.AgentManagerService/ValidateWorkflow"
+	// AgentManagerServiceReconcileScenarioWorkflowsProcedure is the fully-qualified name of the
+	// AgentManagerService's ReconcileScenarioWorkflows RPC.
+	AgentManagerServiceReconcileScenarioWorkflowsProcedure = "/agent_manager.v1.AgentManagerService/ReconcileScenarioWorkflows"
+	// AgentManagerServicePlanScenarioWorkflowsProcedure is the fully-qualified name of the
+	// AgentManagerService's PlanScenarioWorkflows RPC.
+	AgentManagerServicePlanScenarioWorkflowsProcedure = "/agent_manager.v1.AgentManagerService/PlanScenarioWorkflows"
+	// AgentManagerServiceListWorkflowRevisionsProcedure is the fully-qualified name of the
+	// AgentManagerService's ListWorkflowRevisions RPC.
+	AgentManagerServiceListWorkflowRevisionsProcedure = "/agent_manager.v1.AgentManagerService/ListWorkflowRevisions"
+	// AgentManagerServiceGetWorkflowRevisionProcedure is the fully-qualified name of the
+	// AgentManagerService's GetWorkflowRevision RPC.
+	AgentManagerServiceGetWorkflowRevisionProcedure = "/agent_manager.v1.AgentManagerService/GetWorkflowRevision"
+	// AgentManagerServiceReloadScenarioWorkflowsProcedure is the fully-qualified name of the
+	// AgentManagerService's ReloadScenarioWorkflows RPC.
+	AgentManagerServiceReloadScenarioWorkflowsProcedure = "/agent_manager.v1.AgentManagerService/ReloadScenarioWorkflows"
+	// AgentManagerServiceExplainWorkflowProcedure is the fully-qualified name of the
+	// AgentManagerService's ExplainWorkflow RPC.
+	AgentManagerServiceExplainWorkflowProcedure = "/agent_manager.v1.AgentManagerService/ExplainWorkflow"
+	// AgentManagerServiceStartWorkflowExecutionProcedure is the fully-qualified name of the
+	// AgentManagerService's StartWorkflowExecution RPC.
+	AgentManagerServiceStartWorkflowExecutionProcedure = "/agent_manager.v1.AgentManagerService/StartWorkflowExecution"
+	// AgentManagerServiceListWorkflowExecutionsProcedure is the fully-qualified name of the
+	// AgentManagerService's ListWorkflowExecutions RPC.
+	AgentManagerServiceListWorkflowExecutionsProcedure = "/agent_manager.v1.AgentManagerService/ListWorkflowExecutions"
+	// AgentManagerServiceGetWorkflowExecutionProcedure is the fully-qualified name of the
+	// AgentManagerService's GetWorkflowExecution RPC.
+	AgentManagerServiceGetWorkflowExecutionProcedure = "/agent_manager.v1.AgentManagerService/GetWorkflowExecution"
+	// AgentManagerServiceGetWorkflowExecutionResultProcedure is the fully-qualified name of the
+	// AgentManagerService's GetWorkflowExecutionResult RPC.
+	AgentManagerServiceGetWorkflowExecutionResultProcedure = "/agent_manager.v1.AgentManagerService/GetWorkflowExecutionResult"
+	// AgentManagerServiceAdvanceWorkflowExecutionProcedure is the fully-qualified name of the
+	// AgentManagerService's AdvanceWorkflowExecution RPC.
+	AgentManagerServiceAdvanceWorkflowExecutionProcedure = "/agent_manager.v1.AgentManagerService/AdvanceWorkflowExecution"
+	// AgentManagerServiceGetWorkflowExecutionTraceProcedure is the fully-qualified name of the
+	// AgentManagerService's GetWorkflowExecutionTrace RPC.
+	AgentManagerServiceGetWorkflowExecutionTraceProcedure = "/agent_manager.v1.AgentManagerService/GetWorkflowExecutionTrace"
+	// AgentManagerServiceSignalWorkflowExecutionProcedure is the fully-qualified name of the
+	// AgentManagerService's SignalWorkflowExecution RPC.
+	AgentManagerServiceSignalWorkflowExecutionProcedure = "/agent_manager.v1.AgentManagerService/SignalWorkflowExecution"
+	// AgentManagerServiceCancelWorkflowExecutionProcedure is the fully-qualified name of the
+	// AgentManagerService's CancelWorkflowExecution RPC.
+	AgentManagerServiceCancelWorkflowExecutionProcedure = "/agent_manager.v1.AgentManagerService/CancelWorkflowExecution"
+	// AgentManagerServiceRetryWorkflowExecutionProcedure is the fully-qualified name of the
+	// AgentManagerService's RetryWorkflowExecution RPC.
+	AgentManagerServiceRetryWorkflowExecutionProcedure = "/agent_manager.v1.AgentManagerService/RetryWorkflowExecution"
+	// AgentManagerServiceResumeWorkflowExecutionProcedure is the fully-qualified name of the
+	// AgentManagerService's ResumeWorkflowExecution RPC.
+	AgentManagerServiceResumeWorkflowExecutionProcedure = "/agent_manager.v1.AgentManagerService/ResumeWorkflowExecution"
+	// AgentManagerServiceSimulateWorkflowProcedure is the fully-qualified name of the
+	// AgentManagerService's SimulateWorkflow RPC.
+	AgentManagerServiceSimulateWorkflowProcedure = "/agent_manager.v1.AgentManagerService/SimulateWorkflow"
 	// AgentManagerServiceGetProfileProcedure is the fully-qualified name of the AgentManagerService's
 	// GetProfile RPC.
 	AgentManagerServiceGetProfileProcedure = "/agent_manager.v1.AgentManagerService/GetProfile"
@@ -174,6 +228,29 @@ type AgentManagerServiceClient interface {
 	EnsureProfile(context.Context, *connect.Request[api.EnsureProfileRequest]) (*connect.Response[api.EnsureProfileResponse], error)
 	// ReconcileScenarioProfiles resolves all profile sources declared by a scenario.
 	ReconcileScenarioProfiles(context.Context, *connect.Request[api.ReconcileScenarioProfilesRequest]) (*connect.Response[api.ReconcileScenarioProfilesResponse], error)
+	// ValidateWorkflow validates and canonicalizes one workflow without writes.
+	ValidateWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error)
+	// ReconcileScenarioWorkflows atomically reloads scenario-owned sources.
+	ReconcileScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
+	// PlanScenarioWorkflows validates every source but never changes the catalog.
+	PlanScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
+	ListWorkflowRevisions(context.Context, *connect.Request[api.ListWorkflowRevisionsRequest]) (*connect.Response[api.ListWorkflowRevisionsResponse], error)
+	GetWorkflowRevision(context.Context, *connect.Request[api.GetWorkflowRevisionRequest]) (*connect.Response[api.GetWorkflowRevisionResponse], error)
+	ReloadScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
+	ExplainWorkflow(context.Context, *connect.Request[api.GetWorkflowRevisionRequest]) (*connect.Response[api.GetWorkflowRevisionResponse], error)
+	StartWorkflowExecution(context.Context, *connect.Request[api.StartWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
+	// ListWorkflowExecutions returns bounded, metadata-only execution history.
+	ListWorkflowExecutions(context.Context, *connect.Request[api.ListWorkflowExecutionsRequest]) (*connect.Response[api.ListWorkflowExecutionsResponse], error)
+	GetWorkflowExecution(context.Context, *connect.Request[api.GetWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
+	// GetWorkflowExecutionResult is the explicit payload-bearing inspection path.
+	GetWorkflowExecutionResult(context.Context, *connect.Request[api.GetWorkflowExecutionResultRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
+	AdvanceWorkflowExecution(context.Context, *connect.Request[api.GetWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
+	GetWorkflowExecutionTrace(context.Context, *connect.Request[api.GetWorkflowExecutionTraceRequest]) (*connect.Response[api.GetWorkflowExecutionTraceResponse], error)
+	SignalWorkflowExecution(context.Context, *connect.Request[api.SignalWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
+	CancelWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
+	RetryWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
+	ResumeWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
+	SimulateWorkflow(context.Context, *connect.Request[api.SimulateWorkflowRequest]) (*connect.Response[api.SimulateWorkflowResponse], error)
 	// GetProfile retrieves a profile by ID.
 	GetProfile(context.Context, *connect.Request[api.GetProfileRequest]) (*connect.Response[api.GetProfileResponse], error)
 	// ListProfiles returns all agent profiles.
@@ -292,6 +369,114 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceReconcileScenarioProfilesProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileScenarioProfiles")),
+			connect.WithClientOptions(opts...),
+		),
+		validateWorkflow: connect.NewClient[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse](
+			httpClient,
+			baseURL+AgentManagerServiceValidateWorkflowProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ValidateWorkflow")),
+			connect.WithClientOptions(opts...),
+		),
+		reconcileScenarioWorkflows: connect.NewClient[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceReconcileScenarioWorkflowsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileScenarioWorkflows")),
+			connect.WithClientOptions(opts...),
+		),
+		planScenarioWorkflows: connect.NewClient[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse](
+			httpClient,
+			baseURL+AgentManagerServicePlanScenarioWorkflowsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("PlanScenarioWorkflows")),
+			connect.WithClientOptions(opts...),
+		),
+		listWorkflowRevisions: connect.NewClient[api.ListWorkflowRevisionsRequest, api.ListWorkflowRevisionsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceListWorkflowRevisionsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ListWorkflowRevisions")),
+			connect.WithClientOptions(opts...),
+		),
+		getWorkflowRevision: connect.NewClient[api.GetWorkflowRevisionRequest, api.GetWorkflowRevisionResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetWorkflowRevisionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetWorkflowRevision")),
+			connect.WithClientOptions(opts...),
+		),
+		reloadScenarioWorkflows: connect.NewClient[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceReloadScenarioWorkflowsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ReloadScenarioWorkflows")),
+			connect.WithClientOptions(opts...),
+		),
+		explainWorkflow: connect.NewClient[api.GetWorkflowRevisionRequest, api.GetWorkflowRevisionResponse](
+			httpClient,
+			baseURL+AgentManagerServiceExplainWorkflowProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ExplainWorkflow")),
+			connect.WithClientOptions(opts...),
+		),
+		startWorkflowExecution: connect.NewClient[api.StartWorkflowExecutionRequest, api.WorkflowExecutionResponse](
+			httpClient,
+			baseURL+AgentManagerServiceStartWorkflowExecutionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("StartWorkflowExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		listWorkflowExecutions: connect.NewClient[api.ListWorkflowExecutionsRequest, api.ListWorkflowExecutionsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceListWorkflowExecutionsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ListWorkflowExecutions")),
+			connect.WithClientOptions(opts...),
+		),
+		getWorkflowExecution: connect.NewClient[api.GetWorkflowExecutionRequest, api.WorkflowExecutionResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetWorkflowExecutionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetWorkflowExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		getWorkflowExecutionResult: connect.NewClient[api.GetWorkflowExecutionResultRequest, api.WorkflowExecutionResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetWorkflowExecutionResultProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetWorkflowExecutionResult")),
+			connect.WithClientOptions(opts...),
+		),
+		advanceWorkflowExecution: connect.NewClient[api.GetWorkflowExecutionRequest, api.WorkflowExecutionResponse](
+			httpClient,
+			baseURL+AgentManagerServiceAdvanceWorkflowExecutionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("AdvanceWorkflowExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		getWorkflowExecutionTrace: connect.NewClient[api.GetWorkflowExecutionTraceRequest, api.GetWorkflowExecutionTraceResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetWorkflowExecutionTraceProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetWorkflowExecutionTrace")),
+			connect.WithClientOptions(opts...),
+		),
+		signalWorkflowExecution: connect.NewClient[api.SignalWorkflowExecutionRequest, api.WorkflowExecutionOperationResponse](
+			httpClient,
+			baseURL+AgentManagerServiceSignalWorkflowExecutionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("SignalWorkflowExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelWorkflowExecution: connect.NewClient[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse](
+			httpClient,
+			baseURL+AgentManagerServiceCancelWorkflowExecutionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("CancelWorkflowExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		retryWorkflowExecution: connect.NewClient[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse](
+			httpClient,
+			baseURL+AgentManagerServiceRetryWorkflowExecutionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("RetryWorkflowExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		resumeWorkflowExecution: connect.NewClient[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse](
+			httpClient,
+			baseURL+AgentManagerServiceResumeWorkflowExecutionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ResumeWorkflowExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		simulateWorkflow: connect.NewClient[api.SimulateWorkflowRequest, api.SimulateWorkflowResponse](
+			httpClient,
+			baseURL+AgentManagerServiceSimulateWorkflowProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("SimulateWorkflow")),
 			connect.WithClientOptions(opts...),
 		),
 		getProfile: connect.NewClient[api.GetProfileRequest, api.GetProfileResponse](
@@ -537,6 +722,24 @@ type agentManagerServiceClient struct {
 	createProfile                   *connect.Client[api.CreateProfileRequest, api.CreateProfileResponse]
 	ensureProfile                   *connect.Client[api.EnsureProfileRequest, api.EnsureProfileResponse]
 	reconcileScenarioProfiles       *connect.Client[api.ReconcileScenarioProfilesRequest, api.ReconcileScenarioProfilesResponse]
+	validateWorkflow                *connect.Client[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse]
+	reconcileScenarioWorkflows      *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
+	planScenarioWorkflows           *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
+	listWorkflowRevisions           *connect.Client[api.ListWorkflowRevisionsRequest, api.ListWorkflowRevisionsResponse]
+	getWorkflowRevision             *connect.Client[api.GetWorkflowRevisionRequest, api.GetWorkflowRevisionResponse]
+	reloadScenarioWorkflows         *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
+	explainWorkflow                 *connect.Client[api.GetWorkflowRevisionRequest, api.GetWorkflowRevisionResponse]
+	startWorkflowExecution          *connect.Client[api.StartWorkflowExecutionRequest, api.WorkflowExecutionResponse]
+	listWorkflowExecutions          *connect.Client[api.ListWorkflowExecutionsRequest, api.ListWorkflowExecutionsResponse]
+	getWorkflowExecution            *connect.Client[api.GetWorkflowExecutionRequest, api.WorkflowExecutionResponse]
+	getWorkflowExecutionResult      *connect.Client[api.GetWorkflowExecutionResultRequest, api.WorkflowExecutionResponse]
+	advanceWorkflowExecution        *connect.Client[api.GetWorkflowExecutionRequest, api.WorkflowExecutionResponse]
+	getWorkflowExecutionTrace       *connect.Client[api.GetWorkflowExecutionTraceRequest, api.GetWorkflowExecutionTraceResponse]
+	signalWorkflowExecution         *connect.Client[api.SignalWorkflowExecutionRequest, api.WorkflowExecutionOperationResponse]
+	cancelWorkflowExecution         *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
+	retryWorkflowExecution          *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
+	resumeWorkflowExecution         *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
+	simulateWorkflow                *connect.Client[api.SimulateWorkflowRequest, api.SimulateWorkflowResponse]
 	getProfile                      *connect.Client[api.GetProfileRequest, api.GetProfileResponse]
 	listProfiles                    *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
 	updateProfile                   *connect.Client[api.UpdateProfileRequest, api.UpdateProfileResponse]
@@ -596,6 +799,96 @@ func (c *agentManagerServiceClient) EnsureProfile(ctx context.Context, req *conn
 // ReconcileScenarioProfiles calls agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles.
 func (c *agentManagerServiceClient) ReconcileScenarioProfiles(ctx context.Context, req *connect.Request[api.ReconcileScenarioProfilesRequest]) (*connect.Response[api.ReconcileScenarioProfilesResponse], error) {
 	return c.reconcileScenarioProfiles.CallUnary(ctx, req)
+}
+
+// ValidateWorkflow calls agent_manager.v1.AgentManagerService.ValidateWorkflow.
+func (c *agentManagerServiceClient) ValidateWorkflow(ctx context.Context, req *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error) {
+	return c.validateWorkflow.CallUnary(ctx, req)
+}
+
+// ReconcileScenarioWorkflows calls agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows.
+func (c *agentManagerServiceClient) ReconcileScenarioWorkflows(ctx context.Context, req *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error) {
+	return c.reconcileScenarioWorkflows.CallUnary(ctx, req)
+}
+
+// PlanScenarioWorkflows calls agent_manager.v1.AgentManagerService.PlanScenarioWorkflows.
+func (c *agentManagerServiceClient) PlanScenarioWorkflows(ctx context.Context, req *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error) {
+	return c.planScenarioWorkflows.CallUnary(ctx, req)
+}
+
+// ListWorkflowRevisions calls agent_manager.v1.AgentManagerService.ListWorkflowRevisions.
+func (c *agentManagerServiceClient) ListWorkflowRevisions(ctx context.Context, req *connect.Request[api.ListWorkflowRevisionsRequest]) (*connect.Response[api.ListWorkflowRevisionsResponse], error) {
+	return c.listWorkflowRevisions.CallUnary(ctx, req)
+}
+
+// GetWorkflowRevision calls agent_manager.v1.AgentManagerService.GetWorkflowRevision.
+func (c *agentManagerServiceClient) GetWorkflowRevision(ctx context.Context, req *connect.Request[api.GetWorkflowRevisionRequest]) (*connect.Response[api.GetWorkflowRevisionResponse], error) {
+	return c.getWorkflowRevision.CallUnary(ctx, req)
+}
+
+// ReloadScenarioWorkflows calls agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows.
+func (c *agentManagerServiceClient) ReloadScenarioWorkflows(ctx context.Context, req *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error) {
+	return c.reloadScenarioWorkflows.CallUnary(ctx, req)
+}
+
+// ExplainWorkflow calls agent_manager.v1.AgentManagerService.ExplainWorkflow.
+func (c *agentManagerServiceClient) ExplainWorkflow(ctx context.Context, req *connect.Request[api.GetWorkflowRevisionRequest]) (*connect.Response[api.GetWorkflowRevisionResponse], error) {
+	return c.explainWorkflow.CallUnary(ctx, req)
+}
+
+// StartWorkflowExecution calls agent_manager.v1.AgentManagerService.StartWorkflowExecution.
+func (c *agentManagerServiceClient) StartWorkflowExecution(ctx context.Context, req *connect.Request[api.StartWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error) {
+	return c.startWorkflowExecution.CallUnary(ctx, req)
+}
+
+// ListWorkflowExecutions calls agent_manager.v1.AgentManagerService.ListWorkflowExecutions.
+func (c *agentManagerServiceClient) ListWorkflowExecutions(ctx context.Context, req *connect.Request[api.ListWorkflowExecutionsRequest]) (*connect.Response[api.ListWorkflowExecutionsResponse], error) {
+	return c.listWorkflowExecutions.CallUnary(ctx, req)
+}
+
+// GetWorkflowExecution calls agent_manager.v1.AgentManagerService.GetWorkflowExecution.
+func (c *agentManagerServiceClient) GetWorkflowExecution(ctx context.Context, req *connect.Request[api.GetWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error) {
+	return c.getWorkflowExecution.CallUnary(ctx, req)
+}
+
+// GetWorkflowExecutionResult calls agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult.
+func (c *agentManagerServiceClient) GetWorkflowExecutionResult(ctx context.Context, req *connect.Request[api.GetWorkflowExecutionResultRequest]) (*connect.Response[api.WorkflowExecutionResponse], error) {
+	return c.getWorkflowExecutionResult.CallUnary(ctx, req)
+}
+
+// AdvanceWorkflowExecution calls agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution.
+func (c *agentManagerServiceClient) AdvanceWorkflowExecution(ctx context.Context, req *connect.Request[api.GetWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error) {
+	return c.advanceWorkflowExecution.CallUnary(ctx, req)
+}
+
+// GetWorkflowExecutionTrace calls agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace.
+func (c *agentManagerServiceClient) GetWorkflowExecutionTrace(ctx context.Context, req *connect.Request[api.GetWorkflowExecutionTraceRequest]) (*connect.Response[api.GetWorkflowExecutionTraceResponse], error) {
+	return c.getWorkflowExecutionTrace.CallUnary(ctx, req)
+}
+
+// SignalWorkflowExecution calls agent_manager.v1.AgentManagerService.SignalWorkflowExecution.
+func (c *agentManagerServiceClient) SignalWorkflowExecution(ctx context.Context, req *connect.Request[api.SignalWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error) {
+	return c.signalWorkflowExecution.CallUnary(ctx, req)
+}
+
+// CancelWorkflowExecution calls agent_manager.v1.AgentManagerService.CancelWorkflowExecution.
+func (c *agentManagerServiceClient) CancelWorkflowExecution(ctx context.Context, req *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error) {
+	return c.cancelWorkflowExecution.CallUnary(ctx, req)
+}
+
+// RetryWorkflowExecution calls agent_manager.v1.AgentManagerService.RetryWorkflowExecution.
+func (c *agentManagerServiceClient) RetryWorkflowExecution(ctx context.Context, req *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error) {
+	return c.retryWorkflowExecution.CallUnary(ctx, req)
+}
+
+// ResumeWorkflowExecution calls agent_manager.v1.AgentManagerService.ResumeWorkflowExecution.
+func (c *agentManagerServiceClient) ResumeWorkflowExecution(ctx context.Context, req *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error) {
+	return c.resumeWorkflowExecution.CallUnary(ctx, req)
+}
+
+// SimulateWorkflow calls agent_manager.v1.AgentManagerService.SimulateWorkflow.
+func (c *agentManagerServiceClient) SimulateWorkflow(ctx context.Context, req *connect.Request[api.SimulateWorkflowRequest]) (*connect.Response[api.SimulateWorkflowResponse], error) {
+	return c.simulateWorkflow.CallUnary(ctx, req)
 }
 
 // GetProfile calls agent_manager.v1.AgentManagerService.GetProfile.
@@ -806,6 +1099,29 @@ type AgentManagerServiceHandler interface {
 	EnsureProfile(context.Context, *connect.Request[api.EnsureProfileRequest]) (*connect.Response[api.EnsureProfileResponse], error)
 	// ReconcileScenarioProfiles resolves all profile sources declared by a scenario.
 	ReconcileScenarioProfiles(context.Context, *connect.Request[api.ReconcileScenarioProfilesRequest]) (*connect.Response[api.ReconcileScenarioProfilesResponse], error)
+	// ValidateWorkflow validates and canonicalizes one workflow without writes.
+	ValidateWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error)
+	// ReconcileScenarioWorkflows atomically reloads scenario-owned sources.
+	ReconcileScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
+	// PlanScenarioWorkflows validates every source but never changes the catalog.
+	PlanScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
+	ListWorkflowRevisions(context.Context, *connect.Request[api.ListWorkflowRevisionsRequest]) (*connect.Response[api.ListWorkflowRevisionsResponse], error)
+	GetWorkflowRevision(context.Context, *connect.Request[api.GetWorkflowRevisionRequest]) (*connect.Response[api.GetWorkflowRevisionResponse], error)
+	ReloadScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
+	ExplainWorkflow(context.Context, *connect.Request[api.GetWorkflowRevisionRequest]) (*connect.Response[api.GetWorkflowRevisionResponse], error)
+	StartWorkflowExecution(context.Context, *connect.Request[api.StartWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
+	// ListWorkflowExecutions returns bounded, metadata-only execution history.
+	ListWorkflowExecutions(context.Context, *connect.Request[api.ListWorkflowExecutionsRequest]) (*connect.Response[api.ListWorkflowExecutionsResponse], error)
+	GetWorkflowExecution(context.Context, *connect.Request[api.GetWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
+	// GetWorkflowExecutionResult is the explicit payload-bearing inspection path.
+	GetWorkflowExecutionResult(context.Context, *connect.Request[api.GetWorkflowExecutionResultRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
+	AdvanceWorkflowExecution(context.Context, *connect.Request[api.GetWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
+	GetWorkflowExecutionTrace(context.Context, *connect.Request[api.GetWorkflowExecutionTraceRequest]) (*connect.Response[api.GetWorkflowExecutionTraceResponse], error)
+	SignalWorkflowExecution(context.Context, *connect.Request[api.SignalWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
+	CancelWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
+	RetryWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
+	ResumeWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
+	SimulateWorkflow(context.Context, *connect.Request[api.SimulateWorkflowRequest]) (*connect.Response[api.SimulateWorkflowResponse], error)
 	// GetProfile retrieves a profile by ID.
 	GetProfile(context.Context, *connect.Request[api.GetProfileRequest]) (*connect.Response[api.GetProfileResponse], error)
 	// ListProfiles returns all agent profiles.
@@ -920,6 +1236,114 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceReconcileScenarioProfilesProcedure,
 		svc.ReconcileScenarioProfiles,
 		connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileScenarioProfiles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceValidateWorkflowHandler := connect.NewUnaryHandler(
+		AgentManagerServiceValidateWorkflowProcedure,
+		svc.ValidateWorkflow,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ValidateWorkflow")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceReconcileScenarioWorkflowsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceReconcileScenarioWorkflowsProcedure,
+		svc.ReconcileScenarioWorkflows,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileScenarioWorkflows")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServicePlanScenarioWorkflowsHandler := connect.NewUnaryHandler(
+		AgentManagerServicePlanScenarioWorkflowsProcedure,
+		svc.PlanScenarioWorkflows,
+		connect.WithSchema(agentManagerServiceMethods.ByName("PlanScenarioWorkflows")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceListWorkflowRevisionsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceListWorkflowRevisionsProcedure,
+		svc.ListWorkflowRevisions,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ListWorkflowRevisions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetWorkflowRevisionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetWorkflowRevisionProcedure,
+		svc.GetWorkflowRevision,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetWorkflowRevision")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceReloadScenarioWorkflowsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceReloadScenarioWorkflowsProcedure,
+		svc.ReloadScenarioWorkflows,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ReloadScenarioWorkflows")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceExplainWorkflowHandler := connect.NewUnaryHandler(
+		AgentManagerServiceExplainWorkflowProcedure,
+		svc.ExplainWorkflow,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ExplainWorkflow")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceStartWorkflowExecutionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceStartWorkflowExecutionProcedure,
+		svc.StartWorkflowExecution,
+		connect.WithSchema(agentManagerServiceMethods.ByName("StartWorkflowExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceListWorkflowExecutionsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceListWorkflowExecutionsProcedure,
+		svc.ListWorkflowExecutions,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ListWorkflowExecutions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetWorkflowExecutionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetWorkflowExecutionProcedure,
+		svc.GetWorkflowExecution,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetWorkflowExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetWorkflowExecutionResultHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetWorkflowExecutionResultProcedure,
+		svc.GetWorkflowExecutionResult,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetWorkflowExecutionResult")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceAdvanceWorkflowExecutionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceAdvanceWorkflowExecutionProcedure,
+		svc.AdvanceWorkflowExecution,
+		connect.WithSchema(agentManagerServiceMethods.ByName("AdvanceWorkflowExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetWorkflowExecutionTraceHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetWorkflowExecutionTraceProcedure,
+		svc.GetWorkflowExecutionTrace,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetWorkflowExecutionTrace")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceSignalWorkflowExecutionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceSignalWorkflowExecutionProcedure,
+		svc.SignalWorkflowExecution,
+		connect.WithSchema(agentManagerServiceMethods.ByName("SignalWorkflowExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceCancelWorkflowExecutionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceCancelWorkflowExecutionProcedure,
+		svc.CancelWorkflowExecution,
+		connect.WithSchema(agentManagerServiceMethods.ByName("CancelWorkflowExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceRetryWorkflowExecutionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceRetryWorkflowExecutionProcedure,
+		svc.RetryWorkflowExecution,
+		connect.WithSchema(agentManagerServiceMethods.ByName("RetryWorkflowExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceResumeWorkflowExecutionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceResumeWorkflowExecutionProcedure,
+		svc.ResumeWorkflowExecution,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ResumeWorkflowExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceSimulateWorkflowHandler := connect.NewUnaryHandler(
+		AgentManagerServiceSimulateWorkflowProcedure,
+		svc.SimulateWorkflow,
+		connect.WithSchema(agentManagerServiceMethods.ByName("SimulateWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceGetProfileHandler := connect.NewUnaryHandler(
@@ -1166,6 +1590,42 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceEnsureProfileHandler.ServeHTTP(w, r)
 		case AgentManagerServiceReconcileScenarioProfilesProcedure:
 			agentManagerServiceReconcileScenarioProfilesHandler.ServeHTTP(w, r)
+		case AgentManagerServiceValidateWorkflowProcedure:
+			agentManagerServiceValidateWorkflowHandler.ServeHTTP(w, r)
+		case AgentManagerServiceReconcileScenarioWorkflowsProcedure:
+			agentManagerServiceReconcileScenarioWorkflowsHandler.ServeHTTP(w, r)
+		case AgentManagerServicePlanScenarioWorkflowsProcedure:
+			agentManagerServicePlanScenarioWorkflowsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceListWorkflowRevisionsProcedure:
+			agentManagerServiceListWorkflowRevisionsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetWorkflowRevisionProcedure:
+			agentManagerServiceGetWorkflowRevisionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceReloadScenarioWorkflowsProcedure:
+			agentManagerServiceReloadScenarioWorkflowsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceExplainWorkflowProcedure:
+			agentManagerServiceExplainWorkflowHandler.ServeHTTP(w, r)
+		case AgentManagerServiceStartWorkflowExecutionProcedure:
+			agentManagerServiceStartWorkflowExecutionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceListWorkflowExecutionsProcedure:
+			agentManagerServiceListWorkflowExecutionsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetWorkflowExecutionProcedure:
+			agentManagerServiceGetWorkflowExecutionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetWorkflowExecutionResultProcedure:
+			agentManagerServiceGetWorkflowExecutionResultHandler.ServeHTTP(w, r)
+		case AgentManagerServiceAdvanceWorkflowExecutionProcedure:
+			agentManagerServiceAdvanceWorkflowExecutionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetWorkflowExecutionTraceProcedure:
+			agentManagerServiceGetWorkflowExecutionTraceHandler.ServeHTTP(w, r)
+		case AgentManagerServiceSignalWorkflowExecutionProcedure:
+			agentManagerServiceSignalWorkflowExecutionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceCancelWorkflowExecutionProcedure:
+			agentManagerServiceCancelWorkflowExecutionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceRetryWorkflowExecutionProcedure:
+			agentManagerServiceRetryWorkflowExecutionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceResumeWorkflowExecutionProcedure:
+			agentManagerServiceResumeWorkflowExecutionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceSimulateWorkflowProcedure:
+			agentManagerServiceSimulateWorkflowHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetProfileProcedure:
 			agentManagerServiceGetProfileHandler.ServeHTTP(w, r)
 		case AgentManagerServiceListProfilesProcedure:
@@ -1267,6 +1727,78 @@ func (UnimplementedAgentManagerServiceHandler) EnsureProfile(context.Context, *c
 
 func (UnimplementedAgentManagerServiceHandler) ReconcileScenarioProfiles(context.Context, *connect.Request[api.ReconcileScenarioProfilesRequest]) (*connect.Response[api.ReconcileScenarioProfilesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ValidateWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ValidateWorkflow is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ReconcileScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) PlanScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.PlanScenarioWorkflows is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ListWorkflowRevisions(context.Context, *connect.Request[api.ListWorkflowRevisionsRequest]) (*connect.Response[api.ListWorkflowRevisionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListWorkflowRevisions is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetWorkflowRevision(context.Context, *connect.Request[api.GetWorkflowRevisionRequest]) (*connect.Response[api.GetWorkflowRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetWorkflowRevision is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ReloadScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ExplainWorkflow(context.Context, *connect.Request[api.GetWorkflowRevisionRequest]) (*connect.Response[api.GetWorkflowRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ExplainWorkflow is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) StartWorkflowExecution(context.Context, *connect.Request[api.StartWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.StartWorkflowExecution is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ListWorkflowExecutions(context.Context, *connect.Request[api.ListWorkflowExecutionsRequest]) (*connect.Response[api.ListWorkflowExecutionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListWorkflowExecutions is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetWorkflowExecution(context.Context, *connect.Request[api.GetWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetWorkflowExecution is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetWorkflowExecutionResult(context.Context, *connect.Request[api.GetWorkflowExecutionResultRequest]) (*connect.Response[api.WorkflowExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) AdvanceWorkflowExecution(context.Context, *connect.Request[api.GetWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetWorkflowExecutionTrace(context.Context, *connect.Request[api.GetWorkflowExecutionTraceRequest]) (*connect.Response[api.GetWorkflowExecutionTraceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) SignalWorkflowExecution(context.Context, *connect.Request[api.SignalWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.SignalWorkflowExecution is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) CancelWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CancelWorkflowExecution is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) RetryWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RetryWorkflowExecution is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ResumeWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ResumeWorkflowExecution is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) SimulateWorkflow(context.Context, *connect.Request[api.SimulateWorkflowRequest]) (*connect.Response[api.SimulateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.SimulateWorkflow is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) GetProfile(context.Context, *connect.Request[api.GetProfileRequest]) (*connect.Response[api.GetProfileResponse], error) {

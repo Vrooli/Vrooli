@@ -144,6 +144,11 @@
           "description": "Provider-owned health maturity reports and automation contract"
         },
         {
+          "path": "reference/accessibility-validation.md",
+          "title": "Accessibility Validation",
+          "description": "Accessibility evidence ownership across UI, performance, branding, and experience health"
+        },
+        {
           "path": "reference/environment-management.md",
           "title": "Environment Management",
           "description": "Current project-level environment and secrets posture"

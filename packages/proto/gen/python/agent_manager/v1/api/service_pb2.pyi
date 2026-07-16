@@ -5,9 +5,11 @@ from agent_manager.v1.domain import profile_pb2 as _profile_pb2
 from agent_manager.v1.domain import run_pb2 as _run_pb2
 from agent_manager.v1.domain import task_pb2 as _task_pb2
 from agent_manager.v1.domain import types_pb2 as _types_pb2
+from agent_manager.v1.domain import workflow_pb2 as _workflow_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from common.v1 import types_pb2 as _types_pb2_1
 from google.api import annotations_pb2 as _annotations_pb2
+from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -28,6 +30,15 @@ class ProfileReconcileStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PROFILE_RECONCILE_STATUS_CONFLICTED_LOCAL_OVERRIDE: _ClassVar[ProfileReconcileStatus]
     PROFILE_RECONCILE_STATUS_FAILED_VALIDATION: _ClassVar[ProfileReconcileStatus]
 
+class WorkflowReconcileStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    WORKFLOW_RECONCILE_STATUS_UNSPECIFIED: _ClassVar[WorkflowReconcileStatus]
+    WORKFLOW_RECONCILE_STATUS_CREATED: _ClassVar[WorkflowReconcileStatus]
+    WORKFLOW_RECONCILE_STATUS_ACTIVATED: _ClassVar[WorkflowReconcileStatus]
+    WORKFLOW_RECONCILE_STATUS_UNCHANGED: _ClassVar[WorkflowReconcileStatus]
+    WORKFLOW_RECONCILE_STATUS_SKIPPED: _ClassVar[WorkflowReconcileStatus]
+    WORKFLOW_RECONCILE_STATUS_FAILED_VALIDATION: _ClassVar[WorkflowReconcileStatus]
+
 class PurgeTarget(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PURGE_TARGET_UNSPECIFIED: _ClassVar[PurgeTarget]
@@ -41,6 +52,12 @@ PROFILE_RECONCILE_STATUS_UNCHANGED: ProfileReconcileStatus
 PROFILE_RECONCILE_STATUS_SKIPPED: ProfileReconcileStatus
 PROFILE_RECONCILE_STATUS_CONFLICTED_LOCAL_OVERRIDE: ProfileReconcileStatus
 PROFILE_RECONCILE_STATUS_FAILED_VALIDATION: ProfileReconcileStatus
+WORKFLOW_RECONCILE_STATUS_UNSPECIFIED: WorkflowReconcileStatus
+WORKFLOW_RECONCILE_STATUS_CREATED: WorkflowReconcileStatus
+WORKFLOW_RECONCILE_STATUS_ACTIVATED: WorkflowReconcileStatus
+WORKFLOW_RECONCILE_STATUS_UNCHANGED: WorkflowReconcileStatus
+WORKFLOW_RECONCILE_STATUS_SKIPPED: WorkflowReconcileStatus
+WORKFLOW_RECONCILE_STATUS_FAILED_VALIDATION: WorkflowReconcileStatus
 PURGE_TARGET_UNSPECIFIED: PurgeTarget
 PURGE_TARGET_PROFILES: PurgeTarget
 PURGE_TARGET_TASKS: PurgeTarget
@@ -159,6 +176,272 @@ class ReconcileScenarioProfilesResponse(_message.Message):
     failed: int
     dry_run: bool
     def __init__(self, scenario: _Optional[str] = ..., results: _Optional[_Iterable[_Union[ProfileReconcileResult, _Mapping]]] = ..., created: _Optional[int] = ..., updated: _Optional[int] = ..., unchanged: _Optional[int] = ..., skipped: _Optional[int] = ..., conflicted: _Optional[int] = ..., failed: _Optional[int] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class ValidateWorkflowRequest(_message.Message):
+    __slots__ = ("definition",)
+    DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    definition: _struct_pb2.Struct
+    def __init__(self, definition: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+
+class ValidateWorkflowResponse(_message.Message):
+    __slots__ = ("valid", "digest", "definition", "diagnostics")
+    VALID_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    valid: bool
+    digest: str
+    definition: _struct_pb2.Struct
+    diagnostics: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowDiagnostic]
+    def __init__(self, valid: _Optional[bool] = ..., digest: _Optional[str] = ..., definition: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., diagnostics: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowDiagnostic, _Mapping]]] = ...) -> None: ...
+
+class ReconcileScenarioWorkflowsRequest(_message.Message):
+    __slots__ = ("scenario", "dry_run", "validate_only")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    VALIDATE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    dry_run: bool
+    validate_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ..., validate_only: _Optional[bool] = ...) -> None: ...
+
+class WorkflowReconcileResult(_message.Message):
+    __slots__ = ("workflow_key", "version", "digest", "source_path", "status", "message", "diagnostics")
+    WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    workflow_key: str
+    version: str
+    digest: str
+    source_path: str
+    status: WorkflowReconcileStatus
+    message: str
+    diagnostics: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowDiagnostic]
+    def __init__(self, workflow_key: _Optional[str] = ..., version: _Optional[str] = ..., digest: _Optional[str] = ..., source_path: _Optional[str] = ..., status: _Optional[_Union[WorkflowReconcileStatus, str]] = ..., message: _Optional[str] = ..., diagnostics: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowDiagnostic, _Mapping]]] = ...) -> None: ...
+
+class ReconcileScenarioWorkflowsResponse(_message.Message):
+    __slots__ = ("scenario", "results", "created", "activated", "unchanged", "skipped", "failed", "dry_run", "validate_only")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FIELD_NUMBER: _ClassVar[int]
+    ACTIVATED_FIELD_NUMBER: _ClassVar[int]
+    UNCHANGED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    VALIDATE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    results: _containers.RepeatedCompositeFieldContainer[WorkflowReconcileResult]
+    created: int
+    activated: int
+    unchanged: int
+    skipped: int
+    failed: int
+    dry_run: bool
+    validate_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., results: _Optional[_Iterable[_Union[WorkflowReconcileResult, _Mapping]]] = ..., created: _Optional[int] = ..., activated: _Optional[int] = ..., unchanged: _Optional[int] = ..., skipped: _Optional[int] = ..., failed: _Optional[int] = ..., dry_run: _Optional[bool] = ..., validate_only: _Optional[bool] = ...) -> None: ...
+
+class ListWorkflowRevisionsRequest(_message.Message):
+    __slots__ = ("owner", "key", "limit", "offset")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    key: str
+    limit: int
+    offset: int
+    def __init__(self, owner: _Optional[str] = ..., key: _Optional[str] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+
+class ListWorkflowRevisionsResponse(_message.Message):
+    __slots__ = ("revisions",)
+    REVISIONS_FIELD_NUMBER: _ClassVar[int]
+    revisions: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowRevision]
+    def __init__(self, revisions: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowRevision, _Mapping]]] = ...) -> None: ...
+
+class GetWorkflowRevisionRequest(_message.Message):
+    __slots__ = ("owner", "key", "digest")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    key: str
+    digest: str
+    def __init__(self, owner: _Optional[str] = ..., key: _Optional[str] = ..., digest: _Optional[str] = ...) -> None: ...
+
+class GetWorkflowRevisionResponse(_message.Message):
+    __slots__ = ("revision",)
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    revision: _workflow_pb2.WorkflowRevision
+    def __init__(self, revision: _Optional[_Union[_workflow_pb2.WorkflowRevision, _Mapping]] = ...) -> None: ...
+
+class StartWorkflowExecutionRequest(_message.Message):
+    __slots__ = ("owner", "workflow_key", "definition_digest", "input", "idempotency_key")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    workflow_key: str
+    definition_digest: str
+    input: _struct_pb2.Value
+    idempotency_key: str
+    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+
+class GetWorkflowExecutionRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class GetWorkflowExecutionResultRequest(_message.Message):
+    __slots__ = ("execution_id", "explicitly_authorized")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPLICITLY_AUTHORIZED_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    explicitly_authorized: bool
+    def __init__(self, execution_id: _Optional[str] = ..., explicitly_authorized: _Optional[bool] = ...) -> None: ...
+
+class WorkflowExecutionResponse(_message.Message):
+    __slots__ = ("execution",)
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    execution: _workflow_pb2.WorkflowExecution
+    def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ...) -> None: ...
+
+class ListWorkflowExecutionsRequest(_message.Message):
+    __slots__ = ("owner", "workflow_key", "status", "limit", "offset")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    workflow_key: str
+    status: _workflow_pb2.WorkflowExecutionStatus
+    limit: int
+    offset: int
+    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., status: _Optional[_Union[_workflow_pb2.WorkflowExecutionStatus, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+
+class ListWorkflowExecutionsResponse(_message.Message):
+    __slots__ = ("executions",)
+    EXECUTIONS_FIELD_NUMBER: _ClassVar[int]
+    executions: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowExecution]
+    def __init__(self, executions: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowExecution, _Mapping]]] = ...) -> None: ...
+
+class GetWorkflowExecutionTraceRequest(_message.Message):
+    __slots__ = ("execution_id", "after_sequence", "limit")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    AFTER_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    after_sequence: int
+    limit: int
+    def __init__(self, execution_id: _Optional[str] = ..., after_sequence: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class GetWorkflowExecutionTraceResponse(_message.Message):
+    __slots__ = ("execution", "attempts", "journal")
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    JOURNAL_FIELD_NUMBER: _ClassVar[int]
+    execution: _workflow_pb2.WorkflowExecution
+    attempts: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowNodeAttempt]
+    journal: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowJournalEntry]
+    def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ..., attempts: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowNodeAttempt, _Mapping]]] = ..., journal: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowJournalEntry, _Mapping]]] = ...) -> None: ...
+
+class SignalWorkflowExecutionRequest(_message.Message):
+    __slots__ = ("execution_id", "signal", "payload", "idempotency_key", "expected_version")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SIGNAL_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    signal: str
+    payload: _struct_pb2.Value
+    idempotency_key: str
+    expected_version: int
+    def __init__(self, execution_id: _Optional[str] = ..., signal: _Optional[str] = ..., payload: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., expected_version: _Optional[int] = ...) -> None: ...
+
+class WorkflowExecutionOperationRequest(_message.Message):
+    __slots__ = ("execution_id", "idempotency_key", "expected_version", "reason")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    idempotency_key: str
+    expected_version: int
+    reason: str
+    def __init__(self, execution_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., expected_version: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class WorkflowExecutionOperationResponse(_message.Message):
+    __slots__ = ("execution", "idempotent")
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENT_FIELD_NUMBER: _ClassVar[int]
+    execution: _workflow_pb2.WorkflowExecution
+    idempotent: bool
+    def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ..., idempotent: _Optional[bool] = ...) -> None: ...
+
+class SimulateWorkflowRequest(_message.Message):
+    __slots__ = ("owner", "workflow_key", "definition_digest", "input")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    workflow_key: str
+    definition_digest: str
+    input: _struct_pb2.Value
+    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+
+class WorkflowNodePlan(_message.Message):
+    __slots__ = ("node_id", "kind", "execution_strategy", "profile_key", "role_ref", "continuation_source", "child_workflow_key", "child_workflow_version", "wait_signal", "wait_timeout_seconds", "join_strategy", "join_quorum", "parallel")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
+    ROLE_REF_FIELD_NUMBER: _ClassVar[int]
+    CONTINUATION_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    CHILD_WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    CHILD_WORKFLOW_VERSION_FIELD_NUMBER: _ClassVar[int]
+    WAIT_SIGNAL_FIELD_NUMBER: _ClassVar[int]
+    WAIT_TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    JOIN_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    JOIN_QUORUM_FIELD_NUMBER: _ClassVar[int]
+    PARALLEL_FIELD_NUMBER: _ClassVar[int]
+    node_id: str
+    kind: str
+    execution_strategy: str
+    profile_key: str
+    role_ref: str
+    continuation_source: str
+    child_workflow_key: str
+    child_workflow_version: str
+    wait_signal: str
+    wait_timeout_seconds: int
+    join_strategy: str
+    join_quorum: int
+    parallel: bool
+    def __init__(self, node_id: _Optional[str] = ..., kind: _Optional[str] = ..., execution_strategy: _Optional[str] = ..., profile_key: _Optional[str] = ..., role_ref: _Optional[str] = ..., continuation_source: _Optional[str] = ..., child_workflow_key: _Optional[str] = ..., child_workflow_version: _Optional[str] = ..., wait_signal: _Optional[str] = ..., wait_timeout_seconds: _Optional[int] = ..., join_strategy: _Optional[str] = ..., join_quorum: _Optional[int] = ..., parallel: _Optional[bool] = ...) -> None: ...
+
+class SimulateWorkflowResponse(_message.Message):
+    __slots__ = ("valid", "definition_digest", "nodes", "possible_terminal_nodes", "diagnostics")
+    VALID_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    NODES_FIELD_NUMBER: _ClassVar[int]
+    POSSIBLE_TERMINAL_NODES_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    valid: bool
+    definition_digest: str
+    nodes: _containers.RepeatedCompositeFieldContainer[WorkflowNodePlan]
+    possible_terminal_nodes: _containers.RepeatedScalarFieldContainer[str]
+    diagnostics: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowDiagnostic]
+    def __init__(self, valid: _Optional[bool] = ..., definition_digest: _Optional[str] = ..., nodes: _Optional[_Iterable[_Union[WorkflowNodePlan, _Mapping]]] = ..., possible_terminal_nodes: _Optional[_Iterable[str]] = ..., diagnostics: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowDiagnostic, _Mapping]]] = ...) -> None: ...
 
 class GetProfileRequest(_message.Message):
     __slots__ = ("profile_id",)

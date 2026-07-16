@@ -39,7 +39,7 @@ service CorpusService {
 enum ClipSource {
   CLIP_SOURCE_UNSPECIFIED = 0;
   CLIP_SOURCE_FREE_FORM = 1; // free-form dictation
-  CLIP_SOURCE_SCRIPTED = 2;  // a scripted prompt read aloud
+  CLIP_SOURCE_SCRIPTED = 2; // a scripted prompt read aloud
 }
 
 // Clip is one corpus item's metadata. Audio bytes are NOT carried here —
@@ -72,7 +72,7 @@ message CreateClipResponse {
 
 message ListClipsRequest {
   string tag_contains = 1; // optional substring filter on tags
-  int32 limit = 2;         // 0 = no limit
+  int32 limit = 2; // 0 = no limit
   int32 offset = 3;
 }
 

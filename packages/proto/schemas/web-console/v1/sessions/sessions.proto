@@ -89,7 +89,7 @@ message Session {
   bool busy = 9;
   bool recovered = 10;
   SessionOrigin origin = 11;
-  string owner = 12;         // free-form provenance tag, e.g. "agent-manager"
+  string owner = 12; // free-form provenance tag, e.g. "agent-manager"
   string display_label = 13; // human-facing label for the sidebar
 }
 
@@ -126,7 +126,7 @@ message CreateRequest {
   string launch_command = 7;
   string agent_type = 8;
   SessionOrigin origin = 9;
-  string owner = 10;         // free-form provenance tag, e.g. "agent-manager"
+  string owner = 10; // free-form provenance tag, e.g. "agent-manager"
   string display_label = 11; // human-facing label for the sidebar
   // execute_launch_command asks the server to paste launch_command into the
   // fresh session's stdin after create. Consumed by the server-side launch

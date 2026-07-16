@@ -16,7 +16,7 @@ Short version: software that builds itself, on your machine, and you keep all of
 
 Three layers running locally:
 
-1. **Resources** — local services that provide raw capability (Postgres, Redis, Ollama, Qdrant, Browserless, etc.).
+1. **Resources** — local services that provide raw capability (Postgres, Redis, Ollama, Qdrant, Searxng, etc.).
 2. **Scenarios** — full apps composed from resources and other scenarios. Each has its own UI, API, CLI, tests.
 3. **Agents and teams** — AI agents build, review, and improve scenarios, coordinated through structured team patterns. The operator steers via a daily vision walk; agents execute.
 

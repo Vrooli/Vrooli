@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "template-validation-react-vite-deep",
-  "input_digest": "sha256:d0692d5c45493355378af7132ef908d3905f22dbbba4e68aecbb0b352c1958aa",
+  "input_digest": "sha256:39c28f69eddd1770b554bfc0344df5321adbd3c6a2cd577fe7afc6766ed7244a",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/template-validation-react-vite-deep/v1/notes/attachments.proto",

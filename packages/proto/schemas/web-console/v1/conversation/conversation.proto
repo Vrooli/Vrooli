@@ -103,4 +103,3 @@ message SummarizeEventResponse {
   repeated string speech_paragraphs = 2;
   string error = 3;
 }
-

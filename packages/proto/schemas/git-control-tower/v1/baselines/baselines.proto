@@ -115,6 +115,10 @@ message EvidenceComparison {
   RunArtifactCatalog current_catalog = 4;
   repeated VisualDelta visual_deltas = 5;
   repeated string degraded_reasons = 6;
+  repeated string blocking_reasons = 7;
+  repeated string advisory_warnings = 8;
+  // complete | incomplete
+  string evidence_status = 9;
 }
 
 message SnapshotForBaselineRequest {
@@ -167,7 +171,9 @@ message GetBaselineRequest {
   int64 repo_id = 4;
 }
 
-message GetBaselineResponse { BaselineManifest baseline = 1; }
+message GetBaselineResponse {
+  BaselineManifest baseline = 1;
+}
 
 message ListBaselinesRequest {
   string scenario = 1;
@@ -176,7 +182,9 @@ message ListBaselinesRequest {
   int64 repo_id = 4;
 }
 
-message ListBaselinesResponse { repeated BaselineManifest baselines = 1; }
+message ListBaselinesResponse {
+  repeated BaselineManifest baselines = 1;
+}
 
 message StartDiffRequest {
   string scenario = 1;
@@ -242,7 +250,9 @@ message DeleteBaselineRequest {
   int64 repo_id = 4;
 }
 
-message DeleteBaselineResponse { bool deleted = 1; }
+message DeleteBaselineResponse {
+  bool deleted = 1;
+}
 
 message CollectionTarget {
   string scenario = 1;
@@ -280,7 +290,7 @@ message BaselineCollection {
   int32 schema_version = 5;
   repeated CollectionMember members = 6;
   CollectionCoverage coverage = 7;
-	// Informational source-evidence snapshots attached at collection capture.
+  // Informational source-evidence snapshots attached at collection capture.
   repeated PathSnapshotReference path_snapshots = 8;
 }
 
@@ -291,7 +301,7 @@ message StartCollectionCaptureRequest {
   string created_by = 4;
   string reason = 5;
   int64 repo_id = 6;
-	// Safe repo-relative globs. Empty means no source evidence requested.
+  // Safe repo-relative globs. Empty means no source evidence requested.
   repeated string path_selections = 7;
   bool include_ignored = 8;
   bool retain_content = 9;
@@ -311,7 +321,18 @@ message GetCollectionRequest {
   bool wait = 4;
 }
 
-message GetCollectionResponse { BaselineCollection collection = 1; }
+message GetCollectionResponse {
+  BaselineCollection collection = 1;
+  CollectionWaitOutcome wait_outcome = 2;
+}
+
+message CollectionWaitOutcome {
+  // complete | incomplete | member-failed | transport-failed
+  string kind = 1;
+  repeated string pending_run_ids = 2;
+  repeated string recovery_commands = 3;
+  string detail = 4;
+}
 
 message ExtendCollectionRequest {
   string name = 1;
@@ -345,7 +366,7 @@ message StartCollectionDiffRequest {
   string branch = 2;
   repeated string scenarios = 3;
   int64 repo_id = 4;
-	// Required caller-supplied idempotency key for the durable aggregate.
+  // Required caller-supplied idempotency key for the durable aggregate.
   string operation_id = 5;
 }
 
@@ -353,7 +374,7 @@ message StartCollectionDiffResponse {
   BaselineCollection collection = 1;
   repeated CollectionDiffMember members = 2;
   string classification = 3;
-	string operation_id = 4;
+  string operation_id = 4;
 }
 
 message GetCollectionDiffRequest {
@@ -369,6 +390,7 @@ message GetCollectionDiffResponse {
   repeated CollectionDiffMember members = 2;
   string classification = 3;
   string operation_id = 4;
+  CollectionWaitOutcome wait_outcome = 5;
 }
 
 message DeleteCollectionRequest {
@@ -377,7 +399,9 @@ message DeleteCollectionRequest {
   int64 repo_id = 3;
 }
 
-message DeleteCollectionResponse { bool deleted = 1; }
+message DeleteCollectionResponse {
+  bool deleted = 1;
+}
 
 message PathSnapshotReference {
   string name = 1;
@@ -457,12 +481,16 @@ message EstimatePathSnapshotRequest {
   bool retain_content = 4;
 }
 
-message EstimatePathSnapshotResponse { PathSnapshotEstimate estimate = 1; }
+message EstimatePathSnapshotResponse {
+  PathSnapshotEstimate estimate = 1;
+}
 
 // Returned as a typed Connect error detail when capture is refused before any
 // source-evidence record is written. Call EstimatePathSnapshot to inspect the
 // same report proactively.
-message PathSnapshotPolicyViolation { PathSnapshotEstimate estimate = 1; }
+message PathSnapshotPolicyViolation {
+  PathSnapshotEstimate estimate = 1;
+}
 
 message SourceDelta {
   string path = 1;
@@ -494,7 +522,9 @@ message GetPathSnapshotRequest {
   int64 repo_id = 3;
 }
 
-message GetPathSnapshotResponse { PathSnapshot snapshot = 1; }
+message GetPathSnapshotResponse {
+  PathSnapshot snapshot = 1;
+}
 
 message DiffPathSnapshotsRequest {
   string before_name = 1;
@@ -516,4 +546,6 @@ message DeletePathSnapshotRequest {
   int64 repo_id = 3;
 }
 
-message DeletePathSnapshotResponse { bool deleted = 1; }
+message DeletePathSnapshotResponse {
+  bool deleted = 1;
+}

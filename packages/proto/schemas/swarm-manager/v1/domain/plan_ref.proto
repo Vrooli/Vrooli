@@ -9,7 +9,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // PlanRef links swarm-manager work containers to canonical plan-manager plans.
 message PlanRef {
   // Plan authority. Current supported value: plan-manager.
-  string provider = 1 [(buf.validate.field).string = {in: ["plan-manager"]}];
+  string provider = 1 [(buf.validate.field).string = {
+    in: ["plan-manager"]
+  }];
 
   // Canonical plan-manager plan id.
   string plan_id = 2 [(buf.validate.field).string.min_len = 1];

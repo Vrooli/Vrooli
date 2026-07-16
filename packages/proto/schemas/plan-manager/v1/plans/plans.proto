@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package vrooli.plan_manager.v1.plans;
 
+import "google/protobuf/field_mask.proto";
 import "plan-manager/v1/shared/model.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans;plans_v1";
@@ -46,6 +47,7 @@ service PlansService {
   // UpdatePhase replaces the authored fields of a phase. Status is a typed
   // transition — see ExecutionService.TransitionPhase for runtime transitions.
   rpc UpdatePhase(UpdatePhaseRequest) returns (UpdatePhaseResponse);
+  rpc AddRelevantContext(AddRelevantContextRequest) returns (AddRelevantContextResponse);
   // ListRelevantContext returns accepted setup context for a plan or one phase.
   rpc ListRelevantContext(ListRelevantContextRequest) returns (ListRelevantContextResponse);
   // UpdateRelevantContext replaces one structured setup item without rewriting
@@ -53,6 +55,7 @@ service PlansService {
   rpc UpdateRelevantContext(UpdateRelevantContextRequest) returns (UpdateRelevantContextResponse);
   // RemoveRelevantContext removes one structured setup item.
   rpc RemoveRelevantContext(RemoveRelevantContextRequest) returns (RemoveRelevantContextResponse);
+  rpc AddReference(AddReferenceRequest) returns (AddReferenceResponse);
   // ListReferences returns structured code/doc/req references for a plan or one
   // phase.
   rpc ListReferences(ListReferencesRequest) returns (ListReferencesResponse);
@@ -160,20 +163,34 @@ message AddPhaseRequest {
   string plan_id = 1;
   shared.Phase phase = 2;
   WorkspaceScope workspace = 3;
+  bool allow_quality_regression = 4;
 }
 
 message AddPhaseResponse {
   shared.Plan plan = 1;
+  PlanMutationImpact impact = 2;
 }
 
 message UpdatePhaseRequest {
   string plan_id = 1;
   shared.Phase phase = 2;
   WorkspaceScope workspace = 3;
+  google.protobuf.FieldMask update_mask = 4;
+  bool allow_quality_regression = 5;
 }
 
 message UpdatePhaseResponse {
   shared.Plan plan = 1;
+  PlanMutationImpact impact = 2;
+}
+
+message PlanMutationImpact {
+  string before_grade = 1;
+  string after_grade = 2;
+  repeated string added_issue_codes = 3;
+  repeated string cleared_issue_codes = 4;
+  bool execution_grade_regression = 5;
+  bool regression_acknowledged = 6;
 }
 
 message ListRelevantContextRequest {
@@ -186,16 +203,31 @@ message ListRelevantContextResponse {
   repeated shared.RelevantContextItem items = 1;
 }
 
+message AddRelevantContextRequest {
+  string id = 1;
+  WorkspaceScope workspace = 2;
+  string phase_id = 3;
+  shared.RelevantContextItem item = 4;
+  bool allow_quality_regression = 5;
+}
+
+message AddRelevantContextResponse {
+  shared.Plan plan = 1;
+  PlanMutationImpact impact = 2;
+}
+
 message UpdateRelevantContextRequest {
   string id = 1;
   WorkspaceScope workspace = 2;
   string phase_id = 3;
   string item_id = 4;
   shared.RelevantContextItem item = 5;
+  bool allow_quality_regression = 6;
 }
 
 message UpdateRelevantContextResponse {
   shared.Plan plan = 1;
+  PlanMutationImpact impact = 2;
 }
 
 message RemoveRelevantContextRequest {
@@ -203,10 +235,12 @@ message RemoveRelevantContextRequest {
   WorkspaceScope workspace = 2;
   string phase_id = 3;
   string item_id = 4;
+  bool allow_quality_regression = 5;
 }
 
 message RemoveRelevantContextResponse {
   shared.Plan plan = 1;
+  PlanMutationImpact impact = 2;
 }
 
 message ListReferencesRequest {
@@ -219,16 +253,31 @@ message ListReferencesResponse {
   repeated shared.Reference references = 1;
 }
 
+message AddReferenceRequest {
+  string id = 1;
+  WorkspaceScope workspace = 2;
+  string phase_id = 3;
+  shared.Reference reference = 4;
+  bool allow_quality_regression = 5;
+}
+
+message AddReferenceResponse {
+  shared.Plan plan = 1;
+  PlanMutationImpact impact = 2;
+}
+
 message UpdateReferenceRequest {
   string id = 1;
   WorkspaceScope workspace = 2;
   string phase_id = 3;
   string reference_id = 4;
   shared.Reference reference = 5;
+  bool allow_quality_regression = 6;
 }
 
 message UpdateReferenceResponse {
   shared.Plan plan = 1;
+  PlanMutationImpact impact = 2;
 }
 
 message RemoveReferenceRequest {
@@ -236,10 +285,12 @@ message RemoveReferenceRequest {
   WorkspaceScope workspace = 2;
   string phase_id = 3;
   string reference_id = 4;
+  bool allow_quality_regression = 5;
 }
 
 message RemoveReferenceResponse {
   shared.Plan plan = 1;
+  PlanMutationImpact impact = 2;
 }
 
 message GetGraphRequest {
@@ -279,10 +330,12 @@ message ImportPlanRequest {
   // Optional slug override used by CLI import flows.
   string slug = 4;
   WorkspaceScope workspace = 5;
+  string supersede = 6;
 }
 
 message ImportPlanResponse {
   shared.Plan plan = 1;
+  shared.Plan superseded_plan = 2;
 }
 
 message MigratePlanRequest {

@@ -6,7 +6,7 @@
 
 ## Why this exists
 
-AI credits are documented cleanly (LPBS AI Gateway). Audio metering works but is scattered. Entitlement gating is documented per-scenario (LPBS, BAS, landing-manager). The result: every scenario rediscovers LPBS or invents its own approach. This doc is the single contract so a scenario builder asks the right question once — **metered or gated?** — and wires the known pattern instead of improvising.
+AI credits are documented cleanly (LPBS AI Gateway). Audio metering works but is scattered. Entitlement gating is documented per-scenario (LPBS, BAS). The result: every scenario rediscovers LPBS or invents its own approach. This doc is the single contract so a scenario builder asks the right question once — **metered or gated?** — and wires the known pattern instead of improvising.
 
 It is the engineering half of the `ecosystem-fit` lens's "Monetization & bundle fit" cluster (`prompt-manager skill read ecosystem-fit`). The lens routes you here; this doc tells you how to build it.
 
@@ -60,7 +60,7 @@ For tier-differentiated features with no real marginal cost. Call LPBS and gate 
 - **Cache** the payload (`SUBSCRIPTION_CACHE_TTL_SECONDS`, default 60s) and **degrade offline** to the last good payload with a "cached, may be stale" notice — never hard-fail a gate on a transient network error.
 - For gated **downloads**, call `GET /api/v1/downloads?platform=…` (server-side entitlement check + analytics) rather than streaming artifacts directly.
 
-References: `scenarios/landing-manager/docs/bundled-app-entitlements.md` (runtime API + offline guidance), `scenarios/landing-page-business-suite/docs/integrations/subscription-entitlements-system.md` (subsystem design, scenario-scoped).
+Reference: `scenarios/landing-page-business-suite/docs/integrations/subscription-entitlements-system.md` (runtime API, offline guidance, and subsystem design).
 
 ## Bundle membership (which SKU does this scenario belong to?)
 
@@ -74,7 +74,7 @@ If you believe a scenario should join/change a bundle, **do not edit the map** �
 ## How to wire it
 
 - `prompt-manager skill read bundle-integration-steer` — the steer skill for integrating a scenario with the bundle/entitlement stack.
-- Copy the closest reference implementation above (AI gateway for metered-by-token, audio-tools for metered-by-duration, landing-manager entitlements for gated).
+- Copy the closest reference implementation above (AI gateway for metered-by-token, audio-tools for metered-by-duration, LPBS entitlements for gated).
 
 ## Worked examples
 

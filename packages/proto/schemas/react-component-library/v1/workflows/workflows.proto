@@ -92,16 +92,36 @@ message ListWorkflowsRequest {
   int32 limit = 4;
 }
 
-message ListWorkflowsResponse { repeated Workflow workflows = 1; }
+message ListWorkflowsResponse {
+  repeated Workflow workflows = 1;
+}
 
-message GetWorkflowRequest { string id = 1; }
-message GetWorkflowResponse { Workflow workflow = 1; }
-message RefreshWorkflowRequest { string id = 1; }
-message RefreshWorkflowResponse { Workflow workflow = 1; }
-message StopWorkflowRequest { string id = 1; }
-message StopWorkflowResponse { Workflow workflow = 1; }
-message RetryWorkflowRequest { string id = 1; string idempotency_key = 2; }
-message RetryWorkflowResponse { Workflow workflow = 1; int32 queue_depth = 2; }
+message GetWorkflowRequest {
+  string id = 1;
+}
+message GetWorkflowResponse {
+  Workflow workflow = 1;
+}
+message RefreshWorkflowRequest {
+  string id = 1;
+}
+message RefreshWorkflowResponse {
+  Workflow workflow = 1;
+}
+message StopWorkflowRequest {
+  string id = 1;
+}
+message StopWorkflowResponse {
+  Workflow workflow = 1;
+}
+message RetryWorkflowRequest {
+  string id = 1;
+  string idempotency_key = 2;
+}
+message RetryWorkflowResponse {
+  Workflow workflow = 1;
+  int32 queue_depth = 2;
+}
 
 message GetPromotionReadinessRequest {
   string asset_id = 1;
@@ -128,4 +148,6 @@ message PromotionReadiness {
   string next_validation_command = 16;
 }
 
-message GetPromotionReadinessResponse { PromotionReadiness readiness = 1; }
+message GetPromotionReadinessResponse {
+  PromotionReadiness readiness = 1;
+}
