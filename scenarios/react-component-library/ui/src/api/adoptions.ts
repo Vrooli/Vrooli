@@ -4,6 +4,7 @@ import {
   LibraryVersionStatus,
   LocalStatus,
   ResolveSource,
+  RecommendationClass,
   type Adoption,
   type AdoptionSuggestion,
   type ListAdoptionsResponse,
@@ -17,7 +18,7 @@ import { transport } from "./client";
 
 export const adoptionsClient = createClient(AdoptionsService, transport);
 
-export { LibraryVersionStatus, LocalStatus, ResolveSource };
+export { LibraryVersionStatus, LocalStatus, ResolveSource, RecommendationClass };
 export type {
   Adoption,
   AdoptionSuggestion,

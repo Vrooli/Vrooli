@@ -31,7 +31,11 @@ help: ## Show the supported repo-level entrypoints
 	@printf "  make clean                      Clean build artifacts via the CLI\n"
 
 setup: ## Bootstrap and run project setup
-	@$(VROOLI) setup $(SETUP_ARGS)
+	@if command -v vrooli >/dev/null 2>&1; then \
+		VROOLI_SOURCE_ROOT="$(CURDIR)" vrooli --no-stale-check setup $(SETUP_ARGS); \
+	else \
+		$(VROOLI) setup $(SETUP_ARGS); \
+	fi
 
 dev: develop ## Alias for make develop
 
@@ -104,9 +108,17 @@ type: ## Compile-check project-level Go packages without running tests
 	@go test -run '^$$' ./cmd/... ./internal/...
 	@go test -run '^$$' -tags testing ./cmd/vrooli-api
 
-cross-compile: ## Cross-compile guard for the OS-evidence packages (darwin: full internal tree; windows: scoped — buildinfo/pstore-observability are not yet ported)
-	@GOOS=darwin GOARCH=arm64 go build ./internal/...
+cross-compile: ## Cross-compile guard for the OS-evidence packages (darwin: full internal + cmd trees; windows: scoped — buildinfo/pstore-observability are not yet ported)
+	@GOOS=darwin GOARCH=arm64 go build ./internal/... ./cmd/...
 	@GOOS=windows GOARCH=amd64 go build ./internal/network/... ./internal/process/... ./internal/maintenance/... ./internal/scenarioruntime/... ./internal/ports/... ./internal/runtimesupervisor/...
+
+vrooli-dist: ## Build a prebuilt vrooli CLI + .fp sidecar (GOOS=<os> GOARCH=<arch> [OUT=<path>] [VERSION=<tag>])
+	@test -n "$(GOOS)" || { echo "GOOS is required" >&2; exit 2; }
+	@test -n "$(GOARCH)" || { echo "GOARCH is required" >&2; exit 2; }
+	@go run ./cmd/vrooli-dist --goos "$(GOOS)" --goarch "$(GOARCH)" --output "$(if $(OUT),$(OUT),dist/vrooli_$(GOOS)_$(GOARCH)$(if $(filter windows,$(GOOS)),.exe,))" --version "$(VERSION)"
+
+vrooli-dist-all: ## Build the complete supported prebuilt CLI matrix into dist/
+	@go run ./cmd/vrooli-dist --all --out-dir dist --version "$(VERSION)"
 
 test: ## Run project-level Go tests
 	@go test ./internal/...

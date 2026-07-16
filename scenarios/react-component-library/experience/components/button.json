@@ -81,6 +81,14 @@
       "tier": "machine",
       "elements": ["action"],
       "states": ["icon-start"]
+    },
+    {
+      "id": "disabled-state-reflected",
+      "type": "custom",
+      "statement": "The disabled example prevents activation while retaining its visible action label.",
+      "tier": "manual",
+      "elements": ["action"],
+      "states": ["disabled"]
     }
   ],
   "bindings": {

@@ -33,6 +33,7 @@ import (
 	adoptionsInternal "react-component-library/internal/adoptions"
 	componentsInternal "react-component-library/internal/components"
 	depsInternal "react-component-library/internal/deps"
+	experienceInternal "react-component-library/internal/experience"
 	themesInternal "react-component-library/internal/themes"
 	workflowsInternal "react-component-library/internal/workflows"
 )
@@ -224,7 +225,7 @@ func main() {
 			),
 			adoptionsH.WithSuggestions(componentsSvc, depsSvc, inventoryScanner, scenariosRoot),
 		),
-		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver)),
+		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot)))),
 		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(db, "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),

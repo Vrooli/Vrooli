@@ -34,7 +34,25 @@
   "componentDetail": {
     "missingId": "URL にコンポーネント ID がありません。",
     "loading": "コンポーネントを読み込み中…",
-    "notFound": "コンポーネントが見つかりません。"
+    "notFound": "コンポーネントが見つかりません。",
+    "experience": {
+      "title": "動作の証拠",
+      "loading": "宣言された動作と証拠を読み込み中…",
+      "loadError": "ライブ証拠を読み込めませんでした。宣言された動作は証明として扱われません。",
+      "notConfigured": "このコンポーネントにはまだエクスペリエンス契約がありません。",
+      "unavailable": "証拠を利用できません",
+      "records": "証拠レコード {{count}} 件",
+      "states": "宣言された状態",
+      "claims": "動作の主張",
+      "unproven": "未証明",
+      "allStates": "すべての宣言された状態",
+      "openCapture": "キャプチャを開く",
+      "captureTimeUnavailable": "キャプチャ時刻を利用できません",
+      "statesPrefix": "状態: {{states}}",
+      "identity": "契約: {{contract}} · バージョン {{version}}",
+      "versionUnavailable": "バージョンを利用できません",
+      "stale": "古い"
+    }
   },
   "catalog": {
     "title": "ライブラリワークスペース",

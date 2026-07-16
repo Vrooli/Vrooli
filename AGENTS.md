@@ -29,9 +29,10 @@ future agents more capable. Full vision: VISION.md.
 4. **Scenario lifecycle**: manage via `make start|test|logs|stop` (preferred) or
    `vrooli scenario start <name>`. **NEVER** run binaries directly (`./api/…`, `nohup …`,
    `cd scenario && ./lib/develop.sh`) — it bypasses process naming, ports, and health checks.
-5. **Bug reports & work logging**: defect outside your scope → `prompt-manager skill read
-   report-bug` (a skill, not a shell command) and file to scenario-qa. Completed non-trivial
-   work → `swarm-manager records create` (the write side of the learning loop).
+5. **Bug reports & work logging**: Unless the active workflow explicitly owns these operations,
+   defect outside your scope → `prompt-manager skill read report-bug` (a skill, not a shell
+   command) and file to scenario-qa. Completed non-trivial work → `swarm-manager records create`
+   (the write side of the learning loop).
 6. **Recall → Discover → Capture** (reflex, not a checklist):
    - Recall: before non-trivial work, `search-hub query "<intent>" --type record,skill,doc`.
    - Discover: before hand-rolling ops, `prompt-manager discover "<operation-1>" "<operation-2>" --type all`; decompose broad work into generic reusable operations/capabilities, not scenario-specific plan titles.

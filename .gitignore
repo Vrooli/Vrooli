@@ -20,8 +20,9 @@ k8s/simple-deploy.yaml
 *.tar.gz
 
 ### Node ###
-# Logs
-logs
+# Root runtime logs. Keep this anchored: source packages such as
+# internal/resources/runtime/logs must remain visible to release packaging.
+/logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -61,10 +62,8 @@ coverage
 **/*test-output*.txt
 **/test.bin
 **/test-build
-scenarios/**/bin/
-api/*-api
-scenarios/**/api/*-api
-scenarios/**/api/webconsole
+**/api/*-api
+**/api/webconsole
 # Build-freshness manifests: regenerable, host-specific cache stamped next to
 # each build artifact (mtime/toolchain-keyed, self-healing). Never committed.
 **/*.freshness.json
@@ -87,11 +86,11 @@ v8-compile-cache-*/
 
 # Other caches
 __test/cache/
-scenarios/**/test/artifacts/
+**/test/artifacts/
 .lycheecache
 
 # Generated bundles
-scenarios/**/platforms/
+platforms/
 .AppImage
 
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
@@ -239,6 +238,13 @@ sketch
 
 build/
 
+# Project CLI bootstrap/release outputs. Installed artifacts belong under the
+# user's ~/.vrooli, never in the checkout; sidecars are regenerated with their
+# binaries and must not be tracked independently.
+/.vrooli/bin/
+/.vrooli/build/
+*.fp
+
 #Database
 *.db
 
@@ -303,7 +309,6 @@ node-red-flows-export-*.json
 
 # Go compiled binaries
 api/api-server
-scenarios/*/api/*-api
 
 # Output of the go coverage tool
 *.out
@@ -451,11 +456,10 @@ api/api
 packages/cli-core/sandbox-resolve
 .codex
 scripts/main/generated/test-genie
-.vrooli/build/
 vrooli
 !cmd/vrooli/
 !cmd/vrooli/**
 
 # Per-clone scenario stale-check sidecar (see internal/scenariostale).
-scenarios/*/.build-fingerprint.json
+**/.build-fingerprint.json
 .claude/scheduled_tasks.lock

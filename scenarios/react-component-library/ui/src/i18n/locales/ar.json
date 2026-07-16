@@ -34,7 +34,25 @@
   "componentDetail": {
     "missingId": "لا يوجد معرّف مكوّن في عنوان URL.",
     "loading": "جارٍ تحميل المكوّن…",
-    "notFound": "المكوّن غير موجود."
+    "notFound": "المكوّن غير موجود.",
+    "experience": {
+      "title": "دليل السلوك",
+      "loading": "جارٍ تحميل السلوك المعلن والدليل…",
+      "loadError": "تعذر تحميل الدليل الحي. لا يُعامل السلوك المعلن كإثبات.",
+      "notConfigured": "لا يملك هذا المكوّن عقد تجربة بعد.",
+      "unavailable": "الدليل غير متاح",
+      "records": "{{count}} من سجلات الدليل",
+      "states": "الحالات المعلنة",
+      "claims": "ادعاءات السلوك",
+      "unproven": "غير مثبت",
+      "allStates": "كل الحالات المعلنة",
+      "openCapture": "فتح الالتقاط",
+      "captureTimeUnavailable": "وقت الالتقاط غير متاح",
+      "statesPrefix": "الحالات: {{states}}",
+      "identity": "العقد: {{contract}} · الإصدار {{version}}",
+      "versionUnavailable": "الإصدار غير متاح",
+      "stale": "قديم"
+    }
   },
   "catalog": {
     "title": "مساحة عمل المكتبة",

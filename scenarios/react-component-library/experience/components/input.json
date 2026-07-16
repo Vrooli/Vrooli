@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "input",
+    "title": "Input",
+    "purpose": "Provide a token-bound text-entry control that remains recognizable across text, search, and disabled examples.",
+    "examplesRef": "../../library/components/Input/versions/1.1.0/examples.json",
+    "prd_refs": ["OT-P0-001", "OT-P0-003"]
+  },
+  "priorities": [
+    { "statement": "Each example communicates that it accepts or displays text input." },
+    { "statement": "The search example remains a recognizable text-entry control." },
+    { "statement": "The disabled example preserves context while preventing edits." }
+  ],
+  "states": [
+    { "id": "text", "example": "text", "description": "Text field with a component-name placeholder." },
+    { "id": "search", "example": "search", "description": "Search field for filtering components." },
+    { "id": "disabled", "example": "disabled", "description": "Disabled field that preserves its displayed value." }
+  ],
+  "elements": [
+    { "id": "field", "role": "textbox", "description": "The rendered native text-entry field." }
+  ],
+  "claims": [
+    { "id": "text-field-present", "type": "element-present", "statement": "The text example renders a text-entry field.", "tier": "machine", "elements": ["field"], "states": ["text"] },
+    { "id": "search-field-present", "type": "element-present", "statement": "The search example renders a text-entry field.", "tier": "machine", "elements": ["field"], "states": ["search"] },
+    { "id": "disabled-field-present", "type": "element-present", "statement": "The disabled example still renders a text-entry field.", "tier": "machine", "elements": ["field"], "states": ["disabled"] },
+    { "id": "disabled-field-prevents-editing", "type": "custom", "statement": "The disabled example cannot be edited while its displayed value remains available.", "tier": "manual", "elements": ["field"], "states": ["disabled"] }
+  ],
+  "bindings": {
+    "elements": {
+      "field": { "selector": "input" }
+    }
+  }
+}

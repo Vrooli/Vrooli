@@ -24,6 +24,17 @@ vi.mock("../api/components", async (importOriginal) => {
   return {
     ...actual,
     getCatalogAsset: vi.fn(),
+    getComponentExperience: vi.fn().mockResolvedValue({
+      componentId: "cmp-42",
+      contractId: "button",
+      title: "Button",
+      purpose: "Provide an action with an accessible name.",
+      evidenceStatus: "available",
+      evidenceMessage: "",
+      states: [{ id: "primary", exampleName: "primary", description: "Primary action." }],
+      claims: [{ id: "action-present", type: "element-present", statement: "A named action is present.", tier: "machine", states: ["primary"] }],
+      evidence: [{ claimId: "action-present", verdict: "passed", stateId: "primary", exampleName: "primary", captureRef: "https://example.test/capture", checkedAt: "2026-07-15T12:00:00Z", message: "claim proven", viewport: "desktop", viewportWidth: 1280, viewportHeight: 720 }],
+    }),
     componentsClient: {
       listComponents: vi.fn(),
       getComponent: vi.fn().mockResolvedValue({
@@ -64,7 +75,7 @@ vi.mock("../api/adoptions", async (importOriginal) => {
 });
 
 import { ComponentDetailPage } from "./ComponentDetailPage";
-import { componentsClient, getCatalogAsset } from "../api/components";
+import { componentsClient, getCatalogAsset, getComponentExperience } from "../api/components";
 
 describe("ComponentDetailPage", () => {
   beforeEach(() => {
@@ -99,6 +110,18 @@ describe("ComponentDetailPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toBe("// hi");
     });
+  });
+
+  it("shows declared behavior, evidence tier, verdict, and capture link", async () => {
+    renderWithProviders(<Routes><Route path="/components/:id" element={<ComponentDetailPage />} /></Routes>, { routerEntries: ["/components/cmp-42"] });
+
+    expect(await screen.findByTestId("component-experience-panel")).toHaveTextContent("A named action is present.");
+    expect(screen.getByTestId("component-experience-panel")).toHaveTextContent("machine");
+    expect(screen.getByTestId("component-experience-panel")).toHaveTextContent("passed");
+    expect(screen.getByTestId("component-experience-panel")).toHaveTextContent("componentDetail.experience.identity");
+    expect(screen.getByTestId("component-experience-panel")).toHaveTextContent("componentDetail.experience.stale");
+    expect(screen.getByRole("link", { name: "componentDetail.experience.openCapture" })).toHaveAttribute("href", "https://example.test/capture");
+    expect(getComponentExperience).toHaveBeenCalledWith("cmp-42");
   });
 
   it("renders a missing-id message when the route has no component id", () => {

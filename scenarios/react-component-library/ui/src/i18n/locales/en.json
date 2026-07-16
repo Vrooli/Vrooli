@@ -34,7 +34,25 @@
   "componentDetail": {
     "missingId": "No component id in URL.",
     "loading": "Loading component…",
-    "notFound": "Component not found."
+    "notFound": "Component not found.",
+    "experience": {
+      "title": "Behavior evidence",
+      "loading": "Loading declared behavior and evidence…",
+      "loadError": "Live evidence could not be loaded. Declared behavior is not being treated as proof.",
+      "notConfigured": "This component does not yet have an experience contract.",
+      "unavailable": "Evidence unavailable",
+      "records": "{{count}} evidence records",
+      "states": "Declared states",
+      "claims": "Behavior claims",
+      "unproven": "unproven",
+      "allStates": "all declared states",
+      "openCapture": "Open capture",
+      "captureTimeUnavailable": "capture time unavailable",
+      "statesPrefix": "States: {{states}}",
+      "identity": "Contract: {{contract}} · Version {{version}}",
+      "versionUnavailable": "version unavailable",
+      "stale": "stale"
+    }
   },
   "catalog": {
     "title": "Library workspace",

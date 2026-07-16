@@ -4,9 +4,24 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"react-component-library/internal/components"
+	"react-component-library/internal/experience"
 
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 )
+
+func experienceToProto(snapshot experience.Snapshot) *componentsv1.ComponentExperience {
+	out := &componentsv1.ComponentExperience{ComponentId: snapshot.ComponentID, LibraryId: snapshot.LibraryID, Version: snapshot.Version, ContractId: snapshot.ContractID, Title: snapshot.Title, Purpose: snapshot.Purpose, EvidenceStatus: snapshot.EvidenceStatus, EvidenceMessage: snapshot.EvidenceMessage}
+	for _, state := range snapshot.States {
+		out.States = append(out.States, &componentsv1.ComponentExperienceState{Id: state.ID, ExampleName: state.ExampleName, Description: state.Description})
+	}
+	for _, claim := range snapshot.Claims {
+		out.Claims = append(out.Claims, &componentsv1.ComponentExperienceClaim{Id: claim.ID, Type: claim.Type, Statement: claim.Statement, Tier: claim.Tier, States: append([]string(nil), claim.States...)})
+	}
+	for _, evidence := range snapshot.Evidence {
+		out.Evidence = append(out.Evidence, &componentsv1.ComponentExperienceEvidence{ClaimId: evidence.ClaimID, Verdict: evidence.Verdict, StateId: evidence.StateID, ExampleName: evidence.ExampleName, CaptureRef: evidence.CaptureRef, CheckedAt: evidence.CheckedAt, Message: evidence.Message, Viewport: evidence.Viewport, ViewportWidth: int32(evidence.ViewportWidth), ViewportHeight: int32(evidence.ViewportHeight)})
+	}
+	return out
+}
 
 // domainToProto converts an internal components.Component into the wire
 // shape the components proto declares. Lives in the handler package by

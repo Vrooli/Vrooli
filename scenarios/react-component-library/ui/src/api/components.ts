@@ -69,6 +69,53 @@ export interface ListComponentExamplesResponse {
   examples: ComponentExample[];
 }
 
+export interface ComponentExperienceState {
+  id: string;
+  exampleName: string;
+  description: string;
+}
+
+export interface ComponentExperienceClaim {
+  id: string;
+  type: string;
+  statement: string;
+  tier: "machine" | "manual" | "aspirational" | string;
+  states: string[];
+}
+
+export interface ComponentExperienceEvidence {
+  claimId: string;
+  verdict: string;
+  stateId: string;
+  exampleName: string;
+  captureRef: string;
+  checkedAt: string;
+  message: string;
+  viewport: string;
+  viewportWidth: number;
+  viewportHeight: number;
+}
+
+export interface ComponentExperience {
+  componentId: string;
+  libraryId: string;
+  version: string;
+  contractId: string;
+  title: string;
+  purpose: string;
+  states: ComponentExperienceState[];
+  claims: ComponentExperienceClaim[];
+  evidence: ComponentExperienceEvidence[];
+  evidenceStatus: string;
+  evidenceMessage: string;
+}
+
+export async function getComponentExperience(componentId: string): Promise<ComponentExperience> {
+  const response = await baseComponentsClient.getComponent({ id: componentId, includeExperience: true });
+  if (!response.experience) throw new Error("component experience was not returned");
+  return response.experience as ComponentExperience;
+}
+
 export async function listComponentExamples(
   input: ListComponentExamplesRequest,
 ): Promise<ListComponentExamplesResponse> {

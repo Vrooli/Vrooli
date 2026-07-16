@@ -10,14 +10,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { adoptionsClient } from "../api/adoptions";
+import { adoptionsClient, RecommendationClass } from "../api/adoptions";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/empty-state";
 import { StatusBadge } from "../components/ui/status-badge";
-import { componentsClient, getCatalogAsset, type CatalogAsset } from "../api/components";
+import { componentsClient, getCatalogAsset, getComponentExperience, type CatalogAsset } from "../api/components";
 import { strings } from "../consts/strings";
 import { CreateAdoptionDialog } from "../features/adoptions/CreateAdoptionDialog";
 import { ComponentEditor, type ComparisonSession } from "../features/components/ComponentEditor";
+import { ComponentExperiencePanel } from "../features/components/ComponentExperiencePanel";
 import { VersionsCard } from "../features/versions/VersionsCard";
 import { useTranslation } from "../i18n";
 
@@ -96,6 +97,12 @@ export function ComponentDetailPage() {
     enabled: Boolean(id) && Boolean(data?.component),
     retry: false,
   });
+  const experienceQuery = useQuery({
+    queryKey: ["components", "experience", id],
+    queryFn: () => getComponentExperience(data?.component?.id ?? ""),
+    enabled: Boolean(id) && Boolean(data?.component) && infoTab === "overview",
+    retry: false,
+  });
 
   const adoptionsQuery = useQuery({
     queryKey: ["adoptions", "component", id],
@@ -165,6 +172,7 @@ export function ComponentDetailPage() {
           <div className="space-y-4">
             <DetailTabs active={infoTab} onChange={setInfoTab} versionCount={component.metrics?.versionCount ?? 0} adoptionCount={component.metrics?.directAdoptionCount ?? adoptions.length} />
             {infoTab === "overview" && <>
+              <ComponentExperiencePanel experience={experienceQuery.data} isLoading={experienceQuery.isLoading} isError={experienceQuery.isError} />
               <section className="rounded-lg border border-app-border bg-app-surface-muted p-3 text-sm text-app-foreground">
                 <h3 className="font-medium">{t("componentDetail.info.identity", { defaultValue: "Identity" })}</h3>
                 <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
@@ -188,7 +196,7 @@ export function ComponentDetailPage() {
               <div className="flex items-center justify-between"><h3 className="font-medium">{t("componentDetail.info.adoptions", { defaultValue: "Adoptions" })}</h3><Button size="sm" onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>{refreshMutation.isPending ? t(strings.adoptions.refreshing) : t(strings.adoptions.refreshAction)}</Button></div>
               {adoptionsQuery.isLoading ? <p className="text-xs text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : adoptions.length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No scenarios have adopted this component yet." })} /> : <div className="space-y-2">{adoptions.map((adoption) => <Button key={adoption.id} type="button" variant="secondary" onClick={() => setSelectedAdoptionID(adoption.id)} className={`h-auto w-full rounded-control border p-2 text-left ${selectedAdoption?.id === adoption.id ? "border-app-primary" : "border-app-border"}`}><div className="flex items-center justify-between gap-2"><span className="font-medium">{adoption.scenario}</span><StatusBadge tone={statusTone(adoption.libraryVersionStatus, adoption.localStatus)}>{statusLabel(adoption.libraryVersionStatus, adoption.localStatus)}</StatusBadge></div><p className="mt-1 font-mono text-xs text-app-muted-foreground">{adoption.adoptedVersion} · {adoption.adoptedPath}</p></Button>)}</div>}
               {selectedAdoption && <ul data-testid="component-detail-adoption-file-tree" className="space-y-1 rounded-control bg-app-background p-2 font-mono text-xs text-app-muted-foreground">{(selectedAdoption.files.length > 0 ? selectedAdoption.files.map((file) => file.adoptedPath) : [selectedAdoption.adoptedPath]).map((path) => <li key={path}>{path}</li>)}</ul>}
-              <div className="border-t border-app-border pt-3"><h3 className="font-medium">{t(strings.adoptions.suggestions.title)}</h3>{suggestionsQuery.isLoading ? <p className="mt-1 text-xs text-app-muted-foreground">{t("componentDetail.info.suggestionsLoading", { defaultValue: "Finding candidates…" })}</p> : <div className="mt-2 space-y-2">{suggestions.map((suggestion) => <div key={suggestion.scenario} className="rounded-control border border-app-border p-2"><p className="font-medium">{suggestion.scenario}</p><StatusBadge tone="neutral">{suggestion.classification === 1 ? t("adoptions.suggestions.heuristic", { defaultValue: "Heuristic candidate — review before adopting" }) : t("adoptions.suggestions.unavailable", { defaultValue: "Unavailable candidate" })}</StatusBadge><p className="mt-1 text-xs text-app-muted-foreground">{suggestion.reasons.join(" · ")}</p><Button size="sm" className="mt-2" onClick={() => setCreateTarget({ componentId: component.id, scenario: suggestion.scenario })}>{t(strings.adoptions.suggestions.adoptAction)}</Button></div>)}{suggestions.length === 0 && <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.empty)}</p>}</div>}</div>
+              <div className="border-t border-app-border pt-3"><h3 className="font-medium">{t(strings.adoptions.suggestions.title)}</h3>{suggestionsQuery.isLoading ? <p className="mt-1 text-xs text-app-muted-foreground">{t("componentDetail.info.suggestionsLoading", { defaultValue: "Finding candidates…" })}</p> : <div className="mt-2 space-y-2">{suggestions.map((suggestion) => <div key={suggestion.scenario} className="rounded-control border border-app-border p-2"><p className="font-medium">{suggestion.scenario}</p><StatusBadge tone="neutral">{suggestion.classification === RecommendationClass.HEURISTIC ? t("adoptions.suggestions.heuristic", { defaultValue: "Heuristic candidate — review before adopting" }) : t("adoptions.suggestions.unavailable", { defaultValue: "Unavailable candidate" })}</StatusBadge><p className="mt-1 text-xs text-app-muted-foreground">{suggestion.reasons.join(" · ")}</p><Button size="sm" className="mt-2" onClick={() => setCreateTarget({ componentId: component.id, scenario: suggestion.scenario })}>{t(strings.adoptions.suggestions.adoptAction)}</Button></div>)}{suggestions.length === 0 && <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.empty)}</p>}</div>}</div>
             </section>}
           </div>
         )}

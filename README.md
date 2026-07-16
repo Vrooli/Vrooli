@@ -41,8 +41,12 @@ Supported setup paths today:
 Native Windows setup is not yet supported for the full `vrooli setup` and `vrooli develop` lifecycle.
 
 ```bash
-# First-time setup
-make setup
+# Install the signed CLI + its matching source tree (no Go or git required)
+curl -fsSL https://raw.githubusercontent.com/Vrooli/Vrooli/main/install/install.sh | sh
+export PATH="$HOME/.vrooli/bin:$PATH"
+
+# Setup installs git, Go, and the selected host requirements
+vrooli setup
 
 # Start the development stack
 vrooli develop
@@ -155,7 +159,7 @@ You can use it today to:
 
 - bootstrap and manage a local, Go-native control plane with `vrooli`
 - run and test scenarios from source with scenario lifecycle tooling
-- orchestrate local resources such as PostgreSQL, Redis, Qdrant, Ollama, Browserless, Vault, and more
+- orchestrate local resources such as PostgreSQL, Redis, Qdrant, Ollama, SearXNG, Vault, and more
 - build and validate business applications through scenario templates and supporting scenarios
 - operate the stack remotely through the Web Console and the Tier 1 secure remote-access model
 - coordinate agent work through scenarios such as Swarm Manager, Prompt Manager, Git Control Tower, Test Genie, and deployment-focused tooling
@@ -242,6 +246,26 @@ Supported setup paths today:
 
 Native Windows setup is not yet supported for the full project lifecycle.
 
+The fresh-machine path needs only a POSIX shell and `curl`. If the standard OS
+archive or cryptography utilities are absent, the installer obtains `tar` or
+OpenSSL through the native package manager before authenticating the release.
+It does **not** require Go, git, Node, pnpm, Docker, or Homebrew up front:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Vrooli/Vrooli/main/install/install.sh | sh
+export PATH="$HOME/.vrooli/bin:$PATH"
+vrooli setup
+```
+
+The authenticated installer places the CLI in `~/.vrooli/bin` and a matching
+source archive under `~/.vrooli/src`; setup then installs git and Go before any
+source build needs them. Docker is demanded only when an enabled resource uses
+the Docker service/Compose runtime.
+
+For an existing contributor checkout, `make setup` remains the convenience
+entrypoint. It uses an installed `vrooli` when available and retains the
+Go-present source fallback:
+
 ```bash
 git clone https://github.com/Vrooli/Vrooli.git
 cd Vrooli
@@ -250,14 +274,27 @@ make setup
 
 After setup, Vrooli attempts to open `vrooli-onboarding` automatically. That onboarding flow is the intended place to configure Vrooli behavior, select or review resources, validate secrets, and manage access-related setup before you start using the stack heavily.
 
+### macOS
+
+Setup is native on macOS (Apple Silicon and Intel). The prebuilt installer needs
+no preinstalled Homebrew, git, or Go: setup bootstraps Homebrew when absent, then
+uses it for git, Go, and the remaining selected host tools. Docker Desktop is
+needed only for container-backed resources you enable; it is not a bootstrap
+gate.
+
+Known platform limits: workspace-sandbox protected mode and X11 desktop automation are Linux-only and skip cleanly, containerized ollama inference is CPU-only, and a few resources are Linux-only. See [docs/QUICKSTART.md](docs/QUICKSTART.md) for details.
+
 ### Windows
 
-If you are on Windows, use WSL2 with a Linux distribution such as Ubuntu, then run the normal setup flow inside WSL:
+If you are on Windows, use WSL2 with a Linux distribution such as Ubuntu, then
+run the POSIX installer and normal setup flow inside WSL. The PowerShell
+installer supplies the standalone native CLI, but the full project lifecycle is
+not yet supported on native Windows.
 
 ```bash
-git clone https://github.com/Vrooli/Vrooli.git
-cd Vrooli
-make setup
+curl -fsSL https://raw.githubusercontent.com/Vrooli/Vrooli/main/install/install.sh | sh
+export PATH="$HOME/.vrooli/bin:$PATH"
+vrooli setup
 ```
 
 ### 2. Start The Development Environment

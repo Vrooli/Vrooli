@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	"react-component-library/internal/components"
+	"react-component-library/internal/experience"
 
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 )
@@ -26,7 +27,8 @@ type Deps struct {
 	// to drive cross-domain consumers (currently the deps service's
 	// SyncForComponent — req 10). Nil = no observer; the indexer
 	// behaves exactly as before.
-	IndexObserver components.UpsertObserver
+	IndexObserver    components.UpsertObserver
+	ExperienceReader experience.Reader
 }
 
 type connectHandler struct {
@@ -73,7 +75,19 @@ func (h *connectHandler) GetComponent(ctx context.Context, req *connect.Request[
 		}
 		return nil, connectErr
 	}
-	return connect.NewResponse(&componentsv1.GetComponentResponse{Component: domainToProto(got)}), nil
+	resp := &componentsv1.GetComponentResponse{Component: domainToProto(got)}
+	if req.Msg.GetIncludeExperience() {
+		if h.deps.ExperienceReader == nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("component experience reader is not configured"))
+		}
+		snapshot, err := h.deps.ExperienceReader.Get(ctx, experience.Component{ID: got.ID, LibraryID: got.LibraryID, Slug: got.Slug, Version: got.Version})
+		if err != nil {
+			h.deps.Logger.Printf("components.GetComponent(%q) experience: %v", req.Msg.GetId(), err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read component experience: %w", err))
+		}
+		resp.Experience = experienceToProto(snapshot)
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func (h *connectHandler) GetComponentByLibraryId(ctx context.Context, req *connect.Request[componentsv1.GetComponentByLibraryIdRequest]) (*connect.Response[componentsv1.GetComponentByLibraryIdResponse], error) {

@@ -21,10 +21,21 @@ import (
 	"react-component-library/internal/clock"
 	internalcomponents "react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
+	"react-component-library/internal/experience"
 	"react-component-library/internal/testutil/db"
 )
 
-func setupModule(t *testing.T) (*mux.Router, string) {
+type fakeExperienceReader struct {
+	snapshot  experience.Snapshot
+	component experience.Component
+}
+
+func (f *fakeExperienceReader) Get(_ context.Context, component experience.Component) (experience.Snapshot, error) {
+	f.component = component
+	return f.snapshot, nil
+}
+
+func setupModule(t *testing.T, opts ...components.ModuleOption) (*mux.Router, string) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
@@ -35,7 +46,7 @@ func setupModule(t *testing.T) (*mux.Router, string) {
 	root := t.TempDir()
 	svc, repo := components.BuildService(d, clock.System{}, root)
 	internalcomponents.SetServiceJSONReader(svc, internalcomponents.NewFSServiceJSONReader(filepath.Dir(root)))
-	m := components.ModuleFromService(svc, repo, root, log.New(io.Discard, "", 0))
+	m := components.ModuleFromService(svc, repo, root, log.New(io.Discard, "", 0), opts...)
 	r := mux.NewRouter()
 	m.Mount(r)
 	return r, root
@@ -130,6 +141,36 @@ export const Button = () => null;
 		`{"libraryId":"react-component-library:Button"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"displayName":"Button"`)
+}
+
+func TestModule_GetIncludesComponentExperienceWhenRequested(t *testing.T) {
+	reader := &fakeExperienceReader{snapshot: experience.Snapshot{
+		ContractID: "button", Title: "Button", EvidenceStatus: "available",
+		Claims:   []experience.Claim{{ID: "visible", Tier: "machine", Statement: "Button is visible."}},
+		Evidence: []experience.Evidence{{ClaimID: "visible", Verdict: "pass", CaptureRef: "http://captures/button.png"}},
+	}}
+	r, root := setupModule(t, components.WithExperienceReader(reader))
+	writeButtonManifest(t, root, `/**
+ * @libraryId react-component-library:Button
+ * @version 1.0.0
+ */
+export const Button = () => null;
+`)
+	require.Equal(t, http.StatusOK, callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`).Code)
+
+	rw := callConnect(r, componentsconnect.ComponentsServiceGetComponentByLibraryIdProcedure, `{"libraryId":"react-component-library:Button"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	body := rw.Body.String()
+	idStart := strings.Index(body, `"id":"`) + len(`"id":"`)
+	idEnd := strings.Index(body[idStart:], `"`)
+	id := body[idStart : idStart+idEnd]
+
+	rw = callConnect(r, componentsconnect.ComponentsServiceGetComponentProcedure, `{"id":"`+id+`","includeExperience":true}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"contractId":"button"`)
+	require.Contains(t, rw.Body.String(), `"evidenceStatus":"available"`)
+	require.Contains(t, rw.Body.String(), `http://captures/button.png`)
+	require.Equal(t, id, reader.component.ID)
 }
 
 func TestModule_IndexSurfacesStaleDesignStyleFinding(t *testing.T) {

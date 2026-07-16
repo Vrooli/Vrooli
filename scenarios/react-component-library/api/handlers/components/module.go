@@ -26,6 +26,7 @@ import (
 
 	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
+	"react-component-library/internal/experience"
 	"react-component-library/internal/module"
 )
 
@@ -59,6 +60,11 @@ type ModuleOption func(*Deps)
 // calls after each successful upsert.
 func WithIndexObserver(o components.UpsertObserver) ModuleOption {
 	return func(d *Deps) { d.IndexObserver = o }
+}
+
+// WithExperienceReader installs the server-side contract/evidence projection.
+func WithExperienceReader(reader experience.Reader) ModuleOption {
+	return func(d *Deps) { d.ExperienceReader = reader }
 }
 
 func ModuleFromService(svc components.Service, repo components.Repository, sourceRoot string, logger *log.Logger, opts ...ModuleOption) module.Module {
@@ -154,15 +160,15 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        componentsconnect.ComponentsServiceGetComponentProcedure,
 		Method:      "POST",
 		Summary:     "Get a component by id",
-		Description: "Returns the component matching the request id.",
+		Description: "Returns the component matching the request id. Set include_experience to include its declared contract and latest evidence projection.",
 		Category:    "components",
 		Request: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"id": "string"},
+			Properties: map[string]string{"id": "string", "include_experience": "bool (optional contract and evidence projection)"},
 		},
 		Response: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"component": "Component"},
+			Properties: map[string]string{"component": "Component", "experience": "ComponentExperience (when requested)"},
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 404, Code: "not_found", Description: "No component with that id"},

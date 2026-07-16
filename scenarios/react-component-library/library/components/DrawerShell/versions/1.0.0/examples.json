@@ -36,7 +36,7 @@
         "open": true,
         "title": "Edit prompt",
         "onClose": { "$handler": "close" },
-        "headerActions": { "$node": "button", "props": { "type": "button", "className": "rounded-control px-2 py-1 text-app-primary" }, "children": [{ "$text": "Save" }] },
+        "headerActions": { "$node": "button", "props": { "type": "button", "className": "min-h-[44px] min-w-[44px] rounded-control px-2 py-1 text-app-primary" }, "children": [{ "$text": "Save" }] },
         "children": { "$text": "Body with a header action" }
       },
       "expect": [
