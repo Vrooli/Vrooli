@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"plan-manager/internal/clock"
@@ -35,6 +36,7 @@ type Service interface {
 	RepairSourceScope(ctx context.Context, executionID string, req SourceScopeRepairRequest) (Execution, PhaseContext, GuidedStep, error)
 	Resume(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	ContinueExecution(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
+	AbandonExecution(ctx context.Context, executionID, reason, actor string) (Execution, bool, GuidedStep, error)
 	GetNext(ctx context.Context, executionID string) (PhaseContext, bool, GuidedStep, error)
 	TransitionPhase(ctx context.Context, executionID, phaseID string, inputs PhaseTransitionInputs) (Execution, planmodel.Plan, GuidedStep, error)
 
@@ -54,6 +56,7 @@ type service struct {
 	baseline  BaselineSynchronizer
 	preflight SourceEvidencePreflighter
 	clock     clock.Clock
+	startMu   sync.Mutex
 }
 
 // Deps wires the execution Service. Repo + Plans are required; Validator is
@@ -98,6 +101,8 @@ func NewService(d Deps) Service {
 var _ Service = (*service)(nil)
 
 func (s *service) Start(ctx context.Context, planID, runID string) (Execution, PhaseContext, GuidedStep, error) {
+	s.startMu.Lock()
+	defer s.startMu.Unlock()
 	planID = strings.TrimSpace(planID)
 	if planID == "" {
 		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "plan id is required"}
@@ -110,6 +115,17 @@ func (s *service) Start(ctx context.Context, planID, runID string) (Execution, P
 	}
 	if err := requireExecutionGradePlan(plan, false); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	active, err := s.activeExecutionsForPlan(ctx, plan.ID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	if len(active) > 0 {
+		ids := make([]string, 0, len(active))
+		for _, existing := range active {
+			ids = append(ids, existing.ID)
+		}
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrActiveExecutionConflict{PlanID: plan.ID, ExecutionIDs: ids}
 	}
 	return s.startAtPhase(ctx, plan, "", runID, contextModeStart)
 }
@@ -130,6 +146,7 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 		CurrentPhaseID: currentPhaseID,
 		StartedAt:      now,
 		UpdatedAt:      now,
+		LifecycleState: ExecutionLifecycleActive,
 	}
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
@@ -144,6 +161,9 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 }
 
 func (s *service) resumeExecution(ctx context.Context, e Execution, phaseID string) (Execution, PhaseContext, GuidedStep, error) {
+	if e.EffectiveLifecycleState() == ExecutionLifecycleAbandoned {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "abandoned execution cannot be resumed: " + e.ID}
+	}
 	plan, err := s.plans.GetPlan(ctx, e.PlanID)
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
@@ -217,7 +237,7 @@ func (s *service) Resume(ctx context.Context, planOrExecution, phaseID, runID st
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	if e, ok, err := s.repo.LatestExecutionForPlan(ctx, plan.ID); err != nil {
+	if e, ok, err := s.latestActiveExecutionForPlan(ctx, plan.ID); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	} else if ok {
 		if err := requireExecutionGradePlan(plan, hasExplicitBaselineRecovery(e)); err != nil {
@@ -233,6 +253,70 @@ func (s *service) Resume(ctx context.Context, planOrExecution, phaseID, runID st
 	// once (contextModeStart), not the resume context mode. This is the fix for
 	// once-per-execution context being skipped on the continue/resume create path.
 	return s.startAtPhase(ctx, plan, strings.TrimSpace(phaseID), runID, contextModeStart)
+}
+
+func (s *service) AbandonExecution(ctx context.Context, executionID, reason, actor string) (Execution, bool, GuidedStep, error) {
+	executionID = strings.TrimSpace(executionID)
+	reason = strings.TrimSpace(reason)
+	actor = strings.TrimSpace(actor)
+	if reason == "" {
+		return Execution{}, false, GuidedStep{}, ErrInvalidExecution{Reason: "abandon reason is required"}
+	}
+	e, err := s.getExecution(ctx, executionID)
+	if err != nil {
+		return Execution{}, false, GuidedStep{}, err
+	}
+	switch e.EffectiveLifecycleState() {
+	case ExecutionLifecycleAbandoned:
+		return e, true, stepForAbandoned(e), nil
+	case ExecutionLifecycleCompleted:
+		return Execution{}, false, GuidedStep{}, ErrInvalidExecution{Reason: "completed execution cannot be abandoned: " + e.ID}
+	}
+	if actor == "" {
+		actor = strings.TrimSpace(e.RunID)
+	}
+	if actor == "" {
+		actor = "operator"
+	}
+	now := s.now()
+	e.LifecycleState = ExecutionLifecycleAbandoned
+	e.AbandonedReason = reason
+	e.AbandonedAt = now
+	e.AbandonedBy = actor
+	e.UpdatedAt = now
+	if err := s.repo.SaveExecution(ctx, e); err != nil {
+		return Execution{}, false, GuidedStep{}, err
+	}
+	return e, false, stepForAbandoned(e), nil
+}
+
+func (s *service) activeExecutionsForPlan(ctx context.Context, planID string) ([]Execution, error) {
+	if lister, ok := s.repo.(activeExecutionLister); ok {
+		all, err := lister.ListExecutionsForPlan(ctx, planID)
+		if err != nil {
+			return nil, err
+		}
+		active := make([]Execution, 0, len(all))
+		for _, e := range all {
+			if e.EffectiveLifecycleState() == ExecutionLifecycleActive {
+				active = append(active, e)
+			}
+		}
+		return active, nil
+	}
+	e, ok, err := s.repo.LatestExecutionForPlan(ctx, planID)
+	if err != nil || !ok || e.EffectiveLifecycleState() != ExecutionLifecycleActive {
+		return nil, err
+	}
+	return []Execution{e}, nil
+}
+
+func (s *service) latestActiveExecutionForPlan(ctx context.Context, planID string) (Execution, bool, error) {
+	active, err := s.activeExecutionsForPlan(ctx, planID)
+	if err != nil || len(active) == 0 {
+		return Execution{}, false, err
+	}
+	return active[0], true, nil
 }
 
 func (s *service) ContinueExecution(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error) {
@@ -390,7 +474,7 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 	point := VelocityPoint{
 		ID:              uuid.NewString(),
 		PlanID:          plan.ID,
-		RunID:           e.RunID,
+		RunID:           velocityRunKey(e),
 		WallTimeSeconds: s.wallTime(e.StartedAt, now),
 		Tokens:          inputs.Tokens,
 		Iterations:      inputs.Iterations,
@@ -398,6 +482,7 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 		RecordedAt:      now,
 	}
 	e.Complete = true
+	e.LifecycleState = ExecutionLifecycleCompleted
 	e.UpdatedAt = now
 
 	// Persist the handoff, the velocity point, and the completed-execution state as
@@ -441,7 +526,7 @@ func (s *service) PartialHandoff(ctx context.Context, executionID string, inputs
 		ResumePhaseID: resumePhaseID(plan.Phases), LogSummary: logSummary, LogEntries: logEntries, LastValidation: lastVal,
 		HasValidation: hasVal, Staleness: staleness, AssembledAt: now, ChangeBoundary: plan.ChangeBoundary,
 	}
-	point := VelocityPoint{ID: uuid.NewString(), PlanID: plan.ID, RunID: e.RunID, WallTimeSeconds: s.wallTime(e.StartedAt, now), Tokens: inputs.Tokens, Iterations: inputs.Iterations, Completeness: CompletenessPartial, RecordedAt: now}
+	point := VelocityPoint{ID: uuid.NewString(), PlanID: plan.ID, RunID: velocityRunKey(e), WallTimeSeconds: s.wallTime(e.StartedAt, now), Tokens: inputs.Tokens, Iterations: inputs.Iterations, Completeness: CompletenessPartial, RecordedAt: now}
 	e.Complete, e.UpdatedAt = false, now
 	if err := s.repo.WithTx(ctx, func(repo Repository) error {
 		if err := repo.SaveHandoff(ctx, handoff); err != nil {
@@ -487,7 +572,36 @@ func (s *service) GetVelocity(ctx context.Context, planID string) ([]VelocityPoi
 		planID = plan.ID
 	}
 	points, err := s.repo.ListVelocity(ctx, planID)
-	return points, GuidedStep{}, err
+	if err != nil {
+		return nil, GuidedStep{}, err
+	}
+	if lister, ok := s.repo.(activeExecutionLister); ok {
+		executions, listErr := lister.ListExecutionsForPlan(ctx, planID)
+		if listErr != nil {
+			return nil, GuidedStep{}, listErr
+		}
+		abandonedRuns := make(map[string]struct{})
+		for _, execution := range executions {
+			if execution.EffectiveLifecycleState() == ExecutionLifecycleAbandoned {
+				abandonedRuns[velocityRunKey(execution)] = struct{}{}
+			}
+		}
+		kept := points[:0]
+		for _, point := range points {
+			if _, abandoned := abandonedRuns[point.RunID]; !abandoned {
+				kept = append(kept, point)
+			}
+		}
+		points = kept
+	}
+	return points, GuidedStep{}, nil
+}
+
+func velocityRunKey(e Execution) string {
+	if strings.TrimSpace(e.RunID) != "" {
+		return e.RunID
+	}
+	return e.ID
 }
 
 // --- helpers ---

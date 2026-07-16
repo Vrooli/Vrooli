@@ -1,6 +1,9 @@
 package execution
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // ErrExecutionNotFound is returned when no execution matches an id.
 type ErrExecutionNotFound struct{ ID string }
@@ -13,6 +16,16 @@ type ErrInvalidExecution struct{ Reason string }
 
 func (e ErrInvalidExecution) Error() string {
 	return fmt.Sprintf("invalid execution request: %s", e.Reason)
+}
+
+// ErrActiveExecutionConflict prevents accidental duplicate durable runners.
+type ErrActiveExecutionConflict struct {
+	PlanID       string
+	ExecutionIDs []string
+}
+
+func (e ErrActiveExecutionConflict) Error() string {
+	return fmt.Sprintf("plan %q already has active execution(s): %s", e.PlanID, strings.Join(e.ExecutionIDs, ", "))
 }
 
 // ErrValidationRequired is returned when a caller attempts to mark a phase done

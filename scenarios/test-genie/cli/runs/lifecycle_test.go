@@ -56,6 +56,10 @@ func (s *streamServer) GetRun(_ context.Context, _ *connect.Request[runspb.GetRu
 	}), nil
 }
 
+func (s *streamServer) GetRunStatus(_ context.Context, _ *connect.Request[runspb.GetRunStatusRequest]) (*connect.Response[runspb.RunLiveStatus], error) {
+	return connect.NewResponse(s.waitStatus), nil
+}
+
 // withStreamServer stands up a real Connect server for h and points newClient at
 // it, so the wait/follow renderers exercise the genuine stream path.
 func withStreamServer(t *testing.T, h *streamServer) {
@@ -95,6 +99,68 @@ func TestRunWaitHumanStreams(t *testing.T) {
 	}
 	if !strings.Contains(out, "PASS") {
 		t.Fatalf("human wait must render the terminal verdict, got: %q", out)
+	}
+}
+
+func TestRunStatusPendingDirectsOneCanonicalQuietWait(t *testing.T) { // [REQ:TESTGENIE-ORCH-P0]
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{
+		RunId: "R", Scenario: "demo", Status: "in_progress", EtaKnown: true,
+		EstimatedRemainingSeconds: 41, RecommendedNextCheckSeconds: 7,
+	}})
+	var out bytes.Buffer
+	if err := runStatus(nil, []string{"demo", "R"}, &out); err != nil {
+		t.Fatalf("runStatus: %v", err)
+	}
+	text := out.String()
+	if !strings.Contains(text, "Run exactly once:") || !strings.Contains(text, "test-genie runs wait --json") {
+		t.Fatalf("pending status lacks canonical wait action: %q", text)
+	}
+	for _, forbidden := range []string{"check again", "re-check", "run status again"} {
+		if strings.Contains(strings.ToLower(text), forbidden) {
+			t.Fatalf("pending status contains poll-first wording %q: %q", forbidden, text)
+		}
+	}
+	if !strings.Contains(strings.ToLower(text), "do not poll") {
+		t.Fatalf("pending status must make the anti-polling contract explicit: %q", text)
+	}
+}
+
+func TestRunStatusJSONCarriesTypedWaitActionOnlyWhilePending(t *testing.T) { // [REQ:TESTGENIE-ORCH-P0]
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{
+		RunId: "R", Scenario: "demo", Status: "in_progress", EstimatedRemainingSeconds: 41,
+	}})
+	var out bytes.Buffer
+	if err := runStatus(nil, []string{"--json", "demo", "R"}, &out); err != nil {
+		t.Fatalf("runStatus --json: %v", err)
+	}
+	var payload struct {
+		NextAction struct {
+			Kind      string `json:"kind"`
+			Command   string `json:"command"`
+			Timeout   int    `json:"timeout"`
+			DoNotPoll bool   `json:"doNotPoll"`
+		} `json:"nextAction"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("decode status JSON: %v\n%s", err, out.String())
+	}
+	if payload.NextAction.Kind != "wait" || !payload.NextAction.DoNotPoll || payload.NextAction.Timeout <= 0 || !strings.Contains(payload.NextAction.Command, "test-genie runs wait --json") {
+		t.Fatalf("typed wait action = %+v", payload.NextAction)
+	}
+}
+
+func TestRunStatusTerminalOmitsWaitAction(t *testing.T) {
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "failed", Verdict: "FAIL"}})
+	var out bytes.Buffer
+	if err := runStatus(nil, []string{"--json", "demo", "R"}, &out); err != nil {
+		t.Fatalf("terminal runStatus --json: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("decode terminal status JSON: %v", err)
+	}
+	if _, exists := payload["nextAction"]; exists {
+		t.Fatalf("terminal status must omit wait action: %s", out.String())
 	}
 }
 

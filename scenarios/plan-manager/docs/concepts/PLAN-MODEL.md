@@ -117,6 +117,28 @@ promote obvious legacy phase sections (`Objective`, `Checklist`, `Validation`,
 `Definition of done`) into structured phase fields before preserving any
 unmapped prose as legacy provenance.
 
+### Mutation and repair contract
+
+Authored phase edits use an API-owned field mask. Omitted fields survive, an
+explicitly supplied empty value clears only its selected field, and identity,
+order, and other computed fields cannot be patched. Mask-free `UpdatePhase`
+remains the explicit whole-replacement compatibility lane; first-party CLI
+updates always send a mask and never perform a read-modify-write merge.
+
+Every phase, reference, and relevant-context mutation returns a typed quality
+impact (`before_grade`, `after_grade`, added/cleared issue codes, and regression
+state). Once a plan is active or complete, a mutation that changes it from
+execution-ready to non-ready is rejected unless the caller explicitly supplies
+`allow_quality_regression`; the acknowledgement remains visible in the impact.
+Draft construction reports the same impact without blocking normal assembly.
+
+Authored references and relevant context have list/add/update/remove parity at
+both plan and phase scope. Add operations assign server-owned stable IDs and
+authored provenance. In the CLI, repeatable singular prose flags preserve
+commas, semicolons, equals signs, shell text, and Unicode verbatim;
+`--context-json` is the lossless typed context form. The deprecated compact
+`--context` grammar is strict and rejects unknown or malformed fragments.
+
 ### Baseline sets
 
 Every new execution-grade implementation plan carries a `baseline_set` intent

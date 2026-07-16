@@ -115,6 +115,11 @@ func (f *fakePlansService) AddPhase(_ context.Context, planID string, workspace 
 	return f.plan, f.err
 }
 
+func (f *fakePlansService) AddPhaseWithImpact(ctx context.Context, planID string, workspace internalplans.WorkspaceScope, phase internalplans.Phase, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
+	p, err := f.AddPhase(ctx, planID, workspace, phase)
+	return p, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, err
+}
+
 func (f *fakePlansService) UpdatePhase(_ context.Context, planID string, workspace internalplans.WorkspaceScope, phase internalplans.Phase) (internalplans.Plan, error) {
 	f.gotUpdatePhasePlanID = planID
 	f.gotUpdatePhaseWorkspace = workspace
@@ -122,11 +127,29 @@ func (f *fakePlansService) UpdatePhase(_ context.Context, planID string, workspa
 	return f.plan, f.err
 }
 
+func (f *fakePlansService) ReplacePhaseWithImpact(ctx context.Context, planID string, workspace internalplans.WorkspaceScope, phase internalplans.Phase, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
+	p, err := f.UpdatePhase(ctx, planID, workspace, phase)
+	return p, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, err
+}
+
+func (f *fakePlansService) PatchPhase(ctx context.Context, planID string, workspace internalplans.WorkspaceScope, phase internalplans.Phase, _ []string, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
+	p, err := f.UpdatePhase(ctx, planID, workspace, phase)
+	return p, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, err
+}
+
 func (f *fakePlansService) ListRelevantContext(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID string) ([]internalplans.RelevantContextItem, error) {
 	f.gotRepairID = idOrSlug
 	f.gotRepairWorkspace = workspace
 	f.gotRepairPhaseID = phaseID
 	return f.context, f.err
+}
+
+func (f *fakePlansService) AddRelevantContext(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID string, item internalplans.RelevantContextItem, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
+	f.gotRepairID = idOrSlug
+	f.gotRepairWorkspace = workspace
+	f.gotRepairPhaseID = phaseID
+	f.gotRepairContext = item
+	return f.plan, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, f.err
 }
 
 func (f *fakePlansService) UpdateRelevantContext(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, itemID string, item internalplans.RelevantContextItem) (internalplans.Plan, error) {
@@ -138,6 +161,11 @@ func (f *fakePlansService) UpdateRelevantContext(_ context.Context, idOrSlug str
 	return f.plan, f.err
 }
 
+func (f *fakePlansService) UpdateRelevantContextWithImpact(ctx context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, itemID string, item internalplans.RelevantContextItem, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
+	p, err := f.UpdateRelevantContext(ctx, idOrSlug, workspace, phaseID, itemID, item)
+	return p, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, err
+}
+
 func (f *fakePlansService) RemoveRelevantContext(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, itemID string) (internalplans.Plan, error) {
 	f.gotRepairID = idOrSlug
 	f.gotRepairWorkspace = workspace
@@ -146,11 +174,24 @@ func (f *fakePlansService) RemoveRelevantContext(_ context.Context, idOrSlug str
 	return f.plan, f.err
 }
 
+func (f *fakePlansService) RemoveRelevantContextWithImpact(ctx context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, itemID string, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
+	p, err := f.RemoveRelevantContext(ctx, idOrSlug, workspace, phaseID, itemID)
+	return p, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, err
+}
+
 func (f *fakePlansService) ListReferences(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID string) ([]internalplans.Reference, error) {
 	f.gotRepairID = idOrSlug
 	f.gotRepairWorkspace = workspace
 	f.gotRepairPhaseID = phaseID
 	return f.refs, f.err
+}
+
+func (f *fakePlansService) AddReference(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID string, ref internalplans.Reference, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
+	f.gotRepairID = idOrSlug
+	f.gotRepairWorkspace = workspace
+	f.gotRepairPhaseID = phaseID
+	f.gotRepairReference = ref
+	return f.plan, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, f.err
 }
 
 func (f *fakePlansService) UpdateReference(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, referenceID string, ref internalplans.Reference) (internalplans.Plan, error) {
@@ -162,12 +203,22 @@ func (f *fakePlansService) UpdateReference(_ context.Context, idOrSlug string, w
 	return f.plan, f.err
 }
 
+func (f *fakePlansService) UpdateReferenceWithImpact(ctx context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, referenceID string, ref internalplans.Reference, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
+	p, err := f.UpdateReference(ctx, idOrSlug, workspace, phaseID, referenceID, ref)
+	return p, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, err
+}
+
 func (f *fakePlansService) RemoveReference(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, referenceID string) (internalplans.Plan, error) {
 	f.gotRepairID = idOrSlug
 	f.gotRepairWorkspace = workspace
 	f.gotRepairPhaseID = phaseID
 	f.gotRepairItemID = referenceID
 	return f.plan, f.err
+}
+
+func (f *fakePlansService) RemoveReferenceWithImpact(ctx context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, referenceID string, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
+	p, err := f.RemoveReference(ctx, idOrSlug, workspace, phaseID, referenceID)
+	return p, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, err
 }
 
 func (f *fakePlansService) GetGraph(_ context.Context, planID string) ([]internalplans.PlanEdge, error) {
@@ -205,6 +256,11 @@ func (f *fakePlansService) Import(_ context.Context, sourcePath, markdown, title
 	f.gotCreate.Title = title
 	f.gotCreate.Slug = slug
 	return f.plan, f.err
+}
+
+func (f *fakePlansService) ImportSuperseding(ctx context.Context, sourcePath, markdown, title, slug string, workspace internalplans.WorkspaceScope, _ string) (internalplans.Plan, internalplans.Plan, error) {
+	p, err := f.Import(ctx, sourcePath, markdown, title, slug, workspace)
+	return p, internalplans.Plan{ID: "superseded", Status: internalplans.PlanStatusArchived}, err
 }
 
 func (f *fakePlansService) Migrate(_ context.Context, idOrSlug string) (internalplans.Plan, error) {
@@ -521,6 +577,17 @@ func TestImportPlanForwardsArgs(t *testing.T) {
 	require.Equal(t, "/workspace", svc.gotImportWorkspace.Root)
 	require.Equal(t, "Override", svc.gotCreate.Title)
 	require.Equal(t, "override", svc.gotCreate.Slug)
+}
+
+func TestImportPlanCanSupersedeAndReturnArchivedTarget(t *testing.T) {
+	svc := &fakePlansService{plan: internalplans.Plan{ID: "imported"}}
+	h := newPlansHandler(svc)
+
+	resp, err := h.ImportPlan(context.Background(), connect.NewRequest(&plansv1.ImportPlanRequest{Markdown: "# Plan", Supersede: "old"}))
+	require.NoError(t, err)
+	require.Equal(t, "imported", resp.Msg.GetPlan().GetId())
+	require.Equal(t, "superseded", resp.Msg.GetSupersededPlan().GetId())
+	require.Equal(t, sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED, resp.Msg.GetSupersededPlan().GetStatus())
 }
 
 func TestListTemplatesSuccess(t *testing.T) {

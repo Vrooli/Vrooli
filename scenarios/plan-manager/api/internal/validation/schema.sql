@@ -17,7 +17,15 @@ CREATE TABLE IF NOT EXISTS validation_results (
   staleness    TEXT NOT NULL DEFAULT '',
   commands_run TEXT NOT NULL DEFAULT '[]',
   detail       TEXT NOT NULL DEFAULT '',
-  ran_at       TEXT NOT NULL
+  ran_at       TEXT NOT NULL,
+  -- These fields are part of the execution gate's proof, not display-only
+  -- metadata. A result without them must never satisfy a guided phase.
+  execution_id     TEXT NOT NULL DEFAULT '',
+  operation_id     TEXT NOT NULL DEFAULT '',
+  scope_generation INTEGER NOT NULL DEFAULT 0,
+  full_inventory   INTEGER NOT NULL DEFAULT 0,
+  required_members TEXT NOT NULL DEFAULT '[]',
+  selected_members TEXT NOT NULL DEFAULT '[]'
 );
 
 -- Lookup is "the latest result for this (plan, phase)" — index the scope + time.

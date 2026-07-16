@@ -493,7 +493,7 @@ func printAgentWaitBlock(w io.Writer, scenario, runID string, eta int, etaKnown 
 		etaStr = humanDuration(eta)
 	}
 	fmt.Fprintf(w, "  Agent wait protocol:\n")
-	fmt.Fprintf(w, "    Run exactly once:\n      %s\n", reattachCommandWithTimeout(scenario, runID, waitSeconds))
+	fmt.Fprintf(w, "    Run exactly once:\n      %s\n", ReattachCommandWithTimeout(scenario, runID, waitSeconds))
 	fmt.Fprintf(w, "    Then inspect the maturity scorecard:\n      %s\n", findingsCommand(scenario, runID))
 	fmt.Fprintf(w, "    Expected duration: ~%s; recommended wait timeout: %s.\n", etaStr, humanDuration(waitSeconds))
 	fmt.Fprintf(w, "    In coding-agent tool execution, give the command at least this timeout and do not poll with short output checks.\n")
@@ -525,7 +525,7 @@ func runBusyGuidance(err error) (string, bool) {
 		}
 		var b strings.Builder
 		fmt.Fprintf(&b, "✗ %s already has an in-progress run %s (preset %s) — only one run per scenario at a time.\n", bi.GetScenario(), bi.GetRunId(), preset)
-		printAgentWaitBlock(&b, bi.GetScenario(), bi.GetRunId(), 0, false, recommendedWaitSeconds(0, false))
+		printAgentWaitBlock(&b, bi.GetScenario(), bi.GetRunId(), 0, false, RecommendedWaitSeconds(0, false))
 		fmt.Fprintf(&b, "  abort: test-genie runs abort %s %s\n", bi.GetScenario(), bi.GetRunId())
 		return b.String(), true
 	}

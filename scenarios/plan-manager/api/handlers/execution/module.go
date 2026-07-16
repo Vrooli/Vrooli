@@ -281,6 +281,7 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("execution_get_context", executionconnect.ExecutionServiceGetContextProcedure, "Get setup context", "Returns setup context for the current or requested phase without advancing the runner."),
 	endpoint("execution_resume", executionconnect.ExecutionServiceResumeProcedure, "Resume execution", "Resolves an existing execution or creates one for a plan and returns setup context without advancing."),
 	endpoint("execution_continue", executionconnect.ExecutionServiceContinueExecutionProcedure, "Continue execution", "Resumes or starts an execution and returns the single recommended next runner action without advancing."),
+	endpoint("execution_abandon", executionconnect.ExecutionServiceAbandonExecutionProcedure, "Abandon execution", "Terminally abandons an accidental execution while preserving audit history."),
 	endpoint("execution_sync_baseline", executionconnect.ExecutionServiceSyncBaselineProcedure, "Synchronize baseline evidence", "Reads the producer-owned GCT collection once and persists typed coverage without starting or waiting for capture."),
 	endpoint("execution_amend_scope", executionconnect.ExecutionServiceAmendScopeProcedure, "Amend validation scope", "Records an auditable expansion within the captured baseline inventory and invalidates prior phase evidence."),
 	endpoint("execution_adopt_baseline", executionconnect.ExecutionServiceAdoptBaselineProcedure, "Adopt legacy baseline", "Creates a producer ticket or an explicit degraded legacy state without starting or waiting for capture."),

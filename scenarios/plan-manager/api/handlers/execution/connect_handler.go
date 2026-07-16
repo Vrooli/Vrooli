@@ -2,6 +2,8 @@ package execution
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 
 	internalexecution "plan-manager/internal/execution"
@@ -32,6 +34,10 @@ func NewConnectHandler(d Deps) *connectHandler {
 func (h *connectHandler) Start(ctx context.Context, req *connect.Request[executionv1.StartRequest]) (*connect.Response[executionv1.StartResponse], error) {
 	e, pctx, step, err := h.deps.Service.Start(ctx, req.Msg.GetPlanId(), req.Msg.GetRunId())
 	if err != nil {
+		var conflict internalexecution.ErrActiveExecutionConflict
+		if errors.As(err, &conflict) {
+			return nil, activeExecutionConnectError(conflict)
+		}
 		return nil, internalexecution.ToConnectError(err)
 	}
 	return connect.NewResponse(&executionv1.StartResponse{
@@ -39,6 +45,20 @@ func (h *connectHandler) Start(ctx context.Context, req *connect.Request[executi
 		Step:      guidedStepToProto(step),
 		Context:   phaseContextToProto(pctx),
 	}), nil
+}
+
+func activeExecutionConnectError(conflict internalexecution.ErrActiveExecutionConflict) error {
+	detailMessage := &executionv1.ActiveExecutionConflict{ExecutionIds: append([]string(nil), conflict.ExecutionIDs...)}
+	for _, id := range conflict.ExecutionIDs {
+		detailMessage.ResumeCommands = append(detailMessage.ResumeCommands, "plan-manager exec resume "+id)
+		detailMessage.AbandonCommands = append(detailMessage.AbandonCommands, "plan-manager exec abandon "+id+" --reason <reason>")
+	}
+	err := connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("%w", conflict))
+	detail, detailErr := connect.NewErrorDetail(detailMessage)
+	if detailErr == nil {
+		err.AddDetail(detail)
+	}
+	return err
 }
 
 func (h *connectHandler) GetStatus(ctx context.Context, req *connect.Request[executionv1.GetStatusRequest]) (*connect.Response[executionv1.GetStatusResponse], error) {
@@ -87,6 +107,14 @@ func (h *connectHandler) ContinueExecution(ctx context.Context, req *connect.Req
 		Context:   phaseContextToProto(pctx),
 		Step:      guidedStepToProto(step),
 	}), nil
+}
+
+func (h *connectHandler) AbandonExecution(ctx context.Context, req *connect.Request[executionv1.AbandonExecutionRequest]) (*connect.Response[executionv1.AbandonExecutionResponse], error) {
+	e, replay, step, err := h.deps.Service.AbandonExecution(ctx, req.Msg.GetExecutionId(), req.Msg.GetReason(), req.Msg.GetActor())
+	if err != nil {
+		return nil, internalexecution.ToConnectError(err)
+	}
+	return connect.NewResponse(&executionv1.AbandonExecutionResponse{Execution: executionToProto(e), AlreadyAbandoned: replay, Step: guidedStepToProto(step)}), nil
 }
 
 func (h *connectHandler) SyncBaseline(ctx context.Context, req *connect.Request[executionv1.SyncBaselineRequest]) (*connect.Response[executionv1.SyncBaselineResponse], error) {

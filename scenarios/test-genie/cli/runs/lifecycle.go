@@ -13,6 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 	"golang.org/x/term"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/vrooli/cli-core/cliutil"
 
@@ -488,11 +489,52 @@ func runStatus(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}
 	}
+	action := statusWaitAction(resp.Msg)
 	if *jsonOut {
-		return writeJSON(w, resp.Msg)
+		return writeStatusJSON(w, resp.Msg, action)
 	}
 	printLiveStatus(w, resp.Msg)
+	if action != nil {
+		fmt.Fprintln(w, "Run exactly once:")
+		fmt.Fprintf(w, "  %s\n", action.Command)
+		fmt.Fprintln(w, "This blocks quietly until terminal; do not poll status for completion.")
+	}
 	return nil
+}
+
+type statusNextAction struct {
+	Kind      string `json:"kind"`
+	Command   string `json:"command"`
+	Timeout   int    `json:"timeout"`
+	DoNotPoll bool   `json:"doNotPoll"`
+}
+
+func statusWaitAction(st *runspb.RunLiveStatus) *statusNextAction {
+	if st == nil || st.GetStatus() != "in_progress" {
+		return nil
+	}
+	timeout := cliexec.RecommendedWaitSeconds(int(st.GetEstimatedRemainingSeconds()), st.GetEtaKnown())
+	return &statusNextAction{
+		Kind: "wait", Command: cliexec.ReattachCommandWithTimeout(st.GetScenario(), st.GetRunId(), timeout),
+		Timeout: timeout, DoNotPoll: true,
+	}
+}
+
+func writeStatusJSON(w io.Writer, st *runspb.RunLiveStatus, action *statusNextAction) error {
+	raw, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(st)
+	if err != nil {
+		return err
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return err
+	}
+	if action != nil {
+		payload["nextAction"] = action
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(payload)
 }
 
 func printLiveStatus(w io.Writer, st *runspb.RunLiveStatus) {
@@ -507,7 +549,8 @@ func printLiveStatus(w io.Writer, st *runspb.RunLiveStatus) {
 	}
 	fmt.Fprintf(w, "elapsed:  %.0fs\n", st.GetElapsedSeconds())
 	if st.GetEtaKnown() && st.GetStatus() == "in_progress" {
-		fmt.Fprintf(w, "eta:      ~%ds remaining (check again in %ds)\n", st.GetEstimatedRemainingSeconds(), st.GetRecommendedNextCheckSeconds())
+		fmt.Fprintf(w, "eta:      ~%ds remaining\n", st.GetEstimatedRemainingSeconds())
+		fmt.Fprintf(w, "status backoff metadata: %ds (for nonblocking dashboards only)\n", st.GetRecommendedNextCheckSeconds())
 	}
 	if st.GetVerdict() != "" {
 		fmt.Fprintf(w, "verdict:  %s\n", st.GetVerdict())

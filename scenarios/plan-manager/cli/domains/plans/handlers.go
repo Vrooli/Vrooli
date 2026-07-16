@@ -10,6 +10,9 @@ import (
 
 	"connectrpc.com/connect"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	plansconnect "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans/plans_v1connect"
@@ -211,9 +214,39 @@ func (h *handlers) contextList(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) contextAdd(ctx cliapp.RunContext) error {
+	item := contextItemFromFlags(ctx, "")
+	resp, err := h.client.AddRelevantContext(context.Background(), connect.NewRequest(&plansv1.AddRelevantContextRequest{
+		Id:                     ctx.Positional("id"),
+		Workspace:              workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PhaseId:                ctx.Flag("phase"),
+		Item:                   item,
+		AllowQualityRegression: optionalBoolFlag(ctx, "allow-quality-regression"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("add relevant context", err, nil)
+	}
+	return h.renderPlanMutation(ctx, resp.Msg, resp.Msg.GetPlan(), resp.Msg.GetImpact(), "Added context to")
+}
+
 func (h *handlers) contextUpdate(ctx cliapp.RunContext) error {
+	item := contextItemFromFlags(ctx, ctx.Positional("item"))
+	resp, err := h.client.UpdateRelevantContext(context.Background(), connect.NewRequest(&plansv1.UpdateRelevantContextRequest{
+		Id:        ctx.Positional("id"),
+		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PhaseId:   ctx.Flag("phase"),
+		ItemId:    ctx.Positional("item"),
+		Item:      item,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("update relevant context", err, nil)
+	}
+	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Updated context on")
+}
+
+func contextItemFromFlags(ctx cliapp.RunContext, id string) *sharedv1.RelevantContextItem {
 	item := &sharedv1.RelevantContextItem{
-		Id:           ctx.Positional("item"),
+		Id:           id,
 		Kind:         parseContextKind(ctx.Flag("kind")),
 		Label:        ctx.Flag("label"),
 		Reason:       ctx.Flag("reason"),
@@ -228,17 +261,7 @@ func (h *handlers) contextUpdate(ctx cliapp.RunContext) error {
 	if item.Kind == sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_UNSPECIFIED {
 		item.Kind = inferContextKind(item)
 	}
-	resp, err := h.client.UpdateRelevantContext(context.Background(), connect.NewRequest(&plansv1.UpdateRelevantContextRequest{
-		Id:        ctx.Positional("id"),
-		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
-		PhaseId:   ctx.Flag("phase"),
-		ItemId:    ctx.Positional("item"),
-		Item:      item,
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("update relevant context", err, nil)
-	}
-	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Updated context on")
+	return item
 }
 
 func (h *handlers) contextRemove(ctx cliapp.RunContext) error {
@@ -274,24 +297,42 @@ func (h *handlers) referenceList(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) referenceAdd(ctx cliapp.RunContext) error {
+	resp, err := h.client.AddReference(context.Background(), connect.NewRequest(&plansv1.AddReferenceRequest{
+		Id:                     ctx.Positional("id"),
+		Workspace:              workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PhaseId:                ctx.Flag("phase"),
+		Reference:              referenceFromFlags(ctx, ""),
+		AllowQualityRegression: optionalBoolFlag(ctx, "allow-quality-regression"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("add reference", err, nil)
+	}
+	return h.renderPlanMutation(ctx, resp.Msg, resp.Msg.GetPlan(), resp.Msg.GetImpact(), "Added reference to")
+}
+
 func (h *handlers) referenceUpdate(ctx cliapp.RunContext) error {
 	resp, err := h.client.UpdateReference(context.Background(), connect.NewRequest(&plansv1.UpdateReferenceRequest{
 		Id:          ctx.Positional("id"),
 		Workspace:   workspaceScopeFromFlag(ctx.Flag("workspace")),
 		PhaseId:     ctx.Flag("phase"),
 		ReferenceId: ctx.Positional("reference"),
-		Reference: &sharedv1.Reference{
-			Id:     ctx.Positional("reference"),
-			Kind:   parseReferenceKind(ctx.Flag("kind")),
-			Target: ctx.Flag("target"),
-			Future: ctx.BoolFlag("future"),
-			Note:   ctx.Flag("note"),
-		},
+		Reference:   referenceFromFlags(ctx, ctx.Positional("reference")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("update reference", err, nil)
 	}
 	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Updated reference on")
+}
+
+func referenceFromFlags(ctx cliapp.RunContext, id string) *sharedv1.Reference {
+	return &sharedv1.Reference{
+		Id:     id,
+		Kind:   parseReferenceKind(ctx.Flag("kind")),
+		Target: ctx.Flag("target"),
+		Future: ctx.BoolFlag("future"),
+		Note:   ctx.Flag("note"),
+	}
 }
 
 func (h *handlers) referenceRemove(ctx cliapp.RunContext) error {
@@ -350,9 +391,20 @@ func (h *handlers) importPlan(ctx cliapp.RunContext) error {
 		SourcePath: ctx.Flag("source"),
 		Markdown:   ctx.Flag("markdown"),
 		Workspace:  workspaceScopeFromFlag(ctx.Flag("workspace")),
+		Supersede:  ctx.Flag("supersede"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("import plan", err, nil)
+	}
+	if replaced := resp.Msg.GetSupersededPlan(); replaced != nil {
+		return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+			Result: []string{fmt.Sprintf("Imported plan %s superseding archived plan %s.", resp.Msg.GetPlan().GetId(), replaced.GetId())},
+			Changes: []string{
+				fmt.Sprintf("supersession: %s -> %s", resp.Msg.GetPlan().GetId(), replaced.GetId()),
+				fmt.Sprintf("replaced plan status: %s", statusconv.PlanStatusLabel(replaced.GetStatus())),
+			},
+			NextCommand: []string{fmt.Sprintf("`plans get %s` — inspect the imported replacement", resp.Msg.GetPlan().GetId())},
+		})
 	}
 	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Imported")
 }
@@ -456,14 +508,17 @@ func splitLinesOrCSV(raw string) []string {
 	return splitCSV(raw)
 }
 
-func parsePhaseContext(raw string) []*sharedv1.RelevantContextItem {
+func parsePhaseContext(raw string) ([]*sharedv1.RelevantContextItem, error) {
 	entries := splitCSV(raw)
 	if len(entries) == 0 {
-		return nil
+		return nil, nil
 	}
 	out := make([]*sharedv1.RelevantContextItem, 0, len(entries))
-	for _, entry := range entries {
-		item := parseContextEntry(entry)
+	for index, entry := range entries {
+		item, err := parseContextEntry(entry)
+		if err != nil {
+			return nil, fmt.Errorf("legacy context entry %d (%q): %w", index+1, entry, err)
+		}
 		item.Scope = sharedv1.RelevantContextScope_RELEVANT_CONTEXT_SCOPE_PHASE
 		if item.RepeatPolicy == sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED {
 			item.RepeatPolicy = sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY
@@ -476,22 +531,35 @@ func parsePhaseContext(raw string) []*sharedv1.RelevantContextItem {
 		}
 		out = append(out, item)
 	}
-	return out
+	return out, nil
 }
 
-func parseContextEntry(entry string) *sharedv1.RelevantContextItem {
+func parseContextEntry(entry string) (*sharedv1.RelevantContextItem, error) {
 	item := &sharedv1.RelevantContextItem{Required: true}
 	fields := strings.Split(entry, ";")
 	hasKV := false
 	for _, field := range fields {
 		key, value, ok := strings.Cut(field, "=")
 		if !ok {
-			continue
+			if len(fields) == 1 {
+				item.Kind = sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE
+				item.Instruction = strings.TrimSpace(entry)
+				return item, nil
+			}
+			return nil, fmt.Errorf("fragment %q must use key=value", field)
 		}
 		hasKV = true
-		switch strings.TrimSpace(strings.ToLower(key)) {
+		key = strings.TrimSpace(strings.ToLower(key))
+		value = strings.TrimSpace(value)
+		if key == "" || value == "" {
+			return nil, fmt.Errorf("fragment %q requires a non-empty key and value", field)
+		}
+		switch key {
 		case "kind":
 			item.Kind = parseContextKind(value)
+			if item.Kind == sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_UNSPECIFIED {
+				return nil, fmt.Errorf("unknown kind %q", value)
+			}
 		case "label":
 			item.Label = strings.TrimSpace(value)
 		case "reason":
@@ -511,12 +579,17 @@ func parseContextEntry(entry string) *sharedv1.RelevantContextItem {
 			item.Required = strings.TrimSpace(strings.ToLower(value)) != "false"
 		case "repeat":
 			item.RepeatPolicy = parseRepeatPolicy(value)
+			if item.RepeatPolicy == sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED {
+				return nil, fmt.Errorf("unknown repeat policy %q", value)
+			}
+		default:
+			return nil, fmt.Errorf("unknown key %q", key)
 		}
 	}
 	if !hasKV {
 		item.Kind = sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE
 		item.Instruction = strings.TrimSpace(entry)
-		return item
+		return item, nil
 	}
 	if item.Kind == sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_UNSPECIFIED {
 		switch {
@@ -528,7 +601,54 @@ func parseContextEntry(entry string) *sharedv1.RelevantContextItem {
 			item.Kind = sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE
 		}
 	}
-	return item
+	return item, nil
+}
+
+func phaseContextFromFlags(ctx cliapp.RunContext) ([]*sharedv1.RelevantContextItem, error) {
+	legacy, err := parsePhaseContext(optionalFlag(ctx, "context"))
+	if err != nil {
+		return nil, err
+	}
+	out := append([]*sharedv1.RelevantContextItem(nil), legacy...)
+	if !ctx.FlagDeclared("context-json") {
+		return out, nil
+	}
+	for index, raw := range ctx.FlagValues("context-json") {
+		item := &sharedv1.RelevantContextItem{}
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal([]byte(raw), item); err != nil {
+			return nil, fmt.Errorf("--context-json value %d: %w", index+1, err)
+		}
+		if item.GetKind() == sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_UNSPECIFIED {
+			return nil, fmt.Errorf("--context-json value %d: kind is required", index+1)
+		}
+		item.Scope = sharedv1.RelevantContextScope_RELEVANT_CONTEXT_SCOPE_PHASE
+		if item.RepeatPolicy == sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED {
+			item.RepeatPolicy = sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY
+		}
+		if item.Source == sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_UNSPECIFIED {
+			item.Source = sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTHORED
+		}
+		if item.Status == sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_UNSPECIFIED {
+			item.Status = sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_READY
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+func phaseListFlags(ctx cliapp.RunContext, singular, plural string) []string {
+	var out []string
+	if ctx.FlagDeclared(singular) {
+		for _, value := range ctx.FlagValues(singular) {
+			if strings.TrimSpace(value) != "" {
+				out = append(out, value)
+			}
+		}
+	}
+	if ctx.FlagDeclared(plural) && ctx.FlagProvided(plural) {
+		out = append(out, splitLinesOrCSV(ctx.Flag(plural))...)
+	}
+	return out
 }
 
 func splitFields(raw, sep string) []string {
@@ -613,20 +733,25 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
+	contextItems, err := phaseContextFromFlags(ctx)
+	if err != nil {
+		return err
+	}
 	resp, err := h.client.AddPhase(context.Background(), connect.NewRequest(&plansv1.AddPhaseRequest{
-		PlanId:    ctx.Positional("plan"),
-		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PlanId:                 ctx.Positional("plan"),
+		Workspace:              workspaceScopeFromFlag(ctx.Flag("workspace")),
+		AllowQualityRegression: optionalBoolFlag(ctx, "allow-quality-regression"),
 		Phase: &sharedv1.Phase{
 			Title:           ctx.Flag("title"),
 			Intent:          ctx.Flag("intent"),
-			AffectedAreas:   splitLinesOrCSV(ctx.Flag("affected-areas")),
-			Steps:           splitLinesOrCSV(ctx.Flag("steps")),
-			ExpectedOutputs: splitLinesOrCSV(ctx.Flag("expected-outputs")),
+			AffectedAreas:   phaseListFlags(ctx, "affected-area", "affected-areas"),
+			Steps:           phaseListFlags(ctx, "step", "steps"),
+			ExpectedOutputs: phaseListFlags(ctx, "expected-output", "expected-outputs"),
 			Validation:      ctx.Flag("validation"),
 			Acceptance:      ctx.Flag("acceptance"),
-			RisksHazards:    splitLinesOrCSV(ctx.Flag("risks-hazards")),
+			RisksHazards:    phaseListFlags(ctx, "risk-hazard", "risks-hazards"),
 			HandoffNotes:    ctx.Flag("handoff-notes"),
-			RelevantContext: parsePhaseContext(ctx.Flag("context")),
+			RelevantContext: contextItems,
 			Reminders:       splitCSV(ctx.Flag("reminders")),
 			BaselineScope:   splitCSV(ctx.Flag("baseline-scope")),
 			ValidationScope: validationScope,
@@ -635,7 +760,7 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("add phase", err, nil)
 	}
-	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Added phase to")
+	return h.renderPlanMutation(ctx, resp.Msg, resp.Msg.GetPlan(), resp.Msg.GetImpact(), "Added phase to")
 }
 
 func (h *handlers) phaseUpdate(ctx cliapp.RunContext) error {
@@ -643,92 +768,87 @@ func (h *handlers) phaseUpdate(ctx cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
-	if validationScope != nil && phaseUpdateOnlyChangesValidationScope(ctx) {
-		return h.phaseValidationScope(ctx)
+	contextItems, err := phaseContextFromFlags(ctx)
+	if err != nil {
+		return err
+	}
+	maskPaths := phaseUpdateMask(ctx)
+	if len(maskPaths) == 0 {
+		return fmt.Errorf("phase update requires at least one explicitly supplied authored-field flag")
 	}
 	resp, err := h.client.UpdatePhase(context.Background(), connect.NewRequest(&plansv1.UpdatePhaseRequest{
-		PlanId:    ctx.Positional("plan"),
-		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PlanId:                 ctx.Positional("plan"),
+		Workspace:              workspaceScopeFromFlag(ctx.Flag("workspace")),
+		UpdateMask:             &fieldmaskpb.FieldMask{Paths: maskPaths},
+		AllowQualityRegression: optionalBoolFlag(ctx, "allow-quality-regression"),
 		Phase: &sharedv1.Phase{
 			Id:              ctx.Positional("phase"),
-			Title:           ctx.Flag("title"),
-			Intent:          ctx.Flag("intent"),
-			AffectedAreas:   splitLinesOrCSV(ctx.Flag("affected-areas")),
-			Steps:           splitLinesOrCSV(ctx.Flag("steps")),
-			ExpectedOutputs: splitLinesOrCSV(ctx.Flag("expected-outputs")),
-			Validation:      ctx.Flag("validation"),
-			Acceptance:      ctx.Flag("acceptance"),
-			RisksHazards:    splitLinesOrCSV(ctx.Flag("risks-hazards")),
-			HandoffNotes:    ctx.Flag("handoff-notes"),
-			Status:          statusconv.PhaseStatusFlag(ctx.Flag("status")),
-			RelevantContext: parsePhaseContext(ctx.Flag("context")),
-			Reminders:       splitCSV(ctx.Flag("reminders")),
-			BaselineScope:   splitCSV(ctx.Flag("baseline-scope")),
+			Title:           optionalFlag(ctx, "title"),
+			Intent:          optionalFlag(ctx, "intent"),
+			AffectedAreas:   phaseListFlags(ctx, "affected-area", "affected-areas"),
+			Steps:           phaseListFlags(ctx, "step", "steps"),
+			ExpectedOutputs: phaseListFlags(ctx, "expected-output", "expected-outputs"),
+			Validation:      optionalFlag(ctx, "validation"),
+			Acceptance:      optionalFlag(ctx, "acceptance"),
+			RisksHazards:    phaseListFlags(ctx, "risk-hazard", "risks-hazards"),
+			HandoffNotes:    optionalFlag(ctx, "handoff-notes"),
+			Status:          statusconv.PhaseStatusFlag(optionalFlag(ctx, "status")),
+			RelevantContext: contextItems,
+			Reminders:       splitCSV(optionalFlag(ctx, "reminders")),
+			BaselineScope:   splitCSV(optionalFlag(ctx, "baseline-scope")),
 			ValidationScope: validationScope,
 		},
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("update phase", err, nil)
 	}
-	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Updated phase on")
+	return h.renderPlanMutation(ctx, resp.Msg, resp.Msg.GetPlan(), resp.Msg.GetImpact(), "Updated phase on")
 }
 
-func phaseUpdateOnlyChangesValidationScope(ctx cliapp.RunContext) bool {
-	for _, name := range []string{
-		"title", "intent", "affected-areas", "steps", "expected-outputs", "validation",
-		"acceptance", "risks-hazards", "handoff-notes", "status", "context", "reminders", "baseline-scope",
-	} {
-		// `phase validation-scope` shares this handler but declares only
-		// --validation-scope/--workspace; probing an undeclared flag panics,
-		// so treat undeclared as not provided.
-		if !ctx.FlagDeclared(name) {
-			continue
-		}
-		if strings.TrimSpace(ctx.Flag(name)) != "" {
-			return false
+func phaseUpdateMask(ctx cliapp.RunContext) []string {
+	flagPaths := []struct{ flag, path string }{
+		{"title", "title"},
+		{"intent", "intent"},
+		{"affected-areas", "affected_areas"},
+		{"affected-area", "affected_areas"},
+		{"steps", "steps"},
+		{"step", "steps"},
+		{"expected-outputs", "expected_outputs"},
+		{"expected-output", "expected_outputs"},
+		{"validation", "validation"},
+		{"acceptance", "acceptance"},
+		{"risks-hazards", "risks_hazards"},
+		{"risk-hazard", "risks_hazards"},
+		{"handoff-notes", "handoff_notes"},
+		{"status", "status"},
+		{"context", "relevant_context"},
+		{"context-json", "relevant_context"},
+		{"reminders", "reminders"},
+		{"baseline-scope", "baseline_scope"},
+		{"validation-scope", "validation_scope"},
+	}
+	paths := make([]string, 0, len(flagPaths))
+	seen := make(map[string]struct{}, len(flagPaths))
+	for _, pair := range flagPaths {
+		if ctx.FlagDeclared(pair.flag) && ctx.FlagProvided(pair.flag) {
+			if _, exists := seen[pair.path]; !exists {
+				paths = append(paths, pair.path)
+				seen[pair.path] = struct{}{}
+			}
 		}
 	}
-	return true
+	return paths
 }
 
-// phaseValidationScope is the safe repair lane for an existing persisted phase.
-// UpdatePhase is intentionally a full replacement API, so this command reads
-// the canonical phase first, changes only its validation declaration, and sends
-// the complete object back. It lets older imported plans become execution-grade
-// without losing references or authored context.
-func (h *handlers) phaseValidationScope(ctx cliapp.RunContext) error {
-	scope, err := validationScopeFromFlag(ctx.Flag("validation-scope"))
-	if err != nil {
-		return err
+func optionalBoolFlag(ctx cliapp.RunContext, name string) bool {
+	return ctx.FlagDeclared(name) && ctx.BoolFlag(name)
+}
+
+func optionalFlag(ctx cliapp.RunContext, name string) string {
+	if !ctx.FlagDeclared(name) {
+		return ""
 	}
-	if scope == nil {
-		return fmt.Errorf("--validation-scope is required")
-	}
-	planID := ctx.Positional("plan")
-	phaseID := ctx.Positional("phase")
-	current, err := h.client.GetPlan(context.Background(), connect.NewRequest(&plansv1.GetPlanRequest{Id: planID, Workspace: workspaceScopeFromFlag(ctx.Flag("workspace"))}))
-	if err != nil {
-		return cliapp.WrapAPIError("get plan before validation-scope repair", err, nil)
-	}
-	if current.Msg == nil || current.Msg.Plan == nil {
-		return fmt.Errorf("server returned no plan for validation-scope repair")
-	}
-	var phase *sharedv1.Phase
-	for _, candidate := range current.Msg.Plan.GetPhases() {
-		if candidate.GetId() == phaseID {
-			phase = candidate
-			break
-		}
-	}
-	if phase == nil {
-		return fmt.Errorf("phase %q not found on plan %q", phaseID, planID)
-	}
-	phase.ValidationScope = scope
-	resp, err := h.client.UpdatePhase(context.Background(), connect.NewRequest(&plansv1.UpdatePhaseRequest{PlanId: planID, Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")), Phase: phase}))
-	if err != nil {
-		return cliapp.WrapAPIError("repair phase validation scope", err, nil)
-	}
-	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Repaired validation scope on")
+	return ctx.Flag(name)
 }
 
 // validationScopeFromFlag exposes the phase validation declaration on the
@@ -801,6 +921,30 @@ func (h *handlers) renderMutation(ctx cliapp.RunContext, p *sharedv1.Plan, verb 
 	return cliapp.RenderProtoMutation(ctx, &plansv1.GetPlanResponse{Plan: p}, cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("%s plan %s.", verb, p.Id)},
 		Changes: planDetail(p),
+		NextCommand: []string{
+			fmt.Sprintf("`plans get %s` — show this plan", p.Id),
+			fmt.Sprintf("`plans render %s` — render the markdown view", p.Id),
+		},
+	})
+}
+
+func (h *handlers) renderPlanMutation(ctx cliapp.RunContext, payload proto.Message, p *sharedv1.Plan, impact *plansv1.PlanMutationImpact, verb string) error {
+	if p == nil {
+		return fmt.Errorf("server returned no plan")
+	}
+	changes := planDetail(p)
+	if impact != nil {
+		changes = append(changes, fmt.Sprintf("quality: %s -> %s", impact.GetBeforeGrade(), impact.GetAfterGrade()))
+		if len(impact.GetAddedIssueCodes()) > 0 {
+			changes = append(changes, "quality issues added: "+strings.Join(impact.GetAddedIssueCodes(), ", "))
+		}
+		if len(impact.GetClearedIssueCodes()) > 0 {
+			changes = append(changes, "quality issues cleared: "+strings.Join(impact.GetClearedIssueCodes(), ", "))
+		}
+	}
+	return cliapp.RenderProtoMutation(ctx, payload, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("%s plan %s.", verb, p.Id)},
+		Changes: changes,
 		NextCommand: []string{
 			fmt.Sprintf("`plans get %s` — show this plan", p.Id),
 			fmt.Sprintf("`plans render %s` — render the markdown view", p.Id),

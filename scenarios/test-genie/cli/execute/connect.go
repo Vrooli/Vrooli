@@ -85,11 +85,11 @@ func reattachCommand(scenario, runID string) string {
 	return "test-genie runs wait --json " + scenario + " " + runID
 }
 
-// recommendedWaitSeconds is the bounded one-shot wait window agents and scripts
+// RecommendedWaitSeconds is the bounded one-shot wait window agents and scripts
 // should give the quiet wait command. It is deliberately larger than the ETA so
 // the normal path still blocks once until terminal, while retaining a finite
 // escape hatch if a provider wedges.
-func recommendedWaitSeconds(eta int, etaKnown bool) int {
+func RecommendedWaitSeconds(eta int, etaKnown bool) int {
 	if !etaKnown || eta <= 0 {
 		return unknownETAWaitSeconds
 	}
@@ -109,10 +109,12 @@ func recommendedWaitSecondsForRequest(eta int, etaKnown bool, req Request) int {
 	if len(req.Phases) == 0 && (strings.TrimSpace(req.Preset) == "" || strings.EqualFold(strings.TrimSpace(req.Preset), "comprehensive")) {
 		return comprehensiveWaitSeconds
 	}
-	return recommendedWaitSeconds(eta, etaKnown)
+	return RecommendedWaitSeconds(eta, etaKnown)
 }
 
-func reattachCommandWithTimeout(scenario, runID string, seconds int) string {
+// ReattachCommandWithTimeout returns the canonical quiet one-shot wait command
+// shared by execute, timeout recovery, and status projections.
+func ReattachCommandWithTimeout(scenario, runID string, seconds int) string {
 	if seconds <= 0 {
 		return reattachCommand(scenario, runID)
 	}

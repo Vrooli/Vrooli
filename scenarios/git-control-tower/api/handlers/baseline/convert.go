@@ -174,11 +174,14 @@ func artifactCatalogToProto(c bl.ArtifactCatalog) *baselinesv1.RunArtifactCatalo
 
 func evidenceToProto(e bl.EvidenceComparison) *baselinesv1.EvidenceComparison {
 	out := &baselinesv1.EvidenceComparison{
-		BaseRunId:       e.BaseRunID,
-		CurrentRunId:    e.CurrentRunID,
-		BaseCatalog:     artifactCatalogToProto(e.BaseCatalog),
-		CurrentCatalog:  artifactCatalogToProto(e.CurrentCatalog),
-		DegradedReasons: e.DegradedReasons,
+		BaseRunId:        e.BaseRunID,
+		CurrentRunId:     e.CurrentRunID,
+		BaseCatalog:      artifactCatalogToProto(e.BaseCatalog),
+		CurrentCatalog:   artifactCatalogToProto(e.CurrentCatalog),
+		DegradedReasons:  e.DegradedReasons,
+		BlockingReasons:  e.BlockingReasons,
+		AdvisoryWarnings: e.AdvisoryWarnings,
+		EvidenceStatus:   e.EvidenceStatus,
 	}
 	for _, d := range e.VisualDeltas {
 		out.VisualDeltas = append(out.VisualDeltas, &baselinesv1.VisualDelta{

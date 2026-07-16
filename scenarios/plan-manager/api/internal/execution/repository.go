@@ -32,3 +32,9 @@ type Repository interface {
 	// commits atomically or rolls back as a unit.
 	WithTx(ctx context.Context, fn func(Repository) error) error
 }
+
+// activeExecutionLister is an additive production capability used to enforce
+// the single-active-execution invariant without widening every test double.
+type activeExecutionLister interface {
+	ListExecutionsForPlan(ctx context.Context, planID string) ([]Execution, error)
+}

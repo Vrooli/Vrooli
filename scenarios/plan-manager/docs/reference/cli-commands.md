@@ -56,6 +56,7 @@ in scenario commands.**
 | `--api-base <url>` | Override the API endpoint for this invocation |
 | `--auto-start` | Run `vrooli scenario start plan-manager` if the API is unreachable |
 | `--json` | Emit machine-readable JSON instead of the human report |
+| `--dry-run` | Send the canonical dry-run header only for commands that explicitly declare support; undeclared commands fail before API reachability or transport |
 | `--no-color` | Disable ANSI color (also respects the `NO_COLOR` env var) |
 | `--color` | Force-enable color (overrides terminal detection) |
 | `--help`, `-h` | Show command help |
@@ -65,6 +66,26 @@ in scenario commands.**
 `plan-manager --auto-start author start --title …` (not
 `plan-manager author start --auto-start …`). A global flag placed after the
 subcommand now yields a clear placement hint instead of a bare "unknown option".
+
+Global dry-run is fail-closed. Plan Manager mutation and execution commands do
+not declare header support, so `plan-manager --dry-run exec start …` is refused
+before any request. `plans reconcile --dry-run` is a command-local preview and
+must be invoked in that form; it is not evidence that global dry-run is
+supported.
+
+Patch-safe and repair commands include:
+
+```bash
+plan-manager phase update <plan> <phase> --step 'keep commas, semicolons; and x=y'
+plan-manager plans context-add <plan> --context-json '{"kind":"note","instruction":"Read A, then B; keep x=y"}'
+plan-manager plans reference-add <plan> --phase <phase> --kind code --target path/to/file.go
+plan-manager exec abandon <execution> --reason 'duplicate start'
+plan-manager plans import --source replacement.md --supersede <old-plan>
+```
+
+Phase/context/reference mutations print their typed quality transition. Use
+`--allow-quality-regression` only when intentionally acknowledging that an
+active or completed plan will cease to be execution-grade.
 
 ## Built-in commands (auto-provided by `cli-core`)
 

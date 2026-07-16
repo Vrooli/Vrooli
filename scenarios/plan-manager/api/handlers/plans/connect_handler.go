@@ -124,12 +124,12 @@ func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[plan
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
-	p, err := h.deps.Service.AddPhase(ctx, req.Msg.GetPlanId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), phase)
+	p, impact, err := h.deps.Service.AddPhaseWithImpact(ctx, req.Msg.GetPlanId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), phase, req.Msg.GetAllowQualityRegression())
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
 	h.recordFact(ctx, "plan.phase_added", p)
-	return connect.NewResponse(&plansv1.AddPhaseResponse{Plan: planToProto(p)}), nil
+	return connect.NewResponse(&plansv1.AddPhaseResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
 }
 
 func (h *connectHandler) UpdatePhase(ctx context.Context, req *connect.Request[plansv1.UpdatePhaseRequest]) (*connect.Response[plansv1.UpdatePhaseResponse], error) {
@@ -137,12 +137,36 @@ func (h *connectHandler) UpdatePhase(ctx context.Context, req *connect.Request[p
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
-	p, err := h.deps.Service.UpdatePhase(ctx, req.Msg.GetPlanId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), phase)
+	var (
+		p      internalplans.Plan
+		impact internalplans.MutationImpact
+	)
+	if mask := req.Msg.GetUpdateMask(); mask != nil && len(mask.GetPaths()) > 0 {
+		p, impact, err = h.deps.Service.PatchPhase(ctx, req.Msg.GetPlanId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), phase, mask.GetPaths(), req.Msg.GetAllowQualityRegression())
+	} else {
+		// A mask-absent request intentionally retains the legacy full-replacement
+		// contract. New callers should always send an explicit update mask.
+		p, impact, err = h.deps.Service.ReplacePhaseWithImpact(ctx, req.Msg.GetPlanId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), phase, req.Msg.GetAllowQualityRegression())
+	}
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
 	h.recordFact(ctx, "plan.phase_updated", p)
-	return connect.NewResponse(&plansv1.UpdatePhaseResponse{Plan: planToProto(p)}), nil
+	return connect.NewResponse(&plansv1.UpdatePhaseResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
+}
+
+func (h *connectHandler) AddRelevantContext(ctx context.Context, req *connect.Request[plansv1.AddRelevantContextRequest]) (*connect.Response[plansv1.AddRelevantContextResponse], error) {
+	items := planproto.RelevantContextItemsFromProto([]*sharedRelevantContextItem{req.Msg.GetItem()})
+	var item internalplans.RelevantContextItem
+	if len(items) > 0 {
+		item = items[0]
+	}
+	p, impact, err := h.deps.Service.AddRelevantContext(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), item, req.Msg.GetAllowQualityRegression())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.relevant_context_added", p)
+	return connect.NewResponse(&plansv1.AddRelevantContextResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
 }
 
 func (h *connectHandler) ListRelevantContext(ctx context.Context, req *connect.Request[plansv1.ListRelevantContextRequest]) (*connect.Response[plansv1.ListRelevantContextResponse], error) {
@@ -159,21 +183,21 @@ func (h *connectHandler) UpdateRelevantContext(ctx context.Context, req *connect
 	if len(items) > 0 {
 		item = items[0]
 	}
-	p, err := h.deps.Service.UpdateRelevantContext(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetItemId(), item)
+	p, impact, err := h.deps.Service.UpdateRelevantContextWithImpact(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetItemId(), item, req.Msg.GetAllowQualityRegression())
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
 	h.recordFact(ctx, "plan.relevant_context_updated", p)
-	return connect.NewResponse(&plansv1.UpdateRelevantContextResponse{Plan: planToProto(p)}), nil
+	return connect.NewResponse(&plansv1.UpdateRelevantContextResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
 }
 
 func (h *connectHandler) RemoveRelevantContext(ctx context.Context, req *connect.Request[plansv1.RemoveRelevantContextRequest]) (*connect.Response[plansv1.RemoveRelevantContextResponse], error) {
-	p, err := h.deps.Service.RemoveRelevantContext(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetItemId())
+	p, impact, err := h.deps.Service.RemoveRelevantContextWithImpact(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetItemId(), req.Msg.GetAllowQualityRegression())
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
 	h.recordFact(ctx, "plan.relevant_context_removed", p)
-	return connect.NewResponse(&plansv1.RemoveRelevantContextResponse{Plan: planToProto(p)}), nil
+	return connect.NewResponse(&plansv1.RemoveRelevantContextResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
 }
 
 func (h *connectHandler) ListReferences(ctx context.Context, req *connect.Request[plansv1.ListReferencesRequest]) (*connect.Response[plansv1.ListReferencesResponse], error) {
@@ -184,27 +208,41 @@ func (h *connectHandler) ListReferences(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&plansv1.ListReferencesResponse{References: planproto.ReferencesToProto(refs)}), nil
 }
 
+func (h *connectHandler) AddReference(ctx context.Context, req *connect.Request[plansv1.AddReferenceRequest]) (*connect.Response[plansv1.AddReferenceResponse], error) {
+	refs := planproto.ReferencesFromProto([]*sharedReference{req.Msg.GetReference()})
+	var ref internalplans.Reference
+	if len(refs) > 0 {
+		ref = refs[0]
+	}
+	p, impact, err := h.deps.Service.AddReference(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), ref, req.Msg.GetAllowQualityRegression())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.reference_added", p)
+	return connect.NewResponse(&plansv1.AddReferenceResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
+}
+
 func (h *connectHandler) UpdateReference(ctx context.Context, req *connect.Request[plansv1.UpdateReferenceRequest]) (*connect.Response[plansv1.UpdateReferenceResponse], error) {
 	refs := planproto.ReferencesFromProto([]*sharedReference{req.Msg.GetReference()})
 	var ref internalplans.Reference
 	if len(refs) > 0 {
 		ref = refs[0]
 	}
-	p, err := h.deps.Service.UpdateReference(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetReferenceId(), ref)
+	p, impact, err := h.deps.Service.UpdateReferenceWithImpact(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetReferenceId(), ref, req.Msg.GetAllowQualityRegression())
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
 	h.recordFact(ctx, "plan.reference_updated", p)
-	return connect.NewResponse(&plansv1.UpdateReferenceResponse{Plan: planToProto(p)}), nil
+	return connect.NewResponse(&plansv1.UpdateReferenceResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
 }
 
 func (h *connectHandler) RemoveReference(ctx context.Context, req *connect.Request[plansv1.RemoveReferenceRequest]) (*connect.Response[plansv1.RemoveReferenceResponse], error) {
-	p, err := h.deps.Service.RemoveReference(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetReferenceId())
+	p, impact, err := h.deps.Service.RemoveReferenceWithImpact(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetReferenceId(), req.Msg.GetAllowQualityRegression())
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
 	h.recordFact(ctx, "plan.reference_removed", p)
-	return connect.NewResponse(&plansv1.RemoveReferenceResponse{Plan: planToProto(p)}), nil
+	return connect.NewResponse(&plansv1.RemoveReferenceResponse{Plan: planToProto(p), Impact: mutationImpactToProto(impact)}), nil
 }
 
 func (h *connectHandler) GetGraph(ctx context.Context, req *connect.Request[plansv1.GetGraphRequest]) (*connect.Response[plansv1.GetGraphResponse], error) {
@@ -238,6 +276,14 @@ func (h *connectHandler) LinkDependency(ctx context.Context, req *connect.Reques
 }
 
 func (h *connectHandler) ImportPlan(ctx context.Context, req *connect.Request[plansv1.ImportPlanRequest]) (*connect.Response[plansv1.ImportPlanResponse], error) {
+	if req.Msg.GetSupersede() != "" {
+		p, replaced, err := h.deps.Service.ImportSuperseding(ctx, req.Msg.GetSourcePath(), req.Msg.GetMarkdown(), req.Msg.GetTitle(), req.Msg.GetSlug(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetSupersede())
+		if err != nil {
+			return nil, internalplans.ToConnectError(err)
+		}
+		h.recordFact(ctx, "plan.imported_superseding", p)
+		return connect.NewResponse(&plansv1.ImportPlanResponse{Plan: planToProto(p), SupersededPlan: planToProto(replaced)}), nil
+	}
 	p, err := h.deps.Service.Import(ctx, req.Msg.GetSourcePath(), req.Msg.GetMarkdown(), req.Msg.GetTitle(), req.Msg.GetSlug(), workspaceScopeFromProto(req.Msg.GetWorkspace()))
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)

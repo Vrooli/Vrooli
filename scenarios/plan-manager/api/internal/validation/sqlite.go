@@ -36,23 +36,30 @@ func NewSQLiteResultStore(db SQLExecutor, clk clock.Clock) *sqliteResultStore {
 	return &sqliteResultStore{db: db, clock: clk}
 }
 
-var _ ResultStore = (*sqliteResultStore)(nil)
-var _ OperationStore = (*sqliteResultStore)(nil)
+var (
+	_ ResultStore    = (*sqliteResultStore)(nil)
+	_ OperationStore = (*sqliteResultStore)(nil)
+)
 
 const (
 	insertResultSQL = `
-INSERT INTO validation_results (id, plan_id, phase_id, verdict, staleness, commands_run, detail, ran_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO validation_results (
+  id, plan_id, phase_id, verdict, staleness, commands_run, detail, ran_at,
+  execution_id, operation_id, scope_generation, full_inventory, required_members, selected_members
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO NOTHING`
 
 	lastResultSQL = `
-SELECT id, plan_id, phase_id, verdict, staleness, commands_run, detail, ran_at
+SELECT id, plan_id, phase_id, verdict, staleness, commands_run, detail, ran_at,
+       execution_id, operation_id, scope_generation, full_inventory, required_members, selected_members
 FROM validation_results
 WHERE plan_id = ? AND phase_id = ?
 ORDER BY ran_at DESC, id DESC
 LIMIT 1`
 	resultByIDSQL = `
-SELECT id, plan_id, phase_id, verdict, staleness, commands_run, detail, ran_at
+SELECT id, plan_id, phase_id, verdict, staleness, commands_run, detail, ran_at,
+       execution_id, operation_id, scope_generation, full_inventory, required_members, selected_members
 FROM validation_results WHERE id = ?`
 )
 
@@ -65,8 +72,17 @@ func (r *sqliteResultStore) SaveResult(ctx context.Context, res Result) error {
 	if err != nil {
 		return fmt.Errorf("marshal commands_run for result %q: %w", res.ID, err)
 	}
+	requiredMembers, err := json.Marshal(res.RequiredMembers)
+	if err != nil {
+		return fmt.Errorf("marshal required_members for result %q: %w", res.ID, err)
+	}
+	selectedMembers, err := json.Marshal(res.SelectedMembers)
+	if err != nil {
+		return fmt.Errorf("marshal selected_members for result %q: %w", res.ID, err)
+	}
 	if _, err := r.db.ExecContext(ctx, insertResultSQL,
 		res.ID, res.PlanID, res.PhaseID, string(res.Verdict), string(res.Staleness), string(cmds), res.Detail, ran,
+		res.ExecutionID, res.OperationID, res.ScopeGeneration, res.FullInventory, string(requiredMembers), string(selectedMembers),
 	); err != nil {
 		return fmt.Errorf("insert validation result %q: %w", res.ID, err)
 	}
@@ -83,13 +99,16 @@ func (r *sqliteResultStore) GetResult(ctx context.Context, id string) (Result, b
 
 func scanResult(row *sql.Row, label string) (Result, bool, error) {
 	var (
-		res       Result
-		verdict   string
-		staleness string
-		commands  string
+		res             Result
+		verdict         string
+		staleness       string
+		commands        string
+		requiredMembers string
+		selectedMembers string
 	)
 	err := row.Scan(
 		&res.ID, &res.PlanID, &res.PhaseID, &verdict, &staleness, &commands, &res.Detail, &res.RanAt,
+		&res.ExecutionID, &res.OperationID, &res.ScopeGeneration, &res.FullInventory, &requiredMembers, &selectedMembers,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Result{}, false, nil
@@ -101,6 +120,12 @@ func scanResult(row *sql.Row, label string) (Result, bool, error) {
 	res.Staleness = planmodel.StalenessTier(staleness)
 	if commands != "" {
 		_ = json.Unmarshal([]byte(commands), &res.CommandsRun)
+	}
+	if requiredMembers != "" {
+		_ = json.Unmarshal([]byte(requiredMembers), &res.RequiredMembers)
+	}
+	if selectedMembers != "" {
+		_ = json.Unmarshal([]byte(selectedMembers), &res.SelectedMembers)
 	}
 	return res, true, nil
 }

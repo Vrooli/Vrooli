@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1245,6 +1246,188 @@ func TestAddPhaseAppendsAndOrders(t *testing.T) {
 	require.Equal(t, plans.PhaseStatusTodo, p.Phases[2].Status)
 }
 
+func TestUpdatePhasePartialEditPreservesOmittedAuthoredFields(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	draft := samplePlan()
+	draft.Title = "Patch safe phase"
+	p, err := svc.Create(ctx, draft)
+	require.NoError(t, err)
+	original := p.Phases[0]
+	original.Intent = "Keep this intent"
+	original.Steps = []string{"keep step one", "keep step two"}
+	original.Acceptance = "Keep acceptance"
+	p, err = svc.UpdatePhase(ctx, p.ID, plans.WorkspaceScope{}, original)
+	require.NoError(t, err)
+
+	updated, impact, err := svc.PatchPhase(ctx, p.ID, plans.WorkspaceScope{}, plans.Phase{
+		ID:    original.ID,
+		Title: "Only the title changes",
+	}, []string{"title"}, false)
+	require.NoError(t, err)
+	require.NotEmpty(t, impact.BeforeGrade)
+	require.NotEmpty(t, impact.AfterGrade)
+	got := updated.Phases[0]
+	require.Equal(t, "Only the title changes", got.Title)
+	require.Equal(t, "Keep this intent", got.Intent)
+	require.Equal(t, []string{"keep step one", "keep step two"}, got.Steps)
+	require.Equal(t, "Keep acceptance", got.Acceptance)
+}
+
+func TestPatchPhaseExplicitEmptyClearsOnlySelectedField(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	p, err := svc.Create(ctx, samplePlan())
+	require.NoError(t, err)
+	original := p.Phases[0]
+	original.Intent = "intent remains"
+	original.HandoffNotes = "clear me"
+	p, err = svc.UpdatePhase(ctx, p.ID, plans.WorkspaceScope{}, original)
+	require.NoError(t, err)
+
+	updated, _, err := svc.PatchPhase(ctx, p.ID, plans.WorkspaceScope{}, plans.Phase{ID: original.ID, HandoffNotes: ""}, []string{"handoff_notes"}, false)
+	require.NoError(t, err)
+	require.Empty(t, updated.Phases[0].HandoffNotes)
+	require.Equal(t, "intent remains", updated.Phases[0].Intent)
+}
+
+func TestPatchPhaseConcurrentDisjointEditsPreserveBoth(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	p, err := svc.Create(ctx, samplePlan())
+	require.NoError(t, err)
+	phaseID := p.Phases[0].ID
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 2)
+	for _, patch := range []struct {
+		phase plans.Phase
+		path  string
+	}{
+		{phase: plans.Phase{ID: phaseID, Title: "concurrent title"}, path: "title"},
+		{phase: plans.Phase{ID: phaseID, Intent: "concurrent intent"}, path: "intent"},
+	} {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _, patchErr := svc.PatchPhase(ctx, p.ID, plans.WorkspaceScope{}, patch.phase, []string{patch.path}, false)
+			errs <- patchErr
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for patchErr := range errs {
+		require.NoError(t, patchErr)
+	}
+	got, err := svc.Get(ctx, p.ID, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Equal(t, "concurrent title", got.Phases[0].Title)
+	require.Equal(t, "concurrent intent", got.Phases[0].Intent)
+}
+
+func TestPatchPhaseExecutionGradeRegressionRequiresAcknowledgement(t *testing.T) { // [REQ:PM-STORE-001]
+	svc, _ := newService(t)
+	ctx := context.Background()
+	draft := plans.Plan{
+		Title:              "Quality guarded mutation",
+		Purpose:            "Keep execution-grade plans safe during repair.",
+		ProblemStatement:   "A partial edit can invalidate an active plan.",
+		TargetOutcome:      "Quality regressions require explicit acknowledgement.",
+		Scope:              "Plan Manager phase patching.",
+		TechnicalApproach:  "Assess quality before and after each mutation.",
+		ValidationStrategy: "Run the focused mutation service tests.",
+		DefinitionOfDone:   "Unacknowledged regressions are rejected and acknowledged regressions are typed.",
+		Constraints:        "NO_CODE_REFS: this unit fixture exercises service policy only.",
+		ChangeBoundary: plans.ChangeBoundary{
+			AcceptanceAllow: []string{"scenarios/plan-manager/**"},
+		},
+		RegressionAnchor: plans.RegressionAnchor{
+			Strategy:     planmodel.AnchorStrategyChangeBoundary,
+			BaselineName: "quality-guarded-mutation-baseline",
+		},
+		RelevantContext: []plans.RelevantContextItem{{
+			Kind:         plans.RelevantContextSkill,
+			Scope:        plans.RelevantContextScopeGlobal,
+			Label:        "Quality policy",
+			Target:       "invariant-discovery-and-enforcement",
+			Command:      "prompt-manager skill read invariant-discovery-and-enforcement",
+			Required:     true,
+			RepeatPolicy: plans.RelevantContextOncePerExecution,
+			Source:       plans.RelevantContextSourceAuthored,
+			Status:       plans.RelevantContextStatusReady,
+		}},
+		Phases: []plans.Phase{{
+			Title:      "Guard mutation",
+			Intent:     "Reject silent execution-grade quality regressions.",
+			Steps:      []string{"Patch one authored field", "Assess the typed quality delta"},
+			Validation: "go test ./internal/plans -run TestPatchPhaseExecutionGradeRegressionRequiresAcknowledgement",
+			Acceptance: "The unsafe patch is rejected unless explicitly acknowledged.",
+			Reminders:  []string{"NO_CODE_REFS: this phase changes only an in-memory test fixture."},
+			RelevantContext: []plans.RelevantContextItem{{
+				Kind:         plans.RelevantContextNote,
+				Scope:        plans.RelevantContextScopePhase,
+				Instruction:  "Use the local service fixture.",
+				Required:     true,
+				RepeatPolicy: plans.RelevantContextPhaseEntry,
+				Source:       plans.RelevantContextSourceAuthored,
+				Status:       plans.RelevantContextStatusReady,
+			}},
+			Status: plans.PhaseStatusActive,
+		}},
+	}
+	p, err := svc.Create(ctx, draft)
+	require.NoError(t, err)
+	require.True(t, planmodel.AssessPlanQuality(p, "").ExecutionReady())
+	require.Equal(t, plans.PlanStatusActive, p.Status)
+
+	_, impact, err := svc.PatchPhase(ctx, p.ID, plans.WorkspaceScope{}, plans.Phase{ID: p.Phases[0].ID, Title: ""}, []string{"title"}, false)
+	require.Error(t, err)
+	require.True(t, impact.ExecutionGradeRegression)
+	require.False(t, impact.RegressionAcknowledged)
+	require.Contains(t, impact.AddedIssueCodes, "phase_missing_title")
+
+	unchanged, getErr := svc.Get(ctx, p.ID, plans.WorkspaceScope{})
+	require.NoError(t, getErr)
+	require.Equal(t, "Guard mutation", unchanged.Phases[0].Title)
+
+	updated, impact, err := svc.PatchPhase(ctx, p.ID, plans.WorkspaceScope{}, plans.Phase{ID: p.Phases[0].ID, Title: ""}, []string{"title"}, true)
+	require.NoError(t, err)
+	require.Empty(t, updated.Phases[0].Title)
+	require.True(t, impact.ExecutionGradeRegression)
+	require.True(t, impact.RegressionAcknowledged)
+	require.Contains(t, impact.AddedIssueCodes, "phase_missing_title")
+}
+
+func TestAuthoredRepairAddsAssignStableServerOwnedIDs(t *testing.T) { // [REQ:PM-STORE-001]
+	svc, _ := newService(t)
+	ctx := context.Background()
+	p, err := svc.Create(ctx, samplePlan())
+	require.NoError(t, err)
+
+	p, _, err = svc.AddRelevantContext(ctx, p.ID, plans.WorkspaceScope{}, "", plans.RelevantContextItem{
+		ID: "caller-controlled", Kind: plans.RelevantContextNote, Instruction: "Read the recovery notes.", Required: true,
+	}, false)
+	require.NoError(t, err)
+	addedContext := p.RelevantContext[len(p.RelevantContext)-1]
+	require.NotEmpty(t, addedContext.ID)
+	require.NotEqual(t, "caller-controlled", addedContext.ID)
+	require.Equal(t, plans.RelevantContextSourceAuthored, addedContext.Source)
+	require.Equal(t, plans.RelevantContextStatusReady, addedContext.Status)
+
+	p, _, err = svc.AddReference(ctx, p.ID, plans.WorkspaceScope{}, p.Phases[0].ID, plans.Reference{
+		ID: "caller-controlled", Kind: plans.ReferenceDoc, Target: "docs/TESTING.md",
+	}, false)
+	require.NoError(t, err)
+	addedReference := p.Phases[0].References[len(p.Phases[0].References)-1]
+	require.NotEmpty(t, addedReference.ID)
+	require.NotEqual(t, "caller-controlled", addedReference.ID)
+
+	got, err := svc.Get(ctx, p.ID, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Equal(t, addedContext.ID, got.RelevantContext[len(got.RelevantContext)-1].ID)
+	require.Equal(t, addedReference.ID, got.Phases[0].References[len(got.Phases[0].References)-1].ID)
+}
+
 func TestPhaseMutationsRespectWorkspaceScope(t *testing.T) {
 	svc, _ := newService(t)
 	ctx := context.Background()
@@ -1510,6 +1693,28 @@ func TestImportAndMigrate(t *testing.T) {
 	// Importing with neither markdown nor a resolvable path errors.
 	_, err = svc.Import(ctx, "", "", "", "", plans.WorkspaceScope{})
 	require.Error(t, err)
+}
+
+func TestImportSupersedingArchivesTargetAndCreatesAcyclicLineage(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	replaced, err := svc.Create(ctx, samplePlan())
+	require.NoError(t, err)
+
+	imported, archived, err := svc.ImportSuperseding(ctx, "", "# Replacement plan\n\n## Purpose\nReplace the prior plan safely.\n", "", "", plans.WorkspaceScope{}, replaced.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, replaced.ID, imported.ID)
+	require.Equal(t, replaced.ID, archived.ID)
+	require.Equal(t, plans.PlanStatusArchived, archived.Status)
+	require.Contains(t, imported.Supersedes, replaced.ID)
+	require.Contains(t, archived.SupersededBy, imported.ID)
+
+	edges, err := svc.GetGraph(ctx, imported.ID)
+	require.NoError(t, err)
+	require.Contains(t, edges, plans.PlanEdge{FromPlanID: imported.ID, ToPlanID: replaced.ID, Kind: plans.EdgeKindSupersedes})
+	gotArchived, err := svc.Get(ctx, replaced.ID, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Equal(t, plans.PlanStatusArchived, gotArchived.Status)
 }
 
 func TestImportRelativeSourceUsesWorkspaceRoot(t *testing.T) {

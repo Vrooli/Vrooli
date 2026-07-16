@@ -242,16 +242,26 @@ type blockingFinalizeExecutor struct {
 	fakeExecutor
 	firstAwaitStarted chan struct{}
 	releaseFirst      chan struct{}
+	secondAwaitDone   chan struct{}
+	blockedRunID      string
 }
 
 func (e *blockingFinalizeExecutor) AwaitResult(ctx context.Context, scenario, runID string) (ExecResult, error) {
-	if runID == "run-1" {
+	blockedRunID := e.blockedRunID
+	if blockedRunID == "" {
+		blockedRunID = "run-1"
+	}
+	if runID == blockedRunID {
 		close(e.firstAwaitStarted)
 		select {
 		case <-e.releaseFirst:
 		case <-ctx.Done():
 			return ExecResult{}, ctx.Err()
 		}
+	}
+	if e.secondAwaitDone != nil {
+		close(e.secondAwaitDone)
+		e.secondAwaitDone = nil
 	}
 	result := terminalResult()
 	result.RunID = runID
@@ -539,7 +549,7 @@ func TestServiceForwardsUnknownPhaseAndOpaqueArtifacts(t *testing.T) { // [REQ:G
 	}
 }
 
-func TestServiceRejectsDegradedArtifactEvidence(t *testing.T) {
+func TestServiceReportsDegradedArtifactEvidenceAsAdvisory(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
 	runs := &fakeRuns{
 		compare: CompareResult{Verdict: "clean", Phases: []*runspb.PhaseDiff{{Phase: "unit", Verdict: "clean"}}},
 		catalogs: map[string]ArtifactCatalog{
@@ -550,8 +560,25 @@ func TestServiceRejectsDegradedArtifactEvidence(t *testing.T) {
 	svc, _ := newTestService(t, &fakeExecutor{result: terminalResult()}, runs, git.State{Branch: "agi", Sha: "abc"})
 	seedBaseline(t, svc, "degraded")
 	res := runDiff(t, svc, "degraded")
-	if res.Verdict != VerdictNotComparable || !strings.Contains(strings.Join(res.Evidence.DegradedReasons, ";"), "digest mismatch") {
+	if res.Verdict != VerdictClean || res.Evidence.EvidenceStatus != "incomplete" || len(res.Evidence.BlockingReasons) != 0 || !strings.Contains(strings.Join(res.Evidence.AdvisoryWarnings, ";"), "digest mismatch") {
 		t.Fatalf("degraded result = %+v", res)
+	}
+}
+
+func TestServicePreservesBehavioralVerdictWhenAdvisoryEvidenceIsUnavailable(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+	runs := &fakeRuns{
+		compare:          CompareResult{Verdict: "clean", Phases: []*runspb.PhaseDiff{{Phase: "unit", Verdict: "clean"}}},
+		catalogErr:       errors.New("catalog transport unavailable"),
+		compareVisualErr: errors.New("visual transport unavailable"),
+	}
+	svc, _ := newTestService(t, &fakeExecutor{result: terminalResult()}, runs, git.State{Branch: "agi", Sha: "different-sha"})
+	seedBaseline(t, svc, "advisory-outage")
+	res := runDiff(t, svc, "advisory-outage")
+	if res.Verdict != VerdictClean {
+		t.Fatalf("advisory evidence masked behavioral verdict: %+v", res)
+	}
+	if len(res.Evidence.DegradedReasons) == 0 {
+		t.Fatal("advisory outage was not retained as evidence warning")
 	}
 }
 

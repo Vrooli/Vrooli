@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
+	"sync"
 
 	"plan-manager/internal/clock"
 	"plan-manager/internal/planmodel"
@@ -26,13 +28,22 @@ type Service interface {
 	Render(ctx context.Context, idOrSlug string, workspace WorkspaceScope, opts RenderOptions) (RenderResult, error)
 
 	AddPhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error)
+	AddPhaseWithImpact(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase, allowRegression bool) (Plan, MutationImpact, error)
 	UpdatePhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error)
+	ReplacePhaseWithImpact(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase, allowRegression bool) (Plan, MutationImpact, error)
+	PatchPhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase, paths []string, allowRegression bool) (Plan, MutationImpact, error)
 	ListRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string) ([]RelevantContextItem, error)
+	AddRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string, item RelevantContextItem, allowRegression bool) (Plan, MutationImpact, error)
 	UpdateRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string, item RelevantContextItem) (Plan, error)
+	UpdateRelevantContextWithImpact(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string, item RelevantContextItem, allowRegression bool) (Plan, MutationImpact, error)
 	RemoveRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string) (Plan, error)
+	RemoveRelevantContextWithImpact(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string, allowRegression bool) (Plan, MutationImpact, error)
 	ListReferences(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string) ([]Reference, error)
+	AddReference(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string, ref Reference, allowRegression bool) (Plan, MutationImpact, error)
 	UpdateReference(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string, ref Reference) (Plan, error)
+	UpdateReferenceWithImpact(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string, ref Reference, allowRegression bool) (Plan, MutationImpact, error)
 	RemoveReference(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string) (Plan, error)
+	RemoveReferenceWithImpact(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string, allowRegression bool) (Plan, MutationImpact, error)
 
 	GetGraph(ctx context.Context, planID string) ([]PlanEdge, error)
 	LinkSupersession(ctx context.Context, supersedingID, supersededID string) (Plan, error)
@@ -42,16 +53,28 @@ type Service interface {
 	CreateFromTemplate(ctx context.Context, templateID, title, slug string) (Plan, error)
 
 	Import(ctx context.Context, sourcePath, markdown, title, slug string, workspace WorkspaceScope) (Plan, error)
+	ImportSuperseding(ctx context.Context, sourcePath, markdown, title, slug string, workspace WorkspaceScope, supersede string) (Plan, Plan, error)
 	Migrate(ctx context.Context, idOrSlug string) (Plan, error)
 	Reconcile(ctx context.Context, req ReconcileRequest) (ReconcileResult, error)
 }
 
 type service struct {
-	repo     Repository
-	clock    clock.Clock
-	reader   SourceReader
-	mirror   MirrorStore
-	maturity MaturityReader
+	repo       Repository
+	clock      clock.Clock
+	reader     SourceReader
+	mirror     MirrorStore
+	maturity   MaturityReader
+	mutationMu sync.Mutex
+}
+
+// MutationImpact makes quality movement explicit on every patch/add surface.
+type MutationImpact struct {
+	BeforeGrade              string
+	AfterGrade               string
+	AddedIssueCodes          []string
+	ClearedIssueCodes        []string
+	ExecutionGradeRegression bool
+	RegressionAcknowledged   bool
 }
 
 // Deps wires the plans Service. Reader is optional (nil disables reading
@@ -305,6 +328,29 @@ func (s *service) AddPhase(ctx context.Context, planID string, workspace Workspa
 	return s.saveRecomputed(ctx, p)
 }
 
+func (s *service) AddPhaseWithImpact(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase, allowRegression bool) (Plan, MutationImpact, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	p, err := s.Get(ctx, planID, workspace)
+	if err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	beforeStatus := p.Status
+	beforeReport := planmodel.AssessPlanQuality(p, "")
+	if phase.ID == "" {
+		phase.ID = uuid.NewString()
+	}
+	phase.Status = defaultPhaseStatus(phase.Status)
+	phase.Order = len(p.Phases) + 1
+	p.Phases = append(p.Phases, phase)
+	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
+	if err != nil {
+		return Plan{}, impact, err
+	}
+	updated, err := s.saveRecomputed(ctx, p)
+	return updated, impact, err
+}
+
 func (s *service) UpdatePhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error) {
 	p, err := s.Get(ctx, planID, workspace)
 	if err != nil {
@@ -327,6 +373,126 @@ func (s *service) UpdatePhase(ctx context.Context, planID string, workspace Work
 	return s.saveRecomputed(ctx, p)
 }
 
+func (s *service) ReplacePhaseWithImpact(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase, allowRegression bool) (Plan, MutationImpact, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	p, err := s.Get(ctx, planID, workspace)
+	if err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	idx := phaseIndex(p.Phases, phase.ID)
+	if idx < 0 {
+		return Plan{}, MutationImpact{}, ErrPhaseNotFound{PlanID: planID, PhaseID: phase.ID}
+	}
+	beforeStatus := p.Status
+	beforeReport := planmodel.AssessPlanQuality(p, "")
+	phase.Order = p.Phases[idx].Order
+	phase.Status = defaultPhaseStatus(phase.Status)
+	p.Phases[idx] = phase
+	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
+	if err != nil {
+		return Plan{}, impact, err
+	}
+	updated, err := s.saveRecomputed(ctx, p)
+	return updated, impact, err
+}
+
+var allowedPhasePatchPaths = map[string]func(*Phase, Phase){
+	"title":            func(dst *Phase, src Phase) { dst.Title = src.Title },
+	"intent":           func(dst *Phase, src Phase) { dst.Intent = src.Intent },
+	"affected_areas":   func(dst *Phase, src Phase) { dst.AffectedAreas = append([]string(nil), src.AffectedAreas...) },
+	"steps":            func(dst *Phase, src Phase) { dst.Steps = append([]string(nil), src.Steps...) },
+	"expected_outputs": func(dst *Phase, src Phase) { dst.ExpectedOutputs = append([]string(nil), src.ExpectedOutputs...) },
+	"validation":       func(dst *Phase, src Phase) { dst.Validation = src.Validation },
+	"acceptance":       func(dst *Phase, src Phase) { dst.Acceptance = src.Acceptance },
+	"risks_hazards":    func(dst *Phase, src Phase) { dst.RisksHazards = append([]string(nil), src.RisksHazards...) },
+	"handoff_notes":    func(dst *Phase, src Phase) { dst.HandoffNotes = src.HandoffNotes },
+	"status":           func(dst *Phase, src Phase) { dst.Status = src.Status },
+	"references":       func(dst *Phase, src Phase) { dst.References = append([]Reference(nil), src.References...) },
+	"relevant_context": func(dst *Phase, src Phase) {
+		dst.RelevantContext = append([]RelevantContextItem(nil), src.RelevantContext...)
+	},
+	"reminders":        func(dst *Phase, src Phase) { dst.Reminders = append([]string(nil), src.Reminders...) },
+	"baseline_scope":   func(dst *Phase, src Phase) { dst.BaselineScope = append([]string(nil), src.BaselineScope...) },
+	"change_boundary":  func(dst *Phase, src Phase) { dst.ChangeBoundary = src.ChangeBoundary },
+	"validation_scope": func(dst *Phase, src Phase) { dst.ValidationScope = src.ValidationScope },
+}
+
+func (s *service) PatchPhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase, paths []string, allowRegression bool) (Plan, MutationImpact, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	if len(paths) == 0 {
+		return Plan{}, MutationImpact{}, ErrInvalidPlan{Reason: "phase patch requires at least one update_mask path"}
+	}
+	p, err := s.Get(ctx, planID, workspace)
+	if err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	idx := phaseIndex(p.Phases, phase.ID)
+	if idx < 0 {
+		return Plan{}, MutationImpact{}, ErrPhaseNotFound{PlanID: planID, PhaseID: phase.ID}
+	}
+	beforeStatus := p.Status
+	beforeReport := planmodel.AssessPlanQuality(p, "")
+	patched := p.Phases[idx]
+	seen := make(map[string]struct{}, len(paths))
+	for _, raw := range paths {
+		path := strings.TrimSpace(raw)
+		apply, ok := allowedPhasePatchPaths[path]
+		if !ok {
+			return Plan{}, MutationImpact{}, ErrInvalidPlan{Reason: "phase patch path is immutable, computed, or unknown: " + path}
+		}
+		if _, duplicate := seen[path]; duplicate {
+			continue
+		}
+		seen[path] = struct{}{}
+		apply(&patched, phase)
+	}
+	patched.ID = p.Phases[idx].ID
+	patched.Order = p.Phases[idx].Order
+	patched.Status = defaultPhaseStatus(patched.Status)
+	p.Phases[idx] = patched
+	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
+	if err != nil {
+		return Plan{}, impact, err
+	}
+	updated, err := s.saveRecomputed(ctx, p)
+	return updated, impact, err
+}
+
+func assessMutationImpactFromReport(beforeStatus PlanStatus, beforeReport planmodel.QualityReport, after Plan, allowRegression bool) (MutationImpact, error) {
+	afterReport := planmodel.AssessPlanQuality(after, "")
+	beforeCodes := qualityCodes(beforeReport)
+	afterCodes := qualityCodes(afterReport)
+	impact := MutationImpact{BeforeGrade: beforeReport.Status, AfterGrade: afterReport.Status}
+	for code := range afterCodes {
+		if _, existed := beforeCodes[code]; !existed {
+			impact.AddedIssueCodes = append(impact.AddedIssueCodes, code)
+		}
+	}
+	for code := range beforeCodes {
+		if _, remains := afterCodes[code]; !remains {
+			impact.ClearedIssueCodes = append(impact.ClearedIssueCodes, code)
+		}
+	}
+	sort.Strings(impact.AddedIssueCodes)
+	sort.Strings(impact.ClearedIssueCodes)
+	impact.ExecutionGradeRegression = beforeStatus != PlanStatusDraft && beforeReport.ExecutionReady() && !afterReport.ExecutionReady()
+	impact.RegressionAcknowledged = impact.ExecutionGradeRegression && allowRegression
+	if impact.ExecutionGradeRegression && !allowRegression {
+		return impact, ErrInvalidPlan{Reason: "mutation would regress an execution-grade plan; pass allow_quality_regression to acknowledge: " + strings.Join(impact.AddedIssueCodes, ", ")}
+	}
+	return impact, nil
+}
+
+func qualityCodes(report planmodel.QualityReport) map[string]struct{} {
+	out := make(map[string]struct{}, len(report.Findings))
+	for _, finding := range report.Findings {
+		out[finding.Code] = struct{}{}
+	}
+	return out
+}
+
 func (s *service) ListRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string) ([]RelevantContextItem, error) {
 	p, err := s.Get(ctx, idOrSlug, workspace)
 	if err != nil {
@@ -342,14 +508,72 @@ func (s *service) ListRelevantContext(ctx context.Context, idOrSlug string, work
 	return contextWithEffectiveIDs(p.Phases[idx].RelevantContext), nil
 }
 
+func (s *service) AddRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string, item RelevantContextItem, allowRegression bool) (Plan, MutationImpact, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	beforeStatus := p.Status
+	beforeReport := planmodel.AssessPlanQuality(p, "")
+	item.ID = uuid.NewString()
+	item.Source = planmodel.RelevantContextSourceAuthored
+	item.Status = planmodel.RelevantContextStatusReady
+	if strings.TrimSpace(phaseID) == "" {
+		item.Scope, item.PhaseID = planmodel.RelevantContextScopeGlobal, ""
+		p.RelevantContext = append(p.RelevantContext, item)
+	} else {
+		idx := phaseIndex(p.Phases, phaseID)
+		if idx < 0 {
+			return Plan{}, MutationImpact{}, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+		}
+		item.Scope, item.PhaseID = planmodel.RelevantContextScopePhase, p.Phases[idx].ID
+		p.Phases[idx].RelevantContext = append(p.Phases[idx].RelevantContext, item)
+	}
+	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
+	if err != nil {
+		return Plan{}, impact, err
+	}
+	updated, err := s.saveRecomputed(ctx, p)
+	return updated, impact, err
+}
+
 func (s *service) UpdateRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string, item RelevantContextItem) (Plan, error) {
 	p, err := s.Get(ctx, idOrSlug, workspace)
 	if err != nil {
 		return Plan{}, err
 	}
+	if err := applyRelevantContextUpdate(&p, phaseID, itemID, item); err != nil {
+		return Plan{}, err
+	}
+	return s.saveRecomputed(ctx, p)
+}
+
+func (s *service) UpdateRelevantContextWithImpact(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string, item RelevantContextItem, allowRegression bool) (Plan, MutationImpact, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	beforeStatus := p.Status
+	beforeReport := planmodel.AssessPlanQuality(p, "")
+	if err := applyRelevantContextUpdate(&p, phaseID, itemID, item); err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
+	if err != nil {
+		return Plan{}, impact, err
+	}
+	updated, err := s.saveRecomputed(ctx, p)
+	return updated, impact, err
+}
+
+func applyRelevantContextUpdate(p *Plan, phaseID, itemID string, item RelevantContextItem) error {
 	itemID = strings.TrimSpace(itemID)
 	if itemID == "" {
-		return Plan{}, ErrInvalidPlan{Reason: "context item id is required"}
+		return ErrInvalidPlan{Reason: "context item id is required"}
 	}
 	if strings.TrimSpace(item.ID) == "" {
 		item.ID = itemID
@@ -360,25 +584,25 @@ func (s *service) UpdateRelevantContext(ctx context.Context, idOrSlug string, wo
 	if strings.TrimSpace(phaseID) == "" {
 		idx := contextItemIndex(p.RelevantContext, itemID)
 		if idx < 0 {
-			return Plan{}, ErrInvalidPlan{Reason: "global context item not found: " + itemID}
+			return ErrInvalidPlan{Reason: "global context item not found: " + itemID}
 		}
 		item.Scope = RelevantContextScopeGlobal
 		item.PhaseID = ""
 		p.RelevantContext[idx] = item
-		return s.saveRecomputed(ctx, p)
+		return nil
 	}
 	phaseIdx := phaseIndex(p.Phases, phaseID)
 	if phaseIdx < 0 {
-		return Plan{}, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+		return ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
 	}
 	idx := contextItemIndex(p.Phases[phaseIdx].RelevantContext, itemID)
 	if idx < 0 {
-		return Plan{}, ErrInvalidPlan{Reason: "phase context item not found: " + itemID}
+		return ErrInvalidPlan{Reason: "phase context item not found: " + itemID}
 	}
 	item.Scope = RelevantContextScopePhase
 	item.PhaseID = p.Phases[phaseIdx].ID
 	p.Phases[phaseIdx].RelevantContext[idx] = item
-	return s.saveRecomputed(ctx, p)
+	return nil
 }
 
 func (s *service) RemoveRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string) (Plan, error) {
@@ -386,28 +610,55 @@ func (s *service) RemoveRelevantContext(ctx context.Context, idOrSlug string, wo
 	if err != nil {
 		return Plan{}, err
 	}
+	if err := applyRelevantContextRemove(&p, phaseID, itemID); err != nil {
+		return Plan{}, err
+	}
+	return s.saveRecomputed(ctx, p)
+}
+
+func (s *service) RemoveRelevantContextWithImpact(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string, allowRegression bool) (Plan, MutationImpact, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	beforeStatus := p.Status
+	beforeReport := planmodel.AssessPlanQuality(p, "")
+	if err := applyRelevantContextRemove(&p, phaseID, itemID); err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
+	if err != nil {
+		return Plan{}, impact, err
+	}
+	updated, err := s.saveRecomputed(ctx, p)
+	return updated, impact, err
+}
+
+func applyRelevantContextRemove(p *Plan, phaseID, itemID string) error {
 	itemID = strings.TrimSpace(itemID)
 	if itemID == "" {
-		return Plan{}, ErrInvalidPlan{Reason: "context item id is required"}
+		return ErrInvalidPlan{Reason: "context item id is required"}
 	}
 	if strings.TrimSpace(phaseID) == "" {
 		idx := contextItemIndex(p.RelevantContext, itemID)
 		if idx < 0 {
-			return Plan{}, ErrInvalidPlan{Reason: "global context item not found: " + itemID}
+			return ErrInvalidPlan{Reason: "global context item not found: " + itemID}
 		}
 		p.RelevantContext = append(p.RelevantContext[:idx], p.RelevantContext[idx+1:]...)
-		return s.saveRecomputed(ctx, p)
+		return nil
 	}
 	phaseIdx := phaseIndex(p.Phases, phaseID)
 	if phaseIdx < 0 {
-		return Plan{}, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+		return ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
 	}
 	idx := contextItemIndex(p.Phases[phaseIdx].RelevantContext, itemID)
 	if idx < 0 {
-		return Plan{}, ErrInvalidPlan{Reason: "phase context item not found: " + itemID}
+		return ErrInvalidPlan{Reason: "phase context item not found: " + itemID}
 	}
 	p.Phases[phaseIdx].RelevantContext = append(p.Phases[phaseIdx].RelevantContext[:idx], p.Phases[phaseIdx].RelevantContext[idx+1:]...)
-	return s.saveRecomputed(ctx, p)
+	return nil
 }
 
 func (s *service) ListReferences(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string) ([]Reference, error) {
@@ -425,14 +676,82 @@ func (s *service) ListReferences(ctx context.Context, idOrSlug string, workspace
 	return referencesWithEffectiveIDs(p.Phases[idx].References), nil
 }
 
+func (s *service) AddReference(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string, ref Reference, allowRegression bool) (Plan, MutationImpact, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	if strings.TrimSpace(ref.Target) == "" {
+		return Plan{}, MutationImpact{}, ErrInvalidPlan{Reason: "reference target is required"}
+	}
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	beforeStatus := p.Status
+	beforeReport := planmodel.AssessPlanQuality(p, "")
+	ref.ID = uuid.NewString()
+	ref = authoredReference(ref)
+	if strings.TrimSpace(phaseID) == "" {
+		for _, existing := range p.References {
+			if existing.Kind == ref.Kind && existing.Target == ref.Target {
+				return Plan{}, MutationImpact{}, ErrInvalidPlan{Reason: "duplicate global reference target: " + ref.Target}
+			}
+		}
+		p.References = append(p.References, ref)
+	} else {
+		idx := phaseIndex(p.Phases, phaseID)
+		if idx < 0 {
+			return Plan{}, MutationImpact{}, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+		}
+		for _, existing := range p.Phases[idx].References {
+			if existing.Kind == ref.Kind && existing.Target == ref.Target {
+				return Plan{}, MutationImpact{}, ErrInvalidPlan{Reason: "duplicate phase reference target: " + ref.Target}
+			}
+		}
+		p.Phases[idx].References = append(p.Phases[idx].References, ref)
+	}
+	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
+	if err != nil {
+		return Plan{}, impact, err
+	}
+	updated, err := s.saveRecomputed(ctx, p)
+	return updated, impact, err
+}
+
 func (s *service) UpdateReference(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string, ref Reference) (Plan, error) {
 	p, err := s.Get(ctx, idOrSlug, workspace)
 	if err != nil {
 		return Plan{}, err
 	}
+	if err := applyReferenceUpdate(&p, phaseID, referenceID, ref); err != nil {
+		return Plan{}, err
+	}
+	return s.saveRecomputed(ctx, p)
+}
+
+func (s *service) UpdateReferenceWithImpact(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string, ref Reference, allowRegression bool) (Plan, MutationImpact, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	beforeStatus := p.Status
+	beforeReport := planmodel.AssessPlanQuality(p, "")
+	if err := applyReferenceUpdate(&p, phaseID, referenceID, ref); err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
+	if err != nil {
+		return Plan{}, impact, err
+	}
+	updated, err := s.saveRecomputed(ctx, p)
+	return updated, impact, err
+}
+
+func applyReferenceUpdate(p *Plan, phaseID, referenceID string, ref Reference) error {
 	referenceID = strings.TrimSpace(referenceID)
 	if referenceID == "" {
-		return Plan{}, ErrInvalidPlan{Reason: "reference id is required"}
+		return ErrInvalidPlan{Reason: "reference id is required"}
 	}
 	if strings.TrimSpace(ref.ID) == "" {
 		ref.ID = referenceID
@@ -443,21 +762,21 @@ func (s *service) UpdateReference(ctx context.Context, idOrSlug string, workspac
 	if strings.TrimSpace(phaseID) == "" {
 		idx := referenceIndex(p.References, referenceID)
 		if idx < 0 {
-			return Plan{}, ErrInvalidPlan{Reason: "global reference not found: " + referenceID}
+			return ErrInvalidPlan{Reason: "global reference not found: " + referenceID}
 		}
 		p.References[idx] = authoredReference(ref)
-		return s.saveRecomputed(ctx, p)
+		return nil
 	}
 	phaseIdx := phaseIndex(p.Phases, phaseID)
 	if phaseIdx < 0 {
-		return Plan{}, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+		return ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
 	}
 	idx := referenceIndex(p.Phases[phaseIdx].References, referenceID)
 	if idx < 0 {
-		return Plan{}, ErrInvalidPlan{Reason: "phase reference not found: " + referenceID}
+		return ErrInvalidPlan{Reason: "phase reference not found: " + referenceID}
 	}
 	p.Phases[phaseIdx].References[idx] = authoredReference(ref)
-	return s.saveRecomputed(ctx, p)
+	return nil
 }
 
 func (s *service) RemoveReference(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string) (Plan, error) {
@@ -465,28 +784,55 @@ func (s *service) RemoveReference(ctx context.Context, idOrSlug string, workspac
 	if err != nil {
 		return Plan{}, err
 	}
+	if err := applyReferenceRemove(&p, phaseID, referenceID); err != nil {
+		return Plan{}, err
+	}
+	return s.saveRecomputed(ctx, p)
+}
+
+func (s *service) RemoveReferenceWithImpact(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string, allowRegression bool) (Plan, MutationImpact, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	beforeStatus := p.Status
+	beforeReport := planmodel.AssessPlanQuality(p, "")
+	if err := applyReferenceRemove(&p, phaseID, referenceID); err != nil {
+		return Plan{}, MutationImpact{}, err
+	}
+	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
+	if err != nil {
+		return Plan{}, impact, err
+	}
+	updated, err := s.saveRecomputed(ctx, p)
+	return updated, impact, err
+}
+
+func applyReferenceRemove(p *Plan, phaseID, referenceID string) error {
 	referenceID = strings.TrimSpace(referenceID)
 	if referenceID == "" {
-		return Plan{}, ErrInvalidPlan{Reason: "reference id is required"}
+		return ErrInvalidPlan{Reason: "reference id is required"}
 	}
 	if strings.TrimSpace(phaseID) == "" {
 		idx := referenceIndex(p.References, referenceID)
 		if idx < 0 {
-			return Plan{}, ErrInvalidPlan{Reason: "global reference not found: " + referenceID}
+			return ErrInvalidPlan{Reason: "global reference not found: " + referenceID}
 		}
 		p.References = append(p.References[:idx], p.References[idx+1:]...)
-		return s.saveRecomputed(ctx, p)
+		return nil
 	}
 	phaseIdx := phaseIndex(p.Phases, phaseID)
 	if phaseIdx < 0 {
-		return Plan{}, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+		return ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
 	}
 	idx := referenceIndex(p.Phases[phaseIdx].References, referenceID)
 	if idx < 0 {
-		return Plan{}, ErrInvalidPlan{Reason: "phase reference not found: " + referenceID}
+		return ErrInvalidPlan{Reason: "phase reference not found: " + referenceID}
 	}
 	p.Phases[phaseIdx].References = append(p.Phases[phaseIdx].References[:idx], p.Phases[phaseIdx].References[idx+1:]...)
-	return s.saveRecomputed(ctx, p)
+	return nil
 }
 
 func (s *service) GetGraph(ctx context.Context, planID string) ([]PlanEdge, error) {

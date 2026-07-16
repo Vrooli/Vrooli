@@ -122,6 +122,30 @@ func (h *handlers) continueExecution(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) abandon(ctx cliapp.RunContext) error {
+	resp, err := h.client.AbandonExecution(context.Background(), connect.NewRequest(&executionv1.AbandonExecutionRequest{
+		ExecutionId: ctx.Positional("execution"), Reason: ctx.Flag("reason"), Actor: ctx.Flag("actor"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("abandon execution", err, nil)
+	}
+	e := resp.Msg.GetExecution()
+	result := fmt.Sprintf("Abandoned execution %s.", e.GetId())
+	if resp.Msg.GetAlreadyAbandoned() {
+		result = fmt.Sprintf("Execution %s was already abandoned; existing terminal record retained.", e.GetId())
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{result},
+		Changes: []string{
+			"lifecycle state: " + e.GetLifecycleState(),
+			"reason: " + e.GetAbandonedReason(),
+			"actor: " + e.GetAbandonedBy(),
+			"abandoned at: " + e.GetAbandonedAt(),
+		},
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
 func (h *handlers) syncBaseline(ctx cliapp.RunContext) error {
 	resp, err := h.client.SyncBaseline(context.Background(), connect.NewRequest(&executionv1.SyncBaselineRequest{ExecutionId: ctx.Positional("execution")}))
 	if err != nil {

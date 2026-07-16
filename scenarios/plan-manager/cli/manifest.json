@@ -344,6 +344,26 @@
           }
         },
         {
+          "name": "context-add",
+          "description": "Add persisted relevant context to a finalized plan or phase",
+          "positionals": [{"name": "id", "required": true, "description": "Plan id or slug"}],
+          "flags": [
+            {"name": "workspace", "description": "Workspace root used to scope slug lookup"},
+            {"name": "phase", "description": "Optional phase id; omit for plan-wide context"},
+            {"name": "kind", "description": "Context kind", "values": ["skill", "doc", "command", "search", "code_ref", "req_ref", "note"]},
+            {"name": "label", "description": "Short human label"},
+            {"name": "reason", "description": "Why this setup item matters"},
+            {"name": "instruction", "description": "Instruction shown to future agents"},
+            {"name": "command", "description": "Command/search text"},
+            {"name": "target", "description": "Reference target or skill slug"},
+            {"name": "required", "description": "Whether the item is required", "bool": true},
+            {"name": "repeat", "description": "Repeat policy", "values": ["once_per_execution", "on_resume", "every_phase", "phase_entry", "as_needed"]},
+            {"name": "allow-quality-regression", "description": "Explicitly acknowledge an execution-grade quality regression", "bool": true}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "AddRelevantContext"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
           "name": "context-list",
           "description": "List persisted relevant-context setup items for a finalized plan or phase",
           "positionals": [
@@ -500,6 +520,22 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "reference-add",
+          "description": "Add a persisted code, doc, or requirement reference to a finalized plan or phase",
+          "positionals": [{"name": "id", "required": true, "description": "Plan id or slug"}],
+          "flags": [
+            {"name": "workspace", "description": "Workspace root used to scope slug lookup"},
+            {"name": "phase", "description": "Optional phase id; omit for plan-wide references"},
+            {"name": "kind", "description": "Reference kind", "values": ["code", "doc", "req"]},
+            {"name": "target", "description": "Reference target path or requirement id", "required": true},
+            {"name": "future", "description": "Mark this reference as intentionally future", "bool": true},
+            {"name": "note", "description": "Optional operator note"},
+            {"name": "allow-quality-regression", "description": "Explicitly acknowledge an execution-grade quality regression", "bool": true}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "AddReference"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
         },
         {
           "name": "reference-list",
@@ -704,6 +740,10 @@
             {
               "name": "workspace",
               "description": "Workspace root for relative source paths"
+            },
+            {
+              "name": "supersede",
+              "description": "Plan id or slug to supersede and archive atomically"
             }
           ],
           "binding": {
@@ -848,12 +888,24 @@
               "description": "Areas/files this phase touches (newline- or comma-separated)"
             },
             {
+              "name": "affected-area",
+              "description": "One affected area, preserved verbatim; repeat as needed"
+            },
+            {
               "name": "steps",
               "description": "Ordered implementation steps (newline- or comma-separated)"
             },
             {
+              "name": "step",
+              "description": "One ordered step, preserved verbatim; repeat as needed"
+            },
+            {
               "name": "expected-outputs",
               "description": "Expected outputs/artifacts (newline- or comma-separated)"
+            },
+            {
+              "name": "expected-output",
+              "description": "One expected output, preserved verbatim; repeat as needed"
             },
             {
               "name": "validation",
@@ -862,6 +914,10 @@
             {
               "name": "risks-hazards",
               "description": "Risks/hazards for this phase (newline- or comma-separated)"
+            },
+            {
+              "name": "risk-hazard",
+              "description": "One risk or hazard, preserved verbatim; repeat as needed"
             },
             {
               "name": "handoff-notes",
@@ -873,7 +929,11 @@
             },
             {
               "name": "context",
-              "description": "Phase-scoped relevant context, comma-separated entries using key=value fields separated by semicolons"
+              "description": "Deprecated strict key=value context DSL; use --context-json"
+            },
+            {
+              "name": "context-json",
+              "description": "One RelevantContextItem JSON object; repeat as needed"
             },
             {
               "name": "reminders",
@@ -886,6 +946,11 @@
             {
               "name": "validation-scope",
               "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+            },
+            {
+              "name": "allow-quality-regression",
+              "description": "Explicitly acknowledge an execution-grade quality regression",
+              "bool": true
             },
             {
               "name": "workspace",
@@ -934,12 +999,24 @@
               "description": "Areas/files this phase touches (newline- or comma-separated)"
             },
             {
+              "name": "affected-area",
+              "description": "One affected area, preserved verbatim; repeat as needed"
+            },
+            {
               "name": "steps",
               "description": "Ordered implementation steps (newline- or comma-separated)"
             },
             {
+              "name": "step",
+              "description": "One ordered step, preserved verbatim; repeat as needed"
+            },
+            {
               "name": "expected-outputs",
               "description": "Expected outputs/artifacts (newline- or comma-separated)"
+            },
+            {
+              "name": "expected-output",
+              "description": "One expected output, preserved verbatim; repeat as needed"
             },
             {
               "name": "validation",
@@ -948,6 +1025,10 @@
             {
               "name": "risks-hazards",
               "description": "Risks/hazards for this phase (newline- or comma-separated)"
+            },
+            {
+              "name": "risk-hazard",
+              "description": "One risk or hazard, preserved verbatim; repeat as needed"
             },
             {
               "name": "handoff-notes",
@@ -969,7 +1050,11 @@
             },
             {
               "name": "context",
-              "description": "Phase-scoped relevant context, comma-separated entries using key=value fields separated by semicolons"
+              "description": "Deprecated strict key=value context DSL; use --context-json"
+            },
+            {
+              "name": "context-json",
+              "description": "One RelevantContextItem JSON object; repeat as needed"
             },
             {
               "name": "reminders",
@@ -984,43 +1069,9 @@
               "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
             },
             {
-              "name": "workspace",
-              "description": "Workspace root (defaults to the current repository)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "PlansService",
-            "method": "UpdatePhase"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "validation-scope",
-          "description": "Safely repair one persisted phase's validation scope without replacing its other fields",
-          "positionals": [
-            {
-              "name": "plan",
-              "required": true,
-              "description": "Plan id or slug"
-            },
-            {
-              "name": "phase",
-              "required": true,
-              "description": "Phase id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "validation-scope",
-              "required": true,
-              "description": "full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+              "name": "allow-quality-regression",
+              "description": "Explicitly acknowledge an execution-grade quality regression",
+              "bool": true
             },
             {
               "name": "workspace",
@@ -2324,6 +2375,19 @@
           }
         },
         {
+          "name": "abandon",
+          "description": "Terminally abandon an accidental execution while preserving audit history",
+          "positionals": [
+            {"name": "execution", "required": true, "description": "Execution id"}
+          ],
+          "flags": [
+            {"name": "reason", "required": true, "description": "Why this execution must be abandoned"},
+            {"name": "actor", "description": "Actor/provenance; defaults server-side"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ExecutionService", "method": "AbandonExecution"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
           "name": "baseline-sync",
           "description": "Synchronize producer-owned baseline collection evidence without waiting",
           "positionals": [
@@ -3261,5 +3325,11 @@
   "measures": {
     "domains": []
   },
-  "omitted": []
+  "omitted": [
+    {
+      "service": "PlansService",
+      "method": "ListAuditFacts",
+      "reason": "Internal evidence reconciliation API; not an operator plans command."
+    }
+  ]
 }

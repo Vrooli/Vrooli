@@ -310,6 +310,56 @@ func TestStartLinksRunAndSetsResumePointer(t *testing.T) {
 	require.Equal(t, []string{"ctx-global", "ctx-ph-1"}, contextIDs(pctx.RelevantContext))
 	require.Equal(t, "execution_started", step.StepKind)
 	require.Equal(t, []string{"exec", "status", e.ID}, step.NextActions[0].Argv)
+	require.Equal(t, execution.ExecutionLifecycleActive, e.EffectiveLifecycleState())
+}
+
+func TestStartRejectsDuplicateActiveExecutionWithRecoveryIdentity(t *testing.T) {
+	h := newHarness(t, threePhasePlan(), nil)
+	first, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-first")
+	require.NoError(t, err)
+
+	_, _, _, err = h.svc.Start(context.Background(), "plan-1", "run-second")
+	var conflict execution.ErrActiveExecutionConflict
+	require.ErrorAs(t, err, &conflict)
+	require.Equal(t, "plan-1", conflict.PlanID)
+	require.Equal(t, []string{first.ID}, conflict.ExecutionIDs)
+}
+
+func TestAbandonExecutionIsTerminalIdempotentAndAllowsReplacement(t *testing.T) { // [REQ:PM-EXEC-002]
+	h := newHarness(t, threePhasePlan(), nil)
+	started, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-first")
+	require.NoError(t, err)
+	_, _, _, err = h.svc.PartialHandoff(context.Background(), started.ID, execution.CompletionInputs{Tokens: 10, Iterations: 1})
+	require.NoError(t, err)
+	points, _, err := h.svc.GetVelocity(context.Background(), "plan-1")
+	require.NoError(t, err)
+	require.Len(t, points, 1)
+
+	abandoned, replay, step, err := h.svc.AbandonExecution(context.Background(), started.ID, "created accidentally", "agent-7")
+	require.NoError(t, err)
+	require.False(t, replay)
+	require.Equal(t, execution.ExecutionLifecycleAbandoned, abandoned.EffectiveLifecycleState())
+	require.Equal(t, "created accidentally", abandoned.AbandonedReason)
+	require.Equal(t, "agent-7", abandoned.AbandonedBy)
+	require.NotEmpty(t, abandoned.AbandonedAt)
+	require.Equal(t, "execution_abandoned", step.StepKind)
+	points, _, err = h.svc.GetVelocity(context.Background(), "plan-1")
+	require.NoError(t, err)
+	require.Empty(t, points, "abandoned executions must not contribute velocity accounting")
+
+	replayed, replay, _, err := h.svc.AbandonExecution(context.Background(), started.ID, "different replay text", "agent-8")
+	require.NoError(t, err)
+	require.True(t, replay)
+	require.Equal(t, abandoned.AbandonedReason, replayed.AbandonedReason)
+	require.Equal(t, abandoned.AbandonedAt, replayed.AbandonedAt)
+
+	_, _, _, err = h.svc.Resume(context.Background(), started.ID, "", "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "cannot be resumed")
+
+	replacement, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-replacement")
+	require.NoError(t, err)
+	require.NotEqual(t, started.ID, replacement.ID)
 }
 
 func TestStartRequiresPlanID(t *testing.T) {

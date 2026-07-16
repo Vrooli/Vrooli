@@ -23,6 +23,10 @@ func ToConnectError(err error) error {
 	if errors.As(err, &validationRequired) {
 		return connect.NewError(connect.CodeFailedPrecondition, validationRequired)
 	}
+	var activeConflict ErrActiveExecutionConflict
+	if errors.As(err, &activeConflict) {
+		return connect.NewError(connect.CodeFailedPrecondition, activeConflict)
+	}
 	var execNotFound ErrExecutionNotFound
 	if errors.As(err, &execNotFound) {
 		return connect.NewError(connect.CodeNotFound, execNotFound)

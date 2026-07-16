@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -60,6 +61,20 @@ type StartCollectionCaptureResult struct {
 	Pending    []PendingCollectionCapture
 	Resumed    bool
 }
+
+// CollectionIncompleteError is the typed detached outcome for a bounded wait.
+// Durable member state remains authoritative and PendingRunIDs are exact
+// recovery handles; callers must not translate this outcome to success.
+type CollectionIncompleteError struct {
+	PendingRunIDs []string
+	Cause         error
+}
+
+func (e *CollectionIncompleteError) Error() string {
+	return fmt.Sprintf("collection wait incomplete; pending run ids: %s: %v", strings.Join(e.PendingRunIDs, ", "), e.Cause)
+}
+
+func (e *CollectionIncompleteError) Unwrap() error { return e.Cause }
 
 // ExtendCollectionRequest only permits append-only expansion. A new member's
 // immutable before-state must be captured before that scenario is edited.
@@ -340,7 +355,11 @@ func (s *Service) FinalizeCollectionCapture(ctx context.Context, repoID int64, p
 	result, err := s.FinalizeCapture(ctx, pending.Pending)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return s.storage.LoadCollection(repoID, pending.Branch, pending.CollectionName)
+			collection, loadErr := s.storage.LoadCollection(repoID, pending.Branch, pending.CollectionName)
+			if loadErr != nil {
+				return CollectionManifest{}, loadErr
+			}
+			return collection, err
 		}
 		collection, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, pending.Scenario, func(member *CollectionMember) error {
 			member.Status, member.Error, member.UpdatedAt = CollectionMemberFailed, err.Error(), s.now().UTC()
@@ -368,6 +387,12 @@ func (s *Service) ResumeCollectionCapture(ctx context.Context, repoID int64, bra
 	if err != nil {
 		return CollectionManifest{}, err
 	}
+	type pendingJob struct {
+		member CollectionMember
+		intent SnapshotIntent
+	}
+	var jobs []pendingJob
+	seen := make(map[string]struct{})
 	for _, member := range collection.Members {
 		if member.Status != CollectionMemberPending || member.RunID == "" {
 			continue
@@ -386,22 +411,57 @@ func (s *Service) ResumeCollectionCapture(ctx context.Context, repoID int64, bra
 			}
 			continue
 		}
-		updated, finalizeErr := s.FinalizeCollectionCapture(ctx, repoID, PendingCollectionCapture{CollectionName: name, Branch: branch, Scenario: member.Scenario, Pending: intent.PendingCapture()})
-		if finalizeErr != nil {
-			if errors.Is(finalizeErr, context.Canceled) || errors.Is(finalizeErr, context.DeadlineExceeded) {
-				return updated, nil
-			}
-			if updated.Name == "" {
-				return CollectionManifest{}, finalizeErr
-			}
-			// A terminal child failure was durably projected onto its member by
-			// FinalizeCollectionCapture. Continue so callers receive aggregate
-			// coverage rather than an opaque parent RPC error.
-			collection = updated
+		key := member.Scenario + "\x00" + member.RunID
+		if _, duplicate := seen[key]; duplicate {
 			continue
 		}
-		collection = updated
+		seen[key] = struct{}{}
+		jobs = append(jobs, pendingJob{member: member, intent: intent})
 	}
+
+	const maxConcurrentCollectionWaits = 8
+	sem := make(chan struct{}, maxConcurrentCollectionWaits)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var firstErr error
+	for _, job := range jobs {
+		job := job
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			updated, finalizeErr := s.FinalizeCollectionCapture(ctx, repoID, PendingCollectionCapture{CollectionName: name, Branch: branch, Scenario: job.member.Scenario, Pending: job.intent.PendingCapture()})
+			mu.Lock()
+			defer mu.Unlock()
+			if updated.Name != "" {
+				collection = updated
+			}
+			if finalizeErr != nil && firstErr == nil {
+				firstErr = finalizeErr
+			}
+		}()
+	}
+	wg.Wait()
+	collection, loadErr := s.storage.LoadCollection(repoID, branch, name)
+	if loadErr != nil {
+		return CollectionManifest{}, loadErr
+	}
+	if errors.Is(firstErr, context.Canceled) || errors.Is(firstErr, context.DeadlineExceeded) || ctx.Err() != nil {
+		pending := make([]string, 0)
+		for _, member := range collection.Members {
+			if member.Status == CollectionMemberPending && member.RunID != "" {
+				pending = append(pending, member.RunID)
+			}
+		}
+		cause := firstErr
+		if cause == nil {
+			cause = ctx.Err()
+		}
+		return collection, &CollectionIncompleteError{PendingRunIDs: pending, Cause: cause}
+	}
+	// Terminal child failures are already projected durably on their members;
+	// aggregate coverage is the truthful response, not an opaque parent error.
 	return collection, nil
 }
 
@@ -536,8 +596,16 @@ func (s *Service) FinalizeCollectionDiff(ctx context.Context, repoID int64, pend
 	result, err := s.FinalizeDiff(ctx, pending.Pending)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return operation, nil // detached wait; leave durable member pending
+			return operation, err // detached wait; leave durable member pending
 		}
+	}
+	s.collectionDiffMu.Lock()
+	defer s.collectionDiffMu.Unlock()
+	operation, loadErr := s.storage.LoadCollectionDiffOperation(repoID, pending.Pending.Manifest.Branch, pending.CollectionName, pending.OperationID)
+	if loadErr != nil {
+		return CollectionDiffOperation{}, loadErr
+	}
+	if err != nil {
 		for i := range operation.Members {
 			if operation.Members[i].Scenario == pending.Scenario {
 				operation.Members[i].Status, operation.Members[i].Detail = "failed", err.Error()
@@ -566,6 +634,12 @@ func (s *Service) GetCollectionDiff(ctx context.Context, repoID int64, branch, n
 	if err != nil || !wait {
 		return collection, operation, err
 	}
+	type pendingDiffJob struct {
+		member CollectionDiffMember
+		intent DiffIntent
+	}
+	var jobs []pendingDiffJob
+	seen := make(map[string]struct{})
 	for _, member := range operation.Members {
 		if member.Status != "pending" || member.RunID == "" {
 			continue
@@ -587,10 +661,52 @@ func (s *Service) GetCollectionDiff(ctx context.Context, repoID int64, branch, n
 			}
 			continue
 		}
-		operation, err = s.FinalizeCollectionDiff(ctx, repoID, PendingCollectionDiff{CollectionName: name, OperationID: operationID, Scenario: member.Scenario, Pending: intent.PendingDiff()})
-		if err != nil {
-			return collection, operation, err
+		key := member.Scenario + "\x00" + member.RunID
+		if _, duplicate := seen[key]; duplicate {
+			continue
 		}
+		seen[key] = struct{}{}
+		jobs = append(jobs, pendingDiffJob{member: member, intent: intent})
+	}
+	const maxConcurrentCollectionDiffWaits = 8
+	sem := make(chan struct{}, maxConcurrentCollectionDiffWaits)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var firstErr error
+	for _, job := range jobs {
+		job := job
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			_, finalizeErr := s.FinalizeCollectionDiff(ctx, repoID, PendingCollectionDiff{CollectionName: name, OperationID: operationID, Scenario: job.member.Scenario, Pending: job.intent.PendingDiff()})
+			if finalizeErr != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = finalizeErr
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	operation, err = s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
+	if err != nil {
+		return collection, CollectionDiffOperation{}, err
+	}
+	if errors.Is(firstErr, context.Canceled) || errors.Is(firstErr, context.DeadlineExceeded) || ctx.Err() != nil {
+		pendingIDs := make([]string, 0)
+		for _, member := range operation.Members {
+			if member.Status == "pending" && member.RunID != "" {
+				pendingIDs = append(pendingIDs, member.RunID)
+			}
+		}
+		cause := firstErr
+		if cause == nil {
+			cause = ctx.Err()
+		}
+		return collection, operation, &CollectionIncompleteError{PendingRunIDs: pendingIDs, Cause: cause}
 	}
 	return collection, operation, nil
 }

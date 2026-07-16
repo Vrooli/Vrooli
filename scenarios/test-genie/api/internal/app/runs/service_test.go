@@ -206,6 +206,28 @@ func TestCompareRunsClassification(t *testing.T) {
 	}
 }
 
+func TestCompareRunsDifferentGitSHAsRemainBehaviorallyComparable(t *testing.T) { // [REQ:TESTGENIE-DESCRIPTOR-SNAPSHOT-P0]
+	svc, root := newTestService(t)
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "base-sha", Scenario: "demo", GitSha: "1111111", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "passed"}},
+	})
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "current-sha", Scenario: "demo", GitSha: "2222222", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "passed"}},
+	})
+	seedDescriptorSnapshot(t, root, "base-sha", capturedPhase("unit", "Unit"))
+	seedDescriptorSnapshot(t, root, "current-sha", capturedPhase("unit", "Unit"))
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base-sha", RunIdB: "current-sha"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if resp.Msg.GetVerdict() != verdictClean || len(resp.Msg.GetPhases()) != 1 || resp.Msg.GetPhases()[0].GetVerdict() != verdictClean {
+		t.Fatalf("different SHA comparison = %+v", resp.Msg)
+	}
+}
+
 func TestCompareRunsUsesCapturedCatalogEvolutionAndTypedReasons(t *testing.T) { // [REQ:TESTGENIE-DESCRIPTOR-SNAPSHOT-P0]
 	svc, root := newTestService(t)
 	seedRecord(t, root, sharedruns.RunRecord{

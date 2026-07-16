@@ -63,6 +63,13 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Complete computes full handoff state with no resume point when every phase is done."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestAbandonExecutionIsTerminalIdempotentAndAllowsReplacement",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Abandonment is terminal and replay-safe, excludes velocity accounting, blocks resume, and permits a replacement execution."
         }
       ]
     }

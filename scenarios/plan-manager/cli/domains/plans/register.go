@@ -31,9 +31,11 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGro
 		"PlansService.UpdatePlan":            h.update,
 		"PlansService.ArchivePlan":           h.archive,
 		"PlansService.RenderMarkdown":        h.render,
+		"PlansService.AddRelevantContext":    h.contextAdd,
 		"PlansService.ListRelevantContext":   h.contextList,
 		"PlansService.UpdateRelevantContext": h.contextUpdate,
 		"PlansService.RemoveRelevantContext": h.contextRemove,
+		"PlansService.AddReference":          h.referenceAdd,
 		"PlansService.ListReferences":        h.referenceList,
 		"PlansService.UpdateReference":       h.referenceUpdate,
 		"PlansService.RemoveReference":       h.referenceRemove,
@@ -46,6 +48,12 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGro
 	})
 	if err != nil {
 		return nil, fmt.Errorf("plans: load plans group: %w", err)
+	}
+	for i := range plansGroup.Subcommands {
+		if plansGroup.Subcommands[i].Name == "reconcile" {
+			plansGroup.Subcommands[i].DryRun = cliapp.DryRunCommandLocal
+			plansGroup.Subcommands[i].DryRunAlternative = "plan-manager plans reconcile --dry-run"
+		}
 	}
 
 	phaseGroup, err := cliapp.LoadFromManifest(manifest, PhaseGroup, map[string]func(cliapp.RunContext) error{

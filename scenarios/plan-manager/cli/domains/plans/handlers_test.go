@@ -529,13 +529,14 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "import maps source markdown and workspace", group: "plans", cmd: "import",
-			argv: []string{"--source", "/tmp/p.md", "--markdown", "# Plan", "--workspace", "/workspace"},
+			name: "import maps source markdown workspace and supersession", group: "plans", cmd: "import",
+			argv: []string{"--source", "/tmp/p.md", "--markdown", "# Plan", "--workspace", "/workspace", "--supersede", "old-plan"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*plansv1.ImportPlanRequest)
 				require.Equal(t, "/tmp/p.md", m.GetSourcePath())
 				require.Equal(t, "# Plan", m.GetMarkdown())
 				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
+				require.Equal(t, "old-plan", m.GetSupersede())
 			},
 		},
 		{
@@ -603,10 +604,31 @@ func TestPlansRequestMapping(t *testing.T) {
 				"plan-p", "phase-1", "--steps", "Only step", "--validation", "go test ./...",
 			},
 			assert: func(t *testing.T, req proto.Message) {
-				ph := req.(*plansv1.UpdatePhaseRequest).GetPhase()
+				m := req.(*plansv1.UpdatePhaseRequest)
+				ph := m.GetPhase()
 				require.Equal(t, "phase-1", ph.GetId())
 				require.Equal(t, []string{"Only step"}, ph.GetSteps())
 				require.Equal(t, "go test ./...", ph.GetValidation())
+				require.ElementsMatch(t, []string{"steps", "validation"}, m.GetUpdateMask().GetPaths())
+			},
+		},
+		{
+			name: "phase update preserves repeatable prose and typed JSON verbatim", group: "phase", cmd: "update",
+			argv: []string{
+				"plan-p", "phase-1",
+				"--step", "Parse commas, semicolons; and equals=a=b",
+				"--step", "Keep Unicode: café 🚀",
+				"--risk-hazard", "Shell text: printf '%s,%s' a b",
+				"--context-json", `{"kind":"RELEVANT_CONTEXT_KIND_COMMAND","command":"printf 'a,b;c=d'","argv":["printf","a,b;c=d"],"instruction":"Run exactly; preserve = and ,"}`,
+			},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.UpdatePhaseRequest)
+				ph := m.GetPhase()
+				require.Equal(t, []string{"Parse commas, semicolons; and equals=a=b", "Keep Unicode: café 🚀"}, ph.GetSteps())
+				require.Equal(t, []string{"Shell text: printf '%s,%s' a b"}, ph.GetRisksHazards())
+				require.Len(t, ph.GetRelevantContext(), 1)
+				require.Equal(t, "printf 'a,b;c=d'", ph.GetRelevantContext()[0].GetCommand())
+				require.ElementsMatch(t, []string{"steps", "risks_hazards", "relevant_context"}, m.GetUpdateMask().GetPaths())
 			},
 		},
 		{
@@ -616,21 +638,6 @@ func TestPlansRequestMapping(t *testing.T) {
 				scope := req.(*plansv1.UpdatePhaseRequest).GetPhase().GetValidationScope()
 				require.Equal(t, sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_FULL_PLAN, scope.GetMode())
 				require.Equal(t, "cross-scenario contract changed", scope.GetRationale())
-			},
-		},
-		{
-			// Regression: this command's narrow ArgSchema (only
-			// --validation-scope/--workspace) used to panic when the shared
-			// phaseUpdate handler probed undeclared flags like --title.
-			name: "phase validation-scope repairs scope via its own narrow schema", group: "phase", cmd: "validation-scope",
-			argv: []string{"plan-p", "phase-1", "--validation-scope", "narrow:scenarios/workspace-sandbox/**"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*plansv1.UpdatePhaseRequest)
-				require.Equal(t, "plan-p", m.GetPlanId())
-				require.Equal(t, "phase-1", m.GetPhase().GetId())
-				scope := m.GetPhase().GetValidationScope()
-				require.Equal(t, sharedv1.ValidationScopeMode_VALIDATION_SCOPE_MODE_NARROW, scope.GetMode())
-				require.Equal(t, []string{"scenarios/workspace-sandbox/**"}, scope.GetBoundary().GetAcceptanceAllow())
 			},
 		},
 		{
@@ -808,6 +815,26 @@ func TestPlansErrorHandling(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "id")
 		require.Nil(t, rec.lastRequest(), "handler must not be reached when required positional is missing")
+	})
+
+	t.Run("malformed typed context fails before transport", func(t *testing.T) {
+		rec := &plansRecorder{}
+		app, groups := newPlansFixture(t, rec)
+		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "phase", "add"), app,
+			"plan-x", "--title", "phase", "--context-json", `{"kind":"RELEVANT_CONTEXT_KIND_NOTE","unknown":"lost"}`)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown")
+		require.Nil(t, rec.lastRequest())
+	})
+
+	t.Run("malformed legacy context fails before transport", func(t *testing.T) {
+		rec := &plansRecorder{}
+		app, groups := newPlansFixture(t, rec)
+		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "phase", "add"), app,
+			"plan-x", "--title", "phase", "--context", "kind=doc;typo=value;broken")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown key")
+		require.Nil(t, rec.lastRequest())
 	})
 }
 

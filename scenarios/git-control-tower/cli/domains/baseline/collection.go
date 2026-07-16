@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -11,6 +12,8 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 )
+
+var collectionExit = os.Exit
 
 // stringListFlag deliberately uses repeated flags rather than a comma grammar:
 // scenario names and future baseline identities remain opaque values.
@@ -109,16 +112,48 @@ func runCollectionDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if *asJSON {
-		return printJSON(resp.Msg)
+		if err := printJSON(resp.Msg); err != nil {
+			return err
+		}
+		if code := collectionDiffStatusExitCode(resp.Msg, *wait); code != exitOK {
+			collectionExit(code)
+		}
+		return nil
 	}
 	fmt.Printf("Collection diff %q (%s): %s\n", *name, resp.Msg.GetOperationId(), resp.Msg.GetClassification())
 	for _, member := range resp.Msg.GetMembers() {
 		fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
 	}
-	if resp.Msg.GetClassification() == "not-ready" {
-		fmt.Printf("  still running; reattach once: %s\n", collectionFollowupCommand("diff status", *name, *branch, "--operation-id", *operationID, "--wait"))
+	if outcome := resp.Msg.GetWaitOutcome(); outcome != nil && outcome.GetKind() != "complete" {
+		fmt.Printf("  wait outcome: %s — %s\n", outcome.GetKind(), outcome.GetDetail())
+		for _, command := range outcome.GetRecoveryCommands() {
+			fmt.Printf("  reattach once: %s\n", command)
+		}
+	}
+	if code := collectionDiffStatusExitCode(resp.Msg, *wait); code != exitOK {
+		collectionExit(code)
 	}
 	return nil
+}
+
+func collectionDiffStatusExitCode(resp *baselinesv1.GetCollectionDiffResponse, waited bool) int {
+	if resp == nil {
+		if waited {
+			return exitNotReady
+		}
+		return exitOK
+	}
+	if outcome := resp.GetWaitOutcome(); outcome != nil {
+		if outcome.GetKind() != "complete" {
+			if waited {
+				return exitNotReady
+			}
+			return exitOK
+		}
+	} else if waited {
+		return exitNotReady
+	}
+	return exitCodeForVerdict(resp.GetClassification())
 }
 
 func collectionFlags(fs *flag.FlagSet) (name, branch *string, json *bool) {
@@ -218,11 +253,23 @@ func runCollectionShow(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if *asJSON {
-		return printJSON(resp.Msg)
+		if err := printJSON(resp.Msg); err != nil {
+			return err
+		}
+		if *wait && !resp.Msg.GetCollection().GetCoverage().GetComplete() {
+			collectionExit(exitNotReady)
+		}
+		return nil
 	}
 	printCollection(resp.Msg.GetCollection(), false)
 	if !resp.Msg.GetCollection().GetCoverage().GetComplete() {
 		fmt.Printf("  reattach once: %s\n", collectionFollowupCommand("show", *name, *branch, "--wait"))
+		if outcome := resp.Msg.GetWaitOutcome(); outcome != nil && outcome.GetDetail() != "" {
+			fmt.Printf("  wait outcome: %s — %s\n", outcome.GetKind(), outcome.GetDetail())
+		}
+		if *wait {
+			collectionExit(exitNotReady)
+		}
 	}
 	return nil
 }

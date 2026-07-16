@@ -35,9 +35,13 @@ valid baseline evidence, while a pending, missing, or unpinned run cannot.
 
 `baseline diff` compares the anchored run with one resolved current run. The
 result contains Test Genie's dynamic phase diffs plus typed evidence catalogs.
-Visual deltas are advisory. A missing, legacy, corrupt, or otherwise degraded
-descriptor/evidence record produces an explicit not-comparable result rather
-than a guessed verdict.
+The comparison exposes independent `behavioral_verdict`, `blocking_reasons`,
+`advisory_warnings`, `evidence_status`, and staleness metadata. Missing core run
+identity or Test Genie semantic incompatibility remains fail-closed and
+not-comparable. Git SHA/file drift and auxiliary catalog or visual enrichment
+failures are advisory: they preserve a clean, preexisting, or regression
+behavioral verdict while marking evidence incomplete. Different Git SHAs alone
+never make compatible runs incomparable.
 
 The CLI commands are:
 
@@ -79,6 +83,12 @@ Collection capture and diff are fast durable starts. Each normal CLI response
 prints its exact producer-owned `show --wait` or `diff status --wait` command;
 run that command once, and after an interruption rerun the same command rather
 than polling. The server owns the durable child handles and terminal result.
+Capture and diff waits reattach independent child runs concurrently with bounded
+fan-out. Cancellation or deadline preserves pending handles and returns a typed
+incomplete outcome; `collection show --wait`, `collection diff --wait`, and
+`collection diff status --wait` exit `3` until required work is complete and
+include the exact durable recovery command. They never return success while a
+required child remains pending.
 Ordinary collection reads reconcile members whose durable runs are already
 terminal without waiting for pending members, so an API restart or detached
 tail cannot hide independent ready or failed coverage. A collection member is

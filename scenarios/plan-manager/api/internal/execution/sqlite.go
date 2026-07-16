@@ -83,9 +83,13 @@ type handoffDocument struct {
 // round-trips alongside the execution row so schema evolution is additive for
 // existing SQLite databases.
 type executionScopeDocument struct {
-	PhaseValidationGenerations map[string]int   `json:"phase_validation_generations"`
-	ScopeAmendments            []ScopeAmendment `json:"scope_amendments"`
-	DegradedReason             string           `json:"degraded_reason"`
+	PhaseValidationGenerations map[string]int          `json:"phase_validation_generations"`
+	ScopeAmendments            []ScopeAmendment        `json:"scope_amendments"`
+	DegradedReason             string                  `json:"degraded_reason"`
+	LifecycleState             ExecutionLifecycleState `json:"lifecycle_state,omitempty"`
+	AbandonedReason            string                  `json:"abandoned_reason,omitempty"`
+	AbandonedAt                string                  `json:"abandoned_at,omitempty"`
+	AbandonedBy                string                  `json:"abandoned_by,omitempty"`
 }
 
 const (
@@ -109,6 +113,10 @@ FROM executions WHERE id = ? LIMIT 1`
 	latestExecutionForPlanSQL = `
 SELECT id, plan_id, run_id, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
 FROM executions WHERE plan_id = ? ORDER BY updated_at DESC, started_at DESC, id DESC LIMIT 1`
+
+	listExecutionsForPlanSQL = `
+SELECT id, plan_id, run_id, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
+FROM executions WHERE plan_id = ? ORDER BY updated_at DESC, started_at DESC, id DESC`
 
 	upsertBaselineSetSQL = `
 INSERT INTO execution_baseline_sets (execution_id, document, updated_at)
@@ -175,6 +183,10 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 		PhaseValidationGenerations: e.PhaseValidationGenerations,
 		ScopeAmendments:            e.ScopeAmendments,
 		DegradedReason:             e.DegradedReason,
+		LifecycleState:             e.LifecycleState,
+		AbandonedReason:            e.AbandonedReason,
+		AbandonedAt:                e.AbandonedAt,
+		AbandonedBy:                e.AbandonedBy,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal execution scope state %q: %w", e.ID, err)
@@ -183,6 +195,36 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 		return fmt.Errorf("upsert execution scope state %q: %w", e.ID, err)
 	}
 	return nil
+}
+
+func (r *sqliteRepository) ListExecutionsForPlan(ctx context.Context, planID string) ([]Execution, error) {
+	rows, err := r.db.QueryContext(ctx, listExecutionsForPlanSQL, planID)
+	if err != nil {
+		return nil, fmt.Errorf("list executions for plan %q: %w", planID, err)
+	}
+	defer rows.Close()
+	var out []Execution
+	for rows.Next() {
+		var e Execution
+		var complete int
+		if err := rows.Scan(&e.ID, &e.PlanID, &e.RunID, &e.CurrentPhaseID, &complete, &e.StartedAt, &e.UpdatedAt, &e.InputsFreshenedAt, &e.FreshenStatus, &e.FreshenDetail); err != nil {
+			return nil, fmt.Errorf("scan execution for plan %q: %w", planID, err)
+		}
+		e.Complete = complete != 0
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate executions for plan %q: %w", planID, err)
+	}
+	for i := range out {
+		if err := r.loadBaselineSet(ctx, &out[i]); err != nil {
+			return nil, err
+		}
+		if err := r.loadScopeState(ctx, &out[i]); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func (r *sqliteRepository) GetExecution(ctx context.Context, id string) (Execution, bool, error) {
@@ -266,6 +308,10 @@ func (r *sqliteRepository) loadScopeState(ctx context.Context, e *Execution) err
 	e.PhaseValidationGenerations = state.PhaseValidationGenerations
 	e.ScopeAmendments = state.ScopeAmendments
 	e.DegradedReason = state.DegradedReason
+	e.LifecycleState = state.LifecycleState
+	e.AbandonedReason = state.AbandonedReason
+	e.AbandonedAt = state.AbandonedAt
+	e.AbandonedBy = state.AbandonedBy
 	return nil
 }
 

@@ -48,6 +48,13 @@ the execution. The `runs` command also provides `status`, `follow`, `list`,
 `show`, `compare`, and freshness/history operations; refer to `test-genie runs
 --help` for exact syntax.
 
+For a pending run, `runs status` is a nonblocking snapshot that prints one
+canonical `runs wait --json --timeout=…` command. Its JSON response adds
+`nextAction` with `kind=wait`, the exact command and timeout, and
+`doNotPoll=true`. Terminal status responses omit that action. Any recommended
+next-check interval is dashboard backoff metadata, not the agent completion
+workflow. The `vrooli scenario test status` proxy follows the same contract.
+
 ## Remediate findings
 
 Create a job only from stable finding IDs emitted by a completed execution.

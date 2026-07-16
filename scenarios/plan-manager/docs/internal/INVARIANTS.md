@@ -17,6 +17,24 @@
   later synchronize by ticket id.
 - PASS is impossible until every oracle child is terminal and comparable. No
   oracle, unavailable tools, timeout, or exit-2 produces UNKNOWN.
+- Only one active execution may exist for a plan. Duplicate starts return the
+  existing execution IDs plus exact resume/abandon commands; they never create
+  a second durable run.
+- Abandonment is terminal, reasoned, auditable, and idempotent. Abandoned
+  executions cannot resume or contribute completion/velocity accounting, but
+  remain queryable and no row is deleted.
+- Import supersession creates the replacement, lineage edge, and archival of
+  the replaced plan in one repository transaction.
+
+## Authored mutation invariants
+
+- A phase field mask is the only partial-update selector: omission preserves,
+  explicit empty clears, and immutable/computed paths are rejected.
+- Quality is assessed from an immutable pre-mutation report and the proposed
+  post-mutation plan. Active/complete execution-grade regressions require an
+  explicit acknowledgement and always return typed impact.
+- Every authored reference and relevant-context field repairable during
+  authoring remains list/add/update/remove repairable after finalization.
 
 ## Safe Retry Surface
 

@@ -36,6 +36,9 @@ type Service struct {
 	// Test Genie's pin owner is itself idempotent, so concurrent processes and
 	// crash recovery still converge on one durable retention claim.
 	migrationMu sync.Mutex
+	// collectionDiffMu protects whole-operation member checkpoint rewrites while
+	// independent child waits run concurrently outside the lock.
+	collectionDiffMu sync.Mutex
 }
 
 // Deps wires the Service.
@@ -564,11 +567,16 @@ func similarBaselineNames(st *Storage, repoID int64, scenario, branch, want stri
 // two compared runs. Visual deltas are advisory metadata over those references,
 // never a synthetic pass/fail surface.
 type EvidenceComparison struct {
-	BaseRunID       string
-	CurrentRunID    string
-	BaseCatalog     ArtifactCatalog
-	CurrentCatalog  ArtifactCatalog
-	VisualDeltas    []VisualDelta
+	BaseRunID        string
+	CurrentRunID     string
+	BaseCatalog      ArtifactCatalog
+	CurrentCatalog   ArtifactCatalog
+	VisualDeltas     []VisualDelta
+	BlockingReasons  []string
+	AdvisoryWarnings []string
+	EvidenceStatus   string
+	// DegradedReasons is retained as the aggregate read projection for older
+	// stored results. New classification logic never derives verdict from it.
 	DegradedReasons []string
 }
 
@@ -829,23 +837,23 @@ func (s *Service) computeDiff(ctx context.Context, manifest BaselineManifest, cu
 		res.DirtyWarning = fmt.Sprintf("working tree is dirty (%s) — failures may be caused by uncommitted changes rather than the diff itself", cur.DirtySummary)
 	}
 	if manifest.Migration != nil {
-		res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, manifest.Migration.DegradedReasons...)
+		res.Evidence.BlockingReasons = append(res.Evidence.BlockingReasons, manifest.Migration.DegradedReasons...)
 	}
 	switch {
 	case baseRunID == "":
 		res.Verdict = VerdictNotComparable
-		res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, "baseline has no comparable run")
+		res.Evidence.BlockingReasons = append(res.Evidence.BlockingReasons, "baseline has no comparable run")
 	case runErr != nil:
 		res.Verdict = VerdictNotComparable
-		res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, "could not run current comprehensive suite: "+runErr.Error())
+		res.Evidence.BlockingReasons = append(res.Evidence.BlockingReasons, "could not run current comprehensive suite: "+runErr.Error())
 	case curRunID == "":
 		res.Verdict = VerdictNotComparable
-		res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, "current run produced no run id")
+		res.Evidence.BlockingReasons = append(res.Evidence.BlockingReasons, "current run produced no run id")
 	default:
 		cmp, cmpErr := s.runs.CompareRuns(ctx, manifest.Scenario, baseRunID, curRunID, "")
 		if cmpErr != nil {
 			res.Verdict = VerdictNotComparable
-			res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, "compare failed: "+cmpErr.Error())
+			res.Evidence.BlockingReasons = append(res.Evidence.BlockingReasons, "compare failed: "+cmpErr.Error())
 		} else {
 			res.Phases = append(res.Phases, cmp.Phases...)
 			res.Verdict = Verdict(cmp.Verdict)
@@ -853,13 +861,20 @@ func (s *Service) computeDiff(ctx context.Context, manifest BaselineManifest, cu
 		res.Evidence.BaseCatalog = s.loadArtifactCatalog(ctx, manifest.Scenario, baseRunID, "baseline", &res)
 		res.Evidence.CurrentCatalog = s.loadArtifactCatalog(ctx, manifest.Scenario, curRunID, "current", &res)
 		if deltas, err := s.runs.CompareRunVisuals(ctx, manifest.Scenario, baseRunID, curRunID); err != nil {
-			res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, "compare visual evidence: "+err.Error())
+			res.Evidence.AdvisoryWarnings = append(res.Evidence.AdvisoryWarnings, "compare visual evidence: "+err.Error())
 		} else {
 			res.Evidence.VisualDeltas = append(res.Evidence.VisualDeltas, deltas...)
 		}
 	}
-	if len(res.Evidence.DegradedReasons) > 0 {
+	if len(res.Evidence.BlockingReasons) > 0 {
 		res.Verdict = WorseVerdict(res.Verdict, VerdictNotComparable)
+	}
+	res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, res.Evidence.BlockingReasons...)
+	res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, res.Evidence.AdvisoryWarnings...)
+	if len(res.Evidence.BlockingReasons) > 0 || len(res.Evidence.AdvisoryWarnings) > 0 {
+		res.Evidence.EvidenceStatus = "incomplete"
+	} else {
+		res.Evidence.EvidenceStatus = "complete"
 	}
 	return res
 }
@@ -867,12 +882,12 @@ func (s *Service) computeDiff(ctx context.Context, manifest BaselineManifest, cu
 func (s *Service) loadArtifactCatalog(ctx context.Context, scenario, runID, label string, res *DiffResult) ArtifactCatalog {
 	catalog, err := s.runs.ListRunArtifacts(ctx, scenario, runID)
 	if err != nil {
-		res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, label+" artifact catalog unavailable: "+err.Error())
+		res.Evidence.AdvisoryWarnings = append(res.Evidence.AdvisoryWarnings, label+" artifact catalog unavailable: "+err.Error())
 		return ArtifactCatalog{RunID: runID}
 	}
 	if len(catalog.DegradedReasons) > 0 {
 		for _, reason := range catalog.DegradedReasons {
-			res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, label+" artifact catalog: "+reason)
+			res.Evidence.AdvisoryWarnings = append(res.Evidence.AdvisoryWarnings, label+" artifact catalog: "+reason)
 		}
 	}
 	return catalog

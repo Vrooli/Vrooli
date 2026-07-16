@@ -134,6 +134,50 @@ func (s *service) Import(ctx context.Context, sourcePath, markdown, title, slug 
 	return s.Create(ctx, parsed)
 }
 
+func (s *service) ImportSuperseding(ctx context.Context, sourcePath, markdown, title, slug string, workspace WorkspaceScope, supersede string) (Plan, Plan, error) {
+	supersede = strings.TrimSpace(supersede)
+	if supersede == "" {
+		return Plan{}, Plan{}, ErrInvalidPlan{Reason: "supersede target is required"}
+	}
+	var imported, replaced Plan
+	err := s.repo.WithTx(ctx, func(repo Repository) error {
+		txService := &service{
+			repo: repo, clock: s.clock, reader: s.reader, mirror: noMirrorStore{}, maturity: s.maturity,
+		}
+		var err error
+		replaced, err = txService.Get(ctx, supersede, workspace)
+		if err != nil {
+			return err
+		}
+		imported, err = txService.Import(ctx, sourcePath, markdown, title, slug, workspace)
+		if err != nil {
+			return err
+		}
+		if imported.ID == replaced.ID {
+			return ErrInvalidPlan{Reason: "an imported plan cannot supersede itself"}
+		}
+		imported.Supersedes = appendUnique(imported.Supersedes, replaced.ID)
+		imported.UpdatedAt = txService.now()
+		imported.ContentHash = contentHash(imported)
+		replaced.SupersededBy = appendUnique(replaced.SupersededBy, imported.ID)
+		replaced.Status = PlanStatusArchived
+		replaced.UpdatedAt = txService.now()
+		if err := repo.SaveEdge(ctx, PlanEdge{FromPlanID: imported.ID, ToPlanID: replaced.ID, Kind: EdgeKindSupersedes}); err != nil {
+			return err
+		}
+		if err := repo.Save(ctx, imported); err != nil {
+			return err
+		}
+		return repo.Save(ctx, replaced)
+	})
+	if err != nil {
+		return Plan{}, Plan{}, err
+	}
+	imported, _ = s.publishMirror(ctx, imported)
+	replaced, _ = s.publishMirror(ctx, replaced)
+	return imported, replaced, nil
+}
+
 // Migrate ensures a plan resolved from a fallback location is present in the
 // canonical home store. If the plan is already canonical it is idempotently
 // touched; otherwise the resolver reads the fallback ~/.vrooli/plans index (plus

@@ -38,6 +38,8 @@ type fakeExecutionService struct {
 	gotToStatus    internalplans.PhaseStatus
 	gotOverride    string
 	gotFeedback    string
+	gotReason      string
+	gotAuthor      string
 	gotInputs      internalexecution.CompletionInputs
 }
 
@@ -64,6 +66,11 @@ func (f *fakeExecutionService) Resume(_ context.Context, planOrExecution, phaseI
 func (f *fakeExecutionService) ContinueExecution(_ context.Context, planOrExecution, phaseID, runID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
 	f.gotPlanOrExec, f.gotPhaseID, f.gotRunID = planOrExecution, phaseID, runID
 	return f.execution, f.pctx, f.step, f.err
+}
+
+func (f *fakeExecutionService) AbandonExecution(_ context.Context, executionID, reason, actor string) (internalexecution.Execution, bool, internalexecution.GuidedStep, error) {
+	f.gotExecutionID, f.gotReason, f.gotAuthor = executionID, reason, actor
+	return f.execution, false, f.step, f.err
 }
 
 func (f *fakeExecutionService) SyncBaseline(_ context.Context, executionID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
@@ -212,6 +219,21 @@ func TestContinueExecutionSuccess(t *testing.T) {
 	require.Equal(t, "phase_context", resp.Msg.GetStep().GetStepKind())
 }
 
+func TestAbandonExecutionSuccess(t *testing.T) {
+	svc := &fakeExecutionService{execution: internalexecution.Execution{
+		ID: "e1", PlanID: "plan-1", LifecycleState: internalexecution.ExecutionLifecycleAbandoned,
+		AbandonedReason: "accidental", AbandonedAt: "2026-07-16T12:00:00Z", AbandonedBy: "agent-7",
+	}}
+	h := newExecutionHandler(svc)
+
+	resp, err := h.AbandonExecution(context.Background(), connect.NewRequest(&executionv1.AbandonExecutionRequest{ExecutionId: "e1", Reason: "accidental", Actor: "agent-7"}))
+	require.NoError(t, err)
+	require.Equal(t, "e1", svc.gotExecutionID)
+	require.Equal(t, "accidental", svc.gotReason)
+	require.Equal(t, "agent-7", svc.gotAuthor)
+	require.Equal(t, "abandoned", resp.Msg.GetExecution().GetLifecycleState())
+}
+
 func TestGetNextSuccess(t *testing.T) {
 	svc := &fakeExecutionService{complete: true, pctx: internalexecution.PhaseContext{Completeness: internalexecution.CompletenessFull}}
 	h := newExecutionHandler(svc)
@@ -296,6 +318,19 @@ func TestExecutionErrorMapping(t *testing.T) {
 		h := newExecutionHandler(&fakeExecutionService{err: internalexecution.ErrInvalidExecution{Reason: "plan id is required"}})
 		_, err := h.Start(context.Background(), connect.NewRequest(&executionv1.StartRequest{}))
 		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	})
+	t.Run("active_execution_conflict_has_typed_recovery_detail", func(t *testing.T) {
+		h := newExecutionHandler(&fakeExecutionService{err: internalexecution.ErrActiveExecutionConflict{PlanID: "p", ExecutionIDs: []string{"e1", "e2"}}})
+		_, err := h.Start(context.Background(), connect.NewRequest(&executionv1.StartRequest{PlanId: "p"}))
+		require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+		connectErr := new(connect.Error)
+		require.ErrorAs(t, err, &connectErr)
+		require.Len(t, connectErr.Details(), 1)
+		value, detailErr := connectErr.Details()[0].Value()
+		require.NoError(t, detailErr)
+		detail := value.(*executionv1.ActiveExecutionConflict)
+		require.Equal(t, []string{"e1", "e2"}, detail.GetExecutionIds())
+		require.Equal(t, []string{"plan-manager exec resume e1", "plan-manager exec resume e2"}, detail.GetResumeCommands())
 	})
 	t.Run("execution_not_found_is_not_found", func(t *testing.T) {
 		h := newExecutionHandler(&fakeExecutionService{err: internalexecution.ErrExecutionNotFound{ID: "x"}})

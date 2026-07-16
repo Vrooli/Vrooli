@@ -16,6 +16,7 @@ import (
 	internalplanlog "plan-manager/internal/planlog"
 	internalplans "plan-manager/internal/plans"
 	"plan-manager/internal/server"
+	internalvalidation "plan-manager/internal/validation"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -135,6 +136,9 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
+	if err := internalvalidation.EnsureMigrations(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("validation storage migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}

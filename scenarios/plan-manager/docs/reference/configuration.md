@@ -96,9 +96,10 @@ IF NOT EXISTS`, so re-runs on every boot are no-ops.
 
 Adding a column lands in the same diff as the Go struct field, the
 repository scan, and the proto wire shape — single location, single
-edit. Drops/renames in production data need the brownfield
-versioned-migration helpers (`Migrate` / `MigrationProvider` in
-`api-core/database`, deferred until the first scenario hits the pain).
+edit. For existing SQLite tables, add an idempotent domain migration before
+`EnsureSchemas` so its drift check sees the upgraded shape. Migrations must
+preserve safety: old evidence with missing decision-critical fields remains
+non-qualifying until it is re-created.
 
 See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
 for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)

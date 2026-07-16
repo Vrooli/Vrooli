@@ -70,6 +70,28 @@ type Execution struct {
 	PhaseValidationGenerations map[string]int
 	ScopeAmendments            []ScopeAmendment
 	DegradedReason             string
+	LifecycleState             ExecutionLifecycleState
+	AbandonedReason            string
+	AbandonedAt                string
+	AbandonedBy                string
+}
+
+type ExecutionLifecycleState string
+
+const (
+	ExecutionLifecycleActive    ExecutionLifecycleState = "active"
+	ExecutionLifecycleCompleted ExecutionLifecycleState = "completed"
+	ExecutionLifecycleAbandoned ExecutionLifecycleState = "abandoned"
+)
+
+func (e Execution) EffectiveLifecycleState() ExecutionLifecycleState {
+	if e.LifecycleState != "" {
+		return e.LifecycleState
+	}
+	if e.Complete {
+		return ExecutionLifecycleCompleted
+	}
+	return ExecutionLifecycleActive
 }
 
 type BaselineSetStatus string

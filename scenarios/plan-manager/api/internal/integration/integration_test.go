@@ -72,6 +72,15 @@ func (a planStore) UpdatePhase(ctx context.Context, planID, workspaceID, workspa
 
 type validatorAdapter struct{ svc internalvalidation.Service }
 
+type completeBaselineSynchronizer struct{}
+
+func (completeBaselineSynchronizer) SyncBaseline(_ context.Context, _ string) (internalexecution.FreshenResult, error) {
+	return internalexecution.FreshenResult{BaselineCaptured: true, BaselineName: "bound-receipt-baseline", BaselineSet: internalexecution.BaselineSetState{
+		Version: 1, Name: "bound-receipt-baseline", Status: internalexecution.BaselineSetStatusComplete, Required: 1, Ready: 1,
+		Members: []internalexecution.BaselineSetMember{{Scenario: "plan-manager", Status: "ready"}},
+	}}, nil
+}
+
 func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID string) (internalexecution.ValidationResult, bool, error) {
 	res, ok, err := a.svc.LastValidation(ctx, planID, phaseID)
 	if err != nil || !ok {
@@ -333,6 +342,54 @@ func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 	_, after, _, err := executionSvc.GetStatus(ctx, exec.ID)
 	require.NoError(t, err)
 	require.False(t, after.HasValidation, "status cannot fabricate producer evidence")
+}
+
+// TestPersistedValidationReceiptAllowsBoundPhaseCompletion is the cross-domain
+// regression for a real SQLite reload: validation writes a receipt, execution
+// reads it through its validator seam, and the same bound phase may complete.
+func TestPersistedValidationReceiptAllowsBoundPhaseCompletion(t *testing.T) {
+	ctx := context.Background()
+	d, plansSvc, validationSvc, _, _, logSvc := newStack(t)
+	plan, err := plansSvc.Create(ctx, executionReadyPlan("Bound receipt", []internalplans.Phase{{
+		Title: "Persist evidence", Steps: []string{"Save the receipt."}, Validation: "producer validation",
+		Acceptance: "receipt is bound", Reminders: []string{"NO_CONTEXT: fixture needs no extra setup."},
+	}}))
+	require.NoError(t, err)
+	phaseID := plan.Phases[0].ID
+	// The normal stack deliberately has no live GCT synchronizer. Supply a
+	// completed typed snapshot so this test reaches the validation gate.
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
+	executionSvc := internalexecution.NewService(internalexecution.Deps{
+		Repo:      internalexecution.NewSQLiteRepository(d, clk),
+		Plans:     planStore{svc: plansSvc},
+		Validator: validatorAdapter{svc: validationSvc},
+		Log:       logLedger{svc: logSvc},
+		Velocity:  internalexecution.DefaultVelocitySink(),
+		Baseline:  completeBaselineSynchronizer{},
+		Clock:     clk,
+	})
+
+	exec, _, _, err := executionSvc.Start(ctx, plan.ID, "run-bound-receipt")
+	require.NoError(t, err)
+	_, _, _, err = executionSvc.SyncBaseline(ctx, exec.ID)
+	require.NoError(t, err)
+	_, _, _, err = executionSvc.TransitionPhase(ctx, exec.ID, phaseID, internalexecution.PhaseTransitionInputs{ToStatus: internalplans.PhaseStatusActive})
+	require.NoError(t, err)
+	_, _, _, err = logSvc.AddNote(ctx, internalplanlog.AddInputs{PlanOrExecution: exec.ID, PhaseID: phaseID, Title: internalexecution.NoFeedbackCheckpointTitle, Detail: "reviewed"})
+	require.NoError(t, err)
+
+	// Use a new repository instance to model the post-restart read path rather
+	// than relying on any in-memory result object from the writer.
+	store := internalvalidation.NewSQLiteResultStore(d, mocks.NewFakeClock(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)))
+	require.NoError(t, store.SaveResult(ctx, internalvalidation.Result{
+		ID: "validation-op:result", PlanID: plan.ID, PhaseID: phaseID, Verdict: internalvalidation.VerdictPass,
+		Staleness: planmodel.StalenessFresh, RanAt: "2026-06-25T12:00:00Z", ExecutionID: exec.ID,
+		OperationID: "validation-op", ScopeGeneration: 0, SelectedMembers: []string{"plan-manager"},
+	}))
+
+	_, updated, _, err := executionSvc.TransitionPhase(ctx, exec.ID, phaseID, internalexecution.PhaseTransitionInputs{ToStatus: internalplans.PhaseStatusDone})
+	require.NoError(t, err)
+	require.Equal(t, internalplans.PhaseStatusDone, updated.Phases[0].Status)
 }
 
 func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {

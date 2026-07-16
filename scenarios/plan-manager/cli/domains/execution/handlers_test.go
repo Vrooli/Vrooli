@@ -117,6 +117,19 @@ func (r *execRecorder) Complete(_ context.Context, req *connect.Request[executio
 	return connect.NewResponse(&executionv1.CompleteResponse{Handoff: &sharedv1.Handoff{ExecutionId: req.Msg.GetExecutionId(), Completeness: sharedv1.Completeness_COMPLETENESS_FULL}}), nil
 }
 
+func (r *execRecorder) AbandonExecution(_ context.Context, req *connect.Request[executionv1.AbandonExecutionRequest]) (*connect.Response[executionv1.AbandonExecutionResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*executionv1.AbandonExecutionResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&executionv1.AbandonExecutionResponse{Execution: &executionv1.Execution{
+		Id: req.Msg.GetExecutionId(), LifecycleState: "abandoned", AbandonedReason: req.Msg.GetReason(),
+	}}), nil
+}
+
 func (r *execRecorder) GetHandoff(_ context.Context, req *connect.Request[executionv1.GetHandoffRequest]) (*connect.Response[executionv1.GetHandoffResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
@@ -238,6 +251,16 @@ func TestExecRequestMapping(t *testing.T) {
 				m := req.(*executionv1.CompleteRequest)
 				require.Equal(t, int64(0), m.GetTokens())
 				require.Equal(t, int32(0), m.GetIterations())
+			},
+		},
+		{
+			name: "abandon maps execution reason and actor", cmd: "abandon",
+			argv: []string{"exec-1", "--reason", "duplicate start", "--actor", "operator@example.com"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*executionv1.AbandonExecutionRequest)
+				require.Equal(t, "exec-1", m.GetExecutionId())
+				require.Equal(t, "duplicate start", m.GetReason())
+				require.Equal(t, "operator@example.com", m.GetActor())
 			},
 		},
 		{
@@ -374,6 +397,18 @@ func TestExecOutputRendering(t *testing.T) {
 		require.Contains(t, out, "Completed execution exec-1 (completeness full).")
 		require.Contains(t, out, "Resume point: (none).")
 		require.Contains(t, out, "[file_bugs] needs attention — open items")
+	})
+
+	t.Run("abandon renders terminal audit state", func(t *testing.T) {
+		rec := &execRecorder{resp: &executionv1.AbandonExecutionResponse{Execution: &executionv1.Execution{
+			Id: "exec-1", LifecycleState: "abandoned", AbandonedReason: "duplicate start", AbandonedAt: "2026-07-16T12:00:00Z",
+		}}}
+		app, groups := newExecFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "abandon"), app, "exec-1", "--reason", "duplicate start")
+		require.NoError(t, err)
+		require.Contains(t, out, "Abandoned execution exec-1")
+		require.Contains(t, out, "reason: duplicate start")
+		require.Contains(t, out, "abandoned at: 2026-07-16T12:00:00Z")
 	})
 
 	t.Run("velocity renders points", func(t *testing.T) {

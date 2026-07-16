@@ -13,7 +13,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
-      "description": "Implement structure, dependency, unit, integration, and performance runners directly inside the scenario, exposing CLI + API triggers.",
+      "description": "Implement structure, dependency, unit, integration, and performance runners directly inside the scenario, exposing CLI + API triggers. Pending status snapshots carry one canonical quiet-wait action and never steer agents into polling.",
       "validation": [
         {
           "type": "test",
@@ -35,6 +35,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Covers descriptor-backed suite planning and execution without legacy scripts"
+        },
+        {
+          "type": "test",
+          "ref": "cli/runs/lifecycle_test.go::TestRunStatusJSONCarriesTypedWaitActionOnlyWhilePending",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Pending human and JSON status output share one typed canonical wait action; terminal output omits it."
         }
       ]
     },

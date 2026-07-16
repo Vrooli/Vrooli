@@ -55,6 +55,20 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Finalized plans can update/remove structured references, clear computed validation annotations, and preserve phase identity."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestPatchPhaseExecutionGradeRegressionRequiresAcknowledgement",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Field-mask patches preserve omitted fields and guard active execution-grade quality regressions unless explicitly acknowledged."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestAuthoredRepairAddsAssignStableServerOwnedIDs",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Finalized plans can add authored context and references with durable server-owned identities."
         }
       ]
     },

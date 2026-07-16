@@ -133,6 +133,41 @@ func TestResumeCollectionCaptureReattachesDurablePendingMembers(t *testing.T) {
 	}
 }
 
+func TestResumeCollectionCaptureWaitsConcurrentlyAndReturnsTypedIncomplete(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
+	secondDone := make(chan struct{})
+	exec := &blockingFinalizeExecutor{firstAwaitStarted: make(chan struct{}), releaseFirst: make(chan struct{}), secondAwaitDone: secondDone}
+	svc := NewService(Deps{Storage: newTestStorage(t), Exec: exec, Runs: &fakeRuns{}, CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"})})
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "blocked", BaselineName: "before", Required: true}, {Scenario: "terminal", BaselineName: "before", Required: true}},
+	})
+	if err != nil || len(started.Pending) != 2 {
+		t.Fatalf("start = %#v err=%v", started, err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	type resumeResult struct {
+		collection CollectionManifest
+		err        error
+	}
+	done := make(chan resumeResult, 1)
+	go func() {
+		collection, resumeErr := svc.ResumeCollectionCapture(ctx, 1, "agi", "before")
+		done <- resumeResult{collection: collection, err: resumeErr}
+	}()
+	<-exec.firstAwaitStarted
+	<-secondDone
+	cancel()
+	result := <-done
+	err = result.err
+	var incomplete *CollectionIncompleteError
+	if !errors.As(err, &incomplete) || len(incomplete.PendingRunIDs) != 1 || incomplete.PendingRunIDs[0] != "run-1" {
+		t.Fatalf("typed incomplete = %#v err=%v", incomplete, err)
+	}
+	if result.collection.Coverage().Ready != 1 || result.collection.Coverage().Pending != 1 {
+		t.Fatalf("concurrent partial = %#v", result.collection.Coverage())
+	}
+}
+
 func TestReconcileCollectionCaptureFinalizesTerminalMembersWithoutWaiting(t *testing.T) {
 	svc, exec := collectionService(t)
 	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
@@ -227,6 +262,64 @@ func TestCollectionDiffOperationIsDurableAndSelectionIdempotent(t *testing.T) {
 	resumed, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "phase-1", Scenarios: []string{"plan-manager"}})
 	if err != nil || len(resumed.Pending) != 0 || resumed.Operation.ID != "phase-1" {
 		t.Fatalf("idempotent operation = %#v err=%v", resumed, err)
+	}
+}
+
+func TestCollectionDiffWaitsConcurrentlyAndReturnsTypedIncomplete(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
+	svc, _ := collectionService(t)
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "blocked", BaselineName: "before", Required: true}, {Scenario: "terminal", BaselineName: "before", Required: true}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pending := range captured.Pending {
+		if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, pending); err != nil {
+			t.Fatal(err)
+		}
+	}
+	secondDone := make(chan struct{})
+	exec := &blockingFinalizeExecutor{
+		fakeExecutor:      fakeExecutor{calls: 2, result: terminalResult()},
+		firstAwaitStarted: make(chan struct{}), releaseFirst: make(chan struct{}),
+		secondAwaitDone: secondDone, blockedRunID: "run-3",
+	}
+	svc.exec = exec
+	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "op-concurrent"})
+	if err != nil || len(started.Pending) != 2 {
+		t.Fatalf("start diff = %#v err=%v", started, err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	type diffResult struct {
+		operation CollectionDiffOperation
+		err       error
+	}
+	done := make(chan diffResult, 1)
+	go func() {
+		_, operation, waitErr := svc.GetCollectionDiff(ctx, 1, "agi", "before", "op-concurrent", true)
+		done <- diffResult{operation: operation, err: waitErr}
+	}()
+	<-exec.firstAwaitStarted
+	<-secondDone
+	cancel()
+	result := <-done
+	var incomplete *CollectionIncompleteError
+	if !errors.As(result.err, &incomplete) || len(incomplete.PendingRunIDs) != 1 || incomplete.PendingRunIDs[0] != "run-3" {
+		t.Fatalf("typed diff incomplete = %#v err=%v", incomplete, result.err)
+	}
+	ready, pending := 0, 0
+	for _, member := range result.operation.Members {
+		switch member.Status {
+		case "ready":
+			ready++
+		case "pending":
+			pending++
+		}
+	}
+	if ready != 1 || pending != 1 {
+		t.Fatalf("concurrent diff checkpoints = %#v", result.operation.Members)
 	}
 }
 

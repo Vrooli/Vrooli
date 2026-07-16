@@ -35,6 +35,17 @@ func planToProto(p internalplans.Plan) *sharedv1.Plan {
 	return planproto.PlanToProto(p)
 }
 
+func mutationImpactToProto(impact internalplans.MutationImpact) *plansv1.PlanMutationImpact {
+	return &plansv1.PlanMutationImpact{
+		BeforeGrade:              impact.BeforeGrade,
+		AfterGrade:               impact.AfterGrade,
+		AddedIssueCodes:          impact.AddedIssueCodes,
+		ClearedIssueCodes:        impact.ClearedIssueCodes,
+		ExecutionGradeRegression: impact.ExecutionGradeRegression,
+		RegressionAcknowledged:   impact.RegressionAcknowledged,
+	}
+}
+
 func planFromProto(p *sharedv1.Plan) internalplans.Plan {
 	out, _ := planFromProtoChecked(p)
 	return out

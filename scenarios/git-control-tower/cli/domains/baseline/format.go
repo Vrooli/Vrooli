@@ -255,6 +255,8 @@ func printSnapshotStatusDiagnostics(w io.Writer, resp *baselinesv1.GetSnapshotSt
 func printDiff(resp *baselinesv1.DiffResult) {
 	b := resp.GetBaseline()
 	fmt.Printf("Baseline: %s   captured %s\n", b.GetName(), b.GetCreatedAt())
+	fmt.Printf("Behavioral verdict: %s %s\n", verdictMark(resp.GetVerdict()), resp.GetVerdict())
+	var stalenessLine string
 	if cg := resp.GetCurrentGit(); cg != nil {
 		sha := cg.GetSha()
 		if len(sha) > 8 {
@@ -265,9 +267,9 @@ func printDiff(resp *baselinesv1.DiffResult) {
 			if st.GetLikelyStale() {
 				stale = " (likely stale)"
 			}
-			fmt.Printf("Working tree: sha=%s (+%d commits, %d files changed since baseline)%s\n", sha, st.GetCommitsSince(), st.GetFilesChanged(), stale)
+			stalenessLine = fmt.Sprintf("Working tree advisory: sha=%s (+%d commits, %d files changed since baseline)%s", sha, st.GetCommitsSince(), st.GetFilesChanged(), stale)
 		} else {
-			fmt.Printf("Working tree: sha=%s\n", sha)
+			stalenessLine = fmt.Sprintf("Working tree provenance: sha=%s", sha)
 		}
 	}
 	fmt.Println()
@@ -292,11 +294,17 @@ func printDiff(resp *baselinesv1.DiffResult) {
 	}
 	if evidence := resp.GetEvidence(); evidence != nil {
 		fmt.Println()
-		fmt.Printf("Evidence: base=%s (%d artifacts) current=%s (%d artifacts)\n",
+		fmt.Printf("Evidence (%s): base=%s (%d artifacts) current=%s (%d artifacts)\n", evidence.GetEvidenceStatus(),
 			evidence.GetBaseRunId(), len(evidence.GetBaseCatalog().GetArtifacts()),
 			evidence.GetCurrentRunId(), len(evidence.GetCurrentCatalog().GetArtifacts()))
-		for _, reason := range evidence.GetDegradedReasons() {
-			fmt.Printf("  ⚠ %s\n", reason)
+		for _, reason := range evidence.GetBlockingReasons() {
+			fmt.Printf("  blocking: %s\n", reason)
+		}
+		if stalenessLine != "" {
+			fmt.Println(stalenessLine)
+		}
+		for _, reason := range evidence.GetAdvisoryWarnings() {
+			fmt.Printf("  advisory: %s\n", reason)
 		}
 		for _, delta := range evidence.GetVisualDeltas() {
 			if delta.GetStatus() != "identical" {
@@ -308,7 +316,9 @@ func printDiff(resp *baselinesv1.DiffResult) {
 	if w := resp.GetDirtyWarning(); w != "" {
 		fmt.Printf("⚠ %s\n", w)
 	}
-	fmt.Printf("Overall: %s %s\n", verdictMark(resp.GetVerdict()), resp.GetVerdict())
+	if resp.GetEvidence() == nil && stalenessLine != "" {
+		fmt.Println(stalenessLine)
+	}
 }
 
 func printLines(label string, lines []string) {

@@ -39,16 +39,16 @@ func TestReattachCommandIsQuietWait(t *testing.T) {
 }
 
 func TestRecommendedWaitCommandIncludesBufferedTimeout(t *testing.T) {
-	if got := recommendedWaitSeconds(600, true); got != 1050 {
+	if got := RecommendedWaitSeconds(600, true); got != 1050 {
 		t.Fatalf("recommendedWaitSeconds known = %d, want 1050", got)
 	}
-	if got := recommendedWaitSeconds(10, true); got != minRecommendedWaitSeconds {
+	if got := RecommendedWaitSeconds(10, true); got != minRecommendedWaitSeconds {
 		t.Fatalf("recommendedWaitSeconds floor = %d, want %d", got, minRecommendedWaitSeconds)
 	}
-	if got := recommendedWaitSeconds(0, false); got != unknownETAWaitSeconds {
+	if got := RecommendedWaitSeconds(0, false); got != unknownETAWaitSeconds {
 		t.Fatalf("recommendedWaitSeconds unknown = %d, want %d", got, unknownETAWaitSeconds)
 	}
-	cmd := reattachCommandWithTimeout("demo", "R1", 1050)
+	cmd := ReattachCommandWithTimeout("demo", "R1", 1050)
 	if cmd != "test-genie runs wait --json --timeout=1050 demo R1" {
 		t.Fatalf("reattachCommandWithTimeout = %q", cmd)
 	}

@@ -2,14 +2,14 @@
 
 ## Last Updated
 
-2026-07-13
+2026-07-16
 
 ## Current Pattern
 
 - Per-domain, embedded `internal/<domain>/schema.sql` providers registered by `internal/modules`.
 - SQLite through `api-core/database` and the variant-aware `api-core/storage` resolver.
 - Canonical local database: `~/.vrooli/data/vrooli/plan-manager/plan-manager.db`.
-- The database is development/personal-runtime data, so schema evolution uses a stopped-service, one-shot script in `/tmp/plan-manager/`; Plan Manager ships no versioned migration runner or read-time schema upgrader.
+- Startup runs a small, domain-owned migration before schema drift verification when a compatible additive SQLite change is needed. It is idempotent, runs before listeners open, and never rewrites evidence during reads.
 
 ## Architecture Status
 
@@ -20,7 +20,7 @@
 ## Migration Hygiene
 
 - `EnsureSchemas` applies only idempotent desired-state schemas and detects SQLite column drift at boot.
-- Local data is upgraded before boot by a temporary, idempotent migration script; the script is deleted after post-migration integrity and drift checks pass.
+- `validation.EnsureMigrations` adds missing terminal-result receipt columns before `EnsureSchemas` performs its SQLite drift check. Old result rows receive safe zero values and cannot satisfy an execution gate; they require fresh validation.
 - Validation-operation payloads are forward-only schema V2. Older command-only payloads are rejected with an actionable migration error rather than silently rewritten on read.
 
 ## Cross-References

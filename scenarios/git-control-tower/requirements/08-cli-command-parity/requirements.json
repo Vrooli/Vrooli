@@ -18,7 +18,7 @@
       "status": "pending",
       "prd_ref": "OT-P0-008",
       "category": "operational_target.p0",
-      "description": "The baseline API and CLI persist a schema-versioned single-run anchor, pass every Test Genie phase diff through without a local phase registry, migrate same-run V1 manifests idempotently, reject mixed-run manifests with repair guidance, and pin or unpin the run exactly once.",
+      "description": "The baseline API and CLI persist a schema-versioned single-run anchor, pass every Test Genie phase diff through without a local phase registry, separate behavioral blockers from advisory staleness/enrichment failures, migrate same-run V1 manifests idempotently, reject mixed-run manifests with repair guidance, and pin or unpin the run exactly once.",
       "validation": [
         {
           "type": "test",
@@ -47,6 +47,13 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Proves empty-create and per-surface edit commands are absent from the CLI."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/service_test.go::TestServicePreservesBehavioralVerdictWhenAdvisoryEvidenceIsUnavailable",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auxiliary catalog and visual outages mark evidence incomplete without overwriting an authoritative behavioral verdict."
         }
       ]
     },
@@ -56,7 +63,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "operational_target.p0",
-      "description": "Snapshot and diff intents remain pending when an attachment times out or is canceled, terminal cache state is never fabricated from transport failure, and the CLI reconnects exactly once by the existing durable run id after unexpected EOF without starting duplicate work.",
+      "description": "Snapshot, collection capture, and diff intents remain pending when an attachment times out or is canceled; independent children reattach concurrently; terminal cache state is never fabricated from transport failure; and every incomplete wait returns typed exit 3 recovery by the existing durable identity without starting duplicate work.",
       "validation": [
         {
           "type": "test",
@@ -71,6 +78,20 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Proves one blocking read plus one non-blocking recovery read on EOF, with no retry for ordinary inspect or non-EOF errors."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/collection_service_test.go::TestResumeCollectionCaptureWaitsConcurrentlyAndReturnsTypedIncomplete",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Proves bounded concurrent collection reattachment and typed pending identities on cancellation."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/baseline/collection_test.go::TestCollectionWaitCommandsExitNotReadyOnTypedIncomplete",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Proves collection capture and diff waits return exit 3 and one durable recovery command while incomplete."
         }
       ]
     },

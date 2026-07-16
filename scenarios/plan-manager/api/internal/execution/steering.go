@@ -53,6 +53,19 @@ func stepForStarted(e Execution) GuidedStep {
 	}
 }
 
+func stepForAbandoned(e Execution) GuidedStep {
+	return GuidedStep{
+		StepKind:     "execution_abandoned",
+		Title:        "Execution Abandoned",
+		Summary:      "The execution is terminal and retained as audit history.",
+		Instructions: []string{"Start a new execution for the plan if work should continue."},
+		NextActions: []NextAction{{
+			ID: "start-replacement", Kind: NextActionRecommended, Label: "Start replacement execution",
+			Reason: "Abandoned executions cannot resume.", Argv: []string{"exec", "start", e.PlanID},
+		}},
+	}
+}
+
 func stepForContext(executionID, planID string, ctx PhaseContext, complete bool) GuidedStep {
 	if complete || ctx.Completeness == CompletenessFull || (!ctx.HasCurrent && strings.TrimSpace(ctx.ResumePhaseID) == "") {
 		return GuidedStep{

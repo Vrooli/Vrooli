@@ -31,6 +31,10 @@ func executionToProto(e internalexecution.Execution) *executionv1.Execution {
 		BaselineSet:     baselineSetToProto(e.BaselineSet),
 		ScopeAmendments: scopeAmendmentsToProto(e.ScopeAmendments),
 		DegradedReason:  e.DegradedReason,
+		LifecycleState:  string(e.EffectiveLifecycleState()),
+		AbandonedReason: e.AbandonedReason,
+		AbandonedAt:     e.AbandonedAt,
+		AbandonedBy:     e.AbandonedBy,
 	}
 }
 
