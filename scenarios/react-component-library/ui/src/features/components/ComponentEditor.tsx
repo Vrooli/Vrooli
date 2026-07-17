@@ -1,28 +1,8 @@
-import { Fragment, type ComponentProps, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
-import {
-  closestCenter,
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  type DragEndEvent,
-  type DragOverEvent,
-  type DragStartEvent,
-  type Modifier,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  horizontalListSortingStrategy,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { ArrowLeft, Code2, Eye, FileCode2, GripVertical, Info, Minus, Plus, RotateCcw, Save, X } from "lucide-react";
+import { ArrowLeft, Eye, FileCode2, Info, Minus, PanelsLeftRight, Plus, RotateCcw, Save, X } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
 import { Button } from "../../components/ui/button";
@@ -49,96 +29,14 @@ import { AssetWorkspace } from "../assets/AssetWorkspace";
 import type { DiffRow } from "../../api/versions";
 
 const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
-const PANEL_LAYOUT_STORAGE_KEY = "rcl.component-editor.workspace.v2";
-const DEFAULT_DESKTOP_PANEL_LAYOUT = { preview: 42, files: 38, details: 20 };
-const DEFAULT_PANE_ORDER = ["files", "preview", "details"] as const;
+const PANEL_LAYOUT_STORAGE_KEY = "rcl.component-editor.split-view.v1";
+const DEFAULT_DESKTOP_PANEL_LAYOUT = { primary: 50, secondary: 50 };
+const DEFAULT_PANE_ORDER = ["details", "files", "preview"] as const;
 
 type WorkspacePane = (typeof DEFAULT_PANE_ORDER)[number];
-type WorkspaceDropEdge = "before" | "after";
 type FilesView = "tree" | "source" | "diff";
 type SpecimenIdentity = `${string}:${string}`;
 
-const restrictWorkspaceDragToHorizontalAxis: Modifier = ({ transform }) => ({
-  ...transform,
-  y: 0,
-});
-
-function isWorkspacePane(value: unknown): value is WorkspacePane {
-  return typeof value === "string" && DEFAULT_PANE_ORDER.includes(value as WorkspacePane);
-}
-
-function reorderWorkspacePanes(
-  order: readonly WorkspacePane[],
-  active: WorkspacePane,
-  over: WorkspacePane,
-): WorkspacePane[] {
-  const activeIndex = order.indexOf(active);
-  const overIndex = order.indexOf(over);
-  if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex) return [...order];
-  return arrayMove([...order], activeIndex, overIndex);
-}
-
-function getWorkspaceDropEdge(
-  order: readonly WorkspacePane[],
-  active: WorkspacePane | null,
-  over: WorkspacePane | null,
-): WorkspaceDropEdge | null {
-  if (!active || !over || active === over) return null;
-  const activeIndex = order.indexOf(active);
-  const overIndex = order.indexOf(over);
-  if (activeIndex < 0 || overIndex < 0) return null;
-  return activeIndex < overIndex ? "after" : "before";
-}
-
-type SortableHandle = Pick<
-  ReturnType<typeof useSortable>,
-  "attributes" | "listeners" | "setActivatorNodeRef"
->;
-
-interface SortableWorkspacePanelProps {
-  pane: WorkspacePane;
-  disabled: boolean;
-  dropEdge: WorkspaceDropEdge | null;
-  minSize: ComponentProps<typeof Panel>["minSize"];
-  defaultSize: ComponentProps<typeof Panel>["defaultSize"];
-  className?: string;
-  children: (handle: SortableHandle) => ReactNode;
-}
-
-function SortableWorkspacePanel({
-  pane,
-  disabled,
-  dropEdge,
-  minSize,
-  defaultSize,
-  className,
-  children,
-}: SortableWorkspacePanelProps) {
-  const sortable = useSortable({ id: pane, disabled });
-
-  return (
-    <Panel
-      id={pane}
-      elementRef={sortable.setNodeRef}
-      minSize={minSize}
-      defaultSize={defaultSize}
-      className={className}
-    >
-      <div className="relative h-full min-h-0">
-        {dropEdge && (
-          <div
-            data-testid={selectors.components.editor.workspacePaneDropIndicator}
-            data-pane={pane}
-            data-edge={dropEdge}
-            aria-hidden="true"
-            className={`pointer-events-none absolute inset-y-1 z-40 w-1 rounded-full bg-app-primary shadow-[0_0_0_1px_var(--color-background)] ${dropEdge === "before" ? "start-0" : "end-0"}`}
-          />
-        )}
-        {children(sortable)}
-      </div>
-    </Panel>
-  );
-}
 
 function specimenIdentity(example?: Pick<ComponentExample, "version" | "name">): SpecimenIdentity {
   return `${example?.version || "__current__"}:${example?.name || "__default__"}`;
@@ -154,35 +52,13 @@ export interface ComparisonSession {
   rows: DiffRow[];
 }
 
-interface WorkspaceState {
-  order: WorkspacePane[];
-  visible: Record<WorkspacePane, boolean>;
-  layout: Record<string, number>;
-}
-
-function loadWorkspaceState(renderable: boolean): WorkspaceState {
-  const fallback: WorkspaceState = {
-    order: [...DEFAULT_PANE_ORDER],
-    visible: { files: true, preview: renderable, details: true },
-    layout: DEFAULT_DESKTOP_PANEL_LAYOUT,
-  };
+function loadSplitLayout(): Record<string, number> {
+  const fallback = DEFAULT_DESKTOP_PANEL_LAYOUT;
   try {
     const raw = window.localStorage.getItem(PANEL_LAYOUT_STORAGE_KEY);
     if (!raw) return fallback;
-    const saved = JSON.parse(raw) as Partial<WorkspaceState>;
-    const order = Array.isArray(saved.order)
-      ? saved.order.filter((pane): pane is WorkspacePane => DEFAULT_PANE_ORDER.includes(pane))
-      : fallback.order;
-    const uniqueOrder = [...new Set(order)];
-    for (const pane of DEFAULT_PANE_ORDER) if (!uniqueOrder.includes(pane)) uniqueOrder.push(pane);
-    const visible = DEFAULT_PANE_ORDER.reduce<Record<WorkspacePane, boolean>>((next, pane) => {
-      next[pane] = saved.visible?.[pane] ?? true;
-      return next;
-    }, {} as Record<WorkspacePane, boolean>);
-    if (!renderable) visible.preview = false;
-    if (!Object.values(visible).some(Boolean)) visible.files = true;
-    const layout = { ...fallback.layout, ...(saved.layout ?? {}) };
-    return { order: uniqueOrder, visible, layout };
+    const saved = JSON.parse(raw) as Record<string, number>;
+    return { ...fallback, ...saved };
   } catch {
     return fallback;
   }
@@ -232,11 +108,16 @@ interface ComponentEditorProps {
   libraryId: string;
   onClose: () => void;
   metadataSlot?: ReactNode;
+  /** Asset-level navigation stays visible while Files or Preview replaces Details. */
+  navigationSlot?: ReactNode;
   selectedVersion?: string;
   comparison?: ComparisonSession | null;
   onCloseComparison?: () => void;
   /** Hooks share the source/details workspace but intentionally omit preview. */
   renderable?: boolean;
+  /** Asset pages control the normal one-pane view from their URL-backed tabs. */
+  activePane?: WorkspacePane;
+  onActivePaneChange?: (pane: WorkspacePane) => void;
 }
 
 /**
@@ -254,20 +135,19 @@ export function ComponentEditor({
   libraryId,
   onClose,
   metadataSlot,
+  navigationSlot,
   selectedVersion,
   comparison,
   onCloseComparison,
   renderable = true,
+  activePane,
+  onActivePaneChange,
 }: ComponentEditorProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const emulator = useDeviceEmulation();
   const filters = useDeviceFilters();
   const desktopLayout = useMediaQuery("(min-width: 1024px)");
-  const workspaceDragSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
   const { resolved: appResolvedTheme } = useTheme();
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
   const previewFramesRef = useRef(new Set<HTMLIFrameElement>());
@@ -320,10 +200,11 @@ export function ComponentEditor({
   const [overrideStatus, setOverrideStatus] = useState<Record<string, "idle" | "applying" | "applied" | "error">>({});
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
   const previewReloadKey = 0;
-  const [mode, setMode] = useState<WorkspacePane>("files");
-  const [workspace, setWorkspace] = useState<WorkspaceState>(() => loadWorkspaceState(renderable));
-  const [activeDraggedPane, setActiveDraggedPane] = useState<WorkspacePane | null>(null);
-  const [draggedOverPane, setDraggedOverPane] = useState<WorkspacePane | null>(null);
+  const [uncontrolledPane, setUncontrolledPane] = useState<WorkspacePane>("files");
+  const currentPane = activePane ?? uncontrolledPane;
+  const [splitView, setSplitView] = useState(false);
+  const [secondaryPane, setSecondaryPane] = useState<WorkspacePane>(renderable ? "preview" : "files");
+  const [splitLayout, setSplitLayout] = useState<Record<string, number>>(loadSplitLayout);
   const [filesView, setFilesView] = useState<FilesView>("source");
   const [wordWrap, setWordWrap] = useState<"on" | "off">("on");
   const [fontSize, setFontSize] = useState(13);
@@ -511,80 +392,54 @@ export function ComponentEditor({
     });
   };
 
-  const visiblePanes = workspace.order.filter((pane) => pane !== "preview" || renderable).filter((pane) => workspace.visible[pane]);
-
   useEffect(() => {
     try {
-      window.localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(workspace));
+      window.localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(splitLayout));
     } catch {
-      // Workspace persistence is a convenience; editing never depends on storage access.
+      // Split sizing is a convenience; editing never depends on storage access.
     }
-  }, [workspace]);
+  }, [splitLayout]);
+
+  useEffect(() => {
+    if (!desktopLayout) setSplitView(false);
+  }, [desktopLayout]);
 
   useEffect(() => {
     if (!comparison) return;
     setFilesView("diff");
-    setWorkspace((current) => ({
-      ...current,
-      visible: { ...current.visible, files: true },
-    }));
-    setMode("files");
+    selectPane("files");
   }, [comparison]);
 
-  const showPane = (pane: WorkspacePane) => {
+  const selectPane = (pane: WorkspacePane) => {
     if (pane === "preview" && !renderable) return;
-    setWorkspace((current) => ({
-      ...current,
-      visible: { ...current.visible, [pane]: true },
-    }));
+    if (onActivePaneChange) onActivePaneChange(pane);
+    else setUncontrolledPane(pane);
   };
 
-  const hidePane = (pane: WorkspacePane) => {
-    if (visiblePanes.length <= 1) return;
-    setWorkspace((current) => ({
-      ...current,
-      visible: { ...current.visible, [pane]: false },
-    }));
-    if (mode === pane) {
-      const nextPane = visiblePanes.find((candidate) => candidate !== pane);
-      if (nextPane) setMode(nextPane);
+  const availablePanes = DEFAULT_PANE_ORDER.filter((pane) => pane !== "preview" || renderable);
+  const visiblePanes = splitView ? [currentPane, secondaryPane].filter((pane, index, panes) => panes.indexOf(pane) === index) : [currentPane];
+
+  const toggleSplitView = () => {
+    if (!desktopLayout) return;
+    if (!splitView && secondaryPane === currentPane) {
+      setSecondaryPane(availablePanes.find((pane) => pane !== currentPane) ?? currentPane);
     }
+    setSplitView((current) => !current);
   };
 
-  const resetPaneDrag = () => {
-    setActiveDraggedPane(null);
-    setDraggedOverPane(null);
-  };
-
-  const startPaneDrag = ({ active }: DragStartEvent) => {
-    if (!desktopLayout || !isWorkspacePane(active.id)) return;
-    setActiveDraggedPane(active.id);
-    setDraggedOverPane(active.id);
-  };
-
-  const updatePaneDragTarget = ({ over }: DragOverEvent) => {
-    setDraggedOverPane(isWorkspacePane(over?.id) ? over.id : null);
-  };
-
-  const finishPaneDrag = ({ active, over }: DragEndEvent) => {
-    resetPaneDrag();
-    if (!desktopLayout || !isWorkspacePane(active.id) || !isWorkspacePane(over?.id)) return;
-    const activePane = active.id;
-    const overPane = over.id;
-    setWorkspace((current) => ({
-      ...current,
-      order: reorderWorkspacePanes(current.order, activePane, overPane),
-    }));
-  };
-
-  const selectMode = (pane: WorkspacePane) => {
-    showPane(pane);
-    setMode(pane);
+  const selectSplitPane = (index: number, pane: WorkspacePane) => {
+    if (pane === "preview" && !renderable) return;
+    if (index === 0) {
+      selectPane(pane);
+      if (pane === secondaryPane) setSecondaryPane(currentPane);
+      return;
+    }
+    setSecondaryPane(pane === currentPane ? (availablePanes.find((candidate) => candidate !== currentPane) ?? pane) : pane);
   };
 
   const saveDesktopPanelLayout = (layout: Record<string, number>) => {
     if (!desktopLayout) return;
-    setWorkspace((current) => ({ ...current, layout: { ...current.layout, ...layout } }));
+    setSplitLayout((current) => ({ ...current, ...layout }));
   };
 
   const selectFile = (path: string) => {
@@ -592,39 +447,17 @@ export function ComponentEditor({
     setFilesView("source");
   };
 
-  const paneHeader = (pane: WorkspacePane, label: string, icon: ReactNode, dragHandle: SortableHandle) => {
+  const paneHeader = (pane: WorkspacePane, index: number, label: string, icon: ReactNode) => {
     return (
       <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-app-border bg-app-surface px-2">
-        <div className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-app-foreground">
-          {icon}
-          <span className="truncate">{label}</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            ref={dragHandle.setActivatorNodeRef}
-            type="button"
-            data-testid={selectors.components.editor.workspacePaneDragHandle}
-            data-pane={pane}
-            className="hidden h-7 w-7 cursor-grab touch-none items-center justify-center rounded-control border border-app-border bg-app-surface text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 active:cursor-grabbing lg:inline-flex"
-            {...dragHandle.attributes}
-            {...dragHandle.listeners}
-            aria-label={t(strings.components.editor.reorderPane, { pane: label })}
-          >
-            <GripVertical aria-hidden className="h-3.5 w-3.5" />
-          </button>
-          <Button
-            type="button"
-            variant="secondary"
-            data-testid={selectors.components.editor.workspacePaneClose}
-            data-pane={pane}
-            aria-label={t("components.editor.closePane", { defaultValue: "Close pane" })}
-            disabled={visiblePanes.length <= 1}
-            onClick={() => hidePane(pane)}
-            className="h-7 w-7 p-0"
-          >
-            <X aria-hidden className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+        <details className="relative min-w-0">
+          <summary data-testid="components-editor-split-pane-switcher" data-pane={pane} className="flex cursor-pointer list-none items-center gap-1.5 rounded-control px-1 py-1 text-xs font-semibold text-app-foreground hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50">
+            {icon}<span className="truncate">{label}</span>
+          </summary>
+          <div className="absolute left-0 z-20 mt-1 w-36 rounded-control border border-app-border bg-app-surface p-1 shadow-lg">
+            {availablePanes.map((candidate) => <Button key={candidate} type="button" variant="secondary" className="h-8 w-full justify-start px-2 text-xs" onClick={() => selectSplitPane(index, candidate)}>{paneLabels[candidate]}</Button>)}
+          </div>
+        </details>
       </header>
     );
   };
@@ -641,7 +474,6 @@ export function ComponentEditor({
     preview: t(strings.components.editor.previewMode),
     details: t(strings.components.editor.info),
   };
-  const panePosition = (pane: WorkspacePane) => visiblePanes.indexOf(pane) + 1;
   const applyPropsOverride = (props: Record<string, unknown>) => {
     if (!activeSpecimen) return;
     const example = specimens.find((candidate) => specimenIdentity(candidate) === activeSpecimen);
@@ -700,7 +532,7 @@ export function ComponentEditor({
                   {t(strings.components.editor.dirty)}
                 </StatusBadge>
               )}
-              {previewReady && (desktopLayout || mode === "preview") && (
+              {previewReady && (desktopLayout || currentPane === "preview") && (
                 <StatusBadge
                   data-testid={selectors.components.editor.previewBadge}
                   tone="success"
@@ -711,39 +543,9 @@ export function ComponentEditor({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <details className="relative hidden lg:block">
-              <summary
-                data-testid={selectors.components.editor.workspaceAddPane}
-                className="flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-control border border-app-border bg-app-surface px-2 text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
-              >
-                <Plus aria-hidden className="h-3.5 w-3.5" />
-                {t("components.editor.addPane", { defaultValue: "Add pane" })}
-              </summary>
-              <div className="absolute right-0 z-20 mt-1 w-40 rounded-control border border-app-border bg-app-surface p-1 shadow-lg">
-              {DEFAULT_PANE_ORDER.filter((pane) => (pane !== "preview" || renderable) && !workspace.visible[pane]).map((pane) => (
-                  <Button
-                    key={pane}
-                    data-testid={selectors.components.editor.workspacePaneRestore}
-                    data-pane={pane}
-                    type="button"
-                    variant="secondary"
-                    className="h-8 w-full justify-start px-2 text-xs"
-                    onClick={() => showPane(pane)}
-                  >
-                    {pane === "files"
-                      ? t("components.editor.files", { defaultValue: "Files" })
-                      : pane === "preview"
-                        ? t(strings.components.editor.previewMode)
-                        : t(strings.components.editor.info)}
-                  </Button>
-                ))}
-                {DEFAULT_PANE_ORDER.filter((pane) => pane !== "preview" || renderable).every((pane) => workspace.visible[pane]) && (
-                  <p className="px-2 py-1 text-xs text-app-muted-foreground">
-                    {t("components.editor.allPanesOpen", { defaultValue: "All panes are open" })}
-                  </p>
-                )}
-              </div>
-            </details>
+            {availablePanes.length > 1 && <Button data-testid="components-editor-split-view-toggle" type="button" variant={splitView ? "primary" : "secondary"} aria-pressed={splitView} onClick={toggleSplitView} className="hidden h-8 gap-1.5 px-2 text-xs lg:inline-flex">
+              <PanelsLeftRight aria-hidden className="h-3.5 w-3.5" />{t("components.editor.splitView", { defaultValue: "Split view" })}
+            </Button>}
             {renderable && <Button
               data-testid={selectors.components.editor.closeButton}
               onClick={onClose}
@@ -756,43 +558,9 @@ export function ComponentEditor({
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-app-border lg:hidden">
-          <div
-            data-testid={selectors.components.editor.modeSwitch}
-            className="flex shrink-0 overflow-hidden rounded-md border border-app-border"
-          >
-            <Button
-              data-testid={selectors.components.editor.previewModeButton}
-              type="button"
-              variant={mode === "preview" ? "primary" : "secondary"}
-              className="h-7 gap-1.5 rounded-none px-2 text-xs"
-              onClick={() => selectMode("preview")}
-            >
-              <Eye aria-hidden className="h-3.5 w-3.5" />
-              {t(strings.components.editor.previewMode)}
-            </Button>
-            <Button
-              data-testid={selectors.components.editor.codeModeButton}
-              type="button"
-              variant={mode === "files" ? "primary" : "secondary"}
-              className="h-7 gap-1.5 rounded-none px-2 text-xs"
-              onClick={() => selectMode("files")}
-            >
-              <Code2 aria-hidden className="h-3.5 w-3.5" />
-              {t(strings.components.editor.codeMode)}
-            </Button>
-            <Button
-              type="button"
-              variant={mode === "details" ? "primary" : "secondary"}
-              className="h-7 gap-1.5 rounded-none px-2 text-xs lg:hidden"
-              onClick={() => selectMode("details")}
-            >
-              <Info aria-hidden className="h-3.5 w-3.5" />
-              {t(strings.components.editor.info)}
-            </Button>
-          </div>
-        </div>
       </header>
+
+      {navigationSlot && <div className="shrink-0 border-b border-app-border bg-app-surface px-4">{navigationSlot}</div>}
 
       {contentQuery.isLoading && (
         <p
@@ -828,67 +596,24 @@ export function ComponentEditor({
               {t(strings.components.editor.viewingVersion, { version: selectedVersion })}
             </p>
           )}
-          <DndContext
-            sensors={workspaceDragSensors}
-            collisionDetection={closestCenter}
-            modifiers={[restrictWorkspaceDragToHorizontalAxis]}
-            accessibility={{
-              screenReaderInstructions: {
-                draggable: t(strings.components.editor.paneDragInstructions),
-              },
-              announcements: {
-                onDragStart: ({ active }) => isWorkspacePane(active.id)
-                  ? t(strings.components.editor.paneDragStarted, { pane: paneLabels[active.id] })
-                  : undefined,
-                onDragOver: ({ active, over }) => isWorkspacePane(active.id) && isWorkspacePane(over?.id)
-                  ? t(strings.components.editor.paneDragOver, {
-                    pane: paneLabels[active.id],
-                    position: panePosition(over.id),
-                    total: visiblePanes.length,
-                  })
-                  : undefined,
-                onDragEnd: ({ active, over }) => isWorkspacePane(active.id) && isWorkspacePane(over?.id)
-                  ? t(strings.components.editor.paneDragEnded, {
-                    pane: paneLabels[active.id],
-                    position: panePosition(over.id),
-                    total: visiblePanes.length,
-                  })
-                  : t(strings.components.editor.paneDragCancelled),
-                onDragCancel: ({ active }) => isWorkspacePane(active.id)
-                  ? t(strings.components.editor.paneDragCancelledWithPane, { pane: paneLabels[active.id] })
-                  : t(strings.components.editor.paneDragCancelled),
-              },
-            }}
-            onDragStart={startPaneDrag}
-            onDragOver={updatePaneDragTarget}
-            onDragEnd={finishPaneDrag}
-            onDragCancel={resetPaneDrag}
-          >
-            <SortableContext items={visiblePanes} strategy={horizontalListSortingStrategy}>
-              <Group
+          <Group
                 id="component-editor-panels"
-                orientation={desktopLayout ? "horizontal" : "vertical"}
-                defaultLayout={desktopLayout ? workspace.layout : { [mode]: 100 }}
+                orientation={splitView && desktopLayout ? "horizontal" : "vertical"}
+                defaultLayout={splitView && desktopLayout ? splitLayout : { primary: 100 }}
                 onLayoutChanged={saveDesktopPanelLayout}
                 className="h-full min-h-0"
               >
                 {visiblePanes.map((pane, index) => (
                   <Fragment key={pane}>
-                    <SortableWorkspacePanel
-                      pane={pane}
-                      disabled={!desktopLayout}
-                      dropEdge={draggedOverPane === pane
-                        ? getWorkspaceDropEdge(workspace.order, activeDraggedPane, draggedOverPane)
-                        : null}
+                    <Panel
+                      id={index === 0 ? "primary" : "secondary"}
                       minSize="15%"
-                      defaultSize={workspace.layout[pane] ?? (100 / visiblePanes.length)}
-                      className={mode === pane ? "" : "max-lg:hidden"}
+                      defaultSize={splitView ? splitLayout[index === 0 ? "primary" : "secondary"] : 100}
                     >
-                      {(dragHandle) => (
-                        <>
+                      <div className="h-full min-h-0">
                   {pane === "files" && (
                     <div data-testid={renderable ? selectors.components.editor.workspacePane : selectors.assets.hookSource} data-pane="files" className="flex h-full min-h-0 flex-col bg-app-background">
-                      {paneHeader("files", paneLabels.files, <FileCode2 aria-hidden className="h-3.5 w-3.5" />, dragHandle)}
+                      {splitView && paneHeader("files", index, paneLabels.files, <FileCode2 aria-hidden className="h-3.5 w-3.5" />)}
                       <div className="flex shrink-0 min-w-0 gap-1 overflow-x-auto border-b border-app-border bg-app-surface px-2 py-1.5">
                         <Button data-testid={selectors.components.editor.filesTreeTab} type="button" variant={filesView === "tree" ? "primary" : "secondary"} className="h-7 shrink-0 px-2 text-xs" onClick={() => setFilesView("tree")}>{t("components.editor.fileTree", { defaultValue: "Files" })}</Button>
                         {activeVersionFiles.map((file) => (
@@ -943,7 +668,7 @@ export function ComponentEditor({
                   )}
                   {pane === "preview" && (
                     <div data-testid={selectors.components.editor.workspacePane} data-pane="preview" className="flex h-full min-h-0 flex-col overflow-hidden bg-app-background">
-                      {paneHeader("preview", paneLabels.preview, <Eye aria-hidden className="h-3.5 w-3.5" />, dragHandle)}
+                      {splitView && paneHeader("preview", index, paneLabels.preview, <Eye aria-hidden className="h-3.5 w-3.5" />)}
                       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
                         <ThemeSwitcher postToFrames={postToPreviewFrames} previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} filters={filters} />
                         <EmulatorToolbar emulator={emulator} />
@@ -993,7 +718,7 @@ export function ComponentEditor({
                                         data-specimen={identity}
                                         title={`${t(strings.components.editor.previewHeading)} - ${title}`}
                                         src={harnessUrl(id, baselineSha, previewReloadKey + (specimenRetries[identity] ?? 0), example, selectedVersion)}
-                                        sandbox="allow-scripts allow-same-origin"
+                                        sandbox="allow-scripts"
                                         ref={(frame) => registerPreviewFrame(identity, frame)}
                                         onLoad={() => {
                                           activateSpecimen(identity);
@@ -1025,27 +750,16 @@ export function ComponentEditor({
                   )}
                   {pane === "details" && (
                     <aside data-testid={selectors.components.editor.workspacePane} data-pane="details" className="flex h-full min-h-0 flex-col overflow-hidden bg-app-surface">
-                      {paneHeader("details", paneLabels.details, <Info aria-hidden className="h-3.5 w-3.5" />, dragHandle)}
+                      {splitView && paneHeader("details", index, paneLabels.details, <Info aria-hidden className="h-3.5 w-3.5" />)}
                       <div data-testid={selectors.components.editor.infoDialog} className="min-h-0 flex-1 overflow-auto p-4">{metadataSlot ?? <p className="text-sm text-app-muted-foreground">{t(strings.components.editor.noInfo)}</p>}</div>
                     </aside>
                   )}
-                        </>
-                      )}
-                    </SortableWorkspacePanel>
-                    {index < visiblePanes.length - 1 && <Separator className="hidden w-1 shrink-0 bg-app-border hover:bg-app-primary lg:block" />}
+                      </div>
+                    </Panel>
+                    {index < visiblePanes.length - 1 && <Separator className="w-1 shrink-0 bg-app-border hover:bg-app-primary" />}
                   </Fragment>
                 ))}
-              </Group>
-            </SortableContext>
-            <DragOverlay dropAnimation={null}>
-              {activeDraggedPane && (
-                <div className="flex h-10 items-center gap-2 rounded-control border border-app-primary bg-app-surface px-3 text-xs font-semibold text-app-foreground shadow-xl">
-                  <GripVertical aria-hidden className="h-3.5 w-3.5" />
-                  <span>{paneLabels[activeDraggedPane]}</span>
-                </div>
-              )}
-            </DragOverlay>
-          </DndContext>
+          </Group>
         </div>
       )}
 

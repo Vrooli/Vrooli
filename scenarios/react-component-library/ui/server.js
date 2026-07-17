@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
+import fs from 'node:fs'
 import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
 
 const connectRpcPath = /^\/vrooli\.react_component_library\.v1\./
@@ -12,6 +13,15 @@ export function shouldProxyToApi(path) {
 export function isAssetDetailRoute(routePath) {
   const match = /^\/assets\/([^/]+)$/.exec(routePath)
   return Boolean(match && !path.extname(match[1]))
+}
+
+// Vite deliberately emits relative URLs (`./assets/...`) so the app also
+// works inside a tunnel or an iframe sub-path. A detail page is one segment
+// below the app root, however, so those URLs would otherwise resolve to
+// `/assets/assets/...`. Giving only nested SPA documents a relative parent
+// base preserves both deployment modes without hard-coding a host path.
+export function documentForAssetDetail(indexDocument) {
+  return indexDocument.replace('<head>', '<head><base href="../">')
 }
 
 export function startReactComponentLibraryServer() {
@@ -31,7 +41,12 @@ export function startReactComponentLibraryServer() {
           next()
           return
         }
-        res.sendFile(path.resolve(process.cwd(), 'dist', 'index.html'))
+        res.type('html').send(documentForAssetDetail(
+          // This is the tiny, route-specific part of the SPA document. Static
+          // assets remain served by api-base, and their URLs stay relative.
+          // Reading on request avoids stale HTML after lifecycle rebuilds.
+          fs.readFileSync(path.resolve(process.cwd(), 'dist', 'index.html'), 'utf8'),
+        ))
       })
       app.use((req, res, next) => {
         if (!shouldProxyToApi(req.path)) {

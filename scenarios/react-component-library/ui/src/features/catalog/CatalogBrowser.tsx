@@ -11,6 +11,7 @@ import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { CreateComponentDialog } from "../components/CreateComponentDialog";
 import { workflowsClient } from "../../api/workflows";
+import { assetPath } from "../../routes";
 
 type Presentation = "tree" | "list" | "cards";
 type KindTab = "components" | "hooks";
@@ -47,7 +48,7 @@ function AssetRow({ asset, presentation, selected, onNavigate }: { asset: Catalo
   );
   return (
     <Link
-      to={`/assets/${encodeURIComponent(asset.id)}`}
+      to={assetPath(asset.id)}
       onClick={onNavigate}
       data-testid={selectors.catalog.asset}
       data-selected={selected || undefined}

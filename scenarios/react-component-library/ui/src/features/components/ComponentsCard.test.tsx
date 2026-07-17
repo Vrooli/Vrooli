@@ -213,7 +213,7 @@ describe("ComponentsCard", () => {
     renderWithProviders(<ComponentsCard />);
 
     await waitFor(() => {
-      expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/components/cmp-1");
+      expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/assets/cmp-1");
     });
     expect(screen.queryByTestId(selectors.components.itemEditButton)).not.toBeInTheDocument();
     expect(componentsClient.getComponentContent).not.toHaveBeenCalled();

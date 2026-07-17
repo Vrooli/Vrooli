@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type Repository interface {
@@ -28,6 +29,7 @@ func (r *SQLiteRepository) Save(ctx context.Context, report Report) error {
 	_, err = r.db.ExecContext(ctx, `INSERT INTO component_test_reports (id, component_id, root_library_id, root_version, include_closure, created_at, verdict, results_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, report.ID, report.RootComponentID, report.RootLibraryID, report.RootVersion, report.IncludeClosure, report.CreatedAt.UTC().Format("2006-01-02T15:04:05.999999999Z07:00"), report.Verdict, string(results))
 	return err
 }
+
 func (r *SQLiteRepository) Get(ctx context.Context, id string) (Report, error) {
 	rows, err := r.query(ctx, `WHERE id = ?`, id, 1)
 	if err != nil {
@@ -38,6 +40,7 @@ func (r *SQLiteRepository) Get(ctx context.Context, id string) (Report, error) {
 	}
 	return rows[0], nil
 }
+
 func (r *SQLiteRepository) List(ctx context.Context, componentID string, limit int) ([]Report, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 30
@@ -47,6 +50,7 @@ func (r *SQLiteRepository) List(ctx context.Context, componentID string, limit i
 	}
 	return r.query(ctx, `WHERE component_id = ?`, componentID, limit)
 }
+
 func (r *SQLiteRepository) query(ctx context.Context, where string, arg any, limit int) ([]Report, error) {
 	query := `SELECT id, component_id, root_library_id, root_version, include_closure, created_at, verdict, results_json FROM component_test_reports ` + where + ` ORDER BY created_at DESC LIMIT ?`
 	args := []any{}
@@ -70,15 +74,37 @@ func (r *SQLiteRepository) query(ctx context.Context, where string, arg any, lim
 		if err := report.CreatedAt.UnmarshalText([]byte(created)); err != nil {
 			return nil, err
 		}
-		var persisted struct {
-			Results   []Result   `json:"results"`
-			Artifacts []Artifact `json:"artifacts"`
-		}
-		if err := json.Unmarshal([]byte(results), &persisted); err != nil {
+		persisted, err := decodePersistedResults(results)
+		if err != nil {
 			return nil, err
 		}
 		report.Results, report.Artifacts = persisted.Results, persisted.Artifacts
 		out = append(out, report)
 	}
 	return out, rows.Err()
+}
+
+// decodePersistedResults preserves execution evidence created before artifacts
+// were added to the report envelope. Those reports are durable user history,
+// not invalid records, so they are normalized on read with an empty artifact
+// collection instead of making the entire history unavailable.
+func decodePersistedResults(raw string) (struct {
+	Results   []Result   `json:"results"`
+	Artifacts []Artifact `json:"artifacts"`
+}, error,
+) {
+	var persisted struct {
+		Results   []Result   `json:"results"`
+		Artifacts []Artifact `json:"artifacts"`
+	}
+	if err := json.Unmarshal([]byte(raw), &persisted); err == nil {
+		return persisted, nil
+	}
+	if !strings.HasPrefix(strings.TrimSpace(raw), "[") {
+		return persisted, fmt.Errorf("decode report results: %w", json.Unmarshal([]byte(raw), &persisted))
+	}
+	if err := json.Unmarshal([]byte(raw), &persisted.Results); err != nil {
+		return persisted, fmt.Errorf("decode legacy report results: %w", err)
+	}
+	return persisted, nil
 }

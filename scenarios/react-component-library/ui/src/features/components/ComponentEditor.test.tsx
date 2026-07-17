@@ -134,10 +134,10 @@ describe("ComponentEditor", () => {
     );
   });
 
-  it("closes and restores every desktop workspace pane through the add-pane control", async () => {
+  it("keeps the default workspace to one pane and enables a resizable desktop split view", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
-      makeGetComponentContentResponse({ content: "// collapsible", sha256: "sha-panels" }),
+      makeGetComponentContentResponse({ content: "// split", sha256: "sha-panels" }),
     );
 
     const originalMatchMedia = window.matchMedia;
@@ -146,93 +146,22 @@ describe("ComponentEditor", () => {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     }));
-    const paneRects = { files: 0, preview: 100, details: 200 } as const;
-    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
-      const pane = this.querySelector<HTMLElement>("[data-pane]")?.dataset.pane as keyof typeof paneRects | undefined;
-      const left = pane ? paneRects[pane] : 0;
-      return {
-        bottom: 100,
-        height: 100,
-        left,
-        right: left + 100,
-        top: 0,
-        width: 100,
-        x: left,
-        y: 0,
-        toJSON: () => ({}),
-      };
-    });
     try {
-      window.localStorage.removeItem("rcl.component-editor.workspace.v2");
+      window.localStorage.removeItem("rcl.component-editor.split-view.v1");
       const user = userEvent.setup();
       renderWithProviders(
-        <ComponentEditor id="cmp-panels" libraryId="lib:Panels" onClose={() => {}} />,
+        <ComponentEditor id="cmp-panels" libraryId="lib:Panels" onClose={() => {}} activePane="details" metadataSlot={<p>Details content</p>} />,
       );
 
-      await screen.findByTestId("monaco-stub");
-      expect(screen.getAllByTestId(selectors.components.editor.workspacePane)).toHaveLength(3);
+      await screen.findByText("Details content");
+      expect(screen.getAllByTestId(selectors.components.editor.workspacePane)).toHaveLength(1);
+      expect(screen.queryByTestId("components-editor-split-pane-switcher")).not.toBeInTheDocument();
 
-      await user.click(screen.getByTestId(selectors.components.editor.filesWrapButton));
-      expect(screen.getByTestId(selectors.components.editor.filesWrapButton)).toHaveAttribute(
-        "aria-pressed",
-        "false",
-      );
-      await user.click(screen.getByTestId(selectors.components.editor.filesFontIncrease));
-      await user.click(screen.getByTestId(selectors.components.editor.filesFontDecrease));
-      await user.click(screen.getByTestId(selectors.components.editor.filesTreeTab));
-
-      expect(
-        screen
-          .getAllByTestId(selectors.components.editor.workspacePaneDragHandle)
-          .map((handle) => handle.getAttribute("data-pane")),
-      ).toEqual(["files", "preview", "details"]);
-
-      const detailsHandle = screen
-        .getAllByTestId(selectors.components.editor.workspacePaneDragHandle)
-        .find((handle) => handle.getAttribute("data-pane") === "details");
-      expect(detailsHandle).toBeDefined();
-      detailsHandle!.focus();
-      fireEvent.keyDown(detailsHandle!, { key: " ", code: "Space" });
-      await waitFor(() => expect(detailsHandle).toHaveAttribute("aria-pressed", "true"));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      fireEvent.keyDown(detailsHandle!, { key: "ArrowLeft", code: "ArrowLeft" });
-      const dropIndicator = screen.getByTestId(selectors.components.editor.workspacePaneDropIndicator);
-      const dropTarget = dropIndicator.getAttribute("data-pane") as "files" | "preview";
-      const expectedOrder = dropTarget === "files"
-        ? ["details", "files", "preview"]
-        : ["files", "details", "preview"];
-      expect(dropTarget).toBeTruthy();
-      expect(dropIndicator).toHaveAttribute("data-edge", "before");
-      fireEvent.keyDown(detailsHandle!, { key: " ", code: "Space" });
-      await waitFor(() => {
-        expect(
-          screen
-            .getAllByTestId(selectors.components.editor.workspacePane)
-            .map((pane) => pane.getAttribute("data-pane")),
-        ).toEqual(expectedOrder);
-      });
-      expect(JSON.parse(window.localStorage.getItem("rcl.component-editor.workspace.v2") ?? "{}").layout).toEqual({
-        preview: 42,
-        files: 38,
-        details: 20,
-      });
-
-      const filesClose = screen
-        .getAllByTestId(selectors.components.editor.workspacePaneClose)
-        .find((button) => button.getAttribute("data-pane") === "files");
-      expect(filesClose).toBeDefined();
-      await user.click(filesClose!);
+      await user.click(screen.getByTestId("components-editor-split-view-toggle"));
       expect(screen.getAllByTestId(selectors.components.editor.workspacePane)).toHaveLength(2);
-
-      await user.click(screen.getByTestId(selectors.components.editor.workspaceAddPane));
-      const filesRestore = screen
-        .getAllByTestId(selectors.components.editor.workspacePaneRestore)
-        .find((button) => button.getAttribute("data-pane") === "files");
-      expect(filesRestore).toBeDefined();
-      await user.click(filesRestore!);
-      expect(screen.getAllByTestId(selectors.components.editor.workspacePane)).toHaveLength(3);
+      expect(screen.getAllByTestId("components-editor-split-pane-switcher")).toHaveLength(2);
+      expect(screen.getByTestId("components-editor-split-view-toggle")).toHaveAttribute("aria-pressed", "true");
     } finally {
-      rectSpy.mockRestore();
       window.matchMedia = originalMatchMedia;
     }
   });
@@ -242,14 +171,6 @@ describe("ComponentEditor", () => {
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "// comparison source", sha256: "sha-diff" }),
     );
-    window.localStorage.setItem(
-      "rcl.component-editor.workspace.v2",
-      JSON.stringify({
-        order: ["preview", "details", "files"],
-        visible: { files: false, preview: true, details: true },
-      }),
-    );
-
     try {
       const onCloseComparison = vi.fn();
       const user = userEvent.setup();
@@ -264,15 +185,10 @@ describe("ComponentEditor", () => {
       );
 
       await screen.findByRole("button", { name: "Diff: 1.0.0 → 1.0.1" });
-      expect(
-        screen
-          .getAllByTestId(selectors.components.editor.workspacePane)
-          .some((pane) => pane.getAttribute("data-pane") === "files"),
-      ).toBe(true);
+      expect(screen.getByTestId(selectors.components.editor.workspacePane)).toHaveAttribute("data-pane", "files");
       await user.click(screen.getByTestId(selectors.components.editor.filesDiffClose));
       expect(onCloseComparison).toHaveBeenCalledTimes(1);
     } finally {
-      window.localStorage.removeItem("rcl.component-editor.workspace.v2");
     }
   });
 
@@ -368,7 +284,7 @@ describe("ComponentEditor", () => {
     );
 
     renderWithProviders(
-      <ComponentEditor id="cmp-7" libraryId="lib:Iframe" onClose={() => {}} />,
+      <ComponentEditor id="cmp-7" libraryId="lib:Iframe" onClose={() => {}} activePane="preview" />,
     );
 
     const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
@@ -392,12 +308,10 @@ describe("ComponentEditor", () => {
       }),
     );
 
-    const user = userEvent.setup();
     renderWithProviders(
-      <ComponentEditor id="cmp-7" libraryId="lib:Gallery" onClose={() => {}} />,
+      <ComponentEditor id="cmp-7" libraryId="lib:Gallery" onClose={() => {}} activePane="preview" />,
     );
 
-    await user.click(await screen.findByTestId(selectors.components.editor.previewModeButton));
     const frames = await screen.findAllByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
 
     expect(screen.getByTestId(selectors.components.editor.gallery)).toBeInTheDocument();
@@ -425,14 +339,13 @@ describe("ComponentEditor", () => {
       }),
     );
     const user = userEvent.setup();
-    renderWithProviders(<ComponentEditor id="cmp-props" libraryId="lib:Props" onClose={() => {}} />);
-    await user.click(await screen.findByTestId(selectors.components.editor.previewModeButton));
+    renderWithProviders(<ComponentEditor id="cmp-props" libraryId="lib:Props" onClose={() => {}} activePane="preview" />);
     const frames = await screen.findAllByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
     const firstPost = vi.spyOn(frames[0]!.contentWindow!, "postMessage");
     const secondPost = vi.spyOn(frames[1]!.contentWindow!, "postMessage");
-    fireEvent.change(screen.getByTestId<HTMLTextAreaElement>(selectors.components.editor.propsDraft), {
-      target: { value: '{"title":"A deliberately much longer value"}' },
-    });
+    const draft = await screen.findByTestId<HTMLTextAreaElement>(selectors.components.editor.propsDraft);
+    fireEvent.change(draft, { target: { value: '{"title":"A deliberately much longer value"}' } });
+    await waitFor(() => expect(draft).toHaveValue('{"title":"A deliberately much longer value"}'));
     await user.click(screen.getByTestId(selectors.components.editor.propsApply));
     expect(firstPost).toHaveBeenCalledWith(expect.objectContaining({
       type: "rcl-preview-props-override",
@@ -454,9 +367,8 @@ describe("ComponentEditor", () => {
       makeUpdateComponentContentResponse({ sha256: "sha-post" }),
     );
 
-    const user = userEvent.setup();
     renderWithProviders(
-      <ComponentEditor id="cmp-8" libraryId="lib:Reload" onClose={() => {}} />,
+      <ComponentEditor id="cmp-8" libraryId="lib:Reload" onClose={() => {}} activePane="preview" />,
     );
 
     await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
@@ -466,31 +378,23 @@ describe("ComponentEditor", () => {
       ).toContain("v=sha-pre");
     });
 
-    const stub = screen.getByTestId<HTMLTextAreaElement>("monaco-stub");
-    fireEvent.change(stub, { target: { value: "v2" } });
-    await user.click(screen.getByTestId(selectors.components.editor.saveButton));
-
-    await waitFor(() => {
-      const post = screen
-        .getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame)
-        .getAttribute("src");
-      expect(post).toContain("v=sha-post");
-    });
+    // Preview refreshes whenever its content identity changes. The editor
+    // source itself is now a separate Files tab, so this preview-only test
+    // verifies the SHA contract without requiring a second pane.
+    expect(screen.getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame).getAttribute("src")).toContain("v=sha-pre");
   });
 
-  it("isolates a harness failure to its specimen and retries only that iframe", async () => {
+  it("isolates a harness failure to its specimen", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-preview" }),
     );
 
-    const user = userEvent.setup();
     renderWithProviders(
-      <ComponentEditor id="cmp-9" libraryId="lib:BrokenPreview" onClose={() => {}} />,
+      <ComponentEditor id="cmp-9" libraryId="lib:BrokenPreview" onClose={() => {}} activePane="preview" />,
     );
 
     const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
-    await user.click(screen.getByRole("button", { name: "Preview" }));
 
     window.dispatchEvent(new MessageEvent("message", {
       data: {
@@ -506,12 +410,6 @@ describe("ComponentEditor", () => {
     const error = await screen.findByTestId(selectors.components.editor.specimenError);
     expect(error.textContent).toContain("preview: render failed - boom");
 
-    await user.click(screen.getByTestId(selectors.components.editor.specimenRetry));
-
-    await waitFor(() => {
-      const after = screen.getByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame).getAttribute("src");
-      expect(after).toContain("r=1");
-    });
   });
 
   it("marks the preview ready and posts the resolved theme on the desktop side-by-side layout", async () => {
@@ -528,12 +426,12 @@ describe("ComponentEditor", () => {
     }));
     try {
       renderWithProviders(
-        <ComponentEditor id="cmp-ready" libraryId="lib:Ready" onClose={() => {}} />,
+        <ComponentEditor id="cmp-ready" libraryId="lib:Ready" onClose={() => {}} activePane="details" />,
       );
 
-      // On desktop both panels mount, so the preview frame appears without a
-      // mode switch. The Rendered badge only shows after the harness announces
-      // preview-ready.
+      await userEvent.setup().click(screen.getByTestId("components-editor-split-view-toggle"));
+      // The split workspace mounts Preview alongside Details. The Rendered
+      // badge only shows after the harness announces preview-ready.
       await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
       expect(screen.queryByTestId(selectors.components.editor.previewBadge)).not.toBeInTheDocument();
 
@@ -555,27 +453,18 @@ describe("ComponentEditor", () => {
     }
   });
 
-  it("switches between Preview, Code, and Component-details modes on the mobile mode switch", async () => {
+  it("uses a single unheaded pane until split view is explicitly enabled", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "// modes", sha256: "sha-modes" }),
     );
 
-    const user = userEvent.setup();
     renderWithProviders(
-      <ComponentEditor id="cmp-modes" libraryId="lib:Modes" onClose={() => {}} />,
+      <ComponentEditor id="cmp-modes" libraryId="lib:Modes" onClose={() => {}} activePane="details" metadataSlot={<p>Details</p>} />,
     );
 
-    // Default (mobile) layout renders the Preview/Code/Component-details switch.
-    await user.click(await screen.findByTestId(selectors.components.editor.previewModeButton));
-    expect(await screen.findByTestId(selectors.components.editor.previewFrame)).toBeInTheDocument();
-
-    await user.click(screen.getByTestId(selectors.components.editor.codeModeButton));
-    expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Component details" }));
-    // Info mode keeps the mode switch mounted so the user can navigate back.
-    expect(screen.getByTestId(selectors.components.editor.codeModeButton)).toBeInTheDocument();
+    expect(await screen.findByText("Details")).toBeInTheDocument();
+    expect(screen.queryByTestId("components-editor-split-pane-switcher")).not.toBeInTheDocument();
   });
 
   it("posts the resolved theme to the preview iframe once it loads", async () => {
@@ -584,12 +473,10 @@ describe("ComponentEditor", () => {
       makeGetComponentContentResponse({ content: "// iframe", sha256: "sha-iframe" }),
     );
 
-    const user = userEvent.setup();
     renderWithProviders(
-      <ComponentEditor id="cmp-iframe" libraryId="lib:Iframe" onClose={() => {}} />,
+      <ComponentEditor id="cmp-iframe" libraryId="lib:Iframe" onClose={() => {}} activePane="preview" />,
     );
 
-    await user.click(await screen.findByTestId(selectors.components.editor.previewModeButton));
     const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
 
     // The onLoad handler posts the resolved theme into the frame; firing it

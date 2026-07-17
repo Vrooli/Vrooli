@@ -84,3 +84,10 @@ func TestEnsureMigrationsAddsComponentIdentityToLegacyEvidence(t *testing.T) {
 		}
 	}
 }
+
+func TestEnsureMigrationsSkipsFreshDatabase(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	if err := EnsureMigrations(context.Background(), db); err != nil {
+		t.Fatalf("EnsureMigrations on fresh database: %v", err)
+	}
+}

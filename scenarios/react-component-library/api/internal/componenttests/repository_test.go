@@ -34,3 +34,17 @@ func TestSQLiteRepositoryPersistsNormalizedReportsNewestFirst(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"ctr_new", "ctr_old"}, []string{list[0].ID, list[1].ID})
 }
+
+func TestSQLiteRepositoryReadsLegacyResultsArray(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema)))
+	_, err := database.ExecContext(context.Background(), `INSERT INTO component_test_reports (id, component_id, root_library_id, root_version, include_closure, created_at, verdict, results_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		"ctr_legacy", "button", "rcl:Button", "1.0.0", false, "2026-01-01T00:00:00Z", VerdictPassed, `[{"stage":"contract_validation","verdict":"passed"}]`)
+	require.NoError(t, err)
+
+	reports, err := NewSQLiteRepository(database).List(context.Background(), "button", 10)
+	require.NoError(t, err)
+	require.Len(t, reports, 1)
+	require.Equal(t, StageContract, reports[0].Results[0].Stage)
+	require.Empty(t, reports[0].Artifacts)
+}

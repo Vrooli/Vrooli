@@ -10,6 +10,7 @@ import { StatusBadge } from "../../components/ui/status-badge";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { assetPath } from "../../routes";
 import { componentsClient, type Component } from "../../api/components";
 import { errorMessage } from "../../lib/errorMessage";
 import { CreateComponentDialog } from "./CreateComponentDialog";
@@ -183,7 +184,7 @@ export function ComponentsCard() {
       accessor: (component) => (
         <div className="flex items-center justify-end gap-2">
           <Link
-            to={`/components/${component.id}`}
+            to={assetPath(component.id)}
             className="inline-flex min-h-8 items-center justify-center rounded-control border border-app-border bg-app-surface px-3 text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
           >
             {t(strings.components.openAction)}

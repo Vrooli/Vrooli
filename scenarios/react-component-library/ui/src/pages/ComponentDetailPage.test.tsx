@@ -107,9 +107,8 @@ describe("ComponentDetailPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("component-detail-page")).toBeInTheDocument();
     });
-    await waitFor(() => {
-      expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toBe("// hi");
-    });
+    expect(screen.getByRole("tab", { name: "components.editor.files" })).toBeInTheDocument();
+    expect(screen.queryByTestId("monaco-stub")).not.toBeInTheDocument();
   });
 
   it("shows declared behavior, evidence tier, verdict, and capture link", async () => {
@@ -201,10 +200,12 @@ describe("ComponentDetailPage", () => {
 
     renderWithProviders(<Routes><Route path="/assets/:id" element={<ComponentDetailPage />} /></Routes>, { routerEntries: ["/assets/hook-42"] });
 
-    expect(await screen.findByTestId("monaco-stub")).toBeInTheDocument();
-    expect(screen.getByTestId("hook-workspace-source")).toBeInTheDocument();
+    await screen.findByTestId("hook-detail-page");
     expect(screen.getByTestId("hook-workspace-details")).toBeInTheDocument();
     expect(screen.queryByTestId("components-editor-preview-frame")).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("tab", { name: "components.editor.files" }));
+    expect(screen.getByTestId("hook-workspace-source")).toBeInTheDocument();
+    expect(await screen.findByTestId("monaco-stub")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.adoptions" }));
     expect(screen.getByTestId("hook-effective-adoptions")).toBeInTheDocument();

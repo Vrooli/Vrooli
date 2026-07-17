@@ -130,11 +130,11 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
-		log.Fatalf("schema initialization failed: %v", err)
-	}
 	if err := reconcile.EnsureMigrations(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("reconcile evidence migration failed: %v", err)
+	}
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
 	}
 
 	srv := server.New(

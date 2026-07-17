@@ -1,13 +1,63 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { CheckCircle2, ChevronRight, CircleAlert, FileCheck2, Play, ShieldCheck } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 
-import { getComponentTestReport, listComponentTestReports, runComponentTest, type ComponentTestReport } from "../../api/componentTests";
+import { getComponentTestReport, listComponentTestReports, runComponentTest, type ComponentTestReport, type ComponentTestResult } from "../../api/componentTests";
 import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
 import { StatusBadge } from "../../components/ui/status-badge";
+import { assetSearchForTab } from "../../routes";
 
-function tone(verdict: string): "success" | "danger" | "warning" | "neutral" { return verdict === "passed" ? "success" : verdict === "failed" ? "danger" : verdict === "blocked" ? "warning" : "neutral"; }
-function Report({ report }: { report: ComponentTestReport }) { return <article data-testid="component-test-report" className="rounded-control border border-app-border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-mono text-xs">{report.id}</p><StatusBadge tone={tone(report.verdict)}>{report.verdict}</StatusBadge></div><ul className="mt-3 space-y-2 text-xs">{report.results.map((result, index) => <li key={`${result.stage}-${result.assetLibraryId}-${index}`} className="border-l-2 border-app-border pl-2"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{result.stage}</span><StatusBadge tone={tone(result.verdict)}>{result.verdict}</StatusBadge><span className="font-mono text-app-muted-foreground">{result.assetLibraryId}@{result.version}</span></div>{result.message && <p className="mt-1 text-app-muted-foreground">{result.message}</p>}{result.remediation && <p className="mt-1 text-app-warning">Next: {result.remediation}</p>}</li>)}</ul>{(report.artifacts?.length ?? 0) > 0 && <section className="mt-3 text-xs" aria-label="Report artifacts"><h4 className="font-medium">Artifacts</h4><ul className="mt-1 space-y-1">{report.artifacts?.map((artifact) => <li key={artifact.reference} className="font-mono text-app-muted-foreground">{artifact.kind} · {artifact.reference}</li>)}</ul></section>}</article>; }
+type VerdictTone = "success" | "danger" | "warning" | "neutral";
+
+function tone(verdict: string): VerdictTone {
+  return verdict === "passed" ? "success" : verdict === "failed" ? "danger" : verdict === "blocked" ? "warning" : "neutral";
+}
+
+function verdictLabel(verdict: string) {
+  return verdict === "passed" ? "Passed" : verdict === "failed" ? "Needs attention" : verdict === "blocked" ? "Blocked" : "Inconclusive";
+}
+
+function StageRow({ result }: { result: ComponentTestResult }) {
+  const isPassing = result.verdict === "passed";
+  return <li className="grid gap-2 rounded-control border border-app-border bg-app-background p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start">
+    <span className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-pill ${isPassing ? "bg-app-success/10 text-app-success" : "bg-app-danger/10 text-app-danger"}`} aria-hidden>
+      {isPassing ? <CheckCircle2 className="h-4 w-4" /> : <CircleAlert className="h-4 w-4" />}
+    </span>
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-2"><h5 className="font-medium capitalize">{result.stage.replace(/_/g, " ")}</h5><span className="font-mono text-xs text-app-muted-foreground">{result.assetLibraryId}@{result.version}</span></div>
+      {result.message && <p className="mt-1 text-xs text-app-muted-foreground">{result.message}</p>}
+      {result.remediation && <p className="mt-2 rounded-control border border-app-warning/30 bg-app-warning/10 px-2 py-1.5 text-xs text-app-foreground"><span className="font-medium text-app-warning">Recommended next step:</span> {result.remediation}</p>}
+    </div>
+    <StatusBadge tone={tone(result.verdict)}>{verdictLabel(result.verdict)}</StatusBadge>
+  </li>;
+}
+
+function Report({ report }: { report: ComponentTestReport }) {
+  const passed = report.results.filter((result) => result.verdict === "passed").length;
+  const attention = report.results.length - passed;
+  const hasIssues = attention > 0;
+  return <article data-testid="component-test-report" className="overflow-hidden rounded-panel border border-app-border bg-app-surface shadow-sm">
+    <header className={`border-b p-4 ${hasIssues ? "border-app-warning/30 bg-app-warning/5" : "border-app-success/30 bg-app-success/5"}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-control ${hasIssues ? "bg-app-warning/10 text-app-warning" : "bg-app-success/10 text-app-success"}`} aria-hidden>{hasIssues ? <CircleAlert className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}</span><div><p className="text-sm font-semibold">{verdictLabel(report.verdict)}</p><p className="mt-0.5 text-xs text-app-muted-foreground">Declared behavior for {report.rootLibraryId || "this component"}{report.rootVersion ? `@${report.rootVersion}` : ""}{report.includeClosure ? " and its dependency closure" : ""}.</p></div></div>
+        <StatusBadge tone={tone(report.verdict)}>{report.verdict}</StatusBadge>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded-pill bg-app-surface px-2.5 py-1 text-app-muted-foreground"><strong className="text-app-foreground">{passed}</strong> checks passed</span>{hasIssues && <span className="rounded-pill bg-app-surface px-2.5 py-1 text-app-muted-foreground"><strong className="text-app-foreground">{attention}</strong> need attention</span>}<span className="rounded-pill bg-app-surface px-2.5 py-1 font-mono text-app-muted-foreground">{report.id}</span></div>
+    </header>
+    <div className="space-y-4 p-4"><section aria-labelledby="test-results-heading"><div className="mb-2 flex items-center justify-between"><h4 id="test-results-heading" className="text-sm font-semibold">Results</h4><span className="text-xs text-app-muted-foreground">{report.results.length} stage{report.results.length === 1 ? "" : "s"}</span></div><ul className="space-y-2">{report.results.map((result, index) => <StageRow key={`${result.stage}-${result.assetLibraryId}-${index}`} result={result} />)}</ul></section>
+      {(report.artifacts?.length ?? 0) > 0 && <section aria-labelledby="test-evidence-heading" className="rounded-control border border-app-border bg-app-background p-3"><div className="flex items-center gap-2"><FileCheck2 aria-hidden className="h-4 w-4 text-app-info" /><h4 id="test-evidence-heading" className="text-sm font-semibold">Evidence</h4></div><p className="mt-1 text-xs text-app-muted-foreground">Durable inputs captured with this run.</p><ul className="mt-2 space-y-1">{report.artifacts?.map((artifact) => <li key={artifact.reference} className="break-all font-mono text-xs text-app-muted-foreground">{artifact.kind} · {artifact.reference}</li>)}</ul></section>}
+    </div>
+  </article>;
+}
+
+function TestHistorySkeleton() {
+  return <div data-testid="component-test-history-skeleton" role="status" aria-live="polite" aria-label="Loading test history" className="animate-pulse rounded-panel border border-app-border bg-app-surface p-4">
+    <div className="flex items-start justify-between gap-4"><div className="space-y-2"><span className="block h-4 w-28 rounded-pill bg-app-surface-muted" /><span className="block h-3 w-64 max-w-full rounded-pill bg-app-surface-muted" /></div><span className="block h-6 w-16 rounded-pill bg-app-surface-muted" /></div>
+    <div className="mt-5 space-y-2"><span className="block h-3 w-20 rounded-pill bg-app-surface-muted" /><span className="block h-14 rounded-control bg-app-surface-muted" /><span className="block h-14 rounded-control bg-app-surface-muted" /></div>
+    <span className="sr-only">Loading test history…</span>
+  </div>;
+}
 
 export function ComponentTestPanel({ componentId, version }: { componentId: string; version: string }) {
   const [search] = useSearchParams();
@@ -17,5 +67,13 @@ export function ComponentTestPanel({ componentId, version }: { componentId: stri
   const selected = useQuery({ queryKey: ["component-test-report", reportID], queryFn: () => getComponentTestReport(reportID), enabled: Boolean(reportID) });
   const run = useMutation({ mutationFn: () => runComponentTest({ componentId, version, includeClosure: true }), onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["component-tests", componentId] }) });
   const latest = run.data ?? selected.data ?? reports.data?.[0];
-  return <section data-testid="component-test-panel" className="space-y-3 text-sm text-app-foreground" aria-label="Component tests"><div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-medium">Component tests</h3><p className="text-xs text-app-muted-foreground">Runs the declared {version || "unselected"} version and its pinned dependency closure.</p></div><Button size="sm" onClick={() => run.mutate()} disabled={run.isPending || !version}>{run.isPending ? "Running…" : "Run tests"}</Button></div>{run.isError && <p role="alert" className="rounded-control border border-app-danger p-2 text-xs text-app-danger">{run.error instanceof Error ? run.error.message : "The component test could not be started."}</p>}{selected.isError && <p role="alert" className="rounded-control border border-app-warning p-2 text-xs text-app-warning">The requested report is unavailable.</p>}{reports.isLoading ? <p className="text-xs text-app-muted-foreground">Loading test history…</p> : latest ? <Report report={latest} /> : <EmptyState className="p-2 text-xs" title="No component test history" description="Run the declared contract to create durable evidence." />}{reports.data && reports.data.length > 1 && <details><summary className="cursor-pointer text-xs text-app-primary">{reports.data.length - 1} earlier run(s)</summary><div className="mt-2 space-y-2">{reports.data.slice(1).map((report) => <a key={report.id} href={`?tab=tests&testReport=${encodeURIComponent(report.id)}`} className="block rounded-control focus:outline-none focus:ring-2 focus:ring-app-primary" aria-label={`Open component test report ${report.id}`}><Report report={report} /></a>)}</div></details>}</section>;
+
+  return <section data-testid="component-test-panel" className="space-y-4 text-sm text-app-foreground" aria-label="Component tests">
+    <header className="flex flex-wrap items-start justify-between gap-3 rounded-panel border border-app-border bg-app-surface-muted p-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-app-primary">Quality evidence</p><h3 className="mt-1 text-lg font-semibold">Component tests</h3><p className="mt-1 max-w-xl text-xs text-app-muted-foreground">Validate declared behavior for version {version || "unselected"}, including the pinned dependency closure. Each run is retained as reviewable evidence.</p></div><Button size="sm" onClick={() => run.mutate()} disabled={run.isPending || !version}><Play aria-hidden className="h-4 w-4" />{run.isPending ? "Running checks…" : "Run component tests"}</Button></header>
+    {run.isError && <p role="alert" className="rounded-control border border-app-danger/30 bg-app-danger/10 p-3 text-xs text-app-danger">{run.error instanceof Error ? run.error.message : "The component test could not be started."}</p>}
+    {selected.isError && <p role="alert" className="rounded-control border border-app-warning/30 bg-app-warning/10 p-3 text-xs text-app-warning">The requested report is unavailable. Choose a report from history or run the current contract.</p>}
+    {reports.isError && <p role="alert" className="rounded-control border border-app-danger/30 bg-app-danger/10 p-3 text-xs text-app-danger">Test history could not be loaded. Retry this page; any new test result remains available here.</p>}
+    {reports.isLoading ? <TestHistorySkeleton /> : latest ? <Report report={latest} /> : reports.isError ? null : <EmptyState className="border border-dashed border-app-border bg-app-surface-muted p-5 text-xs" title="No component test evidence yet" description="Run the declared contract to create a durable, shareable result." />}
+    {reports.data && reports.data.length > 1 && <section aria-labelledby="test-history-heading"><h4 id="test-history-heading" className="text-sm font-semibold">Run history</h4><p className="mt-1 text-xs text-app-muted-foreground">Open a prior run without losing the current component context.</p><ul className="mt-2 space-y-1">{reports.data.slice(1).map((report) => <li key={report.id}><Link to={assetSearchForTab("tests", report.id)} className="flex items-center justify-between gap-3 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm transition hover:bg-app-surface-muted focus:outline-none focus:ring-2 focus:ring-app-primary" aria-label={`Open component test report ${report.id}`}><span className="flex min-w-0 items-center gap-2"><StatusBadge tone={tone(report.verdict)}>{verdictLabel(report.verdict)}</StatusBadge><span className="truncate font-mono text-xs text-app-muted-foreground">{report.id}</span></span><ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-app-muted-foreground" /></Link></li>)}</ul></section>}
+  </section>;
 }

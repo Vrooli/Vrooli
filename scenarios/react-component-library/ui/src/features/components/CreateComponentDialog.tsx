@@ -10,6 +10,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
+import { assetPath } from "../../routes";
 
 interface CreateComponentDialogProps {
   onClose: () => void;
@@ -47,7 +48,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
       await queryClient.invalidateQueries({ queryKey: ["components"] });
       onClose();
       if (resp.component?.id) {
-        void navigate(`/assets/${resp.component.id}`);
+        void navigate(assetPath(resp.component.id));
       }
     },
   });

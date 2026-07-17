@@ -2,7 +2,9 @@ package reconcile
 
 import (
 	"context"
+	"database/sql"
 	_ "embed"
+	"errors"
 	"fmt"
 )
 
@@ -15,6 +17,17 @@ func Schema() string { return schemaSQL }
 // EnsureMigrations upgrades existing evidence stores with the component
 // identity columns added after the original page-only projection.
 func EnsureMigrations(ctx context.Context, db SQLExecutor) error {
+	// A fresh database has no evidence table yet; schema creation below owns
+	// that path. Existing databases must be migrated before strict schema
+	// validation inspects their declared columns.
+	var table string
+	err := db.QueryRowContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'reconcile_evidence'`).Scan(&table)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("inspect reconcile evidence table: %w", err)
+	}
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(reconcile_evidence)")
 	if err != nil {
 		return fmt.Errorf("inspect reconcile evidence schema: %w", err)
