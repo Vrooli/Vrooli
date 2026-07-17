@@ -15,7 +15,7 @@ References:
 Status: Implemented.
 References:
 - [DOC: docs/concepts/ARCHITECTURE.md]
-- [CODE: ui/src/pages/ExecutionPage.tsx]
+- [CODE: ui/src/surfaces/plan/components/NowColumn.tsx]
 - [CODE: api/internal/execution/handler.go]
 
 ### OT-P1-003 - Insights engine

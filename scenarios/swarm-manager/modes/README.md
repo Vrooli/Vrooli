@@ -19,7 +19,7 @@ modes/<id>/
 
 - **`<id>`** is the mode id (kebab-case) and matches `mode.json`'s `id`.
 - **`mode.json`** — identity + decision metadata, `target` (the unit of work:
-  `plan-execution` | `plan-ref` | `initiative`), `run_strategy`, the
+  `backlog-item` | `initiative` | `plan-execution` | `scenario`), `run_strategy`, the
   `phase_graph` (phases, guarded `transitions`, per-phase declared `reads` and
   `declared_output`),
   and the `prompt` / `artifact` / `profile` / `backlog_sync` / `metrics` /
@@ -46,13 +46,29 @@ The resolved phase SkillID is part of the prompt catalog projection. Use
 `swarm-manager operating-mode get --mode <id> --json` to inspect the mode data
 and the prompt catalog commands to read the underlying skill body when needed.
 
-## The three shipped modes
+## The shipped modes
 
-| Folder | Scope | Run strategy | Shape |
-|--------|-------|--------------|-------|
-| [`item-level/`](item-level/) | `initiative` | `existing_item_flow` | Default. Each item drains through the existing item pipeline; no mode rounds. |
+Fifteen operating modes ship as folders here — the ten `backlog-*` operations
+(clarify, conclude, evidence, finalize, fixup, followup, research, review,
+revision, workshop) that implement per-item work on a `backlog-item` target,
+`execution-drain` and `phased-plan-drain` on a `plan-execution` target,
+`holistic-loop` and `initiative-review-loop` on an `initiative` target, and
+`scenario-spec-sync` on a `scenario` target. Each is one folder, one `mode.json`.
+The two most illustrative:
+
+| Folder | Target | Run strategy | Shape |
+|--------|--------|--------------|-------|
 | [`holistic-loop/`](holistic-loop/) | `initiative` | `operator_gated_loop` | `investigate → plan → execute → review → reconcile`. `plan` authors and binds the plan-manager plan; `execute` is `executed_by: phased-plan-drain` (composes the generic drain), routing `progress=complete → review` and `progress=blocked → investigate` (the composed replan); `review` loops back to `execute` when `verdict=changes_requested`. |
 | [`phased-plan-drain/`](phased-plan-drain/) | `plan-execution` | `sequential_handoff` | The generic plan-first drain: a single `execute` phase loops on itself via one classified edge deriving `progress` (continue → execute, complete / blocked → guarded stop). No terminal phase — every stop is a guarded stop. |
+
+Initiatives that run no methodology loop use the **member-item workflow
+strategy** instead: each member item runs through its own operation and the
+initiative only provides scheduling strategy. That strategy is *not* an operating
+mode — it has no folder here and no `mode.json`. It survives only as a sentinel
+value on the initiative's persisted `mode` field: the string `item-level` (or a
+blank value, which has always meant the same thing). The loader rejects any
+folder claiming id `item-level`; it is member-item strategy configuration, never
+a selectable methodology.
 
 ## Authoring a new mode
 

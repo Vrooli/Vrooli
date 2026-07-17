@@ -8,7 +8,7 @@ import (
 )
 
 func (e *ActiveItemExecutionsConflict) Error() string {
-	return fmt.Sprintf("initiative %q has active item-level executions; confirm cancellation before switching to %q", e.InitiativeName, e.ToMode)
+	return fmt.Sprintf("initiative %q has active member-item executions; confirm cancellation before switching to %q", e.InitiativeName, e.ToMode)
 }
 
 func (e *ActiveOperatingModeRoundConflict) Error() string {
@@ -21,16 +21,22 @@ func (s *Service) SwitchMode(ctx context.Context, req SwitchModeRequest) (Switch
 		return SwitchModeResult{}, fmt.Errorf("initiative name is required")
 	}
 	targetMode := NormalizeMode(req.Mode)
-	def, err := DefinitionFor(targetMode)
-	if err != nil {
-		return SwitchModeResult{}, err
-	}
-	// Mode switching is an initiative lifecycle action: an initiative can only
-	// run modes whose declared unit of work is an initiative. Plan-target modes
-	// (e.g. the generic phased-plan-drain) run against a plan directly, not
-	// through an initiative's mode field.
-	if def.Target.Kind != TargetInitiative {
-		return SwitchModeResult{}, fmt.Errorf("mode %q targets %s, not an initiative; it runs directly against its target and cannot be set as an initiative's mode", targetMode, def.Target.Kind)
+	// Switching to the member-item workflow strategy writes the sentinel wire
+	// value as a plain initiative field — there is no mode definition to load
+	// or target policy to check. Genuine modes must exist and target
+	// initiatives.
+	if targetMode != ModeItemLevel {
+		def, err := DefinitionFor(targetMode)
+		if err != nil {
+			return SwitchModeResult{}, err
+		}
+		// Mode switching is an initiative lifecycle action: an initiative can
+		// only run modes whose declared unit of work is an initiative.
+		// Plan-target modes (e.g. the generic phased-plan-drain) run against a
+		// plan directly, not through an initiative's mode field.
+		if def.Target.Kind != TargetInitiative {
+			return SwitchModeResult{}, fmt.Errorf("mode %q targets %s, not an initiative; it runs directly against its target and cannot be set as an initiative's mode", targetMode, def.Target.Kind)
+		}
 	}
 	if s.modeUpdater == nil {
 		return SwitchModeResult{}, errors.New("operatingmode: InitiativeModeUpdater is not configured")

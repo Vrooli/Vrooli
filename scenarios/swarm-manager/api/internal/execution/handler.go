@@ -36,6 +36,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution/{execution_id}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}/start", h.Start).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/cancel", h.Cancel).Methods("POST")
+	r.HandleFunc("/api/v1/execution/{execution_id}/workflow/apply", h.ApplyPhasedPlanWorkflow).Methods("POST")
+	r.HandleFunc("/api/v1/execution/{execution_id}/workflow/approve", h.ApprovePhasedPlanWorkflow).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/retry", h.Retry).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/follow-up", h.FollowUp).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/trigger-review", h.TriggerReview).Methods("POST")
@@ -46,6 +48,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 // StartBackgroundWorker launches the background worker for active execution
 // progression.
 func (h *Handler) StartBackgroundWorker(stop <-chan struct{}) {
+	_ = h.service.ProcessActiveExecutions(context.Background())
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -112,7 +115,7 @@ func recordToProto(r Record) *domainpb.ExecutionRecord {
 		pb.ParentExecutionId = &r.ParentExecutionID
 	}
 	pb.FixupAttempt = int32(r.FixupAttempt)
-	if finalization := effectiveFinalization(r); finalization != nil {
+	if finalization := r.Finalization; finalization != nil {
 		pb.Finalization = finalizationToProto(finalization)
 	}
 	return pb

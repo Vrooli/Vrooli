@@ -166,6 +166,7 @@ func TestInvokeUnknownOperationFailsClosed(t *testing.T) {
 
 // TestInvokeNoBindingFailsClosed proves an operation with no resolvable binding
 // is a typed error, never an implicit default.
+// [REQ:REQ-P0-011-BINDING-PRECEDENCE]
 func TestInvokeNoBindingFailsClosed(t *testing.T) {
 	catalog := writeContractOnly(t, t.TempDir())
 	r, _, _ := newRunner(t, catalog, t.TempDir(), fakePreparer{}, fakeDriver{outcome: "accepted", disposition: "success"}, &memRunOwners{})
@@ -179,6 +180,7 @@ func TestInvokeNoBindingFailsClosed(t *testing.T) {
 
 // TestBindingDeletedRevisionFailsClosed proves a binding to a missing revision is
 // ErrDeletedRevision (the checker reports the revision gone).
+// [REQ:REQ-P0-011-REVISION-PINNING]
 func TestBindingDeletedRevisionFailsClosed(t *testing.T) {
 	catalog := writeCatalog(t, t.TempDir(), testModeRevision)
 	r, _, _ := newRunner(t, catalog, t.TempDir(), fakePreparer{missingRev: true}, fakeDriver{outcome: "accepted", disposition: "success"}, &memRunOwners{})

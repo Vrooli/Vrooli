@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"strings"
 
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
@@ -32,15 +33,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// AgentSpawner is the injection type for the concrete agent service passed to
-// NewHandlerWithClients. The backlog domain package no longer spawns or continues
-// Agent Manager runs directly (that capability moved entirely behind the
-// operation runner; see the internal/archtest spawn-boundary guardrail), so only
-// the AgentActivityChecker capability of the injected service is consumed — via a
-// type assertion in the constructor. The interface is intentionally minimal: it
-// exists so a fake without HasActiveAgent (leaving the active-agent guard a no-op)
-// is still a valid injection.
-type AgentSpawner interface {
+// AgentManagerAvailability is the injection type for the concrete agent
+// service passed to NewHandlerWithClients. The backlog domain package never
+// spawns or continues Agent Manager runs (that capability lives entirely
+// behind the operation runner; see the internal/archtest spawn-boundary
+// guardrail) — only the AgentActivityChecker capability of the injected
+// service is consumed, via a type assertion in the constructor. The interface
+// is intentionally minimal: a fake without HasActiveAgent (leaving the
+// active-agent guard a no-op) is still a valid injection.
+type AgentManagerAvailability interface {
 	IsEnabled() bool
 }
 
@@ -113,6 +114,7 @@ type Handler struct {
 	recordCreator        RecordCreator
 	reviewRoundInspector ReviewRoundInspector
 	policyControls       agentops.PolicyControlsProvider
+	workshopWorkflow     agentmanager.WorkshopWorkflowService
 }
 
 // SetPolicyControlsProvider injects the policy-controls seam used by the
@@ -168,26 +170,28 @@ func NewHandler(dataRoot, repoRoot string) *Handler {
 	dataRoot = resolveDataRootOrDefault(dataRoot)
 	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	return &Handler{
-		dataRoot:     dataRoot,
-		repoRoot:     repoRoot,
-		store:        NewFileStore(dataRoot),
-		promptClient: promptmanager.NewHTTPClient(),
-		planClient:   planclient.NewConnectClient(nil, nil),
+		dataRoot:         dataRoot,
+		repoRoot:         repoRoot,
+		store:            NewFileStore(dataRoot),
+		promptClient:     promptmanager.NewHTTPClient(),
+		planClient:       planclient.NewConnectClient(nil, nil),
+		workshopWorkflow: agentmanager.NewWorkflowService(),
 	}
 }
 
 // NewHandlerWithClients creates a new backlog handler with custom dependencies.
 // If agentService implements AgentActivityChecker (e.g., *agentactivity.Service),
 // it is also used for active-agent guards.
-func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
+func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentManagerAvailability, promptClient promptmanager.Client) *Handler {
 	dataRoot = resolveDataRootOrDefault(dataRoot)
 	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	h := &Handler{
-		dataRoot:     dataRoot,
-		repoRoot:     repoRoot,
-		store:        NewFileStore(dataRoot),
-		promptClient: promptClient,
-		planClient:   planclient.NewConnectClient(nil, nil),
+		dataRoot:         dataRoot,
+		repoRoot:         repoRoot,
+		store:            NewFileStore(dataRoot),
+		promptClient:     promptClient,
+		planClient:       planclient.NewConnectClient(nil, nil),
+		workshopWorkflow: agentmanager.NewWorkflowService(),
 	}
 	// The injected agent service is consumed only as the active-agent guard source
 	// (a narrow, read-only capability). Its Agent Manager spawn methods are never
@@ -200,6 +204,12 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentSpawner,
 		h.promptClient = promptmanager.NewHTTPClient()
 	}
 	return h
+}
+
+// SetWorkshopWorkflow injects the narrow Agent Manager workflow adapter. It is
+// primarily a deterministic test seam; production uses the default adapter.
+func (h *Handler) SetWorkshopWorkflow(service agentmanager.WorkshopWorkflowService) {
+	h.workshopWorkflow = service
 }
 
 // SetPlanClient injects the canonical plan-manager client used for linked-plan
@@ -383,6 +393,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/retry", h.Retry).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/workflow/{executionID}/apply", h.ApplyWorkshopWorkflowResult).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/reset", h.WorkshopReset).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/re-workshop", h.ReWorkshop).Methods("POST")

@@ -50,7 +50,6 @@ const initiativeModeCapabilities: OperatingModeCapabilities = {
   requiresAcceptanceCriteria: true,
   supportsArtifacts: true,
   supportsHandoffs: false,
-  usesItemExecutionFlow: false,
 };
 
 function makeCatalogEntry(): OperatingModeCatalogEntry {

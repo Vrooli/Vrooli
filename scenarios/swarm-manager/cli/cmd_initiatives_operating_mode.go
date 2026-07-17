@@ -44,9 +44,6 @@ func printOperatingModeCapabilities(header, prefix string, capabilities *apipb.O
 	if capabilities.GetSupportsHandoffs() {
 		labels = append(labels, "handoffs")
 	}
-	if capabilities.GetUsesItemExecutionFlow() {
-		labels = append(labels, "item execution flow")
-	}
 	if len(labels) == 0 {
 		return
 	}

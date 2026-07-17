@@ -39,14 +39,18 @@ func TestConnectCatalogProjectsRegisteredModes(t *testing.T) {
 	for _, e := range resp.Msg.GetModes() {
 		byMode[e.GetMode()] = e
 	}
-	for _, want := range []string{"item-level", "holistic-loop", "phased-plan-drain"} {
+	for _, want := range []string{"holistic-loop", "phased-plan-drain"} {
 		if _, ok := byMode[want]; !ok {
 			t.Fatalf("catalog missing mode %q; got %v", want, byMode)
 		}
 	}
+	// The member-item strategy sentinel is not a mode and never appears in
+	// the catalog.
+	if _, ok := byMode["item-level"]; ok {
+		t.Fatalf("catalog contains the retired item-level pseudo-mode")
+	}
 
-	// A phase-based mode carries a populated capabilities block and phase graph;
-	// item-level does not support phases.
+	// A phase-based mode carries a populated capabilities block and phase graph.
 	holistic := byMode["holistic-loop"]
 	if holistic.GetCapabilities() == nil || !holistic.GetSupportsPhases() {
 		t.Fatalf("holistic-loop should support phases: %+v", holistic)
@@ -56,9 +60,6 @@ func TestConnectCatalogProjectsRegisteredModes(t *testing.T) {
 	}
 	if len(holistic.GetPhases()) == 0 {
 		t.Fatalf("holistic-loop should carry projected phases")
-	}
-	if item := byMode["item-level"]; item.GetSupportsPhases() {
-		t.Fatalf("item-level should not support phases: %+v", item)
 	}
 }
 

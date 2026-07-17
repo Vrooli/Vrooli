@@ -187,4 +187,8 @@ var (
 	ErrDigestMismatch   = errors.New("pinned digest does not match recomputed digest")
 	ErrWorkflowConflict = errors.New("workflow compare-and-swap conflict")
 	ErrAmbiguousResume  = errors.New("ambiguous resumable execution")
+	// ErrLegacyImportNotReproducible is returned when reproducibility is asked of
+	// a Phase-8 legacy-execution-import snapshot: compiled-mode/prompt-catalog
+	// digests never existed for pre-cutover runs, so there is nothing to reverify.
+	ErrLegacyImportNotReproducible = errors.New("legacy execution import has no reproducibility provenance")
 )

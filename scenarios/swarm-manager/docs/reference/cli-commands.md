@@ -311,6 +311,41 @@ Rules:
 - `mode-complete-items` requires the round's AgentManager `run_id` and only accepts member item refs from the round.
 - `mode-apply-backlog-sync` requires the round's AgentManager `run_id` and applies the round's `backlog_sync.proposal` through the existing proposal boundary.
 
+## Agent Operations
+
+`swarm-manager agent-operations <sub>` is the diagnostic surface over the
+declarative agent-operations runtime (`AgentOperationsService`). Every subcommand
+is a thin, read-only Connect client except `overrides set|clear` and `reconcile`;
+the server owns every decision. Targets are selected with
+`--target-kind <backlog-item|initiative|plan-execution|scenario> --target <id>`.
+
+```bash
+# Catalog & bindings
+swarm-manager agent-operations catalog                 # the 15 operation contracts
+swarm-manager agent-operations compatible-modes --operation <id> --target-kind <kind> --target <id>
+swarm-manager agent-operations bindings --target-kind <kind> --target <id>   # resolved bindings for a target
+swarm-manager agent-operations resolve-binding --operation <id> --target-kind <kind> --target <id>
+swarm-manager agent-operations validate --operation <id> --target-kind <kind> --target <id>
+
+# Binding overrides (domain storage; never the shipped catalog)
+swarm-manager agent-operations overrides list --target-kind <kind> --target <id>
+swarm-manager agent-operations overrides set  --operation <id> --mode <mode> --target-kind <kind> --target <id>
+swarm-manager agent-operations overrides clear --operation <id> --target-kind <kind> --target <id>
+
+# Workflow & executions
+swarm-manager agent-operations workflow  --target-kind <kind> --target <id>   # workflow projection
+swarm-manager agent-operations history   --target-kind <kind> --target <id> [--limit N]
+swarm-manager agent-operations inspect-workflow  --target-kind <kind> --target <id>
+swarm-manager agent-operations inspect-execution --target-kind <kind> --target <id> --execution-id <id>
+
+# Migration (historical) & recovery
+swarm-manager agent-operations migration-status       # served read-only from diagnostics
+swarm-manager agent-operations reconcile              # orphan-snapshot reconciliation sweep
+```
+
+Legacy-import executions surface labeled `[legacy import]` and are refused for
+reproduction; `migration-status` reports the completed epoch-1 promotion.
+
 ## Cascade semantics
 
 The API maintains referential integrity automatically when items or initiatives are mutated. Callers do not need to emit follow-up cleanup calls:

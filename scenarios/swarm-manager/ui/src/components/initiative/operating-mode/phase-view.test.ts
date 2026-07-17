@@ -47,7 +47,6 @@ function workspace(rounds: OperatingModeRound[]): OperatingModeWorkspace {
         requiresAcceptanceCriteria: false,
         supportsArtifacts: true,
         supportsHandoffs: true,
-        usesItemExecutionFlow: false,
       },
       phases: [
         {

@@ -33,6 +33,77 @@ type ExecutionSnapshot struct {
 	// without re-resolving the binding. Empty when the operation had no policy.
 	PolicyID   string `json:"policy_id,omitempty"`
 	RecordedAt string `json:"recorded_at"`
+	// LegacyImport is populated at READ time when the on-disk document is a
+	// Phase-8 agentops-legacy-execution-import record rather than a native
+	// snapshot. It is never serialized (the import document on disk stays
+	// verbatim), and SaveExecution can never persist one — the import carries
+	// no valid ExecutionProvenance, so the provenance validation fails closed.
+	LegacyImport *LegacyImportInfo `json:"-"`
+}
+
+// legacyImportKind is the document kind the Phase-8 state migrator writes for
+// pre-cutover execution-runs.json entries (legacy-execution-import.schema.json).
+const legacyImportKind = "agentops-legacy-execution-import"
+
+// LegacyImportInfo carries the REAL fields of a legacy execution import: the
+// typed header plus the verbatim legacy entry. No compiled-mode/prompt-catalog
+// provenance exists for these records — readers must render them as imports,
+// never fabricate provenance for them.
+type LegacyImportInfo struct {
+	WorkflowInstanceID string
+	// ImportedAt is the import's deterministic timestamp (the legacy entry's
+	// own last-write time, per the schema — never migration wall clock).
+	ImportedAt string
+	// LegacyStatus is the verbatim `legacy.status` of the imported entry
+	// (e.g. failed / canceled / completed).
+	LegacyStatus string
+	// Legacy is the verbatim legacy execution-runs.json entry.
+	Legacy json.RawMessage
+}
+
+// decodeSnapshot decodes an on-disk execution document, recognizing both native
+// ExecutionSnapshot records and Phase-8 legacy-execution-import documents. An
+// import is projected onto ExecutionSnapshot using ONLY fields the import
+// really carries: operation + workflow instance id (typed header), recorded-at
+// = imported_at, outcome = the legacy entry's own terminal status. Everything
+// else stays empty and LegacyImport is set so readers can label the row.
+func decodeSnapshot(raw []byte) (ExecutionSnapshot, error) {
+	var sniff struct {
+		Kind string `json:"kind"`
+	}
+	if err := json.Unmarshal(raw, &sniff); err != nil {
+		return ExecutionSnapshot{}, err
+	}
+	if sniff.Kind != legacyImportKind {
+		var snap ExecutionSnapshot
+		if err := json.Unmarshal(raw, &snap); err != nil {
+			return ExecutionSnapshot{}, err
+		}
+		return snap, nil
+	}
+	doc, err := agentops.DecodeLegacyExecutionImport(raw)
+	if err != nil {
+		return ExecutionSnapshot{}, err
+	}
+	var legacy struct {
+		Status string `json:"status"`
+	}
+	// Best-effort: a missing/odd legacy.status leaves the outcome empty rather
+	// than failing the read — the verbatim entry is still surfaced.
+	_ = json.Unmarshal(doc.Legacy, &legacy)
+	snap := ExecutionSnapshot{
+		RecordedAt: doc.ImportedAt,
+		Outcome:    legacy.Status,
+		LegacyImport: &LegacyImportInfo{
+			WorkflowInstanceID: doc.WorkflowInstanceID,
+			ImportedAt:         doc.ImportedAt,
+			LegacyStatus:       legacy.Status,
+			Legacy:             doc.Legacy,
+		},
+	}
+	snap.Provenance.Operation = doc.Operation
+	snap.Provenance.WorkflowInstanceID = doc.WorkflowInstanceID
+	return snap, nil
 }
 
 // ExecutionStore persists execution snapshots beside the domain entity that owns
@@ -98,8 +169,8 @@ func (s *ExecutionStore) Load(kind agentops.TargetKind, id, executionID string) 
 		}
 		return ExecutionSnapshot{}, false, err
 	}
-	var snap ExecutionSnapshot
-	if err := json.Unmarshal(raw, &snap); err != nil {
+	snap, err := decodeSnapshot(raw)
+	if err != nil {
 		return ExecutionSnapshot{}, false, err
 	}
 	return snap, true, nil
@@ -139,8 +210,8 @@ func (s *ExecutionStore) List(kind agentops.TargetKind, id string) ([]StoredExec
 		if err != nil {
 			return nil, err
 		}
-		var snap ExecutionSnapshot
-		if err := json.Unmarshal(raw, &snap); err != nil {
+		snap, err := decodeSnapshot(raw)
+		if err != nil {
 			return nil, fmt.Errorf("corrupt execution snapshot %s: %w", path, err)
 		}
 		out = append(out, StoredExecution{ID: strings.TrimSuffix(e.Name(), ".json"), Snapshot: snap})
@@ -175,6 +246,12 @@ func (s *ExecutionStore) Reproduce(kind agentops.TargetKind, id, executionID str
 	}
 	if !found {
 		return ExecutionSnapshot{}, fmt.Errorf("execution %q not found for %s/%s", executionID, kind, id)
+	}
+	if snap.LegacyImport != nil {
+		// A legacy import carries no compiled-mode/prompt-catalog bytes or
+		// digests (they never existed), so reproducibility is honestly
+		// unavailable — never fabricated.
+		return ExecutionSnapshot{}, fmt.Errorf("%w: execution %q is a legacy execution import", ErrLegacyImportNotReproducible, executionID)
 	}
 	if err := verifySnapshotDigests(snap); err != nil {
 		return ExecutionSnapshot{}, err

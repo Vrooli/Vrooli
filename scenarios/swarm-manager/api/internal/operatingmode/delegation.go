@@ -70,9 +70,6 @@ func delegationSubDefinitionWithResolver(phaseDef PhaseDefinition, resolve func(
 func validateDelegations(defs map[Mode]Definition) error {
 	for _, mode := range SortedModes(defs) {
 		def := defs[mode]
-		if !def.RunsModeRounds() {
-			continue
-		}
 		for phase, phaseDef := range def.PhaseGraph.Phases {
 			if !phaseDef.Delegated() {
 				continue
@@ -83,9 +80,6 @@ func validateDelegations(defs map[Mode]Definition) error {
 			sub, ok := defs[phaseDef.ExecutedBy]
 			if !ok {
 				return fmt.Errorf("mode %q phase %q delegates to unknown sub-mode %q", mode, phase, phaseDef.ExecutedBy)
-			}
-			if !sub.RunsModeRounds() {
-				return fmt.Errorf("mode %q phase %q delegates to %q, which runs no mode rounds (run strategy %s) and cannot execute a phase", mode, phase, sub.Mode, sub.RunStrategy.Kind)
 			}
 			for subPhase, subPhaseDef := range sub.PhaseGraph.Phases {
 				if subPhaseDef.Delegated() {

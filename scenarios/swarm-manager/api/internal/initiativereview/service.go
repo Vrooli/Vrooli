@@ -22,14 +22,6 @@ import (
 // silently reports via TriggerResult.Started=false.
 var ErrNotReady = errors.New("initiative is not ready for review")
 
-// AgentSpawner is the narrow interface the service needs from agentmanager.
-// Defined here so tests can inject an in-process spawner without pulling in
-// HTTP infrastructure.
-type AgentSpawner interface {
-	IsEnabled() bool
-	SpawnInitiative(ctx context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error)
-}
-
 // RunInspector retrieves the current state of an agent run. Optional — when
 // provided, the service polls gathering rounds and flips them to terminal
 // status as the agent completes.
@@ -110,10 +102,12 @@ type PlanContentResolver func(ctx context.Context, item backlog.BacklogItem, ite
 // per scenario. Defaults: 3s interval, 5m timeout. Tests inject small
 // values to keep poll latency out of the test budget.
 type Config struct {
-	InitStore       InitiativeStore
-	BacklogLoader   BacklogLoader
-	GraphReader     GraphReader
-	Spawner         AgentSpawner
+	InitStore     InitiativeStore
+	BacklogLoader BacklogLoader
+	GraphReader   GraphReader
+	// RunInspector polls agent-run state for gathering rounds. Optional —
+	// without it, stale rounds fall back to age-based recovery.
+	RunInspector    RunInspector
 	Lock            *initiativelock.Lock
 	ExecutionLookup ExecutionLookup
 	PlanContent     PlanContentResolver
@@ -129,7 +123,6 @@ type Service struct {
 	initStore        InitiativeStore
 	backlogLoader    BacklogLoader
 	graphReader      GraphReader
-	spawner          AgentSpawner
 	operationStarter OperationStarter
 	inspector        RunInspector
 	lock             *initiativelock.Lock
@@ -180,7 +173,7 @@ func NewService(cfg Config) (*Service, error) {
 		initStore:       cfg.InitStore,
 		backlogLoader:   cfg.BacklogLoader,
 		graphReader:     cfg.GraphReader,
-		spawner:         cfg.Spawner,
+		inspector:       cfg.RunInspector,
 		lock:            cfg.Lock,
 		executionLookup: cfg.ExecutionLookup,
 		planContent:     cfg.PlanContent,
@@ -190,10 +183,6 @@ func NewService(cfg Config) (*Service, error) {
 		promptClient:    pc,
 		clock:           clk,
 		activeRounds:    make(map[string]activeRound),
-	}
-	// Type-assert for RunInspector capability (mirrors review.Service).
-	if inspector, ok := cfg.Spawner.(RunInspector); ok {
-		svc.inspector = inspector
 	}
 	return svc, nil
 }

@@ -13,8 +13,10 @@ import (
 	"swarm-manager/internal/pathutil"
 )
 
-// isInspectableStatus reports whether a record is in a state the inspector pass
-// should poll agent-manager about.
+// isInspectableStatus reports whether a record is in a state the fail-closed
+// correlation guard (inspectRunningRecordsLocked) should examine. There is no
+// agent-manager status polling anymore: completion arrives exclusively through
+// the operation runner's commit-execution-round path.
 func isInspectableStatus(status Status) bool {
 	return status == StatusStarting || status == StatusRunning || status == StatusNeedsReview
 }
@@ -32,6 +34,15 @@ func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
 	s.mu.Unlock()
 	if err != nil {
 		return err
+	}
+	// Workflow-owned records use Agent Manager's durable WorkflowExecution as
+	// their completion authority. Collect and apply them outside the service
+	// lock; ApplyPhasedPlanWorkflow takes the lock while persisting its replay
+	// claim and terminal consumer transition.
+	for _, executionID := range s.workflowApplyCandidates() {
+		if _, applyErr := s.ApplyPhasedPlanWorkflow(ctx, executionID); applyErr != nil && !errors.Is(applyErr, agentmanager.ErrWorkflowNotReady) {
+			slog.Warn("phased-plan workflow result reconciliation failed", "execution_id", executionID, "err", applyErr)
+		}
 	}
 	// Pre-merge engagement holds (plan P-b.3): open shadow restore points from
 	// the actual diff and approve the merge for runs parked at needs_review.
@@ -56,6 +67,26 @@ func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
 	s.drainPendingLocked(ctx)
 
 	return nil
+}
+
+func (s *Service) workflowApplyCandidates() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	records, err := s.store.Load()
+	if err != nil {
+		slog.Warn("phased-plan workflow reconciliation could not load executions", "err", err)
+		return nil
+	}
+	var candidates []string
+	for _, record := range records {
+		if strings.TrimSpace(record.AgentWorkflowExecutionID) == "" || record.AgentWorkflowApplyState == workflowApplyComplete {
+			continue
+		}
+		if isInspectableStatus(record.Status) || record.AgentWorkflowApplyState == workflowApplyClaimed {
+			candidates = append(candidates, record.ExecutionID)
+		}
+	}
+	return pathutil.UniqueSortedStrings(candidates)
 }
 
 // drainRef is the goal-priority map key for a pending record.
@@ -179,7 +210,6 @@ func (s *Service) refreshRunningLocked(ctx context.Context) (holdCandidates []st
 	changed := false
 	changedRecords := make(map[string]Record)
 
-	s.migrateLegacyFinalizationLocked(records, &changed, changedRecords)
 	finalizationCandidates = s.collectValidatingCandidatesLocked(records)
 	s.inspectRunningRecordsLocked(ctx, records, &changed, changedRecords, &finalizationCandidates)
 	holdCandidates = s.collectHoldCandidatesLocked(records)
@@ -195,26 +225,13 @@ func (s *Service) refreshRunningLocked(ctx context.Context) (holdCandidates []st
 	return holdCandidates, pathutil.UniqueSortedStrings(finalizationCandidates), nil
 }
 
-// migrateLegacyFinalizationLocked applies legacy finalization state migrations to all records.
-func (s *Service) migrateLegacyFinalizationLocked(records []Record, changed *bool, changedRecords map[string]Record) {
-	for i := range records {
-		record := &records[i]
-		if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-			if migrateLegacyFinalizationState(record, item) {
-				*changed = true
-				changedRecords[record.ExecutionID] = *record
-			}
-		}
-	}
-}
-
 // collectValidatingCandidatesLocked returns IDs of records in StatusValidating
 // that have finalization state and are not already being processed.
 func (s *Service) collectValidatingCandidatesLocked(records []Record) []string {
 	candidates := make([]string, 0)
 	for i := range records {
 		record := &records[i]
-		if record.Status == StatusValidating && effectiveFinalization(*record) != nil {
+		if record.Status == StatusValidating && record.Finalization != nil {
 			if _, exists := s.processingFinalizations[record.ExecutionID]; !exists {
 				candidates = append(candidates, record.ExecutionID)
 			}
@@ -223,78 +240,33 @@ func (s *Service) collectValidatingCandidatesLocked(records []Record) []string {
 	return candidates
 }
 
-// inspectRunningRecordsLocked polls agent-manager for all inspectable records,
-// updating their status and collecting terminal transitions. Runs only when
-// s.inspector is non-nil; all mutations go through changed/changedRecords.
-func (s *Service) inspectRunningRecordsLocked(ctx context.Context, records []Record, changed *bool, changedRecords map[string]Record, finalizationCandidates *[]string) {
-	if s.inspector == nil {
-		return
-	}
+// inspectRunningRecordsLocked enforces the single-completion-authority
+// invariant over active records. Runner-owned records (every record created
+// since the Phase-6 cutover carries OpExecutionID) are driven to terminal by
+// the completion bridge's commit-execution-round handler; the startup
+// reconciliation sweep is the backstop for a runner-owned record whose bridge
+// delivery is lost. The legacy agent-manager poll loop that drove
+// pre-migration records is gone (Phase 9): the Phase-8 migration imported
+// every pre-cutover record, so an active record WITHOUT an operation
+// correlation can no longer legitimately exist — fail it closed instead of
+// silently stranding it.
+func (s *Service) inspectRunningRecordsLocked(_ context.Context, records []Record, changed *bool, changedRecords map[string]Record, _ *[]string) {
 	for i := range records {
 		record := &records[i]
 		if !isInspectableStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
 			continue
 		}
-		// Runner-owned records (an operation execution correlates them via
-		// OpExecutionID) are driven to terminal by the completion bridge's
-		// commit-execution-round handler, NOT by polling agent-manager. Defer them
-		// here so the bridge is their single completion authority — the inverse of
-		// the poll path, avoiding the dual-drive slice A deliberately tolerated as
-		// transitional (plan-manager note d789cb50). The startup reconciliation sweep
-		// is the backstop for a runner-owned record whose bridge delivery is lost.
-		// Pre-migration non-runner records keep the poll path until Phase 8 migrates
-		// them.
 		if strings.TrimSpace(record.OpExecutionID) != "" {
 			continue
 		}
-
-		tracker := s.ensureRunTracker(record.RunID)
-
-		// Max-age staleness check.
-		if time.Since(tracker.FirstSeen) > s.maxRunAge {
-			s.markRunFailed(record, "run exceeded maximum age timeout",
-				"run exceeded max age, marking failed", "failed to set backlog status to in_review after max-age timeout",
-				slog.Duration("age", time.Since(tracker.FirstSeen)))
-			*changed = true
-			changedRecords[record.ExecutionID] = *record
+		if strings.TrimSpace(record.AgentWorkflowExecutionID) != "" {
 			continue
 		}
-
-		runState, err := s.inspector.GetRunState(ctx, record.RunID)
-		if err != nil {
-			tracker.ConsecutiveErrors++
-			if tracker.ConsecutiveErrors >= s.maxConsecutiveErrors {
-				s.markRunFailed(record, "lost contact with agent-manager run",
-					"run hit max consecutive errors, marking failed", "failed to set backlog status to in_review after consecutive-errors timeout",
-					slog.Int("errors", tracker.ConsecutiveErrors))
-				*changed = true
-				changedRecords[record.ExecutionID] = *record
-			} else {
-				slog.Warn("GetRunState error",
-					"execution_id", record.ExecutionID,
-					"run_id", record.RunID,
-					"err", err,
-					"consecutive", tracker.ConsecutiveErrors)
-			}
-			continue
-		}
-		tracker.ConsecutiveErrors = 0
-
-		nextStatus, reason := mapRunStatus(runState.Status, runState.ErrorMsg, tracker, s.maxConsecutiveUnknown)
-		if nextStatus == record.Status {
-			continue
-		}
-		prevStatus := record.Status
-		record.Status = nextStatus
-		record.FailureReason = reason
-		record.UpdatedAt = nowRFC3339()
-		// Only set FinishedAt for terminal statuses
-		if isTerminalStatus(nextStatus) {
-			s.applyTerminalTransition(ctx, record, runState, nextStatus, finalizationCandidates)
-		}
+		s.markRunFailed(record, "record has no operation correlation; the legacy poll driver was removed after the state migration",
+			"active record without op_execution_id (impossible post-migration), marking failed", "failed to set backlog status to in_review for uncorrelated record",
+			slog.String("backlog_ref", record.BacklogKind+"/"+record.BacklogName))
 		*changed = true
 		changedRecords[record.ExecutionID] = *record
-		s.logExecutionEvent(*record, prevStatus)
 	}
 }
 
@@ -319,9 +291,9 @@ func (s *Service) collectHoldCandidatesLocked(records []Record) []string {
 	return pathutil.UniqueSortedStrings(candidates)
 }
 
-// markRunFailed transitions a record to failed (max-age / lost-contact paths),
-// emits the execution event, best-effort lands the backlog item in in_review,
-// and clears the run tracker.
+// markRunFailed transitions a record to failed (today only the fail-closed
+// uncorrelated-record guard), emits the execution event, and best-effort lands
+// the backlog item in in_review for operator triage.
 func (s *Service) markRunFailed(record *Record, failureReason, warnMsg, backlogWarnMsg string, extra slog.Attr) {
 	slog.Warn(warnMsg,
 		"execution_id", record.ExecutionID,
@@ -341,19 +313,17 @@ func (s *Service) markRunFailed(record *Record, failureReason, warnMsg, backlogW
 				"execution_id", record.ExecutionID, "backlog_ref", record.BacklogKind+"/"+record.BacklogName, "err", err)
 		}
 	}
-	s.deleteRunTracker(record.RunID)
 }
 
 // applyTerminalTransition finalizes a record that has reached a terminal status:
-// it stamps FinishedAt, tears down the tracker, and routes the backlog item per
-// outcome (finalization handoff, spec-sync archive, in_review, or restore).
+// it stamps FinishedAt and routes the backlog item per outcome (finalization
+// handoff, spec-sync archive, in_review, or restore).
 func (s *Service) applyTerminalTransition(ctx context.Context, record *Record, runState agentmanager.RunState, nextStatus Status, finalizationCandidates *[]string) {
 	if strings.TrimSpace(runState.FinishedAt) != "" {
 		record.FinishedAt = runState.FinishedAt
 	} else {
 		record.FinishedAt = nowRFC3339()
 	}
-	s.deleteRunTracker(record.RunID)
 
 	// Post-completion hook: archive scenario after successful spec-sync.
 	if record.ArchiveContext != nil {
@@ -432,56 +402,6 @@ func (s *Service) applyCompletedTransition(record *Record, item backlogItem, fin
 	}
 	// Clear circuit breaker on success.
 	_ = s.circuitBreaker.RecordSuccess(record.BacklogKind + "/" + record.BacklogName)
-}
-
-func mapRunStatus(status, errorMsg string, tracker *runTracker, maxConsecutiveUnknown int) (Status, string) {
-	normalized := strings.ToLower(strings.TrimSpace(status))
-	switch normalized {
-	case "pending", "starting":
-		tracker.ConsecutiveUnknown = 0
-		return StatusStarting, ""
-	case "running":
-		tracker.ConsecutiveUnknown = 0
-		return StatusRunning, ""
-	case "needs_review":
-		tracker.ConsecutiveUnknown = 0
-		return StatusNeedsReview, ""
-	case "complete":
-		tracker.ConsecutiveUnknown = 0
-		return StatusCompleted, ""
-	case "failed":
-		tracker.ConsecutiveUnknown = 0
-		reason := strings.TrimSpace(errorMsg)
-		if reason == "" {
-			reason = "agent-manager run failed"
-		}
-		return StatusFailed, reason
-	case "cancelled":
-		tracker.ConsecutiveUnknown = 0
-		return StatusCanceled, ""
-	default:
-		tracker.ConsecutiveUnknown++
-		if tracker.ConsecutiveUnknown == 1 {
-			slog.Warn("unknown run status from agent-manager", "status", status)
-		}
-		if tracker.ConsecutiveUnknown >= maxConsecutiveUnknown {
-			return StatusFailed, "unknown run status: " + status
-		}
-		return StatusRunning, ""
-	}
-}
-
-func (s *Service) ensureRunTracker(runID string) *runTracker {
-	if t, ok := s.runTrackers[runID]; ok {
-		return t
-	}
-	t := &runTracker{FirstSeen: time.Now()}
-	s.runTrackers[runID] = t
-	return t
-}
-
-func (s *Service) deleteRunTracker(runID string) {
-	delete(s.runTrackers, runID)
 }
 
 func matchesFilters(record Record, filters ListFilters) bool {

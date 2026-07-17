@@ -207,7 +207,7 @@ describe("PhaseViewer", () => {
       round: {
         round: 1,
         mode: "phased-plan-drain",
-        scopeKind: "plan-manager-plan",
+        scopeKind: "plan-execution",
         scopeId: "sim",
         phase: "execute",
         runStrategy: "sequential_handoff",

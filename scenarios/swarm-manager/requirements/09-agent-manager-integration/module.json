@@ -81,6 +81,27 @@
           "phase": "business",
           "status": "implemented",
           "notes": "Automated tasks execute reliably"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/agentmanager/workflow_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Real HTTP transport accepts Agent Manager's asynchronous 202 workflow start contract"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/backlog/workshop_workflow_test.go::TestWorkshopWorkflowResultReconcilesAutomaticallyAcrossRestart",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Both showcase workflow results apply automatically and replay safely through consumer-owned reconciliation"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/phased_plan_workflow_test.go::TestProcessActiveExecutionsAutomaticallyAppliesPhasedPlanWorkflow",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Phased-plan workflow results apply automatically through the existing execution worker"
         }
       ]
     },

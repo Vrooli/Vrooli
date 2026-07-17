@@ -139,7 +139,7 @@ export const DEFAULT_FLAG_EXPLAINER: ConceptExplainer = {
   sections: [
     {
       label: "yes",
-      body: "This mode is the registered default. New initiatives are created in this mode. Today, item-level is the default — its assumption that backlog items are the right unit of execution is the safest starting point.",
+      body: "This entry is the registered default for new initiatives. Today, the member-item workflow strategy (stored under the legacy item-level id) is the default — items running their own workflows is the safest starting point.",
     },
     {
       label: "no",
@@ -183,7 +183,7 @@ export const CAPABILITY_EXPLAINER: ConceptExplainer = {
     },
     {
       label: "Existing item execution flow",
-      body: "The mode bridges to the standard backlog item execution pipeline — used by item-level. The panel surfaces a useful empty state instead of operating-mode controls.",
+      body: "Bridges to the standard backlog item execution pipeline — used by the member-item workflow strategy, where items run their own workflows and the initiative provides strategy configuration. The panel surfaces the strategy explainer instead of operating-mode controls.",
     },
   ],
 };

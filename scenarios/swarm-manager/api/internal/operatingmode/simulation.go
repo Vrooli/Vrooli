@@ -107,7 +107,7 @@ func (s *Service) SimulateMode(ctx context.Context, mode Mode, presetID string) 
 // SimulateModeDraft feeds it a mode loaded fresh from disk, so an author can
 // simulate a scaffolded mode before it is registered (no restart).
 func (s *Service) simulateDefinition(ctx context.Context, def Definition, presetID string) (SimulationResponse, error) {
-	if def.Mode == ModeItemLevel || def.PhaseGraph.StartPhase == "" {
+	if def.PhaseGraph.StartPhase == "" {
 		return SimulationResponse{}, fmt.Errorf("mode %q has no operating-mode phase graph to simulate", def.Mode)
 	}
 	presets := simulationPresets(def)

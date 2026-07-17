@@ -58,13 +58,21 @@ func (s *Service) GetWorkflowProjection(_ context.Context, req *connect.Request[
 		// the projection (snapshot_found=false).
 		if snap, ok, snapErr := s.executions.Load(target.Kind, target.ID, op.ExecutionID); snapErr == nil && ok {
 			proj.SnapshotFound = true
-			proj.OperationVersion = snap.Provenance.OperationVersion
-			proj.Mode = snap.Provenance.Mode
-			proj.ModeRevision = snap.Provenance.ModeRevision
-			proj.BindingLayer = bindingLayerToProto(snap.Provenance.Binding.Layer)
-			proj.BindingOwnerKind = snap.Provenance.Binding.OwnerKind
-			proj.BindingOwnerId = snap.Provenance.Binding.OwnerID
-			proj.RecordedAt = snap.RecordedAt
+			if snap.LegacyImport != nil {
+				// A Phase-8 legacy execution import: no compiled-mode/binding
+				// provenance ever existed, so those fields stay honestly empty;
+				// the row is labeled instead of fabricated.
+				proj.LegacyImport = true
+				proj.RecordedAt = snap.RecordedAt
+			} else {
+				proj.OperationVersion = snap.Provenance.OperationVersion
+				proj.Mode = snap.Provenance.Mode
+				proj.ModeRevision = snap.Provenance.ModeRevision
+				proj.BindingLayer = bindingLayerToProto(snap.Provenance.Binding.Layer)
+				proj.BindingOwnerKind = snap.Provenance.Binding.OwnerKind
+				proj.BindingOwnerId = snap.Provenance.Binding.OwnerID
+				proj.RecordedAt = snap.RecordedAt
+			}
 		}
 		resp.Operations = append(resp.Operations, proj)
 	}
@@ -88,6 +96,21 @@ func (s *Service) ListExecutionHistory(_ context.Context, req *connect.Request[a
 	resp := &apipb.AgentOpsListExecutionHistoryResponse{}
 	for _, se := range stored {
 		p := se.Snapshot.Provenance
+		if se.Snapshot.LegacyImport != nil {
+			// Phase-8 legacy execution import: render only the fields the import
+			// really carries (operation, the legacy entry's own terminal status,
+			// the deterministic imported_at). No provenance digests ever existed,
+			// so the row is labeled legacy_import and never claims reproducibility.
+			resp.Executions = append(resp.Executions, &apipb.AgentOpsExecutionSummary{
+				ExecutionId:  se.ID,
+				Operation:    string(p.Operation),
+				Outcome:      se.Snapshot.Outcome,
+				Reproducible: false,
+				RecordedAt:   se.Snapshot.RecordedAt,
+				LegacyImport: true,
+			})
+			continue
+		}
 		_, reproErr := s.executions.Reproduce(target.Kind, target.ID, se.ID)
 		resp.Executions = append(resp.Executions, &apipb.AgentOpsExecutionSummary{
 			ExecutionId:         se.ID,

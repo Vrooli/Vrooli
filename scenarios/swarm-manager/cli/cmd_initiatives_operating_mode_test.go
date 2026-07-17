@@ -142,11 +142,10 @@ func TestCmdInitiativesModeList_ReadsCatalog(t *testing.T) {
 			called = true
 			return &apipb.OperatingModeCatalogResponse{
 				Modes: []*apipb.OperatingModeCatalogEntry{{
-					Mode:        "item-level",
-					Label:       "Item Level",
+					Mode:        "holistic-loop",
+					Label:       "Holistic Loop",
 					TargetKind:  "initiative",
-					RunStrategy: "existing_item_flow",
-					Default:     true,
+					RunStrategy: "operator_gated_loop",
 					Switchable:  true,
 				}},
 			}, nil

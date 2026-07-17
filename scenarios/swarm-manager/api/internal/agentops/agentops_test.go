@@ -41,6 +41,7 @@ func TestTargetVocabularyMatchesOperatingMode(t *testing.T) {
 
 // TestSeedOperationContractsValidate proves every enumerated operation contract
 // is schema-valid, target-runnable, and semantically consistent.
+// [REQ:REQ-P0-011-OPERATION-CONTRACTS]
 func TestSeedOperationContractsValidate(t *testing.T) {
 	seeds := SeedOperationContracts()
 	if len(seeds) != len(AllOperationIDs) {
@@ -59,6 +60,7 @@ func TestSeedOperationContractsValidate(t *testing.T) {
 // TestReviewRoundSharedAcrossBacklogItemAndInitiative pins the shared-contract
 // design: a review operation whose requirements are met by both backlog-item
 // and initiative is compatible with both.
+// [REQ:REQ-P0-011-TARGET-CAPABILITIES]
 func TestReviewRoundSharedAcrossBacklogItemAndInitiative(t *testing.T) {
 	var review OperationContract
 	for _, oc := range SeedOperationContracts() {
@@ -81,6 +83,7 @@ func TestReviewRoundSharedAcrossBacklogItemAndInitiative(t *testing.T) {
 }
 
 // TestOperationTargetCompatibility exercises compatible AND incompatible pairs.
+// [REQ:REQ-P0-011-TARGET-CAPABILITIES]
 func TestOperationTargetCompatibility(t *testing.T) {
 	// initiative-review requires member items + acceptance criteria: initiative
 	// yes, backlog-item no.
@@ -104,6 +107,7 @@ func TestOperationTargetCompatibility(t *testing.T) {
 
 // TestTargetCapabilityDescriptorsValidate proves the registry descriptors are
 // schema-valid and every capability is in the closed vocabulary.
+// [REQ:REQ-P0-011-TARGET-CAPABILITIES]
 func TestTargetCapabilityDescriptorsValidate(t *testing.T) {
 	for _, d := range TargetCapabilities() {
 		if err := ValidateTargetCapabilityDescriptor(mustJSON(t, d)); err != nil {
@@ -137,6 +141,7 @@ func binding(layer BindingLayer, ownerKind, ownerID, mode, rev string) Operation
 	return b
 }
 
+// [REQ:REQ-P0-011-BINDING-PRECEDENCE]
 func TestBindingPrecedenceDeterministic(t *testing.T) {
 	scope := ResolutionScope{InvocationID: "inv-1", ItemRef: "fix/x", InitiativeName: "init-a", Target: TargetInitiative}
 	all := []OperationBinding{
@@ -177,6 +182,7 @@ func TestBindingAbsenceIsTypedError(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-P0-011-BINDING-PRECEDENCE]
 func TestBindingInvalidOverrideFailsClosedNoFallback(t *testing.T) {
 	scope := ResolutionScope{ItemRef: "fix/x", InitiativeName: "init-a", Target: TargetInitiative}
 	// A disabled highest-precedence (item) override must NOT fall through to the
@@ -240,6 +246,7 @@ func fullProvenance() ExecutionProvenance {
 	}
 }
 
+// [REQ:REQ-P0-011-REVISION-PINNING]
 func TestProvenanceCompleteness(t *testing.T) {
 	if err := ValidateProvenance(mustJSON(t, fullProvenance())); err != nil {
 		t.Fatalf("full provenance rejected: %v", err)
@@ -289,6 +296,7 @@ func TestTransitionPolicyValid(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-P0-011-DETERMINISTIC-ACTIONS]
 func TestTransitionPolicyRejectsUnregisteredAction(t *testing.T) {
 	p := validPolicy()
 	p.Transitions[0].Action = ActionName("run-shell-script")
@@ -317,6 +325,7 @@ func TestTransitionPolicyRejectsUnregisteredOperation(t *testing.T) {
 // TestTransitionPolicyCannotEncodeArbitraryExecution proves the security
 // property: there is NO schema-accepted way to name a Go function, shell
 // command, service, or file path, and params cannot carry a nested structure.
+// [REQ:REQ-P0-011-DETERMINISTIC-ACTIONS]
 func TestTransitionPolicyCannotEncodeArbitraryExecution(t *testing.T) {
 	// A free-form "command" / "handler" / "exec" field is rejected by
 	// additionalProperties:false at the transition level.

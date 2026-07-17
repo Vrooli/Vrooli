@@ -218,9 +218,9 @@ func (s *aggregateState) handleBacklogInitiativeChanged(e *eventlog.Event) {
 
 func (s *aggregateState) handleInitiativeCreated(e *eventlog.Event) {
 	s.initiativeCreated[e.EntityID] = true
-	if s.initiativeMode[e.EntityID] == "" {
-		s.initiativeMode[e.EntityID] = "item-level"
-	}
+	// initiativeMode stays blank until a mode-change event arrives; the read
+	// side (buildMode) normalizes blank to the member-item-strategy sentinel
+	// via initiatives.NormalizeMode — never hand-roll the wire value here.
 	if s.initiativeItems[e.EntityID] == nil {
 		s.initiativeItems[e.EntityID] = make(map[string]bool)
 	}

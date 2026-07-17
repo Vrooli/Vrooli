@@ -41,8 +41,13 @@ func buildService(t *testing.T) (*Service, opsrunner.FSLocator) {
 		}
 	}
 	write(filepath.Join(opscatalog.DirOperationContracts, "review-round.json"), review)
+	// The fixture binding pins an exact operation_version, exactly like every
+	// shipped bindings/*.json document. A version-agnostic fixture here once
+	// masked a live bug: diagnostics resolved with an empty version, which
+	// skips version-pinned system defaults and reported no-binding for every
+	// operation at rest (finding 80cb2437).
 	write(filepath.Join(opscatalog.DirBindings, "review.json"), agentops.OperationBinding{
-		Kind: "agentops-operation-binding", Operation: agentops.OpReviewRound,
+		Kind: "agentops-operation-binding", Operation: agentops.OpReviewRound, OperationVersion: "1.0.0",
 		Layer: agentops.LayerSystemDefault, Mode: "synthetic-loop", ModeRevision: rev,
 	})
 	write(filepath.Join(opscatalog.DirPolicy, "initiative.json"), agentops.TransitionPolicy{
@@ -57,6 +62,7 @@ func buildService(t *testing.T) (*Service, opsrunner.FSLocator) {
 	loc := opsrunner.FSLocator{
 		InitiativeDir:  func(name string) (string, error) { return filepath.Join(storeRoot, "initiatives", name), nil },
 		BacklogItemDir: func(kind, name string) (string, error) { return filepath.Join(storeRoot, "backlog", kind, name), nil },
+		ScenarioDir:    func(name string) (string, error) { return filepath.Join(storeRoot, "scenarios", name), nil },
 	}
 	repo := opsrunner.NewWorkflowRepo(loc)
 	execStore := opsrunner.NewExecutionStore(loc)

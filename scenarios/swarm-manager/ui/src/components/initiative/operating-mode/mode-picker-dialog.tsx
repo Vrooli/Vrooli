@@ -13,10 +13,12 @@ import {
   parseActiveItemExecutionsConflict,
 } from "../../../services/initiative-mode-service";
 import { useAgentRunUrl } from "../../../services/external-links";
+import { isMemberItemStrategy } from "../../../lib/member-item-strategy";
 import { ModeComparePanel } from "./mode-compare-panel";
 import { ModeGuidanceCallouts } from "./mode-guidance-callouts";
 import { OperatingModeCard } from "./operating-mode-card";
 import { PhaseGraph } from "./phase-graph";
+import { modeLabel } from "./utils";
 
 export interface ModePickerDialogProps {
   isOpen: boolean;
@@ -61,6 +63,12 @@ export function ModePickerDialog({
   pendingSelectedMode,
 }: ModePickerDialogProps) {
   const switchableModes = catalog.filter((entry) => entry.switchable);
+  // The member-item workflow strategy is NOT a methodology loop — it renders
+  // in its own group below the genuine modes. Selecting it still submits the
+  // legacy wire value through the existing switch-mode mutation (data
+  // vocabulary migrates in Phase 8; see lib/member-item-strategy.ts).
+  const genuineModes = switchableModes.filter((entry) => !isMemberItemStrategy(entry.mode));
+  const strategyEntries = switchableModes.filter((entry) => isMemberItemStrategy(entry.mode));
   const [selectedModeKey, setSelectedModeKey] = useState<InitiativeOperatingMode>(currentMode);
   const [cancelAck, setCancelAck] = useState(false);
   // Conflict driven by the server's 409 response when the first switch attempt
@@ -187,9 +195,9 @@ export function ModePickerDialog({
           </div>
         )}
 
-        {!catalogLoading && switchableModes.length > 0 && (
+        {!catalogLoading && genuineModes.length > 0 && (
           <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-            {switchableModes.map((entry) => (
+            {genuineModes.map((entry) => (
               <OperatingModeCard
                 key={entry.mode}
                 mode={entry}
@@ -201,11 +209,37 @@ export function ModePickerDialog({
           </div>
         )}
 
+        {!catalogLoading && strategyEntries.length > 0 && (
+          <div
+            className="space-y-1.5"
+            data-testid={selectors.initiativeDetails.modePickerStrategyGroup}
+          >
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              Workflow strategy — no methodology loop
+            </p>
+            <p className="text-xs text-slate-400">
+              Items run their own workflows; the initiative provides strategy configuration
+              instead of running phases.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+              {strategyEntries.map((entry) => (
+                <OperatingModeCard
+                  key={entry.mode}
+                  mode={entry}
+                  selected={entry.mode === selectedModeKey}
+                  onClick={() => setSelectedModeKey(entry.mode)}
+                  data-testid={selectors.initiativeDetails.modePickerCard}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {selectedEntry && (
           <div className="space-y-3 rounded-lg border border-slate-800/80 bg-slate-900/40 p-4">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                About {selectedEntry.label}
+                About {modeLabel(selectedEntry.mode, selectedEntry.label)}
               </p>
               {selectedEntry.description ? (
                 <p className="mt-1 text-sm leading-relaxed text-slate-200">

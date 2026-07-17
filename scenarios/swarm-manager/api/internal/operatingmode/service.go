@@ -250,6 +250,15 @@ type BacklogItemTarget struct {
 	Status       string
 	SpecDocument string
 	PlanRef      *PlanRef
+	// Containment is the item's write-scope projection (acceptance
+	// allow/deny globs + declared creates). The backlog-item adapter threads
+	// it onto the resolved TargetInstance so pre-execution operations
+	// (research/workshop/clarify/review) spawn sandbox-scoped exactly like a
+	// plan-execution drain of the same item — least privilege, since these
+	// agents deliver round envelopes and never write the domain folder. A
+	// zero scope leaves the spawn unconstrained (an item with no acceptance
+	// criteria yet).
+	Containment ContainmentScope
 }
 
 // BacklogItemTargetReader resolves a backlog item as an operating-mode target by
@@ -277,10 +286,10 @@ type StartPhaseRequest struct {
 }
 
 // StartTargetPhaseRequest starts a mode round directly on a non-initiative
-// target — the plan-first entry point. Mode names a registered plan-target
-// mode; TargetRef is the target instance handle its adapter resolves (a
-// plan-manager execution id/slug, or a plan-ref path). Phase defaults to the
-// mode's start phase.
+// target — the target-first entry point. Mode names a registered
+// non-initiative-target mode; TargetRef is the target instance handle its
+// adapter resolves (a plan execution id/slug, or a scenario name). Phase
+// defaults to the mode's start phase.
 type StartTargetPhaseRequest struct {
 	Mode      string
 	TargetRef string
@@ -390,7 +399,6 @@ type ModeCapabilities struct {
 	RequiresAcceptanceCriteria   bool `json:"requires_acceptance_criteria"`
 	SupportsArtifacts            bool `json:"supports_artifacts"`
 	SupportsHandoffs             bool `json:"supports_handoffs"`
-	UsesItemExecutionFlow        bool `json:"uses_item_execution_flow"`
 }
 
 type ModeCatalog struct {
@@ -516,7 +524,8 @@ type PhaseOutputContractSummary struct {
 
 // ModeCatalogPhaseGraph carries the mode's phase graph (start / terminal /
 // transitions / accepted verdicts) so the UI can render a DAG without
-// re-deriving state from the workspace endpoint. Omitted for item-level mode.
+// re-deriving state from the workspace endpoint. Omitted for the
+// member-item-strategy sentinel, which has no phase graph.
 type ModeCatalogPhaseGraph struct {
 	StartPhase       string                  `json:"start_phase"`
 	Terminal         []string                `json:"terminal"`
@@ -667,7 +676,7 @@ func (s *Service) LookupOwners(_ context.Context, runID string) ([]evidence.Owne
 			if err != nil {
 				return nil, err
 			}
-			if def.Target.Kind != TargetInitiative || !def.RunsModeRounds() {
+			if def.Target.Kind != TargetInitiative {
 				continue
 			}
 			owner, err := s.store.ResolveRunOwner(initiative.Name, mode, runID)
@@ -761,7 +770,7 @@ type ActiveRoundSummary struct {
 
 // ActiveRoundsByInitiative returns the first non-terminal round per
 // initiative, keyed by initiative name. Initiatives with no active round
-// (or in item-level mode) are absent from the map. The implementation does
+// (or on the member-item workflow strategy) are absent from the map. The implementation does
 // one pass over the initiatives list and one rounds-directory read per
 // initiative bound to a non-default mode — N+1 only in initiatives, never
 // in rounds. Initiative-exclusive locking guarantees at most one
@@ -812,12 +821,12 @@ func requireRoundActionMode(mode Mode) (Mode, error) {
 	if raw == "" {
 		return "", errors.New("mode is required for operating-mode round actions")
 	}
+	if IsMemberItemStrategySentinel(raw) {
+		return "", errors.New("the member-item strategy runs no operating-mode rounds; member items run through their own operations")
+	}
 	def, err := DefinitionFor(Mode(raw))
 	if err != nil {
 		return "", err
-	}
-	if def.Mode == ModeItemLevel {
-		return "", errors.New("item-level mode round actions are owned by the existing backlog execution flow")
 	}
 	return def.Mode, nil
 }

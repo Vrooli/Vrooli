@@ -15,19 +15,23 @@ func (s *Service) Workspace(ctx context.Context, initiativeName string) (Workspa
 	if err != nil {
 		return Workspace{}, err
 	}
+	// The member-item workflow strategy is not an operating mode: it has no
+	// definition to load, runs no rounds, and owns no artifacts. Serve the
+	// synthesized strategy projection so the workspace endpoint stays total
+	// over every persisted initiative mode value.
+	if IsMemberItemStrategySentinel(init.Mode) {
+		return Workspace{
+			InitiativeName: init.Name,
+			Mode:           string(ModeItemLevel),
+			Definition:     workspaceMode(memberItemStrategyProjection(), nil, init.AcceptanceCriteria),
+		}, nil
+	}
 	def, err := DefinitionFor(Mode(init.Mode))
 	if err != nil {
 		return Workspace{}, err
 	}
 	if overrides, overlayErr := s.loadOverlay(); overlayErr == nil {
 		def = applyOverlay(def, overrides[def.Mode])
-	}
-	if def.Mode == ModeItemLevel {
-		return Workspace{
-			InitiativeName: init.Name,
-			Mode:           string(def.Mode),
-			Definition:     workspaceMode(def, nil, init.AcceptanceCriteria),
-		}, nil
 	}
 	_, legacyAmbiguous, err := s.store.AdoptLegacyExecution(init.Name, def)
 	if err != nil {
@@ -436,10 +440,24 @@ func phasesToStrings(phases []Phase) []string {
 	return out
 }
 
+// memberItemStrategyProjection is the in-memory Definition value backing the
+// workspace projection for initiatives on the member-item workflow strategy
+// (persisted wire value "item-level"). It is NOT a registered operating mode
+// and is never loaded from mode data: the strategy runs no phases — member
+// items run through their own operations via the operation runner.
+func memberItemStrategyProjection() Definition {
+	return Definition{
+		Mode:        ModeItemLevel,
+		Label:       "Member-item workflow",
+		Description: "Each member item runs through its own operation; the initiative provides scheduling strategy, not a methodology loop.",
+		Target:      TargetPolicy{Kind: TargetInitiative},
+		UI:          UIPolicy{WorkspaceTabID: "info"},
+	}
+}
+
 func modeCapabilities(def Definition) ModeCapabilities {
 	capabilities := ModeCapabilities{
-		SupportsPhases:        len(def.PhaseGraph.Phases) > 0,
-		UsesItemExecutionFlow: def.RunStrategy.Kind == RunStrategyExistingItemFlow,
+		SupportsPhases: len(def.PhaseGraph.Phases) > 0,
 	}
 	capabilities.CanStartPhases = capabilities.SupportsPhases
 	capabilities.CanCompleteItems = hasBacklogSyncCapability(def.BacklogSync, BacklogSyncMarkComplete)

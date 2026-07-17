@@ -1,5 +1,55 @@
 # Architecture Seams & Internal Design
 
+## Backlog workshop workflow pilot seam
+
+The explicit `mode=workshop` research entrypoint is a hard cut to the reconciled Agent Manager workflow at `.vrooli/agent-workflows/backlog-workshop-round.json`. `api/internal/agentmanager.WorkflowService` exposes only start and collect operations to backlog code; it does not expose generic run creation or continuation.
+
+Agent Manager owns workflow execution and the typed result handshake. Swarm Manager owns the input snapshot, semantic validation, stale-version rejection, exclusive provenance claim, and the sole backlog mutation endpoint:
+
+`POST /api/v1/backlog/{kind}/{name}/workshop/workflow/{executionID}/apply`
+
+The normal start path also persists `workflow-pending-{executionID}.json`. The
+backlog-owned boot/ticker reconciler collects terminal results through the same
+internal apply function and removes the pending correlation only after the
+provenance claim and round materialization are durable. The HTTP endpoint is an
+operator replay surface, not a required step in the showcase flow.
+
+There is no fallback to the legacy workshop runner. The workflow result discriminator is the authority for `proposals`, `no_questions`, or `abstained`; the outer output object is transport structure only.
+
+## Phased-plan workflow pilot seam
+
+The sole plan-execution start callsite is a hard cut to
+`.vrooli/agent-workflows/phased-plan-drain.json`. The narrow
+`agentmanager.PhasedPlanWorkflowService` offers start, authorized terminal
+collection, approval signal, and aggregate cancellation. It deliberately does
+not offer CreateRun or ContinueRun; those decisions are definition-owned.
+
+Swarm snapshots the Plan Manager rendering and backlog entity, then stores the
+workflow execution/digest/frontier correlations on its execution record. Agent
+Manager owns graph scheduling, fresh Run identities, named continuation,
+subworkflow identity, journal order, waits, and budget terminals. Swarm owns the
+only domain mutation endpoints:
+
+- `POST /api/v1/execution/{execution_id}/workflow/apply`
+- `POST /api/v1/execution/{execution_id}/workflow/approve`
+- the existing execution cancel endpoint, which cancels the workflow aggregate
+
+Apply is an explicitly authorized pull, not an Agent Manager callback. The
+execution worker performs that pull automatically for workflow-owned records;
+the HTTP endpoint remains an operator replay surface. Apply
+validates the pinned definition and current entity frontier, persists a
+`claimed` result, applies the domain transition, then persists `complete`.
+Replaying `complete` never recollects or remutates. A `claimed` record is a
+restart checkpoint and finishes from its bounded persisted result.
+
+The authored drain enforces `constraints.maxSlices` by counting durable slice
+attempt intents before either approval or loopback. Its independent review is
+compositional: rejection supplies a bounded child-workflow-output note to the
+named correction, the corrected structured result is reviewed again, and the
+latest corrected result is the terminal binding. Agent Manager's blocked and
+abstained execution statuses are authoritative; Swarm maps them to its own
+needs-review transition without reclassifying them as successful executions.
+
 > Current State (2026-03-28): Swarm Manager runtime is graph-first backlog/scenarios/execution/agent-activity/settings/prompts with proto-backed UI↔API seams. Recommendation generation is owned by Prompt Manager teams and should not be implemented in Swarm Manager.
 >
 > Historical note: Some lower sections preserve pre-greenfield recommendation-era references for audit history only.
@@ -229,11 +279,11 @@ Current session-kind mapping:
 
 `api/internal/agentactivity/` is the canonical Swarm Manager seam for tracked AgentManager usage.
 
-- **Purpose**: persist one durable `AgentActivity` record for every tracked `SpawnBacklog` and `ContinueRun`
+- **Purpose**: persist one durable `AgentActivity` record for every tracked agent launch and continuation
 - **Ownership model**: activities belong to a backlog item, scenario, or capture and may optionally link to an execution record
 - **Control-plane split**: execution records remain the governed workflow object; agent activity records are the telemetry/audit object
-- **Integration rule**: backlog, capture, and execution flows must route AgentManager spawn/continue calls through the tracked activity service instead of calling the raw AgentManager client directly
-- **Operations impact**: the operations aggregate (which feeds the Plan board's Now column) reads activity records to show workshop/research/classify/follow-up/runtime lineage, not only governed execution runs
+- **Integration rule**: autonomous launches flow through the generic **operation runner** (`api/internal/opsrunner` + `opsbridge`), which spawns through the engine's `agentactivity.spawnTracked` chokepoint — domain packages never call the raw AgentManager client directly (archtest-enforced: the spawn AST test and the agent-manager import allowlist in `api/internal/archtest`). The one recorded exception is `captures.classify` (a pre-backlog ingest/triage concern, ledger class (d)), which spawns through the same chokepoint but is not a target-bound operation.
+- **Operations impact**: the operations aggregate (which feeds the Plan board's Now column) reads activity records to show workshop/research/follow-up/runtime lineage, not only governed execution runs
 
 **Testing at the seam**: `service_test.go` covers spawn, continue, refresh, and stop transitions against a stub AgentManager seam without filesystem-global state. `handler_test.go` locks the HTTP contract for listing, filtering, and fetching tracked activities.
 
@@ -283,26 +333,32 @@ Agent Manager runs.
 ### API-to-Integration Seam
 
 ```go
-// Pattern: Integration services behind interfaces
+// Pattern: Integration services behind interfaces.
+//
+// Autonomous *launch* is NOT part of any domain seam — every spawn flows
+// through the generic operation runner (opsrunner + opsbridge) via the
+// agentactivity chokepoint (archtest-enforced). The seams a domain package
+// holds are narrow: availability preflight + run management, never SpawnX.
+// See api/internal/execution/interfaces.go.
 
-type AgentManagerService interface {
+type AgentManagerAvailability interface { // preflight only
     IsEnabled() bool
-    IsAvailable(ctx context.Context) bool
-    ResolveURL(ctx context.Context) (string, error)
-    GetProfileID() string
+}
 
-    SpawnBacklog(ctx context.Context, req BacklogSpawnRequest) (RunResult, error)
-    SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error)
-    GetRunState(ctx context.Context, runID string) (RunState, error)
+type RunStopper interface {
     StopRun(ctx context.Context, runID string) error
 }
 
-type EcosystemManagerClient interface {
-    CreateTask(ctx context.Context, req ecosystem.CreateTaskRequest) (string, error)
+type RunApprover interface { // releases a run held at needs_review
+    ApproveRun(ctx context.Context, runID, actor, commitMsg string) error
+}
+
+type OperationStarter interface { // the one launch edge, driven by the runner
+    StartOperation(ctx context.Context, req OperationStartRequest) (OperationStartResult, error)
 }
 ```
 
-**Status**: Agent-manager service seam implemented; handlers depend on the service interface while HTTP/proto details stay in the integration layer.
+**Status**: launch methods (`SpawnBacklog`/`SpawnResearch`) were removed from the domain seams in the declarative-operations cutover; a domain package that needs a run started calls `OperationStarter.StartOperation`, and the runner owns provenance, correlation, and the actual spawn.
 
 ### Baseline Client Boundary
 
@@ -405,7 +461,7 @@ Consumed by `backlog-sort.ts` (sidebar/command post sorting). All consumers comp
 - **BacklogLoader interface**: Seam between initiatives and the backlog store -- initiatives need to list backlog items to compute rollup status, but do not depend on the backlog HTTP handlers
 - **Partial update contract**: Initiative updates accept only the fields that are changing (`title`, `description`, `status`, `priority`, `depends_on`, `items`, `acceptance_criteria`, `note`). Public create/update requests reject `mode`; every mode mutation flows through the operating-mode switch boundary.
 - **Rollup status**: Derived from member item statuses (pending if all backlog, active if any in_progress, completed if all done, blocked if any has unmet deps)
-- **Operating-mode metadata**: CRUD owns persistence of `mode` and public mutation of `acceptance_criteria`, but not public mode mutation, phase orchestration, prompt rendering, artifact parsing, or runner behavior. Blank historical mode normalizes to `item-level`.
+- **Operating-mode metadata**: CRUD owns persistence of `mode` and public mutation of `acceptance_criteria`, but not public mode mutation, phase orchestration, prompt rendering, artifact parsing, or runner behavior. The `mode` field carries the **member-item-strategy sentinel** (the string `item-level` or a blank value, which mean the same thing) for initiatives running no methodology loop; the single seam is `operatingmode.NormalizeMode` / `IsMemberItemStrategySentinel` (`registry.go`). Persisted files are never rewritten to canonicalize blank → `item-level`.
 - **Store data root**: `initiatives.NewStore(dataRoot)` takes the runtime-home data root (`runtimepaths.DataPath("")`); folders live at `<dataRoot>/initiatives/<name>/`. Initiatives have no repo-anchor needs — single-root domain.
 
 ### Captures Store Boundary
@@ -427,7 +483,7 @@ collapse back into one service file.
 
 - **Registry ownership**: Mode values, scope kind, phase graph, transition rules, run strategy, prompt/catalog IDs, profile keys, artifact roots, result bindings, backlog-sync policy, metrics semantics, lock policy, and UI workspace IDs are loaded from mode data and projected through one package.
 - **Authoring boundary**: Concrete methodology behavior lives in `scenarios/swarm-manager/modes/<id>/mode.json` plus `example-runs/*.json`. Adding a mode should not require mode-specific branches in shared lifecycle, stats, UI, CLI, prompt catalog, artifact, activity, or lock code. See [DOC: internal/OPERATING-MODE-AUTHORING.md].
-- **Current modes**: `item-level`, `holistic-loop`, and `phased-plan-drain` are data-backed. `item-level` bridges to existing backlog execution; the two initiative-scoped modes declare phase/profile/transition/artifact/metrics policy in mode data and use backend-enforced phase actions.
+- **Current modes**: fifteen modes ship as data folders under `scenarios/swarm-manager/modes/` — ten `backlog-*` operations on a `backlog-item` target, `execution-drain` + `phased-plan-drain` on `plan-execution`, `holistic-loop` + `initiative-review-loop` on `initiative`, and `scenario-spec-sync` on `scenario`. `item-level` is **not** in this set: it is the member-item-strategy sentinel on the initiative `mode` field (the loader rejects a mode folder claiming that id), not a data-backed mode. Each real mode declares phase/profile/transition/artifact/metrics policy in mode data and uses backend-enforced phase actions.
 - **Catalog rule**: `GET /api/v1/operating-modes` is the registry catalog for operator-facing mode selection (annotated with `description`, `usage_count`, per-mode capability metadata, and the transitive compiled input contract). UI and CLI selection/start surfaces consume that endpoint instead of maintaining hard-coded mode or caller-input vocabularies.
 - **Decision-metadata rule**: `Definition.BestFor`, `Definition.NotFor`, `Definition.Tradeoffs`, and `Definition.WhenInDoubtPickInstead` are the canonical seam for operator-facing decision support. The picker, details page, and how-to-choose dialog all read from these fields via the catalog wire (`best_for`, `not_for`, `tradeoffs`, `when_in_doubt_pick_instead`). The registry validator enforces one or more entries on each list and that `WhenInDoubtPickInstead` (when set) references a registered mode that is not self. Decision metadata is intentionally excluded from `OverlayStore` — these are semantic strategy claims authored in mode data. Adding decision metadata to a new mode is mandatory; the API will fail to boot with empty lists.
 - **Overlay rule**: User-editable mode fields (`label`, `description`) flow through `OverlayStore` (`api/internal/operatingmode/overlay.go`), persisted to `<scenarioRoot>/.vrooli/operating-modes/overrides.json`. The registry stays canonical and read-only; `Service.Catalog`, `Service.GetMode`, and `Service.Workspace` merge overlay onto registry definitions at read time. `PATCH /api/v1/operating-modes/{mode}` is the only write path. New overlay fields can be added without migrating the file format because the schema is a sparse map.
@@ -444,13 +500,13 @@ collapse back into one service file.
 - **Stats rule**: Mode stats derive from the durable event log and registry metrics policy. Profile usage, phase counts, replan/acceptance rates, phase durations, and backlog-sync counts are all sourced from operating-mode event payloads. Replan and acceptance sample phases are opt-in mode policy rather than hardcoded phase names; `operating_mode.replan_needed` stays available for timeline observability without double-counting the numerator.
 - **Execution, artifact, and round persistence**: `operatingmode.Store` owns mode-scoped paths under each target (`modes/<mode>/...`), immutable manifests at `executions/<execution-id>/manifest.json`, execution-owned rounds at `executions/<execution-id>/rounds/round-NNN.json`, a scope-local addressing index, and a canonical cross-target run-owner index. `PrepareRound` is read-only and returns a proposed number plus a digest of the pinned execution/current rounds; `CompareAndCreateRound` rechecks that digest under the store mutex and exclusively creates exactly that number, returning `ErrRoundPreflightStale` rather than falling through after a race. Unambiguous flat histories are staged, validated, assigned a deterministic `legacy-*` execution id, and indexed before their original bytes move under `legacy-rounds/<execution-id>/`; ambiguous histories remain readable but are never resumed. New service-dispatched rounds use the execution layout. Runner and handler code should use this store rather than constructing paths directly. Derived artifact writes belong in phase `ResultBindings`, not in mode-specific artifact applier branches.
 - **Execution manifest contract**: `execution.go` deep-copies and hashes the parent plus every reachable delegated definition and rejects a manifest whose stored digest no longer matches that bundle. Creation also transitively compiles and pins the canonical input contract, validates and normalizes the caller-input map, resolves every reachable non-delegated Prompt Manager source, and stores canonical definition/input/prompt digests plus per-input retention metadata before any execution directory is written. Invalid capabilities, types, aliases, target support, missing/extra/mistyped/oversized caller values, sensitive caller values, caller retention that cannot survive restart, missing prompt sources, or template-variable drift leave no manifest. Existing execution prompt assembly reads only the pinned definition, compiled-input artifact, validated snapshot, and prompt source; `DefinitionFor` and live Prompt Manager supply only new executions or the explicit legacy-adoption continuation pin. The workspace Connect projection exposes the compiled contract, digests, prompt revisions/hashes, and non-secret retention metadata to CLI and UI consumers, never raw retained caller values or rendered prompts.
-- **Input compiler and provider seam**: `api/internal/operatingmode/input_contract.go` owns logical `InputSpec`, source, alias, transitive phase-binding compilation, and `ValidateCallerInputSnapshot`. `InputProviderCapabilities` is the descriptor SSOT (type, targets, freshness, failure policy); `RunContext.resolveProviderCapability` is the behavioral retrieval edge. The plan-ref adapter implements `target.plan_path` and `target.plan_content` by resolving against the configured Agent Manager workspace through `os.Root`, rejecting traversal/symlinks/non-regular files and enforcing a 1 MiB UTF-8 limit; its plan context carries the content digest, not another unbounded copy. `DeclaredReads` renders only compiled phase bindings and prefers the execution-pinned contract/snapshot over mutable mode data. Connect start requests carry a generic `inputs` Struct, CLI starts accept `--inputs <JSON object>`, and the UI service accepts `OperatingModeCallerInputs`; all three derive shape from the projected compiled contract. Do not add a parallel read-name validator or assemble prompt variables outside this seam.
+- **Input compiler and provider seam**: `api/internal/operatingmode/input_contract.go` owns logical `InputSpec`, source, alias, transitive phase-binding compilation, and `ValidateCallerInputSnapshot`. `InputProviderCapabilities` is the descriptor SSOT (type, targets, freshness, failure policy); `RunContext.resolveProviderCapability` is the behavioral retrieval edge. A `plan-execution` target resolves to a canonical plan id + execution id through its target adapter; the pre-cutover unmanaged `plan-ref` workspace-file provider (`resolveWorkspacePlanRef`, `os.Root` traversal/symlink rejection, 1 MiB UTF-8 cap) was removed with that target kind. `DeclaredReads` renders only compiled phase bindings and prefers the execution-pinned contract/snapshot over mutable mode data. Connect start requests carry a generic `inputs` Struct, CLI starts accept `--inputs <JSON object>`, and the UI service accepts `OperatingModeCallerInputs`; all three derive shape from the projected compiled contract. Do not add a parallel read-name validator or assemble prompt variables outside this seam.
 - **Round envelope contract**: Round JSON records `execution_id`, `definition_digest`, mode, phase, scope, run strategy, selected `agent_profile_key`, run ID, status, readiness, artifact updates, handoffs, and phase payload. Each dispatched round also records a hashes-only prompt trace containing the pinned source revision/variant/hash, normalized variable hash, rendered prompt hash, definition digest, and input-contract digest. Sequential modes preserve handoffs in round JSON so future runs have durable context.
 - **Classification/readiness helpers**: Holistic readiness and phased-plan progress classification are parsed/validated in `operatingmode`; UI and runner code should not duplicate accepted dimension or decision enums.
 - **Capability rule**: The backend declares capabilities on catalog and workspace responses. UI and CLI rendering must use those capabilities and phase actions instead of inferring support from mode names or local phase-shape guesses.
 - **UI round view-model rule**: The UI service owns wire normalization and `ui/src/components/initiative/operating-mode/round-view-model.ts` owns operating-mode round payload interpretation for cards. React components must not reach into `round.payload` for backlog-sync plans, applied-sync state, mutation defaults, or action availability; they render the view model and call service callbacks.
 - **Operating mode card rule**: The mode-card shape (label, usage badge, description, scope·strategy line) is a single composite — `ui/src/components/initiative/operating-mode/operating-mode-card.tsx`. The sidebar `OperatingModesTab` and the panel's `ModePickerDialog` both consume it. New surfaces that need to render a mode card (linked-initiative cards on the details page, future picker variants) reuse this composite rather than reproducing the shape inline.
-- **Operating mode panel chrome rule**: The runtime control surface in `ui/src/components/initiative/operating-mode-panel.tsx` is composition-only. Each subsection (`OperatingModeHero`, `AcceptanceCriteriaEditor`, `PhaseComposer`, `ArtifactList`, `RoundTimeline`, `ItemLevelEmptyState`, `ModePickerDialog`) is rendered or hidden by **capability flags** from `workspace.definition.capabilities` — no mode-name string checks. Adding a new mode server-side automatically renders the right surfaces if its capabilities are set correctly.
+- **Operating mode panel chrome rule**: The runtime control surface in `ui/src/components/initiative/operating-mode-panel.tsx` is composition-only. Each subsection (`OperatingModeHero`, `AcceptanceCriteriaEditor`, `PhaseComposer`, `ArtifactList`, `RoundTimeline`, `ModePickerDialog`) is rendered or hidden by **capability flags** from `workspace.definition.capabilities` — no mode-name string checks. Adding a new mode server-side automatically renders the right surfaces if its capabilities are set correctly. The one deliberate exception is `MemberItemStrategyPanel`, gated by `isMemberItemStrategy(currentMode)` (`ui/src/lib/member-item-strategy.ts`): the member-item strategy is a sentinel, not a mode with capabilities, so its panel is sentinel-gated rather than capability-gated.
 - **Phase composer envelope rule**: `ui/src/components/initiative/operating-mode/phase-composer-envelope.ts` defines the XML envelope (`<phase_request>` with `<phase>`, `<selection>`, `<requested_actions>`, `<user_note>` blocks) embedded in the `note` string sent to `POST /api/v1/initiatives/{name}/operating-mode/phases/{phase}/start`. The wire shape stays a plain string; the envelope wraps the string contents. Skill prompts that consume `OPERATOR_NOTE` parse the envelope opportunistically — empty action and selection blocks signal raw-note-only. Quick-action keys (`continue_from_prior`, `reset_and_reinvestigate`, `focus_on_items`, `skip_unblock`, `tighten_scope`, `expand_scope`) are stable identifiers; do not rename without updating the operating-mode skill.
 - **Skill viewer rule**: The phase-internals disclosure surfaces a phase's `skillId` as a clickable button that opens `ui/src/components/initiative/operating-mode/skill-viewer-dialog.tsx`. The dialog reuses the existing `GET /api/v1/prompts/skills/{id}` endpoint (gated by `promptcatalog.IsKnownSkillID`, which already includes operating-mode phase skills) — there is **no** separate operating-mode skill proxy. The dialog renders skill name, description, metadata chips, and the rendered markdown body via the shared `renderMarkdown` helper. Skill mutation surfaces stay in `internal/prompts`; the dialog is read-only.
 - **Phase-prompt render seam rule**: `Service.renderPhasePrompt` ([CODE: api/internal/operatingmode/prompt.go]) is the *single* no-spawn seam that resolves a phase's skill, validates it against the prompt catalog, substitutes the phase context, and returns the literal prompt. `buildPrompt` (the real spawn path) delegates to it, so a preview is byte-identical to what an agent receives — a Go parity test guards this. Two lazy, server-authoritative preview endpoints reuse the seam: `POST /operating-modes/{mode}/simulate/render` (body `{preset, step_index}`, re-derives the deterministic fixture context for that step) and `POST /initiatives/{name}/operating-mode/phases/{phase}/render` (body `{round?, note?}`, real initiative context). The client never sends arbitrary skill/variable pairs. When the prompt-manager seam is unwired both endpoints return a typed **degraded** body (`degraded=true`, `variables` populated, HTTP 200), never a 500, so the UI falls back to the resolved variable map. `SimulateMode` additionally attaches each step's resolved `prompt_variables` (pure, no `ReadSkill`) for that fallback.
@@ -492,7 +548,7 @@ collapse back into one service file.
 | [CODE: ui/src/components/initiative/operating-mode/phase-composer.tsx] | Phase chip composer (graph + chip row + item picker + note) |
 | [CODE: ui/src/components/initiative/operating-mode/phase-composer-envelope.ts] | XML envelope contract embedded in the phase-start `note` string |
 | [CODE: ui/src/components/initiative/operating-mode/acceptance-criteria-editor.tsx] | Capability-gated criteria editor with parsed preview and common-criteria chips |
-| [CODE: ui/src/components/initiative/operating-mode/item-level-empty-state.tsx] | Useful empty state for `usesItemExecutionFlow=true` modes |
+| [CODE: ui/src/components/initiative/operating-mode/member-item-strategy-panel.tsx] | Member-item strategy surface, shown when the initiative `mode` is the `item-level`/blank sentinel (`isMemberItemStrategy`) |
 
 **Decision boundaries:**
 
@@ -915,7 +971,7 @@ All three auto-execution behaviors are controlled by global settings in `.vrooli
 - **Handler**: `Handler.TriggerReview` extracts execution_id from path, delegates to service, maps errors via `mapMutationError`
 - **GCT status**: `GET /api/v1/gct/status` returns `{"available": true/false}` by calling `ReviewClient.Ping`
 - **Review skip tracking**: `Record.ReviewSkipReason` captures why automatic review was skipped (GCT unavailable, not configured)
-- **Polling timeout**: 10-minute timeout in `refreshRunningLocked` transitions stuck validating records to `StatusNeedsFixup`
+- **Finalization drain**: `refreshRunningLocked` collects `StatusValidating` records that carry finalization state (`collectValidatingCandidatesLocked`) for the finalization worker; `TriggerReview` reruns that same unified post-run finalization flow for a terminal execution. There is no separate agent-manager status poller — completion arrives through the operation runner's commit path — and no 10-minute validating→`needs_fixup` timeout. An active record left without an operation correlation (`OpExecutionID`) fails closed via `inspectRunningRecordsLocked` (marked failed, item → `in_review`).
 
 **Testing at the seam**: `TestTriggerReview_CompletedExecution`, `TestTriggerReview_WrongStatus`, `TestTriggerReview_NoClient` in `service_test.go`.
 
@@ -923,12 +979,11 @@ All three auto-execution behaviors are controlled by global settings in `.vrooli
 
 `api/internal/execution/service.go` exposes the `FollowUp` method for user-initiated follow-ups from completed/failed/needs_fixup executions.
 
-- **runContinuer interface**: `ContinueRun(ctx, runID, message)` — sends follow-up message to existing agent-manager session
-- **agentSpawner interface**: `SpawnBacklog(ctx, req)` — spawns fresh agent run (existing seam)
-- **Run mode handling**: `continue` mode calls `ContinueRun` on the previous run; `new` mode spawns fresh via `SpawnBacklog`
-- **Prompt construction**: `buildFollowUpMessage` generates context-aware prompts based on follow-up type (fixup/followup/custom)
+- **OperationStarter seam**: a follow-up starts a fresh operation on the `backlog-item` target via `OperationStarter.StartOperation` — `execution-followup` for a normal follow-up (caller inputs `FOLLOWUP_NOTE` + `FOLLOWUP_TYPE`), or `execution-fixup` when the caller asked for a fix-up flavor (caller input `OPERATOR_NOTE`). The bound mode owns the prompt; the note/type ride as caller inputs. Agent-session continuation (`run_mode=continue`) is not part of the declarative-operations model — a fresh run reads the same completed deliverable + feedback — so it collapses to a fresh start.
+- **Synthetic PromptTrace**: the new record carries a `PromptTrace` marked `Synthetic:true` (rendered as `Reconstructed context` in the UI). It is caller-context provenance only; the agent actually runs the bound operation's mode-rendered prompt, not this trace.
+- **Completion authority**: the completion bridge drives the follow-up record to terminal (it carries `OpExecutionID`), so the finalization drain defers to the runner rather than polling it.
 
-**Testing at the seam**: Stub implementations of `runContinuer` and `agentSpawner` in test files enable testing both run modes, session expiry handling, and prompt construction without agent-manager.
+**Testing at the seam**: a stub `OperationStarter` in test files exercises the follow-up/fixup routing and caller-input mapping without agent-manager.
 
 ### Execution Retry-as-New-Attempt Boundary
 
@@ -2187,6 +2242,8 @@ Post-execution evidence gathering system. A review agent produces typed evidence
 | CLI commands | `cli/cmd_review.go` | `review-list`, `review-verify`, `review-request`, `review-trigger` — thin API wrappers with human-friendly default output. | — |
 | Prompt skill | `prompt-manager/store/skills/packs/core/swarm-manager-review/` | `SKILL.md` instructs the review agent on evidence strategy, output schema, classification rules, and Request More mode. | — |
 
+**Gathering-round ownership split (post-cutover)**: review rounds started through the operation runner carry runner ownership (`Round.RunnerOwned()`) and are driven to terminal exclusively by the completion bridge (`commit-review-round` / `commit-initiative-review`) plus the runner's durable-workflow refresh driver. The background pollers in `api/internal/review/polling.go` and `api/internal/initiativereview/polling.go` (`RecoverActiveRounds` → `RefreshGatheringRounds` on a 5s tick from `main.go`) are the **legacy-recovery backstop only**: nothing in the production start path calls `trackActiveRound` anymore, so their tracking maps are populated solely by startup recovery of non-runner-owned rounds still in `gathering` state, and `RunnerOwned()` guards (polling, `ListRounds` inline poll in `review/rounds.go` and `initiativereview/service.go`) keep the two drivers from ever racing on the same round. The review-side poller also enforces the max-round-age abandoned backstop that prevents orphaned `in_review` items. This is distinct from `execution/handler.go`'s `StartBackgroundWorker` (2s tick → `ProcessActiveExecutions` → `refreshRunningLocked`), which never polls agent-manager — it drives the queue drain, goal auto-enqueue, finalization/hold candidates, and the fail-closed uncorrelated-record guard (see Trigger-Review API Boundary above).
+
 ### Operating Mode Runner Boundary (updated 2026-04-30)
 
 Initiative non-default modes now have a backend runner seam instead of routing
@@ -2298,7 +2355,7 @@ tests pin startup brief attachment and the draft-session refresh path.
 
 > **Retired**: the standalone `/operations` page was absorbed by the Plan board's Now column (see Plan Board UI below); `/operations` now redirects to `/plan` preserving filter query params. The seams below survive with new consumers: `operations-store` + `operations-service` + `useOperationsPolling` feed `surfaces/plan/components/NowColumn`, and `ActivityRow` / `LaneBar` / `OpsBulkActions` are reused wholesale by the board. `OpsHeader`, `OpsFilterBar`, `OpsBody`, and the by-initiative/by-phase view components were deleted (the board owns grouping and filtering).
 
-The `/operations` route ([CODE: ui/src/pages/OperationsCenterPage.tsx]) is the only UI consumer of the Operations Aggregate seam in v1; future fan-in surfaces (e.g. a sidebar trigger badge in P8) reach the same data through the same store. The page composes three layout pieces (`OpsHeader`, `OpsFilterBar`, `OpsBody`) over one Zustand store ([CODE: ui/src/stores/operations-store.ts]) that owns the latest `OperationsView`, the active filters, the view-mode toggle, and a selection set reserved for P7b's bulk actions.
+The `/operations` route (`ui/src/pages/OperationsCenterPage.tsx`, deleted with the page's retirement) was the only UI consumer of the Operations Aggregate seam in v1; future fan-in surfaces (e.g. a sidebar trigger badge in P8) reach the same data through the same store. The page composes three layout pieces (`OpsHeader`, `OpsFilterBar`, `OpsBody`) over one Zustand store ([CODE: ui/src/stores/operations-store.ts]) that owns the latest `OperationsView`, the active filters, the view-mode toggle, and a selection set reserved for P7b's bulk actions.
 
 **Single fetch boundary**. Every UI call that reads operations data goes through `operationsService.fetchOperations(filters)` ([CODE: ui/src/services/operations-service.ts]); the service is the only place that knows about `GET /api/v1/operations`, the snake_case wire shape, the ISO-8601 PT-duration encoding for `window`, and the repeated-key form (`lane=execute&lane=review`) used for array filters. The page never builds query strings or normalizes responses directly — keeping wire concerns inside the service is what lets the rest of the page treat `OperationsView` as a plain camelCase domain type.
 
@@ -2310,7 +2367,7 @@ The `/operations` route ([CODE: ui/src/pages/OperationsCenterPage.tsx]) is the o
 
 ### Operations Center by-phase view (added 2026-05-02, P7a; superseded 2026-07-02 by the Now column's by-phase grouping in `surfaces/plan/components/NowColumn.tsx` — same lane-derivation rule, same silent-drop for non-canonical lanes)
 
-The `/operations?view=by-phase` board ([CODE: ui/src/components/operations/views/ByPhaseView.tsx]) groups active activities into the four canonical lanes — Investigate / Execute / Review / Reconcile — and is the second body view exposed by `OpsBody` ([CODE: ui/src/components/operations/OpsBody.tsx]). The view-mode toggle round-trips through the operations-store and the `view=` URL key; both surfaces validate against `OPERATIONS_VIEW_MODES` so an arbitrary value collapses to the default.
+The `/operations?view=by-phase` board (`ui/src/components/operations/views/ByPhaseView.tsx`, deleted at retirement) grouped active activities into the four canonical lanes — Investigate / Execute / Review / Reconcile — and was the second body view exposed by `OpsBody` (also deleted; the Now column owns grouping now). The view-mode toggle round-trips through the operations-store and the `view=` URL key; both surfaces validate against `OPERATIONS_VIEW_MODES` so an arbitrary value collapses to the default.
 
 **Lane is the column-derivation key, period.** `ByPhaseView` reads `ActivityRow.lane` and matches it against `OPERATIONS_LANES`; activities whose `lane` is missing or non-canonical are dropped silently. The aggregator ([CODE: api/internal/operations/aggregator.go]) is responsible for setting `lane` whenever it can be derived from `(purpose, phase_kind)`; queue rows whose phase-kind is undecided are the only rows that legitimately surface without a lane and are visible in the by-initiative view instead.
 

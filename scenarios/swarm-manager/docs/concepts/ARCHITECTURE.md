@@ -1,5 +1,43 @@
 # Swarm Manager Architecture
 
+## Typed workflow pilots
+
+The backlog workshop-round pilot uses Agent Manager as a consumer-neutral workflow runtime. A small scenario-owned definition captures one immutable backlog snapshot and returns one discriminated result. Agent Manager executes the graph and returns that result with run/profile provenance; it has no backlog vocabulary and performs no Swarm mutation.
+
+Swarm Manager remains the domain owner. It validates the typed result and applies it exactly once through its backlog API, including stale-snapshot and replay protection. This boundary is intentionally narrow: it introduces no classifier, target registry, domain-action framework, compatibility wrapper, or duplicated result schema.
+
+The plan-execution pilot hard-cuts only `execution.Service.startPlanOperationLocked`
+to `swarm-manager/phased-plan-drain`. The workflow owns slice composition:
+each visit to `slice` creates an independent Run using
+`swarm-manager/deep-work`; ordered compact handoffs come from the append-only
+journal; `correction` explicitly continues the named slice; and the reusable
+`phased-plan-slice-review` child uses `swarm-manager/analysis`. A rejected
+review is bound into a same-conversation correction and the corrected handoff
+is reviewed again before it can become terminal. The consumer-supplied
+`maxSlices` value is enforced from durable `slice` attempt entries; reaching it
+while more work is requested yields `budget_exhausted` without starting another
+Run. Cycle edges and global budgets are finite, and approval is a durable
+external signal. Blocked and abstained results retain their distinct Agent
+Manager workflow statuses rather than masquerading as success.
+
+Swarm still owns the plan frontier and execution lifecycle. It hashes the live
+Plan Manager rendering and backlog snapshot, starts idempotently, and accepts a
+terminal result only when workflow id, definition digest, consumer id, entity
+version, and frontier digest all match. A two-stage local claim applies the
+typed terminal transition exactly once. Retry, fixup, follow-up, research
+conclusion, legacy records, and UI paths are outside this pilot.
+
+### Pilot decision
+
+Decision: **go for the generic Agent Manager workflow primitive and retain both
+narrow pilots**. The evidence supports the execution-identity model: fresh Run
+per loop visit, node-local profiles, named continuation, child workflow,
+bounded journal context, finite cycles, durable waits, and consumer-owned
+exactly-once mutation all pass focused and race gates without domain vocabulary
+in Agent Manager. This is not authorization for a broad Swarm replacement.
+Replacing or deleting operating modes, agent operations, migrations, policy,
+or UI requires a separate plan with its own compatibility and data strategy.
+
 ## Mental Model
 
 Swarm Manager is the **staging and review layer** for agent-generated plans. Its primary role is to receive work proposals from prompt-manager agent teams, let operators review and refine them, and then control when and how they execute.

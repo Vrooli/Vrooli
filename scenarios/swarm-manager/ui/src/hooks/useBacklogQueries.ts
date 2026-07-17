@@ -10,6 +10,12 @@ import type { ReviewRound } from "../services/review-service";
 import type { BacklogKind } from "../types";
 import type { MaturityItemSummary, WorkshopRound } from "../types/domain";
 import { useBacklogStore } from "../stores";
+import { isWorkflowProjectionActive } from "../lib/agent-ops-utils";
+import {
+  backlogItemTarget,
+  useExecutionHistoryQuery,
+  useWorkflowProjectionQuery,
+} from "./useAgentOpsQueries";
 
 const AGENT_RUN_REFRESH_MS = 6000;
 
@@ -86,6 +92,19 @@ export function useBacklogQueries({
   });
 
   const isValidating = executionHistory?.[0]?.status === "validating";
+
+  // --- Canonical workflow projection (agent operations) ---
+  // THE authoritative source for workflow state, operation provenance, and
+  // legal actions when a workflow document exists. found=false means a
+  // pre-migration legacy item: consumers keep the legacy pipeline unchanged.
+  const workflowTarget = backlogItemTarget(backlogKind, name);
+  const { data: workflowProjection, isError: workflowProjectionError } =
+    useWorkflowProjectionQuery(workflowTarget);
+  const workflowActive = isWorkflowProjectionActive(workflowProjection);
+  const { data: canonicalExecutionHistory } = useExecutionHistoryQuery(workflowTarget, {
+    enabled: workflowProjection?.found ?? false,
+    active: workflowActive,
+  });
 
   const { data: reviewRounds } = useQuery({
     queryKey: ["review-rounds", backlogKind, name],
@@ -191,6 +210,10 @@ export function useBacklogQueries({
     refetchFiles,
 
     executionHistory,
+
+    workflowProjection,
+    workflowProjectionError,
+    canonicalExecutionHistory,
 
     reviewRounds,
     isGatheringEvidence,

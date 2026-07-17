@@ -73,10 +73,10 @@ func (a *governanceAdapter) LoadGovernance() (execution.GovernanceSettings, erro
 		// Turn budget comes from the PolicyControls projection (same
 		// persisted field) so the governance cost estimate and the policy
 		// surface always agree.
-		AgentMaxTurns: ProjectPolicyControls(s).Budgets.MaxTurns,
-		FixBeforeFeature:              s.FixBeforeFeature,
-		AutoFilerEnabled:              s.AutoFiler.Enabled,
-		AutoFilerStrategy:             s.AutoFiler.Strategy,
+		AgentMaxTurns:     ProjectPolicyControls(s).Budgets.MaxTurns,
+		FixBeforeFeature:  s.FixBeforeFeature,
+		AutoFilerEnabled:  s.AutoFiler.Enabled,
+		AutoFilerStrategy: s.AutoFiler.Strategy,
 	}, nil
 }
 

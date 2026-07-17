@@ -20,9 +20,6 @@ func ValidateLoadedModes(defs map[Mode]Definition) error {
 	}
 	for _, mode := range SortedModes(defs) {
 		def := defs[mode]
-		if !def.RunsModeRounds() {
-			continue
-		}
 		if _, err := CompileInputContract(defs, def); err != nil {
 			return err
 		}

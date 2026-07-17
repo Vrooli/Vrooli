@@ -44,6 +44,15 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 			}
 			return refreshed, nil
 		}
+		// Re-fire the terminal-round observer for an already-terminal round: the
+		// completion router's recovery contract is that the refresh driver keeps
+		// re-observing while the owning operation record is still running (a lost
+		// delivery is recoverable because CommitResult/CancelExecution are
+		// idempotent). Without this, a round that reached terminal state on an
+		// earlier tick (e.g. canceled via a stop surface) is never re-observed and
+		// its operation record stays running forever. notifyTerminalRound filters
+		// to terminal statuses, and the observer ignores non-runner-owned rounds.
+		s.notifyTerminalRound(ctx, round)
 		return round, nil
 	}
 	state, err := s.agent.GetRunState(ctx, round.RunID)

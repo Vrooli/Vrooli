@@ -196,7 +196,6 @@ export interface OperatingModeCapabilities {
   requiresAcceptanceCriteria: boolean;
   supportsArtifacts: boolean;
   supportsHandoffs: boolean;
-  usesItemExecutionFlow: boolean;
 }
 
 export type OperatingModeInputValue =
@@ -256,7 +255,7 @@ export interface OperatingModeCatalogEntry {
   tradeoffs: string[];
   whenInDoubtPickInstead?: InitiativeOperatingMode;
   usageCount: number;
-  /** The mode's declared unit of work: plan-manager-plan | plan-ref | initiative. */
+  /** The mode's declared unit of work: backlog-item | initiative | plan-execution | scenario. */
   targetKind: string;
   runStrategy: string;
   workspaceTabId: string;
@@ -294,7 +293,7 @@ export interface OperatingModeWorkspaceDefinition {
   mode: InitiativeOperatingMode;
   label: string;
   description?: string;
-  /** The mode's declared unit of work: plan-manager-plan | plan-ref | initiative. */
+  /** The mode's declared unit of work: backlog-item | initiative | plan-execution | scenario. */
   targetKind: string;
   capabilities: OperatingModeCapabilities;
   phases: OperatingModeWorkspacePhase[];

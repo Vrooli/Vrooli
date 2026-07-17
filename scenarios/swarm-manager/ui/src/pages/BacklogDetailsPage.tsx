@@ -37,6 +37,7 @@ import { useStorePolling } from "../hooks/useStorePolling";
 import { useBacklogHandlers } from "../hooks/useBacklogHandlers";
 import { findBacklogFileByPath } from "../lib/workshop-files";
 import { isAgentActivityBlocking, isAgentActivityExecuting } from "../lib/agent-activity-utils";
+import { isWorkshopOperation, provenanceByAttempt } from "../lib/agent-ops-utils";
 import { selectors } from "../consts/selectors";
 import { BACKLOG_KIND_LABELS, BACKLOG_KINDS } from "../types";
 import type { BacklogFile, BacklogKind } from "../types";
@@ -114,6 +115,7 @@ export function BacklogDetailsPage() {
     item, isLoadingItem, itemError, refetchItem, spawnedItems,
     files, isLoadingFiles, filesError, refetchFiles,
     executionHistory, reviewRounds, isGatheringEvidence, isAwaitingManualReview,
+    workflowProjection, workflowProjectionError, canonicalExecutionHistory,
     workshopRounds, readinessData, archiveTargets,
     depRelations, itemActions, targetScenarios,
     deliverableLabel, workshopActionLabel,
@@ -374,6 +376,8 @@ export function BacklogDetailsPage() {
         await backlogService.update(item.kind, item.name, { note });
         data.refetchItem();
       }}
+      workflowProjection={workflowProjection}
+      workflowProjectionError={workflowProjectionError}
     />
   ) : null;
 
@@ -392,6 +396,7 @@ export function BacklogDetailsPage() {
         prompt: "Initialize the first workshop round for this backlog item.",
       })}
       onDeleteRound={uiStore.setRoundToDelete}
+      workshopProvenanceByRound={provenanceByAttempt(workflowProjection, isWorkshopOperation)}
     />
   );
 
@@ -606,6 +611,8 @@ export function BacklogDetailsPage() {
                 <div className="flex-1 space-y-0 overflow-y-auto pb-4 lg:pt-3">
                   <OutputTab
                     executionHistory={executionHistory}
+                    workflowProjection={workflowProjection}
+                    canonicalExecutionHistory={canonicalExecutionHistory}
                     agentRunIsBusy={agentRunIsBusy}
                     latestAgentActivity={latestAgentActivity}
                     agentManagerUiUrl={agentManagerUiUrl}

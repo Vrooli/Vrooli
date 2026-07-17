@@ -58,21 +58,16 @@ type spawnSite struct {
 	method string
 }
 
-// allowedLegacySpawns is the closed, shrinking allowlist of direct-spawn calls
-// that remain in the domain packages pending their slice-C reroute. Each entry is
-// a DELIBERATE, documented exception; the guardrail fails if a spawn appears that
-// is NOT here (a regression) and also if an entry here has NO matching call (a
-// stale exception that must be deleted once its reroute lands).
-//
-// Slice C removes these one by one:
-//   - execution/service_queue.go  SpawnBacklog -> spec-sync-archive operation (P6c-3)
-//   - execution/service_control.go SpawnBacklog -> research-conclusion operation (P6c-4)
-//   - execution/followup.go       SpawnBacklog/ContinueRun -> execution-followup/fixup ops (P6c-2)
-//   - execution/retry.go          SpawnBacklog -> research-retry reroute (P6c-2 follow-up)
-//
-// When the last entry is removed the guardrail asserts a fully closed boundary.
+// allowedLegacySpawns is the closed allowlist of direct-spawn calls permitted in
+// the guarded domain packages. It is EMPTY — the Phase 6 reroutes landed and the
+// Phase 9 cutover deleted every legacy spawn site — and it must stay empty: the
+// boundary is fully closed, and every new autonomous launch is expressed as an
+// operation (opsrunner) instead. The guardrail fails on any spawn call that is
+// not listed here (a regression) and on any listed entry with no matching call
+// (a stale exception).
 var allowedLegacySpawns = map[spawnSite]string{}
 
+// [REQ:REQ-P0-009-OPERATION-SPAWN-BOUNDARY]
 func TestNoDirectAgentSpawnInDomainPackages(t *testing.T) {
 	found := map[spawnSite][]string{} // site -> "file:line" occurrences
 	for _, pkgDir := range guardedPackages {

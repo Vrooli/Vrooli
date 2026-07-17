@@ -74,6 +74,10 @@ var ErrNotAvailable = errors.New("agent-manager not available")
 // ErrRequestFailed is returned when agent-manager returns a non-2xx response.
 var ErrRequestFailed = errors.New("agent-manager request failed")
 
+// ErrWorkflowNotReady is returned when a workflow execution is healthy but
+// has not reached a terminal state yet. Callers may safely retry collection.
+var ErrWorkflowNotReady = errors.New("agent-manager workflow result not ready")
+
 var protoJSONMarshal = protojson.MarshalOptions{
 	UseProtoNames: false, // match existing clients (lowerCamelCase)
 }

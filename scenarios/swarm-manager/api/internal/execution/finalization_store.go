@@ -244,7 +244,7 @@ func (s *Service) loadScenarioFinalization(executionID, scenarioName string) (Sc
 		return ScenarioFinalization{}, err
 	}
 	record := records[idx]
-	finalization := effectiveFinalization(record)
+	finalization := record.Finalization
 	if finalization == nil {
 		return ScenarioFinalization{}, fmt.Errorf("execution %s has no finalization state", executionID)
 	}

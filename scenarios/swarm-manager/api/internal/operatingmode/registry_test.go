@@ -7,7 +7,7 @@ import (
 )
 
 func TestRegistryDefinesRequiredModes(t *testing.T) {
-	for _, mode := range []Mode{ModeItemLevel, ModeHolisticLoop, ModePhasedPlanDrain} {
+	for _, mode := range []Mode{ModeHolisticLoop, ModePhasedPlanDrain} {
 		def, err := DefinitionFor(mode)
 		if err != nil {
 			t.Fatalf("DefinitionFor(%q): %v", mode, err)
@@ -21,6 +21,32 @@ func TestRegistryDefinesRequiredModes(t *testing.T) {
 func TestNormalizeModeDefaultsBlankToItemLevel(t *testing.T) {
 	if got := NormalizeMode(" "); got != ModeItemLevel {
 		t.Fatalf("NormalizeMode(blank) = %q, want %q", got, ModeItemLevel)
+	}
+}
+
+// The member-item-strategy sentinel is not a registered operating mode: it is
+// a persisted initiative field value with no mode definition behind it.
+func TestMemberItemStrategySentinelIsNotAMode(t *testing.T) {
+	for _, raw := range []string{"", "  ", "item-level", "Item-Level"} {
+		if !IsMemberItemStrategySentinel(raw) {
+			t.Fatalf("IsMemberItemStrategySentinel(%q) = false, want true", raw)
+		}
+	}
+	if IsMemberItemStrategySentinel("holistic-loop") {
+		t.Fatal("holistic-loop misclassified as the strategy sentinel")
+	}
+	if ValidateMode(string(ModeItemLevel)) {
+		t.Fatal("ValidateMode(item-level) = true, want false: the sentinel is not a registered mode")
+	}
+	if _, err := DefinitionFor(ModeItemLevel); err == nil {
+		t.Fatal("DefinitionFor(item-level) succeeded, want sentinel rejection")
+	} else if !strings.Contains(err.Error(), "member-item") {
+		t.Fatalf("DefinitionFor(item-level) error = %v, want member-item strategy explanation", err)
+	}
+	for _, mode := range Modes() {
+		if mode == ModeItemLevel {
+			t.Fatal("registry contains the item-level sentinel")
+		}
 	}
 }
 
@@ -95,17 +121,14 @@ func TestCatalogDerivesModesFromRegistry(t *testing.T) {
 			t.Fatalf("catalog mode has missing fields: %+v", mode)
 		}
 	}
-	if defaultCount != 1 || !found[string(ModeItemLevel)].Default {
-		t.Fatalf("default mode state = count %d item-level=%+v", defaultCount, found[string(ModeItemLevel)])
+	// The member-item strategy sentinel is not a mode: it never appears in
+	// the catalog, and no registered mode claims the default flag (the
+	// strategy itself is the initiative default).
+	if defaultCount != 0 {
+		t.Fatalf("default mode count = %d, want 0 (the member-item strategy, not a mode, is the default)", defaultCount)
 	}
-	if found[string(ModeItemLevel)].SupportsPhases {
-		t.Fatal("item-level supports phases in catalog")
-	}
-	if !found[string(ModeItemLevel)].Capabilities.UsesItemExecutionFlow {
-		t.Fatal("item-level catalog capabilities should declare item execution flow")
-	}
-	if found[string(ModeItemLevel)].Capabilities.CanStartPhases {
-		t.Fatal("item-level catalog capabilities should not allow phase starts")
+	if _, ok := found[string(ModeItemLevel)]; ok {
+		t.Fatal("catalog contains the retired item-level pseudo-mode")
 	}
 	holisticCapabilities := found[string(ModeHolisticLoop)].Capabilities
 	if !holisticCapabilities.SupportsPhases || !holisticCapabilities.CanStartPhases {
@@ -398,7 +421,7 @@ func TestLoaderDerivesCommonAuthoringPolicy(t *testing.T) {
 	  "best_for": ["Exercising loader derivation"],
 	  "not_for": ["Production work"],
 	  "tradeoffs": ["Test-only"],
-	  "when_in_doubt_pick_instead": "item-level",
+	  "when_in_doubt_pick_instead": "holistic-loop",
 	  "target": { "kind": "initiative" },
 	  "input_contract": ` + testInputContractJSON(string(TargetInitiative), []string{ReadOperatingMode, ReadPhase, ReadRoundNumber, ReadOperatorNote, ReadPriorRoundsJSON, ReadInitiativeName, ReadMemberItemsJSON}) + `,
 	  "run_strategy": { "kind": "single_phase_run" },
@@ -636,14 +659,10 @@ func TestDefinitionsHaveDecisionMetadata(t *testing.T) {
 }
 
 func TestWhenInDoubtPickInsteadReferencesRegisteredMode(t *testing.T) {
-	itemLevel := MustDefinition(ModeItemLevel)
-	if itemLevel.WhenInDoubtPickInstead != "" {
-		t.Errorf("item-level WhenInDoubtPickInstead = %q, want empty (item-level is the safe default)", itemLevel.WhenInDoubtPickInstead)
-	}
 	for _, mode := range []Mode{ModeHolisticLoop, ModePhasedPlanDrain} {
 		def := MustDefinition(mode)
 		if def.WhenInDoubtPickInstead == "" {
-			t.Errorf("mode %q WhenInDoubtPickInstead is empty; only item-level may be empty", mode)
+			t.Errorf("mode %q WhenInDoubtPickInstead is empty", mode)
 			continue
 		}
 		if def.WhenInDoubtPickInstead == mode {

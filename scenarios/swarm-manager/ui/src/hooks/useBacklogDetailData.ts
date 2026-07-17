@@ -12,6 +12,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  applyWorkflowLegalActions,
   getItemActions,
   scenariosFromGlobs,
 } from "../lib";
@@ -86,6 +87,9 @@ export function useBacklogDetailData({
     maturitySummaryData,
     readinessData,
     archiveTargets,
+    workflowProjection,
+    workflowProjectionError,
+    canonicalExecutionHistory,
   } = queries;
 
   // -----------------------------------------------------------------------
@@ -186,10 +190,14 @@ export function useBacklogDetailData({
   const isWorkshopFinalized = workshopRounds.some((r) => r.mode === "finalize")
     && !(readinessData?.pendingSynthesis ?? false);
 
+  // Default client-side CTA funnel, then gated by the canonical workflow
+  // projection's legal_actions when a workflow document exists for the item.
+  // No workflow (found=false → the item has not run an operation yet) → the
+  // client funnel applies unchanged. See lib/workflow-legal-actions.ts.
   const itemActions: ItemActions | null = useMemo(() => {
     if (!item) return null;
     const itemKey = `${item.kind}/${item.name}`;
-    return getItemActions({
+    const clientActions = getItemActions({
       item,
       blockingInfo: blockingMap[itemKey] ?? null,
       readinessReady: readinessData ? readinessData.ready : null,
@@ -210,7 +218,8 @@ export function useBacklogDetailData({
         (e) => e.status === "completed" || e.status === "failed" || e.status === "canceled" || e.status === "needs_fixup",
       ),
     });
-  }, [item, blockingMap, readinessData, agentRunIsBlocking, agentRunIsExecuting, workshopRounds, executionHistory]);
+    return applyWorkflowLegalActions(clientActions, workflowProjection ?? null);
+  }, [item, blockingMap, readinessData, agentRunIsBlocking, agentRunIsExecuting, workshopRounds, executionHistory, workflowProjection]);
 
   const isLocked = itemActions?.locked ?? false;
   const isTerminal = itemActions?.terminal ?? false;
@@ -287,6 +296,10 @@ export function useBacklogDetailData({
     refetchFiles: () => void refetchFiles(),
 
     executionHistory,
+
+    workflowProjection,
+    workflowProjectionError,
+    canonicalExecutionHistory,
 
     reviewRounds: reviewRounds ?? ([] as ReviewRound[]),
     isGatheringEvidence,

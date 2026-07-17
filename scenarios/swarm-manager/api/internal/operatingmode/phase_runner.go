@@ -18,9 +18,6 @@ func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundE
 	if err != nil {
 		return RoundEnvelope{}, err
 	}
-	if def.Mode == ModeItemLevel {
-		return RoundEnvelope{}, fmt.Errorf("item-level mode phases are owned by the existing backlog execution flow")
-	}
 
 	rc, err := s.collectRunContext(ctx, def, phaseDef, init.Name)
 	if err != nil {
@@ -29,8 +26,8 @@ func (s *Service) StartPhase(ctx context.Context, req StartPhaseRequest) (RoundE
 	return s.startResolvedPhase(ctx, rc, req.Note, req.Inputs, req.Override, req.RequestedBy)
 }
 
-// StartTargetPhase is the plan-first entry point: it starts a mode round
-// directly on a non-initiative target (a plan-manager plan or a plan-ref),
+// StartTargetPhase is the target-first entry point: it starts a mode round
+// directly on a non-initiative target (a plan execution or a scenario),
 // with no initiative created and no backlog ceremony. Initiative-target modes
 // keep the initiative-keyed StartPhase surface; naming one here is a typed
 // error rather than a second way to drive initiatives.
@@ -38,9 +35,6 @@ func (s *Service) StartTargetPhase(ctx context.Context, req StartTargetPhaseRequ
 	def, err := DefinitionFor(Mode(req.Mode))
 	if err != nil {
 		return RoundEnvelope{}, err
-	}
-	if !def.RunsModeRounds() {
-		return RoundEnvelope{}, fmt.Errorf("mode %q runs no operating-mode rounds", def.Mode)
 	}
 	if def.Target.Kind == TargetInitiative {
 		return RoundEnvelope{}, fmt.Errorf("mode %q targets an initiative; start its phases through the initiative surface (initiative name + phase), not the target surface", def.Mode)
@@ -182,10 +176,21 @@ func (s *Service) startResolvedPhase(ctx context.Context, rc RunContext, note st
 	// sandbox-scoped exactly as the owning work requires. A scopeless target
 	// leaves the spawn unconstrained. The engine never branches on target kind —
 	// it applies whatever containment the adapter supplied.
+	//
+	// Contained targets carry repo-root-relative acceptance globs (the
+	// "scenarios/<name>/**" convention), so the pinned swarm-manager scenario
+	// root must NOT be used as the workspace: the spawn-side resolver's
+	// fail-closed acceptance check would resolve every glob under the scenario
+	// dir and reject the run as a stale plan. Leaving ScopePath/ProjectRoot
+	// empty routes through projectroot.Resolve, which derives
+	// (monorepo root, scenarios/<scenario>) from the acceptance globs — the
+	// exact workspace contract the legacy backlog spawn used.
 	if scope := rc.Target.Containment; !scope.IsZero() {
 		spawnReq.AcceptanceAllow = scope.AcceptanceAllow
 		spawnReq.AcceptanceDeny = scope.AcceptanceDeny
 		spawnReq.Creates = scope.Creates
+		spawnReq.ScopePath = ""
+		spawnReq.ProjectRoot = ""
 	}
 	if s.activity != nil {
 		// PhaseKind drives lane assignment in agentactivity. Building the spec
@@ -297,9 +302,6 @@ func (s *Service) RenderLivePrompt(ctx context.Context, initiativeName, phase st
 	if err != nil {
 		return RenderPromptResponse{}, err
 	}
-	if def.Mode == ModeItemLevel {
-		return RenderPromptResponse{}, fmt.Errorf("item-level mode has no operating-mode phase prompt to render")
-	}
 	rc, err := s.collectRunContext(ctx, def, phaseDef, init.Name)
 	if err != nil {
 		return RenderPromptResponse{}, err
@@ -375,6 +377,9 @@ func (s *Service) resolvePhase(initiativeName, phase string) (InitiativeSnapshot
 	init, err := s.initiatives.LoadInitiative(strings.TrimSpace(initiativeName))
 	if err != nil {
 		return InitiativeSnapshot{}, Definition{}, PhaseDefinition{}, err
+	}
+	if IsMemberItemStrategySentinel(init.Mode) {
+		return InitiativeSnapshot{}, Definition{}, PhaseDefinition{}, fmt.Errorf("initiative %q uses the member-item workflow strategy, which has no operating-mode phases; member items run through their own operations", init.Name)
 	}
 	def, err := DefinitionFor(Mode(init.Mode))
 	if err != nil {

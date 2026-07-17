@@ -27,6 +27,14 @@ type ResultCommitter interface {
 	CommitResult(ctx context.Context, req opsrunner.CommitRequest) (opsrunner.OperationResult, error)
 }
 
+// ExecutionCanceller reaps a running operation execution whose round was
+// canceled (a non-deliverable outcome CommitResult never fires for). Satisfied
+// by *opsrunner.Runner.CancelExecution, which is idempotent and no-ops on
+// already-terminal records.
+type ExecutionCanceller interface {
+	CancelExecution(ctx context.Context, target opsrunner.TargetRef, executionID string) error
+}
+
 // CompletionRouter is the terminal-round observer wired into the operating-mode
 // engine (Service.SetRoundObserver). It routes a runner-OWNED round's completion
 // into Runner.CommitResult and leaves every other round — a legacy initiative
@@ -41,15 +49,20 @@ type ResultCommitter interface {
 type CompletionRouter struct {
 	repo      WorkflowLoader
 	committer ResultCommitter
+	canceller ExecutionCanceller
 	log       *slog.Logger
 }
 
 // NewCompletionRouter builds the router. A nil logger defaults to slog.Default.
+// When the committer also implements ExecutionCanceller (the production
+// *opsrunner.Runner does), canceled rounds reap their running operation record;
+// otherwise canceled rounds are ignored as before.
 func NewCompletionRouter(repo WorkflowLoader, committer ResultCommitter, log *slog.Logger) *CompletionRouter {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &CompletionRouter{repo: repo, committer: committer, log: log}
+	canceller, _ := committer.(ExecutionCanceller)
+	return &CompletionRouter{repo: repo, committer: committer, canceller: canceller, log: log}
 }
 
 // Observe implements operatingmode.RoundObserver: it is called once when a round
@@ -90,6 +103,23 @@ func (r *CompletionRouter) Observe(ctx context.Context, round operatingmode.Roun
 		if !ok {
 			return // the round's run is owned by no runner operation (legacy round)
 		}
+	}
+	// A canceled round is not a deliverable outcome (no CommitResult fires), but
+	// the running operation record must still be reaped or the refresh driver
+	// polls the stopped run forever. Cancellation can arrive through ANY stop
+	// surface (execution cancel, operations bulk-stop, a raw agent-manager
+	// run-stop), so the reap lives here — the single seam every terminal
+	// runner-owned round flows through — not in each domain's cancel handler.
+	// CancelExecution is idempotent (no-op when the record is already terminal).
+	if round.Status == operatingmode.RoundStatusCanceled {
+		if r.canceller == nil {
+			return
+		}
+		if err := r.canceller.CancelExecution(ctx, opsrunner.TargetRef{Kind: kind, ID: w.Domain.ID}, op.ExecutionID); err != nil {
+			r.log.Warn("opsbridge: reap canceled operation failed",
+				"err", err, "scope", round.ScopeID, "execution_id", op.ExecutionID)
+		}
+		return
 	}
 	// Review operations classify with the verdict vocabulary, which the handoff
 	// delivery mapper does not read; routing them through it would abstain every

@@ -117,6 +117,24 @@ type Record struct {
 	// spawn through slice B).
 	OpWorkflowID  string `json:"op_workflow_id,omitempty"`
 	OpExecutionID string `json:"op_execution_id,omitempty"`
+	// AgentWorkflow* fields correlate the selected plan-execution hard cut to
+	// Agent Manager's durable workflow. ApplyState is a local, crash-recoverable
+	// journal: "claimed" means the authorized terminal result is persisted and
+	// its idempotent backlog transition still needs finishing; "complete" means
+	// that transition has been applied exactly once from this consumer's view.
+	AgentWorkflowExecutionID   string                      `json:"agent_workflow_execution_id,omitempty"`
+	AgentWorkflowDefinition    string                      `json:"agent_workflow_definition_digest,omitempty"`
+	AgentWorkflowFrontier      string                      `json:"agent_workflow_frontier_digest,omitempty"`
+	AgentWorkflowEntityVersion string                      `json:"agent_workflow_entity_version,omitempty"`
+	AgentWorkflowApplyState    string                      `json:"agent_workflow_apply_state,omitempty"`
+	AgentWorkflowOutcome       string                      `json:"agent_workflow_outcome,omitempty"`
+	AgentWorkflowTerminalCode  string                      `json:"agent_workflow_terminal_code,omitempty"`
+	AgentWorkflowBudgetName    string                      `json:"agent_workflow_budget_name,omitempty"`
+	AgentWorkflowResult        json.RawMessage             `json:"agent_workflow_result,omitempty"`
+	AgentWorkflowAttempts      []WorkflowAttemptProvenance `json:"agent_workflow_attempts,omitempty"`
+	AgentWorkflowApprovalAt    string                      `json:"agent_workflow_approval_at,omitempty"`
+	AgentWorkflowApprovalBy    string                      `json:"agent_workflow_approval_by,omitempty"`
+	AgentWorkflowAppliedAt     string                      `json:"agent_workflow_applied_at,omitempty"`
 	// PreExecBaselines maps an affected scenario name to the GCT baseline
 	// captured for it just before execution started. Finalization diffs each
 	// of these against the post-execution working tree to separate regressions
@@ -140,25 +158,45 @@ type Record struct {
 	AcceptedBy             string `json:"accepted_by,omitempty"`
 	AcceptedReason         string `json:"accepted_reason,omitempty"`
 	AcceptedPreviousStatus Status `json:"accepted_previous_status,omitempty"`
-	// Deprecated: migration-only fields preserved so legacy execution history can
-	// be converted into the unified finalization model on read.
-	LegacyReviewResult     *ReviewResult `json:"review_result,omitempty"`
-	LegacyReviewJobID      string        `json:"review_job_id,omitempty"`
-	LegacyReviewSkipReason string        `json:"review_skip_reason,omitempty"`
-	LegacyReviewStartedAt  string        `json:"review_started_at,omitempty"`
-	CreatedAt              string        `json:"created_at"`
-	UpdatedAt              string        `json:"updated_at"`
+	CreatedAt              string `json:"created_at"`
+	UpdatedAt              string `json:"updated_at"`
 }
 
-// PromptTrace captures prompt details used to launch the execution.
+// WorkflowAttemptProvenance is the bounded run-attempt trace retained at the
+// consumer boundary. It intentionally contains correlations, not prompts.
+type WorkflowAttemptProvenance struct {
+	NodeID          string `json:"node_id"`
+	Ordinal         int32  `json:"ordinal"`
+	Strategy        string `json:"strategy"`
+	RunID           string `json:"run_id,omitempty"`
+	ConversationID  string `json:"conversation_id,omitempty"`
+	SourceAttemptID string `json:"source_attempt_id,omitempty"`
+	ProfileIdentity string `json:"profile_identity,omitempty"`
+}
+
+// PromptTrace captures prompt details for an execution's details view.
+//
+// Provenance note (post-cutover): for operation-runner records the prompt the
+// agent actually receives is the bound mode's rendered prompt, owned by the
+// operation runner and pinned in its execution snapshot (compiled mode +
+// prompt catalog digests). Retry/fixup/followup records still build this
+// trace via buildExecutionPrompt as DISPLAY provenance of the caller's
+// context (note, deliverable, handoff); such traces set Synthetic=true so
+// the UI labels them as reconstructed caller context, not the literal agent
+// prompt (finding 65e38f8f: projecting the rendered prompt here is not
+// possible at record creation — rendering happens engine-side when the
+// round starts).
 type PromptTrace struct {
 	Purpose        string `json:"purpose"`
 	Prompt         string `json:"prompt"`
 	PromptRevision string `json:"prompt_revision,omitempty"`
 	UsedFallback   bool   `json:"used_fallback"`
-	CapturedAt     string `json:"captured_at"`
-	ExperimentID   string `json:"experiment_id,omitempty"`
-	VariantID      string `json:"variant_id,omitempty"`
+	// Synthetic marks a trace reconstructed for display (caller context),
+	// as opposed to the literal prompt the agent ran with.
+	Synthetic    bool   `json:"synthetic,omitempty"`
+	CapturedAt   string `json:"captured_at"`
+	ExperimentID string `json:"experiment_id,omitempty"`
+	VariantID    string `json:"variant_id,omitempty"`
 }
 
 // ReviewResult captures the outcome of a post-execution readiness review.

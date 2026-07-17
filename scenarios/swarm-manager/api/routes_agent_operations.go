@@ -55,6 +55,9 @@ func (s *Server) registerAgentOperationsDiagnostics(scenarioRoot string) {
 		return
 	}
 	backlogStore := s.backlogHandler.Store()
+	// The locator mirrors the runner's (registerBacklogOpsRunner) exactly —
+	// including the plan-execution and scenario scope roots — so a diagnostics
+	// selector resolves the same directories a live Invoke writes to.
 	locator := opsrunner.FSLocator{
 		BacklogItemDir: func(kind, name string) (string, error) {
 			return backlogStore.ItemDir(backlog.BacklogKind(kind), name), nil
@@ -62,6 +65,13 @@ func (s *Server) registerAgentOperationsDiagnostics(scenarioRoot string) {
 		InitiativeDir: func(name string) (string, error) {
 			return s.initiativeService.InitDir(name), nil
 		},
+		PlanExecutionDir: func(id string) (string, error) {
+			return filepath.Join(s.dataRoot, "plan-executions", sanitizePlanExecutionToken(id)), nil
+		},
+		ScenarioDir: func(name string) (string, error) {
+			return filepath.Join(s.dataRoot, "scenario-runs", sanitizePlanExecutionToken(name)), nil
+		},
+		ScanRoots: []string{s.dataRoot},
 	}
 	repo := opsrunner.NewWorkflowRepo(locator)
 	execStore := opsrunner.NewExecutionStore(locator)
@@ -96,7 +106,10 @@ func (s *Server) registerAgentOperationsDiagnostics(scenarioRoot string) {
 	resolver.InitiativeOfItem = overrides.InitiativeOfItem
 	svc = svc.WithResolver(resolver).
 		WithOverrideAdmin(overrides, opsrunner.NewOverrideWriter(locator)).
-		WithMigrationStatusPath(filepath.Join(s.dataRoot, "agentops", "migration-status.json"))
+		WithMigrationStatusPath(filepath.Join(s.dataRoot, "agentops", "migration-status.json")).
+		// Same locator + grace as the startup sweep, so an operator-invoked
+		// RunReconciliation behaves identically to what the boot path already does.
+		WithReconciler(locator, orphanSnapshotGrace)
 
 	agentopsdiag.RegisterConnectService(s.router, svc)
 	slog.Info("agent-operations diagnostics registered", "modes", len(defsByID))

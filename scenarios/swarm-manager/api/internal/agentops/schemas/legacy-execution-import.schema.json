@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agentops/legacy-execution-import/v1",
+  "title": "Legacy execution import snapshot",
+  "description": "The full-fidelity import record of ONE pre-cutover execution-runs.json entry, written by the Phase-8 state migrator (docs/operations/migration/MIGRATOR-DESIGN.md §5). A small typed header correlates the import to its workflow instance and operation; the `legacy` member preserves the VERBATIM legacy entry — every timestamp, attempt count, review link, cost/governance field, failure reason, and pre-exec baseline exactly as persisted. This kind exists because ExecutionProvenance requires compiled-mode/prompt-catalog digests that never existed for legacy runs: fabricating them would violate the no-fabricated-identity rule, so legacy history gets its own dedicated import kind instead of a fake provenance record. The workflow's correlated OperationExecutionRecord pins this document by digest (provenance_digest = sha256 of these exact bytes).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "operation", "execution_id", "workflow_instance_id", "imported_at", "legacy"],
+  "properties": {
+    "kind": { "const": "agentops-legacy-execution-import" },
+    "schema_version": { "$ref": "#/$defs/SemVer" },
+    "operation": { "$ref": "#/$defs/OperationId", "description": "The registered operation the legacy entry maps onto (generator -> execution-run, retry -> execution-retry, fixup -> execution-fixup, followup -> execution-followup)." },
+    "execution_id": { "type": "string", "minLength": 1, "description": "The correlated execution id: the entry's op_execution_id when the cutover already assigned one, else exec-legacy-<legacy execution_id>." },
+    "workflow_instance_id": { "type": "string", "minLength": 1, "description": "The instance_id of the workflow whose operations[] correlates this import." },
+    "imported_at": { "type": "string", "minLength": 1, "description": "Deterministic import instant: the legacy entry's own last-write time (updated_at, else finished_at, else queued_at) — never wall clock, so repeated staging is byte-identical." },
+    "legacy": { "type": "object", "description": "The verbatim legacy execution-runs.json entry, byte-preserved. Never normalized, trimmed, or re-keyed." }
+  },
+  "$defs": {
+    "SemVer": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "OperationId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" }
+  }
+}

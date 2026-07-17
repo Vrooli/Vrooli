@@ -50,7 +50,10 @@ func (h *Handler) Get(w http.ResponseWriter, _ *http.Request) {
 		apierr.MapError(w, "[settings] get", apierr.Internal("failed to load settings"))
 		return
 	}
-	resp := &apipb.SettingsResponse{Settings: settingsToProto(settings)}
+	resp := &apipb.SettingsResponse{
+		Settings:         settingsToProto(settings),
+		PolicyProjection: policyProjectionToProto(settings),
+	}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[settings] get", apierr.Internal("failed to encode response"))
 		return
@@ -96,7 +99,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		"at", time.Now().UTC().Format(time.RFC3339),
 	)
 
-	resp := &apipb.SettingsResponse{Settings: settingsToProto(updated)}
+	resp := &apipb.SettingsResponse{
+		Settings:         settingsToProto(updated),
+		PolicyProjection: policyProjectionToProto(updated),
+	}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[settings] update", apierr.Internal("failed to encode response"))
 		return

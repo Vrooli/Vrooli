@@ -8,13 +8,15 @@ import {
 } from "./utils";
 
 describe("humanizeTargetKind", () => {
-  it("humanizes the v2 target kinds", () => {
-    expect(humanizeTargetKind("plan-manager-plan")).toBe("Plan-manager plan");
-    expect(humanizeTargetKind("plan-ref")).toBe("Plan reference");
+  it("humanizes the registered target kinds", () => {
+    expect(humanizeTargetKind("backlog-item")).toBe("Backlog item");
     expect(humanizeTargetKind("initiative")).toBe("Initiative");
+    expect(humanizeTargetKind("plan-execution")).toBe("Plan execution");
+    expect(humanizeTargetKind("scenario")).toBe("Scenario");
   });
-  it("falls back to the raw token for unknown values", () => {
+  it("falls back to the raw token for unknown (including retired) values", () => {
     expect(humanizeTargetKind("project")).toBe("project");
+    expect(humanizeTargetKind("retired-kind")).toBe("retired-kind");
   });
   it("renders an em-dash for the empty string", () => {
     expect(humanizeTargetKind("")).toBe("—");
@@ -23,7 +25,6 @@ describe("humanizeTargetKind", () => {
 
 describe("humanizeRunStrategy", () => {
   it("humanizes registered run strategies", () => {
-    expect(humanizeRunStrategy("existing_item_flow")).toBe("Existing item flow");
     expect(humanizeRunStrategy("single_phase_run")).toBe("Single phase run");
     expect(humanizeRunStrategy("sequential_handoff")).toBe("Sequential handoff");
     expect(humanizeRunStrategy("operator_gated_loop")).toBe("Operator-gated loop");
@@ -77,6 +78,5 @@ describe("capabilityLabel", () => {
     expect(capabilityLabel("requiresAcceptanceCriteria")).toBe("Requires acceptance criteria");
     expect(capabilityLabel("supportsArtifacts")).toBe("Phase artifacts");
     expect(capabilityLabel("supportsHandoffs")).toBe("Round handoffs");
-    expect(capabilityLabel("usesItemExecutionFlow")).toBe("Existing item execution flow");
   });
 });

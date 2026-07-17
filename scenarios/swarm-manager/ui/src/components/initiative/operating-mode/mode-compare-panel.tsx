@@ -5,7 +5,7 @@ import type {
   OperatingModeCatalogEntry,
 } from "../../../types/operating-mode";
 import { CapabilityList } from "./capability-list";
-import { capabilityLabel, humanizeRunStrategy, humanizeTargetKind } from "./utils";
+import { capabilityLabel, humanizeRunStrategy, humanizeTargetKind, modeLabel } from "./utils";
 
 export interface ModeComparePanelProps {
   current: OperatingModeCatalogEntry;
@@ -20,7 +20,6 @@ const CAPABILITY_FLAGS: ReadonlyArray<keyof OperatingModeCapabilities> = [
   "requiresAcceptanceCriteria",
   "supportsArtifacts",
   "supportsHandoffs",
-  "usesItemExecutionFlow",
 ];
 
 interface Delta {
@@ -94,7 +93,7 @@ function Column({
     <div>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
       <p className={`mt-1 text-sm font-semibold ${highlight ? "text-cyan-200" : "text-slate-100"}`}>
-        {mode.label}
+        {modeLabel(mode.mode, mode.label)}
       </p>
       <p className="mt-1 text-[11px] text-slate-500">
         {humanizeTargetKind(mode.targetKind)} · {humanizeRunStrategy(mode.runStrategy)}

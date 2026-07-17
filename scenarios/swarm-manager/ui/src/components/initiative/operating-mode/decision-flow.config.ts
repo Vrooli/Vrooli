@@ -14,6 +14,7 @@
  */
 
 import type { InitiativeOperatingMode } from "../../../types";
+import { MEMBER_ITEM_STRATEGY_WIRE_VALUE } from "../../../lib/member-item-strategy";
 
 export type DecisionFlowNodeRef =
   | { kind: "question"; id: string }
@@ -41,8 +42,11 @@ export const DECISION_FLOW: DecisionFlowQuestion[] = [
   {
     id: "items-stable",
     question: "Are the items stable — will their scope and shape stay constant during execution?",
-    hint: "If new ground truth is likely to reshape items mid-flight, they are not stable.",
-    yes: { kind: "mode", mode: "item-level" },
+    hint: "If items are stable and decoupled, they don't need a methodology loop — each item runs its own workflow and the initiative only provides strategy configuration (the member-item workflow).",
+    // Terminal ref keeps the legacy wire value so accepting the
+    // recommendation flows through the EXISTING switch-mode mutation;
+    // presentation maps to "Member-item workflow" (lib/member-item-strategy).
+    yes: { kind: "mode", mode: MEMBER_ITEM_STRATEGY_WIRE_VALUE },
     no: { kind: "question", id: "plan-stable" },
   },
   {

@@ -334,21 +334,25 @@ persisted overlay (label/description) and annotated with current per-mode
 `usage_count`. UI and CLI selection surfaces consume this endpoint instead of
 maintaining hard-coded mode lists.
 
+The member-item workflow strategy (persisted initiative mode value
+`item-level`) is NOT in this catalog — it is not an operating mode; the UI
+synthesizes its picker entry client-side (`ui/src/lib/member-item-strategy.ts`).
+
 ```json
 {
   "modes": [
     {
-      "mode": "item-level",
-      "label": "Item Level",
-      "description": "Default mode. Each backlog item flows through the existing item execution pipeline...",
-      "usage_count": 12,
+      "mode": "holistic-loop",
+      "label": "Holistic Loop",
+      "description": "investigate → plan → execute → review → reconcile...",
+      "usage_count": 2,
       "target_kind": "initiative",
-      "run_strategy": "existing_item_flow",
-      "workspace_tab_id": "info",
-      "default": true,
+      "run_strategy": "operator_gated_loop",
+      "workspace_tab_id": "operating-mode",
+      "default": false,
       "switchable": true,
-      "supports_phases": false,
-      "phases": []
+      "supports_phases": true,
+      "phases": ["..."]
     }
   ]
 }
@@ -669,6 +673,8 @@ The CLI uses `settings.default_mode` when `execution create` is called without `
 | GET | `/api/v1/execution/{id}/prompt-trace` | Get prompt trace for execution |
 | POST | `/api/v1/execution/{id}/start` | Start a pending/scheduled execution |
 | POST | `/api/v1/execution/{id}/cancel` | Cancel an active execution |
+| POST | `/api/v1/execution/{id}/workflow/apply` | Explicitly collect and exactly-once apply a terminal phased-plan workflow result |
+| POST | `/api/v1/execution/{id}/workflow/approve` | Persist a Swarm-owned approval decision, then signal the phased-plan workflow |
 | POST | `/api/v1/execution/{id}/retry` | Retry a failed execution |
 | POST | `/api/v1/execution/{id}/follow-up` | Create follow-up from terminal execution |
 | POST | `/api/v1/execution/{id}/trigger-review` | Trigger or re-trigger a GCT review for a terminal execution |
@@ -710,6 +716,33 @@ Returns 400 if the execution is not in a terminal status. Returns 500 if ReviewC
 ### GCT Status
 
 Lightweight health check against git-control-tower. Always returns 200 with `{"available": true}` or `{"available": false}`. Uses a 3-second timeout.
+
+## Agent Operations (declarative)
+
+`AgentOperationsService` is a Connect-RPC service (not REST) exposing the
+declarative agent-operations runtime — the operation catalog, binding resolution,
+binding overrides, workflow/execution projections, migration status, and the
+reconciliation sweep. Every RPC delegates the decision to the runtime
+(`opsrunner`); every RPC is read-only except `PutBindingOverride`,
+`DeleteBindingOverride`, and `RunReconciliation`. Targets are addressed by a
+selector (`kind` ∈ `backlog-item|initiative|plan-execution|scenario`, plus `id`).
+
+| RPC | Description |
+|-----|-------------|
+| `ListOperationCatalog` | The 15 authored operation contracts |
+| `ListCompatibleModes` | Modes whose capabilities satisfy an operation for a target |
+| `GetResolvedBindings` | Resolved bindings for a target across operations |
+| `ResolveBinding` | Resolve one operation's binding (deterministic precedence, fail-closed) |
+| `ValidateInvocation` | Contract + binding validation for an operation on a target |
+| `ListBindingOverrides` / `PutBindingOverride` / `DeleteBindingOverride` | Read/write binding overrides (domain storage, never the shipped catalog) |
+| `GetWorkflowProjection` | The durable workflow instance for a target (state, decisions, operations, legal actions) |
+| `ListExecutionHistory` | Recorded executions for a target, newest first (legacy imports labeled `[legacy import]`, not reproducible) |
+| `InspectWorkflow` / `InspectExecution` | Deep-inspect a workflow instance or a single execution snapshot |
+| `GetMigrationStatus` | The persisted-state migration status document (completed epoch-1 promotion) |
+| `RunReconciliation` | Operator-invoked orphan-snapshot reconciliation sweep |
+
+Provenance digests (contract/binding/policy/compiled-mode) are pinned per
+execution and enforced on reproduction; binding revision labels are advisory.
 
 ## Prompts
 

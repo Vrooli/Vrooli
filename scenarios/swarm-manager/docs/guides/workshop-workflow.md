@@ -1,5 +1,17 @@
 # Workshop Refinement Workflow
 
+## Agent Manager workflow pilot
+
+Explicit `POST /api/v1/backlog/{kind}/{name}/research` requests with `{"mode":"workshop"}` now start the scenario-owned `backlog-workshop-round` Agent Manager workflow. The response `task_id` is the workflow execution ID and `run_id` is the fresh workflow run using profile `swarm-manager/deep-work`. This entrypoint does not fall back to the legacy operation runner.
+
+When execution succeeds, apply its typed result through:
+
+```text
+POST /api/v1/backlog/{kind}/{name}/workshop/workflow/{executionID}/apply
+```
+
+The apply call checks the immutable input snapshot, validates the `proposals`, `no_questions`, or `abstained` result, records execution/run/profile provenance, and performs the Swarm-owned update exactly once. Retrying the same apply is safe, including after an API restart. `abstained` records provenance without creating a workshop round. The existing UI is unchanged during this pilot.
+
 The workshop system is a universal iterative refinement loop that transforms any backlog item (idea, research, fix, execute, chore) into a fully-specified, ready-for-execution plan. It replaces the earlier idea-only 3-phase pipeline (clarify/suggest/enhance) with a single loop that works across all 5 backlog kinds.
 
 ## End-to-End Flow
@@ -22,10 +34,10 @@ The workshop system is a universal iterative refinement loop that transforms any
 ┌─────────────────────────────────────────────────────────────────────┐
 │  API: Handler.Research()                                            │
 │                                                                     │
-│  1. Load workshop skill for this kind                               │
-│  2. Substitute variables: {{ITEM_NAME}}, {{ITEM_FOLDER}}, ...       │
-│  3. Spawn agent via agent-manager.SpawnBacklog()                    │
-│  4. Agent writes workshop/round-N.json and updates plan-manager     │
+│  1. Snapshot the item and current workshop version                  │
+│  2. Start the reconciled Agent Manager workflow idempotently        │
+│  3. Agent returns one schema-validated typed result                  │
+│  4. Swarm validates and applies that result exactly once            │
 └─────────────────────────┬───────────────────────────────────────────┘
                           │
                           ▼
@@ -182,7 +194,7 @@ Content-Type: application/json
 }
 ```
 
-The API loads the appropriate workshop prompt skill, substitutes item context variables, and spawns the agent via agent-manager.
+The API snapshots the current item, starts the reconciled Agent Manager workflow, and returns its execution and fresh-run identities. Once the workflow is terminal, the separate apply endpoint performs the Swarm-owned mutation.
 
 ## Item Lifecycle: Backlog to Execution
 
@@ -244,7 +256,6 @@ That package is not a separate planning surface. It is a frozen execution bridge
 - [CODE: api/internal/backlog/workshop.go] -- Workshop handler integration with backlog domain
 - [CODE: api/internal/backlog/handler.go#Research] -- HTTP handler, prompt fetching, agent spawn
 - [CODE: api/internal/backlog/maturity_summary.go] -- Maturity/readiness aggregation endpoint
-- [CODE: api/internal/backlog/feedback_summary.go] -- Pending feedback aggregation endpoint
 
 ### Frontend
 - [CODE: ui/src/lib/workshop-files.ts] -- Round parsing, truncation recovery, metrics

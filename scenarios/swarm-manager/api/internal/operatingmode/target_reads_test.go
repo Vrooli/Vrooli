@@ -214,6 +214,44 @@ func (f fakeBacklogTargetReader) LoadBacklogItemTarget(ref string) (BacklogItemT
 	return f.item, nil
 }
 
+// TestBacklogItemAdapterThreadsContainment proves the backlog-item adapter
+// projects the item's write scope onto the resolved TargetInstance, so
+// pre-execution operations (research/workshop/clarify/review) spawn
+// sandbox-scoped through the SAME generic containment seam a plan-execution
+// drain uses — closing the last scopeless spawn class (finding cadc9f24).
+// A scopeless item stays unconstrained (zero scope is not threaded).
+// [REQ:REQ-P0-009-OPERATION-SPAWN-BOUNDARY]
+func TestBacklogItemAdapterThreadsContainment(t *testing.T) {
+	scoped := &Service{backlogTargets: fakeBacklogTargetReader{item: BacklogItemTarget{
+		Title: "Fix flaky test", Status: "in_progress",
+		Containment: ContainmentScope{
+			AcceptanceAllow: []string{"scenarios/foo/**"},
+			AcceptanceDeny:  []string{"scenarios/foo/secrets/**"},
+			Creates:         []string{"scenarios/foo/newdir"},
+		},
+	}}}
+	adapter := backlogItemTargetAdapter{}
+	inst, err := adapter.Resolve(context.Background(), scoped, Definition{}, PhaseDefinition{}, "fix/flaky-test")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if inst.Containment.IsZero() {
+		t.Fatalf("resolved instance must carry the item's containment, got zero scope")
+	}
+	if len(inst.Containment.AcceptanceAllow) != 1 || inst.Containment.AcceptanceAllow[0] != "scenarios/foo/**" {
+		t.Fatalf("containment = %+v", inst.Containment)
+	}
+
+	scopeless := &Service{backlogTargets: fakeBacklogTargetReader{item: BacklogItemTarget{Title: "No criteria yet"}}}
+	inst, err = adapter.Resolve(context.Background(), scopeless, Definition{}, PhaseDefinition{}, "idea/new-thing")
+	if err != nil {
+		t.Fatalf("resolve scopeless: %v", err)
+	}
+	if !inst.Containment.IsZero() {
+		t.Fatalf("an item without acceptance criteria must stay unconstrained, got %+v", inst.Containment)
+	}
+}
+
 func TestPlanManagerContextCarriesStableIdentityAndDigest(t *testing.T) {
 	root := t.TempDir()
 	client := &fakePlanExecution{}

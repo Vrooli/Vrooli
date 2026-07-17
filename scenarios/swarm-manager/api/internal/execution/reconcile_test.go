@@ -81,3 +81,68 @@ func TestReconcileStrandedRecords(t *testing.T) {
 		t.Fatalf("second sweep must find nothing, got %v", report2.Stranded)
 	}
 }
+
+// TestReconcileStrandedRecordsReapsMissedOperations proves the sweep delivers a
+// missed operation reap: a terminal (failed/canceled) record still correlated to
+// a durable operation execution gets its operation offered a cancel through the
+// OperationStarter seam (the 542467c6 divergence class — the stranded sweep
+// marked the legacy record failed without reaping its agentops operation).
+// Completed records and records without an operation correlation are untouched.
+func TestReconcileStrandedRecordsReapsMissedOperations(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "chore", "diverged-item", map[string]any{
+		"name":     "diverged-item",
+		"title":    "Diverged",
+		"status":   "backlog",
+		"priority": 3,
+		"tags":     []string{},
+	})
+
+	service := NewService(ServiceConfig{
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
+		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+	})
+	starter := &stubOperationStarter{}
+	service.SetOperationStarter(starter)
+
+	seed := []Record{
+		// Failed record with an op correlation whose reap was missed — must be reaped.
+		{
+			ExecutionID: "diverged-1", BacklogKind: "chore", BacklogName: "diverged-item", Status: StatusFailed,
+			Mode: ModeManual, OpWorkflowID: "wf-plan-execution-x", OpExecutionID: "opx-stale",
+		},
+		// Completed record with an op correlation — must NOT be reaped (a running
+		// op behind a completed record is a divergence for operator attention).
+		{
+			ExecutionID: "done-1", BacklogKind: "chore", BacklogName: "diverged-item", Status: StatusCompleted,
+			Mode: ModeManual, OpWorkflowID: "wf-plan-execution-x", OpExecutionID: "opx-done",
+		},
+		// Failed record without any op correlation — nothing to reap.
+		{ExecutionID: "legacy-1", BacklogKind: "chore", BacklogName: "diverged-item", Status: StatusFailed, Mode: ModeManual},
+	}
+	if err := service.store.Save(seed); err != nil {
+		t.Fatalf("save seed: %v", err)
+	}
+
+	report, err := service.ReconcileStrandedRecords()
+	if err != nil {
+		t.Fatalf("ReconcileStrandedRecords error: %v", err)
+	}
+	if len(report.Stranded) != 0 {
+		t.Fatalf("no stranded records expected, got %v", report.Stranded)
+	}
+	if len(report.OpReapsAttempted) != 1 || report.OpReapsAttempted[0] != "diverged-1" {
+		t.Fatalf("expected exactly diverged-1 offered a reap, got %v", report.OpReapsAttempted)
+	}
+	if starter.cancelCalls != 1 {
+		t.Fatalf("expected exactly one CancelOperation call, got %d", starter.cancelCalls)
+	}
+	if starter.cancelReq.ExecutionID != "opx-stale" {
+		t.Fatalf("expected reap of opx-stale, got %q", starter.cancelReq.ExecutionID)
+	}
+	if starter.cancelReq.TargetKind != "plan-execution" || starter.cancelReq.TargetID != "test-plan-diverged-item" {
+		t.Fatalf("unexpected reap target %s/%s", starter.cancelReq.TargetKind, starter.cancelReq.TargetID)
+	}
+}

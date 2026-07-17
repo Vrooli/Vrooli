@@ -4,6 +4,32 @@ This document captures critical invariants that must be maintained across all ch
 
 ## Replay/Idempotency Invariants
 
+### Agent Manager workshop-round pilot
+
+- A workshop start is keyed by the backlog identity, immutable snapshot version, and canonical operator-note digest. Retrying the same request may return the same workflow execution; changing the item, accumulated rounds, or operator intent produces a different request identity.
+- Applying an execution requires the current backlog snapshot version to equal the version captured by the workflow input. A stale result fails closed before any backlog mutation.
+- Swarm Manager exclusively creates `workshop/workflow-provenance-<execution-id>.json` before materializing a round. That claim is the durable exactly-once boundary across HTTP retries and process restarts.
+- A replay that finds complete provenance returns the recorded artifact without collecting or mutating again. If a crash left a claim without its named artifact, recovery may collect the same execution and finish only that artifact.
+- `abstained` is a successful, typed result: it records provenance but intentionally creates no round artifact. Agent Manager never writes backlog state.
+
+### Agent Manager phased-plan pilot
+
+- Only the primary plan-backed execution start uses the phased-plan workflow.
+  Retry, fixup, follow-up, and research conclusion remain on their existing
+  paths; there is no dual-path fallback at the selected callsite.
+- The start record pins workflow execution id, definition digest, rendered-plan
+  frontier digest, backlog entity version, and bounded attempt provenance.
+- Result application recomputes the current plan and entity snapshot and fails
+  closed before mutation if any pinned correlation differs.
+- `agent_workflow_apply_state=claimed` is a durable recovery checkpoint. A
+  restart finishes the idempotent backlog transition from the persisted typed
+  result without recollecting external state; `complete` makes later callbacks
+  local no-ops.
+- An approval decision is stored before the stable-key `slice_approved` signal
+  is delivered. Redelivery cannot replace the original actor or decision time.
+- The consumer cancels the workflow aggregate, never an arbitrary child Run.
+  Agent Manager never calls Swarm or writes an execution or backlog record.
+
 Understanding how operations behave under retries is critical for building robust systems. This section documents the idempotency characteristics of each state-mutating operation.
 
 ### Key Definitions
@@ -149,7 +175,7 @@ Non-default initiative operating modes are strict orchestration flows. They are 
 | Invariant | Enforced by | Why it matters |
 |-----------|-------------|----------------|
 | Generic initiative metadata updates cannot change mode | `api/internal/initiatives` update validation and operating-mode switch routes | Mode changes have cancellation, lock, event, and workspace side effects that must stay in one lifecycle boundary |
-| Round actions never silently default to `item-level` | `api/internal/operatingmode` handler/service mode resolution | Prevents operators and clients from applying non-default round controls to the wrong execution model |
+| Round actions resolve an explicit mode and never silently fall back to the member-item strategy | `api/internal/operatingmode` handler/service mode resolution | Prevents operators and clients from applying non-default round controls to the wrong execution model |
 | Completed rounds must satisfy the registered phase output contract | `api/internal/operatingmode` registry, parser, artifact applier, and refresher | Stats, phase transitions, and artifact state cannot treat malformed or incomplete agent output as success |
 | A failed phase start leaves no active reserved/running round unless a real AgentManager run owns the lock | `api/internal/operatingmode/phase_runner.go` | Prevents stale rounds from blocking future initiative progress |
 | Backlog sync mutations are run-id validated and source-attributed | `api/internal/operatingmode/backlog_reconciler.go` | Keeps direct backlog edits out of agent output and preserves audit metadata on backlog/status/proposal events |
@@ -158,7 +184,7 @@ Non-default initiative operating modes are strict orchestration flows. They are 
 | Every phase-mode execution pins one transitive compiled input contract and digest | `api/internal/operatingmode/input_contract.go` and `execution.go` | Logical specs, explicit sources, aliases, and delegated-mode bindings validate before manifest creation; runtime rendering prefers the pinned artifact |
 | A logical input has exactly one source and sensitivity-safe retention | `CompileInputContract` | Missing/competing sources, provider type/target mismatches, derived cycles, and sensitive `retention=value` fail before filesystem mutation |
 | Caller inputs are validated once before execution creation and replay by digest | `ValidateCallerInputSnapshot` and `Store.ContinueOrCreateExecutionWithInputs` | Missing, unknown, mistyped, out-of-bounds, oversized, sensitive, or unreplayable values leave no manifest or round; a retry may omit inputs or repeat the identical normalized snapshot, but cannot replace it |
-| Plan-ref content is a contained execution-workspace capability | `planRefTargetAdapter.Resolve` and `resolveWorkspacePlanRef` | Absolute/traversing paths, symlink components, non-regular files, oversized bytes, and invalid UTF-8 fail before manifest/round/lock/run mutation; prompts receive canonical relative path and bounded content while traces retain policy-aware hashes |
+| A `plan-execution` target resolves to a canonical plan id + execution id, never a workspace file path | `plan-execution` target adapter | The unmanaged `plan-ref` workspace-file target kind and its `resolveWorkspacePlanRef` adapter were removed in the declarative-operations rebuild (0 live instances); a plan target is a provider-neutral plan execution, and the domain `plan_ref` field on items/initiatives is an associated reference, not a target |
 | Dynamic phase preflight is read-only until compare-and-reserve | `Store.PrepareRound`, `Store.CompareAndCreateRound`, and `startResolvedPhase` | Provider resolution, pinned rendering, trace generation, and spawn-request assembly use a proposed round plus execution/round digest; any intervening state change returns `ErrRoundPreflightStale` and cannot allocate a duplicate round |
 | A run ID maps to at most one execution/round owner | `Store.IndexRunOwner` | Replays are idempotent; a conflicting second owner is an explicit ambiguity error rather than last-write-wins |
 | At most one nonterminal execution may exist for a target and mode | `Store.ContinueOrCreateExecution` and `collectRunContext` | Resume never chooses an execution by recency or hidden precedence; multiple resumable manifests require repair |
@@ -206,6 +232,19 @@ validate.
 | UI and CLI consume backend-declared capabilities | `api/internal/operatingmode/workspace.go`, UI service normalization, and CLI output structs | Keeps presentation code out of business-rule inference |
 | New phase purposes do not require shared activity or lock constants | Registry purpose token validation and initiative-owned activity validation | Lets a mode author add phases without editing unrelated shared packages |
 | Synthetic mode data exercises authoring seams | `api/internal/operatingmode/synthetic_mode_test.go` and `api/internal/operatingmode/testdata/` | Catches accidental regressions toward production-mode hardcoding |
+
+### Declarative Agent-Operations Invariants
+
+The declarative agent-operations layer (see
+[`../concepts/AGENT-OPERATIONS.md`](../concepts/AGENT-OPERATIONS.md)) adds four
+load-bearing invariants that keep autonomous spawning legible and fail-closed.
+
+| Invariant | Enforced by | Why it matters |
+|-----------|-------------|----------------|
+| Every autonomous agent spawn flows through the generic operation runner; no domain package spawns directly | Architecture tests in `api/internal/archtest` (spawn AST test, agent-manager import allowlist, opsrunner/opsbridge/opscatalog purity tests, removed-vocabulary test) plus the engine's `agentactivity` chokepoint | One spawn path means one place to pin provenance, correlate a workflow, and attribute a run; a bespoke call site would be unversioned and invisible to the workflow instance |
+| Revision **labels** are advisory; **digests** are the enforcement identity | Execution provenance pins compiled-mode/contract/binding/policy digests; reproduce fails with `ErrDigestMismatch` and deleted revisions fail closed | A run reproduces against the exact content it pinned, not a mutable `1.0.0` label; content drift is caught even when the label is unchanged |
+| An active execution record with a `RunID` but no `OpExecutionID` fails closed | `execution/polling.go` `inspectRunningRecordsLocked` | After migration an uncorrelated active record is impossible; it is marked failed and the item lands in `in_review` rather than being silently stranded by a poll driver that no longer exists |
+| `item-level` is a member-item strategy sentinel, never a mode folder | Operating-mode loader/scaffold reject id `item-level`; `operatingmode.NormalizeMode` / `IsMemberItemStrategySentinel` map the sentinel (string `item-level` or blank) to the strategy | Prevents a phase-less pseudo-mode from re-appearing as an authorable, selectable methodology; the strategy is initiative workflow configuration, not a loop |
 
 ## Baseline Modes Engagement Invariants
 

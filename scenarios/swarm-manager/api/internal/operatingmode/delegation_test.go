@@ -54,12 +54,10 @@ func loadDelegationTestDefs(t *testing.T, id, executedBy string) map[Mode]Defini
 		t.Fatalf("LoadModeDefinition: %v", err)
 	}
 	drain := loadModeFromDisk(t, string(ModePhasedPlanDrain))
-	item := loadModeFromDisk(t, string(ModeItemLevel))
 	holistic := loadModeFromDisk(t, string(ModeHolisticLoop))
 	return map[Mode]Definition{
 		def.Mode:            def,
 		ModePhasedPlanDrain: drain,
-		ModeItemLevel:       item,
 		ModeHolisticLoop:    holistic,
 	}
 }
@@ -92,11 +90,11 @@ func TestDelegationValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("delegating to a mode with no rounds rejected", func(t *testing.T) {
+	t.Run("delegating to the member-item-strategy sentinel rejected", func(t *testing.T) {
 		defs := loadDelegationTestDefs(t, "delegation-test", string(ModeItemLevel))
 		err := validateDelegations(defs)
-		if err == nil || !strings.Contains(err.Error(), "runs no mode rounds") {
-			t.Fatalf("err = %v, want no-mode-rounds rejection", err)
+		if err == nil || !strings.Contains(err.Error(), "unknown sub-mode") {
+			t.Fatalf("err = %v, want unknown sub-mode rejection (the sentinel is not a registered mode)", err)
 		}
 	})
 

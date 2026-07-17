@@ -258,6 +258,9 @@ func LoadModeDefinition(raw []byte) (Definition, error) {
 }
 
 func (doc modeDocument) toDefinition() (Definition, error) {
+	if IsMemberItemStrategySentinel(doc.ID) {
+		return Definition{}, fmt.Errorf("mode id %q is reserved: it is the member-item workflow strategy sentinel, not an operating mode", ModeItemLevel)
+	}
 	def := Definition{
 		Mode:                   Mode(doc.ID),
 		Label:                  doc.Label,
@@ -282,12 +285,8 @@ func (doc modeDocument) toDefinition() (Definition, error) {
 		def.Metrics.AcceptedVerdicts = append([]string(nil), doc.Metrics.AcceptedVerdicts...)
 	}
 
-	if !def.RunsModeRounds() {
-		return def, nil
-	}
-
 	if doc.PhaseGraph == nil {
-		return Definition{}, fmt.Errorf("mode %q runs mode rounds but declares no phase_graph", doc.ID)
+		return Definition{}, fmt.Errorf("mode %q declares no phase_graph; every mode runs mode rounds through a phase graph", doc.ID)
 	}
 	if doc.Prompt != nil {
 		def.Prompt = PromptPolicy{CatalogPrefix: doc.Prompt.CatalogPrefix}

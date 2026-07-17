@@ -4,18 +4,13 @@ import (
 	"context"
 
 	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
 )
 
-// AgentSpawner spawns agent-manager sessions for execution runs.
-type AgentSpawner interface {
+// AgentManagerAvailability probes whether agent-manager is reachable. Used as
+// a preflight for user-initiated retry / follow-up; actual spawning happens
+// exclusively through the operation runner (OperationStarter).
+type AgentManagerAvailability interface {
 	IsEnabled() bool
-	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
-}
-
-// RunInspector retrieves the current state of an agent run.
-type RunInspector interface {
-	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
 }
 
 // RunStopper cancels a running agent session.

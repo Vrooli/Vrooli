@@ -11,6 +11,7 @@
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
+import { normalizeModeWireValue } from "../lib/member-item-strategy";
 import type { AgentSessionAttribution, InitiativeWithRollup } from "../types";
 import type { TreeFile } from "../components/ui/file-tree";
 
@@ -76,7 +77,10 @@ export function normalizeInitiativeWithRollup(
   const archivedAt = initiative.archivedAt ?? initiative.archived_at;
   const acceptanceCriteria = initiative.acceptanceCriteria ?? initiative.acceptance_criteria ?? [];
   const dependsOn = initiative.dependsOn ?? initiative.depends_on ?? [];
-  const mode = initiative.mode ?? "item-level";
+  // Legacy records without a mode collapse to the member-item strategy's
+  // legacy wire value (data vocabulary migrates in Phase 8; presentation is
+  // mapped in lib/member-item-strategy.ts).
+  const mode = normalizeModeWireValue(initiative.mode);
   const planRef = initiative.planRef ?? initiative.plan_ref;
   const priority = initiative.priority ?? 0;
   const createdBy = normalizeAttribution(initiative.createdBy ?? initiative.created_by);

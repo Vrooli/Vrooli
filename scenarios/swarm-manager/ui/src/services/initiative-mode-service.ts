@@ -15,6 +15,13 @@ import {
 } from "@vrooli/proto-types/swarm-manager/v1/api/operating_mode_pb";
 import type * as ompb from "@vrooli/proto-types/swarm-manager/v1/api/operating_mode_pb";
 import { API_BASE } from "../lib/api-client";
+import {
+  isMemberItemStrategy,
+  memberItemStrategyCatalogEntry,
+  normalizeModeWireValue,
+} from "../lib/member-item-strategy";
+import { initiativeService } from "./initiative-service";
+import type { InitiativeWithRollup } from "../types";
 import type {
   ActiveItemExecution,
   OperatingModeArtifactDefinition,
@@ -74,7 +81,9 @@ function orUndef(value: string | undefined): string | undefined {
 }
 
 function asMode(value: string | undefined): InitiativeOperatingMode {
-  return value || "item-level";
+  // Blank wire values collapse to the member-item strategy's legacy wire
+  // value ("item-level") — see lib/member-item-strategy.ts for the stance.
+  return normalizeModeWireValue(value);
 }
 
 const PHASE_KINDS: ReadonlySet<OperatingModePhaseKind> = new Set([
@@ -209,7 +218,6 @@ function mapCapabilities(
     requiresAcceptanceCriteria: c?.requiresAcceptanceCriteria ?? false,
     supportsArtifacts: c?.supportsArtifacts ?? false,
     supportsHandoffs: c?.supportsHandoffs ?? false,
-    usesItemExecutionFlow: c?.usesItemExecutionFlow ?? false,
   };
 }
 
@@ -788,8 +796,8 @@ export function parseActiveItemExecutionsConflict(error: unknown): ActiveItemExe
   if (!detail) return null;
   return {
     initiativeName: detail.initiativeName,
-    fromMode: detail.fromMode || "item-level",
-    toMode: detail.toMode || "item-level",
+    fromMode: normalizeModeWireValue(detail.fromMode),
+    toMode: normalizeModeWireValue(detail.toMode),
     executions: (detail.executions ?? []).map(mapExecution),
   };
 }
@@ -847,13 +855,44 @@ function defaultOperatingModeClient(): OperatingModeClient {
 
 export function createInitiativeModeService(
   client: OperatingModeClient = defaultOperatingModeClient(),
+  listInitiatives: () => Promise<InitiativeWithRollup[]> = () => initiativeService.list(),
 ): IInitiativeModeService {
+  // The member-item workflow strategy has no server catalog entry (the
+  // item-level pseudo-mode was deleted in Phase 9): its linked initiatives —
+  // every initiative persisted under the sentinel wire value — come from the
+  // initiative list instead.
+  async function strategyLinkedInitiatives(): Promise<OperatingModeLinkedInitiative[]> {
+    const initiatives = await listInitiatives();
+    return initiatives
+      .filter((entry) => isMemberItemStrategy(entry.initiative.mode))
+      .map((entry) => ({
+        name: entry.initiative.name ?? "",
+        title: entry.initiative.title ?? "",
+        status: entry.initiative.status || undefined,
+        updated: entry.initiative.updated || undefined,
+      }));
+  }
+
   return {
     async catalog(): Promise<OperatingModeCatalog> {
-      return mapCatalog(await client.catalog({}));
+      // Usage count for the synthesized strategy entry is display decoration:
+      // if the initiative list is unavailable, still serve the catalog (with
+      // count 0) rather than failing every mode surface.
+      const [catalog, strategyLinked] = await Promise.all([
+        client.catalog({}).then(mapCatalog),
+        strategyLinkedInitiatives().catch(() => []),
+      ]);
+      return { modes: [...catalog.modes, memberItemStrategyCatalogEntry(strategyLinked.length)] };
     },
 
     async getMode(mode: string): Promise<OperatingModeDetail> {
+      // The strategy sentinel is resolved client-side: the server has no mode
+      // definition for it (deep link /operating-modes/item-level stays
+      // addressable).
+      if (isMemberItemStrategy(mode)) {
+        const linked = await strategyLinkedInitiatives();
+        return { entry: memberItemStrategyCatalogEntry(linked.length), linkedInitiatives: linked };
+      }
       return mapModeDetail(await client.getMode({ mode }));
     },
 

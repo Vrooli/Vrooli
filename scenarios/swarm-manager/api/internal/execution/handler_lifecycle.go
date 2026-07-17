@@ -95,6 +95,48 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) ApplyPhasedPlanWorkflow(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		apierr.MapError(w, "[execution] workflow-apply", apierr.BadRequest("execution_id is required"))
+		return
+	}
+	result, err := h.service.ApplyPhasedPlanWorkflow(r.Context(), executionID)
+	if err != nil {
+		apierr.MapError(w, "[execution] workflow-apply", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		apierr.MapError(w, "[execution] workflow-apply", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) ApprovePhasedPlanWorkflow(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		apierr.MapError(w, "[execution] workflow-approve", apierr.BadRequest("execution_id is required"))
+		return
+	}
+	var body struct {
+		Actor string `json:"actor"`
+	}
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			apierr.MapError(w, "[execution] workflow-approve", apierr.BadRequest("invalid request body"))
+			return
+		}
+	}
+	record, err := h.service.ApprovePhasedPlanWorkflow(r.Context(), executionID, body.Actor)
+	if err != nil {
+		apierr.MapError(w, "[execution] workflow-approve", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
+		apierr.MapError(w, "[execution] workflow-approve", apierr.Internal("failed to encode response"))
+	}
+}
+
 // Retry creates a new execution attempt parented to a terminal execution.
 // The body is optional; if present it carries an informational note.
 func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {

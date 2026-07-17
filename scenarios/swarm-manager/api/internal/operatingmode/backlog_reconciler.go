@@ -36,9 +36,6 @@ func (s *Service) CompleteItems(ctx context.Context, req CompleteItemsRequest) (
 	if err != nil {
 		return BacklogSyncResult{}, err
 	}
-	if def.Mode == ModeItemLevel {
-		return BacklogSyncResult{}, fmt.Errorf("item-level mode backlog completion is owned by the existing backlog execution flow")
-	}
 	if !hasBacklogSyncCapability(def.BacklogSync, BacklogSyncMarkComplete) {
 		return BacklogSyncResult{}, fmt.Errorf("mode %q does not allow marking backlog items complete", mode)
 	}
@@ -120,9 +117,6 @@ func (s *Service) ApplyBacklogSync(ctx context.Context, req ApplyBacklogSyncRequ
 	_, def, err := s.definitionBundleForRound(round)
 	if err != nil {
 		return BacklogSyncResult{}, err
-	}
-	if def.Mode == ModeItemLevel {
-		return BacklogSyncResult{}, fmt.Errorf("item-level mode backlog reconciliation is owned by the existing backlog execution flow")
 	}
 	if !hasBacklogSyncCapability(def.BacklogSync, BacklogSyncProposeMutations) {
 		return BacklogSyncResult{}, fmt.Errorf("mode %q does not allow backlog mutation proposals", mode)

@@ -12,12 +12,18 @@
 
 ## Why this layer exists
 
-Today every autonomous agent run against a backlog item or initiative is a
-bespoke call site: research spawns an agent one way, workshop another, execution
-another, review another (the Phase-1 [agent cutover ledger](../internal/AGENT-CUTOVER-LEDGER.md)
-classified 14 such target-bound spawns). Each hard-codes *what* to run and *how*
-to run it in Go. That makes the methodology illegible, unversioned, and
-impossible to vary per target without editing code.
+Before the declarative-operations cutover, every autonomous agent run against a
+backlog item or initiative was a bespoke call site: research spawned an agent one
+way, workshop another, execution another, review another (the Phase-1
+[agent cutover ledger](../internal/AGENT-CUTOVER-LEDGER.md) classified 14 such
+target-bound spawns). Each hard-coded *what* to run and *how* to run it in Go,
+which made the methodology illegible, unversioned, and impossible to vary per
+target without editing code. That cutover is **complete**: those call sites are
+gone, every autonomous spawn now flows through the generic operation runner, and
+an architecture test fails the build if a domain package spawns directly. The
+persisted-state migration that moved historical runs onto this model finished at
+epoch 1 (125/125 staged and promoted, 0 quarantined); see
+[Migration, as a completed fact](#migration-as-a-completed-fact).
 
 The declarative model separates the two questions:
 
@@ -41,7 +47,7 @@ domain code performs — they never mix (there is no `backlog-item-workshop`).
 
 | Concept | What it is | Kind | Authority (SSOT) | Example | Never |
 |---|---|---|---|---|---|
-| **Target kind** | The unit of work an operation runs against | data enum | operating-mode + agentops vocab (kept identical) | `backlog-item`, `initiative`, `plan-execution` | a verb; a mode; a plan-ref *field* |
+| **Target kind** | The unit of work an operation runs against | data enum | operating-mode + agentops vocab (kept identical) | `backlog-item`, `initiative`, `plan-execution`, `scenario` | a verb; a mode; a plan-ref *field* |
 | **Target capability** | A typed capability a target adapter *provides* | data (closed enum) + Go registry | `agentops.TargetCapabilities()` | `provides-review-artifacts` | invented per target |
 | **Operation contract** | A named, versioned *what*: required capabilities, inputs, result, outcomes, evidence | data document | `operation-contract.schema.json` | `review-round@1.0.0` | naming a mode, func, service, path |
 | **Mode definition + revision** | The *how*: a methodology loop as data, at an immutable revision | data folder | `EXECUTION-MODES.md` / `operating-mode.schema.json` | `holistic-loop@<digest>` | implementing a contract implicitly |
@@ -107,6 +113,51 @@ nested structures where a path or command could hide). Adding an action is a
 domain-code change that registers a typed handler, never a data edit that
 invents a name. This is what keeps data-authored methodology from turning into
 data-authored code execution.
+
+## Recovery and reconciliation
+
+The runtime is durable and fail-closed, so a crash or a lost delivery never
+leaves silent corruption:
+
+- **Workflow instances** are a durable canonical projection committed by
+  compare-and-swap with atomic writes; a stale writer loses the swap rather than
+  clobbering a newer commit.
+- **Orphan-snapshot reconciliation** runs at startup
+  (`opsrunner.ReconcileOrphanSnapshots`) and can be re-triggered on demand
+  (`agent-operations reconcile`), reaping execution snapshots left behind when a
+  process died mid-run.
+- **Completion is single-authority.** A run reaches terminal state exclusively
+  through the operation runner's commit path (the opsbridge completion router →
+  commit-execution-round). There is no status-poller racing it.
+- **Delivery is at-least-once against idempotent commits.** While an operation
+  record is still `running`, the refresh driver keeps re-observing its round —
+  including a round that is already terminal — so a lost delivery is always
+  recovered on a later tick (`operatingmode.RefreshRound` re-fires the
+  terminal-round observer; `CommitResult`/`CancelExecution` are idempotent).
+- **Canceled rounds reap their operation record.** A cancel can arrive through
+  any stop surface (execution cancel, operations bulk-stop, a raw agent-manager
+  run stop). A canceled round is not a deliverable outcome, so the completion
+  router reaps the running operation record via `opsrunner.CancelExecution`
+  instead of committing a result — the workflow records the `canceled` outcome
+  and the refresh driver stops polling the stopped run.
+- **Uncorrelated active records fail closed.** An active execution record that
+  carries a `RunID` but no operation correlation (`OpExecutionID`) is impossible
+  after the migration, so the drain marks it failed and lands the item in
+  `in_review` rather than stranding it — `execution/polling.go`
+  `inspectRunningRecordsLocked`.
+
+## Migration, as a completed fact
+
+The persisted-state migration onto this model is **done** — it is history, not
+active work. It promoted **epoch 1** with **125/125** legacy records staged and
+promoted and **0** quarantined. The one-shot migrator tooling was deleted after
+promotion; the evidence is preserved under
+[`../operations/migration/`](../operations/migration/) (see
+`P8C-MIGRATION-EVIDENCE.md`), and the live migration-status document is served
+read-only through diagnostics (`GetMigrationStatus`, CLI
+`agent-operations migration-status`). Imported legacy snapshots remain **readable
+and labeled** `[legacy import]`, but are **refused for reproduction** — they have
+no mode/binding provenance to pin.
 
 ## References
 

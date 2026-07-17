@@ -233,7 +233,7 @@ func (r *Resolver) portfolioStartupBrief(limits agentsessions.ContextLimits) (ag
 		for _, item := range take(inits, startupBriefItemLimit) {
 			init := item.Initiative
 			fmt.Fprintf(&b, "- %s [%s priority=%d mode=%s]: %s. Rollup total=%d completed=%d failed=%d in_progress=%d pending=%d\n",
-				init.Name, init.Status, init.Priority, firstNonEmpty(init.Mode, "item-level"), init.Title,
+				init.Name, init.Status, init.Priority, initiatives.NormalizeMode(init.Mode), init.Title,
 				item.Rollup.Total, item.Rollup.Completed, item.Rollup.Failed, item.Rollup.InProgress, item.Rollup.Pending)
 		}
 	}

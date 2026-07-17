@@ -119,6 +119,61 @@ func settingsToProto(s Settings) *domainpb.Settings {
 	}
 }
 
+// fieldRoleToProto maps a FieldRole* constant to the proto enum.
+func fieldRoleToProto(role string) apipb.SettingsFieldRole {
+	switch role {
+	case FieldRoleUserPreference:
+		return apipb.SettingsFieldRole_SETTINGS_FIELD_ROLE_USER_PREFERENCE
+	case FieldRolePolicyControl:
+		return apipb.SettingsFieldRole_SETTINGS_FIELD_ROLE_POLICY_CONTROL
+	case FieldRoleGovernance:
+		return apipb.SettingsFieldRole_SETTINGS_FIELD_ROLE_GOVERNANCE
+	case FieldRoleDormant:
+		return apipb.SettingsFieldRole_SETTINGS_FIELD_ROLE_DORMANT
+	default:
+		return apipb.SettingsFieldRole_SETTINGS_FIELD_ROLE_UNSPECIFIED
+	}
+}
+
+// policyProjectionToProto builds the public policy-control projection for the
+// settings API response: the effective PolicyControls derived from s, plus the
+// static field classification table.
+func policyProjectionToProto(s Settings) *apipb.SettingsPolicyProjection {
+	controls := ProjectPolicyControls(s)
+	classifications := PolicyFieldClassifications()
+	out := &apipb.SettingsPolicyProjection{
+		EffectiveControls: &apipb.PolicyControlsView{
+			DefaultMode:                 controls.Execution.DefaultMode,
+			AutoInitialize:              controls.AutoAdvance.AutoInitialize,
+			AutoAdvanceEnabled:          controls.AutoAdvance.Enabled,
+			CascadeEnabled:              controls.AutoAdvance.Cascade,
+			AutoAdvanceDelaySeconds:     int32(controls.AutoAdvance.DelaySeconds),
+			MaxAutoRounds:               int32(controls.AutoAdvance.MaxAutoRounds),
+			AutoFixup:                   controls.Retry.AutoFixup,
+			MaxFixupAttempts:            int32(controls.Retry.MaxFixupAttempts),
+			ReviewAgentEnabled:          controls.Review.AgentEnabled,
+			ReviewCodeQualityMinScore:   controls.Review.CodeQualityMinScore,
+			ReviewTestMinPassRate:       controls.Review.TestMinPassRate,
+			ReviewMaxBlockingViolations: int32(controls.Review.MaxBlockingViolations),
+			ReviewMaxWarnings:           int32(controls.Review.MaxWarnings),
+			ReviewRequireScreenshots:    controls.Review.RequireScreenshots,
+			ReviewRequireTests:          controls.Review.RequireTests,
+			AgentMaxTurns:               int32(controls.Budgets.MaxTurns),
+			AgentTimeoutSeconds:         int32(controls.Budgets.TimeoutSeconds),
+		},
+		Classifications: make([]*apipb.SettingsFieldClassification, 0, len(classifications)),
+	}
+	for _, c := range classifications {
+		out.Classifications = append(out.Classifications, &apipb.SettingsFieldClassification{
+			Field:   c.Field,
+			Role:    fieldRoleToProto(c.Role),
+			Control: c.Control,
+			Note:    c.Note,
+		})
+	}
+	return out
+}
+
 func autoFilerSettingsToProto(s AutoFilerSettings) *domainpb.AutoFilerSettings {
 	return &domainpb.AutoFilerSettings{
 		Enabled:                s.Enabled,

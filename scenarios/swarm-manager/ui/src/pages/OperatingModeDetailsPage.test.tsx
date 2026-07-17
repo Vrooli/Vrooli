@@ -120,7 +120,6 @@ const SAMPLE_DETAIL: OperatingModeDetail = {
       requiresAcceptanceCriteria: false,
       supportsArtifacts: true,
       supportsHandoffs: false,
-      usesItemExecutionFlow: false,
     },
     default: false,
     switchable: true,

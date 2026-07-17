@@ -179,7 +179,7 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 	reviewPlanClient := planclient.NewConnectClient(nil, nil)
 	cfg := review.ServiceConfig{
 		DataRoot:     s.dataRoot,
-		AgentService: s.requireTrackedAgentService(),
+		RunInspector: s.requireTrackedAgentService(),
 		ItemDirFn:    func(kind, name string) string { return backlogStore.ItemDir(backlog.BacklogKind(kind), name) },
 		LoadItemTitle: func(kind, name string) (string, error) {
 			item, err := backlogStore.LoadItem(backlog.BacklogKind(kind), name)

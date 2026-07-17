@@ -416,7 +416,8 @@ func validateStatusTransition(currentStatus, requestedStatus string) (string, er
 
 // SetModeLifecycle is the single initiative-mode mutation path. It is intended
 // for the operating-mode lifecycle service only; public initiative create/update
-// APIs always create item-level initiatives and reject mode mutation.
+// APIs always create initiatives on the member-item workflow strategy (blank
+// mode, which normalizes to the sentinel) and reject mode mutation.
 func (s *Service) SetModeLifecycle(name, mode string) (*Initiative, error) {
 	init, err := s.store.Load(name)
 	if err != nil {

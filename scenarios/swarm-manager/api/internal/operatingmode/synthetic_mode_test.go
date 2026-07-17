@@ -179,7 +179,7 @@ func syntheticHarnessDefinition(t *testing.T) Definition {
 	  "best_for": ["Exercising registry validators"],
 	  "not_for": ["Anything resembling production work"],
 	  "tradeoffs": ["Test-only — never registered outside test scope"],
-	  "when_in_doubt_pick_instead": "item-level",
+	  "when_in_doubt_pick_instead": "holistic-loop",
 	  "target": { "kind": "initiative" },
 	  "input_contract": ` + testInputContractJSON(string(TargetInitiative), []string{ReadOperatingMode, ReadPhase, ReadRoundNumber, ReadOperatorNote, ReadPriorRoundsJSON, ReadInitiativeName, ReadMemberItemsJSON}) + `,
 	  "run_strategy": { "kind": "operator_gated_loop" },

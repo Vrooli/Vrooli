@@ -187,8 +187,6 @@ func roundProgress(round RoundEnvelope) (ProgressState, bool) {
 
 func validateRunStrategy(def Definition, rounds []RoundEnvelope, phase Phase) string {
 	switch def.RunStrategy.Kind {
-	case RunStrategyExistingItemFlow:
-		return "item-level phases are owned by the existing backlog execution flow"
 	case RunStrategySequentialHandoff:
 		if phase == def.PhaseGraph.StartPhase {
 			return ""

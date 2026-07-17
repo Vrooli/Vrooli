@@ -45,6 +45,7 @@ export {
 export {
   settingsResponseSchema,
   mapProtoSettings,
+  mapProtoPolicyProjection,
 } from "./settings-contracts";
 
 export {

@@ -139,8 +139,10 @@ func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
 	return s.client.ResolveURL(ctx)
 }
 
-// Initialize ensures the agent profile exists.
-// Call this at startup to create/update the swarm-manager profile.
+// Initialize resolves the swarm-manager profile IDs once at startup. Agent
+// Manager owns declaration registration through its own startup sweep, so there
+// is no per-start reconcile: this one-time call reconciles idempotently only to
+// resolve the stable profile-key -> id mapping the run surface reports.
 func (s *AgentService) Initialize(ctx context.Context) error {
 	if !s.enabled {
 		return nil
@@ -176,11 +178,4 @@ func (s *AgentService) Initialize(ctx context.Context) error {
 	slog.Info("reconciled agent profiles", "scenario", resp.Scenario, "created", resp.Created, "updated", resp.Updated, "unchanged", resp.Unchanged, "failed", resp.Failed)
 
 	return nil
-}
-
-func (s *AgentService) ensureProfilesReconciled(ctx context.Context) error {
-	if s.GetProfileID() != "" {
-		return nil
-	}
-	return s.Initialize(ctx)
 }

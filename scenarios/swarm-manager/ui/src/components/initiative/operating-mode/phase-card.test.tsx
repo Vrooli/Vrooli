@@ -210,7 +210,7 @@ describe("PhaseCard", () => {
       notFor: [],
       tradeoffs: [],
       usageCount: 0,
-      targetKind: "plan-manager-plan",
+      targetKind: "plan-execution",
       runStrategy: "sequential_handoff",
       workspaceTabId: "",
       capabilities: {
@@ -221,7 +221,6 @@ describe("PhaseCard", () => {
         requiresAcceptanceCriteria: false,
         supportsArtifacts: true,
         supportsHandoffs: true,
-        usesItemExecutionFlow: false,
       },
       default: false,
       switchable: true,
@@ -245,7 +244,7 @@ describe("PhaseCard", () => {
     const composed = screen.getByTestId("composed-sub-mode-graph");
     expect(composed).toHaveAttribute("data-sub-mode", "phased-plan-drain");
     expect(screen.getByTestId("composed-phase-execute")).toBeInTheDocument();
-    expect(within(composed).getByText(/target: Plan-manager plan/)).toBeInTheDocument();
+    expect(within(composed).getByText(/target: Plan execution/)).toBeInTheDocument();
     expect(within(composed).getByText(/classifies/)).toBeInTheDocument();
   });
 });

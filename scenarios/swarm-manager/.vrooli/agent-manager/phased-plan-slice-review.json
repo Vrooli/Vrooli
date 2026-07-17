@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/phased-plan-slice-review",
+  "version": "1.0.0",
+  "description": "Reusable independent review of one compact phased-plan slice handoff.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "plan_reference": {"type": "string", "minLength": 1, "maxLength": 512},
+      "handoff": {"type": "string", "minLength": 1, "maxLength": 8192}
+    },
+    "required": ["plan_reference", "handoff"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {"review": {"type": "object", "additionalProperties": true}},
+    "required": ["review"],
+    "additionalProperties": false
+  },
+  "entryNode": "review",
+  "nodes": [
+    {
+      "id": "review",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/analysis",
+        "promptTemplate": "Review this compact plan-slice handoff independently. Do not modify files. Return only the requested JSON.\n\nPlan reference: {{.plan_reference}}\n\nHandoff:\n{{.handoff}}",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "accepted": {"type": "boolean"},
+              "note": {"type": "string", "maxLength": 4096}
+            },
+            "required": ["accepted", "note"],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {"name": "plan_reference", "source": "workflow_input", "selector": "$.plan_reference", "limit": 1, "maxBytes": 1024, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "handoff", "source": "workflow_input", "selector": "$.handoff", "limit": 1, "maxBytes": 8192, "renderAs": "text", "missingPolicy": "error"}
+        ],
+        "maxTurns": 4,
+        "timeoutSeconds": 300
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {"name": "review", "source": "structured_result", "selector": "node=review;$.value", "order": "desc", "limit": 1, "maxBytes": 8192, "renderAs": "json", "missingPolicy": "error"}
+        ]
+      }
+    }
+  ],
+  "edges": [{"from": "review", "to": "done"}],
+  "budgets": {
+    "wallTimeSeconds": 420,
+    "maxTurns": 4,
+    "maxTokens": 8000,
+    "maxCostUsd": 1,
+    "maxNodeAttempts": 2,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 30
+  },
+  "metadata": {"pilot": "phased-plan-drain", "role": "reusable-slice-review"}
+}

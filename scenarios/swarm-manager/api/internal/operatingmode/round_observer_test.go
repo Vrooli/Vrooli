@@ -65,3 +65,42 @@ func TestRefreshRoundDoesNotNotifyObserverWhileRunning(t *testing.T) {
 		t.Fatalf("observer must not fire for a still-running round, fired %d", fired)
 	}
 }
+
+// TestRefreshRoundReNotifiesObserverForTerminalRound proves the recovery
+// contract the completion router documents: while the owning operation record is
+// still running, the refresh driver keeps re-observing the round, so a lost
+// delivery (or a cancel that arrived through a raw stop surface) is recoverable.
+// A refresh of an ALREADY-terminal round must therefore re-fire the observer —
+// the downstream CommitResult/CancelExecution are idempotent.
+func TestRefreshRoundReNotifiesObserverForTerminalRound(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{states: map[string]agentmanager.RunState{}}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{InitiativeName: "init-a", Phase: "investigate"})
+	if err != nil {
+		t.Fatalf("StartPhase: %v", err)
+	}
+
+	var observed []RoundEnvelope
+	svc.SetRoundObserver(func(_ context.Context, r RoundEnvelope) { observed = append(observed, r) })
+
+	// The run is stopped externally; the first refresh observes the cancel.
+	agent.states[round.RunID] = agentmanager.RunState{RunID: round.RunID, Status: "cancelled", FinishedAt: "2026-04-30T12:05:00Z"}
+	if _, err := svc.RefreshRound(context.Background(), "init-a", ModeHolisticLoop, round.Round); err != nil {
+		t.Fatalf("RefreshRound (transition): %v", err)
+	}
+	if len(observed) != 1 || observed[0].Status != RoundStatusCanceled {
+		t.Fatalf("first refresh should observe the canceled round once, got %d (%+v)", len(observed), observed)
+	}
+
+	// A later refresh (the driver re-polling because the operation record is
+	// still running) must re-fire the observer for the terminal round instead of
+	// returning silently.
+	if _, err := svc.RefreshRound(context.Background(), "init-a", ModeHolisticLoop, round.Round); err != nil {
+		t.Fatalf("RefreshRound (re-observe): %v", err)
+	}
+	if len(observed) != 2 || observed[1].Status != RoundStatusCanceled {
+		t.Fatalf("re-refresh of a terminal round must re-fire the observer, got %d (%+v)", len(observed), observed)
+	}
+}

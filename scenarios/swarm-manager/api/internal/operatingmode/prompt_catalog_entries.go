@@ -19,7 +19,7 @@ func PromptCatalogEntries() []PromptCatalogEntry {
 	entries := []PromptCatalogEntry{}
 	for _, mode := range Modes() {
 		def, err := DefinitionFor(mode)
-		if err != nil || !def.RunsModeRounds() {
+		if err != nil {
 			continue
 		}
 		for _, phase := range orderedPhases(def) {
@@ -37,7 +37,7 @@ func PromptCatalogEntries() []PromptCatalogEntry {
 
 func ExpectedPromptCatalogEntry(mode, phase string) (PromptCatalogEntry, bool) {
 	def, err := DefinitionFor(Mode(mode))
-	if err != nil || !def.RunsModeRounds() {
+	if err != nil {
 		return PromptCatalogEntry{}, false
 	}
 	phaseDef, ok := def.PhaseGraph.Phases[Phase(phase)]

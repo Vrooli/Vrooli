@@ -27,7 +27,7 @@ func syntheticClassifyDoc(transitionsJSON string) string {
 	  "best_for": ["Exercising transition classification"],
 	  "not_for": ["Production work"],
 	  "tradeoffs": ["Test-only"],
-	  "when_in_doubt_pick_instead": "item-level",
+	  "when_in_doubt_pick_instead": "holistic-loop",
 	  "target": { "kind": "initiative" },
 	  "input_contract": ` + testInputContractJSON(string(TargetInitiative), []string{ReadOperatingMode, ReadPhase, ReadRoundNumber, ReadOperatorNote, ReadPriorRoundsJSON, ReadInitiativeName, ReadMemberItemsJSON}) + `,
 	  "run_strategy": { "kind": "operator_gated_loop" },
@@ -327,6 +327,7 @@ func classificationRecord(t *testing.T, round RoundEnvelope) PhaseResolutionReco
 	return record
 }
 
+// [REQ:REQ-P0-011-OUTCOME-CLASSIFIERS]
 func TestClassifyTransitionL1DerivesFromStructuredHandoff(t *testing.T) {
 	svc, agent := newSyntheticClassifyService(t, nil)
 	round := runClassifyRound(t, svc, agent, "work", `{
@@ -402,6 +403,7 @@ func TestClassifyTransitionL2FallbackViaStubbedClassifier(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-P0-011-OUTCOME-CLASSIFIERS]
 func TestClassifyTransitionAbstainParksRoundInNeedsAttention(t *testing.T) {
 	// Classifier abstains (no answer for the field) — the round must land in
 	// needs_attention and must NOT route.

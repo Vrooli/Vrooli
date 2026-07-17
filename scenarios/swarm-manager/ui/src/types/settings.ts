@@ -105,3 +105,58 @@ export interface AutoFilerSettings {
  * Research agent spawn response
  */
 export type ResearchResponse = ProtoMessage<ProtoBacklogResearchResponse>;
+
+/**
+ * Role of a persisted settings field in the declarative agent-operations
+ * model (mirrors proto SettingsFieldRole).
+ */
+export type SettingsFieldRole =
+  | "unspecified"
+  | "user_preference"
+  | "policy_control"
+  | "governance"
+  | "dormant";
+
+/**
+ * Classification of one settings field: its role plus (for policy controls)
+ * the destination path inside the PolicyControls projection.
+ */
+export interface SettingsFieldClassification {
+  field: string;
+  role: SettingsFieldRole;
+  control: string;
+  note: string;
+}
+
+/**
+ * Effective policy controls derived from current settings — the values the
+ * operation runner's transition-policy consumers read.
+ */
+export interface PolicyControlsView {
+  defaultMode: ExecutionMode;
+  autoInitialize: boolean;
+  autoAdvanceEnabled: boolean;
+  cascadeEnabled: boolean;
+  autoAdvanceDelaySeconds: number;
+  maxAutoRounds: number;
+  autoFixup: boolean;
+  maxFixupAttempts: number;
+  reviewAgentEnabled: boolean;
+  reviewCodeQualityMinScore: number;
+  reviewTestMinPassRate: number;
+  reviewMaxBlockingViolations: number;
+  reviewMaxWarnings: number;
+  reviewRequireScreenshots: boolean;
+  reviewRequireTests: boolean;
+  agentMaxTurns: number;
+  agentTimeoutSeconds: number;
+}
+
+/**
+ * Public settings → policy-controls projection served alongside Settings so
+ * the UI can label which controls are policy-level vs user preference.
+ */
+export interface SettingsPolicyProjection {
+  effectiveControls: PolicyControlsView;
+  classifications: SettingsFieldClassification[];
+}

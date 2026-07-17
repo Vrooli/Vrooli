@@ -34,14 +34,16 @@ func agentOpsTargetKind(raw string) (domainpb.OperatingModeTargetKind, error) {
 		return domainpb.OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_INITIATIVE, nil
 	case "plan-execution":
 		return domainpb.OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION, nil
+	case "scenario":
+		return domainpb.OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_SCENARIO, nil
 	default:
-		return 0, fmt.Errorf("unknown target kind %q (want backlog-item|initiative|plan-execution)", raw)
+		return 0, fmt.Errorf("unknown target kind %q (want backlog-item|initiative|plan-execution|scenario)", raw)
 	}
 }
 
 func agentOpsTargetFlags(fs *flag.FlagSet) (*string, *string) {
-	return fs.String("target-kind", "", "target kind: backlog-item|initiative|plan-execution"),
-		fs.String("target", "", "target id (backlog item kind/name, or initiative name)")
+	return fs.String("target-kind", "", "target kind: backlog-item|initiative|plan-execution|scenario"),
+		fs.String("target", "", "target id (backlog item kind/name, initiative name, plan execution id, or scenario name)")
 }
 
 func (a *App) agentOpsSelector(kindRaw, id string) (*apipb.AgentOpsTargetSelector, error) {

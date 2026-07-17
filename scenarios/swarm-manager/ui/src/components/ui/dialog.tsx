@@ -69,6 +69,17 @@ export function Dialog({
     isLoading,
   })
 
+  // Move keyboard focus into the dialog on open so Escape/tab start inside it.
+  // Children that claim focus themselves (autofocused inputs) win — only take
+  // focus when it is still outside the panel.
+  useEffect(() => {
+    if (!isOpen) return
+    const el = dialogRef.current
+    if (el && !el.contains(document.activeElement)) {
+      el.focus({ preventScroll: true })
+    }
+  }, [isOpen])
+
   // Push a spatial nav modal scope so D-pad navigation is trapped inside the dialog.
   const spatialNavRef = useSpatialNavContext();
   const scopeRef = useRef<HTMLDivElement>(null);
@@ -111,6 +122,7 @@ export function Dialog({
         )}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         aria-labelledby={(title || customTitleId) ? effectiveTitleId : undefined}
         aria-describedby={descriptionId}
         data-testid={testId}

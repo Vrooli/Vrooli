@@ -16,7 +16,6 @@ function caps(overrides: Partial<OperatingModeCapabilities> = {}): OperatingMode
     requiresAcceptanceCriteria: false,
     supportsArtifacts: false,
     supportsHandoffs: false,
-    usesItemExecutionFlow: false,
     ...overrides,
   };
 }
@@ -49,12 +48,13 @@ const FULL_CATALOG: OperatingModeCatalogEntry[] = [
 ];
 
 describe("DecisionFlow", () => {
-  it("traverses 'no' → 'yes' (items not coupled, items stable) and lands on item-level", async () => {
+  it("traverses 'no' → 'yes' (items not coupled, items stable) and lands on the member-item strategy", async () => {
     render(<DecisionFlow catalog={FULL_CATALOG} />);
     await userEvent.click(screen.getByRole("button", { name: /^No$/i }));
     await userEvent.click(screen.getByRole("button", { name: /^Yes$/i }));
     expect(screen.getByText("Recommended")).toBeInTheDocument();
-    expect(screen.getByText("Item Level")).toBeInTheDocument();
+    // Presented as the strategy; the underlying wire value stays item-level.
+    expect(screen.getByText("Member-item workflow")).toBeInTheDocument();
   });
 
   it("traverses 'yes' → 'no' (items coupled, plan unstable) and lands on holistic-loop", async () => {

@@ -17,7 +17,6 @@ const itemExecutionCapabilities: OperatingModeCapabilities = {
   requiresAcceptanceCriteria: false,
   supportsArtifacts: false,
   supportsHandoffs: false,
-  usesItemExecutionFlow: true,
 };
 
 function makeEntry(overrides: Partial<OperatingModeCatalogEntry> = {}): OperatingModeCatalogEntry {

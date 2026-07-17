@@ -3,12 +3,12 @@ package operatingmode
 import "testing"
 
 // TestAuthoredModesUseNoRetiredConstructs is the static guardrail for the
-// declarative-operations mode catalog: every shipped mode that is a real
-// methodology loop must use a supported target kind and run strategy, and the
-// only mode permitted to use the legacy existing_item_flow run strategy is
-// item-level (a compatibility placeholder, not a methodology loop, deleted in a
-// later phase). It fails closed if a new mode reintroduces a removed target kind
-// (e.g. the pre-cutover unmanaged plan-ref) or the existing_item_flow strategy.
+// declarative-operations mode catalog: every shipped mode must use a supported
+// target kind, and the retired item-level pseudo-mode must never return — the
+// member-item workflow strategy is initiative configuration
+// (agentops.MemberItemStrategy), not a mode folder. It fails closed if a mode
+// reintroduces a removed target kind (e.g. the pre-cutover unmanaged plan-ref)
+// or the reserved item-level id.
 func TestAuthoredModesUseNoRetiredConstructs(t *testing.T) {
 	defs, err := LoadModesFromDir(modesDir)
 	if err != nil {
@@ -22,18 +22,15 @@ func TestAuthoredModesUseNoRetiredConstructs(t *testing.T) {
 		if !validTargets[def.Target.Kind] {
 			t.Errorf("mode %q declares unsupported/removed target kind %q", mode, def.Target.Kind)
 		}
-		if def.RunStrategy.Kind == RunStrategyExistingItemFlow && mode != ModeItemLevel {
-			t.Errorf("mode %q uses the retired existing_item_flow run strategy; only item-level may, and only until its deletion", mode)
-		}
-		// A real methodology mode runs mode rounds; item-level (existing_item_flow)
-		// must NOT — it has no phase graph and is not a selectable loop.
-		if mode == ModeItemLevel && def.RunsModeRounds() {
-			t.Errorf("item-level must not run mode rounds: it is a member-item-strategy placeholder, not a methodology loop")
+		// Every shipped mode is a real methodology loop with a phase graph.
+		if def.PhaseGraph.StartPhase == "" || len(def.PhaseGraph.Phases) == 0 {
+			t.Errorf("mode %q declares no phase graph; every registered mode runs mode rounds", mode)
 		}
 	}
-	// item-level must be present-but-not-a-loop this phase (deleted in Phase 9).
-	if _, ok := defs[ModeItemLevel]; !ok {
-		t.Fatalf("item-level folder unexpectedly absent before its Phase 9 deletion")
+	// item-level was deleted in Phase 9: it is the member-item-strategy
+	// sentinel wire value on initiatives, never a mode folder.
+	if _, ok := defs[ModeItemLevel]; ok {
+		t.Fatalf("item-level mode folder reintroduced; %q is the reserved member-item-strategy sentinel, not a mode", ModeItemLevel)
 	}
 }
 
@@ -47,8 +44,7 @@ func TestModesCoverEveryDeclaredOperationTargetKind(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load shipped modes: %v", err)
 	}
-	// Every mode a binding names must exist and run mode rounds (item-level is
-	// never a binding target).
+	// Every mode a binding names must exist with a real phase graph.
 	for _, want := range []Mode{
 		"backlog-research", "backlog-workshop", "backlog-finalize", "backlog-clarify",
 		"backlog-fixup", "backlog-followup", "backlog-evidence", "backlog-revision",
@@ -60,8 +56,8 @@ func TestModesCoverEveryDeclaredOperationTargetKind(t *testing.T) {
 			t.Errorf("binding target mode %q is not shipped", want)
 			continue
 		}
-		if !def.RunsModeRounds() {
-			t.Errorf("binding target mode %q runs no mode rounds", want)
+		if len(def.PhaseGraph.Phases) == 0 {
+			t.Errorf("binding target mode %q declares no phases", want)
 		}
 	}
 }

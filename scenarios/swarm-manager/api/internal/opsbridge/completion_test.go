@@ -105,6 +105,7 @@ func TestHandoffRoundDeliveryDoesNotOverwriteDeclaredProgress(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-P0-011-OUTCOME-CLASSIFIERS]
 func TestHandoffRoundDeliveryCompletedWithoutProgressAbstains(t *testing.T) {
 	d, err := HandoffRoundDelivery(completedRound("", map[string]any{"handoff": map[string]any{}}))
 	if err != nil {

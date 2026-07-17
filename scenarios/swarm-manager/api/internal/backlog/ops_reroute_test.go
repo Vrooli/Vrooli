@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/operatingmode"
 	"swarm-manager/internal/opsbridge"
@@ -39,6 +42,21 @@ type fakePhaseEngine struct {
 	started bool
 	err     error
 	gotReq  operatingmode.StartTargetPhaseRequest
+}
+
+type phaseWorkflowFake struct{ phase *fakePhaseEngine }
+
+func (f phaseWorkflowFake) StartWorkshopRound(_ context.Context, snapshot agentmanager.BacklogWorkshopSnapshot, _ string) (agentmanager.WorkflowStart, error) {
+	f.phase.started = true
+	f.phase.gotReq.Note = snapshot.OperatorNote
+	if f.phase.err != nil {
+		return agentmanager.WorkflowStart{}, f.phase.err
+	}
+	return agentmanager.WorkflowStart{ExecutionID: "11111111-1111-1111-1111-111111111111", RunID: f.phase.runID, DefinitionDigest: "sha256:test"}, nil
+}
+
+func (f phaseWorkflowFake) CollectWorkshopRound(context.Context, string) (agentmanager.WorkshopWorkflowCompletion, error) {
+	return agentmanager.WorkshopWorkflowCompletion{}, errors.New("not used")
 }
 
 func (f *fakePhaseEngine) StartTargetPhase(_ context.Context, req operatingmode.StartTargetPhaseRequest) (operatingmode.RoundEnvelope, error) {
@@ -107,6 +125,7 @@ func setupTestHandlerWithRunner(t *testing.T, runID string) (*Handler, string, *
 	registry := opsrunner.NewActionRegistry()
 	RegisterOpsHandlers(registry, OpsHandlerDeps{Store: store})
 	phase := &fakePhaseEngine{runID: runID}
+	h.SetWorkshopWorkflow(phaseWorkflowFake{phase: phase})
 	built, err := opsbridge.BuildBacklogRunner(opsbridge.BacklogRunnerConfig{
 		Catalog:         catalog,
 		ModeDefs:        modeDefs,
@@ -201,22 +220,10 @@ func TestResearch_ForwardsTypedCallerContext(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want 201; body=%s", w.Code, w.Body.String())
 	}
-	oi := phase.gotReq.OperatorInputs
-	if oi["USER_PROMPT"] != "focus on the auth boundary" {
-		t.Fatalf("USER_PROMPT = %q, want the operator prompt; inputs=%+v", oi["USER_PROMPT"], oi)
-	}
-	if oi["CONTEXT_PATHS"] != "api/a.go\napi/b.go" {
-		t.Fatalf("CONTEXT_PATHS = %q, want one path per line", oi["CONTEXT_PATHS"])
-	}
-	if oi["CONTEXT_TARGETS"] != "scenario-x" {
-		t.Fatalf("CONTEXT_TARGETS = %q", oi["CONTEXT_TARGETS"])
-	}
-	if oi["CONTEXT_REQUIREMENTS"] != "REQ-1" {
-		t.Fatalf("CONTEXT_REQUIREMENTS = %q", oi["CONTEXT_REQUIREMENTS"])
-	}
-	// The operator note channel stays empty: research context is NOT collapsed into it.
-	if phase.gotReq.Note != "" {
-		t.Fatalf("operator note = %q, want empty for research context", phase.gotReq.Note)
+	for _, expected := range []string{"focus on the auth boundary", "api/a.go", "api/b.go", "scenario-x", "REQ-1"} {
+		if !strings.Contains(phase.gotReq.Note, expected) {
+			t.Fatalf("workflow operator note %q does not contain %q", phase.gotReq.Note, expected)
+		}
 	}
 }
 
@@ -266,6 +273,7 @@ func TestResearchRefineCallerInputs_BuildsAndOmits(t *testing.T) {
 
 func TestResearch_UnavailableWithoutRunner(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, &mockAgentService{})
+	h.SetWorkshopWorkflow(&fakeWorkshopWorkflow{err: agentmanager.ErrNotAvailable})
 	createTestItem(t, rootDir, KindIdea, BacklogItem{Name: "idea-u", Title: "Idea", Status: StatusBacklog, Priority: 3})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/idea/idea-u/research", bytes.NewBufferString(`{"mode":"workshop"}`))

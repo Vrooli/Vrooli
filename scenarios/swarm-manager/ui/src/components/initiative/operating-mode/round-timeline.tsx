@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { selectors } from "../../../consts/selectors";
 import type { OperatingModeCapabilities, OperatingModeEvidenceRecord, OperatingModeRound } from "../../../types/operating-mode";
+import type { OperationProvenanceData } from "../../../lib/agent-ops-utils";
 import { RoundCard } from "./round-card";
 import { RoundDetailDialog } from "./round-detail-dialog";
 import { phaseLabel, statusClasses } from "./utils";
@@ -40,6 +41,7 @@ export function RoundTimeline({
   onCompleteItems,
   onApplyBacklogSync,
   evidenceByRun,
+  provenanceByExecutionId,
 }: {
   rounds: OperatingModeRound[];
   capabilities: OperatingModeCapabilities;
@@ -49,6 +51,8 @@ export function RoundTimeline({
   onCompleteItems: (round: OperatingModeRound, itemRefs: string[]) => void;
   onApplyBacklogSync: (round: OperatingModeRound, mutationIds: string[]) => void;
   evidenceByRun?: Record<string, OperatingModeEvidenceRecord[]>;
+  /** Canonical operation provenance keyed by execution id (workflow projection). */
+  provenanceByExecutionId?: ReadonlyMap<string, OperationProvenanceData>;
 }) {
   const [detailRound, setDetailRound] = useState<OperatingModeRound | null>(null);
 
@@ -111,6 +115,7 @@ export function RoundTimeline({
               onApplyBacklogSync={onApplyBacklogSync}
               onViewDetails={setDetailRound}
               collapseThreshold={COLLAPSE_THRESHOLD}
+              provenanceByExecutionId={provenanceByExecutionId}
             />
           </details>
         );
@@ -137,6 +142,7 @@ function PhaseBucketBody({
   onApplyBacklogSync,
   onViewDetails,
   collapseThreshold,
+  provenanceByExecutionId,
 }: {
   all: OperatingModeRound[];
   capabilities: OperatingModeCapabilities;
@@ -147,6 +153,7 @@ function PhaseBucketBody({
   onApplyBacklogSync: (round: OperatingModeRound, mutationIds: string[]) => void;
   onViewDetails: (round: OperatingModeRound) => void;
   collapseThreshold: number;
+  provenanceByExecutionId?: ReadonlyMap<string, OperationProvenanceData>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const showAll = expanded || all.length <= collapseThreshold;
@@ -166,6 +173,7 @@ function PhaseBucketBody({
           onCompleteItems={onCompleteItems}
           onApplyBacklogSync={onApplyBacklogSync}
           onViewDetails={onViewDetails}
+          provenance={round.executionId ? provenanceByExecutionId?.get(round.executionId) : undefined}
         />
       ))}
       {hiddenCount > 0 && (

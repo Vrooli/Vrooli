@@ -57,7 +57,6 @@ const ENTRY: OperatingModeCatalogEntry = {
     requiresAcceptanceCriteria: false,
     supportsArtifacts: true,
     supportsHandoffs: false,
-    usesItemExecutionFlow: false,
   },
   default: false,
   switchable: true,

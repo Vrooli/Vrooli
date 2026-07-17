@@ -1,4 +1,5 @@
 import { formatDisplayText } from "../../../lib/format-utils";
+import { presentModeLabel } from "../../../lib/member-item-strategy";
 import type {
   OperatingModeCapabilities,
   OperatingModePhaseResolutionRecord,
@@ -44,13 +45,14 @@ export function capabilityLabel(flag: keyof OperatingModeCapabilities): string {
       return "Phase artifacts";
     case "supportsHandoffs":
       return "Round handoffs";
-    case "usesItemExecutionFlow":
-      return "Existing item execution flow";
   }
 }
 
+// modeLabel routes ALL mode display labels through the member-item-strategy
+// mapping module: the legacy "item-level" wire value (and blank) presents as
+// the member-item workflow strategy; genuine modes keep their catalog label.
 export function modeLabel(mode: string, label?: string): string {
-  return label?.trim() || formatDisplayText(mode.replace(/-/g, " "));
+  return presentModeLabel(mode, label?.trim() || formatDisplayText(mode.replace(/-/g, " ")));
 }
 
 export function phaseLabel(phase: string): string {
@@ -66,16 +68,18 @@ export function phaseCardDomId(phase: string): string {
 // humanizeTargetKind / humanizeRunStrategy use explicit switches over the known
 // enum values from api/internal/operatingmode. If a new value is added
 // server-side and not mirrored here, the unknown branch surfaces the raw token
-// so the page does not silently render garbage. The v2 target vocabulary is
-// plan-manager-plan | plan-ref | initiative (EXECUTION-MODES.md).
+// so the page does not silently render garbage. The target vocabulary is
+// backlog-item | initiative | plan-execution | scenario (EXECUTION-MODES.md).
 export function humanizeTargetKind(kind: string): string {
   switch (kind) {
-    case "plan-manager-plan":
-      return "Plan-manager plan";
-    case "plan-ref":
-      return "Plan reference";
+    case "backlog-item":
+      return "Backlog item";
     case "initiative":
       return "Initiative";
+    case "plan-execution":
+      return "Plan execution";
+    case "scenario":
+      return "Scenario";
     default:
       return kind || "—";
   }
@@ -83,8 +87,6 @@ export function humanizeTargetKind(kind: string): string {
 
 export function humanizeRunStrategy(strategy: string): string {
   switch (strategy) {
-    case "existing_item_flow":
-      return "Existing item flow";
     case "single_phase_run":
       return "Single phase run";
     case "sequential_handoff":

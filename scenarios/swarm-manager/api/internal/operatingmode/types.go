@@ -51,6 +51,13 @@ const (
 )
 
 const (
+	// ModeItemLevel is the member-item-strategy sentinel, NOT a registered
+	// operating mode: initiatives persist mode "item-level" (or blank, which
+	// normalizes to it) to mean "each member item runs through its own
+	// operation; the initiative provides scheduling strategy". There is no
+	// mode.json behind it, it never appears in the registry or catalog, and
+	// no code path may load a Definition for it. The strategy vocabulary
+	// itself lives in agentops.MemberItemStrategy.
 	ModeItemLevel       Mode = "item-level"
 	ModeHolisticLoop    Mode = "holistic-loop"
 	ModePhasedPlanDrain Mode = "phased-plan-drain"
@@ -61,12 +68,10 @@ const (
 // target-specific reads, ownership key, and resolution; the initiative is one
 // adapter among several, not the substrate everything else is bolted onto.
 //
-// The vocabulary is exactly three kinds (EXECUTION-MODES.md D1/D6):
-// backlog-item, initiative, and plan-execution. The pre-cutover plan-ref target
-// (an unmanaged workspace-file plan) is removed; the pre-cutover
-// plan-manager-plan kind is renamed to the provider-neutral plan-execution. The
-// domain plan_ref FIELD on backlog items and initiatives (an associated Plan
-// Manager reference) is unrelated to this enum and is never a target kind.
+// The vocabulary (EXECUTION-MODES.md D1/D6): backlog-item, initiative,
+// plan-execution, and scenario. The domain plan_ref FIELD on backlog items and
+// initiatives (an associated Plan Manager reference) is unrelated to this enum
+// and is never a target kind.
 const (
 	// TargetBacklogItem targets a single swarm-manager backlog item. The
 	// vocabulary is pinned here; the backlog-item target adapter (the eventual
@@ -110,7 +115,6 @@ const (
 )
 
 const (
-	RunStrategyExistingItemFlow  RunStrategyKind = "existing_item_flow"
 	RunStrategySinglePhaseRun    RunStrategyKind = "single_phase_run"
 	RunStrategySequentialHandoff RunStrategyKind = "sequential_handoff"
 	RunStrategyOperatorGatedLoop RunStrategyKind = "operator_gated_loop"
@@ -263,13 +267,6 @@ type TargetPolicy struct {
 type PlanRefPolicy struct {
 	Required bool
 	Role     string
-}
-
-// RunsModeRounds reports whether the mode executes durable operating-mode
-// rounds through a phase graph. Item-level work owned by the existing backlog
-// execution flow (run strategy existing_item_flow) does not.
-func (d Definition) RunsModeRounds() bool {
-	return d.RunStrategy.Kind != RunStrategyExistingItemFlow
 }
 
 // ExampleRun looks up a loaded example-run by id.

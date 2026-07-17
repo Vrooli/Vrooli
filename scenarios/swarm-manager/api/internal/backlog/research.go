@@ -258,6 +258,21 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		writeResearchDryRun(w)
 		return
 	}
+	if mode == ResearchModeWorkshop {
+		handle, err := h.startWorkshopRoundWorkflow(r.Context(), item, workshopOperatorNote(req))
+		if err != nil {
+			mapResearchInvokeError(w, err)
+			return
+		}
+		resp := &apipb.BacklogResearchResponse{
+			TaskId: handle.ExecutionID, RunId: handle.RunID, Created: time.Now().UTC().Format(time.RFC3339),
+			DryRun: false, Started: true, Message: "Backlog workshop workflow started: " + handle.ExecutionID,
+		}
+		if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
+			apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode response"))
+		}
+		return
+	}
 
 	// The bound operating mode owns prompt construction from the item folder; the
 	// entrypoint forwards the operator's typed research context (prompt + attached

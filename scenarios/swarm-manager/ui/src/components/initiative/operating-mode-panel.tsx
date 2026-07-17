@@ -1,7 +1,7 @@
 // DOC: docs/internal/SEAMS.md#operating-mode-panel
 
 import { useState } from "react";
-import { Activity, FileBox, FileText, History, Workflow } from "lucide-react";
+import { Activity, FileBox, FileText, History, Settings2, Workflow } from "lucide-react";
 import { ErrorState } from "../ui/error-state";
 import { PageLoadingState } from "../ui/loading-states";
 import { DetailSection } from "../detail/DetailSection";
@@ -11,7 +11,8 @@ import type { OperatingModeEvidenceRecord } from "../../types/operating-mode";
 import { useUrlState } from "../../hooks/use-url-state";
 import { AcceptanceCriteriaEditor } from "./operating-mode/acceptance-criteria-editor";
 import { ArtifactList } from "./operating-mode/artifact-list";
-import { ItemLevelEmptyState } from "./operating-mode/item-level-empty-state";
+import { isMemberItemStrategy } from "../../lib/member-item-strategy";
+import { MemberItemStrategyPanel } from "./operating-mode/member-item-strategy-panel";
 import { ModePickerDialog } from "./operating-mode/mode-picker-dialog";
 import { OperatingModeHero } from "./operating-mode/operating-mode-hero";
 import { PhaseComposer } from "./operating-mode/phase-composer";
@@ -20,6 +21,10 @@ import { useOperatingModeWorkspace } from "./operating-mode/use-operating-mode-w
 import { HowToChooseDialog } from "./operating-mode/how-to-choose-dialog";
 import { OrientationBanner } from "./operating-mode/orientation-banner";
 import { useTransientHighlight } from "../../hooks/useTransientHighlight";
+import { MigrationStatusBanner } from "../workflow/migration-status-banner";
+import { WorkflowBindingsPanel } from "../workflow/binding-override-section";
+import { initiativeTarget } from "../../hooks/useAgentOpsQueries";
+import { provenanceByExecutionId } from "../../lib/agent-ops-utils";
 
 type PickerState = "open" | "closed";
 
@@ -74,6 +79,7 @@ export function OperatingModePanel({
     workspaceQuery,
     modeCatalogQuery,
     refetchCatalog,
+    workflowProjection,
     workspace,
     currentMode,
     currentModeEntry,
@@ -92,6 +98,7 @@ export function OperatingModePanel({
   } = ws;
 
   const capabilities = workspace?.definition.capabilities;
+  const bindingsTarget = initiativeTarget(initiative.name);
 
   const items = (initiative.items ?? []).map((ref) => ({ ref, title: ref }));
   const evidenceByRun = (workspace?.executions ?? []).reduce<Record<string, OperatingModeEvidenceRecord[]>>((byRun, execution) => {
@@ -104,6 +111,7 @@ export function OperatingModePanel({
 
   return (
     <div className="space-y-2" data-testid={selectors.initiativeDetails.modePanel}>
+      <MigrationStatusBanner />
       <OperatingModeHero
         currentMode={currentMode}
         catalogEntry={currentModeEntry}
@@ -142,9 +150,9 @@ export function OperatingModePanel({
         </div>
       )}
 
-      {capabilities?.usesItemExecutionFlow && (
-        <DetailSection title="How Item-Level Works" icon={Workflow} hideDivider>
-          <ItemLevelEmptyState
+      {isMemberItemStrategy(currentMode) && (
+        <DetailSection title="How the Member-Item Workflow Works" icon={Workflow} hideDivider>
+          <MemberItemStrategyPanel
             initiative={initiative}
             rollup={rollup}
             workspace={workspace}
@@ -202,7 +210,23 @@ export function OperatingModePanel({
               applyBacklogSyncMutation.mutate({ round: target, mutationIds })
             }
             evidenceByRun={evidenceByRun}
+            provenanceByExecutionId={provenanceByExecutionId(workflowProjection)}
           />
+        </DetailSection>
+      )}
+
+      {/* Operator controls for which mode implements each declarative
+          operation for this initiative. Collapsed by default — the agent-ops
+          queries only fire once the operator expands the section. */}
+      {bindingsTarget && (
+        <DetailSection
+          title="Operation Bindings"
+          icon={Settings2}
+          storageKey="initiative-operation-bindings"
+          defaultOpen={false}
+          data-testid={selectors.initiativeDetails.operationBindingsSection}
+        >
+          <WorkflowBindingsPanel target={bindingsTarget} />
         </DetailSection>
       )}
 

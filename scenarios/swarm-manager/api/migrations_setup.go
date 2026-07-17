@@ -54,8 +54,10 @@ func (s *Server) runMigrationsOnce() {
 	// (retryable). Idempotent — a healthy record is untouched.
 	if report, err := s.executionSvc.ReconcileStrandedRecords(); err != nil {
 		slog.Error("migrations: reconcile stranded execution records failed", "err", err)
-	} else if len(report.Stranded) > 0 {
-		slog.Info("migrations: reconciled stranded execution records", "count", len(report.Stranded), "execution_ids", report.Stranded)
+	} else if len(report.Stranded) > 0 || len(report.OpReapsAttempted) > 0 {
+		slog.Info("migrations: reconciled stranded execution records",
+			"count", len(report.Stranded), "execution_ids", report.Stranded,
+			"op_reaps_attempted", report.OpReapsAttempted)
 	}
 
 	// Fetch existing events once so migrations can check sentinels and the

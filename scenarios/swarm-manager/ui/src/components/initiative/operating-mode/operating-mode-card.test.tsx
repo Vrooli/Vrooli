@@ -15,7 +15,6 @@ const baseCapabilities: OperatingModeCapabilities = {
   requiresAcceptanceCriteria: false,
   supportsArtifacts: false,
   supportsHandoffs: false,
-  usesItemExecutionFlow: true,
 };
 
 function makeMode(overrides: Partial<OperatingModeCatalogEntry> = {}): OperatingModeCatalogEntry {
@@ -28,7 +27,7 @@ function makeMode(overrides: Partial<OperatingModeCatalogEntry> = {}): Operating
     tradeoffs: ["Highest parallelism"],
     usageCount: 3,
     targetKind: "initiative",
-    runStrategy: "existing_item_flow",
+    runStrategy: "",
     workspaceTabId: "info",
     capabilities: baseCapabilities,
     default: true,
@@ -42,10 +41,11 @@ function makeMode(overrides: Partial<OperatingModeCatalogEntry> = {}): Operating
 describe("OperatingModeCard", () => {
   it("renders label, usage badge, description, and scope/strategy line", () => {
     render(<OperatingModeCard mode={makeMode()} data-testid="card" />);
-    expect(screen.getByText("Item Level")).toBeInTheDocument();
+    // Legacy item-level entry renders under the member-item strategy label.
+    expect(screen.getByText("Member-item workflow")).toBeInTheDocument();
     expect(screen.getByText("3 init.")).toBeInTheDocument();
     expect(screen.getByText("Each backlog item runs through the existing flow.")).toBeInTheDocument();
-    expect(screen.getByText(/Initiative · Existing item flow · default/)).toBeInTheDocument();
+    expect(screen.getByText(/Initiative · workflow strategy · default/)).toBeInTheDocument();
   });
 
   it("omits the description block when none is set", () => {
@@ -122,7 +122,7 @@ describe("OperatingModeCard", () => {
       );
       const row = screen.getByTestId("session-context-row");
       expect(row).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getByText("Item Level")).toBeInTheDocument();
+      expect(screen.getByText("Member-item workflow")).toBeInTheDocument();
       await userEvent.click(row);
       expect(onToggleSelect).toHaveBeenCalledTimes(1);
     });

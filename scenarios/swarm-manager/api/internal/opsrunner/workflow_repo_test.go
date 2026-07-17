@@ -41,6 +41,7 @@ func TestWorkflowRepoCommitAndLoad(t *testing.T) {
 
 // TestWorkflowRepoCompareAndSwapConflict proves a stale writer loses: after one
 // writer advances the version, a second commit against the old version fails.
+// [REQ:REQ-P0-011-WORKFLOW-DURABILITY]
 func TestWorkflowRepoCompareAndSwapConflict(t *testing.T) {
 	repo := NewWorkflowRepo(memLocator{root: t.TempDir()})
 	kind, id := agentops.TargetInitiative, "init-a"
@@ -63,6 +64,7 @@ func TestWorkflowRepoCompareAndSwapConflict(t *testing.T) {
 
 // TestWorkflowRepoAtomicWriteNoTornState proves writes are atomic: no temp file
 // leaks and the persisted document is always complete + valid.
+// [REQ:REQ-P0-011-WORKFLOW-DURABILITY]
 func TestWorkflowRepoAtomicWriteNoTornState(t *testing.T) {
 	root := t.TempDir()
 	repo := NewWorkflowRepo(memLocator{root: root})

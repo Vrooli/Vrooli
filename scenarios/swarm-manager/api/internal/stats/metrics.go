@@ -3,6 +3,8 @@ package stats
 import (
 	"sort"
 	"time"
+
+	"swarm-manager/internal/initiatives"
 )
 
 // MinSampleMeaningful is the threshold below which a metric renders as
@@ -157,10 +159,11 @@ func isTerminalSessionStatus(status string) bool {
 func (s *aggregateState) buildMode() ModeStats {
 	usage := make(map[string]int)
 	for name := range s.initiativeCreated {
-		mode := s.initiativeMode[name]
-		if mode == "" {
-			mode = "item-level"
-		}
+		// Blank means the initiative never switched modes: it runs the
+		// member-item workflow strategy. Normalize through the single seam so
+		// the stats bucket carries the sentinel wire value (presentation
+		// relabels it; the bucket is never dropped or merged).
+		mode := initiatives.NormalizeMode(s.initiativeMode[name])
 		usage[mode]++
 	}
 

@@ -60,7 +60,7 @@ func TestLoadModesFromDirDiscoversShippedModes(t *testing.T) {
 		"backlog-clarify", "backlog-conclude", "backlog-evidence", "backlog-finalize",
 		"backlog-fixup", "backlog-followup", "backlog-research", "backlog-review",
 		"backlog-revision", "backlog-workshop", "execution-drain", ModeHolisticLoop,
-		"initiative-review-loop", ModeItemLevel, ModePhasedPlanDrain, "scenario-spec-sync",
+		"initiative-review-loop", ModePhasedPlanDrain, "scenario-spec-sync",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("discovered modes = %v, want %v", got, want)

@@ -92,13 +92,6 @@ func backlogActivitySpec(
 	}
 }
 
-// runTracker holds ephemeral per-run polling state (not persisted).
-type runTracker struct {
-	FirstSeen          time.Time
-	ConsecutiveErrors  int
-	ConsecutiveUnknown int
-}
-
 // ServiceConfig configures execution service dependencies.
 //
 // DataRoot is the runtime-home data directory where backlog item folders
@@ -111,13 +104,10 @@ type ServiceConfig struct {
 	StorePath                string
 	CircuitBreakerPath       string
 	SelfScenarioName         string
-	MaxConsecutiveErrors     int
-	MaxConsecutiveUnknown    int
-	MaxRunAge                time.Duration
 	PolicyProvider           PolicyProvider
 	GovernanceProvider       GovernanceProvider
 	ReviewThresholdsProvider ReviewThresholdsProvider
-	AgentService             AgentSpawner
+	AgentService             AgentManagerAvailability
 	ScenarioLifecycle        ScenarioLifecycle
 	ScenarioHealthChecker    ScenarioHealthChecker
 	PromptClient             promptmanager.Client
@@ -127,6 +117,7 @@ type ServiceConfig struct {
 	BaselineClient           BaselineClient
 	BaselineEngagementRunner BaselineEngagementRunner
 	PlanRenderer             planclient.MarkdownRenderer
+	PhasedPlanWorkflow       agentmanager.PhasedPlanWorkflowService
 	Finalization             FinalizationConfig
 }
 
@@ -136,14 +127,11 @@ type Service struct {
 	repoRoot                 string
 	selfScenarioName         string
 	finalizationCfg          FinalizationConfig
-	maxConsecutiveErrors     int
-	maxConsecutiveUnknown    int
-	maxRunAge                time.Duration
 	store                    Store
 	policyProvider           PolicyProvider
 	governanceProvider       GovernanceProvider
 	reviewThresholdsProvider ReviewThresholdsProvider
-	agentService             AgentSpawner
+	agentService             AgentManagerAvailability
 	operationStarter         OperationStarter
 	promptClient             promptmanager.Client
 	experimentClient         promptmanager.ExperimentClient
@@ -152,8 +140,8 @@ type Service struct {
 	baselineClient           BaselineClient
 	baselineEngagementRunner BaselineEngagementRunner
 	planRenderer             planclient.MarkdownRenderer
+	phasedPlanWorkflow       agentmanager.PhasedPlanWorkflowService
 	engagementStore          *EngagementStore
-	inspector                RunInspector
 	differ                   RunDiffer
 	stopper                  RunStopper
 	approver                 RunApprover
@@ -170,7 +158,6 @@ type Service struct {
 	autoFilerWaker           AutoFilerWaker
 	processingFinalizations  map[string]struct{}
 	processingHolds          map[string]struct{}
-	runTrackers              map[string]*runTracker
 	mu                       sync.Mutex
 }
 
@@ -225,27 +212,11 @@ func NewService(cfg ServiceConfig) *Service {
 		circuitBreakerPath = defaultCircuitBreakerPath(cfg.StorePath)
 	}
 
-	maxConsecErrors := cfg.MaxConsecutiveErrors
-	if maxConsecErrors <= 0 {
-		maxConsecErrors = 30
-	}
-	maxConsecUnknown := cfg.MaxConsecutiveUnknown
-	if maxConsecUnknown <= 0 {
-		maxConsecUnknown = 5
-	}
-	maxRunAge := cfg.MaxRunAge
-	if maxRunAge <= 0 {
-		maxRunAge = 30 * time.Minute
-	}
-
 	service := &Service{
 		dataRoot:                 dataRoot,
 		repoRoot:                 repoRoot,
 		selfScenarioName:         selfName,
 		finalizationCfg:          fc,
-		maxConsecutiveErrors:     maxConsecErrors,
-		maxConsecutiveUnknown:    maxConsecUnknown,
-		maxRunAge:                maxRunAge,
 		store:                    NewStore(cfg.StorePath),
 		policyProvider:           pp,
 		governanceProvider:       gp,
@@ -258,16 +229,16 @@ func NewService(cfg ServiceConfig) *Service {
 		baselineClient:           cfg.BaselineClient,
 		baselineEngagementRunner: cfg.BaselineEngagementRunner,
 		planRenderer:             cfg.PlanRenderer,
+		phasedPlanWorkflow:       cfg.PhasedPlanWorkflow,
 		engagementStore:          NewEngagementStore(engagementStorePath(cfg.StorePath)),
 		scenarioLifecycle:        cfg.ScenarioLifecycle,
 		scenarioHealth:           cfg.ScenarioHealthChecker,
 		circuitBreaker:           NewCircuitBreaker(circuitBreakerPath),
 		processingFinalizations:  map[string]struct{}{},
 		processingHolds:          map[string]struct{}{},
-		runTrackers:              map[string]*runTracker{},
 	}
-	if inspector, ok := cfg.AgentService.(RunInspector); ok {
-		service.inspector = inspector
+	if service.phasedPlanWorkflow == nil {
+		service.phasedPlanWorkflow = agentmanager.NewWorkflowService()
 	}
 	if differ, ok := cfg.AgentService.(RunDiffer); ok {
 		service.differ = differ

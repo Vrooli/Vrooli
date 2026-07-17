@@ -75,8 +75,9 @@ never said the data was fixture-driven rather than a real initiative trace.
   walk the registered graph via the same guard path a live round uses — no agent,
   prompt, lock, or persistence. Selected by `?preset=` on the simulate endpoint.
 - Replaced the count-grid + raw-JSON panel with shared **semantic trace
-  components** ([CODE: ui/src/components/initiative/operating-mode/phase-trace-panel.tsx]
-  + helpers in `phase-interpretability.ts`): reads-by-category cards, an emits
+  components** (helpers in
+  [CODE: ui/src/components/initiative/operating-mode/phase-interpretability.ts];
+  the original `phase-trace-panel.tsx` was later absorbed): reads-by-category cards, an emits
   summary (handoffs, progress, verdict, replan, artifacts, backlog sync,
   readiness), and a transition explanation derived from backend guard data. Raw
   payload stays behind a "View raw payload" disclosure. Simulation and live use
@@ -390,6 +391,30 @@ This is the standard Go pattern for path traversal protection.
 ## Test Gaps
 
 This section documents known test coverage gaps and recommended improvements.
+
+### Agent workflow runtime final evidence (2026-07-16)
+
+Focused and race gates cover provider-aware final-output selection, structured
+result abstention, distinct fresh Runs, named continuation, ordered and bounded
+journal bindings, child workflows, wait/signal races, budget exhaustion,
+restart-safe dispatch, both Swarm adapters, stale consumer frontiers, approval
+ordering, cancellation, and exactly-once result application. Active workflow
+reconciliation and phased-plan graph simulation also pass.
+
+Agent Manager comprehensive run `20260716-083058-10914815` reached a terminal
+FAIL and is comparable with the already-failing baseline
+`20260716-022249-bdc65f1d`. It exposed two changed-surface findings: an
+unowned `REQ-P2-001` database-test tag and a direct JSON-schema dependency
+marked indirect. Both were corrected after the run; the affected focused,
+race, requirements, and dependency-governance gates are green. The remaining
+comprehensive failures are inherited scenario debt, not evidence claimed as
+passing by this work.
+
+Swarm Manager's server-owned comprehensive run still has no retrievable
+findings artifact after the prescribed single wait. Test Genie's wait command
+exits silently in this environment (`knw-1784186024073136941`); the run was not
+polled or aborted. Swarm comprehensive comparability therefore remains
+explicitly unavailable until that defect is repaired.
 
 ### Operating-mode Phase 4 input/prompt frontier (2026-07-10)
 

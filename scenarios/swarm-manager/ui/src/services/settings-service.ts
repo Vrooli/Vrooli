@@ -14,8 +14,10 @@ import { defaultDeleteConfirmationLevels } from "../lib/deletable-entities";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type { Settings } from "../types";
+import type { SettingsPolicyProjection } from "../types/settings";
 import {
   buildMessage,
+  mapProtoPolicyProjection,
   mapProtoSettings,
   parseProtoResponse,
   requireProtoField,
@@ -170,6 +172,13 @@ function normalizeSettings(input?: SettingsPatch): Settings {
 export interface ISettingsService {
   get(): Promise<Settings>;
   update(patch: SettingsPatch): Promise<Settings>;
+  /**
+   * Fetch the settings → policy-controls projection: which settings are
+   * policy-level (govern the operation runner's transition policies) vs pure
+   * user preference, plus the effective control values. Returns null when the
+   * API does not serve the projection yet.
+   */
+  getPolicyProjection(): Promise<SettingsPolicyProjection | null>;
 }
 
 export function createSettingsService(apiClient: IApiClient = defaultApiClient): ISettingsService {
@@ -178,6 +187,12 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
       const data = await apiClient.get<unknown>(API_ENDPOINTS.settings);
       const parsed = parseProtoResponse(settingsResponseSchema, data, "settings");
       return normalizeSettings(mapProtoSettings(requireProtoField(parsed.settings, "settings")));
+    },
+
+    async getPolicyProjection(): Promise<SettingsPolicyProjection | null> {
+      const data = await apiClient.get<unknown>(API_ENDPOINTS.settings);
+      const parsed = parseProtoResponse(settingsResponseSchema, data, "settings");
+      return mapProtoPolicyProjection(parsed.policyProjection);
     },
 
     async update(patch: SettingsPatch): Promise<Settings> {

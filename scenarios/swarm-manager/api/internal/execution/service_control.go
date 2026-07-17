@@ -76,51 +76,43 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	return s.startConclusionOperationLocked(ctx, records, idx, record)
 }
 
-// startPlanOperationLocked starts a plan-backed item's primary execution as an
-// execution-run operation against its plan-execution target. The operation
-// runner spawns the agent through the operating-mode engine's chokepoint
-// (execution-drain -> phased-plan-drain, inheriting the item's write-scope
-// containment via the plan-execution target adapter) and returns the live run
-// association; the execution record keeps tracking the returned agent run id for
-// status and finalization (transitional — the completion authority consolidates
-// on the workflow in slice C, note d789cb50).
+// startPlanOperationLocked is the single hard-cut plan-execution consumer. It
+// snapshots the authorized Plan Manager frontier and starts the bounded,
+// scenario-authored phased-plan workflow. The execution record tracks the
+// workflow aggregate and its pinned digests; no operation wrapper or direct
+// Run creation/continuation participates in this path.
 func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record, idx int, record Record, item backlogItem) (Record, error) {
-	if s.operationStarter == nil {
-		return Record{}, apierr.Unavailable("execution operation runner is not available")
+	if s.phasedPlanWorkflow == nil {
+		return Record{}, apierr.Unavailable("phased-plan workflow service is not available")
 	}
-	// Plan Manager stays the sole plan authority — the operation resolves the live
-	// plan context there from the item's canonical execution_spec plan_ref.
+	// Plan Manager stays the sole plan authority: resolve the live context from
+	// the item's canonical execution_spec plan_ref before hashing the frontier.
 	planHandle, err := executionPlanHandle(item)
 	if err != nil {
 		return Record{}, apierr.BadRequest("%s", err.Error())
 	}
-	res, err := s.operationStarter.StartOperation(ctx, OperationStartRequest{
-		Operation:        operationExecutionRun,
-		OperationVersion: operationVersionPinned,
-		TargetKind:       targetKindPlanExecution,
-		TargetID:         planHandle,
-		IdempotencyKey:   "exec-" + record.ExecutionID,
-		RequestedBy:      record.StartedBy,
-	})
+	rendered, err := resolveRenderedPlanContent(ctx, item, s.planRenderer)
+	if err != nil {
+		return Record{}, apierr.BadRequest("%s", err.Error())
+	}
+	snapshot, err := phasedPlanSnapshot(item, record, planHandle, rendered)
+	if err != nil {
+		return Record{}, apierr.Internal("prepare phased-plan workflow snapshot: %s", err.Error())
+	}
+	res, err := s.phasedPlanWorkflow.StartPhasedPlan(ctx, snapshot, "execution-plan-drain/"+record.ExecutionID+"/"+snapshot.FrontierDigest)
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
-	// A start that yields no trackable agent run id could never be polled to a
-	// terminal status — the record would strand in "starting" (the poller skips
-	// run-id-less records and Cancel refuses them). Reap the dangling operation and
-	// fail the start so the record stays pending/retryable instead.
-	if strings.TrimSpace(res.RunID) == "" {
-		if cerr := s.operationStarter.CancelOperation(ctx, OperationCancelRequest{
-			TargetKind: targetKindPlanExecution, TargetID: planHandle, ExecutionID: res.ExecutionID,
-		}); cerr != nil {
-			slog.Warn("execution: reap of run-id-less start failed", "execution_id", record.ExecutionID, "err", cerr)
-		}
-		return Record{}, apierr.BadGateway("execution operation started but returned no run id; agent-manager may be unavailable")
+	if strings.TrimSpace(res.ExecutionID) == "" {
+		return Record{}, apierr.BadGateway("phased-plan workflow started but returned no execution id")
 	}
 
 	record.RunID = res.RunID
-	record.OpWorkflowID = res.WorkflowID
-	record.OpExecutionID = res.ExecutionID
+	record.TaskID = res.ExecutionID
+	record.AgentWorkflowExecutionID = res.ExecutionID
+	record.AgentWorkflowDefinition = res.DefinitionDigest
+	record.AgentWorkflowFrontier = snapshot.FrontierDigest
+	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
 	record.StartedAt = nowRFC3339()
 	record.FinishedAt = ""
 	record.FailureReason = ""
@@ -239,6 +231,30 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		}
 		return record, nil
 	case StatusStarting, StatusRunning, StatusNeedsReview:
+		if strings.TrimSpace(record.AgentWorkflowExecutionID) != "" {
+			if s.phasedPlanWorkflow == nil {
+				return Record{}, apierr.BadRequest("cancel is not supported by current workflow service")
+			}
+			if err := s.phasedPlanWorkflow.CancelPhasedPlan(ctx, record.AgentWorkflowExecutionID, "consumer execution canceled"); err != nil {
+				return Record{}, wrapAgentError(err)
+			}
+			record.Status = StatusCanceled
+			record.AgentWorkflowOutcome = "cancelled"
+			record.UpdatedAt = nowRFC3339()
+			record.FinishedAt = record.UpdatedAt
+			record.AgentWorkflowApplyState = workflowApplyComplete
+			record.AgentWorkflowAppliedAt = record.UpdatedAt
+			records[idx] = record
+			if err := s.store.Save(records); err != nil {
+				return Record{}, err
+			}
+			if err := s.restoreBacklogStatusForRecord(record); err != nil {
+				return Record{}, err
+			}
+			s.logExecutionEvent(record, prevStatus)
+			s.dispatchStatusUpdate(record)
+			return record, nil
+		}
 		if s.stopper == nil {
 			return Record{}, apierr.BadRequest("cancel is not supported by current agent service")
 		}
@@ -328,10 +344,6 @@ func (s *Service) TriggerReview(ctx context.Context, executionID string) (Record
 		Scenarios:         []ScenarioFinalization{},
 		StartedAt:         nowRFC3339(),
 	}
-	record.LegacyReviewResult = nil
-	record.LegacyReviewJobID = ""
-	record.LegacyReviewSkipReason = ""
-	record.LegacyReviewStartedAt = ""
 	record.FinishedAt = ""
 	record.UpdatedAt = nowRFC3339()
 	record.FailureReason = ""

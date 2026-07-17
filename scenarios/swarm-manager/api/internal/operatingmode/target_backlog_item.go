@@ -41,6 +41,10 @@ func (backlogItemTargetAdapter) Resolve(_ context.Context, s *Service, _ Definit
 		return TargetInstance{
 			Kind: TargetBacklogItem, ID: itemRef,
 			Title: bt.Title, Description: bt.Description, Item: bt,
+			// Thread the item's write scope onto the run so the engine
+			// sandbox-scopes the spawn (generic containment seam; the engine
+			// never branches on target kind).
+			Containment: bt.Containment,
 		}, nil
 	}
 	kind, name, ok := strings.Cut(itemRef, "/")
@@ -54,6 +58,9 @@ func (backlogItemTargetAdapter) Resolve(_ context.Context, s *Service, _ Definit
 	if err != nil {
 		return TargetInstance{}, err
 	}
+	// Degraded (reader-less) resolution: coarse snapshot only, no spec/plan_ref
+	// and no containment projection. Production wires BacklogItemTargetReader,
+	// so this path serves only minimal test harnesses.
 	item := BacklogItemTarget{Ref: itemRef, Title: snap.Title, Status: snap.Status}
 	return TargetInstance{Kind: TargetBacklogItem, ID: itemRef, Title: snap.Title, Item: item}, nil
 }

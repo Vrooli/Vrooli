@@ -4,6 +4,8 @@ import { Button } from "../../ui/button";
 import { formatRelativeTime } from "../../../lib";
 import { selectors } from "../../../consts/selectors";
 import type { OperatingModeCapabilities, OperatingModeRound } from "../../../types/operating-mode";
+import type { OperationProvenanceData } from "../../../lib/agent-ops-utils";
+import { OperationProvenancePopover } from "../../workflow/operation-provenance-popover";
 import { BacklogSyncActions } from "./backlog-sync-actions";
 import { buildRoundViewModel } from "./round-view-model";
 import { phaseLabel, resolutionSummary, statusClasses } from "./utils";
@@ -17,6 +19,7 @@ export function RoundCard({
   onApplyBacklogSync,
   onViewDetails,
   busy,
+  provenance,
 }: {
   round: OperatingModeRound;
   capabilities: OperatingModeCapabilities;
@@ -26,6 +29,8 @@ export function RoundCard({
   onApplyBacklogSync: (round: OperatingModeRound, mutationIds: string[]) => void;
   onViewDetails?: (round: OperatingModeRound) => void;
   busy: boolean;
+  /** Canonical operation provenance for this round's execution, when covered. */
+  provenance?: OperationProvenanceData;
 }) {
   const view = useMemo(() => buildRoundViewModel(round, capabilities), [round, capabilities]);
   const resolution = resolutionSummary(round.resolution);
@@ -46,6 +51,7 @@ export function RoundCard({
             <span className="rounded-full border border-slate-700/80 bg-slate-900/80 px-2 py-0.5 text-[11px] text-slate-400">
               {phaseLabel(round.phase)}
             </span>
+            {provenance && <OperationProvenancePopover data={provenance} />}
           </div>
           <p className="mt-1 break-all text-[11px] text-slate-500">
             {round.agentProfileKey}

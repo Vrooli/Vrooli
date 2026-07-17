@@ -11,7 +11,7 @@ import {
 
 installMatchMediaMock();
 installResizeObserverMock();
-import { initiativeModeService, initiativeService } from "../../services";
+import { agentOperationsService, initiativeModeService, initiativeService } from "../../services";
 import { selectors } from "../../consts/selectors";
 import type { Initiative, InitiativeRollup } from "../../types";
 import type {
@@ -20,6 +20,7 @@ import type {
   OperatingModeCatalogPhase,
   OperatingModeWorkspace,
 } from "../../types/operating-mode";
+import type { WorkflowMigrationStatus } from "../../types/agent-operations";
 
 vi.mock("../../services", () => ({
   initiativeModeService: {
@@ -35,6 +36,18 @@ vi.mock("../../services", () => ({
   initiativeService: {
     updateMetadata: vi.fn(),
   },
+  // The workspace hook and the Operation Bindings section reach the
+  // agent-operations surface; stub it so queries resolve deterministically.
+  agentOperationsService: {
+    getWorkflowProjection: vi.fn().mockResolvedValue({ found: false, operations: [] }),
+    getResolvedBindings: vi.fn().mockResolvedValue([]),
+    listCompatibleModes: vi.fn().mockResolvedValue([]),
+    listBindingOverrides: vi.fn().mockResolvedValue([]),
+    putBindingOverride: vi.fn(),
+    deleteBindingOverride: vi.fn(),
+    getMigrationStatus: vi.fn().mockResolvedValue({ documentFound: false, state: "not-started" }),
+    listExecutionHistory: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 // Capability factory — reusable across tests so flags can be flipped in
@@ -48,12 +61,10 @@ function capabilities(overrides: Partial<OperatingModeCapabilities> = {}): Opera
     requiresAcceptanceCriteria: false,
     supportsArtifacts: false,
     supportsHandoffs: false,
-    usesItemExecutionFlow: false,
     ...overrides,
   };
 }
 
-const itemExecutionCapabilities = capabilities({ usesItemExecutionFlow: true });
 const fullPhaseCapabilities = capabilities({
   supportsPhases: true,
   canStartPhases: true,
@@ -124,10 +135,10 @@ const baseInitiative: Initiative = {
 const baseCatalog: OperatingModeCatalogEntry[] = [
   makeCatalogEntry({
     mode: "item-level",
-    label: "Item Level",
+    label: "Member-item workflow",
     targetKind: "initiative",
-    runStrategy: "existing_item_flow",
-    capabilities: itemExecutionCapabilities,
+    runStrategy: "",
+    capabilities: capabilities(),
     default: true,
     supportsPhases: false,
   }),
@@ -258,18 +269,28 @@ describe("OperatingModePanel", () => {
       expect(await screen.findByTestId(selectors.initiativeDetails.criteriaInput)).toBeInTheDocument();
     });
 
-    it("renders ItemLevelEmptyState only when usesItemExecutionFlow=true", async () => {
+    it("renders MemberItemStrategyPanel only for member-item-strategy initiatives", async () => {
       vi.mocked(initiativeModeService.workspace).mockResolvedValue(
         makeWorkspace({
           definition: {
             ...makeWorkspace().definition,
-            capabilities: itemExecutionCapabilities,
+            capabilities: capabilities(),
           },
         }),
       );
       renderPanel({ initiative: { mode: "item-level" } });
-      expect(await screen.findByTestId(selectors.initiativeDetails.itemLevelEmptyState)).toBeInTheDocument();
+      expect(await screen.findByTestId(selectors.initiativeDetails.memberItemStrategyPanel)).toBeInTheDocument();
       expect(screen.queryByTestId(selectors.initiativeDetails.phaseComposer)).toBeNull();
+    });
+
+    it("offers the Operation Bindings section (collapsed by default)", async () => {
+      renderPanel();
+      await screen.findByTestId(selectors.initiativeDetails.modeHero);
+      const section = screen.getByTestId(selectors.initiativeDetails.operationBindingsSection);
+      expect(section).toHaveTextContent("Operation Bindings");
+      // Collapsed by default — the bindings panel (and its queries) only
+      // mount once the operator expands the section.
+      expect(screen.queryByTestId(selectors.workflowBindings.panel)).toBeNull();
     });
 
     it("hides Phase Composer, Artifacts, and Rounds when supportsPhases=false", async () => {
@@ -277,7 +298,7 @@ describe("OperatingModePanel", () => {
         makeWorkspace({
           definition: {
             ...makeWorkspace().definition,
-            capabilities: itemExecutionCapabilities,
+            capabilities: capabilities(),
           },
         }),
       );
@@ -304,6 +325,54 @@ describe("OperatingModePanel", () => {
         expect(screen.queryByText("Artifacts")).toBeNull();
       });
       expect(screen.getByText("Rounds")).toBeInTheDocument();
+    });
+  });
+
+  describe("partial migration visibility", () => {
+    const migrationStatus: WorkflowMigrationStatus = {
+      state: "not-started",
+      epoch: 0,
+      stagedCount: 0,
+      promotedCount: 0,
+      quarantinedCount: 0,
+      startedAt: "",
+      updatedAt: "",
+      reportPath: "",
+      documentFound: false,
+    };
+
+    it("shows the staged migration banner with counts on the initiative surface", async () => {
+      vi.mocked(agentOperationsService.getMigrationStatus).mockResolvedValueOnce({
+        ...migrationStatus,
+        state: "staged",
+        stagedCount: 7,
+        epoch: 2,
+        documentFound: true,
+      });
+      renderPanel();
+      const banner = await screen.findByTestId("workflow-migration-banner");
+      expect(banner).toHaveTextContent("Workflow migration staged");
+      expect(banner).toHaveTextContent("Epoch 2: 7 documents staged");
+    });
+
+    it("shows the quarantined migration warning on the initiative surface", async () => {
+      vi.mocked(agentOperationsService.getMigrationStatus).mockResolvedValueOnce({
+        ...migrationStatus,
+        state: "quarantined",
+        quarantinedCount: 3,
+        epoch: 2,
+        documentFound: true,
+      });
+      renderPanel();
+      const banner = await screen.findByTestId("workflow-migration-banner");
+      expect(banner).toHaveTextContent("Workflow migration quarantined");
+      expect(banner).toHaveTextContent("Epoch 2: 3 documents quarantined");
+    });
+
+    it("shows no banner in the not-started steady state", async () => {
+      renderPanel();
+      await screen.findByTestId(selectors.initiativeDetails.modeHero);
+      expect(screen.queryByTestId("workflow-migration-banner")).toBeNull();
     });
   });
 

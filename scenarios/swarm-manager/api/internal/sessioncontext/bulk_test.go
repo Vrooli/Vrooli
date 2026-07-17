@@ -36,7 +36,7 @@ func TestResolveBulkVerdicts(t *testing.T) {
 		{Type: "initiative", Name: "does-not-exist"},     // fake
 		{Type: "backlog", Name: "execute/wire-snapshot"}, // real
 		{Type: "backlog", Name: "execute/ghost"},         // fake
-		{Type: "operating-mode", Name: "item-level"},     // valid registry mode
+		{Type: "operating-mode", Name: "holistic-loop"},  // valid registry mode
 		{Type: "operating-mode", Name: "not-a-mode"},     // invalid mode
 		{Type: "bogus-marker", Name: "whatever"},         // unknown marker
 		{Type: "initiative", Name: ""},                   // empty ref
@@ -56,7 +56,7 @@ func TestResolveBulkVerdicts(t *testing.T) {
 		{false, ""},
 		{true, "/backlog/execute/wire-snapshot"},
 		{false, ""},
-		{true, "/operating-modes/item-level"},
+		{true, "/operating-modes/holistic-loop"},
 		{false, ""},
 		{false, ""},
 		{false, ""},
@@ -81,13 +81,13 @@ func TestExtractReferenceCandidates(t *testing.T) {
 		"Run `initiatives list` to see more (a command, has a space — not a ref).\n" +
 		"This `unknownmarker:foo` should be ignored, and `initiative:ship-cockpit` again is a dup.\n" +
 		"A bare http link `http://example.com` is not a reference either.\n" +
-		"Mode `operating-mode:item-level` is valid syntax."
+		"Mode `operating-mode:holistic-loop` is valid syntax."
 
 	got := extractReferenceCandidates(content)
 	want := []ReferenceCandidate{
 		{Type: "initiative", Name: "ship-cockpit"},
 		{Type: "backlog", Name: "execute/wire-snapshot"},
-		{Type: "operating-mode", Name: "item-level"},
+		{Type: "operating-mode", Name: "holistic-loop"},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("extracted %d candidates, want %d: %+v", len(got), len(want), got)

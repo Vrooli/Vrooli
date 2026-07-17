@@ -158,6 +158,7 @@ func TestCancelExecutionReapsRunningOperation(t *testing.T) {
 
 // TestCommitResultRecordsOutcomeAndTransitions proves that delivering a valid
 // result finalizes the running operation and fires the policy transition.
+// [REQ:REQ-P0-011-DETERMINISTIC-ACTIONS]
 func TestCommitResultRecordsOutcomeAndTransitions(t *testing.T) {
 	dir := t.TempDir()
 	catalog := writeCatalog(t, dir, "rev-1")

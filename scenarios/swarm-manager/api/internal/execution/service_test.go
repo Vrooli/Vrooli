@@ -29,6 +29,46 @@ type stubAgentService struct {
 	spawnErr   error
 }
 
+type stubPhasedPlanWorkflow struct {
+	start        agentmanager.WorkflowStart
+	startErr     error
+	snapshot     agentmanager.PhasedPlanSnapshot
+	startKey     string
+	startCalls   int
+	completion   agentmanager.PhasedPlanWorkflowCompletion
+	collectErr   error
+	collectCalls int
+	approveCalls int
+	cancelCalls  int
+}
+
+func (s *stubPhasedPlanWorkflow) StartPhasedPlan(_ context.Context, snapshot agentmanager.PhasedPlanSnapshot, key string) (agentmanager.WorkflowStart, error) {
+	s.startCalls++
+	s.snapshot, s.startKey = snapshot, key
+	if s.startErr != nil {
+		return agentmanager.WorkflowStart{}, s.startErr
+	}
+	if s.start.ExecutionID == "" && s.start.DefinitionDigest == "" && s.start.RunID == "" {
+		return agentmanager.WorkflowStart{ExecutionID: "wfx-1", RunID: "run-1", DefinitionDigest: "sha256:def"}, nil
+	}
+	return s.start, nil
+}
+
+func (s *stubPhasedPlanWorkflow) CollectPhasedPlan(_ context.Context, _ string) (agentmanager.PhasedPlanWorkflowCompletion, error) {
+	s.collectCalls++
+	return s.completion, s.collectErr
+}
+
+func (s *stubPhasedPlanWorkflow) SignalPhasedPlanApproval(context.Context, string, string, string, string) error {
+	s.approveCalls++
+	return nil
+}
+
+func (s *stubPhasedPlanWorkflow) CancelPhasedPlan(context.Context, string, string) error {
+	s.cancelCalls++
+	return nil
+}
+
 func (s *stubAgentService) IsEnabled() bool { return true }
 
 func (s *stubAgentService) SpawnBacklog(_ context.Context, _ agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
@@ -141,8 +181,8 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
-	starter := &stubOperationStarter{}
-	service.SetOperationStarter(starter)
+	workflow := &stubPhasedPlanWorkflow{}
+	service.SetPhasedPlanWorkflow(workflow)
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "idea",
@@ -175,26 +215,25 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if started.QueuedAt != queuedAt {
 		t.Fatalf("expected QueuedAt preserved through start: got %q want %q", started.QueuedAt, queuedAt)
 	}
-	// A plan-backed item starts as an execution-run operation: the record tracks
-	// the agent run id the operation returned plus the durable operation-execution
-	// correlation ids, and the legacy direct spawn is not used.
+	// A plan-backed item starts the bounded data-defined workflow. The consumer
+	// keeps the workflow execution and immutable frontier correlations.
 	if started.RunID != "run-1" {
 		t.Fatalf("expected run id from operation start, got %q", started.RunID)
 	}
-	if started.OpWorkflowID != "wf-1" || started.OpExecutionID != "opx-1" {
-		t.Fatalf("expected operation-execution refs on record, got workflow=%q execution=%q", started.OpWorkflowID, started.OpExecutionID)
+	if started.AgentWorkflowExecutionID != "wfx-1" || started.TaskID != "wfx-1" {
+		t.Fatalf("expected workflow execution refs on record, got workflow=%q task=%q", started.AgentWorkflowExecutionID, started.TaskID)
 	}
 	if agent.spawnCalls != 0 {
 		t.Fatalf("expected no direct spawn for a plan-backed item, got %d", agent.spawnCalls)
 	}
-	if starter.calls != 1 {
-		t.Fatalf("expected 1 operation start, got %d", starter.calls)
+	if workflow.startCalls != 1 {
+		t.Fatalf("expected 1 workflow start, got %d", workflow.startCalls)
 	}
-	if starter.req.Operation != "execution-run" || starter.req.TargetKind != "plan-execution" {
-		t.Fatalf("expected execution-run against plan-execution, got op=%q target=%q", starter.req.Operation, starter.req.TargetKind)
+	if workflow.snapshot.PlanReference != "test-plan-test-idea" {
+		t.Fatalf("expected plan handle from the item plan_ref, got %q", workflow.snapshot.PlanReference)
 	}
-	if starter.req.TargetID != "test-plan-test-idea" {
-		t.Fatalf("expected plan handle from the item plan_ref, got %q", starter.req.TargetID)
+	if workflow.snapshot.FrontierDigest == "" || workflow.snapshot.EntityVersion == "" {
+		t.Fatal("expected immutable workflow frontier correlations")
 	}
 }
 
@@ -576,37 +615,6 @@ func mustLoadBacklogItem(t *testing.T, path string) map[string]any {
 	return value
 }
 
-func TestMapRunStatus_DirectMappings(t *testing.T) {
-	tests := []struct {
-		input    string
-		errorMsg string
-		want     Status
-		wantMsg  string
-	}{
-		{"pending", "", StatusStarting, ""},
-		{"starting", "", StatusStarting, ""},
-		{"running", "", StatusRunning, ""},
-		{"needs_review", "", StatusNeedsReview, ""},
-		{"complete", "", StatusCompleted, ""},
-		{"failed", "boom", StatusFailed, "boom"},
-		{"failed", "", StatusFailed, "agent-manager run failed"},
-		{"cancelled", "", StatusCanceled, ""},
-		{"unspecified", "", StatusRunning, ""},
-		{"RUNNING", "", StatusRunning, ""},
-		{"unknown-value", "", StatusRunning, ""},
-	}
-	for _, tc := range tests {
-		tracker := &runTracker{}
-		got, msg := mapRunStatus(tc.input, tc.errorMsg, tracker, 5)
-		if got != tc.want {
-			t.Errorf("mapRunStatus(%q, %q): got %s, want %s", tc.input, tc.errorMsg, got, tc.want)
-		}
-		if msg != tc.wantMsg {
-			t.Errorf("mapRunStatus(%q, %q): msg got %q, want %q", tc.input, tc.errorMsg, msg, tc.wantMsg)
-		}
-	}
-}
-
 type stubInspector struct {
 	state agentmanager.RunState
 	err   error
@@ -651,8 +659,8 @@ func TestCancel_StartingExecution(t *testing.T) {
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
 	service.stopper = stopper
-	starter := &stubOperationStarter{}
-	service.SetOperationStarter(starter)
+	workflow := &stubPhasedPlanWorkflow{}
+	service.SetPhasedPlanWorkflow(workflow)
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "idea",
@@ -677,20 +685,18 @@ func TestCancel_StartingExecution(t *testing.T) {
 	if canceled.Status != StatusCanceled {
 		t.Fatalf("expected canceled, got %s", canceled.Status)
 	}
-	if stopper.stopCalls != 1 {
-		t.Fatalf("expected 1 StopRun call, got %d", stopper.stopCalls)
+	if canceled.AgentWorkflowApplyState != workflowApplyComplete {
+		t.Fatalf("workflow cancellation must close the consumer apply boundary, got %q", canceled.AgentWorkflowApplyState)
 	}
-	// The operation execution is reaped so its durable workflow record does not
-	// linger running after the agent run was stopped.
-	if starter.cancelCalls != 1 {
-		t.Fatalf("expected 1 operation reap on cancel, got %d", starter.cancelCalls)
+	if stopper.stopCalls != 0 {
+		t.Fatalf("workflow-owned cancellation must not stop a child run directly, got %d", stopper.stopCalls)
 	}
-	if starter.cancelReq.ExecutionID != "opx-1" {
-		t.Fatalf("expected reap of the started operation execution, got %q", starter.cancelReq.ExecutionID)
+	if workflow.cancelCalls != 1 {
+		t.Fatalf("expected 1 workflow cancellation, got %d", workflow.cancelCalls)
 	}
 }
 
-func TestStart_EmptyRunIDFailsCleanlyAndReaps(t *testing.T) {
+func TestStart_EmptyWorkflowExecutionIDFailsCleanly(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "idea", "norunid-item", map[string]any{
 		"name": "norunid-item", "title": "No Run", "description": "d",
@@ -706,17 +712,15 @@ func TestStart_EmptyRunIDFailsCleanlyAndReaps(t *testing.T) {
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "p"},
 	})
-	// A start that returns no run id (e.g. agent-manager degraded) must fail
-	// cleanly, not strand the record in "starting".
-	starter := &stubOperationStarter{result: OperationStartResult{WorkflowID: "wf", ExecutionID: "opx"}}
-	service.SetOperationStarter(starter)
+	workflow := &stubPhasedPlanWorkflow{start: agentmanager.WorkflowStart{DefinitionDigest: "sha256:def"}}
+	service.SetPhasedPlanWorkflow(workflow)
 
 	rec, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "idea", BacklogName: "norunid-item", Mode: ModeManual})
 	if err != nil {
 		t.Fatalf("queue: %v", err)
 	}
 	if _, startErr := service.Start(context.Background(), rec.ExecutionID); startErr == nil {
-		t.Fatal("expected a start error when the operation returns no run id")
+		t.Fatal("expected a start error when the workflow returns no execution id")
 	}
 	records, err := service.store.Load()
 	if err != nil {
@@ -733,9 +737,6 @@ func TestStart_EmptyRunIDFailsCleanlyAndReaps(t *testing.T) {
 	}
 	if got.Status != StatusPending {
 		t.Fatalf("record must stay pending/retryable, got %s", got.Status)
-	}
-	if starter.cancelCalls != 1 {
-		t.Fatalf("expected the dangling operation to be reaped, got %d", starter.cancelCalls)
 	}
 }
 
@@ -761,7 +762,8 @@ func TestCancel_NeedsReviewExecution(t *testing.T) {
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
 	service.stopper = stopper
-	service.SetOperationStarter(&stubOperationStarter{})
+	workflow := &stubPhasedPlanWorkflow{}
+	service.SetPhasedPlanWorkflow(workflow)
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "idea",
@@ -808,140 +810,6 @@ func TestMigrateRecords_OrphanedRunning(t *testing.T) {
 	}
 	if migrated[2].Status != StatusCompleted {
 		t.Fatalf("expected completed to stay completed, got %s", migrated[2].Status)
-	}
-}
-
-// TestRefreshRunning_FailedRunSetsBacklogInReview verifies that when an
-// agent-manager run transitions to "failed", the backlog item lands in
-// in_review (not terminal) so the review agent can document the failure and
-// the user decides the terminal state via review-decide. The execution
-// record itself still records StatusFailed.
-func TestRefreshRunning_FailedRunSetsBacklogInReview(t *testing.T) {
-	root := t.TempDir()
-	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
-
-	mustWriteBacklogItem(t, root, "idea", "fail-status", map[string]any{
-		"name":        "fail-status",
-		"title":       "Fail Status",
-		"description": "desc",
-		"status":      "in_progress",
-		"priority":    3,
-		"tags":        []string{},
-	})
-
-	// Seed an execution record that looks like a running execution.
-	store := NewStore(storePath)
-	if err := store.Save([]Record{{
-		ExecutionID:    "exec-fail-1",
-		BacklogKind:    "idea",
-		BacklogName:    "fail-status",
-		PreviousStatus: "backlog",
-		Status:         StatusRunning,
-		Mode:           ModeManual,
-		RunID:          "run-fail-1",
-		CreatedAt:      "2026-01-28T00:00:00Z",
-		UpdatedAt:      "2026-01-28T00:00:00Z",
-	}}); err != nil {
-		t.Fatalf("save seed record: %v", err)
-	}
-
-	// Inspector returns "failed" for the run.
-	inspector := &stubInspector{
-		state: agentmanager.RunState{
-			RunID:      "run-fail-1",
-			Status:     "failed",
-			ErrorMsg:   "agent crashed",
-			FinishedAt: "2026-01-28T01:00:00Z",
-		},
-	}
-
-	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    storePath,
-		PlanRenderer: testPlanRenderer(),
-	})
-	service.inspector = inspector
-
-	// List triggers refreshRunningLocked which should detect the failed run.
-	records, err := service.List(context.Background(), ListFilters{})
-	if err != nil {
-		t.Fatalf("List error: %v", err)
-	}
-	if len(records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(records))
-	}
-	if records[0].Status != StatusFailed {
-		t.Fatalf("expected execution status failed, got %s", records[0].Status)
-	}
-
-	// Verify the backlog item landed in "in_review" — terminal transitions
-	// are user-only (plan §W1); the review agent will document the failure.
-	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "fail-status", "spec.json"))
-	if storedItem["status"] != "in_review" {
-		t.Fatalf("expected backlog status 'in_review', got %#v", storedItem["status"])
-	}
-}
-
-// TestRefreshRunning_CanceledRunRestoresBacklogStatus verifies that when a run
-// is canceled, the backlog item status is restored to its previous status.
-func TestRefreshRunning_CanceledRunRestoresBacklogStatus(t *testing.T) {
-	root := t.TempDir()
-	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
-
-	mustWriteBacklogItem(t, root, "idea", "cancel-restore", map[string]any{
-		"name":        "cancel-restore",
-		"title":       "Cancel Restore",
-		"description": "desc",
-		"status":      "in_progress",
-		"priority":    3,
-		"tags":        []string{},
-	})
-
-	store := NewStore(storePath)
-	if err := store.Save([]Record{{
-		ExecutionID:    "exec-cancel-1",
-		BacklogKind:    "idea",
-		BacklogName:    "cancel-restore",
-		PreviousStatus: "ready",
-		Status:         StatusRunning,
-		Mode:           ModeManual,
-		RunID:          "run-cancel-1",
-		CreatedAt:      "2026-01-28T00:00:00Z",
-		UpdatedAt:      "2026-01-28T00:00:00Z",
-	}}); err != nil {
-		t.Fatalf("save seed record: %v", err)
-	}
-
-	inspector := &stubInspector{
-		state: agentmanager.RunState{
-			RunID:      "run-cancel-1",
-			Status:     "cancelled",
-			FinishedAt: "2026-01-28T01:00:00Z",
-		},
-	}
-
-	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    storePath,
-		PlanRenderer: testPlanRenderer(),
-	})
-	service.inspector = inspector
-
-	records, err := service.List(context.Background(), ListFilters{})
-	if err != nil {
-		t.Fatalf("List error: %v", err)
-	}
-	if len(records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(records))
-	}
-	if records[0].Status != StatusCanceled {
-		t.Fatalf("expected execution status canceled, got %s", records[0].Status)
-	}
-
-	// Verify the backlog item was restored to previous status "ready" (not "failed").
-	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "cancel-restore", "spec.json"))
-	if storedItem["status"] != "ready" {
-		t.Fatalf("expected backlog status 'ready', got %#v", storedItem["status"])
 	}
 }
 
@@ -1212,31 +1080,6 @@ func TestTriggerReview_MissingExecution(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %v", err)
-	}
-}
-
-func TestRecordToProto_MapsLegacyReviewFieldsIntoFinalization(t *testing.T) {
-	record := Record{
-		ExecutionID:            "exec-new-fields",
-		BacklogKind:            "execute",
-		BacklogName:            "test",
-		Status:                 StatusCompleted,
-		Mode:                   ModeYOLO,
-		LegacyReviewSkipReason: "GCT unavailable: connection refused",
-		LegacyReviewStartedAt:  "2026-03-24T10:00:00Z",
-		CreatedAt:              "2026-03-24T00:00:00Z",
-		UpdatedAt:              "2026-03-24T01:00:00Z",
-	}
-	pb := recordToProto(record)
-
-	if pb.Finalization == nil {
-		t.Fatal("expected finalization to be synthesized")
-	}
-	if pb.Finalization.SkipReason == nil || *pb.Finalization.SkipReason != "GCT unavailable: connection refused" {
-		t.Fatalf("expected skip reason to be mapped, got %v", pb.Finalization.SkipReason)
-	}
-	if pb.Finalization.StartedAt == nil || *pb.Finalization.StartedAt != "2026-03-24T10:00:00Z" {
-		t.Fatalf("expected started_at to be mapped, got %v", pb.Finalization.StartedAt)
 	}
 }
 

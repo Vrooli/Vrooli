@@ -251,6 +251,54 @@ describe("Initiative Mode Service", () => {
     expect(catalog.modes[0]?.phases[0]?.requiresCriteria).toBe(true);
   });
 
+  it("appends the synthesized member-item strategy entry to the catalog", async () => {
+    client.catalog.mockResolvedValue({ modes: [] });
+    const listInitiatives = vi.fn().mockResolvedValue([
+      { initiative: { name: "a", title: "A", mode: "item-level" }, rollup: {} },
+      { initiative: { name: "b", title: "B", mode: "" }, rollup: {} },
+      { initiative: { name: "c", title: "C", mode: "holistic-loop" }, rollup: {} },
+    ]);
+    const svc = createInitiativeModeService(client as unknown as OperatingModeClient, listInitiatives);
+
+    const catalog = await svc.catalog();
+
+    const strategy = catalog.modes.find((entry) => entry.mode === "item-level");
+    expect(strategy).toBeDefined();
+    expect(strategy?.label).toBe("Member-item workflow");
+    expect(strategy?.switchable).toBe(true);
+    expect(strategy?.default).toBe(true);
+    expect(strategy?.supportsPhases).toBe(false);
+    // Blank modes normalize to the strategy; genuine modes are excluded.
+    expect(strategy?.usageCount).toBe(2);
+  });
+
+  it("still serves the catalog when the initiative list is unavailable", async () => {
+    client.catalog.mockResolvedValue({ modes: [] });
+    const listInitiatives = vi.fn().mockRejectedValue(new Error("api down"));
+    const svc = createInitiativeModeService(client as unknown as OperatingModeClient, listInitiatives);
+
+    const catalog = await svc.catalog();
+    const strategy = catalog.modes.find((entry) => entry.mode === "item-level");
+    expect(strategy?.usageCount).toBe(0);
+  });
+
+  it("resolves the member-item strategy detail client-side (no server GetMode)", async () => {
+    const listInitiatives = vi.fn().mockResolvedValue([
+      { initiative: { name: "a", title: "A", mode: "item-level", status: "active", updated: "2026-07-01T00:00:00Z" }, rollup: {} },
+      { initiative: { name: "c", title: "C", mode: "holistic-loop" }, rollup: {} },
+    ]);
+    const svc = createInitiativeModeService(client as unknown as OperatingModeClient, listInitiatives);
+
+    const detail = await svc.getMode("item-level");
+
+    expect(client.getMode).not.toHaveBeenCalled();
+    expect(detail.entry.label).toBe("Member-item workflow");
+    expect(detail.linkedInitiatives).toEqual([
+      { name: "a", title: "A", status: "active", updated: "2026-07-01T00:00:00Z" },
+    ]);
+    expect(detail.entry.usageCount).toBe(1);
+  });
+
   it("maps a simulation trace with a generic guard transition", async () => {
     client.simulateMode.mockResolvedValue({
       mode: "phased-plan-drain",
@@ -272,13 +320,13 @@ describe("Initiative Mode Service", () => {
           scenario: "A drain that stalls on an external blocker.",
         },
       ],
-      target: { kind: "plan-manager-plan", id: "simulated-plan-execution", title: "Phased Plan Drain Simulation", context: { plan: { plan_id: "simulated-plan" } } },
+      target: { kind: "plan-execution", id: "simulated-plan-execution", title: "Phased Plan Drain Simulation", context: { plan: { plan_id: "simulated-plan" } } },
       trace: [{
         index: 0,
         phase: "classify_progress",
         phaseKind: "review",
         inputs: {
-          target: { kind: "plan-manager-plan", id: "simulated-plan-execution", title: "Phased Plan Drain Simulation" },
+          target: { kind: "plan-execution", id: "simulated-plan-execution", title: "Phased Plan Drain Simulation" },
           artifacts: [],
           priorRounds: [],
         },
@@ -315,9 +363,9 @@ describe("Initiative Mode Service", () => {
     expect(simulation.activePreset).toBe("happy-path");
     expect(simulation.presets.map((preset) => preset.id)).toEqual(["happy-path", "blocked"]);
     expect(simulation.presets[1]?.branch).toBe("classify_progress → (blocked, terminal)");
-    expect(simulation.target).toMatchObject({ kind: "plan-manager-plan", id: "simulated-plan-execution" });
+    expect(simulation.target).toMatchObject({ kind: "plan-execution", id: "simulated-plan-execution" });
     expect(simulation.trace[0]?.phaseKind).toBe("review");
-    expect(simulation.trace[0]?.inputs.target.kind).toBe("plan-manager-plan");
+    expect(simulation.trace[0]?.inputs.target.kind).toBe("plan-execution");
     expect(simulation.trace[0]?.output.progress?.decision).toBe("complete");
     expect(simulation.trace[0]?.transition?.conditionKind).toBe("eq");
     expect(simulation.trace[0]?.transition?.field).toBe("progress.decision");
@@ -329,7 +377,7 @@ describe("Initiative Mode Service", () => {
       mode: "phased-plan-drain",
       activePreset: "blocked",
       presets: [],
-      target: { kind: "plan-manager-plan", id: "simulated-plan-execution" },
+      target: { kind: "plan-execution", id: "simulated-plan-execution" },
       trace: [],
     });
 
@@ -351,7 +399,7 @@ describe("Initiative Mode Service", () => {
           tradeoffs: ["Highest parallelism"],
           whenInDoubtPickInstead: "", // item-level is the safe default
           targetKind: "initiative",
-          runStrategy: "existing_item_flow",
+          runStrategy: "",
           workspaceTabId: "info",
           capabilities: {},
           default: true,

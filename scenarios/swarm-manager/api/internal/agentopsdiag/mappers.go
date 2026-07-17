@@ -30,6 +30,8 @@ func targetKindFromProto(k domainpb.OperatingModeTargetKind) (agentops.TargetKin
 		return agentops.TargetInitiative, true
 	case domainpb.OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_PLAN_EXECUTION:
 		return agentops.TargetPlanExecution, true
+	case domainpb.OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_SCENARIO:
+		return agentops.TargetScenario, true
 	default:
 		return "", false
 	}

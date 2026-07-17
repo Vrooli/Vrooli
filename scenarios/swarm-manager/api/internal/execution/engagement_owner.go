@@ -23,7 +23,8 @@ var errEngagementConflict = errors.New("scenario already has an open baseline en
 //	"Engagement keyed by scenario; owned by item/initiative-step. A scenario has
 //	 at most one open engagement (one working tree → one candidate)."
 //
-// Today every operating mode (item-level / holistic-loop / phased-plan-drain)
+// Today every execution path (the member-item workflow strategy and every
+// registered operating mode, e.g. holistic-loop / phased-plan-drain)
 // executes and reviews per backlog item — initiative modes queue items but each
 // still reaches review-decide independently — so the owner is the backlog item.
 // The owner holds a SET of per-scenario engagements that survives the main run,

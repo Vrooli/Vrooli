@@ -49,6 +49,15 @@ func TestPlanExecutionSpawnInheritsContainmentScope(t *testing.T) {
 	if len(got.Creates) != 1 || got.Creates[0] != "scenarios/foo/new.go" {
 		t.Fatalf("creates not threaded: %#v", got.Creates)
 	}
+	// Contained targets carry repo-root-relative acceptance globs, so the spawn
+	// must NOT pin the swarm-manager scenario root as the workspace — that would
+	// make the spawn-side fail-closed acceptance check resolve every glob under
+	// the scenario dir and reject the run as a stale plan. Empty values route
+	// through projectroot.Resolve (monorepo root + scenario scope derived from
+	// the acceptance globs), matching the legacy backlog spawn contract.
+	if got.ScopePath != "" || got.ProjectRoot != "" {
+		t.Fatalf("contained spawn must leave workspace resolution to projectroot.Resolve, got scope=%q root=%q", got.ScopePath, got.ProjectRoot)
+	}
 }
 
 // TestScenarioSpecSyncSpawnScopedToScenarioDir proves the scenario target adapter
@@ -88,7 +97,14 @@ func TestPlanExecutionSpawnUnconstrainedWithoutContainment(t *testing.T) {
 	if len(agent.spawned) != 1 {
 		t.Fatalf("expected 1 spawn, got %d", len(agent.spawned))
 	}
-	if got := agent.spawned[0]; len(got.AcceptanceAllow) != 0 || len(got.AcceptanceDeny) != 0 || len(got.Creates) != 0 {
+	got := agent.spawned[0]
+	if len(got.AcceptanceAllow) != 0 || len(got.AcceptanceDeny) != 0 || len(got.Creates) != 0 {
 		t.Fatalf("expected unconstrained spawn, got allow=%#v deny=%#v creates=%#v", got.AcceptanceAllow, got.AcceptanceDeny, got.Creates)
+	}
+	// Scopeless targets keep the pinned scenario-root workspace (the initiative
+	// operating-mode contract): no acceptance globs means nothing for the
+	// spawn-side resolver to derive a narrower workspace from.
+	if got.ScopePath != "." || got.ProjectRoot == "" {
+		t.Fatalf("scopeless spawn must keep the pinned scenario-root workspace, got scope=%q root=%q", got.ScopePath, got.ProjectRoot)
 	}
 }

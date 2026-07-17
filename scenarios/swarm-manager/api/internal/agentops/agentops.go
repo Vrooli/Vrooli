@@ -32,24 +32,26 @@ var schemaFS embed.FS
 
 // Schema $id constants — the canonical identity of each contract schema.
 const (
-	SchemaTargetCapability    = "agentops/target-capability/v1"
-	SchemaOperationContract   = "agentops/operation-contract/v1"
-	SchemaOperationBinding    = "agentops/operation-binding/v1"
-	SchemaExecutionProvenance = "agentops/execution-provenance/v1"
-	SchemaWorkflowInstance    = "agentops/workflow-instance/v1"
-	SchemaTransitionPolicy    = "agentops/transition-policy/v1"
-	SchemaMemberItemStrategy  = "agentops/member-item-strategy/v1"
+	SchemaTargetCapability      = "agentops/target-capability/v1"
+	SchemaOperationContract     = "agentops/operation-contract/v1"
+	SchemaOperationBinding      = "agentops/operation-binding/v1"
+	SchemaExecutionProvenance   = "agentops/execution-provenance/v1"
+	SchemaWorkflowInstance      = "agentops/workflow-instance/v1"
+	SchemaTransitionPolicy      = "agentops/transition-policy/v1"
+	SchemaMemberItemStrategy    = "agentops/member-item-strategy/v1"
+	SchemaLegacyExecutionImport = "agentops/legacy-execution-import/v1"
 )
 
 // schemaFiles maps each schema $id to its embedded file.
 var schemaFiles = map[string]string{
-	SchemaTargetCapability:    "schemas/target-capability.schema.json",
-	SchemaOperationContract:   "schemas/operation-contract.schema.json",
-	SchemaOperationBinding:    "schemas/operation-binding.schema.json",
-	SchemaExecutionProvenance: "schemas/execution-provenance.schema.json",
-	SchemaWorkflowInstance:    "schemas/workflow-instance.schema.json",
-	SchemaTransitionPolicy:    "schemas/transition-policy.schema.json",
-	SchemaMemberItemStrategy:  "schemas/member-item-strategy.schema.json",
+	SchemaTargetCapability:      "schemas/target-capability.schema.json",
+	SchemaOperationContract:     "schemas/operation-contract.schema.json",
+	SchemaOperationBinding:      "schemas/operation-binding.schema.json",
+	SchemaExecutionProvenance:   "schemas/execution-provenance.schema.json",
+	SchemaWorkflowInstance:      "schemas/workflow-instance.schema.json",
+	SchemaTransitionPolicy:      "schemas/transition-policy.schema.json",
+	SchemaMemberItemStrategy:    "schemas/member-item-strategy.schema.json",
+	SchemaLegacyExecutionImport: "schemas/legacy-execution-import.schema.json",
 }
 
 var (

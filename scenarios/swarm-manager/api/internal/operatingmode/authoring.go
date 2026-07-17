@@ -25,7 +25,7 @@ import (
 
 // modeIDPattern is the accepted shape of a mode id (also its folder name):
 // lowercase alphanumeric segments joined by single hyphens, matching the
-// existing item-level / holistic-loop / phased-plan-drain ids.
+// existing holistic-loop / phased-plan-drain ids.
 var modeIDPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // ScaffoldRequest describes a new mode to write to disk from the built-in
@@ -98,6 +98,9 @@ func (s *Service) ScaffoldMode(req ScaffoldRequest) (ScaffoldResult, error) {
 	}
 	if !modeIDPattern.MatchString(id) {
 		return ScaffoldResult{}, fmt.Errorf("mode id %q must be lowercase alphanumeric segments joined by single hyphens (e.g. my-mode)", id)
+	}
+	if IsMemberItemStrategySentinel(id) {
+		return ScaffoldResult{}, fmt.Errorf("mode id %q is reserved: it is the member-item workflow strategy sentinel, not an operating mode", ModeItemLevel)
 	}
 
 	label := strings.TrimSpace(req.Label)

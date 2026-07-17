@@ -6,22 +6,36 @@ import { Card } from "../ui/card";
 import { Input } from "../ui/input";
 import { selectors } from "../../consts/selectors";
 import { DEFAULT_SETTINGS } from "../../services/settings-service";
-import type { Settings } from "../../types";
+import type { Settings, SettingsPolicyProjection } from "../../types";
+import { PolicyControlsBadge, PolicyControlsNote } from "./PolicyControlsNote";
 import { ToggleButtons } from "./ToggleButtons";
 
 export interface WorkshopTabProps {
   form: Settings;
   patch: (updates: Partial<Settings>) => void;
+  policyProjection?: SettingsPolicyProjection | null;
 }
 
-export function WorkshopTab({ form, patch }: WorkshopTabProps) {
+const WORKSHOP_POLICY_FIELDS = [
+  "auto_initialize_workshop",
+  "auto_advance_workshop",
+  "max_auto_rounds",
+  "auto_advance_delay_seconds",
+  "auto_cascade_workshop",
+];
+
+export function WorkshopTab({ form, patch, policyProjection }: WorkshopTabProps) {
   return (
     <div className="space-y-6">
       <Card data-testid={selectors.settings.workshopSettings}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-medium text-slate-200">Workshop</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-medium text-slate-200">Workshop</h3>
+              <PolicyControlsBadge />
+            </div>
             <p className="mt-1 text-sm text-slate-400">Controls for the workshop refinement system.</p>
+            <PolicyControlsNote fields={WORKSHOP_POLICY_FIELDS} projection={policyProjection} />
           </div>
           <div className="flex items-center gap-2">
             <button

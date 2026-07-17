@@ -94,8 +94,8 @@ func BuildBacklogRunner(cfg BacklogRunnerConfig) (*BacklogRunner, error) {
 		defsByID[string(mode)] = def
 	}
 	// The full mode set is also the delegated-mode pool so a composed mode's
-	// executed_by (e.g. execution-drain -> phased-plan-drain) resolves when the
-	// preparer compiles its input contract.
+	// executed_by (a wrapper mode delegating to a generic drain mode) resolves
+	// when the preparer compiles its input contract.
 	preparer := opsrunner.NewLivePreparer(cfg.Catalog, defsByID).WithDelegated(defsByID)
 
 	repo := opsrunner.NewWorkflowRepo(cfg.Locator)

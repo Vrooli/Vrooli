@@ -1,7 +1,7 @@
 import { cn } from "../../../lib/utils";
 import { Card } from "../../ui/card";
 import type { OperatingModeCatalogEntry } from "../../../types/operating-mode";
-import { humanizeRunStrategy, humanizeTargetKind } from "./utils";
+import { humanizeRunStrategy, humanizeTargetKind, modeLabel } from "./utils";
 import { PickModeRow } from "../../session/context/selectable-card";
 import type { CardSelection } from "../../session/context/selectable";
 
@@ -36,8 +36,10 @@ export function OperatingModeCard({
   const body = (
     <>
       <div className="flex items-start justify-between gap-2">
+        {/* Label routes through the member-item-strategy mapping so the
+            legacy item-level entry presents as the workflow strategy. */}
         <p className="line-clamp-2 text-sm font-medium leading-snug text-slate-100">
-          {mode.label}
+          {modeLabel(mode.mode, mode.label)}
         </p>
         <span className="shrink-0 rounded-full bg-slate-700/60 px-2 py-0.5 text-[10px] font-medium text-slate-300">
           {mode.usageCount} init.
@@ -49,7 +51,8 @@ export function OperatingModeCard({
         </p>
       )}
       <p className="mt-1.5 text-[11px] text-slate-500">
-        {humanizeTargetKind(mode.targetKind)} · {humanizeRunStrategy(mode.runStrategy)}
+        {humanizeTargetKind(mode.targetKind)}
+        {mode.runStrategy ? ` · ${humanizeRunStrategy(mode.runStrategy)}` : " · workflow strategy"}
         {mode.default ? " · default" : ""}
       </p>
     </>

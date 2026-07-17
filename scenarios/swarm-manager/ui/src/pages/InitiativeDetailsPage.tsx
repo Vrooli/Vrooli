@@ -44,6 +44,7 @@ import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { initiativeService } from "../services";
 import { selectors } from "../consts/selectors";
+import { normalizeModeWireValue, presentModeLabel } from "../lib/member-item-strategy";
 import { RollupProgressBar, rollupTotal as computeRollupTotal } from "../components/ui/rollup-progress-bar";
 import type { BacklogFile, BacklogKind, BacklogStatus, InitiativeStatus, InitiativeWithRollup } from "../types";
 import { useBacklogStore } from "../stores";
@@ -701,17 +702,17 @@ export function InitiativeDetailsPage() {
                     </p>
                   </div>
                   <Link
-                    to={operatingModeDetailPath(initiative.mode ?? "item-level")}
+                    to={operatingModeDetailPath(normalizeModeWireValue(initiative.mode))}
                     className="block rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3 transition-colors hover:border-cyan-400/60 hover:bg-slate-800/80"
                     data-testid={selectors.initiativeDetails.infoTabModeCard}
-                    title={`View details for ${formatDisplayText((initiative.mode ?? "item-level").replace(/-/g, " "))}`}
+                    title={`View details for ${presentModeLabel(initiative.mode, formatDisplayText(normalizeModeWireValue(initiative.mode).replace(/-/g, " ")))}`}
                   >
                     <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
                       <Workflow className="h-3.5 w-3.5" />
                       Mode
                     </div>
                     <div className="mt-2 text-xl font-semibold text-slate-100 sm:text-2xl">
-                      {formatDisplayText((initiative.mode ?? "item-level").replace(/-/g, " "))}
+                      {presentModeLabel(initiative.mode, formatDisplayText(normalizeModeWireValue(initiative.mode).replace(/-/g, " ")))}
                     </div>
                     <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
                       {missingItemCount > 0 ? `${missingItemCount} unresolved item ${missingItemCount === 1 ? "ref" : "refs"}` : priority > 0 ? `P${priority} priority` : "Priority unset"}

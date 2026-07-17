@@ -8,6 +8,10 @@ import {
   type PlanImportResult,
 } from "../../services/plan-service";
 import { cn } from "../../lib/utils";
+import {
+  MEMBER_ITEM_STRATEGY_LABEL,
+  MEMBER_ITEM_STRATEGY_WIRE_VALUE,
+} from "../../lib/member-item-strategy";
 import { BottomSheet } from "../ui/bottom-sheet";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -21,8 +25,15 @@ export interface CreateWorkFromPlanDialogProps {
 type SourceMode = "existing" | "markdown";
 type ContainerType = "items" | "initiative";
 
+// The first option writes the member-item strategy's legacy wire value —
+// items run their own workflows, no mode-wide drain (label mapped via
+// lib/member-item-strategy.ts; data vocabulary migrates in Phase 8).
 const MODE_OPTIONS = [
-  { value: "item-level", label: "Item-level", hint: "Creates phase items without a mode-wide drain." },
+  {
+    value: MEMBER_ITEM_STRATEGY_WIRE_VALUE,
+    label: MEMBER_ITEM_STRATEGY_LABEL,
+    hint: "Creates phase items that run their own workflows — no mode-wide drain.",
+  },
   { value: "holistic-loop", label: "Holistic loop", hint: "Binds the plan and drains it through the delegated phased-plan-drain." },
 ] as const;
 

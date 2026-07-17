@@ -82,9 +82,6 @@ func validateDefinitions(defs map[Mode]Definition) error {
 		if err := validateDefinitionProfiles(mode, def); err != nil {
 			return err
 		}
-		if !def.RunsModeRounds() {
-			continue
-		}
 		if err := validatePhaseModeDefinition(def); err != nil {
 			return err
 		}

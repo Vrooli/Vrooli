@@ -186,7 +186,7 @@ func newEnv(t *testing.T) *env {
 		InitStore:     initStore,
 		BacklogLoader: &backlogAdapter{store: bStore},
 		GraphReader:   mat,
-		Spawner:       spawner,
+		RunInspector:  spawner,
 		PromptClient:  prompts,
 		Clock:         clock,
 	})

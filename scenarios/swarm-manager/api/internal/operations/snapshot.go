@@ -262,7 +262,7 @@ func rankInitiatives(inits []initiatives.InitiativeWithRollup, blockedItems map[
 			Name:               init.Name,
 			Title:              init.Title,
 			Status:             init.Status,
-			Mode:               firstNonEmpty(init.Mode, "item-level"),
+			Mode:               initiatives.NormalizeMode(init.Mode),
 			Priority:           init.Priority,
 			Readiness:          readiness,
 			IncompleteDeps:     nilIfEmpty(incompleteDeps),

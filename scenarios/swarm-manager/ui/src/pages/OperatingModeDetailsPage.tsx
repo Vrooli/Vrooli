@@ -75,6 +75,7 @@ import {
   phaseCardDomId,
 } from "../components/initiative/operating-mode/utils";
 import { useUrlState } from "../hooks/use-url-state";
+import { isMemberItemStrategy, presentModeLabel } from "../lib/member-item-strategy";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { operatingModeOption } from "../components/session/context/session-context-refs";
 
@@ -266,6 +267,11 @@ export function OperatingModeDetailsPage() {
   }
 
   const { entry, linkedInitiatives } = data;
+  // Deep-link normalization: /operating-modes/item-level stays addressable
+  // (the wire value persists until Phase 8), but the PRESENTATION is the
+  // member-item workflow strategy, not an operating mode — see
+  // lib/member-item-strategy.ts for the mapping contract.
+  const isStrategy = isMemberItemStrategy(entry.mode);
   const transitions = entry.phaseGraph?.transitions ?? [];
   const subModeLookup: Record<string, typeof entry> = {};
   for (const catalogMode of catalogModes) subModeLookup[catalogMode.mode] = catalogMode;
@@ -334,8 +340,8 @@ export function OperatingModeDetailsPage() {
     <DetailPageLayout
       header={
         <DetailPageHeader
-          entityType="Operating Mode"
-          title={entry.label}
+          entityType={isStrategy ? "Workflow Strategy" : "Operating Mode"}
+          title={presentModeLabel(entry.mode, entry.label)}
           subtitle={entry.mode}
           nodeId={null}
           lenses={EMPTY_LENSES}
@@ -347,6 +353,17 @@ export function OperatingModeDetailsPage() {
       {attachToSession.sheet}
       {activeTab === "overview" && (
         <>
+          {isStrategy && (
+            <div
+              className="mb-3 rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-3 py-2.5 text-sm text-cyan-100"
+              data-testid={selectors.initiativeDetails.memberItemStrategyNotice}
+            >
+              This is the member-item workflow strategy, not an operating mode: items run their
+              own workflows and the initiative provides strategy configuration. It is still
+              stored under the legacy <code className="font-mono text-[12px]">item-level</code>{" "}
+              id, so existing links keep working.
+            </div>
+          )}
           <DetailSection
             title="Overview"
             icon={Layers}

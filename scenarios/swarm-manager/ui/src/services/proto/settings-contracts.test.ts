@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DeleteConfirmLevel } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
-import { mapProtoSettings } from "./settings-contracts";
+import { SettingsFieldRole } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
+import { mapProtoPolicyProjection, mapProtoSettings } from "./settings-contracts";
 import { defaultDeleteConfirmationLevels } from "../../lib/deletable-entities";
 
 describe("settings proto contracts", () => {
@@ -39,5 +40,70 @@ describe("settings proto contracts", () => {
     } as unknown as Parameters<typeof mapProtoSettings>[0]);
 
     expect(result.deleteConfirmation).toEqual(defaultDeleteConfirmationLevels());
+  });
+
+  it("maps the policy projection: effective controls, roles, and control paths", () => {
+    const result = mapProtoPolicyProjection({
+      effectiveControls: {
+        defaultMode: "yolo",
+        autoInitialize: true,
+        autoAdvanceEnabled: true,
+        cascadeEnabled: false,
+        autoAdvanceDelaySeconds: 15,
+        maxAutoRounds: 12,
+        autoFixup: true,
+        maxFixupAttempts: 3,
+        reviewAgentEnabled: true,
+        reviewCodeQualityMinScore: 60,
+        reviewTestMinPassRate: 1,
+        reviewMaxBlockingViolations: 0,
+        reviewMaxWarnings: -1,
+        reviewRequireScreenshots: true,
+        reviewRequireTests: true,
+        agentMaxTurns: 600,
+        agentTimeoutSeconds: 3600,
+      },
+      classifications: [
+        {
+          field: "auto_advance_workshop",
+          role: SettingsFieldRole.POLICY_CONTROL,
+          control: "auto_advance.enabled",
+          note: "Retained user preference.",
+        },
+        {
+          field: "agent_timeout_seconds",
+          role: SettingsFieldRole.DORMANT,
+          control: "budgets.timeout_seconds",
+          note: "No runtime reader.",
+        },
+      ],
+    } as unknown as Parameters<typeof mapProtoPolicyProjection>[0]);
+
+    expect(result).not.toBeNull();
+    expect(result?.effectiveControls.defaultMode).toBe("yolo");
+    expect(result?.effectiveControls.autoAdvanceDelaySeconds).toBe(15);
+    expect(result?.effectiveControls.maxAutoRounds).toBe(12);
+    expect(result?.effectiveControls.reviewMaxWarnings).toBe(-1);
+    expect(result?.classifications).toEqual([
+      {
+        field: "auto_advance_workshop",
+        role: "policy_control",
+        control: "auto_advance.enabled",
+        note: "Retained user preference.",
+      },
+      {
+        field: "agent_timeout_seconds",
+        role: "dormant",
+        control: "budgets.timeout_seconds",
+        note: "No runtime reader.",
+      },
+    ]);
+  });
+
+  it("returns null for a missing projection (older API)", () => {
+    expect(mapProtoPolicyProjection(undefined)).toBeNull();
+    expect(
+      mapProtoPolicyProjection({} as unknown as Parameters<typeof mapProtoPolicyProjection>[0]),
+    ).toBeNull();
   });
 });

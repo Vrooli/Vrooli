@@ -183,3 +183,54 @@ func TestCompletionRouterIgnoresNonTerminalRound(t *testing.T) {
 		t.Fatalf("must not commit a non-terminal round, got %d calls", len(committer.calls))
 	}
 }
+
+// fakeCancellingCommitter is a committer that also implements
+// ExecutionCanceller, mirroring the production *opsrunner.Runner.
+type fakeCancellingCommitter struct {
+	fakeCommitter
+	cancels []string
+}
+
+func (f *fakeCancellingCommitter) CancelExecution(_ context.Context, _ opsrunner.TargetRef, executionID string) error {
+	f.cancels = append(f.cancels, executionID)
+	return nil
+}
+
+// TestCompletionRouterReapsCanceledRound proves the cancel-reap seam: a canceled
+// runner-owned round is not deliverable (no CommitResult), but the running
+// operation record must be reaped via CancelExecution or the refresh driver
+// would poll the stopped run forever. Cancellation can arrive through any stop
+// surface (execution cancel, operations bulk-stop, raw agent-manager run-stop),
+// so the reap lives in this single observer seam.
+func TestCompletionRouterReapsCanceledRound(t *testing.T) {
+	loader := fakeLoader{w: ownedWorkflow("run-1", "exec-1"), found: true}
+	committer := &fakeCancellingCommitter{}
+	router := NewCompletionRouter(loader, committer, nil)
+	round := operatingmode.RoundEnvelope{
+		Status: operatingmode.RoundStatusCanceled, ScopeKind: string(agentops.TargetBacklogItem),
+		ScopeID: "fix/flaky", RunID: "run-1",
+	}
+	router.Observe(context.Background(), round)
+	if len(committer.calls) != 0 {
+		t.Fatalf("a canceled round must not CommitResult, got %d calls", len(committer.calls))
+	}
+	if len(committer.cancels) != 1 || committer.cancels[0] != "exec-1" {
+		t.Fatalf("expected CancelExecution for exec-1, got %#v", committer.cancels)
+	}
+}
+
+// TestCompletionRouterCanceledRoundWithoutCancellerIsIgnored proves the seam
+// degrades safely when the committer cannot reap (no ExecutionCanceller).
+func TestCompletionRouterCanceledRoundWithoutCancellerIsIgnored(t *testing.T) {
+	loader := fakeLoader{w: ownedWorkflow("run-1", "exec-1"), found: true}
+	committer := &fakeCommitter{}
+	router := NewCompletionRouter(loader, committer, nil)
+	round := operatingmode.RoundEnvelope{
+		Status: operatingmode.RoundStatusCanceled, ScopeKind: string(agentops.TargetBacklogItem),
+		ScopeID: "fix/flaky", RunID: "run-1",
+	}
+	router.Observe(context.Background(), round)
+	if len(committer.calls) != 0 {
+		t.Fatalf("must not commit a canceled round, got %d calls", len(committer.calls))
+	}
+}

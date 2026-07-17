@@ -65,7 +65,6 @@ func capabilitiesToProto(c ModeCapabilities) *apipb.OperatingModeCapabilities {
 		RequiresAcceptanceCriteria:   c.RequiresAcceptanceCriteria,
 		SupportsArtifacts:            c.SupportsArtifacts,
 		SupportsHandoffs:             c.SupportsHandoffs,
-		UsesItemExecutionFlow:        c.UsesItemExecutionFlow,
 	}
 }
 

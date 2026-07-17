@@ -192,13 +192,16 @@
         "startup_policy": "must_start",
         "description": "Spawning agents for automated work",
         "config": {
-          "profiles": {
+          "declarations": {
             "reconcile": true,
-            "mode": "update_if_unmodified",
+            "profileMode": "update_if_unmodified",
             "sources": [
-              ".vrooli/agent-profiles/default.json",
-              ".vrooli/agent-profiles/deep-work.json",
-              ".vrooli/agent-profiles/analysis.json"
+              ".vrooli/agent-manager/default.json",
+              ".vrooli/agent-manager/deep-work.json",
+              ".vrooli/agent-manager/analysis.json",
+              ".vrooli/agent-manager/backlog-workshop-round.json",
+              ".vrooli/agent-manager/phased-plan-slice-review.json",
+              ".vrooli/agent-manager/phased-plan-drain.json"
             ]
           }
         }

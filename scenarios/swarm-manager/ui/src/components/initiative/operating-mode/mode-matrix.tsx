@@ -9,7 +9,7 @@
 import { selectors } from "../../../consts/selectors";
 import type { OperatingModeCatalogEntry } from "../../../types/operating-mode";
 import { CapabilityList } from "./capability-list";
-import { humanizeRunStrategy, humanizeTargetKind } from "./utils";
+import { humanizeRunStrategy, humanizeTargetKind, modeLabel } from "./utils";
 
 export interface ModeMatrixProps {
   catalog: OperatingModeCatalogEntry[];
@@ -40,7 +40,7 @@ export function ModeMatrix({ catalog }: ModeMatrixProps) {
                 key={entry.mode}
                 className="px-3 py-2 font-medium text-slate-200"
               >
-                {entry.label}
+                {modeLabel(entry.mode, entry.label)}
                 <p className="mt-0.5 text-[10px] font-normal text-slate-500">
                   {entry.mode}
                   {entry.default ? " · default" : ""}

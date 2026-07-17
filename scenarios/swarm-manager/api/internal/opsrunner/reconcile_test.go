@@ -13,6 +13,7 @@ import (
 // TestReconcileOrphanSnapshots reaps aged, unreferenced execution snapshots while
 // preserving referenced snapshots and skipping orphans younger than the grace
 // period (which a concurrent in-flight Invoke may still be committing).
+// [REQ:REQ-P0-011-WORKFLOW-DURABILITY]
 func TestReconcileOrphanSnapshots(t *testing.T) {
 	root := t.TempDir()
 	loc := memLocator{root: root}

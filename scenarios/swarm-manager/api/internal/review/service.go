@@ -12,12 +12,6 @@ import (
 	"swarm-manager/internal/promptmanager"
 )
 
-// AgentSpawner spawns agent-manager sessions.
-type AgentSpawner interface {
-	IsEnabled() bool
-	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
-}
-
 // RunInspector retrieves the current state of an agent run.
 type RunInspector interface {
 	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
@@ -65,8 +59,10 @@ type RoundTerminalHandler func(ctx context.Context, kind, name string, round Rou
 
 // ServiceConfig configures the review service dependencies.
 type ServiceConfig struct {
-	DataRoot             string
-	AgentService         AgentSpawner
+	DataRoot string
+	// RunInspector polls agent-run state for gathering rounds. Optional —
+	// without it, stale rounds fall back to age-based recovery.
+	RunInspector         RunInspector
 	PromptClient         promptmanager.Client
 	ItemDirFn            func(kind, name string) string
 	LoadItemTitle        func(kind, name string) (string, error)
@@ -92,7 +88,6 @@ const DefaultRoundMaxAge = 30 * time.Minute
 // Service provides review evidence management for completed executions.
 type Service struct {
 	dataRoot             string
-	agentService         AgentSpawner
 	operationStarter     OperationStarter
 	inspector            RunInspector
 	promptClient         promptmanager.Client
@@ -121,7 +116,7 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	svc := &Service{
 		dataRoot:             cfg.DataRoot,
-		agentService:         cfg.AgentService,
+		inspector:            cfg.RunInspector,
 		promptClient:         pc,
 		itemDirFn:            cfg.ItemDirFn,
 		loadItemTitle:        cfg.LoadItemTitle,
@@ -131,10 +126,6 @@ func NewService(cfg ServiceConfig) *Service {
 		roundMaxAge:          roundMaxAge,
 		clock:                time.Now,
 		activeRounds:         make(map[string]activeRound),
-	}
-	// Type-assert for RunInspector capability (matches execution pattern).
-	if inspector, ok := cfg.AgentService.(RunInspector); ok {
-		svc.inspector = inspector
 	}
 	return svc
 }

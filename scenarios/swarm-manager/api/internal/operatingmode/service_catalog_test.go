@@ -223,23 +223,6 @@ func TestBuildCatalogEntry_PhasedPlanDrain_ProgressTransitions(t *testing.T) {
 	}
 }
 
-func TestBuildCatalogEntry_ItemLevel_NoPhaseGraph(t *testing.T) {
-	def, err := DefinitionFor(ModeItemLevel)
-	if err != nil {
-		t.Fatalf("DefinitionFor item-level: %v", err)
-	}
-	entry := buildCatalogEntry(def, 0)
-	if entry.SupportsPhases {
-		t.Fatalf("item-level should not advertise supports_phases")
-	}
-	if len(entry.Phases) != 0 {
-		t.Fatalf("item-level phases = %v, want empty", phaseNames(entry.Phases))
-	}
-	if entry.PhaseGraph != nil {
-		t.Fatalf("item-level PhaseGraph = %#v, want nil", entry.PhaseGraph)
-	}
-}
-
 func TestBuildCatalogEntry_PropagatesDecisionMetadata(t *testing.T) {
 	cases := []struct {
 		mode               Mode
@@ -247,7 +230,6 @@ func TestBuildCatalogEntry_PropagatesDecisionMetadata(t *testing.T) {
 		wantWhenInDoubt    string
 		wantBestForNonZero bool
 	}{
-		{ModeItemLevel, MustDefinition(ModeItemLevel), "", true},
 		{ModeHolisticLoop, MustDefinition(ModeHolisticLoop), string(ModePhasedPlanDrain), true},
 		{ModePhasedPlanDrain, MustDefinition(ModePhasedPlanDrain), string(ModeHolisticLoop), true},
 	}

@@ -100,9 +100,6 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 	if !s.enabled {
 		return RunResult{}, ErrNotAvailable
 	}
-	if err := s.ensureProfilesReconciled(ctx); err != nil {
-		return RunResult{}, err
-	}
 
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
@@ -182,9 +179,6 @@ func (s *AgentService) SpawnSession(ctx context.Context, req SessionSpawnRequest
 	if !s.enabled {
 		return RunResult{}, ErrNotAvailable
 	}
-	if err := s.ensureProfilesReconciled(ctx); err != nil {
-		return RunResult{}, err
-	}
 
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
@@ -258,9 +252,6 @@ func (s *AgentService) SpawnSession(ctx context.Context, req SessionSpawnRequest
 func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest) (RunResult, error) {
 	if !s.enabled {
 		return RunResult{}, ErrNotAvailable
-	}
-	if err := s.ensureProfilesReconciled(ctx); err != nil {
-		return RunResult{}, err
 	}
 
 	title := strings.TrimSpace(req.Title)
@@ -342,9 +333,6 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 func (s *AgentService) SpawnInitiative(ctx context.Context, req InitiativeSpawnRequest) (RunResult, error) {
 	if !s.enabled {
 		return RunResult{}, ErrNotAvailable
-	}
-	if err := s.ensureProfilesReconciled(ctx); err != nil {
-		return RunResult{}, err
 	}
 
 	title := strings.TrimSpace(req.Title)

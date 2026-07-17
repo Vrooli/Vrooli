@@ -11,7 +11,7 @@ import (
 
 // followUpTestService creates a Service with seeded records, returning the
 // service and the stub operation starter follow-up/fixup now route through.
-func followUpTestService(t *testing.T, root string, records []Record, agent AgentSpawner) (*Service, *stubOperationStarter) {
+func followUpTestService(t *testing.T, root string, records []Record, agent AgentManagerAvailability) (*Service, *stubOperationStarter) {
 	t.Helper()
 	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
 	store := NewStore(storePath)

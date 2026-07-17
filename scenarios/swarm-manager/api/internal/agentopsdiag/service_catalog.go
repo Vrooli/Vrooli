@@ -155,8 +155,11 @@ func (s *Service) GetResolvedBindings(ctx context.Context, req *connect.Request[
 
 		// Contributing layers: the authored system default plus every in-scope
 		// override document. Listing is best-effort per operation — a malformed
-		// override surfaces through the resolver's typed error below.
-		if sys, ok := s.catalog.SystemBindingFor(op, ""); ok {
+		// override surfaces through the resolver's typed error below. The lookup
+		// pins the row's contract version: shipped system bindings pin an exact
+		// operation_version, and a version-agnostic lookup would miss them (the
+		// same trap ops_reroute.go documents for the live Invoke path).
+		if sys, ok := s.catalog.SystemBindingFor(op, lc.Contract.Version); ok {
 			row.Contributions = append(row.Contributions, &apipb.AgentOpsBindingContribution{Binding: bindingToProto(sys.Binding)})
 		}
 		if s.overrides != nil {
@@ -167,7 +170,11 @@ func (s *Service) GetResolvedBindings(ctx context.Context, req *connect.Request[
 			}
 		}
 
-		res, resErr := s.resolver.Resolve(ctx, opsrunner.InvokeRequest{Target: target, Operation: op})
+		// Resolve at the row's exact contract version, mirroring what a live
+		// Invoke pins. An empty OperationVersion here would fail closed with
+		// no-binding for every operation whose system default pins a version —
+		// which is all of the shipped catalog.
+		res, resErr := s.resolver.Resolve(ctx, opsrunner.InvokeRequest{Target: target, Operation: op, OperationVersion: lc.Contract.Version})
 		if resErr != nil {
 			row.Error = resolutionErrorCode(resErr)
 			row.ErrorMessage = resErr.Error()

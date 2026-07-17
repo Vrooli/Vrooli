@@ -25,6 +25,7 @@ import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord } from "../../types";
 import type { Settings } from "../../types/settings";
 import type { ReviewRound } from "../../services/review-service";
+import type { OperationProvenanceData } from "../../lib/agent-ops-utils";
 
 export interface ReviewFlowProps {
   execution: ExecutionRecord | undefined;
@@ -39,6 +40,8 @@ export interface ReviewFlowProps {
   onArchive?: () => void;
   onVerifyEvidence: (round: number, evidenceId: string, verified: boolean) => void;
   onRequestMoreEvidence: (round: number, evidenceId?: string) => void;
+  /** Canonical operation provenance per review round (workflow projection). */
+  reviewProvenanceByRound?: ReadonlyMap<number, OperationProvenanceData>;
 }
 
 export function ReviewFlow({
@@ -54,6 +57,7 @@ export function ReviewFlow({
   onArchive,
   onVerifyEvidence,
   onRequestMoreEvidence,
+  reviewProvenanceByRound,
 }: ReviewFlowProps) {
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const {
@@ -137,6 +141,7 @@ export function ReviewFlow({
           isAwaitingManualReview={isAwaitingManualReview}
           onVerify={onVerifyEvidence}
           onRequestMore={onRequestMoreEvidence}
+          provenanceByRound={reviewProvenanceByRound}
         />
       )}
 

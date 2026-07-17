@@ -1,0 +1,208 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/phased-plan-drain",
+  "version": "1.0.0",
+  "description": "Drain a stable plan in bounded fresh-run slices with compact ordered handoffs and explicit correction/approval paths.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "plan": {
+        "type": "object",
+        "properties": {
+          "reference": {"type": "string", "minLength": 1, "maxLength": 512},
+          "frontierDigest": {"type": "string", "minLength": 1, "maxLength": 128}
+        },
+        "required": ["reference", "frontierDigest"],
+        "additionalProperties": false
+      },
+      "consumer": {
+        "type": "object",
+        "properties": {
+          "executionId": {"type": "string", "minLength": 1, "maxLength": 128},
+          "entityKind": {"type": "string", "minLength": 1, "maxLength": 32},
+          "entityName": {"type": "string", "minLength": 1, "maxLength": 255},
+          "entityVersion": {"type": "string", "minLength": 1, "maxLength": 128}
+        },
+        "required": ["executionId", "entityKind", "entityName", "entityVersion"],
+        "additionalProperties": false
+      },
+      "constraints": {
+        "type": "object",
+        "properties": {
+          "maxSlices": {"type": "integer", "minimum": 1, "maximum": 6},
+          "writeScope": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 1024}}
+        },
+        "required": ["maxSlices", "writeScope"],
+        "additionalProperties": false
+      }
+    },
+    "required": ["plan", "consumer", "constraints"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {"result": {"type": "object", "additionalProperties": true}},
+    "required": ["result"],
+    "additionalProperties": false
+  },
+  "entryNode": "slice",
+  "nodes": [
+    {
+      "id": "slice",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/deep-work",
+        "promptTemplate": "Execute exactly one coherent slice of the authorized plan. This is a fresh conversation: use only the plan reference and compact ordered handoffs below, never infer an earlier transcript. Respect the write scope and stop honestly. Return only JSON matching the requested result contract.\n\n<plan_reference>{{.plan_reference}}</plan_reference>\n<plan_frontier_digest>{{.plan_digest}}</plan_frontier_digest>\n<constraints>{{.constraints}}</constraints>\n<previous_handoffs>{{.previous_handoffs}}</previous_handoffs>",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {"const": "continue"},
+                  "handoff": {"type": "string", "minLength": 1, "maxLength": 8192},
+                  "completedSlice": {"type": "string", "minLength": 1, "maxLength": 4096},
+                  "correctionRequired": {"type": "boolean"},
+                  "approvalRequired": {"type": "boolean"}
+                },
+                "required": ["outcome", "handoff", "completedSlice", "correctionRequired", "approvalRequired"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {"const": "complete"},
+                  "handoff": {"type": "string", "minLength": 1, "maxLength": 8192},
+                  "completedSlice": {"type": "string", "minLength": 1, "maxLength": 4096}
+                },
+                "required": ["outcome", "handoff", "completedSlice"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {"const": "blocked"},
+                  "handoff": {"type": "string", "minLength": 1, "maxLength": 8192},
+                  "completedSlice": {"type": "string", "maxLength": 4096},
+                  "blocker": {
+                    "type": "object",
+                    "properties": {
+                      "code": {"type": "string", "minLength": 1, "maxLength": 128},
+                      "summary": {"type": "string", "minLength": 1, "maxLength": 4096},
+                      "retryable": {"type": "boolean"}
+                    },
+                    "required": ["code", "summary", "retryable"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["outcome", "handoff", "completedSlice", "blocker"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {"const": "abstained"},
+                  "reason": {"type": "string", "minLength": 1, "maxLength": 4096}
+                },
+                "required": ["outcome", "reason"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "bindings": [
+          {"name": "plan_reference", "source": "workflow_input", "selector": "$.plan.reference", "limit": 1, "maxBytes": 1024, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "plan_digest", "source": "workflow_input", "selector": "$.plan.frontierDigest", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "constraints", "source": "workflow_input", "selector": "$.constraints", "limit": 1, "maxBytes": 8192, "renderAs": "json", "missingPolicy": "error"},
+          {"name": "previous_handoffs", "source": "structured_result", "selector": "$.value.handoff", "order": "desc", "limit": 6, "maxBytes": 49152, "renderAs": "json", "missingPolicy": "null"}
+        ],
+        "maxTurns": 20,
+        "timeoutSeconds": 1800
+      }
+    },
+    {
+      "id": "review",
+      "kind": "child_workflow",
+      "childWorkflow": {
+        "workflowKey": "swarm-manager/phased-plan-slice-review",
+        "version": "1.0.0",
+        "bindings": [
+          {"name": "plan_reference", "source": "workflow_input", "selector": "$.plan.reference", "limit": 1, "maxBytes": 1024, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "handoff", "source": "structured_result", "selector": "$.value.handoff", "order": "desc", "limit": 1, "maxBytes": 8192, "renderAs": "text", "missingPolicy": "error"}
+        ],
+        "maxDepth": 2
+      }
+    },
+    {"id": "pre_review", "kind": "branch", "branch": {}},
+    {"id": "route", "kind": "branch", "branch": {}},
+    {
+      "id": "correction",
+      "kind": "continue",
+      "continue": {
+        "conversationFromNode": "slice",
+        "promptTemplate": "Correct the latest structured result in this same conversation. Incorporate the independent review note when present, then return a complete replacement result matching the original result contract. Do not start another plan slice and do not rely on this conversation outside this explicit correction.\n\n<review_note>{{.review_note}}</review_note>",
+        "bindings": [
+          {"name": "review_note", "source": "child_workflow_output", "selector": "node=review;$.output.review.note", "order": "desc", "limit": 1, "maxBytes": 4096, "renderAs": "text", "missingPolicy": "null"}
+        ],
+        "maxTurns": 3,
+        "timeoutSeconds": 300
+      }
+    },
+    {"id": "decision", "kind": "branch", "branch": {}},
+    {
+      "id": "approval",
+      "kind": "wait",
+      "wait": {
+        "signal": "slice_approved",
+        "payloadSchema": {
+          "type": "object",
+          "properties": {
+            "executionId": {"type": "string", "minLength": 1, "maxLength": 128},
+            "actor": {"type": "string", "minLength": 1, "maxLength": 255}
+          },
+          "required": ["executionId", "actor"],
+          "additionalProperties": false
+        },
+        "timeoutSeconds": 3600
+      }
+    },
+    {"id": "complete", "kind": "end", "end": {"status": "succeeded", "bindings": [{"name": "result", "source": "structured_result", "selector": "$.value", "order": "desc", "limit": 1, "maxBytes": 16384, "renderAs": "json", "missingPolicy": "error"}]}},
+    {"id": "blocked", "kind": "end", "end": {"status": "blocked", "bindings": [{"name": "result", "source": "structured_result", "selector": "$.value", "order": "desc", "limit": 1, "maxBytes": 16384, "renderAs": "json", "missingPolicy": "error"}]}},
+    {"id": "abstained", "kind": "end", "end": {"status": "abstained", "bindings": [{"name": "result", "source": "structured_result", "selector": "$.value", "order": "desc", "limit": 1, "maxBytes": 16384, "renderAs": "json", "missingPolicy": "error"}]}},
+    {"id": "slice_limit", "kind": "end", "end": {"status": "budget_exhausted", "bindings": [{"name": "result", "source": "structured_result", "selector": "$.value", "order": "desc", "limit": 1, "maxBytes": 16384, "renderAs": "json", "missingPolicy": "error"}]}}
+  ],
+  "edges": [
+    {"from": "slice", "to": "pre_review", "maxTraversals": 6},
+    {"from": "pre_review", "to": "blocked", "condition": "latest(journal).value.outcome == 'blocked'"},
+    {"from": "pre_review", "to": "abstained", "condition": "latest(journal).value.outcome == 'abstained'"},
+    {"from": "pre_review", "to": "review", "maxTraversals": 8},
+    {"from": "review", "to": "route", "maxTraversals": 6},
+    {"from": "route", "to": "correction", "condition": "(latest(journal).value.outcome == 'continue' && latest(journal).value.correctionRequired) || (has(latest(journal, 'review').output) && !latest(journal, 'review').output.review.accepted)", "maxTraversals": 6},
+    {"from": "route", "to": "decision", "maxTraversals": 6},
+    {"from": "correction", "to": "pre_review", "maxTraversals": 2},
+    {"from": "decision", "to": "complete", "condition": "latest(journal).value.outcome == 'complete'"},
+    {"from": "decision", "to": "blocked", "condition": "latest(journal).value.outcome == 'blocked'"},
+    {"from": "decision", "to": "abstained", "condition": "latest(journal).value.outcome == 'abstained'"},
+    {"from": "decision", "to": "approval", "condition": "latest(journal).value.outcome == 'continue' && latest(journal).value.approvalRequired && count(journal, 'slice') < input.constraints.maxSlices", "maxTraversals": 6},
+    {"from": "decision", "to": "slice", "condition": "latest(journal).value.outcome == 'continue' && !latest(journal).value.approvalRequired && count(journal, 'slice') < input.constraints.maxSlices", "maxTraversals": 6},
+    {"from": "decision", "to": "slice_limit", "condition": "latest(journal).value.outcome == 'continue' && count(journal, 'slice') >= input.constraints.maxSlices"},
+    {"from": "approval", "to": "slice", "maxTraversals": 6}
+  ],
+  "budgets": {
+    "wallTimeSeconds": 21600,
+    "maxTurns": 144,
+    "maxTokens": 300000,
+    "maxCostUsd": 30,
+    "maxNodeAttempts": 48,
+    "maxChildren": 12,
+    "maxConcurrency": 2,
+    "maxRecursion": 3,
+    "maxRetries": 6,
+    "maxWaitSeconds": 3600
+  },
+  "metadata": {"pilot": "phased-plan-drain", "consumerMutationOwner": "swarm-manager", "freshRunPerSlice": "true"}
+}

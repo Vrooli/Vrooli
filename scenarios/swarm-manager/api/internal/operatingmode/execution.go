@@ -984,7 +984,7 @@ func RecoverTargetRunOwners(dataRoot, runID string) ([]GlobalRunOwner, error) {
 		if err != nil {
 			return nil, err
 		}
-		if definition.Target.Kind != TargetInitiative && definition.Target.Kind != "" && definition.RunsModeRounds() {
+		if definition.Target.Kind != TargetInitiative && definition.Target.Kind != "" {
 			definitions = append(definitions, definition)
 		}
 	}

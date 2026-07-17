@@ -94,10 +94,20 @@ func requiredArtifacts(artifacts []ArtifactDefinition) []ArtifactDefinition {
 	return required
 }
 
+// DefaultMode is the mode value blank initiative metadata normalizes to: the
+// member-item-strategy sentinel. It is NOT a registered operating mode — see
+// ModeItemLevel and IsMemberItemStrategySentinel.
 func DefaultMode() Mode {
 	return ModeItemLevel
 }
 
+// NormalizeMode is the SINGLE server-side seam for the persisted wire-value
+// policy: an initiative's mode may be persisted as blank OR as "item-level",
+// and both mean the member-item workflow strategy. Persisted initiative.json
+// files are never rewritten to collapse the two forms; every reader normalizes
+// through here (directly or via initiatives.NormalizeMode) instead of
+// hand-rolling a blank→"item-level" ternary. The UI-side twin of this policy
+// is ui/src/lib/member-item-strategy.ts (normalizeModeWireValue).
 func NormalizeMode(raw string) Mode {
 	mode := Mode(strings.ToLower(strings.TrimSpace(raw)))
 	if mode == "" {
@@ -106,6 +116,18 @@ func NormalizeMode(raw string) Mode {
 	return mode
 }
 
+// IsMemberItemStrategySentinel reports whether raw is the persisted
+// member-item workflow strategy wire value ("item-level", or blank which
+// normalizes to it). The sentinel is domain strategy configuration on the
+// initiative, not a registered operating mode: it has no Definition, and
+// DefinitionFor rejects it.
+func IsMemberItemStrategySentinel(raw string) bool {
+	return NormalizeMode(raw) == ModeItemLevel
+}
+
+// ValidateMode reports whether raw names a REGISTERED operating mode. The
+// member-item-strategy sentinel is deliberately not valid here; initiative
+// mode-field validation accepts it separately (initiatives.ValidateMode).
 func ValidateMode(raw string) bool {
 	defs, err := ensureRegistry()
 	if err != nil {
@@ -124,11 +146,14 @@ func MustDefinition(mode Mode) Definition {
 }
 
 func DefinitionFor(mode Mode) (Definition, error) {
+	normalized := NormalizeMode(string(mode))
+	if normalized == ModeItemLevel {
+		return Definition{}, fmt.Errorf("%q is the member-item workflow strategy, not an operating mode; it has no mode definition", ModeItemLevel)
+	}
 	defs, err := ensureRegistry()
 	if err != nil {
 		return Definition{}, err
 	}
-	normalized := NormalizeMode(string(mode))
 	def, ok := defs[normalized]
 	if !ok {
 		return Definition{}, fmt.Errorf("unknown operating mode %q", mode)

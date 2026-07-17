@@ -38,20 +38,20 @@ grep -rn '\.SpawnBacklog(\|\.SpawnInitiative(\|\.ContinueRun(\|\.Continue(' inte
 
 | ✔ | file:line | function | method | class | rationale | destination operation |
 |---|-----------|----------|--------|-------|-----------|-----------------------|
-| ☐ | `internal/backlog/research.go:567` | `Handler.Research` | SpawnBacklog | **a** | Autonomous research pass over a backlog item; item-target loop. | **refinement/research operation** (workshop-adjacent research round) |
-| ☐ | `internal/backlog/workshop_save.go:421` | `Handler.spawnWorkshopAsync` | SpawnBacklog | **a** | Autonomous workshop synthesis spawn against an item. | **workshop round operation** |
-| ☐ | `internal/backlog/clarification.go:202` | `Handler.CreateClarification` | SpawnBacklog | **a** | Spawns an agent to run a workshop clarification thread on an item. | **clarification operation** (workshop clarification round) |
-| ☐ | `internal/backlog/clarification.go:353` | `Handler.ContinueClarification` | ContinueRun | **a** | Continues the clarification agent run for an item thread. | **clarification continuation** (operation follow-up step) |
-| ☐ | `internal/backlog/clarification_service.go:166` | `Handler.spawnWorkshopForClarification` | SpawnBacklog | **a** | Re-enters workshop synthesis after a clarification resolves. | **workshop round operation** (clarification-triggered) |
-| ☐ | `internal/execution/service_queue.go:281` | `Service.QueueSpecSyncArchive` | SpawnBacklog | **a** | Queues/starts the primary execution run for an item. | **execution operation** (queue → start) |
-| ☐ | `internal/execution/service_control.go:117` | `Service.startLocked` | SpawnBacklog | **a** | Starts a queued execution run for an item. | **execution operation** (start) |
-| ☐ | `internal/execution/retry.go:147` | `Service.Retry` | SpawnBacklog | **a** | Fresh agent run retrying a failed execution (new run_id, parent lineage). | **execution retry operation** |
-| ☐ | `internal/execution/followup.go:125` | `Service.spawnFixupRun` | SpawnBacklog | **a** | Autonomous fixup run after a review found remediable issues. | **execution fixup/recovery operation** |
-| ☐ | `internal/execution/followup.go:330` | `Service.FollowUp` | SpawnBacklog | **a** | Spawns a follow-up run for an item after completion. | **follow-up operation** |
-| ☐ | `internal/execution/followup.go:306` | `Service.FollowUp` | ContinueRun | **a** | Continues the parent run as the follow-up path. | **follow-up continuation** (operation follow-up step) |
-| ☐ | `internal/review/service.go:234` | `Service.startReview` | SpawnBacklog | **a** | Autonomous review agent for a completed item execution. | **review round operation** |
-| ☐ | `internal/review/rounds.go:197` | `Service.RequestMoreEvidence` | SpawnBacklog | **a** | Spawns an agent to gather additional evidence for a review round. | **evidence-request operation** (review sub-round) |
-| ☐ | `internal/initiativereview/trigger.go:191` | `Service.startReview` | SpawnInitiative | **a** | Autonomous initiative-level review agent. | **initiative review operation** |
+| ✔ | `internal/backlog/research.go:567` | `Handler.Research` | SpawnBacklog | **a** | Autonomous research pass over a backlog item; item-target loop. | **refinement/research operation** (workshop-adjacent research round) |
+| ✔ | `internal/backlog/workshop_save.go:421` | `Handler.spawnWorkshopAsync` | SpawnBacklog | **a** | Autonomous workshop synthesis spawn against an item. | **workshop round operation** |
+| ✔ | `internal/backlog/clarification.go:202` | `Handler.CreateClarification` | SpawnBacklog | **a** | Spawns an agent to run a workshop clarification thread on an item. | **clarification operation** (workshop clarification round) |
+| ✔ | `internal/backlog/clarification.go:353` | `Handler.ContinueClarification` | ContinueRun | **a** | Continues the clarification agent run for an item thread. | **clarification continuation** (operation follow-up step) |
+| ✔ | `internal/backlog/clarification_service.go:166` | `Handler.spawnWorkshopForClarification` | SpawnBacklog | **a** | Re-enters workshop synthesis after a clarification resolves. | **workshop round operation** (clarification-triggered) |
+| ✔ | `internal/execution/service_queue.go:281` | `Service.QueueSpecSyncArchive` | SpawnBacklog | **a** | Queues/starts the primary execution run for an item. | **execution operation** (queue → start) |
+| ✔ | `internal/execution/service_control.go:117` | `Service.startLocked` | SpawnBacklog | **a** | Starts a queued execution run for an item. | **execution operation** (start) |
+| ✔ | `internal/execution/retry.go:147` | `Service.Retry` | SpawnBacklog | **a** | Fresh agent run retrying a failed execution (new run_id, parent lineage). | **execution retry operation** |
+| ✔ | `internal/execution/followup.go:125` | `Service.spawnFixupRun` | SpawnBacklog | **a** | Autonomous fixup run after a review found remediable issues. | **execution fixup/recovery operation** |
+| ✔ | `internal/execution/followup.go:330` | `Service.FollowUp` | SpawnBacklog | **a** | Spawns a follow-up run for an item after completion. | **follow-up operation** |
+| ✔ | `internal/execution/followup.go:306` | `Service.FollowUp` | ContinueRun | **a** | Continues the parent run as the follow-up path. | **follow-up continuation** (operation follow-up step) |
+| ✔ | `internal/review/service.go:234` | `Service.startReview` | SpawnBacklog | **a** | Autonomous review agent for a completed item execution. | **review round operation** |
+| ✔ | `internal/review/rounds.go:197` | `Service.RequestMoreEvidence` | SpawnBacklog | **a** | Spawns an agent to gather additional evidence for a review round. | **evidence-request operation** (review sub-round) |
+| ✔ | `internal/initiativereview/trigger.go:191` | `Service.startReview` | SpawnInitiative | **a** | Autonomous initiative-level review agent. | **initiative review operation** |
 | ☐ | `internal/agentsessions/service.go:434` | `Service.Continue` | ContinueRun | **b** | User continues an interactive agent session with a message. | — (session boundary; stays) |
 | ☐ | `internal/agentsessions/service_mutation_proposals.go:154` | `Service.RequestMutationProposalRevision` | ContinueRun | **b** | User asks a session agent to revise a proposed mutation. | — (session boundary; stays) |
 | ☐ | `internal/agentsessions/handler.go:242` | `Handler.Continue` | (→ `service.Continue`) | **b** | HTTP entrypoint into the interactive session-continue boundary. | — (session boundary; stays) |
@@ -94,3 +94,14 @@ existing backlog target or initiative, and it produces no target-bound run that 
 mode would own. It remains a direct spawn (through the `agentactivity` chokepoint)
 until/unless captures themselves become mode-driven, at which point this decision
 should be revisited and this row reclassified. Re-examine in Phase 6 closeout.
+
+## Phase 9 closeout (2026-07-15)
+
+Verified at the final deletion sweep: re-running the ledger grep returns ONLY
+class (b) session boundaries (`agentsessions`), class (c) chokepoints
+(`agentactivity/spawn.go`, `operatingmode/phase_runner.go`), and the recorded
+class (d) capture-classification ingest spawn. All 14 class (a) target-bound
+sites are deleted or rerouted through the operation runner; the archtest
+spawn-boundary allowlist (`internal/archtest/spawn_boundary_test.go`) is EMPTY
+and enforced. The (d) capture-classification decision stands (captures are not
+mode-driven); revisit only if captures become a declarative operation.

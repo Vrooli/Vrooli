@@ -35,6 +35,7 @@ import { StatsEmptyState } from "../../../components/stats/stats-empty-state";
 import { StatsMetricCard } from "../../../components/stats/stats-metric-card";
 import { CompactTabBar } from "../../../components/ui/compact-tab-bar";
 import { cn } from "../../../lib/utils";
+import { presentModeLabel } from "../../../lib/member-item-strategy";
 import { Popover } from "../../../components/ui/popover";
 import { InitiativeSummaryCard } from "../../../components/initiative/initiative-summary-card";
 import { useInitiativeStore } from "../../../stores/initiative-store";
@@ -1024,12 +1025,17 @@ function formatDurationSeconds(seconds: number): string {
   return `${(seconds / 3600).toFixed(1)}h`;
 }
 
+// Mode buckets route through the member-item-strategy mapping: initiatives
+// stored under the legacy "item-level" wire value keep being counted, but the
+// bucket is relabeled "Member-item workflow" (never dropped or merged). Phase
+// keys pass through untouched — they never carry the legacy wire value.
 function formatModeLabel(value: string): string {
-  return value
+  const humanized = value
     .split(/[-_]/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+  return presentModeLabel(value, humanized);
 }
 
 function sumValues(values: Record<string, number>): number {

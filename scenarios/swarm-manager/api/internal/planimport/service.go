@@ -223,6 +223,11 @@ func validateInitiativeMode(raw string) error {
 	if mode == "" {
 		return nil
 	}
+	// The member-item workflow strategy sentinel is a valid initiative mode
+	// value (the default): each member item runs its own operation.
+	if operatingmode.IsMemberItemStrategySentinel(mode) {
+		return nil
+	}
 	def, err := operatingmode.DefinitionFor(operatingmode.Mode(mode))
 	if err != nil {
 		return apierr.BadRequest("unknown operating mode %q (registered: %s)", mode, operatingmode.ModeList())

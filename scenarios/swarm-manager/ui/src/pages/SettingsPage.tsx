@@ -26,7 +26,7 @@ import { AudioTab } from "../components/settings/AudioTab";
 import { selectors } from "../consts/selectors";
 import { applyTheme, defaultQueryOptions } from "../lib";
 import { settingsService } from "../services";
-import type { Settings } from "../types";
+import type { Settings, SettingsPolicyProjection } from "../types";
 
 type NavigationContextValue = React.ContextType<typeof UNSAFE_NavigationContext>;
 type NavigationBlockerTransaction = { retry: () => void };
@@ -86,6 +86,15 @@ export function SettingsPage() {
   } = useQuery<Settings>({
     queryKey: ["settings"],
     queryFn: () => settingsService.get(),
+    ...defaultQueryOptions,
+  });
+
+  // Policy-controls projection: which settings are policy-level (consumed by
+  // the operation runner's transition policies) and their effective values.
+  // Advisory metadata only — failures degrade to static labeling.
+  const { data: policyProjection } = useQuery<SettingsPolicyProjection | null>({
+    queryKey: ["settings", "policy-projection"],
+    queryFn: () => settingsService.getPolicyProjection(),
     ...defaultQueryOptions,
   });
 
@@ -224,15 +233,15 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="execution">
-          <ExecutionTab form={form} patch={patch} />
+          <ExecutionTab form={form} patch={patch} policyProjection={policyProjection} />
         </TabsContent>
 
         <TabsContent value="workshop">
-          <WorkshopTab form={form} patch={patch} />
+          <WorkshopTab form={form} patch={patch} policyProjection={policyProjection} />
         </TabsContent>
 
         <TabsContent value="review">
-          <ReviewTab form={form} patch={patch} />
+          <ReviewTab form={form} patch={patch} policyProjection={policyProjection} />
         </TabsContent>
 
         <TabsContent value="audio">

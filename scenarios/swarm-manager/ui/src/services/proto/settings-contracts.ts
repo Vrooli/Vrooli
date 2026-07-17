@@ -1,6 +1,7 @@
 import type { Settings } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
 import { DeleteConfirmLevel } from "@vrooli/proto-types/swarm-manager/v1/domain/settings_pb";
-import { SettingsResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
+import { SettingsFieldRole as ProtoSettingsFieldRole, SettingsResponseSchema } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
+import type { SettingsPolicyProjection as ProtoSettingsPolicyProjection } from "@vrooli/proto-types/swarm-manager/v1/api/settings_pb";
 import type {
   Settings as SettingsDomain,
   DeleteConfirmLevel as DomainDeleteConfirmLevel,
@@ -10,6 +11,8 @@ import type {
   AutoFilerStrategy,
   ExecutionMode,
   FixBeforeFeatureMode,
+  SettingsFieldRole as DomainSettingsFieldRole,
+  SettingsPolicyProjection,
   ThemePreference,
 } from "../../types";
 import { EXECUTION_MODES } from "../../types";
@@ -118,6 +121,60 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     costPerTurnEstimate: protoSettings.costPerTurnEstimate ?? 0.10,
     fixBeforeFeature: normalizeFixBeforeFeature(protoSettings.fixBeforeFeature),
     autoFiler: mapAutoFilerSettings(protoSettings.autoFiler),
+  };
+}
+
+function mapProtoSettingsFieldRole(role: ProtoSettingsFieldRole | undefined): DomainSettingsFieldRole {
+  switch (role) {
+    case ProtoSettingsFieldRole.USER_PREFERENCE:
+      return "user_preference";
+    case ProtoSettingsFieldRole.POLICY_CONTROL:
+      return "policy_control";
+    case ProtoSettingsFieldRole.GOVERNANCE:
+      return "governance";
+    case ProtoSettingsFieldRole.DORMANT:
+      return "dormant";
+    default:
+      return "unspecified";
+  }
+}
+
+/**
+ * Map the proto settings → policy-controls projection. Returns null when the
+ * API predates the projection (older server); callers treat null as "no
+ * policy metadata available" and fall back to static labeling.
+ */
+export function mapProtoPolicyProjection(
+  proto: ProtoSettingsPolicyProjection | undefined,
+): SettingsPolicyProjection | null {
+  if (!proto?.effectiveControls) return null;
+  const c = proto.effectiveControls;
+  return {
+    effectiveControls: {
+      defaultMode: isExecutionMode(c.defaultMode) ? c.defaultMode : "manual",
+      autoInitialize: c.autoInitialize ?? false,
+      autoAdvanceEnabled: c.autoAdvanceEnabled ?? false,
+      cascadeEnabled: c.cascadeEnabled ?? false,
+      autoAdvanceDelaySeconds: c.autoAdvanceDelaySeconds ?? 0,
+      maxAutoRounds: c.maxAutoRounds ?? 0,
+      autoFixup: c.autoFixup ?? false,
+      maxFixupAttempts: c.maxFixupAttempts ?? 0,
+      reviewAgentEnabled: c.reviewAgentEnabled ?? false,
+      reviewCodeQualityMinScore: c.reviewCodeQualityMinScore ?? 0,
+      reviewTestMinPassRate: c.reviewTestMinPassRate ?? 0,
+      reviewMaxBlockingViolations: c.reviewMaxBlockingViolations ?? 0,
+      reviewMaxWarnings: c.reviewMaxWarnings ?? -1,
+      reviewRequireScreenshots: c.reviewRequireScreenshots ?? false,
+      reviewRequireTests: c.reviewRequireTests ?? false,
+      agentMaxTurns: c.agentMaxTurns ?? 0,
+      agentTimeoutSeconds: c.agentTimeoutSeconds ?? 0,
+    },
+    classifications: (proto.classifications ?? []).map((entry) => ({
+      field: entry.field ?? "",
+      role: mapProtoSettingsFieldRole(entry.role),
+      control: entry.control ?? "",
+      note: entry.note ?? "",
+    })),
   };
 }
 

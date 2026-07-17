@@ -15,7 +15,6 @@ function caps(overrides: Partial<OperatingModeCapabilities> = {}): OperatingMode
     requiresAcceptanceCriteria: false,
     supportsArtifacts: false,
     supportsHandoffs: false,
-    usesItemExecutionFlow: false,
     ...overrides,
   };
 }
@@ -49,7 +48,9 @@ describe("ModeMatrix", () => {
       makeMode({ mode: "phased-plan-drain", label: "Phased Plan Drain", capabilities: caps({ supportsHandoffs: true }) }),
     ];
     render(<ModeMatrix catalog={catalog} />);
-    expect(screen.getByText("Item Level")).toBeInTheDocument();
+    // The legacy item-level entry presents as the member-item workflow
+    // strategy (explicit label mapping, lib/member-item-strategy.ts).
+    expect(screen.getByText("Member-item workflow")).toBeInTheDocument();
     expect(screen.getByText("Holistic Loop")).toBeInTheDocument();
     expect(screen.getByText("Phased Plan Drain")).toBeInTheDocument();
     // Required rows

@@ -164,11 +164,20 @@ type Dependencies struct {
 	OperatingModeValidate CommandFunc
 	OperatingModeSimulate CommandFunc
 	OperatingModeStart    CommandFunc
-	// Agent-operations diagnostics CLI (see cmd_agent_operations.go).
+	// Agent-operations diagnostics + binding controls CLI (see
+	// cmd_agent_operations*.go).
 	AgentOpsResolveBinding     CommandFunc
 	AgentOpsValidateInvocation CommandFunc
 	AgentOpsInspectWorkflow    CommandFunc
 	AgentOpsInspectExecution   CommandFunc
+	AgentOpsCatalog            CommandFunc
+	AgentOpsCompatibleModes    CommandFunc
+	AgentOpsBindings           CommandFunc
+	AgentOpsOverrides          CommandFunc
+	AgentOpsWorkflow           CommandFunc
+	AgentOpsHistory            CommandFunc
+	AgentOpsMigrationStatus    CommandFunc
+	AgentOpsReconcile          CommandFunc
 }
 
 func APICommand(name, description string, run CommandFunc) cliapp.Command {

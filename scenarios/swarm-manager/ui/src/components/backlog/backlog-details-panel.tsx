@@ -12,9 +12,12 @@ import { renderMarkdown } from "../../lib/render-markdown";
 import {
   ArrowRightLeft,
   ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
   Edit,
   FolderOpen,
   GitBranch,
+  Settings2,
   Tags,
   Target,
 } from "lucide-react";
@@ -29,6 +32,11 @@ import { selectors } from "../../consts/selectors";
 import { BACKLOG_KIND_ICONS } from "../../types";
 import type { BacklogItem, BacklogStatus } from "../../types";
 import type { DependencyRelations, ResolvedDependency } from "../../lib/backlog-queue-utils";
+import type { WorkflowProjection } from "../../types/agent-operations";
+import { MigrationStatusBanner } from "../workflow/migration-status-banner";
+import { NoWorkflowNotice } from "../workflow/no-workflow-notice";
+import { WorkflowBindingsPanel } from "../workflow/binding-override-section";
+import { backlogItemTarget } from "../../hooks/useAgentOpsQueries";
 
 export interface BacklogDetailsPanelProps {
   item: BacklogItem;
@@ -38,6 +46,17 @@ export interface BacklogDetailsPanelProps {
   onEditGlobs: () => void;
   onDepStatusChange: (dep: ResolvedDependency, newStatus: BacklogStatus) => void;
   onSaveNote: (note: string) => Promise<void>;
+  /**
+   * Canonical workflow projection for the item. found=false renders the
+   * subtle legacy (pre-migration) affordance; undefined renders nothing.
+   */
+  workflowProjection?: WorkflowProjection;
+  /**
+   * The workflow-projection query failed. Actions and history fall back to
+   * the legacy client pipeline (the documented null-gate rule); this renders
+   * an honest notice instead of failing silently.
+   */
+  workflowProjectionError?: boolean;
 }
 
 export function BacklogDetailsPanel({
@@ -48,6 +67,8 @@ export function BacklogDetailsPanel({
   onEditGlobs,
   onDepStatusChange,
   onSaveNote,
+  workflowProjection,
+  workflowProjectionError,
 }: BacklogDetailsPanelProps) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [descOverflows, setDescOverflows] = useState(false);
@@ -62,6 +83,22 @@ export function BacklogDetailsPanel({
   return (
     <DetailSection title="Overview" icon={BACKLOG_KIND_ICONS[item.kind]} hideDivider>
       <div className="space-y-3">
+        <MigrationStatusBanner />
+        {workflowProjectionError && (
+          <p
+            role="status"
+            className="rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-[11px] text-amber-200"
+            data-testid="workflow-projection-error-notice"
+          >
+            Canonical workflow status is unavailable — actions and history fall back to the
+            legacy pipeline until it recovers.
+          </p>
+        )}
+        {workflowProjection && !workflowProjection.found && (
+          <div>
+            <NoWorkflowNotice projection={workflowProjection} />
+          </div>
+        )}
         <div className="relative">
           <div
             className={`prose-sm-slate text-sm leading-relaxed text-slate-300 ${descExpanded ? "" : "line-clamp-3"}`}
@@ -262,7 +299,42 @@ export function BacklogDetailsPanel({
             </p>
           </div>
         </div>
+
+        <AdvancedBindingControls item={item} />
       </div>
     </DetailSection>
+  );
+}
+
+/**
+ * Advanced, item-level operation-binding controls. Item overrides sit ABOVE
+ * initiative overrides in precedence — the panel's layer ladder makes that
+ * visible. Collapsed behind an unobtrusive disclosure; the agent-ops queries
+ * only fire once expanded.
+ */
+function AdvancedBindingControls({ item }: { item: BacklogItem }) {
+  const [open, setOpen] = useState(false);
+  const target = backlogItemTarget(item.kind, item.name);
+  if (!target) return null;
+
+  return (
+    <div className="space-y-2 border-t border-slate-800 pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500 transition-colors hover:text-slate-300"
+        data-testid={selectors.workflowBindings.advancedToggle}
+      >
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+        )}
+        <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+        Advanced — Operation Bindings
+      </button>
+      {open && <WorkflowBindingsPanel target={target} />}
+    </div>
   );
 }

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "swarm-manager-default",
+  "profileKey": "swarm-manager/default",
+  "description": "Agent profile for swarm-manager research and execution",
+  "roleRef": "code.smart",
+  "maxTurns": 600,
+  "timeout": "3600s",
+  "allowedTools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash"
+  ],
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "createdBy": "swarm-manager"
+}

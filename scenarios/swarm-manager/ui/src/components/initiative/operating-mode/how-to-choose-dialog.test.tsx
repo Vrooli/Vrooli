@@ -17,7 +17,6 @@ function caps(overrides: Partial<OperatingModeCapabilities> = {}): OperatingMode
     requiresAcceptanceCriteria: false,
     supportsArtifacts: false,
     supportsHandoffs: false,
-    usesItemExecutionFlow: false,
     ...overrides,
   };
 }

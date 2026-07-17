@@ -16,7 +16,6 @@ const capabilities: OperatingModeCapabilities = {
   requiresAcceptanceCriteria: true,
   supportsArtifacts: true,
   supportsHandoffs: false,
-  usesItemExecutionFlow: false,
 };
 
 function round(overrides: Partial<OperatingModeRound> & { round: number; phase: string }): OperatingModeRound {
@@ -55,7 +54,7 @@ describe("RoundTimeline", () => {
     render(
       <RoundTimeline
         rounds={[]}
-        capabilities={{ ...capabilities, supportsPhases: false, usesItemExecutionFlow: true }}
+        capabilities={{ ...capabilities, supportsPhases: false }}
         busy={false}
         onRefresh={vi.fn()}
         onCancel={vi.fn()}

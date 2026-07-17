@@ -57,7 +57,7 @@ func connectError(err error) *connect.Error {
 	case errors.Is(err, ErrRoundNotFound), strings.Contains(err.Error(), "not found"):
 		return connect.NewError(connect.CodeNotFound, err)
 	case strings.Contains(err.Error(), "requires"), strings.Contains(err.Error(), "unknown operating mode"),
-		strings.Contains(err.Error(), "does not define phase"), strings.Contains(err.Error(), "item-level mode"),
+		strings.Contains(err.Error(), "does not define phase"), strings.Contains(err.Error(), "member-item"),
 		strings.Contains(err.Error(), "run_id"), strings.Contains(err.Error(), "item_refs"),
 		strings.Contains(err.Error(), "must be kind/name"), strings.Contains(err.Error(), "is not a member"),
 		strings.Contains(err.Error(), "does not allow"), strings.Contains(err.Error(), "no backlog_sync"),

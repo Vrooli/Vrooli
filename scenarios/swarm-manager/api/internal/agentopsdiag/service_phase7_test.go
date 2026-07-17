@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -114,6 +115,55 @@ func TestListCompatibleModesWithoutRegistryFailsClosed(t *testing.T) {
 }
 
 // --- GetResolvedBindings ----------------------------------------------------
+
+// TestGetResolvedBindingsSystemDefaultAtRest is the regression test for finding
+// 80cb2437: with NO overrides authored, a target at rest must resolve every
+// compatible operation to its version-pinned system-default binding — exactly
+// what a live Invoke (which pins the contract version) resolves. The buggy
+// wiring resolved with an empty OperationVersion, skipped the pinned system
+// default, and reported no-binding for every operation.
+func TestGetResolvedBindingsSystemDefaultAtRest(t *testing.T) {
+	svc, _ := buildService(t)
+	resp, err := svc.GetResolvedBindings(context.Background(), connect.NewRequest(&apipb.AgentOpsGetResolvedBindingsRequest{
+		Target: initTarget("ship-x"),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Msg.GetOperations()) != 1 {
+		t.Fatalf("expected 1 compatible operation, got %d", len(resp.Msg.GetOperations()))
+	}
+	row := resp.Msg.GetOperations()[0]
+	if row.GetError() != "" {
+		t.Fatalf("at-rest resolution must not fail: %s (%s)", row.GetError(), row.GetErrorMessage())
+	}
+	if !row.GetResolved() || row.GetBinding().GetLayer() != domainpb.AgentOpsBindingLayer_AGENT_OPS_BINDING_LAYER_SYSTEM_DEFAULT {
+		t.Fatalf("system default must win at rest: %+v", row)
+	}
+	if row.GetBinding().GetMode() != "synthetic-loop" {
+		t.Fatalf("resolved mode = %q", row.GetBinding().GetMode())
+	}
+	// The single contribution is the system default and it is the winner.
+	if len(row.GetContributions()) != 1 || !row.GetContributions()[0].GetWinning() {
+		t.Fatalf("system-default contribution must be listed and winning: %+v", row.GetContributions())
+	}
+}
+
+// TestResolveBindingDefaultsToLatestContractVersion: an omitted operation
+// version must resolve against the latest authored contract (and its pinned
+// system default), not fail closed (finding 80cb2437, ResolveBinding RPC arm).
+func TestResolveBindingDefaultsToLatestContractVersion(t *testing.T) {
+	svc, _ := buildService(t)
+	resp, err := svc.ResolveBinding(context.Background(), connect.NewRequest(&apipb.AgentOpsResolveBindingRequest{
+		Target: initTarget("ship-x"), Operation: "review-round", // no operation_version
+	}))
+	if err != nil {
+		t.Fatalf("omitted version must resolve the pinned system default: %v", err)
+	}
+	if resp.Msg.GetResolved().GetMode() != "synthetic-loop" {
+		t.Fatalf("resolved = %+v", resp.Msg.GetResolved())
+	}
+}
 
 func TestGetResolvedBindingsInitiativeOverrideWins(t *testing.T) {
 	svc, _ := buildService(t)
@@ -413,8 +463,207 @@ func TestListExecutionHistoryNewestFirstWithLimit(t *testing.T) {
 	}
 }
 
+// TestListExecutionHistoryRendersLegacyImportHonestly proves a Phase-8
+// agentops-legacy-execution-import snapshot is surfaced as a labeled legacy
+// row — operation + the legacy entry's own terminal status + deterministic
+// imported_at — with NO fabricated mode/digest provenance and no
+// reproducibility claim, instead of a hollow blank-provenance row.
+func TestListExecutionHistoryRendersLegacyImportHonestly(t *testing.T) {
+	svc, loc := buildService(t)
+	kind, id := agentops.TargetInitiative, "ship-legacy"
+	dir, err := loc.AgentOpsDir(kind, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	execDir := filepath.Join(dir, "executions")
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	importDoc := `{
+	  "kind": "agentops-legacy-execution-import",
+	  "schema_version": "1.0.0",
+	  "operation": "review-round",
+	  "execution_id": "exec-legacy-deadbeef",
+	  "workflow_instance_id": "wf-initiative-ship-legacy",
+	  "imported_at": "2026-07-15T00:09:26Z",
+	  "legacy": {"execution_id": "deadbeef", "status": "failed", "mode": "manual"}
+	}`
+	if err := os.WriteFile(filepath.Join(execDir, "exec-legacy-deadbeef.json"), []byte(importDoc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := svc.ListExecutionHistory(context.Background(), connect.NewRequest(&apipb.AgentOpsListExecutionHistoryRequest{Target: initTarget(id)}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := resp.Msg.GetExecutions()
+	if len(got) != 1 {
+		t.Fatalf("expected 1 history row, got %+v", got)
+	}
+	row := got[0]
+	if !row.GetLegacyImport() {
+		t.Fatalf("import row must be labeled legacy_import: %+v", row)
+	}
+	if row.GetExecutionId() != "exec-legacy-deadbeef" || row.GetOperation() != "review-round" {
+		t.Fatalf("import row must carry its real header fields: %+v", row)
+	}
+	if row.GetOutcome() != "failed" || row.GetRecordedAt() != "2026-07-15T00:09:26Z" {
+		t.Fatalf("import row must carry the legacy status + imported_at: %+v", row)
+	}
+	if row.GetReproducible() {
+		t.Fatalf("an import must never claim reproducibility: %+v", row)
+	}
+	if row.GetMode() != "" || row.GetCompiledModeDigest() != "" || row.GetPromptCatalogDigest() != "" {
+		t.Fatalf("an import must not fabricate provenance: %+v", row)
+	}
+}
+
+// --- Scenario target selector -------------------------------------------------
+
+// TestTargetKindWireRoundTrip proves every Go-side target kind — including the
+// scenario kind added for spec-sync workflows — maps onto a distinct wire enum
+// value and back. A kind missing from the wire enum would collapse onto
+// UNSPECIFIED here and fail the FromProto leg.
+func TestTargetKindWireRoundTrip(t *testing.T) {
+	seen := map[domainpb.OperatingModeTargetKind]bool{}
+	for _, kind := range agentops.AllTargetKinds {
+		wire := targetKindToProto(kind)
+		if wire == domainpb.OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_UNSPECIFIED {
+			t.Fatalf("target kind %q has no wire enum value", kind)
+		}
+		if seen[wire] {
+			t.Fatalf("target kind %q collides with another kind on wire value %v", kind, wire)
+		}
+		seen[wire] = true
+		back, ok := targetKindFromProto(wire)
+		if !ok || back != kind {
+			t.Fatalf("target kind %q did not round-trip: got %q ok=%v", kind, back, ok)
+		}
+	}
+}
+
+// TestScenarioTargetWorkflowRoundTrip proves a scenario-target selector reaches
+// the workflow store end to end: a spec-sync workflow persisted under the
+// scenario's agentops dir (resolved via FSLocator.ScenarioDir, as the P6
+// scenario target adapter does) is readable through InspectWorkflow and
+// GetWorkflowProjection with Kind=SCENARIO.
+func TestScenarioTargetWorkflowRoundTrip(t *testing.T) {
+	svc, loc := buildService(t)
+	repo := opsrunner.NewWorkflowRepo(loc)
+	kind, id := agentops.TargetScenario, "demo-scenario"
+
+	w, err := repo.CreateOrLoad(kind, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := w
+	next.State = agentops.WorkflowRunning
+	next.Operations = []agentops.OperationExecutionRecord{
+		{Operation: agentops.OpReviewRound, ExecutionID: "exec-sync-1", IdempotencyKey: "k1", ProvenanceDigest: rev, State: "running", RunID: "run-1"},
+	}
+	next.IdempotencyKeys = []string{"k1"}
+	next.Version = 1
+	if err := repo.Commit(0, next); err != nil {
+		t.Fatal(err)
+	}
+
+	sel := &apipb.AgentOpsTargetSelector{Kind: domainpb.OperatingModeTargetKind_OPERATING_MODE_TARGET_KIND_SCENARIO, Id: id}
+	inspect, err := svc.InspectWorkflow(context.Background(), connect.NewRequest(&apipb.AgentOpsInspectWorkflowRequest{Target: sel}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !inspect.Msg.GetFound() || inspect.Msg.GetWorkflow().GetDomainKind() != "scenario" || inspect.Msg.GetWorkflow().GetDomainId() != id {
+		t.Fatalf("scenario workflow must be inspectable via the wire selector: %+v", inspect.Msg)
+	}
+
+	proj, err := svc.GetWorkflowProjection(context.Background(), connect.NewRequest(&apipb.AgentOpsGetWorkflowProjectionRequest{Target: sel}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proj.Msg.GetFound() || len(proj.Msg.GetOperations()) != 1 || proj.Msg.GetOperations()[0].GetExecutionId() != "exec-sync-1" {
+		t.Fatalf("scenario workflow projection must round-trip: %+v", proj.Msg)
+	}
+}
+
+// --- RunReconciliation ----------------------------------------------------------
+
+func TestRunReconciliation(t *testing.T) {
+	// No locator attached -> fail closed, never a silent no-op.
+	bare := &Service{}
+	if _, err := bare.RunReconciliation(context.Background(), connect.NewRequest(&apipb.AgentOpsRunReconciliationRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("reconciliation without a locator must be FailedPrecondition, got %v", err)
+	}
+
+	root := t.TempDir()
+	loc := opsrunner.FSLocator{
+		InitiativeDir: func(name string) (string, error) { return filepath.Join(root, "initiatives", name), nil },
+		ScanRoots:     []string{root},
+	}
+	repo := opsrunner.NewWorkflowRepo(loc)
+	execStore := opsrunner.NewExecutionStore(loc)
+	kind, id := agentops.TargetInitiative, "ship-x"
+
+	w, err := repo.CreateOrLoad(kind, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := w
+	next.State = agentops.WorkflowRunning
+	next.Operations = []agentops.OperationExecutionRecord{
+		{Operation: agentops.OpReviewRound, ExecutionID: "exec-live", IdempotencyKey: "k1", ProvenanceDigest: rev, State: "running", RunID: "run-1"},
+	}
+	next.IdempotencyKeys = []string{"k1"}
+	next.Version = 1
+	if err := repo.Commit(0, next); err != nil {
+		t.Fatal(err)
+	}
+	prov := agentops.ExecutionProvenance{
+		Kind: "agentops-execution-provenance", Operation: agentops.OpReviewRound, OperationVersion: "1.0.0",
+		Binding: agentops.ProvenanceBinding{Layer: agentops.LayerSystemDefault, OwnerKind: "system", OwnerID: "system"},
+		Mode:    "synthetic-loop", ModeRevision: rev,
+		CompiledModeDigest: digestOf(t, `{"m":1}`), PromptCatalogRevision: "pc-1", PromptCatalogDigest: digestOf(t, `{"p":1}`),
+		Target: agentops.ProvenanceTarget{Kind: kind, ID: id}, CallerInputDigest: digestOf(t, `{}`),
+		PolicyRevision: "pol-1", WorkflowInstanceID: "wf-initiative-ship-x",
+	}
+	save := func(execID string) {
+		t.Helper()
+		if err := execStore.SaveExecution(kind, id, execID, opsrunner.ExecutionSnapshot{
+			Provenance: prov, CompiledMode: json.RawMessage(`{"m":1}`), PromptCatalog: json.RawMessage(`{"p":1}`),
+			EffectiveInputs: json.RawMessage(`{}`), Outcome: "accepted", RecordedAt: "2026-01-01T00:00:00Z",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save("exec-live")   // referenced by the workflow -> preserved
+	save("exec-orphan") // unreferenced + far older than the grace period -> reaped
+
+	svc := (&Service{}).WithReconciler(loc, 15*time.Minute)
+	resp, err := svc.RunReconciliation(context.Background(), connect.NewRequest(&apipb.AgentOpsRunReconciliationRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Msg.GetSnapshotsSeen() != 2 || len(resp.Msg.GetReaped()) != 1 {
+		t.Fatalf("sweep must reap exactly the aged orphan: %+v", resp.Msg)
+	}
+	if _, found, err := execStore.Load(kind, id, "exec-live"); err != nil || !found {
+		t.Fatalf("referenced snapshot must survive the sweep: found=%v err=%v", found, err)
+	}
+	if _, found, _ := execStore.Load(kind, id, "exec-orphan"); found {
+		t.Fatal("aged orphan snapshot must be reaped")
+	}
+	// Idempotent: a second sweep reaps nothing.
+	again, err := svc.RunReconciliation(context.Background(), connect.NewRequest(&apipb.AgentOpsRunReconciliationRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(again.Msg.GetReaped()) != 0 {
+		t.Fatalf("second sweep must be a no-op: %+v", again.Msg)
+	}
+}
+
 // --- GetMigrationStatus ---------------------------------------------------------
 
+// [REQ:REQ-P0-011-MIGRATION-INTEGRITY]
 func TestGetMigrationStatus(t *testing.T) {
 	svc, _ := buildService(t)
 	dir := t.TempDir()

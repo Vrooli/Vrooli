@@ -62,6 +62,10 @@ export type { IGoalsService } from "./goals-service";
 export { initiativeModeService, createInitiativeModeService } from "./initiative-mode-service";
 export type { IInitiativeModeService, StartOperatingModePhaseArgs, SwitchOperatingModeArgs } from "./initiative-mode-service";
 
+// Agent Operations (declarative agent-operations operator surface)
+export { agentOperationsService, createAgentOperationsService } from "./agent-operations-service";
+export type { IAgentOperationsService, PutBindingOverrideArgs } from "./agent-operations-service";
+
 // Prompt Center
 export { promptService, createPromptService } from "./prompt-service";
 export type {

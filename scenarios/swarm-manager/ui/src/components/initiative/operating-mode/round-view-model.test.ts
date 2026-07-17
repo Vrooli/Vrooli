@@ -34,7 +34,6 @@ const syncCapableMode: OperatingModeCapabilities = {
   requiresAcceptanceCriteria: true,
   supportsArtifacts: true,
   supportsHandoffs: false,
-  usesItemExecutionFlow: false,
 };
 
 describe("round view model", () => {

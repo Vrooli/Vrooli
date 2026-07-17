@@ -242,8 +242,8 @@ func humanizeOperatingModeEnum(value string) string {
 		return "Plan execution"
 	case "initiative":
 		return "Initiative"
-	case "existing_item_flow":
-		return "Existing item flow"
+	case "scenario":
+		return "Scenario"
 	case "single_phase_run":
 		return "Single phase run"
 	case "sequential_handoff":

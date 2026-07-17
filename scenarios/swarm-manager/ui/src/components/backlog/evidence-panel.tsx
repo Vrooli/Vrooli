@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import type { ReviewRound } from "../../services/review-service";
 import { EvidenceItemCard } from "./evidence-item-card";
+import { OperationProvenancePopover } from "../workflow/operation-provenance-popover";
+import type { OperationProvenanceData } from "../../lib/agent-ops-utils";
 import { selectors } from "../../consts/selectors";
 
 export interface EvidencePanelProps {
@@ -29,6 +31,8 @@ export interface EvidencePanelProps {
   isAwaitingManualReview: boolean;
   onVerify: (round: number, evidenceId: string, verified: boolean) => void;
   onRequestMore: (round: number, evidenceId?: string) => void;
+  /** Canonical operation provenance per review round (workflow projection). */
+  provenanceByRound?: ReadonlyMap<number, OperationProvenanceData>;
 }
 
 export function EvidencePanel({
@@ -39,6 +43,7 @@ export function EvidencePanel({
   isAwaitingManualReview,
   onVerify,
   onRequestMore,
+  provenanceByRound,
 }: EvidencePanelProps) {
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(() => {
     // Expand the latest round by default.
@@ -115,6 +120,7 @@ export function EvidencePanel({
             onToggle={() => toggleRound(round.round)}
             onVerify={onVerify}
             onRequestMore={onRequestMore}
+            provenance={provenanceByRound?.get(round.round)}
           />
         ))}
       </div>
@@ -143,6 +149,7 @@ interface RoundSectionProps {
   onToggle: () => void;
   onVerify: (round: number, evidenceId: string, verified: boolean) => void;
   onRequestMore: (round: number, evidenceId?: string) => void;
+  provenance?: OperationProvenanceData;
 }
 
 function RoundSection({
@@ -153,6 +160,7 @@ function RoundSection({
   onToggle,
   onVerify,
   onRequestMore: _onRequestMore,
+  provenance,
 }: RoundSectionProps) {
   const verifiedCount = round.evidence.filter((e) => e.verified).length;
   const Icon = expanded ? ChevronDown : ChevronRight;
@@ -168,6 +176,11 @@ function RoundSection({
         <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
           Round {round.round}
         </span>
+        {provenance && (
+          <span onClick={(event) => event.stopPropagation()}>
+            <OperationProvenancePopover data={provenance} />
+          </span>
+        )}
         <RoundStatusBadge
           status={round.status}
           classification={round.classification}

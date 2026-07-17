@@ -124,7 +124,10 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 			Prompt:         prompt,
 			PromptRevision: promptRevision(prompt),
 			UsedFallback:   false,
-			CapturedAt:     now,
+			// Reconstructed caller-context provenance; the agent runs the
+			// bound operation's mode prompt (see PromptTrace doc).
+			Synthetic:  true,
+			CapturedAt: now,
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -133,9 +136,9 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 	// Retry re-drains as a brand-new attempt. Plan-backed items start the
 	// execution-retry operation against their plan-execution target (mirroring the
 	// primary start; Retry-as-New-Attempt lineage is preserved on the record).
-	// Research-conclusion items have no plan_ref and keep the legacy direct spawn
-	// (slice-B exception, note 8828b096). "Continue existing session" semantics
-	// belong to FollowUp, never here.
+	// Research-conclusion items have no plan_ref and retry through the
+	// research-conclude operation. "Continue existing session" semantics belong
+	// to FollowUp, never here.
 	if hasExecutionPlanRef(item) {
 		if s.operationStarter == nil {
 			return Record{}, apierr.Unavailable("execution operation runner is not available")

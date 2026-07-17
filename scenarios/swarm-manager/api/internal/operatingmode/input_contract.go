@@ -282,9 +282,6 @@ func reachableInputModes(defs map[Mode]Definition, root Definition) ([]Definitio
 }
 
 func compileModeInputContract(def Definition) (CompiledModeInputContract, error) {
-	if !def.RunsModeRounds() {
-		return CompiledModeInputContract{Mode: def.Mode, Target: def.Target.Kind}, nil
-	}
 	hasRegularPhase := false
 	for _, phase := range def.PhaseGraph.Phases {
 		if !phase.Delegated() {

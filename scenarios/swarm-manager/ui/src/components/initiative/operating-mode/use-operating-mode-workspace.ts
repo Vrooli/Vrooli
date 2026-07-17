@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { initiativeModeService, initiativeService } from "../../../services";
+import { initiativeTarget, useWorkflowProjectionQuery } from "../../../hooks/useAgentOpsQueries";
+import { normalizeModeWireValue } from "../../../lib/member-item-strategy";
 import type { Initiative, InitiativeOperatingMode } from "../../../types";
 import type { OperatingModeRound } from "../../../types/operating-mode";
 import { activeRound, parseAcceptanceCriteria, serializeAcceptanceCriteria } from "./utils";
@@ -60,6 +62,10 @@ export function useOperatingModeWorkspace({
     queryKey: ["operating-mode-catalog"],
     queryFn: () => initiativeModeService.catalog(),
   });
+
+  // Canonical workflow projection for the initiative — provenance for round
+  // inspectability. Polls itself while any projected operation is running.
+  const workflowProjectionQuery = useWorkflowProjectionQuery(initiativeTarget(initiative.name));
 
   const invalidateWorkspace = () => {
     void queryClient.invalidateQueries({ queryKey: ["initiative-operating-mode", initiative.name] });
@@ -144,7 +150,9 @@ export function useOperatingModeWorkspace({
   });
 
   const workspace = workspaceQuery.data;
-  const currentMode = initiative.mode ?? "item-level";
+  // Wire-value defaulting (blank → legacy "item-level") lives in the
+  // member-item-strategy mapping module; display mapping happens downstream.
+  const currentMode = normalizeModeWireValue(initiative.mode);
   const catalogModes = modeCatalogQuery.data?.modes ?? [];
   const currentModeEntry = catalogModes.find((mode) => mode.mode === currentMode);
   const runningRound = useMemo(() => activeRound(workspace?.rounds ?? []), [workspace?.rounds]);
@@ -184,6 +192,7 @@ export function useOperatingModeWorkspace({
     workspaceQuery,
     modeCatalogQuery,
     refetchCatalog: modeCatalogQuery.refetch,
+    workflowProjection: workflowProjectionQuery.data,
     workspace,
     currentMode,
     currentModeEntry,

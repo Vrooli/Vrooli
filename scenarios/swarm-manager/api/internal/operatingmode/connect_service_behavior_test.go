@@ -287,8 +287,8 @@ func TestConnectCompleteItemsRejectsItemLevelInitiative(t *testing.T) {
 	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
 		t.Fatalf("code = %v, want InvalidArgument; err=%v", got, err)
 	}
-	if !strings.Contains(err.Error(), "item-level mode") {
-		t.Fatalf("error = %q, want item-level mode message", err.Error())
+	if !strings.Contains(err.Error(), "member-item strategy") {
+		t.Fatalf("error = %q, want member-item strategy message", err.Error())
 	}
 }
 
@@ -340,7 +340,7 @@ func TestServiceRoundActionsRequireNonDefaultMode(t *testing.T) {
 	}
 
 	_, err = svc.CancelRound(context.Background(), "init-a", ModeItemLevel, 1)
-	if err == nil || !strings.Contains(err.Error(), "item-level mode") {
-		t.Fatalf("item-level cancel error = %v, want item-level mode error", err)
+	if err == nil || !strings.Contains(err.Error(), "member-item strategy") {
+		t.Fatalf("sentinel cancel error = %v, want member-item strategy error", err)
 	}
 }

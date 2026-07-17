@@ -12,7 +12,7 @@ func TestHumanizeOperatingModeEnum(t *testing.T) {
 		"backlog-item":        "Backlog item",
 		"plan-execution":      "Plan execution",
 		"initiative":          "Initiative",
-		"existing_item_flow":  "Existing item flow",
+		"scenario":            "Scenario",
 		"single_phase_run":    "Single phase run",
 		"sequential_handoff":  "Sequential handoff",
 		"operator_gated_loop": "Operator-gated loop",

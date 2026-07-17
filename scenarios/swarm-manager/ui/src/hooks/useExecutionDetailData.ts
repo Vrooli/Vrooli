@@ -17,7 +17,11 @@ import {
 } from "../lib";
 import { isExecutionActive } from "../lib/execution-utils";
 import { useActivityTimeline } from "./useActivityTimeline";
+import { backlogItemTarget, useWorkflowProjectionQuery } from "./useAgentOpsQueries";
+import { provenanceFromOperation } from "../lib/agent-ops-utils";
+import type { OperationProvenanceData } from "../lib/agent-ops-utils";
 import type { ExecutionRecord, PromptTrace } from "../types";
+import type { WorkflowProjection } from "../types/agent-operations";
 import type { ReviewRound } from "../services/review-service";
 import type { TimelineEntry } from "./useActivityTimeline";
 
@@ -34,6 +38,14 @@ export interface UseExecutionDetailDataResult {
   isGatheringEvidence: boolean;
   isAwaitingManualReview: boolean;
   timeline: { entries: TimelineEntry[]; isLoading: boolean; error: Error | null };
+  /** Canonical workflow projection for the execution's backlog item (undefined while loading). */
+  workflowProjection: WorkflowProjection | undefined;
+  /**
+   * Canonical operation record matching this execution (by run id or
+   * execution id), when the runner-owned record exists. Null for
+   * pre-migration (poller-owned) records — legacy rendering applies.
+   */
+  canonicalOperation: OperationProvenanceData | null;
 
   // Loading/error
   isLoading: boolean;
@@ -88,6 +100,23 @@ export function useExecutionDetailData({
     enabled: !!backlogKind && !!backlogName,
     ...defaultQueryOptions,
   });
+
+  // --- Canonical workflow projection (agent operations) ---
+  // Where the runner-owned record exists the canonical projection is the
+  // preferred provenance source; legacy executionService records keep
+  // rendering for pre-migration executions (both coexist until Phase 8).
+  const { data: workflowProjection } = useWorkflowProjectionQuery(
+    backlogItemTarget(backlogKind, backlogName),
+  );
+  const canonicalOperation = useMemo<OperationProvenanceData | null>(() => {
+    if (!execution || !workflowProjection?.found) return null;
+    const match = workflowProjection.operations.find(
+      (op) =>
+        (execution.runId && op.runId === execution.runId) ||
+        op.executionId === execution.executionId,
+    );
+    return match ? provenanceFromOperation(match) : null;
+  }, [execution, workflowProjection]);
 
   // --- Activity timeline ---
   const isActive = execution ? isExecutionActive(execution) : false;
@@ -168,6 +197,8 @@ export function useExecutionDetailData({
     isGatheringEvidence,
     isAwaitingManualReview,
     timeline,
+    workflowProjection,
+    canonicalOperation,
     isLoading: execLoading,
     error: execError as Error | undefined,
     isActive,

@@ -38,9 +38,12 @@ export type InitiativeOperatingMode = string;
 export type Initiative = Omit<ProtoMessage<ProtoInitiative>, "createdBy"> & {
   /** ISO timestamp when the initiative was archived, or undefined if not archived. */
   archivedAt?: string;
-  /** Operating mode defaults to item-level for historical records. */
+  /**
+   * Operating mode; blank/legacy records default to the member-item workflow
+   * strategy's legacy wire value ("item-level") — see lib/member-item-strategy.ts.
+   */
   mode?: InitiativeOperatingMode;
-  /** Initiative-level acceptance criteria used by non-item-level modes. */
+  /** Initiative-level acceptance criteria used by genuine operating modes. */
   acceptanceCriteria?: string[];
   /** Verified provenance for the actor/session that created this initiative. */
   createdBy?: AgentSessionAttribution;

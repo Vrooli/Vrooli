@@ -19,7 +19,6 @@ const CAPABILITY_FLAGS: ReadonlyArray<keyof OperatingModeCapabilities> = [
   "requiresAcceptanceCriteria",
   "supportsArtifacts",
   "supportsHandoffs",
-  "usesItemExecutionFlow",
 ];
 
 export interface CapabilityListProps {

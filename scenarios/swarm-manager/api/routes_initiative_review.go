@@ -44,7 +44,7 @@ func (s *Server) registerInitiativeReviewRoutes(materializer *graph.Materializer
 		InitStore:       s.initStore,
 		BacklogLoader:   newInitiativeReviewBacklogAdapter(s.backlogHandler.Store()),
 		GraphReader:     materializer,
-		Spawner:         s.agentSvc,
+		RunInspector:    s.agentSvc,
 		Lock:            lock,
 		ExecutionLookup: newInitiativeReviewExecutionAdapter(s.executionSvc, s.backlogHandler.Store()),
 		PlanContent: func(ctx context.Context, item backlog.BacklogItem, itemDir string) (string, error) {

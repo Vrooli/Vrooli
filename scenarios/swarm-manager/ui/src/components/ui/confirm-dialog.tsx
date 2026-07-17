@@ -30,6 +30,8 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   /** Whether the confirm action is in progress */
   isLoading?: boolean;
+  /** Visible error from a failed confirm action (dialog stays open). */
+  errorMessage?: string;
   /** Optional checkbox content */
   checkboxContent?: {
     label: string;
@@ -57,6 +59,7 @@ export function ConfirmDialog({
   confirmationText,
   confirmLabel = "Confirm",
   isLoading = false,
+  errorMessage,
   checkboxContent,
   testIds,
   sidePanel,
@@ -181,6 +184,16 @@ export function ConfirmDialog({
                   disabled={isLoading}
                 />
               </div>
+            )}
+
+            {/* Confirm-action failure (typed server message, fail-closed) */}
+            {errorMessage && (
+              <p
+                role="alert"
+                className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
+              >
+                {errorMessage}
+              </p>
             )}
 
             {/* Actions */}

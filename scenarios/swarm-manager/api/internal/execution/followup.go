@@ -71,7 +71,7 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		RunType:            "fixup",
 		DeliverablePath:    deliverable.Path,
 		DeliverableContent: deliverable.Markdown,
-		ReviewFeedback:     buildFinalizationFeedback(effectiveFinalization(*record)),
+		ReviewFeedback:     buildFinalizationFeedback(record.Finalization),
 		IdeaHandoff:        ideaHandoff,
 		SuggestedSkills:    item.SuggestedSkills,
 	})
@@ -96,7 +96,10 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 			Prompt:         prompt,
 			PromptRevision: promptRevision(prompt),
 			UsedFallback:   false,
-			CapturedAt:     now,
+			// Reconstructed caller-context provenance; the agent runs the
+			// bound operation's mode prompt (see PromptTrace doc).
+			Synthetic:  true,
+			CapturedAt: now,
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -136,7 +139,7 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		// execution-fixup declares only OPERATOR_NOTE; the review feedback rides
 		// there (routed to the mode's operator-note channel).
 		CallerInputs: map[string]string{
-			"OPERATOR_NOTE": buildFinalizationFeedback(effectiveFinalization(*record)),
+			"OPERATOR_NOTE": buildFinalizationFeedback(record.Finalization),
 		},
 		IdempotencyKey: "exec-" + fixupRecord.ExecutionID,
 		RequestedBy:    fixupRecord.StartedBy,
@@ -261,7 +264,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		RunType:            runType,
 		DeliverablePath:    deliverable.Path,
 		DeliverableContent: deliverable.Markdown,
-		ReviewFeedback:     buildFinalizationFeedback(effectiveFinalization(*parent)),
+		ReviewFeedback:     buildFinalizationFeedback(parent.Finalization),
 		FollowUpNote:       strings.TrimSpace(req.Context),
 		IdeaHandoff:        ideaHandoff,
 		SuggestedSkills:    item.SuggestedSkills,
@@ -283,7 +286,10 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 			Prompt:         prompt,
 			PromptRevision: promptRevision(prompt),
 			UsedFallback:   false,
-			CapturedAt:     now,
+			// Reconstructed caller-context provenance; the agent runs the
+			// bound operation's mode prompt (see PromptTrace doc).
+			Synthetic:  true,
+			CapturedAt: now,
 		},
 		CreatedAt: now,
 		UpdatedAt: now,

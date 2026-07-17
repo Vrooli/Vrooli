@@ -26,6 +26,7 @@ func (s *stubEvidenceHandler) ListRun(_ context.Context, request *connect.Reques
 	}
 	return connect.NewResponse(result), nil
 }
+
 func (s *stubEvidenceHandler) ListEntity(_ context.Context, request *connect.Request[apipb.EvidenceListEntityRequest]) (*connect.Response[apipb.EvidenceListResponse], error) {
 	result, err := s.listEntity(request.Msg)
 	if err != nil {
@@ -33,6 +34,7 @@ func (s *stubEvidenceHandler) ListEntity(_ context.Context, request *connect.Req
 	}
 	return connect.NewResponse(result), nil
 }
+
 func (s *stubEvidenceHandler) Reconcile(_ context.Context, request *connect.Request[apipb.EvidenceReconcileRequest]) (*connect.Response[apipb.EvidenceReconcileResponse], error) {
 	result, err := s.reconcile(request.Msg)
 	if err != nil {
@@ -40,6 +42,7 @@ func (s *stubEvidenceHandler) Reconcile(_ context.Context, request *connect.Requ
 	}
 	return connect.NewResponse(result), nil
 }
+
 func (s *stubEvidenceHandler) RecordOperatorVerification(_ context.Context, request *connect.Request[apipb.EvidenceOperatorVerificationRequest]) (*connect.Response[apipb.EvidenceRecord], error) {
 	result, err := s.verify(request.Msg)
 	if err != nil {

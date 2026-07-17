@@ -1,8 +1,177 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "swarm-manager",
-  "description": "swarm-manager declared measures surface. This manifest is the SSOT for the scenario's analytical measures (the granular replacement for the monolithic /stats blob); it is consumed by measures-health (coverage + behavioral probe) and the search-hub central index. swarm-manager's broader CLI is hand-registered (not yet manifest-driven); only the measures contract is modeled here.",
+  "description": "swarm-manager declared measures surface plus the agent-operations operator surface. This manifest is the SSOT for the scenario's analytical measures (the granular replacement for the monolithic /stats blob) — consumed by measures-health (coverage + behavioral probe) and the search-hub central index — and models the AgentOperationsService command bindings and governance. swarm-manager's broader CLI is hand-registered (not yet manifest-driven).",
   "groups": [
+    {
+      "name": "agent-operations",
+      "description": "Declarative agent-operations operator surface: catalog/compatibility/binding/workflow/provenance projections, mutating binding-override administration, and the idempotent reconciliation sweep. All commands are thin Connect clients over AgentOperationsService. The overrides trio is invoked as 'agent-operations overrides {list|set|clear}' (one registered subcommand dispatching on its first positional); the dashed names here are the manifest identifiers for the three bound RPCs.",
+      "commands": [
+        {
+          "name": "resolve-binding",
+          "description": "Resolve the winning binding for an operation against a target by deterministic precedence.",
+          "flags": [
+            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
+            { "name": "target", "description": "Target id (backlog item kind/name, initiative name, plan execution id, or scenario name).", "required": true },
+            { "name": "operation", "description": "Operation id.", "required": true },
+            { "name": "version", "description": "Exact operation version (optional)." },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ResolveBinding" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "validate",
+          "description": "Dry-run-validate an invocation (declared, target-compatible, binding-resolvable) without starting a run.",
+          "flags": [
+            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
+            { "name": "target", "description": "Target id.", "required": true },
+            { "name": "operation", "description": "Operation id.", "required": true },
+            { "name": "version", "description": "Exact operation version (optional)." },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ValidateInvocation" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "inspect-workflow",
+          "description": "Inspect the durable workflow instance correlating a target's operation executions.",
+          "flags": [
+            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
+            { "name": "target", "description": "Target id.", "required": true },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "InspectWorkflow" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "inspect-execution",
+          "description": "Inspect an execution's pinned provenance, outcome, and snapshot reproducibility.",
+          "flags": [
+            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
+            { "name": "target", "description": "Target id.", "required": true },
+            { "name": "execution", "description": "Execution id.", "required": true },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "InspectExecution" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "catalog",
+          "description": "List every authored operation contract with its pinned revision and compatible target kinds.",
+          "flags": [
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ListOperationCatalog" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "compatible-modes",
+          "description": "List authored operating modes with server-computed per-operation compatibility verdicts for a target.",
+          "flags": [
+            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
+            { "name": "target", "description": "Target id.", "required": true },
+            { "name": "operation", "description": "Narrow verdicts to one catalog operation id (optional)." },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ListCompatibleModes" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "bindings",
+          "description": "Resolve the winning binding per catalog operation for a target, with source layer and contributing layers.",
+          "flags": [
+            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
+            { "name": "target", "description": "Target id.", "required": true },
+            { "name": "verbose", "bool": true, "description": "Show every contributing layer, not just the winner." },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "GetResolvedBindings" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "overrides-list",
+          "description": "List the raw binding-override documents stored at one owner's layer, with file-level provenance. Invoked as 'agent-operations overrides list'.",
+          "flags": [
+            { "name": "owner-kind", "description": "Override owner kind.", "required": true, "values": ["backlog-item", "initiative"] },
+            { "name": "owner", "description": "Owner id (backlog item kind/name, or initiative name).", "required": true },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ListBindingOverrides" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "overrides-set",
+          "description": "Write (idempotent-replace) one binding override at the owner's layer; validated fail-closed before the write. Snapshot-at-invoke: affects only operations started afterwards. Invoked as 'agent-operations overrides set'.",
+          "flags": [
+            { "name": "owner-kind", "description": "Override owner kind.", "required": true, "values": ["backlog-item", "initiative"] },
+            { "name": "owner", "description": "Owner id.", "required": true },
+            { "name": "operation", "description": "Operation id.", "required": true },
+            { "name": "version", "description": "Exact operation version pin (optional; empty binds across versions)." },
+            { "name": "mode", "description": "Operating mode the override selects.", "required": true },
+            { "name": "mode-revision", "description": "Exact mode content revision to pin.", "required": true },
+            { "name": "disabled", "bool": true, "description": "Write a fail-closed veto: refuse the operation for this scope." },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "PutBindingOverride" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "overrides-clear",
+          "description": "Delete the owner's binding override for an operation (+ optional exact version pin); reports found=false for an absent override rather than erroring. Invoked as 'agent-operations overrides clear'.",
+          "flags": [
+            { "name": "owner-kind", "description": "Override owner kind.", "required": true, "values": ["backlog-item", "initiative"] },
+            { "name": "owner", "description": "Owner id.", "required": true },
+            { "name": "operation", "description": "Operation id.", "required": true },
+            { "name": "version", "description": "Exact version pin of the stored override (optional)." },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "DeleteBindingOverride" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "workflow",
+          "description": "Canonical workflow projection: durable state, operations enriched with mode@revision/binding layer/attempt lineage, decisions, timers, and legal actions.",
+          "flags": [
+            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
+            { "name": "target", "description": "Target id.", "required": true },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "GetWorkflowProjection" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "history",
+          "description": "Execution provenance summaries for a target, newest first.",
+          "flags": [
+            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
+            { "name": "target", "description": "Target id.", "required": true },
+            { "name": "limit", "description": "Cap the number of summaries returned (0 = no cap)." },
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ListExecutionHistory" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "migration-status",
+          "description": "Read the persisted-state migration status document (written by the Phase-8 migration tooling); absent means not-started.",
+          "flags": [
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "GetMigrationStatus" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "reconcile",
+          "description": "Run the idempotent, race-safe orphan-snapshot reconciliation sweep (the same sweep the API runs at startup); mutates only by reaping aged, unreferenced execution snapshots.",
+          "flags": [
+            { "name": "json", "bool": true, "description": "Emit JSON output." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "RunReconciliation" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
     {
       "name": "backlog",
       "description": "Backlog work-item measures.",

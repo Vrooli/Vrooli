@@ -27,7 +27,7 @@ const (
 // OperationStarter launches a target-bound execution operation through the
 // generic operation runner and returns the live run association. It is the
 // cutover seam: execution start/retry/followup/fixup route their agent launch
-// through this instead of AgentSpawner.SpawnBacklog, so every autonomous run is
+// through this instead of a direct Agent Manager spawn, so every autonomous run is
 // a declarative operation execution correlated by a durable operation workflow
 // while the execution record keeps tracking the returned agent run id for
 // status and finalization (transitional — slice C consolidates on the workflow;

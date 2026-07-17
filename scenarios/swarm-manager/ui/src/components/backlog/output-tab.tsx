@@ -12,13 +12,26 @@
 import { LatestExecutionSummary } from "./latest-execution-summary";
 import { ReviewFlow } from "../review/review-flow";
 import { selectors } from "../../consts/selectors";
+import {
+  isReviewOperation,
+  provenanceByAttempt,
+  provenanceForRun,
+} from "../../lib/agent-ops-utils";
 import type { ExecutionRecord } from "../../types";
+import type {
+  WorkflowExecutionSummary,
+  WorkflowProjection,
+} from "../../types/agent-operations";
 import type { ReviewRound } from "../../services/review-service";
 import type { AgentActivityRecord } from "../../stores/agent-activities-store";
 
 export interface OutputTabProps {
   /** Full execution history (from useBacklogDetailData). */
   executionHistory: ExecutionRecord[] | undefined;
+  /** Canonical workflow projection (found=false → legacy-only rendering). */
+  workflowProjection?: WorkflowProjection;
+  /** Canonical execution provenance history, newest first. */
+  canonicalExecutionHistory?: WorkflowExecutionSummary[];
   /** Whether an agent run is actively executing. */
   agentRunIsBusy: boolean;
   /** Latest agent activity from global store. */
@@ -45,6 +58,8 @@ export interface OutputTabProps {
 
 export function OutputTab({
   executionHistory,
+  workflowProjection,
+  canonicalExecutionHistory,
   agentRunIsBusy,
   latestAgentActivity,
   agentManagerUiUrl,
@@ -61,6 +76,14 @@ export function OutputTab({
 }: OutputTabProps) {
   const latestExecution = executionHistory?.[0];
 
+  // Canonical inspectability: match the live run / review rounds back to
+  // their projected operation records (server data, presentation-only index).
+  const runProvenance = provenanceForRun(
+    workflowProjection,
+    latestAgentActivity?.runId ?? latestExecution?.runId,
+  );
+  const reviewProvenanceByRound = provenanceByAttempt(workflowProjection, isReviewOperation);
+
   return (
     <div className="space-y-0" data-testid={selectors.backlogDetails.outputTab}>
       <LatestExecutionSummary
@@ -69,6 +92,8 @@ export function OutputTab({
         latestAgentActivity={latestAgentActivity}
         agentManagerUiUrl={agentManagerUiUrl}
         onStopRun={onStopRun}
+        runProvenance={runProvenance}
+        canonicalHistory={workflowProjection?.found ? canonicalExecutionHistory : undefined}
       />
 
       <ReviewFlow
@@ -84,6 +109,7 @@ export function OutputTab({
         onArchive={onArchive}
         onVerifyEvidence={onVerifyEvidence}
         onRequestMoreEvidence={onRequestMoreEvidence}
+        reviewProvenanceByRound={reviewProvenanceByRound}
       />
     </div>
   );

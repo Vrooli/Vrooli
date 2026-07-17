@@ -15,6 +15,44 @@ This document captures how the Swarm Manager handles time-based behavior—async
 
 ## Async Operation Inventory
 
+### Phased-plan workflow checkpoints
+
+The selected plan execution crosses independent durable stores without pretending they
+share a transaction. Ordering provides the recovery contract:
+
+```text
+start request
+  → render Plan Manager frontier and hash backlog snapshot
+  → Agent Manager persists idempotent WorkflowExecution
+  → Swarm persists workflow id + definition/frontier/entity digests
+
+approval request
+  → Swarm persists actor and decision time
+  → deliver stable-key slice_approved signal
+  → retry redelivers the same signal without replacing the decision
+
+terminal apply
+  → execution worker advances and collects the authorized terminal result
+  → validate workflow/definition/consumer/entity/frontier correlations
+  → persist apply_state=claimed with typed result and attempt provenance
+  → perform idempotent backlog/execution transition
+  → persist apply_state=complete and applied_at
+```
+
+On restart, an unclaimed execution recollects only the pinned workflow. A
+`claimed` execution never recollects: it finishes the stored transition. A
+`complete` execution returns an idempotent replay. Catalog reloads cannot alter
+an in-flight decision because collection must match the definition digest
+captured at start. Background execution refresh never polls a slice Run or
+competes for Run completion authority. It polls only the workflow aggregate and
+invokes the explicit consumer apply boundary. A non-terminal result is a typed
+retryable `ErrWorkflowNotReady`, not a failed execution.
+
+Workshop starts use the same shape with a file-backed pending correlation. A
+boot-time and periodic backlog reconciler invokes the backlog-owned apply
+function; provenance is exclusive, round materialization is replay-safe, and
+the pending file is deleted last.
+
 ### 1. API Requests (HTTP Client)
 
 **Location**: `ui/src/lib/api-client.ts`
@@ -223,7 +261,7 @@ Initiative-scoped operating modes are asynchronous phase runs coordinated by the
 ```
 Operator starts phase
   -> API resolves the target and validates phase startability without mutation
-  -> plan-ref targets clean/contain/read bounded UTF-8 content from the execution workspace; Plan Manager targets record stable plan/execution identity and phase-context digest without transitioning the plan
+  -> plan-execution targets record stable plan/execution identity and a phase-context digest without transitioning the plan (the pre-cutover unmanaged plan-ref workspace-file target kind was removed)
   -> API validates/normalizes caller inputs against the transitive compiled contract
   -> API resolves the one resumable execution, or atomically pins a new parent + delegated definition bundle, compiled contract, caller snapshot, every reachable prompt source, and digests
   -> phase action state is computed from rounds in that execution and its pinned transition rules
@@ -383,26 +421,25 @@ All timing values are centralized in `ui/src/config/index.ts`. To modify:
 
 ### Post-Execution Review & Follow-Up Flow
 
-**Location**: `api/internal/execution/service.go` (`refreshRunningLocked`, `FollowUp`)
+**Location**: `api/internal/execution/service.go` + `finalization.go` (`ProcessActiveExecutions` → `refreshRunningLocked`, `FollowUp`)
 
-When an execution completes on a scenario-scoped backlog item:
+Completion arrives exclusively through the operation runner's commit path
+(`opsbridge` completion router → commit-execution-round); there is no
+agent-manager status poller. Post-run finalization (the unified flow, also
+re-runnable via `TriggerReview`) then handles GCT review:
 
 ```
-Agent completes → StatusCompleted
+Runner commits the execution round → StatusCompleted
     ↓
-shouldTriggerReview() — checks: acceptance_allow references scenarios/, not archive, reviewClient available
+shouldTriggerReview() — checks: acceptance_allow references scenarios/, not archive, ReviewClient available
     ↓ YES
-TriggerReview() → POST git-control-tower /api/v1/review/run
-    ↓
-StatusValidating (stores ReviewJobID)
-    ↓ polling loop (2s tick)
-PollReview() → GET /api/v1/review/run/{jobId}
-    ↓ completed
-mapJobToResult() — green→ready, yellow→ready_with_notes, red→needs_work
+finalization triggers a GCT review (ReviewClient) + baseline-diff → StatusValidating
+    ↓ finalization worker drains validating candidates (collectValidatingCandidatesLocked)
+maps GCT readiness — green→ready, yellow→ready_with_notes, red→needs_work
     ↓
   ┌─ ready/ready_with_notes → StatusCompleted, backlog → "completed"
   └─ needs_work:
-       ├─ AutoFixup ON && attempts < max → spawnFixupRun() (auto, background)
+       ├─ AutoFixup ON && attempts < max → starts an execution-fixup operation (auto, background)
        └─ AutoFixup OFF || max reached → StatusNeedsFixup (user action needed)
 ```
 
@@ -411,15 +448,20 @@ mapJobToResult() — green→ready, yellow→ready_with_notes, red→needs_work
 ```
 User clicks "Follow Up" on completed/failed/needs_fixup execution
     ↓
-FollowUpDialog — selects type (fixup/followup/custom) + run mode (continue/new)
+FollowUpDialog — selects type (fixup/followup/custom)
     ↓
-  ┌─ continue → ContinueRun(runID, message) — replies to existing agent session
-  └─ new → SpawnBacklog() — fresh agent with follow-up prompt
+FollowUp() → OperationStarter.StartOperation on the backlog-item target:
+  ┌─ followup → execution-followup operation (FOLLOWUP_NOTE + FOLLOWUP_TYPE)
+  └─ fixup    → execution-fixup operation (OPERATOR_NOTE)
     ↓
-New execution record created with ParentExecutionID linking to original
+New execution record created with ParentExecutionID + a synthetic PromptTrace
+("Reconstructed context"); the agent runs the bound mode's rendered prompt
 ```
 
-**Timing**: Review polling runs on the same 2s tick as the main `refreshRunningLocked` loop. Follow-up is synchronous from the user's perspective (request returns the new execution record).
+**Timing**: `ProcessActiveExecutions` runs the finalization drain and the
+fail-closed correlation check (`inspectRunningRecordsLocked`) on its poll tick.
+Follow-up is synchronous from the user's perspective (the request returns the new
+execution record).
 
 ### Baseline Modes Shadow Engagement Lifecycle
 
@@ -430,7 +472,7 @@ Opt-in via `SWARM_MANAGER_BASELINE_ENGAGEMENT`. When on, a backlog run is isolat
 ```
 start (flag ON)
     ↓ checkExclusivityAtStart — block if a projected scenario is engaged under another owner (409, no queue)
-    ↓ SpawnBacklog(ManualReview=true)
+    ↓ the execution operation starts held at needs_review (ManualReview) via the operation runner
 agent edits in the sandbox overlay (NOT merged)
     ↓ run parks at needs_review (poller maps → StatusNeedsReview)
 processEngagementHold (outside the lock, idempotent via Record.EngagementHoldAt):

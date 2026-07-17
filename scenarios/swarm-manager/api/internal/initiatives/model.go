@@ -14,7 +14,7 @@ type Initiative struct {
 	Title              string               `json:"title"`
 	Description        string               `json:"description,omitempty"`
 	Status             string               `json:"status"`               // lifecycle/result state
-	Mode               string               `json:"mode,omitempty"`       // item-level, holistic-loop, phased-plan-drain
+	Mode               string               `json:"mode,omitempty"`       // registered operating mode, or the member-item-strategy sentinel ("item-level"/blank)
 	Priority           int                  `json:"priority,omitempty"`   // 1-10, optional (0 = unprioritized)
 	DependsOn          []string             `json:"depends_on,omitempty"` // initiative name refs
 	Items              []string             `json:"items"`                // "kind/name" references
@@ -165,22 +165,25 @@ func ValidatePriority(p int) bool {
 	return p == 0 || (p >= 1 && p <= 10)
 }
 
-// NormalizeMode returns the canonical initiative operating mode. Blank
-// historical metadata is treated as the default item-level mode.
+// NormalizeMode returns the canonical initiative operating mode value. Blank
+// historical metadata normalizes to the member-item workflow strategy
+// sentinel ("item-level").
 func NormalizeMode(mode string) string {
 	return string(operatingmode.NormalizeMode(mode))
 }
 
-// ValidateMode returns true if the mode string identifies a registered
-// operating mode. Blank is valid because it normalizes to item-level.
+// ValidateMode returns true if the mode string is a valid initiative mode
+// value: the member-item workflow strategy sentinel ("item-level", or blank
+// which normalizes to it) or a registered operating mode.
 func ValidateMode(mode string) bool {
-	return operatingmode.ValidateMode(mode)
+	return operatingmode.IsMemberItemStrategySentinel(mode) || operatingmode.ValidateMode(mode)
 }
 
-// OperatingModeList returns the human-readable list of registered initiative
-// operating modes for API validation errors.
+// OperatingModeList returns the human-readable list of valid initiative mode
+// values for API validation errors: the strategy sentinel plus every
+// registered operating mode.
 func OperatingModeList() string {
-	return operatingmode.ModeList()
+	return string(operatingmode.ModeItemLevel) + " (member-item workflow strategy), " + operatingmode.ModeList()
 }
 
 // ContextItem is the compact view of a member item inside an initiative

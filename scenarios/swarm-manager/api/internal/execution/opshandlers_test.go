@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/opsrunner"
 )
 
@@ -27,7 +26,7 @@ func commitExecutionRoundForTest(t *testing.T, svc *Service, opExecutionID, outc
 // did — WITHOUT polling agent-manager.
 func TestCommitExecutionRound_CompletedDrivesRecordToValidating(t *testing.T) {
 	// Nil inspector: if the handler tried to poll it would panic. It must not.
-	svc := newTestPollingService(t, nil)
+	svc := newTestPollingService(t)
 	seedBacklogSpec(t, svc, "execute", "runner-owned", "in_progress")
 
 	rec := Record{
@@ -66,7 +65,7 @@ func TestCommitExecutionRound_CompletedDrivesRecordToValidating(t *testing.T) {
 // execution operation parks the record failed (operator review), mirroring the
 // poller's run-failed path.
 func TestCommitExecutionRound_BlockedDrivesRecordToFailed(t *testing.T) {
-	svc := newTestPollingService(t, nil)
+	svc := newTestPollingService(t)
 	specPath := seedBacklogSpec(t, svc, "execute", "blocked-item", "in_progress")
 
 	rec := Record{
@@ -102,7 +101,7 @@ func TestCommitExecutionRound_BlockedDrivesRecordToFailed(t *testing.T) {
 // TestCommitExecutionRound_ContinueIsNoOp proves a "continue" outcome (the
 // operation loops another round) leaves the record running.
 func TestCommitExecutionRound_ContinueIsNoOp(t *testing.T) {
-	svc := newTestPollingService(t, nil)
+	svc := newTestPollingService(t)
 	rec := Record{
 		ExecutionID:   "exec-cont",
 		RunID:         "run-cont", // non-empty so the store does not self-heal a run-less record
@@ -124,17 +123,11 @@ func TestCommitExecutionRound_ContinueIsNoOp(t *testing.T) {
 	}
 }
 
-// TestPolling_SkipsRunnerOwnedRecords proves the poller DEFERS a runner-owned
-// record (OpExecutionID set): even though agent-manager would report the run
-// complete, inspectRunningRecordsLocked leaves the record untouched so the
-// completion bridge is the sole authority.
+// TestPolling_SkipsRunnerOwnedRecords proves the refresh sweep leaves a
+// runner-owned record (OpExecutionID set) untouched: the completion bridge is
+// its sole authority.
 func TestPolling_SkipsRunnerOwnedRecords(t *testing.T) {
-	inspector := &mockInspector{
-		states: map[string]agentmanager.RunState{
-			"run-owned": {RunID: "run-owned", Status: "complete"},
-		},
-	}
-	svc := newTestPollingService(t, inspector)
+	svc := newTestPollingService(t)
 	seedBacklogSpec(t, svc, "execute", "owned", "in_progress")
 
 	rec := Record{
@@ -163,16 +156,13 @@ func TestPolling_SkipsRunnerOwnedRecords(t *testing.T) {
 	}
 }
 
-// TestPolling_StillDrivesNonRunnerRecords proves the deferral is scoped: a record
-// with NO OpExecutionID (a pre-migration/legacy run) is still driven by the
-// poller, so the authority flip does not strand non-runner records.
-func TestPolling_StillDrivesNonRunnerRecords(t *testing.T) {
-	inspector := &mockInspector{
-		states: map[string]agentmanager.RunState{
-			"run-legacy": {RunID: "run-legacy", Status: "complete"},
-		},
-	}
-	svc := newTestPollingService(t, inspector)
+// TestPolling_UncorrelatedRecordFailsClosed proves the post-migration stance:
+// a record with NO OpExecutionID cannot legitimately be active (the Phase-8
+// migration imported every pre-cutover record and the legacy poll driver was
+// deleted in Phase 9), so the sweep fails it closed instead of polling
+// agent-manager for it.
+func TestPolling_UncorrelatedRecordFailsClosed(t *testing.T) {
+	svc := newTestPollingService(t)
 	seedBacklogSpec(t, svc, "execute", "legacy", "in_progress")
 
 	rec := Record{
@@ -180,7 +170,7 @@ func TestPolling_StillDrivesNonRunnerRecords(t *testing.T) {
 		BacklogKind: "execute",
 		BacklogName: "legacy",
 		RunID:       "run-legacy",
-		// No OpExecutionID: legacy/non-runner record — poller still owns it.
+		// No OpExecutionID: impossible pre-cutover leftover.
 		Status:      StatusRunning,
 		PromptTrace: &PromptTrace{Purpose: "process"},
 		CreatedAt:   nowRFC3339(),
@@ -196,7 +186,7 @@ func TestPolling_StillDrivesNonRunnerRecords(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load record: %v", err)
 	}
-	if got[0].Status != StatusValidating {
-		t.Fatalf("non-runner record status = %q, want %q (poller still drives it)", got[0].Status, StatusValidating)
+	if got[0].Status != StatusFailed {
+		t.Fatalf("uncorrelated record status = %q, want %q (fail closed)", got[0].Status, StatusFailed)
 	}
 }

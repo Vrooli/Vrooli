@@ -62,6 +62,14 @@ export function ExecutionPromptTab({ trace, isLoading }: ExecutionPromptTabProps
           {trace.used_fallback && (
             <span className="rounded bg-amber-500/20 px-2 py-0.5 text-amber-300">Fallback used</span>
           )}
+          {trace.synthetic && (
+            <span
+              className="rounded bg-sky-500/20 px-2 py-0.5 text-sky-300"
+              title="Reconstructed caller context — the agent ran the bound operation's mode prompt, not this text verbatim."
+            >
+              Reconstructed context
+            </span>
+          )}
         </div>
       </div>
     </DetailSection>

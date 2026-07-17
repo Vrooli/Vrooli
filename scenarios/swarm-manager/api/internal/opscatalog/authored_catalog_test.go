@@ -11,6 +11,7 @@ const scenarioRoot = "../../.."
 // and binding edits: a route that names an unregistered action, an invalid state,
 // or a malformed binding fails Load here rather than only at runtime (where the
 // runner silently disables itself).
+// [REQ:REQ-P0-011-OPERATION-CONTRACTS]
 func TestAuthoredCatalogLoads(t *testing.T) {
 	cat, err := Load(scenarioRoot)
 	if err != nil {

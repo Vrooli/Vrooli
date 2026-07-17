@@ -74,6 +74,7 @@ func TestResearch_InvalidJSON(t *testing.T) {
 
 func TestResearch_AgentUnavailable(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, &mockAgentErrorService{err: agentmanager.ErrNotAvailable})
+	h.SetWorkshopWorkflow(&fakeWorkshopWorkflow{err: agentmanager.ErrNotAvailable})
 
 	item := BacklogItem{
 		Name:        "idea-2",

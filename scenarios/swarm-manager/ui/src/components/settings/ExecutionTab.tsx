@@ -11,14 +11,19 @@ import { Input } from "../ui/input";
 import { selectors } from "../../consts/selectors";
 import { DEFAULT_SETTINGS } from "../../services/settings-service";
 import { autoFilerService } from "../../services";
-import type { Settings } from "../../types";
+import type { Settings, SettingsPolicyProjection } from "../../types";
+import { PolicyControlsBadge, PolicyControlsNote } from "./PolicyControlsNote";
 import { ToggleButtons } from "./ToggleButtons";
 import { GoalDrainToggle } from "./GoalDrainToggle";
 
 export interface ExecutionTabProps {
   form: Settings;
   patch: (updates: Partial<Settings>) => void;
+  policyProjection?: SettingsPolicyProjection | null;
 }
+
+const EXECUTION_POLICY_FIELDS = ["default_mode", "auto_fixup", "max_fixup_attempts"];
+const AGENT_POLICY_FIELDS = ["agent_max_turns", "agent_timeout_seconds"];
 
 function formatAutoFilerTime(value: string): string {
   if (!value) return "Not run yet";
@@ -26,7 +31,7 @@ function formatAutoFilerTime(value: string): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-export function ExecutionTab({ form, patch }: ExecutionTabProps) {
+export function ExecutionTab({ form, patch, policyProjection }: ExecutionTabProps) {
   const [autoFilerStatus, setAutoFilerStatus] = useState<AutoFilerStatusResponse | null>(null);
   const [autoFilerStatusError, setAutoFilerStatusError] = useState<string | null>(null);
   const [autoFilerRunPending, setAutoFilerRunPending] = useState(false);
@@ -78,8 +83,12 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
       <Card data-testid={selectors.settings.executionDefaults}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-medium text-slate-200">Execution Defaults</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-medium text-slate-200">Execution Defaults</h3>
+              <PolicyControlsBadge />
+            </div>
             <p className="mt-1 text-sm text-slate-400">Default mode used when queue requests omit explicit values.</p>
+            <PolicyControlsNote fields={EXECUTION_POLICY_FIELDS} projection={policyProjection} />
           </div>
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
             defaultMode: DEFAULT_SETTINGS.defaultMode,
@@ -456,8 +465,12 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
       <Card data-testid={selectors.settings.agentSettings}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-medium text-slate-200">Agent Behavior</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-medium text-slate-200">Agent Behavior</h3>
+              <PolicyControlsBadge />
+            </div>
             <p className="mt-1 text-sm text-slate-400">Controls for spawned agent runs.</p>
+            <PolicyControlsNote fields={AGENT_POLICY_FIELDS} projection={policyProjection} />
           </div>
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
             agentMaxTurns: DEFAULT_SETTINGS.agentMaxTurns,

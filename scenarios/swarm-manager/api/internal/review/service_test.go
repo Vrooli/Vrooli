@@ -61,7 +61,6 @@ func (f *fakeReviewOperationStarter) StartReviewOperation(_ context.Context, req
 func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 	svc := &Service{
 		dataRoot:      "/tmp/test-backlog",
-		agentService:  spawner,
 		inspector:     spawner,
 		promptClient:  &promptmanager.MockClient{Result: promptResult},
 		itemDirFn:     func(_, _ string) string { return "/tmp/test-backlog/tasks/test-item" },

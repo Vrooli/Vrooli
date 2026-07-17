@@ -13,6 +13,7 @@ package agentopsdiag
 import (
 	"context"
 	"errors"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -47,6 +48,11 @@ type Service struct {
 	// migrationStatusPath locates the Phase-8 migration-status document; empty
 	// reports not-started.
 	migrationStatusPath string
+	// reconcileLoc + reconcileGrace back RunReconciliation (the operator-invoked
+	// orphan-snapshot sweep, same function as the startup sweep). nil disables
+	// the RPC fail-closed.
+	reconcileLoc   opsrunner.DomainLocator
+	reconcileGrace time.Duration
 }
 
 // NewService builds the service over the core runtime collaborators. Optional
@@ -86,6 +92,35 @@ func (s *Service) WithMigrationStatusPath(path string) *Service {
 	return s
 }
 
+// WithReconciler attaches the domain locator and in-flight grace period backing
+// RunReconciliation. Production passes the SAME locator (with scan roots) and
+// grace the startup sweep uses, so an operator-invoked sweep behaves
+// identically.
+func (s *Service) WithReconciler(loc opsrunner.DomainLocator, grace time.Duration) *Service {
+	s.reconcileLoc = loc
+	s.reconcileGrace = grace
+	return s
+}
+
+// RunReconciliation runs the orphan-snapshot sweep (idempotent, race-safe; the
+// same opsrunner.ReconcileOrphanSnapshots the API runs at startup) and returns
+// its report. Fails closed when no locator was attached.
+func (s *Service) RunReconciliation(_ context.Context, _ *connect.Request[apipb.AgentOpsRunReconciliationRequest]) (*connect.Response[apipb.AgentOpsRunReconciliationResponse], error) {
+	if s.reconcileLoc == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("reconciliation is unavailable: no domain locator attached"))
+	}
+	report, err := opsrunner.ReconcileOrphanSnapshots(s.reconcileLoc, time.Now(), s.reconcileGrace)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&apipb.AgentOpsRunReconciliationResponse{
+		DirsScanned:      int32(report.DirsScanned),
+		SnapshotsSeen:    int32(report.SnapshotsSeen),
+		Reaped:           append([]string(nil), report.Reaped...),
+		SkippedTooRecent: int32(report.SkippedTooRecent),
+	}), nil
+}
+
 // ModeChecker exposes the attached checker (nil when modes are unavailable) so
 // the caller can share it with the binding resolver it constructs.
 func (s *Service) ModeChecker() agentops.ModeChecker { return s.checker }
@@ -115,8 +150,20 @@ func (s *Service) ResolveBinding(ctx context.Context, req *connect.Request[apipb
 	if err != nil {
 		return nil, err
 	}
+	op := agentops.OperationID(req.Msg.GetOperation())
+	// An omitted operation version means "the latest authored contract", the
+	// same convention the catalog uses everywhere else. Resolving with a
+	// literally empty version would skip every system-default binding that pins
+	// an exact operation_version (all of the shipped catalog does), reporting
+	// no-binding for operations a live Invoke resolves fine.
+	version := req.Msg.GetOperationVersion()
+	if version == "" {
+		if lc, ok := s.catalog.Contract(op, ""); ok {
+			version = lc.Contract.Version
+		}
+	}
 	res, err := s.resolver.Resolve(ctx, opsrunner.InvokeRequest{
-		Target: target, Operation: agentops.OperationID(req.Msg.GetOperation()), OperationVersion: req.Msg.GetOperationVersion(),
+		Target: target, Operation: op, OperationVersion: version,
 	})
 	if err != nil {
 		return nil, bindingError(err)
@@ -154,7 +201,11 @@ func (s *Service) ValidateInvocation(ctx context.Context, req *connect.Request[a
 		}
 		return connect.NewResponse(out), nil
 	}
-	res, err := s.resolver.Resolve(ctx, opsrunner.InvokeRequest{Target: target, Operation: op, OperationVersion: req.Msg.GetOperationVersion()})
+	// Resolve at the declared contract's exact version (Contract() already
+	// mapped an omitted request version onto the latest authored one), so a
+	// version-pinned system default is in scope exactly as it is for a live
+	// Invoke.
+	res, err := s.resolver.Resolve(ctx, opsrunner.InvokeRequest{Target: target, Operation: op, OperationVersion: lc.Contract.Version})
 	if err != nil {
 		// A fail-closed binding error is a validation result, not a transport error.
 		return connect.NewResponse(out), nil

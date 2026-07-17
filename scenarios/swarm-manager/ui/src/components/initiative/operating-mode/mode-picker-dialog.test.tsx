@@ -36,7 +36,6 @@ const itemExecutionCapabilities: OperatingModeCapabilities = {
   requiresAcceptanceCriteria: false,
   supportsArtifacts: false,
   supportsHandoffs: false,
-  usesItemExecutionFlow: true,
 };
 
 const initiativeModeCapabilities: OperatingModeCapabilities = {
@@ -47,7 +46,6 @@ const initiativeModeCapabilities: OperatingModeCapabilities = {
   requiresAcceptanceCriteria: true,
   supportsArtifacts: true,
   supportsHandoffs: false,
-  usesItemExecutionFlow: false,
 };
 
 function makeMode(overrides: Partial<OperatingModeCatalogEntry> & { mode: string; label: string }): OperatingModeCatalogEntry {
@@ -72,10 +70,10 @@ function makeMode(overrides: Partial<OperatingModeCatalogEntry> & { mode: string
 const catalog: OperatingModeCatalogEntry[] = [
   makeMode({
     mode: "item-level",
-    label: "Item Level",
+    label: "Member-item workflow",
     capabilities: itemExecutionCapabilities,
     targetKind: "initiative",
-    runStrategy: "existing_item_flow",
+    runStrategy: "",
     default: true,
     supportsPhases: false,
   }),
@@ -342,7 +340,6 @@ describe("ModePickerDialog", () => {
     await userEvent.click(cards.find((c) => c.textContent?.includes("Holistic Loop"))!);
     const compare = screen.getByTestId(selectors.initiativeDetails.modePickerComparePanel);
     expect(compare).toHaveTextContent(/Adds phase graph/i);
-    expect(compare).toHaveTextContent(/Removes existing item execution flow/i);
   });
 
   it("surfaces mutation errors", () => {

@@ -16,9 +16,6 @@ func TestPhaseKindEveryRegisteredPhaseHasKind(t *testing.T) {
 		if err != nil {
 			t.Fatalf("DefinitionFor(%q): %v", mode, err)
 		}
-		if mode == ModeItemLevel {
-			continue
-		}
 		for phaseName, phase := range def.PhaseGraph.Phases {
 			if !IsValidPhaseKind(phase.Kind) {
 				t.Errorf("mode %q phase %q kind = %q, want one of investigate|execute|review|reconcile",

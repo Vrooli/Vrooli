@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -94,6 +95,12 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 	if err != nil {
 		log.Fatalf("operating-mode: failed to build Service: %v", err)
 	}
+	// Rich backlog-item target resolution: spec document, description, plan_ref,
+	// and write-scope containment. Without this reader the backlog-item adapter
+	// degrades to a coarse title/status snapshot and every backlog-item operation
+	// (research/workshop/clarify/review) would run with empty ITEM_SPEC /
+	// ITEM_DESCRIPTION / ITEM_PLAN_REF inputs and an unconstrained sandbox.
+	svc.SetBacklogItemTargetReader(operatingModeBacklogTargetReader{store: s.backlogHandler.Store()})
 	s.operatingModeSvc = svc
 	// The operating-mode subsystem serves the UI and CLI exclusively over the
 	// typed OperatingModeService Connect contract — the bespoke gorilla/mux JSON
@@ -213,6 +220,53 @@ func operatingModeApplyResult(result *proposals.ApplyResult) *operatingmode.Prop
 		}
 	}
 	return out
+}
+
+// operatingModeBacklogTargetReader is the production BacklogItemTargetReader:
+// it resolves a backlog item as a full operating-mode target — title,
+// description, status, the canonical spec.json document, the bound plan_ref,
+// and the item's write-scope containment (acceptance allow/deny + creates,
+// the same scope executionPlanContainmentResolver projects for the item's
+// plan-execution drain).
+type operatingModeBacklogTargetReader struct {
+	store backlog.Store
+}
+
+func (r operatingModeBacklogTargetReader) LoadBacklogItemTarget(itemRef string) (operatingmode.BacklogItemTarget, error) {
+	kind, name, ok := strings.Cut(strings.TrimSpace(itemRef), "/")
+	if !ok || strings.TrimSpace(kind) == "" || strings.TrimSpace(name) == "" {
+		return operatingmode.BacklogItemTarget{}, fmt.Errorf("backlog-item ref %q must be kind/name", itemRef)
+	}
+	item, err := r.store.LoadItem(backlog.BacklogKind(kind), name)
+	if err != nil {
+		return operatingmode.BacklogItemTarget{}, err
+	}
+	bt := operatingmode.BacklogItemTarget{
+		Ref:         itemRef,
+		Title:       item.Title,
+		Description: item.Description,
+		Status:      string(item.Status),
+		Containment: operatingmode.ContainmentScope{
+			AcceptanceAllow: item.AcceptanceAllow,
+			AcceptanceDeny:  item.AcceptanceDeny,
+			Creates:         item.Creates,
+		},
+	}
+	if item.PlanRef != nil {
+		bt.PlanRef = &operatingmode.PlanRef{
+			Provider: item.PlanRef.Provider,
+			PlanID:   item.PlanRef.PlanID,
+			Slug:     item.PlanRef.Slug,
+			Role:     item.PlanRef.Role,
+		}
+	}
+	// The spec document is the item's canonical spec.json bytes — the same
+	// document the workshop/research modes refine. Best-effort: a missing file
+	// leaves the input empty rather than failing target resolution.
+	if raw, readErr := os.ReadFile(filepath.Join(r.store.ItemDir(backlog.BacklogKind(kind), name), "spec.json")); readErr == nil {
+		bt.SpecDocument = string(raw)
+	}
+	return bt, nil
 }
 
 type operatingModeBacklogReader struct {

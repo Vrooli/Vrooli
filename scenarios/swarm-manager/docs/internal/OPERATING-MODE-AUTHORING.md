@@ -136,11 +136,26 @@ swarm-manager agent-operations resolve-binding --operation <id> --target <sel>
 
 ### Where a mode is *not* a selectable methodology
 
-`item-level` is **not** a real operating mode — it has no phase graph. It is
-member-item strategy configuration (run each member item through its own
-operation), retained as a compatibility placeholder until its cutover removes it.
-Do not present it as a selectable mode, and do not point a mode's
+`item-level` is **not** a real operating mode and never will be — it has no phase
+graph. It is the permanent **member-item strategy sentinel**: the value an
+initiative's persisted `mode` field carries (the literal string `item-level`, or
+a blank value, which means the same thing) to say "run each member item through
+its own operation." It is not authorable — the loader and the scaffold both
+reject `item-level` as a mode id — so you cannot create a `modes/item-level/`
+folder. Do not present it as a selectable mode, and do not point a mode's
 `when_in_doubt_pick_instead` at it.
+
+### Revision labels are advisory; digests are the enforcement identity
+
+A binding's `mode_revision` (`1.0.0`) and a mode's version string are
+human-facing **labels** — they are for operators reading a binding, not the
+mechanism that pins a run. Enforcement identity is the canonical **content
+digest**: every execution pins the compiled-mode/contract/binding/policy digests
+in its provenance, and reproduction fails closed on a digest mismatch
+(`ErrDigestMismatch`) even when the label is unchanged. Bumping a label without
+changing content changes nothing an execution enforces; changing content changes
+the digest whether or not you bump the label. Author labels for humans; trust
+digests for identity.
 
 ## Reference
 

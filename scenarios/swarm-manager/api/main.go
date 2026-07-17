@@ -902,6 +902,9 @@ func main() {
 	if srv.executionHandler != nil {
 		go srv.executionHandler.StartBackgroundWorker(srv.executionStopChan)
 	}
+	if srv.backlogHandler != nil {
+		go srv.backlogHandler.StartWorkshopWorkflowWorker(srv.executionStopChan)
+	}
 
 	if srv.reviewSvc != nil {
 		srv.reviewSvc.RecoverActiveRounds()

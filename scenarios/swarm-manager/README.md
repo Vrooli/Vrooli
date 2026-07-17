@@ -14,6 +14,22 @@ Swarm Manager is the **staging and review layer** between agent teams and scenar
 
 Think of it as a **pull request review for agent work** — agents propose, you review and refine, then approve for execution.
 
+## Target Operating Model
+
+Swarm Manager is the project-work ledger and operator-control surface; it is
+not the runtime for programmatic agent methodology. Human-led conversations are
+kept as Agent Sessions backed by Agent Manager Runs. Whenever code composes an
+agent prompt and consumes a typed outcome, Swarm supplies only the typed input
+snapshot and applies the typed result while Agent Manager owns the declared
+Workflow's execution, validation, branching, retries, waits, and provenance.
+
+The future-state model for intake, domain concepts, integrations, and all
+transition types is documented in
+[Target Operating Model](./docs/concepts/TARGET-OPERATING-MODEL.md). It is a
+documentation-first migration contract; the current architecture and its narrow
+workflow pilots are described separately in
+[Architecture](./docs/concepts/ARCHITECTURE.md).
+
 ## Architecture
 
 ```
@@ -51,13 +67,20 @@ make logs
 make stop
 ```
 
-## UI Tabs
+## UI Surfaces
 
-1. **Backlog** - Tabbed backlog for research, ideas, fixes, and execution
-2. **Scenarios** - Grid of scenario cards with search/filter, click for lifecycle controls
-3. **Execution** - Pending/scheduled, running, completed, and failed runs
-4. **Prompts** - View the runtime prompt catalog, inspect prompt-manager skills, preview backlog prompts, and track generated execution prompts
-5. **Settings** - Theme, execution policy, and insights configuration
+The UI is a single **Plan board** (`/plan`) — a lens-driven workspace over
+backlog, scenarios, initiatives, executions, and captures. The former standalone
+**Scenarios** and **Execution** list tabs were absorbed into it; their old routes
+(`/scenarios`, `/executions`, `/operations`, `/command-post`) now redirect to
+`/plan`, while the detail pages (`/scenarios/{name}`, `/executions/{id}`,
+`/backlog/{kind}/{name}`, `/initiatives/{name}`, `/operating-modes/{mode}`) remain
+directly reachable.
+
+- **Plan** (`/plan`) — the primary board; decisions live in its drawer.
+- **Graph** (`/graph`) — the topology surface (focus is query state inside it).
+- **Stats** (`/stats`) — aggregate metrics over the same workspace.
+- **Records** (`/records`) — the learning-loop records browser.
 
 ## Backlog Structure
 
@@ -161,6 +184,15 @@ swarm-manager prompts skill-revert --id <skill-id> --version <version>
 swarm-manager prompts preview --id <skill-id> [--vars KEY=VALUE,...] [--with-scope]
 swarm-manager prompts simulate --kind <kind> [--mode workshop|initialize|finalize] [--item-title TITLE] [--item-folder PATH]
 ```
+
+Plan-backed primary executions use the bounded Agent Manager
+`phased-plan-drain` workflow. Swarm pins the Plan Manager frontier and remains
+the sole owner of approval and terminal result application; retry, fixup,
+follow-up, and research conclusion retain their existing execution paths. The
+workflow enforces the requested slice bound, makes independent review rejection
+drive a reviewed same-conversation correction, and preserves blocked,
+abstained, and budget-exhausted terminal outcomes. See
+[the workflow seam](./docs/internal/SEAMS.md#phased-plan-workflow-pilot-seam).
 
 `swarm-manager backlog update` uses sparse patch semantics. Omitted fields stay unchanged, empty strings clear scalar fields like `description`, and empty arrays clear list fields like `tags`, `depends_on`, or `acceptance_allow`.
 

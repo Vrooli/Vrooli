@@ -13,7 +13,6 @@ const capabilities: OperatingModeCapabilities = {
   requiresAcceptanceCriteria: true,
   supportsArtifacts: true,
   supportsHandoffs: false,
-  usesItemExecutionFlow: false,
 };
 
 function makeRound(overrides: Partial<OperatingModeRound> = {}): OperatingModeRound {
