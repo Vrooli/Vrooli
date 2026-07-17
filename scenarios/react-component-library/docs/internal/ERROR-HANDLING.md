@@ -49,3 +49,13 @@ Use this split:
 Do not introduce a second general JSON transport for internal scenario
 calls. If the payload is structured and Vrooli-owned, add a proto
 service method.
+
+## Voice input lifecycle failures
+
+Voice input is intentionally adapter-neutral. Permission denial becomes the
+honest `unavailable` state without starting transport; adapter failure becomes
+`error`; device termination and timeout return to `idle` with an explicit
+terminal reason. Every terminal path uses the same cleanup funnel, so a failed
+cue or adapter stop cannot leak tracks, listeners, or timers. The controlled
+button exposes unavailable/error state and an optional explicit
+"Transcribe anyway" override; it never claims that a failed capture succeeded.

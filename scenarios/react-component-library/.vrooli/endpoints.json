@@ -416,18 +416,20 @@
       "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent",
       "method": "POST",
       "summary": "Get a component by id",
-      "description": "Returns the component matching the request id.",
+      "description": "Returns the component matching the request id. Set include_experience to include its declared contract and latest evidence projection.",
       "category": "components",
       "request": {
         "type": "object",
         "properties": {
-          "id": "string"
+          "id": "string",
+          "include_experience": "bool (optional contract and evidence projection)"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "component": "Component"
+          "component": "Component",
+          "experience": "ComponentExperience (when requested)"
         }
       },
       "errors": [
@@ -918,6 +920,62 @@
           "description": "Repository read failure"
         }
       ]
+    },
+    {
+      "id": "component_tests_run",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/RunComponentTest",
+      "method": "POST",
+      "summary": "Run a version-pinned component or hook contract",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_rerun",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/RerunComponentTest",
+      "method": "POST",
+      "summary": "Rerun a durable component test report",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_get",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/GetComponentTestReport",
+      "method": "POST",
+      "summary": "Get a durable component test report",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_list",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/ListComponentTestReports",
+      "method": "POST",
+      "summary": "List durable component test reports",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Run the catalog component-test suite for Test Genie",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview component-test fixes",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply component-test fixes",
+      "description": "",
+      "category": "component-tests"
     },
     {
       "id": "deps_list_declarations",

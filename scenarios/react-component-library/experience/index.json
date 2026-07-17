@@ -28,6 +28,18 @@
       "path": "components/input.json",
       "title": "Input",
       "status": "active"
+    },
+    {
+      "id": "voice-input-button",
+      "path": "components/voice-input-button.json",
+      "title": "VoiceInputButton",
+      "status": "active"
+    },
+    {
+      "id": "use-voice-input",
+      "path": "components/use-voice-input.json",
+      "title": "useVoiceInput",
+      "status": "active"
     }
   ]
 }

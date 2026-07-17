@@ -8,7 +8,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { adoptionsClient, RecommendationClass } from "../api/adoptions";
 import { Button } from "../components/ui/button";
@@ -19,15 +19,17 @@ import { strings } from "../consts/strings";
 import { CreateAdoptionDialog } from "../features/adoptions/CreateAdoptionDialog";
 import { ComponentEditor, type ComparisonSession } from "../features/components/ComponentEditor";
 import { ComponentExperiencePanel } from "../features/components/ComponentExperiencePanel";
+import { ComponentTestPanel } from "../features/components/ComponentTestPanel";
 import { VersionsCard } from "../features/versions/VersionsCard";
 import { useTranslation } from "../i18n";
 
-type InfoTab = "overview" | "versions" | "adoptions";
+type InfoTab = "overview" | "tests" | "versions" | "adoptions";
 
 function DetailTabs({ active, onChange, versionCount, adoptionCount }: { active: InfoTab; onChange: (tab: InfoTab) => void; versionCount: number; adoptionCount: number }) {
   const { t } = useTranslation();
   const tabs: Array<{ id: InfoTab; label: string; count?: number }> = [
     { id: "overview", label: t("componentDetail.info.overview", { defaultValue: "Overview" }) },
+    { id: "tests", label: t("componentDetail.info.tests", { defaultValue: "Tests" }) },
     { id: "versions", label: t("componentDetail.info.versions", { defaultValue: "Versions" }), count: versionCount },
     { id: "adoptions", label: t("componentDetail.info.adoptions", { defaultValue: "Adoptions" }), count: adoptionCount },
   ];
@@ -60,7 +62,7 @@ function HookWorkspace({ asset, onClose }: { asset: CatalogAsset; onClose: () =>
   const { t } = useTranslation();
   const [tab, setTab] = useState<InfoTab>("overview");
   const effective = useQuery({ queryKey: ["adoptions", "effective", asset.id], queryFn: () => adoptionsClient.listEffectiveAdoptions({ componentId: asset.id, limit: 100 }) });
-  return <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col"><ComponentEditor id={asset.id} libraryId={asset.libraryId || asset.id} onClose={onClose} renderable={false} metadataSlot={<aside data-testid="hook-workspace-details" className="space-y-3"><StatusBadge tone="info">{t("catalog.noPreview", { defaultValue: "No live preview — hooks are non-renderable." })}</StatusBadge><div className="flex flex-wrap gap-2 text-xs"><StatusBadge tone="neutral">{t("catalog.directAdoptions", { defaultValue: "{{count}} direct", count: asset.metrics?.directAdoptionCount ?? 0 })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.effectiveAdoptions", { defaultValue: "{{count}} effective", count: asset.metrics?.effectiveAdoptionCount ?? 0 })}</StatusBadge></div><DetailTabs active={tab} onChange={setTab} versionCount={asset.metrics?.versionCount ?? 0} adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0} />{tab === "overview" && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs"><dt className="text-app-muted-foreground">{t("catalog.kind", { defaultValue: "Kind" })}</dt><dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd><dt className="text-app-muted-foreground">{t("catalog.source", { defaultValue: "Source" })}</dt><dd className="break-all font-mono">{asset.sourcePath || "—"}</dd></dl>}{tab === "versions" && <VersionsCard componentId={asset.id} onSelectVersion={() => undefined} onCompare={() => undefined} />}{tab === "adoptions" && <div data-testid="hook-effective-adoptions" className="space-y-2 text-xs">{effective.isLoading ? <p className="text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : (effective.data?.adoptions ?? []).length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No recorded usage." })} /> : <ul className="space-y-2">{(effective.data?.adoptions ?? []).map((entry) => <li key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`} className="rounded-control border border-app-border p-2"><p className="font-medium">{entry.mediated ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" }) : t("catalog.directUsage", { defaultValue: "Direct usage" })}</p><p className="mt-1">{entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}</p><p className="mt-1 font-mono text-app-muted-foreground">{entry.parentAdoption?.id}</p></li>)}</ul>}</div>}</aside>} /></div>;
+  return <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col"><ComponentEditor id={asset.id} libraryId={asset.libraryId || asset.id} onClose={onClose} renderable={false} metadataSlot={<aside data-testid="hook-workspace-details" className="space-y-3"><StatusBadge tone="info">{t("catalog.noPreview", { defaultValue: "No live preview — hooks are non-renderable." })}</StatusBadge><div className="flex flex-wrap gap-2 text-xs"><StatusBadge tone="neutral">{t("catalog.directAdoptions", { defaultValue: "{{count}} direct", count: asset.metrics?.directAdoptionCount ?? 0 })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.effectiveAdoptions", { defaultValue: "{{count}} effective", count: asset.metrics?.effectiveAdoptionCount ?? 0 })}</StatusBadge></div><DetailTabs active={tab} onChange={setTab} versionCount={asset.metrics?.versionCount ?? 0} adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0} />{tab === "overview" && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs"><dt className="text-app-muted-foreground">{t("catalog.kind", { defaultValue: "Kind" })}</dt><dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd><dt className="text-app-muted-foreground">{t("catalog.source", { defaultValue: "Source" })}</dt><dd className="break-all font-mono">{asset.sourcePath || "—"}</dd></dl>}{tab === "tests" && <ComponentTestPanel componentId={asset.id} version={asset.latestVersion || asset.version} />}{tab === "versions" && <VersionsCard componentId={asset.id} onSelectVersion={() => undefined} onCompare={() => undefined} />}{tab === "adoptions" && <div data-testid="hook-effective-adoptions" className="space-y-2 text-xs">{effective.isLoading ? <p className="text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : (effective.data?.adoptions ?? []).length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No recorded usage." })} /> : <ul className="space-y-2">{(effective.data?.adoptions ?? []).map((entry) => <li key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`} className="rounded-control border border-app-border p-2"><p className="font-medium">{entry.mediated ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" }) : t("catalog.directUsage", { defaultValue: "Direct usage" })}</p><p className="mt-1">{entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}</p><p className="mt-1 font-mono text-app-muted-foreground">{entry.parentAdoption?.id}</p></li>)}</ul>}</div>}</aside>} /></div>;
 }
 
 export function ComponentDetailPage() {
@@ -68,9 +70,12 @@ export function ComponentDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { id } = useParams<{ id: string }>();
+  const [search, setSearch] = useSearchParams();
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [comparison, setComparison] = useState<ComparisonSession | null>(null);
-  const [infoTab, setInfoTab] = useState<InfoTab>("overview");
+  const tabParam = search.get("tab");
+  const infoTab: InfoTab = tabParam === "tests" || tabParam === "versions" || tabParam === "adoptions" ? tabParam : "overview";
+  const setInfoTab = (tab: InfoTab) => setSearch((current) => { const next = new URLSearchParams(current); if (tab === "overview") next.delete("tab"); else next.set("tab", tab); if (tab !== "tests") next.delete("testReport"); return next; }, { replace: true });
   const [selectedAdoptionID, setSelectedAdoptionID] = useState("");
   const [createTarget, setCreateTarget] = useState<{ componentId: string; scenario: string } | null>(null);
 
@@ -191,6 +196,7 @@ export function ComponentDetailPage() {
                 {dependencies.length === 0 ? <p className="mt-2 text-xs text-app-muted-foreground">{t("componentDetail.info.noDependencies", { defaultValue: "No shared assets declared." })}</p> : <ul className="mt-2 space-y-1 text-xs">{dependencies.map((dependency) => <li key={`${dependency.libraryId}@${dependency.version}`}><Link to={`/assets/${encodeURIComponent(dependency.libraryId)}`} className="font-mono text-app-primary underline-offset-2 hover:underline">{dependency.libraryId}</Link><span className="text-app-muted-foreground"> · {dependency.version}</span></li>)}</ul>}
               </section>
             </>}
+            {infoTab === "tests" && <ComponentTestPanel componentId={component.id} version={selectedVersion ?? component.latestVersion ?? component.version} />}
             {infoTab === "versions" && <VersionsCard componentId={component.id} selectedVersion={selectedVersion} onSelectVersion={setSelectedVersion} onCompare={setComparison} />}
             {infoTab === "adoptions" && <section data-testid="component-detail-adoptions" className="space-y-3 text-sm text-app-foreground">
               <div className="flex items-center justify-between"><h3 className="font-medium">{t("componentDetail.info.adoptions", { defaultValue: "Adoptions" })}</h3><Button size="sm" onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>{refreshMutation.isPending ? t(strings.adoptions.refreshing) : t(strings.adoptions.refreshAction)}</Button></div>

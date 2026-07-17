@@ -13,6 +13,8 @@ import (
 
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
+	componenttestsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests"
+	componenttestsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests/componenttests_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -20,16 +22,81 @@ import (
 // handlers bundles the closure over *cliapp.ScenarioApp + the generated
 // Connect-Go client, mirroring the cli/domains/notes/ shape.
 type handlers struct {
-	core   *cliapp.ScenarioApp
-	client componentsconnect.ComponentsServiceClient
+	core       *cliapp.ScenarioApp
+	client     componentsconnect.ComponentsServiceClient
+	testClient componenttestsconnect.ComponentTestsServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
-		core:   core,
-		client: componentsconnect.NewComponentsServiceClient(httpClient, baseURL),
+		core:       core,
+		client:     componentsconnect.NewComponentsServiceClient(httpClient, baseURL),
+		testClient: componenttestsconnect.NewComponentTestsServiceClient(httpClient, baseURL),
 	}
+}
+
+func (h *handlers) testRun(ctx cliapp.RunContext) error {
+	resp, err := h.testClient.RunComponentTest(context.Background(), connect.NewRequest(&componenttestsv1.RunComponentTestRequest{ComponentId: ctx.Positional("component-id"), Version: ctx.Flag("version"), IncludeClosure: ctx.Flag("closure") == "true"}))
+	if err != nil {
+		return cliapp.WrapAPIError("run component test", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
+		return fmt.Errorf("server returned no component test report")
+	}
+	return renderTestReport(ctx, resp.Msg.Report, "Component test completed.")
+}
+func (h *handlers) testShow(ctx cliapp.RunContext) error {
+	resp, err := h.testClient.GetComponentTestReport(context.Background(), connect.NewRequest(&componenttestsv1.GetComponentTestReportRequest{Id: ctx.Positional("report-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get component test report", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
+		return fmt.Errorf("server returned no component test report")
+	}
+	return renderTestReport(ctx, resp.Msg.Report, "Component test report.")
+}
+func (h *handlers) testRerun(ctx cliapp.RunContext) error {
+	resp, err := h.testClient.RerunComponentTest(context.Background(), connect.NewRequest(&componenttestsv1.RerunComponentTestRequest{ReportId: ctx.Positional("report-id")}))
+	if err != nil { return cliapp.WrapAPIError("rerun component test", err, nil) }
+	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil { return fmt.Errorf("server returned no component test report") }
+	return renderTestReport(ctx, resp.Msg.Report, "Component test rerun completed.")
+}
+func (h *handlers) testList(ctx cliapp.RunContext) error {
+	limit := int32(0)
+	if raw := ctx.Flag("limit"); raw != "" {
+		value, err := strconv.Atoi(raw)
+		if err != nil {
+			return fmt.Errorf("--limit must be an integer (got %q)", raw)
+		}
+		limit = int32(value)
+	}
+	resp, err := h.testClient.ListComponentTestReports(context.Background(), connect.NewRequest(&componenttestsv1.ListComponentTestReportsRequest{ComponentId: ctx.Positional("component-id"), Limit: limit}))
+	if err != nil {
+		return cliapp.WrapAPIError("list component test reports", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no component test reports")
+	}
+	results := make([]string, 0, len(resp.Msg.Reports))
+	for _, report := range resp.Msg.Reports {
+		results = append(results, fmt.Sprintf("%s\t%s\t%s\t%s", report.Id, report.Verdict, report.RootVersion, report.CreatedAt.AsTime().Format(time.RFC3339)))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d component test report(s).", len(results))}, ResultsHeading: "Reports", Results: results, RetrievalHints: []string{"`components test-show <report-id>` — inspect stages and remediation"}})
+}
+func renderTestReport(ctx cliapp.RunContext, report *componenttestsv1.ComponentTestReport, summary string) error {
+	results := make([]string, 0, len(report.Results))
+	for _, result := range report.Results {
+		line := fmt.Sprintf("%s\t%s@%s\t%s", result.Stage, result.AssetLibraryId, result.Version, result.Verdict)
+		if result.Message != "" {
+			line += "\t" + result.Message
+		}
+		if result.Remediation != "" {
+			line += "\t" + result.Remediation
+		}
+		results = append(results, line)
+	}
+	return cliapp.RenderProtoList(ctx, report, cliapp.ListReport{Summary: []string{summary, fmt.Sprintf("Report %s: %s.", report.Id, report.Verdict)}, ResultsHeading: "Stages", Results: results, RetrievalHints: []string{"`components test-show " + report.Id + "` — retrieve this durable report", "`components test-rerun " + report.Id + "` — rerun the same pinned closure"}})
 }
 
 // index calls ComponentsService.IndexComponents. The walk runs server-side;

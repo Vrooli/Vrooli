@@ -20,6 +20,7 @@ import (
 
 	adoptionsH "react-component-library/handlers/adoptions"
 	componentsH "react-component-library/handlers/components"
+	componentTestsH "react-component-library/handlers/componenttests"
 	depsH "react-component-library/handlers/deps"
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
@@ -226,6 +227,7 @@ func main() {
 			adoptionsH.WithSuggestions(componentsSvc, depsSvc, inventoryScanner, scenariosRoot),
 		),
 		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot)))),
+		componentTestsH.Module(db, componentsSvc, sourceRoot, log.Default()),
 		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(db, "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),

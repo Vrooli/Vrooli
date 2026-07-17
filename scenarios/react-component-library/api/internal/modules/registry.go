@@ -26,6 +26,7 @@ import (
 
 	adoptionsH "react-component-library/handlers/adoptions"
 	componentsH "react-component-library/handlers/components"
+	componentTestsH "react-component-library/handlers/componenttests"
 	depsH "react-component-library/handlers/deps"
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
@@ -36,6 +37,7 @@ import (
 
 	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
+	componenttestsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests"
 	depsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps"
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
 	themesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/themes"
@@ -52,6 +54,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, adoptionsH.Endpoints...)
 	out = append(out, componentsH.Endpoints...)
+	out = append(out, componentTestsH.Endpoints...)
 	out = append(out, depsH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, inventoryH.Endpoints...)
@@ -78,6 +81,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "adoptions", File: adoptionsv1.File_react_component_library_v1_adoptions_adoptions_proto},
 		{Module: "components", File: componentsv1.File_react_component_library_v1_components_components_proto},
+		{Module: "component-tests", File: componenttestsv1.File_react_component_library_v1_componenttests_component_tests_proto},
 		{Module: "deps", File: depsv1.File_react_component_library_v1_deps_deps_proto},
 		{Module: "inventory", File: inventoryv1.File_ui_health_v1_inventory_inventory_proto},
 		{Module: "preview", File: previewv1.File_react_component_library_v1_preview_preview_proto},

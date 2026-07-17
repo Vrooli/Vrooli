@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenario": "react-component-library",
+  "phase": "component-tests",
+  "displayName": "Component Tests",
+  "description": "Runs version-pinned React component and hook contracts through the React Component Library provider.",
+  "source": "validation-provider",
+  "orderHint": 21,
+  "timeout": "300s",
+  "findingSource": "coverage",
+  "phaseClass": "capability",
+  "runtimeClass": "execution",
+  "dimensions": ["tests"],
+  "validation": { "contract": "scenario-validation/v1", "execution": true },
+  "applicability": { "default": "not_applicable", "any": [{ "pathGlob": "library/components/*/component.json" }, { "pathGlob": "library/hooks/*/component.json" }] },
+  "policy": { "selection": "default_when_applicable", "providerReadiness": "required_when_applicable", "providerLifecycle": "start_if_needed", "freshness": "require_live_contract", "resultGating": "gating", "unavailable": "fail" },
+  "runnability": { "needsAPI": true },
+  "docs": { "path": "scenarios/test-genie/docs/phases/component-tests/README.md" },
+  "maturity": {
+    "version": "2.0.0",
+    "levels": [
+      { "id": "L0", "name": "Contracts unavailable", "description": "Catalog contracts cannot be evaluated.", "entry_criteria": ["A catalog asset exists."], "exit_criteria": ["Every selected version has a safe contract."] },
+      { "id": "L1", "name": "Contracts validated", "description": "Versioned component and hook contracts are parsed and checked against declared examples.", "entry_criteria": ["Contracts parse."], "exit_criteria": ["No contract failures remain."] }
+    ],
+    "capabilities": [
+      { "id": "component_contracts", "label": "Component Contracts", "description": "Version-pinned declarative component and hook behavior contracts.", "levels": [
+        { "id": "L0", "name": "Unavailable", "status_label": "Unavailable", "description": "Contracts cannot be evaluated.", "capability_summary": "No validated component contract evidence.", "next_unlock": "A valid versioned contract." },
+        { "id": "L1", "name": "Validated", "status_label": "Ready", "description": "Contracts and declared traces are valid.", "capability_summary": "Component contract evidence is available.", "next_unlock": "No unresolved contract-test findings." }
+      ] }
+    ],
+    "findings": {
+      "COMPONENT_TEST_FAILED": { "local_level_impact": "L0", "global_impact": "foundation_blocker", "dimension": "tests", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Component behavior needs an authored contract or implementation correction." }
+    },
+    "fallback": { "capability_id": "component_contracts", "local_level_impact": "L0", "global_impact": "foundation_blocker", "dimension": "tests", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required" }
+  }
+}

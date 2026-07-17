@@ -2,11 +2,12 @@
 import { createRequire } from "node:module";
 import process from "node:process";
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const DEFAULT_CHROME = "/usr/bin/google-chrome";
 const LIST_COMPONENTS_PATH = "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents";
+const LIST_COMPONENT_EXAMPLES_PATH = "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentExamples";
 
 const require = createRequire(import.meta.url);
 
@@ -153,7 +154,7 @@ async function renderableComponentTargets() {
   const payload = await response.json();
   const targets = (payload.components || [])
     .filter((component) => component.id)
-    .map((component) => ({ id: component.id, label: component.displayName || component.libraryId || component.id }));
+    .map((component) => ({ id: component.id, label: component.displayName || component.libraryId || component.id, sourcePath: component.sourcePath || "" }));
   const byID = new Map();
   for (const target of targets) {
     byID.set(target.id, target);
@@ -161,7 +162,78 @@ async function renderableComponentTargets() {
   return [...byID.values()].sort((a, b) => a.label.localeCompare(b.label));
 }
 
-async function assertComponentPreview(page, componentID) {
+async function componentContract(target) {
+  if (!target.sourcePath) return null;
+  const versionDirectory = path.dirname(target.sourcePath);
+  const contractPath = path.resolve(process.cwd(), "../library", versionDirectory, "test-contract.json");
+  try {
+    return JSON.parse(await readFile(contractPath, "utf8"));
+  } catch (error) {
+    if (error && error.code === "ENOENT") return null;
+    throw new Error(`unable to load component test contract for ${target.label}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function runTraceActions(frame, name, contract) {
+  const trace = contract?.examples?.find((candidate) => candidate.example === name);
+  for (const action of trace?.actions || []) {
+    const target = frame.getByTestId(action.target);
+    if (action.kind === "click") {
+      await target.click({ timeout: 10_000 });
+      continue;
+    }
+    if (action.kind === "key") {
+      await target.press(action.key, { timeout: 10_000 });
+      continue;
+    }
+    if (action.kind === "wait") {
+      await frame.waitForTimeout(action.durationMs);
+      continue;
+    }
+    throw new Error(`example ${name} has unsupported browser action ${String(action.kind)}`);
+  }
+}
+
+async function componentExamples(componentID) {
+  const response = await fetch(`${baseURL()}${LIST_COMPONENT_EXAMPLES_PATH}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ componentId: componentID, limit: 500 }),
+  });
+  if (!response.ok) throw new Error(`typed example query failed: ${response.status} ${await response.text()}`);
+  const payload = await response.json();
+  const examples = new Map();
+  for (const example of payload.examples || []) {
+    try {
+      examples.set(example.name, JSON.parse(example.expectJson || "[]"));
+    } catch {
+      throw new Error(`example ${example.name || "<unnamed>"} has invalid indexed expectations`);
+    }
+  }
+  return examples;
+}
+
+async function assertExampleExpectations(frame, name, expectations) {
+  for (const expectation of expectations) {
+    if (expectation.kind === "role") {
+      await frame.getByRole(expectation.role, { name: expectation.name, exact: true }).waitFor({ state: "visible", timeout: 10_000 });
+      continue;
+    }
+    if (expectation.kind === "text") {
+      await frame.getByText(expectation.value, { exact: true }).waitFor({ state: "visible", timeout: 10_000 });
+      continue;
+    }
+    if (expectation.kind === "attribute") {
+      const value = await frame.locator(expectation.selector).first().getAttribute(expectation.name, { timeout: 10_000 });
+      const expected = expectation.value ?? "";
+      if ((value ?? "") !== expected) throw new Error(`example ${name} expected ${expectation.selector}[${expectation.name}]=${JSON.stringify(expected)}, got ${JSON.stringify(value)}`);
+      continue;
+    }
+    throw new Error(`example ${name} has unsupported browser expectation kind ${String(expectation.kind)}`);
+  }
+}
+
+async function assertComponentPreview(page, componentID, target = {}) {
   const assetPath = `/assets/${encodeURIComponent(componentID)}`;
   const logs = [];
   const responses = [];
@@ -218,6 +290,8 @@ async function assertComponentPreview(page, componentID) {
     if (previewFrames.length < frameCount) {
       throw new Error(`expected ${frameCount} preview frame(s), found ${previewFrames.length}`);
     }
+    const expectations = await componentExamples(componentID);
+    const contract = await componentContract(target);
     const frameResults = [];
     for (const previewFrame of previewFrames) {
       if (previewFrame.url().includes("/assets/")) {
@@ -232,10 +306,12 @@ async function assertComponentPreview(page, componentID) {
       if (rootHTML.trim() === "") {
         throw new Error("preview root was empty after rendered state");
       }
-      frameResults.push({
-        url: previewFrame.url(),
-        example: new URL(previewFrame.url()).searchParams.get("example") || "__default__",
-      });
+      const example = new URL(previewFrame.url()).searchParams.get("example") || "__default__";
+      const declared = expectations.get(example);
+      if (!declared) throw new Error(`preview frame ${example} has no indexed example expectations`);
+      await runTraceActions(previewFrame, example, contract);
+      await assertExampleExpectations(previewFrame, example, declared);
+      frameResults.push({ url: previewFrame.url(), example, expectationCount: declared.length });
     }
     const hostError = await page
       .locator('[data-testid="components-editor-preview-error"]')
@@ -291,7 +367,7 @@ async function main() {
       try {
         results.push({
           label: target.label,
-          ...(await assertComponentPreview(page, target.id)),
+          ...(await assertComponentPreview(page, target.id, target)),
         });
       } catch (error) {
         failures.push({

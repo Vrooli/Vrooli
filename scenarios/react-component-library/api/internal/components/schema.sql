@@ -142,3 +142,19 @@ CREATE TABLE IF NOT EXISTS component_examples (
 
 CREATE INDEX IF NOT EXISTS idx_component_examples_component_version
   ON component_examples(component_id, version, name);
+
+-- Durable reports are intentionally separate from catalog source. Contracts
+-- remain Git-tracked/versioned; reports are execution evidence with bounded
+-- normalized JSON details.
+CREATE TABLE IF NOT EXISTS component_test_reports (
+  id TEXT PRIMARY KEY,
+  component_id TEXT NOT NULL,
+  root_library_id TEXT NOT NULL,
+  root_version TEXT NOT NULL,
+  include_closure INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  verdict TEXT NOT NULL,
+  results_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_component_test_reports_component_created
+  ON component_test_reports(component_id, created_at DESC);

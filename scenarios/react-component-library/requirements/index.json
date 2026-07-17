@@ -22,6 +22,8 @@
     "15-testing-coverage/module.json",
     "16-design-style-affinity/module.json",
     "17-examples-as-data/module.json",
-    "18-catalog-conformance/module.json"
+    "18-catalog-conformance/module.json",
+    "19-voice-input-capability/module.json",
+    "20-component-test-runner/module.json"
   ]
 }

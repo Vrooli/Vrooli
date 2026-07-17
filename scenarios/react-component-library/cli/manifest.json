@@ -208,6 +208,36 @@
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
+          "name": "test",
+          "description": "Run the declarative test contract for one explicit component or hook version",
+          "positionals": [{ "name": "component-id", "required": true, "description": "Catalog asset id" }],
+          "flags": [{ "name": "version", "description": "Required immutable asset version" }, { "name": "closure", "description": "Set true to include the version-pinned manifest closure" }],
+          "binding": { "kind": "connect-rpc", "service": "ComponentTestsService", "method": "RunComponentTest" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "test-show",
+          "description": "Show a durable component test report",
+          "positionals": [{ "name": "report-id", "required": true, "description": "Component test report id" }],
+          "binding": { "kind": "connect-rpc", "service": "ComponentTestsService", "method": "GetComponentTestReport" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "test-rerun",
+          "description": "Rerun the exact version-pinned component test represented by a durable report",
+          "positionals": [{ "name": "report-id", "required": true, "description": "Prior component test report id" }],
+          "binding": { "kind": "connect-rpc", "service": "ComponentTestsService", "method": "RerunComponentTest" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "test-list",
+          "description": "List component test reports for an asset",
+          "positionals": [{ "name": "component-id", "required": true, "description": "Catalog asset id" }],
+          "flags": [{ "name": "limit", "description": "Maximum reports (default 30)" }],
+          "binding": { "kind": "connect-rpc", "service": "ComponentTestsService", "method": "ListComponentTestReports" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
           "name": "init",
           "description": "Initialize a new library component source folder",
           "positionals": [
@@ -503,6 +533,21 @@
       "service": "InventoryService",
       "method": "ScanScenario",
       "reason": "Shared cross-scenario service exposed alongside this scenario's own services. InventoryService is ui-health's contract (vrooli.ui_health.v1.inventory) implemented here for React scenarios; it is invoked by ui-health over Connect-RPC, not via this scenario's CLI. No inventory CLI domain exists; this is the pre-approved omit-with-reason case for a shared service surfaced alongside the scenario's own."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "Test Genie invokes this shared provider contract to run the complete RCL component-test suite. The component CLI deliberately exposes targeted asset runs through ComponentTestsService instead."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "PreviewFix",
+      "reason": "Component test contracts have no automatic fixes; this shared provider method is intentionally unimplemented."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Component test contracts have no automatic fixes; this shared provider method is intentionally unimplemented."
     }
   ]
 }

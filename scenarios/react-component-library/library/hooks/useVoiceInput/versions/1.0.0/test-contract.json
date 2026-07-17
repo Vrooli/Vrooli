@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1",
+  "fixtures": [
+    { "name": "start-recording", "inputs": { "mode": "always-on" }, "assertions": [{ "kind": "state", "target": "status", "value": "recording" }], "claims": ["voice-lifecycle"] },
+    { "name": "timeout", "inputs": { "mode": "timeout", "timeoutMs": 1000 }, "assertions": [{ "kind": "state", "target": "status", "value": "idle" }] },
+    { "name": "failure", "inputs": { "mediaError": "denied" }, "assertions": [{ "kind": "state", "target": "status", "value": "error" }] }
+  ]
+}

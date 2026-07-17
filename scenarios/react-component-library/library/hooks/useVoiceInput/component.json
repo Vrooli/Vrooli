@@ -1,0 +1,10 @@
+{
+  "libraryId": "react-component-library:useVoiceInput",
+  "displayName": "useVoiceInput",
+  "description": "Backend-neutral browser voice capture lifecycle with injected media, timer, cue, and transport seams.",
+  "assetKind": "hook",
+  "tags": ["voice", "microphone", "accessibility", "lifecycle"],
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native", "reason": "The hook has no visual surface and is intentionally token-agnostic." }],
+  "latest": "1.0.0",
+  "dependencies": []
+}

@@ -5,7 +5,10 @@ import { fileURLToPath } from "node:url";
 
 const uiDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scenarioDir = path.resolve(uiDir, "..");
-const componentsDir = path.join(scenarioDir, "library", "components");
+const assetRoots = [
+  path.join(scenarioDir, "library", "components"),
+  path.join(scenarioDir, "library", "hooks"),
+];
 const eslintBin = path.join(uiDir, "node_modules", "eslint", "bin", "eslint.js");
 const generatedTSConfig = path.join(uiDir, ".catalog-tsconfig.generated.json");
 
@@ -61,9 +64,9 @@ function versionPaths(manifestPath) {
 }
 
 function catalogFiles() {
-  return readdirSync(componentsDir, { withFileTypes: true })
+  return assetRoots.flatMap((assetRoot) => readdirSync(assetRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .flatMap((entry) => versionPaths(path.join(componentsDir, entry.name, "component.json")))
+    .flatMap((entry) => versionPaths(path.join(assetRoot, entry.name, "component.json"))))
     .sort((a, b) => a.uiRelative.localeCompare(b.uiRelative));
 }
 

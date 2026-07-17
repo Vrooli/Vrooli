@@ -326,6 +326,15 @@ never domain-specific interfaces.
 
 ## UI-side seams
 
+### `useVoiceInput` browser lifecycle
+
+| | |
+|---|---|
+| **Seam** | `VoiceInputMedia`, `VoiceInputCapture`, `VoiceInputClock`, `VoiceInputCues`, and `VoiceInputAdapter` in the versioned hook. |
+| **Production wiring** | An adopter supplies browser `getUserMedia`/track handling, monotonic timers, optional cue playback, and its same-origin adapter. RCL owns no backend endpoint, provider, or settings store. |
+| **Test fake** | `ui/src/test-utils/voiceInput.ts` supplies deterministic media, track-end, adapter-event, clock, and cue fakes. |
+| **Why it exists** | Browser permission, media ownership, timing, audible feedback, and transport failure must be replayable without a microphone or network. The hook can consequently enforce one owner, one clock, and one terminal funnel. |
+
 The UI uses different mechanisms (Vitest's `vi.mock` hoisting), but
 the goal is the same: production wires once, tests substitute.
 

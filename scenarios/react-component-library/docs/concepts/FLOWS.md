@@ -112,7 +112,56 @@ component machine claims against the BAS accessibility tree.
 6. `setup` is not executed in this flow. It remains an indexed field awaiting
    a separate runtime contract.
 
+## Component Test Contracts
+
+RCL component tests are opt-in, declarative, and version-pinned. Place a
+`test-contract.json` beside the selected version's source and examples. A
+component contract names catalog examples; a hook contract names fixtures.
+The runner resolves the manifest dependency closure in pinned order, checks the
+restricted action/assertion vocabulary, and persists a normalized report.
+
+```sh
+react-component-library components test <component-id> --version 1.0.0 --closure true
+react-component-library components test-list <component-id>
+react-component-library components test-show <report-id>
+react-component-library components test-rerun <report-id>
+```
+
+No contract can name a file, command, or arbitrary setup. In particular,
+`examples.setup` is preview data and is never executed by the test runner. An
+asset without a contract stays previewable and is reported as **blocked**
+(uncovered), never as a passing test. Test Genie owns the scenario-level
+provider phase; the catalog Test tab exposes the same durable report history.
+Report URLs use `?tab=tests&testReport=<report-id>` so a durable CLI report can
+be opened directly in the catalog. The preview browser sweep evaluates each
+indexed example's safe role, text, and attribute expectations against the
+rendered iframe DOM in both light and dark modes.
+
 ## Deferred Flows
+
+## Voice Input Capability
+
+`useVoiceInput` and `VoiceInputButton` are a linked, RCL-only capability. The
+hook owns one browser capture owner, one timeout clock, and one idempotent
+terminal funnel. Its injected adapter owns same-origin transport; an adopter
+owns settings, transcript placement, and domain actions. The capability never
+imports a scenario endpoint, provider, resource, or audio-capture package.
+
+1. `start` acquires the injected media capture, subscribes to device-end, then
+   connects the injected adapter. A start cue follows only after recording is
+   active; there is no prewarm path.
+2. In `always-on` mode, settled segments are forwarded in arrival order and
+   silence is a segment boundary, never a capture stop. In `timeout` mode the
+   injected clock is the sole countdown owner.
+3. Explicit stop, timer expiry, device end, permission denial, and adapter
+   failure all converge on one cleanup operation. It clears the timer,
+   unsubscribes, stops the capture/adapter, and emits at most one stop cue.
+4. Catalog examples are controlled, fake-backed visual specimens. They never
+   request microphone permission or execute example setup in the preview iframe.
+
+Web-console adoption, durable audio-tools streaming/recovery, provider/resource
+simplification, and deletion of copied implementations remain follow-on work
+after explicit user approval of the manual RCL checklist.
 
 | Flow | Risk | Next Step |
 |---|---|---|
