@@ -10,8 +10,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-
 // REPO DOMAIN — repository status (Connect-RPC surface)
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain repo
 // @stability beta
 //
 // RepoService is the Connect-RPC landing surface for repo identity and

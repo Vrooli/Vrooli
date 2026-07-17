@@ -186,4 +186,27 @@ message CaptureResponse {
   // needing the snapshot must treat empty as a failed capture).
   // Size-capped server-side (2 MiB); truncation is silent.
   string accessibility_json = 7;
+
+  // Readiness decision and outcome for this capture. This makes it explicit
+  // whether capture used a caller wait, a declared profile surface, or normal
+  // generic navigation fallback.
+  CaptureReadinessDiagnostics readiness = 8;
+}
+
+message CaptureReadinessDiagnostics {
+  string requested_strategy = 1;
+  string selected_strategy = 2;
+  string outcome = 3;
+  int64 duration_ms = 4;
+  string fallback_reason = 5;
+  string profile_version = 6;
+  string route = 7;
+  repeated string required_surface_ids = 8;
+  // Driver-observed duration of the navigation operation itself. This stays
+  // distinct from readiness so a slow route can be diagnosed without
+  // mistaking navigation timeout policy for functional settling.
+  int64 navigation_duration_ms = 9;
+  // Sum of explicit or declared post-navigation wait steps observed in the
+  // exported execution timeline.
+  int64 readiness_wait_duration_ms = 10;
 }

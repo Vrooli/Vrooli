@@ -15,6 +15,7 @@ import (
 	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/cpkeys"
 	"vrooli-bridge/internal/cprev"
+	"vrooli-bridge/internal/hostbroker"
 	"vrooli-bridge/internal/modules"
 	"vrooli-bridge/internal/nodeauth"
 	internalonboard "vrooli-bridge/internal/onboard"
@@ -23,6 +24,7 @@ import (
 	"vrooli-bridge/internal/presence"
 	internalprovision "vrooli-bridge/internal/provision"
 	internalqueue "vrooli-bridge/internal/queue"
+	internalreadiness "vrooli-bridge/internal/readiness"
 	internalregistry "vrooli-bridge/internal/registry"
 	internalruns "vrooli-bridge/internal/runs"
 	"vrooli-bridge/internal/server"
@@ -48,6 +50,7 @@ import (
 	pairingH "vrooli-bridge/handlers/pairing"
 	provisionH "vrooli-bridge/handlers/provision"
 	queueH "vrooli-bridge/handlers/queue"
+	readinessH "vrooli-bridge/handlers/readiness"
 	registryH "vrooli-bridge/handlers/registry"
 	runsH "vrooli-bridge/handlers/runs"
 )
@@ -203,13 +206,24 @@ func bootstrapScriptPath() (string, error) {
 // control plane when neither the request nor BRIDGE_CONTROL_PLANE_URL names
 // one. It pairs the primary outbound IP (reachable from LAN nodes, unlike
 // localhost) with the port this process serves on — the same API_PORT
-// resolution api-core/server uses (default 8080).
+// resolution api-core/server uses. The Bridge manifest reserves 18767; retain
+// the same value here for direct binary runs outside lifecycle injection.
 func deriveControlPlaneURL() string {
 	port := strings.TrimSpace(os.Getenv("API_PORT"))
 	if port == "" {
-		port = "8080"
+		port = "18767"
 	}
 	return "http://" + net.JoinHostPort(outboundIP(), port)
+}
+
+func canonicalControlPlaneEndpoint() (string, string) {
+	if configured := strings.TrimSpace(os.Getenv("BRIDGE_CONTROL_PLANE_URL")); configured != "" {
+		return configured, "configured"
+	}
+	if tunnel := strings.TrimSpace(os.Getenv("BRIDGE_TUNNEL_URL")); tunnel != "" {
+		return tunnel, "tunnel"
+	}
+	return deriveControlPlaneURL(), "derived"
 }
 
 // outboundIP returns the IP of the interface holding the default route. The
@@ -379,20 +393,30 @@ func main() {
 	// same checkout the revision resolver reads (BRIDGE_CP_REPO_DIR or the process
 	// working directory). The node-revision recorder stamps the node record with the
 	// provenance the op brought it to so `nodes`/fleet UI render a dirty node loudly.
+	readinessEndpoint, readinessSource := canonicalControlPlaneEndpoint()
+	fallbackMode := "lan"
+	if readinessSource == "tunnel" {
+		fallbackMode = "tunnel"
+	}
+	endpointStore := internalreadiness.NewStore(db, internalreadiness.Endpoint{URL: readinessEndpoint, Mode: fallbackMode, Source: readinessSource})
 	onboardOpts := []internalonboard.Option{
 		internalonboard.WithRevisionResolver(revResolver),
 		internalonboard.WithWorkingTreeSource(internalonboard.NewWorkingTreeSource(strings.TrimSpace(os.Getenv("BRIDGE_CP_REPO_DIR")))),
 		internalonboard.WithArtifactBuilder(internalonboard.NewArtifactBuilder()),
 		internalonboard.WithNodeRevisionRecorder(onboardH.NewNodeRevisionRecorder(registrySvc)),
+		internalonboard.WithEndpointResolver(func(ctx context.Context) (string, string, error) {
+			selected, err := endpointStore.Resolve(ctx)
+			return selected.URL, selected.Mode, err
+		}),
 	}
-	if cpURL := strings.TrimSpace(os.Getenv("BRIDGE_CONTROL_PLANE_URL")); cpURL != "" {
+	if cpURL, source := canonicalControlPlaneEndpoint(); source == "configured" {
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(cpURL))
 	} else {
 		// Zero-config default: the control plane knows its own address, so a
 		// bare start (no env, no per-request control_plane_url) must still
 		// onboard instead of failing validation. Per-request and env values
 		// always win over this derivation.
-		derived := deriveControlPlaneURL()
+		derived := cpURL
 		log.Printf("onboard: default control-plane URL derived as %s (override per request or with BRIDGE_CONTROL_PLANE_URL)", derived)
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(derived))
 	}
@@ -412,6 +436,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.Module(db, "vrooli-bridge-api", "1.0.0"),
+		readinessH.Module(db, onboardSvc, endpointStore, true, internalonboard.NewUFWObserver(), hostbroker.NewSocketClient()),
 		// identity: same-origin owner sign-in / registration facade. The browser
 		// never calls scenario-authenticator cross-origin; it calls this bridge RPC,
 		// which forwards to the authenticator (resolved by name via the shared

@@ -46,3 +46,9 @@ For scenario-specific runtime expectations:
 ## Status
 
 This page is intentionally conservative until a fuller environment-and-secrets rewrite happens, but it is still the canonical project-level reference for the current posture.
+
+## Platform evidence
+
+Platform-specific setup and lifecycle claims use the canonical
+[platform support matrix](platform-support.md). In particular, macOS is not
+hardware-qualified merely because a setup or cross-build command is available.

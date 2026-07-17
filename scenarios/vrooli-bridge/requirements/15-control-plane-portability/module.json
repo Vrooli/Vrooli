@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Control plane runs on macOS/Windows hosts; bridge written portable day one, full support gated on platform portability (P2).",
-    "last_validated_at": "2026-06-18T12:37:44-04:00",
+    "last_validated_at": "2026-07-17T01:25:19-04:00",
     "module": "control-plane-portability",
     "prd_ref": "OT-P2-001",
     "priority": "P2",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P2-001",
       "title": "Control Plane on macOS / Windows",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "category": "core",
       "description": "The control plane itself runs on a macOS or Windows host, not only Linux. Bridge is written cross-platform from day one so it is never the blocker, but full support is gated on Vrooli-the-platform becoming installable/runnable on those OSes (a separate project-level track outside this scenario's scope). P2: designed and recorded as a future seam, not built here.",
@@ -20,7 +20,7 @@
           "type": "manual",
           "ref": "docs/internal/PROBLEMS.md",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Recorded as a future seam (OT-P2-001) in the Phase 6 P2 table: bridge is written CGO_ENABLED=0 + cross-compiles for the full OS×arch matrix so it is never the blocker; the Mac/Win control plane itself is gated on the platform track. See also docs/internal/DECISIONS.md (single-owner fleet; control-plane-on-Mac/Windows is gated P2)."
         }
       ]

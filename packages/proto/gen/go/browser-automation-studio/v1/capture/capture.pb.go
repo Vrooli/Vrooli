@@ -564,8 +564,12 @@ type CaptureResponse struct {
 	// needing the snapshot must treat empty as a failed capture).
 	// Size-capped server-side (2 MiB); truncation is silent.
 	AccessibilityJson string `protobuf:"bytes,7,opt,name=accessibility_json,json=accessibilityJson,proto3" json:"accessibility_json,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Readiness decision and outcome for this capture. This makes it explicit
+	// whether capture used a caller wait, a declared profile surface, or normal
+	// generic navigation fallback.
+	Readiness     *CaptureReadinessDiagnostics `protobuf:"bytes,8,opt,name=readiness,proto3" json:"readiness,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CaptureResponse) Reset() {
@@ -647,6 +651,134 @@ func (x *CaptureResponse) GetAccessibilityJson() string {
 	return ""
 }
 
+func (x *CaptureResponse) GetReadiness() *CaptureReadinessDiagnostics {
+	if x != nil {
+		return x.Readiness
+	}
+	return nil
+}
+
+type CaptureReadinessDiagnostics struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	RequestedStrategy  string                 `protobuf:"bytes,1,opt,name=requested_strategy,json=requestedStrategy,proto3" json:"requested_strategy,omitempty"`
+	SelectedStrategy   string                 `protobuf:"bytes,2,opt,name=selected_strategy,json=selectedStrategy,proto3" json:"selected_strategy,omitempty"`
+	Outcome            string                 `protobuf:"bytes,3,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	DurationMs         int64                  `protobuf:"varint,4,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	FallbackReason     string                 `protobuf:"bytes,5,opt,name=fallback_reason,json=fallbackReason,proto3" json:"fallback_reason,omitempty"`
+	ProfileVersion     string                 `protobuf:"bytes,6,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	Route              string                 `protobuf:"bytes,7,opt,name=route,proto3" json:"route,omitempty"`
+	RequiredSurfaceIds []string               `protobuf:"bytes,8,rep,name=required_surface_ids,json=requiredSurfaceIds,proto3" json:"required_surface_ids,omitempty"`
+	// Driver-observed duration of the navigation operation itself. This stays
+	// distinct from readiness so a slow route can be diagnosed without
+	// mistaking navigation timeout policy for functional settling.
+	NavigationDurationMs int64 `protobuf:"varint,9,opt,name=navigation_duration_ms,json=navigationDurationMs,proto3" json:"navigation_duration_ms,omitempty"`
+	// Sum of explicit or declared post-navigation wait steps observed in the
+	// exported execution timeline.
+	ReadinessWaitDurationMs int64 `protobuf:"varint,10,opt,name=readiness_wait_duration_ms,json=readinessWaitDurationMs,proto3" json:"readiness_wait_duration_ms,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *CaptureReadinessDiagnostics) Reset() {
+	*x = CaptureReadinessDiagnostics{}
+	mi := &file_browser_automation_studio_v1_capture_capture_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureReadinessDiagnostics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureReadinessDiagnostics) ProtoMessage() {}
+
+func (x *CaptureReadinessDiagnostics) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_capture_capture_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureReadinessDiagnostics.ProtoReflect.Descriptor instead.
+func (*CaptureReadinessDiagnostics) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_capture_capture_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CaptureReadinessDiagnostics) GetRequestedStrategy() string {
+	if x != nil {
+		return x.RequestedStrategy
+	}
+	return ""
+}
+
+func (x *CaptureReadinessDiagnostics) GetSelectedStrategy() string {
+	if x != nil {
+		return x.SelectedStrategy
+	}
+	return ""
+}
+
+func (x *CaptureReadinessDiagnostics) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *CaptureReadinessDiagnostics) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *CaptureReadinessDiagnostics) GetFallbackReason() string {
+	if x != nil {
+		return x.FallbackReason
+	}
+	return ""
+}
+
+func (x *CaptureReadinessDiagnostics) GetProfileVersion() string {
+	if x != nil {
+		return x.ProfileVersion
+	}
+	return ""
+}
+
+func (x *CaptureReadinessDiagnostics) GetRoute() string {
+	if x != nil {
+		return x.Route
+	}
+	return ""
+}
+
+func (x *CaptureReadinessDiagnostics) GetRequiredSurfaceIds() []string {
+	if x != nil {
+		return x.RequiredSurfaceIds
+	}
+	return nil
+}
+
+func (x *CaptureReadinessDiagnostics) GetNavigationDurationMs() int64 {
+	if x != nil {
+		return x.NavigationDurationMs
+	}
+	return 0
+}
+
+func (x *CaptureReadinessDiagnostics) GetReadinessWaitDurationMs() int64 {
+	if x != nil {
+		return x.ReadinessWaitDurationMs
+	}
+	return 0
+}
+
 var File_browser_automation_studio_v1_capture_capture_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
@@ -690,7 +822,7 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\bmetadata\x18\x04 \x03(\v2C.browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa6\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x87\x03\n" +
 	"\x0fCaptureResponse\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x17\n" +
 	"\aout_dir\x18\x02 \x01(\tR\x06outDir\x12S\n" +
@@ -699,7 +831,21 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"durationMs\x12\x17\n" +
 	"\adry_run\x18\x05 \x01(\bR\x06dryRun\x12\x19\n" +
 	"\bdom_html\x18\x06 \x01(\tR\adomHtml\x12-\n" +
-	"\x12accessibility_json\x18\a \x01(\tR\x11accessibilityJson*\xed\x01\n" +
+	"\x12accessibility_json\x18\a \x01(\tR\x11accessibilityJson\x12_\n" +
+	"\treadiness\x18\b \x01(\v2A.browser_automation_studio.v1.capture.CaptureReadinessDiagnosticsR\treadiness\"\xc1\x03\n" +
+	"\x1bCaptureReadinessDiagnostics\x12-\n" +
+	"\x12requested_strategy\x18\x01 \x01(\tR\x11requestedStrategy\x12+\n" +
+	"\x11selected_strategy\x18\x02 \x01(\tR\x10selectedStrategy\x12\x18\n" +
+	"\aoutcome\x18\x03 \x01(\tR\aoutcome\x12\x1f\n" +
+	"\vduration_ms\x18\x04 \x01(\x03R\n" +
+	"durationMs\x12'\n" +
+	"\x0ffallback_reason\x18\x05 \x01(\tR\x0efallbackReason\x12'\n" +
+	"\x0fprofile_version\x18\x06 \x01(\tR\x0eprofileVersion\x12\x14\n" +
+	"\x05route\x18\a \x01(\tR\x05route\x120\n" +
+	"\x14required_surface_ids\x18\b \x03(\tR\x12requiredSurfaceIds\x124\n" +
+	"\x16navigation_duration_ms\x18\t \x01(\x03R\x14navigationDurationMs\x12;\n" +
+	"\x1areadiness_wait_duration_ms\x18\n" +
+	" \x01(\x03R\x17readinessWaitDurationMs*\xed\x01\n" +
 	"\vCaptureType\x12\x1c\n" +
 	"\x18CAPTURE_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17CAPTURE_TYPE_SCREENSHOT\x10\x01\x12\x1d\n" +
@@ -730,16 +876,17 @@ func file_browser_automation_studio_v1_capture_capture_proto_rawDescGZIP() []byt
 }
 
 var file_browser_automation_studio_v1_capture_capture_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_browser_automation_studio_v1_capture_capture_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_browser_automation_studio_v1_capture_capture_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_browser_automation_studio_v1_capture_capture_proto_goTypes = []any{
-	(CaptureType)(0),        // 0: browser_automation_studio.v1.capture.CaptureType
-	(DimensionsPreset)(0),   // 1: browser_automation_studio.v1.capture.DimensionsPreset
-	(*Dimensions)(nil),      // 2: browser_automation_studio.v1.capture.Dimensions
-	(*WaitFor)(nil),         // 3: browser_automation_studio.v1.capture.WaitFor
-	(*CaptureRequest)(nil),  // 4: browser_automation_studio.v1.capture.CaptureRequest
-	(*CaptureArtifact)(nil), // 5: browser_automation_studio.v1.capture.CaptureArtifact
-	(*CaptureResponse)(nil), // 6: browser_automation_studio.v1.capture.CaptureResponse
-	nil,                     // 7: browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntry
+	(CaptureType)(0),                    // 0: browser_automation_studio.v1.capture.CaptureType
+	(DimensionsPreset)(0),               // 1: browser_automation_studio.v1.capture.DimensionsPreset
+	(*Dimensions)(nil),                  // 2: browser_automation_studio.v1.capture.Dimensions
+	(*WaitFor)(nil),                     // 3: browser_automation_studio.v1.capture.WaitFor
+	(*CaptureRequest)(nil),              // 4: browser_automation_studio.v1.capture.CaptureRequest
+	(*CaptureArtifact)(nil),             // 5: browser_automation_studio.v1.capture.CaptureArtifact
+	(*CaptureResponse)(nil),             // 6: browser_automation_studio.v1.capture.CaptureResponse
+	(*CaptureReadinessDiagnostics)(nil), // 7: browser_automation_studio.v1.capture.CaptureReadinessDiagnostics
+	nil,                                 // 8: browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntry
 }
 var file_browser_automation_studio_v1_capture_capture_proto_depIdxs = []int32{
 	1, // 0: browser_automation_studio.v1.capture.Dimensions.preset:type_name -> browser_automation_studio.v1.capture.DimensionsPreset
@@ -747,15 +894,16 @@ var file_browser_automation_studio_v1_capture_capture_proto_depIdxs = []int32{
 	2, // 2: browser_automation_studio.v1.capture.CaptureRequest.dimensions:type_name -> browser_automation_studio.v1.capture.Dimensions
 	3, // 3: browser_automation_studio.v1.capture.CaptureRequest.wait_for:type_name -> browser_automation_studio.v1.capture.WaitFor
 	0, // 4: browser_automation_studio.v1.capture.CaptureArtifact.type:type_name -> browser_automation_studio.v1.capture.CaptureType
-	7, // 5: browser_automation_studio.v1.capture.CaptureArtifact.metadata:type_name -> browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntry
+	8, // 5: browser_automation_studio.v1.capture.CaptureArtifact.metadata:type_name -> browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntry
 	5, // 6: browser_automation_studio.v1.capture.CaptureResponse.artifacts:type_name -> browser_automation_studio.v1.capture.CaptureArtifact
-	4, // 7: browser_automation_studio.v1.capture.CaptureService.Capture:input_type -> browser_automation_studio.v1.capture.CaptureRequest
-	6, // 8: browser_automation_studio.v1.capture.CaptureService.Capture:output_type -> browser_automation_studio.v1.capture.CaptureResponse
-	8, // [8:9] is the sub-list for method output_type
-	7, // [7:8] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	7, // 7: browser_automation_studio.v1.capture.CaptureResponse.readiness:type_name -> browser_automation_studio.v1.capture.CaptureReadinessDiagnostics
+	4, // 8: browser_automation_studio.v1.capture.CaptureService.Capture:input_type -> browser_automation_studio.v1.capture.CaptureRequest
+	6, // 9: browser_automation_studio.v1.capture.CaptureService.Capture:output_type -> browser_automation_studio.v1.capture.CaptureResponse
+	9, // [9:10] is the sub-list for method output_type
+	8, // [8:9] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_capture_capture_proto_init() }
@@ -775,7 +923,7 @@ func file_browser_automation_studio_v1_capture_capture_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_capture_capture_proto_rawDesc), len(file_browser_automation_studio_v1_capture_capture_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

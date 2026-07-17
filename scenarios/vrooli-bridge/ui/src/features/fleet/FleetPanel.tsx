@@ -21,7 +21,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { NodeStatus, type Node } from "../../api/nodes";
 import { OnboardingStepStatus, type OnboardingOp } from "../../api/onboard";
 import { type NodeQueue } from "../../api/queue";
-import { useFailedOnboardingsQuery, useFleetQueueQuery, useNodesQuery, useOnboardingQuery, useRemoveFailedOnboardingMutation, useRevokeNodeMutation } from "./queries";
+import { useBridgeFirewallActionMutation, useBridgeReadinessQuery, useFailedOnboardingsQuery, useFleetQueueQuery, useNodesQuery, useOnboardingQuery, useRemoveFailedOnboardingMutation, useRevokeNodeMutation } from "./queries";
 
 const STATUS_LABEL = {
   [NodeStatus.UNSPECIFIED]: strings.fleet.status.unspecified,
@@ -182,6 +182,8 @@ export function FleetPanel({
   const nodesQuery = useNodesQuery();
   const queueQuery = useFleetQueueQuery();
   const failedOnboardingsQuery = useFailedOnboardingsQuery();
+  const readinessQuery = useBridgeReadinessQuery();
+  const firewallAction = useBridgeFirewallActionMutation();
   const removeFailedOnboarding = useRemoveFailedOnboardingMutation();
   const revoke = useRevokeNodeMutation();
   const hasNodes = (nodesQuery.data?.length ?? 0) > 0;
@@ -220,6 +222,45 @@ export function FleetPanel({
           </Button>
         )}
       </div>
+
+      {readinessQuery.data && (
+        <section data-testid={selectors.fleet.bridgeReadiness} className="mt-3 rounded-control border border-app-border bg-app-background p-3">
+          <h4 className="text-sm font-semibold text-app-foreground">{t(strings.fleet.bridgeReadinessHeading)}</h4>
+          <p className={readinessQuery.data.status === "ready" ? "mt-1 text-xs text-app-success" : "mt-1 text-xs text-app-danger"}>
+            {t(readinessQuery.data.status === "ready" ? strings.fleet.bridgeReadinessReady : readinessQuery.data.status === "candidate_blocked" ? strings.fleet.bridgeReadinessCandidateBlocked : strings.fleet.bridgeReadinessNotReady)}
+          </p>
+          <p className="mt-1 break-all text-xs text-app-muted-foreground">
+            {t(strings.fleet.bridgeReadinessEndpoint, { endpoint: readinessQuery.data.endpoint, source: readinessQuery.data.endpoint_source })}
+          </p>
+          <p className="mt-1 text-xs text-app-muted-foreground">
+            {t(strings.fleet.bridgeReadinessMode, { mode: readinessQuery.data.reachability_mode })}
+          </p>
+          {readinessQuery.data.firewall ? (
+            <p className="mt-1 text-xs text-app-muted-foreground">
+              {t(strings.fleet.bridgeReadinessFirewall, { state: readinessQuery.data.firewall.broker_available ? readinessQuery.data.firewall.broker_status ?? "available" : "unavailable" })}
+            </p>
+          ) : null}
+          {readinessQuery.data.status === "candidate_blocked" && readinessQuery.data.last_candidate?.source_ip ? (
+            <div className="mt-2 rounded-control border border-app-warning/40 bg-app-warning/10 p-2 text-xs text-app-foreground">
+              <p>{t(strings.fleet.bridgeReadinessRemediation, { host: readinessQuery.data.last_candidate.host, source: readinessQuery.data.last_candidate.source_ip })}</p>
+              {readinessQuery.data.firewall?.broker_available ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button size="sm" type="button" variant="outline" disabled={firewallAction.isPending} onClick={() => firewallAction.mutate({ action: "preview", candidateIP: readinessQuery.data!.last_candidate!.source_ip!, confirm: false })}>{t(strings.fleet.bridgeReadinessPreview)}</Button>
+                  <Button size="sm" type="button" disabled={firewallAction.isPending} onClick={() => firewallAction.mutate({ action: "verify", candidateIP: readinessQuery.data!.last_candidate!.source_ip!, confirm: false })}>{t(strings.fleet.bridgeReadinessVerify)}</Button>
+                  <Button size="sm" type="button" disabled={firewallAction.isPending} onClick={() => {
+                    if (window.confirm(t(strings.fleet.bridgeReadinessAllowConfirm, { source: readinessQuery.data!.last_candidate!.source_ip! }))) firewallAction.mutate({ action: "allow", candidateIP: readinessQuery.data!.last_candidate!.source_ip!, confirm: true });
+                  }}>{t(strings.fleet.bridgeReadinessAllow)}</Button>
+                  {readinessQuery.data.firewall.rule_found ? <Button size="sm" type="button" variant="outline" disabled={firewallAction.isPending} onClick={() => {
+                    if (window.confirm(t(strings.fleet.bridgeReadinessRevokeConfirm, { source: readinessQuery.data!.last_candidate!.source_ip! }))) firewallAction.mutate({ action: "revoke", candidateIP: readinessQuery.data!.last_candidate!.source_ip!, confirm: true });
+                  }}>{t(strings.fleet.bridgeReadinessRevoke)}</Button> : null}
+                </div>
+              ) : <p className="mt-1 text-app-muted-foreground">{t(strings.fleet.bridgeReadinessBrokerUnavailable)}</p>}
+              {firewallAction.data ? <p className="mt-1 text-app-muted-foreground">{t(strings.fleet.bridgeReadinessActionResult, { status: firewallAction.data.status })}</p> : null}
+              {firewallAction.error ? <p className="mt-1 text-app-danger">{errorMessage(firewallAction.error, t)}</p> : null}
+            </div>
+          ) : null}
+        </section>
+      )}
 
       {nodesQuery.isLoading && (
         <p data-testid={selectors.fleet.loading} className="mt-3 text-sm text-app-muted-foreground">

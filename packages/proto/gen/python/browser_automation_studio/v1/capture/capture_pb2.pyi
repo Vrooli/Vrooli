@@ -102,7 +102,7 @@ class CaptureArtifact(_message.Message):
     def __init__(self, type: _Optional[_Union[CaptureType, str]] = ..., path: _Optional[str] = ..., size_bytes: _Optional[int] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class CaptureResponse(_message.Message):
-    __slots__ = ("execution_id", "out_dir", "artifacts", "duration_ms", "dry_run", "dom_html", "accessibility_json")
+    __slots__ = ("execution_id", "out_dir", "artifacts", "duration_ms", "dry_run", "dom_html", "accessibility_json", "readiness")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     OUT_DIR_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
@@ -110,6 +110,7 @@ class CaptureResponse(_message.Message):
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     DOM_HTML_FIELD_NUMBER: _ClassVar[int]
     ACCESSIBILITY_JSON_FIELD_NUMBER: _ClassVar[int]
+    READINESS_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     out_dir: str
     artifacts: _containers.RepeatedCompositeFieldContainer[CaptureArtifact]
@@ -117,4 +118,29 @@ class CaptureResponse(_message.Message):
     dry_run: bool
     dom_html: str
     accessibility_json: str
-    def __init__(self, execution_id: _Optional[str] = ..., out_dir: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[CaptureArtifact, _Mapping]]] = ..., duration_ms: _Optional[int] = ..., dry_run: _Optional[bool] = ..., dom_html: _Optional[str] = ..., accessibility_json: _Optional[str] = ...) -> None: ...
+    readiness: CaptureReadinessDiagnostics
+    def __init__(self, execution_id: _Optional[str] = ..., out_dir: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[CaptureArtifact, _Mapping]]] = ..., duration_ms: _Optional[int] = ..., dry_run: _Optional[bool] = ..., dom_html: _Optional[str] = ..., accessibility_json: _Optional[str] = ..., readiness: _Optional[_Union[CaptureReadinessDiagnostics, _Mapping]] = ...) -> None: ...
+
+class CaptureReadinessDiagnostics(_message.Message):
+    __slots__ = ("requested_strategy", "selected_strategy", "outcome", "duration_ms", "fallback_reason", "profile_version", "route", "required_surface_ids", "navigation_duration_ms", "readiness_wait_duration_ms")
+    REQUESTED_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_REASON_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_VERSION_FIELD_NUMBER: _ClassVar[int]
+    ROUTE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_SURFACE_IDS_FIELD_NUMBER: _ClassVar[int]
+    NAVIGATION_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    READINESS_WAIT_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    requested_strategy: str
+    selected_strategy: str
+    outcome: str
+    duration_ms: int
+    fallback_reason: str
+    profile_version: str
+    route: str
+    required_surface_ids: _containers.RepeatedScalarFieldContainer[str]
+    navigation_duration_ms: int
+    readiness_wait_duration_ms: int
+    def __init__(self, requested_strategy: _Optional[str] = ..., selected_strategy: _Optional[str] = ..., outcome: _Optional[str] = ..., duration_ms: _Optional[int] = ..., fallback_reason: _Optional[str] = ..., profile_version: _Optional[str] = ..., route: _Optional[str] = ..., required_surface_ids: _Optional[_Iterable[str]] = ..., navigation_duration_ms: _Optional[int] = ..., readiness_wait_duration_ms: _Optional[int] = ...) -> None: ...

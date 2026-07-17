@@ -311,7 +311,7 @@ class InitializeComponentResponse(_message.Message):
     def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., manifest_path: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
 
 class IngestComponentRequest(_message.Message):
-    __slots__ = ("scenario", "source_file", "slug", "display_name", "description", "tags", "slot", "source_files", "version", "accept_behavior_loss")
+    __slots__ = ("scenario", "source_file", "slug", "display_name", "description", "tags", "slot", "source_files", "version", "accept_behavior_loss", "experience_contract_path")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FILE_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
@@ -322,6 +322,7 @@ class IngestComponentRequest(_message.Message):
     SOURCE_FILES_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     ACCEPT_BEHAVIOR_LOSS_FIELD_NUMBER: _ClassVar[int]
+    EXPERIENCE_CONTRACT_PATH_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     source_file: str
     slug: str
@@ -332,7 +333,8 @@ class IngestComponentRequest(_message.Message):
     source_files: _containers.RepeatedScalarFieldContainer[str]
     version: str
     accept_behavior_loss: bool
-    def __init__(self, scenario: _Optional[str] = ..., source_file: _Optional[str] = ..., slug: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., slot: _Optional[str] = ..., source_files: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., accept_behavior_loss: _Optional[bool] = ...) -> None: ...
+    experience_contract_path: str
+    def __init__(self, scenario: _Optional[str] = ..., source_file: _Optional[str] = ..., slug: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., slot: _Optional[str] = ..., source_files: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., accept_behavior_loss: _Optional[bool] = ..., experience_contract_path: _Optional[str] = ...) -> None: ...
 
 class IngestFinding(_message.Message):
     __slots__ = ("code", "message", "source_file")

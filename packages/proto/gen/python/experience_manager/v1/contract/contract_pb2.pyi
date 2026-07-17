@@ -119,6 +119,24 @@ class ScaffoldCasesResponse(_message.Message):
     messages: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, scenario: _Optional[str] = ..., applied: _Optional[bool] = ..., diffs: _Optional[_Iterable[_Union[FileDiff, _Mapping]]] = ..., messages: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class GetReadinessProfileRequest(_message.Message):
+    __slots__ = ("scenario", "path")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    path: str
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
+
+class GetReadinessProfileResponse(_message.Message):
+    __slots__ = ("scenario", "profile_json", "profile_version")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_JSON_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_VERSION_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    profile_json: str
+    profile_version: str
+    def __init__(self, scenario: _Optional[str] = ..., profile_json: _Optional[str] = ..., profile_version: _Optional[str] = ...) -> None: ...
+
 class ManualAttestation(_message.Message):
     __slots__ = ("id", "scenario", "page", "claim", "author", "rationale", "expires_at", "created_at")
     ID_FIELD_NUMBER: _ClassVar[int]

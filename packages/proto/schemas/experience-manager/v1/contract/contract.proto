@@ -32,6 +32,9 @@ service ContractService {
   rpc AppendAttestation(AppendAttestationRequest) returns (AppendAttestationResponse);
   // ScaffoldCases derives BAS case stubs from active experience page specs.
   rpc ScaffoldCases(ScaffoldCasesRequest) returns (ScaffoldCasesResponse);
+  // GetReadinessProfile compiles the authored experience contract into the
+  // single route/region readiness projection consumed by automation clients.
+  rpc GetReadinessProfile(GetReadinessProfileRequest) returns (GetReadinessProfileResponse);
 }
 
 // StudioSessionService is the form-shaped authoring surface for experience/
@@ -124,6 +127,17 @@ message ScaffoldCasesResponse {
   bool applied = 2;
   repeated FileDiff diffs = 3;
   repeated string messages = 4;
+}
+
+message GetReadinessProfileRequest {
+  string scenario = 1;
+  string path = 2;
+}
+
+message GetReadinessProfileResponse {
+  string scenario = 1;
+  string profile_json = 2;
+  string profile_version = 3;
 }
 
 message ManualAttestation {

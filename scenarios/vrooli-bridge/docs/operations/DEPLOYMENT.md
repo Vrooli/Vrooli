@@ -42,6 +42,16 @@ Use this document to answer:
 | Per-node agent service (Windows) | gated | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a Windows Service | Service unit is render-only (`sc.exe create` argv); live install/onboarding on Windows is not yet exercised. |
 | Control plane on macOS | build-verified | Vrooli-the-platform installable/runnable on macOS | Real-Mac qualification is still required; Bridge does not add a separate platform gate. See the [platform support matrix](../../../../docs/reference/platform-support.md). |
 | Control plane on Windows | gated P2 | Vrooli-the-platform installable/runnable on Windows | Native Windows full-project lifecycle remains outside the current qualification. |
+
+### Bridge advertised endpoint
+
+Bridge reserves API port `18767`. The endpoint selection order is an explicit
+saved owner configuration, `BRIDGE_CONTROL_PLANE_URL`, `BRIDGE_TUNNEL_URL`,
+then a derived LAN address. Set and inspect the saved default through
+`vrooli-bridge readiness configure` and `vrooli-bridge readiness status`.
+`swarminator.local` is only a candidate name an operator may choose; Bridge
+never enables mDNS or silently changes host naming. Tunnel mode is for
+off-LAN/segmented nodes and is never selected automatically after a LAN block.
 | Managed cloud / SaaS | out of scope (v1) | — | Bridge is single-owner fleet infrastructure, not multi-tenant SaaS. |
 
 Today's deployment tier is the **Tier 1 local stack** described in the
@@ -53,7 +63,9 @@ Vrooli install plus the node-agent service.
 
 ### Control plane
 
-- API port: assigned by lifecycle as `API_PORT` (Connect-RPC + SSE dial-out edge).
+- API port: fixed at **18767** by the Bridge service manifest (and injected as
+  `API_PORT`). This stable control-plane port is the only LAN firewall port a
+  candidate needs; lifecycle fails rather than silently moving it on collision.
 - UI port: assigned by lifecycle as `UI_PORT` (React fleet dashboard).
 - Storage: SQLite via `api-core/storage` (`SQLITE_PATH`) holding control-plane
   metadata — nodes, pairings, capability snapshots, jobs, dispatch and

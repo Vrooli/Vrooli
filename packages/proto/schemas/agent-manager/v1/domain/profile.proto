@@ -187,6 +187,9 @@ message ResultSpec {
   repeated string classification_values = 5;
   StructuredExtractionMode extraction_mode = 6;
   string extraction_role = 7;
+  // Omitted means the workflow-safe default of one corrective continuation;
+  // zero disables schema repair.
+  optional int32 schema_repair_attempts = 8;
 }
 
 message RunConfig {

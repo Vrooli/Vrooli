@@ -34,6 +34,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridg
 // Consumed by:
 //   - API: handlers/identity/connect_handler.go
 //   - UI:  ui/src/features/session/ (sign in / create account)
+//   - CLI: cli/domains/auth/ (sign in for owner-gated commands)
 // =============================================================================
 
 service IdentityService {

@@ -133,6 +133,8 @@ func (f *FakeRepository) Update(_ context.Context, op onboard.Op) (onboard.Op, e
 	existing.SourceMode = op.SourceMode
 	existing.BaseRevision = op.BaseRevision
 	existing.WorkingTreeDigest = op.WorkingTreeDigest
+	existing.ControlPlaneURL = op.ControlPlaneURL
+	existing.ReachabilityMode = op.ReachabilityMode
 	f.ops[op.ID] = existing
 	return existing, nil
 }
@@ -207,6 +209,9 @@ type FakeSSHDriver struct {
 	CapturedArgs          []string
 	FirstTouchCalls       int
 	CapturedProvisionSudo bool
+	AdmissionResult       onboard.AdmissionResult
+	AdmissionErr          error
+	AdmissionCalls        int
 }
 
 var _ onboard.SSHDriver = (*FakeSSHDriver)(nil)
@@ -235,6 +240,26 @@ func (d *FakeSSHDriver) PushScript(ctx context.Context, _ onboard.Conn) (string,
 		return "", d.PushScriptErr
 	}
 	return "/tmp/bootstrap.sh", nil
+}
+
+// ProbeEndpoint defaults to a successful candidate proof so existing focused
+// onboarding tests describe a reachable control plane unless they opt into a
+// specific admission failure.
+func (d *FakeSSHDriver) ProbeEndpoint(_ context.Context, _ onboard.Conn, endpoint string) (onboard.AdmissionResult, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.AdmissionCalls++
+	if d.AdmissionErr != nil {
+		return d.AdmissionResult, d.AdmissionErr
+	}
+	result := d.AdmissionResult
+	if result.Category == "" {
+		result.Category = onboard.AdmissionPassed
+	}
+	if result.Endpoint == "" {
+		result.Endpoint = endpoint
+	}
+	return result, nil
 }
 
 func (d *FakeSSHDriver) SyncTree(ctx context.Context, p onboard.SyncParams) (onboard.SyncResult, error) {
@@ -321,11 +346,13 @@ type FakeCodeIssuer struct {
 	Code       string
 	Err        error
 	LastParams onboard.IssueParams
+	Calls      int
 }
 
 var _ onboard.CodeIssuer = (*FakeCodeIssuer)(nil)
 
 func (f *FakeCodeIssuer) Issue(_ context.Context, p onboard.IssueParams) ([]byte, error) {
+	f.Calls++
 	f.LastParams = p
 	if f.Err != nil {
 		return nil, f.Err

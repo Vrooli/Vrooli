@@ -430,6 +430,9 @@ type ResultSpec struct {
 	ClassificationValues []string                 `protobuf:"bytes,5,rep,name=classification_values,json=classificationValues,proto3" json:"classification_values,omitempty"`
 	ExtractionMode       StructuredExtractionMode `protobuf:"varint,6,opt,name=extraction_mode,json=extractionMode,proto3,enum=agent_manager.v1.StructuredExtractionMode" json:"extraction_mode,omitempty"`
 	ExtractionRole       string                   `protobuf:"bytes,7,opt,name=extraction_role,json=extractionRole,proto3" json:"extraction_role,omitempty"`
+	// Omitted means the workflow-safe default of one corrective continuation;
+	// zero disables schema repair.
+	SchemaRepairAttempts *int32 `protobuf:"varint,8,opt,name=schema_repair_attempts,json=schemaRepairAttempts,proto3,oneof" json:"schema_repair_attempts,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -511,6 +514,13 @@ func (x *ResultSpec) GetExtractionRole() string {
 		return x.ExtractionRole
 	}
 	return ""
+}
+
+func (x *ResultSpec) GetSchemaRepairAttempts() int32 {
+	if x != nil && x.SchemaRepairAttempts != nil {
+		return *x.SchemaRepairAttempts
+	}
+	return 0
 }
 
 type RunConfig struct {
@@ -1500,7 +1510,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
 	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x13\x10\x14J\x04\b\x16\x10\x17J\x04\b \x10!R\vrunner_typeR\x05modelR\n" +
-	"policy_refR\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_types\"\xcc\x02\n" +
+	"policy_refR\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_types\"\xa2\x03\n" +
 	"\n" +
 	"ResultSpec\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x124\n" +
@@ -1509,7 +1519,9 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\rschema_digest\x18\x04 \x01(\tR\fschemaDigest\x123\n" +
 	"\x15classification_values\x18\x05 \x03(\tR\x14classificationValues\x12S\n" +
 	"\x0fextraction_mode\x18\x06 \x01(\x0e2*.agent_manager.v1.StructuredExtractionModeR\x0eextractionMode\x12'\n" +
-	"\x0fextraction_role\x18\a \x01(\tR\x0eextractionRole\"\x94\b\n" +
+	"\x0fextraction_role\x18\a \x01(\tR\x0eextractionRole\x129\n" +
+	"\x16schema_repair_attempts\x18\b \x01(\x05H\x00R\x14schemaRepairAttempts\x88\x01\x01B\x19\n" +
+	"\x17_schema_repair_attempts\"\x94\b\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
@@ -1726,6 +1738,7 @@ func file_agent_manager_v1_domain_profile_proto_init() {
 		return
 	}
 	file_agent_manager_v1_domain_types_proto_init()
+	file_agent_manager_v1_domain_profile_proto_msgTypes[1].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_profile_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

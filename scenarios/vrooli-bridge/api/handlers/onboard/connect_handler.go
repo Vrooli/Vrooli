@@ -76,6 +76,7 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		RepoURL:              req.Msg.GetRepoUrl(),
 		CheckoutDir:          req.Msg.GetCheckoutDir(),
 		ControlPlaneURL:      req.Msg.GetControlPlaneUrl(),
+		ReachabilityMode:     req.Msg.GetReachabilityMode(),
 		Capabilities:         req.Msg.GetCapabilities(),
 		VerifyTimeoutSeconds: req.Msg.GetVerifyTimeoutSeconds(),
 		SkipSetup:            req.Msg.GetSkipSetup(),

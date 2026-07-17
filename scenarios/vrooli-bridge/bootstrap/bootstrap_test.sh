@@ -415,7 +415,7 @@ run_prebuilt_setup_failure() { # category exit output
   rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$CHECKOUT"
   printf 'shipped tree\n' >"${CHECKOUT}/WORKING.txt"
   PATH="${FAKEBIN}:${TOOLLESS}" HOME="${WORKROOT}/result-home-${category}" \
-  FAKE_VROOLI_RESULT_CATEGORY="$category" FAKE_VROOLI_EXIT=1 BRIDGE_PAIRING_CODE="TESTCODE1234" \
+  FAKE_VROOLI_RESULT_CATEGORY="$category" FAKE_VROOLI_EXIT="$expected_exit" BRIDGE_PAIRING_CODE="TESTCODE1234" \
     bash "$SCRIPT" \
       --control-plane-url "http://cp.test" --node-name "test-node" \
       --checkout-dir "${WORKROOT}/result-checkout-${category}" --source-dir "$CHECKOUT" --source-digest "live-tree-fingerprint" \

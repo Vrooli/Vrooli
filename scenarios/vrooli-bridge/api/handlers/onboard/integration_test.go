@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -69,6 +70,10 @@ func TestOnboarding_FullFlow_ThroughConnectHandler(t *testing.T) {
 	handler := onboardhandler.NewConnectHandler(onboardhandler.Deps{Service: svc})
 
 	sshd := newOnboardSSHD(t, intPassword)
+	// Admission is a real SSH-executed HTTP probe. Serve health on a non-loopback
+	// address so this integration exercises the same remote-reachability gate as
+	// a LAN node rather than relying on an internet hostname.
+	endpoint := startAdmissionHealth(t)
 
 	// Capture slog for the duration so we can assert the secret never reaches it.
 	logs := &syncBuffer{}
@@ -84,7 +89,7 @@ func TestOnboarding_FullFlow_ThroughConnectHandler(t *testing.T) {
 		SshPassword:     intPassword,
 		NodeName:        "web-01",
 		TargetRevision:  "a1b2c3d",
-		ControlPlaneUrl: "https://cp.example.com",
+		ControlPlaneUrl: endpoint,
 		SkipSetup:       true,
 	}))
 	require.NoError(t, err)
@@ -126,6 +131,47 @@ func TestOnboarding_FullFlow_ThroughConnectHandler(t *testing.T) {
 	assertNoSecretLeak(t, d, opID, intPassword)
 	require.NotContains(t, logs.String(), intCode, "pairing code leaked into logs")
 	require.NotContains(t, logs.String(), intPassword, "SSH password leaked into logs")
+}
+
+func startAdmissionHealth(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp4", "0.0.0.0:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ln.Close() })
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})}
+	go func() { _ = server.Serve(ln) }()
+	t.Cleanup(func() { _ = server.Close() })
+	for _, iface := range mustInterfaces(t) {
+		for _, addr := range iface.Addrs {
+			ip, _, splitErr := net.ParseCIDR(addr.String())
+			if splitErr == nil && ip.To4() != nil && !ip.IsLoopback() {
+				return "http://" + net.JoinHostPort(ip.String(), strings.TrimPrefix(ln.Addr().String(), "0.0.0.0:"))
+			}
+		}
+	}
+	t.Fatal("no non-loopback IPv4 address available for admission integration test")
+	return ""
+}
+
+type testInterface struct{ Addrs []net.Addr }
+
+func mustInterfaces(t *testing.T) []testInterface {
+	t.Helper()
+	interfaces, err := net.Interfaces()
+	require.NoError(t, err)
+	out := make([]testInterface, 0, len(interfaces))
+	for _, iface := range interfaces {
+		addrs, addrErr := iface.Addrs()
+		require.NoError(t, addrErr)
+		out = append(out, testInterface{Addrs: addrs})
+	}
+	return out
 }
 
 // TestOnboarding_RestartResume_RealSQLite proves op durability across a

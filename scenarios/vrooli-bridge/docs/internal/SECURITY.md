@@ -188,6 +188,18 @@ Tests: `internal/audit/audit_test.go`,
 `internal/audit/sandbox_integration_test.go`, plus the audit assertions in
 `internal/dispatch/service_test.go`.
 
+## Setup-managed host actions
+
+Bridge firewall remediation crosses a deliberately narrow privilege boundary.
+An elevated `vrooli setup` installs the root-owned local privilege broker; the
+Bridge API remains unprivileged and owner-authenticates every request before it
+contacts the broker. The broker obtains Unix `SO_PEERCRED`, permits only the
+setup-selected caller uid, has no TCP listener, and accepts no command/argv
+field. Its v1 policy permits only UFW inspect/allow/verify/revoke for scenario
+`vrooli-bridge`, port `18767`, and a routable IP bound to the latest durable
+failed admission. It writes redacted audit events and supports exact managed
+rule rollback. See [`../../../../docs/architecture/PRIVILEGE_BROKER.md`](../../../../docs/architecture/PRIVILEGE_BROKER.md).
+
 ## Cross-References
 
 - [`../concepts/DATA.md`](../concepts/DATA.md) — data ownership and retention

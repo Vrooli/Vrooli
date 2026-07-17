@@ -48,6 +48,9 @@ const (
 	// OnboardServiceCancelOnboardingProcedure is the fully-qualified name of the OnboardService's
 	// CancelOnboarding RPC.
 	OnboardServiceCancelOnboardingProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/CancelOnboarding"
+	// OnboardServiceRemoveFailedOnboardingProcedure is the fully-qualified name of the OnboardService's
+	// RemoveFailedOnboarding RPC.
+	OnboardServiceRemoveFailedOnboardingProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/RemoveFailedOnboarding"
 )
 
 // OnboardServiceClient is a client for the vrooli.vrooli_bridge.v1.onboard.OnboardService service.
@@ -78,6 +81,10 @@ type OnboardServiceClient interface {
 	// CANCELLED. Cancelling an already-terminal op is a no-op that returns the
 	// terminal op. Owner-gated.
 	CancelOnboarding(context.Context, *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error)
+	// RemoveFailedOnboarding permanently removes a FAILED onboarding operation and
+	// its diagnostic history. It is deliberately unavailable for live, cancelled,
+	// or successful operations and never contacts the remote host. Owner-gated.
+	RemoveFailedOnboarding(context.Context, *connect.Request[onboard.RemoveFailedOnboardingRequest]) (*connect.Response[onboard.RemoveFailedOnboardingResponse], error)
 }
 
 // NewOnboardServiceClient constructs a client for the
@@ -122,16 +129,23 @@ func NewOnboardServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(onboardServiceMethods.ByName("CancelOnboarding")),
 			connect.WithClientOptions(opts...),
 		),
+		removeFailedOnboarding: connect.NewClient[onboard.RemoveFailedOnboardingRequest, onboard.RemoveFailedOnboardingResponse](
+			httpClient,
+			baseURL+OnboardServiceRemoveFailedOnboardingProcedure,
+			connect.WithSchema(onboardServiceMethods.ByName("RemoveFailedOnboarding")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // onboardServiceClient implements OnboardServiceClient.
 type onboardServiceClient struct {
-	startOnboarding  *connect.Client[onboard.StartOnboardingRequest, onboard.StartOnboardingResponse]
-	getOnboarding    *connect.Client[onboard.GetOnboardingRequest, onboard.GetOnboardingResponse]
-	listOnboardings  *connect.Client[onboard.ListOnboardingsRequest, onboard.ListOnboardingsResponse]
-	waitOnboarding   *connect.Client[onboard.WaitOnboardingRequest, onboard.WaitOnboardingResponse]
-	cancelOnboarding *connect.Client[onboard.CancelOnboardingRequest, onboard.CancelOnboardingResponse]
+	startOnboarding        *connect.Client[onboard.StartOnboardingRequest, onboard.StartOnboardingResponse]
+	getOnboarding          *connect.Client[onboard.GetOnboardingRequest, onboard.GetOnboardingResponse]
+	listOnboardings        *connect.Client[onboard.ListOnboardingsRequest, onboard.ListOnboardingsResponse]
+	waitOnboarding         *connect.Client[onboard.WaitOnboardingRequest, onboard.WaitOnboardingResponse]
+	cancelOnboarding       *connect.Client[onboard.CancelOnboardingRequest, onboard.CancelOnboardingResponse]
+	removeFailedOnboarding *connect.Client[onboard.RemoveFailedOnboardingRequest, onboard.RemoveFailedOnboardingResponse]
 }
 
 // StartOnboarding calls vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding.
@@ -157,6 +171,12 @@ func (c *onboardServiceClient) WaitOnboarding(ctx context.Context, req *connect.
 // CancelOnboarding calls vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding.
 func (c *onboardServiceClient) CancelOnboarding(ctx context.Context, req *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error) {
 	return c.cancelOnboarding.CallUnary(ctx, req)
+}
+
+// RemoveFailedOnboarding calls
+// vrooli.vrooli_bridge.v1.onboard.OnboardService.RemoveFailedOnboarding.
+func (c *onboardServiceClient) RemoveFailedOnboarding(ctx context.Context, req *connect.Request[onboard.RemoveFailedOnboardingRequest]) (*connect.Response[onboard.RemoveFailedOnboardingResponse], error) {
+	return c.removeFailedOnboarding.CallUnary(ctx, req)
 }
 
 // OnboardServiceHandler is an implementation of the vrooli.vrooli_bridge.v1.onboard.OnboardService
@@ -188,6 +208,10 @@ type OnboardServiceHandler interface {
 	// CANCELLED. Cancelling an already-terminal op is a no-op that returns the
 	// terminal op. Owner-gated.
 	CancelOnboarding(context.Context, *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error)
+	// RemoveFailedOnboarding permanently removes a FAILED onboarding operation and
+	// its diagnostic history. It is deliberately unavailable for live, cancelled,
+	// or successful operations and never contacts the remote host. Owner-gated.
+	RemoveFailedOnboarding(context.Context, *connect.Request[onboard.RemoveFailedOnboardingRequest]) (*connect.Response[onboard.RemoveFailedOnboardingResponse], error)
 }
 
 // NewOnboardServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -227,6 +251,12 @@ func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.Handler
 		connect.WithSchema(onboardServiceMethods.ByName("CancelOnboarding")),
 		connect.WithHandlerOptions(opts...),
 	)
+	onboardServiceRemoveFailedOnboardingHandler := connect.NewUnaryHandler(
+		OnboardServiceRemoveFailedOnboardingProcedure,
+		svc.RemoveFailedOnboarding,
+		connect.WithSchema(onboardServiceMethods.ByName("RemoveFailedOnboarding")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.onboard.OnboardService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OnboardServiceStartOnboardingProcedure:
@@ -239,6 +269,8 @@ func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.Handler
 			onboardServiceWaitOnboardingHandler.ServeHTTP(w, r)
 		case OnboardServiceCancelOnboardingProcedure:
 			onboardServiceCancelOnboardingHandler.ServeHTTP(w, r)
+		case OnboardServiceRemoveFailedOnboardingProcedure:
+			onboardServiceRemoveFailedOnboardingHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -266,4 +298,8 @@ func (UnimplementedOnboardServiceHandler) WaitOnboarding(context.Context, *conne
 
 func (UnimplementedOnboardServiceHandler) CancelOnboarding(context.Context, *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding is not implemented"))
+}
+
+func (UnimplementedOnboardServiceHandler) RemoveFailedOnboarding(context.Context, *connect.Request[onboard.RemoveFailedOnboardingRequest]) (*connect.Response[onboard.RemoveFailedOnboardingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.onboard.OnboardService.RemoveFailedOnboarding is not implemented"))
 }

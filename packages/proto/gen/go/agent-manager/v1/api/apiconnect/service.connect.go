@@ -54,6 +54,12 @@ const (
 	// AgentManagerServicePlanScenarioWorkflowsProcedure is the fully-qualified name of the
 	// AgentManagerService's PlanScenarioWorkflows RPC.
 	AgentManagerServicePlanScenarioWorkflowsProcedure = "/agent_manager.v1.AgentManagerService/PlanScenarioWorkflows"
+	// AgentManagerServiceReconcileScenarioDeclarationsProcedure is the fully-qualified name of the
+	// AgentManagerService's ReconcileScenarioDeclarations RPC.
+	AgentManagerServiceReconcileScenarioDeclarationsProcedure = "/agent_manager.v1.AgentManagerService/ReconcileScenarioDeclarations"
+	// AgentManagerServicePlanScenarioDeclarationsProcedure is the fully-qualified name of the
+	// AgentManagerService's PlanScenarioDeclarations RPC.
+	AgentManagerServicePlanScenarioDeclarationsProcedure = "/agent_manager.v1.AgentManagerService/PlanScenarioDeclarations"
 	// AgentManagerServiceListWorkflowRevisionsProcedure is the fully-qualified name of the
 	// AgentManagerService's ListWorkflowRevisions RPC.
 	AgentManagerServiceListWorkflowRevisionsProcedure = "/agent_manager.v1.AgentManagerService/ListWorkflowRevisions"
@@ -81,9 +87,15 @@ const (
 	// AgentManagerServiceAdvanceWorkflowExecutionProcedure is the fully-qualified name of the
 	// AgentManagerService's AdvanceWorkflowExecution RPC.
 	AgentManagerServiceAdvanceWorkflowExecutionProcedure = "/agent_manager.v1.AgentManagerService/AdvanceWorkflowExecution"
+	// AgentManagerServiceWaitWorkflowExecutionProcedure is the fully-qualified name of the
+	// AgentManagerService's WaitWorkflowExecution RPC.
+	AgentManagerServiceWaitWorkflowExecutionProcedure = "/agent_manager.v1.AgentManagerService/WaitWorkflowExecution"
 	// AgentManagerServiceGetWorkflowExecutionTraceProcedure is the fully-qualified name of the
 	// AgentManagerService's GetWorkflowExecutionTrace RPC.
 	AgentManagerServiceGetWorkflowExecutionTraceProcedure = "/agent_manager.v1.AgentManagerService/GetWorkflowExecutionTrace"
+	// AgentManagerServiceListWorkflowExecutionRunsProcedure is the fully-qualified name of the
+	// AgentManagerService's ListWorkflowExecutionRuns RPC.
+	AgentManagerServiceListWorkflowExecutionRunsProcedure = "/agent_manager.v1.AgentManagerService/ListWorkflowExecutionRuns"
 	// AgentManagerServiceSignalWorkflowExecutionProcedure is the fully-qualified name of the
 	// AgentManagerService's SignalWorkflowExecution RPC.
 	AgentManagerServiceSignalWorkflowExecutionProcedure = "/agent_manager.v1.AgentManagerService/SignalWorkflowExecution"
@@ -234,6 +246,13 @@ type AgentManagerServiceClient interface {
 	ReconcileScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
 	// PlanScenarioWorkflows validates every source but never changes the catalog.
 	PlanScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
+	// ReconcileScenarioDeclarations reconciles a scenario's unified declaration
+	// block (profiles and workflows) in one call, fanning out per source by
+	// schemaVersion while preserving each kind's lifecycle semantics.
+	ReconcileScenarioDeclarations(context.Context, *connect.Request[api.ReconcileScenarioDeclarationsRequest]) (*connect.Response[api.ReconcileScenarioDeclarationsResponse], error)
+	// PlanScenarioDeclarations validates every declaration source but never
+	// changes profile or workflow state.
+	PlanScenarioDeclarations(context.Context, *connect.Request[api.ReconcileScenarioDeclarationsRequest]) (*connect.Response[api.ReconcileScenarioDeclarationsResponse], error)
 	ListWorkflowRevisions(context.Context, *connect.Request[api.ListWorkflowRevisionsRequest]) (*connect.Response[api.ListWorkflowRevisionsResponse], error)
 	GetWorkflowRevision(context.Context, *connect.Request[api.GetWorkflowRevisionRequest]) (*connect.Response[api.GetWorkflowRevisionResponse], error)
 	ReloadScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
@@ -245,7 +264,13 @@ type AgentManagerServiceClient interface {
 	// GetWorkflowExecutionResult is the explicit payload-bearing inspection path.
 	GetWorkflowExecutionResult(context.Context, *connect.Request[api.GetWorkflowExecutionResultRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
 	AdvanceWorkflowExecution(context.Context, *connect.Request[api.GetWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
+	// WaitWorkflowExecution long-polls until the execution is terminal or the
+	// deadline passes. Canceling the waiter never cancels the execution.
+	WaitWorkflowExecution(context.Context, *connect.Request[api.WaitWorkflowExecutionRequest]) (*connect.Response[api.WaitWorkflowExecutionResponse], error)
 	GetWorkflowExecutionTrace(context.Context, *connect.Request[api.GetWorkflowExecutionTraceRequest]) (*connect.Response[api.GetWorkflowExecutionTraceResponse], error)
+	// ListWorkflowExecutionRuns projects durable node attempts for one execution.
+	// Consumers use it instead of scanning a full trace to find dispatched Runs.
+	ListWorkflowExecutionRuns(context.Context, *connect.Request[api.ListWorkflowExecutionRunsRequest]) (*connect.Response[api.ListWorkflowExecutionRunsResponse], error)
 	SignalWorkflowExecution(context.Context, *connect.Request[api.SignalWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
 	CancelWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
 	RetryWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
@@ -389,6 +414,18 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("PlanScenarioWorkflows")),
 			connect.WithClientOptions(opts...),
 		),
+		reconcileScenarioDeclarations: connect.NewClient[api.ReconcileScenarioDeclarationsRequest, api.ReconcileScenarioDeclarationsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceReconcileScenarioDeclarationsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileScenarioDeclarations")),
+			connect.WithClientOptions(opts...),
+		),
+		planScenarioDeclarations: connect.NewClient[api.ReconcileScenarioDeclarationsRequest, api.ReconcileScenarioDeclarationsResponse](
+			httpClient,
+			baseURL+AgentManagerServicePlanScenarioDeclarationsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("PlanScenarioDeclarations")),
+			connect.WithClientOptions(opts...),
+		),
 		listWorkflowRevisions: connect.NewClient[api.ListWorkflowRevisionsRequest, api.ListWorkflowRevisionsResponse](
 			httpClient,
 			baseURL+AgentManagerServiceListWorkflowRevisionsProcedure,
@@ -443,10 +480,22 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("AdvanceWorkflowExecution")),
 			connect.WithClientOptions(opts...),
 		),
+		waitWorkflowExecution: connect.NewClient[api.WaitWorkflowExecutionRequest, api.WaitWorkflowExecutionResponse](
+			httpClient,
+			baseURL+AgentManagerServiceWaitWorkflowExecutionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("WaitWorkflowExecution")),
+			connect.WithClientOptions(opts...),
+		),
 		getWorkflowExecutionTrace: connect.NewClient[api.GetWorkflowExecutionTraceRequest, api.GetWorkflowExecutionTraceResponse](
 			httpClient,
 			baseURL+AgentManagerServiceGetWorkflowExecutionTraceProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("GetWorkflowExecutionTrace")),
+			connect.WithClientOptions(opts...),
+		),
+		listWorkflowExecutionRuns: connect.NewClient[api.ListWorkflowExecutionRunsRequest, api.ListWorkflowExecutionRunsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceListWorkflowExecutionRunsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ListWorkflowExecutionRuns")),
 			connect.WithClientOptions(opts...),
 		),
 		signalWorkflowExecution: connect.NewClient[api.SignalWorkflowExecutionRequest, api.WorkflowExecutionOperationResponse](
@@ -725,6 +774,8 @@ type agentManagerServiceClient struct {
 	validateWorkflow                *connect.Client[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse]
 	reconcileScenarioWorkflows      *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
 	planScenarioWorkflows           *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
+	reconcileScenarioDeclarations   *connect.Client[api.ReconcileScenarioDeclarationsRequest, api.ReconcileScenarioDeclarationsResponse]
+	planScenarioDeclarations        *connect.Client[api.ReconcileScenarioDeclarationsRequest, api.ReconcileScenarioDeclarationsResponse]
 	listWorkflowRevisions           *connect.Client[api.ListWorkflowRevisionsRequest, api.ListWorkflowRevisionsResponse]
 	getWorkflowRevision             *connect.Client[api.GetWorkflowRevisionRequest, api.GetWorkflowRevisionResponse]
 	reloadScenarioWorkflows         *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
@@ -734,7 +785,9 @@ type agentManagerServiceClient struct {
 	getWorkflowExecution            *connect.Client[api.GetWorkflowExecutionRequest, api.WorkflowExecutionResponse]
 	getWorkflowExecutionResult      *connect.Client[api.GetWorkflowExecutionResultRequest, api.WorkflowExecutionResponse]
 	advanceWorkflowExecution        *connect.Client[api.GetWorkflowExecutionRequest, api.WorkflowExecutionResponse]
+	waitWorkflowExecution           *connect.Client[api.WaitWorkflowExecutionRequest, api.WaitWorkflowExecutionResponse]
 	getWorkflowExecutionTrace       *connect.Client[api.GetWorkflowExecutionTraceRequest, api.GetWorkflowExecutionTraceResponse]
+	listWorkflowExecutionRuns       *connect.Client[api.ListWorkflowExecutionRunsRequest, api.ListWorkflowExecutionRunsResponse]
 	signalWorkflowExecution         *connect.Client[api.SignalWorkflowExecutionRequest, api.WorkflowExecutionOperationResponse]
 	cancelWorkflowExecution         *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
 	retryWorkflowExecution          *connect.Client[api.WorkflowExecutionOperationRequest, api.WorkflowExecutionOperationResponse]
@@ -816,6 +869,17 @@ func (c *agentManagerServiceClient) PlanScenarioWorkflows(ctx context.Context, r
 	return c.planScenarioWorkflows.CallUnary(ctx, req)
 }
 
+// ReconcileScenarioDeclarations calls
+// agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations.
+func (c *agentManagerServiceClient) ReconcileScenarioDeclarations(ctx context.Context, req *connect.Request[api.ReconcileScenarioDeclarationsRequest]) (*connect.Response[api.ReconcileScenarioDeclarationsResponse], error) {
+	return c.reconcileScenarioDeclarations.CallUnary(ctx, req)
+}
+
+// PlanScenarioDeclarations calls agent_manager.v1.AgentManagerService.PlanScenarioDeclarations.
+func (c *agentManagerServiceClient) PlanScenarioDeclarations(ctx context.Context, req *connect.Request[api.ReconcileScenarioDeclarationsRequest]) (*connect.Response[api.ReconcileScenarioDeclarationsResponse], error) {
+	return c.planScenarioDeclarations.CallUnary(ctx, req)
+}
+
 // ListWorkflowRevisions calls agent_manager.v1.AgentManagerService.ListWorkflowRevisions.
 func (c *agentManagerServiceClient) ListWorkflowRevisions(ctx context.Context, req *connect.Request[api.ListWorkflowRevisionsRequest]) (*connect.Response[api.ListWorkflowRevisionsResponse], error) {
 	return c.listWorkflowRevisions.CallUnary(ctx, req)
@@ -861,9 +925,19 @@ func (c *agentManagerServiceClient) AdvanceWorkflowExecution(ctx context.Context
 	return c.advanceWorkflowExecution.CallUnary(ctx, req)
 }
 
+// WaitWorkflowExecution calls agent_manager.v1.AgentManagerService.WaitWorkflowExecution.
+func (c *agentManagerServiceClient) WaitWorkflowExecution(ctx context.Context, req *connect.Request[api.WaitWorkflowExecutionRequest]) (*connect.Response[api.WaitWorkflowExecutionResponse], error) {
+	return c.waitWorkflowExecution.CallUnary(ctx, req)
+}
+
 // GetWorkflowExecutionTrace calls agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace.
 func (c *agentManagerServiceClient) GetWorkflowExecutionTrace(ctx context.Context, req *connect.Request[api.GetWorkflowExecutionTraceRequest]) (*connect.Response[api.GetWorkflowExecutionTraceResponse], error) {
 	return c.getWorkflowExecutionTrace.CallUnary(ctx, req)
+}
+
+// ListWorkflowExecutionRuns calls agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns.
+func (c *agentManagerServiceClient) ListWorkflowExecutionRuns(ctx context.Context, req *connect.Request[api.ListWorkflowExecutionRunsRequest]) (*connect.Response[api.ListWorkflowExecutionRunsResponse], error) {
+	return c.listWorkflowExecutionRuns.CallUnary(ctx, req)
 }
 
 // SignalWorkflowExecution calls agent_manager.v1.AgentManagerService.SignalWorkflowExecution.
@@ -1105,6 +1179,13 @@ type AgentManagerServiceHandler interface {
 	ReconcileScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
 	// PlanScenarioWorkflows validates every source but never changes the catalog.
 	PlanScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
+	// ReconcileScenarioDeclarations reconciles a scenario's unified declaration
+	// block (profiles and workflows) in one call, fanning out per source by
+	// schemaVersion while preserving each kind's lifecycle semantics.
+	ReconcileScenarioDeclarations(context.Context, *connect.Request[api.ReconcileScenarioDeclarationsRequest]) (*connect.Response[api.ReconcileScenarioDeclarationsResponse], error)
+	// PlanScenarioDeclarations validates every declaration source but never
+	// changes profile or workflow state.
+	PlanScenarioDeclarations(context.Context, *connect.Request[api.ReconcileScenarioDeclarationsRequest]) (*connect.Response[api.ReconcileScenarioDeclarationsResponse], error)
 	ListWorkflowRevisions(context.Context, *connect.Request[api.ListWorkflowRevisionsRequest]) (*connect.Response[api.ListWorkflowRevisionsResponse], error)
 	GetWorkflowRevision(context.Context, *connect.Request[api.GetWorkflowRevisionRequest]) (*connect.Response[api.GetWorkflowRevisionResponse], error)
 	ReloadScenarioWorkflows(context.Context, *connect.Request[api.ReconcileScenarioWorkflowsRequest]) (*connect.Response[api.ReconcileScenarioWorkflowsResponse], error)
@@ -1116,7 +1197,13 @@ type AgentManagerServiceHandler interface {
 	// GetWorkflowExecutionResult is the explicit payload-bearing inspection path.
 	GetWorkflowExecutionResult(context.Context, *connect.Request[api.GetWorkflowExecutionResultRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
 	AdvanceWorkflowExecution(context.Context, *connect.Request[api.GetWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionResponse], error)
+	// WaitWorkflowExecution long-polls until the execution is terminal or the
+	// deadline passes. Canceling the waiter never cancels the execution.
+	WaitWorkflowExecution(context.Context, *connect.Request[api.WaitWorkflowExecutionRequest]) (*connect.Response[api.WaitWorkflowExecutionResponse], error)
 	GetWorkflowExecutionTrace(context.Context, *connect.Request[api.GetWorkflowExecutionTraceRequest]) (*connect.Response[api.GetWorkflowExecutionTraceResponse], error)
+	// ListWorkflowExecutionRuns projects durable node attempts for one execution.
+	// Consumers use it instead of scanning a full trace to find dispatched Runs.
+	ListWorkflowExecutionRuns(context.Context, *connect.Request[api.ListWorkflowExecutionRunsRequest]) (*connect.Response[api.ListWorkflowExecutionRunsResponse], error)
 	SignalWorkflowExecution(context.Context, *connect.Request[api.SignalWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
 	CancelWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
 	RetryWorkflowExecution(context.Context, *connect.Request[api.WorkflowExecutionOperationRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error)
@@ -1256,6 +1343,18 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("PlanScenarioWorkflows")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceReconcileScenarioDeclarationsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceReconcileScenarioDeclarationsProcedure,
+		svc.ReconcileScenarioDeclarations,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileScenarioDeclarations")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServicePlanScenarioDeclarationsHandler := connect.NewUnaryHandler(
+		AgentManagerServicePlanScenarioDeclarationsProcedure,
+		svc.PlanScenarioDeclarations,
+		connect.WithSchema(agentManagerServiceMethods.ByName("PlanScenarioDeclarations")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServiceListWorkflowRevisionsHandler := connect.NewUnaryHandler(
 		AgentManagerServiceListWorkflowRevisionsProcedure,
 		svc.ListWorkflowRevisions,
@@ -1310,10 +1409,22 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("AdvanceWorkflowExecution")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceWaitWorkflowExecutionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceWaitWorkflowExecutionProcedure,
+		svc.WaitWorkflowExecution,
+		connect.WithSchema(agentManagerServiceMethods.ByName("WaitWorkflowExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServiceGetWorkflowExecutionTraceHandler := connect.NewUnaryHandler(
 		AgentManagerServiceGetWorkflowExecutionTraceProcedure,
 		svc.GetWorkflowExecutionTrace,
 		connect.WithSchema(agentManagerServiceMethods.ByName("GetWorkflowExecutionTrace")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceListWorkflowExecutionRunsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceListWorkflowExecutionRunsProcedure,
+		svc.ListWorkflowExecutionRuns,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ListWorkflowExecutionRuns")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceSignalWorkflowExecutionHandler := connect.NewUnaryHandler(
@@ -1596,6 +1707,10 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceReconcileScenarioWorkflowsHandler.ServeHTTP(w, r)
 		case AgentManagerServicePlanScenarioWorkflowsProcedure:
 			agentManagerServicePlanScenarioWorkflowsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceReconcileScenarioDeclarationsProcedure:
+			agentManagerServiceReconcileScenarioDeclarationsHandler.ServeHTTP(w, r)
+		case AgentManagerServicePlanScenarioDeclarationsProcedure:
+			agentManagerServicePlanScenarioDeclarationsHandler.ServeHTTP(w, r)
 		case AgentManagerServiceListWorkflowRevisionsProcedure:
 			agentManagerServiceListWorkflowRevisionsHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetWorkflowRevisionProcedure:
@@ -1614,8 +1729,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceGetWorkflowExecutionResultHandler.ServeHTTP(w, r)
 		case AgentManagerServiceAdvanceWorkflowExecutionProcedure:
 			agentManagerServiceAdvanceWorkflowExecutionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceWaitWorkflowExecutionProcedure:
+			agentManagerServiceWaitWorkflowExecutionHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetWorkflowExecutionTraceProcedure:
 			agentManagerServiceGetWorkflowExecutionTraceHandler.ServeHTTP(w, r)
+		case AgentManagerServiceListWorkflowExecutionRunsProcedure:
+			agentManagerServiceListWorkflowExecutionRunsHandler.ServeHTTP(w, r)
 		case AgentManagerServiceSignalWorkflowExecutionProcedure:
 			agentManagerServiceSignalWorkflowExecutionHandler.ServeHTTP(w, r)
 		case AgentManagerServiceCancelWorkflowExecutionProcedure:
@@ -1741,6 +1860,14 @@ func (UnimplementedAgentManagerServiceHandler) PlanScenarioWorkflows(context.Con
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.PlanScenarioWorkflows is not implemented"))
 }
 
+func (UnimplementedAgentManagerServiceHandler) ReconcileScenarioDeclarations(context.Context, *connect.Request[api.ReconcileScenarioDeclarationsRequest]) (*connect.Response[api.ReconcileScenarioDeclarationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) PlanScenarioDeclarations(context.Context, *connect.Request[api.ReconcileScenarioDeclarationsRequest]) (*connect.Response[api.ReconcileScenarioDeclarationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.PlanScenarioDeclarations is not implemented"))
+}
+
 func (UnimplementedAgentManagerServiceHandler) ListWorkflowRevisions(context.Context, *connect.Request[api.ListWorkflowRevisionsRequest]) (*connect.Response[api.ListWorkflowRevisionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListWorkflowRevisions is not implemented"))
 }
@@ -1777,8 +1904,16 @@ func (UnimplementedAgentManagerServiceHandler) AdvanceWorkflowExecution(context.
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution is not implemented"))
 }
 
+func (UnimplementedAgentManagerServiceHandler) WaitWorkflowExecution(context.Context, *connect.Request[api.WaitWorkflowExecutionRequest]) (*connect.Response[api.WaitWorkflowExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.WaitWorkflowExecution is not implemented"))
+}
+
 func (UnimplementedAgentManagerServiceHandler) GetWorkflowExecutionTrace(context.Context, *connect.Request[api.GetWorkflowExecutionTraceRequest]) (*connect.Response[api.GetWorkflowExecutionTraceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ListWorkflowExecutionRuns(context.Context, *connect.Request[api.ListWorkflowExecutionRunsRequest]) (*connect.Response[api.ListWorkflowExecutionRunsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) SignalWorkflowExecution(context.Context, *connect.Request[api.SignalWorkflowExecutionRequest]) (*connect.Response[api.WorkflowExecutionOperationResponse], error) {

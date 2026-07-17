@@ -54,7 +54,7 @@ ONBOARDING_STEP_STATUS_SKIPPED: OnboardingStepStatus
 ONBOARDING_STEP_STATUS_FAILED: OnboardingStepStatus
 
 class OnboardingOp(_message.Message):
-    __slots__ = ("id", "host", "port", "user", "node_name", "target_revision", "repo_url", "state", "node_id", "failure_reason", "exit_code", "created_at", "started_at", "finished_at", "source_mode", "base_revision", "working_tree_digest", "failure_detail")
+    __slots__ = ("id", "host", "port", "user", "node_name", "target_revision", "repo_url", "state", "node_id", "failure_reason", "exit_code", "created_at", "started_at", "finished_at", "source_mode", "base_revision", "working_tree_digest", "failure_detail", "control_plane_url", "reachability_mode")
     ID_FIELD_NUMBER: _ClassVar[int]
     HOST_FIELD_NUMBER: _ClassVar[int]
     PORT_FIELD_NUMBER: _ClassVar[int]
@@ -73,6 +73,8 @@ class OnboardingOp(_message.Message):
     BASE_REVISION_FIELD_NUMBER: _ClassVar[int]
     WORKING_TREE_DIGEST_FIELD_NUMBER: _ClassVar[int]
     FAILURE_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_PLANE_URL_FIELD_NUMBER: _ClassVar[int]
+    REACHABILITY_MODE_FIELD_NUMBER: _ClassVar[int]
     id: str
     host: str
     port: int
@@ -91,7 +93,9 @@ class OnboardingOp(_message.Message):
     base_revision: str
     working_tree_digest: str
     failure_detail: str
-    def __init__(self, id: _Optional[str] = ..., host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., state: _Optional[_Union[OnboardingState, str]] = ..., node_id: _Optional[str] = ..., failure_reason: _Optional[str] = ..., exit_code: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., base_revision: _Optional[str] = ..., working_tree_digest: _Optional[str] = ..., failure_detail: _Optional[str] = ...) -> None: ...
+    control_plane_url: str
+    reachability_mode: str
+    def __init__(self, id: _Optional[str] = ..., host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., state: _Optional[_Union[OnboardingState, str]] = ..., node_id: _Optional[str] = ..., failure_reason: _Optional[str] = ..., exit_code: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., base_revision: _Optional[str] = ..., working_tree_digest: _Optional[str] = ..., failure_detail: _Optional[str] = ..., control_plane_url: _Optional[str] = ..., reachability_mode: _Optional[str] = ...) -> None: ...
 
 class OnboardingStepEvent(_message.Message):
     __slots__ = ("op_id", "sequence", "step_id", "status", "detail", "emitted_at")
@@ -110,7 +114,7 @@ class OnboardingStepEvent(_message.Message):
     def __init__(self, op_id: _Optional[str] = ..., sequence: _Optional[int] = ..., step_id: _Optional[str] = ..., status: _Optional[_Union[OnboardingStepStatus, str]] = ..., detail: _Optional[str] = ..., emitted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class StartOnboardingRequest(_message.Message):
-    __slots__ = ("host", "port", "user", "ssh_password", "node_name", "target_revision", "repo_url", "checkout_dir", "control_plane_url", "capabilities", "verify_timeout_seconds", "skip_setup", "skip_prereqs", "provision_sudo", "setup_environment", "setup_resources", "setup_scenarios", "include_optional", "source_mode")
+    __slots__ = ("host", "port", "user", "ssh_password", "node_name", "target_revision", "repo_url", "checkout_dir", "control_plane_url", "capabilities", "verify_timeout_seconds", "skip_setup", "skip_prereqs", "provision_sudo", "setup_environment", "setup_resources", "setup_scenarios", "include_optional", "source_mode", "reachability_mode")
     HOST_FIELD_NUMBER: _ClassVar[int]
     PORT_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
@@ -130,6 +134,7 @@ class StartOnboardingRequest(_message.Message):
     SETUP_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_OPTIONAL_FIELD_NUMBER: _ClassVar[int]
     SOURCE_MODE_FIELD_NUMBER: _ClassVar[int]
+    REACHABILITY_MODE_FIELD_NUMBER: _ClassVar[int]
     host: str
     port: int
     user: str
@@ -149,7 +154,8 @@ class StartOnboardingRequest(_message.Message):
     setup_scenarios: str
     include_optional: bool
     source_mode: SourceMode
-    def __init__(self, host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., ssh_password: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., checkout_dir: _Optional[str] = ..., control_plane_url: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., verify_timeout_seconds: _Optional[int] = ..., skip_setup: _Optional[bool] = ..., skip_prereqs: _Optional[bool] = ..., provision_sudo: _Optional[bool] = ..., setup_environment: _Optional[str] = ..., setup_resources: _Optional[str] = ..., setup_scenarios: _Optional[str] = ..., include_optional: _Optional[bool] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ...) -> None: ...
+    reachability_mode: str
+    def __init__(self, host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., ssh_password: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., checkout_dir: _Optional[str] = ..., control_plane_url: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., verify_timeout_seconds: _Optional[int] = ..., skip_setup: _Optional[bool] = ..., skip_prereqs: _Optional[bool] = ..., provision_sudo: _Optional[bool] = ..., setup_environment: _Optional[str] = ..., setup_resources: _Optional[str] = ..., setup_scenarios: _Optional[str] = ..., include_optional: _Optional[bool] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., reachability_mode: _Optional[str] = ...) -> None: ...
 
 class StartOnboardingResponse(_message.Message):
     __slots__ = ("op_id", "dry_run", "host", "port", "user")
@@ -220,3 +226,13 @@ class CancelOnboardingResponse(_message.Message):
     OP_FIELD_NUMBER: _ClassVar[int]
     op: OnboardingOp
     def __init__(self, op: _Optional[_Union[OnboardingOp, _Mapping]] = ...) -> None: ...
+
+class RemoveFailedOnboardingRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class RemoveFailedOnboardingResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...

@@ -103,6 +103,12 @@ func (h *handlers) redeem(ctx cliapp.RunContext) error {
 		Capabilities:  splitCSV(ctx.Flag("capabilities")),
 	}))
 	if err != nil {
+		// Connect's Unauthenticated response is the pairing service's typed
+		// "invalid, expired, or already-used code" contract. Preserve it as a
+		// process disposition so bootstrap never guesses from human prose.
+		if connect.CodeOf(err) == connect.CodeUnauthenticated {
+			return pairingRejectedError{err: cliapp.WrapAPIError("redeem pairing code", err, nil)}
+		}
 		return cliapp.WrapAPIError("redeem pairing code", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
@@ -127,6 +133,12 @@ func (h *handlers) redeem(ctx cliapp.RunContext) error {
 		NextCommand: []string{"Start the node-agent with this node id to hold the dial-out channel."},
 	})
 }
+
+type pairingRejectedError struct{ err error }
+
+func (e pairingRejectedError) Error() string { return e.err.Error() }
+func (e pairingRejectedError) Unwrap() error { return e.err }
+func (e pairingRejectedError) ExitCode() int { return 4 }
 
 // pairingCodeEnvVar is the environment variable the bootstrap installer sets so
 // the single-use pairing code never appears in the redeem process's argv (which

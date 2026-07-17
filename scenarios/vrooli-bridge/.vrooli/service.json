@@ -70,7 +70,8 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Go API server",
+      "description": "Go API server; fixed Bridge control-plane port for LAN admission",
+      "port": 18767,
       "range": "15000-19999"
     },
     "ui": {

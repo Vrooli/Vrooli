@@ -40,6 +40,8 @@ func domainOpToProto(op onboard.Op) *onboardv1.OnboardingOp {
 		SourceMode:        sourceModeToProto(op.SourceMode),
 		BaseRevision:      op.BaseRevision,
 		WorkingTreeDigest: op.WorkingTreeDigest,
+		ControlPlaneUrl:   op.ControlPlaneURL,
+		ReachabilityMode:  op.ReachabilityMode,
 	}
 	if !op.StartedAt.IsZero() {
 		out.StartedAt = timestamppb.New(op.StartedAt)

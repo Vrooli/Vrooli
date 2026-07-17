@@ -32,10 +32,10 @@ Vrooli is a local, cross-platform, self-improving software foundry. It gives you
 
 ## Quick Start
 
-Supported setup paths today:
+Setup-path evidence tiers are maintained in the [platform support matrix](docs/reference/platform-support.md). The current paths are:
 
 - Linux
-- macOS
+- macOS (build-verified; hardware qualification in progress)
 - Windows via WSL2
 
 Native Windows setup is not yet supported for the full `vrooli setup` and `vrooli develop` lifecycle.
@@ -238,11 +238,11 @@ See [docs/deployment/README.md](docs/deployment/README.md).
 
 ### 1. Set Up The Project
 
-Supported setup paths today:
+Setup availability is tiered; see the [platform support matrix](docs/reference/platform-support.md) for the evidence behind each claim. Today:
 
-- Linux
-- macOS
-- Windows via WSL2
+- Linux is supported.
+- macOS (Intel and Apple Silicon) is build-verified; real-hardware qualification is in progress.
+- Windows via WSL2 follows the Linux path.
 
 Native Windows setup is not yet supported for the full project lifecycle.
 
@@ -276,13 +276,14 @@ After setup, Vrooli attempts to open `vrooli-onboarding` automatically. That onb
 
 ### macOS
 
-Setup is native on macOS (Apple Silicon and Intel). The prebuilt installer needs
-no preinstalled Homebrew, git, or Go: setup bootstraps Homebrew when absent, then
-uses it for git, Go, and the remaining selected host tools. Docker Desktop is
-needed only for container-backed resources you enable; it is not a bootstrap
-gate.
+Native macOS setup is build-verified for Apple Silicon and Intel. The prebuilt
+installer needs no preinstalled Homebrew, git, or Go: setup can bootstrap
+Homebrew when absent, then uses it for git, Go, and the remaining selected host
+tools. Docker Desktop is needed only for container-backed resources you enable;
+it is not a bootstrap gate. This is not yet a supported-platform claim: the
+required real-Mac qualification remains outstanding.
 
-Known platform limits: workspace-sandbox protected mode and X11 desktop automation are Linux-only and skip cleanly, containerized ollama inference is CPU-only, and a few resources are Linux-only. See [docs/QUICKSTART.md](docs/QUICKSTART.md) for details.
+Known platform limits and evidence tiers are in the [platform support matrix](docs/reference/platform-support.md). X11 desktop automation remains Linux-only; macOS Workspace Sandbox protection uses partial Seatbelt containment and still needs real-hardware evidence. See [docs/QUICKSTART.md](docs/QUICKSTART.md) for setup details.
 
 ### Windows
 

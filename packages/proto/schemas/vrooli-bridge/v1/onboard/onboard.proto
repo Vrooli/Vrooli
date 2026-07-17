@@ -200,6 +200,14 @@ message OnboardingOp {
   // secret material: the node streams only its own build/setup diagnostics here;
   // the SSH password and pairing code never reach the node's stdout/stderr.
   string failure_detail = 18;
+
+  // Canonical endpoint selected for this attempt. It is persisted so a later
+  // operator can audit exactly what the candidate was asked to reach.
+  string control_plane_url = 19;
+
+  // lan, tunnel, or manual: the endpoint selection context used for validation
+  // and the mandatory candidate admission probe.
+  string reachability_mode = 20;
 }
 
 // OnboardingStepEvent is one entry in an op's append-only progress history. It
@@ -259,6 +267,11 @@ service OnboardService {
   // CANCELLED. Cancelling an already-terminal op is a no-op that returns the
   // terminal op. Owner-gated.
   rpc CancelOnboarding(CancelOnboardingRequest) returns (CancelOnboardingResponse);
+
+  // RemoveFailedOnboarding permanently removes a FAILED onboarding operation and
+  // its diagnostic history. It is deliberately unavailable for live, cancelled,
+  // or successful operations and never contacts the remote host. Owner-gated.
+  rpc RemoveFailedOnboarding(RemoveFailedOnboardingRequest) returns (RemoveFailedOnboardingResponse);
 }
 
 message StartOnboardingRequest {
@@ -352,6 +365,11 @@ message StartOnboardingRequest {
   // honest dirty provenance (base HEAD + content digest). Fleet rolls stay
   // PINNED_REVISION-only.
   SourceMode source_mode = 19;
+
+  // How the candidate reaches control_plane_url. lan is the trusted-LAN
+  // default; tunnel is selected only by the owner for segmented/off-LAN nodes;
+  // manual retains managed-DNS/VPN deployments. Every mode is remotely probed.
+  string reachability_mode = 20;
 }
 
 message StartOnboardingResponse {
@@ -419,3 +437,9 @@ message CancelOnboardingResponse {
   // state if it finished first).
   OnboardingOp op = 1;
 }
+
+message RemoveFailedOnboardingRequest {
+  string id = 1;
+}
+
+message RemoveFailedOnboardingResponse {}

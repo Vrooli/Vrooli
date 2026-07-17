@@ -67,6 +67,7 @@ type service struct {
 	coord     *coordinator
 
 	defaultControlPlaneURL string
+	endpointResolver       EndpointResolver
 	defaultRevision        string
 	revResolver            RevisionResolver
 	worktree               WorkingTreeSource
@@ -83,6 +84,17 @@ type Option func(*service)
 // omits one (phase 6 wires the real @cp default; phase 5 leaves it empty).
 func WithDefaultControlPlaneURL(url string) Option {
 	return func(s *service) { s.defaultControlPlaneURL = url }
+}
+
+// EndpointResolver supplies the persisted host-level endpoint selection for a
+// request that did not explicitly name an endpoint. Its result is still
+// validated below and copied into the immutable onboarding operation.
+type EndpointResolver func(context.Context) (url, mode string, err error)
+
+// WithEndpointResolver makes durable host configuration the default for new
+// onboarding attempts. An explicit request URL or mode always wins.
+func WithEndpointResolver(resolver EndpointResolver) Option {
+	return func(s *service) { s.endpointResolver = resolver }
 }
 
 // WithDefaultRevision sets the target revision used when a request omits one and
@@ -154,8 +166,32 @@ func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
 		port = 22
 	}
 	cpURL := trimField(in.ControlPlaneURL)
+	configuredMode := ""
 	if cpURL == "" {
-		cpURL = s.defaultControlPlaneURL
+		if s.endpointResolver != nil {
+			var resolveErr error
+			cpURL, configuredMode, resolveErr = s.endpointResolver(ctx)
+			if resolveErr != nil {
+				zeroBytes(in.Password)
+				return Decision{}, ErrInvalid{Field: "control_plane_url", Reason: resolveErr.Error()}
+			}
+		} else {
+			cpURL = s.defaultControlPlaneURL
+		}
+	}
+	requestedMode := in.ReachabilityMode
+	if trimField(requestedMode) == "" {
+		requestedMode = configuredMode
+	}
+	mode, err := normalizeReachabilityMode(requestedMode)
+	if err != nil {
+		zeroBytes(in.Password)
+		return Decision{}, ErrInvalid{Field: "reachability_mode", Reason: err.Error()}
+	}
+	cpURL, err = ValidateControlPlaneURL(cpURL, mode)
+	if err != nil {
+		zeroBytes(in.Password)
+		return Decision{}, ErrInvalid{Field: "control_plane_url", Reason: err.Error()}
 	}
 	if cpURL == "" {
 		zeroBytes(in.Password)
@@ -212,7 +248,7 @@ func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
 	// Normalise the resolved values back onto the input the goroutine consumes.
 	// in.TargetRevision carries the BASE commit (the bootstrap `--revision`); in
 	// working-tree mode BaseRevision holds it too so the op provenance is complete.
-	in.Host, in.User, in.Port, in.ControlPlaneURL, in.TargetRevision = host, user, port, cpURL, revision
+	in.Host, in.User, in.Port, in.ControlPlaneURL, in.TargetRevision, in.ReachabilityMode = host, user, port, cpURL, revision, string(mode)
 	if in.WorkingTree() {
 		in.BaseRevision = revision
 	}
@@ -234,15 +270,17 @@ func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
 	}
 
 	op, err := s.repo.Create(ctx, Op{
-		Host:           host,
-		Port:           port,
-		User:           user,
-		NodeName:       trimField(in.NodeName),
-		TargetRevision: opRevision,
-		RepoURL:        trimField(in.RepoURL),
-		State:          StatePending,
-		SourceMode:     in.SourceMode,
-		BaseRevision:   in.BaseRevision,
+		Host:             host,
+		Port:             port,
+		User:             user,
+		NodeName:         trimField(in.NodeName),
+		TargetRevision:   opRevision,
+		RepoURL:          trimField(in.RepoURL),
+		State:            StatePending,
+		SourceMode:       in.SourceMode,
+		BaseRevision:     in.BaseRevision,
+		ControlPlaneURL:  cpURL,
+		ReachabilityMode: string(mode),
 	})
 	if err != nil {
 		zeroBytes(in.Password)

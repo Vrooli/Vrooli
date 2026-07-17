@@ -243,7 +243,7 @@ class AwaitHandle(_message.Message):
     def __init__(self, producer: _Optional[str] = ..., key: _Optional[str] = ..., deadline: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., registered_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class RunActions(_message.Message):
-    __slots__ = ("can_investigate", "can_apply_investigation", "can_delete", "can_stop", "can_retry", "can_continue", "can_approve", "can_reject", "can_review", "can_extract_recommendations", "can_regenerate_recommendations", "can_continue_reason", "can_resume_from_failure", "can_resume_from_failure_reason", "finalization_warning", "can_retry_finalization")
+    __slots__ = ("can_investigate", "can_apply_investigation", "can_delete", "can_stop", "can_retry", "can_continue", "can_approve", "can_reject", "can_review", "can_continue_reason", "can_resume_from_failure", "can_resume_from_failure_reason", "finalization_warning", "can_retry_finalization")
     CAN_INVESTIGATE_FIELD_NUMBER: _ClassVar[int]
     CAN_APPLY_INVESTIGATION_FIELD_NUMBER: _ClassVar[int]
     CAN_DELETE_FIELD_NUMBER: _ClassVar[int]
@@ -253,8 +253,6 @@ class RunActions(_message.Message):
     CAN_APPROVE_FIELD_NUMBER: _ClassVar[int]
     CAN_REJECT_FIELD_NUMBER: _ClassVar[int]
     CAN_REVIEW_FIELD_NUMBER: _ClassVar[int]
-    CAN_EXTRACT_RECOMMENDATIONS_FIELD_NUMBER: _ClassVar[int]
-    CAN_REGENERATE_RECOMMENDATIONS_FIELD_NUMBER: _ClassVar[int]
     CAN_CONTINUE_REASON_FIELD_NUMBER: _ClassVar[int]
     CAN_RESUME_FROM_FAILURE_FIELD_NUMBER: _ClassVar[int]
     CAN_RESUME_FROM_FAILURE_REASON_FIELD_NUMBER: _ClassVar[int]
@@ -269,14 +267,12 @@ class RunActions(_message.Message):
     can_approve: bool
     can_reject: bool
     can_review: bool
-    can_extract_recommendations: bool
-    can_regenerate_recommendations: bool
     can_continue_reason: str
     can_resume_from_failure: bool
     can_resume_from_failure_reason: str
     finalization_warning: str
     can_retry_finalization: bool
-    def __init__(self, can_investigate: _Optional[bool] = ..., can_apply_investigation: _Optional[bool] = ..., can_delete: _Optional[bool] = ..., can_stop: _Optional[bool] = ..., can_retry: _Optional[bool] = ..., can_continue: _Optional[bool] = ..., can_approve: _Optional[bool] = ..., can_reject: _Optional[bool] = ..., can_review: _Optional[bool] = ..., can_extract_recommendations: _Optional[bool] = ..., can_regenerate_recommendations: _Optional[bool] = ..., can_continue_reason: _Optional[str] = ..., can_resume_from_failure: _Optional[bool] = ..., can_resume_from_failure_reason: _Optional[str] = ..., finalization_warning: _Optional[str] = ..., can_retry_finalization: _Optional[bool] = ...) -> None: ...
+    def __init__(self, can_investigate: _Optional[bool] = ..., can_apply_investigation: _Optional[bool] = ..., can_delete: _Optional[bool] = ..., can_stop: _Optional[bool] = ..., can_retry: _Optional[bool] = ..., can_continue: _Optional[bool] = ..., can_approve: _Optional[bool] = ..., can_reject: _Optional[bool] = ..., can_review: _Optional[bool] = ..., can_continue_reason: _Optional[str] = ..., can_resume_from_failure: _Optional[bool] = ..., can_resume_from_failure_reason: _Optional[str] = ..., finalization_warning: _Optional[str] = ..., can_retry_finalization: _Optional[bool] = ...) -> None: ...
 
 class RunSummary(_message.Message):
     __slots__ = ("description", "files_modified", "files_created", "files_deleted", "tokens_used", "turns_used", "cost_estimate", "context_tokens")

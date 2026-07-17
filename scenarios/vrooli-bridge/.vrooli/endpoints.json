@@ -685,8 +685,8 @@
       "id": "identity_login",
       "path": "/vrooli.vrooli_bridge.v1.identity.IdentityService/Login",
       "method": "POST",
-      "summary": "Owner sign-in (same-origin)",
-      "description": "Forwards email + password to scenario-authenticator (resolved by name via api-core/discovery) and returns the issued owner JWT. The control plane owns no credential logic — it relays. Called same-origin by the bridge UI so the browser never makes a cross-origin call.",
+      "summary": "Owner sign-in",
+      "description": "Forwards email + password to scenario-authenticator (resolved by name via api-core/discovery) and returns the issued owner JWT. The control plane owns no credential logic — it relays. Used by the same-origin Bridge UI and by `vrooli-bridge auth login`; neither client calls scenario-authenticator directly.",
       "category": "identity",
       "request": {
         "type": "object",
@@ -1005,6 +1005,51 @@
         {
           "name": "Cancel onboarding op",
           "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.onboard.OnboardService/CancelOnboarding -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "onboard_remove_failed_onboarding",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/RemoveFailedOnboarding",
+      "method": "POST",
+      "summary": "Remove a failed onboarding attempt",
+      "description": "Permanently removes a FAILED onboarding operation and its local diagnostic history. It never contacts the target machine and cannot remove a live, cancelled, or successfully paired node. Owner-gated.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id or operation is not failed"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No op with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository delete failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Remove failed onboarding",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.onboard.OnboardService/RemoveFailedOnboarding -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\"}'"
         }
       ]
     },
@@ -1770,6 +1815,128 @@
           "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RevokeNode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
         }
       ]
+    },
+    {
+      "id": "bridge-readiness",
+      "path": "/api/v1/readiness",
+      "method": "GET",
+      "summary": "Bridge host readiness",
+      "description": "Owner-visible canonical endpoint, fixed port, local API check, and latest durable candidate-admission evidence.",
+      "category": "system",
+      "response": {
+        "type": "BridgeReadinessResult",
+        "properties": {
+          "checks": "object",
+          "endpoint": "string",
+          "firewall": "object",
+          "last_candidate": "object",
+          "local_api": "boolean",
+          "port": "integer",
+          "reachability_mode": "string",
+          "status": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-only readiness inspection; no mutation or generated workflow contract.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "bridge-readiness-endpoint",
+      "path": "/api/v1/readiness/endpoint",
+      "method": "PUT",
+      "summary": "Configure Bridge advertised endpoint",
+      "description": "Owner-only durable endpoint configuration used as the default for future onboarding; explicit onboarding endpoints still win.",
+      "category": "system",
+      "request": {
+        "type": "BridgeEndpointConfig",
+        "properties": {
+          "endpoint": "string",
+          "reachability_mode": "string"
+        }
+      },
+      "response": {
+        "type": "BridgeReadinessResult",
+        "properties": {
+          "endpoint": "string",
+          "reachability_mode": "string",
+          "status": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-only host configuration; this REST operation has a dedicated CLI wrapper.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "bridge-readiness-firewall",
+      "path": "/api/v1/readiness/firewall",
+      "method": "POST",
+      "summary": "Inspect or remediate exact Bridge UFW admission",
+      "description": "Owner-only confirmed action through the setup-managed local privilege broker. Only the candidate source IP and Bridge port 18767 are accepted.",
+      "category": "system",
+      "request": {
+        "type": "BridgeFirewallAction",
+        "properties": {
+          "action": "preview|inspect|verify|allow|revoke",
+          "candidate_ip": "string",
+          "confirm": "boolean"
+        }
+      },
+      "response": {
+        "type": "BridgeFirewallActionResult",
+        "properties": {
+          "changed": "boolean",
+          "evidence": "object",
+          "status": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-only typed host action; the broker rejects arbitrary commands and this wrapper requires explicit confirmation for mutation.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
     },
     {
       "id": "runs_get_run",

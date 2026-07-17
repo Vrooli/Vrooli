@@ -75,6 +75,10 @@ func (f *fakeOnboard) CancelOnboarding(_ context.Context, req *connect.Request[o
 	return connect.NewResponse(f.cancelResp), nil
 }
 
+func (f *fakeOnboard) RemoveFailedOnboarding(_ context.Context, _ *connect.Request[onboardv1.RemoveFailedOnboardingRequest]) (*connect.Response[onboardv1.RemoveFailedOnboardingResponse], error) {
+	return connect.NewResponse(&onboardv1.RemoveFailedOnboardingResponse{}), nil
+}
+
 func connectAPI(svc onboardconnect.OnboardServiceHandler) http.Handler {
 	path, handler := onboardconnect.NewOnboardServiceHandler(svc)
 	mux := http.NewServeMux()
@@ -95,6 +99,7 @@ func startSchema() cliapp.ArgSchema {
 		{Name: "repo-url"},
 		{Name: "checkout-dir"},
 		{Name: "control-plane-url"},
+		{Name: "reachability-mode"},
 		{Name: "verify-timeout"},
 		{Name: "setup-environment"},
 		{Name: "setup-resources"},

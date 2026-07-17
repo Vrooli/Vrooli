@@ -1,4 +1,5 @@
 from common.v1 import maturity_pb2 as _maturity_pb2
+from common.v1 import operations_pb2 as _operations_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -46,7 +47,7 @@ ARTIFACT_PROVENANCE_CATALOG: ArtifactProvenance
 ARTIFACT_PROVENANCE_LEGACY_DISCOVERY: ArtifactProvenance
 
 class RunEvent(_message.Message):
-    __slots__ = ("event", "elapsed_seconds", "run_id", "scenario", "artifact_dir", "preset", "phase", "phase_index", "phase_total", "status", "duration_seconds", "quiet_seconds", "message", "success", "verdict", "error", "maturity_standing", "findings_summary", "phase_presentation")
+    __slots__ = ("event", "elapsed_seconds", "run_id", "scenario", "artifact_dir", "preset", "phase", "phase_index", "phase_total", "status", "duration_seconds", "quiet_seconds", "message", "success", "verdict", "error", "maturity_standing", "findings_summary", "phase_presentation", "sequence")
     EVENT_FIELD_NUMBER: _ClassVar[int]
     ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -66,6 +67,7 @@ class RunEvent(_message.Message):
     MATURITY_STANDING_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     PHASE_PRESENTATION_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
     event: str
     elapsed_seconds: float
     run_id: str
@@ -85,10 +87,11 @@ class RunEvent(_message.Message):
     maturity_standing: PhaseMaturityStanding
     findings_summary: PhaseFindingsSummary
     phase_presentation: _maturity_pb2.PhasePresentation
-    def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ..., phase_presentation: _Optional[_Union[_maturity_pb2.PhasePresentation, _Mapping]] = ...) -> None: ...
+    sequence: int
+    def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ..., phase_presentation: _Optional[_Union[_maturity_pb2.PhasePresentation, _Mapping]] = ..., sequence: _Optional[int] = ...) -> None: ...
 
 class RunLiveStatus(_message.Message):
-    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_standings", "terminal_findings_summaries", "degraded_reasons", "terminal_presentations")
+    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_standings", "terminal_findings_summaries", "degraded_reasons", "terminal_presentations", "standing")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -109,6 +112,7 @@ class RunLiveStatus(_message.Message):
     TERMINAL_FINDINGS_SUMMARIES_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_PRESENTATIONS_FIELD_NUMBER: _ClassVar[int]
+    STANDING_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     status: str
@@ -129,7 +133,8 @@ class RunLiveStatus(_message.Message):
     terminal_findings_summaries: _containers.RepeatedCompositeFieldContainer[PhaseFindingsSummary]
     degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
     terminal_presentations: _containers.RepeatedCompositeFieldContainer[_maturity_pb2.PhasePresentation]
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_standings: _Optional[_Iterable[_Union[PhaseMaturityStanding, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ..., terminal_presentations: _Optional[_Iterable[_Union[_maturity_pb2.PhasePresentation, _Mapping]]] = ...) -> None: ...
+    standing: _operations_pb2.OperationStanding
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_standings: _Optional[_Iterable[_Union[PhaseMaturityStanding, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ..., terminal_presentations: _Optional[_Iterable[_Union[_maturity_pb2.PhasePresentation, _Mapping]]] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ...) -> None: ...
 
 class StartRunRequest(_message.Message):
     __slots__ = ("scenario", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile")
@@ -186,14 +191,16 @@ class RunBusyInfo(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., preset: _Optional[str] = ...) -> None: ...
 
 class FollowRunRequest(_message.Message):
-    __slots__ = ("scenario", "run_id", "suppress_heartbeats")
+    __slots__ = ("scenario", "run_id", "suppress_heartbeats", "after_sequence")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SUPPRESS_HEARTBEATS_FIELD_NUMBER: _ClassVar[int]
+    AFTER_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     run_id: str
     suppress_heartbeats: bool
-    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., suppress_heartbeats: _Optional[bool] = ...) -> None: ...
+    after_sequence: int
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., suppress_heartbeats: _Optional[bool] = ..., after_sequence: _Optional[int] = ...) -> None: ...
 
 class WaitRunRequest(_message.Message):
     __slots__ = ("scenario", "run_id", "timeout_seconds")

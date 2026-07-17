@@ -30,11 +30,12 @@ const GroupName = "onboard"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"OnboardService.StartOnboarding":  h.start,
-		"OnboardService.GetOnboarding":    h.status,
-		"OnboardService.ListOnboardings":  h.list,
-		"OnboardService.WaitOnboarding":   h.watch,
-		"OnboardService.CancelOnboarding": h.cancel,
+		"OnboardService.StartOnboarding":        h.start,
+		"OnboardService.GetOnboarding":          h.status,
+		"OnboardService.ListOnboardings":        h.list,
+		"OnboardService.WaitOnboarding":         h.watch,
+		"OnboardService.CancelOnboarding":       h.cancel,
+		"OnboardService.RemoveFailedOnboarding": h.removeFailed,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

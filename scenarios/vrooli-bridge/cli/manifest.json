@@ -1130,6 +1130,10 @@
               "description": "Control-plane base URL the node pairs/dials back to (default: server $BRIDGE_CONTROL_PLANE_URL, else the control plane's own derived address)"
             },
             {
+              "name": "reachability-mode",
+              "description": "Endpoint reachability mode: lan (default), tunnel, or manual; the selected URL is always proved from the candidate"
+            },
+            {
               "name": "verify-timeout",
               "description": "Seconds to wait for the node to come ONLINE (0 = bootstrap default)"
             },
@@ -1298,6 +1302,20 @@
             "permissions": [
               "network:internal"
             ]
+          }
+        },
+        {
+          "name": "remove-failed",
+          "description": "Remove durable history for a failed onboarding attempt; never contacts the node",
+          "positionals": [
+            { "name": "op-id", "required": true, "description": "Failed onboarding op id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OnboardService", "method": "RemoveFailedOnboarding" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": ["network:internal"]
           }
         }
       ]

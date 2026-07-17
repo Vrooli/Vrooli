@@ -95,7 +95,7 @@ class AgentProfile(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., role_ref: _Optional[str] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., owner_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., last_applied_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., local_override: _Optional[bool] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ResultSpec(_message.Message):
-    __slots__ = ("version", "kind", "schema", "schema_digest", "classification_values", "extraction_mode", "extraction_role")
+    __slots__ = ("version", "kind", "schema", "schema_digest", "classification_values", "extraction_mode", "extraction_role", "schema_repair_attempts")
     VERSION_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_FIELD_NUMBER: _ClassVar[int]
@@ -103,6 +103,7 @@ class ResultSpec(_message.Message):
     CLASSIFICATION_VALUES_FIELD_NUMBER: _ClassVar[int]
     EXTRACTION_MODE_FIELD_NUMBER: _ClassVar[int]
     EXTRACTION_ROLE_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_REPAIR_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     version: str
     kind: ResultSpecKind
     schema: bytes
@@ -110,7 +111,8 @@ class ResultSpec(_message.Message):
     classification_values: _containers.RepeatedScalarFieldContainer[str]
     extraction_mode: StructuredExtractionMode
     extraction_role: str
-    def __init__(self, version: _Optional[str] = ..., kind: _Optional[_Union[ResultSpecKind, str]] = ..., schema: _Optional[bytes] = ..., schema_digest: _Optional[str] = ..., classification_values: _Optional[_Iterable[str]] = ..., extraction_mode: _Optional[_Union[StructuredExtractionMode, str]] = ..., extraction_role: _Optional[str] = ...) -> None: ...
+    schema_repair_attempts: int
+    def __init__(self, version: _Optional[str] = ..., kind: _Optional[_Union[ResultSpecKind, str]] = ..., schema: _Optional[bytes] = ..., schema_digest: _Optional[str] = ..., classification_values: _Optional[_Iterable[str]] = ..., extraction_mode: _Optional[_Union[StructuredExtractionMode, str]] = ..., extraction_role: _Optional[str] = ..., schema_repair_attempts: _Optional[int] = ...) -> None: ...
 
 class RunConfig(_message.Message):
     __slots__ = ("runner_type", "model", "role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "network_access", "policy_snapshot", "sandbox_config", "allowed_paths", "denied_paths")

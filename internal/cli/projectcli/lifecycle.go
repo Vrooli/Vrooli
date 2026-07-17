@@ -381,6 +381,9 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 	if value := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--yes"))); value != "" {
 		opts.Yes = value
 	}
+	if value := strings.TrimSpace(parsed.FlagValue("--result-file")); value != "" {
+		opts.ResultPath = value
+	}
 	if parsed.HasFlag("--include-optional") {
 		opts.IncludeOptional = true
 	}
@@ -427,6 +430,7 @@ func lifecycleOptionsSchema() commandtree.ArgSchema {
 			{Name: "--resources", ValueName: "value", Description: "Resource selection (enabled|none|comma,list)"},
 			{Name: "--scenarios", ValueName: "value", Description: "Scenario selection (none|all|comma,list)"},
 			{Name: "--yes", Aliases: []string{"-y"}, ValueName: "value", Description: "Confirmation policy forwarded to setup steps"},
+			{Name: "--result-file", ValueName: "path", Description: "Write the versioned terminal setup result JSON to path"},
 			{Name: "--include-optional", Description: "Apply optional safeguards too (default: skip optional items)"},
 		},
 	}

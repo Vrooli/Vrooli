@@ -161,6 +161,9 @@ const (
 	StepSSHSetup = "ssh-setup"
 	// StepPushScript — the SCP of the bootstrap script.
 	StepPushScript = "push-script"
+	// StepAdmission proves DNS/TCP/HTTP reachability from the candidate before
+	// source transfer, setup work, or pairing-code issuance.
+	StepAdmission = "candidate-admission"
 	// StepSyncTree — the working-tree ship phase (tar-over-SSH of the control
 	// plane's local tree to the node). Only emitted in working-tree source mode.
 	StepSyncTree = "sync-tree"
@@ -183,6 +186,20 @@ const (
 	FailureSSHSetup FailureReason = "ssh_setup_failed"
 	// FailureScriptPush — could not copy the bootstrap script to the host.
 	FailureScriptPush FailureReason = "script_push_failed"
+	// FailureControlPlaneUnreachable means the candidate could not reach the
+	// selected Bridge endpoint. It must never be represented as pairing_failed.
+	FailureControlPlaneUnreachable FailureReason = "control_plane_unreachable"
+	// FailureEndpointNameUnresolvable keeps candidate DNS failure distinct from
+	// TCP routing and pairing authentication.
+	FailureEndpointNameUnresolvable FailureReason = "endpoint_name_unresolvable"
+	// FailureEndpointInvalid means the configured/derived endpoint is unsafe or
+	// malformed before the candidate was contacted.
+	FailureEndpointInvalid FailureReason = "endpoint_invalid"
+	// FailureControlPlaneUnhealthy means the candidate reached the endpoint but
+	// its health endpoint returned an unhealthy response.
+	FailureControlPlaneUnhealthy FailureReason = "control_plane_unhealthy"
+	// FailureDependencyUnavailable preserves a health dependency outage.
+	FailureDependencyUnavailable FailureReason = "dependency_unavailable"
 	// FailureWorkingTreeSync — could not snapshot or ship the control plane's
 	// working tree to the node (working-tree source mode only).
 	FailureWorkingTreeSync FailureReason = "working_tree_sync_failed"
@@ -240,6 +257,12 @@ type Op struct {
 	BaseRevision      string
 	WorkingTreeDigest string
 
+	// ControlPlaneURL and ReachabilityMode are the immutable endpoint decision
+	// for this op. They intentionally live on the durable record rather than
+	// merely an event so list/detail/UI output remains auditable after retention.
+	ControlPlaneURL  string
+	ReachabilityMode string
+
 	CreatedAt time.Time
 	// StartedAt/FinishedAt are zero until the corresponding transition.
 	StartedAt  time.Time
@@ -273,6 +296,7 @@ type StartInput struct {
 	RepoURL              string
 	CheckoutDir          string
 	ControlPlaneURL      string
+	ReachabilityMode     string // lan (default) | tunnel | manual
 	Capabilities         []string
 	VerifyTimeoutSeconds int32
 	SkipSetup            bool

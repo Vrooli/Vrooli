@@ -3,14 +3,13 @@ syntax = "proto3";
 package vrooli.git_control_tower.v1.baselines;
 
 import "test-genie/v1/runs/runs.proto";
+import "common/v1/operations.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines;baselines_v1";
 
 // =============================================================================
 // BASELINES DOMAIN — one immutable Test Genie run per baseline
 // =============================================================================
-// @layer 5
-// @domain baselines
 // @stability unstable
 //
 // Test Genie owns phase descriptors, comparison semantics, and typed evidence.
@@ -28,12 +27,17 @@ service BaselinesService {
   // Collections aggregate existing per-scenario immutable anchors. They do not
   // create a multi-scenario Test Genie run or alter comparison semantics.
   rpc StartCollectionCapture(StartCollectionCaptureRequest) returns (StartCollectionCaptureResponse);
-  rpc GetCollection(GetCollectionRequest) returns (GetCollectionResponse);
+  rpc GetCollectionStatus(GetCollectionStatusRequest) returns (GetCollectionStatusResponse);
+  rpc WaitCollectionCapture(WaitCollectionCaptureRequest) returns (WaitCollectionCaptureResponse);
   // Adds new before-state members to an existing collection. Existing members
   // and source evidence are immutable once capture has started.
   rpc ExtendCollection(ExtendCollectionRequest) returns (ExtendCollectionResponse);
   rpc StartCollectionDiff(StartCollectionDiffRequest) returns (StartCollectionDiffResponse);
-  rpc GetCollectionDiff(GetCollectionDiffRequest) returns (GetCollectionDiffResponse);
+  // Status is a pure read. It never waits for child execution or finalization.
+  rpc GetCollectionDiffStatus(GetCollectionDiffStatusRequest) returns (GetCollectionDiffStatusResponse);
+  // Wait owns the aggregate operation only. A bounded timeout detaches the
+  // caller but leaves the durable operation running.
+  rpc WaitCollectionDiff(WaitCollectionDiffRequest) returns (WaitCollectionDiffResponse);
   rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionResponse);
   // Path snapshots are separately classified source evidence. They never
   // participate in Test Genie regression verdicts.
@@ -312,26 +316,28 @@ message StartCollectionCaptureResponse {
   bool resumed = 2;
 }
 
-message GetCollectionRequest {
+message GetCollectionStatusRequest {
   string name = 1;
   string branch = 2;
   int64 repo_id = 3;
-  // When true, reattach server-side to durable pending member runs before
-  // returning the current aggregate coverage.
-  bool wait = 4;
 }
 
-message GetCollectionResponse {
+message GetCollectionStatusResponse {
   BaselineCollection collection = 1;
-  CollectionWaitOutcome wait_outcome = 2;
+  common.v1.OperationStanding standing = 2;
 }
 
-message CollectionWaitOutcome {
-  // complete | incomplete | member-failed | transport-failed
-  string kind = 1;
-  repeated string pending_run_ids = 2;
-  repeated string recovery_commands = 3;
-  string detail = 4;
+message WaitCollectionCaptureRequest {
+  string name = 1;
+  string branch = 2;
+  int64 repo_id = 3;
+  int32 timeout_seconds = 4;
+}
+
+message WaitCollectionCaptureResponse {
+  BaselineCollection collection = 1;
+  common.v1.OperationStanding standing = 2;
+  bool detached = 3;
 }
 
 message ExtendCollectionRequest {
@@ -377,20 +383,38 @@ message StartCollectionDiffResponse {
   string operation_id = 4;
 }
 
-message GetCollectionDiffRequest {
+message GetCollectionDiffStatusRequest {
   string name = 1;
   string branch = 2;
   string operation_id = 3;
   int64 repo_id = 4;
-  bool wait = 5;
 }
 
-message GetCollectionDiffResponse {
+message GetCollectionDiffStatusResponse {
   BaselineCollection collection = 1;
   repeated CollectionDiffMember members = 2;
   string classification = 3;
   string operation_id = 4;
-  CollectionWaitOutcome wait_outcome = 5;
+  common.v1.OperationStanding standing = 5;
+}
+
+message WaitCollectionDiffRequest {
+  string name = 1;
+  string branch = 2;
+  string operation_id = 3;
+  int64 repo_id = 4;
+  // 0 means wait until the operation is terminal. A bounded timeout returns a
+  // non-terminal standing with directive=wait and detached=true.
+  int32 timeout_seconds = 5;
+}
+
+message WaitCollectionDiffResponse {
+  BaselineCollection collection = 1;
+  repeated CollectionDiffMember members = 2;
+  string classification = 3;
+  string operation_id = 4;
+  common.v1.OperationStanding standing = 5;
+  bool detached = 6;
 }
 
 message DeleteCollectionRequest {

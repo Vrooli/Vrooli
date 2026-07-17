@@ -159,6 +159,11 @@
           "description": "Canonical scenario port bands and the OS ephemeral-range hazard"
         },
         {
+          "path": "reference/experience-readiness.md",
+          "title": "Experience Readiness Contracts",
+          "description": "Authoring, ownership, lifecycle vocabulary, and progressive consumption of scenario experience readiness"
+        },
+        {
           "path": "repo-contract.md",
           "title": "Repo Contract",
           "description": "Repo-aware structure rules"

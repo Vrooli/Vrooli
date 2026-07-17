@@ -110,8 +110,11 @@ type WorkflowRevision struct {
 	SourceUpdatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=source_updated_at,json=sourceUpdatedAt,proto3" json:"source_updated_at,omitempty"`
 	Active          bool                   `protobuf:"varint,10,opt,name=active,proto3" json:"active,omitempty"`
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// True when any promptRef source pinned in this revision differs from the
+	// current prompt-manager source. This is a live status projection.
+	PromptStale   bool `protobuf:"varint,12,opt,name=prompt_stale,json=promptStale,proto3" json:"prompt_stale,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkflowRevision) Reset() {
@@ -221,11 +224,21 @@ func (x *WorkflowRevision) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *WorkflowRevision) GetPromptStale() bool {
+	if x != nil {
+		return x.PromptStale
+	}
+	return false
+}
+
 type WorkflowDiagnostic struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Code    string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Path    string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Message string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	// Severity distinguishes a blocking error (withholds the digest) from a
+	// non-blocking warning (surfaced but still registrable). Empty means error.
+	Severity      string `protobuf:"bytes,4,opt,name=severity,proto3" json:"severity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -277,6 +290,13 @@ func (x *WorkflowDiagnostic) GetPath() string {
 func (x *WorkflowDiagnostic) GetMessage() string {
 	if x != nil {
 		return x.Message
+	}
+	return ""
+}
+
+func (x *WorkflowDiagnostic) GetSeverity() string {
+	if x != nil {
+		return x.Severity
 	}
 	return ""
 }
@@ -645,8 +665,12 @@ type WorkflowNodeAttempt struct {
 	ProfileIdentity        string `protobuf:"bytes,17,opt,name=profile_identity,json=profileIdentity,proto3" json:"profile_identity,omitempty"`
 	InputSnapshotDigest    string `protobuf:"bytes,18,opt,name=input_snapshot_digest,json=inputSnapshotDigest,proto3" json:"input_snapshot_digest,omitempty"`
 	InputSnapshotSizeBytes int64  `protobuf:"varint,19,opt,name=input_snapshot_size_bytes,json=inputSnapshotSizeBytes,proto3" json:"input_snapshot_size_bytes,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Raw output and validation error are exposed only for failed structured
+	// extraction attempts, so operators can diagnose schema repair.
+	RawOutput       string `protobuf:"bytes,20,opt,name=raw_output,json=rawOutput,proto3" json:"raw_output,omitempty"`
+	ValidationError string `protobuf:"bytes,21,opt,name=validation_error,json=validationError,proto3" json:"validation_error,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *WorkflowNodeAttempt) Reset() {
@@ -812,6 +836,20 @@ func (x *WorkflowNodeAttempt) GetInputSnapshotSizeBytes() int64 {
 	return 0
 }
 
+func (x *WorkflowNodeAttempt) GetRawOutput() string {
+	if x != nil {
+		return x.RawOutput
+	}
+	return ""
+}
+
+func (x *WorkflowNodeAttempt) GetValidationError() string {
+	if x != nil {
+		return x.ValidationError
+	}
+	return ""
+}
+
 // WorkflowJournalEntry is a safe lifecycle-event projection. The durable
 // payload remains internal; digest and byte count permit correlation without
 // leaking prompts, model output, or structured results.
@@ -927,7 +965,7 @@ var File_agent_manager_v1_domain_workflow_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\n" +
-	"&agent-manager/v1/domain/workflow.proto\x12\x10agent_manager.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x03\n" +
+	"&agent-manager/v1/domain/workflow.proto\x12\x10agent_manager.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc6\x03\n" +
 	"\x10WorkflowRevision\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x10\n" +
@@ -945,11 +983,13 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\x06active\x18\n" +
 	" \x01(\bR\x06active\x129\n" +
 	"\n" +
-	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"V\n" +
+	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12!\n" +
+	"\fprompt_stale\x18\f \x01(\bR\vpromptStale\"r\n" +
 	"\x12WorkflowDiagnostic\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\x85\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1a\n" +
+	"\bseverity\x18\x04 \x01(\tR\bseverity\"\x85\x01\n" +
 	"\x16WorkflowTerminalReason\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
@@ -988,7 +1028,7 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\x05depth\x18\x13 \x01(\x05R\x05depth\x1aA\n" +
 	"\x13EdgeTraversalsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xfa\x05\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xc4\x06\n" +
 	"\x13WorkflowNodeAttempt\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12\x17\n" +
@@ -1012,7 +1052,10 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\x12child_execution_id\x18\x10 \x01(\tR\x10childExecutionId\x12)\n" +
 	"\x10profile_identity\x18\x11 \x01(\tR\x0fprofileIdentity\x122\n" +
 	"\x15input_snapshot_digest\x18\x12 \x01(\tR\x13inputSnapshotDigest\x129\n" +
-	"\x19input_snapshot_size_bytes\x18\x13 \x01(\x03R\x16inputSnapshotSizeBytes\"\xc1\x02\n" +
+	"\x19input_snapshot_size_bytes\x18\x13 \x01(\x03R\x16inputSnapshotSizeBytes\x12\x1d\n" +
+	"\n" +
+	"raw_output\x18\x14 \x01(\tR\trawOutput\x12)\n" +
+	"\x10validation_error\x18\x15 \x01(\tR\x0fvalidationError\"\xc1\x02\n" +
 	"\x14WorkflowJournalEntry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12\x1a\n" +

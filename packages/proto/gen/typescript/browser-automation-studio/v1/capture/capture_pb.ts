@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/capture/capture.proto.
  */
 export const file_browser_automation_studio_v1_capture_capture: GenFile = /*@__PURE__*/
-  fileDesc("CjJicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2NhcHR1cmUvY2FwdHVyZS5wcm90bxIkYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlIv0BCgpEaW1lbnNpb25zEkYKBnByZXNldBgBIAEoDjI2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5EaW1lbnNpb25zUHJlc2V0Eh4KBXdpZHRoGAIgASgFQgq6SAcaBRigHyhkSACIAQESHwoGaGVpZ2h0GAMgASgFQgq6SAcaBRigHyhkSAGIAQESOQoTZGV2aWNlX3NjYWxlX2ZhY3RvchgEIAEoAUIXukgUEhIZAAAAAAAAEEApAAAAAAAA4D9IAogBAUIICgZfd2lkdGhCCQoHX2hlaWdodEIWChRfZGV2aWNlX3NjYWxlX2ZhY3RvciJSCgdXYWl0Rm9yEhIKCHNlbGVjdG9yGAEgASgJSAASFQoLbmV0d29ya2lkbGUYAiABKAhIABIUCgp0aW1lb3V0X21zGAMgASgFSABCBgoEc3BlYyLjAgoOQ2FwdHVyZVJlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABEkMKCGNhcHR1cmVzGAIgAygOMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlLkNhcHR1cmVUeXBlEkQKCmRpbWVuc2lvbnMYAyABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuRGltZW5zaW9ucxI/Cgh3YWl0X2ZvchgEIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5XYWl0Rm9yEg8KB291dF9kaXIYBSABKAkSDQoFbGFiZWwYBiABKAkSEgoKaW5saW5lX2RvbRgHIAEoCBIdChVpbnRlcmFjdGlvbl9mbG93X2pzb24YCCABKAkSHAoUaW5saW5lX2FjY2Vzc2liaWxpdHkYCSABKAgi/AEKD0NhcHR1cmVBcnRpZmFjdBI/CgR0eXBlGAEgASgOMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlLkNhcHR1cmVUeXBlEgwKBHBhdGgYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAxJVCghtZXRhZGF0YRgEIAMoCzJDLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5DYXB0dXJlQXJ0aWZhY3QuTWV0YWRhdGFFbnRyeRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEi1gEKD0NhcHR1cmVSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSDwoHb3V0X2RpchgCIAEoCRJICglhcnRpZmFjdHMYAyADKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuQ2FwdHVyZUFydGlmYWN0EhMKC2R1cmF0aW9uX21zGAQgASgDEg8KB2RyeV9ydW4YBSABKAgSEAoIZG9tX2h0bWwYBiABKAkSGgoSYWNjZXNzaWJpbGl0eV9qc29uGAcgASgJKu0BCgtDYXB0dXJlVHlwZRIcChhDQVBUVVJFX1RZUEVfVU5TUEVDSUZJRUQQABIbChdDQVBUVVJFX1RZUEVfU0NSRUVOU0hPVBABEh0KGUNBUFRVUkVfVFlQRV9DT05TT0xFX0xPR1MQAhIYChRDQVBUVVJFX1RZUEVfTkVUV09SSxADEhYKEkNBUFRVUkVfVFlQRV9WSURFTxAEEhQKEENBUFRVUkVfVFlQRV9ET00QBRIcChhDQVBUVVJFX1RZUEVfUEVSRk9STUFOQ0UQBhIeChpDQVBUVVJFX1RZUEVfQUNDRVNTSUJJTElUWRAHKpABChBEaW1lbnNpb25zUHJlc2V0EiEKHURJTUVOU0lPTlNfUFJFU0VUX1VOU1BFQ0lGSUVEEAASHAoYRElNRU5TSU9OU19QUkVTRVRfTU9CSUxFEAESHAoYRElNRU5TSU9OU19QUkVTRVRfVEFCTEVUEAISHQoZRElNRU5TSU9OU19QUkVTRVRfREVTS1RPUBADMogBCg5DYXB0dXJlU2VydmljZRJ2CgdDYXB0dXJlEjQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlLkNhcHR1cmVSZXF1ZXN0GjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlLkNhcHR1cmVSZXNwb25zZUJdWltnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjEvY2FwdHVyZTtjYXB0dXJlYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("CjJicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2NhcHR1cmUvY2FwdHVyZS5wcm90bxIkYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlIv0BCgpEaW1lbnNpb25zEkYKBnByZXNldBgBIAEoDjI2LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5EaW1lbnNpb25zUHJlc2V0Eh4KBXdpZHRoGAIgASgFQgq6SAcaBRigHyhkSACIAQESHwoGaGVpZ2h0GAMgASgFQgq6SAcaBRigHyhkSAGIAQESOQoTZGV2aWNlX3NjYWxlX2ZhY3RvchgEIAEoAUIXukgUEhIZAAAAAAAAEEApAAAAAAAA4D9IAogBAUIICgZfd2lkdGhCCQoHX2hlaWdodEIWChRfZGV2aWNlX3NjYWxlX2ZhY3RvciJSCgdXYWl0Rm9yEhIKCHNlbGVjdG9yGAEgASgJSAASFQoLbmV0d29ya2lkbGUYAiABKAhIABIUCgp0aW1lb3V0X21zGAMgASgFSABCBgoEc3BlYyLjAgoOQ2FwdHVyZVJlcXVlc3QSFAoDdXJsGAEgASgJQge6SARyAhABEkMKCGNhcHR1cmVzGAIgAygOMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlLkNhcHR1cmVUeXBlEkQKCmRpbWVuc2lvbnMYAyABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuRGltZW5zaW9ucxI/Cgh3YWl0X2ZvchgEIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5XYWl0Rm9yEg8KB291dF9kaXIYBSABKAkSDQoFbGFiZWwYBiABKAkSEgoKaW5saW5lX2RvbRgHIAEoCBIdChVpbnRlcmFjdGlvbl9mbG93X2pzb24YCCABKAkSHAoUaW5saW5lX2FjY2Vzc2liaWxpdHkYCSABKAgi/AEKD0NhcHR1cmVBcnRpZmFjdBI/CgR0eXBlGAEgASgOMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5jYXB0dXJlLkNhcHR1cmVUeXBlEgwKBHBhdGgYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAxJVCghtZXRhZGF0YRgEIAMoCzJDLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5DYXB0dXJlQXJ0aWZhY3QuTWV0YWRhdGFFbnRyeRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEirAIKD0NhcHR1cmVSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSDwoHb3V0X2RpchgCIAEoCRJICglhcnRpZmFjdHMYAyADKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuQ2FwdHVyZUFydGlmYWN0EhMKC2R1cmF0aW9uX21zGAQgASgDEg8KB2RyeV9ydW4YBSABKAgSEAoIZG9tX2h0bWwYBiABKAkSGgoSYWNjZXNzaWJpbGl0eV9qc29uGAcgASgJElQKCXJlYWRpbmVzcxgIIAEoCzJBLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuY2FwdHVyZS5DYXB0dXJlUmVhZGluZXNzRGlhZ25vc3RpY3MinQIKG0NhcHR1cmVSZWFkaW5lc3NEaWFnbm9zdGljcxIaChJyZXF1ZXN0ZWRfc3RyYXRlZ3kYASABKAkSGQoRc2VsZWN0ZWRfc3RyYXRlZ3kYAiABKAkSDwoHb3V0Y29tZRgDIAEoCRITCgtkdXJhdGlvbl9tcxgEIAEoAxIXCg9mYWxsYmFja19yZWFzb24YBSABKAkSFwoPcHJvZmlsZV92ZXJzaW9uGAYgASgJEg0KBXJvdXRlGAcgASgJEhwKFHJlcXVpcmVkX3N1cmZhY2VfaWRzGAggAygJEh4KFm5hdmlnYXRpb25fZHVyYXRpb25fbXMYCSABKAMSIgoacmVhZGluZXNzX3dhaXRfZHVyYXRpb25fbXMYCiABKAMq7QEKC0NhcHR1cmVUeXBlEhwKGENBUFRVUkVfVFlQRV9VTlNQRUNJRklFRBAAEhsKF0NBUFRVUkVfVFlQRV9TQ1JFRU5TSE9UEAESHQoZQ0FQVFVSRV9UWVBFX0NPTlNPTEVfTE9HUxACEhgKFENBUFRVUkVfVFlQRV9ORVRXT1JLEAMSFgoSQ0FQVFVSRV9UWVBFX1ZJREVPEAQSFAoQQ0FQVFVSRV9UWVBFX0RPTRAFEhwKGENBUFRVUkVfVFlQRV9QRVJGT1JNQU5DRRAGEh4KGkNBUFRVUkVfVFlQRV9BQ0NFU1NJQklMSVRZEAcqkAEKEERpbWVuc2lvbnNQcmVzZXQSIQodRElNRU5TSU9OU19QUkVTRVRfVU5TUEVDSUZJRUQQABIcChhESU1FTlNJT05TX1BSRVNFVF9NT0JJTEUQARIcChhESU1FTlNJT05TX1BSRVNFVF9UQUJMRVQQAhIdChlESU1FTlNJT05TX1BSRVNFVF9ERVNLVE9QEAMyiAEKDkNhcHR1cmVTZXJ2aWNlEnYKB0NhcHR1cmUSNC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuQ2FwdHVyZVJlcXVlc3QaNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLmNhcHR1cmUuQ2FwdHVyZVJlc3BvbnNlQl1aW2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MS9jYXB0dXJlO2NhcHR1cmViBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * Dimensions specifies the browser viewport. A caller picks a preset OR
@@ -291,6 +291,15 @@ export type CaptureResponse = Message<"browser_automation_studio.v1.capture.Capt
    * @generated from field: string accessibility_json = 7;
    */
   accessibilityJson: string;
+
+  /**
+   * Readiness decision and outcome for this capture. This makes it explicit
+   * whether capture used a caller wait, a declared profile surface, or normal
+   * generic navigation fallback.
+   *
+   * @generated from field: browser_automation_studio.v1.capture.CaptureReadinessDiagnostics readiness = 8;
+   */
+  readiness?: CaptureReadinessDiagnostics | undefined;
 };
 
 /**
@@ -299,6 +308,75 @@ export type CaptureResponse = Message<"browser_automation_studio.v1.capture.Capt
  */
 export const CaptureResponseSchema: GenMessage<CaptureResponse> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_capture_capture, 4);
+
+/**
+ * @generated from message browser_automation_studio.v1.capture.CaptureReadinessDiagnostics
+ */
+export type CaptureReadinessDiagnostics = Message<"browser_automation_studio.v1.capture.CaptureReadinessDiagnostics"> & {
+  /**
+   * @generated from field: string requested_strategy = 1;
+   */
+  requestedStrategy: string;
+
+  /**
+   * @generated from field: string selected_strategy = 2;
+   */
+  selectedStrategy: string;
+
+  /**
+   * @generated from field: string outcome = 3;
+   */
+  outcome: string;
+
+  /**
+   * @generated from field: int64 duration_ms = 4;
+   */
+  durationMs: bigint;
+
+  /**
+   * @generated from field: string fallback_reason = 5;
+   */
+  fallbackReason: string;
+
+  /**
+   * @generated from field: string profile_version = 6;
+   */
+  profileVersion: string;
+
+  /**
+   * @generated from field: string route = 7;
+   */
+  route: string;
+
+  /**
+   * @generated from field: repeated string required_surface_ids = 8;
+   */
+  requiredSurfaceIds: string[];
+
+  /**
+   * Driver-observed duration of the navigation operation itself. This stays
+   * distinct from readiness so a slow route can be diagnosed without
+   * mistaking navigation timeout policy for functional settling.
+   *
+   * @generated from field: int64 navigation_duration_ms = 9;
+   */
+  navigationDurationMs: bigint;
+
+  /**
+   * Sum of explicit or declared post-navigation wait steps observed in the
+   * exported execution timeline.
+   *
+   * @generated from field: int64 readiness_wait_duration_ms = 10;
+   */
+  readinessWaitDurationMs: bigint;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.capture.CaptureReadinessDiagnostics.
+ * Use `create(CaptureReadinessDiagnosticsSchema)` to create a new message.
+ */
+export const CaptureReadinessDiagnosticsSchema: GenMessage<CaptureReadinessDiagnostics> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_capture_capture, 5);
 
 /**
  * CaptureType selects which artifacts the session emits. UNSPECIFIED is

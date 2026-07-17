@@ -312,6 +312,7 @@ const literalSelectors = {
     empty: "fleet-empty",
     list: "fleet-list",
     failedOnboardings: "fleet-failed-onboardings",
+    bridgeReadiness: "fleet-bridge-readiness",
     pairing: {
       disclosure: "fleet-pairing-disclosure",
       form: "fleet-pairing-form",

@@ -12,7 +12,7 @@ import {
 import { notifySessionExpired, readOwnerToken } from "../features/session/store";
 
 export const API_BASE = resolveApiBase();
-const REST_API_BASE = resolveApiBase({ appendSuffix: true });
+export const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 
 /**

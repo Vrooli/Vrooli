@@ -17,6 +17,7 @@ const { listNodes, revokeNode } = vi.hoisted(() => ({
 }));
 const { listQueue } = vi.hoisted(() => ({ listQueue: vi.fn() }));
 const { listOnboardings, getOnboarding, removeFailedOnboarding } = vi.hoisted(() => ({ listOnboardings: vi.fn(), getOnboarding: vi.fn(), removeFailedOnboarding: vi.fn() }));
+const { fetchBridgeReadiness, performBridgeFirewallAction } = vi.hoisted(() => ({ fetchBridgeReadiness: vi.fn(), performBridgeFirewallAction: vi.fn() }));
 
 vi.mock("../../api/nodes", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/nodes")>();
@@ -34,6 +35,7 @@ vi.mock("../../api/onboard", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/onboard")>();
   return { ...actual, onboardClient: { listOnboardings, getOnboarding, removeFailedOnboarding } };
 });
+vi.mock("../../api/readiness", () => ({ fetchBridgeReadiness, performBridgeFirewallAction }));
 
 import { FleetPanel } from "./FleetPanel";
 
@@ -43,6 +45,7 @@ describe("FleetPanel", () => {
     // renders idle job status without a real network attempt.
     listQueue.mockResolvedValue({ nodes: [] });
     listOnboardings.mockResolvedValue({ ops: [] });
+    fetchBridgeReadiness.mockResolvedValue({ status: "ready", endpoint: "http://bridge.test:18767", port: 18767, endpoint_source: "configured", reachability_mode: "lan", local_api: true });
   });
 
   afterEach(() => {
@@ -213,5 +216,40 @@ describe("FleetPanel", () => {
     renderWithProviders(<FleetPanel />);
     await waitFor(() => expect(screen.getByTestId(selectors.fleet.error)).toBeInTheDocument());
     expect(screen.getByText(strings.errors.unavailable)).toBeInTheDocument();
+  });
+
+  it("confirms a scoped broker admission for the recorded failed candidate", async () => {
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    listNodes.mockResolvedValue({ nodes: [] });
+    fetchBridgeReadiness.mockResolvedValue({
+      status: "candidate_blocked", endpoint: "http://bridge.test:18767", port: 18767, endpoint_source: "configured", reachability_mode: "lan", local_api: true,
+      last_candidate: { host: "mini", endpoint: "http://bridge.test:18767", mode: "lan", state: "failed", source_ip: "192.168.1.176" },
+      firewall: { available: true, inspectable: true, active: true, rule_found: false, privileged: true, broker_available: true, broker_status: "verified" },
+    });
+    performBridgeFirewallAction.mockResolvedValue({ status: "changed", changed: true });
+    renderWithProviders(<FleetPanel />);
+    await user.click(await screen.findByText(strings.fleet.bridgeReadinessAllow));
+    expect(confirmSpy).toHaveBeenCalled();
+    await waitFor(() => expect(performBridgeFirewallAction).toHaveBeenCalledWith("allow", "192.168.1.176", true));
+    confirmSpy.mockRestore();
+  });
+
+  it("previews and revokes only the recorded candidate rule", async () => {
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    listNodes.mockResolvedValue({ nodes: [] });
+    fetchBridgeReadiness.mockResolvedValue({
+      status: "candidate_blocked", endpoint: "http://bridge.test:18767", port: 18767, endpoint_source: "configured", reachability_mode: "lan", local_api: true,
+      last_candidate: { host: "mini", endpoint: "http://bridge.test:18767", mode: "lan", state: "failed", source_ip: "192.168.1.176" },
+      firewall: { available: true, inspectable: true, active: true, rule_found: true, privileged: true, broker_available: true, broker_status: "verified" },
+    });
+    performBridgeFirewallAction.mockResolvedValue({ status: "changed", changed: true });
+    renderWithProviders(<FleetPanel />);
+    await user.click(await screen.findByText(strings.fleet.bridgeReadinessPreview));
+    await waitFor(() => expect(performBridgeFirewallAction).toHaveBeenCalledWith("preview", "192.168.1.176", false));
+    await user.click(screen.getByText(strings.fleet.bridgeReadinessRevoke));
+    await waitFor(() => expect(performBridgeFirewallAction).toHaveBeenCalledWith("revoke", "192.168.1.176", true));
+    confirmSpy.mockRestore();
   });
 });

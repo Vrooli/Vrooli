@@ -14,6 +14,11 @@ import (
 const (
 	failSSHSetup            = "ssh_setup_failed"
 	failScriptPush          = "script_push_failed"
+	failControlPlaneUnreachable = "control_plane_unreachable"
+	failEndpointNameUnresolvable = "endpoint_name_unresolvable"
+	failEndpointInvalid = "endpoint_invalid"
+	failControlPlaneUnhealthy = "control_plane_unhealthy"
+	failDependencyUnavailable = "dependency_unavailable"
 	failPairingIssue        = "pairing_issue_failed"
 	failBootstrapUsage      = "bootstrap_usage_error"
 	failUnsupportedPlatform = "unsupported_platform"
@@ -44,6 +49,14 @@ func failureGuidance(op *onboardv1.OnboardingOp) string {
 		}
 	}
 	switch reason {
+	case failControlPlaneUnreachable:
+		return "The candidate could not reach the Bridge endpoint before onboarding. Check the endpoint, LAN routing, and the control-plane firewall; no pairing code was issued."
+	case failEndpointNameUnresolvable:
+		return "The candidate could not resolve the selected Bridge endpoint. Use a resolvable LAN name, tunnel URL, or manual managed-DNS/VPN endpoint; no pairing code was issued."
+	case failEndpointInvalid:
+		return "The selected Bridge endpoint is malformed or unsafe for this reachability mode. Use an absolute HTTP(S) Bridge base URL; LAN and tunnel modes cannot use loopback."
+	case failControlPlaneUnhealthy, failDependencyUnavailable:
+		return "The candidate reached Bridge but its health endpoint was unhealthy. Restore control-plane health before retrying; no pairing code was issued."
 	case failSSHSetup:
 		return fmt.Sprintf("SSH setup failed: could not establish passwordless SSH to %s. "+
 			"Confirm the host is reachable on the SSH port, the user is correct, and the SSH password was right, then re-run `onboard start` "+

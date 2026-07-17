@@ -733,10 +733,11 @@ step_pair_redeem() {
   fi
   if [ "$rc" -ne 0 ]; then
     cat "${out}.err" >&2
-    local errtxt
-    errtxt="$(cat "${out}.err")"
     rm -f "$out" "${out}.err"
-    if printf '%s' "$errtxt" | grep -qiE 'invalid|expired|already|not found|redeem'; then
+    # Exit 4 is emitted only by the Bridge CLI after it received the pairing
+    # service's typed Unauthenticated rejection. Do not inspect wording here:
+    # DNS/TCP/TLS/timeouts can contain "redeem" and must remain transport errors.
+    if [ "$rc" -eq 4 ]; then
       fail 4 "pairing code rejected (invalid/expired/already used) — issue a fresh code and re-run: nothing was spent on this node"
     fi
     fail 1 "redeem failed (exit ${rc}) — see error above"

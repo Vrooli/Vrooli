@@ -37,7 +37,7 @@ WORKFLOW_EXECUTION_STATUS_CANCELLED: WorkflowExecutionStatus
 WORKFLOW_EXECUTION_STATUS_CANCELLING: WorkflowExecutionStatus
 
 class WorkflowRevision(_message.Message):
-    __slots__ = ("id", "owner", "key", "semantic_version", "digest", "definition", "source_path", "source_hash", "source_updated_at", "active", "created_at")
+    __slots__ = ("id", "owner", "key", "semantic_version", "digest", "definition", "source_path", "source_hash", "source_updated_at", "active", "created_at", "prompt_stale")
     ID_FIELD_NUMBER: _ClassVar[int]
     OWNER_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
@@ -49,6 +49,7 @@ class WorkflowRevision(_message.Message):
     SOURCE_UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     ACTIVE_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_STALE_FIELD_NUMBER: _ClassVar[int]
     id: str
     owner: str
     key: str
@@ -60,17 +61,20 @@ class WorkflowRevision(_message.Message):
     source_updated_at: _timestamp_pb2.Timestamp
     active: bool
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., key: _Optional[str] = ..., semantic_version: _Optional[str] = ..., digest: _Optional[str] = ..., definition: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., active: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    prompt_stale: bool
+    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., key: _Optional[str] = ..., semantic_version: _Optional[str] = ..., digest: _Optional[str] = ..., definition: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., active: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., prompt_stale: _Optional[bool] = ...) -> None: ...
 
 class WorkflowDiagnostic(_message.Message):
-    __slots__ = ("code", "path", "message")
+    __slots__ = ("code", "path", "message", "severity")
     CODE_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
     code: str
     path: str
     message: str
-    def __init__(self, code: _Optional[str] = ..., path: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+    severity: str
+    def __init__(self, code: _Optional[str] = ..., path: _Optional[str] = ..., message: _Optional[str] = ..., severity: _Optional[str] = ...) -> None: ...
 
 class WorkflowTerminalReason(_message.Message):
     __slots__ = ("code", "message", "retryable", "budget_name")
@@ -150,7 +154,7 @@ class WorkflowExecution(_message.Message):
     def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., status: _Optional[_Union[WorkflowExecutionStatus, str]] = ..., current_node_id: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., output: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., terminal_reason: _Optional[_Union[WorkflowTerminalReason, _Mapping]] = ..., budget_usage: _Optional[_Union[WorkflowBudgetUsage, _Mapping]] = ..., edge_traversals: _Optional[_Mapping[str, int]] = ..., version: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., parent_execution_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parent_attempt_id: _Optional[str] = ..., depth: _Optional[int] = ...) -> None: ...
 
 class WorkflowNodeAttempt(_message.Message):
-    __slots__ = ("id", "execution_id", "node_id", "ordinal", "strategy", "status", "idempotency_key", "run_id", "conversation_id", "source_attempt_id", "error_code", "version", "created_at", "updated_at", "completed_at", "child_execution_id", "profile_identity", "input_snapshot_digest", "input_snapshot_size_bytes")
+    __slots__ = ("id", "execution_id", "node_id", "ordinal", "strategy", "status", "idempotency_key", "run_id", "conversation_id", "source_attempt_id", "error_code", "version", "created_at", "updated_at", "completed_at", "child_execution_id", "profile_identity", "input_snapshot_digest", "input_snapshot_size_bytes", "raw_output", "validation_error")
     ID_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -170,6 +174,8 @@ class WorkflowNodeAttempt(_message.Message):
     PROFILE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
     INPUT_SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
     INPUT_SNAPSHOT_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    RAW_OUTPUT_FIELD_NUMBER: _ClassVar[int]
+    VALIDATION_ERROR_FIELD_NUMBER: _ClassVar[int]
     id: str
     execution_id: str
     node_id: str
@@ -189,7 +195,9 @@ class WorkflowNodeAttempt(_message.Message):
     profile_identity: str
     input_snapshot_digest: str
     input_snapshot_size_bytes: int
-    def __init__(self, id: _Optional[str] = ..., execution_id: _Optional[str] = ..., node_id: _Optional[str] = ..., ordinal: _Optional[int] = ..., strategy: _Optional[str] = ..., status: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., run_id: _Optional[str] = ..., conversation_id: _Optional[str] = ..., source_attempt_id: _Optional[str] = ..., error_code: _Optional[str] = ..., version: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., child_execution_id: _Optional[str] = ..., profile_identity: _Optional[str] = ..., input_snapshot_digest: _Optional[str] = ..., input_snapshot_size_bytes: _Optional[int] = ...) -> None: ...
+    raw_output: str
+    validation_error: str
+    def __init__(self, id: _Optional[str] = ..., execution_id: _Optional[str] = ..., node_id: _Optional[str] = ..., ordinal: _Optional[int] = ..., strategy: _Optional[str] = ..., status: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., run_id: _Optional[str] = ..., conversation_id: _Optional[str] = ..., source_attempt_id: _Optional[str] = ..., error_code: _Optional[str] = ..., version: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., child_execution_id: _Optional[str] = ..., profile_identity: _Optional[str] = ..., input_snapshot_digest: _Optional[str] = ..., input_snapshot_size_bytes: _Optional[int] = ..., raw_output: _Optional[str] = ..., validation_error: _Optional[str] = ...) -> None: ...
 
 class WorkflowJournalEntry(_message.Message):
     __slots__ = ("id", "execution_id", "sequence", "kind", "node_id", "attempt_id", "payload_digest", "payload_size_bytes", "created_at")

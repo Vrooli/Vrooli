@@ -10,6 +10,21 @@ import {
   type ListOnboardingsResponse,
   type StartOnboardingInput,
 } from "../../api/onboard";
+import { fetchBridgeReadiness, performBridgeFirewallAction } from "../../api/readiness";
+
+export const BRIDGE_READINESS_QUERY_KEY = ["fleet", "bridge-readiness"] as const;
+
+export function useBridgeReadinessQuery() {
+  return useQuery({ queryKey: BRIDGE_READINESS_QUERY_KEY, queryFn: fetchBridgeReadiness, staleTime: 15_000 });
+}
+
+export function useBridgeFirewallActionMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ action, candidateIP, confirm }: { action: "preview" | "inspect" | "verify" | "allow" | "revoke"; candidateIP: string; confirm?: boolean }) => performBridgeFirewallAction(action, candidateIP, confirm),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: BRIDGE_READINESS_QUERY_KEY }),
+  });
+}
 
 /** Canonical react-query key for the owner's fleet node list. */
 export const NODES_QUERY_KEY = ["fleet", "nodes"] as const;

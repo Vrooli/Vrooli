@@ -57,18 +57,24 @@ const (
 	// BaselinesServiceStartCollectionCaptureProcedure is the fully-qualified name of the
 	// BaselinesService's StartCollectionCapture RPC.
 	BaselinesServiceStartCollectionCaptureProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/StartCollectionCapture"
-	// BaselinesServiceGetCollectionProcedure is the fully-qualified name of the BaselinesService's
-	// GetCollection RPC.
-	BaselinesServiceGetCollectionProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/GetCollection"
+	// BaselinesServiceGetCollectionStatusProcedure is the fully-qualified name of the
+	// BaselinesService's GetCollectionStatus RPC.
+	BaselinesServiceGetCollectionStatusProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/GetCollectionStatus"
+	// BaselinesServiceWaitCollectionCaptureProcedure is the fully-qualified name of the
+	// BaselinesService's WaitCollectionCapture RPC.
+	BaselinesServiceWaitCollectionCaptureProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/WaitCollectionCapture"
 	// BaselinesServiceExtendCollectionProcedure is the fully-qualified name of the BaselinesService's
 	// ExtendCollection RPC.
 	BaselinesServiceExtendCollectionProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/ExtendCollection"
 	// BaselinesServiceStartCollectionDiffProcedure is the fully-qualified name of the
 	// BaselinesService's StartCollectionDiff RPC.
 	BaselinesServiceStartCollectionDiffProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/StartCollectionDiff"
-	// BaselinesServiceGetCollectionDiffProcedure is the fully-qualified name of the BaselinesService's
-	// GetCollectionDiff RPC.
-	BaselinesServiceGetCollectionDiffProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/GetCollectionDiff"
+	// BaselinesServiceGetCollectionDiffStatusProcedure is the fully-qualified name of the
+	// BaselinesService's GetCollectionDiffStatus RPC.
+	BaselinesServiceGetCollectionDiffStatusProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/GetCollectionDiffStatus"
+	// BaselinesServiceWaitCollectionDiffProcedure is the fully-qualified name of the BaselinesService's
+	// WaitCollectionDiff RPC.
+	BaselinesServiceWaitCollectionDiffProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/WaitCollectionDiff"
 	// BaselinesServiceDeleteCollectionProcedure is the fully-qualified name of the BaselinesService's
 	// DeleteCollection RPC.
 	BaselinesServiceDeleteCollectionProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/DeleteCollection"
@@ -102,12 +108,17 @@ type BaselinesServiceClient interface {
 	// Collections aggregate existing per-scenario immutable anchors. They do not
 	// create a multi-scenario Test Genie run or alter comparison semantics.
 	StartCollectionCapture(context.Context, *connect.Request[baselines.StartCollectionCaptureRequest]) (*connect.Response[baselines.StartCollectionCaptureResponse], error)
-	GetCollection(context.Context, *connect.Request[baselines.GetCollectionRequest]) (*connect.Response[baselines.GetCollectionResponse], error)
+	GetCollectionStatus(context.Context, *connect.Request[baselines.GetCollectionStatusRequest]) (*connect.Response[baselines.GetCollectionStatusResponse], error)
+	WaitCollectionCapture(context.Context, *connect.Request[baselines.WaitCollectionCaptureRequest]) (*connect.Response[baselines.WaitCollectionCaptureResponse], error)
 	// Adds new before-state members to an existing collection. Existing members
 	// and source evidence are immutable once capture has started.
 	ExtendCollection(context.Context, *connect.Request[baselines.ExtendCollectionRequest]) (*connect.Response[baselines.ExtendCollectionResponse], error)
 	StartCollectionDiff(context.Context, *connect.Request[baselines.StartCollectionDiffRequest]) (*connect.Response[baselines.StartCollectionDiffResponse], error)
-	GetCollectionDiff(context.Context, *connect.Request[baselines.GetCollectionDiffRequest]) (*connect.Response[baselines.GetCollectionDiffResponse], error)
+	// Status is a pure read. It never waits for child execution or finalization.
+	GetCollectionDiffStatus(context.Context, *connect.Request[baselines.GetCollectionDiffStatusRequest]) (*connect.Response[baselines.GetCollectionDiffStatusResponse], error)
+	// Wait owns the aggregate operation only. A bounded timeout detaches the
+	// caller but leaves the durable operation running.
+	WaitCollectionDiff(context.Context, *connect.Request[baselines.WaitCollectionDiffRequest]) (*connect.Response[baselines.WaitCollectionDiffResponse], error)
 	DeleteCollection(context.Context, *connect.Request[baselines.DeleteCollectionRequest]) (*connect.Response[baselines.DeleteCollectionResponse], error)
 	// Path snapshots are separately classified source evidence. They never
 	// participate in Test Genie regression verdicts.
@@ -178,10 +189,16 @@ func NewBaselinesServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(baselinesServiceMethods.ByName("StartCollectionCapture")),
 			connect.WithClientOptions(opts...),
 		),
-		getCollection: connect.NewClient[baselines.GetCollectionRequest, baselines.GetCollectionResponse](
+		getCollectionStatus: connect.NewClient[baselines.GetCollectionStatusRequest, baselines.GetCollectionStatusResponse](
 			httpClient,
-			baseURL+BaselinesServiceGetCollectionProcedure,
-			connect.WithSchema(baselinesServiceMethods.ByName("GetCollection")),
+			baseURL+BaselinesServiceGetCollectionStatusProcedure,
+			connect.WithSchema(baselinesServiceMethods.ByName("GetCollectionStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		waitCollectionCapture: connect.NewClient[baselines.WaitCollectionCaptureRequest, baselines.WaitCollectionCaptureResponse](
+			httpClient,
+			baseURL+BaselinesServiceWaitCollectionCaptureProcedure,
+			connect.WithSchema(baselinesServiceMethods.ByName("WaitCollectionCapture")),
 			connect.WithClientOptions(opts...),
 		),
 		extendCollection: connect.NewClient[baselines.ExtendCollectionRequest, baselines.ExtendCollectionResponse](
@@ -196,10 +213,16 @@ func NewBaselinesServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(baselinesServiceMethods.ByName("StartCollectionDiff")),
 			connect.WithClientOptions(opts...),
 		),
-		getCollectionDiff: connect.NewClient[baselines.GetCollectionDiffRequest, baselines.GetCollectionDiffResponse](
+		getCollectionDiffStatus: connect.NewClient[baselines.GetCollectionDiffStatusRequest, baselines.GetCollectionDiffStatusResponse](
 			httpClient,
-			baseURL+BaselinesServiceGetCollectionDiffProcedure,
-			connect.WithSchema(baselinesServiceMethods.ByName("GetCollectionDiff")),
+			baseURL+BaselinesServiceGetCollectionDiffStatusProcedure,
+			connect.WithSchema(baselinesServiceMethods.ByName("GetCollectionDiffStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		waitCollectionDiff: connect.NewClient[baselines.WaitCollectionDiffRequest, baselines.WaitCollectionDiffResponse](
+			httpClient,
+			baseURL+BaselinesServiceWaitCollectionDiffProcedure,
+			connect.WithSchema(baselinesServiceMethods.ByName("WaitCollectionDiff")),
 			connect.WithClientOptions(opts...),
 		),
 		deleteCollection: connect.NewClient[baselines.DeleteCollectionRequest, baselines.DeleteCollectionResponse](
@@ -243,24 +266,26 @@ func NewBaselinesServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // baselinesServiceClient implements BaselinesServiceClient.
 type baselinesServiceClient struct {
-	snapshotForBaseline    *connect.Client[baselines.SnapshotForBaselineRequest, baselines.SnapshotForBaselineResponse]
-	getSnapshotStatus      *connect.Client[baselines.GetSnapshotStatusRequest, baselines.GetSnapshotStatusResponse]
-	getBaseline            *connect.Client[baselines.GetBaselineRequest, baselines.GetBaselineResponse]
-	listBaselines          *connect.Client[baselines.ListBaselinesRequest, baselines.ListBaselinesResponse]
-	startDiff              *connect.Client[baselines.StartDiffRequest, baselines.StartDiffResponse]
-	getDiffResult          *connect.Client[baselines.GetDiffResultRequest, baselines.GetDiffResultResponse]
-	deleteBaseline         *connect.Client[baselines.DeleteBaselineRequest, baselines.DeleteBaselineResponse]
-	startCollectionCapture *connect.Client[baselines.StartCollectionCaptureRequest, baselines.StartCollectionCaptureResponse]
-	getCollection          *connect.Client[baselines.GetCollectionRequest, baselines.GetCollectionResponse]
-	extendCollection       *connect.Client[baselines.ExtendCollectionRequest, baselines.ExtendCollectionResponse]
-	startCollectionDiff    *connect.Client[baselines.StartCollectionDiffRequest, baselines.StartCollectionDiffResponse]
-	getCollectionDiff      *connect.Client[baselines.GetCollectionDiffRequest, baselines.GetCollectionDiffResponse]
-	deleteCollection       *connect.Client[baselines.DeleteCollectionRequest, baselines.DeleteCollectionResponse]
-	estimatePathSnapshot   *connect.Client[baselines.EstimatePathSnapshotRequest, baselines.EstimatePathSnapshotResponse]
-	capturePathSnapshot    *connect.Client[baselines.CapturePathSnapshotRequest, baselines.CapturePathSnapshotResponse]
-	getPathSnapshot        *connect.Client[baselines.GetPathSnapshotRequest, baselines.GetPathSnapshotResponse]
-	diffPathSnapshots      *connect.Client[baselines.DiffPathSnapshotsRequest, baselines.DiffPathSnapshotsResponse]
-	deletePathSnapshot     *connect.Client[baselines.DeletePathSnapshotRequest, baselines.DeletePathSnapshotResponse]
+	snapshotForBaseline     *connect.Client[baselines.SnapshotForBaselineRequest, baselines.SnapshotForBaselineResponse]
+	getSnapshotStatus       *connect.Client[baselines.GetSnapshotStatusRequest, baselines.GetSnapshotStatusResponse]
+	getBaseline             *connect.Client[baselines.GetBaselineRequest, baselines.GetBaselineResponse]
+	listBaselines           *connect.Client[baselines.ListBaselinesRequest, baselines.ListBaselinesResponse]
+	startDiff               *connect.Client[baselines.StartDiffRequest, baselines.StartDiffResponse]
+	getDiffResult           *connect.Client[baselines.GetDiffResultRequest, baselines.GetDiffResultResponse]
+	deleteBaseline          *connect.Client[baselines.DeleteBaselineRequest, baselines.DeleteBaselineResponse]
+	startCollectionCapture  *connect.Client[baselines.StartCollectionCaptureRequest, baselines.StartCollectionCaptureResponse]
+	getCollectionStatus     *connect.Client[baselines.GetCollectionStatusRequest, baselines.GetCollectionStatusResponse]
+	waitCollectionCapture   *connect.Client[baselines.WaitCollectionCaptureRequest, baselines.WaitCollectionCaptureResponse]
+	extendCollection        *connect.Client[baselines.ExtendCollectionRequest, baselines.ExtendCollectionResponse]
+	startCollectionDiff     *connect.Client[baselines.StartCollectionDiffRequest, baselines.StartCollectionDiffResponse]
+	getCollectionDiffStatus *connect.Client[baselines.GetCollectionDiffStatusRequest, baselines.GetCollectionDiffStatusResponse]
+	waitCollectionDiff      *connect.Client[baselines.WaitCollectionDiffRequest, baselines.WaitCollectionDiffResponse]
+	deleteCollection        *connect.Client[baselines.DeleteCollectionRequest, baselines.DeleteCollectionResponse]
+	estimatePathSnapshot    *connect.Client[baselines.EstimatePathSnapshotRequest, baselines.EstimatePathSnapshotResponse]
+	capturePathSnapshot     *connect.Client[baselines.CapturePathSnapshotRequest, baselines.CapturePathSnapshotResponse]
+	getPathSnapshot         *connect.Client[baselines.GetPathSnapshotRequest, baselines.GetPathSnapshotResponse]
+	diffPathSnapshots       *connect.Client[baselines.DiffPathSnapshotsRequest, baselines.DiffPathSnapshotsResponse]
+	deletePathSnapshot      *connect.Client[baselines.DeletePathSnapshotRequest, baselines.DeletePathSnapshotResponse]
 }
 
 // SnapshotForBaseline calls
@@ -305,9 +330,16 @@ func (c *baselinesServiceClient) StartCollectionCapture(ctx context.Context, req
 	return c.startCollectionCapture.CallUnary(ctx, req)
 }
 
-// GetCollection calls vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollection.
-func (c *baselinesServiceClient) GetCollection(ctx context.Context, req *connect.Request[baselines.GetCollectionRequest]) (*connect.Response[baselines.GetCollectionResponse], error) {
-	return c.getCollection.CallUnary(ctx, req)
+// GetCollectionStatus calls
+// vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionStatus.
+func (c *baselinesServiceClient) GetCollectionStatus(ctx context.Context, req *connect.Request[baselines.GetCollectionStatusRequest]) (*connect.Response[baselines.GetCollectionStatusResponse], error) {
+	return c.getCollectionStatus.CallUnary(ctx, req)
+}
+
+// WaitCollectionCapture calls
+// vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionCapture.
+func (c *baselinesServiceClient) WaitCollectionCapture(ctx context.Context, req *connect.Request[baselines.WaitCollectionCaptureRequest]) (*connect.Response[baselines.WaitCollectionCaptureResponse], error) {
+	return c.waitCollectionCapture.CallUnary(ctx, req)
 }
 
 // ExtendCollection calls vrooli.git_control_tower.v1.baselines.BaselinesService.ExtendCollection.
@@ -321,9 +353,16 @@ func (c *baselinesServiceClient) StartCollectionDiff(ctx context.Context, req *c
 	return c.startCollectionDiff.CallUnary(ctx, req)
 }
 
-// GetCollectionDiff calls vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiff.
-func (c *baselinesServiceClient) GetCollectionDiff(ctx context.Context, req *connect.Request[baselines.GetCollectionDiffRequest]) (*connect.Response[baselines.GetCollectionDiffResponse], error) {
-	return c.getCollectionDiff.CallUnary(ctx, req)
+// GetCollectionDiffStatus calls
+// vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiffStatus.
+func (c *baselinesServiceClient) GetCollectionDiffStatus(ctx context.Context, req *connect.Request[baselines.GetCollectionDiffStatusRequest]) (*connect.Response[baselines.GetCollectionDiffStatusResponse], error) {
+	return c.getCollectionDiffStatus.CallUnary(ctx, req)
+}
+
+// WaitCollectionDiff calls
+// vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionDiff.
+func (c *baselinesServiceClient) WaitCollectionDiff(ctx context.Context, req *connect.Request[baselines.WaitCollectionDiffRequest]) (*connect.Response[baselines.WaitCollectionDiffResponse], error) {
+	return c.waitCollectionDiff.CallUnary(ctx, req)
 }
 
 // DeleteCollection calls vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteCollection.
@@ -372,12 +411,17 @@ type BaselinesServiceHandler interface {
 	// Collections aggregate existing per-scenario immutable anchors. They do not
 	// create a multi-scenario Test Genie run or alter comparison semantics.
 	StartCollectionCapture(context.Context, *connect.Request[baselines.StartCollectionCaptureRequest]) (*connect.Response[baselines.StartCollectionCaptureResponse], error)
-	GetCollection(context.Context, *connect.Request[baselines.GetCollectionRequest]) (*connect.Response[baselines.GetCollectionResponse], error)
+	GetCollectionStatus(context.Context, *connect.Request[baselines.GetCollectionStatusRequest]) (*connect.Response[baselines.GetCollectionStatusResponse], error)
+	WaitCollectionCapture(context.Context, *connect.Request[baselines.WaitCollectionCaptureRequest]) (*connect.Response[baselines.WaitCollectionCaptureResponse], error)
 	// Adds new before-state members to an existing collection. Existing members
 	// and source evidence are immutable once capture has started.
 	ExtendCollection(context.Context, *connect.Request[baselines.ExtendCollectionRequest]) (*connect.Response[baselines.ExtendCollectionResponse], error)
 	StartCollectionDiff(context.Context, *connect.Request[baselines.StartCollectionDiffRequest]) (*connect.Response[baselines.StartCollectionDiffResponse], error)
-	GetCollectionDiff(context.Context, *connect.Request[baselines.GetCollectionDiffRequest]) (*connect.Response[baselines.GetCollectionDiffResponse], error)
+	// Status is a pure read. It never waits for child execution or finalization.
+	GetCollectionDiffStatus(context.Context, *connect.Request[baselines.GetCollectionDiffStatusRequest]) (*connect.Response[baselines.GetCollectionDiffStatusResponse], error)
+	// Wait owns the aggregate operation only. A bounded timeout detaches the
+	// caller but leaves the durable operation running.
+	WaitCollectionDiff(context.Context, *connect.Request[baselines.WaitCollectionDiffRequest]) (*connect.Response[baselines.WaitCollectionDiffResponse], error)
 	DeleteCollection(context.Context, *connect.Request[baselines.DeleteCollectionRequest]) (*connect.Response[baselines.DeleteCollectionResponse], error)
 	// Path snapshots are separately classified source evidence. They never
 	// participate in Test Genie regression verdicts.
@@ -443,10 +487,16 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 		connect.WithSchema(baselinesServiceMethods.ByName("StartCollectionCapture")),
 		connect.WithHandlerOptions(opts...),
 	)
-	baselinesServiceGetCollectionHandler := connect.NewUnaryHandler(
-		BaselinesServiceGetCollectionProcedure,
-		svc.GetCollection,
-		connect.WithSchema(baselinesServiceMethods.ByName("GetCollection")),
+	baselinesServiceGetCollectionStatusHandler := connect.NewUnaryHandler(
+		BaselinesServiceGetCollectionStatusProcedure,
+		svc.GetCollectionStatus,
+		connect.WithSchema(baselinesServiceMethods.ByName("GetCollectionStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	baselinesServiceWaitCollectionCaptureHandler := connect.NewUnaryHandler(
+		BaselinesServiceWaitCollectionCaptureProcedure,
+		svc.WaitCollectionCapture,
+		connect.WithSchema(baselinesServiceMethods.ByName("WaitCollectionCapture")),
 		connect.WithHandlerOptions(opts...),
 	)
 	baselinesServiceExtendCollectionHandler := connect.NewUnaryHandler(
@@ -461,10 +511,16 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 		connect.WithSchema(baselinesServiceMethods.ByName("StartCollectionDiff")),
 		connect.WithHandlerOptions(opts...),
 	)
-	baselinesServiceGetCollectionDiffHandler := connect.NewUnaryHandler(
-		BaselinesServiceGetCollectionDiffProcedure,
-		svc.GetCollectionDiff,
-		connect.WithSchema(baselinesServiceMethods.ByName("GetCollectionDiff")),
+	baselinesServiceGetCollectionDiffStatusHandler := connect.NewUnaryHandler(
+		BaselinesServiceGetCollectionDiffStatusProcedure,
+		svc.GetCollectionDiffStatus,
+		connect.WithSchema(baselinesServiceMethods.ByName("GetCollectionDiffStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	baselinesServiceWaitCollectionDiffHandler := connect.NewUnaryHandler(
+		BaselinesServiceWaitCollectionDiffProcedure,
+		svc.WaitCollectionDiff,
+		connect.WithSchema(baselinesServiceMethods.ByName("WaitCollectionDiff")),
 		connect.WithHandlerOptions(opts...),
 	)
 	baselinesServiceDeleteCollectionHandler := connect.NewUnaryHandler(
@@ -521,14 +577,18 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 			baselinesServiceDeleteBaselineHandler.ServeHTTP(w, r)
 		case BaselinesServiceStartCollectionCaptureProcedure:
 			baselinesServiceStartCollectionCaptureHandler.ServeHTTP(w, r)
-		case BaselinesServiceGetCollectionProcedure:
-			baselinesServiceGetCollectionHandler.ServeHTTP(w, r)
+		case BaselinesServiceGetCollectionStatusProcedure:
+			baselinesServiceGetCollectionStatusHandler.ServeHTTP(w, r)
+		case BaselinesServiceWaitCollectionCaptureProcedure:
+			baselinesServiceWaitCollectionCaptureHandler.ServeHTTP(w, r)
 		case BaselinesServiceExtendCollectionProcedure:
 			baselinesServiceExtendCollectionHandler.ServeHTTP(w, r)
 		case BaselinesServiceStartCollectionDiffProcedure:
 			baselinesServiceStartCollectionDiffHandler.ServeHTTP(w, r)
-		case BaselinesServiceGetCollectionDiffProcedure:
-			baselinesServiceGetCollectionDiffHandler.ServeHTTP(w, r)
+		case BaselinesServiceGetCollectionDiffStatusProcedure:
+			baselinesServiceGetCollectionDiffStatusHandler.ServeHTTP(w, r)
+		case BaselinesServiceWaitCollectionDiffProcedure:
+			baselinesServiceWaitCollectionDiffHandler.ServeHTTP(w, r)
 		case BaselinesServiceDeleteCollectionProcedure:
 			baselinesServiceDeleteCollectionHandler.ServeHTTP(w, r)
 		case BaselinesServiceEstimatePathSnapshotProcedure:
@@ -582,8 +642,12 @@ func (UnimplementedBaselinesServiceHandler) StartCollectionCapture(context.Conte
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionCapture is not implemented"))
 }
 
-func (UnimplementedBaselinesServiceHandler) GetCollection(context.Context, *connect.Request[baselines.GetCollectionRequest]) (*connect.Response[baselines.GetCollectionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollection is not implemented"))
+func (UnimplementedBaselinesServiceHandler) GetCollectionStatus(context.Context, *connect.Request[baselines.GetCollectionStatusRequest]) (*connect.Response[baselines.GetCollectionStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionStatus is not implemented"))
+}
+
+func (UnimplementedBaselinesServiceHandler) WaitCollectionCapture(context.Context, *connect.Request[baselines.WaitCollectionCaptureRequest]) (*connect.Response[baselines.WaitCollectionCaptureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionCapture is not implemented"))
 }
 
 func (UnimplementedBaselinesServiceHandler) ExtendCollection(context.Context, *connect.Request[baselines.ExtendCollectionRequest]) (*connect.Response[baselines.ExtendCollectionResponse], error) {
@@ -594,8 +658,12 @@ func (UnimplementedBaselinesServiceHandler) StartCollectionDiff(context.Context,
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionDiff is not implemented"))
 }
 
-func (UnimplementedBaselinesServiceHandler) GetCollectionDiff(context.Context, *connect.Request[baselines.GetCollectionDiffRequest]) (*connect.Response[baselines.GetCollectionDiffResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiff is not implemented"))
+func (UnimplementedBaselinesServiceHandler) GetCollectionDiffStatus(context.Context, *connect.Request[baselines.GetCollectionDiffStatusRequest]) (*connect.Response[baselines.GetCollectionDiffStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiffStatus is not implemented"))
+}
+
+func (UnimplementedBaselinesServiceHandler) WaitCollectionDiff(context.Context, *connect.Request[baselines.WaitCollectionDiffRequest]) (*connect.Response[baselines.WaitCollectionDiffResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionDiff is not implemented"))
 }
 
 func (UnimplementedBaselinesServiceHandler) DeleteCollection(context.Context, *connect.Request[baselines.DeleteCollectionRequest]) (*connect.Response[baselines.DeleteCollectionResponse], error) {

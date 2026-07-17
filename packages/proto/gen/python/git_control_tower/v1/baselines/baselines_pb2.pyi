@@ -1,4 +1,5 @@
 from test_genie.v1.runs import runs_pb2 as _runs_pb2
+from common.v1 import operations_pb2 as _operations_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -465,37 +466,45 @@ class StartCollectionCaptureResponse(_message.Message):
     resumed: bool
     def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., resumed: _Optional[bool] = ...) -> None: ...
 
-class GetCollectionRequest(_message.Message):
-    __slots__ = ("name", "branch", "repo_id", "wait")
+class GetCollectionStatusRequest(_message.Message):
+    __slots__ = ("name", "branch", "repo_id")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     REPO_ID_FIELD_NUMBER: _ClassVar[int]
-    WAIT_FIELD_NUMBER: _ClassVar[int]
     name: str
     branch: str
     repo_id: int
-    wait: bool
-    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
 
-class GetCollectionResponse(_message.Message):
-    __slots__ = ("collection", "wait_outcome")
+class GetCollectionStatusResponse(_message.Message):
+    __slots__ = ("collection", "standing")
     COLLECTION_FIELD_NUMBER: _ClassVar[int]
-    WAIT_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    STANDING_FIELD_NUMBER: _ClassVar[int]
     collection: BaselineCollection
-    wait_outcome: CollectionWaitOutcome
-    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., wait_outcome: _Optional[_Union[CollectionWaitOutcome, _Mapping]] = ...) -> None: ...
+    standing: _operations_pb2.OperationStanding
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ...) -> None: ...
 
-class CollectionWaitOutcome(_message.Message):
-    __slots__ = ("kind", "pending_run_ids", "recovery_commands", "detail")
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    PENDING_RUN_IDS_FIELD_NUMBER: _ClassVar[int]
-    RECOVERY_COMMANDS_FIELD_NUMBER: _ClassVar[int]
-    DETAIL_FIELD_NUMBER: _ClassVar[int]
-    kind: str
-    pending_run_ids: _containers.RepeatedScalarFieldContainer[str]
-    recovery_commands: _containers.RepeatedScalarFieldContainer[str]
-    detail: str
-    def __init__(self, kind: _Optional[str] = ..., pending_run_ids: _Optional[_Iterable[str]] = ..., recovery_commands: _Optional[_Iterable[str]] = ..., detail: _Optional[str] = ...) -> None: ...
+class WaitCollectionCaptureRequest(_message.Message):
+    __slots__ = ("name", "branch", "repo_id", "timeout_seconds")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    repo_id: int
+    timeout_seconds: int
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class WaitCollectionCaptureResponse(_message.Message):
+    __slots__ = ("collection", "standing", "detached")
+    COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    STANDING_FIELD_NUMBER: _ClassVar[int]
+    DETACHED_FIELD_NUMBER: _ClassVar[int]
+    collection: BaselineCollection
+    standing: _operations_pb2.OperationStanding
+    detached: bool
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ..., detached: _Optional[bool] = ...) -> None: ...
 
 class ExtendCollectionRequest(_message.Message):
     __slots__ = ("name", "branch", "targets", "created_by", "reason", "repo_id")
@@ -565,33 +574,61 @@ class StartCollectionDiffResponse(_message.Message):
     operation_id: str
     def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ...) -> None: ...
 
-class GetCollectionDiffRequest(_message.Message):
-    __slots__ = ("name", "branch", "operation_id", "repo_id", "wait")
+class GetCollectionDiffStatusRequest(_message.Message):
+    __slots__ = ("name", "branch", "operation_id", "repo_id")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
     REPO_ID_FIELD_NUMBER: _ClassVar[int]
-    WAIT_FIELD_NUMBER: _ClassVar[int]
     name: str
     branch: str
     operation_id: str
     repo_id: int
-    wait: bool
-    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., operation_id: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., operation_id: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
 
-class GetCollectionDiffResponse(_message.Message):
-    __slots__ = ("collection", "members", "classification", "operation_id", "wait_outcome")
+class GetCollectionDiffStatusResponse(_message.Message):
+    __slots__ = ("collection", "members", "classification", "operation_id", "standing")
     COLLECTION_FIELD_NUMBER: _ClassVar[int]
     MEMBERS_FIELD_NUMBER: _ClassVar[int]
     CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
-    WAIT_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    STANDING_FIELD_NUMBER: _ClassVar[int]
     collection: BaselineCollection
     members: _containers.RepeatedCompositeFieldContainer[CollectionDiffMember]
     classification: str
     operation_id: str
-    wait_outcome: CollectionWaitOutcome
-    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ..., wait_outcome: _Optional[_Union[CollectionWaitOutcome, _Mapping]] = ...) -> None: ...
+    standing: _operations_pb2.OperationStanding
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ...) -> None: ...
+
+class WaitCollectionDiffRequest(_message.Message):
+    __slots__ = ("name", "branch", "operation_id", "repo_id", "timeout_seconds")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    branch: str
+    operation_id: str
+    repo_id: int
+    timeout_seconds: int
+    def __init__(self, name: _Optional[str] = ..., branch: _Optional[str] = ..., operation_id: _Optional[str] = ..., repo_id: _Optional[int] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class WaitCollectionDiffResponse(_message.Message):
+    __slots__ = ("collection", "members", "classification", "operation_id", "standing", "detached")
+    COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    MEMBERS_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    STANDING_FIELD_NUMBER: _ClassVar[int]
+    DETACHED_FIELD_NUMBER: _ClassVar[int]
+    collection: BaselineCollection
+    members: _containers.RepeatedCompositeFieldContainer[CollectionDiffMember]
+    classification: str
+    operation_id: str
+    standing: _operations_pb2.OperationStanding
+    detached: bool
+    def __init__(self, collection: _Optional[_Union[BaselineCollection, _Mapping]] = ..., members: _Optional[_Iterable[_Union[CollectionDiffMember, _Mapping]]] = ..., classification: _Optional[str] = ..., operation_id: _Optional[str] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ..., detached: _Optional[bool] = ...) -> None: ...
 
 class DeleteCollectionRequest(_message.Message):
     __slots__ = ("name", "branch", "repo_id")

@@ -308,6 +308,10 @@ message IngestComponentRequest {
   // losses are still computed and are persisted as an acknowledged parity
   // report on the created version. Without it a lossy harvest fails.
   bool accept_behavior_loss = 10;
+  // Optional scenario-relative experience-component document transferred into
+  // the version folder as experience-contract.json. When omitted, ingest
+  // derives experience/components/<slug>.json when it exists.
+  string experience_contract_path = 11;
 }
 
 message IngestFinding {

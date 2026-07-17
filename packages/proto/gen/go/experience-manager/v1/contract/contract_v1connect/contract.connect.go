@@ -47,6 +47,9 @@ const (
 	// ContractServiceScaffoldCasesProcedure is the fully-qualified name of the ContractService's
 	// ScaffoldCases RPC.
 	ContractServiceScaffoldCasesProcedure = "/vrooli.experience_manager.v1.contract.ContractService/ScaffoldCases"
+	// ContractServiceGetReadinessProfileProcedure is the fully-qualified name of the ContractService's
+	// GetReadinessProfile RPC.
+	ContractServiceGetReadinessProfileProcedure = "/vrooli.experience_manager.v1.contract.ContractService/GetReadinessProfile"
 	// StudioSessionServiceStartAuthoringSessionProcedure is the fully-qualified name of the
 	// StudioSessionService's StartAuthoringSession RPC.
 	StudioSessionServiceStartAuthoringSessionProcedure = "/vrooli.experience_manager.v1.contract.StudioSessionService/StartAuthoringSession"
@@ -96,6 +99,9 @@ type ContractServiceClient interface {
 	AppendAttestation(context.Context, *connect.Request[contract.AppendAttestationRequest]) (*connect.Response[contract.AppendAttestationResponse], error)
 	// ScaffoldCases derives BAS case stubs from active experience page specs.
 	ScaffoldCases(context.Context, *connect.Request[contract.ScaffoldCasesRequest]) (*connect.Response[contract.ScaffoldCasesResponse], error)
+	// GetReadinessProfile compiles the authored experience contract into the
+	// single route/region readiness projection consumed by automation clients.
+	GetReadinessProfile(context.Context, *connect.Request[contract.GetReadinessProfileRequest]) (*connect.Response[contract.GetReadinessProfileResponse], error)
 }
 
 // NewContractServiceClient constructs a client for the
@@ -134,15 +140,22 @@ func NewContractServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(contractServiceMethods.ByName("ScaffoldCases")),
 			connect.WithClientOptions(opts...),
 		),
+		getReadinessProfile: connect.NewClient[contract.GetReadinessProfileRequest, contract.GetReadinessProfileResponse](
+			httpClient,
+			baseURL+ContractServiceGetReadinessProfileProcedure,
+			connect.WithSchema(contractServiceMethods.ByName("GetReadinessProfile")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // contractServiceClient implements ContractServiceClient.
 type contractServiceClient struct {
-	validateScenario  *connect.Client[contract.ValidateScenarioRequest, contract.ValidateScenarioResponse]
-	listFleet         *connect.Client[contract.ListFleetRequest, contract.ListFleetResponse]
-	appendAttestation *connect.Client[contract.AppendAttestationRequest, contract.AppendAttestationResponse]
-	scaffoldCases     *connect.Client[contract.ScaffoldCasesRequest, contract.ScaffoldCasesResponse]
+	validateScenario    *connect.Client[contract.ValidateScenarioRequest, contract.ValidateScenarioResponse]
+	listFleet           *connect.Client[contract.ListFleetRequest, contract.ListFleetResponse]
+	appendAttestation   *connect.Client[contract.AppendAttestationRequest, contract.AppendAttestationResponse]
+	scaffoldCases       *connect.Client[contract.ScaffoldCasesRequest, contract.ScaffoldCasesResponse]
+	getReadinessProfile *connect.Client[contract.GetReadinessProfileRequest, contract.GetReadinessProfileResponse]
 }
 
 // ValidateScenario calls vrooli.experience_manager.v1.contract.ContractService.ValidateScenario.
@@ -165,6 +178,12 @@ func (c *contractServiceClient) ScaffoldCases(ctx context.Context, req *connect.
 	return c.scaffoldCases.CallUnary(ctx, req)
 }
 
+// GetReadinessProfile calls
+// vrooli.experience_manager.v1.contract.ContractService.GetReadinessProfile.
+func (c *contractServiceClient) GetReadinessProfile(ctx context.Context, req *connect.Request[contract.GetReadinessProfileRequest]) (*connect.Response[contract.GetReadinessProfileResponse], error) {
+	return c.getReadinessProfile.CallUnary(ctx, req)
+}
+
 // ContractServiceHandler is an implementation of the
 // vrooli.experience_manager.v1.contract.ContractService service.
 type ContractServiceHandler interface {
@@ -176,6 +195,9 @@ type ContractServiceHandler interface {
 	AppendAttestation(context.Context, *connect.Request[contract.AppendAttestationRequest]) (*connect.Response[contract.AppendAttestationResponse], error)
 	// ScaffoldCases derives BAS case stubs from active experience page specs.
 	ScaffoldCases(context.Context, *connect.Request[contract.ScaffoldCasesRequest]) (*connect.Response[contract.ScaffoldCasesResponse], error)
+	// GetReadinessProfile compiles the authored experience contract into the
+	// single route/region readiness projection consumed by automation clients.
+	GetReadinessProfile(context.Context, *connect.Request[contract.GetReadinessProfileRequest]) (*connect.Response[contract.GetReadinessProfileResponse], error)
 }
 
 // NewContractServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -209,6 +231,12 @@ func NewContractServiceHandler(svc ContractServiceHandler, opts ...connect.Handl
 		connect.WithSchema(contractServiceMethods.ByName("ScaffoldCases")),
 		connect.WithHandlerOptions(opts...),
 	)
+	contractServiceGetReadinessProfileHandler := connect.NewUnaryHandler(
+		ContractServiceGetReadinessProfileProcedure,
+		svc.GetReadinessProfile,
+		connect.WithSchema(contractServiceMethods.ByName("GetReadinessProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.experience_manager.v1.contract.ContractService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ContractServiceValidateScenarioProcedure:
@@ -219,6 +247,8 @@ func NewContractServiceHandler(svc ContractServiceHandler, opts ...connect.Handl
 			contractServiceAppendAttestationHandler.ServeHTTP(w, r)
 		case ContractServiceScaffoldCasesProcedure:
 			contractServiceScaffoldCasesHandler.ServeHTTP(w, r)
+		case ContractServiceGetReadinessProfileProcedure:
+			contractServiceGetReadinessProfileHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -242,6 +272,10 @@ func (UnimplementedContractServiceHandler) AppendAttestation(context.Context, *c
 
 func (UnimplementedContractServiceHandler) ScaffoldCases(context.Context, *connect.Request[contract.ScaffoldCasesRequest]) (*connect.Response[contract.ScaffoldCasesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.experience_manager.v1.contract.ContractService.ScaffoldCases is not implemented"))
+}
+
+func (UnimplementedContractServiceHandler) GetReadinessProfile(context.Context, *connect.Request[contract.GetReadinessProfileRequest]) (*connect.Response[contract.GetReadinessProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.experience_manager.v1.contract.ContractService.GetReadinessProfile is not implemented"))
 }
 
 // StudioSessionServiceClient is a client for the

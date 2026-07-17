@@ -245,6 +245,52 @@ class ReconcileScenarioWorkflowsResponse(_message.Message):
     validate_only: bool
     def __init__(self, scenario: _Optional[str] = ..., results: _Optional[_Iterable[_Union[WorkflowReconcileResult, _Mapping]]] = ..., created: _Optional[int] = ..., activated: _Optional[int] = ..., unchanged: _Optional[int] = ..., skipped: _Optional[int] = ..., failed: _Optional[int] = ..., dry_run: _Optional[bool] = ..., validate_only: _Optional[bool] = ...) -> None: ...
 
+class ReconcileScenarioDeclarationsRequest(_message.Message):
+    __slots__ = ("scenario", "dry_run", "validate_only")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    VALIDATE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    dry_run: bool
+    validate_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ..., validate_only: _Optional[bool] = ...) -> None: ...
+
+class ReconcileScenarioDeclarationsResponse(_message.Message):
+    __slots__ = ("scenario", "profile_results", "workflow_results", "profiles_created", "profiles_updated", "profiles_unchanged", "profiles_skipped", "profiles_conflicted", "profiles_failed", "workflows_created", "workflows_activated", "workflows_unchanged", "workflows_skipped", "workflows_failed", "dry_run", "validate_only")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_CREATED_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_UPDATED_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_UNCHANGED_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_CONFLICTED_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_FAILED_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOWS_CREATED_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOWS_ACTIVATED_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOWS_UNCHANGED_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOWS_SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOWS_FAILED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    VALIDATE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    profile_results: _containers.RepeatedCompositeFieldContainer[ProfileReconcileResult]
+    workflow_results: _containers.RepeatedCompositeFieldContainer[WorkflowReconcileResult]
+    profiles_created: int
+    profiles_updated: int
+    profiles_unchanged: int
+    profiles_skipped: int
+    profiles_conflicted: int
+    profiles_failed: int
+    workflows_created: int
+    workflows_activated: int
+    workflows_unchanged: int
+    workflows_skipped: int
+    workflows_failed: int
+    dry_run: bool
+    validate_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., profile_results: _Optional[_Iterable[_Union[ProfileReconcileResult, _Mapping]]] = ..., workflow_results: _Optional[_Iterable[_Union[WorkflowReconcileResult, _Mapping]]] = ..., profiles_created: _Optional[int] = ..., profiles_updated: _Optional[int] = ..., profiles_unchanged: _Optional[int] = ..., profiles_skipped: _Optional[int] = ..., profiles_conflicted: _Optional[int] = ..., profiles_failed: _Optional[int] = ..., workflows_created: _Optional[int] = ..., workflows_activated: _Optional[int] = ..., workflows_unchanged: _Optional[int] = ..., workflows_skipped: _Optional[int] = ..., workflows_failed: _Optional[int] = ..., dry_run: _Optional[bool] = ..., validate_only: _Optional[bool] = ...) -> None: ...
+
 class ListWorkflowRevisionsRequest(_message.Message):
     __slots__ = ("owner", "key", "limit", "offset")
     OWNER_FIELD_NUMBER: _ClassVar[int]
@@ -313,6 +359,22 @@ class WorkflowExecutionResponse(_message.Message):
     execution: _workflow_pb2.WorkflowExecution
     def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ...) -> None: ...
 
+class WaitWorkflowExecutionRequest(_message.Message):
+    __slots__ = ("execution_id", "timeout_seconds")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    timeout_seconds: int
+    def __init__(self, execution_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class WaitWorkflowExecutionResponse(_message.Message):
+    __slots__ = ("execution", "timed_out")
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    TIMED_OUT_FIELD_NUMBER: _ClassVar[int]
+    execution: _workflow_pb2.WorkflowExecution
+    timed_out: bool
+    def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ..., timed_out: _Optional[bool] = ...) -> None: ...
+
 class ListWorkflowExecutionsRequest(_message.Message):
     __slots__ = ("owner", "workflow_key", "status", "limit", "offset")
     OWNER_FIELD_NUMBER: _ClassVar[int]
@@ -352,6 +414,18 @@ class GetWorkflowExecutionTraceResponse(_message.Message):
     attempts: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowNodeAttempt]
     journal: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowJournalEntry]
     def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ..., attempts: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowNodeAttempt, _Mapping]]] = ..., journal: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowJournalEntry, _Mapping]]] = ...) -> None: ...
+
+class ListWorkflowExecutionRunsRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class ListWorkflowExecutionRunsResponse(_message.Message):
+    __slots__ = ("attempts",)
+    ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    attempts: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowNodeAttempt]
+    def __init__(self, attempts: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowNodeAttempt, _Mapping]]] = ...) -> None: ...
 
 class SignalWorkflowExecutionRequest(_message.Message):
     __slots__ = ("execution_id", "signal", "payload", "idempotency_key", "expected_version")

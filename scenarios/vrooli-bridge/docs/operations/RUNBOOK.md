@@ -13,6 +13,47 @@ built and tested; procedures below note where a step is real versus where
 a capability (automated backup wiring, retention pruning) is still
 intended-but-unimplemented.
 
+## LAN endpoint and admission
+
+Bridge reserves API port **18767**. Before an onboarding operation transfers
+source, runs setup, or issues a pairing code, it executes a bounded remote
+probe from the candidate over the already-established SSH channel against the
+exact selected endpoint's `/health`. A failed `control_plane_unreachable`
+admission therefore consumes no pairing code and is not a pairing failure.
+The selected endpoint and reachability mode are saved on the durable onboarding
+operation; use `vrooli-bridge onboard status <op-id>` or `onboard list` to audit
+the exact URL and mode that were tested after a run completes.
+The Fleet dashboard obtains the same host-level summary from the owner-only
+`GET /api/v1/readiness` endpoint: it reports the fixed port, configured/tunnel/
+derived endpoint source, local API health, and the latest candidate evidence.
+Use `vrooli-bridge readiness status` for the authenticated operator view. Set a
+durable default with `vrooli-bridge readiness configure --endpoint <url>
+--reachability-mode <lan|tunnel|manual>`; an explicit `onboard start
+--control-plane-url` continues to take precedence for that single attempt.
+
+For a Linux host using UFW, the owner can inspect, verify, allow, and revoke
+the **exact source IP recorded for the latest failed admission** from the Fleet
+dashboard or owner CLI once setup has installed the privilege broker:
+
+```bash
+vrooli-bridge readiness firewall-inspect --candidate-ip <recorded-ip>
+vrooli-bridge readiness firewall-allow --candidate-ip <recorded-ip> --confirm true
+vrooli-bridge readiness firewall-verify --candidate-ip <recorded-ip>
+vrooli-bridge readiness firewall-revoke --candidate-ip <recorded-ip> --confirm true
+```
+
+The API independently binds each action to that durable failed-admission
+evidence; a different IP is rejected even if a client attempts to submit one.
+The broker is installed by an elevated `sudo vrooli setup`, runs only as root
+on a local Unix socket, and accepts only fixed UFW argv for TCP port 18767. It
+never stores a sudo password, exposes a TCP service, or accepts a shell command.
+If readiness says the broker is unavailable, re-run `sudo vrooli setup` from
+the account that runs Bridge, then use the same UI/CLI flow—do not paste a
+manual sudo rule into a scenario terminal. A hostname or `hostname.local` is only valid when the node can resolve it;
+`.local` depends on mDNS, not on macOS. Prefer a DHCP reservation or managed
+DNS for stable LAN addressing. Tunnel and manual URLs are also probed from the
+candidate; Bridge does not silently select a tunnel to evade a blocked firewall.
+
 ## Purpose Of This Document
 
 Use this document to answer:
@@ -78,7 +119,7 @@ through the control plane.
 Onboarding turns a raw, SSH-reachable host into a paired, ONLINE,
 auto-starting fleet node in **one durable operation** — there is no
 manual per-node installer to run. The `onboard` domain drives SSH
-first-touch → push `bootstrap/bootstrap.sh` → issue a single-use pairing
+ first-touch → candidate DNS/TCP/HTTP admission probe → push `bootstrap/bootstrap.sh` → issue a single-use pairing
 code server-side (injected over SSH stdin, never argv/logs) → run the
 script → confirm the node is ONLINE. The op is server-owned: it survives
 your client disconnecting and is re-attachable by id.

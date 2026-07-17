@@ -22,6 +22,7 @@
     "15-control-plane-portability/module.json",
     "16-remote-desktop-seam/module.json",
     "17-cloud-runner-nodes/module.json",
-    "18-self-healing/module.json"
+    "18-self-healing/module.json",
+    "19-host-readiness/module.json"
   ]
 }

@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS onboarding_ops (
   -- Never secret material. A DB created before this column is brought to shape by
   -- Migrate() (guarded ALTER TABLE ADD COLUMN, run before EnsureSchemas).
   failure_detail  TEXT NOT NULL DEFAULT '',
+  control_plane_url TEXT NOT NULL DEFAULT '',
+  reachability_mode TEXT NOT NULL DEFAULT '',
   exit_code       INTEGER NOT NULL DEFAULT 0,
   created_at      TEXT NOT NULL,
   started_at      TEXT NOT NULL DEFAULT '',

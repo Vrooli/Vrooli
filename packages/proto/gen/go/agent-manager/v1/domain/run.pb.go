@@ -1204,18 +1204,16 @@ func (x *AwaitHandle) GetRegisteredAt() *timestamppb.Timestamp {
 //
 // @usage Run.actions
 type RunActions struct {
-	state                        protoimpl.MessageState `protogen:"open.v1"`
-	CanInvestigate               bool                   `protobuf:"varint,1,opt,name=can_investigate,json=canInvestigate,proto3" json:"can_investigate,omitempty"`
-	CanApplyInvestigation        bool                   `protobuf:"varint,2,opt,name=can_apply_investigation,json=canApplyInvestigation,proto3" json:"can_apply_investigation,omitempty"`
-	CanDelete                    bool                   `protobuf:"varint,3,opt,name=can_delete,json=canDelete,proto3" json:"can_delete,omitempty"`
-	CanStop                      bool                   `protobuf:"varint,4,opt,name=can_stop,json=canStop,proto3" json:"can_stop,omitempty"`
-	CanRetry                     bool                   `protobuf:"varint,5,opt,name=can_retry,json=canRetry,proto3" json:"can_retry,omitempty"`
-	CanContinue                  bool                   `protobuf:"varint,6,opt,name=can_continue,json=canContinue,proto3" json:"can_continue,omitempty"`
-	CanApprove                   bool                   `protobuf:"varint,7,opt,name=can_approve,json=canApprove,proto3" json:"can_approve,omitempty"`
-	CanReject                    bool                   `protobuf:"varint,8,opt,name=can_reject,json=canReject,proto3" json:"can_reject,omitempty"`
-	CanReview                    bool                   `protobuf:"varint,9,opt,name=can_review,json=canReview,proto3" json:"can_review,omitempty"`
-	CanExtractRecommendations    bool                   `protobuf:"varint,10,opt,name=can_extract_recommendations,json=canExtractRecommendations,proto3" json:"can_extract_recommendations,omitempty"`
-	CanRegenerateRecommendations bool                   `protobuf:"varint,11,opt,name=can_regenerate_recommendations,json=canRegenerateRecommendations,proto3" json:"can_regenerate_recommendations,omitempty"`
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	CanInvestigate        bool                   `protobuf:"varint,1,opt,name=can_investigate,json=canInvestigate,proto3" json:"can_investigate,omitempty"`
+	CanApplyInvestigation bool                   `protobuf:"varint,2,opt,name=can_apply_investigation,json=canApplyInvestigation,proto3" json:"can_apply_investigation,omitempty"`
+	CanDelete             bool                   `protobuf:"varint,3,opt,name=can_delete,json=canDelete,proto3" json:"can_delete,omitempty"`
+	CanStop               bool                   `protobuf:"varint,4,opt,name=can_stop,json=canStop,proto3" json:"can_stop,omitempty"`
+	CanRetry              bool                   `protobuf:"varint,5,opt,name=can_retry,json=canRetry,proto3" json:"can_retry,omitempty"`
+	CanContinue           bool                   `protobuf:"varint,6,opt,name=can_continue,json=canContinue,proto3" json:"can_continue,omitempty"`
+	CanApprove            bool                   `protobuf:"varint,7,opt,name=can_approve,json=canApprove,proto3" json:"can_approve,omitempty"`
+	CanReject             bool                   `protobuf:"varint,8,opt,name=can_reject,json=canReject,proto3" json:"can_reject,omitempty"`
+	CanReview             bool                   `protobuf:"varint,9,opt,name=can_review,json=canReview,proto3" json:"can_review,omitempty"`
 	// Human-readable reason why continuation is unavailable.
 	// Empty when can_continue is true.
 	CanContinueReason string `protobuf:"bytes,12,opt,name=can_continue_reason,json=canContinueReason,proto3" json:"can_continue_reason,omitempty"`
@@ -1321,20 +1319,6 @@ func (x *RunActions) GetCanReject() bool {
 func (x *RunActions) GetCanReview() bool {
 	if x != nil {
 		return x.CanReview
-	}
-	return false
-}
-
-func (x *RunActions) GetCanExtractRecommendations() bool {
-	if x != nil {
-		return x.CanExtractRecommendations
-	}
-	return false
-}
-
-func (x *RunActions) GetCanRegenerateRecommendations() bool {
-	if x != nil {
-		return x.CanRegenerateRecommendations
 	}
 	return false
 }
@@ -3395,7 +3379,7 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x03key\x18\x02 \x01(\tR\x03key\x12;\n" +
 	"\bdeadline\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\bdeadline\x88\x01\x01\x12?\n" +
 	"\rregistered_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\fregisteredAtB\v\n" +
-	"\t_deadline\"\xe0\x05\n" +
+	"\t_deadline\"\xa3\x05\n" +
 	"\n" +
 	"RunActions\x12'\n" +
 	"\x0fcan_investigate\x18\x01 \x01(\bR\x0ecanInvestigate\x126\n" +
@@ -3410,15 +3394,13 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
 	"can_reject\x18\b \x01(\bR\tcanReject\x12\x1d\n" +
 	"\n" +
-	"can_review\x18\t \x01(\bR\tcanReview\x12>\n" +
-	"\x1bcan_extract_recommendations\x18\n" +
-	" \x01(\bR\x19canExtractRecommendations\x12D\n" +
-	"\x1ecan_regenerate_recommendations\x18\v \x01(\bR\x1ccanRegenerateRecommendations\x12.\n" +
+	"can_review\x18\t \x01(\bR\tcanReview\x12.\n" +
 	"\x13can_continue_reason\x18\f \x01(\tR\x11canContinueReason\x125\n" +
 	"\x17can_resume_from_failure\x18\r \x01(\bR\x14canResumeFromFailure\x12B\n" +
 	"\x1ecan_resume_from_failure_reason\x18\x0e \x01(\tR\x1acanResumeFromFailureReason\x121\n" +
 	"\x14finalization_warning\x18\x0f \x01(\tR\x13finalizationWarning\x124\n" +
-	"\x16can_retry_finalization\x18\x10 \x01(\bR\x14canRetryFinalization\"\xab\x02\n" +
+	"\x16can_retry_finalization\x18\x10 \x01(\bR\x14canRetryFinalizationJ\x04\b\n" +
+	"\x10\vJ\x04\b\v\x10\fR\x1bcan_extract_recommendationsR\x1ecan_regenerate_recommendations\"\xab\x02\n" +
 	"\n" +
 	"RunSummary\x12 \n" +
 	"\vdescription\x18\x01 \x01(\tR\vdescription\x12%\n" +

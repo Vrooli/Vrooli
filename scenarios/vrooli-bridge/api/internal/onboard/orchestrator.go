@@ -48,6 +48,20 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		return
 	}
 
+	// ---- Phase: CANDIDATE_ADMISSION ----
+	// This must remain before every expensive or security-sensitive action: no
+	// tree/script transfer, setup, pairing-code issue, or redeem is allowed until
+	// the target itself proves it can reach the selected Bridge endpoint.
+	s.emit(ctx, opID, &seq, StepAdmission, StepStatusStarted, "probing Bridge endpoint from candidate node")
+	admission := s.admitCandidate(ctx, conn, in.ControlPlaneURL)
+	if admission.Category != AdmissionPassed {
+		detail := admissionDetail(admission)
+		s.emit(ctx, opID, &seq, StepAdmission, StepStatusFailed, detail)
+		s.finishFailed(ctx, opID, &seq, admissionFailureReason(admission.Category), 0, detail, "")
+		return
+	}
+	s.emit(ctx, opID, &seq, StepAdmission, StepStatusOK, admissionDetail(admission))
+
 	// ---- Phase: PUSHING_SCRIPT ----
 	s.transition(ctx, opID, StatePushingScript)
 	s.emit(ctx, opID, &seq, StepPushScript, StepStatusStarted, "copying bootstrap script to node")

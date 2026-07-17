@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.test_genie.v1.runs;
 
 import "common/v1/maturity.proto";
+import "common/v1/operations.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs;runs_v1";
 
@@ -164,6 +165,9 @@ message RunEvent {
   PhaseFindingsSummary findings_summary = 18;
   // Provider-owned canonical presentation for new events.
   common.v1.PhasePresentation phase_presentation = 19;
+  // Monotonic per-run cursor. Followers resume with this value in
+  // FollowRunRequest.after_sequence; it is intentionally not evidence.
+  uint64 sequence = 20;
 }
 
 // RunLiveStatus is a point-in-time snapshot of a run.
@@ -205,6 +209,10 @@ message RunLiveStatus {
   repeated string degraded_reasons = 19;
   // Canonical presentations for new terminal live snapshots.
   repeated common.v1.PhasePresentation terminal_presentations = 20;
+  // Canonical lifecycle decision surface. The legacy fields above remain run
+  // evidence/presentation details; clients deciding whether to wait must use
+  // this standing rather than infer state from them.
+  common.v1.OperationStanding standing = 21;
 }
 
 message StartRunRequest {
@@ -266,6 +274,10 @@ message FollowRunRequest {
   // follow does not re-wake an agent on every beat; an interactive TTY follow
   // leaves it false.
   bool suppress_heartbeats = 3;
+  // Resume strictly after this event sequence. Zero requests the currently
+  // retained tail; a non-zero cursor older than that tail is stale and callers
+  // must recover terminal detail from durable evidence.
+  uint64 after_sequence = 4;
 }
 
 message WaitRunRequest {

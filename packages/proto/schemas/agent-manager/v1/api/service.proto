@@ -106,6 +106,25 @@ service AgentManagerService {
     };
   }
 
+  // ReconcileScenarioDeclarations reconciles a scenario's unified declaration
+  // block (profiles and workflows) in one call, fanning out per source by
+  // schemaVersion while preserving each kind's lifecycle semantics.
+  rpc ReconcileScenarioDeclarations(ReconcileScenarioDeclarationsRequest) returns (ReconcileScenarioDeclarationsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/declarations/reconcile-scenario"
+      body: "*"
+    };
+  }
+
+  // PlanScenarioDeclarations validates every declaration source but never
+  // changes profile or workflow state.
+  rpc PlanScenarioDeclarations(ReconcileScenarioDeclarationsRequest) returns (ReconcileScenarioDeclarationsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/declarations/plan"
+      body: "*"
+    };
+  }
+
   rpc ListWorkflowRevisions(ListWorkflowRevisionsRequest) returns (ListWorkflowRevisionsResponse) {
     option (google.api.http) = {get: "/api/v1/workflows"};
   }
@@ -150,8 +169,23 @@ service AgentManagerService {
     option (google.api.http) = {post: "/api/v1/workflow-executions/{execution_id}/advance"};
   }
 
+  // WaitWorkflowExecution long-polls until the execution is terminal or the
+  // deadline passes. Canceling the waiter never cancels the execution.
+  rpc WaitWorkflowExecution(WaitWorkflowExecutionRequest) returns (WaitWorkflowExecutionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions/{execution_id}/wait"
+      body: "*"
+    };
+  }
+
   rpc GetWorkflowExecutionTrace(GetWorkflowExecutionTraceRequest) returns (GetWorkflowExecutionTraceResponse) {
     option (google.api.http) = {get: "/api/v1/workflow-executions/{execution_id}/trace"};
+  }
+
+  // ListWorkflowExecutionRuns projects durable node attempts for one execution.
+  // Consumers use it instead of scanning a full trace to find dispatched Runs.
+  rpc ListWorkflowExecutionRuns(ListWorkflowExecutionRunsRequest) returns (ListWorkflowExecutionRunsResponse) {
+    option (google.api.http) = {get: "/api/v1/workflow-executions/{execution_id}/runs"};
   }
 
   rpc SignalWorkflowExecution(SignalWorkflowExecutionRequest) returns (WorkflowExecutionOperationResponse) {
@@ -617,6 +651,38 @@ message ReconcileScenarioWorkflowsResponse {
   bool validate_only = 9;
 }
 
+// ReconcileScenarioDeclarationsRequest reconciles a scenario's unified
+// declaration block (profiles and workflows) in one call.
+message ReconcileScenarioDeclarationsRequest {
+  string scenario = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  bool dry_run = 2;
+  bool validate_only = 3;
+}
+
+// ReconcileScenarioDeclarationsResponse aggregates the per-kind reconciliation
+// outcomes; the legacy profile/workflow responses project their halves from it.
+message ReconcileScenarioDeclarationsResponse {
+  string scenario = 1;
+  repeated ProfileReconcileResult profile_results = 2;
+  repeated WorkflowReconcileResult workflow_results = 3;
+  int32 profiles_created = 4;
+  int32 profiles_updated = 5;
+  int32 profiles_unchanged = 6;
+  int32 profiles_skipped = 7;
+  int32 profiles_conflicted = 8;
+  int32 profiles_failed = 9;
+  int32 workflows_created = 10;
+  int32 workflows_activated = 11;
+  int32 workflows_unchanged = 12;
+  int32 workflows_skipped = 13;
+  int32 workflows_failed = 14;
+  bool dry_run = 15;
+  bool validate_only = 16;
+}
+
 message ListWorkflowRevisionsRequest {
   string owner = 1 [(buf.validate.field).string = {
     min_len: 1
@@ -676,6 +742,20 @@ message WorkflowExecutionResponse {
   WorkflowExecution execution = 1;
 }
 
+message WaitWorkflowExecutionRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  // timeout_seconds bounds the server-side wait. 0 blocks until the execution
+  // is terminal (or the caller disconnects).
+  int32 timeout_seconds = 2 [(buf.validate.field).int32.gte = 0];
+}
+
+message WaitWorkflowExecutionResponse {
+  WorkflowExecution execution = 1;
+  // timed_out is true when the wait deadline elapsed before the execution
+  // reached a terminal status. The execution keeps running regardless.
+  bool timed_out = 2;
+}
+
 message ListWorkflowExecutionsRequest {
   string owner = 1 [(buf.validate.field).string.max_len = 255];
   string workflow_key = 2 [(buf.validate.field).string.max_len = 255];
@@ -704,6 +784,14 @@ message GetWorkflowExecutionTraceResponse {
   WorkflowExecution execution = 1;
   repeated WorkflowNodeAttempt attempts = 2;
   repeated WorkflowJournalEntry journal = 3;
+}
+
+message ListWorkflowExecutionRunsRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ListWorkflowExecutionRunsResponse {
+  repeated WorkflowNodeAttempt attempts = 1;
 }
 
 message SignalWorkflowExecutionRequest {

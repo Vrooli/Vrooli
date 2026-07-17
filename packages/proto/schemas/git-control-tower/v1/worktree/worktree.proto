@@ -10,8 +10,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-
 // WORKTREE DOMAIN — git worktree management
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain worktree
 // @stability beta
 //
 // Wire contract for the WorktreeService Connect-RPC service. Worktree is

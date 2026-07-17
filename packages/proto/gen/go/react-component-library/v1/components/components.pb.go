@@ -1672,8 +1672,12 @@ type IngestComponentRequest struct {
 	// losses are still computed and are persisted as an acknowledged parity
 	// report on the created version. Without it a lossy harvest fails.
 	AcceptBehaviorLoss bool `protobuf:"varint,10,opt,name=accept_behavior_loss,json=acceptBehaviorLoss,proto3" json:"accept_behavior_loss,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Optional scenario-relative experience-component document transferred into
+	// the version folder as experience-contract.json. When omitted, ingest
+	// derives experience/components/<slug>.json when it exists.
+	ExperienceContractPath string `protobuf:"bytes,11,opt,name=experience_contract_path,json=experienceContractPath,proto3" json:"experience_contract_path,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *IngestComponentRequest) Reset() {
@@ -1774,6 +1778,13 @@ func (x *IngestComponentRequest) GetAcceptBehaviorLoss() bool {
 		return x.AcceptBehaviorLoss
 	}
 	return false
+}
+
+func (x *IngestComponentRequest) GetExperienceContractPath() string {
+	if x != nil {
+		return x.ExperienceContractPath
+	}
+	return ""
 }
 
 type IngestFinding struct {
@@ -3677,7 +3688,7 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\tcomponent\x18\x01 \x01(\v27.vrooli.react_component_library.v1.components.ComponentR\tcomponent\x12#\n" +
 	"\rmanifest_path\x18\x02 \x01(\tR\fmanifestPath\x12\x1f\n" +
 	"\vsource_path\x18\x03 \x01(\tR\n" +
-	"sourcePath\"\xc5\x02\n" +
+	"sourcePath\"\xff\x02\n" +
 	"\x16IngestComponentRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1f\n" +
 	"\vsource_file\x18\x02 \x01(\tR\n" +
@@ -3690,7 +3701,8 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\fsource_files\x18\b \x03(\tR\vsourceFiles\x12\x18\n" +
 	"\aversion\x18\t \x01(\tR\aversion\x120\n" +
 	"\x14accept_behavior_loss\x18\n" +
-	" \x01(\bR\x12acceptBehaviorLoss\"^\n" +
+	" \x01(\bR\x12acceptBehaviorLoss\x128\n" +
+	"\x18experience_contract_path\x18\v \x01(\tR\x16experienceContractPath\"^\n" +
 	"\rIngestFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1f\n" +

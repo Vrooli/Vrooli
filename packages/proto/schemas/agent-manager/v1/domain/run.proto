@@ -310,8 +310,8 @@ message RunActions {
   bool can_approve = 7;
   bool can_reject = 8;
   bool can_review = 9;
-  bool can_extract_recommendations = 10;
-  bool can_regenerate_recommendations = 11;
+  reserved 10, 11;
+  reserved "can_extract_recommendations", "can_regenerate_recommendations";
 
   // Human-readable reason why continuation is unavailable.
   // Empty when can_continue is true.

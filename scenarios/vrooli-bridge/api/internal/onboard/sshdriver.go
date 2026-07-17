@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,6 +69,76 @@ func (d *sshDriver) PushScript(ctx context.Context, conn Conn) (string, error) {
 		return "", err
 	}
 	return remotePath, nil
+}
+
+// ProbeEndpoint performs the authoritative remote admission test. curl's
+// failure codes preserve DNS/TCP/TLS/timeout distinctions without attempting
+// to parse pairing prose; the only successful result is an actual /health HTTP
+// response from the exact endpoint.
+func (d *sshDriver) ProbeEndpoint(ctx context.Context, conn Conn, endpoint string) (AdmissionResult, error) {
+	cfg := d.config(conn)
+	const marker = "VBADMISSION="
+	command, commandErr := admissionProbeCommand(endpoint, marker)
+	if commandErr != nil {
+		return AdmissionResult{Endpoint: endpoint, Category: AdmissionEndpointInvalid, Detail: commandErr.Error(), Retryable: false}, commandErr
+	}
+	var line string
+	started := time.Now()
+	res, err := d.svc.RunStreaming(ctx, cfg, command, ssh.StreamOptions{Run: admissionRunOptions(), OnStdoutLine: func(v string) {
+		if strings.HasPrefix(v, marker) {
+			line = strings.TrimPrefix(v, marker)
+		}
+	}})
+	result := AdmissionResult{Endpoint: endpoint, Duration: time.Since(started), Retryable: true}
+	if err != nil || res.ExitCode != 0 || line == "" {
+		result.Category, result.Detail = AdmissionControlPlaneUnreachable, "remote admission probe could not complete"
+		if err != nil {
+			result.Detail += ": " + err.Error()
+		}
+		return result, err
+	}
+	parts := strings.SplitN(line, "|", 3)
+	if len(parts) != 3 {
+		result.Category, result.Detail = AdmissionControlPlaneUnreachable, "remote admission probe returned malformed evidence"
+		return result, nil
+	}
+	result.SourceIP, result.Detail = strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2])
+	switch parts[0] {
+	case "passed":
+		result.Category, result.Retryable = AdmissionPassed, false
+	case "dns":
+		result.Category = AdmissionNameUnresolvable
+	case "http":
+		result.Category = AdmissionControlPlaneUnhealthy
+	default:
+		result.Category = AdmissionControlPlaneUnreachable
+	}
+	return result, nil
+}
+
+// admissionProbeCommand deliberately derives src from the candidate's route to
+// the Bridge endpoint. SSH_CONNECTION instead describes the Bridge SSH client,
+// which is the wrong address for an inbound UFW rule on the Bridge host.
+func admissionProbeCommand(endpoint, marker string) (string, error) {
+	u, err := url.Parse(endpoint)
+	if err != nil || u.Hostname() == "" {
+		return "", fmt.Errorf("invalid candidate-admission endpoint %q", endpoint)
+	}
+	command := "host=" + shellQuote(u.Hostname()) + "; " +
+		"src=''; if command -v ip >/dev/null 2>&1; then src=$(ip route get \"$host\" 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i == \"src\") {print $(i+1); exit}}'); " +
+		"elif command -v route >/dev/null 2>&1 && command -v ipconfig >/dev/null 2>&1; then iface=$(route -n get \"$host\" 2>/dev/null | awk '/interface:/{print $2; exit}'); [ -z \"$iface\" ] || src=$(ipconfig getifaddr \"$iface\" 2>/dev/null); fi; " +
+		"url=" + shellQuote(strings.TrimRight(endpoint, "/")+"/health") + "; " +
+		"if ! command -v curl >/dev/null 2>&1; then printf '" + marker + "unreachable|%s|curl-unavailable\\n' \"$src\"; exit 0; fi; " +
+		"curl -fsS --connect-timeout 5 --max-time 12 -o /dev/null \"$url\"; rc=$?; " +
+		"case $rc in 0) cat=passed;;6) cat=dns;;7) cat=tcp;;28) cat=timeout;;35|51|60) cat=tls;;22) cat=http;;*) cat=unreachable;; esac; " +
+		"printf '" + marker + "%s|%s|curl-exit-%s\\n' \"$cat\" \"$src\" \"$rc\""
+	return command, nil
+}
+
+func admissionRunOptions() ssh.RunOptions {
+	o := ssh.DefaultRunOptions()
+	o.ControlMaster, o.CommandTimeout, o.MaxOutputBytes = false, 20*time.Second, 8*1024
+	return o
 }
 
 // SyncTree ships the control plane's working tree to the node by piping a tar

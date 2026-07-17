@@ -374,6 +374,7 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
   // Dial-back URL for the node. Blank falls through to the server default:
   // $BRIDGE_CONTROL_PLANE_URL or the control plane's own derived address.
   const [controlPlaneUrl, setControlPlaneUrl] = useState("");
+  const [reachabilityMode, setReachabilityMode] = useState("lan");
   // Setup profile — blank fields fall through to the node's `vrooli setup`
   // defaults (the sensible fleet default: don't reshape a node's setup unless the
   // operator asks). includeOptional defaults off (required safeguards only).
@@ -458,6 +459,7 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
         capabilities: splitCapabilities(capabilities),
         targetRevision: revision.trim() || DEFAULT_REVISION,
         controlPlaneUrl: controlPlaneUrl.trim(),
+        reachabilityMode,
         provisionSudo,
         setupEnvironment: setupEnvironment.trim(),
         setupResources: setupResources.trim(),
@@ -695,6 +697,19 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
                       placeholder={t(strings.fleet.onboard.controlPlaneUrlPlaceholder)}
                       help={t(strings.fleet.onboard.controlPlaneUrlHelp)}
                     />
+                    <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+                      <span className="font-medium text-app-foreground">{t(strings.fleet.onboard.reachabilityModeLabel)}</span>
+                      <select
+                        value={reachabilityMode}
+                        onChange={(event) => setReachabilityMode(event.target.value)}
+                        className="h-9 rounded-control border border-app-border bg-app-background px-2 text-sm text-app-foreground"
+                      >
+                        <option value="lan">LAN — trusted local network</option>
+                        <option value="tunnel">Tunnel — off-LAN or segmented network</option>
+                        <option value="manual">Manual — managed DNS or VPN</option>
+                      </select>
+                      <span>{t(strings.fleet.onboard.reachabilityModeHelp)}</span>
+                    </label>
                     <Field
                       id="fleet-onboard-setup-environment-input"
                       testId={selectors.fleet.onboard.setupEnvironment}

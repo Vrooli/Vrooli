@@ -34,9 +34,11 @@ import (
 	pairingH "vrooli-bridge/handlers/pairing"
 	provisionH "vrooli-bridge/handlers/provision"
 	queueH "vrooli-bridge/handlers/queue"
+	readinessH "vrooli-bridge/handlers/readiness"
 	registryH "vrooli-bridge/handlers/registry"
 	runsH "vrooli-bridge/handlers/runs"
 	localdb "vrooli-bridge/internal/database"
+	internalreadiness "vrooli-bridge/internal/readiness"
 
 	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/audit"
@@ -72,6 +74,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, provisionH.Endpoints...)
 	out = append(out, queueH.Endpoints...)
 	out = append(out, registryH.Endpoints...)
+	out = append(out, readinessH.Endpoints...)
 	out = append(out, runsH.Endpoints...)
 	return out
 }
@@ -125,6 +128,7 @@ func AllProtoFiles() []ProtoFileEntry {
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(internalreadiness.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(artifactsH.Schema),
 		apidb.SchemaProviderFunc(auditH.Schema),
@@ -136,6 +140,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(pairingH.Schema),
 		apidb.SchemaProviderFunc(provisionH.Schema),
 		apidb.SchemaProviderFunc(registryH.Schema),
+		apidb.SchemaProviderFunc(readinessH.Schema),
 		apidb.SchemaProviderFunc(runsH.Schema),
 	}
 }

@@ -75,6 +75,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		RepoUrl:              ctx.Flag("repo-url"),
 		CheckoutDir:          ctx.Flag("checkout-dir"),
 		ControlPlaneUrl:      ctx.Flag("control-plane-url"),
+		ReachabilityMode:     strings.TrimSpace(ctx.Flag("reachability-mode")),
 		Capabilities:         splitCSV(ctx.Flag("capabilities")),
 		VerifyTimeoutSeconds: int32(parseInt(ctx.Flag("verify-timeout"))),
 		SkipSetup:            ctx.BoolFlag("skip-setup"),
@@ -204,6 +205,15 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 			"`onboard watch <op-id>` — follow a running op to completion",
 		},
 	})
+}
+
+func (h *handlers) removeFailed(ctx cliapp.RunContext) error {
+	id := ctx.Positional("op-id")
+	_, err := h.client.RemoveFailedOnboarding(context.Background(), connect.NewRequest(&onboardv1.RemoveFailedOnboardingRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("remove failed onboarding %q", id), err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, &onboardv1.RemoveFailedOnboardingResponse{}, cliapp.MutationReport{Result: []string{fmt.Sprintf("Removed failed onboarding history %s.", id)}})
 }
 
 // watch follows an op's live step states through to a terminal state. It drives
@@ -346,6 +356,9 @@ func formatOp(op *onboardv1.OnboardingOp) string {
 	extra := ""
 	if op.FailureReason != "" {
 		extra = fmt.Sprintf(" reason=%s", op.FailureReason)
+	}
+	if op.ControlPlaneUrl != "" {
+		extra += fmt.Sprintf(" endpoint=%s mode=%s", op.ControlPlaneUrl, op.ReachabilityMode)
 	}
 	return fmt.Sprintf("%s — %s@%s:%d name=%q [state=%s node=%s exit=%d%s created=%s]",
 		op.Id, formatUser(op.User), op.Host, op.Port, op.NodeName, stateLabel(op.State), node, op.ExitCode, extra, created)

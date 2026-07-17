@@ -25,7 +25,7 @@ pnpm, and Docker are **not** manual bootstrap prerequisites.
 - **Docker**: required lazily only when an enabled resource declares a
   Docker-service or Compose runtime; `--resources none` does not demand it.
 
-macOS caveats: workspace-sandbox protected mode (Linux user namespaces + bubblewrap) and X11 desktop automation tools are unavailable and skip cleanly; containerized ollama runs CPU-only (no Metal passthrough); a handful of resources are Linux-only (check `resource.json` platform support). Background supervisor persistence uses a launchd LaunchAgent (`vrooli runtime supervisor install --user`) instead of systemd.
+macOS caveats: Workspace Sandbox uses partial Seatbelt containment (filesystem-write and network denial; no Linux namespaces or `/workspace` path illusion), while X11 desktop automation tools remain unavailable and skip cleanly. Containerized Ollama runs CPU-only (no Metal passthrough), and some resources remain Linux-only (check `resource.json`). Background supervisor persistence uses a launchd LaunchAgent (`vrooli runtime supervisor install --user`) instead of systemd. See the canonical [platform support matrix](reference/platform-support.md) for evidence tiers and unqualified hardware capabilities.
 
 ## Setup
 

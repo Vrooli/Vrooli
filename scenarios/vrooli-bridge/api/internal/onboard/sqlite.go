@@ -42,12 +42,12 @@ const opTimeFormat = time.RFC3339Nano
 
 const (
 	insertOpSQL = `
-INSERT INTO onboarding_ops (id, host, port, user_name, node_name, target_revision, repo_url, state, node_id, failure_reason, failure_detail, exit_code, created_at, started_at, finished_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO onboarding_ops (id, host, port, user_name, node_name, target_revision, repo_url, state, node_id, failure_reason, failure_detail, control_plane_url, reachability_mode, exit_code, created_at, started_at, finished_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	selectOpColumns = `
-SELECT id, host, port, user_name, node_name, target_revision, repo_url, state, node_id, failure_reason, failure_detail, exit_code, created_at, started_at, finished_at
+SELECT id, host, port, user_name, node_name, target_revision, repo_url, state, node_id, failure_reason, failure_detail, control_plane_url, reachability_mode, exit_code, created_at, started_at, finished_at
 FROM onboarding_ops
 `
 
@@ -87,7 +87,7 @@ func (s *sqliteRepository) Create(ctx context.Context, op Op) (Op, error) {
 	}
 	if _, err := s.db.ExecContext(ctx, insertOpSQL,
 		op.ID, op.Host, op.Port, op.User, op.NodeName, op.TargetRevision, op.RepoURL,
-		int(op.State), op.NodeID, string(op.FailureReason), op.FailureDetail, op.ExitCode,
+		int(op.State), op.NodeID, string(op.FailureReason), op.FailureDetail, op.ControlPlaneURL, op.ReachabilityMode, op.ExitCode,
 		op.CreatedAt.Format(opTimeFormat), formatNullableTime(op.StartedAt), formatNullableTime(op.FinishedAt),
 	); err != nil {
 		return Op{}, fmt.Errorf("insert onboarding op %q: %w", op.ID, err)
@@ -256,7 +256,7 @@ func scanOp(sc rowScanner) (Op, error) {
 		finishedRaw string
 	)
 	if err := sc.Scan(&op.ID, &op.Host, &op.Port, &op.User, &op.NodeName, &op.TargetRevision, &op.RepoURL,
-		&state, &op.NodeID, &failure, &op.FailureDetail, &op.ExitCode, &createdRaw, &startedRaw, &finishedRaw); err != nil {
+		&state, &op.NodeID, &failure, &op.FailureDetail, &op.ControlPlaneURL, &op.ReachabilityMode, &op.ExitCode, &createdRaw, &startedRaw, &finishedRaw); err != nil {
 		return Op{}, err
 	}
 	op.State = State(state)
