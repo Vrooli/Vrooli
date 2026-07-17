@@ -54,6 +54,25 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	// the target itself proves it can reach the selected Bridge endpoint.
 	s.emit(ctx, opID, &seq, StepAdmission, StepStatusStarted, "probing Bridge endpoint from candidate node")
 	admission := s.admitCandidate(ctx, conn, in.ControlPlaneURL)
+	if candidateIP := automaticFirewallCandidate(in.ReachabilityMode, admission); candidateIP != "" && s.firewallAdmitter != nil {
+		s.emit(ctx, opID, &seq, StepAdmission, StepStatusStarted, "candidate source "+candidateIP+" is blocked; ensuring scoped Bridge firewall admission")
+		firewall, firewallErr := s.firewallAdmitter.AllowCandidate(ctx, candidateIP)
+		if firewallErr != nil || (firewall.Status != "changed" && firewall.Status != "already_present") || !firewall.Managed {
+			detail := "automatic scoped firewall admission failed"
+			if firewallErr != nil {
+				detail += ": " + firewallErr.Error()
+			} else if firewall.Code != "" {
+				detail += ": " + firewall.Code
+			} else if firewall.Status != "" {
+				detail += ": " + firewall.Status
+			}
+			s.emit(ctx, opID, &seq, StepAdmission, StepStatusFailed, detail)
+			s.finishFailed(ctx, opID, &seq, FailureControlPlaneUnreachable, 0, detail, "")
+			return
+		}
+		s.emit(ctx, opID, &seq, StepAdmission, StepStatusStarted, "scoped Bridge firewall admission ready; retrying candidate probe")
+		admission = s.admitCandidate(ctx, conn, in.ControlPlaneURL)
+	}
 	if admission.Category != AdmissionPassed {
 		detail := admissionDetail(admission)
 		s.emit(ctx, opID, &seq, StepAdmission, StepStatusFailed, detail)

@@ -408,6 +408,10 @@ func main() {
 			selected, err := endpointStore.Resolve(ctx)
 			return selected.URL, selected.Mode, err
 		}),
+		internalonboard.WithFirewallAdmitter(internalonboard.FirewallAdmitterFunc(func(ctx context.Context, candidateIP string) (internalonboard.FirewallAdmissionResult, error) {
+			result, err := hostbroker.NewSocketClient().Call(ctx, hostbroker.AdmissionRequest("bridge.ufw.allow", "onboard-auto-"+candidateIP, candidateIP))
+			return internalonboard.FirewallAdmissionResult{Status: result.Status, Code: result.Code, Changed: result.Changed, Managed: result.Evidence.Managed}, err
+		})),
 	}
 	if cpURL, source := canonicalControlPlaneEndpoint(); source == "configured" {
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(cpURL))

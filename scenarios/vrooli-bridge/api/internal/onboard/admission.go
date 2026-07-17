@@ -3,6 +3,7 @@ package onboard
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 )
@@ -31,6 +32,26 @@ const (
 // useful. Production always implements it; absence fails closed before pairing.
 type CandidateProber interface {
 	ProbeEndpoint(context.Context, Conn, string) (AdmissionResult, error)
+}
+
+// FirewallAdmitter is the narrow host-action seam onboarding uses only after a
+// LAN candidate has identified its route source and failed its first admission
+// probe. It deliberately exposes no generic host command surface.
+type FirewallAdmitter interface {
+	AllowCandidate(context.Context, string) (FirewallAdmissionResult, error)
+}
+
+type FirewallAdmissionResult struct {
+	Status  string
+	Code    string
+	Changed bool
+	Managed bool
+}
+
+type FirewallAdmitterFunc func(context.Context, string) (FirewallAdmissionResult, error)
+
+func (f FirewallAdmitterFunc) AllowCandidate(ctx context.Context, candidateIP string) (FirewallAdmissionResult, error) {
+	return f(ctx, candidateIP)
 }
 
 func admissionFailureReason(category string) FailureReason {
@@ -76,4 +97,15 @@ func admissionDetail(result AdmissionResult) string {
 		parts = append(parts, result.Detail)
 	}
 	return strings.Join(parts, "; ")
+}
+
+func automaticFirewallCandidate(mode string, admission AdmissionResult) string {
+	if mode != "lan" || admission.Category != AdmissionControlPlaneUnreachable {
+		return ""
+	}
+	ip := net.ParseIP(strings.TrimSpace(admission.SourceIP))
+	if ip == nil || ip.To4() == nil || ip.IsLoopback() || ip.IsUnspecified() {
+		return ""
+	}
+	return ip.String()
 }

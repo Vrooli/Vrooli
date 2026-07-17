@@ -73,6 +73,7 @@ type service struct {
 	worktree               WorkingTreeSource
 	artifacts              ArtifactBuilder
 	nodeRev                NodeRevisionRecorder
+	firewallAdmitter       FirewallAdmitter
 
 	wg sync.WaitGroup // tracks in-flight orchestration goroutines (for tests)
 }
@@ -130,6 +131,14 @@ func WithArtifactBuilder(b ArtifactBuilder) Option {
 // record keeps whatever revision pairing left).
 func WithNodeRevisionRecorder(r NodeRevisionRecorder) Option {
 	return func(s *service) { s.nodeRev = r }
+}
+
+// WithFirewallAdmitter enables automatic, scoped UFW admission recovery for a
+// LAN candidate whose first reachability probe identifies a valid source IP.
+// It is intentionally opt-in at composition time: production wires the local
+// setup-managed broker, while isolated tests and other deployments remain inert.
+func WithFirewallAdmitter(admitter FirewallAdmitter) Option {
+	return func(s *service) { s.firewallAdmitter = admitter }
 }
 
 // NewService constructs the production Service.

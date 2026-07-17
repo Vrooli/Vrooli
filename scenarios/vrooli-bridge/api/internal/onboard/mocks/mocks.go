@@ -210,6 +210,7 @@ type FakeSSHDriver struct {
 	FirstTouchCalls       int
 	CapturedProvisionSudo bool
 	AdmissionResult       onboard.AdmissionResult
+	AdmissionResults      []onboard.AdmissionResult
 	AdmissionErr          error
 	AdmissionCalls        int
 }
@@ -253,6 +254,9 @@ func (d *FakeSSHDriver) ProbeEndpoint(_ context.Context, _ onboard.Conn, endpoin
 		return d.AdmissionResult, d.AdmissionErr
 	}
 	result := d.AdmissionResult
+	if index := d.AdmissionCalls - 1; index >= 0 && index < len(d.AdmissionResults) {
+		result = d.AdmissionResults[index]
+	}
 	if result.Category == "" {
 		result.Category = onboard.AdmissionPassed
 	}
