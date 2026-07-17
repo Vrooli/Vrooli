@@ -26,6 +26,15 @@ These are normally provided by the Vrooli lifecycle system:
 | `TEST_GENIE_MAX_PREVIEW_RUNS` | Run manager | `2` | Non-blocking admission cap on expensive plan previews. Requests beyond it receive retryable saturation before preview work or queued-record allocation. Floor 1. |
 | `TEST_GENIE_MAX_PREVIEW_RUNS_PER_CALLER` | Run manager | `1` | Fair-share cap on concurrent expensive previews for one caller identity. Floor 1. |
 | `TEST_GENIE_MAX_RUNS_PER_SCENARIO` | Run manager | `1` | Per-scenario in-progress cap. `1` is a correctness invariant (one live instance per scenario); raising it is documented-unsafe until per-run isolation lands. |
+| `TEST_GENIE_EVENT_REPLAY_MAX_EVENTS` | Run manager | `512` | Maximum compact events retained for a reconnecting follower. Older detail is read from durable evidence, not replay memory. Floor 1. |
+| `TEST_GENIE_EVENT_REPLAY_MAX_BYTES` | Run manager | `1048576` | Maximum approximate bytes retained in the compact event replay tail. Floor 1. |
+| `FollowRun.after_sequence` | Runs API | `0` | Resume strictly after a received event sequence. A non-zero cursor older than the bounded tail is rejected; fetch durable evidence/detail instead of retrying the stream without bounds. |
+| Pin lease TTL | Runs API | `30 days` | `PinRun` grants a finite evidence-retention lease. Renew it by pinning the same run and owner again; `UnpinRun` revokes it. This is intentionally not an indefinite index pin. |
+| `TEST_GENIE_SELFHEALTH_SWEEP_DISABLED` | API runtime | `false` | Disables advisory self-health snapshots. It does not affect lifecycle health or test execution. |
+| `TEST_GENIE_SELFHEALTH_SWEEP_INTERVAL` | API runtime | `1h` | Minimum interval between advisory self-health sweeps. |
+| `TEST_GENIE_SELFHEALTH_SWEEP_START_DELAY` | API runtime | `30s` | Minimum delay after the HTTP listener is live before the first advisory sweep. |
+| `TEST_GENIE_SELFHEALTH_SWEEP_START_JITTER` | API runtime | `30s` | Randomized extra startup delay that prevents synchronized analytical work after restarts. |
+| `TEST_GENIE_SELFHEALTH_SWEEP_TIMEOUT` | API runtime | `20s` | Per-sweep deadline. A timed-out advisory sweep is deferred and must not hold the runtime SQLite pool indefinitely. |
 | `TEST_GENIE_PLAYBOOKS_RETAIN` | Workflow compatibility | `0` | Keep temporary isolated Postgres/Redis/SQLite resources alive after legacy seed/debug paths |
 | `TEST_GENIE_SKIP_PLAYBOOKS` | Workflow compatibility | unset | Hard-disable workflow execution through the legacy playbooks alias |
 | `TEST_GENIE_DOCS_DIR` | Docs handlers | scenario default | Override docs directory served by the API |
@@ -42,6 +51,35 @@ Trusted gateways may set `X-Vrooli-Caller` on REST or Connect requests to make
 the per-caller limits fair. It is an admission label, never written into run
 artifacts or returned by the status endpoint. Missing identity is deliberately
 limited as `anonymous` rather than treated as unrestricted.
+
+## Lifecycle health boundary
+
+`/health` is the canonical lifecycle endpoint. It uses the shared api-core
+response schema and returns HTTP `200` for `healthy` or `degraded`, and HTTP
+`503` for `unhealthy`. Test Genie probes SQLite through a dedicated lifecycle
+connection with a bounded read-only schema check; normal service work continues
+to use its intentionally single-connection runtime pool. Self-health snapshots
+are advisory work: they start only after the listener is live, have a delayed
+and jittered first run, and are never invoked by a health request.
+
+The latest advisory sweep is exposed as an optional health dependency. A failed
+or timed-out sweep produces `degraded` while keeping HTTP 200/readiness true;
+a failed primary-store probe remains `unhealthy` with HTTP 503.
+
+There is intentionally no separate `/live` or `/ready` endpoint. The canonical
+endpoint is already bounded, externally enforceable, and distinguishes a
+genuinely unavailable primary store from ordinary background analytics.
+
+## Offline evidence cutover
+
+Use `test-genie evidence-cutover plan` and `apply` only while Test Genie is
+stopped and its SQLite WAL has been checkpointed. Both commands require the
+scenario directory, coverage archive destination, database path, and database
+archive destination. `apply` additionally requires
+`--confirm ARCHIVE_TEST_GENIE_EVIDENCE`. The operation archives the old
+evidence tree and SQLite store, creates a fresh canonical SQLite store, verifies
+integrity, and writes receipts. Rehearse against a copied store first; a live
+cutover needs an approved maintenance window.
 
 For an active incident only, set `TEST_GENIE_PROFILING_ENABLED=1` and a strong
 `TEST_GENIE_PROFILING_TOKEN`. A token-authenticated `POST /api/v1/admission/profile?kind=heap`

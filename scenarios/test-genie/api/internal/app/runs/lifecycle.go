@@ -14,6 +14,7 @@ import (
 	"test-genie/internal/shared"
 	sharedruns "test-genie/internal/shared/runs"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
@@ -137,7 +138,7 @@ func (s *Service) FollowRun(ctx context.Context, req *connect.Request[runspb.Fol
 	// heartbeats to the shared broadcaster (other followers — e.g. browser SSE —
 	// still receive them); we just skip them on THIS stream.
 	suppressHeartbeats := req.Msg.GetSuppressHeartbeats()
-	replay, ch, err := s.runManager.Follow(ctx, scenario, runID)
+	replay, ch, err := s.runManager.FollowAfter(ctx, scenario, runID, req.Msg.GetAfterSequence())
 	if err != nil {
 		return mapRunError(err)
 	}
@@ -238,6 +239,7 @@ func (s *Service) GetRunStatus(ctx context.Context, req *connect.Request[runspb.
 
 func toRunEvent(ev runmanager.Event) *runspb.RunEvent {
 	return &runspb.RunEvent{
+		Sequence:          ev.Sequence,
 		Event:             ev.Kind,
 		ElapsedSeconds:    ev.ElapsedSeconds,
 		RunId:             ev.RunID,
@@ -264,6 +266,27 @@ func toLiveStatus(st runmanager.LiveStatus) *runspb.RunLiveStatus {
 	if !st.StartedAt.IsZero() {
 		startedAt = st.StartedAt.UTC().Format(time.RFC3339)
 	}
+	lastProgressAt := startedAt
+	if !st.LastProgressAt.IsZero() {
+		lastProgressAt = st.LastProgressAt.UTC().Format(time.RFC3339)
+	}
+	standing := &commonv1.OperationStanding{
+		Lifecycle:                 testGenieLifecycle(st),
+		TerminalOutcome:           testGenieOutcome(st),
+		Owner:                     "test-genie",
+		OperationId:               st.RunID,
+		StartedAt:                 startedAt,
+		LastProgressAt:            lastProgressAt,
+		ElapsedSeconds:            st.ElapsedSeconds,
+		EstimatedRemainingSeconds: int32(st.EstimatedRemainingSeconds),
+		EtaKnown:                  st.ETAKnown,
+		Directive:                 testGenieDirective(st),
+		RecommendedWaitSeconds:    int32(st.RecommendedNextCheckSeconds),
+		ActivePhase:               st.ActivePhase,
+	}
+	if standing.GetLifecycle() != "terminal" && st.Scenario != "" && st.RunID != "" {
+		standing.ReattachCommand = "test-genie runs wait --json " + st.Scenario + " " + st.RunID
+	}
 	return &runspb.RunLiveStatus{
 		RunId:                       st.RunID,
 		Scenario:                    st.Scenario,
@@ -284,7 +307,44 @@ func toLiveStatus(st runmanager.LiveStatus) *runspb.RunLiveStatus {
 		TerminalPresentations:       st.TerminalPresentations,
 		TerminalFindingsSummaries:   st.TerminalFindingsSummaries,
 		DegradedReasons:             append([]string(nil), st.DegradedReasons...),
+		Standing:                    standing,
 	}
+}
+
+func testGenieLifecycle(st runmanager.LiveStatus) string {
+	if isTerminalStatus(st.Status) {
+		return "terminal"
+	}
+	if st.Status == "queued" || !st.Active {
+		return "queued"
+	}
+	if st.ActivePhase == "" {
+		return "preparing"
+	}
+	return "executing"
+}
+
+func testGenieOutcome(st runmanager.LiveStatus) string {
+	switch st.Status {
+	case "passed":
+		return "passed"
+	case "failed":
+		return "failed"
+	case "aborted":
+		return "aborted"
+	default:
+		return ""
+	}
+}
+
+func testGenieDirective(st runmanager.LiveStatus) string {
+	if !isTerminalStatus(st.Status) {
+		return "wait"
+	}
+	if st.Status == "passed" {
+		return ""
+	}
+	return "inspect"
 }
 
 func isTerminalStatus(status string) bool {

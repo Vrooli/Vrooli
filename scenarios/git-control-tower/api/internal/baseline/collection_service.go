@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // CollectionTarget is a caller-selected per-scenario member. Selection is
@@ -465,56 +467,6 @@ func (s *Service) ResumeCollectionCapture(ctx context.Context, repoID int64, bra
 	return collection, nil
 }
 
-// ReconcileCollectionCapture finalizes only members whose durable Test Genie
-// runs are already terminal. Unlike ResumeCollectionCapture it never blocks on
-// an in-progress run. This makes ordinary collection reads recover a terminal
-// member after an API restart or a detached finalizer, while preserving the
-// one-wait protocol for callers that need to block.
-func (s *Service) ReconcileCollectionCapture(ctx context.Context, repoID int64, branch, name string) (CollectionManifest, error) {
-	collection, err := s.storage.LoadCollection(repoID, branch, name)
-	if err != nil {
-		return CollectionManifest{}, err
-	}
-	for _, member := range collection.Members {
-		if member.Status != CollectionMemberPending || member.RunID == "" {
-			continue
-		}
-		status, statusErr := s.exec.RunStatus(ctx, member.Scenario, member.RunID)
-		if statusErr != nil || !status.Terminal {
-			continue
-		}
-		intent, found, loadErr := s.storage.LoadSnapshotIntent(repoID, member.Scenario, branch, member.BaselineName, member.RunID)
-		if loadErr != nil {
-			return CollectionManifest{}, loadErr
-		}
-		if !found {
-			collection, err = s.storage.UpdateCollectionMember(repoID, branch, name, member.Scenario, func(target *CollectionMember) error {
-				target.Status, target.Error, target.UpdatedAt = CollectionMemberFailed, "durable snapshot intent is missing", s.now().UTC()
-				return nil
-			})
-			if err != nil {
-				return CollectionManifest{}, err
-			}
-			continue
-		}
-		updated, finalizeErr := s.FinalizeCollectionCapture(ctx, repoID, PendingCollectionCapture{CollectionName: name, Branch: branch, Scenario: member.Scenario, Pending: intent.PendingCapture()})
-		if finalizeErr != nil {
-			if errors.Is(finalizeErr, context.Canceled) || errors.Is(finalizeErr, context.DeadlineExceeded) {
-				return updated, nil
-			}
-			if updated.Name == "" {
-				return CollectionManifest{}, finalizeErr
-			}
-			collection = updated
-			continue
-		}
-		collection = updated
-		// A terminal child failure has already been recorded as failed coverage;
-		// continue across other members so the returned collection is truthful.
-	}
-	return collection, nil
-}
-
 // StartCollectionDiff dispatches one existing per-scenario diff for every
 // selected ready member. Individual StartDiff intents remain the durable child
 // operation records; the returned handles make an interrupted aggregate wait
@@ -539,7 +491,16 @@ func (s *Service) StartCollectionDiff(ctx context.Context, req StartCollectionDi
 	} else if !errors.Is(err, ErrNotFound) {
 		return StartCollectionDiffResult{}, err
 	}
-	operation := CollectionDiffOperation{ID: req.OperationID, Collection: req.Name, Branch: req.Branch, CreatedAt: s.now().UTC(), UpdatedAt: s.now().UTC()}
+	operation := CollectionDiffOperation{
+		ID:                 req.OperationID,
+		Collection:         req.Name,
+		Branch:             req.Branch,
+		CollectionSnapshot: collection,
+		CreatedAt:          s.now().UTC(),
+		UpdatedAt:          s.now().UTC(),
+		Lifecycle:          "preparing",
+		LastProgressAt:     s.now().UTC(),
+	}
 	for _, member := range selected {
 		operation.Members = append(operation.Members, CollectionDiffMember{Scenario: member.Scenario, BaselineName: member.BaselineName, Required: member.Required, Status: string(member.Status), RunID: member.RunID, Detail: member.Error})
 	}
@@ -565,6 +526,8 @@ func (s *Service) StartCollectionDiff(ctx context.Context, req StartCollectionDi
 	}
 	result.Operation.Members = append([]CollectionDiffMember(nil), result.Members...)
 	result.Operation.UpdatedAt = s.now().UTC()
+	result.Operation.LastProgressAt = result.Operation.UpdatedAt
+	result.Operation.Lifecycle = collectionDiffLifecycle(result.Operation)
 	if err := s.storage.SaveCollectionDiffOperation(req.RepoID, result.Operation, Overwrite); err != nil {
 		return StartCollectionDiffResult{}, err
 	}
@@ -619,20 +582,88 @@ func (s *Service) FinalizeCollectionDiff(ctx context.Context, repoID int64, pend
 		}
 	}
 	operation.UpdatedAt = s.now().UTC()
+	operation.LastProgressAt = operation.UpdatedAt
+	operation.Lifecycle = collectionDiffLifecycle(operation)
 	if saveErr := s.storage.SaveCollectionDiffOperation(repoID, operation, Overwrite); saveErr != nil {
 		return CollectionDiffOperation{}, saveErr
 	}
 	return operation, err
 }
 
-func (s *Service) GetCollectionDiff(ctx context.Context, repoID int64, branch, name, operationID string, wait bool) (CollectionManifest, CollectionDiffOperation, error) {
-	collection, err := s.storage.LoadCollection(repoID, branch, name)
+// collectionDiffLifecycle is the aggregate owner state. A terminal child that
+// still needs comparison/fan-in is finalizing, never generic pending.
+func collectionDiffLifecycle(operation CollectionDiffOperation) string {
+	if len(operation.Members) == 0 {
+		return "preparing"
+	}
+	for _, member := range operation.Members {
+		if member.Status == "pending" {
+			return "executing"
+		}
+	}
+	return "terminal"
+}
+
+// GetCollectionDiffStatus is a pure read. It never starts a finalizer, waits,
+// or mutates durable state; observers see the owner and child standing exactly
+// as they are instead of accidentally participating in reconciliation.
+func (s *Service) GetCollectionDiffStatus(ctx context.Context, repoID int64, branch, name, operationID string) (CollectionManifest, CollectionDiffOperation, *commonv1.OperationStanding, error) {
+	operation, err := s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
+	if err != nil {
+		return CollectionManifest{}, CollectionDiffOperation{}, nil, err
+	}
+	collection, err := s.collectionForOperation(repoID, branch, name, operation)
+	if err != nil {
+		return CollectionManifest{}, operation, nil, err
+	}
+	standing := &commonv1.OperationStanding{
+		Owner: "git-control-tower", OperationId: operation.ID,
+		StartedAt:       operation.CreatedAt.UTC().Format(time.RFC3339),
+		LastProgressAt:  operation.LastProgressAt.UTC().Format(time.RFC3339),
+		Directive:       "wait",
+		ReattachCommand: collectionDiffReattachCommand(collection, operation),
+	}
+	for _, member := range operation.Members {
+		if member.Status != "pending" || member.RunID == "" {
+			continue
+		}
+		status, statusErr := s.exec.RunStatus(ctx, member.Scenario, member.RunID)
+		if statusErr != nil {
+			standing.Children = append(standing.Children, &commonv1.OperationStanding{Owner: "test-genie", OperationId: member.RunID, Lifecycle: "executing", Directive: "recover", Detail: statusErr.Error()})
+			continue
+		}
+		child := status.Standing
+		if child == nil {
+			child = &commonv1.OperationStanding{Owner: "test-genie", OperationId: member.RunID, Directive: "wait", RecommendedWaitSeconds: int32(status.RecommendedNextCheckSeconds)}
+			if status.Terminal {
+				child.Lifecycle = "terminal"
+			} else if status.Status == "queued" {
+				child.Lifecycle = "queued"
+			} else {
+				child.Lifecycle = "executing"
+			}
+		}
+		standing.Children = append(standing.Children, child)
+	}
+	standing.Lifecycle = collectionDiffStandingLifecycle(operation, standing.Children)
+	if standing.Lifecycle == "terminal" {
+		standing.Directive = collectionDiffTerminalDirective(operation)
+		standing.ReattachCommand = ""
+		standing.TerminalOutcome = collectionDiffTerminalOutcome(operation, collection)
+	}
+	return collection, operation, standing, nil
+}
+
+// WaitCollectionDiff is the only blocking aggregate operation. Its durable
+// children keep running when the caller's context expires.
+func (s *Service) WaitCollectionDiff(ctx context.Context, repoID int64, branch, name, operationID string) (CollectionManifest, CollectionDiffOperation, error) {
+	operation, err := s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
 	if err != nil {
 		return CollectionManifest{}, CollectionDiffOperation{}, err
 	}
-	operation, err := s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
-	if err != nil || !wait {
-		return collection, operation, err
+	collection, err := s.collectionForOperation(repoID, branch, name, operation)
+	if err != nil {
+		return CollectionManifest{}, operation, err
 	}
 	type pendingDiffJob struct {
 		member CollectionDiffMember
@@ -711,6 +742,85 @@ func (s *Service) GetCollectionDiff(ctx context.Context, repoID int64, branch, n
 	return collection, operation, nil
 }
 
+func collectionDiffStandingLifecycle(operation CollectionDiffOperation, children []*commonv1.OperationStanding) string {
+	if len(operation.Members) == 0 {
+		return "preparing"
+	}
+	if operation.Lifecycle == "terminal" {
+		return "terminal"
+	}
+	for _, child := range children {
+		if child.GetLifecycle() != "terminal" {
+			return "executing"
+		}
+	}
+	for _, member := range operation.Members {
+		if member.Status == "pending" {
+			return "finalizing"
+		}
+	}
+	if operation.Lifecycle != "" {
+		return operation.Lifecycle
+	}
+	return "preparing"
+}
+
+func collectionDiffTerminalDirective(operation CollectionDiffOperation) string {
+	for _, member := range operation.Members {
+		if member.Required && (member.Status == "failed" || member.Status == "not-comparable") {
+			return "inspect"
+		}
+	}
+	return ""
+}
+
+func collectionDiffTerminalOutcome(operation CollectionDiffOperation, collection CollectionManifest) string {
+	verdict := operation.Aggregate(collection).Verdict
+	switch verdict {
+	case CollectionDiffClean:
+		return "passed"
+	case CollectionDiffNotComparable:
+		return "not-comparable"
+	default:
+		return "failed"
+	}
+}
+
+func collectionDiffReattachCommand(collection CollectionManifest, operation CollectionDiffOperation) string {
+	args := []string{"git-control-tower", "baseline", "collection", "diff", "wait", "--name", collection.Name}
+	if collection.Branch != "" {
+		args = append(args, "--branch", collection.Branch)
+	}
+	args = append(args, "--operation-id", operation.ID, "--json")
+	return strings.Join(args, " ")
+}
+
+// collectionForOperation uses the operation's creation-time snapshot whenever
+// it exists. That prevents later append-only collection expansion (or a
+// same-named replacement) from changing an already-started operation's
+// comparison universe. Legacy operations intentionally fall back only to the
+// live collection; if it is absent they fail clearly rather than guessing.
+func (s *Service) collectionForOperation(repoID int64, branch, name string, operation CollectionDiffOperation) (CollectionManifest, error) {
+	snapshot := operation.CollectionSnapshot.Normalized()
+	if snapshot.Name != "" {
+		if snapshot.Name != strings.TrimSpace(name) || snapshot.Branch != strings.TrimSpace(branch) {
+			return CollectionManifest{}, fmt.Errorf("collection diff operation %q snapshot identity does not match requested collection", operation.ID)
+		}
+		if err := snapshot.Validate(); err != nil {
+			return CollectionManifest{}, fmt.Errorf("validate collection diff operation snapshot: %w", err)
+		}
+		return snapshot, nil
+	}
+	collection, err := s.storage.LoadCollection(repoID, branch, name)
+	if err == nil {
+		return collection, nil
+	}
+	if errors.Is(err, ErrNotFound) {
+		return CollectionManifest{}, fmt.Errorf("collection %q is unavailable and legacy diff operation %q has no immutable collection snapshot; recapture the baseline before retrying", name, operation.ID)
+	}
+	return CollectionManifest{}, err
+}
+
 func selectCollectionMembers(collection CollectionManifest, scenarios []string) ([]CollectionMember, error) {
 	if len(scenarios) == 0 {
 		return append([]CollectionMember(nil), collection.Members...), nil
@@ -749,6 +859,28 @@ func selectCollectionMembers(collection CollectionManifest, scenarios []string) 
 // letting handlers reach into storage directly.
 func (s *Service) StorageLoadCollection(repoID int64, branch, name string) (CollectionManifest, error) {
 	return s.storage.LoadCollection(repoID, branch, name)
+}
+
+// CollectionCaptureStanding projects durable capture state for every transport.
+func CollectionCaptureStanding(collection CollectionManifest) *commonv1.OperationStanding {
+	standing := &commonv1.OperationStanding{Owner: "git-control-tower", OperationId: "capture:" + collection.Name, Directive: "wait"}
+	if collection.Coverage().Complete() {
+		standing.Lifecycle, standing.TerminalOutcome, standing.Directive = "terminal", "passed", ""
+		return standing
+	}
+	standing.Lifecycle = "executing"
+	for _, member := range collection.Members {
+		if member.Status == CollectionMemberFailed {
+			standing.Directive, standing.Detail = "inspect", member.Error
+			return standing
+		}
+	}
+	args := []string{"git-control-tower", "baseline", "collection", "show", "--name", collection.Name}
+	if collection.Branch != "" {
+		args = append(args, "--branch", collection.Branch)
+	}
+	standing.ReattachCommand = strings.Join(append(args, "--wait", "--json"), " ")
+	return standing
 }
 
 func (s *Service) DeleteCollection(_ context.Context, repoID int64, branch, name string) error {

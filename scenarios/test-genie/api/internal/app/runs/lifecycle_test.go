@@ -138,6 +138,9 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 	if !st.Msg.GetActive() {
 		t.Fatal("expected active=true for a live run")
 	}
+	if got := st.Msg.GetStanding(); got == nil || got.GetLifecycle() != "preparing" || got.GetDirective() != "wait" || got.GetActivePhase() != "" {
+		t.Fatalf("preparing run standing = %#v; a missing active phase must remain waitable", got)
+	}
 
 	// Wait with a short timeout returns a non-terminal snapshot (run continues).
 	wr, err := svc.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Scenario: "demo", RunId: runID, TimeoutSeconds: 1}))

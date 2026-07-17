@@ -83,7 +83,7 @@ func (c gctCollectionClient) GetCollection(ctx context.Context, name, branch str
 		return internalvalidation.BaselineCollectionCaptureResult{}, fmt.Errorf("resolve git-control-tower URL: %w", err)
 	}
 	client := baselinesconnect.NewBaselinesServiceClient(c.http, baseURL)
-	resp, err := client.GetCollection(ctx, connect.NewRequest(&baselinesv1.GetCollectionRequest{Name: name, Branch: branch, Wait: false}))
+	resp, err := client.GetCollectionStatus(ctx, connect.NewRequest(&baselinesv1.GetCollectionStatusRequest{Name: name, Branch: branch}))
 	if err != nil {
 		return internalvalidation.BaselineCollectionCaptureResult{}, fmt.Errorf("get git-control-tower collection: %w", err)
 	}
@@ -121,7 +121,7 @@ func (c gctCollectionClient) GetCollectionDiff(ctx context.Context, name, branch
 		return internalvalidation.BaselineCollectionDiffResult{}, fmt.Errorf("resolve git-control-tower URL: %w", err)
 	}
 	client := baselinesconnect.NewBaselinesServiceClient(c.http, baseURL)
-	resp, err := client.GetCollectionDiff(ctx, connect.NewRequest(&baselinesv1.GetCollectionDiffRequest{Name: name, Branch: branch, OperationId: operationID, Wait: false}))
+	resp, err := client.GetCollectionDiffStatus(ctx, connect.NewRequest(&baselinesv1.GetCollectionDiffStatusRequest{Name: name, Branch: branch, OperationId: operationID}))
 	if err != nil {
 		return internalvalidation.BaselineCollectionDiffResult{}, fmt.Errorf("get git-control-tower collection diff: %w", err)
 	}

@@ -2,22 +2,26 @@ package playbooks
 
 import (
 	"context"
+	"io"
 
 	"test-genie/internal/playbooks/artifacts"
 	"test-genie/internal/playbooks/execution"
 	"test-genie/internal/shared"
 )
 
-// downloadScreenshots downloads screenshot images from BAS for a workflow execution.
-// It extracts screenshot references from the parsed timeline and downloads each one.
-// Download failures are logged but don't stop the process - partial results are returned.
-func (r *Runner) downloadScreenshots(ctx context.Context, workflowFile string, parsed *execution.ParsedTimeline) []artifacts.ScreenshotData {
-	var screenshots []artifacts.ScreenshotData
+const maxScreenshotArtifactBytes int64 = 32 * 1024 * 1024
+
+// streamScreenshots persists each screenshot before requesting the next one.
+// It retains only the resulting artifact reference in WorkflowArtifacts.
+func (r *Runner) streamScreenshots(ctx context.Context, workflowFile string, parsed *execution.ParsedTimeline, writer *artifacts.FileWriter, output *artifacts.WorkflowArtifacts) {
+	if writer == nil || output == nil {
+		return
+	}
 
 	// Extract screenshot references from parsed timeline
 	refs := artifacts.ExtractScreenshotsFromTimeline(parsed)
 	if len(refs) == 0 {
-		return screenshots
+		return
 	}
 
 	shared.LogStep(r.logWriter, "downloading %d screenshots for %s", len(refs), workflowFile)
@@ -27,19 +31,13 @@ func (r *Runner) downloadScreenshots(ctx context.Context, workflowFile string, p
 			continue
 		}
 
-		data, err := r.basClient.DownloadAsset(ctx, ref.URL)
+		path, err := writer.StreamScreenshot(workflowFile, artifacts.GenerateScreenshotFilename(ref), maxScreenshotArtifactBytes, func(destination io.Writer, maxBytes int64) (int64, error) {
+			return r.basClient.StreamAsset(ctx, ref.URL, destination, maxBytes)
+		})
 		if err != nil {
 			shared.LogWarn(r.logWriter, "failed to download screenshot for step %d: %v", ref.StepIndex, err)
 			continue
 		}
-
-		screenshots = append(screenshots, artifacts.ScreenshotData{
-			StepIndex: ref.StepIndex,
-			StepName:  ref.StepType,
-			Filename:  artifacts.GenerateScreenshotFilename(ref),
-			Data:      data,
-		})
+		output.Screenshots = append(output.Screenshots, path)
 	}
-
-	return screenshots
 }

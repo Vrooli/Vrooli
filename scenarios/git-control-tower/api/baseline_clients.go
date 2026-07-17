@@ -114,6 +114,7 @@ func (e baselineExecutor) RunStatus(ctx context.Context, scenario, runID string)
 		Terminal:                    isTerminalRunStatus(st.GetStatus()),
 		Success:                     st.GetSuccess(),
 		RecommendedNextCheckSeconds: int(st.GetRecommendedNextCheckSeconds()),
+		Standing:                    st.GetStanding(),
 	}, nil
 }
 

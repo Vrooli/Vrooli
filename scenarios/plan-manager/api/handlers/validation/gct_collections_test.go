@@ -51,11 +51,8 @@ func (s *gctCollectionStub) StartCollectionCapture(_ context.Context, req *conne
 	return connect.NewResponse(&baselinesv1.StartCollectionCaptureResponse{Collection: collectionFixture(req.Msg.GetName(), ready, 2, !s.pending)}), nil
 }
 
-func (s *gctCollectionStub) GetCollection(_ context.Context, req *connect.Request[baselinesv1.GetCollectionRequest]) (*connect.Response[baselinesv1.GetCollectionResponse], error) {
-	if req.Msg.GetWait() {
-		s.waits++
-	}
-	return connect.NewResponse(&baselinesv1.GetCollectionResponse{Collection: collectionFixture(req.Msg.GetName(), 2, 0, true)}), nil
+func (s *gctCollectionStub) GetCollectionStatus(_ context.Context, req *connect.Request[baselinesv1.GetCollectionStatusRequest]) (*connect.Response[baselinesv1.GetCollectionStatusResponse], error) {
+	return connect.NewResponse(&baselinesv1.GetCollectionStatusResponse{Collection: collectionFixture(req.Msg.GetName(), 2, 0, true)}), nil
 }
 
 func collectionFixture(name string, ready, pending int32, complete bool) *baselinesv1.BaselineCollection {

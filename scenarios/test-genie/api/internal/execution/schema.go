@@ -5,8 +5,8 @@ import _ "embed"
 //go:embed schema.sql
 var schemaSQL string
 
-// Schema returns the declarative DDL for the suite_executions table owned by the
-// execution domain. It is idempotent (CREATE TABLE IF NOT EXISTS) and safe to
-// apply on every boot. Existing (pre-terminal_outcome) databases are evolved by
-// Migrate, never recreated.
+// Schema returns declarative DDL for the compact execution headers and
+// normalized phase-history projection. It is idempotent (CREATE TABLE IF NOT
+// EXISTS) and safe to apply on every boot. Existing databases are evolved by
+// Migrate; legacy result documents are never read by runtime code.
 func Schema() string { return schemaSQL }

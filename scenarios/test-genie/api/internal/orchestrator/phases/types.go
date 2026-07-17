@@ -358,9 +358,9 @@ type ExecutionResult struct {
 	// a stable seam since both sides share this contract.
 	Findings []*architecturev1.ArchitectureFinding `json:"findings,omitempty"`
 	// Metrics is the delegated provider's reported execution metrics (timing,
-	// stages, resources, host environment), persisted into the per-run phase
-	// artifact and the SQLite phases blob. Absent for phases whose provider has
-	// not adopted the metrics contract. Proto JSON (snake_case) on the wire.
+	// stages, resources, host environment), persisted only into immutable
+	// per-run phase evidence. Compact SQLite history records presence, never the
+	// payload. Absent for phases whose provider has not adopted the contract.
 	Metrics *commonv1.ExecutionMetrics `json:"metrics,omitempty"`
 	// PhasePresentation is the compact per-phase maturity standing (Phase
 	// Capability Contract) projected from the provider's MaturityAssessment. It is

@@ -1,67 +1,58 @@
 package httpserver
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"test-genie/internal/orchestrator"
-
+	apihealth "github.com/vrooli/api-core/health"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbConnected := true
-
-	// Health pings the primary pool directly — liveness is about the underlying
-	// connection, independent of any per-request test-pool routing.
-	if err := s.db.Primary().PingContext(r.Context()); err != nil {
-		status = "unhealthy"
-		dbConnected = false
+	// The lifecycle contract is owned by api-core. This path performs exactly one
+	// bounded primary-store ping; it must not aggregate execution history or
+	// wait behind advisory work longer than its own small health budget.
+	check := apihealth.DB(s.db.Primary())
+	if s.healthDB != nil {
+		check = apihealth.Func("database", func(ctx context.Context) error {
+			return checkSQLiteSchema(ctx, s.healthDB)
+		})
 	}
-
-	operations := map[string]interface{}{}
-	if s.executionHistory != nil {
-		if latest, err := s.executionHistory.Latest(r.Context()); err == nil && latest != nil {
-			operations["lastExecution"] = executionSummaryPayload(latest)
-		} else if err != nil {
-			s.log("latest execution lookup failed", map[string]interface{}{"error": err.Error()})
-		}
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   s.serviceName(),
-		"version":   "1.0.0",
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]map[string]bool{
-			"database": {
-				"connected": dbConnected,
-			},
-		},
-		"operations": operations,
-	}
-
-	s.writeJSON(w, http.StatusOK, response)
+	apihealth.New(s.serviceName()).
+		Version("1.0.0").
+		Timeout(250*time.Millisecond).
+		Check(check, apihealth.Critical).
+		Check(apihealth.Func("self_health_sweep", s.checkSweepStatus), apihealth.Optional).
+		Handler()(w, r)
 }
 
-func executionSummaryPayload(result *orchestrator.SuiteExecutionResult) map[string]interface{} {
-	if result == nil {
+func (s *Server) checkSweepStatus(context.Context) error {
+	if s.sweepStatus == nil {
 		return nil
 	}
-	return map[string]interface{}{
-		"executionId":  result.ExecutionID,
-		"scenario":     result.ScenarioName,
-		"success":      result.Success,
-		"completedAt":  result.CompletedAt.Format(time.RFC3339),
-		"startedAt":    result.StartedAt.Format(time.RFC3339),
-		"phaseSummary": result.PhaseSummary,
-		"preset":       result.PresetUsed,
+	status := s.sweepStatus.Snapshot()
+	if status.Outcome == "failed" || status.Outcome == "timed_out" {
+		return fmt.Errorf("last advisory sweep %s: %s", status.Outcome, status.Error)
 	}
+	return nil
+}
+
+// checkSQLiteSchema is a minimal read-only SQLite probe. Unlike runtime work,
+// it uses the dedicated lifecycle connection and performs no history lookup or
+// payload hydration. A schema read proves the connection can execute a query,
+// not merely allocate a pool slot.
+func checkSQLiteSchema(ctx context.Context, db *sql.DB) error {
+	var version int
+	if err := db.QueryRowContext(ctx, "PRAGMA schema_version").Scan(&version); err != nil {
+		return fmt.Errorf("query sqlite schema version: %w", err)
+	}
+	return nil
 }
 
 // handleGetConfig returns configuration values needed by the UI.

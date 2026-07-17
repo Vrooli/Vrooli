@@ -19,6 +19,7 @@ import (
 	"connectrpc.com/connect"
 
 	"test-genie/internal/execution"
+	"test-genie/internal/executionevidence"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/runmanager"
@@ -27,7 +28,6 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 
 	"github.com/vrooli/api-core/discovery"
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
 	visualconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth/visualhealth_v1connect"
@@ -48,7 +48,8 @@ type Service struct {
 	planner       executionPlanner
 	// ledgerSource feeds the GetSelfHealth reliability ledger (compute-on-read
 	// aggregation over persisted runs). Satisfied by *execution.SuiteExecutionRepository.
-	ledgerSource ledgerSource
+	ledgerSource   ledgerSource
+	retentionStore sharedruns.DetailStore
 	// snapshotReader is the optional persisted self-health trend store. When
 	// wired, GetSelfHealth fills the ledger's captured_at + trend delta against
 	// the latest snapshot and (on include_trend) the windowed series. nil keeps
@@ -61,6 +62,16 @@ type Service struct {
 	// the ledger can surface never-tested-in-window coverage gaps.
 	fleetSource fleetLedgerSource
 	fleetRoster func(ctx context.Context) ([]string, error)
+}
+
+const maxPhaseArtifactResponseBytes = 256 * 1024
+
+// SetRetentionStore attaches compact execution history to the same lifecycle
+// authority used by the explicit DeleteRun RPC.
+func (s *Service) SetRetentionStore(store sharedruns.DetailStore) {
+	if s != nil {
+		s.retentionStore = store
+	}
 }
 
 // ledgerSource is the read seam GetSelfHealth's reliability ledger composes over.
@@ -156,11 +167,16 @@ func (s *Service) ListRuns(ctx context.Context, req *connect.Request[runspb.List
 	statusFilter := strings.TrimSpace(req.Msg.GetStatus())
 	limit := int(req.Msg.GetLimit())
 	out := make([]*runspb.RunInfo, 0, len(records))
+	leases := sharedruns.NewPinLeaseStore(dir)
 	for _, r := range records {
 		if statusFilter != "" && r.Status != statusFilter {
 			continue
 		}
-		out = append(out, toRunInfo(r))
+		active, err := leases.ActiveForRun(r.RunID, time.Now())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read run leases: %w", err))
+		}
+		out = append(out, withLeasePins(toRunInfo(r), active))
 		if limit > 0 && len(out) >= limit {
 			break
 		}
@@ -191,13 +207,16 @@ func (s *Service) DeleteRun(ctx context.Context, req *connect.Request[runspb.Del
 	if err != nil {
 		return nil, err
 	}
-	if err := sharedruns.DeleteRun(dir, strings.TrimSpace(req.Msg.GetRunId()), req.Msg.GetForce()); err != nil {
+	retention := sharedruns.NewRetentionService(dir, sharedruns.DefaultRetentionPolicy()).WithDetailStore(s.retentionStore)
+	if err := retention.Delete(ctx, strings.TrimSpace(req.Msg.GetRunId()), req.Msg.GetForce()); err != nil {
 		return nil, mapRunError(err)
 	}
 	return connect.NewResponse(&runspb.DeleteRunResponse{Deleted: true}), nil
 }
 
-// PinRun protects a run from retention GC.
+// PinRun grants an expiring protection lease. The public RPC currently has no
+// TTL field, so this compatibility surface grants the documented default
+// rather than recreating the old indefinite index pin.
 func (s *Service) PinRun(ctx context.Context, req *connect.Request[runspb.PinRunRequest]) (*connect.Response[runspb.PinRunResponse], error) {
 	dir, err := s.scenarioDir(req.Msg.GetScenario())
 	if err != nil {
@@ -209,21 +228,21 @@ func (s *Service) PinRun(ctx context.Context, req *connect.Request[runspb.PinRun
 	}
 	idx := sharedruns.NewIndex(dir)
 	runID := strings.TrimSpace(req.Msg.GetRunId())
-	if err := idx.Pin(runID, sharedruns.PinRecord{
-		PinnedBy: pinnedBy,
-		PinnedAt: time.Now().UTC(),
-		Reason:   strings.TrimSpace(req.Msg.GetReason()),
-	}); err != nil {
+	if _, err := idx.Find(runID); err != nil {
+		return nil, mapRunError(err)
+	}
+	lease, err := sharedruns.NewPinLeaseStore(dir).Grant(runID, pinnedBy, strings.TrimSpace(req.Msg.GetReason()), sharedruns.DefaultPinLeaseTTL, time.Now())
+	if err != nil {
 		return nil, mapRunError(err)
 	}
 	rec, err := idx.Find(runID)
 	if err != nil {
 		return nil, mapRunError(err)
 	}
-	return connect.NewResponse(&runspb.PinRunResponse{Run: toRunInfo(rec)}), nil
+	return connect.NewResponse(&runspb.PinRunResponse{Run: withLeasePin(toRunInfo(rec), lease)}), nil
 }
 
-// UnpinRun removes a consumer's pin.
+// UnpinRun revokes a consumer's protection lease.
 func (s *Service) UnpinRun(ctx context.Context, req *connect.Request[runspb.UnpinRunRequest]) (*connect.Response[runspb.UnpinRunResponse], error) {
 	dir, err := s.scenarioDir(req.Msg.GetScenario())
 	if err != nil {
@@ -231,14 +250,18 @@ func (s *Service) UnpinRun(ctx context.Context, req *connect.Request[runspb.Unpi
 	}
 	idx := sharedruns.NewIndex(dir)
 	runID := strings.TrimSpace(req.Msg.GetRunId())
-	if err := idx.Unpin(runID, strings.TrimSpace(req.Msg.GetPinnedBy())); err != nil {
+	if err := sharedruns.NewPinLeaseStore(dir).Revoke(runID, strings.TrimSpace(req.Msg.GetPinnedBy())); err != nil {
 		return nil, mapRunError(err)
 	}
 	rec, err := idx.Find(runID)
 	if err != nil {
 		return nil, mapRunError(err)
 	}
-	return connect.NewResponse(&runspb.UnpinRunResponse{Run: toRunInfo(rec)}), nil
+	active, err := sharedruns.NewPinLeaseStore(dir).ActiveForRun(runID, time.Now())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read run leases: %w", err))
+	}
+	return connect.NewResponse(&runspb.UnpinRunResponse{Run: withLeasePins(toRunInfo(rec), active)}), nil
 }
 
 // CompareRuns classifies per-phase differences between two runs.
@@ -312,7 +335,11 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 		if phaseSetDigest != "" && r.PhaseSetDigest != phaseSetDigest {
 			continue
 		}
-		return connect.NewResponse(&runspb.FindRunResponse{Found: true, Run: toRunInfo(r)}), nil
+		active, err := sharedruns.NewPinLeaseStore(dir).ActiveForRun(r.RunID, time.Now())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read run leases: %w", err))
+		}
+		return connect.NewResponse(&runspb.FindRunResponse{Found: true, Run: withLeasePins(toRunInfo(r), active)}), nil
 	}
 	return connect.NewResponse(&runspb.FindRunResponse{Found: false}), nil
 }
@@ -328,11 +355,18 @@ func (s *Service) GetPhaseArtifact(ctx context.Context, req *connect.Request[run
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("phase is required"))
 	}
 	path := sharedartifacts.PhaseResultsPath(dir, strings.TrimSpace(req.Msg.GetRunId()), phase+".json")
-	data, err := os.ReadFile(path)
+	info, err := os.Stat(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("phase artifact not found"))
 		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if info.Size() > maxPhaseArtifactResponseBytes {
+		return nil, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("phase artifact exceeds %d-byte response limit; use the run artifact endpoint", maxPhaseArtifactResponseBytes))
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&runspb.GetPhaseArtifactResponse{
@@ -482,72 +516,66 @@ func cloneStringMap(input map[string]string) map[string]string {
 	return out
 }
 
-// findingsArtifactDoc mirrors the on-disk findings.json shape (writer:
-// orchestrator.writeFindingsArtifact) for the fields GetRunFindings surfaces.
-// The proto standing/summary round-trip because they were written with
-// encoding/json using their proto json tags.
-type findingsArtifactDoc struct {
-	Scenario    string `json:"scenario"`
-	RunID       string `json:"runId"`
-	Verdict     string `json:"verdict"`
-	CompletedAt string `json:"completedAt"`
-	Phases      []struct {
-		Name          string `json:"name"`
-		Status        string `json:"status"`
-		FindingSource string `json:"findingSource"`
-		// MaturityStanding is decode-only historical evidence. It must remain
-		// distinct from PhasePresentation: a retired standing cannot truthfully
-		// be rendered as the canonical v1 provider presentation.
-		MaturityStanding  *runspb.PhaseMaturityStanding `json:"maturityStanding"`
-		PhasePresentation *commonv1.PhasePresentation   `json:"phasePresentation"`
-		FindingsSummary   *runspb.PhaseFindingsSummary  `json:"findingsSummary"`
-	} `json:"phases"`
-}
-
-// GetRunFindings returns the per-phase maturity standing (Phase Capability
-// Contract) persisted in the run's findings.json, so an agent can revisit where
-// each capability stands without re-running the suite.
+// GetRunFindings returns the bounded phase-summary projection from the evidence
+// manifest. It intentionally does not open findings.json: that artifact owns
+// detailed findings and is accessed only through an explicit artifact route.
 func (s *Service) GetRunFindings(ctx context.Context, req *connect.Request[runspb.GetRunFindingsRequest]) (*connect.Response[runspb.GetRunFindingsResponse], error) {
 	dir, err := s.scenarioDir(req.Msg.GetScenario())
 	if err != nil {
 		return nil, err
 	}
 	runID := strings.TrimSpace(req.Msg.GetRunId())
-	var path string
 	if runID == "" || strings.EqualFold(runID, "latest") {
-		path = sharedartifacts.LatestFindingsArtifactPath(dir)
-	} else {
-		path = sharedartifacts.RunFindingsArtifactPath(dir, runID)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no findings artifact for run %q", runID))
+		latest, err := latestRunID(dir)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
-		return nil, connect.NewError(connect.CodeInternal, err)
+		runID = latest
 	}
-	var doc findingsArtifactDoc
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("parse findings artifact: %w", err))
+	manifest, err := executionevidence.ReadManifest(sharedartifacts.RunDir(dir, runID))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no evidence manifest for run %q", runID))
+		}
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("read evidence manifest: %w", err))
 	}
-	phases := make([]*runspb.RunFindingsPhase, 0, len(doc.Phases))
-	for _, p := range doc.Phases {
+	phases := make([]*runspb.RunFindingsPhase, 0, len(manifest.Phases))
+	for _, p := range manifest.Phases {
 		phases = append(phases, &runspb.RunFindingsPhase{
 			Name:              p.Name,
 			Status:            p.Status,
 			FindingSource:     p.FindingSource,
-			MaturityStanding:  p.MaturityStanding,
 			PhasePresentation: p.PhasePresentation,
 			FindingsSummary:   p.FindingsSummary,
 		})
 	}
 	return connect.NewResponse(&runspb.GetRunFindingsResponse{
-		Scenario:    doc.Scenario,
-		RunId:       doc.RunID,
-		Verdict:     doc.Verdict,
-		CompletedAt: doc.CompletedAt,
+		Scenario:    manifest.Scenario,
+		RunId:       manifest.RunID,
+		Verdict:     manifest.Verdict,
+		CompletedAt: manifest.CreatedAt.UTC().Format(time.RFC3339),
 		Phases:      phases,
 	}), nil
+}
+
+// latestRunID reads the lightweight latest manifest. It intentionally does not
+// fall back to a copied findings document: detailed findings are single-sourced
+// under the immutable run directory.
+func latestRunID(scenarioDir string) (string, error) {
+	data, err := os.ReadFile(sharedartifacts.LatestManifestPath(scenarioDir))
+	if err != nil {
+		return "", fmt.Errorf("no latest run manifest: %w", err)
+	}
+	var manifest struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return "", fmt.Errorf("parse latest run manifest: %w", err)
+	}
+	if strings.TrimSpace(manifest.RunID) == "" {
+		return "", errors.New("latest run manifest has no run id")
+	}
+	return strings.TrimSpace(manifest.RunID), nil
 }
 
 // ListRunVideos enumerates the recorded workflow videos for a run. The binary
@@ -752,6 +780,8 @@ func mapRunError(err error) error {
 	case errors.Is(err, sharedruns.ErrRunNotFound):
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, sharedruns.ErrRunPinned):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, runmanager.ErrStaleCursor):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	default:
 		return connect.NewError(connect.CodeInternal, err)

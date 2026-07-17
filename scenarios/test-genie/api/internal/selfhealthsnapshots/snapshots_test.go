@@ -171,3 +171,41 @@ func TestSweeperRunOnceDedups(t *testing.T) {
 		t.Fatalf("expected 2 distinct snapshots, got %d", len(all))
 	}
 }
+
+func TestSweeperRunLoopBoundsAdvisoryBuild(t *testing.T) {
+	repo := newTestRepo(t)
+	parent, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	buildStarted := make(chan struct{})
+	buildEnded := make(chan error, 1)
+
+	sweeper, err := NewSweeper(SweeperConfig{
+		Repository: repo,
+		Build: func(ctx context.Context) (Rollup, error) {
+			close(buildStarted)
+			<-ctx.Done()
+			buildEnded <- ctx.Err()
+			return Rollup{}, ctx.Err()
+		},
+		Interval:   time.Hour,
+		RunTimeout: 25 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("NewSweeper: %v", err)
+	}
+
+	go sweeper.RunLoop(parent)
+	select {
+	case <-buildStarted:
+	case <-time.After(time.Second):
+		t.Fatal("sweeper did not start its first advisory build")
+	}
+	select {
+	case err := <-buildEnded:
+		if err != context.DeadlineExceeded {
+			t.Fatalf("build context error = %v, want deadline exceeded", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("advisory build exceeded its configured deadline")
+	}
+}

@@ -193,7 +193,7 @@ func (s *Server) writeCanonicalSSE(w http.ResponseWriter, flusher http.Flusher, 
 			Phase: ev.Phase, Status: ev.Status, Duration: ev.DurationSeconds, Error: ev.Error,
 		}})
 	case runmanager.EventRunCompleted:
-		if ev.Error != "" && ev.Result == nil {
+		if ev.Error != "" {
 			s.writeSSEError(w, flusher, ev.Error)
 			return
 		}
@@ -203,14 +203,6 @@ func (s *Server) writeCanonicalSSE(w http.ResponseWriter, flusher http.Flusher, 
 			"runId":         ev.RunID,
 			"artifactDir":   ev.ArtifactDir,
 			"totalDuration": time.Since(startTime).Seconds(),
-		}
-		if ev.Result != nil {
-			data["executionId"] = ev.Result.ExecutionID
-			data["presetUsed"] = ev.Result.PresetUsed
-			data["startedAt"] = ev.Result.StartedAt
-			data["completedAt"] = ev.Result.CompletedAt
-			data["phaseSummary"] = ev.Result.PhaseSummary
-			data["phases"] = ev.Result.Phases
 		}
 		s.writeSSE(w, flusher, SSEEvent{Event: SSEEventComplete, Data: data})
 	}

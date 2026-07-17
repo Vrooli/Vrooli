@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
 	"test-genie/internal/selfhealthsnapshots"
+	sharedruns "test-genie/internal/shared/runs"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/maturity-go/assessment"
@@ -31,7 +33,11 @@ import (
 
 // Bootstrapped holds the concrete dependencies needed by the HTTP server.
 type Bootstrapped struct {
-	DB                  *database.RoutedDB
+	DB *database.RoutedDB
+	// HealthDB is a dedicated, read-only lifecycle probe connection. It is
+	// intentionally separate from the single runtime SQLite pool so background
+	// analytics cannot make lifecycle health queue behind ordinary work.
+	HealthDB            *sql.DB
 	ExecutionRepo       *execution.SuiteExecutionRepository
 	ExecutionHistory    execution.ExecutionHistory
 	ExecutionService    *execution.SuiteExecutionService
@@ -47,6 +53,11 @@ type Bootstrapped struct {
 	EligibilityService  *appelig.Service
 	RunsService         *apprun.Service
 	ValidationService   *appvalidation.Service
+	// StartBackground is invoked by the HTTP transport only after its listener is
+	// accepting requests. Expensive advisory work must never begin while the
+	// lifecycle health endpoint is still competing for the one SQLite connection.
+	StartBackground func(context.Context)
+	SweepStatus     *selfhealthsnapshots.StatusStore
 }
 
 // RequirementsSyncerAdapter adapts the requirements.Service to a simple Sync interface.
@@ -91,6 +102,10 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	if err := ensureDatabaseSchema(db); err != nil {
 		return nil, fmt.Errorf("failed to apply database schema: %w", err)
 	}
+	healthDB, err := openHealthDatabase(cfg.DatabaseDSN)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open dedicated health database: %w", err)
+	}
 
 	runner, err := orchestrator.NewSuiteOrchestrator(cfg.ScenariosRoot)
 	if err != nil {
@@ -105,6 +120,12 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister, cfg.ScenariosRoot)
 
 	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo)
+	executionSvc.SetRetentionCollector(func(ctx context.Context, scenario string) {
+		scenarioDir := filepath.Join(cfg.ScenariosRoot, scenario)
+		if _, err := sharedruns.NewRetentionService(scenarioDir, sharedruns.DefaultRetentionPolicy()).WithDetailStore(executionRepo).Collect(ctx); err != nil {
+			log.Printf("run retention failed for %s: %v", scenario, err)
+		}
+	})
 
 	// The run manager owns durable run execution decoupled from any client
 	// request: it is the single engine every door (blocking REST, SSE gateway,
@@ -129,6 +150,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	// lifecycle (start/follow/wait/abort/status) over Connect-RPC, delegating
 	// execution to the run manager.
 	runsService := apprun.NewService(cfg.ScenariosRoot, runManager, executionPlanner, executionRepo)
+	runsService.SetRetentionStore(executionRepo)
 
 	// Provider-conformance ScenarioValidationService: Test Genie's own
 	// descriptor-backed phase. The maturity spec comes from Test Genie's own
@@ -141,12 +163,17 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	}
 	validationService := appvalidation.NewService(log.Default(), repoRoot, conformanceSpec)
 
-	// Persisted self-health trend store + background sweeper (Plan 3 Part C).
+	// Persisted self-health trend store. Its advisory sweeper is deliberately
+	// constructed here but started by the serving transport after it owns a
+	// listening socket; dependency construction must remain foreground-only.
 	// The read path (GetSelfHealth trend delta/series) composes the repo; the
 	// sweeper is the sole writer, digest-deduped + env-disableable.
 	selfHealthSnapshots := selfhealthsnapshots.NewSqliteRepository(db)
+	sweepStatus := &selfhealthsnapshots.StatusStore{}
 	runsService.SetSnapshotReader(selfHealthSnapshots)
-	startSelfHealthSweeper(selfHealthSnapshots, newSelfHealthRollupBuilder(executionRepo, repoRootFromScenariosRoot(cfg.ScenariosRoot)))
+	startBackground := func(ctx context.Context) {
+		startSelfHealthSweeper(ctx, selfHealthSnapshots, newSelfHealthRollupBuilder(executionRepo, repoRootFromScenariosRoot(cfg.ScenariosRoot)), sweepStatus)
+	}
 
 	// GetFleetHealth aggregates stored runs across the fleet (Stage 3 fleet
 	// backbone, read side). The roster lists on-disk scenario directories so the
@@ -194,6 +221,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 
 	return &Bootstrapped{
 		DB:                  db,
+		HealthDB:            healthDB,
 		ExecutionRepo:       executionRepo,
 		ExecutionHistory:    executionHistory,
 		ExecutionService:    executionSvc,
@@ -209,5 +237,17 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		EligibilityService:  eligibilityService,
 		RunsService:         runsService,
 		ValidationService:   validationService,
+		StartBackground:     startBackground,
+		SweepStatus:         sweepStatus,
 	}, nil
+}
+
+func openHealthDatabase(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	return db, nil
 }

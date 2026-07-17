@@ -5,7 +5,7 @@
 import { baselinesClient } from "./connect";
 import type {
   BaselineCollection,
-  GetCollectionDiffResponse,
+  GetCollectionDiffStatusResponse,
 } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
 
 function toRepoId(repoId?: string | null): bigint {
@@ -22,7 +22,7 @@ export async function getBaselineCollection(
   branch: string,
   repoId?: string | null,
 ): Promise<BaselineCollection | undefined> {
-  const result = await baselinesClient.getCollection({ name, branch, repoId: toRepoId(repoId), wait: true });
+  const result = await baselinesClient.getCollectionStatus({ name, branch, repoId: toRepoId(repoId) });
   return result.collection;
 }
 
@@ -30,8 +30,8 @@ export async function diffBaselineCollection(
   name: string,
   branch: string,
   repoId?: string | null,
-): Promise<GetCollectionDiffResponse> {
+): Promise<GetCollectionDiffStatusResponse> {
   const operationId = globalThis.crypto.randomUUID();
   await baselinesClient.startCollectionDiff({ name, branch, repoId: toRepoId(repoId), scenarios: [], operationId });
-  return baselinesClient.getCollectionDiff({ name, branch, repoId: toRepoId(repoId), operationId, wait: true });
+  return baselinesClient.getCollectionDiffStatus({ name, branch, repoId: toRepoId(repoId), operationId });
 }

@@ -41,8 +41,9 @@ func writeDurableChildReference(env workspace.Environment, phaseName, provider s
 	}
 }
 
-// writePhasePointer persists a lightweight phase summary to coverage/runs/<runID>/phase-results/<phase>.json.
-// This keeps artifacts discoverable without moving existing outputs.
+// writePhasePointer persists a compact phase projection. It must never embed
+// observations or findings: those detailed payloads have one canonical owner
+// in the run findings artifact, written during run finalization.
 func writePhasePointer(env workspace.Environment, phaseName string, report RunReport, extras map[string]any, logWriter io.Writer) {
 	status := deriveStatus(report.Observations, report.Err, report.FailureClassification)
 
@@ -59,15 +60,10 @@ func writePhasePointer(env workspace.Environment, phaseName string, report RunRe
 	if report.Remediation != "" {
 		payload["remediation"] = report.Remediation
 	}
-	if len(report.Observations) > 0 {
-		payload["observations"] = ObservationsToStrings(report.Observations)
-	}
+	payload["observation_count"] = len(report.Observations)
+	payload["finding_count"] = len(report.Findings)
 	if len(report.Findings) > 0 {
-		// Persist the normalized findings alongside the summary so cached-
-		// artifact readers (scenario-completeness-scoring) can count findings
-		// per dimension without re-running the suite. Same encoding/json
-		// contract as ExecutionResult.Findings: enums marshal as proto ints.
-		payload["findings"] = report.Findings
+		payload["findings_artifact"] = sharedartifacts.RelativeRunFindingsArtifactPath(env.RunID)
 	}
 	if report.FindingSource != "" {
 		payload["findingSource"] = report.FindingSource

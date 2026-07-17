@@ -2,8 +2,10 @@ package httpserver
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,6 +29,7 @@ import (
 	"test-genie/internal/remediation"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
+	"test-genie/internal/selfhealthsnapshots"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -51,6 +54,7 @@ type Logger interface {
 // Dependencies encapsulates the services the HTTP layer needs to operate.
 type Dependencies struct {
 	DB                  *database.RoutedDB
+	HealthDB            *sql.DB
 	Executions          execution.ExecutionHistory
 	ExecutionPlanner    executionPlanner
 	RunManager          *runmanager.Manager
@@ -64,7 +68,11 @@ type Dependencies struct {
 	EligibilityService  *appelig.Service
 	RunsService         *apprun.Service
 	ValidationService   *appvalidation.Service
-	Logger              Logger
+	// StartBackground receives a process-owned context after the HTTP listener
+	// is live. It is for advisory work only; serving must not depend on it.
+	StartBackground func(context.Context)
+	SweepStatus     *selfhealthsnapshots.StatusStore
+	Logger          Logger
 }
 
 type executionPlanner interface {
@@ -112,6 +120,7 @@ type remediationService interface {
 type Server struct {
 	config                 Config
 	db                     *database.RoutedDB
+	healthDB               *sql.DB
 	router                 *mux.Router
 	executionHistory       execution.ExecutionHistory
 	executionPlanner       executionPlanner
@@ -127,6 +136,8 @@ type Server struct {
 	eligibilityService     *appelig.Service
 	runsService            *apprun.Service
 	validationService      *appvalidation.Service
+	startBackground        func(context.Context)
+	sweepStatus            *selfhealthsnapshots.StatusStore
 	seedSessions           map[string]*seedSession
 	seedSessionsByScenario map[string]string
 	seedSessionsMu         sync.Mutex
@@ -167,6 +178,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	srv := &Server{
 		config:                 config,
 		db:                     deps.DB,
+		healthDB:               deps.HealthDB,
 		router:                 mux.NewRouter(),
 		executionHistory:       deps.Executions,
 		executionPlanner:       deps.ExecutionPlanner,
@@ -182,6 +194,8 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		eligibilityService:     deps.EligibilityService,
 		runsService:            deps.RunsService,
 		validationService:      deps.ValidationService,
+		startBackground:        deps.StartBackground,
+		sweepStatus:            deps.SweepStatus,
 		seedSessions:           make(map[string]*seedSession),
 		seedSessionsByScenario: make(map[string]string),
 	}
@@ -307,12 +321,25 @@ func (s *Server) Start() error {
 		IdleTimeout:  120 * time.Second,
 	}
 
+	listener, err := net.Listen("tcp", httpServer.Addr)
+	if err != nil {
+		return fmt.Errorf("server startup failed: %w", err)
+	}
+
+	backgroundCtx, cancelBackground := context.WithCancel(context.Background())
+	defer cancelBackground()
 	errCh := make(chan error, 1)
 	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 			errCh <- err
 		}
 	}()
+	if s.startBackground != nil {
+		s.startBackground(backgroundCtx)
+	}
+	if s.healthDB != nil {
+		defer s.healthDB.Close()
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

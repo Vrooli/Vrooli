@@ -7,11 +7,36 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/phases"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 type serviceEngine struct {
 	result *orchestrator.SuiteExecutionResult
 	err    error
+}
+
+func TestSuiteExecutionServicePersistsOnlyCompactPhaseHistory(t *testing.T) {
+	recorder := &serviceRecorder{}
+	service := NewSuiteExecutionService(serviceEngine{result: &orchestrator.SuiteExecutionResult{
+		RunID: "run-compact", ScenarioName: "demo", StartedAt: time.Now().Add(-time.Second), CompletedAt: time.Now(), Success: true,
+		Phases: []phases.ExecutionResult{{
+			Name: "security", Status: "failed", DurationSeconds: 2, LogPath: "coverage/logs/huge.log",
+			Observations: []phases.Observation{phases.NewErrorObservation("huge observation")},
+			Findings:     []*architecturev1.ArchitectureFinding{{Code: "huge.finding", Message: "detailed payload"}},
+		}},
+	}}, recorder)
+	if _, err := service.Execute(context.Background(), SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}}); err != nil {
+		t.Fatal(err)
+	}
+	stored := recorder.records[0].Phases[0]
+	if stored.LogPath != "" || len(stored.Observations) != 0 || len(stored.Findings) != 0 || stored.Metrics != nil {
+		t.Fatalf("SQLite history retained detailed phase payload: %+v", stored)
+	}
+	if stored.Name != "security" || stored.Status != "failed" || stored.DurationSeconds != 2 {
+		t.Fatalf("compact phase lost summary fields: %+v", stored)
+	}
 }
 
 func (e serviceEngine) ExecuteWithEvents(_ context.Context, _ orchestrator.SuiteExecutionRequest, _ orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
@@ -34,6 +59,29 @@ func TestSuiteExecutionServicePersistsRunEvidence(t *testing.T) {
 	}
 	if result.ExecutionID.String() == "" || len(recorder.records) != 1 || recorder.records[0].RunID != "run-1" {
 		t.Fatalf("result=%+v records=%+v", result, recorder.records)
+	}
+}
+
+func TestSuiteExecutionServiceCollectsRetentionOnlyAfterPersistence(t *testing.T) {
+	recorder := &serviceRecorder{}
+	service := NewSuiteExecutionService(serviceEngine{result: &orchestrator.SuiteExecutionResult{RunID: "run-retention", ScenarioName: "demo", StartedAt: time.Now().Add(-time.Second), CompletedAt: time.Now(), Success: true}}, recorder)
+	collected := make(chan string, 1)
+	service.SetRetentionCollector(func(_ context.Context, scenario string) {
+		if len(recorder.records) != 1 {
+			t.Errorf("retention ran before persistence: %d records", len(recorder.records))
+		}
+		collected <- scenario
+	})
+	if _, err := service.Execute(context.Background(), SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case scenario := <-collected:
+		if scenario != "demo" {
+			t.Fatalf("retention scenario = %q", scenario)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("retention collector was not called")
 	}
 }
 

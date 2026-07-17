@@ -198,12 +198,6 @@ func RunArtifactCatalogPath(scenarioDir, runID string) string {
 	return filepath.Join(RunDir(scenarioDir, runID), ArtifactCatalogFile)
 }
 
-// LatestFindingsArtifactPath returns the absolute path to the latest-run
-// mirror of the combined findings document (coverage/latest/findings.json).
-func LatestFindingsArtifactPath(scenarioDir string) string {
-	return filepath.Join(LatestDirPath(scenarioDir), FindingsArtifactFile)
-}
-
 // RelativeRunFindingsArtifactPath returns the scenario-relative path to a
 // run's combined findings document, suitable for embedding in the campaign
 // nudge command (`--from-audit coverage/runs/<runID>/findings.json`).

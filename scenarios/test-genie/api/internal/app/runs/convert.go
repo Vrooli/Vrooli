@@ -32,6 +32,27 @@ func toRunInfo(r sharedruns.RunRecord) *runspb.RunInfo {
 	return toTerminalRunInfo(r, nil, nil)
 }
 
+// withLeasePin preserves the existing RPC response shape while durable pin
+// ownership moves out of the append-only run index. The lease itself remains
+// authoritative; this projection is deliberately not persisted back to it.
+func withLeasePin(run *runspb.RunInfo, lease sharedruns.PinLease) *runspb.RunInfo {
+	return withLeasePins(run, []sharedruns.PinLease{lease})
+}
+
+func withLeasePins(run *runspb.RunInfo, leases []sharedruns.PinLease) *runspb.RunInfo {
+	if run == nil {
+		return nil
+	}
+	for _, lease := range leases {
+		run.Pins = append(run.Pins, &runspb.PinInfo{
+			PinnedBy: lease.Owner,
+			PinnedAt: formatTime(lease.CreatedAt),
+			Reason:   lease.Reason,
+		})
+	}
+	return run
+}
+
 // toTerminalRunInfo is the single terminal RunInfo projector used by GetRun
 // and WaitRun. The compact snapshot record owns identity/status/duration while
 // the heavy result enriches each phase with its provider-computed standing.
@@ -69,14 +90,6 @@ func toTerminalRunInfo(r sharedruns.RunRecord, result *orchestrator.SuiteExecuti
 		}
 		phases = append(phases, info)
 	}
-	pins := make([]*runspb.PinInfo, 0, len(r.Pins))
-	for _, p := range r.Pins {
-		pins = append(pins, &runspb.PinInfo{
-			PinnedBy: p.PinnedBy,
-			PinnedAt: formatTime(p.PinnedAt),
-			Reason:   p.Reason,
-		})
-	}
 	return &runspb.RunInfo{
 		RunId:           r.RunID,
 		Scenario:        r.Scenario,
@@ -96,7 +109,7 @@ func toTerminalRunInfo(r sharedruns.RunRecord, result *orchestrator.SuiteExecuti
 			Trace:   r.Diagnostics.Trace,
 			Dom:     r.Diagnostics.DOM,
 		},
-		Pins:                            pins,
+		Pins:                            nil,
 		TreeDigest:                      r.TreeDigest,
 		Preset:                          r.Preset,
 		CaptureProfile:                  r.CaptureProfile,
@@ -211,8 +224,6 @@ func loadRunProjection(idx *sharedruns.Index, runID string) (runProjection, erro
 		return projection, nil
 	}
 	projection.record = snapshot.Run
-	// Pins are mutable retention metadata and intentionally remain index-owned.
-	projection.record.Pins = append([]sharedruns.PinRecord(nil), rec.Pins...)
 	projection.result = &result
 	projection.schemaVersion = snapshot.SchemaVersion
 	// Catalog publication is a terminal evidence guarantee, not an incidental

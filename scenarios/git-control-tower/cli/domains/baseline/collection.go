@@ -10,10 +10,21 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/operationstanding"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 )
 
-var collectionExit = os.Exit
+// renderedExitError lets the top-level runner map an already-rendered result
+// to its process code. Command helpers must never call os.Exit: doing so can
+// truncate JSON and makes the result impossible to test as a value.
+type renderedExitError struct{ code int }
+
+func (e renderedExitError) Error() string {
+	return fmt.Sprintf("operation finished with exit code %d", e.code)
+}
+func (e renderedExitError) ExitCode() int { return e.code }
+func (e renderedExitError) Silent() bool  { return true }
 
 // stringListFlag deliberately uses repeated flags rather than a comma grammar:
 // scenario names and future baseline identities remain opaque values.
@@ -49,10 +60,13 @@ func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
 	if len(args) > 0 && args[0] == "status" {
 		return runCollectionDiffStatus(core, args[1:])
 	}
+	if len(args) > 0 && args[0] == "wait" {
+		return runCollectionDiffWait(core, args[1:])
+	}
 	fs := newFlagSet("baseline collection diff")
 	name, branch, asJSON := collectionFlags(fs)
 	operationID := fs.String("operation-id", "", "Durable idempotency key for this collection diff (required)")
-	wait := fs.Bool("wait", false, "Block server-side until started collection diff children reach terminal checkpoints")
+	wait := fs.Bool("wait", false, "Convenience: wait once on the started parent operation")
 	var members, scenarios stringListFlag
 	fs.Var(&members, "member", "Captured collection member to diff; repeat to narrow selection (default: all)")
 	fs.Var(&scenarios, "scenario", "Deprecated alias for --member")
@@ -74,18 +88,16 @@ func runCollectionDiff(core *cliapp.ScenarioApp, args []string) error {
 		if !*wait {
 			return printJSON(resp.Msg)
 		}
-		// Preserve the old convenience flag without maintaining a separate wait
-		// lifecycle. The status endpoint is the durable producer authority.
-		return runCollectionDiffStatus(core, collectionFollowupArgs(*name, *branch, "--operation-id", *operationID, "--wait", "--json"))
+		return runCollectionDiffWait(core, collectionFollowupArgs(*name, *branch, "--operation-id", *operationID, "--json"))
 	}
 	fmt.Printf("Collection diff %q (%s): %s\n", *name, resp.Msg.GetOperationId(), resp.Msg.GetClassification())
 	for _, member := range resp.Msg.GetMembers() {
 		fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
 	}
-	fmt.Printf("  wait once: %s\n", collectionFollowupCommand("diff status", *name, *branch, "--operation-id", resp.Msg.GetOperationId(), "--wait"))
+	fmt.Printf("  wait once: %s\n", collectionFollowupCommand("diff wait", *name, *branch, "--operation-id", resp.Msg.GetOperationId()))
 	fmt.Println("  Ctrl-C detaches; rerun that exact status command to recover. Do not poll.")
 	if *wait {
-		return runCollectionDiffStatus(core, collectionFollowupArgs(*name, *branch, "--operation-id", *operationID, "--wait"))
+		return runCollectionDiffWait(core, collectionFollowupArgs(*name, *branch, "--operation-id", *operationID))
 	}
 	return nil
 }
@@ -94,20 +106,15 @@ func runCollectionDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 	fs := newFlagSet("baseline collection diff status")
 	name, branch, asJSON := collectionFlags(fs)
 	operationID := fs.String("operation-id", "", "Durable collection diff operation id (required)")
-	wait := fs.Bool("wait", false, "Wait once for this durable producer operation; Ctrl-C detaches")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if strings.TrimSpace(*name) == "" || strings.TrimSpace(*operationID) == "" {
 		return fmt.Errorf("--name and --operation-id are required")
 	}
-	timeout := snapshotStartCeiling
-	if *wait {
-		timeout = baselineClientTimeout
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
 	defer cancel()
-	resp, err := clientFactory(core).GetCollectionDiff(ctx, connect.NewRequest(&baselinesv1.GetCollectionDiffRequest{Name: *name, Branch: *branch, OperationId: *operationID, Wait: *wait}))
+	resp, err := clientFactory(core).GetCollectionDiffStatus(ctx, connect.NewRequest(&baselinesv1.GetCollectionDiffStatusRequest{Name: *name, Branch: *branch, OperationId: *operationID}))
 	if err != nil {
 		return err
 	}
@@ -115,45 +122,64 @@ func runCollectionDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 		if err := printJSON(resp.Msg); err != nil {
 			return err
 		}
-		if code := collectionDiffStatusExitCode(resp.Msg, *wait); code != exitOK {
-			collectionExit(code)
-		}
 		return nil
 	}
 	fmt.Printf("Collection diff %q (%s): %s\n", *name, resp.Msg.GetOperationId(), resp.Msg.GetClassification())
 	for _, member := range resp.Msg.GetMembers() {
 		fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
 	}
-	if outcome := resp.Msg.GetWaitOutcome(); outcome != nil && outcome.GetKind() != "complete" {
-		fmt.Printf("  wait outcome: %s — %s\n", outcome.GetKind(), outcome.GetDetail())
-		for _, command := range outcome.GetRecoveryCommands() {
-			fmt.Printf("  reattach once: %s\n", command)
-		}
+	printCollectionStanding(resp.Msg.GetStanding())
+	return nil
+}
+
+func runCollectionDiffWait(core *cliapp.ScenarioApp, args []string) error {
+	fs := newFlagSet("baseline collection diff wait")
+	name, branch, asJSON := collectionFlags(fs)
+	operationID := fs.String("operation-id", "", "Durable collection diff operation id (required)")
+	timeout := fs.Int("timeout", 0, "Max seconds to wait (0 = until terminal)")
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
-	if code := collectionDiffStatusExitCode(resp.Msg, *wait); code != exitOK {
-		collectionExit(code)
+	if strings.TrimSpace(*name) == "" || strings.TrimSpace(*operationID) == "" {
+		return fmt.Errorf("--name and --operation-id are required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), baselineClientTimeout)
+	defer cancel()
+	resp, err := clientFactory(core).WaitCollectionDiff(ctx, connect.NewRequest(&baselinesv1.WaitCollectionDiffRequest{Name: *name, Branch: *branch, OperationId: *operationID, TimeoutSeconds: int32(*timeout)}))
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		if err := printJSON(resp.Msg); err != nil {
+			return err
+		}
+	} else {
+		fmt.Printf("Collection diff %q (%s): %s\n", *name, resp.Msg.GetOperationId(), resp.Msg.GetClassification())
+		for _, member := range resp.Msg.GetMembers() {
+			fmt.Printf("  %-18s %-14s run=%s\n", member.GetScenario(), member.GetStatus(), member.GetRunId())
+		}
+		printCollectionStanding(resp.Msg.GetStanding())
+	}
+	if resp.Msg.GetDetached() {
+		return renderedExitError{code: 124}
+	}
+	return renderedExitForStanding(resp.Msg.GetStanding(), resp.Msg.GetClassification())
+}
+
+func renderedExitForStanding(standing interface{ GetLifecycle() string }, classification string) error {
+	if standing.GetLifecycle() != "terminal" {
+		return renderedExitError{code: 124}
+	}
+	if code := exitCodeForVerdict(classification); code != exitOK {
+		return renderedExitError{code: code}
 	}
 	return nil
 }
 
-func collectionDiffStatusExitCode(resp *baselinesv1.GetCollectionDiffResponse, waited bool) int {
-	if resp == nil {
-		if waited {
-			return exitNotReady
-		}
-		return exitOK
+func printCollectionStanding(standing *commonv1.OperationStanding) {
+	if err := operationstanding.WriteText(os.Stdout, standing); err != nil {
+		fmt.Printf("  lifecycle rendering failed: %v\n", err)
 	}
-	if outcome := resp.GetWaitOutcome(); outcome != nil {
-		if outcome.GetKind() != "complete" {
-			if waited {
-				return exitNotReady
-			}
-			return exitOK
-		}
-	} else if waited {
-		return exitNotReady
-	}
-	return exitCodeForVerdict(resp.GetClassification())
 }
 
 func collectionFlags(fs *flag.FlagSet) (name, branch *string, json *bool) {
@@ -242,34 +268,41 @@ func runCollectionShow(core *cliapp.ScenarioApp, args []string) error {
 	if strings.TrimSpace(*name) == "" {
 		return fmt.Errorf("--name is required")
 	}
-	timeout := snapshotStartCeiling
-	if *wait {
-		timeout = baselineClientTimeout
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), baselineClientTimeout)
 	defer cancel()
-	resp, err := clientFactory(core).GetCollection(ctx, connect.NewRequest(&baselinesv1.GetCollectionRequest{Name: *name, Branch: *branch, Wait: *wait}))
-	if err != nil {
-		return err
-	}
-	if *asJSON {
-		if err := printJSON(resp.Msg); err != nil {
+	var collection *baselinesv1.BaselineCollection
+	var standing *commonv1.OperationStanding
+	detached := false
+	if *wait {
+		resp, err := clientFactory(core).WaitCollectionCapture(ctx, connect.NewRequest(&baselinesv1.WaitCollectionCaptureRequest{Name: *name, Branch: *branch}))
+		if err != nil {
 			return err
 		}
-		if *wait && !resp.Msg.GetCollection().GetCoverage().GetComplete() {
-			collectionExit(exitNotReady)
+		collection, standing, detached = resp.Msg.GetCollection(), resp.Msg.GetStanding(), resp.Msg.GetDetached()
+	} else {
+		resp, err := clientFactory(core).GetCollectionStatus(ctx, connect.NewRequest(&baselinesv1.GetCollectionStatusRequest{Name: *name, Branch: *branch}))
+		if err != nil {
+			return err
+		}
+		collection, standing = resp.Msg.GetCollection(), resp.Msg.GetStanding()
+	}
+	if *asJSON {
+		var payload any = &baselinesv1.GetCollectionStatusResponse{Collection: collection, Standing: standing}
+		if *wait {
+			payload = &baselinesv1.WaitCollectionCaptureResponse{Collection: collection, Standing: standing, Detached: detached}
+		}
+		if err := printJSON(payload); err != nil {
+			return err
+		}
+		if detached {
+			return renderedExitError{code: 124}
 		}
 		return nil
 	}
-	printCollection(resp.Msg.GetCollection(), false)
-	if !resp.Msg.GetCollection().GetCoverage().GetComplete() {
-		fmt.Printf("  reattach once: %s\n", collectionFollowupCommand("show", *name, *branch, "--wait"))
-		if outcome := resp.Msg.GetWaitOutcome(); outcome != nil && outcome.GetDetail() != "" {
-			fmt.Printf("  wait outcome: %s — %s\n", outcome.GetKind(), outcome.GetDetail())
-		}
-		if *wait {
-			collectionExit(exitNotReady)
-		}
+	printCollection(collection, false)
+	printCollectionStanding(standing)
+	if detached {
+		return renderedExitError{code: 124}
 	}
 	return nil
 }

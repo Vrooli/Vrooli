@@ -162,7 +162,7 @@ func TestCollectionCaptureProjectsMemberCoverageAndResumes(t *testing.T) {
 	if started.Msg.GetResumed() || started.Msg.GetCollection().GetCoverage().GetPending() != 2 {
 		t.Fatalf("initial collection = %#v", started.Msg)
 	}
-	got, err := srv.GetCollection(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionRequest{Name: "before", Branch: "agi"}))
+	got, err := srv.GetCollectionStatus(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionStatusRequest{Name: "before", Branch: "agi"}))
 	if err != nil {
 		t.Fatalf("GetCollection: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestCollectionCaptureProjectsMemberCoverageAndResumes(t *testing.T) {
 	if len(diff.Msg.GetMembers()) != 1 || diff.Msg.GetMembers()[0].GetScenario() != "plan-manager" || diff.Msg.GetMembers()[0].GetStatus() != "pending" {
 		t.Fatalf("narrow collection diff = %#v", diff.Msg)
 	}
-	settled, err := srv.GetCollectionDiff(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionDiffRequest{Name: "before", Branch: "agi", OperationId: "phase-1", Wait: true}))
+	settled, err := srv.WaitCollectionDiff(context.Background(), connect.NewRequest(&baselinesv1.WaitCollectionDiffRequest{Name: "before", Branch: "agi", OperationId: "phase-1"}))
 	if err != nil || len(settled.Msg.GetMembers()) != 1 || settled.Msg.GetMembers()[0].GetStatus() != "ready" {
 		t.Fatalf("settled collection diff = %#v err=%v", settled.Msg, err)
 	}
@@ -213,20 +213,20 @@ func TestCollectionCaptureAsyncFinalizersProjectSiblingAndLogLifecycle(t *testin
 	}
 	<-exec.firstAwaitStarted
 
-	partial, err := srv.GetCollection(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionRequest{Name: "before", Branch: "agi"}))
+	partial, err := srv.GetCollectionStatus(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionStatusRequest{Name: "before", Branch: "agi"}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	coverage := partial.Msg.GetCollection().GetCoverage()
-	if coverage.GetReady() != 1 || coverage.GetPending() != 1 || coverage.GetComplete() {
-		t.Fatalf("partial coverage = %#v", coverage)
+	if coverage.GetReady() != 0 || coverage.GetPending() != 2 || coverage.GetComplete() {
+		t.Fatalf("pure status must not reconcile child finalizers: %#v", coverage)
 	}
 	if !strings.Contains(logs.String(), "finalizer started collection=before scenario=blocked run=run-1") {
 		t.Fatalf("lifecycle logs = %q", logs.String())
 	}
 
 	close(exec.releaseFirst)
-	complete, err := srv.GetCollection(context.Background(), connect.NewRequest(&baselinesv1.GetCollectionRequest{Name: "before", Branch: "agi", Wait: true}))
+	complete, err := srv.WaitCollectionCapture(context.Background(), connect.NewRequest(&baselinesv1.WaitCollectionCaptureRequest{Name: "before", Branch: "agi"}))
 	if err != nil || !complete.Msg.GetCollection().GetCoverage().GetComplete() {
 		t.Fatalf("complete collection = %#v err=%v", complete.Msg.GetCollection(), err)
 	}

@@ -3,20 +3,22 @@ package orchestrator
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"test-genie/internal/executionevidence"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 // TestWriteFindingsArtifact verifies the combined findings document is written
-// to both the per-run path and the latest mirror, that zero-finding phases are
-// INCLUDED (with their findingSource so reaudit can derive coverage), and that
-// the shape matches the `--from-audit` ingest contract.
+// once to the immutable per-run path, that zero-finding phases are INCLUDED
+// (with their findingSource so reaudit can derive coverage), and that the shape
+// matches the `--from-audit` ingest contract.
 func TestWriteFindingsArtifact(t *testing.T) {
 	dir := t.TempDir()
 	runID := "run-abc"
@@ -51,10 +53,7 @@ func TestWriteFindingsArtifact(t *testing.T) {
 		t.Fatalf("writeFindingsArtifact: %v", err)
 	}
 
-	for _, path := range []string{
-		sharedartifacts.RunFindingsArtifactPath(dir, runID),
-		sharedartifacts.LatestFindingsArtifactPath(dir),
-	} {
+	for _, path := range []string{sharedartifacts.RunFindingsArtifactPath(dir, runID)} {
 		raw, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)
@@ -81,6 +80,26 @@ func TestWriteFindingsArtifact(t *testing.T) {
 		if len(art.Phases[0].Findings) != 1 || art.Phases[0].Findings[0].GetCode() != "missing_field" {
 			t.Errorf("%s: structure findings not round-tripped: %+v", path, art.Phases[0].Findings)
 		}
+	}
+	if _, err := os.Stat(filepath.Join(sharedartifacts.LatestDirPath(dir), sharedartifacts.FindingsArtifactFile)); !os.IsNotExist(err) {
+		t.Fatalf("latest findings duplicate exists: %v", err)
+	}
+	if err := writeEvidenceManifest(dir, runID, "web-search", SuiteVerdictFail, completed, buildPhaseResultViews("", results)); err != nil {
+		t.Fatalf("writeEvidenceManifest: %v", err)
+	}
+	manifestData, err := os.ReadFile(filepath.Join(sharedartifacts.RunDir(dir, runID), executionevidence.ManifestFile))
+	if err != nil {
+		t.Fatalf("read evidence manifest: %v", err)
+	}
+	var manifest executionevidence.Manifest
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		t.Fatalf("decode evidence manifest: %v", err)
+	}
+	if err := manifest.Validate(); err != nil {
+		t.Fatalf("validate evidence manifest: %v", err)
+	}
+	if manifest.Phases[0].Findings == nil || manifest.Phases[1].Findings != nil {
+		t.Fatalf("manifest findings references = %+v", manifest.Phases)
 	}
 }
 

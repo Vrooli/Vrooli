@@ -185,12 +185,21 @@ type CollectionDiffMember struct {
 // handles. It permits server restart recovery and one-shot aggregate waits
 // without making callers reconstruct a fan-out from CLI output.
 type CollectionDiffOperation struct {
-	ID         string                 `json:"id"`
-	Collection string                 `json:"collection"`
-	Branch     string                 `json:"branch"`
-	Members    []CollectionDiffMember `json:"members"`
-	CreatedAt  time.Time              `json:"created_at"`
-	UpdatedAt  time.Time              `json:"updated_at"`
+	ID         string `json:"id"`
+	Collection string `json:"collection"`
+	Branch     string `json:"branch"`
+	// CollectionSnapshot is the immutable collection/baseline membership that
+	// this operation was created against. A status read must be able to explain
+	// and finalize an already-created operation even after the mutable
+	// collection has been deleted or replaced.
+	CollectionSnapshot CollectionManifest     `json:"collection_snapshot"`
+	Members            []CollectionDiffMember `json:"members"`
+	CreatedAt          time.Time              `json:"created_at"`
+	UpdatedAt          time.Time              `json:"updated_at"`
+	// Lifecycle is owned by the aggregate, not inferred by a client from child
+	// text. It is persisted so a restart cannot make finalization look pending.
+	Lifecycle      string    `json:"lifecycle"`
+	LastProgressAt time.Time `json:"last_progress_at"`
 }
 
 func (o CollectionDiffOperation) Aggregate(collection CollectionManifest) CollectionDiffResult {

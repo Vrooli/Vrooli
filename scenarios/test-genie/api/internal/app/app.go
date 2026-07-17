@@ -32,6 +32,7 @@ func NewServer() (*httpserver.Server, error) {
 	}
 	httpDeps := httpserver.Dependencies{
 		DB:                  deps.DB,
+		HealthDB:            deps.HealthDB,
 		Executions:          deps.ExecutionHistory,
 		ExecutionPlanner:    deps.ExecutionPlanner,
 		RunManager:          deps.RunManager,
@@ -45,6 +46,8 @@ func NewServer() (*httpserver.Server, error) {
 		EligibilityService:  deps.EligibilityService,
 		RunsService:         deps.RunsService,
 		ValidationService:   deps.ValidationService,
+		StartBackground:     deps.StartBackground,
+		SweepStatus:         deps.SweepStatus,
 	}
 
 	return newHTTPServer(httpCfg, httpDeps)

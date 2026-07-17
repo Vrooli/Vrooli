@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
@@ -88,6 +89,7 @@ type RunStatusInfo struct {
 	Terminal                    bool
 	Success                     bool
 	RecommendedNextCheckSeconds int
+	Standing                    *commonv1.OperationStanding
 }
 
 type ReusableRun struct {

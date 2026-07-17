@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"test-genie/internal/orchestrator/phases"
-
 	"github.com/google/uuid"
 )
 
@@ -20,9 +18,6 @@ func TestExecutionHistoryService_List(t *testing.T) {
 			Success:      true,
 			StartedAt:    now.Add(-time.Minute),
 			CompletedAt:  now,
-			Phases: []phases.ExecutionResult{
-				{Name: "structure", Status: "passed", DurationSeconds: 1},
-			},
 		},
 	}
 	store := &stubExecutionRecordStore{list: records}
@@ -38,8 +33,8 @@ func TestExecutionHistoryService_List(t *testing.T) {
 	if results[0].ExecutionID != records[0].ID {
 		t.Fatalf("unexpected execution id")
 	}
-	if results[0].PhaseSummary.Passed != 1 {
-		t.Fatalf("phase summary not populated: %#v", results[0].PhaseSummary)
+	if len(results[0].Phases) != 0 {
+		t.Fatalf("list result must remain summary-only: %#v", results[0])
 	}
 }
 

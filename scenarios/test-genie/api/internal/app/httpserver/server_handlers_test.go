@@ -19,6 +19,7 @@ import (
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
+	"test-genie/internal/selfhealthsnapshots"
 	"test-genie/internal/shared"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -446,7 +447,7 @@ func TestServer_handleExecuteSuiteIncludesFailureDetails(t *testing.T) {
 	}
 }
 
-func TestServer_handleHealthReportsOperations(t *testing.T) {
+func TestServer_handleHealthUsesCanonicalBoundedContract(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 	if err != nil {
 		t.Fatalf("sqlmock.New error: %v", err)
@@ -455,22 +456,10 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 
 	mock.ExpectPing().WillReturnError(nil)
 
-	history := &fakeExecutionHistory{
-		latest: &orchestrator.SuiteExecutionResult{
-			ExecutionID:  uuid.New(),
-			ScenarioName: "demo",
-			StartedAt:    time.Now().Add(-time.Minute),
-			CompletedAt:  time.Now(),
-			Success:      true,
-			PhaseSummary: orchestrator.PhaseSummary{Total: 2, Passed: 2},
-		},
-	}
-
 	server := &Server{
-		config:           Config{Port: "0", ServiceName: "Test Genie API"},
-		db:               database.NewFromPrimary(db),
-		executionHistory: history,
-		logger:           log.New(io.Discard, "", 0),
+		config: Config{Port: "0", ServiceName: "Test Genie API"},
+		db:     database.NewFromPrimary(db),
+		logger: log.New(io.Discard, "", 0),
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -505,19 +494,41 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 	if !ok || dbDep["connected"] != true {
 		t.Fatalf("expected connected database dependency, got %#v", deps["database"])
 	}
-	operations, ok := payload["operations"].(map[string]interface{})
-	if !ok {
-		t.Fatalf("expected operations payload, got %#v", payload["operations"])
-	}
-	executionPayload, ok := operations["lastExecution"].(map[string]interface{})
-	if !ok {
-		t.Fatalf("expected last execution payload, got %#v", operations)
-	}
-	if executionPayload["scenario"] != "demo" {
-		t.Fatalf("expected scenario demo, got %#v", executionPayload)
+	if _, exists := payload["operations"]; exists {
+		t.Fatalf("health must not include execution-history operations: %#v", payload["operations"])
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet mock expectations: %v", err)
+	}
+}
+
+func TestServer_handleHealthDegradesForCachedSweepFailure(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectPing().WillReturnError(nil)
+	status := &selfhealthsnapshots.StatusStore{}
+	status.Record(selfhealthsnapshots.SweepStatus{Outcome: "timed_out", Error: "deadline exceeded"})
+	server := &Server{config: Config{Port: "0"}, db: database.NewFromPrimary(db), sweepStatus: status, logger: log.New(io.Discard, "", 0)}
+	rec := httptest.NewRecorder()
+	server.handleHealth(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	var payload apihealth.Response
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Status != apihealth.StatusDegraded || !payload.Readiness {
+		t.Fatalf("payload = %#v", payload)
+	}
+	if dep := payload.Dependencies["self_health_sweep"]; dep.Connected {
+		t.Fatalf("sweep dependency = %#v", dep)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -543,8 +554,8 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 
 	server.handleHealth(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 even when unhealthy, got %d", rec.Code)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 when unhealthy, got %d", rec.Code)
 	}
 	var payload map[string]interface{}
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
@@ -563,6 +574,17 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet mock expectations: %v", err)
+	}
+}
+
+func TestCheckSQLiteSchemaRejectsUnavailableStore(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:/missing/test-genie-health.db?mode=ro")
+	if err != nil {
+		t.Fatalf("open test sqlite handle: %v", err)
+	}
+	defer db.Close()
+	if err := checkSQLiteSchema(context.Background(), db); err == nil {
+		t.Fatal("expected missing read-only database to fail health probe")
 	}
 }
 

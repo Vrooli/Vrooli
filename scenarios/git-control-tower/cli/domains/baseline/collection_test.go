@@ -2,6 +2,7 @@ package baseline
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -9,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 	baselinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines/baselines_v1connect"
 )
@@ -17,18 +19,22 @@ type incompleteCollectionServer struct {
 	baselinesconnect.UnimplementedBaselinesServiceHandler
 }
 
-func (*incompleteCollectionServer) GetCollection(context.Context, *connect.Request[baselinesv1.GetCollectionRequest]) (*connect.Response[baselinesv1.GetCollectionResponse], error) {
-	return connect.NewResponse(&baselinesv1.GetCollectionResponse{
-		Collection:  &baselinesv1.BaselineCollection{Name: "before", Coverage: &baselinesv1.CollectionCoverage{Required: 2, Ready: 1, Pending: 1}},
-		WaitOutcome: &baselinesv1.CollectionWaitOutcome{Kind: "incomplete", RecoveryCommands: []string{"git-control-tower baseline collection show --name before --wait"}},
+func (*incompleteCollectionServer) GetCollectionStatus(context.Context, *connect.Request[baselinesv1.GetCollectionStatusRequest]) (*connect.Response[baselinesv1.GetCollectionStatusResponse], error) {
+	return connect.NewResponse(&baselinesv1.GetCollectionStatusResponse{
+		Collection: &baselinesv1.BaselineCollection{Name: "before", Coverage: &baselinesv1.CollectionCoverage{Required: 2, Ready: 1, Pending: 1}},
+		Standing:   &commonv1.OperationStanding{Lifecycle: "executing", Directive: "wait"},
 	}), nil
 }
 
-func (*incompleteCollectionServer) GetCollectionDiff(context.Context, *connect.Request[baselinesv1.GetCollectionDiffRequest]) (*connect.Response[baselinesv1.GetCollectionDiffResponse], error) {
-	return connect.NewResponse(&baselinesv1.GetCollectionDiffResponse{
+func (*incompleteCollectionServer) GetCollectionDiffStatus(context.Context, *connect.Request[baselinesv1.GetCollectionDiffStatusRequest]) (*connect.Response[baselinesv1.GetCollectionDiffStatusResponse], error) {
+	return connect.NewResponse(&baselinesv1.GetCollectionDiffStatusResponse{
 		Collection: &baselinesv1.BaselineCollection{Name: "before"}, OperationId: "op-1", Classification: "not-ready",
-		WaitOutcome: &baselinesv1.CollectionWaitOutcome{Kind: "incomplete", RecoveryCommands: []string{"git-control-tower baseline collection diff status --name before --operation-id op-1 --wait"}},
+		Standing: &commonv1.OperationStanding{Lifecycle: "executing", Directive: "wait", ReattachCommand: "git-control-tower baseline collection diff wait --name before --operation-id op-1 --json"},
 	}), nil
+}
+
+func (*incompleteCollectionServer) WaitCollectionDiff(context.Context, *connect.Request[baselinesv1.WaitCollectionDiffRequest]) (*connect.Response[baselinesv1.WaitCollectionDiffResponse], error) {
+	return connect.NewResponse(&baselinesv1.WaitCollectionDiffResponse{Collection: &baselinesv1.BaselineCollection{Name: "before"}, OperationId: "op-1", Classification: "not-ready", Detached: true, Standing: &commonv1.OperationStanding{Lifecycle: "executing", Directive: "wait"}}), nil
 }
 
 func withIncompleteCollectionServer(t *testing.T) {
@@ -67,42 +73,38 @@ func TestCollectionFollowupArgsOmitEmptyBranch(t *testing.T) {
 	}
 }
 
-func TestCollectionWaitCommandsExitNotReadyOnTypedIncomplete(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
+func TestCollectionWaitCommandsReturnRenderedDetachOutcome(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
 	withIncompleteCollectionServer(t)
-	previousExit := collectionExit
-	var exitCodes []int
-	collectionExit = func(code int) { exitCodes = append(exitCodes, code) }
-	t.Cleanup(func() { collectionExit = previousExit })
-
-	if err := runCollectionShow(nil, []string{"--name", "before", "--wait", "--json"}); err != nil {
-		t.Fatalf("collection show: %v", err)
-	}
-	if err := runCollectionDiffStatus(nil, []string{"--name", "before", "--operation-id", "op-1", "--wait", "--json"}); err != nil {
-		t.Fatalf("collection diff status: %v", err)
-	}
-	if !reflect.DeepEqual(exitCodes, []int{exitNotReady, exitNotReady}) {
-		t.Fatalf("exit codes = %#v", exitCodes)
+	err := runCollectionDiffWait(nil, []string{"--name", "before", "--operation-id", "op-1", "--json"})
+	var outcome renderedExitError
+	if !errors.As(err, &outcome) || outcome.code != 124 {
+		t.Fatalf("wait outcome = %v", err)
 	}
 }
 
-func TestCollectionDiffStatusExitCodePreservesTerminalVerdict(t *testing.T) {
-	complete := &baselinesv1.CollectionWaitOutcome{Kind: "complete"}
+func TestCollectionDiffWaitExitPreservesTerminalVerdict(t *testing.T) {
 	tests := []struct {
-		name         string
-		response     *baselinesv1.GetCollectionDiffResponse
-		waited       bool
-		expectedExit int
+		name           string
+		lifecycle      string
+		classification string
+		expectedExit   int
 	}{
-		{name: "complete regression", response: &baselinesv1.GetCollectionDiffResponse{Classification: "regression", WaitOutcome: complete}, waited: true, expectedExit: exitRegression},
-		{name: "complete not comparable", response: &baselinesv1.GetCollectionDiffResponse{Classification: "not-comparable", WaitOutcome: complete}, waited: true, expectedExit: exitNotComparable},
-		{name: "complete clean", response: &baselinesv1.GetCollectionDiffResponse{Classification: "clean", WaitOutcome: complete}, waited: true, expectedExit: exitOK},
-		{name: "typed incomplete", response: &baselinesv1.GetCollectionDiffResponse{Classification: "not-ready", WaitOutcome: &baselinesv1.CollectionWaitOutcome{Kind: "incomplete"}}, waited: true, expectedExit: exitNotReady},
-		{name: "missing wait outcome fails closed", response: &baselinesv1.GetCollectionDiffResponse{Classification: "clean"}, waited: true, expectedExit: exitNotReady},
+		{name: "complete regression", lifecycle: "terminal", classification: "regression", expectedExit: exitRegression},
+		{name: "complete not comparable", lifecycle: "terminal", classification: "not-comparable", expectedExit: exitNotComparable},
+		{name: "complete clean", lifecycle: "terminal", classification: "clean", expectedExit: exitOK},
+		{name: "detached", lifecycle: "executing", classification: "clean", expectedExit: 124},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := collectionDiffStatusExitCode(tc.response, tc.waited); got != tc.expectedExit {
-				t.Fatalf("exit code = %d, want %d", got, tc.expectedExit)
+			err := renderedExitForStanding(&commonv1.OperationStanding{Lifecycle: tc.lifecycle}, tc.classification)
+			if tc.expectedExit == exitOK && err != nil {
+				t.Fatalf("clean returned %v", err)
+			}
+			if tc.expectedExit != exitOK {
+				var outcome renderedExitError
+				if !errors.As(err, &outcome) || outcome.code != tc.expectedExit {
+					t.Fatalf("exit = %v, want %d", err, tc.expectedExit)
+				}
 			}
 		})
 	}

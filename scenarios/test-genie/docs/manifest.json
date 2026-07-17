@@ -134,6 +134,7 @@
         { "path": "PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking" },
         { "path": "PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers" },
         { "path": "SEAMS.md", "title": "Seams", "description": "Integration points and boundaries" },
+        { "path": "internal/INVARIANTS.md", "title": "Execution Evidence Invariants", "description": "Canonical evidence, live-memory, and lifecycle rules" },
         { "path": "RESEARCH.md", "title": "Research", "description": "Research notes and findings" }
       ]
     },

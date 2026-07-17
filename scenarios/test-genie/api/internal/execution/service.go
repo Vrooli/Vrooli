@@ -27,12 +27,23 @@ type SuiteExecutionInput struct {
 
 // SuiteExecutionService coordinates the orchestrator and execution persistence.
 type SuiteExecutionService struct {
-	engine     suiteExecutionEngine
-	executions suiteExecutionRecorder
+	engine           suiteExecutionEngine
+	executions       suiteExecutionRecorder
+	collectRetention func(context.Context, string)
 }
 
 func NewSuiteExecutionService(engine suiteExecutionEngine, executions suiteExecutionRecorder) *SuiteExecutionService {
 	return &SuiteExecutionService{engine: engine, executions: executions}
+}
+
+// SetRetentionCollector wires the post-persistence lifecycle trigger. The
+// callback is injected by bootstrap so execution remains storage-agnostic;
+// retention runs only after the SQLite row and durable run evidence agree on a
+// completed run.
+func (s *SuiteExecutionService) SetRetentionCollector(collect func(context.Context, string)) {
+	if s != nil {
+		s.collectRetention = collect
+	}
 }
 
 // Execute runs the suite and persists the result.
@@ -81,7 +92,7 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 		ConfigurationFingerprint: result.ConfigurationFingerprint,
 		FailFast:                 result.FailFast,
 		Success:                  result.Success,
-		Phases:                   append([]phases.ExecutionResult(nil), result.Phases...),
+		Phases:                   compactPhaseResults(result.Phases),
 		StartedAt:                result.StartedAt,
 		CompletedAt:              result.CompletedAt,
 	}
@@ -89,9 +100,39 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 	if err := s.executions.Create(ctx, record); err != nil {
 		return nil, err
 	}
+	if s.collectRetention != nil && result.ScenarioName != "" {
+		go s.collectRetention(context.Background(), result.ScenarioName)
+	}
 
 	result.ExecutionID = record.ID
 	return result, nil
+}
+
+// compactPhaseResults is the execution-history persistence boundary. Detailed
+// observations, normalized findings, provider metrics, and log payloads belong
+// to immutable run evidence; SQLite retains only the compact history projection
+// needed for list, timing, reliability, and phase standing queries.
+func compactPhaseResults(results []phases.ExecutionResult) []phases.ExecutionResult {
+	if len(results) == 0 {
+		return []phases.ExecutionResult{}
+	}
+	compact := make([]phases.ExecutionResult, 0, len(results))
+	for _, result := range results {
+		compact = append(compact, phases.ExecutionResult{
+			Name:               result.Name,
+			Status:             result.Status,
+			DurationSeconds:    result.DurationSeconds,
+			Error:              result.Error,
+			Classification:     result.Classification,
+			Remediation:        result.Remediation,
+			RunnabilityVerdict: result.RunnabilityVerdict,
+			RunnabilityReason:  result.RunnabilityReason,
+			FindingSource:      result.FindingSource,
+			PhasePresentation:  result.PhasePresentation,
+			FindingsSummary:    result.FindingsSummary,
+		})
+	}
+	return compact
 }
 
 // recordTerminalOutcome persists a minimal suite_executions row for a

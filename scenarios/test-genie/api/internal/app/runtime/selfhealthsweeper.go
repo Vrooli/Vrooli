@@ -2,7 +2,9 @@ package runtime
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"log"
+	"math/big"
 	"os"
 	"path/filepath"
 	"sort"
@@ -98,32 +100,60 @@ func newSelfHealthRollupBuilder(ledgerSource *execution.SuiteExecutionRepository
 	}
 }
 
-// startSelfHealthSweeper launches the background snapshot sweeper under a
-// process-lifetime context unless disabled. It is env-tuned:
+const (
+	defaultSelfHealthSweepStartDelay  = 30 * time.Second
+	defaultSelfHealthSweepStartJitter = 30 * time.Second
+	defaultSelfHealthSweepRunTimeout  = 20 * time.Second
+	defaultSelfHealthSweepPersistTime = 3 * time.Second
+)
+
+// startSelfHealthSweeper launches advisory snapshot work only after the
+// serving transport supplies a process-owned context. It is env-tuned:
 //   - TEST_GENIE_SELFHEALTH_SWEEP_DISABLED=true  → do not start
 //   - TEST_GENIE_SELFHEALTH_SWEEP_INTERVAL=<dur> → tick interval (default 1h)
-//   - TEST_GENIE_SELFHEALTH_SWEEP_START_JITTER=<dur> → initial delay (default 0)
+//   - TEST_GENIE_SELFHEALTH_SWEEP_START_DELAY=<dur> → minimum initial delay
+//   - TEST_GENIE_SELFHEALTH_SWEEP_START_JITTER=<dur> → randomized extra delay
+//   - TEST_GENIE_SELFHEALTH_SWEEP_TIMEOUT=<dur> → per-sweep deadline
+//   - TEST_GENIE_SELFHEALTH_SWEEP_PERSIST_TIMEOUT=<dur> → reserved snapshot-write budget
 //
-// The sweeper is read-only-then-single-write and idempotent (digest dedup), so
-// a background context is safe; it exits on process termination.
-func startSelfHealthSweeper(repo selfhealthsnapshots.SnapshotRepository, build selfhealthsnapshots.RollupBuilder) {
+// The sweeper is read-only-then-single-write and idempotent (digest dedup).
+// It must always receive a cancellable process context and a bounded run
+// context so it cannot indefinitely starve foreground SQLite work.
+func startSelfHealthSweeper(ctx context.Context, repo selfhealthsnapshots.SnapshotRepository, build selfhealthsnapshots.RollupBuilder, status *selfhealthsnapshots.StatusStore) {
 	if isTruthy(os.Getenv("TEST_GENIE_SELFHEALTH_SWEEP_DISABLED")) {
 		log.Printf("[test-genie] self-health snapshot sweeper disabled via env")
 		return
 	}
 	interval := parseDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_INTERVAL", time.Hour)
-	jitter := parseDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_START_JITTER", 0)
+	delay := parseDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_START_DELAY", defaultSelfHealthSweepStartDelay)
+	jitter := randomizedDelay(parseDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_START_JITTER", defaultSelfHealthSweepStartJitter))
+	timeout := parsePositiveDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_TIMEOUT", defaultSelfHealthSweepRunTimeout)
+	persistTimeout := parsePositiveDurationEnv("TEST_GENIE_SELFHEALTH_SWEEP_PERSIST_TIMEOUT", defaultSelfHealthSweepPersistTime)
 	sweeper, err := selfhealthsnapshots.NewSweeper(selfhealthsnapshots.SweeperConfig{
-		Repository:    repo,
-		Build:         build,
-		Interval:      interval,
-		InitialJitter: jitter,
+		Repository:         repo,
+		Build:              build,
+		Interval:           interval,
+		InitialJitter:      delay + jitter,
+		RunTimeout:         timeout,
+		PersistenceTimeout: persistTimeout,
+		Status:             status,
 	})
 	if err != nil {
 		log.Printf("[test-genie] self-health snapshot sweeper not started: %v", err)
 		return
 	}
-	go sweeper.RunLoop(context.Background())
+	go sweeper.RunLoop(ctx)
+}
+
+func randomizedDelay(max time.Duration) time.Duration {
+	if max <= 0 {
+		return 0
+	}
+	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(max)+1))
+	if err != nil {
+		return max
+	}
+	return time.Duration(n.Int64())
 }
 
 func isTruthy(v string) bool {
@@ -148,6 +178,14 @@ func parseDurationEnv(name string, fallback time.Duration) time.Duration {
 		return time.Duration(n) * time.Second
 	}
 	return fallback
+}
+
+func parsePositiveDurationEnv(name string, fallback time.Duration) time.Duration {
+	d := parseDurationEnv(name, fallback)
+	if d <= 0 {
+		return fallback
+	}
+	return d
 }
 
 // repoRootFromScenariosRoot derives the repository root (the parent of the

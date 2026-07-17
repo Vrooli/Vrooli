@@ -103,34 +103,6 @@ func TestIndexUpdateNotFound(t *testing.T) {
 	}
 }
 
-func TestIndexPinUnpin(t *testing.T) {
-	idx := NewIndex(t.TempDir())
-	id := "20251208-151044-cccc3333"
-	if err := idx.Append(RunRecord{RunID: id, Status: StatusPassed}); err != nil {
-		t.Fatalf("append: %v", err)
-	}
-
-	if err := idx.Pin(id, PinRecord{PinnedBy: "gct:baseline:plan-7c3", PinnedAt: time.Now().UTC(), Reason: "baseline"}); err != nil {
-		t.Fatalf("pin: %v", err)
-	}
-	// Re-pinning by the same owner is idempotent.
-	if err := idx.Pin(id, PinRecord{PinnedBy: "gct:baseline:plan-7c3", PinnedAt: time.Now().UTC()}); err != nil {
-		t.Fatalf("re-pin: %v", err)
-	}
-	got, _ := idx.Find(id)
-	if !got.IsPinned() || len(got.Pins) != 1 {
-		t.Fatalf("expected single pin, got %#v", got.Pins)
-	}
-
-	if err := idx.Unpin(id, "gct:baseline:plan-7c3"); err != nil {
-		t.Fatalf("unpin: %v", err)
-	}
-	got, _ = idx.Find(id)
-	if got.IsPinned() {
-		t.Fatalf("expected no pins after unpin, got %#v", got.Pins)
-	}
-}
-
 func TestIndexFinalizePublishesSnapshotBeforeTerminalIndex(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]
 	dir := t.TempDir()
 	idx := NewIndex(dir)

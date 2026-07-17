@@ -23,8 +23,8 @@ type (
 	// executed with. It is immutable once the run completes (Decision 4 in
 	// Plan A).
 	DiagnosticsConfig = runindex.DiagnosticsConfig
-	// PinRecord protects a run from retention GC while an external consumer
-	// (e.g. a git-control-tower baseline) references it.
+	// PinRecord exists only to decode historical index records. New retention
+	// ownership is represented by PinLease in pin_leases.go.
 	PinRecord = runindex.PinRecord
 	// PhaseRecord is a compact per-phase summary stored in the index for fast
 	// enumeration without reading per-run phase-results files.
@@ -360,34 +360,5 @@ func (i *Index) Remove(runID string) error {
 			}
 		}
 		return i.writeUnlocked(filtered)
-	})
-}
-
-// Pin adds a pin to a run, protecting it from retention GC. Re-pinning by the
-// same PinnedBy is idempotent (updates the reason/timestamp).
-func (i *Index) Pin(runID string, pin PinRecord) error {
-	return i.Update(runID, func(r *RunRecord) error {
-		for idx := range r.Pins {
-			if r.Pins[idx].PinnedBy == pin.PinnedBy {
-				r.Pins[idx] = pin
-				return nil
-			}
-		}
-		r.Pins = append(r.Pins, pin)
-		return nil
-	})
-}
-
-// Unpin removes the pin owned by pinnedBy. Absent pins are a no-op.
-func (i *Index) Unpin(runID, pinnedBy string) error {
-	return i.Update(runID, func(r *RunRecord) error {
-		filtered := r.Pins[:0]
-		for _, p := range r.Pins {
-			if p.PinnedBy != pinnedBy {
-				filtered = append(filtered, p)
-			}
-		}
-		r.Pins = filtered
-		return nil
 	})
 }

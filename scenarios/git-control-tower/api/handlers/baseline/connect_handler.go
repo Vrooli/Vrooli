@@ -9,10 +9,8 @@ package baseline
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -30,8 +28,7 @@ import (
 // makes the common unreachable case fail in seconds, so this is a backstop, not
 // the normal path.
 const (
-	snapshotTailCeiling   = 30 * time.Minute
-	collectionWaitCeiling = 25 * time.Minute
+	snapshotTailCeiling = 30 * time.Minute
 )
 
 // RepoResolver maps an optional explicit repoID (0 = active repo) to a concrete
@@ -493,56 +490,48 @@ func (s *Server) finalizeCollectionCapture(ctx context.Context, repoID int64, pe
 	}()
 }
 
-func (s *Server) GetCollection(ctx context.Context, req *connect.Request[baselinesv1.GetCollectionRequest]) (*connect.Response[baselinesv1.GetCollectionResponse], error) {
+func (s *Server) GetCollectionStatus(ctx context.Context, req *connect.Request[baselinesv1.GetCollectionStatusRequest]) (*connect.Response[baselinesv1.GetCollectionStatusResponse], error) {
 	m := req.Msg
 	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
 	if err != nil {
-		return nil, s.wrap("GetCollection", err)
+		return nil, s.wrap("GetCollectionStatus", err)
 	}
-	var collection bl.CollectionManifest
-	var waitOutcome *baselinesv1.CollectionWaitOutcome
-	if m.GetWait() {
-		waitCtx, cancel := context.WithTimeout(ctx, collectionWaitCeiling)
-		defer cancel()
-		collection, err = s.svc.ResumeCollectionCapture(waitCtx, rid, branch, m.GetName())
-		var incomplete *bl.CollectionIncompleteError
-		if errors.As(err, &incomplete) {
-			waitOutcome = collectionWaitOutcome(collection, "incomplete", incomplete.PendingRunIDs, incomplete.Error())
-			err = nil
-		}
-	} else {
-		// A non-wait read must still project already-terminal children. This
-		// recovers a collection whose detached finalizer was interrupted by an
-		// API restart without turning ordinary status reads into waits.
-		collection, err = s.svc.ReconcileCollectionCapture(ctx, rid, branch, m.GetName())
-	}
+	collection, err := s.svc.StorageLoadCollection(rid, branch, m.GetName())
 	if err != nil {
-		return nil, s.wrap("GetCollection", err)
+		return nil, s.wrap("GetCollectionStatus", err)
 	}
-	if waitOutcome == nil {
-		kind := "complete"
-		if !collection.Coverage().Complete() {
-			kind = "member-failed"
-		}
-		waitOutcome = collectionWaitOutcome(collection, kind, nil, "")
-	}
-	return connect.NewResponse(&baselinesv1.GetCollectionResponse{Collection: collectionToProto(collection), WaitOutcome: waitOutcome}), nil
+	return connect.NewResponse(&baselinesv1.GetCollectionStatusResponse{Collection: collectionToProto(collection), Standing: bl.CollectionCaptureStanding(collection)}), nil
 }
 
-func collectionWaitOutcome(collection bl.CollectionManifest, kind string, pending []string, detail string) *baselinesv1.CollectionWaitOutcome {
-	args := []string{"git-control-tower", "baseline", "collection", "show", "--name", collection.Name}
-	if branch := strings.TrimSpace(collection.Branch); branch != "" {
-		args = append(args, "--branch", branch)
+func (s *Server) WaitCollectionCapture(ctx context.Context, req *connect.Request[baselinesv1.WaitCollectionCaptureRequest]) (*connect.Response[baselinesv1.WaitCollectionCaptureResponse], error) {
+	m := req.Msg
+	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("WaitCollectionCapture", err)
 	}
-	args = append(args, "--wait")
-	commands := []string(nil)
-	if kind != "complete" {
-		commands = []string{strings.Join(args, " ")}
+	waitCtx := ctx
+	var cancel context.CancelFunc
+	if seconds := m.GetTimeoutSeconds(); seconds > 0 {
+		waitCtx, cancel = context.WithTimeout(ctx, time.Duration(seconds)*time.Second)
+		defer cancel()
 	}
-	if detail == "" && kind != "complete" {
-		detail = fmt.Sprintf("required collection coverage is incomplete: ready=%d required=%d pending=%d failed=%d", collection.Coverage().Ready, collection.Coverage().Required, collection.Coverage().Pending, collection.Coverage().Failed)
+	collection, waitErr := s.svc.ResumeCollectionCapture(waitCtx, rid, branch, m.GetName())
+	detached := false
+	if waitErr != nil {
+		var incomplete *bl.CollectionIncompleteError
+		if errors.As(waitErr, &incomplete) {
+			detached = true
+		} else {
+			return nil, s.wrap("WaitCollectionCapture", waitErr)
+		}
 	}
-	return &baselinesv1.CollectionWaitOutcome{Kind: kind, PendingRunIds: pending, RecoveryCommands: commands, Detail: detail}
+	if collection.Name == "" {
+		collection, err = s.svc.StorageLoadCollection(rid, branch, m.GetName())
+		if err != nil {
+			return nil, s.wrap("WaitCollectionCapture", err)
+		}
+	}
+	return connect.NewResponse(&baselinesv1.WaitCollectionCaptureResponse{Collection: collectionToProto(collection), Standing: bl.CollectionCaptureStanding(collection), Detached: detached}), nil
 }
 
 // StartCollectionDiff starts durable child diffs for the explicit selection.
@@ -570,63 +559,59 @@ func (s *Server) StartCollectionDiff(ctx context.Context, req *connect.Request[b
 	return connect.NewResponse(out), nil
 }
 
-func (s *Server) GetCollectionDiff(ctx context.Context, req *connect.Request[baselinesv1.GetCollectionDiffRequest]) (*connect.Response[baselinesv1.GetCollectionDiffResponse], error) {
+func (s *Server) GetCollectionDiffStatus(ctx context.Context, req *connect.Request[baselinesv1.GetCollectionDiffStatusRequest]) (*connect.Response[baselinesv1.GetCollectionDiffStatusResponse], error) {
 	m := req.Msg
 	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
 	if err != nil {
-		return nil, s.wrap("GetCollectionDiff", err)
+		return nil, s.wrap("GetCollectionDiffStatus", err)
 	}
-	waitCtx := ctx
-	var cancel context.CancelFunc
-	if m.GetWait() {
-		waitCtx, cancel = context.WithTimeout(ctx, collectionWaitCeiling)
-		defer cancel()
-	}
-	collection, operation, err := s.svc.GetCollectionDiff(waitCtx, rid, branch, m.GetName(), m.GetOperationId(), m.GetWait())
-	var waitOutcome *baselinesv1.CollectionWaitOutcome
-	var incomplete *bl.CollectionIncompleteError
-	if errors.As(err, &incomplete) {
-		waitOutcome = collectionDiffWaitOutcome(collection, operation, "incomplete", incomplete.PendingRunIDs, incomplete.Error())
-		err = nil
-	}
+	collection, operation, standing, err := s.svc.GetCollectionDiffStatus(ctx, rid, branch, m.GetName(), m.GetOperationId())
 	if err != nil {
-		return nil, s.wrap("GetCollectionDiff", err)
+		return nil, s.wrap("GetCollectionDiffStatus", err)
 	}
 	aggregate := operation.Aggregate(collection)
-	if waitOutcome == nil {
-		kind := "complete"
-		for _, member := range operation.Members {
-			if member.Status == "pending" {
-				kind = "incomplete"
-				break
-			}
-			if member.Required && member.Status == "failed" {
-				kind = "member-failed"
-			}
-		}
-		waitOutcome = collectionDiffWaitOutcome(collection, operation, kind, nil, "")
-	}
-	out := &baselinesv1.GetCollectionDiffResponse{Collection: collectionToProto(collection), Classification: string(aggregate.Verdict), OperationId: operation.ID, WaitOutcome: waitOutcome}
+	out := &baselinesv1.GetCollectionDiffStatusResponse{Collection: collectionToProto(collection), Classification: string(aggregate.Verdict), OperationId: operation.ID, Standing: standing}
 	for _, member := range operation.Members {
 		out.Members = append(out.Members, collectionDiffMemberToProto(member))
 	}
 	return connect.NewResponse(out), nil
 }
 
-func collectionDiffWaitOutcome(collection bl.CollectionManifest, operation bl.CollectionDiffOperation, kind string, pending []string, detail string) *baselinesv1.CollectionWaitOutcome {
-	args := []string{"git-control-tower", "baseline", "collection", "diff", "status", "--name", collection.Name}
-	if branch := strings.TrimSpace(collection.Branch); branch != "" {
-		args = append(args, "--branch", branch)
+func (s *Server) WaitCollectionDiff(ctx context.Context, req *connect.Request[baselinesv1.WaitCollectionDiffRequest]) (*connect.Response[baselinesv1.WaitCollectionDiffResponse], error) {
+	m := req.Msg
+	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("WaitCollectionDiff", err)
 	}
-	args = append(args, "--operation-id", operation.ID, "--wait")
-	commands := []string(nil)
-	if kind != "complete" {
-		commands = []string{strings.Join(args, " ")}
+	waitCtx := ctx
+	var cancel context.CancelFunc
+	if seconds := m.GetTimeoutSeconds(); seconds > 0 {
+		waitCtx, cancel = context.WithTimeout(ctx, time.Duration(seconds)*time.Second)
+		defer cancel()
 	}
-	if detail == "" && kind != "complete" {
-		detail = "collection diff has required or selected members that are not ready"
+	_, _, waitErr := s.svc.WaitCollectionDiff(waitCtx, rid, branch, m.GetName(), m.GetOperationId())
+	detached := false
+	if waitErr != nil {
+		var incomplete *bl.CollectionIncompleteError
+		if errors.As(waitErr, &incomplete) {
+			detached = true
+		} else {
+			return nil, s.wrap("WaitCollectionDiff", waitErr)
+		}
 	}
-	return &baselinesv1.CollectionWaitOutcome{Kind: kind, PendingRunIds: pending, RecoveryCommands: commands, Detail: detail}
+	collection, operation, standing, statusErr := s.svc.GetCollectionDiffStatus(ctx, rid, branch, m.GetName(), m.GetOperationId())
+	if statusErr != nil {
+		return nil, s.wrap("WaitCollectionDiff", statusErr)
+	}
+	if detached && standing.GetDirective() == "" {
+		standing.Directive = "wait"
+	}
+	aggregate := operation.Aggregate(collection)
+	out := &baselinesv1.WaitCollectionDiffResponse{Collection: collectionToProto(collection), Classification: string(aggregate.Verdict), OperationId: operation.ID, Standing: standing, Detached: detached}
+	for _, member := range operation.Members {
+		out.Members = append(out.Members, collectionDiffMemberToProto(member))
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (s *Server) finalizeCollectionDiff(ctx context.Context, repoID int64, pending bl.PendingCollectionDiff) {

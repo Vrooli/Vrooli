@@ -75,23 +75,21 @@ git-control-tower baseline collection capture --name N --member scenario[:baseli
 git-control-tower baseline collection show --name N --wait
 git-control-tower baseline collection extend --name N --member newly-affected-scenario
 git-control-tower baseline collection diff --name N --operation-id phase-1 [--member S ...]
-git-control-tower baseline collection diff status --name N --operation-id phase-1 --wait
+git-control-tower baseline collection diff status --name N --operation-id phase-1
+git-control-tower baseline collection diff wait --name N --operation-id phase-1
 git-control-tower baseline collection delete --name N
 ```
 
 Collection capture and diff are fast durable starts. Each normal CLI response
-prints its exact producer-owned `show --wait` or `diff status --wait` command;
+prints its exact producer-owned `show --wait` or `diff wait` command;
 run that command once, and after an interruption rerun the same command rather
 than polling. The server owns the durable child handles and terminal result.
 Capture and diff waits reattach independent child runs concurrently with bounded
 fan-out. Cancellation or deadline preserves pending handles and returns a typed
-incomplete outcome; `collection show --wait`, `collection diff --wait`, and
-`collection diff status --wait` exit `3` until required work is complete and
-include the exact durable recovery command. They never return success while a
-required child remains pending.
-Ordinary collection reads reconcile members whose durable runs are already
-terminal without waiting for pending members, so an API restart or detached
-tail cannot hide independent ready or failed coverage. A collection member is
+detached standing with exit `124`; terminal failure/regression uses its domain
+exit code. They never return success while required work remains pending.
+Ordinary collection reads are pure: they project durable parent state and child
+standings without reconciling or mutating them. A collection member is
 `ready` only after its immutable baseline anchor persists; it can be ready
 while another member remains `pending`, and neither status asserts a passing
 suite verdict.

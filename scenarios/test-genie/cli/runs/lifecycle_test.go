@@ -7,16 +7,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 
 	"github.com/vrooli/cli-core/cliutil"
 
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
@@ -106,13 +104,14 @@ func TestRunStatusPendingDirectsOneCanonicalQuietWait(t *testing.T) { // [REQ:TE
 	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{
 		RunId: "R", Scenario: "demo", Status: "in_progress", EtaKnown: true,
 		EstimatedRemainingSeconds: 41, RecommendedNextCheckSeconds: 7,
+		Standing: &commonv1.OperationStanding{Lifecycle: "executing", Directive: "wait", ReattachCommand: "test-genie runs wait --json demo R"},
 	}})
 	var out bytes.Buffer
 	if err := runStatus(nil, []string{"demo", "R"}, &out); err != nil {
 		t.Fatalf("runStatus: %v", err)
 	}
 	text := out.String()
-	if !strings.Contains(text, "Run exactly once:") || !strings.Contains(text, "test-genie runs wait --json") {
+	if !strings.Contains(text, "action: wait") || !strings.Contains(text, "test-genie runs wait --json") {
 		t.Fatalf("pending status lacks canonical wait action: %q", text)
 	}
 	for _, forbidden := range []string{"check again", "re-check", "run status again"} {
@@ -128,24 +127,24 @@ func TestRunStatusPendingDirectsOneCanonicalQuietWait(t *testing.T) { // [REQ:TE
 func TestRunStatusJSONCarriesTypedWaitActionOnlyWhilePending(t *testing.T) { // [REQ:TESTGENIE-ORCH-P0]
 	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{
 		RunId: "R", Scenario: "demo", Status: "in_progress", EstimatedRemainingSeconds: 41,
+		Standing: &commonv1.OperationStanding{Lifecycle: "executing", Directive: "wait", ReattachCommand: "test-genie runs wait --json demo R"},
 	}})
 	var out bytes.Buffer
 	if err := runStatus(nil, []string{"--json", "demo", "R"}, &out); err != nil {
 		t.Fatalf("runStatus --json: %v", err)
 	}
 	var payload struct {
-		NextAction struct {
-			Kind      string `json:"kind"`
-			Command   string `json:"command"`
-			Timeout   int    `json:"timeout"`
-			DoNotPoll bool   `json:"doNotPoll"`
-		} `json:"nextAction"`
+		Standing struct {
+			Lifecycle string `json:"lifecycle"`
+			Directive string `json:"directive"`
+			Reattach  string `json:"reattachCommand"`
+		} `json:"standing"`
 	}
 	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
 		t.Fatalf("decode status JSON: %v\n%s", err, out.String())
 	}
-	if payload.NextAction.Kind != "wait" || !payload.NextAction.DoNotPoll || payload.NextAction.Timeout <= 0 || !strings.Contains(payload.NextAction.Command, "test-genie runs wait --json") {
-		t.Fatalf("typed wait action = %+v", payload.NextAction)
+	if payload.Standing.Lifecycle != "executing" || payload.Standing.Directive != "wait" || !strings.Contains(payload.Standing.Reattach, "test-genie runs wait --json") {
+		t.Fatalf("typed operation standing = %+v", payload.Standing)
 	}
 }
 
@@ -402,56 +401,6 @@ func TestRunWaitJSONTimeoutSurfacesBackoff(t *testing.T) {
 	}
 	if !strings.Contains(hint, "test-genie runs wait --json --timeout=30 demo R") {
 		t.Fatalf("stderr must surface the exact quiet re-invoke line, got: %q", hint)
-	}
-}
-
-func TestRunWaitJSONWarnsOnRecentRepeatedWaitWithoutPollutingStdout(t *testing.T) {
-	withStreamServer(t, &streamServer{
-		waitStatus: &runspb.RunLiveStatus{RunId: "R", Status: "in_progress", RecommendedNextCheckSeconds: 17},
-		waitTimed:  true,
-	})
-	tmp := t.TempDir()
-	prevPath := waitStatePath
-	prevNow := waitNow
-	prevErr := stderrOut
-	waitStatePath = func() string { return filepath.Join(tmp, "waits.json") }
-	base := time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)
-	waitNow = func() time.Time { return base }
-	var errBuf bytes.Buffer
-	stderrOut = &errBuf
-	t.Cleanup(func() {
-		waitStatePath = prevPath
-		waitNow = prevNow
-		stderrOut = prevErr
-	})
-
-	var first bytes.Buffer
-	err := runWait(nil, []string{"--json", "--timeout", "30", "demo", "R"}, &first)
-	var ee *exitErr
-	if !errors.As(err, &ee) || ee.ExitCode() != exitWaitTimeout {
-		t.Fatalf("first runWait --json should time out, got: %v", err)
-	}
-	firstErr := errBuf.String()
-	if strings.Contains(firstErr, "recent wait detected") {
-		t.Fatalf("first wait should not emit eagerness warning, got: %q", firstErr)
-	}
-
-	waitNow = func() time.Time { return base.Add(12 * time.Second) }
-	errBuf.Reset()
-	var second bytes.Buffer
-	err = runWait(nil, []string{"--json", "--timeout", "30", "demo", "R"}, &second)
-	if !errors.As(err, &ee) || ee.ExitCode() != exitWaitTimeout {
-		t.Fatalf("second runWait --json should time out, got: %v", err)
-	}
-	if !json.Valid(bytes.TrimSpace(second.Bytes())) {
-		t.Fatalf("stdout must remain pure JSON, got: %q", second.String())
-	}
-	warn := errBuf.String()
-	if !strings.Contains(warn, "recent wait detected for demo/R") {
-		t.Fatalf("expected eager-wait warning, got: %q", warn)
-	}
-	if !strings.Contains(warn, "tail --pid=<pid> -f /dev/null") {
-		t.Fatalf("expected attach guidance, got: %q", warn)
 	}
 }
 

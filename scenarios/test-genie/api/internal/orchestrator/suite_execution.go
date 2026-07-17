@@ -19,6 +19,7 @@ import (
 
 	"test-genie/internal/basprobe"
 	"test-genie/internal/captureprofile"
+	"test-genie/internal/executionevidence"
 	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/phaseregistry"
 	"test-genie/internal/orchestrator/phases"
@@ -126,7 +127,6 @@ type SuiteOrchestrator struct {
 	newRuntime    func(name, scenarioDir string) *targetruntime.Manager
 	readiness     *providerreadiness.Manager
 	claims        *playbooksclaims.Service
-	retentionGC   func(context.Context, string)
 }
 
 // SetClaims wires the playbooks-claims service used by the playbooks phase
@@ -136,12 +136,6 @@ func (o *SuiteOrchestrator) SetClaims(svc *playbooksclaims.Service) {
 		return
 	}
 	o.claims = svc
-}
-
-func runRetentionGC(ctx context.Context, scenarioDir string) {
-	if _, err := sharedruns.GC(ctx, scenarioDir, sharedruns.DefaultRetentionPolicy()); err != nil {
-		log.Printf("run retention GC failed: %v", err)
-	}
 }
 
 // SuiteExecutionRequest configures a single test execution run.
@@ -397,7 +391,6 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 		phaseToggles: newPhaseToggleStore(),
 		newRuntime:   targetruntime.New,
 		readiness:    providerreadiness.NewManager(),
-		retentionGC:  runRetentionGC,
 	}, nil
 }
 
@@ -759,6 +752,8 @@ func (o *SuiteOrchestrator) finalizeExecution(
 		resultViews,
 	); err != nil {
 		log.Printf("failed to write findings artifact: %v", err)
+	} else if err := writeEvidenceManifest(prepared.env.ScenarioDir, prepared.runID, result.ScenarioName, result.Verdict, result.CompletedAt, resultViews); err != nil {
+		log.Printf("failed to write evidence manifest: %v", err)
 	}
 	// Inventory the bytes already owned by this run before publishing terminal
 	// state. The catalog is metadata only: no provider artifact is copied into a
@@ -797,17 +792,6 @@ func (o *SuiteOrchestrator) finalizeExecution(
 
 	result.Requirements = o.syncRequirementsIfNeeded(ctx, prepared.env, prepared.config, req, prepared.plan, phaseResults)
 	o.finalizeRunRecord(prepared.env.ScenarioDir, prepared.runID, result, resultViews)
-
-	// Enforce run retention in the background so a large/old history can't grow
-	// unbounded. Pinned runs (e.g. GCT baselines) are always preserved.
-	scenarioDir := prepared.env.ScenarioDir
-	// Detached from the request context (it must outlive the response) but
-	// still context-aware so retention can be cancelled in the future.
-	go func(ctx context.Context) {
-		if o.retentionGC != nil {
-			o.retentionGC(ctx, scenarioDir)
-		}
-	}(context.Background())
 
 	return result
 }
@@ -853,7 +837,7 @@ func (o *SuiteOrchestrator) finalizeRunRecord(scenarioDir, runID string, result 
 		}
 		phaseRecords = append(phaseRecords, record)
 	}
-	err := sharedruns.NewIndex(scenarioDir).Finalize(runID, result, func(r *sharedruns.RunRecord) error {
+	err := sharedruns.NewIndex(scenarioDir).Finalize(runID, CompactTerminalSnapshot(result), func(r *sharedruns.RunRecord) error {
 		r.Status = status
 		r.CompletedAt = result.CompletedAt
 		r.Phases = phaseRecords
@@ -864,6 +848,36 @@ func (o *SuiteOrchestrator) finalizeRunRecord(scenarioDir, runID string, result 
 	if err != nil {
 		log.Printf("failed to finalize run %s in index: %v", runID, err)
 	}
+}
+
+// CompactTerminalSnapshot is the terminal-snapshot persistence boundary. The
+// in-memory result can contain provider findings and observations while a suite
+// runs; the snapshot must retain only durable run metadata and phase summaries.
+// Canonical detail is addressed through evidence-manifest.json instead.
+func CompactTerminalSnapshot(result *SuiteExecutionResult) *SuiteExecutionResult {
+	if result == nil {
+		return nil
+	}
+	compact := *result
+	compact.Phases = make([]PhaseExecutionResult, 0, len(result.Phases))
+	for _, phase := range result.Phases {
+		compact.Phases = append(compact.Phases, PhaseExecutionResult{
+			Name:               phase.Name,
+			Status:             phase.Status,
+			DurationSeconds:    phase.DurationSeconds,
+			Error:              phase.Error,
+			Classification:     phase.Classification,
+			Remediation:        phase.Remediation,
+			RunnabilityVerdict: phase.RunnabilityVerdict,
+			RunnabilityReason:  phase.RunnabilityReason,
+			FindingSource:      phase.FindingSource,
+			PhasePresentation:  phase.PhasePresentation,
+			FindingsSummary:    phase.FindingsSummary,
+		})
+	}
+	compact.Warnings = nil
+	compact.WarningSummary = WarningSummary{Total: result.WarningSummary.Total}
+	return &compact
 }
 
 // BuildWarningSummary converts WARNING observations into a deterministic
@@ -1421,10 +1435,11 @@ type findingsArtifactPhase struct {
 	FindingsSummary   *runspb.PhaseFindingsSummary `json:"findingsSummary,omitempty"`
 }
 
-// writeFindingsArtifact persists the combined per-run findings document under
-// coverage/runs/<runID>/findings.json and mirrors it to
-// coverage/latest/findings.json. Encoding matches the suite `--json` report
-// (encoding/json, enums as integers) so the cartographer ingest round-trips.
+// writeFindingsArtifact persists the one canonical detailed findings document
+// under coverage/runs/<runID>/findings.json. Encoding matches the suite
+// `--json` report (encoding/json, enums as integers) so the cartographer ingest
+// round-trips. The latest view is a lightweight manifest pointer, never a
+// second findings copy.
 func (o *SuiteOrchestrator) writeFindingsArtifact(scenarioDir, scenario, runID, verdict string, completedAt time.Time, results []phaseResultView) error {
 	artifact := findingsArtifact{
 		Scenario:    scenario,
@@ -1447,13 +1462,47 @@ func (o *SuiteOrchestrator) writeFindingsArtifact(scenarioDir, scenario, runID, 
 	if err := writer.EnsureDir(sharedartifacts.RunDir(scenarioDir, runID)); err != nil {
 		return err
 	}
-	if err := writer.EnsureDir(sharedartifacts.LatestDirPath(scenarioDir)); err != nil {
+	return writer.WriteJSON(sharedartifacts.RunFindingsArtifactPath(scenarioDir, runID), artifact)
+}
+
+// writeEvidenceManifest publishes the versioned canonical index only after its
+// detailed findings owner is durable. All phase projections refer back to that
+// one payload instead of embedding duplicate arrays.
+func writeEvidenceManifest(scenarioDir, runID, scenario, verdict string, completedAt time.Time, results []phaseResultView) error {
+	writer, err := executionevidence.NewWriter(sharedartifacts.RunDir(scenarioDir, runID))
+	if err != nil {
 		return err
 	}
-	if err := writer.WriteJSON(sharedartifacts.RunFindingsArtifactPath(scenarioDir, runID), artifact); err != nil {
+	findings, err := writer.ReferenceExisting("findings", "findings.document", sharedartifacts.FindingsArtifactFile, "application/json", "")
+	if err != nil {
 		return err
 	}
-	return writer.WriteJSON(sharedartifacts.LatestFindingsArtifactPath(scenarioDir), artifact)
+	manifest := executionevidence.Manifest{
+		SchemaVersion: executionevidence.SchemaVersion,
+		RunID:         runID,
+		Scenario:      scenario,
+		CreatedAt:     completedAt.UTC(),
+		Verdict:       verdict,
+		Findings:      findings,
+		Phases:        make([]executionevidence.PhaseSummary, 0, len(results)),
+	}
+	for _, result := range results {
+		phase := executionevidence.PhaseSummary{
+			Name:              result.Name,
+			Status:            result.Status,
+			DurationSeconds:   result.DurationSeconds,
+			FindingCount:      len(result.Findings),
+			ObservationCount:  len(result.Observations),
+			FindingSource:     result.FindingSource,
+			PhasePresentation: result.PhasePresentation,
+			FindingsSummary:   result.FindingsSummary,
+		}
+		if phase.FindingCount > 0 {
+			phase.Findings = &findings
+		}
+		manifest.Phases = append(manifest.Phases, phase)
+	}
+	return writer.WriteManifest(manifest)
 }
 
 func updateLatestPointer(latestDir, linkName, target string) error {
@@ -1516,6 +1565,12 @@ type observationEmitter struct {
 	buffer     []byte
 }
 
+// maxObservationLineBytes prevents an uncooperative phase process that emits a
+// newline-free stream from retaining arbitrary log bytes in the orchestration
+// process. Full logs remain owned by the file writer; observations are only a
+// bounded diagnostic projection.
+const maxObservationLineBytes = 4 * 1024
+
 func (e *observationEmitter) Write(p []byte) (n int, err error) {
 	// Write to underlying log
 	n, err = e.underlying.Write(p)
@@ -1525,6 +1580,11 @@ func (e *observationEmitter) Write(p []byte) (n int, err error) {
 
 	// Buffer and scan for complete lines with observation markers
 	e.buffer = append(e.buffer, p...)
+	if len(e.buffer) > maxObservationLineBytes {
+		// A partial line cannot be an event yet. Keep only its recent bounded
+		// tail rather than allowing a malformed producer to grow run memory.
+		e.buffer = append(e.buffer[:0], e.buffer[len(e.buffer)-maxObservationLineBytes:]...)
+	}
 	for {
 		idx := -1
 		for i, b := range e.buffer {

@@ -44,7 +44,19 @@ type SweeperConfig struct {
 	Logger        *log.Logger
 	Interval      time.Duration
 	InitialJitter time.Duration
-	Source        string
+	// RunTimeout bounds each rollup build and persistence attempt. A timed-out
+	// advisory sweep is logged and deferred; it must never hold a shared store
+	// connection indefinitely. RunLoop reserves PersistenceTimeout from this
+	// budget so a successful build never reaches Insert with an expired context.
+	RunTimeout time.Duration
+	// PersistenceTimeout is the bounded terminal-write budget reserved by
+	// RunLoop. Zero uses a small fraction of RunTimeout (at most three seconds).
+	// RunOnce deliberately uses its caller context unchanged for explicit calls.
+	PersistenceTimeout time.Duration
+	Source             string
+	// Status receives the terminal cached outcome of each advisory sweep.
+	// It must be non-blocking and never used to initiate work.
+	Status *StatusStore
 }
 
 // Sweeper writes digest-deduplicated self-health snapshots in the background.
@@ -78,12 +90,16 @@ func NewSweeper(cfg SweeperConfig) (*Sweeper, error) {
 // (skipping on an identical digest). It returns the snapshot and whether it was
 // newly inserted. Concurrent calls return ErrSweepInProgress.
 func (s *Sweeper) RunOnce(ctx context.Context) (Snapshot, bool, error) {
+	return s.runOnce(ctx, ctx, 0)
+}
+
+func (s *Sweeper) runOnce(buildCtx, persistParent context.Context, persistTimeout time.Duration) (Snapshot, bool, error) {
 	if !s.running.CompareAndSwap(false, true) {
 		return Snapshot{}, false, ErrSweepInProgress
 	}
 	defer s.running.Store(false)
 
-	rollup, err := s.cfg.Build(ctx)
+	rollup, err := s.cfg.Build(buildCtx)
 	if err != nil {
 		return Snapshot{}, false, fmt.Errorf("build self-health rollup: %w", err)
 	}
@@ -104,11 +120,36 @@ func (s *Sweeper) RunOnce(ctx context.Context) (Snapshot, bool, error) {
 		Digest:         hex.EncodeToString(sum[:]),
 		Source:         s.cfg.Source,
 	}
-	inserted, err := s.cfg.Repository.Insert(ctx, snap)
+	persistCtx, cancelPersist := persistParent, func() {}
+	if persistTimeout > 0 {
+		persistCtx, cancelPersist = context.WithTimeout(persistParent, persistTimeout)
+	}
+	defer cancelPersist()
+	inserted, err := s.cfg.Repository.Insert(persistCtx, snap)
 	if err != nil {
 		return Snapshot{}, false, err
 	}
 	return snap, inserted, nil
+}
+
+func (s *Sweeper) runBudgets() (time.Duration, time.Duration) {
+	total := s.cfg.RunTimeout
+	if total <= 0 {
+		return 0, 0
+	}
+	persist := s.cfg.PersistenceTimeout
+	if persist <= 0 {
+		persist = 3 * time.Second
+	}
+	// Leave the majority of the bounded sweep for analysis, while always
+	// reserving some terminal-write time even for tiny test/override deadlines.
+	if max := total / 4; persist > max {
+		persist = max
+	}
+	if persist <= 0 {
+		persist = total
+	}
+	return total - persist, persist
 }
 
 // RunLoop runs RunOnce on an interval until ctx is cancelled. An optional
@@ -131,13 +172,34 @@ func (s *Sweeper) RunLoop(ctx context.Context) {
 	}
 
 	run := func() {
-		snap, inserted, err := s.RunOnce(ctx)
+		started := s.cfg.Now().UTC()
+		buildCtx, cancelBuild := ctx, func() {}
+		persistBudget := time.Duration(0)
+		if buildBudget, writeBudget := s.runBudgets(); buildBudget > 0 {
+			buildCtx, cancelBuild = context.WithTimeout(ctx, buildBudget)
+			persistBudget = writeBudget
+		}
+		defer cancelBuild()
+		snap, inserted, err := s.runOnce(buildCtx, ctx, persistBudget)
+		status := SweepStatus{StartedAt: started, CompletedAt: s.cfg.Now().UTC(), RunCount: snap.RunCount, Outcome: "succeeded"}
+		status.Duration = status.CompletedAt.Sub(started)
 		if err != nil {
+			status.Outcome = "failed"
+			if errors.Is(err, context.DeadlineExceeded) {
+				status.Outcome = "timed_out"
+			}
+			status.Error = err.Error()
+			if s.cfg.Status != nil {
+				s.cfg.Status.Record(status)
+			}
 			if errors.Is(err, context.Canceled) || errors.Is(err, ErrSweepInProgress) {
 				return
 			}
 			s.cfg.Logger.Printf("[test-genie] self-health sweep failed: %v", err)
 			return
+		}
+		if s.cfg.Status != nil {
+			s.cfg.Status.Record(status)
 		}
 		if inserted {
 			s.cfg.Logger.Printf("[test-genie] self-health snapshot persisted: availability=%.3f run_count=%d hard_violations=%d",

@@ -842,6 +842,59 @@ func TestAbortOrphanDowngradesIndex(t *testing.T) {
 	}
 }
 
+func TestWaitOrphanDowngradesIndexInsteadOfReturningInProgress(t *testing.T) {
+	root := t.TempDir()
+	scenario := "demo"
+	runID := "20260716-190415-371abe2e"
+	if err := sharedruns.NewIndex(root + "/" + scenario).Append(sharedruns.RunRecord{
+		RunID:     runID,
+		Scenario:  scenario,
+		StartedAt: time.Now().UTC(),
+		Status:    sharedruns.StatusInProgress,
+	}); err != nil {
+		t.Fatalf("seed orphan: %v", err)
+	}
+
+	m := New(nil, root)
+	st, err := m.Wait(context.Background(), scenario, runID)
+	if err != nil {
+		t.Fatalf("wait orphan: %v", err)
+	}
+	if st.Status != sharedruns.StatusAborted {
+		t.Fatalf("wait orphan status = %q, want aborted", st.Status)
+	}
+	rec, err := sharedruns.NewIndex(root + "/" + scenario).Find(runID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if rec.Status != sharedruns.StatusAborted {
+		t.Fatalf("durable status = %q, want aborted (wait must not return a stranded in-progress run)", rec.Status)
+	}
+}
+
+func TestStatusOrphanDowngradesIndexInsteadOfReturningInProgress(t *testing.T) {
+	root := t.TempDir()
+	scenario := "demo"
+	runID := "20260716-200000-371abe2e"
+	if err := sharedruns.NewIndex(root + "/" + scenario).Append(sharedruns.RunRecord{
+		RunID:     runID,
+		Scenario:  scenario,
+		StartedAt: time.Now().UTC(),
+		Status:    sharedruns.StatusInProgress,
+	}); err != nil {
+		t.Fatalf("seed orphan: %v", err)
+	}
+
+	m := New(nil, root)
+	st, err := m.Status(scenario, runID)
+	if err != nil {
+		t.Fatalf("status orphan: %v", err)
+	}
+	if st.Status != sharedruns.StatusAborted {
+		t.Fatalf("orphan status = %q, want aborted", st.Status)
+	}
+}
+
 // TestFailedRunReconcilesDurableRecord is the regression guard for the orphan
 // factory: when the executor returns an error before the orchestrator finalizes
 // (leaving the durable record at in_progress), drive() must reconcile it to a

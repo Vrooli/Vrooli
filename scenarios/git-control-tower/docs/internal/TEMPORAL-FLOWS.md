@@ -40,13 +40,19 @@
   manifest + ready intent. Resume through `snapshot status --run R [--wait]` or
   startup reattachment. Caller cancellation/deadline leaves the intent pending.
 - **Collection capture:** every member has its own durable snapshot intent and
-  asynchronous finalizer. Non-wait collection reads reconcile only terminal
-  members; `show --wait` is the explicit producer-owned reattachment. Member
+  asynchronous finalizer. `show` is a pure standing read; `show --wait` calls
+  the explicit producer-owned attachment RPC. Member
   readiness means immutable evidence persisted, not a passing suite verdict.
 - **Diff:** `StartDiff` persists the base/current run identities before detached
   comparison. Terminal comparison cache + ready intent is the commit boundary.
-  Resume through `diff status --run R [--wait]`; an absent cache is recomputed
+  Resume through `diff status --run R` or the explicit `diff wait --run R`; an absent cache is recomputed
   from durable Test Genie runs. Caller cancellation/deadline stays non-terminal.
+- **Collection diff:** `StartCollectionDiff` atomically records the selected
+  members and an immutable collection snapshot before returning child handles.
+  `diff status` is a pure aggregate/child standing read; `diff wait` is the
+  sole parent attachment. If collection
+  cleanup happened later, the operation snapshot remains the authoritative
+  comparison identity; it does not silently bind to a same-named replacement.
 - **CLI wait:** one blocking read. EOF, cancellation, or transport deadline
   permits exactly one inspect read by the same durable run ID; ordinary errors
   are returned and mutations are never replayed.

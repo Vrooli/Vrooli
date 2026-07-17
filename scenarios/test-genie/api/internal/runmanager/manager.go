@@ -186,6 +186,7 @@ type LiveStatus struct {
 	PhaseIndex                  int
 	PhaseTotal                  int
 	StartedAt                   time.Time
+	LastProgressAt              time.Time
 	ElapsedSeconds              float64
 	EstimatedTotalSeconds       int
 	EstimatedRemainingSeconds   int
@@ -689,9 +690,14 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 	close(stopHB)
 
 	aborted := ctx.Err() != nil
+	// ExecuteWithEvents may return rich observations, findings, and diagnostic
+	// payloads. The manager only needs a terminal summary during retireGrace;
+	// canonical detail has already been persisted by the orchestrator. Never
+	// retain the full executor result in the live registry.
+	compactResult := orchestrator.CompactTerminalSnapshot(result)
 
 	ar.mu.Lock()
-	ar.result = result
+	ar.result = compactResult
 	ar.err = err
 	switch {
 	case aborted:
@@ -831,13 +837,26 @@ func (m *Manager) retire(ar *activeRun) {
 // the run. For a run that is no longer active, a terminal snapshot is
 // synthesized from the durable index.
 func (m *Manager) Follow(ctx context.Context, scenario, runID string) (replay []Event, ch <-chan Event, err error) {
+	return m.FollowAfter(ctx, scenario, runID, 0)
+}
+
+// FollowAfter resumes strictly after a monotonic event sequence. The bounded
+// broadcaster returns ErrStaleCursor when the requested point has been evicted;
+// callers then recover durable detail instead of growing live memory.
+func (m *Manager) FollowAfter(ctx context.Context, scenario, runID string, after uint64) (replay []Event, ch <-chan Event, err error) {
 	ar := m.lookup(scenario, runID)
 	if ar == nil {
+		if after > 0 {
+			return nil, nil, ErrStaleCursor
+		}
 		return m.terminalReplay(scenario, runID)
 	}
 
-	hist, live, cancel := ar.bc.subscribe()
-	out := make(chan Event, subscriberBuffer)
+	hist, live, cancel, err := ar.bc.subscribeAfter(after)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := make(chan Event, defaultSubscriberBuffer)
 	go func() {
 		defer close(out)
 		defer cancel()
@@ -894,6 +913,15 @@ func (m *Manager) Wait(ctx context.Context, scenario, runID string) (LiveStatus,
 	ar := m.lookup(scenario, runID)
 	if ar == nil {
 		ls, err := m.statusFromIndex(scenario, runID)
+		if err == nil && !isTerminal(ls.Status) {
+			// A non-terminal durable record with no live owner cannot make
+			// progress: this manager owns every active run in-memory. Resolve it
+			// immediately using the same crash-recovery transition as Abort and
+			// startup Sweep. Returning it as a successful Wait response would
+			// violate the wait contract and strand parent operations indefinitely.
+			m.downgradeOrphanIndex(scenario, runID)
+			return m.statusFromIndex(scenario, runID)
+		}
 		return ls, err
 	}
 	select {
@@ -916,7 +944,15 @@ func (m *Manager) Status(scenario, runID string) (LiveStatus, error) {
 		}
 		return m.snapshot(ar), nil
 	}
-	return m.statusFromIndex(scenario, runID)
+	status, err := m.statusFromIndex(scenario, runID)
+	if err == nil && !isTerminal(status.Status) {
+		// A durable non-terminal record without a live manager-owned executor is
+		// an orphan. Status is a recovery boundary too: returning "running" here
+		// would make callers poll a state that cannot ever progress.
+		m.downgradeOrphanIndex(scenario, runID)
+		return m.statusFromIndex(scenario, runID)
+	}
+	return status, err
 }
 
 // Abort cancels an active run and blocks (bounded) until it reaches its
@@ -1100,7 +1136,7 @@ func (m *Manager) markIndexAborted(scenario, runID string, result *orchestrator.
 	if err := ensureArtifactCatalog(m.scenarioDir(scenario), runID, result.CompletedAt); err != nil {
 		result.Warnings = append(result.Warnings, "artifact catalog unavailable: "+err.Error())
 	}
-	err = idx.Finalize(runID, result, func(r *sharedruns.RunRecord) error {
+	err = idx.Finalize(runID, orchestrator.CompactTerminalSnapshot(result), func(r *sharedruns.RunRecord) error {
 		r.Status = sharedruns.StatusAborted
 		if r.CompletedAt.IsZero() {
 			r.CompletedAt = result.CompletedAt
@@ -1168,7 +1204,7 @@ func (m *Manager) reconcileDurableTerminal(scenario, runID, status string, resul
 	if err := ensureArtifactCatalog(m.scenarioDir(scenario), runID, result.CompletedAt); err != nil {
 		result.Warnings = append(result.Warnings, "artifact catalog unavailable: "+err.Error())
 	}
-	err := idx.Finalize(runID, result, func(r *sharedruns.RunRecord) error {
+	err := idx.Finalize(runID, orchestrator.CompactTerminalSnapshot(result), func(r *sharedruns.RunRecord) error {
 		r.Status = status
 		if r.CompletedAt.IsZero() {
 			r.CompletedAt = result.CompletedAt
@@ -1249,6 +1285,7 @@ func (m *Manager) snapshot(ar *activeRun) LiveStatus {
 		PhaseIndex:                  ar.phaseIndex,
 		PhaseTotal:                  ar.phaseTotal,
 		StartedAt:                   ar.startedAt,
+		LastProgressAt:              ar.lastEventAt,
 		ElapsedSeconds:              round1(elapsed),
 		EstimatedTotalSeconds:       ar.etaTotal,
 		EstimatedRemainingSeconds:   remaining,
@@ -1302,6 +1339,7 @@ func (m *Manager) statusFromIndex(scenario, runID string) (LiveStatus, error) {
 		Scenario:                    rec.Scenario,
 		Status:                      rec.Status,
 		StartedAt:                   rec.StartedAt,
+		LastProgressAt:              rec.CompletedAt,
 		ElapsedSeconds:              round1(elapsed),
 		Success:                     rec.Status == sharedruns.StatusPassed,
 		RecommendedNextCheckSeconds: recommendedNextCheck(rec.Status, 0, false),
@@ -1343,10 +1381,6 @@ func (m *Manager) statusFromIndex(scenario, runID string) (LiveStatus, error) {
 	}
 	ls.Result = &result
 	terminalRecord := snapshot.Run
-	// Pins are mutable retention metadata rather than terminal test evidence.
-	// Merge the current index generation so a snapshot read never resurrects a
-	// stale pin set while every immutable terminal field stays snapshot-owned.
-	terminalRecord.Pins = append([]sharedruns.PinRecord(nil), rec.Pins...)
 	ls.TerminalRecord = &terminalRecord
 	ls.TerminalSnapshotSchemaVersion = snapshot.SchemaVersion
 	ls.Verdict = result.Verdict

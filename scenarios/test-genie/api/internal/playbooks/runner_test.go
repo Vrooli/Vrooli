@@ -130,8 +130,8 @@ func (m *mockBASClient) GetRecordedHar(ctx context.Context, executionID string) 
 	return nil, nil
 }
 
-func (m *mockBASClient) DownloadAsset(ctx context.Context, assetURL string) ([]byte, error) {
-	return nil, nil
+func (m *mockBASClient) StreamAsset(ctx context.Context, assetURL string, destination io.Writer, maxBytes int64) (int64, error) {
+	return 0, nil
 }
 
 func (m *mockBASClient) BaseURL() string {

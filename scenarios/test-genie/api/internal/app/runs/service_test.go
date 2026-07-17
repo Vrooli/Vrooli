@@ -10,10 +10,12 @@ import (
 
 	"connectrpc.com/connect"
 
+	"test-genie/internal/executionevidence"
 	"test-genie/internal/orchestrator/phases"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
@@ -412,6 +414,12 @@ func TestGetPhaseArtifact(t *testing.T) {
 	if _, err := svc.GetPhaseArtifact(context.Background(), connect.NewRequest(&runspb.GetPhaseArtifactRequest{Scenario: "demo", RunId: "r1", Phase: "missing"})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("expected NotFound, got %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(phaseDir, "oversized.json"), make([]byte, maxPhaseArtifactResponseBytes+1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.GetPhaseArtifact(context.Background(), connect.NewRequest(&runspb.GetPhaseArtifactRequest{Scenario: "demo", RunId: "r1", Phase: "oversized"})); connect.CodeOf(err) != connect.CodeResourceExhausted {
+		t.Fatalf("oversized artifact code = %s err=%v", connect.CodeOf(err), err)
+	}
 }
 
 func TestListAndGetRunArtifactsUseOpaqueTypedReferences(t *testing.T) { // [REQ:TESTGENIE-TYPED-EVIDENCE-P0]
@@ -518,8 +526,7 @@ func TestGetRunFindings(t *testing.T) {
 	if err := os.MkdirAll(runDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// A findings.json carrying a per-phase maturity standing, as written by the
-	// orchestrator (encoding/json using the proto json tags).
+	// The detailed findings document is deliberately opaque to the summary RPC.
 	findings := `{
 	  "scenario": "demo",
 	  "runId": "r1",
@@ -533,6 +540,28 @@ func TestGetRunFindings(t *testing.T) {
 	if err := os.WriteFile(sharedartifacts.RunFindingsArtifactPath(scenarioDir, "r1"), []byte(findings), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	writer, err := executionevidence.NewWriter(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err := writer.ReferenceExisting("findings", "findings.document", sharedartifacts.FindingsArtifactFile, "application/json", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteManifest(executionevidence.Manifest{
+		SchemaVersion: executionevidence.SchemaVersion, RunID: "r1", Scenario: "demo", Verdict: "pass", CreatedAt: time.Now().UTC(), Findings: ref,
+		Phases: []executionevidence.PhaseSummary{{
+			Name: "contracts", Status: "passed", FindingSource: "cli", FindingsSummary: &runspb.PhaseFindingsSummary{Warnings: 1, Total: 1},
+			PhasePresentation: &commonv1.PhasePresentation{ContractVersion: "v1", Provider: "cli-health", Phase: "contracts", CurrentLevel: "L3", NextLevel: "L4", CeilingLevel: "L4", NorthStar: "Verified primitives.", NextAction: "Prove the primitive.", BlockingFindingCodes: []string{"arch.primitive_unverified"}},
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// The summary projection is self-contained. Removing the detailed payload
+	// proves this RPC cannot accidentally hydrate it to render phase standing.
+	if err := os.Remove(sharedartifacts.RunFindingsArtifactPath(scenarioDir, "r1")); err != nil {
+		t.Fatal(err)
+	}
 
 	resp, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "r1"}))
 	if err != nil {
@@ -543,17 +572,18 @@ func TestGetRunFindings(t *testing.T) {
 	}
 	st := resp.Msg.GetPhases()[0].GetPhasePresentation()
 	if st == nil || st.GetCurrentLevel() != "L3" || st.GetNextLevel() != "L4" || st.GetNorthStar() != "Verified primitives." {
-		t.Fatalf("standing not read back from findings.json: %+v", st)
+		t.Fatalf("standing not read back from evidence manifest: %+v", st)
 	}
 	if st.GetNextAction() != "Prove the primitive." || len(st.GetBlockingFindingCodes()) != 1 {
 		t.Fatalf("standing detail missing: %+v", st)
 	}
 
-	// "latest" resolves via the latest mirror.
+	// "latest" resolves through the lightweight latest run manifest; findings
+	// are not copied under coverage/latest.
 	if err := os.MkdirAll(sharedartifacts.LatestDirPath(scenarioDir), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(sharedartifacts.LatestFindingsArtifactPath(scenarioDir), []byte(findings), 0o644); err != nil {
+	if err := os.WriteFile(sharedartifacts.LatestManifestPath(scenarioDir), []byte(`{"run_id":"r1"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "latest"})); err != nil {
@@ -566,15 +596,14 @@ func TestGetRunFindings(t *testing.T) {
 	}
 }
 
-func TestGetRunFindingsRetainsHistoricalMaturityStanding(t *testing.T) {
+func TestGetRunFindingsDoesNotReadArtifactWithoutManifest(t *testing.T) {
 	svc, root := newTestService(t)
 	scenarioDir := filepath.Join(root, "demo")
 	seedRecord(t, root, sharedruns.RunRecord{RunID: "historical", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed})
 	if err := os.MkdirAll(sharedartifacts.RunDir(scenarioDir, "historical"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// This is the pre-PhasePresentation artifact shape. It is evidence that can
-	// be displayed as historical, but it must never be promoted to canonical v1.
+	// A manifest-less historical artifact must not be decoded by the new runtime.
 	findings := `{
 	  "scenario": "demo",
 	  "runId": "historical",
@@ -590,17 +619,9 @@ func TestGetRunFindingsRetainsHistoricalMaturityStanding(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "historical"}))
-	if err != nil {
-		t.Fatalf("GetRunFindings: %v", err)
-	}
-	phase := resp.Msg.GetPhases()[0]
-	if phase.GetPhasePresentation() != nil {
-		t.Fatalf("historical standing must not be synthesized as canonical v1: %+v", phase.GetPhasePresentation())
-	}
-	standing := phase.GetMaturityStanding()
-	if standing == nil || standing.GetProvider() != "ui-health" || standing.GetCurrentLevel() != "L2" || standing.GetNextLevel() != "L3" {
-		t.Fatalf("historical maturity standing was dropped: %+v", standing)
+	_, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{Scenario: "demo", RunId: "historical"}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("manifest-less artifact code = %s err=%v", connect.CodeOf(err), err)
 	}
 }
 

@@ -743,15 +743,11 @@ func (s *Storage) DeleteCollection(repoID int64, branch, name string) error {
 		} else if err != nil {
 			return fmt.Errorf("delete collection: %w", err)
 		}
-		matches, err := filepath.Glob(filepath.Join(dir, ".diffs", sanitizeSegment(name)+"__*.json"))
-		if err != nil {
-			return fmt.Errorf("find collection diff operations for deletion: %w", err)
-		}
-		for _, path := range matches {
-			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("delete collection diff operation: %w", err)
-			}
-		}
+		// Collection diff operations are independent durable records. They retain
+		// their immutable collection snapshot so deletion of the mutable
+		// collection cannot strand a detached validation or erase its audit trail.
+		// Their lifecycle is governed by operation retention, not collection
+		// deletion.
 		return nil
 	})
 }

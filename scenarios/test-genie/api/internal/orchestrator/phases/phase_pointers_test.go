@@ -13,11 +13,10 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
-// TestWritePhasePointerPersistsFindings pins the cached-artifact contract
-// consumed by scenario-completeness-scoring: the per-run phase-results file
-// carries the phase's normalized findings, round-trippable through
-// encoding/json into ArchitectureFinding with enum values intact.
-func TestWritePhasePointerPersistsFindings(t *testing.T) {
+// TestWritePhasePointerPersistsOnlyFindingsReference pins the canonical-owner
+// contract: phase projections retain counts and a reference, never a second
+// normalized findings array.
+func TestWritePhasePointerPersistsOnlyFindingsReference(t *testing.T) {
 	dir := t.TempDir()
 	env := workspace.Environment{
 		RunID:        "20260610-000000-testrun",
@@ -42,32 +41,28 @@ func TestWritePhasePointerPersistsFindings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("phase pointer not written: %v", err)
 	}
-	var payload struct {
-		Status   string                                `json:"status"`
-		Findings []*architecturev1.ArchitectureFinding `json:"findings"`
-	}
+	var payload map[string]any
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		t.Fatalf("phase pointer not decodable: %v", err)
 	}
-	if payload.Status != "passed" {
-		t.Fatalf("status = %q, want passed", payload.Status)
+	if payload["status"] != "passed" {
+		t.Fatalf("status = %q, want passed", payload["status"])
 	}
-	if len(payload.Findings) != 1 {
-		t.Fatalf("findings count = %d, want 1", len(payload.Findings))
+	if payload["finding_count"] != float64(1) {
+		t.Fatalf("finding_count = %#v, want 1", payload["finding_count"])
 	}
-	got := payload.Findings[0]
-	if got.Severity != architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR {
-		t.Fatalf("severity = %v, want ERROR", got.Severity)
+	if payload["findings_artifact"] != filepath.Join("coverage", "runs", env.RunID, "findings.json") {
+		t.Fatalf("findings_artifact = %#v", payload["findings_artifact"])
 	}
-	if got.Source != architecturev1.FindingSource_FINDING_SOURCE_STANDARDS {
-		t.Fatalf("source = %v, want STANDARDS", got.Source)
+	if _, duplicate := payload["findings"]; duplicate {
+		t.Fatalf("phase pointer embeds duplicate findings: %v", payload)
+	}
+	if _, duplicate := payload["observations"]; duplicate {
+		t.Fatalf("phase pointer embeds duplicate observations: %v", payload)
 	}
 }
 
-// TestWritePhasePointerOmitsEmptyFindings keeps older-shape parity: a phase
-// with no findings writes no findings key at all (consumers use key
-// presence to distinguish "clean pass" from "writer predates findings").
-func TestWritePhasePointerOmitsEmptyFindings(t *testing.T) {
+func TestWritePhasePointerRetainsZeroCountsWithoutDetailArrays(t *testing.T) {
 	dir := t.TempDir()
 	env := workspace.Environment{
 		RunID:        "20260610-000001-testrun",
@@ -86,8 +81,17 @@ func TestWritePhasePointerOmitsEmptyFindings(t *testing.T) {
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		t.Fatalf("phase pointer not decodable: %v", err)
 	}
+	if payload["finding_count"] != float64(0) || payload["observation_count"] != float64(1) {
+		t.Fatalf("counts = %#v", payload)
+	}
+	if _, present := payload["findings_artifact"]; present {
+		t.Fatalf("findings artifact present on zero-finding report: %v", payload)
+	}
 	if _, present := payload["findings"]; present {
-		t.Fatalf("findings key present on findings-less report: %v", payload)
+		t.Fatalf("duplicate findings key present: %v", payload)
+	}
+	if _, present := payload["observations"]; present {
+		t.Fatalf("duplicate observations key present: %v", payload)
 	}
 }
 

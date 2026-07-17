@@ -8,8 +8,6 @@
 package runmanager
 
 import (
-	"test-genie/internal/orchestrator"
-
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
@@ -36,6 +34,8 @@ const (
 // fields relevant to a given Kind are populated; ElapsedSeconds is always set
 // (seconds since the run started, rounded to 0.1s).
 type Event struct {
+	// Sequence is monotonic within one run and supports bounded replay resume.
+	Sequence       uint64  `json:"sequence,omitempty"`
 	Kind           string  `json:"event"`
 	ElapsedSeconds float64 `json:"elapsed_seconds"`
 
@@ -66,8 +66,8 @@ type Event struct {
 	PhasePresentation *commonv1.PhasePresentation  `json:"-"`
 	FindingsSummary   *runspb.PhaseFindingsSummary `json:"-"`
 
-	// Result is the full terminal result on run_completed (nil otherwise). It is
-	// not serialized into the canonical line stream; transports that need the
-	// rich shape (the blocking REST adapter) read it directly.
-	Result *orchestrator.SuiteExecutionResult `json:"-"`
+	// Detailed terminal evidence is intentionally absent from events. Followers
+	// receive compact progress only; terminal detail is read from the durable
+	// evidence lifecycle by an explicit detail request. Keeping a result pointer
+	// here would make replay history retain an unbounded completed suite.
 }

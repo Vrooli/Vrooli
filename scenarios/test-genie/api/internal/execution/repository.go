@@ -3,7 +3,6 @@ package execution
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -26,10 +25,6 @@ func NewSuiteExecutionRepository(db dbexec.Executor) *SuiteExecutionRepository {
 }
 
 func (r *SuiteExecutionRepository) Create(ctx context.Context, record *SuiteExecutionRecord) error {
-	payload, err := json.Marshal(record.Phases)
-	if err != nil {
-		return err
-	}
 	requestedPhases, err := sqliteutil.MarshalStringSlice(record.RequestedPhases)
 	if err != nil {
 		return err
@@ -59,11 +54,10 @@ INSERT INTO suite_executions (
 	fail_fast,
 	success,
 	terminal_outcome,
-	phases,
-	started_at,
-	completed_at
+		started_at,
+		completed_at
 ) VALUES (
-	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )`
 
 	// terminal_outcome is the run-level classification. A caller that did not
@@ -74,7 +68,12 @@ INSERT INTO suite_executions (
 		outcome = outcomeForSuccess(record.Success)
 	}
 
-	_, err = r.db.ExecContext(
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(
 		ctx,
 		q,
 		record.ID.String(),
@@ -91,11 +90,16 @@ INSERT INTO suite_executions (
 		boolToInt(record.FailFast),
 		boolToInt(record.Success),
 		outcome.String(),
-		string(payload),
 		sqliteutil.FormatTimestamp(record.StartedAt),
 		sqliteutil.FormatTimestamp(record.CompletedAt),
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if err := insertPhaseHistory(ctx, tx, record.ID, record.Phases); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *SuiteExecutionRepository) ListRecent(ctx context.Context, scenario string, limit int, offset int) ([]SuiteExecutionRecord, error) {
@@ -122,7 +126,6 @@ SELECT
 	fail_fast,
 	success,
 	terminal_outcome,
-	phases,
 	started_at,
 	completed_at
 FROM suite_executions`
@@ -131,6 +134,9 @@ FROM suite_executions`
 		baseQuery += " WHERE scenario_name = ?"
 		args = append(args, scenario)
 	}
+	// List surfaces are summary-only. Selecting NULL rather than the JSON blob is
+	// load-bearing: historical rows can contain hundreds of megabytes of phase
+	// detail, and list polling must never hydrate it into the API process.
 	baseQuery += " ORDER BY completed_at DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
@@ -171,7 +177,6 @@ SELECT
 	fail_fast,
 	success,
 	terminal_outcome,
-	phases,
 	started_at,
 	completed_at
 FROM suite_executions
@@ -179,6 +184,10 @@ WHERE id = ?
 `
 	row := r.db.QueryRowContext(ctx, q, id.String())
 	record, err := scanSuiteExecutionRecord(row)
+	if err != nil {
+		return nil, err
+	}
+	record.Phases, err = r.loadPhaseHistory(ctx, record.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -194,6 +203,31 @@ func (r *SuiteExecutionRepository) Latest(ctx context.Context) (*SuiteExecutionR
 		return nil, nil
 	}
 	return &records[0], nil
+}
+
+// DeleteByRunID removes compact execution-history rows as part of the one
+// retention lifecycle. It deliberately has no public handler of its own:
+// artifact, log, index, and SQLite deletion must converge through
+// shared/runs.RetentionService and its tombstone recovery.
+func (r *SuiteExecutionRepository) DeleteByRunID(ctx context.Context, runID string) error {
+	if strings.TrimSpace(runID) == "" {
+		return fmt.Errorf("run id is required")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Do not depend on connection-local foreign_keys pragmas for lifecycle
+	// correctness: the compact child rows are removed explicitly with their
+	// owning execution headers.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM suite_execution_phases WHERE execution_id IN (SELECT id FROM suite_executions WHERE run_id = ?)`, runID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM suite_executions WHERE run_id = ?`, runID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *SuiteExecutionRepository) ListPhaseSamples(ctx context.Context, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error) {
@@ -223,16 +257,11 @@ func (r *SuiteExecutionRepository) ListPhaseSamples(ctx context.Context, phaseNa
 
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(normalized)), ",")
 	q := fmt.Sprintf(`
-SELECT
-	scenario_name,
-	LOWER(TRIM(json_extract(phase.value, '$.name'))) AS phase_name,
-	LOWER(TRIM(COALESCE(json_extract(phase.value, '$.status'), ''))) AS status,
-	MAX(CAST(COALESCE(json_extract(phase.value, '$.durationSeconds'), 0) AS INTEGER), 0) AS duration_seconds,
-	completed_at
-FROM suite_executions
-JOIN json_each(suite_executions.phases) AS phase
-WHERE LOWER(TRIM(json_extract(phase.value, '$.name'))) IN (%s)
-  AND completed_at >= ?
+SELECT e.scenario_name, p.phase_name, p.status, p.duration_seconds, e.completed_at
+FROM suite_execution_phases AS p
+JOIN suite_executions AS e ON e.id = p.execution_id
+WHERE p.phase_name IN (%s)
+  AND e.completed_at >= ?
 ORDER BY completed_at DESC
 LIMIT ?
 `, placeholders)
@@ -347,7 +376,6 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	var failFast int
 	var success int
 	var terminalOutcome sql.NullString
-	var phasesJSON any
 	var startedAt any
 	var completedAt any
 
@@ -366,7 +394,6 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 		&failFast,
 		&success,
 		&terminalOutcome,
-		&phasesJSON,
 		&startedAt,
 		&completedAt,
 	); err != nil {
@@ -415,9 +442,6 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 		record.TerminalOutcome = TerminalOutcome(terminalOutcome.String)
 	}
 
-	if err := sqliteutil.UnmarshalJSON(phasesJSON, &record.Phases); err != nil {
-		return record, err
-	}
 	record.StartedAt, err = sqliteutil.ParseTimestamp(startedAt)
 	if err != nil {
 		return record, err

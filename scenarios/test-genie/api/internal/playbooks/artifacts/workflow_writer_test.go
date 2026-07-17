@@ -2,6 +2,8 @@ package artifacts
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +14,38 @@ import (
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
+
+func TestStreamDiagnosticArtifactPublishesWithoutRetainingBytes(t *testing.T) {
+	tempDir := t.TempDir()
+	writer := NewWriter(tempDir, "test-scenario", pbRunID, tempDir)
+	path, err := writer.StreamDiagnosticArtifact("bas/cases/video.json", "video", "run.webm", 16, func(destination io.Writer, maxBytes int64) (int64, error) {
+		n, err := io.WriteString(destination, "video-bytes")
+		return int64(n), err
+	})
+	if err != nil {
+		t.Fatalf("StreamDiagnosticArtifact: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || string(data) != "video-bytes" {
+		t.Fatalf("published diagnostic = %q, err=%v", data, err)
+	}
+}
+
+func TestStreamDiagnosticArtifactRemovesFailedPartialWrite(t *testing.T) {
+	tempDir := t.TempDir()
+	writer := NewWriter(tempDir, "test-scenario", pbRunID, tempDir)
+	_, err := writer.StreamDiagnosticArtifact("bas/cases/video.json", "video", "failed.webm", 16, func(destination io.Writer, maxBytes int64) (int64, error) {
+		_, _ = io.WriteString(destination, "partial")
+		return 7, errors.New("source failed")
+	})
+	if err == nil {
+		t.Fatal("expected stream failure")
+	}
+	path := filepath.Join(writer.workflowDir("bas/cases/video.json"), "video", "failed.webm")
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("failed diagnostic published unexpectedly: %v", err)
+	}
+}
 
 func TestWriteWorkflowArtifacts_Basic(t *testing.T) {
 	tempDir := t.TempDir()

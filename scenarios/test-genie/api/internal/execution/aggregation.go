@@ -43,8 +43,8 @@ const defaultAggregationRowCap = 5000
 
 // AggregatePhaseObservations returns the per-phase observations across the most
 // recent runs (capped at limit) completed at or after since. The cap is applied
-// to runs BEFORE the json_each explosion so it bounds scan cost precisely (one
-// run yields many phase rows). Mirrors the ListPhaseSamples json_each precedent.
+// to runs before the compact phase-row join, so it bounds scan cost precisely
+// without parsing a JSON result document for every historical execution.
 func (r *SuiteExecutionRepository) AggregatePhaseObservations(ctx context.Context, since time.Time, limit int) ([]PhaseObservation, error) {
 	if limit <= 0 || limit > defaultAggregationRowCap {
 		limit = defaultAggregationRowCap
@@ -54,24 +54,24 @@ func (r *SuiteExecutionRepository) AggregatePhaseObservations(ctx context.Contex
 SELECT
 	e.scenario_name,
 	COALESCE(e.terminal_outcome, '') AS terminal_outcome,
-	LOWER(TRIM(json_extract(phase.value, '$.name'))) AS phase_name,
-	LOWER(TRIM(COALESCE(json_extract(phase.value, '$.status'), ''))) AS status,
-	LOWER(TRIM(COALESCE(json_extract(phase.value, '$.classification'), ''))) AS classification,
-	LOWER(TRIM(COALESCE(json_extract(phase.value, '$.runnabilityVerdict'), ''))) AS runnability_verdict,
-	TRIM(COALESCE(json_extract(phase.value, '$.runnabilityReason'), '')) AS runnability_reason,
-	LOWER(TRIM(COALESCE(json_extract(phase.value, '$.findingSource'), ''))) AS finding_source,
-	MAX(CAST(COALESCE(json_extract(phase.value, '$.durationSeconds'), 0) AS INTEGER), 0) AS duration_seconds,
-	CASE WHEN json_extract(phase.value, '$.metrics') IS NOT NULL THEN 1 ELSE 0 END AS metrics_present,
+	p.phase_name,
+	p.status,
+	p.classification,
+	p.runnability_verdict,
+	p.runnability_reason,
+	p.finding_source,
+	p.duration_seconds,
+	p.metrics_present,
 	e.completed_at
 FROM (
-	SELECT id, scenario_name, terminal_outcome, phases, completed_at
+	SELECT id, scenario_name, terminal_outcome, completed_at
 	FROM suite_executions
 	WHERE completed_at >= ?
 	ORDER BY completed_at DESC
 	LIMIT ?
 ) AS e
-JOIN json_each(e.phases) AS phase
-WHERE LENGTH(LOWER(TRIM(json_extract(phase.value, '$.name')))) > 0
+JOIN suite_execution_phases AS p ON p.execution_id = e.id
+WHERE p.phase_name <> ''
 `
 
 	rows, err := r.db.QueryContext(ctx, q, sqliteutil.FormatTimestamp(since), limit)

@@ -10,9 +10,11 @@ import (
 
 	"test-genie/internal/dbexec"
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/storage/sqliteutil"
 
 	"github.com/google/uuid"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 // ScenarioSummary aggregates execution telemetry for a single scenario.
@@ -164,7 +166,6 @@ SELECT
 	run_id,
 	preset_used,
 	success,
-	phases,
 	completed_at
 FROM suite_executions
 ORDER BY scenario_name ASC, completed_at DESC
@@ -183,7 +184,6 @@ ORDER BY scenario_name ASC, completed_at DESC
 			runID        sql.NullString
 			preset       sql.NullString
 			success      int
-			phasesValue  any
 			completedAt  any
 		)
 		if err := rows.Scan(
@@ -192,7 +192,6 @@ ORDER BY scenario_name ASC, completed_at DESC
 			&runID,
 			&preset,
 			&success,
-			&phasesValue,
 			&completedAt,
 		); err != nil {
 			return nil, err
@@ -225,20 +224,79 @@ ORDER BY scenario_name ASC, completed_at DESC
 		entry.LastRunID = runID.String
 		entry.LastExecutionSuccess = &succeeded
 
-		var phases []orchestrator.PhaseExecutionResult
-		if err := sqliteutil.UnmarshalJSON(phasesValue, &phases); err != nil {
-			return nil, err
-		}
-		entry.LastExecutionPhases = phases
-		if len(phases) > 0 {
-			summaryValue := orchestrator.SummarizePhases(phases)
-			entry.LastExecutionPhaseSummary = &summaryValue
-		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	if err := r.loadLastExecutionPhases(ctx, result); err != nil {
+		return nil, err
+	}
 	return result, nil
+}
+
+// loadLastExecutionPhases bulk-loads only each scenario's newest execution
+// from the normalized compact projection. Directory listings must never read
+// the retired suite_executions.phases result document.
+func (r *ScenarioDirectoryRepository) loadLastExecutionPhases(ctx context.Context, summaries map[string]*executionSummary) error {
+	ids := make([]string, 0, len(summaries))
+	byID := make(map[string]*executionSummary, len(summaries))
+	for _, summary := range summaries {
+		if summary.LastExecutionID == nil {
+			continue
+		}
+		id := summary.LastExecutionID.String()
+		ids = append(ids, id)
+		byID[id] = summary
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+	q := fmt.Sprintf(`
+SELECT execution_id, phase_name, status, duration_seconds, error_text,
+       classification, remediation, runnability_verdict, runnability_reason,
+       finding_source, findings_blockers, findings_errors, findings_warnings,
+       findings_infos, findings_total
+FROM suite_execution_phases
+WHERE execution_id IN (%s)
+ORDER BY execution_id ASC, ordinal ASC`, placeholders)
+	args := make([]any, len(ids))
+	for i := range ids {
+		args[i] = ids[i]
+	}
+	rows, err := r.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var phase phases.ExecutionResult
+		var blockers, errorsCount, warnings, infos, total int32
+		if err := rows.Scan(&id, &phase.Name, &phase.Status, &phase.DurationSeconds, &phase.Error,
+			&phase.Classification, &phase.Remediation, &phase.RunnabilityVerdict,
+			&phase.RunnabilityReason, &phase.FindingSource, &blockers, &errorsCount,
+			&warnings, &infos, &total); err != nil {
+			return err
+		}
+		if total != 0 || blockers != 0 || errorsCount != 0 || warnings != 0 || infos != 0 {
+			phase.FindingsSummary = &runspb.PhaseFindingsSummary{Blockers: blockers, Errors: errorsCount, Warnings: warnings, Infos: infos, Total: total}
+		}
+		if summary := byID[id]; summary != nil {
+			summary.LastExecutionPhases = append(summary.LastExecutionPhases, phase)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, summary := range summaries {
+		if len(summary.LastExecutionPhases) == 0 {
+			continue
+		}
+		value := orchestrator.SummarizePhases(summary.LastExecutionPhases)
+		summary.LastExecutionPhaseSummary = &value
+	}
+	return nil
 }
 
 func latestActivity(summary ScenarioSummary) *time.Time {

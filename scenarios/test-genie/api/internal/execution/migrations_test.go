@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
 
@@ -96,4 +97,18 @@ VALUES (?, ?, ?, '[]', '2026-01-01T00:00:00.000Z', '2026-01-01T00:01:00.000Z')`,
 	}
 	assertOutcome("11111111-1111-1111-1111-111111111111", TerminalOutcomePassed)
 	assertOutcome("22222222-2222-2222-2222-222222222222", TerminalOutcomeFailed)
+
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'suite_execution_phases'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("normalized phase table missing after migration (count=%d err=%v)", count, err)
+	}
+	// The runtime hard cutover deliberately does not decode old JSON phase
+	// documents. They are preserved only until the offline archive/rebuild
+	// procedure retires the legacy store.
+	record, err := NewSuiteExecutionRepository(db).GetByID(ctx, uuid.MustParse("11111111-1111-1111-1111-111111111111"))
+	if err != nil {
+		t.Fatalf("read migrated header: %v", err)
+	}
+	if len(record.Phases) != 0 {
+		t.Fatalf("legacy phase JSON was read by runtime: %#v", record.Phases)
+	}
 }

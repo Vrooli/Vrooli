@@ -19,6 +19,8 @@ import (
 	workspacepkg "test-genie/internal/orchestrator/workspace"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 type stubRequirementsSyncer struct {
@@ -27,6 +29,26 @@ type stubRequirementsSyncer struct {
 	last          reqsync.SyncInput
 	err           error
 	outcome       *reqsync.SyncOutcome
+}
+
+func TestCompactTerminalSnapshotDropsDetailedPhasePayloads(t *testing.T) {
+	result := &SuiteExecutionResult{Phases: []PhaseExecutionResult{{
+		Name: "security", Status: "failed", DurationSeconds: 3,
+		Observations: []phasespkg.Observation{phasespkg.NewErrorObservation("large observation")},
+		Findings:     []*architecturev1.ArchitectureFinding{{Code: "detailed.finding"}},
+		LogPath:      "coverage/logs/security.log",
+	}}}
+	compact := CompactTerminalSnapshot(result)
+	if compact == result || len(compact.Phases) != 1 {
+		t.Fatalf("compact snapshot = %+v", compact)
+	}
+	phase := compact.Phases[0]
+	if phase.LogPath != "" || len(phase.Observations) != 0 || len(phase.Findings) != 0 || phase.Metrics != nil {
+		t.Fatalf("snapshot retained detailed phase payload: %+v", phase)
+	}
+	if phase.Name != "security" || phase.Status != "failed" || phase.DurationSeconds != 3 {
+		t.Fatalf("snapshot lost compact phase summary: %+v", phase)
+	}
 }
 
 func TestFinalizeRunRecordPersistsCanonicalTerminalSnapshot(t *testing.T) {
@@ -224,7 +246,6 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	noOp := func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
 		return phasespkg.RunReport{}
 	}
-	orchestrator.retentionGC = nil
 	// Provider-backed phases are covered in the phase package. Orchestration
 	// tests replace every discovered runner and detach its provider transport,
 	// so a future provider phase needs no fixture registration and a minimal

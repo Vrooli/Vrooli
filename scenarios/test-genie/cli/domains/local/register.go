@@ -1,6 +1,7 @@
 package local
 
 import (
+	"test-genie/cli/evidencecutover"
 	"test-genie/cli/fleet"
 	"test-genie/cli/health"
 	"test-genie/cli/internal/deps"
@@ -19,6 +20,12 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
 		Title: "Local",
 		Commands: []cliapp.Command{
+			{
+				Name:        "evidence-cutover",
+				NeedsAPI:    false,
+				Description: "Plan or confirmation-gate one offline evidence-and-SQLite archive/rebuild; copied-store rehearsal required before live use",
+				Run:         evidencecutover.Run,
+			},
 			{
 				Name:        "run-tests",
 				NeedsAPI:    true,

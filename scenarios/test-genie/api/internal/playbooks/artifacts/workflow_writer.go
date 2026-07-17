@@ -3,6 +3,8 @@ package artifacts
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -195,6 +197,52 @@ func (w *FileWriter) WriteDiagnosticArtifact(workflowFile, kind, filename string
 		return "", fmt.Errorf("failed to write %s artifact: %w", kind, err)
 	}
 	return path, nil
+}
+
+// StreamDiagnosticArtifact persists a rich diagnostic through a temporary file
+// and atomic rename. The producer writes directly to disk; bytes never become a
+// workflow result field or an aggregate in-memory collection.
+func (w *FileWriter) StreamDiagnosticArtifact(workflowFile, kind, filename string, maxBytes int64, stream func(io.Writer, int64) (int64, error)) (string, error) {
+	if maxBytes < 1 || stream == nil {
+		return "", fmt.Errorf("diagnostic stream and positive size limit are required")
+	}
+	dir := filepath.Join(w.workflowDir(workflowFile), kind)
+	if err := w.EnsureDir(dir); err != nil {
+		return "", fmt.Errorf("create %s dir: %w", kind, err)
+	}
+	path := filepath.Join(dir, sharedartifacts.SanitizeFilename(filename))
+	tmp, err := os.CreateTemp(dir, ".diagnostic-*.tmp")
+	if err != nil {
+		return "", fmt.Errorf("create diagnostic temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	written, streamErr := stream(tmp, maxBytes)
+	closeErr := tmp.Close()
+	if streamErr != nil {
+		return "", streamErr
+	}
+	if closeErr != nil {
+		return "", closeErr
+	}
+	if written < 0 || written > maxBytes {
+		return "", fmt.Errorf("diagnostic exceeds configured budget")
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return "", fmt.Errorf("publish diagnostic artifact: %w", err)
+	}
+	return path, nil
+}
+
+// StreamScreenshot is the screenshot counterpart of StreamDiagnosticArtifact.
+// It returns a scenario-relative artifact reference and never accumulates image
+// bytes in the workflow result.
+func (w *FileWriter) StreamScreenshot(workflowFile, filename string, maxBytes int64, stream func(io.Writer, int64) (int64, error)) (string, error) {
+	path, err := w.StreamDiagnosticArtifact(workflowFile, "screenshots", filename, maxBytes, stream)
+	if err != nil {
+		return "", err
+	}
+	return sharedartifacts.RelPath(w.appRoot, path), nil
 }
 
 // workflowDir returns the directory path for a workflow's artifacts.

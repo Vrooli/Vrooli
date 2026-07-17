@@ -2,12 +2,15 @@ package playbooks
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"test-genie/internal/playbooks/artifacts"
 	"test-genie/internal/playbooks/execution"
 	"test-genie/internal/shared"
 )
+
+const maxDiagnosticArtifactBytes int64 = 256 * 1024 * 1024
 
 // collectWorkflowArtifacts fetches and writes all artifacts for a workflow execution.
 // This includes timeline data, parsed results, screenshots, and generates a README.
@@ -39,12 +42,6 @@ func (r *Runner) collectWorkflowArtifacts(
 	// Update outcome stats from parsed timeline
 	if parsed != nil {
 		outcome.Stats = parsed.Summary.String()
-	}
-
-	// Download screenshots
-	var screenshots []artifacts.ScreenshotData
-	if parsed != nil {
-		screenshots = r.downloadScreenshots(ctx, entry.File, parsed)
 	}
 
 	// Build result for README generation
@@ -83,7 +80,7 @@ func (r *Runner) collectWorkflowArtifacts(
 		entry.File,
 		timelineData,
 		parsed,
-		screenshots,
+		nil,
 		result,
 	)
 	if writeErr != nil {
@@ -91,6 +88,9 @@ func (r *Runner) collectWorkflowArtifacts(
 	}
 
 	if workflowArtifacts != nil {
+		if parsed != nil {
+			r.streamScreenshots(ctx, entry.File, parsed, fileWriter, workflowArtifacts)
+		}
 		shared.LogStep(r.logWriter, "artifacts written to %s", workflowArtifacts.Dir)
 		// Attach proto timeline for error diagnostics
 		workflowArtifacts.Proto = timeline
@@ -129,16 +129,13 @@ func (r *Runner) downloadDiagnostics(ctx context.Context, workflowFile, executio
 			if item.StorageURL == "" {
 				continue
 			}
-			data, dlErr := r.basClient.DownloadAsset(ctx, item.StorageURL)
-			if dlErr != nil {
-				shared.LogWarn(r.logWriter, "failed to download %s artifact %s: %v", k.kind, item.Filename, dlErr)
-				continue
-			}
 			filename := item.Filename
 			if filename == "" {
 				filename = k.kind
 			}
-			if _, wErr := fileWriter.WriteDiagnosticArtifact(workflowFile, k.kind, filename, data); wErr != nil {
+			if _, wErr := fileWriter.StreamDiagnosticArtifact(workflowFile, k.kind, filename, maxDiagnosticArtifactBytes, func(dst io.Writer, maxBytes int64) (int64, error) {
+				return r.basClient.StreamAsset(ctx, item.StorageURL, dst, maxBytes)
+			}); wErr != nil {
 				shared.LogWarn(r.logWriter, "failed to write %s artifact for %s: %v", k.kind, workflowFile, wErr)
 			}
 		}

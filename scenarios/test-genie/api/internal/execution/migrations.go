@@ -7,17 +7,22 @@ import (
 	"test-genie/internal/dbexec"
 )
 
-// Migrate evolves an existing suite_executions table to the current shape
-// without recreating it — the accumulated execution history is the reliability
-// ledger's denominator and must never be dropped. It is guarded and idempotent:
+// Migrate evolves an existing suite_executions table to the compact runtime
+// shape without reading legacy result documents. It is guarded and idempotent:
 // every step introspects current state before acting, so it is safe to run on
-// every boot (fresh DBs already get the column from Schema(); this only matters
-// for databases created before terminal_outcome existed).
+// every boot. Historical evidence remains an operator archive/cutover concern,
+// not a runtime compatibility reader.
 //
 // This is the execution domain's column-evolution hook — the minimal,
 // data-preserving substrate aligned with storage-steer's deferred
 // MigrationProvider direction (PRAGMA introspect → ALTER ADD COLUMN → backfill).
 func Migrate(ctx context.Context, db dbexec.Executor) error {
+	// The normalized phase projection was introduced after suite_executions.
+	// Applying declarative DDL here creates it for an existing database without
+	// reading or expanding the retired phases JSON column.
+	if _, err := db.ExecContext(ctx, Schema()); err != nil {
+		return fmt.Errorf("ensure execution phase schema: %w", err)
+	}
 	for _, column := range []string{"terminal_outcome", "run_id", "phase_set_digest", "descriptor_snapshot_digest", "configuration_fingerprint"} {
 		hasColumn, err := columnExists(ctx, db, "suite_executions", column)
 		if err != nil {

@@ -14,4 +14,10 @@ func TestOpenInitializesSchema(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("expected execution schema table to exist, got %d", count)
 	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'suite_execution_phases'`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("suite_execution_phases table count = %d, want 1", count)
+	}
 }

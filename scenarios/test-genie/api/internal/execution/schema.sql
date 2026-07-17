@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS suite_executions (
     -- errored | aborted | timeout. Nullable so the brownfield migration can
     -- add it to an existing table and backfill from success.
     terminal_outcome TEXT,
-    phases TEXT NOT NULL CHECK (json_valid(phases)),
     started_at TEXT NOT NULL,
     completed_at TEXT NOT NULL
 );
@@ -40,3 +39,35 @@ CREATE INDEX IF NOT EXISTS idx_suite_executions_scenario
 
 CREATE INDEX IF NOT EXISTS idx_suite_executions_completed_at
     ON suite_executions (completed_at DESC);
+
+-- suite_execution_phases is the only queryable phase-history projection.
+-- Rich findings, provider metrics, logs, and presentation payloads belong to
+-- immutable run evidence.  Keeping the compact fields in rows, instead of a
+-- JSON array on suite_executions, lets reliability and planning queries use
+-- indexes without hydrating or parsing historical result documents.
+CREATE TABLE IF NOT EXISTS suite_execution_phases (
+    execution_id TEXT NOT NULL REFERENCES suite_executions(id) ON DELETE CASCADE,
+    ordinal INTEGER NOT NULL,
+    phase_name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT '',
+    duration_seconds INTEGER NOT NULL DEFAULT 0 CHECK (duration_seconds >= 0),
+    error_text TEXT NOT NULL DEFAULT '',
+    classification TEXT NOT NULL DEFAULT '',
+    remediation TEXT NOT NULL DEFAULT '',
+    runnability_verdict TEXT NOT NULL DEFAULT '',
+    runnability_reason TEXT NOT NULL DEFAULT '',
+    finding_source TEXT NOT NULL DEFAULT '',
+    metrics_present INTEGER NOT NULL DEFAULT 0 CHECK (metrics_present IN (0, 1)),
+    findings_blockers INTEGER NOT NULL DEFAULT 0,
+    findings_errors INTEGER NOT NULL DEFAULT 0,
+    findings_warnings INTEGER NOT NULL DEFAULT 0,
+    findings_infos INTEGER NOT NULL DEFAULT 0,
+    findings_total INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (execution_id, ordinal)
+);
+
+CREATE INDEX IF NOT EXISTS idx_suite_execution_phases_execution
+    ON suite_execution_phases (execution_id, ordinal);
+
+CREATE INDEX IF NOT EXISTS idx_suite_execution_phases_name_duration
+    ON suite_execution_phases (phase_name, duration_seconds);

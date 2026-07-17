@@ -93,6 +93,7 @@ func TestApplySchemaCreatesDomainTables(t *testing.T) {
 	}
 
 	assertTableExists(t, db, "suite_executions")
+	assertTableExists(t, db, "suite_execution_phases")
 }
 
 func TestApplySchemaWithoutSeedStillCreatesDomainTables(t *testing.T) {
@@ -113,6 +114,22 @@ func TestEnsureDatabaseSchemaExecutesSchema(t *testing.T) {
 	}
 
 	assertTableExists(t, db, "suite_executions")
+}
+
+func TestOpenHealthDatabaseUsesIndependentSQLiteHandle(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "health.db")
+	db, err := openHealthDatabase(sqlitedb.BuildDSN(path))
+	if err != nil {
+		t.Fatalf("openHealthDatabase: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if stats := db.Stats(); stats.MaxOpenConnections != 1 {
+		t.Fatalf("health pool max connections = %d, want 1", stats.MaxOpenConnections)
+	}
+	var version int
+	if err := db.QueryRow("PRAGMA schema_version").Scan(&version); err != nil {
+		t.Fatalf("query dedicated health handle: %v", err)
+	}
 }
 
 func openSQLite(t *testing.T) *sql.DB {

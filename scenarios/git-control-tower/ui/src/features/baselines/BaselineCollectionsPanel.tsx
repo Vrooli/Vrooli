@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/button";
 import { diffBaselineCollection, getBaselineCollection } from "../../lib/api-baseline-collections";
 import type {
   BaselineCollection,
-  GetCollectionDiffResponse,
+  GetCollectionDiffStatusResponse,
 } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
 
 interface BaselineCollectionsPanelProps {
@@ -22,7 +22,7 @@ export function BaselineCollectionsPanel({ repoId }: BaselineCollectionsPanelPro
   const [name, setName] = useState("");
   const [branch, setBranch] = useState("");
   const [collection, setCollection] = useState<BaselineCollection | undefined>();
-  const [diff, setDiff] = useState<GetCollectionDiffResponse | undefined>();
+  const [diff, setDiff] = useState<GetCollectionDiffStatusResponse | undefined>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 

@@ -112,8 +112,9 @@ type Client interface {
 	GetRecordedTraces(ctx context.Context, executionID string) ([]RecordedArtifact, error)
 	// GetRecordedHar lists recorded HAR archives for an execution.
 	GetRecordedHar(ctx context.Context, executionID string) ([]RecordedArtifact, error)
-	// DownloadAsset downloads an asset (screenshot, artifact) by URL.
-	DownloadAsset(ctx context.Context, assetURL string) ([]byte, error)
+	// StreamAsset downloads one asset directly to destination within maxBytes.
+	// Callers must persist it before requesting the next rich artifact.
+	StreamAsset(ctx context.Context, assetURL string, destination io.Writer, maxBytes int64) (int64, error)
 	// BaseURL returns the base URL of the BAS API (for constructing asset URLs).
 	BaseURL() string
 }
@@ -658,8 +659,12 @@ func (c *HTTPClient) GetRecordedHar(ctx context.Context, executionID string) ([]
 	return toRecordedArtifacts(resp.Msg.GetHarFiles()), nil
 }
 
-// DownloadAsset downloads an asset by URL. The URL can be absolute or relative to the BAS API.
-func (c *HTTPClient) DownloadAsset(ctx context.Context, assetURL string) ([]byte, error) {
+// StreamAsset downloads an asset by URL without materializing its bytes in
+// Test Genie memory. The URL can be absolute or relative to the BAS API.
+func (c *HTTPClient) StreamAsset(ctx context.Context, assetURL string, destination io.Writer, maxBytes int64) (int64, error) {
+	if destination == nil || maxBytes < 1 {
+		return 0, fmt.Errorf("asset destination and positive size limit are required")
+	}
 	fullURL := assetURL
 	if !strings.HasPrefix(assetURL, "http://") && !strings.HasPrefix(assetURL, "https://") {
 		// Asset URLs from BAS are absolute paths rooted at the host
@@ -674,21 +679,30 @@ func (c *HTTPClient) DownloadAsset(ctx context.Context, assetURL string) ([]byte
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("asset download failed: status=%s url=%s", resp.Status, fullURL)
+		return 0, fmt.Errorf("asset download failed: status=%s url=%s", resp.Status, fullURL)
 	}
-
-	return io.ReadAll(resp.Body)
+	if resp.ContentLength > maxBytes {
+		return 0, fmt.Errorf("asset exceeds configured budget: %d > %d bytes", resp.ContentLength, maxBytes)
+	}
+	written, err := io.Copy(destination, io.LimitReader(resp.Body, maxBytes+1))
+	if err != nil {
+		return written, err
+	}
+	if written > maxBytes {
+		return written, fmt.Errorf("asset exceeds configured budget: %d > %d bytes", written, maxBytes)
+	}
+	return written, nil
 }
 
 // definitionToProto converts a workflow definition expressed as a JSON

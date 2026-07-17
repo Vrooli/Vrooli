@@ -52,7 +52,7 @@ working tree. Backed by the `BaselinesService` Connect-RPC.
 | Subcommand | Description |
 | --- | --- |
 | `snapshot` | Start capture from one durable comprehensive run (`--scenario --name [--branch] [--run]`); `snapshot status --run R [--wait]` reattaches |
-| `diff`     | Start a durable descriptor-driven comparison (`--scenario --name [--branch] [--wait]`); `diff status --run R [--wait]` reattaches and `diff wait-all` waits once for several operations |
+| `diff`     | Start a durable descriptor-driven comparison (`--scenario --name [--branch] [--wait]`); `diff status --run R` reads standing and `diff wait --run R` reattaches |
 | `list`     | List baselines (`--scenario [--branch] [--all-branches]`) |
 | `show`     | Show one baseline (`--scenario --name [--branch]`) |
 | `delete`   | Delete a baseline and unpin its single Test Genie run (`--scenario --name [--branch]`) |

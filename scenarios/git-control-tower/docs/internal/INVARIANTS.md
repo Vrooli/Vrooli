@@ -11,6 +11,7 @@
 | GCT never routes on Test Genie phase keys. | Descriptor-driven evidence | Lossless `PhaseDiff`/`RunInfo` forwarding and production-code phase-registry guard | `handlers/evidence/phase_agnostic_guard_test.go` |
 | Artifact access is path-free and run-scoped. | Typed evidence | Test Genie opaque IDs plus GCT same-origin proxy; no provider path in proto/UI contracts | Evidence handler and artifact renderer tests |
 | UNKNOWN, degraded, missing, or not-comparable evidence cannot become PASS. | Honest comparison | Baseline result aggregation and durable operation status/exit codes | Baseline service/handler/CLI tests |
+| A started collection diff remains interpretable after collection cleanup. | Durable parent ownership | The operation stores its creation-time collection snapshot; status/reconciliation falls back to it, and collection deletion does not erase operation records. | `internal/baseline/collection_service_test.go` snapshot-after-delete regression |
 
 ## Important Invariants
 
@@ -62,6 +63,20 @@
   They never publish a failed snapshot or ready/not-comparable diff. The CLI may
   perform one non-blocking recovery read by the same run ID after unexpected EOF;
   it never retries `StartCapture`/`StartDiff` from that path.
+- **Collection-diff identity is immutable.** A collection diff operation
+  snapshots the selected collection's baseline membership at creation. Its
+  status/reconciliation path uses that snapshot if the mutable collection was
+  later deleted; old operations without a snapshot fail explicitly and require
+  recapture rather than comparing against a replacement collection by name.
+- **Operation standing is the only lifecycle decision surface.** Test Genie
+  owns child execution standing; GCT owns the persisted aggregate standing and
+  projects child standings unchanged. `preparing` with no active phase is
+  waitable, and a terminal child awaiting fan-in is `finalizing`, never a
+  generic pending/blocked state.
+- **Status never waits or reconciles.** `GetCollection*Status` is a pure read;
+  `WaitCollectionCapture` and `WaitCollectionDiff` are the only blocking
+  attachment operations. A timeout detaches with `directive=wait` and leaves
+  durable execution untouched.
 - **Baseline wait is outside the commit mutex.** `FinalizeCapture` can await
   any durable Test Genie run concurrently. Only the terminal recheck, pin, and
   manifest/intent write hold `captureMu`, so one stalled capture cannot block
