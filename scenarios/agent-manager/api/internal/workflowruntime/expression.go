@@ -2,6 +2,9 @@ package workflowruntime
 
 import (
 	"fmt"
+	"sync"
+
+	"agent-manager/internal/workflowexpr"
 
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types"
@@ -16,28 +19,52 @@ type ExpressionContext struct {
 	Budget         map[string]any
 }
 
-type ExpressionEvaluator struct{ env *cel.Env }
+// ExpressionEvaluator evaluates branch edge conditions against the shared
+// workflow CEL environment. Compiled programs are cached keyed by condition
+// source so a hot execution loop does not recompile the same condition on every
+// traversal. The environment is deterministic, so a given source always yields
+// an equivalent program; the cache therefore preserves evaluation results while
+// removing the per-evaluation compile cost.
+type ExpressionEvaluator struct {
+	env   *workflowexpr.Env
+	mu    sync.RWMutex
+	cache map[string]cel.Program
+}
 
 func NewExpressionEvaluator() (*ExpressionEvaluator, error) {
-	env, err := cel.NewEnv(cel.Variable("input", cel.DynType), cel.Variable("journal", cel.ListType(cel.DynType)), cel.Variable("status", cel.StringType), cel.Variable("iteration", cel.IntType), cel.Variable("edge_traversals", cel.MapType(cel.StringType, cel.IntType)), cel.Variable("budget", cel.MapType(cel.StringType, cel.DynType)))
+	env, err := workflowexpr.NewEnv()
 	if err != nil {
 		return nil, err
 	}
-	return &ExpressionEvaluator{env: env}, nil
+	return &ExpressionEvaluator{env: env, cache: make(map[string]cel.Program)}, nil
+}
+
+func (e *ExpressionEvaluator) program(source string) (cel.Program, error) {
+	e.mu.RLock()
+	program, ok := e.cache[source]
+	e.mu.RUnlock()
+	if ok {
+		return program, nil
+	}
+	ast, err := e.env.Compile(source)
+	if err != nil {
+		return nil, err
+	}
+	program, err = e.env.Program(ast)
+	if err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	e.cache[source] = program
+	e.mu.Unlock()
+	return program, nil
 }
 
 func (e *ExpressionEvaluator) Evaluate(source string, ctx ExpressionContext) (bool, error) {
 	if e == nil || e.env == nil {
 		return false, fmt.Errorf("expression evaluator unavailable")
 	}
-	ast, issues := e.env.Compile(source)
-	if issues != nil && issues.Err() != nil {
-		return false, issues.Err()
-	}
-	if ast.OutputType() != cel.BoolType {
-		return false, fmt.Errorf("expression must return bool")
-	}
-	program, err := e.env.Program(ast, cel.CostLimit(10000))
+	program, err := e.program(source)
 	if err != nil {
 		return false, err
 	}

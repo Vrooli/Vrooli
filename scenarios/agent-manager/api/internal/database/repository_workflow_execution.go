@@ -332,6 +332,25 @@ func (r workflowAttemptRow) domain() (*domain.WorkflowNodeAttempt, error) {
 	return a, nil
 }
 
+// ExecutionIDForRun resolves the owning execution for a dispatched run. A run
+// maps to at most one node attempt (attempts pin a distinct run per attempt),
+// so the newest attempt row carrying this run_id names its execution. Non-
+// workflow runs match no attempt and return uuid.Nil with a nil error.
+func (r *workflowExecutionRepository) ExecutionIDForRun(ctx context.Context, runID uuid.UUID) (uuid.UUID, error) {
+	var executionID sql.NullString
+	err := r.db.GetContext(ctx, &executionID, `SELECT execution_id FROM workflow_node_attempts WHERE run_id=? ORDER BY created_at DESC, id DESC LIMIT 1`, runID.String())
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return uuid.Nil, nil
+		}
+		return uuid.Nil, err
+	}
+	if !executionID.Valid || executionID.String == "" {
+		return uuid.Nil, nil
+	}
+	return uuid.Parse(executionID.String)
+}
+
 func (r *workflowExecutionRepository) ListAttempts(ctx context.Context, id uuid.UUID) ([]*domain.WorkflowNodeAttempt, error) {
 	var rows []workflowAttemptRow
 	if err := r.db.SelectContext(ctx, &rows, `SELECT id,execution_id,node_id,ordinal,strategy,status,idempotency_key,input_snapshot_json,prompt_snapshot,run_id,conversation_id,source_attempt_id,child_execution_id,error_code,version,created_at,updated_at,completed_at FROM workflow_node_attempts WHERE execution_id=? ORDER BY created_at,id`, id); err != nil {
@@ -381,7 +400,15 @@ func (r *workflowExecutionRepository) ListJournal(ctx context.Context, id uuid.U
 }
 
 func (r *workflowExecutionRepository) ListRecoverable(ctx context.Context, limit int) ([]*domain.WorkflowExecution, error) {
-	q := `SELECT id FROM workflow_executions WHERE status IN ('pending','running','waiting') ORDER BY updated_at`
+	q := `SELECT e.id FROM workflow_executions e
+		WHERE e.status IN ('pending','running','waiting','cancelling')
+		   OR (e.status IN ('failed','budget_exhausted','cancelled') AND NOT EXISTS (
+			SELECT 1 FROM workflow_journal j
+			WHERE j.execution_id=e.id
+			  AND j.kind='cleanup'
+			  AND COALESCE(json_extract(j.payload_json, '$.retry'), 0) = COALESCE(json_extract(e.budget_usage_json, '$.retries'), 0)
+		   ))
+		ORDER BY e.updated_at`
 	q, args := appendLimitOffset(q, limit, 0)
 	var ids []string
 	if err := r.db.SelectContext(ctx, &ids, q, args...); err != nil {

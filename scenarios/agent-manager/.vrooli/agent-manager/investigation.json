@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "Agent-Manager Investigation",
+  "profileKey": "agent-manager/investigation",
+  "description": "Agent profile for behavioral analysis of failed agent runs (read-only)",
+  "roleRef": "code.smart",
+  "maxTurns": 75,
+  "timeout": "600s",
+  "allowedTools": [
+    "read_file",
+    "list_files",
+    "glob",
+    "grep",
+    "analyze_code",
+    "execute_command",
+    "web_search"
+  ],
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {
+    "manualReview": true
+  },
+  "networkAccess": "NETWORK_ACCESS_LOCALHOST",
+  "createdBy": "agent-manager"
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "Agent-Manager Apply Investigation",
+  "profileKey": "agent-manager/investigation-apply",
+  "description": "Agent profile for applying investigation recommendations (has write capabilities)",
+  "roleRef": "code.smart",
+  "maxTurns": 100,
+  "timeout": "900s",
+  "allowedTools": [
+    "read_file",
+    "list_files",
+    "glob",
+    "grep",
+    "analyze_code",
+    "execute_command",
+    "web_search",
+    "edit_file",
+    "write_file",
+    "create_file",
+    "delete_file"
+  ],
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {
+    "manualReview": true
+  },
+  "networkAccess": "NETWORK_ACCESS_LOCALHOST",
+  "createdBy": "agent-manager"
+}

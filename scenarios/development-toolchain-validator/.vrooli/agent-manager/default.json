@@ -1,4 +1,5 @@
 {
+  "schemaVersion": "agent-profile/v1",
   "name": "development-toolchain-validator-default",
   "profileKey": "development-toolchain-validator/default",
   "description": "Sandboxed runner used to execute a skill against a pristine golden scenario; the sandbox diff is the artifact the validator evaluates against the pinned manifest.",

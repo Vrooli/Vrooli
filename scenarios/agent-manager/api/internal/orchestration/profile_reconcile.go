@@ -1,13 +1,11 @@
 package orchestration
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +15,6 @@ import (
 	"agent-manager/internal/protoconv"
 
 	"github.com/google/uuid"
-	repocontract "github.com/vrooli/repo-contract-go"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -37,179 +34,20 @@ type scenarioServiceProfileConfig struct {
 	} `json:"dependencies"`
 }
 
-type profileSourcesConfig struct {
-	Profiles struct {
-		Reconcile *bool    `json:"reconcile"`
-		Mode      string   `json:"mode"`
-		Sources   []string `json:"sources"`
-	} `json:"profiles"`
-	// Workflows is parsed by the workflow catalog reconciler. Keeping it as raw
-	// JSON lets each subsystem remain strict about its own versioned config.
-	Workflows json.RawMessage `json:"workflows,omitempty"`
-}
-
-// ReconcileScenarioProfiles reads a scenario-owned profile declaration and
-// reconciles every referenced profile source into agent-manager's runtime DB.
+// ReconcileScenarioProfiles is a thin projection over the unified declaration
+// reconcile that returns only the profile-kind results. Many Go consumer
+// clients call this RPC name, so it keeps working while reading exclusively
+// from the new .vrooli/agent-manager/ declaration block.
 func (o *Orchestrator) ReconcileScenarioProfiles(ctx context.Context, req ReconcileScenarioProfilesRequest) (*ReconcileScenarioProfilesResult, error) {
-	scenario := strings.TrimSpace(req.Scenario)
-	if scenario == "" {
-		return nil, domain.NewValidationErrorWithHint("scenario", "field is required", "Provide the owning scenario slug")
-	}
-
-	contract, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
-	if err != nil {
-		return nil, domain.NewConfigInvalidError("repoContract", "failed to resolve repository contract", err)
-	}
-	scenarioRoot, err := contract.ScenarioRoot(repoRoot, scenario)
-	if err != nil {
-		return nil, domain.NewValidationErrorWithHint("scenario", "invalid scenario slug", err.Error())
-	}
-	servicePath, err := contract.ScenarioFile(repoRoot, scenario, "service")
-	if err != nil {
-		return nil, domain.NewConfigInvalidError("serviceManifest", "failed to resolve scenario service manifest", err)
-	}
-
-	cfg, err := readScenarioProfileConfig(servicePath)
+	res, err := o.ReconcileScenarioDeclarations(ctx, ReconcileScenarioDeclarationsRequest{Scenario: req.Scenario, DryRun: req.DryRun})
 	if err != nil {
 		return nil, err
 	}
-	result := &ReconcileScenarioProfilesResult{
-		Scenario: scenario,
-		DryRun:   req.DryRun,
-	}
-
-	reconcile := true
-	if cfg.Profiles.Reconcile != nil {
-		reconcile = *cfg.Profiles.Reconcile
-	}
-	mode := strings.TrimSpace(cfg.Profiles.Mode)
-	if mode == "" {
-		mode = profileReconcileModeUpdateIfUnmodified
-	}
-	if !validProfileReconcileMode(mode) {
-		return nil, domain.NewValidationErrorWithHint("config.profiles.mode", "invalid reconcile mode",
-			"valid values: create_only, update_if_unmodified, force")
-	}
-	if !reconcile {
-		for _, src := range cfg.Profiles.Sources {
-			result.add(ProfileReconcileResult{
-				SourcePath: src,
-				Status:     ProfileReconcileStatusSkipped,
-				Message:    "profile reconciliation disabled by manifest config",
-			})
-		}
-		return result, nil
-	}
-	if len(cfg.Profiles.Sources) == 0 {
-		result.add(ProfileReconcileResult{
-			Status:  ProfileReconcileStatusSkipped,
-			Message: "no profile sources declared",
-		})
-		return result, nil
-	}
-
-	for _, source := range cfg.Profiles.Sources {
-		item := o.reconcileProfileSource(ctx, scenario, scenarioRoot, source, mode, req.DryRun)
+	result := &ReconcileScenarioProfilesResult{Scenario: res.Scenario, DryRun: res.DryRun}
+	for _, item := range res.ProfileResults {
 		result.add(item)
 	}
 	return result, nil
-}
-
-func readScenarioProfileConfig(servicePath string) (*profileSourcesConfig, error) {
-	data, err := os.ReadFile(servicePath)
-	if err != nil {
-		return nil, domain.NewConfigInvalidError("serviceManifest", "failed to read scenario service manifest", err)
-	}
-	var manifest scenarioServiceProfileConfig
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, domain.NewConfigInvalidError("serviceManifest", "failed to parse scenario service manifest", err)
-	}
-	dep, ok := manifest.Dependencies.Scenarios["agent-manager"]
-	if !ok {
-		return nil, domain.NewValidationErrorWithHint("dependencies.scenarios.agent-manager", "dependency is required",
-			"Declare agent-manager under dependencies.scenarios with config.profiles.sources")
-	}
-	if dep.Enabled != nil && !*dep.Enabled {
-		return nil, domain.NewValidationErrorWithHint("dependencies.scenarios.agent-manager.enabled", "dependency must be enabled",
-			"Enable agent-manager before reconciling its scenario-owned profiles")
-	}
-	if len(dep.Config) == 0 {
-		return &profileSourcesConfig{}, nil
-	}
-	var configObject map[string]json.RawMessage
-	if err := json.Unmarshal(dep.Config, &configObject); err != nil || configObject == nil {
-		return nil, domain.NewConfigInvalidError("dependencies.scenarios.agent-manager.config", "must be a JSON object containing profiles", err)
-	}
-	profilesRaw, hasProfiles := configObject["profiles"]
-	if !hasProfiles || string(profilesRaw) == "null" {
-		return nil, domain.NewValidationErrorWithHint("dependencies.scenarios.agent-manager.config.profiles", "field is required",
-			"Declare profiles.reconcile, profiles.mode, and profiles.sources or omit config when no scenario-owned profile is needed")
-	}
-	var cfg profileSourcesConfig
-	decoder := json.NewDecoder(bytes.NewReader(dep.Config))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&cfg); err != nil {
-		return nil, domain.NewConfigInvalidError("dependencies.scenarios.agent-manager.config", "failed to parse profile config", err)
-	}
-	var extra any
-	if err := decoder.Decode(&extra); err != io.EOF {
-		if err == nil {
-			err = fmt.Errorf("multiple JSON values")
-		}
-		return nil, domain.NewConfigInvalidError("dependencies.scenarios.agent-manager.config", "failed to parse profile config", err)
-	}
-	if cfg.Profiles.Reconcile == nil {
-		return nil, domain.NewValidationErrorWithHint("config.profiles.reconcile", "field is required",
-			"Set whether the declared scenario-owned profiles reconcile")
-	}
-	if !validProfileReconcileMode(strings.TrimSpace(cfg.Profiles.Mode)) {
-		return nil, domain.NewValidationErrorWithHint("config.profiles.mode", "invalid reconcile mode",
-			"valid values: create_only, update_if_unmodified, force")
-	}
-	if len(cfg.Profiles.Sources) == 0 {
-		return nil, domain.NewValidationErrorWithHint("config.profiles.sources", "must declare at least one source",
-			"Omit config entirely when the scenario uses only direct portable role requests")
-	}
-	seen := make(map[string]struct{}, len(cfg.Profiles.Sources))
-	for _, source := range cfg.Profiles.Sources {
-		key := strings.TrimSpace(source)
-		if key == "" {
-			return nil, domain.NewValidationErrorWithHint("config.profiles.sources", "profile source must not be empty", "Declare a target-relative profile JSON file")
-		}
-		if _, exists := seen[key]; exists {
-			return nil, domain.NewValidationErrorWithHint("config.profiles.sources", "duplicate profile source", "Declare each scenario-owned source once")
-		}
-		seen[key] = struct{}{}
-	}
-	return &cfg, nil
-}
-
-// ValidateScenarioProfileConfig validates Agent Manager's declared dependency
-// configuration without touching the profile repository or target files. It is
-// shared by read-only conformance and mutating reconciliation to prevent the
-// two surfaces from accepting different manifests.
-func ValidateScenarioProfileConfig(servicePath string) error {
-	data, err := os.ReadFile(servicePath)
-	if err != nil {
-		return err
-	}
-	var manifest scenarioServiceProfileConfig
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return err
-	}
-	dep, ok := manifest.Dependencies.Scenarios["agent-manager"]
-	if !ok || len(dep.Config) == 0 {
-		return nil
-	}
-	var object map[string]json.RawMessage
-	if err := json.Unmarshal(dep.Config, &object); err != nil {
-		return err
-	}
-	if _, hasProfiles := object["profiles"]; !hasProfiles {
-		return nil
-	}
-	_, err = readScenarioProfileConfig(servicePath)
-	return err
 }
 
 func (o *Orchestrator) reconcileProfileSource(ctx context.Context, scenario, scenarioRoot, source, mode string, dryRun bool) ProfileReconcileResult {
@@ -386,6 +224,17 @@ func parseSourceProfile(data []byte) (*domain.AgentProfile, error) {
 		if _, ok := raw[forbidden]; ok {
 			return nil, fmt.Errorf("profile source must not set runtime field %q", forbidden)
 		}
+	}
+	// schemaVersion discriminates the file kind in the unified declaration
+	// layer; it is a file-format marker with no AgentProfile field, so strip it
+	// before the strict proto unmarshal (DiscardUnknown is false).
+	if _, ok := raw["schemaVersion"]; ok {
+		delete(raw, "schemaVersion")
+		stripped, err := json.Marshal(raw)
+		if err != nil {
+			return nil, fmt.Errorf("strip profile source schemaVersion: %w", err)
+		}
+		data = stripped
 	}
 	var pb domainpb.AgentProfile
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, &pb); err != nil {

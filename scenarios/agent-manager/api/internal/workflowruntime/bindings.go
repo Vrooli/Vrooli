@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"text/template"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/workflowexpr"
 )
 
 const MaxRenderedPromptBytes = 64 << 10
@@ -74,7 +74,7 @@ func selectBinding(binding domain.WorkflowInputBinding, ctx BindingContext) ([]a
 		}
 		return []any{selected}, nil
 	}
-	kind := map[domain.WorkflowBindingSource]domain.WorkflowJournalKind{domain.WorkflowBindingAttempts: domain.WorkflowJournalAttempt, domain.WorkflowBindingRunResult: domain.WorkflowJournalRunResult, domain.WorkflowBindingStructured: domain.WorkflowJournalStructured, domain.WorkflowBindingHandoff: domain.WorkflowJournalHandoff, domain.WorkflowBindingSignal: domain.WorkflowJournalSignal, domain.WorkflowBindingCounter: domain.WorkflowJournalCounter}[binding.Source]
+	kind := map[domain.WorkflowBindingSource]domain.WorkflowJournalKind{domain.WorkflowBindingAttempts: domain.WorkflowJournalAttempt, domain.WorkflowBindingRunResult: domain.WorkflowJournalRunResult, domain.WorkflowBindingStructured: domain.WorkflowJournalStructured, domain.WorkflowBindingHandoff: domain.WorkflowJournalHandoff, domain.WorkflowBindingSignal: domain.WorkflowJournalSignal, domain.WorkflowBindingCounter: domain.WorkflowJournalCounter, domain.WorkflowBindingChild: domain.WorkflowJournalChild}[binding.Source]
 	node, path := parseSelector(binding.Selector)
 	entries := append([]*domain.WorkflowJournalEntry(nil), ctx.Journal...)
 	if binding.Order == "desc" {
@@ -137,7 +137,7 @@ func selectPath(value any, path string) (any, bool) {
 }
 
 func RenderPrompt(source string, values map[string]any) (string, error) {
-	parsed, err := template.New("prompt").Option("missingkey=error").Parse(source)
+	parsed, err := workflowexpr.ParsePrompt(source)
 	if err != nil {
 		return "", err
 	}

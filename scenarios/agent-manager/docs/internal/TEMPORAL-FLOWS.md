@@ -174,6 +174,40 @@ status transition: running → complete|failed (or parked again on the next asyn
 - `internal/orchestration/await_registry_test.go` — resolve/producer-error/deadline-timeout/cancel-no-wake/restart-recovery/idempotent-register.
 - `internal/database` `TestTouchHeartbeat_StatusGuarded` — a heartbeat tick during the park window cannot resurrect `parked→running` (atomic status-guarded update).
 
+## Workflow completion nudge + blocking wait
+
+Workflow executions advance through a **crash-safe pull loop** (`driveWorkflowExecution`): it reads durable state, calls the engine's `Advance`, and stops at the no-progress version fixpoint when a dispatched run is still non-terminal. Nothing re-drives the execution on its own — so before Phase 4 consumers polled `AdvanceWorkflowExecution` on a ticker to notice a run had finished.
+
+Two mechanisms replace that poll, neither a new scheduler:
+
+**Completion nudge (push the pull loop).** When a run belonging to a workflow attempt reaches terminal (the run-terminal transition point in `executeRun`/`resumeRun`/`executeContinuation`), the orchestrator resolves the owning execution via `WorkflowExecutionRepository.ExecutionIDForRun` (the reverse of the one-directional `attempt.RunID` link) and enqueues an idempotent drive on the in-process `WorkflowNudger`. A child-workflow execution settling terminal likewise nudges its `ParentExecutionID`. The drive re-reads durable state and is guarded by the engine's optimistic-version CAS, so a nudge racing an explicit `Advance` (or a second nudge) is safe — the loser rereads and exits at the fixpoint. The nudge queue **dedupes** (one pending drive per execution) and clears the pending mark before driving so a completion landing mid-drive re-queues.
+
+```
+run terminal (executeRun returns, not parked)
+   ↓
+ExecutionIDForRun(runID) ──▶ uuid.Nil? ── yes ─▶ ignore (non-workflow run)
+   ↓ no
+WorkflowNudger.Enqueue(executionID)  (dedupe, non-blocking)
+   ↓
+worker: driveWorkflowExecution(executionID)  (CAS-guarded; concurrent-safe)
+   ↓
+execution settles terminal ──▶ notify blocking waiters + nudge parent
+```
+
+**Blocking wait (server-owned long-poll).** `WaitWorkflowExecution(executionId, timeout)` blocks until the execution is terminal or the deadline passes, mirroring test-genie's `WaitRun`. It is event-driven — it subscribes to a per-execution notifier, re-reads durable state to close the subscribe/settle race, then blocks on a wake channel; there is **no ticker and no per-wait poller**. `timeout <= 0` blocks until terminal (or the caller's context is cancelled). **Cancelling the waiter never cancels the execution** — the wait only reads execution state; the execution is driven independently by the engine, the nudge, and the reconciler backstop. This is the documented adoption pattern: adopters call `StartWorkflowExecution` then `WaitWorkflowExecution`, and write no poller.
+
+**Durable backstop.** A crash between the run terminal and the enqueue is covered by `RecoverWorkflowExecutions` (the reconciler recovery sweep, at boot and every reconcile cycle), which re-drives every non-terminal recoverable execution. The nudge is an optimization over this durable path, never the only route to progress.
+
+**`AdvanceWorkflowExecution` is ops-only.** With the nudge and wait in place, no consumer calls `AdvanceWorkflowExecution` in the normal flow. It remains as a manual/operator recovery verb — force-reconcile one execution from its durable state (e.g. after a stuck child, or to inspect drive behavior). It is idempotent and CAS-guarded, so an operator advance racing a nudge is safe.
+
+**Levers:** `Workflow.NudgeWorkers` (concurrent drive workers, default 4), `Workflow.NudgeDriveTimeout` (per-nudge drive bound, default 5m). The wait timeout is per-request. See [`../reference/configuration.md`](../reference/configuration.md#workflow).
+
+**Tests:**
+- `internal/orchestration/workflow_nudge_test.go` — nudger dedupe, concurrent drain (-race), wait-registry notify.
+- `internal/orchestration/workflow_wait_test.go` — immediate-terminal return, block-until-terminal, deadline→timed_out, concurrent waiters, cancel-does-not-cancel-execution.
+- `internal/orchestration/workflow_nudge_integration_test.go` — run node reaches its next node with zero `AdvanceWorkflowExecution` calls; nudge tolerates concurrent explicit advance; progression across a simulated restart via the recovery backstop.
+- `internal/database/repository_workflow_test.go::TestWorkflowExecutionRepositoryExecutionIDForRun` — the reverse run→execution link.
+
 ## Post-run sandbox finalization
 
 Runner turn status and sandbox finalization are separate temporal flows. A runner can finish and emit several assistant messages before process exit; assistant messages are not terminal. The terminal signal is the runner result/process completion path. After that, sandbox apply/checkpoint runs as post-turn finalization and records one of:
@@ -348,13 +382,16 @@ performing a side effect and the persisted completion before advancing an edge.
 Revisiting a `run` node creates a new Run identity; recovery of an already
 dispatched attempt reattaches to that same Run. A `continue` node carries a
 separate idempotency identity and must reference an earlier conversation in the
-same execution.
+same execution. Canonical RunResult selection first scopes provider evidence to
+the latest durable `turnId`, so terminal outputs from earlier continuation
+turns cannot make the current handoff ambiguous after recovery.
 
 The append-only journal is the only cross-node context source. A later prompt
 receives only explicitly selected, ordered entries rendered within declared
 byte/item/depth limits. No prior transcript, tool event, or mutable variable bag
-is inherited implicitly. Waits persist their deadline and resume only through a
-validated external signal or timeout transition.
+is inherited implicitly. Each wait visit persists a distinct correlation key,
+resume token, and deadline and resumes only through a validated signal recorded
+after that visit's intent or a timeout transition.
 
 Every cycle-forming edge has a positive per-edge traversal cap. Traversals,
 retries, child runs, subworkflows, continuations, and waits also consume global
@@ -370,7 +407,9 @@ typed `budget_exhausted` terminal, never an unbounded retry or silent failure.
    immutable input and prompt snapshots. No agent side effect precedes this.
 3. The canonical Run creation or continuation service receives the persisted
    attempt idempotency key. A crash/retry therefore returns the same Run or
-   continuation instead of sending twice.
+   continuation instead of sending twice. Node-local turn and timeout limits
+   are included in that request; continuations apply them to the resumed turn
+   without mutating the source Run's persisted resolved configuration.
 4. A second compare-and-swap commit attaches Run and conversation identity.
    Waiting consumes no agent turn. The reconciler inspects recoverable
    executions on boot and every normal reconciliation cycle.
@@ -400,7 +439,11 @@ signal name, payload schema, idempotency key, and optional expected execution
 version before its journal commit. Duplicate signals return the committed
 state; late, wrong-type, and wrong-execution signals are typed conflicts. Boot
 reconciliation revisits waiting executions to observe a committed signal or a
-deadline, without keeping a goroutine alive per wait.
+deadline, without keeping a goroutine alive per wait node. This is distinct from
+the request-scoped `WaitWorkflowExecution` long-poll (see "Workflow completion
+nudge + blocking wait"), which holds one select on a wake channel for the life
+of the client call and observes terminal state — it neither polls nor drives the
+execution, and cancelling it leaves the execution untouched.
 
 Child-workflow attempts commit input and dispatch identity before creating a
 digest-pinned child `WorkflowExecution`. The child records parent execution and
@@ -408,13 +451,25 @@ attempt IDs plus recursion depth. Recovery reuses the attempt idempotency key
 and child ID; completion aggregates the child's budget ledger into the parent
 tree before the parent edge advances.
 
-A parallel branch atomically commits its complete membership and every member
-dispatch intent. Members may be fresh Runs, named continuations, or child
-workflows and are dispatched only up to the workflow concurrency bound. All
-members converge on one `all`, `any`, or positive `quorum` join; their child
-identities and completion evidence remain separate in the journal. Cancellation
-first commits the parent terminal intent, propagates to active Runs and child
-workflows, then durably records stopped counts and partial failures.
+A parallel branch atomically commits a durable fork-visit start marker, its
+complete membership, and every member dispatch intent. Members may be fresh
+Runs, named continuations, or child workflows and are dispatched only up to the
+workflow concurrency bound; wider fan-out stays durably dispatch-pending and is
+released in later batches. A completed-visit marker is committed with the
+move to the join. Returning through a cycle therefore increments the visit and
+creates new per-node ordinals and idempotency keys, while crash recovery within
+an unfinished visit reuses the same attempts. All members converge on one
+`all`, `any`, or positive `quorum` join; `any` and `quorum` advance immediately
+when satisfied, fail when success becomes impossible, and stop/mark remaining
+losers before the join commit. Their child identities and completion evidence
+remain separate in the journal.
+
+Cancellation first commits non-terminal `cancelling`, recursively propagates to
+active Runs and child workflows, then records a cleanup disposition and commits
+`cancelled`. Failure and budget-exhaustion paths also require a cleanup
+disposition. Recovery includes cancelling rows and abnormal terminal rows whose
+current retry generation has no cleanup entry, closing crash windows between
+parent state and child stop.
 
 ## Adding a new temporal flow
 

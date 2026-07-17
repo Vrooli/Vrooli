@@ -1,14 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  AlertCircle,
-  ChevronDown,
-  ChevronRight,
-  Info,
-  Paperclip,
-  Plus,
-  RefreshCw,
-  Search,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, ChevronDown, ChevronRight, Info, Loader2, Paperclip, Search } from "lucide-react";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import {
@@ -20,62 +11,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { RecommendationItem } from "./RecommendationItem";
 import { AttachmentPreview } from "./AttachmentPreview";
-import { extractRecommendations, regenerateRecommendations } from "../hooks/useApi";
+import { getInvestigationFindings } from "../hooks/useApi";
 import { useAttachments } from "../hooks/useAttachments";
-import type {
-  ExtractionResult,
-  Recommendation,
-  RecommendationCategory,
-  RecommendationStatus,
-  Run,
-  RunWithRecommendations,
-} from "../types";
-
-/** Extended Run type that includes recommendation fields */
-type InvestigationRun = Run & RunWithRecommendations;
+import type { InvestigationRecommendationCategory, Run } from "../types";
+import { RunStatus } from "../types";
 
 interface ApplyInvestigationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The full investigation run object with cached recommendation data */
-  investigationRun: InvestigationRun | null;
-  onSubmit: (customContext: string, attachmentIds?: string[]) => Promise<void>;
+  /** The investigation run whose structured result holds the recommendations. */
+  investigationRun: Run | null;
+  onSubmit: (selected: string[], customContext: string, attachmentIds?: string[]) => Promise<void>;
   loading?: boolean;
   error?: string | null;
+  /** Navigate to the investigation run's detail page (used by the "no structured recommendations" fallback). */
+  onViewRun?: (runId: string) => void;
 }
 
-type ModalState = "loading" | "success" | "fallback";
-
-function generateId(): string {
-  return `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-/**
- * Serializes selected recommendations into markdown format.
- * Notes are appended inline: "- Fix auth bug (Note: use JWT not sessions)"
- */
-function serializeRecommendations(categories: RecommendationCategory[]): string {
-  const lines: string[] = [];
-  for (const cat of categories) {
-    const selected = cat.recommendations.filter((r) => r.selected);
-    if (selected.length === 0) continue;
-    lines.push(`## ${cat.name}`);
-    for (const rec of selected) {
-      let line = `- ${rec.text}`;
-      if (rec.note) {
-        line += ` (Note: ${rec.note})`;
-      }
-      lines.push(line);
-    }
-    lines.push("");
-  }
-  return lines.join("\n").trim();
-}
+/** Statuses that mean the investigation run has finished (successfully or not). */
+const TERMINAL_STATUSES = new Set<RunStatus>([RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED]);
 
 export function ApplyInvestigationModal({
   open,
@@ -84,32 +42,33 @@ export function ApplyInvestigationModal({
   onSubmit,
   loading = false,
   error = null,
+  onViewRun,
 }: ApplyInvestigationModalProps) {
-  const [state, setState] = useState<ModalState>("loading");
-  const [categories, setCategories] = useState<RecommendationCategory[]>([]);
-  const [rawText, setRawText] = useState("");
-  const [extractedFrom, setExtractedFrom] = useState<"summary" | "events">(
-    "summary"
-  );
-  const [extractionError, setExtractionError] = useState<string | null>(null);
-  const [fallbackText, setFallbackText] = useState("");
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set()
-  );
-  const [showRawOutput, setShowRawOutput] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [showAddCategory, setShowAddCategory] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
+  const findings = useMemo(() => getInvestigationFindings(investigationRun), [investigationRun]);
+  const categories: InvestigationRecommendationCategory[] = findings?.categories ?? [];
+  const isTerminal = investigationRun ? TERMINAL_STATUSES.has(investigationRun.status) : false;
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [customContext, setCustomContext] = useState("");
+
+  // Reset selection whenever the modal opens with a fresh set of findings —
+  // default to everything selected.
+  useEffect(() => {
+    if (!open) return;
+    if (!findings) {
+      setSelected(new Set());
+      setExpandedCategories(new Set());
+      return;
+    }
+    const allTexts = findings.categories.flatMap((cat) => cat.recommendations.map((rec) => rec.text));
+    setSelected(new Set(allTexts));
+    setExpandedCategories(new Set(findings.categories.map((cat) => cat.name)));
+  }, [open, findings]);
 
   // Image attachments — uploaded eagerly via the shared attachments hook.
-  const {
-    attachments,
-    addAttachment,
-    removeAttachment,
-    clearAttachments,
-    getUploadedIds,
-    isUploading,
-  } = useAttachments();
+  const { attachments, addAttachment, removeAttachment, clearAttachments, getUploadedIds, isUploading } =
+    useAttachments();
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,257 +79,50 @@ export function ApplyInvestigationModal({
     }
   };
 
-  // Helper to apply extraction result to state
-  const applyExtractionResult = useCallback((result: ExtractionResult) => {
-    setRawText(result.rawText || "");
-    setExtractedFrom(result.extractedFrom === "pending" ? "summary" : result.extractedFrom);
-
-    if (result.success && result.categories.length > 0) {
-      setCategories(result.categories);
-      // Expand all categories by default
-      setExpandedCategories(new Set(result.categories.map((c) => c.id)));
-      setState("success");
-    } else {
-      setExtractionError(result.error || "No recommendations found");
-      setFallbackText(result.rawText || "");
-      setState("fallback");
-    }
-  }, []);
-
-  // Load recommendations when modal opens, using cached data when available
-  useEffect(() => {
-    if (!open || !investigationRun) return;
-
-    const status = investigationRun.recommendationStatus as RecommendationStatus | undefined;
-
-    // Check cached recommendation status
-    if (status === "complete" && investigationRun.recommendationResult) {
-      // Use cached result directly - no API call needed
-      applyExtractionResult(investigationRun.recommendationResult);
-      return;
-    }
-
-    if (status === "pending" || status === "extracting") {
-      // Extraction in progress - show loading and wait for WebSocket update
-      setState("loading");
-      setExtractionError(null);
-      return;
-    }
-
-    if (status === "failed") {
-      // Extraction failed - show fallback with regenerate option
-      setState("fallback");
-      setExtractionError(investigationRun.recommendationError || "Recommendation extraction failed");
-      setFallbackText("");
-      return;
-    }
-
-    // Fallback: status is "none" or undefined - fetch via API (backward compat)
-    setState("loading");
-    setExtractionError(null);
-
-    extractRecommendations(investigationRun.id)
-      .then((result: ExtractionResult) => {
-        // Handle "pending" response from API (extraction in progress)
-        if (result.extractedFrom === "pending") {
-          setState("loading");
-          setExtractionError(null);
-          return;
-        }
-        applyExtractionResult(result);
-      })
-      .catch((err: unknown) => {
-        setExtractionError(err instanceof Error ? err.message : String(err));
-        setFallbackText("");
-        setState("fallback");
-      });
-  }, [open, investigationRun, applyExtractionResult]);
-
-  // Handle WebSocket updates when run changes (extraction completes)
-  useEffect(() => {
-    if (!open || !investigationRun) return;
-
-    const status = investigationRun.recommendationStatus as RecommendationStatus | undefined;
-
-    // If we're loading and extraction just completed, apply the result
-    if (state === "loading" && status === "complete" && investigationRun.recommendationResult) {
-      applyExtractionResult(investigationRun.recommendationResult);
-    }
-
-    // If extraction failed, show fallback
-    if (state === "loading" && status === "failed") {
-      setState("fallback");
-      setExtractionError(investigationRun.recommendationError || "Recommendation extraction failed");
-      setFallbackText("");
-    }
-  }, [open, investigationRun, state, applyExtractionResult]);
-
-  // Handle regenerate button click
-  const handleRegenerate = async () => {
-    if (!investigationRun) return;
-
-    setRegenerating(true);
-    try {
-      await regenerateRecommendations(investigationRun.id);
-      // Reset to loading state - WebSocket will notify when extraction completes
-      setState("loading");
-      setExtractionError(null);
-    } catch (err) {
-      setExtractionError((err as Error).message);
-    } finally {
-      setRegenerating(false);
-    }
-  };
-
   // Reset state when modal closes
   useEffect(() => {
     if (!open) {
-      setState("loading");
-      setCategories([]);
-      setRawText("");
-      setExtractionError(null);
-      setFallbackText("");
-      setExpandedCategories(new Set());
-      setShowRawOutput(false);
-      setShowAddCategory(false);
-      setNewCategoryName("");
+      setCustomContext("");
       clearAttachments();
     }
   }, [open, clearAttachments]);
 
-  const toggleCategory = (id: string) => {
+  const toggleCategory = (name: string) => {
     setExpandedCategories((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
       return next;
     });
   };
 
-  const handleSelectAll = (selected: boolean) => {
-    setCategories((prev) =>
-      prev.map((cat) => ({
-        ...cat,
-        recommendations: cat.recommendations.map((rec) => ({
-          ...rec,
-          selected,
-        })),
-      }))
-    );
-  };
-
-  const handleUpdateRecommendation = useCallback(
-    (categoryId: string, updated: Recommendation) => {
-      setCategories((prev) =>
-        prev.map((cat) =>
-          cat.id === categoryId
-            ? {
-                ...cat,
-                recommendations: cat.recommendations.map((rec) =>
-                  rec.id === updated.id ? updated : rec
-                ),
-              }
-            : cat
-        )
-      );
-    },
-    []
-  );
-
-  const handleDeleteRecommendation = useCallback(
-    (categoryId: string, recId: string) => {
-      setCategories((prev) =>
-        prev
-          .map((cat) =>
-            cat.id === categoryId
-              ? {
-                  ...cat,
-                  recommendations: cat.recommendations.filter(
-                    (rec) => rec.id !== recId
-                  ),
-                }
-              : cat
-          )
-          .filter((cat) => cat.recommendations.length > 0)
-      );
-    },
-    []
-  );
-
-  const handleAddRecommendation = useCallback((categoryId: string) => {
-    setCategories((prev) =>
-      prev.map((cat) =>
-        cat.id === categoryId
-          ? {
-              ...cat,
-              recommendations: [
-                ...cat.recommendations,
-                {
-                  id: generateId(),
-                  text: "New recommendation",
-                  selected: true,
-                  isNew: true,
-                },
-              ],
-            }
-          : cat
-      )
-    );
+  const toggleRecommendation = useCallback((text: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(text)) next.delete(text);
+      else next.add(text);
+      return next;
+    });
   }, []);
 
-  const handleAddCategory = () => {
-    if (!newCategoryName.trim()) return;
-    const newCat: RecommendationCategory = {
-      id: generateId(),
-      name: newCategoryName.trim(),
-      recommendations: [
-        {
-          id: generateId(),
-          text: "New recommendation",
-          selected: true,
-          isNew: true,
-        },
-      ],
-      isNew: true,
-    };
-    setCategories((prev) => [...prev, newCat]);
-    setExpandedCategories((prev) => new Set([...prev, newCat.id]));
-    setNewCategoryName("");
-    setShowAddCategory(false);
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelected(new Set(categories.flatMap((cat) => cat.recommendations.map((rec) => rec.text))));
+    } else {
+      setSelected(new Set());
+    }
   };
 
-  const handleDeleteCategory = useCallback((categoryId: string) => {
-    setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
-  }, []);
+  const totalCount = categories.reduce((acc, cat) => acc + cat.recommendations.length, 0);
+  const selectedCount = selected.size;
+  const allSelected = totalCount > 0 && selectedCount === totalCount;
+  const noneSelected = selectedCount === 0;
 
   const handleSubmit = async () => {
     const uploadedIds = getUploadedIds();
     const attachmentIds = uploadedIds.length > 0 ? uploadedIds : undefined;
-    if (state === "success") {
-      const serialized = serializeRecommendations(categories);
-      await onSubmit(serialized, attachmentIds);
-    } else {
-      await onSubmit(fallbackText.trim(), attachmentIds);
-    }
+    await onSubmit(Array.from(selected), customContext.trim(), attachmentIds);
   };
-
-  const allSelected = categories.every((cat) =>
-    cat.recommendations.every((rec) => rec.selected)
-  );
-  const noneSelected = categories.every((cat) =>
-    cat.recommendations.every((rec) => !rec.selected)
-  );
-  const selectedCount = categories.reduce(
-    (acc, cat) => acc + cat.recommendations.filter((r) => r.selected).length,
-    0
-  );
-  const totalCount = categories.reduce(
-    (acc, cat) => acc + cat.recommendations.length,
-    0
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -386,91 +138,60 @@ export function ApplyInvestigationModal({
         </DialogHeader>
 
         <DialogBody className="flex-1 overflow-y-auto space-y-4">
-          {state === "loading" && (
+          {!findings && !isTerminal && (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <RefreshCw className="h-8 w-8 animate-spin mb-3" />
-              <p className="text-sm">
-                {investigationRun?.recommendationStatus === "extracting"
-                  ? "Extracting recommendations..."
-                  : investigationRun?.recommendationStatus === "pending"
-                  ? "Waiting in queue..."
-                  : "Extracting recommendations..."}
-              </p>
-              <p className="text-xs mt-1">
-                {investigationRun?.recommendationStatus === "pending"
-                  ? "Another extraction is in progress"
-                  : "Using local LLM to analyze investigation output"}
-              </p>
+              <Loader2 className="h-8 w-8 animate-spin mb-3" />
+              <p className="text-sm">Investigation in progress...</p>
+              <p className="text-xs mt-1">Recommendations will appear once the investigation completes.</p>
             </div>
           )}
 
-          {state === "fallback" && (
+          {!findings && isTerminal && (
             <div className="space-y-4">
-              <div className="flex items-start justify-between gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm">
-                <div className="flex items-start gap-2">
-                  <Info className="mt-0.5 h-4 w-4 text-amber-500 shrink-0" />
-                  <div>
-                    <p className="font-medium text-amber-600">
-                      Could not extract structured recommendations
-                    </p>
-                    <p className="text-muted-foreground text-xs mt-1">
-                      {extractionError ||
-                        "The investigation output will be passed directly to the apply agent."}
-                    </p>
-                  </div>
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm">
+                <Info className="mt-0.5 h-4 w-4 text-amber-500 shrink-0" />
+                <div>
+                  <p className="font-medium text-amber-600">No structured recommendations available</p>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    This investigation did not produce a structured recommendation set. Review the run summary
+                    directly, or add context below for the apply agent.
+                  </p>
                 </div>
+              </div>
+              {investigationRun && onViewRun && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={handleRegenerate}
-                  disabled={regenerating}
-                  className="shrink-0 gap-1.5"
+                  onClick={() => onViewRun(investigationRun.id)}
+                  className="gap-1.5"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 ${regenerating ? "animate-spin" : ""}`} />
-                  {regenerating ? "Regenerating..." : "Retry"}
+                  View investigation run
                 </Button>
-              </div>
-
+              )}
               <div className="space-y-2">
-                <Label htmlFor="fallbackContext">
-                  Additional Context for Apply Agent
-                </Label>
+                <Label htmlFor="fallbackContext">Additional Context for Apply Agent</Label>
                 <Textarea
                   id="fallbackContext"
-                  value={fallbackText}
-                  onChange={(e) => setFallbackText(e.target.value)}
+                  value={customContext}
+                  onChange={(e) => setCustomContext(e.target.value)}
                   placeholder="Add any context or instructions for the apply agent..."
                   rows={5}
                 />
               </div>
-
-              {rawText && (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowRawOutput(!showRawOutput)}
-                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    {showRawOutput ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                    View raw investigation output
-                  </button>
-                  {showRawOutput && (
-                    <pre className="rounded-md border bg-muted/50 p-3 text-xs overflow-x-auto max-h-48">
-                      {rawText}
-                    </pre>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
-          {state === "success" && (
+          {findings && (
             <div className="space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm">{findings.summary}</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>Category: {findings.primaryCategory}</span>
+                  {findings.confidence && <span>· Confidence: {findings.confidence}</span>}
+                </div>
+              </div>
+
               {/* Selection controls */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -483,188 +204,66 @@ export function ApplyInvestigationModal({
                     {selectedCount} of {totalCount} selected
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Source: {extractedFrom}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRegenerate}
-                    disabled={regenerating}
-                    className="h-6 px-2 gap-1"
-                    title="Re-extract recommendations"
-                  >
-                    <RefreshCw className={`h-3 w-3 ${regenerating ? "animate-spin" : ""}`} />
-                    {regenerating ? "..." : "Refresh"}
-                  </Button>
-                </div>
               </div>
 
               {/* Categories */}
               <div className="space-y-3">
                 {categories.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="rounded-lg border border-border overflow-hidden"
-                  >
-                    {/* Category header */}
-                    <div className="flex items-center justify-between bg-muted/30 px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleCategory(cat.id)}
-                        className="flex items-center gap-2 text-sm font-medium hover:text-primary"
-                      >
-                        {expandedCategories.has(cat.id) ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                        {cat.name}
-                        {cat.isNew && (
-                          <span className="text-xs text-primary">(new)</span>
-                        )}
-                        <span className="text-xs text-muted-foreground font-normal">
-                          ({cat.recommendations.filter((r) => r.selected).length}
-                          /{cat.recommendations.length})
-                        </span>
-                      </button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteCategory(cat.id)}
-                        className="h-7 text-xs text-muted-foreground hover:text-destructive"
-                      >
-                        Remove
-                      </Button>
-                    </div>
+                  <div key={cat.name} className="rounded-lg border border-border overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleCategory(cat.name)}
+                      className="flex w-full items-center gap-2 bg-muted/30 px-3 py-2 text-left text-sm font-medium hover:text-primary"
+                    >
+                      {expandedCategories.has(cat.name) ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                      {cat.name}
+                      <span className="text-xs text-muted-foreground font-normal">
+                        ({cat.recommendations.filter((r) => selected.has(r.text)).length}
+                        /{cat.recommendations.length})
+                      </span>
+                    </button>
 
-                    {/* Category content */}
-                    {expandedCategories.has(cat.id) && (
+                    {expandedCategories.has(cat.name) && (
                       <div className="p-3 space-y-2">
                         {cat.recommendations.map((rec) => (
                           <RecommendationItem
-                            key={rec.id}
+                            key={rec.text}
                             recommendation={rec}
-                            onUpdate={(updated) =>
-                              handleUpdateRecommendation(cat.id, updated)
-                            }
-                            onDelete={() =>
-                              handleDeleteRecommendation(cat.id, rec.id)
-                            }
+                            selected={selected.has(rec.text)}
+                            onToggle={() => toggleRecommendation(rec.text)}
                           />
                         ))}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleAddRecommendation(cat.id)}
-                          className="w-full justify-center gap-1 text-muted-foreground hover:text-foreground"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Add recommendation
-                        </Button>
                       </div>
                     )}
                   </div>
                 ))}
-
-                {/* Add category */}
-                {showAddCategory ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddCategory();
-                        } else if (e.key === "Escape") {
-                          setShowAddCategory(false);
-                          setNewCategoryName("");
-                        }
-                      }}
-                      placeholder="Category name..."
-                      className="flex-1"
-                      autoFocus
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddCategory}
-                    >
-                      Add
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowAddCategory(false);
-                        setNewCategoryName("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAddCategory(true)}
-                    className="w-full gap-1"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add category
-                  </Button>
-                )}
               </div>
 
-              {/* Raw output toggle */}
-              {rawText && (
-                <div className="pt-2 border-t">
-                  <button
-                    type="button"
-                    onClick={() => setShowRawOutput(!showRawOutput)}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    {showRawOutput ? (
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    ) : (
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    )}
-                    View raw investigation output
-                  </button>
-                  {showRawOutput && (
-                    <pre className="mt-2 rounded-md border bg-muted/50 p-3 text-xs overflow-x-auto max-h-32">
-                      {rawText}
-                    </pre>
-                  )}
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="customContext">Additional Context for Apply Agent (optional)</Label>
+                <Textarea
+                  id="customContext"
+                  value={customContext}
+                  onChange={(e) => setCustomContext(e.target.value)}
+                  placeholder="Add any context or instructions for the apply agent..."
+                  rows={3}
+                />
+              </div>
             </div>
           )}
 
-          {/* Image Attachments — available in both success and fallback states.
-              Hidden during loading since there's nothing to review yet. */}
-          {state !== "loading" && (
+          {/* Image Attachments — hidden while the investigation is still running. */}
+          {(findings || isTerminal) && (
             <div className="space-y-2 pt-2 border-t">
               <Label>Image Attachments (optional)</Label>
               {attachments.length > 0 && (
-                <AttachmentPreview
-                  attachments={attachments}
-                  onRemove={removeAttachment}
-                  isUploading={isUploading}
-                />
+                <AttachmentPreview attachments={attachments} onRemove={removeAttachment} isUploading={isUploading} />
               )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => imageInputRef.current?.click()}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
                 <Paperclip className="h-4 w-4 mr-2" />
                 Attach Image
               </Button>
@@ -675,9 +274,7 @@ export function ApplyInvestigationModal({
                 onChange={handleImageSelect}
                 className="hidden"
               />
-              <p className="text-xs text-muted-foreground">
-                Screenshots or diagrams to guide the apply agent.
-              </p>
+              <p className="text-xs text-muted-foreground">Screenshots or diagrams to guide the apply agent.</p>
             </div>
           )}
 
@@ -690,28 +287,19 @@ export function ApplyInvestigationModal({
         </DialogBody>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={loading}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={
-              loading ||
-              isUploading ||
-              state === "loading" ||
-              (state === "success" && selectedCount === 0)
-            }
+            disabled={loading || isUploading || (!findings && !isTerminal) || (!!findings && noneSelected)}
             className="gap-2"
           >
             {loading ? (
               "Applying..."
             ) : isUploading ? (
               "Uploading..."
-            ) : state === "success" ? (
+            ) : findings ? (
               <>
                 <Search className="h-4 w-4" />
                 Apply {selectedCount} Recommendation{selectedCount !== 1 ? "s" : ""}

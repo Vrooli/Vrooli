@@ -113,6 +113,15 @@
           "architecture": {"primitive":"proto_mutation"}
         },
         {
+          "name": "execution-wait",
+          "description": "Block until an execution is terminal or the timeout elapses without polling; canceling the wait never cancels the execution",
+          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
+          "flags": [{"name":"timeout-seconds","description":"Server-side wait bound in seconds (0 blocks until terminal)"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"WaitWorkflowExecution"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
           "name": "trace",
           "description": "Inspect metadata-only attempt and durable journal history",
           "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
@@ -156,6 +165,28 @@
           "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ResumeWorkflowExecution"},
           "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
           "architecture": {"primitive":"proto_mutation"}
+        }
+      ]
+    },
+    {
+      "name": "declarations",
+      "description": "Reconcile a scenario's unified profile + workflow declarations",
+      "commands": [
+        {
+          "name": "reconcile-scenario",
+          "description": "Reconcile a scenario's unified declaration block (profiles + workflows)",
+          "flags": [{"name":"scenario","required":true,"description":"Owning scenario"},{"name":"dry-run","bool":true,"description":"Validate without writes"},{"name":"validate-only","bool":true,"description":"Validate sources only"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ReconcileScenarioDeclarations"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "plan",
+          "description": "Dry-run all scenario declaration sources without writes",
+          "flags": [{"name":"scenario","required":true,"description":"Owning scenario"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"PlanScenarioDeclarations"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
         }
       ]
     }

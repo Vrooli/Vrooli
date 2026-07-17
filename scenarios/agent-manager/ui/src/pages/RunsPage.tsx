@@ -80,6 +80,7 @@ interface RunsPageProps {
   ) => Promise<Run>;
   onApplyInvestigation: (
     investigationRunId: string,
+    selected: string[],
     customContext?: string,
     attachmentIds?: string[],
     overrides?: { roleRef?: string }
@@ -483,13 +484,14 @@ export function RunsPage({
     }
   };
 
-  const handleApplyInvestigation = async (customContext: string, attachmentIds?: string[]) => {
+  const handleApplyInvestigation = async (selected: string[], customContext: string, attachmentIds?: string[]) => {
     if (!applyInvestigationRun) return;
     setApplyLoading(true);
     setApplyError(null);
     try {
       const created = await onApplyInvestigation(
         applyInvestigationRun.id,
+        selected,
         customContext || undefined,
         attachmentIds
       );
@@ -843,6 +845,12 @@ export function RunsPage({
         }}
         investigationRun={applyInvestigationRun}
         onSubmit={handleApplyInvestigation}
+        onViewRun={(runId) => {
+          setApplyModalOpen(false);
+          setApplyInvestigationRun(null);
+          setApplyError(null);
+          navigate(`/runs/${runId}`);
+        }}
         loading={applyLoading}
         error={applyError}
       />

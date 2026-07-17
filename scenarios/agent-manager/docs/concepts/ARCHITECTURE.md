@@ -418,6 +418,32 @@ Manager executes agent work and returns a typed terminal result, and the
 consumer applies its own business transition. Agent Manager does not fetch or
 mutate consumer entities.
 
+### The declared-run doctrine
+
+Every programmatic (non-chat) agent interaction is a scenario-owned, registration-validated
+**workflow declaration** — the fleet contract. The test for whether an interaction must be a
+declared workflow is: **code composes the prompt and code consumes the output**. When that holds,
+the middle — prompt assembly, prompt-manager fetching, execution, extraction, classification,
+retries, looping — lives in a definition, not hand-rolled glue. Chat and interactive surfaces
+(web-console sessions, agent-manager interactive mode, the operator CLI) stay on plain runs; the
+raw run API remains the substrate *under* workflow nodes and internal plumbing. A scenario adopting
+the doctrine keeps exactly **two ends in code**: building the typed input snapshot and applying the
+typed result to domain state. The value purchased is declaration plus registration-time validation,
+not orchestration — a one-run feature is still a workflow file (a single-node workflow spelled with
+sugar), and no new registrable entity kind is introduced. The full authoring contract, the minimal
+example, `promptRef`, and the CEL journal helpers live in
+[`../reference/scenario-declarations.md`](../reference/scenario-declarations.md).
+
+Scenario-owned profiles and workflows are declared through **one** service.json block
+(`dependencies.scenarios.agent-manager.config.declarations`) and live in **one** directory
+(`.vrooli/agent-manager/`), discriminated per file by `schemaVersion`. One reconcile entry point
+fans out by kind while preserving each kind's lifecycle (profiles mutable with drift tracking;
+workflows digest-pinned atomic revisions). The cutover is **no-fallback**: the retired
+`.vrooli/agent-profiles/` / `.vrooli/agent-workflows/` directories and the legacy
+`config.profiles` / `config.workflows` blocks are rejected at reconcile and flagged by conformance —
+no reader for them remains. Agent Manager registers its own declarations at startup through a
+self-registration seam and its investigation feature runs as the first declared-workflow adopter.
+
 ### Aggregate split
 
 - `Run` remains one atomic agent conversation. It owns runner identity,
@@ -443,11 +469,11 @@ Every agent-executing node declares an `AgentExecutionBinding`:
 
 | Concern | Authoritative owner | Boundary rule |
 |---|---|---|
-| Prompt and skill content | Prompt Manager or scenario-authored source | Agent Manager renders declared references; it does not become the content owner. |
+| Prompt and skill content | Prompt Manager or scenario-authored source | Agent Manager renders declared references; it does not become the content owner. A `promptRef` node embeds the resolved skill content at reconcile with pinned provenance. |
 | Agent profiles and portable roles | Scenario source plus Agent Manager reconciliation and role policy | A workflow node references a profile or role; a workflow has no implicit global profile. |
 | Run and conversation identity | Agent Manager | Fresh nodes create distinct Runs; only explicit continue nodes reuse conversation state. |
 | Canonical final output and RunResult | Agent Manager | Provider evidence is primary; ambiguous evidence abstains. |
-| Workflow definition source | Owning scenario | `.vrooli/agent-workflows` remains desired state; the catalog is a digest-pinned projection. |
+| Workflow and profile definition source | Owning scenario | `.vrooli/agent-manager/` (unified layer) is desired state, declared through `config.declarations`; the catalog is a digest-pinned projection. |
 | Execution journal and binding evaluation | Agent Manager | Append-only entries are authoritative; bindings select declared, size-bounded values only. |
 | Workflow execution and external signals | Agent Manager | Signals advance waits idempotently but do not encode consumer business approval. |
 | Consumer input/output DTOs | Consumer scenario | The consumer maps domain state to workflow input and validates result semantics. |
@@ -542,11 +568,22 @@ authentication and authorization.
 
 Composition remains a tree of separate identities. A `child_workflow` creates
 a separately pinned child execution with explicit parent execution/attempt and
-depth fields; its consumption is rolled into the parent budget ledger. A
-parallel branch persists all member intents before dispatch and converges only
-through an authored `all`, `any`, or positive `quorum` join. Fresh Runs,
-continuations, and child executions are never collapsed into a synthetic
-current conversation.
+depth fields; its consumption is rolled into the parent budget ledger and its
+typed blocked, abstained, budget-exhausted, failed, or cancelled terminal is
+preserved by the parent. Authored `child_workflow_output` bindings may select a
+bounded value from the child's terminal output without exposing its journal or
+transcript. A parallel branch persists all member intents before dispatch and
+converges only through an authored `all`, `any`, or positive `quorum` join.
+Every fork visit has a durable visit ordinal and distinct member idempotency
+keys, so returning through a cycle creates fresh member attempts instead of
+reusing a prior join. Fresh Runs, continuations, and child executions are never
+collapsed into a synthetic current conversation.
+
+`run.maxTurns`, `run.timeoutSeconds`, `continue.maxTurns`, and
+`continue.timeoutSeconds` are node-attempt limits, not documentation. Fresh
+Run creation receives the resolved limits after profile selection; a named
+continuation receives a per-turn resolved-config overlay while preserving the
+source Run's immutable stored configuration and conversation ancestry.
 
 External waits belong to `WorkflowExecution`, not Run park/wake state. Their
 signal contract, correlation key, opaque resume token, and deadline are

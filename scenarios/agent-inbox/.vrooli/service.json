@@ -185,18 +185,20 @@
       }
     },
     "scenarios": {
-    "agent-manager": {
+      "agent-manager": {
         "type": "scenario",
         "enabled": true,
         "required": false,
-      "description": "Provides portable coding-agent execution for task dispatch",
-      "config": {
-        "profiles": {
-          "reconcile": true,
-          "mode": "update_if_unmodified",
-          "sources": [".vrooli/agent-profiles/default.json"]
+        "description": "Provides portable coding-agent execution for task dispatch",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/default.json"
+            ]
+          }
         }
-      }
       },
       "scenario-to-cloud": {
         "type": "scenario",

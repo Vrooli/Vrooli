@@ -6,6 +6,7 @@ type CommandFunc func(args []string) error
 
 type Dependencies struct {
 	Profile          CommandFunc
+	Declarations     CommandFunc
 	Workflow         CommandFunc
 	Task             CommandFunc
 	Run              CommandFunc

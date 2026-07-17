@@ -125,6 +125,7 @@ func TestApp_RegisterCommands_Groups(t *testing.T) {
 		"Health",
 		"Configuration",
 		"Profiles",
+		"Declarations",
 		"Workflows",
 		"Tasks",
 		"Runs",

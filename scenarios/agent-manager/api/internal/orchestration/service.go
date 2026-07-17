@@ -25,7 +25,6 @@ import (
 
 	"agent-manager/internal/adapters/artifact"
 	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/adapters/webconsole"
@@ -66,6 +65,9 @@ type Service interface {
 	DeleteProfile(ctx context.Context, id uuid.UUID) error
 	EnsureProfile(ctx context.Context, req EnsureProfileRequest) (*EnsureProfileResult, error)
 	ReconcileScenarioProfiles(ctx context.Context, req ReconcileScenarioProfilesRequest) (*ReconcileScenarioProfilesResult, error)
+	ReconcileScenarioDeclarations(ctx context.Context, req ReconcileScenarioDeclarationsRequest) (*ReconcileScenarioDeclarationsResult, error)
+	ReconcileDeclaringScenarios(ctx context.Context, repoRoot string) SweepSummary
+	ReconcileSelfDeclarations(ctx context.Context, repoRoot string) (*ReconcileScenarioDeclarationsResult, error)
 	ValidateWorkflow(ctx context.Context, data []byte) (*WorkflowValidationResult, error)
 	ReconcileScenarioWorkflows(ctx context.Context, req ReconcileScenarioWorkflowsRequest) (*ReconcileScenarioWorkflowsResult, error)
 	ListWorkflowRevisions(ctx context.Context, owner, key string, opts ListOptions) ([]*domain.WorkflowRevision, error)
@@ -74,6 +76,7 @@ type Service interface {
 	ListWorkflowExecutions(ctx context.Context, req ListWorkflowExecutionsRequest) ([]*domain.WorkflowExecution, error)
 	GetWorkflowExecution(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error)
 	AdvanceWorkflowExecution(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error)
+	WaitWorkflowExecution(ctx context.Context, id uuid.UUID, timeout time.Duration) (*WaitWorkflowExecutionResult, error)
 	GetWorkflowExecutionTrace(ctx context.Context, id uuid.UUID, afterSequence int64, limit int) (*WorkflowExecutionTrace, error)
 	SignalWorkflowExecution(ctx context.Context, req WorkflowExecutionSignalRequest) (*WorkflowExecutionOperationResult, error)
 	CancelWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error)
@@ -151,10 +154,6 @@ type Service interface {
 	GetOrchestrationSettings(ctx context.Context) (*agentconfig.OrchestrationSettings, error)
 	UpdateOrchestrationSettings(ctx context.Context, settings *agentconfig.OrchestrationSettings) error
 	ResetOrchestrationSettings(ctx context.Context) error
-
-	// --- Recommendation Extraction Operations ---
-	ExtractRecommendations(ctx context.Context, runID uuid.UUID) (*domain.ExtractionResult, error)
-	RegenerateRecommendations(ctx context.Context, runID uuid.UUID) error
 
 	// --- Path Validation ---
 	ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error)
@@ -414,6 +413,59 @@ type ReconcileScenarioWorkflowsResult struct {
 	ValidateOnly bool                      `json:"validateOnly"`
 }
 
+// ReconcileScenarioDeclarationsRequest reconciles a scenario's unified
+// declaration block (profiles and workflows) in one call.
+type ReconcileScenarioDeclarationsRequest struct {
+	Scenario     string `json:"scenario"`
+	DryRun       bool   `json:"dryRun,omitempty"`
+	ValidateOnly bool   `json:"validateOnly,omitempty"`
+}
+
+// ReconcileScenarioDeclarationsResult aggregates the per-kind reconciliation
+// outcomes; the legacy profile/workflow RPCs project their halves from it.
+type ReconcileScenarioDeclarationsResult struct {
+	Scenario        string                    `json:"scenario"`
+	ProfileResults  []ProfileReconcileResult  `json:"profileResults"`
+	WorkflowResults []WorkflowReconcileResult `json:"workflowResults"`
+
+	ProfilesCreated    int `json:"profilesCreated"`
+	ProfilesUpdated    int `json:"profilesUpdated"`
+	ProfilesUnchanged  int `json:"profilesUnchanged"`
+	ProfilesSkipped    int `json:"profilesSkipped"`
+	ProfilesConflicted int `json:"profilesConflicted"`
+	ProfilesFailed     int `json:"profilesFailed"`
+
+	WorkflowsCreated   int `json:"workflowsCreated"`
+	WorkflowsActivated int `json:"workflowsActivated"`
+	WorkflowsUnchanged int `json:"workflowsUnchanged"`
+	WorkflowsSkipped   int `json:"workflowsSkipped"`
+	WorkflowsFailed    int `json:"workflowsFailed"`
+
+	DryRun       bool `json:"dryRun"`
+	ValidateOnly bool `json:"validateOnly"`
+}
+
+// SweepSummary is the aggregate of a startup declaration sweep across every
+// scenario that declares the unified block.
+type SweepSummary struct {
+	Scanned    int                   `json:"scanned"`
+	Declaring  int                   `json:"declaring"`
+	Reconciled int                   `json:"reconciled"`
+	Failed     int                   `json:"failed"`
+	Scenarios  []ScenarioSweepResult `json:"scenarios,omitempty"`
+}
+
+// ScenarioSweepResult is one scenario's outcome within a startup sweep.
+type ScenarioSweepResult struct {
+	Scenario           string `json:"scenario"`
+	ProfilesCreated    int    `json:"profilesCreated"`
+	ProfilesUpdated    int    `json:"profilesUpdated"`
+	WorkflowsCreated   int    `json:"workflowsCreated"`
+	WorkflowsActivated int    `json:"workflowsActivated"`
+	Failed             int    `json:"failed"`
+	Err                string `json:"err,omitempty"`
+}
+
 type StartWorkflowExecutionRequest struct {
 	Owner            string          `json:"owner"`
 	WorkflowKey      string          `json:"workflowKey"`
@@ -501,10 +553,13 @@ type StopAllResult struct {
 
 // ContinueRunRequest contains parameters for continuing an existing run conversation.
 type ContinueRunRequest struct {
-	RunID          uuid.UUID `json:"runId"`
-	Message        string    `json:"message"`
-	AttachmentIDs  []string  `json:"attachmentIds,omitempty"`
-	IdempotencyKey string    `json:"idempotencyKey,omitempty"`
+	RunID          uuid.UUID          `json:"runId"`
+	Message        string             `json:"message"`
+	AttachmentIDs  []string           `json:"attachmentIds,omitempty"`
+	IdempotencyKey string             `json:"idempotencyKey,omitempty"`
+	MaxTurns       *int               `json:"maxTurns,omitempty"`
+	Timeout        *time.Duration     `json:"timeout,omitempty"`
+	ResultSpec     *domain.ResultSpec `json:"resultSpec,omitempty"`
 }
 
 // ResumeFromFailedRunRequest contains parameters for creating a new run that
@@ -539,8 +594,15 @@ type CreateInvestigationRequest struct {
 // CreateInvestigationApplyRequest contains parameters for creating an apply run.
 type CreateInvestigationApplyRequest struct {
 	InvestigationRunID uuid.UUID `json:"investigationRunId"`
-	CustomContext      string    `json:"customContext,omitempty"`
-	AttachmentIDs      []string  `json:"attachmentIds,omitempty"`
+	// Decision is the operator's approval decision on the investigation:
+	// "completed" (approve and apply), "rejected", or "abstained". Empty
+	// defaults to "completed" for backward compatibility with the apply action.
+	Decision string `json:"decision,omitempty"`
+	// Selected is the list of approved recommendation texts the operator chose to
+	// apply. Empty means apply every recommendation in the approved findings.
+	Selected      []string `json:"selected,omitempty"`
+	CustomContext string   `json:"customContext,omitempty"`
+	AttachmentIDs []string `json:"attachmentIds,omitempty"`
 	// RoleRef overrides the portable role on the default apply profile.
 	RoleRef *string `json:"roleRef,omitempty"`
 	// Environment carries custom VROOLI_-prefixed variables into the apply runner
@@ -693,9 +755,6 @@ type Orchestrator struct {
 	// return empty).
 	healthStore *health.Store
 
-	// Recommendation extractor for investigation outputs.
-	recommendationExtractor recommendation.Extractor
-
 	// Prompt-manager client for reading investigation prompts from skills.
 	promptClient promptmanager.Client
 
@@ -749,6 +808,20 @@ type Orchestrator struct {
 	// It is always present; its optional extractor is selected by portable role.
 	structuredResults phases.StructuredResultResolver
 	workflowEngine    *workflowruntime.Engine
+
+	// workflowNudger drives a parent execution forward when one of its runs (or
+	// child workflows) reaches terminal, so no consumer polls Advance. Nil
+	// disables completion-driven advance — the reconciler recovery sweep still
+	// re-drives non-terminal executions. Wired post-construction via
+	// SetWorkflowNudger to break the nudger↔orchestrator construction cycle
+	// (mirrors SetAwaitRegistry).
+	workflowNudger *WorkflowNudger
+
+	// workflowWaiters backs the blocking WaitWorkflowExecution RPC: an
+	// event-driven notifier the drive path fires when an execution settles
+	// terminal. Always non-nil (set in New) so waits work even before the
+	// nudger is wired.
+	workflowWaiters *workflowWaitRegistry
 }
 
 // OrchestratorConfig holds service configuration.
@@ -914,13 +987,6 @@ func WithFlagValidator(v runner.FlagValidator) Option {
 	}
 }
 
-// WithRecommendationExtractor sets the recommendation extractor for investigation outputs.
-func WithRecommendationExtractor(extractor recommendation.Extractor) Option {
-	return func(o *Orchestrator) {
-		o.recommendationExtractor = extractor
-	}
-}
-
 // WithPromptClient sets the prompt-manager client for reading investigation prompts from skills.
 func WithPromptClient(client promptmanager.Client) Option {
 	return func(o *Orchestrator) {
@@ -994,6 +1060,14 @@ func (o *Orchestrator) SetAwaitRegistry(r *AwaitRegistry) {
 	o.awaitRegistry = r
 }
 
+// SetWorkflowNudger wires the completion-nudge queue. The nudger's drive
+// function is o.driveWorkflowExecution, so it must be built once the
+// orchestrator exists — mirroring SetAwaitRegistry. Nil leaves completion-
+// driven advance disabled (the reconciler recovery sweep still re-drives).
+func (o *Orchestrator) SetWorkflowNudger(n *WorkflowNudger) {
+	o.workflowNudger = n
+}
+
 // SpawnStats returns the current spawn-dispatcher state. Safe to call
 // from the HTTP response path. Returns the zero Stats when the
 // dispatcher is unset (test-only).
@@ -1024,6 +1098,7 @@ func New(
 		config:             DefaultConfig(),
 		interactiveDrivers: newInteractiveDriverRegistry(),
 		structuredResults:  structuredresult.Resolver{},
+		workflowWaiters:    newWorkflowWaitRegistry(),
 	}
 
 	for _, opt := range opts {
@@ -1140,11 +1215,7 @@ func (o *Orchestrator) EnsureProfile(ctx context.Context, req EnsureProfileReque
 		return &EnsureProfileResult{Profile: existing}, nil
 	}
 
-	// Use built-in defaults for known profile keys if no defaults provided
 	defaults := req.Defaults
-	if defaults == nil {
-		defaults = getBuiltInProfileDefaults(key)
-	}
 	if defaults == nil {
 		return nil, domain.NewValidationErrorWithHint("defaults", "field is required",
 			"Provide default profile settings to create a new profile")
@@ -2497,6 +2568,10 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	// web-console session (never a process respawn) and reattaching a tailer to
 	// drive the new turn to completion — see continueInteractiveRun.
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		if req.MaxTurns != nil || req.Timeout != nil || req.ResultSpec != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationError("continuationOverrides", "interactive continuation does not support per-turn workflow overrides")
+		}
 		continued, err := o.continueInteractiveRun(ctx, run, req.Message, req.AttachmentIDs)
 		if err != nil {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
@@ -2505,7 +2580,7 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		o.markIdempotencyComplete(ctx, req.IdempotencyKey, continued.ID, "Run")
 		return continued, nil
 	}
-	continued, err := o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested")
+	continued, err := o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested", continuationOverrides{MaxTurns: req.MaxTurns, Timeout: req.Timeout, ResultSpec: req.ResultSpec})
 	if err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
@@ -2524,7 +2599,13 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 // and wake from ever diverging on env/identity/heartbeat handling. Callers are
 // responsible for the precondition gate (CanContinueRun for continue, the parked
 // guard for wake) before calling this.
-func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, message string, attachmentIDs []string, reason string) (*domain.Run, error) {
+type continuationOverrides struct {
+	MaxTurns   *int
+	Timeout    *time.Duration
+	ResultSpec *domain.ResultSpec
+}
+
+func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, message string, attachmentIDs []string, reason string, overrides continuationOverrides) (*domain.Run, error) {
 	// The immutable resolved config is the sole execution authority.
 	var runnerType domain.RunnerType
 	if run.ResolvedConfig != nil {
@@ -2669,6 +2750,19 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 	// reassigned pointers, and the persisted DB row remains the single source of
 	// truth, so the background copy and the returned snapshot converge on reload.
 	runForExec := *run
+	if run.ResolvedConfig != nil {
+		resolved := *run.ResolvedConfig
+		if overrides.MaxTurns != nil {
+			resolved.MaxTurns = *overrides.MaxTurns
+		}
+		if overrides.Timeout != nil {
+			resolved.Timeout = *overrides.Timeout
+		}
+		if overrides.ResultSpec != nil {
+			resolved.ResultSpec = overrides.ResultSpec
+		}
+		runForExec.ResolvedConfig = &resolved
+	}
 
 	// Execute continuation asynchronously
 	go o.executeContinuation(context.Background(), &runForExec, r, eventSink, message, workDir, attachments, continueEnv, transcriptCfg, cleanupTranscript)
@@ -2881,6 +2975,9 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 
 	levers := o.runLevers()
 	timeout := levers.Execution.DefaultTimeout
+	if run.ResolvedConfig != nil && run.ResolvedConfig.Timeout > 0 {
+		timeout = run.ResolvedConfig.Timeout
+	}
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -3026,6 +3123,9 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	}
 	run = updatedRun
 	o.checkpointContinuationTurn(ctx, run, result, execCtx.Err() == context.DeadlineExceeded)
+	// Completion-driven advance: a workflow continue-node run just reached
+	// terminal (the parked path returned above, keeping its attempt open).
+	o.nudgeWorkflowForRun(run.ID)
 }
 
 func (o *Orchestrator) checkpointContinuationTurn(ctx context.Context, run *domain.Run, result *runner.ExecuteResult, timedOut bool) {
@@ -3127,9 +3227,13 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	if len(o.identitySecret) > 0 {
 		executor.WithIdentitySecret(o.identitySecret)
 	}
-	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.WithOnRunning(started)
 	executor.Execute(ctx)
+	// Completion-driven advance: a workflow run just reached terminal (a parked
+	// run keeps its attempt open — the wake leg nudges when it later completes).
+	if !executor.parked {
+		o.nudgeWorkflowForRun(run.ID)
+	}
 }
 
 // interactiveInitialPrompt reconstructs the single-channel prompt to type into
@@ -3399,11 +3503,15 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	if len(o.identitySecret) > 0 {
 		executor.WithIdentitySecret(o.identitySecret)
 	}
-	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.WithResumeFrom(checkpoint)
 	executor.WithOnRunning(started)
 
 	executor.Execute(ctx)
+	// Completion-driven advance for a workflow run recovered/resumed after a
+	// restart between run-terminal and the original nudge.
+	if !executor.parked {
+		o.nudgeWorkflowForRun(run.ID)
+	}
 }
 
 // GetRunProgress returns the current progress of a run for display.

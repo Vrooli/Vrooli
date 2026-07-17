@@ -56,15 +56,10 @@ func makeFullRun(taskID uuid.UUID, profileID *uuid.UUID) *domain.Run {
 		SandboxConfig: &domain.SandboxConfig{
 			NoLock: true,
 		},
-		SessionID:              "session-abc",
-		SourceRunIDs:           []uuid.UUID{uuid.New()},
-		RecommendationStatus:   domain.RecommendationStatusComplete,
-		RecommendationResult:   &domain.ExtractionResult{Success: true, Categories: []domain.RecommendationCategory{{ID: "cat1", Name: "Cat 1"}}},
-		RecommendationAttempts: 1,
-		RecommendationError:    "some error",
-		RecommendationQueuedAt: &now,
-		CreatedAt:              now,
-		UpdatedAt:              now,
+		SessionID:    "session-abc",
+		SourceRunIDs: []uuid.UUID{uuid.New()},
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 }
 
@@ -112,9 +107,6 @@ func TestList_OmitsHeavyFields(t *testing.T) {
 	}
 	if got.SandboxConfig != nil {
 		t.Errorf("List() should omit SandboxConfig, got %+v", got.SandboxConfig)
-	}
-	if got.RecommendationResult != nil {
-		t.Errorf("List() should omit RecommendationResult, got %+v", got.RecommendationResult)
 	}
 	if got.SandboxID != nil {
 		t.Errorf("List() should omit SandboxID, got %v", got.SandboxID)
@@ -212,12 +204,6 @@ func TestList_PopulatesLightFields(t *testing.T) {
 	}
 	if got.SessionID != run.SessionID {
 		t.Errorf("SessionID: want %q, got %q", run.SessionID, got.SessionID)
-	}
-	if got.RecommendationStatus != run.RecommendationStatus {
-		t.Errorf("RecommendationStatus: want %s, got %s", run.RecommendationStatus, got.RecommendationStatus)
-	}
-	if got.RecommendationAttempts != run.RecommendationAttempts {
-		t.Errorf("RecommendationAttempts: want %d, got %d", run.RecommendationAttempts, got.RecommendationAttempts)
 	}
 	if got.ExitCode == nil || *got.ExitCode != *run.ExitCode {
 		t.Errorf("ExitCode mismatch: want %v, got %v", run.ExitCode, got.ExitCode)

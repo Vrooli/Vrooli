@@ -20,77 +20,30 @@ import (
 )
 
 const (
-	// Use domain constants for tag values to ensure consistency across packages.
-	// See domain.InvestigationTag and domain.InvestigationApplyTag.
-	investigationTag             = domain.InvestigationTag
-	investigationApplyTag        = domain.InvestigationApplyTag
-	investigationProfileKey      = domain.InvestigationTag      // Profile key matches tag
-	investigationApplyProfileKey = domain.InvestigationApplyTag // Profile key matches tag
+	// investigationWorkflowOwner/Key select the self-registered declared
+	// workflow that drives the investigate → await-approval → apply flow. Its
+	// definition lives in scenarios/agent-manager/.vrooli/agent-manager/investigate.json
+	// and is activated at startup through the self-registration seam.
+	investigationWorkflowOwner  = agentManagerSelfScenario
+	investigationWorkflowKey    = "agent-manager/investigate"
+	investigationApprovalSignal = "investigation.approval"
 
-	investigationEventLimit         = 500
-	investigationReportTimeout      = 10 * time.Minute
-	investigationApplyReportTimeout = 15 * time.Minute
+	// Node ids inside investigate.json used to recover the dispatched runs for
+	// the REST/UI surface.
+	investigationInvestigateNodeID = "investigate"
+	investigationApplyNodeID       = "apply"
+
+	investigationEventLimit = 500
+
+	// maxInvestigationContextBytes caps the rendered context snapshot that
+	// becomes the workflow input. The run node renders this input into the agent
+	// prompt, which the runtime bounds at workflowruntime.MaxRenderedPromptBytes
+	// (64 KiB); we cap below that to leave room for the skill instructions.
+	maxInvestigationContextBytes = 56000
 )
 
 // NOTE: InvestigationDepth type is defined in domain/investigation.go
 // Use domain.InvestigationDepth, domain.InvestigationDepthQuick, etc.
-
-// investigationFrictionMethodologyExtract contains the useful subset of the
-// conversation-friction-analysis skill for investigation context. The full skill
-// is ~270 lines; we keep only root-cause attribution, priority scoring, severity
-// definitions, and friction signal patterns. Everything else (generic workflow,
-// output template, retirement mapping) either duplicates the investigation
-// skill's own structure or adds noise.
-const investigationFrictionMethodologyExtract = `
-
----
-
-## Reference: Friction Analysis Concepts
-
-### Root-Cause Attribution Layers
-
-Classify each friction event into one primary layer:
-- **CLI/tool output**: weak next actions, poor defaults, selector/ID confusion
-- **Tool capability**: missing command for repeated manual pattern
-- **Skill design**: ambiguity, missing guardrails, scattered long-tail details
-- **Docs/discovery**: source of truth hard to find, stale references
-- **Process/policy**: no clear escalation path, conflicting governance rules
-- **Intent/inputs**: missing prerequisites or unstable objectives
-
-If multiple layers apply, identify a primary cause and contributing causes.
-
-### Priority Scoring
-
-For each recommendation, score:
-- **impact** (1-5): expected reduction in future friction
-- **recurrence** (1-5): how often this likely repeats
-- **cost** (1-5): effort/risk to implement
-
-Priority = (impact × recurrence) − cost
-
-Prefer fixes that remove repeated manual interpretation, improve CLI output contracts, or reduce policy ambiguity.
-
-### Severity Definitions
-
-| Severity | Definition | Typical action |
-|---|---|---|
-| Critical | Blocks delivery, risks unsafe action, or causes repeated hard failure | Immediate policy/tooling fix |
-| Major | Causes frequent retries/guessing and unstable execution | Patch skill/tool output soon |
-| Gap | Capability implied but not operationally enabled | Add capability or explicit handoff |
-| Minor | Clarity/friction improvements with low immediate risk | Queue for batch improvement |
-
-"Forces the agent to guess next action" is at least Major.
-
-### Friction Signal Patterns
-
-Common signals to look for in event timelines:
-- Repeated clarification on the same point
-- Conflicting instructions across skills/docs
-- Command examples that fail or force guessing
-- Output that is non-actionable for next step decisions
-- Repeated "manual interpretation" loops
-- If the same pattern appears 2+ times, treat it as systemic
-`
 
 // buildInvestigationContextAttachment creates a human-readable context attachment
 // describing the investigation scope and how to fetch additional data.
@@ -203,67 +156,55 @@ func (o *Orchestrator) CreateInvestigationRun(
 	investigationCtx := buildInvestigationContextAttachment(projectRoot, req.ScopePaths, req.RunIDs)
 	attachments = append([]domain.ContextAttachment{investigationCtx}, attachments...)
 
-	// Append user-uploaded image attachments. The CreateRun pipeline resolves
-	// these to file paths and hands them to the runner (see orchestration/service.go
-	// image-resolution block); we just need to record the references on the task.
-	for _, id := range req.AttachmentIDs {
-		if strings.TrimSpace(id) == "" {
-			continue
-		}
-		attachments = append(attachments, domain.ContextAttachment{
-			Type:         "image",
-			AttachmentID: id,
-			Label:        "Uploaded image",
-			Key:          "investigation-image-" + id,
-			Tags:         []string{"image", "investigation"},
-		})
+	// The depth-gated attachment builders now produce the typed workflow input
+	// snapshot (rendered markdown), not a prompt string. The declared workflow's
+	// investigate run node resolves its prompt from the prompt-manager skill via
+	// promptRef and renders this context into it.
+	renderedContext := renderInvestigationContext(attachments)
+
+	runIDs := make([]string, len(req.RunIDs))
+	for i, id := range req.RunIDs {
+		runIDs[i] = id.String()
 	}
-
-	// Read prompt from prompt-manager skill, fall back to settings/hardcoded default
-	prompt, err := o.readInvestigationSkill(ctx, "agent-manager-process-investigation")
-	if err != nil {
-		prompt = settings.PromptTemplate
-	}
-
-	// Append a trimmed extract of the friction-analysis methodology.
-	// The full conversation-friction-analysis skill is ~270 lines of generic
-	// methodology — most of it (workflow steps, output template, scope boundaries,
-	// retirement mapping) duplicates or conflicts with the investigation skill's
-	// own structure. We inline only the parts that add value:
-	//   - Root-cause attribution layers (helps classify findings)
-	//   - Priority scoring formula (helps rank recommendations)
-	//   - Severity model (shared vocabulary with investigation output)
-	//   - Friction signal patterns (helps spot issues in timelines)
-	prompt = prompt + investigationFrictionMethodologyExtract
-
-	// Create task with explicit project root
-	task, err := o.createInvestigationTask(ctx, "Investigation", prompt, attachments, projectRoot)
+	input, err := json.Marshal(map[string]any{
+		"context":     renderedContext,
+		"depth":       string(depth),
+		"runIds":      runIDs,
+		"projectRoot": projectRoot,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	run, err := o.createInvestigationRunWithProfile(
-		ctx,
-		task.ID,
-		investigationTag,
-		investigationProfileRefWithOverrides(req.RoleRef),
-		req.RunIDs,
-		nil,
-		req.Environment,
-	)
+	execution, err := o.StartWorkflowExecution(ctx, StartWorkflowExecutionRequest{
+		Owner:          investigationWorkflowOwner,
+		WorkflowKey:    investigationWorkflowKey,
+		Input:          input,
+		IdempotencyKey: "investigation/" + uuid.NewString(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	run, err := o.workflowNodeRun(ctx, execution.ID, investigationInvestigateNodeID)
 	if err != nil {
 		return nil, err
 	}
 	return o.attachRunActions(ctx, run), nil
 }
 
-// CreateInvestigationApplyRun creates a new run that applies investigation recommendations.
+// CreateInvestigationApplyRun records the operator's approval decision on a
+// completed investigation and, when the decision is "completed", launches the
+// declared apply run bound to the structured investigation findings and the
+// approved-recommendation selection. Rejection/abstention terminate the
+// workflow without an apply run. There is no separate apply task or prompt
+// assembly here: approval is a signal into the investigate workflow, and the
+// apply node resolves its prompt and structured bindings from the definition.
 func (o *Orchestrator) CreateInvestigationApplyRun(
 	ctx context.Context,
 	req CreateInvestigationApplyRequest,
 ) (*domain.Run, error) {
 	investigationRunID := req.InvestigationRunID
-	customContext := req.CustomContext
 
 	run, err := o.GetRun(ctx, investigationRunID)
 	if err != nil {
@@ -273,114 +214,116 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, domain.NewValidationError("investigationRunId", reason)
 	}
 
-	task, err := o.GetTask(ctx, run.TaskID)
+	executionID, err := o.workflowExecutions.ExecutionIDForRun(ctx, investigationRunID)
+	if err != nil {
+		return nil, err
+	}
+	if executionID == uuid.Nil {
+		return nil, domain.NewValidationError("investigationRunId", "run is not part of an investigation workflow")
+	}
+
+	// Ensure the execution has advanced from the just-completed investigate run
+	// to the awaiting-approval wait node before we signal (closes the race
+	// between run completion and the completion nudge).
+	if _, err = o.AdvanceWorkflowExecution(ctx, executionID); err != nil {
+		return nil, err
+	}
+
+	decision := strings.TrimSpace(req.Decision)
+	if decision == "" {
+		decision = "completed"
+	}
+
+	selected := req.Selected
+	if selected == nil {
+		selected = []string{}
+	}
+	note := req.CustomContext
+	if len(note) > 8192 {
+		note = note[:8192]
+	}
+	payload, err := json.Marshal(map[string]any{
+		"decision": decision,
+		"selected": selected,
+		"note":     note,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Fetch investigation settings to get the configurable apply prompt template
-	var settings *domain.InvestigationSettings
-	if o.investigationSettings != nil {
-		settings, err = o.investigationSettings.Get(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get investigation settings: %w", err)
-		}
-	}
-	if settings == nil {
-		settings = domain.DefaultInvestigationSettings()
-	}
-
-	attachments, err := o.buildApplyAttachments(ctx, run, task, customContext)
-	if err != nil {
+	if _, err = o.SignalWorkflowExecution(ctx, WorkflowExecutionSignalRequest{
+		ExecutionID:    executionID,
+		Signal:         investigationApprovalSignal,
+		Payload:        payload,
+		IdempotencyKey: "investigation-approval/" + executionID.String(),
+	}); err != nil {
 		return nil, err
 	}
 
-	// Append user-uploaded image attachments for this apply step (on top of any
-	// images that were already attached to the investigation task and copied in
-	// via buildApplyAttachments). The CreateRun pipeline resolves these to file
-	// paths for the runner.
-	for _, id := range req.AttachmentIDs {
-		if strings.TrimSpace(id) == "" {
-			continue
-		}
-		attachments = append(attachments, domain.ContextAttachment{
-			Type:         "image",
-			AttachmentID: id,
-			Label:        "Uploaded image",
-			Key:          "apply-image-" + id,
-			Tags:         []string{"image", "investigation-apply"},
-		})
+	// Only the "completed" decision launches an apply run; rejection/abstention
+	// terminate the workflow, so we hand the investigation run back unchanged.
+	if decision != "completed" {
+		return o.attachRunActions(ctx, run), nil
 	}
 
-	applyTemplate, err := o.readInvestigationSkill(ctx, "agent-manager-process-investigation-apply")
-	if err != nil {
-		applyTemplate = settings.ApplyPromptTemplate
-	}
-
-	// Pre-fetch supporting methodology skill for the apply agent.
-	if supporting := o.readSupportingSkills(ctx, []string{
-		"skill-principles",
-	}); supporting != "" {
-		applyTemplate = applyTemplate + "\n\n---\n\n## Reference Methodology\n\n" + supporting
-	}
-
-	prompt := buildApplyPrompt(applyTemplate, investigationRunID, customContext)
-	// Use the original task's project root for the apply run
-	applyTask, err := o.createInvestigationTask(ctx, "Apply Investigation", prompt, attachments, task.ProjectRoot)
-	if err != nil {
-		return nil, err
-	}
-
-	// Apply runs use a different profile with write capabilities. Caller-supplied
-	// runner/preset overrides are honored; nil preserves the default apply profile.
-	applyRun, err := o.createInvestigationRunWithProfile(
-		ctx,
-		applyTask.ID,
-		investigationApplyTag,
-		applyInvestigationProfileRefWithOverrides(req.RoleRef),
-		nil,
-		&investigationRunID,
-		req.Environment,
-	)
+	applyRun, err := o.workflowNodeRun(ctx, executionID, investigationApplyNodeID)
 	if err != nil {
 		return nil, err
 	}
 	return o.attachRunActions(ctx, applyRun), nil
 }
 
-// readInvestigationSkill reads a skill from prompt-manager, returning an error if unavailable.
-func (o *Orchestrator) readInvestigationSkill(ctx context.Context, skillID string) (string, error) {
-	if o.promptClient == nil {
-		return "", fmt.Errorf("no prompt client configured")
-	}
-	content, err := o.promptClient.ReadSkill(ctx, skillID, nil, false)
+// workflowNodeRun resolves the run dispatched for the newest attempt of the
+// named node in an execution. It backs the REST/UI surface, which still returns
+// the investigation and apply runs even though they are now workflow node
+// attempts rather than directly created runs.
+func (o *Orchestrator) workflowNodeRun(ctx context.Context, executionID uuid.UUID, nodeID string) (*domain.Run, error) {
+	attempts, err := o.workflowExecutions.ListAttempts(ctx, executionID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return content, nil
-}
-
-// readSupportingSkills fetches multiple skills from prompt-manager and returns
-// them concatenated with headers. Any individual skill that fails to load is
-// silently skipped. Returns empty string if none could be loaded.
-func (o *Orchestrator) readSupportingSkills(ctx context.Context, skillIDs []string) string {
-	if o.promptClient == nil {
-		return ""
-	}
-
-	var parts []string
-	for _, id := range skillIDs {
-		content, err := o.promptClient.ReadSkill(ctx, id, nil, false)
-		if err != nil || strings.TrimSpace(content) == "" {
+	var latest *domain.WorkflowNodeAttempt
+	for _, attempt := range attempts {
+		if attempt.NodeID != nodeID || attempt.RunID == nil {
 			continue
 		}
-		parts = append(parts, content)
+		if latest == nil || attempt.CreatedAt.After(latest.CreatedAt) {
+			latest = attempt
+		}
 	}
+	if latest == nil {
+		return nil, domain.NewStateError("WorkflowExecution", "running", "node-run",
+			fmt.Sprintf("node %q has not dispatched a run yet", nodeID))
+	}
+	return o.GetRun(ctx, *latest.RunID)
+}
 
-	if len(parts) == 0 {
-		return ""
+// renderInvestigationContext flattens the depth-gated context attachments into a
+// single markdown block that becomes the workflow input. Image attachments are
+// skipped (they carry no renderable text). The result is capped at
+// maxInvestigationContextBytes so the run node's rendered prompt stays within
+// the runtime's prompt-size bound.
+func renderInvestigationContext(attachments []domain.ContextAttachment) string {
+	var sb strings.Builder
+	for _, att := range attachments {
+		if strings.TrimSpace(att.Content) == "" {
+			continue
+		}
+		label := att.Label
+		if label == "" {
+			label = att.Key
+		}
+		sb.WriteString("\n## ")
+		sb.WriteString(label)
+		sb.WriteString("\n\n")
+		sb.WriteString(att.Content)
+		sb.WriteString("\n")
 	}
-	return strings.Join(parts, "\n\n---\n\n")
+	rendered := sb.String()
+	if len(rendered) > maxInvestigationContextBytes {
+		rendered = rendered[:maxInvestigationContextBytes] + "\n\n... (context truncated to fit the run prompt budget)\n"
+	}
+	return rendered
 }
 
 func (o *Orchestrator) investigationTagAllowlist(ctx context.Context) []domain.InvestigationTagRule {
@@ -389,13 +332,6 @@ func (o *Orchestrator) investigationTagAllowlist(ctx context.Context) []domain.I
 		return domain.DefaultInvestigationTagAllowlist()
 	}
 	return domain.NormalizeInvestigationTagAllowlist(settings.InvestigationTagAllowlist)
-}
-
-func (o *Orchestrator) recommendationQueueFilter(ctx context.Context) func(*domain.Run) bool {
-	allowlist := o.investigationTagAllowlist(ctx)
-	return func(run *domain.Run) bool {
-		return domain.MatchesInvestigationTag(run.Tag, allowlist)
-	}
 }
 
 func (o *Orchestrator) createInvestigationTask(
@@ -423,38 +359,6 @@ func (o *Orchestrator) createInvestigationTask(
 	}
 
 	return o.CreateTask(ctx, task)
-}
-
-func (o *Orchestrator) createInvestigationRunWithProfile(
-	ctx context.Context,
-	taskID uuid.UUID,
-	tag string,
-	profileRef *ProfileRef,
-	sourceRunIDs []uuid.UUID,
-	sourceInvestigationRunID *uuid.UUID,
-	environment map[string]string,
-) (*domain.Run, error) {
-	// Investigations are diagnostic by intent — the deliverable is a written
-	// report, not repo mutations. ManualReview=true defers apply at run end
-	// so any inadvertent file changes persist as pending-review for operator
-	// approval (via GCT, agent-manager run-detail, or workspace-sandbox UI)
-	// rather than auto-applying. NoLock=true (the contract default) lets
-	// investigations run concurrently with other work over the same scope;
-	// per the auditability contract, locking and acceptance/apply are
-	// orthogonal. See workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
-	sandboxConfig := domain.DefaultSandboxConfig()
-	sandboxConfig.ManualReview = true
-
-	return o.CreateRun(ctx, CreateRunRequest{
-		TaskID:                   taskID,
-		ProfileRef:               profileRef,
-		Tag:                      tag,
-		Force:                    true,
-		SandboxConfig:            sandboxConfig,
-		SourceRunIDs:             sourceRunIDs,
-		SourceInvestigationRunID: sourceInvestigationRunID,
-		Environment:              environment,
-	})
 }
 
 func (o *Orchestrator) buildInvestigationAttachments(
@@ -1165,219 +1069,6 @@ func (o *Orchestrator) buildHistoricalContext(ctx context.Context, currentRun *d
 		Summary:  fmt.Sprintf("%d recent runs: %d succeeded, %d failed", total, successCount, failCount),
 		Tags:     []string{"run", "history", "investigation"},
 	}, true
-}
-
-func (o *Orchestrator) buildApplyAttachments(
-	ctx context.Context,
-	investigationRun *domain.Run,
-	task *domain.Task,
-	customContext string,
-) ([]domain.ContextAttachment, error) {
-	// Include the original investigation's context attachments (already human-readable
-	// if the investigation was created with the new format).
-	attachments := make([]domain.ContextAttachment, 0, len(task.ContextAttachments)+4)
-	attachments = append(attachments, task.ContextAttachments...)
-
-	short := shortID(investigationRun.ID)
-
-	// Investigation run overview (human-readable, not raw JSON).
-	var investigationProfile *domain.AgentProfile
-	if investigationRun.AgentProfileID != nil {
-		investigationProfile, _ = o.GetProfile(ctx, *investigationRun.AgentProfileID)
-	}
-	var investigationTask *domain.Task
-	investigationTask, _ = o.GetTask(ctx, investigationRun.TaskID)
-	attachments = append(attachments, buildRunOverview(investigationRun, investigationTask, investigationProfile, "inv-"+short))
-
-	// Investigation run timeline.
-	if o.events != nil {
-		events, err := o.GetRunEvents(ctx, investigationRun.ID, event.GetOptions{
-			AfterSequence: -1,
-			Limit:         investigationEventLimit,
-		})
-		if err != nil {
-			return nil, err
-		}
-		attachments = append(attachments, buildRunTimeline(events, investigationRun, "inv-"+short))
-	}
-
-	// Investigation run diff.
-	diff, err := o.GetRunDiff(ctx, investigationRun.ID)
-	if err == nil && diff != nil {
-		diffJSON, err := marshalJSON(diff)
-		if err != nil {
-			return nil, err
-		}
-		attachments = append(attachments, domain.ContextAttachment{
-			Type:     "note",
-			Key:      fmt.Sprintf("investigation-run-diff-%s", short),
-			Label:    fmt.Sprintf("Investigation Run Diff %s", short),
-			Content:  diffJSON,
-			Format:   "json",
-			Priority: "medium",
-			Summary:  fmt.Sprintf("Code changes from investigation run %s", short),
-			Tags:     []string{"run", "diff", "investigation"},
-		})
-	}
-
-	if strings.TrimSpace(customContext) != "" {
-		attachments = append(attachments, domain.ContextAttachment{
-			Type:     "note",
-			Key:      "user-context",
-			Label:    "Additional Context",
-			Content:  customContext,
-			Format:   "markdown",
-			Priority: "medium",
-			Summary:  "User-provided additional context for this apply run",
-			Tags:     []string{"user", "context"},
-		})
-	}
-
-	return attachments, nil
-}
-
-func buildApplyPrompt(template string, investigationRunID uuid.UUID, customContext string) string {
-	var sb strings.Builder
-
-	// Use the configurable template as the base
-	sb.WriteString(template)
-	sb.WriteString("\n\n")
-
-	// Add dynamic investigation run reference
-	sb.WriteString("---\n\n")
-	sb.WriteString("## Investigation Run Reference\n\n")
-	sb.WriteString(fmt.Sprintf("**Investigation Run ID:** `%s`\n\n", investigationRunID))
-	sb.WriteString("Use these commands to fetch additional investigation data:\n")
-	sb.WriteString(fmt.Sprintf("```bash\nagent-manager run get %s\nagent-manager run events %s\nagent-manager run diff %s\n```\n\n", investigationRunID, investigationRunID, investigationRunID))
-
-	// Add custom context if provided
-	if strings.TrimSpace(customContext) != "" {
-		sb.WriteString("## User-Provided Context\n\n")
-		sb.WriteString(customContext)
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
-}
-
-// investigationProfileRefWithOverrides applies a caller-provided portable role
-// on top of the default investigation profile. Nil preserves the default.
-func investigationProfileRefWithOverrides(roleRef *string) *ProfileRef {
-	defaults := defaultInvestigationProfile()
-	applyInvestigationOverrides(defaults, roleRef)
-	return &ProfileRef{
-		ProfileKey: investigationProfileKey,
-		Defaults:   defaults,
-	}
-}
-
-// applyInvestigationProfileRefWithOverrides mirrors investigationProfileRefWithOverrides
-// for the apply flow.
-func applyInvestigationProfileRefWithOverrides(roleRef *string) *ProfileRef {
-	defaults := defaultApplyInvestigationProfile()
-	applyInvestigationOverrides(defaults, roleRef)
-	return &ProfileRef{
-		ProfileKey: investigationApplyProfileKey,
-		Defaults:   defaults,
-	}
-}
-
-// applyInvestigationOverrides mutates the profile with a caller-provided role.
-func applyInvestigationOverrides(profile *domain.AgentProfile, roleRef *string) {
-	if profile == nil {
-		return
-	}
-	if roleRef != nil {
-		profile.RoleRef = strings.TrimSpace(*roleRef)
-	}
-}
-
-func defaultInvestigationProfile() *domain.AgentProfile {
-	return &domain.AgentProfile{
-		Name:        "Agent-Manager Investigation",
-		ProfileKey:  investigationProfileKey,
-		Description: "Agent profile for behavioral analysis of failed agent runs (read-only)",
-		RoleRef:     "code.smart",
-		MaxTurns:    75, // Increased for active exploration
-		Timeout:     investigationReportTimeout,
-		AllowedTools: []string{
-			// File exploration
-			"read_file",
-			"list_files",
-			"glob",
-			"grep",
-			// Code analysis
-			"analyze_code",
-			// Command execution for investigation
-			"execute_command",
-			// Search capabilities
-			"web_search",
-		},
-		SkipPermissionPrompt: true,
-		// Read-only by intent, but the tool surface (`execute_command`,
-		// `web_search`) doesn't hard-prevent writes. ManualReview=true is
-		// defense-in-depth: if the agent does mutate files, those changes
-		// land as pending-review provenance for an operator instead of
-		// silently auto-applying. Mirrors the apply-investigation profile
-		// and the per-run override in createInvestigationRunWithProfile.
-		SandboxConfig: func() *domain.SandboxConfig {
-			cfg := domain.DefaultSandboxConfig()
-			cfg.ManualReview = true
-			return cfg
-		}(),
-		NetworkAccess: domain.NetworkAccessLocalhost,
-		CreatedBy:     "agent-manager",
-	}
-}
-
-func defaultApplyInvestigationProfile() *domain.AgentProfile {
-	return &domain.AgentProfile{
-		Name:        "Agent-Manager Apply Investigation",
-		ProfileKey:  investigationApplyProfileKey,
-		Description: "Agent profile for applying investigation recommendations (has write capabilities)",
-		RoleRef:     "code.smart",
-		MaxTurns:    100, // More turns for implementing fixes
-		Timeout:     investigationApplyReportTimeout,
-		AllowedTools: []string{
-			// File exploration (same as investigation)
-			"read_file",
-			"list_files",
-			"glob",
-			"grep",
-			// Code analysis
-			"analyze_code",
-			// Command execution
-			"execute_command",
-			// Search capabilities
-			"web_search",
-			// Write capabilities (NEW - for applying fixes)
-			"edit_file",
-			"write_file",
-			"create_file",
-			"delete_file",
-		},
-		SkipPermissionPrompt: true,
-		SandboxConfig: func() *domain.SandboxConfig {
-			cfg := domain.DefaultSandboxConfig()
-			cfg.ManualReview = true
-			return cfg
-		}(),
-		NetworkAccess: domain.NetworkAccessLocalhost,
-		CreatedBy:     "agent-manager",
-	}
-}
-
-// getBuiltInProfileDefaults returns built-in default profile settings for known profile keys.
-// Returns nil if the profile key is not a known built-in profile.
-func getBuiltInProfileDefaults(profileKey string) *domain.AgentProfile {
-	switch profileKey {
-	case investigationProfileKey:
-		return defaultInvestigationProfile()
-	case investigationApplyProfileKey:
-		return defaultApplyInvestigationProfile()
-	default:
-		return nil
-	}
 }
 
 func marshalJSON(value any) (string, error) {

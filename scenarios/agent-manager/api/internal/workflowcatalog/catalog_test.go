@@ -14,7 +14,7 @@ func validDefinition() domain.WorkflowDefinition {
 		SchemaVersion: domain.WorkflowSchemaVersionV1, Owner: "example", Key: "example/review", Version: "1.2.3",
 		InputSchema: schema, OutputSchema: schema, EntryNode: "start",
 		Nodes: []domain.WorkflowNode{
-			{ID: "start", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "Review {{input}}", Bindings: []domain.WorkflowInputBinding{{Name: "input", Source: domain.WorkflowBindingInput, Limit: 1, MaxBytes: 4096, RenderAs: "json", MissingPolicy: "error"}}}},
+			{ID: "start", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "Review {{.input}}", Bindings: []domain.WorkflowInputBinding{{Name: "input", Source: domain.WorkflowBindingInput, Limit: 1, MaxBytes: 4096, RenderAs: "json", MissingPolicy: "error"}}}},
 			{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
 		},
 		Edges: []domain.WorkflowEdge{{From: "start", To: "done"}}, Budgets: validBudgets(),
@@ -23,6 +23,117 @@ func validDefinition() domain.WorkflowDefinition {
 
 func validBudgets() domain.WorkflowBudgets {
 	return domain.WorkflowBudgets{WallTimeSeconds: 60, MaxTurns: 4, MaxTokens: 1000, MaxCostUSD: 1, MaxNodeAttempts: 3, MaxChildren: 2, MaxConcurrency: 2, MaxRecursion: 2, MaxRetries: 2, MaxWaitSeconds: 30}
+}
+
+// singleRunSugar is the shorthand form: one run node, no entryNode, no edges,
+// no end node.
+func singleRunSugar() domain.WorkflowDefinition {
+	schema := json.RawMessage(`{"type":"object","additionalProperties":false}`)
+	out := json.RawMessage(`{"type":"object","properties":{"result":{"type":"object","additionalProperties":true}},"required":["result"],"additionalProperties":false}`)
+	return domain.WorkflowDefinition{
+		SchemaVersion: domain.WorkflowSchemaVersionV1, Owner: "example", Key: "example/single", Version: "1.0.0",
+		InputSchema: schema, OutputSchema: out,
+		Nodes: []domain.WorkflowNode{
+			{ID: "work", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "Do {{.input}}", Bindings: []domain.WorkflowInputBinding{{Name: "input", Source: domain.WorkflowBindingInput, Limit: 1, MaxBytes: 4096, RenderAs: "json", MissingPolicy: "error"}}}},
+		},
+		Budgets: validBudgets(),
+	}
+}
+
+// singleRunExplicit is the fully-spelled equivalent of singleRunSugar: the same
+// run node plus the entryNode, implied end, and edge the sugar synthesizes.
+func singleRunExplicit() domain.WorkflowDefinition {
+	d := singleRunSugar()
+	d.EntryNode = "work"
+	d.Nodes = append(d.Nodes, domain.WorkflowNode{
+		ID: "end", Kind: domain.WorkflowNodeEnd,
+		End: &domain.WorkflowEndNode{Status: "succeeded", Bindings: []domain.WorkflowInputBinding{{
+			Name: "result", Source: domain.WorkflowBindingStructured, Selector: "$.value", Order: "desc", Limit: 1, MaxBytes: 16384, RenderAs: "json", MissingPolicy: "error",
+		}}},
+	})
+	d.Edges = []domain.WorkflowEdge{{From: "work", To: "end"}}
+	return d
+}
+
+func TestSingleNodeSugarCanonicalizesToExplicitDigest(t *testing.T) {
+	sugar, err := Validate(singleRunSugar(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	explicit, err := Validate(singleRunExplicit(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sugar.Diagnostics) != 0 {
+		t.Fatalf("sugar diagnostics: %+v", sugar.Diagnostics)
+	}
+	if len(explicit.Diagnostics) != 0 {
+		t.Fatalf("explicit diagnostics: %+v", explicit.Diagnostics)
+	}
+	if sugar.Digest == "" {
+		t.Fatal("sugar earned no digest")
+	}
+	if sugar.Digest != explicit.Digest {
+		t.Fatalf("sugar and explicit digests differ:\n sugar=%s\n  expl=%s\n sugarJSON=%s\n explJSON=%s", sugar.Digest, explicit.Digest, sugar.Canonical, explicit.Canonical)
+	}
+}
+
+func TestSingleNodeSugarRoundTripsThroughParse(t *testing.T) {
+	data, err := json.Marshal(singleRunSugar())
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := Parse(data, nil)
+	if err != nil {
+		t.Fatalf("parse sugar: %v", err)
+	}
+	if len(parsed.Diagnostics) != 0 {
+		t.Fatalf("parse diagnostics: %+v", parsed.Diagnostics)
+	}
+	if parsed.Definition.EntryNode != "work" || len(parsed.Definition.Nodes) != 2 || len(parsed.Definition.Edges) != 1 {
+		t.Fatalf("sugar did not expand: entry=%q nodes=%d edges=%d", parsed.Definition.EntryNode, len(parsed.Definition.Nodes), len(parsed.Definition.Edges))
+	}
+	if parsed.Definition.Nodes[1].Kind != domain.WorkflowNodeEnd || parsed.Definition.Nodes[1].End.Status != "succeeded" {
+		t.Fatalf("implied end missing: %+v", parsed.Definition.Nodes[1])
+	}
+}
+
+func TestValidateAcceptsPromptRefAlternative(t *testing.T) {
+	d := validDefinition()
+	d.Nodes[0].Run.PromptTemplate = ""
+	d.Nodes[0].Run.PromptRef = &domain.WorkflowPromptRef{SkillID: "example-skill"}
+	d.Nodes[0].Run.Bindings = nil
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if domain.HasBlockingDiagnostic(result.Diagnostics) {
+		t.Fatalf("promptRef alternative rejected: %+v", result.Diagnostics)
+	}
+}
+
+func TestValidateRejectsBothPromptTemplateAndRef(t *testing.T) {
+	d := validDefinition()
+	d.Nodes[0].Run.PromptRef = &domain.WorkflowPromptRef{SkillID: "example-skill"}
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCode(result.Diagnostics, "prompt") {
+		t.Fatalf("expected mutual-exclusion diagnostic: %+v", result.Diagnostics)
+	}
+}
+
+func TestValidateRejectsNeitherPrompt(t *testing.T) {
+	d := validDefinition()
+	d.Nodes[0].Run.PromptTemplate = ""
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCode(result.Diagnostics, "prompt") {
+		t.Fatalf("expected required-prompt diagnostic: %+v", result.Diagnostics)
+	}
 }
 
 func TestWorkflowBudgetSafetyCeilings(t *testing.T) {
@@ -73,7 +184,7 @@ func TestParseRejectsUnknownRuntimeAndCallbackFields(t *testing.T) {
 
 func TestValidateRequiresExplicitBoundedCycleEdges(t *testing.T) {
 	d := validDefinition()
-	d.Nodes = append(d.Nodes[:1], domain.WorkflowNode{ID: "again", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Expression: "counter < 2"}}, d.Nodes[1])
+	d.Nodes = append(d.Nodes[:1], domain.WorkflowNode{ID: "again", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{}}, d.Nodes[1])
 	d.Edges = []domain.WorkflowEdge{{From: "start", To: "again"}, {From: "again", To: "start"}, {From: "again", To: "done"}}
 	result, err := Validate(d, nil)
 	if err != nil {
@@ -135,7 +246,7 @@ func TestValidateMixedProfilesAndForwardContinuation(t *testing.T) {
 func TestValidateRejectsContinuationSourceThatDoesNotDominate(t *testing.T) {
 	d := validDefinition()
 	d.Nodes = []domain.WorkflowNode{
-		{ID: "choose", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Expression: "true"}},
+		{ID: "choose", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{}},
 		{ID: "optional", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{ProfileKey: "planner", PromptTemplate: "optional"}},
 		{ID: "revise", Kind: domain.WorkflowNodeContinue, Continue: &domain.WorkflowContinueNode{ConversationFromNode: "optional", PromptTemplate: "revise"}},
 		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
@@ -161,6 +272,138 @@ func TestValidateRejectsTranscriptBindingAndUnboundedProjection(t *testing.T) {
 	}
 	if !hasCode(result.Diagnostics, "binding_source") || !hasCode(result.Diagnostics, "binding_size") {
 		t.Fatalf("unsafe binding accepted: %+v", result.Diagnostics)
+	}
+}
+
+func TestValidateAcceptsDistinctAuthoredTerminalOutcomes(t *testing.T) {
+	for _, status := range []string{"succeeded", "blocked", "abstained", "budget_exhausted", "failed"} {
+		t.Run(status, func(t *testing.T) {
+			d := validDefinition()
+			d.Nodes[1].End.Status = status
+			result, err := Validate(d, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if hasCode(result.Diagnostics, "end") {
+				t.Fatalf("terminal outcome %q rejected: %+v", status, result.Diagnostics)
+			}
+		})
+	}
+}
+
+func TestValidateRejectsInvalidAgentNodeLimits(t *testing.T) {
+	d := validDefinition()
+	d.Nodes[0].Run.MaxTurns = -1
+	d.Nodes[0].Run.TimeoutSeconds = MaxWallTimeSeconds + 1
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCode(result.Diagnostics, "node_limit") {
+		t.Fatalf("invalid node limits accepted: %+v", result.Diagnostics)
+	}
+}
+
+func diagnosticFor(diagnostics []domain.WorkflowDiagnostic, code string) (domain.WorkflowDiagnostic, bool) {
+	for _, d := range diagnostics {
+		if d.Code == code {
+			return d, true
+		}
+	}
+	return domain.WorkflowDiagnostic{}, false
+}
+
+func TestValidateRejectsMalformedEdgeCondition(t *testing.T) {
+	d := validDefinition()
+	d.Nodes = []domain.WorkflowNode{
+		{ID: "gate", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	d.EntryNode = "gate"
+	d.Edges = []domain.WorkflowEdge{{From: "gate", To: "done", Condition: "iteration <"}}
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diag, ok := diagnosticFor(result.Diagnostics, "edge_condition")
+	if !ok {
+		t.Fatalf("syntactically broken edge condition accepted: %+v", result.Diagnostics)
+	}
+	if diag.Path != "edges[0].condition" {
+		t.Fatalf("edge_condition diagnostic missing edge path: %q", diag.Path)
+	}
+	if result.Digest != "" {
+		t.Fatal("a definition with a broken edge condition must not earn a digest")
+	}
+}
+
+func TestValidateRejectsNonBoolEdgeCondition(t *testing.T) {
+	d := validDefinition()
+	d.Nodes = []domain.WorkflowNode{
+		{ID: "gate", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	d.EntryNode = "gate"
+	d.Edges = []domain.WorkflowEdge{{From: "gate", To: "done", Condition: "iteration + 1"}}
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCode(result.Diagnostics, "edge_condition") {
+		t.Fatalf("non-bool edge condition accepted: %+v", result.Diagnostics)
+	}
+}
+
+func TestValidateRejectsUnboundPromptPlaceholder(t *testing.T) {
+	d := validDefinition()
+	d.Nodes[0].Run.PromptTemplate = "Review {{.input}} against {{.missing}}"
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diag, ok := diagnosticFor(result.Diagnostics, "prompt_unbound")
+	if !ok {
+		t.Fatalf("unbound placeholder accepted: %+v", result.Diagnostics)
+	}
+	if !diag.IsError() {
+		t.Fatal("an unbound placeholder must be a blocking error")
+	}
+	if result.Digest != "" {
+		t.Fatal("a definition with an unbound placeholder must not earn a digest")
+	}
+}
+
+func TestValidateWarnsOnUnusedBinding(t *testing.T) {
+	d := validDefinition()
+	d.Nodes[0].Run.Bindings = append(d.Nodes[0].Run.Bindings, domain.WorkflowInputBinding{Name: "extra", Source: domain.WorkflowBindingInput, Selector: "$.extra", Limit: 1, MaxBytes: 4096, RenderAs: "json", MissingPolicy: "omit"})
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diag, ok := diagnosticFor(result.Diagnostics, "prompt_unused_binding")
+	if !ok {
+		t.Fatalf("unused binding did not warn: %+v", result.Diagnostics)
+	}
+	if diag.IsError() {
+		t.Fatal("an unused binding must be a non-blocking warning")
+	}
+	// A warning-only definition still registers: the digest is computed.
+	if result.Digest == "" {
+		t.Fatalf("a warning-only definition must still earn a digest: %+v", result.Diagnostics)
+	}
+}
+
+func TestValidateRejectsMalformedPromptTemplate(t *testing.T) {
+	d := validDefinition()
+	// {{input}} with no dot is a call to an undefined function, exactly the
+	// class of latent error the runtime renderer would hit.
+	d.Nodes[0].Run.PromptTemplate = "Review {{input}}"
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCode(result.Diagnostics, "prompt_template") {
+		t.Fatalf("unparseable prompt template accepted: %+v", result.Diagnostics)
 	}
 }
 

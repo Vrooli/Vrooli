@@ -290,22 +290,20 @@ func RunToProto(r *domain.Run) *pb.Run {
 	}
 	if r.Actions != nil {
 		run.Actions = &pb.RunActions{
-			CanInvestigate:               r.Actions.CanInvestigate,
-			CanApplyInvestigation:        r.Actions.CanApplyInvestigation,
-			CanDelete:                    r.Actions.CanDelete,
-			CanStop:                      r.Actions.CanStop,
-			CanRetry:                     r.Actions.CanRetry,
-			CanContinue:                  r.Actions.CanContinue,
-			CanContinueReason:            r.Actions.CanContinueReason,
-			CanApprove:                   r.Actions.CanApprove,
-			CanReject:                    r.Actions.CanReject,
-			CanReview:                    r.Actions.CanReview,
-			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
-			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
-			CanResumeFromFailure:         r.Actions.CanResumeFromFailure,
-			CanResumeFromFailureReason:   r.Actions.CanResumeFromFailureReason,
-			FinalizationWarning:          r.Actions.FinalizationWarning,
-			CanRetryFinalization:         r.Actions.CanRetryFinalization,
+			CanInvestigate:             r.Actions.CanInvestigate,
+			CanApplyInvestigation:      r.Actions.CanApplyInvestigation,
+			CanDelete:                  r.Actions.CanDelete,
+			CanStop:                    r.Actions.CanStop,
+			CanRetry:                   r.Actions.CanRetry,
+			CanContinue:                r.Actions.CanContinue,
+			CanContinueReason:          r.Actions.CanContinueReason,
+			CanApprove:                 r.Actions.CanApprove,
+			CanReject:                  r.Actions.CanReject,
+			CanReview:                  r.Actions.CanReview,
+			CanResumeFromFailure:       r.Actions.CanResumeFromFailure,
+			CanResumeFromFailureReason: r.Actions.CanResumeFromFailureReason,
+			FinalizationWarning:        r.Actions.FinalizationWarning,
+			CanRetryFinalization:       r.Actions.CanRetryFinalization,
 		}
 	}
 
@@ -435,22 +433,20 @@ func RunFromProto(r *pb.Run) *domain.Run {
 	}
 	if r.Actions != nil {
 		run.Actions = &domain.RunActions{
-			CanInvestigate:               r.Actions.CanInvestigate,
-			CanApplyInvestigation:        r.Actions.CanApplyInvestigation,
-			CanDelete:                    r.Actions.CanDelete,
-			CanStop:                      r.Actions.CanStop,
-			CanRetry:                     r.Actions.CanRetry,
-			CanContinue:                  r.Actions.CanContinue,
-			CanContinueReason:            r.Actions.CanContinueReason,
-			CanApprove:                   r.Actions.CanApprove,
-			CanReject:                    r.Actions.CanReject,
-			CanReview:                    r.Actions.CanReview,
-			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
-			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
-			CanResumeFromFailure:         r.Actions.CanResumeFromFailure,
-			CanResumeFromFailureReason:   r.Actions.CanResumeFromFailureReason,
-			FinalizationWarning:          r.Actions.FinalizationWarning,
-			CanRetryFinalization:         r.Actions.CanRetryFinalization,
+			CanInvestigate:             r.Actions.CanInvestigate,
+			CanApplyInvestigation:      r.Actions.CanApplyInvestigation,
+			CanDelete:                  r.Actions.CanDelete,
+			CanStop:                    r.Actions.CanStop,
+			CanRetry:                   r.Actions.CanRetry,
+			CanContinue:                r.Actions.CanContinue,
+			CanContinueReason:          r.Actions.CanContinueReason,
+			CanApprove:                 r.Actions.CanApprove,
+			CanReject:                  r.Actions.CanReject,
+			CanReview:                  r.Actions.CanReview,
+			CanResumeFromFailure:       r.Actions.CanResumeFromFailure,
+			CanResumeFromFailureReason: r.Actions.CanResumeFromFailureReason,
+			FinalizationWarning:        r.Actions.FinalizationWarning,
+			CanRetryFinalization:       r.Actions.CanRetryFinalization,
 		}
 	}
 

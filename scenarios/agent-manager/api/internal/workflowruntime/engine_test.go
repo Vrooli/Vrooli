@@ -3,19 +3,23 @@ package workflowruntime
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/workflowcatalog"
 
 	"github.com/google/uuid"
 )
 
 func TestEngineLoopCreatesDistinctFreshRunsAndTerminates(t *testing.T) { // [REQ:REQ-P2-001]
 	definition := baseDefinition()
-	definition.Nodes = []domain.WorkflowNode{{ID: "slice", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.fast", PromptTemplate: "Work {{.topic}}", Bindings: []domain.WorkflowInputBinding{inputBinding("topic", "$.topic")}}}, {ID: "more", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Expression: "iteration < 2"}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+	definition.Nodes = []domain.WorkflowNode{{ID: "slice", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.fast", PromptTemplate: "Work {{.topic}}", Bindings: []domain.WorkflowInputBinding{inputBinding("topic", "$.topic")}}}, {ID: "more", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
 	definition.EntryNode = "slice"
 	definition.Edges = []domain.WorkflowEdge{{From: "slice", To: "more"}, {From: "more", To: "slice", Condition: "iteration < 2", MaxTraversals: 2}, {From: "more", To: "done"}}
 	engine, store, children := testEngine(t, definition)
@@ -145,6 +149,42 @@ func TestWaitSignalIsTypedDurableAndIdempotent(t *testing.T) { // [REQ:REQ-P2-00
 	}
 }
 
+func TestRevisitedWaitRequiresVisitScopedSignal(t *testing.T) { // [REQ:REQ-P2-001]
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved", TimeoutSeconds: 30}},
+		{ID: "loop", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{}},
+	}
+	definition.EntryNode = "approval"
+	definition.Edges = []domain.WorkflowEdge{{From: "approval", To: "loop", MaxTraversals: 2}, {From: "loop", To: "approval", MaxTraversals: 1}}
+	engine, store, _ := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "wait-revisit")
+	firstWait := mustAdvance(t, engine, execution.ID)
+	if _, _, err := engine.Signal(context.Background(), execution.ID, "approved", json.RawMessage(`{}`), "approval-1", firstWait.Version); err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID) // consume first wait
+	mustAdvance(t, engine, execution.ID) // loop back to approval
+	secondWait := mustAdvance(t, engine, execution.ID)
+	if secondWait.Status != domain.WorkflowExecutionWaiting {
+		t.Fatalf("revisited wait reused prior signal: %#v", secondWait)
+	}
+	journal, _ := store.ListJournal(context.Background(), execution.ID, 0, 0)
+	correlations := []string{}
+	for _, entry := range journal {
+		if entry.Kind != domain.WorkflowJournalWait {
+			continue
+		}
+		var intent waitIntent
+		if json.Unmarshal(entry.Payload, &intent) == nil {
+			correlations = append(correlations, intent.CorrelationKey)
+		}
+	}
+	if len(correlations) != 2 || correlations[0] == correlations[1] {
+		t.Fatalf("wait correlations are not visit scoped: %v", correlations)
+	}
+}
+
 func TestCancelWinsAgainstLateSignalAndIsIdempotent(t *testing.T) {
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved", TimeoutSeconds: 30}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
@@ -154,14 +194,41 @@ func TestCancelWinsAgainstLateSignalAndIsIdempotent(t *testing.T) {
 	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "cancel-1")
 	waiting := mustAdvance(t, engine, execution.ID)
 	cancelled, duplicate, err := engine.Cancel(context.Background(), execution.ID, "cancel-op", "operator request", waiting.Version)
-	if err != nil || duplicate || cancelled.Status != domain.WorkflowExecutionCancelled {
+	if err != nil || duplicate || cancelled.Status != domain.WorkflowExecutionCancelling {
 		t.Fatalf("cancelled=%+v duplicate=%t err=%v", cancelled, duplicate, err)
+	}
+	cancelled, err = engine.RecordCancellationDisposition(context.Background(), execution.ID, 0, 0, nil)
+	if err != nil || cancelled.Status != domain.WorkflowExecutionCancelled {
+		t.Fatalf("cancellation cleanup=%+v err=%v", cancelled, err)
 	}
 	if _, duplicate, err = engine.Cancel(context.Background(), execution.ID, "cancel-op", "operator request", 0); err != nil || !duplicate {
 		t.Fatalf("duplicate cancel duplicate=%t err=%v", duplicate, err)
 	}
 	if _, _, err = engine.Signal(context.Background(), execution.ID, "approved", json.RawMessage(`{}`), "late-signal", 0); err == nil {
 		t.Fatal("late signal changed cancelled execution")
+	}
+}
+
+func TestCancellationRemainsRecoverableUntilChildCleanupSucceeds(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved", TimeoutSeconds: 30}}}
+	definition.EntryNode = "approval"
+	engine, store, _ := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "cancel-cleanup")
+	waiting := mustAdvance(t, engine, execution.ID)
+	if _, _, err := engine.Cancel(context.Background(), execution.ID, "cancel-cleanup", "operator request", waiting.Version); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := engine.RecordCleanupDisposition(context.Background(), execution.ID, 0, 0, []string{"child still running"}); err == nil {
+		t.Fatal("incomplete cleanup was accepted")
+	}
+	persisted, _ := store.Get(context.Background(), execution.ID)
+	if persisted.Status != domain.WorkflowExecutionCancelling || persisted.EndedAt != nil {
+		t.Fatalf("incomplete cancellation became terminal: %#v", persisted)
+	}
+	completed, err := engine.RecordCleanupDisposition(context.Background(), execution.ID, 1, 0, nil)
+	if err != nil || completed.Status != domain.WorkflowExecutionCancelled || completed.EndedAt == nil {
+		t.Fatalf("completed cancellation cleanup=%#v err=%v", completed, err)
 	}
 }
 
@@ -192,10 +259,36 @@ func TestChildWorkflowPersistsIdentityAndAggregatesBudget(t *testing.T) { // [RE
 	}
 }
 
+func TestChildWorkflowPreservesDistinctTerminalStatus(t *testing.T) { // [REQ:REQ-P2-001]
+	for _, want := range []domain.WorkflowExecutionStatus{domain.WorkflowExecutionBlocked, domain.WorkflowExecutionAbstained} {
+		t.Run(string(want), func(t *testing.T) {
+			definition := baseDefinition()
+			definition.Nodes = []domain.WorkflowNode{{ID: "child", Kind: domain.WorkflowNodeChild, Child: &domain.WorkflowChildNode{WorkflowKey: "example/child", MaxDepth: 2}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+			definition.EntryNode = "child"
+			definition.Edges = []domain.WorkflowEdge{{From: "child", To: "done"}}
+			engine, _, _ := testEngine(t, definition)
+			children := &fakeSubworkflows{states: map[uuid.UUID]SubworkflowState{}, byKey: map[string]uuid.UUID{}}
+			engine.Subworkflows = children
+			execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "child-terminal-"+string(want))
+			if err != nil {
+				t.Fatal(err)
+			}
+			mustAdvance(t, engine, execution.ID)
+			mustAdvance(t, engine, execution.ID)
+			childID := children.byKey[children.starts[0].IdempotencyKey]
+			children.states[childID] = SubworkflowState{ExecutionID: childID, Terminal: true, Status: want, Output: json.RawMessage(`{"reason":"child stopped"}`), TerminalReason: &domain.WorkflowTerminalReason{Code: string(want)}}
+			final := mustAdvance(t, engine, execution.ID)
+			if final.Status != want || string(final.Output) != `{"reason":"child stopped"}` {
+				t.Fatalf("parent terminal=%+v", final)
+			}
+		})
+	}
+}
+
 func TestParallelBranchDispatchesDistinctProfilesAndJoins(t *testing.T) {
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{
-		{ID: "fanout", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Expression: "true", Parallel: true}},
+		{ID: "fanout", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Parallel: true}},
 		{ID: "research", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{ProfileKey: "researcher", PromptTemplate: "research"}},
 		{ID: "review", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{ProfileKey: "reviewer", PromptTemplate: "review"}},
 		{ID: "joined", Kind: domain.WorkflowNodeJoin, Join: &domain.WorkflowJoinNode{Strategy: "all"}},
@@ -229,6 +322,455 @@ func TestParallelBranchDispatchesDistinctProfilesAndJoins(t *testing.T) {
 	if len(attempts) != 2 {
 		t.Fatalf("attempts=%+v", attempts)
 	}
+}
+
+func TestParallelFanoutWiderThanConcurrencyDispatchesInBatches(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "fanout", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Parallel: true}},
+		{ID: "one", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "one"}},
+		{ID: "two", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "two"}},
+		{ID: "three", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "three"}},
+		{ID: "joined", Kind: domain.WorkflowNodeJoin, Join: &domain.WorkflowJoinNode{Strategy: "all"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "fanout"
+	definition.Edges = []domain.WorkflowEdge{{From: "fanout", To: "one"}, {From: "fanout", To: "two"}, {From: "fanout", To: "three"}, {From: "one", To: "joined"}, {From: "two", To: "joined"}, {From: "three", To: "joined"}, {From: "joined", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "parallel-batches")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 2 {
+		t.Fatalf("first batch size=%d, want maxConcurrency=2", len(children.requests))
+	}
+	children.complete(children.requests[0].runID, "done")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 3 {
+		t.Fatalf("third member was not dispatched after capacity opened: %d", len(children.requests))
+	}
+	attempts, _ := store.ListAttempts(context.Background(), execution.ID)
+	if len(attempts) != 3 {
+		t.Fatalf("fanout membership=%d, want 3", len(attempts))
+	}
+}
+
+func TestParallelAnyJoinDoesNotWaitForHungLoser(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "fanout", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Parallel: true}},
+		{ID: "winner", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "winner"}},
+		{ID: "loser", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "loser"}},
+		{ID: "joined", Kind: domain.WorkflowNodeJoin, Join: &domain.WorkflowJoinNode{Strategy: "any"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "fanout"
+	definition.Edges = []domain.WorkflowEdge{{From: "fanout", To: "winner"}, {From: "fanout", To: "loser"}, {From: "winner", To: "joined"}, {From: "loser", To: "joined"}, {From: "joined", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "parallel-any")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	children.complete(children.requests[0].runID, "winner")
+	mustAdvance(t, engine, execution.ID) // persist winner
+	joined := mustAdvance(t, engine, execution.ID)
+	if joined.CurrentNodeID != "joined" {
+		t.Fatalf("any join waited for loser: %#v", joined)
+	}
+	attempts, _ := store.ListAttempts(context.Background(), execution.ID)
+	shortCircuited := false
+	for _, attempt := range attempts {
+		shortCircuited = shortCircuited || attempt.ErrorCode == "parallel_join_short_circuit"
+	}
+	if !shortCircuited {
+		t.Fatalf("loser was not durably short-circuited: %+v", attempts)
+	}
+}
+
+func TestParallelQuorumJoinDoesNotWaitForRemainingMember(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "fanout", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Parallel: true}},
+		{ID: "one", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "one"}},
+		{ID: "two", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "two"}},
+		{ID: "three", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "three"}},
+		{ID: "joined", Kind: domain.WorkflowNodeJoin, Join: &domain.WorkflowJoinNode{Strategy: "quorum", Quorum: 2}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "fanout"
+	definition.Edges = []domain.WorkflowEdge{{From: "fanout", To: "one"}, {From: "fanout", To: "two"}, {From: "fanout", To: "three"}, {From: "one", To: "joined"}, {From: "two", To: "joined"}, {From: "three", To: "joined"}, {From: "joined", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "parallel-quorum")
+	mustAdvance(t, engine, execution.ID) // persist all three members
+	mustAdvance(t, engine, execution.ID) // dispatch first member
+	mustAdvance(t, engine, execution.ID) // dispatch second member; third remains pending
+	children.complete(children.requests[0].runID, "one")
+	children.complete(children.requests[1].runID, "two")
+	mustAdvance(t, engine, execution.ID)           // persist first completion
+	mustAdvance(t, engine, execution.ID)           // use the newly free slot before the second completion is observed
+	mustAdvance(t, engine, execution.ID)           // persist second completion
+	joined := mustAdvance(t, engine, execution.ID) // short-circuit the remaining member
+	if joined.CurrentNodeID != "joined" {
+		t.Fatalf("quorum join waited for remaining member: %#v", joined)
+	}
+	attempts, _ := store.ListAttempts(context.Background(), execution.ID)
+	shortCircuited := false
+	for _, attempt := range attempts {
+		shortCircuited = shortCircuited || attempt.ErrorCode == "parallel_join_short_circuit"
+	}
+	if !shortCircuited {
+		t.Fatalf("remaining member was not durably short-circuited: %+v", attempts)
+	}
+}
+
+func TestParallelBranchRevisitCreatesFreshVisitAttempts(t *testing.T) { // [REQ:REQ-P2-001]
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "fanout", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Parallel: true}},
+		{ID: "left", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "left"}},
+		{ID: "right", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "right"}},
+		{ID: "joined", Kind: domain.WorkflowNodeJoin, Join: &domain.WorkflowJoinNode{Strategy: "all"}},
+		{ID: "again", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "fanout"
+	definition.Edges = []domain.WorkflowEdge{
+		{From: "fanout", To: "left", MaxTraversals: 2},
+		{From: "fanout", To: "right", MaxTraversals: 2},
+		{From: "left", To: "joined", MaxTraversals: 2},
+		{From: "right", To: "joined", MaxTraversals: 2},
+		{From: "joined", To: "again", MaxTraversals: 2},
+		{From: "again", To: "fanout", Condition: "iteration < 4", MaxTraversals: 1},
+		{From: "again", To: "done"},
+	}
+	engine, store, children := testEngine(t, definition)
+	execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "parallel-revisit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	children.complete(children.requests[0].runID, "left-1")
+	children.complete(children.requests[1].runID, "right-1")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	expressions, err := NewExpressionEvaluator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine = &Engine{Store: store, Catalog: fakeCatalog{revision(definition)}, Children: children, Expressions: expressions}
+	mustAdvance(t, engine, execution.ID)
+
+	attempts, err := store.ListAttempts(context.Background(), execution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(attempts) != 4 {
+		t.Fatalf("parallel revisit attempts=%d, want 4: %+v", len(attempts), attempts)
+	}
+	ordinals := map[string][]int{}
+	keys := map[string]bool{}
+	for _, attempt := range attempts {
+		ordinals[attempt.NodeID] = append(ordinals[attempt.NodeID], attempt.Ordinal)
+		if keys[attempt.IdempotencyKey] {
+			t.Fatalf("parallel revisit reused idempotency key %q", attempt.IdempotencyKey)
+		}
+		keys[attempt.IdempotencyKey] = true
+	}
+	for _, nodeID := range []string{"left", "right"} {
+		if got := ordinals[nodeID]; len(got) != 2 || got[0] != 1 || got[1] != 2 {
+			t.Fatalf("%s ordinals=%v, want [1 2]", nodeID, got)
+		}
+	}
+}
+
+func TestEnginePreservesAuthoredTerminalOutcome(t *testing.T) { // [REQ:REQ-P2-001]
+	for _, tc := range []struct {
+		authored string
+		want     domain.WorkflowExecutionStatus
+	}{
+		{authored: "blocked", want: domain.WorkflowExecutionBlocked},
+		{authored: "abstained", want: domain.WorkflowExecutionAbstained},
+	} {
+		t.Run(tc.authored, func(t *testing.T) {
+			definition := baseDefinition()
+			definition.Nodes = []domain.WorkflowNode{{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: tc.authored}}}
+			definition.EntryNode = "done"
+			engine, _, _ := testEngine(t, definition)
+			execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "terminal-"+tc.authored)
+			if err != nil {
+				t.Fatal(err)
+			}
+			final := mustAdvance(t, engine, execution.ID)
+			if final.Status != tc.want {
+				t.Fatalf("status=%s, want %s", final.Status, tc.want)
+			}
+		})
+	}
+}
+
+func TestAgentNodeLimitsReachFreshAndContinuationRequests(t *testing.T) { // [REQ:REQ-P2-001]
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "initial", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "initial", MaxTurns: 7, TimeoutSeconds: 90}},
+		{ID: "followup", Kind: domain.WorkflowNodeContinue, Continue: &domain.WorkflowContinueNode{ConversationFromNode: "initial", PromptTemplate: "follow up", MaxTurns: 2, TimeoutSeconds: 30}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "initial"
+	definition.Edges = []domain.WorkflowEdge{{From: "initial", To: "followup"}, {From: "followup", To: "done"}}
+	engine, _, children := testEngine(t, definition)
+	execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "node-limits")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	children.complete(children.requests[0].runID, "initial")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 2 {
+		t.Fatalf("requests=%d, want 2", len(children.requests))
+	}
+	if got := children.requests[0]; got.maxTurns != 7 || got.timeout != 90*time.Second {
+		t.Fatalf("fresh limits=(%d,%s), want (7,1m30s)", got.maxTurns, got.timeout)
+	}
+	if got := children.requests[1]; got.maxTurns != 2 || got.timeout != 30*time.Second {
+		t.Fatalf("continuation limits=(%d,%s), want (2,30s)", got.maxTurns, got.timeout)
+	}
+}
+
+func TestAuthoredPhasedPlanUsesReviewCorrectionAndCorrectedOutput(t *testing.T) { // [REQ:REQ-P2-001]
+	definition := loadAuthoredPhasedPlanDefinition(t)
+	engine, _, children := testEngine(t, definition)
+	reviews := &fakeSubworkflows{states: map[uuid.UUID]SubworkflowState{}, byKey: map[string]uuid.UUID{}}
+	engine.Subworkflows = reviews
+	execution, err := engine.Start(context.Background(), revision(definition), phasedPlanInput(2), "authored-correction")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "original", "completedSlice": "slice one", "correctionRequired": false, "approvalRequired": false})
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeLatestReview(t, reviews, false, "replace the handoff")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 2 || children.requests[1].source == nil || *children.requests[1].source != children.requests[0].runID {
+		t.Fatalf("review rejection did not start named correction: %+v", children.requests)
+	}
+	if !strings.Contains(children.requests[1].prompt, "replace the handoff") {
+		t.Fatalf("correction prompt omitted review note: %q", children.requests[1].prompt)
+	}
+	completeStructured(children, children.requests[1].runID, map[string]any{"outcome": "complete", "handoff": "corrected", "completedSlice": "slice one corrected"})
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeLatestReview(t, reviews, true, "accepted")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	final := mustAdvance(t, engine, execution.ID)
+	if final.Status != domain.WorkflowExecutionSucceeded || !strings.Contains(string(final.Output), `"handoff":"corrected"`) || strings.Contains(string(final.Output), `"handoff":"original"`) {
+		t.Fatalf("terminal output did not select correction: status=%s output=%s", final.Status, final.Output)
+	}
+}
+
+func TestAuthoredPhasedPlanEnforcesConsumerSliceLimit(t *testing.T) { // [REQ:REQ-P2-001]
+	definition := loadAuthoredPhasedPlanDefinition(t)
+	engine, store, children := testEngine(t, definition)
+	reviews := &fakeSubworkflows{states: map[uuid.UUID]SubworkflowState{}, byKey: map[string]uuid.UUID{}}
+	engine.Subworkflows = reviews
+	execution, err := engine.Start(context.Background(), revision(definition), phasedPlanInput(1), "authored-max-slices")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "one", "completedSlice": "slice one", "correctionRequired": false, "approvalRequired": false})
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeLatestReview(t, reviews, true, "accepted")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	final := mustAdvance(t, engine, execution.ID)
+	if final.Status != domain.WorkflowExecutionBudgetExhausted || final.TerminalReason == nil || final.TerminalReason.BudgetName != "authored_limit" {
+		t.Fatalf("slice limit terminal=%+v", final)
+	}
+	attempts, err := store.ListAttempts(context.Background(), execution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slices := 0
+	for _, attempt := range attempts {
+		if attempt.NodeID == "slice" {
+			slices++
+		}
+	}
+	if slices != 1 || len(children.requests) != 1 {
+		t.Fatalf("maxSlices=1 created %d slice attempts and %d Run requests", slices, len(children.requests))
+	}
+}
+
+func TestAuthoredPhasedPlanPreservesBlockedAndAbstainedTerminals(t *testing.T) { // [REQ:REQ-P2-001]
+	for _, tc := range []struct {
+		name  string
+		value map[string]any
+		want  domain.WorkflowExecutionStatus
+	}{
+		{name: "blocked", value: map[string]any{"outcome": "blocked", "handoff": "paused", "completedSlice": "", "blocker": map[string]any{"code": "operator_input", "summary": "operator input required", "retryable": true}}, want: domain.WorkflowExecutionBlocked},
+		{name: "abstained", value: map[string]any{"outcome": "abstained", "reason": "insufficient evidence"}, want: domain.WorkflowExecutionAbstained},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			definition := loadAuthoredPhasedPlanDefinition(t)
+			engine, _, children := testEngine(t, definition)
+			execution, err := engine.Start(context.Background(), revision(definition), phasedPlanInput(2), "authored-terminal-"+tc.name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mustAdvance(t, engine, execution.ID)
+			mustAdvance(t, engine, execution.ID)
+			completeStructured(children, children.requests[0].runID, tc.value)
+			mustAdvance(t, engine, execution.ID)
+			mustAdvance(t, engine, execution.ID)
+			final := mustAdvance(t, engine, execution.ID)
+			if final.Status != tc.want {
+				t.Fatalf("terminal=%+v", final)
+			}
+		})
+	}
+}
+
+func TestAuthoredPhasedPlanCreatesFreshRunForNextSlice(t *testing.T) { // [REQ:REQ-P2-001]
+	definition := loadAuthoredPhasedPlanDefinition(t)
+	engine, _, children := testEngine(t, definition)
+	reviews := &fakeSubworkflows{states: map[uuid.UUID]SubworkflowState{}, byKey: map[string]uuid.UUID{}}
+	engine.Subworkflows = reviews
+	execution, err := engine.Start(context.Background(), revision(definition), phasedPlanInput(2), "authored-fresh-slices")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "slice-one-handoff", "completedSlice": "slice one", "correctionRequired": false, "approvalRequired": false})
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeLatestReview(t, reviews, true, "accepted")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 2 || children.requests[0].runID == children.requests[1].runID {
+		t.Fatalf("slice loop did not create distinct Runs: %+v", children.requests)
+	}
+	if children.requests[1].source != nil || !strings.Contains(children.requests[1].prompt, "slice-one-handoff") {
+		t.Fatalf("next slice was not fresh with bounded handoff: %+v", children.requests[1])
+	}
+}
+
+func TestAuthoredPhasedPlanFeedsCorrectedHandoffToNextSlice(t *testing.T) { // [REQ:REQ-P2-001]
+	definition := loadAuthoredPhasedPlanDefinition(t)
+	engine, _, children := testEngine(t, definition)
+	reviews := &fakeSubworkflows{states: map[uuid.UUID]SubworkflowState{}, byKey: map[string]uuid.UUID{}}
+	engine.Subworkflows = reviews
+	execution, err := engine.Start(context.Background(), revision(definition), phasedPlanInput(2), "authored-corrected-handoff")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "superseded-handoff", "completedSlice": "slice one", "correctionRequired": false, "approvalRequired": false})
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeLatestReview(t, reviews, false, "replace the handoff")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeStructured(children, children.requests[1].runID, map[string]any{"outcome": "continue", "handoff": "corrected-handoff", "completedSlice": "slice one corrected", "correctionRequired": false, "approvalRequired": false})
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeLatestReview(t, reviews, true, "accepted")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 3 {
+		t.Fatalf("requests=%d, want original, correction, and next slice", len(children.requests))
+	}
+	nextSlice := children.requests[2]
+	if nextSlice.source != nil || !strings.Contains(nextSlice.prompt, "corrected-handoff") {
+		t.Fatalf("next slice did not receive corrected handoff: %+v", nextSlice)
+	}
+}
+
+func loadAuthoredPhasedPlanDefinition(t *testing.T) domain.WorkflowDefinition {
+	t.Helper()
+	path := filepath.Join("..", "..", "..", "..", "swarm-manager", ".vrooli", "agent-manager", "phased-plan-drain.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read authored phased plan: %v", err)
+	}
+	parsed, err := workflowcatalog.Parse(raw, nil)
+	if err != nil {
+		t.Fatalf("parse authored phased plan: %v", err)
+	}
+	if len(parsed.Diagnostics) != 0 {
+		t.Fatalf("authored phased plan diagnostics: %+v", parsed.Diagnostics)
+	}
+	return parsed.Definition
+}
+
+func phasedPlanInput(maxSlices int) json.RawMessage {
+	value, _ := json.Marshal(map[string]any{
+		"plan":        map[string]any{"reference": "plan-1", "frontierDigest": "sha256:frontier"},
+		"consumer":    map[string]any{"executionId": "execution-1", "entityKind": "execute", "entityName": "plan", "entityVersion": "sha256:entity"},
+		"constraints": map[string]any{"maxSlices": maxSlices, "writeScope": []string{"scenarios/example/**"}},
+	})
+	return value
+}
+
+func completeStructured(children *fakeChildren, runID uuid.UUID, value map[string]any) {
+	raw, _ := json.Marshal(value)
+	state := children.states[runID]
+	state.Terminal = true
+	state.Result = &domain.RunResult{FinalOutput: string(raw), Structured: &domain.StructuredResult{Status: domain.StructuredResultSuccess, Value: raw}}
+	children.states[runID] = state
+}
+
+func completeLatestReview(t *testing.T, reviews *fakeSubworkflows, accepted bool, note string) {
+	t.Helper()
+	if len(reviews.starts) == 0 {
+		t.Fatal("review workflow was not started")
+	}
+	start := reviews.starts[len(reviews.starts)-1]
+	id := reviews.byKey[start.IdempotencyKey]
+	output, _ := json.Marshal(map[string]any{"review": map[string]any{"accepted": accepted, "note": note}})
+	reviews.states[id] = SubworkflowState{ExecutionID: id, Terminal: true, Status: domain.WorkflowExecutionSucceeded, Output: output}
 }
 
 func TestConcurrentSignalAndCancelCommitExactlyOneOperation(t *testing.T) {
@@ -303,6 +845,19 @@ func TestBindingsAreBoundedAndDoNotExposeTranscript(t *testing.T) { // [REQ:REQ-
 	}
 }
 
+func TestBindingsSelectBoundedChildWorkflowOutput(t *testing.T) { // [REQ:REQ-P2-001]
+	payload := json.RawMessage(`{"childExecutionId":"child-1","status":"succeeded","output":{"review":{"accepted":false,"note":"tighten the handoff"}}}`)
+	ctx := BindingContext{Journal: []*domain.WorkflowJournalEntry{{Kind: domain.WorkflowJournalChild, NodeID: "review", Sequence: 1, Payload: payload}}}
+	binding := domain.WorkflowInputBinding{Name: "review_note", Source: domain.WorkflowBindingChild, Selector: "node=review;$.output.review.note", Order: "desc", Limit: 1, MaxBytes: 128, RenderAs: "text", MissingPolicy: "error"}
+	values, err := EvaluateBindings([]domain.WorkflowInputBinding{binding}, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["review_note"] != "tighten the handoff" {
+		t.Fatalf("child output binding=%#v", values["review_note"])
+	}
+}
+
 func TestExpressionEnvironmentRejectsNonBooleanAndUnknownNames(t *testing.T) {
 	e, err := NewExpressionEvaluator()
 	if err != nil {
@@ -361,10 +916,12 @@ func (f fakeCatalog) GetByDigest(context.Context, string) (*domain.WorkflowRevis
 
 type (
 	childCall struct {
-		runID   uuid.UUID
-		source  *uuid.UUID
-		prompt  string
-		profile string
+		runID    uuid.UUID
+		source   *uuid.UUID
+		prompt   string
+		profile  string
+		maxTurns int
+		timeout  time.Duration
 	}
 	fakeChildren struct {
 		requests []childCall
@@ -408,7 +965,7 @@ func (f *fakeChildren) launch(req ChildRequest) (ChildState, error) {
 	if !ok {
 		id = uuid.New()
 		f.byKey[req.IdempotencyKey] = id
-		f.requests = append(f.requests, childCall{runID: id, source: req.SourceRunID, prompt: req.Prompt, profile: req.ProfileKey})
+		f.requests = append(f.requests, childCall{runID: id, source: req.SourceRunID, prompt: req.Prompt, profile: req.ProfileKey, maxTurns: req.MaxTurns, timeout: req.Timeout})
 	}
 	state := f.states[id]
 	state.RunID = id
@@ -427,6 +984,13 @@ func (f *fakeChildren) Continue(_ context.Context, r ChildRequest) (ChildState, 
 
 func (f *fakeChildren) Inspect(_ context.Context, id uuid.UUID) (ChildState, error) {
 	return f.states[id], nil
+}
+
+func (f *fakeChildren) Stop(_ context.Context, id uuid.UUID) error {
+	state := f.states[id]
+	state.Terminal, state.Failed = true, true
+	f.states[id] = state
+	return nil
 }
 
 func (f *fakeChildren) complete(id uuid.UUID, text string) {
@@ -556,6 +1120,26 @@ func (s *memoryStore) ListAttempts(_ context.Context, id uuid.UUID) ([]*domain.W
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return clone(s.attempts[id]), nil
+}
+
+func (s *memoryStore) ExecutionIDForRun(_ context.Context, runID uuid.UUID) (uuid.UUID, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var newest *domain.WorkflowNodeAttempt
+	for execID := range s.attempts {
+		for _, attempt := range s.attempts[execID] {
+			if attempt.RunID == nil || *attempt.RunID != runID {
+				continue
+			}
+			if newest == nil || attempt.CreatedAt.After(newest.CreatedAt) {
+				newest = attempt
+			}
+		}
+	}
+	if newest == nil {
+		return uuid.Nil, nil
+	}
+	return newest.ExecutionID, nil
 }
 
 func (s *memoryStore) ListJournal(_ context.Context, id uuid.UUID, after int64, limit int) ([]*domain.WorkflowJournalEntry, error) {

@@ -21,6 +21,7 @@ import (
 // Services aggregates all domain-specific services.
 type Services struct {
 	Profiles         *ProfileService
+	Declarations     *DeclarationService
 	Workflows        *WorkflowService
 	Tasks            *TaskService
 	Runs             *RunService
@@ -38,6 +39,7 @@ type Services struct {
 func NewServices(api *cliutil.APIClient) *Services {
 	return &Services{
 		Profiles:         &ProfileService{api: api},
+		Declarations:     &DeclarationService{api: api},
 		Workflows:        &WorkflowService{api: api},
 		Tasks:            &TaskService{api: api},
 		Runs:             &RunService{api: api},
@@ -240,6 +242,22 @@ func (s *WorkflowService) Execution(id string, advance bool) ([]byte, *apipb.Wor
 	return body, &resp, nil
 }
 
+func (s *WorkflowService) Wait(id string, timeoutSeconds int) ([]byte, *apipb.WaitWorkflowExecutionResponse, error) {
+	payload, err := marshalProtoRequest(&apipb.WaitWorkflowExecutionRequest{ExecutionId: id, TimeoutSeconds: int32(timeoutSeconds)})
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/workflow-executions/"+id+"/wait", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+	var resp apipb.WaitWorkflowExecutionResponse
+	if unmarshalProtoResponse(body, &resp) != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
 func (s *WorkflowService) Trace(id string, after int64, limit int) ([]byte, *apipb.GetWorkflowExecutionTraceResponse, error) {
 	query := url.Values{}
 	if after > 0 {
@@ -282,6 +300,27 @@ func (s *WorkflowService) Simulate(req *apipb.SimulateWorkflowRequest) ([]byte, 
 // ProfileService handles profile-related API operations.
 type ProfileService struct {
 	api *cliutil.APIClient
+}
+
+// DeclarationService drives the unified scenario declaration reconcile.
+type DeclarationService struct{ api *cliutil.APIClient }
+
+// Reconcile reconciles (or, at the plan path, validates) a scenario's unified
+// declaration block.
+func (s *DeclarationService) Reconcile(path string, req *apipb.ReconcileScenarioDeclarationsRequest) ([]byte, *apipb.ReconcileScenarioDeclarationsResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", path, nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+	var resp apipb.ReconcileScenarioDeclarationsResponse
+	if unmarshalProtoResponse(body, &resp) != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
 }
 
 // List retrieves all profiles.
@@ -829,16 +868,6 @@ func (s *RunService) InvestigationApply(req json.RawMessage) ([]byte, *domainpb.
 // SandboxSync syncs run state from a sandbox.
 func (s *RunService) SandboxSync(id string, req json.RawMessage) ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/runs/"+id+"/sandbox-sync", nil, req)
-}
-
-// ExtractRecommendations extracts recommendations from an investigation run.
-func (s *RunService) ExtractRecommendations(id string) ([]byte, error) {
-	return s.api.Request("POST", "/api/v1/runs/"+id+"/extract-recommendations", nil, nil)
-}
-
-// RegenerateRecommendations regenerates recommendations for an investigation run.
-func (s *RunService) RegenerateRecommendations(id string) ([]byte, error) {
-	return s.api.Request("POST", "/api/v1/runs/"+id+"/regenerate-recommendations", nil, nil)
 }
 
 // =============================================================================

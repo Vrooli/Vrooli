@@ -1,0 +1,213 @@
+# Scenario-owned agent declarations
+
+Scenarios declare their agent-manager assets — coding-agent **profiles** and
+**workflows** — in one canonical location, registered through one reconcile
+entry point. This is the unified declaration layer introduced by the
+declared-run doctrine. There is **no legacy fallback**: the old
+`.vrooli/agent-profiles/` and `.vrooli/agent-workflows/` directories and the old
+`config.profiles` / `config.workflows` service.json blocks are rejected with
+actionable diagnostics.
+
+## File location and format
+
+All declaration files live under `.vrooli/agent-manager/`. Each file is
+discriminated by its top-level `schemaVersion`:
+
+| `schemaVersion`     | Kind     | Lifecycle                                             |
+| ------------------- | -------- | ---------------------------------------------------- |
+| `agent-profile/v1`  | Profile  | Mutable posture with `update_if_unmodified` drift tracking |
+| `agent-workflow/v1` | Workflow | Digest-pinned immutable revisions (atomic activation) |
+
+`schemaVersion` on a profile file is a file-format marker only. The reconcile
+reader peeks it to route the file, then strips it before the strict
+`AgentProfile` proto parse — it never appears on the runtime profile entity, its
+DB row, or the public API. Workflow files already carry
+`schemaVersion: "agent-workflow/v1"`; that value is part of the digested
+definition and is unchanged.
+
+## Service manifest block
+
+A scenario declares its sources under
+`dependencies.scenarios.agent-manager.config.declarations`:
+
+```json
+"agent-manager": {
+  "enabled": true,
+  "required": true,
+  "startup_policy": "must_start",
+  "config": {
+    "declarations": {
+      "reconcile": true,
+      "profileMode": "update_if_unmodified",
+      "sources": [
+        ".vrooli/agent-manager/default.json",
+        ".vrooli/agent-manager/deep-work.json",
+        ".vrooli/agent-manager/backlog-workshop-round.json"
+      ]
+    }
+  }
+}
+```
+
+- `reconcile` (required): whether the sources reconcile on this scenario.
+- `profileMode` (optional, default `update_if_unmodified`): reconcile mode for
+  the profile-kind sources — one of `create_only`, `update_if_unmodified`,
+  `force`. Only profiles carry a mode; workflows are always digest-pinned.
+- `sources` (required, ≥1, unique): target-relative paths that must live under
+  `.vrooli/agent-manager/`.
+
+A scenario that requests only portable roles at runtime declares the
+agent-manager dependency with **no `config`** and omits the block entirely.
+
+## Reconcile entry points
+
+One entry point reconciles both kinds in a single call, fanning out per source
+by `schemaVersion` and preserving each kind's semantics (profiles reconcile
+per-source with drift tracking; workflows activate as one atomic batch — if any
+workflow source fails validation, the whole workflow batch is withheld).
+
+```bash
+agent-manager declarations reconcile-scenario --scenario <slug> [--dry-run] [--validate-only]
+agent-manager declarations plan --scenario <slug>
+```
+
+The legacy `profile reconcile-scenario` and `workflow reconcile-scenario` verbs
+still work as thin projections over this unified reconcile, returning only their
+respective kind's results. They read exclusively from the new block.
+
+At startup agent-manager sweeps every scenario declaring the block and
+reconciles it, isolating per-scenario failures so one broken manifest never
+blocks readiness.
+
+## The declared-run doctrine
+
+An agent interaction **must** be a declared workflow when **code composes the
+prompt and code consumes the output**. That is the whole test. If a scenario
+assembles a prompt from typed inputs and then parses the agent's result back into
+typed state, that middle — prompt assembly, prompt-manager fetching, execution,
+extraction, classification, retries, looping — belongs in a definition, not in
+hand-rolled glue.
+
+- **Chat carve-out.** Interactive and conversational surfaces (web-console
+  sessions, agent-manager interactive mode, the operator CLI) stay on plain runs.
+  There is no code composing a prompt and consuming a structured result there; a
+  human is in the loop. The raw run API also remains the substrate *under*
+  workflow nodes and internal plumbing — declaring a workflow does not remove the
+  run API, it layers on top of it.
+- **Two ends in code.** A scenario adopting the doctrine keeps exactly two ends
+  in its own code: building the typed input snapshot, and applying the typed
+  result to domain state. Everything between those two ends is the definition's
+  job. Any residue beyond those two ends (a bespoke extractor, a poll loop, a
+  substring-sniffed failure classifier) is a sign the doctrine is not yet fully
+  applied.
+- **A one-run feature is still a workflow file.** The value being purchased is
+  declaration plus registration-time validation, not orchestration. Do not
+  invent a new entity kind for "just one run": a declared run is a single-node
+  workflow (see sugar below), never a third kind of thing.
+
+## Minimal declared run (single-node sugar)
+
+A definition whose only node is a `run` node may omit `entryNode`, `edges`, and
+the terminal `end` node. The catalog canonicalizes the shorthand into the full
+form **before** digesting — it synthesizes the entry, an implied `end` that maps
+the run node's structured result to `output.result`, and the single unconditional
+edge — so the runtime and the digest see one representation. An equivalent
+explicit definition canonicalizes to identical bytes and therefore an identical
+digest.
+
+```json
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "my-scenario",
+  "key": "my-scenario/summarize",
+  "version": "1.0.0",
+  "inputSchema": { "type": "object", "additionalProperties": true },
+  "outputSchema": {
+    "type": "object",
+    "properties": { "result": { "type": "object", "additionalProperties": true } },
+    "required": ["result"],
+    "additionalProperties": false
+  },
+  "nodes": [
+    {
+      "id": "summarize",
+      "kind": "run",
+      "run": {
+        "roleRef": "code.smart",
+        "promptTemplate": "Summarize the change below.\n\n{{.diff}}",
+        "resultSpec": { "version": "result-spec/v1", "kind": "json_schema", "extractionMode": "deterministic_only", "schema": { "type": "object", "additionalProperties": true } },
+        "bindings": [
+          { "name": "diff", "source": "workflow_input", "selector": "$.diff", "limit": 1, "maxBytes": 8192, "renderAs": "text", "missingPolicy": "error" }
+        ]
+      }
+    }
+  ],
+  "budgets": { "wallTimeSeconds": 600, "maxTurns": 8, "maxTokens": 40000, "maxCostUsd": 5, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60 }
+}
+```
+
+The implied end is exactly:
+
+```json
+{ "id": "end", "kind": "end", "end": { "status": "succeeded", "bindings": [
+  { "name": "result", "source": "structured_result", "selector": "$.value", "order": "desc", "limit": 1, "maxBytes": 16384, "renderAs": "json", "missingPolicy": "error" } ] } }
+```
+
+with `entryNode` set to the run node and one edge from the run node to `end`. The
+single run node may not itself be named `end`.
+
+## Referencing a prompt-manager skill (`promptRef`)
+
+A `run` or `continue` node may resolve its prompt from a prompt-manager skill
+instead of inlining it. Author **exactly one** of `promptTemplate` or `promptRef`.
+
+```json
+"run": {
+  "roleRef": "code.smart",
+  "promptRef": { "skillId": "my-scenario-process-thing", "variables": { "MODE": "strict" } },
+  "resultSpec": { "...": "..." },
+  "bindings": [ "..." ]
+}
+```
+
+Resolution happens at **reconcile time**, before the digest. The resolved content
+is embedded into `promptTemplate` and pinned into the revision alongside its
+provenance (`promptProvenance`: skill id, revision, variant, content hash), so a
+revision's behavior is immutable even if the skill later changes. A changed skill
+resolves to different content, a different digest, and therefore a **new revision
+on the next reconcile** — never a silent behavior change under a fixed digest.
+A resolution failure (missing skill, prompt-manager unreachable) fails that
+source and, because workflow activation is an atomic batch, withholds the whole
+batch: reconcile never registers a partially-resolved revision. `promptProvenance`
+is engine-populated — authors do not write it.
+
+## Journal helpers for edge conditions (`latest`, `count`)
+
+Branch routing lives on edge `condition` strings (CEL). Two helpers over the
+execution `journal` remove the repeated "newest successful structured result"
+incantation:
+
+- **`latest(journal)`** — the newest successful structured result across every
+  node, as its entry map (carrying `.value`, `.status`). Returns an empty map
+  when none exists yet, so guard with `has(latest(journal).value)` where the
+  journal may be empty.
+- **`latest(journal, nodeId)`** — the newest result-bearing entry for one node: a
+  successful structured result (carrying `.value`) or a child-workflow completion
+  (carrying `.output`). Empty map when the node has produced none.
+- **`count(journal, nodeId)`** — how many times a node has been attempted (its
+  traversal count).
+
+```text
+# Route to the correction node when the latest slice asked for a correction,
+# or the latest independent review was not accepted:
+(latest(journal).value.outcome == 'continue' && latest(journal).value.correctionRequired)
+  || (has(latest(journal, 'review').output) && !latest(journal, 'review').output.review.accepted)
+
+# Stop once the consumer's slice budget is spent:
+latest(journal).value.outcome == 'continue' && count(journal, 'slice') >= input.constraints.maxSlices
+```
+
+The helpers read the engine's enriched journal projection (each entry carries
+`nodeId` and `kind` alongside its payload fields) and are registered on the same
+CEL environment the catalog compiles conditions against, so a condition that
+validates at registration is one the engine can evaluate.

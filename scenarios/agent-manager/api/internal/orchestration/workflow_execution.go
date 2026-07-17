@@ -3,10 +3,14 @@ package orchestration
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/workflowruntime"
@@ -37,7 +41,17 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 			}
 		}
 	}
-	create := CreateRunRequest{TaskID: taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, IdempotencyKey: req.IdempotencyKey, Tag: "workflow-" + req.ExecutionID.String() + "-" + req.NodeID}
+	tag := req.Tag
+	if tag == "" {
+		tag = "workflow-" + req.ExecutionID.String() + "-" + req.NodeID
+	}
+	create := CreateRunRequest{TaskID: taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, IdempotencyKey: req.IdempotencyKey, Tag: tag, Force: req.Force}
+	if req.MaxTurns > 0 {
+		create.MaxTurns = &req.MaxTurns
+	}
+	if req.Timeout > 0 {
+		create.Timeout = &req.Timeout
+	}
 	if req.ProfileKey != "" {
 		profile, err := l.o.profiles.GetByKey(ctx, req.ProfileKey)
 		if err != nil {
@@ -62,7 +76,14 @@ func (l workflowChildLauncher) Continue(ctx context.Context, req workflowruntime
 	if req.SourceRunID == nil {
 		return workflowruntime.ChildState{}, domain.NewValidationError("sourceRunId", "explicit source Run is required")
 	}
-	run, err := l.o.ContinueRun(ctx, ContinueRunRequest{RunID: *req.SourceRunID, Message: req.Prompt, IdempotencyKey: req.IdempotencyKey})
+	continueRequest := ContinueRunRequest{RunID: *req.SourceRunID, Message: req.Prompt, IdempotencyKey: req.IdempotencyKey, ResultSpec: req.ResultSpec}
+	if req.MaxTurns > 0 {
+		continueRequest.MaxTurns = &req.MaxTurns
+	}
+	if req.Timeout > 0 {
+		continueRequest.Timeout = &req.Timeout
+	}
+	run, err := l.o.ContinueRun(ctx, continueRequest)
 	if err != nil {
 		return workflowruntime.ChildState{}, err
 	}
@@ -77,6 +98,10 @@ func (l workflowChildLauncher) Inspect(ctx context.Context, id uuid.UUID) (workf
 	return childStateFromRun(run), nil
 }
 
+func (l workflowChildLauncher) Stop(ctx context.Context, id uuid.UUID) error {
+	return l.o.StopRun(ctx, id)
+}
+
 func childStateFromRun(run *domain.Run) workflowruntime.ChildState {
 	state := workflowruntime.ChildState{RunID: run.ID, ConversationID: run.ConversationID, Result: run.Result}
 	if run.Summary != nil {
@@ -86,6 +111,12 @@ func childStateFromRun(run *domain.Run) workflowruntime.ChildState {
 	}
 	switch run.Status {
 	case domain.RunStatusComplete:
+		state.Terminal = true
+	case domain.RunStatusNeedsReview:
+		// The agent turn finished and its result is durable; the pending review
+		// concerns applying the run's file changes, which is orthogonal to the
+		// workflow node being done. A manual-review profile (e.g. investigation)
+		// would otherwise strand its workflow at the run node forever.
 		state.Terminal = true
 	case domain.RunStatusFailed, domain.RunStatusCancelled:
 		state.Terminal = true
@@ -137,7 +168,7 @@ func (l workflowSubworkflowLauncher) Inspect(ctx context.Context, id uuid.UUID) 
 }
 
 func (l workflowSubworkflowLauncher) Cancel(ctx context.Context, id uuid.UUID, reason string) error {
-	_, _, err := l.o.workflowEngine.Cancel(ctx, id, "parent-cancel/"+id.String(), reason, 0)
+	_, err := l.o.CancelWorkflowExecution(ctx, WorkflowExecutionOperationRequest{ExecutionID: id, IdempotencyKey: "parent-cancel/" + id.String(), Reason: reason})
 	return err
 }
 
@@ -145,7 +176,7 @@ func subworkflowState(execution *domain.WorkflowExecution) workflowruntime.Subwo
 	if execution == nil {
 		return workflowruntime.SubworkflowState{}
 	}
-	return workflowruntime.SubworkflowState{ExecutionID: execution.ID, Terminal: execution.Status.Terminal(), Failed: execution.Status != domain.WorkflowExecutionSucceeded, Output: execution.Output, BudgetUsage: execution.BudgetUsage}
+	return workflowruntime.SubworkflowState{ExecutionID: execution.ID, Terminal: execution.Status.Terminal(), Failed: execution.Status == domain.WorkflowExecutionFailed, Status: execution.Status, Output: execution.Output, TerminalReason: execution.TerminalReason, BudgetUsage: execution.BudgetUsage}
 }
 
 func (o *Orchestrator) StartWorkflowExecution(ctx context.Context, req StartWorkflowExecutionRequest) (*domain.WorkflowExecution, error) {
@@ -209,6 +240,75 @@ func (o *Orchestrator) AdvanceWorkflowExecution(ctx context.Context, id uuid.UUI
 	return o.driveWorkflowExecution(ctx, id)
 }
 
+// NudgeDrive is the WorkflowNudger's work function: an idempotent drive of the
+// execution that discards the returned snapshot and surfaces only the error.
+func (o *Orchestrator) NudgeDrive(ctx context.Context, id uuid.UUID) error {
+	_, err := o.AdvanceWorkflowExecution(ctx, id)
+	return err
+}
+
+// WaitWorkflowExecutionResult is the typed result of a blocking wait.
+type WaitWorkflowExecutionResult struct {
+	Execution *domain.WorkflowExecution
+	TimedOut  bool
+}
+
+// WaitWorkflowExecution blocks until the execution is terminal or the deadline
+// passes, mirroring the test-genie runs-wait contract. It is event-driven (no
+// ticker): it subscribes to the terminal notifier, re-reads durable state to
+// close the subscribe/settle race, then blocks on its wake channel. timeout <= 0
+// blocks until terminal (or the caller's ctx is cancelled). Cancelling the
+// waiter NEVER cancels the execution — the wait only reads execution state; the
+// execution is driven independently by the engine, the completion nudge, and
+// the reconciler backstop.
+func (o *Orchestrator) WaitWorkflowExecution(ctx context.Context, id uuid.UUID, timeout time.Duration) (*WaitWorkflowExecutionResult, error) {
+	waitCtx := ctx
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		waitCtx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+	for {
+		execution, err := o.GetWorkflowExecution(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if execution.Status.Terminal() {
+			return &WaitWorkflowExecutionResult{Execution: execution}, nil
+		}
+
+		// Subscribe BEFORE the settle-gap re-read so a terminal transition
+		// committing between the read above and here still wakes us.
+		wake := o.workflowWaiters.subscribe(id)
+		execution, err = o.GetWorkflowExecution(ctx, id)
+		if err != nil {
+			o.workflowWaiters.unsubscribe(id, wake)
+			return nil, err
+		}
+		if execution.Status.Terminal() {
+			o.workflowWaiters.unsubscribe(id, wake)
+			return &WaitWorkflowExecutionResult{Execution: execution}, nil
+		}
+
+		select {
+		case <-wake:
+			// Settled (or spuriously notified) — loop to re-read the terminal state.
+		case <-waitCtx.Done():
+			o.workflowWaiters.unsubscribe(id, wake)
+			// A deadline the caller did not set (our timeout) is a timed-out
+			// wait, not an error: the execution keeps running.
+			if timeout > 0 && errors.Is(waitCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
+				current, getErr := o.GetWorkflowExecution(ctx, id)
+				if getErr != nil {
+					return nil, getErr
+				}
+				return &WaitWorkflowExecutionResult{Execution: current, TimedOut: true}, nil
+			}
+			return nil, waitCtx.Err()
+		}
+	}
+}
+
 func (o *Orchestrator) GetWorkflowExecutionTrace(ctx context.Context, id uuid.UUID, afterSequence int64, limit int) (*WorkflowExecutionTrace, error) {
 	execution, err := o.GetWorkflowExecution(ctx, id)
 	if err != nil {
@@ -268,10 +368,43 @@ func (o *Orchestrator) SignalWorkflowExecution(ctx context.Context, req Workflow
 
 func (o *Orchestrator) CancelWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error) {
 	execution, idempotent, err := o.workflowEngine.Cancel(ctx, req.ExecutionID, strings.TrimSpace(req.IdempotencyKey), strings.TrimSpace(req.Reason), req.ExpectedVersion)
-	if err != nil || idempotent {
+	if err != nil {
 		return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, err
 	}
-	attempts, listErr := o.workflowExecutions.ListAttempts(ctx, req.ExecutionID)
+	if execution.Status == domain.WorkflowExecutionCancelled {
+		o.onWorkflowExecutionSettled(execution)
+		return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, nil
+	}
+	execution, err = o.cleanupWorkflowChildren(ctx, req.ExecutionID, "parent workflow cancelled")
+	if err != nil {
+		return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, err
+	}
+	o.broadcastWorkflowLifecycle(ctx, execution)
+	o.onWorkflowExecutionSettled(execution)
+	return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, nil
+}
+
+func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID uuid.UUID, reason string) (*domain.WorkflowExecution, error) {
+	execution, getErr := o.workflowExecutions.Get(ctx, executionID)
+	if getErr != nil || execution == nil {
+		return execution, getErr
+	}
+	journal, journalErr := o.workflowExecutions.ListJournal(ctx, executionID, 0, 0)
+	if journalErr != nil {
+		return nil, journalErr
+	}
+	for _, entry := range journal {
+		if entry.Kind != domain.WorkflowJournalCleanup {
+			continue
+		}
+		var disposition struct {
+			Retry int `json:"retry"`
+		}
+		if json.Unmarshal(entry.Payload, &disposition) == nil && disposition.Retry == execution.BudgetUsage.Retries {
+			return execution, nil
+		}
+	}
+	attempts, listErr := o.workflowExecutions.ListAttempts(ctx, executionID)
 	if listErr != nil {
 		return nil, listErr
 	}
@@ -279,7 +412,7 @@ func (o *Orchestrator) CancelWorkflowExecution(ctx context.Context, req Workflow
 	var failures []string
 	for _, attempt := range attempts {
 		if attempt.ChildExecutionID != nil && attempt.Status != domain.WorkflowAttemptCompleted && attempt.Status != domain.WorkflowAttemptFailed {
-			if cancelErr := (workflowSubworkflowLauncher{o: o}).Cancel(ctx, *attempt.ChildExecutionID, "parent workflow cancelled"); cancelErr != nil {
+			if cancelErr := (workflowSubworkflowLauncher{o: o}).Cancel(ctx, *attempt.ChildExecutionID, reason); cancelErr != nil {
 				failures = append(failures, "child workflow "+attempt.ChildExecutionID.String()+": "+cancelErr.Error())
 			} else {
 				stoppedWorkflows++
@@ -294,12 +427,7 @@ func (o *Orchestrator) CancelWorkflowExecution(ctx context.Context, req Workflow
 			stoppedRuns++
 		}
 	}
-	execution, err = o.workflowEngine.RecordCancellationDisposition(ctx, req.ExecutionID, stoppedRuns, stoppedWorkflows, failures)
-	if err != nil {
-		return nil, err
-	}
-	o.broadcastWorkflowLifecycle(ctx, execution)
-	return &WorkflowExecutionOperationResult{Execution: execution}, nil
+	return o.workflowEngine.RecordCleanupDisposition(ctx, executionID, stoppedRuns, stoppedWorkflows, failures)
 }
 
 func (o *Orchestrator) RetryWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error) {
@@ -324,7 +452,53 @@ func (o *Orchestrator) ResumeWorkflowExecution(ctx context.Context, req Workflow
 	return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, err
 }
 
+// driveWorkflowExecution runs the pull loop and then fires completion-driven
+// side effects when the execution has settled terminal: it wakes any blocking
+// WaitWorkflowExecution callers and nudges the parent execution of a finished
+// child workflow so parent progress needs no polling. The loop itself is
+// unchanged crash-safe; the settle hook is purely a notification.
 func (o *Orchestrator) driveWorkflowExecution(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {
+	execution, err := o.driveWorkflowExecutionLoop(ctx, id)
+	o.onWorkflowExecutionSettled(execution)
+	return execution, err
+}
+
+// onWorkflowExecutionSettled fires the completion-nudge notifications for an
+// execution that has reached a terminal status. It is idempotent (a second
+// call finds no waiters and re-enqueues a deduped parent nudge) and nil-safe.
+func (o *Orchestrator) onWorkflowExecutionSettled(execution *domain.WorkflowExecution) {
+	if execution == nil || !execution.Status.Terminal() {
+		return
+	}
+	if o.workflowWaiters != nil {
+		o.workflowWaiters.notify(execution.ID)
+	}
+	if execution.ParentExecutionID != nil && o.workflowNudger != nil {
+		o.workflowNudger.Enqueue(*execution.ParentExecutionID)
+	}
+}
+
+// nudgeWorkflowForRun enqueues an idempotent drive of the workflow execution
+// that owns a just-terminal run. Non-workflow runs resolve to uuid.Nil and are
+// ignored. Called from the run-terminal transition points in the executors.
+func (o *Orchestrator) nudgeWorkflowForRun(runID uuid.UUID) {
+	if o.workflowNudger == nil || o.workflowExecutions == nil {
+		return
+	}
+	executionID, err := o.workflowExecutions.ExecutionIDForRun(context.Background(), runID)
+	if err != nil {
+		obs.Component("workflow-nudge").Warn("resolve owning execution for terminal run failed",
+			obs.KeyRunID, runID.String(),
+			obs.KeyError, err.Error())
+		return
+	}
+	if executionID == uuid.Nil {
+		return
+	}
+	o.workflowNudger.Enqueue(executionID)
+}
+
+func (o *Orchestrator) driveWorkflowExecutionLoop(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {
 	var latest *domain.WorkflowExecution
 	for range 32 {
 		before, err := o.workflowExecutions.Get(ctx, id)
@@ -335,6 +509,9 @@ func (o *Orchestrator) driveWorkflowExecution(ctx context.Context, id uuid.UUID)
 			return nil, domain.NewNotFoundError("WorkflowExecution", id)
 		}
 		if before.Status.Terminal() {
+			if before.Status == domain.WorkflowExecutionFailed || before.Status == domain.WorkflowExecutionBudgetExhausted || before.Status == domain.WorkflowExecutionCancelled {
+				return o.cleanupWorkflowChildren(ctx, id, "parent workflow terminated")
+			}
 			return before, nil
 		}
 		latest, err = o.workflowEngine.Advance(ctx, id)
@@ -342,6 +519,9 @@ func (o *Orchestrator) driveWorkflowExecution(ctx context.Context, id uuid.UUID)
 			return latest, err
 		}
 		o.broadcastWorkflowLifecycle(ctx, latest)
+		if latest.Status == domain.WorkflowExecutionFailed || latest.Status == domain.WorkflowExecutionBudgetExhausted || latest.Status == domain.WorkflowExecutionCancelled {
+			return o.cleanupWorkflowChildren(ctx, id, "parent workflow terminated")
+		}
 		if latest.Status.Terminal() || latest.Version == before.Version {
 			return latest, nil
 		}
@@ -393,7 +573,13 @@ func (o *Orchestrator) RecoverWorkflowExecutions(ctx context.Context) error {
 		return err
 	}
 	for _, execution := range executions {
-		if _, advanceErr := o.driveWorkflowExecution(ctx, execution.ID); advanceErr != nil {
+		var advanceErr error
+		if execution.Status == domain.WorkflowExecutionCancelling || execution.Status == domain.WorkflowExecutionFailed || execution.Status == domain.WorkflowExecutionBudgetExhausted || execution.Status == domain.WorkflowExecutionCancelled {
+			_, advanceErr = o.cleanupWorkflowChildren(ctx, execution.ID, "workflow recovery cleanup")
+		} else {
+			_, advanceErr = o.driveWorkflowExecution(ctx, execution.ID)
+		}
+		if advanceErr != nil {
 			return advanceErr
 		}
 	}

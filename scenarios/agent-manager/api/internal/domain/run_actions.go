@@ -9,22 +9,20 @@ type RunActionContext struct {
 
 // RunActions captures which actions are allowed for a run.
 type RunActions struct {
-	CanInvestigate               bool   `json:"canInvestigate"`
-	CanApplyInvestigation        bool   `json:"canApplyInvestigation"`
-	CanDelete                    bool   `json:"canDelete"`
-	CanStop                      bool   `json:"canStop"`
-	CanRetry                     bool   `json:"canRetry"`
-	CanContinue                  bool   `json:"canContinue"`
-	CanContinueReason            string `json:"canContinueReason,omitempty"`
-	CanApprove                   bool   `json:"canApprove"`
-	CanReject                    bool   `json:"canReject"`
-	CanReview                    bool   `json:"canReview"`
-	CanExtractRecommendations    bool   `json:"canExtractRecommendations"`
-	CanRegenerateRecommendations bool   `json:"canRegenerateRecommendations"`
-	CanResumeFromFailure         bool   `json:"canResumeFromFailure"`
-	CanResumeFromFailureReason   string `json:"canResumeFromFailureReason,omitempty"`
-	FinalizationWarning          string `json:"finalizationWarning,omitempty"`
-	CanRetryFinalization         bool   `json:"canRetryFinalization"`
+	CanInvestigate             bool   `json:"canInvestigate"`
+	CanApplyInvestigation      bool   `json:"canApplyInvestigation"`
+	CanDelete                  bool   `json:"canDelete"`
+	CanStop                    bool   `json:"canStop"`
+	CanRetry                   bool   `json:"canRetry"`
+	CanContinue                bool   `json:"canContinue"`
+	CanContinueReason          string `json:"canContinueReason,omitempty"`
+	CanApprove                 bool   `json:"canApprove"`
+	CanReject                  bool   `json:"canReject"`
+	CanReview                  bool   `json:"canReview"`
+	CanResumeFromFailure       bool   `json:"canResumeFromFailure"`
+	CanResumeFromFailureReason string `json:"canResumeFromFailureReason,omitempty"`
+	FinalizationWarning        string `json:"finalizationWarning,omitempty"`
+	CanRetryFinalization       bool   `json:"canRetryFinalization"`
 }
 
 // RunActionsFor computes the action flags for a run using the provided context.
@@ -44,28 +42,24 @@ func RunActionsFor(run *Run, ctx RunActionContext) RunActions {
 	canApprove, _ := CanApproveRun(run)
 	canReject, _ := CanRejectRun(run)
 	canReview, _ := CanReviewRun(run)
-	canExtract, _ := CanExtractRecommendations(run, allowlist)
-	canRegenerate, _ := CanRegenerateRecommendations(run, allowlist)
 	canResume, canResumeReason := CanResumeFromFailureRun(run)
 	finalizationWarning := FinalizationWarning(run)
 
 	return RunActions{
-		CanInvestigate:               canInvestigate,
-		CanApplyInvestigation:        canApplyInvestigation,
-		CanDelete:                    canDelete,
-		CanStop:                      canStop,
-		CanRetry:                     canRetry,
-		CanContinue:                  canContinue,
-		CanContinueReason:            canContinueReason,
-		CanApprove:                   canApprove,
-		CanReject:                    canReject,
-		CanReview:                    canReview,
-		CanExtractRecommendations:    canExtract,
-		CanRegenerateRecommendations: canRegenerate,
-		CanResumeFromFailure:         canResume,
-		CanResumeFromFailureReason:   canResumeReason,
-		FinalizationWarning:          finalizationWarning,
-		CanRetryFinalization:         finalizationWarning != "",
+		CanInvestigate:             canInvestigate,
+		CanApplyInvestigation:      canApplyInvestigation,
+		CanDelete:                  canDelete,
+		CanStop:                    canStop,
+		CanRetry:                   canRetry,
+		CanContinue:                canContinue,
+		CanContinueReason:          canContinueReason,
+		CanApprove:                 canApprove,
+		CanReject:                  canReject,
+		CanReview:                  canReview,
+		CanResumeFromFailure:       canResume,
+		CanResumeFromFailureReason: canResumeReason,
+		FinalizationWarning:        finalizationWarning,
+		CanRetryFinalization:       finalizationWarning != "",
 	}
 }
 
@@ -93,39 +87,14 @@ func CanApplyInvestigationRun(run *Run, allowlist []InvestigationTagRule) (bool,
 	if run == nil {
 		return false, "run not found"
 	}
-	if run.Status != RunStatusComplete {
+	// A manual-review investigation profile leaves the run in needs_review once
+	// the agent turn finishes with its report ready; that is a completed
+	// investigation for approval purposes (the review concerns file changes).
+	if run.Status != RunStatusComplete && run.Status != RunStatusNeedsReview {
 		return false, "investigation must be complete before applying fixes"
 	}
 	if !MatchesInvestigationTag(run.Tag, allowlist) {
 		return false, "run tag is not eligible for apply investigation"
-	}
-	return true, ""
-}
-
-// CanExtractRecommendations returns whether recommendation extraction can run.
-func CanExtractRecommendations(run *Run, allowlist []InvestigationTagRule) (bool, string) {
-	if run == nil {
-		return false, "run not found"
-	}
-	if run.Status != RunStatusComplete {
-		return false, "investigation must be complete before extracting recommendations"
-	}
-	if !MatchesInvestigationTag(run.Tag, allowlist) {
-		return false, "run tag is not eligible for recommendation extraction"
-	}
-	return true, ""
-}
-
-// CanRegenerateRecommendations returns whether recommendation extraction can be re-triggered.
-func CanRegenerateRecommendations(run *Run, allowlist []InvestigationTagRule) (bool, string) {
-	if run == nil {
-		return false, "run not found"
-	}
-	if run.Status != RunStatusComplete {
-		return false, "investigation must be complete before regenerating recommendations"
-	}
-	if !MatchesInvestigationTag(run.Tag, allowlist) {
-		return false, "run tag is not eligible for recommendation extraction"
 	}
 	return true, ""
 }

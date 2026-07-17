@@ -6,10 +6,10 @@ import type {
   AgentProfile,
   ApproveFormData,
   ApproveResult,
-  ExtractionResult,
   HealthResponse,
   InvestigationContextFlags,
   InvestigationDepth,
+  InvestigationFindings,
   InvestigationSettings,
   InvestigationTagRule,
   ProfileFormData,
@@ -24,6 +24,7 @@ import type {
   Task,
   TaskFormData,
 } from "../types";
+import { StructuredResultStatus } from "../types";
 import {
   AgentProfileSchema,
   RunConfigOverridesSchema,
@@ -859,6 +860,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
   const applyInvestigation = useCallback(
     async (
       investigationRunId: string,
+      selected: string[],
       customContext?: string,
       attachmentIds?: string[],
 		overrides?: { roleRef?: string }
@@ -867,6 +869,8 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
         method: "POST",
         body: JSON.stringify({
           investigationRunId,
+          decision: "completed",
+          selected,
           customContext,
           attachmentIds,
 			roleRef: overrides?.roleRef,
@@ -1303,28 +1307,50 @@ export async function ensureProfile(profileKey: string): Promise<AgentProfile> {
   return message.profile as AgentProfile;
 }
 
-// Extract recommendations from an investigation run (standalone function)
-// Uses a longer timeout (120s) since LLM extraction can take time
-export async function extractRecommendations(runId: string): Promise<ExtractionResult> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
-
-  try {
-    return await apiRequest<ExtractionResult>(`/runs/${runId}/extract-recommendations`, {
-      method: "POST",
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
+// Reads the categorized recommendations out of an investigation run's
+// structured result (run.result.structured, present once the run's
+// `agent-manager/investigate` node completes with a schema-validated
+// output). Returns null when the run hasn't produced a successful
+// structured result yet (still running, failed, or extraction was not
+// SUCCESS) — callers should treat that as "not ready" rather than an error.
+export function getInvestigationFindings(run: Run | null | undefined): InvestigationFindings | null {
+  const structured = run?.result?.structured;
+  if (!structured || structured.status !== StructuredResultStatus.SUCCESS) {
+    return null;
   }
-}
 
-// Regenerate recommendations for an investigation run (standalone function)
-// Resets extraction state and queues for background processing
-export async function regenerateRecommendations(runId: string): Promise<void> {
-  await apiRequest<{ success: boolean }>(`/runs/${runId}/regenerate-recommendations`, {
-    method: "POST",
-  });
+  const raw: unknown = structured.value;
+  let parsed: unknown;
+  if (typeof raw === "string") {
+    if (!raw.trim()) return null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  } else if (raw instanceof Uint8Array) {
+    if (raw.length === 0) return null;
+    try {
+      parsed = JSON.parse(new TextDecoder().decode(raw));
+    } catch {
+      return null;
+    }
+  } else if (raw && typeof raw === "object") {
+    parsed = raw;
+  } else {
+    return null;
+  }
+
+  if (!parsed || typeof parsed !== "object") return null;
+  const findings = parsed as Partial<InvestigationFindings>;
+  if (!Array.isArray(findings.categories)) return null;
+
+  return {
+    summary: typeof findings.summary === "string" ? findings.summary : "",
+    primaryCategory: findings.primaryCategory ?? "Both",
+    confidence: findings.confidence,
+    categories: findings.categories,
+  };
 }
 
 // Maintenance hook

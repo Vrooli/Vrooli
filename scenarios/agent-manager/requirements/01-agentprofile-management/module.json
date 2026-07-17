@@ -55,10 +55,10 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/orchestration/profile_reconcile_test.go::TestReadScenarioProfileConfigRejectsUnknownAndDuplicateSources",
+          "ref": "api/internal/orchestration/declaration_reconcile_test.go::TestReadScenarioDeclarationConfig",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Verify strict enabled-dependency, profile source, and reconciliation mode validation for scenario-owned portable profiles"
+          "notes": "Verify strict enabled-dependency, source, and profile-reconcile-mode validation for the unified scenario-owned declaration block, including rejection of the legacy config.profiles/config.workflows blocks and old-directory sources"
         }
       ]
     },

@@ -1,0 +1,176 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "agent-manager",
+  "key": "agent-manager/investigate",
+  "version": "1.0.0",
+  "description": "Diagnose failed agent run(s), produce schema-validated categorized recommendations, wait for operator approval, then apply the approved fixes bound to the structured findings.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "context": {"type": "string", "minLength": 1, "maxLength": 262144},
+      "depth": {"type": "string", "enum": ["quick", "standard", "deep"]},
+      "runIds": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50},
+      "projectRoot": {"type": "string", "maxLength": 4096}
+    },
+    "required": ["context"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {"findings": {"type": "object", "additionalProperties": true}},
+    "required": ["findings"],
+    "additionalProperties": false
+  },
+  "entryNode": "investigate",
+  "nodes": [
+    {
+      "id": "investigate",
+      "kind": "run",
+      "run": {
+        "profileKey": "agent-manager/investigation",
+        "tag": "agent-manager-investigation",
+        "force": true,
+        "promptRef": {"skillId": "agent-manager-process-investigation"},
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "summary": {"type": "string", "minLength": 1, "maxLength": 8192},
+              "primaryCategory": {"type": "string", "enum": ["Environment/Tooling", "Agent Setup", "Both"]},
+              "confidence": {"type": "string", "enum": ["High", "Medium", "Low"]},
+              "categories": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "recommendations": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 50,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "text": {"type": "string", "minLength": 1, "maxLength": 4096},
+                          "severity": {"type": "string", "enum": ["Critical", "Major", "Gap", "Minor"]},
+                          "evidence": {"type": "string", "maxLength": 4096}
+                        },
+                        "required": ["text"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["name", "recommendations"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["summary", "primaryCategory", "categories"],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {"name": "context", "source": "workflow_input", "selector": "$.context", "limit": 1, "maxBytes": 65536, "renderAs": "text", "missingPolicy": "error"}
+        ],
+        "maxTurns": 75,
+        "timeoutSeconds": 600
+      }
+    },
+    {
+      "id": "await-approval",
+      "kind": "wait",
+      "wait": {
+        "signal": "investigation.approval",
+        "timeoutSeconds": 86400,
+        "payloadSchema": {
+          "type": "object",
+          "properties": {
+            "decision": {"type": "string", "enum": ["completed", "rejected", "abstained"]},
+            "selected": {"type": "array", "items": {"type": "string", "maxLength": 4096}, "maxItems": 200},
+            "note": {"type": "string", "maxLength": 8192}
+          },
+          "required": ["decision"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "id": "decide",
+      "kind": "branch",
+      "branch": {}
+    },
+    {
+      "id": "apply",
+      "kind": "run",
+      "run": {
+        "profileKey": "agent-manager/investigation-apply",
+        "tag": "agent-manager-investigation-apply",
+        "force": true,
+        "promptRef": {"skillId": "agent-manager-process-investigation-apply"},
+        "bindings": [
+          {"name": "findings", "source": "structured_result", "selector": "node=investigate;$.value", "limit": 1, "maxBytes": 32768, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "approval", "source": "signal", "selector": "$.payload", "limit": 1, "maxBytes": 8192, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "context", "source": "workflow_input", "selector": "$.context", "limit": 1, "maxBytes": 32768, "renderAs": "text", "missingPolicy": "omit"}
+        ],
+        "maxTurns": 100,
+        "timeoutSeconds": 900
+      }
+    },
+    {
+      "id": "end-completed",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {"name": "findings", "source": "structured_result", "selector": "node=investigate;$.value", "limit": 1, "maxBytes": 65536, "renderAs": "json", "missingPolicy": "error"}
+        ]
+      }
+    },
+    {
+      "id": "end-rejected",
+      "kind": "end",
+      "end": {
+        "status": "blocked",
+        "bindings": [
+          {"name": "findings", "source": "structured_result", "selector": "node=investigate;$.value", "limit": 1, "maxBytes": 65536, "renderAs": "json", "missingPolicy": "error"}
+        ]
+      }
+    },
+    {
+      "id": "end-abstained",
+      "kind": "end",
+      "end": {
+        "status": "abstained",
+        "bindings": [
+          {"name": "findings", "source": "structured_result", "selector": "node=investigate;$.value", "limit": 1, "maxBytes": 65536, "renderAs": "json", "missingPolicy": "error"}
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {"from": "investigate", "to": "await-approval"},
+    {"from": "await-approval", "to": "decide"},
+    {"from": "decide", "to": "apply", "condition": "journal.exists(e, e.kind == 'signal' && e.payload.decision == 'completed')"},
+    {"from": "decide", "to": "end-rejected", "condition": "journal.exists(e, e.kind == 'signal' && e.payload.decision == 'rejected')"},
+    {"from": "decide", "to": "end-abstained", "condition": "journal.exists(e, e.kind == 'signal' && e.payload.decision == 'abstained')"},
+    {"from": "apply", "to": "end-completed"}
+  ],
+  "budgets": {
+    "wallTimeSeconds": 86400,
+    "maxTurns": 200,
+    "maxTokens": 3000000,
+    "maxCostUsd": 60,
+    "maxNodeAttempts": 2,
+    "maxChildren": 2,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 86400
+  },
+  "metadata": {"feature": "investigation", "owner": "agent-manager"}
+}

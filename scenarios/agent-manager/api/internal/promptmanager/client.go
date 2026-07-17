@@ -23,6 +23,23 @@ type Client interface {
 	ReadSkill(ctx context.Context, skillID string, variables map[string]string, withScope bool) (string, error)
 }
 
+// SkillSourceSnapshot is the immutable provenance of one resolved skill read: the
+// content plus the metadata that pins which skill revision produced it, so a
+// promptRef resolution can be recorded in a digest-deterministic way.
+type SkillSourceSnapshot struct {
+	SkillID     string
+	Revision    int
+	VariantID   string
+	Content     string
+	ContentHash string
+}
+
+// SourceClient exposes immutable source metadata for consumers that must pin
+// prompt interpretation into a durable revision.
+type SourceClient interface {
+	ReadSkillSource(ctx context.Context, skillID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error)
+}
+
 // PromptSkill represents prompt-manager skill metadata and optional content.
 type PromptSkill struct {
 	ID           string `json:"id"`
@@ -118,7 +135,14 @@ type readRequest struct {
 
 // readResponse is the response from the skill read endpoint.
 type readResponse struct {
-	Combined string `json:"combined"`
+	Combined          string `json:"combined"`
+	CombinedHash      string `json:"combinedHash,omitempty"`
+	SelectedVariantID string `json:"selectedVariantId,omitempty"`
+	Skills            []struct {
+		ID          string `json:"id"`
+		Revision    int    `json:"revision,omitempty"`
+		ContentHash string `json:"contentHash,omitempty"`
+	} `json:"skills,omitempty"`
 }
 
 // ReadSkill fetches a single skill from prompt-manager with variable substitution.
@@ -164,6 +188,58 @@ func (c *HTTPClient) ReadSkill(ctx context.Context, skillID string, variables ma
 	}
 
 	return readResp.Combined, nil
+}
+
+// ReadSkillSource resolves a skill and returns its content alongside the
+// immutable revision metadata used to pin a promptRef into a workflow revision.
+func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error) {
+	baseURL, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: resolve URL: %w", err)
+	}
+	reqBody := readRequest{
+		Identifiers: []string{skillID},
+		Variables:   variables,
+		Output:      "both",
+		WithScope:   withScope,
+	}
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: marshal source request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/skills/read", bytes.NewReader(body))
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: create source request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source status %d: %s", resp.StatusCode, string(respBody))
+	}
+	var readResp readResponse
+	if err := json.NewDecoder(resp.Body).Decode(&readResp); err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: decode source response: %w", err)
+	}
+	if len(readResp.Skills) != 1 || strings.TrimSpace(readResp.Combined) == "" || strings.TrimSpace(readResp.CombinedHash) == "" {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: source response for %q is incomplete", skillID)
+	}
+	skill := readResp.Skills[0]
+	variant := strings.TrimSpace(readResp.SelectedVariantID)
+	if variant == "" {
+		variant = "control"
+	}
+	return SkillSourceSnapshot{
+		SkillID:     skill.ID,
+		Revision:    skill.Revision,
+		VariantID:   variant,
+		Content:     readResp.Combined,
+		ContentHash: readResp.CombinedHash,
+	}, nil
 }
 
 // ListSkills fetches prompt-manager skill metadata with optional tag filtering.

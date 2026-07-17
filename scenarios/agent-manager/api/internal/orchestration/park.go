@@ -231,7 +231,7 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (*domain.Ru
 	if in.TimedOut {
 		reason = "Woken — await deadline elapsed (timed out)"
 	}
-	return o.resumeConversation(ctx, run, message, nil, reason)
+	return o.resumeConversation(ctx, run, message, nil, reason, continuationOverrides{})
 }
 
 // parkTTL returns the configured park deadline window, falling back to

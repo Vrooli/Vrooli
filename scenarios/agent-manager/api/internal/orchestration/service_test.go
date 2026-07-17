@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -219,99 +218,6 @@ func TestOrchestrator_EnsureProfile(t *testing.T) {
 	}
 	if result.Profile.RoleRef != "code.default" {
 		t.Errorf("expected portable role to update, got %q", result.Profile.RoleRef)
-	}
-}
-
-func TestOrchestrator_ReconcileScenarioProfiles(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	result, err := svc.ReconcileScenarioProfiles(ctx, orchestration.ReconcileScenarioProfilesRequest{
-		Scenario: "scenario-to-desktop",
-	})
-	if err != nil {
-		t.Fatalf("ReconcileScenarioProfiles create failed: %v", err)
-	}
-	if result.Created != 1 || result.Failed != 0 {
-		t.Fatalf("expected one created profile and no failures, got created=%d failed=%d results=%+v", result.Created, result.Failed, result.Results)
-	}
-	if len(result.Results) != 1 {
-		t.Fatalf("expected one result, got %d", len(result.Results))
-	}
-	item := result.Results[0]
-	if item.ProfileKey != "scenario-to-desktop/default" {
-		t.Fatalf("unexpected profile key %q", item.ProfileKey)
-	}
-
-	profileID, err := uuid.Parse(item.ProfileID)
-	if err != nil {
-		t.Fatalf("parse reconciled profile id: %v", err)
-	}
-	profile, err := svc.GetProfile(ctx, profileID)
-	if err != nil {
-		t.Fatalf("GetProfile failed: %v", err)
-	}
-	if profile.OwnerScenario != "scenario-to-desktop" || profile.SourcePath != ".vrooli/agent-profiles/default.json" {
-		t.Fatalf("missing source metadata: owner=%q source=%q", profile.OwnerScenario, profile.SourcePath)
-	}
-	if profile.SourceHash == "" || profile.LastAppliedHash != profile.SourceHash {
-		t.Fatalf("source hashes not recorded correctly: source=%q last=%q", profile.SourceHash, profile.LastAppliedHash)
-	}
-
-	result, err = svc.ReconcileScenarioProfiles(ctx, orchestration.ReconcileScenarioProfilesRequest{
-		Scenario: "scenario-to-desktop",
-	})
-	if err != nil {
-		t.Fatalf("ReconcileScenarioProfiles unchanged failed: %v", err)
-	}
-	if result.Unchanged != 1 {
-		t.Fatalf("expected unchanged result, got %+v", result)
-	}
-
-	profile.MaxTurns++
-	if _, err := svc.UpdateProfile(ctx, profile); err != nil {
-		t.Fatalf("UpdateProfile failed: %v", err)
-	}
-	result, err = svc.ReconcileScenarioProfiles(ctx, orchestration.ReconcileScenarioProfilesRequest{
-		Scenario: "scenario-to-desktop",
-	})
-	if err != nil {
-		t.Fatalf("ReconcileScenarioProfiles conflict failed: %v", err)
-	}
-	if result.Conflicted != 1 {
-		t.Fatalf("expected local override conflict, got %+v", result)
-	}
-}
-
-func TestOrchestrator_ReconcileScenarioProfiles_AllSeededScenariosDryRun(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	for _, scenario := range []string{"swarm-manager", "system-monitor", "scenario-to-desktop"} {
-		t.Run(scenario, func(t *testing.T) {
-			result, err := svc.ReconcileScenarioProfiles(ctx, orchestration.ReconcileScenarioProfilesRequest{
-				Scenario: scenario,
-				DryRun:   true,
-			})
-			if err != nil {
-				t.Fatalf("ReconcileScenarioProfiles dry-run failed: %v", err)
-			}
-			if result.Failed != 0 || len(result.Results) == 0 {
-				t.Fatalf("expected valid dry-run results and no failures, got %+v", result)
-			}
-			foundDefault := false
-			for _, profileResult := range result.Results {
-				if !strings.HasPrefix(profileResult.ProfileKey, scenario+"/") {
-					t.Fatalf("profile key = %q, want prefix %q", profileResult.ProfileKey, scenario+"/")
-				}
-				if profileResult.ProfileKey == scenario+"/default" {
-					foundDefault = true
-				}
-			}
-			if !foundDefault {
-				t.Fatalf("expected default profile for %s, got %+v", scenario, result.Results)
-			}
-		})
 	}
 }
 

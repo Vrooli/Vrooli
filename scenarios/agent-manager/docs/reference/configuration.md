@@ -234,6 +234,17 @@ Heuristic windows used by `phases.ValidateRunOutcome` and stderr truncation.
 | `LaunchFailedMaxDuration` | 2s | Sub-2s sandboxed runs with zero message events get demoted to `SANDBOX_LAUNCH_FAILED`. Pin this when bwrap chdir failures masquerade as success. |
 | `RateLimitTruncate` | 512B | How much error-message text is preserved in rate-limit warnings. |
 
+## Workflow
+
+The completion-nudge queue that drives workflow executions forward as their runs finish, so no consumer polls. See [`../internal/TEMPORAL-FLOWS.md`](../internal/TEMPORAL-FLOWS.md) (the "Workflow completion nudge + blocking wait" flow).
+
+| Field | Default | What it controls |
+|---|---|---|
+| `NudgeWorkers` | 4 | Concurrent goroutines draining the nudge queue. Distinct executions drive in parallel; concurrent drives of one execution are CAS-safe. Range 1–32. |
+| `NudgeDriveTimeout` | 5m | Bound on a single nudge-triggered drive; detached from any request context. Range 5s–10m. |
+
+The `WaitWorkflowExecution` RPC timeout is per-request (`timeout_seconds`, 0 = block until terminal), not a lever.
+
 ## Workflow-runtime controls
 
 Workflow budgets are authored controls owned by the scenario that owns the

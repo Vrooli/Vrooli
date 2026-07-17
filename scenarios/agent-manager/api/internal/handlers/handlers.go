@@ -131,6 +131,10 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/profiles", h.CreateProfile).Methods("POST")
 	r.HandleFunc("/api/v1/profiles/ensure", h.EnsureProfile).Methods("POST")
 	r.HandleFunc("/api/v1/profiles/reconcile-scenario", h.ReconcileScenarioProfiles).Methods("POST")
+
+	// Unified scenario-owned declaration reconcile (profiles + workflows).
+	r.HandleFunc("/api/v1/declarations/reconcile-scenario", h.ReconcileScenarioDeclarations).Methods("POST")
+	r.HandleFunc("/api/v1/declarations/plan", h.PlanScenarioDeclarations).Methods("POST")
 	r.HandleFunc("/api/v1/profiles", h.ListProfiles).Methods("GET")
 	r.HandleFunc("/api/v1/profiles/{id}", h.GetProfile).Methods("GET")
 	r.HandleFunc("/api/v1/profiles/{id}", h.UpdateProfile).Methods("PUT")
@@ -150,6 +154,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/workflow-executions/{id}", h.GetWorkflowExecution).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/result", h.GetWorkflowExecutionResult).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/advance", h.AdvanceWorkflowExecution).Methods("POST")
+	r.HandleFunc("/api/v1/workflow-executions/{id}/wait", h.WaitWorkflowExecution).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/trace", h.GetWorkflowExecutionTrace).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/signals", h.SignalWorkflowExecution).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/cancel", h.CancelWorkflowExecution).Methods("POST")
@@ -189,8 +194,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}/reject", h.RejectRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/partial-approve", h.PartialApproveRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/sandbox-sync", h.SyncRunFromSandbox).Methods("POST")
-	r.HandleFunc("/api/v1/runs/{id}/extract-recommendations", h.ExtractRecommendations).Methods("POST")
-	r.HandleFunc("/api/v1/runs/{id}/regenerate-recommendations", h.RegenerateRecommendations).Methods("POST")
 
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
@@ -972,6 +975,82 @@ func profileReconcileStatusToProto(status orchestration.ProfileReconcileStatus) 
 	}
 }
 
+// ReconcileScenarioDeclarations reconciles a scenario's unified declaration
+// block (profiles and workflows) in one call.
+func (h *Handler) ReconcileScenarioDeclarations(w http.ResponseWriter, r *http.Request) {
+	h.reconcileScenarioDeclarations(w, r, false)
+}
+
+// PlanScenarioDeclarations validates every declaration source without writes.
+func (h *Handler) PlanScenarioDeclarations(w http.ResponseWriter, r *http.Request) {
+	h.reconcileScenarioDeclarations(w, r, true)
+}
+
+func (h *Handler) reconcileScenarioDeclarations(w http.ResponseWriter, r *http.Request, forceDryRun bool) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+	var req apipb.ReconcileScenarioDeclarationsRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	result, err := h.svc.ReconcileScenarioDeclarations(r.Context(), orchestration.ReconcileScenarioDeclarationsRequest{
+		Scenario:     req.Scenario,
+		DryRun:       req.DryRun || forceDryRun,
+		ValidateOnly: req.ValidateOnly,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeProtoJSON(w, http.StatusOK, reconcileScenarioDeclarationsToProto(result))
+}
+
+func reconcileScenarioDeclarationsToProto(result *orchestration.ReconcileScenarioDeclarationsResult) *apipb.ReconcileScenarioDeclarationsResponse {
+	if result == nil {
+		return &apipb.ReconcileScenarioDeclarationsResponse{}
+	}
+	profiles := make([]*apipb.ProfileReconcileResult, 0, len(result.ProfileResults))
+	for _, item := range result.ProfileResults {
+		profiles = append(profiles, &apipb.ProfileReconcileResult{
+			ProfileKey: item.ProfileKey,
+			SourcePath: item.SourcePath,
+			SourceHash: item.SourceHash,
+			ProfileId:  item.ProfileID,
+			Status:     profileReconcileStatusToProto(item.Status),
+			Message:    item.Message,
+		})
+	}
+	workflows := make([]*apipb.WorkflowReconcileResult, 0, len(result.WorkflowResults))
+	for _, item := range result.WorkflowResults {
+		workflows = append(workflows, workflowReconcileResultToProto(item))
+	}
+	return &apipb.ReconcileScenarioDeclarationsResponse{
+		Scenario:           result.Scenario,
+		ProfileResults:     profiles,
+		WorkflowResults:    workflows,
+		ProfilesCreated:    int32(result.ProfilesCreated),
+		ProfilesUpdated:    int32(result.ProfilesUpdated),
+		ProfilesUnchanged:  int32(result.ProfilesUnchanged),
+		ProfilesSkipped:    int32(result.ProfilesSkipped),
+		ProfilesConflicted: int32(result.ProfilesConflicted),
+		ProfilesFailed:     int32(result.ProfilesFailed),
+		WorkflowsCreated:   int32(result.WorkflowsCreated),
+		WorkflowsActivated: int32(result.WorkflowsActivated),
+		WorkflowsUnchanged: int32(result.WorkflowsUnchanged),
+		WorkflowsSkipped:   int32(result.WorkflowsSkipped),
+		WorkflowsFailed:    int32(result.WorkflowsFailed),
+		DryRun:             result.DryRun,
+		ValidateOnly:       result.ValidateOnly,
+	}
+}
+
 // GetProfile retrieves a profile by ID.
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["id"]
@@ -1635,6 +1714,8 @@ func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		InvestigationRunID string            `json:"investigationRunId"`
+		Decision           string            `json:"decision,omitempty"`
+		Selected           []string          `json:"selected,omitempty"`
 		CustomContext      string            `json:"customContext,omitempty"`
 		AttachmentIDs      []string          `json:"attachmentIds,omitempty"`
 		RoleRef            string            `json:"roleRef,omitempty"`
@@ -1657,6 +1738,8 @@ func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Req
 
 	run, err := h.svc.CreateInvestigationApplyRun(r.Context(), orchestration.CreateInvestigationApplyRequest{
 		InvestigationRunID: runID,
+		Decision:           req.Decision,
+		Selected:           req.Selected,
 		CustomContext:      req.CustomContext,
 		AttachmentIDs:      req.AttachmentIDs,
 		RoleRef:            optionalTrimmedString(req.RoleRef),
@@ -2718,40 +2801,6 @@ func (h *Handler) SyncRunFromSandbox(w http.ResponseWriter, r *http.Request) {
 		"runStatus":     run.Status,
 		"approvalState": run.ApprovalState,
 	})
-}
-
-// ExtractRecommendations extracts structured recommendations from an investigation run.
-func (h *Handler) ExtractRecommendations(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUID(r, "id")
-	if err != nil {
-		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
-		return
-	}
-
-	result, err := h.svc.ExtractRecommendations(r.Context(), id)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, result)
-}
-
-// RegenerateRecommendations forces re-extraction of recommendations for an investigation run.
-// This resets the extraction state and queues the run for background processing.
-func (h *Handler) RegenerateRecommendations(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUID(r, "id")
-	if err != nil {
-		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
-		return
-	}
-
-	if err := h.svc.RegenerateRecommendations(r.Context(), id); err != nil {
-		writeError(w, r, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // GetRunnerStatus returns status of all runners.

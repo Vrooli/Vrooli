@@ -181,6 +181,148 @@ never by guessing whether an agent turn was sent.
 **Tests:** `internal/workflowruntime/engine_test.go::TestRecoveryReusesPersistedDispatchIntentExactlyOnce`
 and `internal/database/repository_workflow_test.go::TestWorkflowExecutionRepositoryCASAndJournalSurviveReload`.
 
+## I13. Results are turn-scoped
+
+**Statement.** When provider turn identity is present, only events belonging to
+the latest durable turn may compete for the canonical RunResult. Earlier turns
+remain historical evidence but cannot make a continued handoff ambiguous.
+
+**Tests:** `internal/orchestration/run_result_test.go`.
+
+## I14. Wait signals are visit-scoped
+
+**Statement.** Every traversal of a wait node creates a new correlation key,
+resume token, and deadline. A signal committed for an earlier visit cannot
+satisfy a later traversal of the same node.
+
+**Tests:** `internal/workflowruntime/engine_test.go::TestRevisitedWaitRequiresVisitScopedSignal`.
+
+## I15. Abnormal terminals require child cleanup evidence
+
+**Statement.** Cancellation remains non-terminal while child cleanup is
+incomplete. Failed, budget-exhausted, and cancelled executions are recoverable
+until the current retry generation has a durable cleanup disposition.
+
+**Tests:** `internal/workflowruntime/engine_test.go::TestCancellationRemainsRecoverableUntilChildCleanupSucceeds` and repository recovery tests.
+
+## I16. Fan-out and concurrency are distinct budgets
+
+**Statement.** `maxConcurrency` limits active member dispatch, not total fork
+membership. `any` and `quorum` joins stop durable losers as soon as their
+threshold is satisfied and fail as soon as success is impossible.
+
+**Tests:** `internal/workflowruntime/engine_test.go::TestParallelFanoutWiderThanConcurrencyDispatchesInBatches` and `TestParallelAnyJoinDoesNotWaitForHungLoser`.
+
+## I17. The declared-run doctrine has one canonical location and no legacy fallback
+
+**Statement.** Every programmatic (non-chat) agent interaction where code composes the prompt and
+code consumes the output is a scenario-owned workflow declaration. Scenario-owned profiles and
+workflows live **only** under `.vrooli/agent-manager/`, declared through the single
+`dependencies.scenarios.agent-manager.config.declarations` block and discriminated per file by
+`schemaVersion`. The retired `.vrooli/agent-profiles/` / `.vrooli/agent-workflows/` directories and
+the legacy `config.profiles` / `config.workflows` blocks are rejected at reconcile and flagged by
+conformance; no reader code for them remains anywhere but the two designated rejection sites. A
+scenario keeps exactly two ends in its own code (typed input snapshot, typed result application); a
+one-run feature is still a workflow file, spelled with single-node sugar that canonicalizes to a
+digest identical to its explicit form — never a new registrable entity kind.
+
+**Why.** Parallel representations of the same behavior are how the failed swarm-manager
+operating-modes implementation grew four overlapping layers. One directory, one config block, one
+reconcile entry point, and a hard cutover keep the declaration layer from drifting into dialects. A
+dual-read window would silently keep the old glue alive; the rejection is deliberate and
+user-mandated.
+
+**Tests:**
+- `internal/orchestration/declaration_reconcile_test.go::TestReadScenarioDeclarationConfig` — legacy blocks and old-directory sources rejected with actionable diagnostics.
+- `internal/conformance/service_test.go::TestValidateRejectsLegacyLayoutDirectoriesAndBlocks` and `TestRealDeclaringScenariosCleanOnUnifiedLayout` — conformance rejects the old layout and every real declaring scenario is clean on the new one.
+- `internal/orchestration/legacy_layout_guard_test.go::TestNoLegacyDeclarationLayoutReaders` — the retired directory literals appear only in the two designated rejection files.
+- `internal/workflowcatalog/catalog_test.go::TestSingleNodeSugarCanonicalizesToExplicitDigest` / `TestSingleNodeSugarRoundTripsThroughParse` — sugar is digest-identical to the explicit form.
+
+## I18. Workflow registration validation reaches profile parity
+
+**Statement.** CEL edge conditions compile against the engine's shared workflow CEL environment and
+run/continue prompt placeholders cross-check against declared bindings **at reconcile and validate**,
+not mid-execution. A blocking diagnostic (CEL compile/type error, unbound placeholder) withholds the
+digest so nothing registers; an unused binding is a warning that still registers. The same shared
+validators back the mutating reconcile and the read-only conformance surface so the two cannot accept
+different manifests.
+
+**Why.** Before this parity, a workflow could register with a CEL or placeholder defect and only
+explode mid-run, unlike profiles which validated at registration. Catching it at reconcile with a
+precise node/edge path is the difference between a registration error and a production incident.
+
+**Tests:**
+- `internal/workflowcatalog/catalog_test.go::TestValidateRejectsMalformedEdgeCondition`, `TestValidateRejectsNonBoolEdgeCondition`, `TestValidateRejectsUnboundPromptPlaceholder`, `TestValidateWarnsOnUnusedBinding`.
+- `internal/orchestration/declaration_reconcile_test.go::TestReconcileScenarioDeclarationsWorkflowWithholdOnRegistrationDefect` — the defects are caught at reconcile, not only at file validate.
+
+## I19. promptRef is resolved and digest-pinned at reconcile
+
+**Statement.** A `run`/`continue` node names exactly one of `promptTemplate` or `promptRef`. A
+`promptRef` resolves against prompt-manager **at reconcile, before the digest**: the resolved content
+is embedded into `promptTemplate` and pinned with provenance (skill id, revision, variant, content
+hash). A changed skill resolves to different content, a different digest, and a new revision on the
+next reconcile — never a silent behavior change under a fixed digest. A resolution failure (missing
+skill, prompt-manager unreachable, no source client) withholds the whole atomic workflow batch, never
+a partially-resolved revision.
+
+**Why.** Digest pinning is the catalog's identity mechanism; a revision's behavior must be immutable
+even if the referenced skill later changes. Embedding at reconcile makes provenance auditable and
+keeps execution-time free of prompt-manager coupling.
+
+**Tests:**
+- `internal/orchestration/workflow_promptref_test.go::TestPromptRefResolvesAndPinsProvenance`, `TestPromptRefChangedSkillProducesNewRevision`, `TestPromptRefResolutionFailureWithholdsRevision`, `TestPromptRefMissingSkillWithholdsRevision`, `TestPromptRefRequiresSourceClient`.
+
+## I20. The completion nudge is an idempotent trigger, never a scheduler
+
+**Statement.** When a run belonging to a workflow attempt reaches terminal, the orchestrator resolves
+the owning execution (`ExecutionIDForRun`) and enqueues one deduplicated drive on the in-process
+`WorkflowNudger`; a child-workflow terminal nudges its parent. The drive re-reads durable state and is
+guarded by the engine's optimistic-version CAS, so a nudge racing an explicit `Advance` or a second
+nudge is safe (the loser rereads and exits at the fixpoint). The nudge is an optimization over the
+crash-safe pull loop; `RecoverWorkflowExecutions` remains the durable backstop that progresses an
+execution whose run finished while agent-manager was down. No consumer polls `AdvanceWorkflowExecution`
+in the normal flow.
+
+**Why.** The fleet's 500ms–5s poll loops existed because nothing pushed completion. The nudge pushes
+the existing pull loop without becoming a new scheduler, preserving the crash-safe, pull-based core
+chosen by the reliable-results hardening amendment.
+
+**Tests:**
+- `internal/orchestration/workflow_nudge_test.go` — dedupe, concurrent drain (-race), wait-registry notify.
+- `internal/orchestration/workflow_nudge_integration_test.go::TestCompletionNudgeAdvancesRunNodeWithoutConsumerAdvance`, `TestCompletionNudgeToleratesConcurrentExplicitAdvance`, `TestCompletionNudgeProgressesAcrossSimulatedRestart`.
+
+## I21. The blocking wait never mutates the execution
+
+**Statement.** `WaitWorkflowExecution(executionId, timeout)` long-polls server-side until the
+execution is terminal or the deadline passes, mirroring test-genie's `WaitRun`. It only reads
+execution state: **cancelling the waiter never cancels the execution**, and the deadline yields a
+`timed_out` result with the execution unchanged, never a hang past the deadline. The execution is
+driven independently by the engine, the nudge, and the reconciler backstop.
+
+**Why.** This is the documented adoption pattern that replaces consumer pollers. If the wait could
+cancel or otherwise perturb the execution, a client's timeout or disconnect would corrupt server-owned
+state — the same coupling test-genie's run-wait contract avoids.
+
+**Tests:**
+- `internal/orchestration/workflow_wait_test.go::TestWaitWorkflowExecutionReturnsImmediatelyForTerminal`, `TestWaitWorkflowExecutionBlocksUntilTerminal`, `TestWaitWorkflowExecutionRespectsDeadline`, `TestWaitWorkflowExecutionSurvivesConcurrentWaiters`, `TestWaitWorkflowExecutionCancelDoesNotCancelExecution`.
+
+## I22. Self-registration bypasses only the dependency gate
+
+**Statement.** Agent Manager registers its own declarations from
+`scenarios/agent-manager/.vrooli/agent-manager/` at startup with owner `agent-manager`, through the
+**same** shared validators and ownership rules as any other scenario — it bypasses only the
+requirement to declare a dependency on itself, never a validator. A broken self source fails in
+isolation and never blocks agent-manager readiness (per-source isolation for profiles; atomic withhold
+for the workflow batch).
+
+**Why.** Reconcile otherwise enforces `owner == declaring scenario` and a declared dependency, which
+agent-manager cannot satisfy for itself. The seam must not become a second, weaker validation path, or
+agent-manager's own declarations (the investigation workflow) could register something a dependent
+scenario could not.
+
+**Tests:**
+- `internal/orchestration/declaration_reconcile_test.go::TestReconcileSelfDeclarationsBypassesDependencyGate`, `TestReconcileSelfDeclarationsEnforcesValidators`, `TestReconcileSelfDeclarationsIsolatesPerSourceFailure`.
+
 ## How to add an invariant here
 
 Additional `OT-P2-001` constraints stay in the architecture decision table

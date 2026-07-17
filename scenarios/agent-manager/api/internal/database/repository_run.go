@@ -71,12 +71,6 @@ type runRow struct {
 	SourceInvestigationRunID NullableUUID          `db:"source_investigation_run_id"`
 	ParentRunID              NullableUUID          `db:"parent_run_id"`
 	ConversationID           sql.NullString        `db:"conversation_id"`
-	// Recommendation extraction fields (for investigation runs)
-	RecommendationStatus   sql.NullString           `db:"recommendation_status"`
-	RecommendationResult   NullableExtractionResult `db:"recommendation_result"`
-	RecommendationAttempts int                      `db:"recommendation_attempts"`
-	RecommendationError    sql.NullString           `db:"recommendation_error"`
-	RecommendationQueuedAt NullableTime             `db:"recommendation_queued_at"`
 	// Identity token fields
 	IdentityTokenHash      sql.NullString `db:"identity_token_hash"`
 	IdentityTokenRevokedAt NullableTime   `db:"identity_token_revoked_at"`
@@ -141,12 +135,6 @@ func (row *runRow) toDomain() *domain.Run {
 		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
 		ParentRunID:              row.ParentRunID.ToPtr(),
 		ConversationID:           row.ConversationID.String,
-		// Recommendation extraction fields
-		RecommendationStatus:   domain.RecommendationStatus(row.RecommendationStatus.String),
-		RecommendationResult:   row.RecommendationResult.V,
-		RecommendationAttempts: row.RecommendationAttempts,
-		RecommendationError:    row.RecommendationError.String,
-		RecommendationQueuedAt: row.RecommendationQueuedAt.ToPtr(),
 		// Identity token fields
 		IdentityTokenHash:      row.IdentityTokenHash.String,
 		IdentityTokenRevokedAt: row.IdentityTokenRevokedAt.ToPtr(),
@@ -218,12 +206,6 @@ func runFromDomain(r *domain.Run) *runRow {
 		SourceInvestigationRunID: NewNullableUUID(r.SourceInvestigationRunID),
 		ParentRunID:              NewNullableUUID(r.ParentRunID),
 		ConversationID:           sql.NullString{String: r.ConversationID, Valid: r.ConversationID != ""},
-		// Recommendation extraction fields
-		RecommendationStatus:   sql.NullString{String: string(r.RecommendationStatus), Valid: r.RecommendationStatus != ""},
-		RecommendationResult:   NullableExtractionResult{V: r.RecommendationResult},
-		RecommendationAttempts: r.RecommendationAttempts,
-		RecommendationError:    sql.NullString{String: r.RecommendationError, Valid: r.RecommendationError != ""},
-		RecommendationQueuedAt: NewNullableTime(r.RecommendationQueuedAt),
 		// Identity token fields
 		IdentityTokenHash:      sql.NullString{String: r.IdentityTokenHash, Valid: r.IdentityTokenHash != ""},
 		IdentityTokenRevokedAt: NewNullableTime(r.IdentityTokenRevokedAt),
@@ -345,7 +327,6 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
-	recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 	identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
 	last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 	requested_model, actual_model,
@@ -353,7 +334,6 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
 
 // listRunColumns contains the pruned column set for List() queries.
 // Omits heavy fields: summary, resolved_config, sandbox_config, sandbox_id,
-// recommendation_result, recommendation_error, recommendation_queued_at,
 // idempotency_key, last_checkpoint_id, diff_path, log_path,
 // approved_by, approved_at.
 // NOTE: last_heartbeat MUST be included — the reconciler depends on it
@@ -365,7 +345,6 @@ const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode,
 	changed_files, total_size_bytes, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
-	recommendation_status, recommendation_attempts,
 	requested_model, actual_model,
 	created_at, updated_at`
 
@@ -402,8 +381,6 @@ type listRunLiteRow struct {
 	SourceInvestigationRunID NullableUUID   `db:"source_investigation_run_id"`
 	ParentRunID              NullableUUID   `db:"parent_run_id"`
 	ConversationID           sql.NullString `db:"conversation_id"`
-	RecommendationStatus     sql.NullString `db:"recommendation_status"`
-	RecommendationAttempts   int            `db:"recommendation_attempts"`
 	RequestedModel           sql.NullString `db:"requested_model"`
 	ActualModel              sql.NullString `db:"actual_model"`
 	CreatedAt                SQLiteTime     `db:"created_at"`
@@ -445,8 +422,6 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
 		ParentRunID:              row.ParentRunID.ToPtr(),
 		ConversationID:           row.ConversationID.String,
-		RecommendationStatus:     domain.RecommendationStatus(row.RecommendationStatus.String),
-		RecommendationAttempts:   row.RecommendationAttempts,
 		RequestedModel:           row.RequestedModel.String,
 		ActualModel:              row.ActualModel.String,
 		PromptPreview:            row.PromptPreview.String,
@@ -477,7 +452,6 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
 			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 			source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
-			recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 			identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 			requested_model, actual_model,
@@ -490,7 +464,6 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id,
 			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq,
 			:source_run_ids, :source_investigation_run_id, :parent_run_id, :conversation_id,
-			:recommendation_status, :recommendation_result, :recommendation_attempts, :recommendation_error, :recommendation_queued_at,
 			:identity_token_hash, :identity_token_revoked_at, :custom_env, :await_handle,
 			:last_await_key, :last_await_result, :last_await_resolved_at, :last_wake_seq, :same_key_park_streak,
 			:requested_model, :actual_model,
@@ -619,9 +592,6 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 			source_run_ids = :source_run_ids,
 			source_investigation_run_id = :source_investigation_run_id,
 			parent_run_id = :parent_run_id, conversation_id = :conversation_id,
-			recommendation_status = :recommendation_status, recommendation_result = :recommendation_result,
-		recommendation_attempts = :recommendation_attempts, recommendation_error = :recommendation_error,
-		recommendation_queued_at = :recommendation_queued_at,
 		identity_token_hash = :identity_token_hash, identity_token_revoked_at = :identity_token_revoked_at,
 		custom_env = :custom_env, await_handle = :await_handle,
 		last_await_key = :last_await_key, last_await_result = :last_await_result,
@@ -723,161 +693,6 @@ func (r *runRepository) CountByStatus(ctx context.Context, status domain.RunStat
 		return 0, wrapDBError("count_by_status", "Run", string(status), err)
 	}
 	return count, nil
-}
-
-// ListPendingRecommendationExtractions returns runs that need recommendation extraction.
-// Returns runs with status=pending or status=failed (with attempts < maxRetries),
-// ordered by queued_at ascending (oldest first).
-// NOTE: This uses a broad filter (tag contains 'investigation' and not 'apply').
-// The caller should apply additional filtering using the configurable allowlist.
-func (r *runRepository) ListPendingRecommendationExtractions(ctx context.Context, maxRetries, limit int) ([]*domain.Run, error) {
-	// Query for runs that:
-	// 1. Tag contains 'investigation' but not 'apply' (broad filter, caller filters precisely)
-	// 2. Have recommendation_status = 'pending' OR (status = 'failed' AND attempts < maxRetries)
-	// Ordered by queued_at ascending (oldest first)
-	query := fmt.Sprintf(`
-		SELECT %s FROM runs
-		WHERE tag LIKE '%%investigation%%'
-		  AND tag NOT LIKE '%%apply'
-		  AND (
-		      recommendation_status = ?
-		      OR (recommendation_status = ? AND recommendation_attempts < ?)
-		  )
-		ORDER BY recommendation_queued_at ASC NULLS LAST
-		LIMIT ?
-	`, runColumns)
-
-	args := []interface{}{
-		string(domain.RecommendationStatusPending),
-		string(domain.RecommendationStatusFailed),
-		maxRetries,
-		limit,
-	}
-
-	var rows []runRow
-	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, wrapDBError("list_pending_recommendation_extractions", "Run", "", err)
-	}
-
-	result := make([]*domain.Run, len(rows))
-	for i, row := range rows {
-		result[i] = row.toDomain()
-	}
-	return result, nil
-}
-
-// ClaimRecommendationExtraction atomically marks a run as "extracting".
-// Returns true if claim succeeded (no concurrent extractor got it first).
-// Uses optimistic locking via WHERE clause to prevent race conditions.
-func (r *runRepository) ClaimRecommendationExtraction(ctx context.Context, runID uuid.UUID) (bool, error) {
-	// Atomic UPDATE: only succeeds if status is still pending or failed
-	query := `
-		UPDATE runs
-		SET recommendation_status = ?, updated_at = ?
-		WHERE id = ?
-		  AND (recommendation_status = ? OR recommendation_status = ?)
-	`
-
-	now := SQLiteTime(time.Now())
-	result, err := r.db.ExecContext(ctx, query,
-		string(domain.RecommendationStatusExtracting),
-		now,
-		runID,
-		string(domain.RecommendationStatusPending),
-		string(domain.RecommendationStatusFailed),
-	)
-	if err != nil {
-		return false, wrapDBError("claim_recommendation_extraction", "Run", runID.String(), err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return false, wrapDBError("claim_recommendation_extraction_rows", "Run", runID.String(), err)
-	}
-
-	return rowsAffected > 0, nil
-}
-
-// ListUnextractedInvestigationRuns returns complete investigation runs that haven't had
-// recommendations extracted yet (status is empty, NULL, or "none").
-// Used on startup to seed the extraction queue with existing runs.
-// Limited to most recent runs (by created_at desc) to avoid overwhelming the queue.
-// NOTE: If tagPrefix is empty, uses a broad filter (tag contains 'investigation').
-// The caller should apply additional filtering using the configurable allowlist.
-func (r *runRepository) ListUnextractedInvestigationRuns(ctx context.Context, tagPrefix string, limit int) ([]*domain.Run, error) {
-	// Query for runs that:
-	// 1. Tag matches pattern (broad filter, caller filters precisely)
-	// 2. Are complete (status = 'complete')
-	// 3. Have recommendation_status = '' OR NULL OR 'none'
-	// Ordered by created_at DESC (most recent first)
-
-	// Use broad filter if no prefix specified, otherwise use prefix
-	tagPattern := "%investigation%"
-	if tagPrefix != "" {
-		tagPattern = tagPrefix + "%"
-	}
-
-	query := fmt.Sprintf(`
-		SELECT %s FROM runs
-		WHERE tag LIKE ?
-		  AND tag NOT LIKE '%%apply'
-		  AND status = ?
-		  AND (recommendation_status = '' OR recommendation_status IS NULL OR recommendation_status = ?)
-		ORDER BY created_at DESC
-		LIMIT ?
-	`, runColumns)
-
-	args := []interface{}{
-		tagPattern,
-		string(domain.RunStatusComplete),
-		string(domain.RecommendationStatusNone),
-		limit,
-	}
-
-	var rows []runRow
-	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, wrapDBError("list_unextracted_investigation_runs", "Run", "", err)
-	}
-
-	result := make([]*domain.Run, len(rows))
-	for i, row := range rows {
-		result[i] = row.toDomain()
-	}
-	return result, nil
-}
-
-// ListStaleExtractions returns runs that have been stuck in "extracting" status
-// for longer than the stale timeout. These are likely from crashed workers.
-func (r *runRepository) ListStaleExtractions(ctx context.Context, staleTimeout time.Duration, limit int) ([]*domain.Run, error) {
-	// Query for runs that:
-	// 1. Have recommendation_status = 'extracting'
-	// 2. Were updated more than staleTimeout ago (indicating a stuck worker)
-	cutoff := SQLiteTime(time.Now().Add(-staleTimeout))
-
-	query := fmt.Sprintf(`
-		SELECT %s FROM runs
-		WHERE recommendation_status = ?
-		  AND updated_at < ?
-		ORDER BY updated_at ASC
-		LIMIT ?
-	`, runColumns)
-
-	args := []interface{}{
-		string(domain.RecommendationStatusExtracting),
-		cutoff,
-		limit,
-	}
-
-	var rows []runRow
-	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, wrapDBError("list_stale_extractions", "Run", "", err)
-	}
-
-	result := make([]*domain.Run, len(rows))
-	for i, row := range rows {
-		result[i] = row.toDomain()
-	}
-	return result, nil
 }
 
 // ============================================================================

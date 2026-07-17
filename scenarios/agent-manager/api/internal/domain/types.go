@@ -695,14 +695,6 @@ type Run struct {
 	// etc.) with an unrelated lifetime.
 	ConversationID string `json:"conversationId,omitempty" db:"conversation_id"`
 
-	// Recommendation extraction state (for investigation runs)
-	// Recommendations are extracted passively after investigation runs complete.
-	RecommendationStatus   RecommendationStatus `json:"recommendationStatus,omitempty" db:"recommendation_status"`
-	RecommendationResult   *ExtractionResult    `json:"recommendationResult,omitempty" db:"recommendation_result"`
-	RecommendationAttempts int                  `json:"recommendationAttempts,omitempty" db:"recommendation_attempts"`
-	RecommendationError    string               `json:"recommendationError,omitempty" db:"recommendation_error"`
-	RecommendationQueuedAt *time.Time           `json:"recommendationQueuedAt,omitempty" db:"recommendation_queued_at"`
-
 	// Identity token fields
 	IdentityTokenHash      string     `json:"identityTokenHash,omitempty" db:"identity_token_hash"`
 	IdentityTokenRevokedAt *time.Time `json:"identityTokenRevokedAt,omitempty" db:"identity_token_revoked_at"`
@@ -921,26 +913,6 @@ const (
 	ApprovalStatePartiallyApproved ApprovalState = "partially_approved"
 	ApprovalStateApproved          ApprovalState = "approved"
 	ApprovalStateRejected          ApprovalState = "rejected"
-)
-
-// RecommendationStatus represents the state of recommendation extraction for investigation runs.
-type RecommendationStatus string
-
-const (
-	// RecommendationStatusNone - Not applicable (non-investigation run or not yet complete)
-	RecommendationStatusNone RecommendationStatus = "none"
-
-	// RecommendationStatusPending - Awaiting extraction (queued for background processing)
-	RecommendationStatusPending RecommendationStatus = "pending"
-
-	// RecommendationStatusExtracting - Extraction in progress
-	RecommendationStatusExtracting RecommendationStatus = "extracting"
-
-	// RecommendationStatusComplete - Successfully extracted and cached
-	RecommendationStatusComplete RecommendationStatus = "complete"
-
-	// RecommendationStatusFailed - Extraction failed after max retries
-	RecommendationStatusFailed RecommendationStatus = "failed"
 )
 
 // RunSummary contains the structured summary from an agent run.

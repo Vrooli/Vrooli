@@ -29,6 +29,8 @@ export {
   RecoveryAction,
 } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
+export { StructuredResultStatus } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
+
 export { RunnerType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
 export type {
@@ -157,7 +159,11 @@ export interface CreateInvestigationRunRequest {
 
 export interface ApplyInvestigationRunRequest {
   investigationRunId: string;
+  decision: "completed";
+  /** Approved recommendation `text` strings the operator checked. Empty = apply all. */
+  selected: string[];
   customContext?: string;
+  roleRef?: string;
 }
 
 // =============================================================================
@@ -314,57 +320,34 @@ export interface CacheStatusResponse {
 }
 
 // =============================================================================
-// Recommendation Extraction Types
+// Investigation Findings Types (structured result of the agent-manager/investigate
+// workflow; see .vrooli/agent-manager/investigate.json resultSpec.schema)
 // =============================================================================
 
-/** Status of recommendation extraction for investigation runs */
-export type RecommendationStatus =
-  | "none"       // Not applicable (non-investigation run or not yet complete)
-  | "pending"    // Awaiting extraction (queued for background processing)
-  | "extracting" // Extraction in progress
-  | "complete"   // Successfully extracted and cached
-  | "failed";    // Extraction failed after max retries
+export type InvestigationRecommendationSeverity = "Critical" | "Major" | "Gap" | "Minor";
+export type InvestigationPrimaryCategory = "Environment/Tooling" | "Agent Setup" | "Both";
+export type InvestigationConfidence = "High" | "Medium" | "Low";
 
-/** A single recommendation extracted from an investigation */
-export interface Recommendation {
-  id: string;
+/** A single recommendation within an investigation category. */
+export interface InvestigationRecommendation {
   text: string;
-  selected: boolean;
-  /** User-added note (appended inline when serializing) */
-  note?: string;
-  /** Indicates this is a newly added item */
-  isNew?: boolean;
-  /** Indicates text was edited */
-  isEdited?: boolean;
+  severity?: InvestigationRecommendationSeverity;
+  evidence?: string;
 }
 
-/** A category grouping related recommendations */
-export interface RecommendationCategory {
-  id: string;
+/** A category grouping related recommendations. */
+export interface InvestigationRecommendationCategory {
   name: string;
-  recommendations: Recommendation[];
-  /** Indicates this is a newly added category */
-  isNew?: boolean;
-}
-
-/** Result of extracting recommendations from an investigation run */
-export interface ExtractionResult {
-  success: boolean;
-  categories: RecommendationCategory[];
-  rawText: string;
-  extractedFrom: "summary" | "events" | "pending"; // "pending" indicates in-progress
-  error?: string;
+  recommendations: InvestigationRecommendation[];
 }
 
 /**
- * Extended Run type with recommendation extraction fields.
- * The base Run type comes from proto-types, but these fields are added
- * by the backend when returning run data.
+ * Parsed shape of an investigation run's structured result value
+ * (`run.result.structured.value`, when `structured.status` is SUCCESS).
  */
-export interface RunWithRecommendations {
-  recommendationStatus?: RecommendationStatus;
-  recommendationResult?: ExtractionResult;
-  recommendationError?: string;
-  recommendationAttempts?: number;
-  recommendationQueuedAt?: string;
+export interface InvestigationFindings {
+  summary: string;
+  primaryCategory: InvestigationPrimaryCategory;
+  confidence?: InvestigationConfidence;
+  categories: InvestigationRecommendationCategory[];
 }

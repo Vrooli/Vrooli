@@ -43,11 +43,6 @@ type HandleResultInput struct {
 	ExecErr   error
 	Sandbox   sandbox.Provider
 	SandboxID *uuid.UUID
-
-	// ShouldQueueRecommendations is the per-run filter for recommendation
-	// extraction. Non-nil means the recommendation worker will pick the
-	// run up after success.
-	ShouldQueueRecommendations func(*domain.Run) bool
 }
 
 // HandleResultOutput is the explicit output of HandleResult.
@@ -125,12 +120,6 @@ func HandleSuccessfulCompletion(ctx context.Context, in HandleResultInput) {
 			Outcome:   domain.ContractRunOutcomeSuccess,
 			Cost:      cost,
 		})
-	}
-
-	if in.ShouldQueueRecommendations != nil && in.ShouldQueueRecommendations(in.Run) {
-		now := time.Now()
-		in.Run.RecommendationStatus = domain.RecommendationStatusPending
-		in.Run.RecommendationQueuedAt = &now
 	}
 
 	RevokeIdentityToken(in.Run)

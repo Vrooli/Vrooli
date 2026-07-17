@@ -9,24 +9,38 @@
       "dependencies": [
         "REQ-P0-005"
       ],
-      "description": "Keep each Run atomic while exposing a separate durable, explainable RunResult and a consumer-neutral WorkflowExecution that reconciles scenario-owned definitions; requires provider-aware final-output abstention, one schema-validated structured-result mechanism, explicit fresh-run or named-continuation identity per agent node with node-local profiles, deterministic size-bounded append-only journal context, a closed node vocabulary, positive traversal caps on every cycle-forming edge, finite execution budgets, restart-safe dispatch idempotency, and typed terminal outcomes without consumer-domain mutations",
+      "description": "Keep each Run atomic while exposing a separate durable, explainable RunResult and a consumer-neutral WorkflowExecution that reconciles scenario-owned definitions; requires provider-aware final-output abstention, one schema-validated structured-result mechanism, explicit fresh-run or named-continuation identity per agent node with enforced node-local turn and timeout limits, deterministic size-bounded append-only journal context including explicit child-workflow outputs, a closed node vocabulary, positive traversal caps on every cycle-forming edge, visit-scoped fresh identities for parallel cycles, finite execution budgets, restart-safe dispatch idempotency, and distinct succeeded, blocked, abstained, budget-exhausted, failed, and cancelled terminals without consumer-domain mutations",
       "id": "REQ-P2-001",
       "prd_ref": "OT-P2-001",
-      "status": "planned",
+      "status": "in_progress",
       "title": "Atomic Runs and Durable Workflow Executions",
       "validation": [
         {
-          "notes": "Test phase transitions",
+          "notes": "Verify turn-scoped results, visit-scoped waits, batched fan-out, early joins, and recoverable cleanup transitions",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/workflowruntime/engine_test.go",
+          "status": "complete",
           "type": "test"
         },
         {
-          "notes": "Verify multi-phase flow",
+          "notes": "Verify continued-run final output is scoped to the latest durable provider turn",
+          "phase": "unit",
+          "ref": "api/internal/orchestration/run_result_test.go",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify production constrained extraction resolves the portable role through a real runner seam and remains locally schema-validated",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/structuredresult/runner_extractor_test.go",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify abnormal terminal recovery remains eligible until the current retry generation has a durable cleanup disposition",
+          "phase": "integration",
+          "ref": "api/internal/database/repository_workflow_test.go",
+          "status": "complete",
           "type": "test"
         },
         {
@@ -64,6 +78,125 @@
       "status": "complete",
       "type": "test"
     }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P2-001",
+        "REQ-P0-001"
+      ],
+      "description": "Register every scenario-owned agent declaration (profiles and workflows) through one unified location and reconcile entry point discriminated by schemaVersion, with a hard no-fallback cutover that rejects the legacy .vrooli/agent-profiles/ and .vrooli/agent-workflows/ directories and config.profiles/config.workflows blocks; reach profile-parity registration-time validation so CEL edge conditions compile and prompt placeholders cross-check against bindings at reconcile (not mid-execution) with a blocking error withholding registration and an unused binding warning still registering; resolve and digest-pin promptRef content with provenance at reconcile so a changed skill is a new revision and a resolution failure withholds the atomic batch; and canonicalize single-node sugar to a digest identical to its explicit form. Agent Manager registers its own declarations at startup through a self-registration seam that bypasses only the dependency gate, never a validator, and isolates per-source failures so a broken declaration never blocks readiness",
+      "id": "REQ-P2-005",
+      "prd_ref": "OT-P2-001",
+      "status": "in_progress",
+      "title": "Unified Declared-Run Doctrine and Registration-Time Validation",
+      "validation": [
+        {
+          "notes": "Verify schemaVersion routing, mixed-kind reconcile, profile drift, atomic workflow withhold, per-source and self-registration isolation, and rejection of legacy blocks and old-directory sources [REQ:REQ-P2-005]",
+          "phase": "unit",
+          "ref": "api/internal/orchestration/declaration_reconcile_test.go",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify CEL edge-condition compile, prompt placeholder cross-check (unbound error, unused warning), and single-node sugar digest identity at validate [REQ:REQ-P2-005]",
+          "phase": "unit",
+          "ref": "api/internal/workflowcatalog/catalog_test.go",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify CEL and placeholder defects are caught at reconcile, not only at file validate [REQ:REQ-P2-005]",
+          "phase": "unit",
+          "ref": "api/internal/orchestration/declaration_reconcile_test.go::TestReconcileScenarioDeclarationsWorkflowWithholdOnRegistrationDefect",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify promptRef resolves and pins provenance at reconcile, a changed skill yields a new revision, and a missing skill or unreachable prompt-manager withholds the atomic batch [REQ:REQ-P2-005]",
+          "phase": "unit",
+          "ref": "api/internal/orchestration/workflow_promptref_test.go",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify the retired declaration-layout directory literals appear only in the two designated rejection sites [REQ:REQ-P2-005]",
+          "phase": "unit",
+          "ref": "api/internal/orchestration/legacy_layout_guard_test.go::TestNoLegacyDeclarationLayoutReaders",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify read-only conformance rejects the old layout and reports every real declaring scenario clean on the unified layout, sharing the mutating reconcile's validators [REQ:REQ-P2-005]",
+          "phase": "integration",
+          "ref": "api/internal/conformance/service_test.go",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P2-001"
+      ],
+      "description": "Progress a workflow execution when its runs finish without any consumer advance call: a run terminal enqueues one deduplicated, CAS-guarded drive of the owning execution over the crash-safe pull loop (a trigger, never a scheduler), a child-workflow terminal nudges its parent, and the reconciler recovery sweep remains the durable backstop that progresses an execution whose run finished while Agent Manager was down. Expose a server-owned blocking wait that long-polls until terminal or deadline, returns immediately for already-terminal executions, respects the deadline without hanging, survives concurrent waiters, and never mutates or cancels the execution when the waiter is cancelled — the documented adoption pattern that replaces consumer pollers, with AdvanceWorkflowExecution retained as an ops-only recovery verb",
+      "id": "REQ-P2-006",
+      "prd_ref": "OT-P2-001",
+      "status": "in_progress",
+      "title": "Completion-Driven Advance and Blocking Wait",
+      "validation": [
+        {
+          "notes": "Verify nudge dedupe, concurrent drain under -race, and wait-registry notify [REQ:REQ-P2-006]",
+          "phase": "unit",
+          "ref": "api/internal/orchestration/workflow_nudge_test.go",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify a run node reaches its next node and terminal with zero AdvanceWorkflowExecution calls, tolerates a concurrent explicit advance, and progresses across a simulated restart via the recovery backstop [REQ:REQ-P2-006]",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/workflow_nudge_integration_test.go",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify immediate-terminal return, block-until-terminal, deadline timeout with the execution unchanged, concurrent waiters, and cancel-does-not-cancel-execution [REQ:REQ-P2-006]",
+          "phase": "unit",
+          "ref": "api/internal/orchestration/workflow_wait_test.go",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Verify the reverse run->execution link that resolves the owning execution for a completed run [REQ:REQ-P2-006]",
+          "phase": "integration",
+          "ref": "api/internal/database/repository_workflow_test.go::TestWorkflowExecutionRepositoryExecutionIDForRun",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P2-001",
+        "REQ-P2-002",
+        "REQ-P2-003"
+      ],
+      "description": "Run Agent Manager's own investigation feature as the first declared-workflow adopter: an investigate run node (promptRef, schema-validated categorized-findings resultSpec) advances by completion nudge alone to an operator-approval wait node, and after a signal a branch routes on the journalled decision to an apply run bound to the investigate node's structured result and the operator selection, or to explicit rejected/abstained terminals that skip apply — with no polling worker, no consumer advance call, and no transcript re-finding",
+      "id": "REQ-P2-007",
+      "prd_ref": "OT-P2-001",
+      "status": "in_progress",
+      "title": "Investigation as a Declared Workflow",
+      "validation": [
+        {
+          "notes": "Verify the completed path binds the structured findings and approval into the apply prompt via completion nudge with zero consumer advance, and the rejected and abstained paths reach their terminals without dispatching an apply run [REQ:REQ-P2-007]",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/investigation_workflow_test.go",
+          "status": "complete",
+          "type": "test"
+        }
       ]
     }
   ],

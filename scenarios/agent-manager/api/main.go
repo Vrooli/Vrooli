@@ -11,9 +11,7 @@ import (
 	"strings"
 	"time"
 
-	capacitybroker "agent-manager/internal/adapters/capacity"
 	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
 	runnercore "agent-manager/internal/adapters/runner/core"
@@ -38,6 +36,7 @@ import (
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
+	"agent-manager/internal/structuredresult"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -69,7 +68,7 @@ type Server struct {
 	wsHub                 *handlers.WebSocketHub
 	reconciler            *orchestration.Reconciler
 	awaitRegistry         *orchestration.AwaitRegistry
-	recommendationWorker  *orchestration.RecommendationWorker
+	workflowNudger        *orchestration.WorkflowNudger
 	modelHealthProbe      *healthstore.Probe
 	rolePolicyState       *rolepolicy.State
 	permissionPolicyState *permissionpolicy.State
@@ -144,7 +143,7 @@ func NewServer() (*Server, error) {
 		wsHub:                 wsHub,
 		reconciler:            deps.reconciler,
 		awaitRegistry:         deps.awaitRegistry,
-		recommendationWorker:  deps.recommendationWorker,
+		workflowNudger:        deps.workflowNudger,
 		storage:               uploadStorage,
 		statsEngine:           deps.statsEngine,
 		healthStore:           deps.healthStore,
@@ -163,6 +162,31 @@ func NewServer() (*Server, error) {
 	if err := srv.orchestrator.RecoverWorkflowExecutions(context.Background()); err != nil {
 		obs.Logger().Warn("initial workflow recovery failed", obs.KeyError, err.Error())
 	}
+	// Start draining the completion-nudge queue that drives workflow executions
+	// forward as their runs finish.
+	if srv.workflowNudger != nil {
+		srv.workflowNudger.Start()
+	}
+
+	// Reconcile every scenario declaring the unified declaration block. This is
+	// best-effort and non-fatal: per-scenario isolation guarantees one broken
+	// manifest never blocks readiness. Repo root mirrors setupRoutes.
+	{
+		repoRoot := os.Getenv("PROJECT_ROOT")
+		if repoRoot == "" {
+			repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
+		}
+		summary := srv.orchestrator.ReconcileDeclaringScenarios(context.Background(), repoRoot)
+		obs.Logger().Info("scenario declaration sweep complete", "scanned", summary.Scanned, "declaring", summary.Declaring, "reconciled", summary.Reconciled, "failed", summary.Failed)
+
+		// Agent Manager registers its own declarations through the self-registration
+		// seam (it cannot declare a dependency on itself). Best-effort and non-fatal.
+		if selfResult, err := srv.orchestrator.ReconcileSelfDeclarations(context.Background(), repoRoot); err != nil {
+			obs.Logger().Warn("agent-manager self-declaration registration failed", obs.KeyError, err.Error())
+		} else {
+			obs.Logger().Info("agent-manager self-declaration registration complete", "profiles_created", selfResult.ProfilesCreated, "profiles_updated", selfResult.ProfilesUpdated, "workflows_created", selfResult.WorkflowsCreated, "workflows_activated", selfResult.WorkflowsActivated, "failed", selfResult.ProfilesFailed+selfResult.WorkflowsFailed)
+		}
+	}
 
 	// Re-spawn waiters for any runs that were parked when agent-manager last
 	// stopped (durable park/resume restart recovery).
@@ -171,13 +195,6 @@ func NewServer() (*Server, error) {
 			obs.Logger().Warn("parked-run waiter recovery failed", obs.KeyError, err.Error())
 		} else if n > 0 {
 			obs.Logger().Info("re-spawned waiters for parked runs", "count", n)
-		}
-	}
-
-	// Start the recommendation worker for passive extraction from investigation runs
-	if srv.recommendationWorker != nil {
-		if err := srv.recommendationWorker.Start(context.Background()); err != nil {
-			obs.Logger().Warn("recommendation worker start failed", obs.KeyError, err.Error())
 		}
 	}
 
@@ -208,7 +225,7 @@ type orchestratorDeps struct {
 	pricingService        pricing.Service
 	reconciler            *orchestration.Reconciler
 	awaitRegistry         *orchestration.AwaitRegistry
-	recommendationWorker  *orchestration.RecommendationWorker
+	workflowNudger        *orchestration.WorkflowNudger
 	modelHealthProbe      *healthstore.Probe
 	rolePolicyState       *rolepolicy.State
 	permissionPolicyState *permissionpolicy.State
@@ -453,11 +470,6 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	// Create prompt-manager client for investigation prompt skills
 	promptClient := promptmanager.NewHTTPClient()
 
-	// Create recommendation extractor for investigation outputs. It holds an
-	// advisory op-scoped capacity claim around each ollama generate (plan §7
-	// Phase 7 ollama adopter) so the broker sees ollama as actively in use.
-	recommendationExtractor := recommendation.NewOllamaExtractor().WithCapacity(&capacitybroker.CLIBroker{})
-
 	// Load identity signing secret for agent identity tokens.
 	identitySecret, err := identity.LoadOrCreateSecret(database.DataDir())
 	if err != nil {
@@ -504,6 +516,11 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 			orchestration.WithWebConsoleUIBase(webConsoleUIBase),
 		)
 	}
+	resourceRoleResolver := rolepolicy.NewResourceRoleResolver(nil)
+	structuredExtractor := &structuredresult.RunnerExtractor{
+		Roles: rolePolicyState, Resolver: resourceRoleResolver, Runners: runnerRegistry,
+		WorkingDir: database.DataDir(), Timeout: 2 * time.Minute,
+	}
 
 	orch := orchestration.New(
 		profileRepo,
@@ -521,9 +538,9 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithBroadcaster(wsHub),
 		orchestration.WithTerminator(terminator),
 		orchestration.WithStorageLabel(storageLabel),
-		orchestration.WithRolePolicyState(rolePolicyState, rolepolicy.NewResourceRoleResolver(nil)),
+		orchestration.WithRolePolicyState(rolePolicyState, resourceRoleResolver),
+		orchestration.WithStructuredExtractor(structuredExtractor),
 		orchestration.WithHealthStore(healthStore),
-		orchestration.WithRecommendationExtractor(recommendationExtractor),
 		orchestration.WithInvestigationSettings(investigationSettingsRepo),
 		orchestration.WithPromptClient(promptClient),
 		orchestration.WithFlagValidator(flagValidator),
@@ -584,22 +601,16 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	)
 	orch.SetAwaitRegistry(awaitRegistry)
 
-	// Create recommendation worker for passive extraction from investigation runs
-	// Uses the investigation settings repository for tag allowlist filtering
-	allowlistProvider := orchestration.NewSettingsAllowlistProvider(investigationSettingsRepo)
-	recommendationWorker := orchestration.NewRecommendationWorker(
-		runRepo,
-		eventStore,
-		recommendationExtractor,
-		orchestration.WithRecommendationWorkerConfig(orchestration.RecommendationWorkerConfig{
-			Interval:      30 * time.Second,
-			MaxRetries:    3,
-			RetryBackoff:  1 * time.Minute,
-			MaxConcurrent: 1, // Serial processing to avoid overloading Ollama
-		}),
-		orchestration.WithRecommendationWorkerBroadcaster(wsHub),
-		orchestration.WithRecommendationWorkerAllowlist(allowlistProvider),
+	// Completion-nudge queue (Phase 4): when a workflow run reaches terminal,
+	// the orchestrator enqueues an idempotent drive of the parent execution so
+	// no consumer polls Advance. Built after the orchestrator (its drive is the
+	// nudger's work function) and wired back via setter, mirroring awaitRegistry.
+	workflowNudger := orchestration.NewWorkflowNudger(
+		orch.NudgeDrive,
+		levers.Workflow.NudgeWorkers,
+		levers.Workflow.NudgeDriveTimeout,
 	)
+	orch.SetWorkflowNudger(workflowNudger)
 
 	// Create stats service for analytics
 	statsSvc := orchestration.NewStatsOrchestrator(statsRepo)
@@ -655,7 +666,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		pricingService:        pricingSvc,
 		reconciler:            reconciler,
 		awaitRegistry:         awaitRegistry,
-		recommendationWorker:  recommendationWorker,
+		workflowNudger:        workflowNudger,
 		modelHealthProbe:      modelHealthProbe,
 		rolePolicyState:       rolePolicyState,
 		permissionPolicyState: permissionPolicyState,
@@ -849,11 +860,10 @@ func (s *Server) Cleanup() error {
 		s.awaitRegistry.Stop()
 	}
 
-	// Stop the recommendation worker
-	if s.recommendationWorker != nil {
-		if err := s.recommendationWorker.Stop(); err != nil {
-			shutdownLog.Warn("recommendation worker shutdown failed", obs.KeyError, err.Error())
-		}
+	// Stop draining the completion-nudge queue (pending drives are picked up by
+	// the reconciler recovery sweep on the next boot).
+	if s.workflowNudger != nil {
+		s.workflowNudger.Stop()
 	}
 
 	// Clean up database connection

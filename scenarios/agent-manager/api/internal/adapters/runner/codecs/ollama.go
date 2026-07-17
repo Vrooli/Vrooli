@@ -10,9 +10,8 @@
 // the SSOT is unreachable (CLI absent / daemon down) the lister degrades to
 // the last-known list (empty on a cold miss) and never hard-fails — local
 // models simply don't surface until the probe answers. This mirrors the
-// existing exec-to-resource-ollama pattern in
-// adapters/recommendation/ollama_extractor.go; no raw /api/tags HTTP path
-// lives here anymore.
+// exec-to-resource-ollama pattern; no raw /api/tags HTTP path lives here
+// anymore.
 //
 // Model ids are emitted in the uniform `ollama/<name>` form used by both the
 // codex codec (which strips the prefix and drives `--oss --local-provider
@@ -44,7 +43,7 @@ const ollamaListTTL = 60 * time.Second
 const ollamaProbeTimeout = 5 * time.Second
 
 // ollamaSSOTCommand is the probe SSOT binary every Ollama discovery flows
-// through (resolved on PATH, as in ollama_extractor.go).
+// through (resolved on PATH).
 const ollamaSSOTCommand = "resource-ollama"
 
 // ollamaLister discovers locally-pulled Ollama models with a TTL cache.
@@ -107,7 +106,7 @@ func (l *ollamaLister) list() []string {
 // defaultOllamaFetch shells out once to the probe SSOT
 // (`resource-ollama models list --json`) and returns the pulled models as
 // `ollama/<name>` ids, sorted for deterministic advertisement. Mirrors
-// ollama_extractor.go's exec discipline: a bounded context, JSON decode that
+// a disciplined exec: a bounded context, JSON decode that
 // tolerates unknown fields, and graceful failure (the caller degrades to the
 // last-known list — never a crash). It is intentionally the ONLY Ollama
 // discovery path in agent-manager.

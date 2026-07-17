@@ -78,6 +78,7 @@ func (a *App) commandGroups() []cliapp.CommandGroup {
 func (a *App) dependencies() support.Dependencies {
 	return support.Dependencies{
 		Profile:          a.cmdProfile,
+		Declarations:     a.cmdDeclarations,
 		Workflow:         a.cmdWorkflow,
 		Task:             a.cmdTask,
 		Run:              a.cmdRun,

@@ -16,12 +16,6 @@ func TestRunActionsFor_DefaultAllowlist(t *testing.T) {
 	if !actions.CanApplyInvestigation {
 		t.Fatalf("expected CanApplyInvestigation to be true for default allowlist")
 	}
-	if !actions.CanExtractRecommendations {
-		t.Fatalf("expected CanExtractRecommendations to be true for default allowlist")
-	}
-	if !actions.CanRegenerateRecommendations {
-		t.Fatalf("expected CanRegenerateRecommendations to be true for default allowlist")
-	}
 }
 
 func TestRunActionsFor_StatusGates(t *testing.T) {

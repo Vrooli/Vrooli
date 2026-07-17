@@ -84,6 +84,12 @@ type Levers struct {
 	// DOC: scenarios/agent-manager/docs/internal/SEAMS.md
 	// DOC: scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md
 	Sandbox SandboxLevers `json:"sandbox"`
+
+	// Workflow controls the completion-nudge queue that drives workflow
+	// executions forward when their runs finish, so no consumer polls.
+	// DOC: scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md
+	// (the "Workflow completion nudge + blocking wait" flow).
+	Workflow WorkflowLevers `json:"workflow"`
 }
 
 // =============================================================================
@@ -520,6 +526,30 @@ type SandboxLevers struct {
 }
 
 // =============================================================================
+// WORKFLOW LEVERS
+// =============================================================================
+
+// WorkflowLevers control the in-process completion-nudge queue. When a run
+// belonging to a workflow attempt reaches a terminal status, an idempotent
+// drive of the parent execution is enqueued instead of any consumer poll; the
+// reconciler recovery sweep is the durable backstop for a crash between the
+// run terminal and the nudge.
+type WorkflowLevers struct {
+	// NudgeWorkers is how many concurrent goroutines drain the nudge queue.
+	// Distinct executions drive in parallel; concurrent drives of the same
+	// execution are safe (optimistic-version CAS in the engine). Higher =
+	// faster propagation under bursty completions, more concurrent DB work.
+	// Range: 1 to 32. Default: 4.
+	NudgeWorkers int `json:"nudgeWorkers"`
+
+	// NudgeDriveTimeout bounds a single nudge-triggered drive. It is detached
+	// from any request context (the run that triggered it has already exited),
+	// so it must be generous enough for a full advance-to-fixpoint sweep.
+	// Range: 5s to 10m. Default: 5m.
+	NudgeDriveTimeout time.Duration `json:"nudgeDriveTimeout"`
+}
+
+// =============================================================================
 // DEFAULTS
 // =============================================================================
 
@@ -622,6 +652,10 @@ func DefaultLevers() Levers {
 			OperationInitialBackoff:  250 * time.Millisecond,
 			OperationMaxBackoff:      2 * time.Second,
 		},
+		Workflow: WorkflowLevers{
+			NudgeWorkers:      4,
+			NudgeDriveTimeout: 5 * time.Minute,
+		},
 	}
 }
 
@@ -673,6 +707,19 @@ func (l *Levers) Validate() error {
 	}
 	if err := l.Sandbox.Validate(); err != nil {
 		return wrapConfigSection("sandbox", err)
+	}
+	if err := l.Workflow.Validate(); err != nil {
+		return wrapConfigSection("workflow", err)
+	}
+	return nil
+}
+
+func (w *WorkflowLevers) Validate() error {
+	if w.NudgeWorkers < 1 || w.NudgeWorkers > 32 {
+		return domain.NewConfigInvalidError("nudgeWorkers", fmt.Sprintf("must be between 1 and 32, got %d", w.NudgeWorkers), nil)
+	}
+	if w.NudgeDriveTimeout < 5*time.Second || w.NudgeDriveTimeout > 10*time.Minute {
+		return domain.NewConfigInvalidError("nudgeDriveTimeout", fmt.Sprintf("must be between 5s and 10m, got %v", w.NudgeDriveTimeout), nil)
 	}
 	return nil
 }

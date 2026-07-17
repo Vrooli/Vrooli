@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
@@ -155,6 +156,27 @@ func (h *Handler) GetWorkflowExecutionResult(w http.ResponseWriter, r *http.Requ
 
 func (h *Handler) AdvanceWorkflowExecution(w http.ResponseWriter, r *http.Request) {
 	h.workflowExecutionByID(w, r, true)
+}
+
+func (h *Handler) WaitWorkflowExecution(w http.ResponseWriter, r *http.Request) {
+	var req apipb.WaitWorkflowExecutionRequest
+	if !h.readWorkflowProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil || (req.ExecutionId != "" && req.ExecutionId != id.String()) {
+		writeSimpleError(w, r, "executionId", "path and request execution ids must match")
+		return
+	}
+	result, err := h.svc.WaitWorkflowExecution(r.Context(), id, time.Duration(req.TimeoutSeconds)*time.Second)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeProtoJSON(w, http.StatusOK, &apipb.WaitWorkflowExecutionResponse{
+		Execution: workflowExecutionToProto(result.Execution, false),
+		TimedOut:  result.TimedOut,
+	})
 }
 
 func (h *Handler) GetWorkflowExecutionTrace(w http.ResponseWriter, r *http.Request) {
@@ -317,7 +339,7 @@ func workflowDefinitionToProto(definition domain.WorkflowDefinition) *structpb.S
 func workflowDiagnosticsToProto(items []domain.WorkflowDiagnostic) []*domainpb.WorkflowDiagnostic {
 	out := make([]*domainpb.WorkflowDiagnostic, 0, len(items))
 	for _, item := range items {
-		out = append(out, &domainpb.WorkflowDiagnostic{Code: item.Code, Path: item.Path, Message: item.Message})
+		out = append(out, &domainpb.WorkflowDiagnostic{Code: item.Code, Path: item.Path, Message: item.Message, Severity: item.Severity})
 	}
 	return out
 }
@@ -335,22 +357,26 @@ func workflowReconcileToProto(result *orchestration.ReconcileScenarioWorkflowsRe
 	}
 	items := make([]*apipb.WorkflowReconcileResult, 0, len(result.Results))
 	for _, item := range result.Results {
-		status := apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_UNSPECIFIED
-		switch item.Status {
-		case orchestration.WorkflowReconcileCreated:
-			status = apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_CREATED
-		case orchestration.WorkflowReconcileActivated:
-			status = apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_ACTIVATED
-		case orchestration.WorkflowReconcileUnchanged:
-			status = apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_UNCHANGED
-		case orchestration.WorkflowReconcileSkipped:
-			status = apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_SKIPPED
-		case orchestration.WorkflowReconcileFailedValidation:
-			status = apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_FAILED_VALIDATION
-		}
-		items = append(items, &apipb.WorkflowReconcileResult{WorkflowKey: item.WorkflowKey, Version: item.Version, Digest: item.Digest, SourcePath: item.SourcePath, Status: status, Message: item.Message, Diagnostics: workflowDiagnosticsToProto(item.Diagnostics)})
+		items = append(items, workflowReconcileResultToProto(item))
 	}
 	return &apipb.ReconcileScenarioWorkflowsResponse{Scenario: result.Scenario, Results: items, Created: int32(result.Created), Activated: int32(result.Activated), Unchanged: int32(result.Unchanged), Skipped: int32(result.Skipped), Failed: int32(result.Failed), DryRun: result.DryRun, ValidateOnly: result.ValidateOnly}
+}
+
+func workflowReconcileResultToProto(item orchestration.WorkflowReconcileResult) *apipb.WorkflowReconcileResult {
+	status := apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_UNSPECIFIED
+	switch item.Status {
+	case orchestration.WorkflowReconcileCreated:
+		status = apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_CREATED
+	case orchestration.WorkflowReconcileActivated:
+		status = apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_ACTIVATED
+	case orchestration.WorkflowReconcileUnchanged:
+		status = apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_UNCHANGED
+	case orchestration.WorkflowReconcileSkipped:
+		status = apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_SKIPPED
+	case orchestration.WorkflowReconcileFailedValidation:
+		status = apipb.WorkflowReconcileStatus_WORKFLOW_RECONCILE_STATUS_FAILED_VALIDATION
+	}
+	return &apipb.WorkflowReconcileResult{WorkflowKey: item.WorkflowKey, Version: item.Version, Digest: item.Digest, SourcePath: item.SourcePath, Status: status, Message: item.Message, Diagnostics: workflowDiagnosticsToProto(item.Diagnostics)}
 }
 
 func workflowExecutionToProto(x *domain.WorkflowExecution, includePayloads bool) *domainpb.WorkflowExecution {

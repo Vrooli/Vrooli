@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const FinalOutputResolverVersion = "final-output/v1"
+const FinalOutputResolverVersion = "final-output/v2"
 
 const (
 	finalOutputRuleTerminal    = "unique_terminal_main_assistant"

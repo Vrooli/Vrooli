@@ -145,6 +145,10 @@ without trusting provider formatting or creating a second classifier model.
   constrained extraction → local revalidate ladder.
 - `Extractor` accepts only bounded source/schema plus a portable role and
   returns an untrusted candidate with provider/policy provenance.
+- Production wires `RunnerExtractor`, which resolves `extract.structured`
+  through the active role-policy catalog and existing runner registry. It runs
+  a one-turn extraction request and returns only a deterministic JSON candidate;
+  `Resolver` still owns authoritative local validation.
 
 **Boundary rule:** An extractor error, outage, or abstention is a structured
 `abstained` result. An extractor candidate that fails local validation is
@@ -818,6 +822,34 @@ func AssembleRunEnv(in AssembleRunEnvInput) map[string]string
 - Both `RunExecutor.MergedEnvVars` (fresh run) and the continue/wake path (`assembleContinuationEnv` → `resumeConversation`) call it, so the two can never diverge again.
 - Custom env is persisted on the run row (`Run.CustomEnv`, JSON column) precisely so wake can re-inject it; the identity token is **regenerated per wake** (`GenerateIdentityToken` re-persists the hash — plaintext is never stored), and sandbox vars are re-derived from the still-alive sandbox. A woken turn therefore has a verifiable identity and intact sandbox routing.
 - Covered by `phases/env_test` (`TestAssembleRunEnv_*`) and the `orchestration` continue/wake env+identity regression tests.
+
+---
+
+### 3g. Unified declaration reconcile + self-registration (`orchestration/declaration_reconcile.go`)
+
+**Purpose:** Register every scenario-owned agent asset — profiles and workflows — through one entry point that reads the single `config.declarations` block, routes each source file by `schemaVersion`, and preserves each kind's lifecycle (profiles mutable with `update_if_unmodified` drift; workflows digest-pinned atomic batch). This is the seam the declared-run doctrine and the no-fallback cutover land on (see [`INVARIANTS.md`](INVARIANTS.md) I17).
+
+**Shape:**
+- `readScenarioDeclarationConfig` is the strict config reader and the single rejection site for the legacy `config.profiles`/`config.workflows` blocks and old-directory sources. `ValidateScenarioDeclarationConfig` wraps it for read-only conformance so the mutating and read-only surfaces cannot accept different manifests.
+- `reconcileDeclarationSources` is the shared core behind both the config-driven scenario path (`reconcileScenarioDeclarationsAt`) and the directory-driven **self-registration** path (`reconcileSelfDeclarationsAt`). Self-registration discovers agent-manager's own files from `.vrooli/agent-manager/`, bypasses only the dependency-declaration gate, and runs the identical validators and ownership checks (I22).
+- Per-source isolation is deliberate and asymmetric: a bad **profile** fails alone; a bad **workflow** withholds the whole atomic workflow batch, but never rolls back a profile already reconciled in the same call.
+- `ReconcileDeclaringScenarios` is the startup sweep with per-scenario `recover()` isolation, so one broken manifest never blocks readiness. The two legacy delegate RPCs (`ReconcileScenarioProfiles`/`ReconcileScenarioWorkflows`) are thin projections over this core reading only the new block.
+
+**Why it's a seam:** the fixtures drive `reconcileScenarioDeclarationsAt` / `reconcileSelfDeclarationsAt` over `t.TempDir` scenario trees with no repo-contract resolution, so the full fan-out (routing, validation, drift, atomic withhold, promptRef resolution) is exercised without a live filesystem layout. The promptRef source is itself a seam (`promptmanager.SourceClient`), faked in tests to exercise resolve/pin/withhold without a live prompt-manager.
+
+**Tests:** `internal/orchestration/declaration_reconcile_test.go` (routing, drift, mixed-kind, atomic withhold, per-source isolation, self-registration), `workflow_promptref_test.go` (resolve/pin/withhold), `legacy_layout_guard_test.go` (no legacy readers), `internal/conformance/service_test.go` (read-only parity).
+
+### 3h. Workflow completion nudge + blocking wait (`orchestration/workflow_nudge.go`, `workflow_wait.go`)
+
+**Purpose:** Kill the fleet's workflow-polling pattern. A run terminal *pushes* the crash-safe pull loop instead of a consumer *pulling* it on a ticker, and adopters block on a server-owned wait instead of writing pollers. See [`TEMPORAL-FLOWS.md`](TEMPORAL-FLOWS.md#workflow-completion-nudge--blocking-wait) for the flow and [`INVARIANTS.md`](INVARIANTS.md) I20/I21.
+
+**Shape:**
+- `WorkflowNudger` is an in-process, deduplicating work queue: `nudgeWorkflowForRun` resolves the owning execution via `WorkflowExecutionRepository.ExecutionIDForRun` (the reverse of the one-directional `attempt.RunID` link) and enqueues one drive per execution over the existing CAS-guarded `driveWorkflowExecution`. Child-workflow terminals nudge `ParentExecutionID`. It is a trigger, not a scheduler; `RecoverWorkflowExecutions` stays the durable backstop.
+- `WaitWorkflowExecution` is an event-driven long-poll: subscribe to a per-execution notifier, re-read to close the subscribe/settle race, then block on a wake channel — no ticker, no per-wait poller. It only reads execution state, so cancelling the waiter never cancels the execution.
+
+**Why it's a seam:** the nudger takes the drive function (`o.NudgeDrive`) and worker/timeout levers by injection, so tests drive dedupe and concurrency without the real engine; the wait registry's notifier is exercised directly. The integration test wires the real engine + SQLite repo + a fake run launcher to prove zero-consumer-advance progression, including across a simulated restart.
+
+**Tests:** `internal/orchestration/workflow_nudge_test.go`, `workflow_wait_test.go`, `workflow_nudge_integration_test.go`, `internal/database/repository_workflow_test.go::TestWorkflowExecutionRepositoryExecutionIDForRun`.
 
 ---
 
@@ -1649,16 +1681,16 @@ runner, codec, repository, reconciliation, and park/wake boundaries.
 
 | Seam | Pure/side-effect boundary | Failure signal |
 |---|---|---|
-| Final-output resolver | Pure function over normalized provider evidence; provider policies are data/strategy inputs. | `ambiguous` or `unavailable` with candidate evidence and algorithm version. |
+| Final-output resolver | Pure function over normalized provider evidence scoped to the latest durable provider turn; provider policies are data/strategy inputs. | `ambiguous` or `unavailable` with candidate evidence and algorithm version. |
 | Structured-result pipeline | Deterministic parse, local schema validation, optional bounded extractor, local revalidation. | `invalid`, `unsupported`, `extractor_unavailable`, or `abstained`; never unvalidated success. |
 | Workflow catalog | Scenario-local source loader and immutable digest repository; activation is atomic. | Previous revision stays active and readiness exposes digest/count diagnostics only. |
 | Workflow interpreter | Pure transition decision over pinned definition, journal projection, signals, and budgets. | Typed terminal reason; no consumer lifecycle vocabulary. |
 | Node dispatcher | Persists dispatch intent/idempotency identity before fresh Run, continuation, or child-workflow side effects. | Recovery reuses the intent and never duplicates the child operation. |
-| Journal binding evaluator | Deterministic selectors and bounded JSON/text rendering over declared inputs and typed journal entries. | Typed binding diagnostic; no transcript or hidden-state fallback. |
+| Journal binding evaluator | Deterministic selectors and bounded JSON/text rendering over declared inputs and typed journal entries, including explicit child-workflow terminal output. | Typed binding diagnostic; no transcript or hidden-state fallback. |
 | External signal gate | Validates correlation, idempotency key, wait state, payload schema, and deadline before append. | Duplicate is a no-op; stale/invalid signal is rejected without advancing. |
 | Subworkflow boundary | Maps declared typed input into a separately pinned child execution with parent attempt and depth identity, then aggregates its budget ledger. | Missing revision, recursion/child budget exhaustion, or typed child terminal; no catalog inference during recovery. |
-| Parallel join boundary | Atomically persists membership and intents, dispatches within concurrency bounds, and converges through `all`, `any`, or positive `quorum`. | Unsatisfied join or member failure is journaled without merging child conversations. |
-| Cancellation boundary | Commits cancellation intent, propagates to active Runs and child workflows, then records disposition. | Terminal reason distinguishes complete propagation from non-cancellable or failed child stops. |
+| Parallel join boundary | Atomically persists visit-scoped membership and intents, dispatches total fan-out in concurrency-sized batches, and converges through `all`, early `any`, or early positive `quorum`. | Impossible joins fail; satisfied early joins stop and durably short-circuit losers; a loop revisit gets new attempts and keys. |
+| Cancellation boundary | Commits `cancelling`, recursively stops active Runs and child workflows, records a retry-generation cleanup disposition, then publishes `cancelled`. Failure and budget terminals use the same cleanup ledger. | Missing/failed cleanup remains recoverable and is retried on boot; no abnormal terminal is considered disposed merely because the parent row is terminal. |
 
 The operator-visible story is intentionally compact: catalog activation emits
 revision digest/counts; each execution shows current node, attempt, strategy,

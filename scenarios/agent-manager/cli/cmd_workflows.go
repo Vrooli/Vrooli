@@ -15,9 +15,11 @@ import (
 
 func (a *App) cmdWorkflow(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: agent-manager workflow <validate|plan|reconcile-scenario|reload|list|get|explain|simulate|start|execution-list|execution-get|execution-result|execution-advance|trace|signal|cancel|retry|resume>")
+		return a.workflowHelp()
 	}
 	switch args[0] {
+	case "help", "-h", "--help":
+		return a.workflowHelp()
 	case "validate":
 		return a.workflowValidate(args[1:])
 	case "plan":
@@ -42,6 +44,8 @@ func (a *App) cmdWorkflow(args []string) error {
 		return a.workflowExecutionResult(args[1:])
 	case "execution-advance":
 		return a.workflowExecution(args[1:], true)
+	case "execution-wait":
+		return a.workflowExecutionWait(args[1:])
 	case "trace":
 		return a.workflowTrace(args[1:])
 	case "signal":
@@ -53,6 +57,40 @@ func (a *App) cmdWorkflow(args []string) error {
 	default:
 		return fmt.Errorf("unknown workflow command %q", args[0])
 	}
+}
+
+func (a *App) workflowHelp() error {
+	fmt.Println(`Usage: agent-manager workflow <subcommand> [options]
+
+Subcommands:
+  validate           Validate and canonicalize a workflow definition file
+  plan               Validate a scenario's workflow sources without writes
+  reconcile-scenario Reconcile a scenario's workflow sources into the catalog
+  reload             Reload a scenario's workflow sources (alias of reconcile)
+  list               List workflow revisions for an owner
+  get                Get a workflow revision by owner/key or digest
+  explain            Explain the active workflow revision
+  simulate           Simulate a workflow execution plan from input
+  start              Start a workflow execution
+  execution-list     List workflow executions
+  execution-get      Get a workflow execution
+  execution-result   Get a workflow execution with input/output payloads
+  execution-advance  Advance a workflow execution (ops recovery)
+  execution-wait     Block until a workflow execution is terminal or times out
+  trace              Show a workflow execution journal
+  signal             Deliver a signal to a waiting execution
+  cancel             Cancel a workflow execution
+  retry              Retry a workflow execution
+  resume             Resume a workflow execution
+
+Options:
+  --json             Output raw JSON
+
+Examples:
+  agent-manager workflow validate --file definition.json
+  agent-manager workflow reconcile-scenario --scenario swarm-manager
+  agent-manager workflow list --owner swarm-manager`)
+	return nil
 }
 
 func (a *App) workflowExecutionList(args []string) error {
@@ -245,6 +283,29 @@ func (a *App) workflowExecution(args []string, advance bool) error {
 		return nil
 	}
 	printWorkflowExecution(resp.Execution)
+	return nil
+}
+
+func (a *App) workflowExecutionWait(args []string) error {
+	fs := flag.NewFlagSet("workflow execution-wait", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	timeout := fs.Int("timeout-seconds", 0, "Server-side wait bound in seconds (0 blocks until terminal)")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 1 {
+		return fmt.Errorf("execution-wait requires an execution id")
+	}
+	body, resp, err := a.services.Workflows.Wait(fs.Args()[0], *timeout)
+	if err != nil {
+		return apiError(body, err)
+	}
+	if *jsonOut || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	printWorkflowExecution(resp.Execution)
+	fmt.Printf("Timed out: %t\n", resp.TimedOut)
 	return nil
 }
 

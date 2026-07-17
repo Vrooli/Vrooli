@@ -29,9 +29,13 @@ type (
 		IdempotencyKey string
 		ProfileKey     string
 		RoleRef        string
+		Tag            string
+		Force          bool
 		Prompt         string
 		ResultSpec     *domain.ResultSpec
 		SourceRunID    *uuid.UUID
+		MaxTurns       int
+		Timeout        time.Duration
 	}
 	ChildState struct {
 		RunID          uuid.UUID
@@ -47,6 +51,7 @@ type (
 		StartFresh(context.Context, ChildRequest) (ChildState, error)
 		Continue(context.Context, ChildRequest) (ChildState, error)
 		Inspect(context.Context, uuid.UUID) (ChildState, error)
+		Stop(context.Context, uuid.UUID) error
 	}
 	SubworkflowRequest struct {
 		ParentExecutionID uuid.UUID
@@ -59,11 +64,13 @@ type (
 		Depth             int
 	}
 	SubworkflowState struct {
-		ExecutionID uuid.UUID
-		Terminal    bool
-		Failed      bool
-		Output      json.RawMessage
-		BudgetUsage domain.WorkflowBudgetUsage
+		ExecutionID    uuid.UUID
+		Terminal       bool
+		Failed         bool
+		Status         domain.WorkflowExecutionStatus
+		Output         json.RawMessage
+		TerminalReason *domain.WorkflowTerminalReason
+		BudgetUsage    domain.WorkflowBudgetUsage
 	}
 	SubworkflowLauncher interface {
 		Start(context.Context, SubworkflowRequest) (SubworkflowState, error)
@@ -174,14 +181,25 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 	}
 	var intent *waitIntent
 	var waitSequence int64
+	waitVisits := 0
 	for _, entry := range journal {
 		if entry.NodeID != node.ID || entry.Kind != domain.WorkflowJournalWait {
 			continue
 		}
+		waitVisits++
 		var candidate waitIntent
 		if json.Unmarshal(entry.Payload, &candidate) == nil {
 			intent, waitSequence = &candidate, entry.Sequence
 		}
+	}
+	completedVisits := 0
+	for edge, traversals := range x.EdgeTraversals {
+		if strings.HasPrefix(edge, node.ID+"->") {
+			completedVisits += traversals
+		}
+	}
+	if waitVisits <= completedVisits {
+		intent = nil
 	}
 	if intent == nil {
 		limit := node.Wait.TimeoutSeconds
@@ -189,7 +207,8 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 			limit = r.Definition.Budgets.MaxWaitSeconds
 		}
 		now := e.now()
-		intent = &waitIntent{Signal: node.Wait.Signal, CorrelationKey: fmt.Sprintf("workflow/%s/wait/%s", x.ID, node.ID), ResumeToken: uuid.NewString(), Deadline: now.Add(time.Duration(limit) * time.Second), PayloadSchema: append(json.RawMessage(nil), node.Wait.PayloadSchema...)}
+		visit := completedVisits + 1
+		intent = &waitIntent{Signal: node.Wait.Signal, CorrelationKey: fmt.Sprintf("workflow/%s/wait/%s/visit/%d", x.ID, node.ID, visit), ResumeToken: uuid.NewString(), Deadline: now.Add(time.Duration(limit) * time.Second), PayloadSchema: append(json.RawMessage(nil), node.Wait.PayloadSchema...)}
 		payload, _ := json.Marshal(intent)
 		x.Status = domain.WorkflowExecutionWaiting
 		x.Version++
@@ -336,9 +355,9 @@ func (e *Engine) Cancel(ctx context.Context, id uuid.UUID, idempotencyKey, reaso
 	now := e.now()
 	payload, _ := json.Marshal(map[string]any{"idempotencyKey": idempotencyKey, "reason": reason})
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalCancel, x.CurrentNodeID, nil, payload, now)
-	x.Status = domain.WorkflowExecutionCancelled
+	x.Status = domain.WorkflowExecutionCancelling
 	x.TerminalReason = &domain.WorkflowTerminalReason{Code: "cancelled", Message: reason}
-	x.EndedAt, x.UpdatedAt = &now, now
+	x.UpdatedAt = now
 	x.Version++
 	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
 		return nil, false, commitErr
@@ -419,22 +438,43 @@ func (e *Engine) Resume(ctx context.Context, id uuid.UUID, idempotencyKey string
 }
 
 func (e *Engine) RecordCancellationDisposition(ctx context.Context, id uuid.UUID, stoppedRuns, stoppedWorkflows int, failures []string) (*domain.WorkflowExecution, error) {
+	return e.RecordCleanupDisposition(ctx, id, stoppedRuns, stoppedWorkflows, failures)
+}
+
+// RecordCleanupDisposition is the durable barrier between stopping children
+// and publishing an abnormal parent terminal state. Failed cleanup writes no
+// disposition, so recovery retries it instead of orphaning child agents.
+func (e *Engine) RecordCleanupDisposition(ctx context.Context, id uuid.UUID, stoppedRuns, stoppedWorkflows int, failures []string) (*domain.WorkflowExecution, error) {
 	x, err := e.Store.Get(ctx, id)
 	if err != nil || x == nil {
 		return x, err
 	}
-	if x.Status != domain.WorkflowExecutionCancelled {
-		return x, fmt.Errorf("cancellation disposition requires cancelled execution")
+	if x.Status != domain.WorkflowExecutionCancelling && x.Status != domain.WorkflowExecutionFailed && x.Status != domain.WorkflowExecutionBudgetExhausted && x.Status != domain.WorkflowExecutionCancelled {
+		return x, fmt.Errorf("cleanup disposition requires cancelling or abnormal terminal execution")
 	}
 	journal, err := e.Store.ListJournal(ctx, id, 0, 0)
 	if err != nil {
 		return nil, err
 	}
-	now := e.now()
-	payload, _ := json.Marshal(map[string]any{"stoppedRuns": stoppedRuns, "stoppedWorkflows": stoppedWorkflows, "failures": failures})
-	entry := nextJournal(x.ID, journal, domain.WorkflowJournalCancel, x.CurrentNodeID, nil, payload, now)
+	for _, entry := range journal {
+		if entry.Kind == domain.WorkflowJournalCleanup {
+			var prior struct {
+				Retry int `json:"retry"`
+			}
+			if json.Unmarshal(entry.Payload, &prior) == nil && prior.Retry == x.BudgetUsage.Retries {
+				return x, nil
+			}
+		}
+	}
 	if len(failures) > 0 {
-		x.TerminalReason.Message = strings.TrimSpace(x.TerminalReason.Message + "; cancellation incomplete: " + strings.Join(failures, "; "))
+		return x, fmt.Errorf("child cleanup incomplete: %s", strings.Join(failures, "; "))
+	}
+	now := e.now()
+	payload, _ := json.Marshal(map[string]any{"retry": x.BudgetUsage.Retries, "stoppedRuns": stoppedRuns, "stoppedWorkflows": stoppedWorkflows, "failures": failures})
+	entry := nextJournal(x.ID, journal, domain.WorkflowJournalCleanup, x.CurrentNodeID, nil, payload, now)
+	if x.Status == domain.WorkflowExecutionCancelling {
+		x.Status = domain.WorkflowExecutionCancelled
+		x.EndedAt = &now
 	}
 	x.UpdatedAt = now
 	x.Version++
@@ -694,8 +734,15 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 		return x, nil
 	}
 	now := e.now()
+	childStatus := state.Status
+	if childStatus == "" {
+		childStatus = domain.WorkflowExecutionSucceeded
+		if state.Failed {
+			childStatus = domain.WorkflowExecutionFailed
+		}
+	}
 	active.Status = domain.WorkflowAttemptCompleted
-	if state.Failed {
+	if childStatus == domain.WorkflowExecutionFailed {
 		active.Status, active.ErrorCode = domain.WorkflowAttemptFailed, "child_workflow_failed"
 	}
 	active.Version++
@@ -706,10 +753,13 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 	x.BudgetUsage.NodeAttempts += state.BudgetUsage.NodeAttempts
 	x.BudgetUsage.Children += state.BudgetUsage.Children
 	x.BudgetUsage.Retries += state.BudgetUsage.Retries
-	payload, _ := json.Marshal(map[string]any{"childExecutionId": state.ExecutionID, "status": map[bool]string{true: "failed", false: "succeeded"}[state.Failed], "output": json.RawMessage(state.Output)})
+	payload, _ := json.Marshal(map[string]any{"childExecutionId": state.ExecutionID, "status": childStatus, "output": json.RawMessage(state.Output)})
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalChild, node.ID, &active.ID, payload, now)
-	if state.Failed {
+	if childStatus == domain.WorkflowExecutionFailed {
 		return e.commitFailure(ctx, x, active, []*domain.WorkflowJournalEntry{entry}, "child_workflow_failed", "child workflow failed")
+	}
+	if childStatus != domain.WorkflowExecutionSucceeded {
+		return e.commitChildTerminal(ctx, x, active, []*domain.WorkflowJournalEntry{entry}, childStatus, state.Output, state.TerminalReason)
 	}
 	if budget := exceededBudgetName(x.BudgetUsage, r.Definition.Budgets); budget != "" {
 		return e.commitExhaust(ctx, x, active, []*domain.WorkflowJournalEntry{entry}, budget)
@@ -781,7 +831,13 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 	if node.Run != nil {
 		request.ProfileKey = node.Run.ProfileKey
 		request.RoleRef = node.Run.RoleRef
+		request.Tag = node.Run.Tag
+		request.Force = node.Run.Force
+		request.MaxTurns = node.Run.MaxTurns
+		request.Timeout = time.Duration(node.Run.TimeoutSeconds) * time.Second
 	} else {
+		request.MaxTurns = node.Continue.MaxTurns
+		request.Timeout = time.Duration(node.Continue.TimeoutSeconds) * time.Second
 		for _, candidate := range attempts {
 			if candidate.ID == *a.SourceAttemptID {
 				request.SourceRunID = candidate.RunID
@@ -808,29 +864,44 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 	if err != nil {
 		return e.fail(ctx, x, "parallel_invalid", err.Error())
 	}
+	visit := parallelVisitOrdinal(journal, fork.ID)
+	visitKeyPrefix := fmt.Sprintf("workflow/%s/parallel/%s/visit/%d/node/", x.ID, fork.ID, visit)
 	byNode := map[string]*domain.WorkflowNodeAttempt{}
 	for _, attempt := range attempts {
-		if _, ok := targets[attempt.NodeID]; ok {
+		_, target := targets[attempt.NodeID]
+		legacyVisitOne := visit == 1 && attempt.IdempotencyKey == fmt.Sprintf("workflow/%s/parallel/%s/attempt/1", x.ID, attempt.NodeID)
+		if target && (strings.HasPrefix(attempt.IdempotencyKey, visitKeyPrefix) || legacyVisitOne) {
 			byNode[attempt.NodeID] = attempt
 		}
 	}
+	required := len(targets)
+	if join.Join.Strategy == "any" {
+		required = 1
+	} else if join.Join.Strategy == "quorum" {
+		required = join.Join.Quorum
+	}
+	if join.Join.Strategy != "all" {
+		if joined, joinErr := e.completeSatisfiedParallelJoin(ctx, x, fork, join, visit, required, journal, byNode); joined || joinErr != nil {
+			return x, joinErr
+		}
+	}
 	if len(byNode) == 0 {
-		if len(targets) > r.Definition.Budgets.MaxConcurrency || x.BudgetUsage.NodeAttempts+len(targets) > r.Definition.Budgets.MaxNodeAttempts || x.BudgetUsage.Children+len(targets) > r.Definition.Budgets.MaxChildren {
+		if x.BudgetUsage.NodeAttempts+len(targets) > r.Definition.Budgets.MaxNodeAttempts || x.BudgetUsage.Children+len(targets) > r.Definition.Budgets.MaxChildren {
 			return e.exhaust(ctx, x, "parallelism")
 		}
 		now := e.now()
 		created := make([]*domain.WorkflowNodeAttempt, 0, len(targets))
 		entries := make([]*domain.WorkflowJournalEntry, 0, len(targets)+1)
-		forkPayload, _ := json.Marshal(map[string]any{"joinNodeId": join.ID, "members": sortedTargetIDs(targets), "strategy": join.Join.Strategy, "quorum": join.Join.Quorum})
+		forkPayload, _ := json.Marshal(map[string]any{"phase": "started", "visit": visit, "joinNodeId": join.ID, "members": sortedTargetIDs(targets), "strategy": join.Join.Strategy, "quorum": join.Join.Quorum})
 		entries = append(entries, nextJournal(x.ID, journal, domain.WorkflowJournalJoin, fork.ID, nil, forkPayload, now))
 		for _, targetID := range sortedTargetIDs(targets) {
 			target := targets[targetID]
-			attempt, prepErr := e.prepareParallelAttempt(x, target, attempts, journal, now)
+			attempt, prepErr := e.prepareParallelAttempt(x, fork.ID, visit, target, attempts, journal, now)
 			if prepErr != nil {
 				return e.fail(ctx, x, "parallel_member_invalid", prepErr.Error())
 			}
 			created = append(created, attempt)
-			payload, _ := json.Marshal(map[string]any{"nodeId": targetID, "ordinal": 1, "strategy": attempt.Strategy, "parallelParent": fork.ID})
+			payload, _ := json.Marshal(map[string]any{"nodeId": targetID, "ordinal": attempt.Ordinal, "strategy": attempt.Strategy, "parallelParent": fork.ID, "parallelVisit": visit})
 			entries = append(entries, nextJournal(x.ID, append(journal, entries...), domain.WorkflowJournalAttempt, targetID, &attempt.ID, payload, now))
 			for _, edge := range r.Definition.Edges {
 				if edge.From == fork.ID && edge.To == targetID {
@@ -907,6 +978,7 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 		usage := domain.WorkflowBudgetUsage{}
 		var result *domain.RunResult
 		var childOutput json.RawMessage
+		var childStatus domain.WorkflowExecutionStatus
 		if attempt.Strategy == domain.WorkflowAttemptChild {
 			if attempt.ChildExecutionID == nil {
 				return e.fail(ctx, x, "child_identity_missing", "parallel child workflow has no execution id")
@@ -916,6 +988,13 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 				return x, inspectErr
 			}
 			terminal, failed, usage, childOutput = state.Terminal, state.Failed, state.BudgetUsage, state.Output
+			childStatus = state.Status
+			if childStatus == "" && terminal {
+				childStatus = domain.WorkflowExecutionSucceeded
+				if failed {
+					childStatus = domain.WorkflowExecutionFailed
+				}
+			}
 		} else {
 			if attempt.RunID == nil {
 				return e.fail(ctx, x, "child_identity_missing", "parallel Run has no id")
@@ -957,8 +1036,12 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 			}
 		}
 		if len(childOutput) > 0 {
-			data, _ := json.Marshal(map[string]any{"childExecutionId": attempt.ChildExecutionID, "output": childOutput})
+			data, _ := json.Marshal(map[string]any{"childExecutionId": attempt.ChildExecutionID, "status": childStatus, "output": childOutput})
 			entries = append(entries, nextJournal(x.ID, journal, domain.WorkflowJournalChild, targetID, &attempt.ID, data, now))
+		}
+		if childStatus != "" && childStatus != domain.WorkflowExecutionSucceeded {
+			failed = true
+			attempt.Status, attempt.ErrorCode = domain.WorkflowAttemptFailed, "parallel_child_failed"
 		}
 		memberEdge, edgeErr := selectUnconditionalEdge(r.Definition.Edges, target.ID)
 		if edgeErr != nil || memberEdge.To != join.ID {
@@ -988,15 +1071,12 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 			succeeded++
 		}
 	}
+	if succeeded+(len(targets)-completed) < required {
+		return e.fail(ctx, x, "join_unsatisfied", fmt.Sprintf("join required %d successful members, got %d with %d still possible", required, succeeded, len(targets)-completed))
+	}
 	if completed < len(targets) {
 		x.Status = domain.WorkflowExecutionWaiting
 		return x, nil
-	}
-	required := len(targets)
-	if join.Join.Strategy == "any" {
-		required = 1
-	} else if join.Join.Strategy == "quorum" {
-		required = join.Join.Quorum
 	}
 	if succeeded < required {
 		return e.fail(ctx, x, "join_unsatisfied", fmt.Sprintf("join required %d successful members, got %d", required, succeeded))
@@ -1004,7 +1084,96 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 	now := e.now()
 	x.CurrentNodeID, x.Status, x.UpdatedAt = join.ID, domain.WorkflowExecutionRunning, now
 	x.Version++
-	return e.commitOnly(ctx, x)
+	payload, _ := json.Marshal(map[string]any{"phase": "completed", "visit": visit, "joinNodeId": join.ID})
+	entry := nextJournal(x.ID, journal, domain.WorkflowJournalJoin, fork.ID, nil, payload, now)
+	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
+		return nil, commitErr
+	} else if !ok {
+		return nil, ErrConcurrentAdvance
+	}
+	return x, nil
+}
+
+func (e *Engine) completeSatisfiedParallelJoin(ctx context.Context, x *domain.WorkflowExecution, fork, join *domain.WorkflowNode, visit, required int, journal []*domain.WorkflowJournalEntry, byNode map[string]*domain.WorkflowNodeAttempt) (bool, error) {
+	succeeded := 0
+	for _, attempt := range byNode {
+		if attempt.Status == domain.WorkflowAttemptCompleted {
+			succeeded++
+		}
+	}
+	if succeeded < required {
+		return false, nil
+	}
+	now := e.now()
+	updated := make([]*domain.WorkflowNodeAttempt, 0)
+	for _, attempt := range byNode {
+		if attempt.Status == domain.WorkflowAttemptCompleted || attempt.Status == domain.WorkflowAttemptFailed {
+			continue
+		}
+		if attempt.ChildExecutionID != nil {
+			if err := e.Subworkflows.Cancel(ctx, *attempt.ChildExecutionID, "parallel join already satisfied"); err != nil {
+				return false, err
+			}
+		} else if attempt.RunID != nil {
+			if err := e.Children.Stop(ctx, *attempt.RunID); err != nil {
+				return false, err
+			}
+		}
+		attempt.Status, attempt.ErrorCode = domain.WorkflowAttemptFailed, "parallel_join_short_circuit"
+		attempt.UpdatedAt, attempt.CompletedAt = now, &now
+		attempt.Version++
+		updated = append(updated, attempt)
+	}
+	x.CurrentNodeID, x.Status, x.UpdatedAt = join.ID, domain.WorkflowExecutionRunning, now
+	x.Version++
+	payload, _ := json.Marshal(map[string]any{"phase": "completed", "visit": visit, "joinNodeId": join.ID, "shortCircuited": true})
+	entry := nextJournal(x.ID, journal, domain.WorkflowJournalJoin, fork.ID, nil, payload, now)
+	ok, err := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempts: updated, Journal: []*domain.WorkflowJournalEntry{entry}})
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, ErrConcurrentAdvance
+	}
+	return true, nil
+}
+
+func parallelVisitOrdinal(journal []*domain.WorkflowJournalEntry, forkID string) int {
+	latestStarted := 0
+	completed := map[int]bool{}
+	legacyVisit := 0
+	for _, entry := range journal {
+		if entry.Kind != domain.WorkflowJournalJoin || entry.NodeID != forkID {
+			continue
+		}
+		var payload struct {
+			Phase string `json:"phase"`
+			Visit int    `json:"visit"`
+		}
+		if json.Unmarshal(entry.Payload, &payload) != nil {
+			continue
+		}
+		if payload.Visit <= 0 {
+			legacyVisit++
+			payload.Visit = legacyVisit
+			payload.Phase = "started"
+		}
+		switch payload.Phase {
+		case "completed":
+			completed[payload.Visit] = true
+		default:
+			if payload.Visit > latestStarted {
+				latestStarted = payload.Visit
+			}
+		}
+	}
+	if latestStarted == 0 {
+		return 1
+	}
+	if completed[latestStarted] {
+		return latestStarted + 1
+	}
+	return latestStarted
 }
 
 func exceededBudgetName(usage domain.WorkflowBudgetUsage, budgets domain.WorkflowBudgets) string {
@@ -1026,8 +1195,14 @@ func exceededBudgetName(usage domain.WorkflowBudgetUsage, budgets domain.Workflo
 	}
 }
 
-func (e *Engine) prepareParallelAttempt(x *domain.WorkflowExecution, node *domain.WorkflowNode, attempts []*domain.WorkflowNodeAttempt, journal []*domain.WorkflowJournalEntry, now time.Time) (*domain.WorkflowNodeAttempt, error) {
-	idempotencyKey := fmt.Sprintf("workflow/%s/parallel/%s/attempt/1", x.ID, node.ID)
+func (e *Engine) prepareParallelAttempt(x *domain.WorkflowExecution, forkID string, visit int, node *domain.WorkflowNode, attempts []*domain.WorkflowNodeAttempt, journal []*domain.WorkflowJournalEntry, now time.Time) (*domain.WorkflowNodeAttempt, error) {
+	idempotencyKey := fmt.Sprintf("workflow/%s/parallel/%s/visit/%d/node/%s", x.ID, forkID, visit, node.ID)
+	ordinal := 1
+	for _, attempt := range attempts {
+		if attempt.NodeID == node.ID && attempt.Ordinal >= ordinal {
+			ordinal = attempt.Ordinal + 1
+		}
+	}
 	if node.Kind == domain.WorkflowNodeChild {
 		values, err := EvaluateBindings(node.Child.Bindings, BindingContext{Input: x.Input, Journal: journal})
 		if err != nil {
@@ -1037,7 +1212,7 @@ func (e *Engine) prepareParallelAttempt(x *domain.WorkflowExecution, node *domai
 		if err != nil {
 			return nil, err
 		}
-		return &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: 1, Strategy: domain.WorkflowAttemptChild, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: idempotencyKey, InputSnapshot: input, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
+		return &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: domain.WorkflowAttemptChild, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: idempotencyKey, InputSnapshot: input, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
 	}
 	if node.Kind != domain.WorkflowNodeRun && node.Kind != domain.WorkflowNodeContinue {
 		return nil, fmt.Errorf("parallel member %s must be run, continue, or child_workflow", node.ID)
@@ -1046,7 +1221,7 @@ func (e *Engine) prepareParallelAttempt(x *domain.WorkflowExecution, node *domai
 	if err != nil {
 		return nil, err
 	}
-	return &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: 1, Strategy: strategy, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: idempotencyKey, InputSnapshot: input, PromptSnapshot: prompt, SourceAttemptID: source, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
+	return &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: strategy, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: idempotencyKey, InputSnapshot: input, PromptSnapshot: prompt, SourceAttemptID: source, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
 }
 
 func parallelPlan(definition domain.WorkflowDefinition, forkID string) (map[string]*domain.WorkflowNode, *domain.WorkflowNode, error) {
@@ -1097,12 +1272,7 @@ func (e *Engine) advanceBranch(ctx context.Context, x *domain.WorkflowExecution,
 	}
 	var input any
 	_ = json.Unmarshal(x.Input, &input)
-	journalValues := make([]any, 0, len(journal))
-	for _, entry := range journal {
-		var value any
-		_ = json.Unmarshal(entry.Payload, &value)
-		journalValues = append(journalValues, value)
-	}
+	journalValues := ProjectJournal(journal)
 	var selected *domain.WorkflowEdge
 	var fallback *domain.WorkflowEdge
 	for i := range r.Definition.Edges {
@@ -1165,10 +1335,20 @@ func (e *Engine) advanceEnd(ctx context.Context, x *domain.WorkflowExecution, r 
 	}
 	now := e.now()
 	x.Output = output
-	if node.End.Status == "succeeded" {
+	switch node.End.Status {
+	case "succeeded":
 		x.Status = domain.WorkflowExecutionSucceeded
 		x.TerminalReason = &domain.WorkflowTerminalReason{Code: "completed"}
-	} else {
+	case "blocked":
+		x.Status = domain.WorkflowExecutionBlocked
+		x.TerminalReason = &domain.WorkflowTerminalReason{Code: "blocked"}
+	case "abstained":
+		x.Status = domain.WorkflowExecutionAbstained
+		x.TerminalReason = &domain.WorkflowTerminalReason{Code: "abstained"}
+	case "budget_exhausted":
+		x.Status = domain.WorkflowExecutionBudgetExhausted
+		x.TerminalReason = &domain.WorkflowTerminalReason{Code: "budget_exhausted", BudgetName: "authored_limit"}
+	default:
 		x.Status = domain.WorkflowExecutionFailed
 		x.TerminalReason = &domain.WorkflowTerminalReason{Code: "definition_failed"}
 	}
@@ -1202,6 +1382,29 @@ func (e *Engine) commitFailure(ctx context.Context, x *domain.WorkflowExecution,
 	now := e.now()
 	x.Status = domain.WorkflowExecutionFailed
 	x.TerminalReason = &domain.WorkflowTerminalReason{Code: code, Message: message}
+	x.EndedAt = &now
+	x.UpdatedAt = now
+	x.Version++
+	ok, err := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempt: a, Journal: entries})
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrConcurrentAdvance
+	}
+	return x, nil
+}
+
+func (e *Engine) commitChildTerminal(ctx context.Context, x *domain.WorkflowExecution, a *domain.WorkflowNodeAttempt, entries []*domain.WorkflowJournalEntry, status domain.WorkflowExecutionStatus, output json.RawMessage, reason *domain.WorkflowTerminalReason) (*domain.WorkflowExecution, error) {
+	now := e.now()
+	x.Status = status
+	x.Output = append(json.RawMessage(nil), output...)
+	if reason != nil {
+		copyReason := *reason
+		x.TerminalReason = &copyReason
+	} else {
+		x.TerminalReason = &domain.WorkflowTerminalReason{Code: string(status)}
+	}
 	x.EndedAt = &now
 	x.UpdatedAt = now
 	x.Version++
@@ -1283,6 +1486,31 @@ func takeEdge(x *domain.WorkflowExecution, edge domain.WorkflowEdge, _ domain.Wo
 	}
 	x.EdgeTraversals[key] = next
 	return nil
+}
+
+// ProjectJournal builds the CEL-visible journal: one map per entry carrying the
+// entry's payload fields plus the authoritative nodeId, kind, and sequence drawn
+// from the entry itself. Correlating a structured result to the node that
+// produced it is impossible from the payload alone (the structured_result
+// payload holds only status/value), so the projection overlays the entry-level
+// nodeId/kind — which is what the latest()/count() helpers filter on. Overlaying
+// preserves every existing payload key, so conditions that sniff has(j.value),
+// has(j.status), has(j.output), or has(j.ordinal) evaluate exactly as before.
+func ProjectJournal(journal []*domain.WorkflowJournalEntry) []any {
+	values := make([]any, 0, len(journal))
+	for _, entry := range journal {
+		var payload any
+		_ = json.Unmarshal(entry.Payload, &payload)
+		if m, ok := payload.(map[string]any); ok {
+			m["nodeId"] = entry.NodeID
+			m["kind"] = string(entry.Kind)
+			m["sequence"] = entry.Sequence
+			values = append(values, m)
+			continue
+		}
+		values = append(values, payload)
+	}
+	return values
 }
 
 func nextJournal(executionID uuid.UUID, existing []*domain.WorkflowJournalEntry, kind domain.WorkflowJournalKind, node string, attempt *uuid.UUID, payload []byte, now time.Time) *domain.WorkflowJournalEntry {

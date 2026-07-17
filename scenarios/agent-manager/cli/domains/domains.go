@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"agent-manager/cli/domains/declarations"
 	"agent-manager/cli/domains/events"
 	"agent-manager/cli/domains/health"
 	"agent-manager/cli/domains/maintenance"
@@ -20,6 +21,7 @@ import (
 func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{
 		profiles.Register(deps),
+		declarations.Register(deps),
 		workflows.Register(deps),
 		tasks.Register(deps),
 		runs.Register(deps),

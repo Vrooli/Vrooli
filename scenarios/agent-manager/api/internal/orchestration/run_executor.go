@@ -103,9 +103,6 @@ type RunExecutor struct {
 	result  *runner.ExecuteResult
 	execErr error
 
-	// Recommendation extraction gate
-	shouldQueueRecommendations func(*domain.Run) bool
-
 	// Resumption state
 	isResuming bool
 
@@ -157,9 +154,6 @@ func NewRunExecutor(
 		checkpoint:    domain.NewCheckpoint(run.ID, domain.RunPhaseQueued),
 		heartbeatStop: make(chan struct{}),
 		heartbeatDone: make(chan struct{}),
-		shouldQueueRecommendations: func(run *domain.Run) bool {
-			return run.IsInvestigationRun()
-		},
 	}
 }
 
@@ -195,13 +189,6 @@ func (e *RunExecutor) WithExistingSandbox(sandboxID uuid.UUID, workDir string) *
 
 func (e *RunExecutor) WithIdentitySecret(secret []byte) *RunExecutor {
 	e.identitySecret = secret
-	return e
-}
-
-func (e *RunExecutor) WithRecommendationQueueFilter(filter func(*domain.Run) bool) *RunExecutor {
-	if filter != nil {
-		e.shouldQueueRecommendations = filter
-	}
 	return e
 }
 
@@ -403,13 +390,12 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 	// Step 5: Handle result.
 	e.advancePhase(execCtx, domain.RunPhaseCollectingResults)
 	resultOut := phases.HandleResult(execCtx, phases.HandleResultInput{
-		Deps:                       e.deps(),
-		Run:                        e.run,
-		Result:                     e.result,
-		ExecErr:                    e.execErr,
-		Sandbox:                    e.sandbox,
-		SandboxID:                  e.sandboxID,
-		ShouldQueueRecommendations: e.shouldQueueRecommendations,
+		Deps:      e.deps(),
+		Run:       e.run,
+		Result:    e.result,
+		ExecErr:   e.execErr,
+		Sandbox:   e.sandbox,
+		SandboxID: e.sandboxID,
 	})
 	e.outcome = resultOut.Outcome
 }

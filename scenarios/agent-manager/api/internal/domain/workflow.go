@@ -9,6 +9,13 @@ import (
 
 const WorkflowSchemaVersionV1 = "agent-workflow/v1"
 
+// ProfileSchemaVersionV1 discriminates scenario-owned profile declaration files
+// in the unified .vrooli/agent-manager/ location. It is a file-format marker
+// only: the reconcile reader peeks and strips it before the strict AgentProfile
+// proto unmarshal, so it never leaks into the runtime profile entity, its DB
+// row, or the public API surface.
+const ProfileSchemaVersionV1 = "agent-profile/v1"
+
 type WorkflowNodeKind string
 
 const (
@@ -31,6 +38,7 @@ const (
 	WorkflowBindingHandoff    WorkflowBindingSource = "final_handoff"
 	WorkflowBindingSignal     WorkflowBindingSource = "signal"
 	WorkflowBindingCounter    WorkflowBindingSource = "counter"
+	WorkflowBindingChild      WorkflowBindingSource = "child_workflow_output"
 )
 
 // WorkflowDefinition is scenario-authored desired state. It contains no
@@ -63,22 +71,51 @@ type WorkflowNode struct {
 }
 
 type WorkflowRunNode struct {
-	ProfileKey     string                 `json:"profileKey,omitempty"`
-	RoleRef        string                 `json:"roleRef,omitempty"`
-	PromptTemplate string                 `json:"promptTemplate"`
-	ResultSpec     *ResultSpec            `json:"resultSpec,omitempty"`
-	Bindings       []WorkflowInputBinding `json:"bindings,omitempty"`
-	MaxTurns       int                    `json:"maxTurns,omitempty"`
-	TimeoutSeconds int                    `json:"timeoutSeconds,omitempty"`
+	ProfileKey       string                 `json:"profileKey,omitempty"`
+	RoleRef          string                 `json:"roleRef,omitempty"`
+	Tag              string                 `json:"tag,omitempty"`
+	Force            bool                   `json:"force,omitempty"`
+	PromptTemplate   string                 `json:"promptTemplate,omitempty"`
+	PromptRef        *WorkflowPromptRef     `json:"promptRef,omitempty"`
+	PromptProvenance *WorkflowPromptSource  `json:"promptProvenance,omitempty"`
+	ResultSpec       *ResultSpec            `json:"resultSpec,omitempty"`
+	Bindings         []WorkflowInputBinding `json:"bindings,omitempty"`
+	MaxTurns         int                    `json:"maxTurns,omitempty"`
+	TimeoutSeconds   int                    `json:"timeoutSeconds,omitempty"`
 }
 
 type WorkflowContinueNode struct {
 	ConversationFromNode string                 `json:"conversationFromNode"`
-	PromptTemplate       string                 `json:"promptTemplate"`
+	PromptTemplate       string                 `json:"promptTemplate,omitempty"`
+	PromptRef            *WorkflowPromptRef     `json:"promptRef,omitempty"`
+	PromptProvenance     *WorkflowPromptSource  `json:"promptProvenance,omitempty"`
 	Bindings             []WorkflowInputBinding `json:"bindings,omitempty"`
 	ResultSpec           *ResultSpec            `json:"resultSpec,omitempty"`
 	MaxTurns             int                    `json:"maxTurns,omitempty"`
 	TimeoutSeconds       int                    `json:"timeoutSeconds,omitempty"`
+}
+
+// WorkflowPromptRef references a prompt-manager skill as an alternative to an
+// inline promptTemplate. It resolves at reconcile time: the resolved content is
+// embedded into promptTemplate and the resolution is pinned in the revision, so
+// a later skill change produces a new revision rather than a silent behavior
+// change. Exactly one of promptTemplate or promptRef may be authored.
+type WorkflowPromptRef struct {
+	SkillID   string            `json:"skillId"`
+	Variables map[string]string `json:"variables,omitempty"`
+	WithScope bool              `json:"withScope,omitempty"`
+}
+
+// WorkflowPromptSource is the digest-pinned provenance of a promptRef that has
+// been resolved. It records which skill and revision produced the embedded
+// prompt so the resolution is auditable; the resolved-at instant is the
+// revision's CreatedAt and is intentionally not stored here to keep the digest
+// deterministic across re-resolution of an unchanged skill.
+type WorkflowPromptSource struct {
+	SkillID     string `json:"skillId"`
+	Revision    int    `json:"revision,omitempty"`
+	VariantID   string `json:"variantId,omitempty"`
+	ContentHash string `json:"contentHash"`
 }
 
 type WorkflowChildNode struct {
@@ -94,9 +131,12 @@ type WorkflowWaitNode struct {
 	TimeoutSeconds int             `json:"timeoutSeconds"`
 }
 
+// WorkflowBranchNode marks a routing node. A non-parallel branch selects among
+// its outgoing edges by their CEL conditions; a parallel branch forks into its
+// members. Routing lives entirely on the edges, so a branch carries no
+// expression of its own.
 type WorkflowBranchNode struct {
-	Expression string `json:"expression"`
-	Parallel   bool   `json:"parallel,omitempty"`
+	Parallel bool `json:"parallel,omitempty"`
 }
 
 type WorkflowJoinNode struct {
@@ -156,8 +196,31 @@ type WorkflowRevision struct {
 	CreatedAt       time.Time          `json:"createdAt" db:"created_at"`
 }
 
+// Diagnostic severities. An empty severity is treated as an error so every
+// diagnostic that predates the severity field keeps blocking registration.
+const (
+	DiagnosticSeverityError   = "error"
+	DiagnosticSeverityWarning = "warning"
+)
+
 type WorkflowDiagnostic struct {
-	Code    string `json:"code"`
-	Path    string `json:"path,omitempty"`
-	Message string `json:"message"`
+	Code     string `json:"code"`
+	Path     string `json:"path,omitempty"`
+	Message  string `json:"message"`
+	Severity string `json:"severity,omitempty"`
+}
+
+// IsError reports whether the diagnostic blocks registration. Only an explicit
+// warning severity is non-blocking; anything else (including unset) blocks.
+func (d WorkflowDiagnostic) IsError() bool { return d.Severity != DiagnosticSeverityWarning }
+
+// HasBlockingDiagnostic reports whether any diagnostic in the set blocks
+// registration. A definition carrying only warnings still earns a digest.
+func HasBlockingDiagnostic(diagnostics []WorkflowDiagnostic) bool {
+	for _, d := range diagnostics {
+		if d.IsError() {
+			return true
+		}
+	}
+	return false
 }

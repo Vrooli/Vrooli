@@ -104,6 +104,10 @@ type WorkflowExecutionRepository interface {
 	Commit(ctx context.Context, commit WorkflowCommit) (bool, error)
 	GetAttemptByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowNodeAttempt, error)
 	ListAttempts(ctx context.Context, executionID uuid.UUID) ([]*domain.WorkflowNodeAttempt, error)
+	// ExecutionIDForRun resolves the workflow execution that dispatched the
+	// given run through a node attempt. Returns uuid.Nil (nil error) when the
+	// run does not belong to any workflow attempt — the common non-workflow run.
+	ExecutionIDForRun(ctx context.Context, runID uuid.UUID) (uuid.UUID, error)
 	ListJournal(ctx context.Context, executionID uuid.UUID, afterSequence int64, limit int) ([]*domain.WorkflowJournalEntry, error)
 	ListRecoverable(ctx context.Context, limit int) ([]*domain.WorkflowExecution, error)
 }
@@ -186,27 +190,6 @@ type RunRepository interface {
 
 	// CountByStatus returns the count of runs by status.
 	CountByStatus(ctx context.Context, status domain.RunStatus) (int, error)
-
-	// ListPendingRecommendationExtractions returns runs that need recommendation extraction.
-	// Returns runs with status=pending or status=failed (with attempts < maxRetries),
-	// ordered by queued_at ascending (oldest first).
-	ListPendingRecommendationExtractions(ctx context.Context, maxRetries, limit int) ([]*domain.Run, error)
-
-	// ClaimRecommendationExtraction atomically marks a run as "extracting".
-	// Returns true if claim succeeded (no concurrent extractor got it first).
-	// This prevents duplicate extraction if multiple workers exist.
-	ClaimRecommendationExtraction(ctx context.Context, runID uuid.UUID) (bool, error)
-
-	// ListUnextractedInvestigationRuns returns complete investigation runs that haven't had
-	// recommendations extracted yet (status is empty or "none").
-	// Used on startup to seed the extraction queue with existing runs.
-	// Limited to most recent runs (by created_at desc) to avoid overwhelming the queue.
-	ListUnextractedInvestigationRuns(ctx context.Context, tagPrefix string, limit int) ([]*domain.Run, error)
-
-	// ListStaleExtractions returns runs that have been stuck in "extracting" status
-	// for longer than the stale timeout. These are likely from crashed workers.
-	// Used by the worker to recover stuck extractions.
-	ListStaleExtractions(ctx context.Context, staleTimeout time.Duration, limit int) ([]*domain.Run, error)
 
 	// GetByTokenHash retrieves a run by its identity token hash.
 	// Returns nil, nil if no matching run is found.

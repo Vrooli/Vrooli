@@ -127,6 +127,7 @@ const (
 	WorkflowJournalResume     WorkflowJournalKind = "resume"
 	WorkflowJournalChild      WorkflowJournalKind = "child_workflow"
 	WorkflowJournalJoin       WorkflowJournalKind = "join"
+	WorkflowJournalCleanup    WorkflowJournalKind = "cleanup"
 )
 
 type WorkflowJournalEntry struct {

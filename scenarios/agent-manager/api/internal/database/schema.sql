@@ -180,11 +180,6 @@ CREATE TABLE IF NOT EXISTS runs (
     source_investigation_run_id TEXT,
     parent_run_id TEXT,
     conversation_id TEXT DEFAULT '',
-    recommendation_status TEXT DEFAULT 'none',
-    recommendation_result TEXT,
-    recommendation_attempts INTEGER DEFAULT 0,
-    recommendation_error TEXT,
-    recommendation_queued_at TEXT,
     identity_token_hash TEXT,
     identity_token_revoked_at TEXT,
     custom_env TEXT,
@@ -210,9 +205,6 @@ CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at);
 
 -- Stats query indexes
 CREATE INDEX IF NOT EXISTS idx_runs_created_status ON runs(created_at, status);
-CREATE INDEX IF NOT EXISTS idx_runs_recommendation_pending
-    ON runs(recommendation_status, recommendation_queued_at)
-    WHERE recommendation_status IN ('pending', 'failed');
 
 -- ============================================================================
 -- Run Events - Append-only event stream

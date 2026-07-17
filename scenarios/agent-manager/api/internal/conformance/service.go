@@ -12,30 +12,34 @@ import (
 	"sort"
 	"strings"
 
+	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/protoconv"
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/workflowcatalog"
-
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var scenarioNamePattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
+// agentManagerSelfScenario is the provider scenario that registers its own
+// declarations through the self-registration seam rather than a service.json
+// dependency block.
+const agentManagerSelfScenario = "agent-manager"
+
 const (
-	CodeDependencyMissing  = "agent_conformance.dependency_missing"
-	CodeDependencyDisabled = "agent_conformance.dependency_disabled"
-	CodeProfileInvalid     = "agent_conformance.profile_invalid"
-	CodeProfileOrphan      = "agent_conformance.profile_orphan"
-	CodeProfileOwnership   = "agent_conformance.profile_ownership_mismatch"
-	CodeProfileLegacy      = "agent_conformance.profile_legacy_field"
-	CodeRoleUnresolved     = "agent_conformance.role_unresolved"
-	CodeDirectSpawnBypass  = "agent_conformance.direct_spawn_bypass"
-	CodePermissionPosture  = "agent_conformance.permission_posture"
-	CodeWorkflowInvalid    = "agent_conformance.workflow_invalid"
-	CodeWorkflowOrphan     = "agent_conformance.workflow_orphan"
-	CodeWorkflowOwnership  = "agent_conformance.workflow_ownership_mismatch"
+	CodeDependencyMissing       = "agent_conformance.dependency_missing"
+	CodeDependencyDisabled      = "agent_conformance.dependency_disabled"
+	CodeProfileInvalid          = "agent_conformance.profile_invalid"
+	CodeProfileOrphan           = "agent_conformance.profile_orphan"
+	CodeProfileOwnership        = "agent_conformance.profile_ownership_mismatch"
+	CodeProfileLegacy           = "agent_conformance.profile_legacy_field"
+	CodeRoleUnresolved          = "agent_conformance.role_unresolved"
+	CodeDirectSpawnBypass       = "agent_conformance.direct_spawn_bypass"
+	CodePermissionPosture       = "agent_conformance.permission_posture"
+	CodeWorkflowInvalid         = "agent_conformance.workflow_invalid"
+	CodeWorkflowOrphan          = "agent_conformance.workflow_orphan"
+	CodeWorkflowOwnership       = "agent_conformance.workflow_ownership_mismatch"
+	CodeDeclarationLegacyLayout = "agent_conformance.declaration_legacy_layout"
+	CodeDeclarationLegacyBlock  = "agent_conformance.declaration_legacy_block"
 )
 
 type Finding struct {
@@ -96,6 +100,13 @@ func (s Service) Validate(scenario, explicitPath string) (Report, error) {
 	if err != nil {
 		return Report{}, fmt.Errorf("load Agent Manager role catalog: %w", err)
 	}
+	// Agent Manager is a first-class declaring scenario for its own definitions,
+	// but it cannot declare a dependency on itself. Its declaration sources are
+	// every file under .vrooli/agent-manager/; validate them with the shared
+	// validators and owner agent-manager, with no dependency requirement.
+	if scenario == agentManagerSelfScenario {
+		return s.validateSelfDeclarations(report, abs, scenario, roles)
+	}
 	manifestPath := filepath.Join(abs, ".vrooli", "service.json")
 	raw, err := os.ReadFile(manifestPath)
 	if err != nil {
@@ -113,127 +124,228 @@ func (s Service) Validate(scenario, explicitPath string) (Report, error) {
 		return Report{}, fmt.Errorf("parse service manifest: %w", err)
 	}
 	dep, present := manifest.Dependencies.Scenarios["agent-manager"]
+	// Files left under the retired .vrooli/agent-profiles/ or
+	// .vrooli/agent-workflows/ directories are rejected regardless of the
+	// dependency or config state: the unified layout is the only readable
+	// location.
+	reportLegacyLayoutFiles(&report, abs)
 	if !present {
-		report.add(CodeDependencyMissing, "Agent Manager dependency missing", manifestPath, "Declare dependencies.scenarios.agent-manager with declared profile sources.")
-		reportOrphanProfiles(&report, abs)
+		report.add(CodeDependencyMissing, "Agent Manager dependency missing", manifestPath, "Declare dependencies.scenarios.agent-manager with a config.declarations block.")
+		reportOrphanDeclarations(&report, abs, nil)
 		reportDirectSpawnBypasses(&report, abs)
 		sortFindings(report.Findings)
 		return report, nil
 	}
 	if dep.Enabled != nil && !*dep.Enabled {
-		report.add(CodeDependencyDisabled, "Agent Manager dependency disabled", manifestPath, "Enable the Agent Manager dependency before requesting coding-agent profiles.")
-		reportOrphanProfiles(&report, abs)
+		report.add(CodeDependencyDisabled, "Agent Manager dependency disabled", manifestPath, "Enable the Agent Manager dependency before declaring scenario-owned agent assets.")
+		reportOrphanDeclarations(&report, abs, nil)
 		reportDirectSpawnBypasses(&report, abs)
 		sortFindings(report.Findings)
 		return report, nil
 	}
-	var config struct {
-		Profiles struct {
-			Sources []string `json:"sources"`
-		} `json:"profiles"`
-		Workflows struct {
-			Sources []string `json:"sources"`
-		} `json:"workflows"`
-	}
+	declared := map[string]bool{}
 	// A consumer may request a portable role directly at runtime and therefore
-	// legitimately have no scenario-owned profile sources. Once it supplies
-	// dependency configuration, however, that configuration is the strict
-	// profile-source contract it must satisfy.
+	// legitimately declare no scenario-owned assets. Once it supplies dependency
+	// configuration, however, that configuration is the strict unified
+	// declaration contract it must satisfy.
 	if len(dep.Config) > 0 {
-		if err := orchestration.ValidateScenarioProfileConfig(manifestPath); err != nil {
-			report.add(CodeProfileInvalid, "Agent profile configuration invalid", manifestPath, err.Error())
-			return report, nil
-		}
-		if err := orchestration.ValidateScenarioWorkflowConfig(manifestPath); err != nil {
-			report.add(CodeWorkflowInvalid, "Agent workflow configuration invalid", manifestPath, err.Error())
-			return report, nil
-		}
-		if json.Unmarshal(dep.Config, &config) != nil {
-			report.add(CodeProfileInvalid, "Agent profile configuration invalid", manifestPath, "Declare a valid config.profiles.sources list for Agent Manager.")
-			return report, nil
-		}
-	}
-	declaredSources := make(map[string]bool, len(config.Profiles.Sources))
-	for _, source := range config.Profiles.Sources {
-		path, err := resolveSource(abs, source)
-		if err != nil {
-			report.add(CodeProfileInvalid, "Agent profile source invalid", manifestPath, err.Error())
-			continue
-		}
-		rel, err := filepath.Rel(abs, path)
-		if err == nil {
-			declaredSources[filepath.ToSlash(rel)] = true
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			report.add(CodeProfileInvalid, "Agent profile unreadable", path, err.Error())
-			continue
-		}
-		if legacyProfileField(data) {
-			report.add(CodeProfileLegacy, "Legacy runner or model profile input", path, "Replace runner/model/policy inputs with roleRef.")
-			continue
-		}
-		var proto domainpb.AgentProfile
-		if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, &proto); err != nil {
-			report.add(CodeProfileInvalid, "Agent profile does not satisfy the role-only contract", path, err.Error())
-			continue
-		}
-		profile := protoconv.AgentProfileFromProto(&proto)
-		if strings.TrimSpace(profile.RoleRef) == "" {
-			report.add(CodeProfileInvalid, "Agent profile roleRef missing", path, "Set a portable roleRef such as code.default.")
-		} else if !roles[profile.RoleRef] {
-			report.add(CodeRoleUnresolved, "Agent profile roleRef is unresolved", path, "Choose a role declared by Agent Manager's role-policy catalog.")
-		}
-		if !strings.HasPrefix(profile.ProfileKey, scenario+"/") {
-			report.add(CodeProfileOwnership, "Agent profile key is owned by another scenario", path, "Use a profileKey prefixed by "+scenario+"/.")
-		}
-	}
-	reportOrphanProfiles(&report, abs, declaredSources)
-	declaredWorkflows := make(map[string]bool, len(config.Workflows.Sources))
-	for _, source := range config.Workflows.Sources {
-		path, err := resolveSource(abs, source)
-		if err != nil {
-			report.add(CodeWorkflowInvalid, "Agent workflow source invalid", manifestPath, err.Error())
-			continue
-		}
-		if rel, err := filepath.Rel(abs, path); err == nil {
-			declaredWorkflows[filepath.ToSlash(rel)] = true
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			report.add(CodeWorkflowInvalid, "Agent workflow unreadable", path, err.Error())
-			continue
-		}
-		parsed, err := workflowcatalog.Parse(data, nil)
-		if err != nil {
-			report.add(CodeWorkflowInvalid, "Agent workflow is malformed", path, err.Error())
-			continue
-		}
-		if len(parsed.Diagnostics) != 0 {
-			report.add(CodeWorkflowInvalid, "Agent workflow contract is invalid", path, parsed.Diagnostics[0].Message)
-			continue
-		}
-		if parsed.Definition.Owner != scenario || !strings.HasPrefix(parsed.Definition.Key, scenario+"/") {
-			report.add(CodeWorkflowOwnership, "Agent workflow is owned by another scenario", path, "Use owner "+scenario+" and a key prefixed by "+scenario+"/.")
-		}
-		for _, node := range parsed.Definition.Nodes {
-			if node.Run != nil && node.Run.RoleRef != "" && !roles[node.Run.RoleRef] {
-				report.add(CodeRoleUnresolved, "Agent workflow roleRef is unresolved", path, "Choose a role declared by Agent Manager's role-policy catalog.")
+		var configObject map[string]json.RawMessage
+		if err := json.Unmarshal(dep.Config, &configObject); err != nil || configObject == nil {
+			report.add(CodeProfileInvalid, "Agent declaration configuration invalid", manifestPath, "config must be a JSON object containing config.declarations.")
+		} else {
+			_, hasLegacyProfiles := configObject["profiles"]
+			_, hasLegacyWorkflows := configObject["workflows"]
+			if hasLegacyProfiles {
+				report.add(CodeDeclarationLegacyBlock, "Legacy config.profiles block is no longer supported", manifestPath, "Move sources into config.declarations.sources and place files under .vrooli/agent-manager/.")
+			}
+			if hasLegacyWorkflows {
+				report.add(CodeDeclarationLegacyBlock, "Legacy config.workflows block is no longer supported", manifestPath, "Move sources into config.declarations.sources and place files under .vrooli/agent-manager/.")
+			}
+			if _, hasDeclarations := configObject["declarations"]; hasDeclarations && !hasLegacyProfiles && !hasLegacyWorkflows {
+				if err := orchestration.ValidateScenarioDeclarationConfig(manifestPath); err != nil {
+					report.add(CodeProfileInvalid, "Agent declaration configuration invalid", manifestPath, err.Error())
+				} else {
+					declared = s.validateDeclaredSources(&report, abs, manifestPath, scenario, roles, configObject["declarations"])
+				}
 			}
 		}
 	}
-	reportOrphanWorkflows(&report, abs, declaredWorkflows)
+	reportOrphanDeclarations(&report, abs, declared)
 	reportDirectSpawnBypasses(&report, abs)
 	reportPermissionPosture(&report, s.PermissionPosture)
 	sortFindings(report.Findings)
 	return report, nil
 }
 
-func reportOrphanWorkflows(report *Report, root string, declared map[string]bool) {
-	for _, source := range jsonFiles(filepath.Join(root, ".vrooli", "agent-workflows"), root) {
-		if !declared[source] {
-			report.add(CodeWorkflowOrphan, "Agent workflow source is undeclared", filepath.Join(root, filepath.FromSlash(source)), "Register this workflow under dependencies.scenarios.agent-manager.config.workflows.sources.")
+// validateSelfDeclarations validates agent-manager's own declaration files. It
+// mirrors the scenario path's validators and ownership rules but discovers its
+// sources from the .vrooli/agent-manager/ directory (every file is declared, so
+// no orphan findings) and never requires an agent-manager dependency. A missing
+// or empty directory is conformant.
+func (s Service) validateSelfDeclarations(report Report, root, scenario string, roles map[string]bool) (Report, error) {
+	// Files left under the retired directories are rejected for the provider too.
+	reportLegacyLayoutFiles(&report, root)
+	for _, source := range jsonFiles(filepath.Join(root, ".vrooli", "agent-manager"), root) {
+		path := filepath.Join(root, filepath.FromSlash(source))
+		data, err := os.ReadFile(path)
+		if err != nil {
+			report.add(CodeProfileInvalid, "Agent declaration source unreadable", path, err.Error())
+			continue
 		}
+		version, err := peekDeclarationVersion(data)
+		if err != nil {
+			report.add(CodeProfileInvalid, "Agent declaration source malformed", path, err.Error())
+			continue
+		}
+		switch version {
+		case domain.ProfileSchemaVersionV1:
+			validateDeclaredProfile(&report, scenario, roles, path, data)
+		case domain.WorkflowSchemaVersionV1:
+			validateDeclaredWorkflow(&report, scenario, roles, path, data)
+		default:
+			report.add(CodeProfileInvalid, "Agent declaration source has an unknown schemaVersion", path, fmt.Sprintf("schemaVersion must be %q or %q", domain.ProfileSchemaVersionV1, domain.WorkflowSchemaVersionV1))
+		}
+	}
+	reportDirectSpawnBypasses(&report, root)
+	reportPermissionPosture(&report, s.PermissionPosture)
+	sortFindings(report.Findings)
+	return report, nil
+}
+
+// validateDeclaredSources validates each unified declaration source with the
+// shared validators, fanning out by schemaVersion, and returns the set of
+// declared source paths (scenario-relative, slash form) so orphan detection can
+// exclude them.
+func (s Service) validateDeclaredSources(report *Report, root, manifestPath, scenario string, roles map[string]bool, declarationsRaw json.RawMessage) map[string]bool {
+	declared := map[string]bool{}
+	var block struct {
+		Sources []string `json:"sources"`
+	}
+	if err := json.Unmarshal(declarationsRaw, &block); err != nil {
+		report.add(CodeProfileInvalid, "Agent declaration configuration invalid", manifestPath, err.Error())
+		return declared
+	}
+	for _, source := range block.Sources {
+		path, err := resolveSource(root, source)
+		if err != nil {
+			report.add(CodeProfileInvalid, "Agent declaration source invalid", manifestPath, err.Error())
+			continue
+		}
+		if rel, e := filepath.Rel(root, path); e == nil {
+			declared[filepath.ToSlash(rel)] = true
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			report.add(CodeProfileInvalid, "Agent declaration source unreadable", path, err.Error())
+			continue
+		}
+		version, err := peekDeclarationVersion(data)
+		if err != nil {
+			report.add(CodeProfileInvalid, "Agent declaration source malformed", path, err.Error())
+			continue
+		}
+		switch version {
+		case domain.ProfileSchemaVersionV1:
+			validateDeclaredProfile(report, scenario, roles, path, data)
+		case domain.WorkflowSchemaVersionV1:
+			validateDeclaredWorkflow(report, scenario, roles, path, data)
+		default:
+			report.add(CodeProfileInvalid, "Agent declaration source has an unknown schemaVersion", path, fmt.Sprintf("schemaVersion must be %q or %q", domain.ProfileSchemaVersionV1, domain.WorkflowSchemaVersionV1))
+		}
+	}
+	return declared
+}
+
+func validateDeclaredProfile(report *Report, scenario string, roles map[string]bool, path string, data []byte) {
+	if legacyProfileField(data) {
+		report.add(CodeProfileLegacy, "Legacy runner or model profile input", path, "Replace runner/model/policy inputs with roleRef.")
+		return
+	}
+	profile, err := orchestration.ParseScenarioProfileSource(data)
+	if err != nil {
+		report.add(CodeProfileInvalid, "Agent profile does not satisfy the role-only contract", path, err.Error())
+		return
+	}
+	if strings.TrimSpace(profile.RoleRef) == "" {
+		report.add(CodeProfileInvalid, "Agent profile roleRef missing", path, "Set a portable roleRef such as code.default.")
+	} else if !roles[profile.RoleRef] {
+		report.add(CodeRoleUnresolved, "Agent profile roleRef is unresolved", path, "Choose a role declared by Agent Manager's role-policy catalog.")
+	}
+	if !strings.HasPrefix(profile.ProfileKey, scenario+"/") {
+		report.add(CodeProfileOwnership, "Agent profile key is owned by another scenario", path, "Use a profileKey prefixed by "+scenario+"/.")
+	}
+}
+
+func validateDeclaredWorkflow(report *Report, scenario string, roles map[string]bool, path string, data []byte) {
+	parsed, err := workflowcatalog.Parse(data, nil)
+	if err != nil {
+		report.add(CodeWorkflowInvalid, "Agent workflow is malformed", path, err.Error())
+		return
+	}
+	// Report every blocking diagnostic (CEL compile errors, unbound prompt
+	// placeholders, structural defects) so the ladder surfaces the full defect
+	// set, not just the first. Warnings are non-blocking and are surfaced at
+	// reconcile/validate time rather than as conformance findings.
+	if domain.HasBlockingDiagnostic(parsed.Diagnostics) {
+		for _, d := range parsed.Diagnostics {
+			if d.IsError() {
+				report.add(CodeWorkflowInvalid, "Agent workflow contract is invalid", path, diagnosticMessage(d))
+			}
+		}
+		return
+	}
+	if parsed.Definition.Owner != scenario || !strings.HasPrefix(parsed.Definition.Key, scenario+"/") {
+		report.add(CodeWorkflowOwnership, "Agent workflow is owned by another scenario", path, "Use owner "+scenario+" and a key prefixed by "+scenario+"/.")
+	}
+	for _, node := range parsed.Definition.Nodes {
+		if node.Run != nil && node.Run.RoleRef != "" && !roles[node.Run.RoleRef] {
+			report.add(CodeRoleUnresolved, "Agent workflow roleRef is unresolved", path, "Choose a role declared by Agent Manager's role-policy catalog.")
+		}
+	}
+}
+
+func diagnosticMessage(d domain.WorkflowDiagnostic) string {
+	if strings.TrimSpace(d.Path) != "" {
+		return d.Path + ": " + d.Message
+	}
+	return d.Message
+}
+
+func peekDeclarationVersion(data []byte) (string, error) {
+	var envelope struct {
+		SchemaVersion string `json:"schemaVersion"`
+	}
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return "", fmt.Errorf("parse declaration schemaVersion: %w", err)
+	}
+	return strings.TrimSpace(envelope.SchemaVersion), nil
+}
+
+// reportLegacyLayoutFiles rejects any declaration file that remains under the
+// retired .vrooli/agent-profiles/ or .vrooli/agent-workflows/ directories.
+func reportLegacyLayoutFiles(report *Report, root string) {
+	for _, dir := range [][]string{{".vrooli", "agent-profiles"}, {".vrooli", "agent-workflows"}} {
+		for _, source := range jsonFiles(filepath.Join(append([]string{root}, dir...)...), root) {
+			report.add(CodeDeclarationLegacyLayout, "Declaration file remains under a retired directory", filepath.Join(root, filepath.FromSlash(source)), "Move this file into .vrooli/agent-manager/ and declare it under config.declarations.sources.")
+		}
+	}
+}
+
+// reportOrphanDeclarations flags files under the unified .vrooli/agent-manager/
+// directory that no declared source references, routing each to the profile or
+// workflow orphan code by its schemaVersion.
+func reportOrphanDeclarations(report *Report, root string, declared map[string]bool) {
+	for _, source := range jsonFiles(filepath.Join(root, ".vrooli", "agent-manager"), root) {
+		if declared[source] {
+			continue
+		}
+		code, title := CodeProfileOrphan, "Agent profile source is undeclared"
+		if data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(source))); err == nil {
+			if version, _ := peekDeclarationVersion(data); version == domain.WorkflowSchemaVersionV1 {
+				code, title = CodeWorkflowOrphan, "Agent workflow source is undeclared"
+			}
+		}
+		report.add(code, title, filepath.Join(root, filepath.FromSlash(source)), "Register this source under dependencies.scenarios.agent-manager.config.declarations.sources.")
 	}
 }
 
@@ -267,18 +379,6 @@ func (r *Report) add(code, title, location, remediation string) {
 	r.Findings = append(r.Findings, Finding{Code: code, Title: title, Location: location, Message: title, Remediation: remediation, Severity: "SEVERITY_ERROR"})
 }
 
-func reportOrphanProfiles(report *Report, root string, declared ...map[string]bool) {
-	declaredSources := map[string]bool{}
-	if len(declared) > 0 {
-		declaredSources = declared[0]
-	}
-	for _, source := range profileFiles(root) {
-		if !declaredSources[source] {
-			report.add(CodeProfileOrphan, "Agent profile source is undeclared", filepath.Join(root, filepath.FromSlash(source)), "Register this scenario-owned profile under dependencies.scenarios.agent-manager.config.profiles.sources.")
-		}
-	}
-}
-
 func reportDirectSpawnBypasses(report *Report, root string) {
 	for _, path := range directSpawnBypasses(root) {
 		report.add(CodeDirectSpawnBypass, "Direct coding-agent spawn bypass", path, "Request a profile key or portable role through Agent Manager instead of invoking a coding-agent executable directly.")
@@ -298,23 +398,6 @@ func sortFindings(findings []Finding) {
 	sort.Slice(findings, func(i, j int) bool {
 		return findings[i].Code+findings[i].Location < findings[j].Code+findings[j].Location
 	})
-}
-
-func profileFiles(root string) []string {
-	profilesRoot := filepath.Join(root, ".vrooli", "agent-profiles")
-	var files []string
-	_ = filepath.WalkDir(profilesRoot, func(path string, entry os.DirEntry, err error) error {
-		if err != nil || entry.IsDir() || !strings.EqualFold(filepath.Ext(path), ".json") {
-			return nil
-		}
-		rel, err := filepath.Rel(root, path)
-		if err == nil {
-			files = append(files, filepath.ToSlash(rel))
-		}
-		return nil
-	})
-	sort.Strings(files)
-	return files
 }
 
 // directSpawnBypasses deliberately looks only for executable construction next

@@ -10,12 +10,21 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
+	"text/template/parse"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/structuredresult"
+	"agent-manager/internal/workflowexpr"
 )
+
+// sharedCELEnv is the single CEL environment the engine also evaluates against,
+// built once. Sharing it guarantees a condition that compiles at registration
+// time is a condition the runtime can evaluate.
+var sharedCELEnv = sync.OnceValues(workflowexpr.NewEnv)
 
 const (
 	MaxDefinitionBytes = 256 << 10
@@ -74,13 +83,16 @@ func Parse(data []byte, lookup Lookup) (*Result, error) {
 
 func Validate(definition domain.WorkflowDefinition, lookup Lookup) (*Result, error) {
 	diagnostics := validate(&definition, lookup)
-	if len(diagnostics) != 0 {
-		sort.SliceStable(diagnostics, func(i, j int) bool {
-			if diagnostics[i].Path == diagnostics[j].Path {
-				return diagnostics[i].Code < diagnostics[j].Code
-			}
-			return diagnostics[i].Path < diagnostics[j].Path
-		})
+	sort.SliceStable(diagnostics, func(i, j int) bool {
+		if diagnostics[i].Path == diagnostics[j].Path {
+			return diagnostics[i].Code < diagnostics[j].Code
+		}
+		return diagnostics[i].Path < diagnostics[j].Path
+	})
+	// A blocking (error) diagnostic withholds the digest so nothing registers.
+	// Warning-only definitions still canonicalize and earn a digest; the
+	// warnings ride along on the result so callers can surface them.
+	if domain.HasBlockingDiagnostic(diagnostics) {
 		return &Result{Definition: definition, Diagnostics: diagnostics}, nil
 	}
 	canonical, err := json.Marshal(definition)
@@ -88,14 +100,70 @@ func Validate(definition domain.WorkflowDefinition, lookup Lookup) (*Result, err
 		return nil, fmt.Errorf("canonicalize workflow definition: %w", err)
 	}
 	sum := sha256.Sum256(canonical)
-	return &Result{Definition: definition, Canonical: canonical, Digest: "sha256:" + hex.EncodeToString(sum[:])}, nil
+	return &Result{Definition: definition, Canonical: canonical, Digest: "sha256:" + hex.EncodeToString(sum[:]), Diagnostics: diagnostics}, nil
+}
+
+// Canonical shape of the implied end synthesized for single-node sugar. These
+// constants are load-bearing for digest identity: an explicit definition that
+// spells out the same end node, edge, and entryNode must marshal to identical
+// bytes, so they must never drift.
+const (
+	sugarEndNodeID            = "end"
+	sugarResultBindingName    = "result"
+	sugarResultBindingBytes   = 16384
+	sugarResultBindingSelect  = "$.value"
+	sugarResultBindingOrder   = "desc"
+	sugarResultBindingRender  = "json"
+	sugarResultBindingMissing = "error"
+)
+
+// expandSingleNodeSugar canonicalizes the single-run-node authoring shorthand
+// into the full form BEFORE anything downstream (validation and, critically, the
+// digest) sees it. A definition whose only node is a run node may omit
+// entryNode, edges, and the terminal end node; the expander synthesizes the
+// entry, an implied end that maps the run node's structured result to
+// output.result, and the single unconditional edge between them. Because the
+// expansion is deterministic, an equivalent explicit definition canonicalizes to
+// identical bytes and therefore an identical digest.
+func expandSingleNodeSugar(d *domain.WorkflowDefinition) {
+	if d.EntryNode != "" || len(d.Edges) != 0 || len(d.Nodes) != 1 {
+		return
+	}
+	run := d.Nodes[0]
+	if run.Kind != domain.WorkflowNodeRun || run.Run == nil || run.ID == sugarEndNodeID {
+		return
+	}
+	d.EntryNode = run.ID
+	d.Nodes = append(d.Nodes, domain.WorkflowNode{
+		ID:   sugarEndNodeID,
+		Kind: domain.WorkflowNodeEnd,
+		End: &domain.WorkflowEndNode{
+			Status: "succeeded",
+			Bindings: []domain.WorkflowInputBinding{{
+				Name:          sugarResultBindingName,
+				Source:        domain.WorkflowBindingStructured,
+				Selector:      sugarResultBindingSelect,
+				Order:         sugarResultBindingOrder,
+				Limit:         1,
+				MaxBytes:      sugarResultBindingBytes,
+				RenderAs:      sugarResultBindingRender,
+				MissingPolicy: sugarResultBindingMissing,
+			}},
+		},
+	})
+	d.Edges = append(d.Edges, domain.WorkflowEdge{From: run.ID, To: sugarEndNodeID})
 }
 
 func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiagnostic {
+	expandSingleNodeSugar(d)
 	var out []domain.WorkflowDiagnostic
 	add := func(code, path, message string) {
-		out = append(out, domain.WorkflowDiagnostic{Code: code, Path: path, Message: message})
+		out = append(out, domain.WorkflowDiagnostic{Code: code, Path: path, Message: message, Severity: domain.DiagnosticSeverityError})
 	}
+	warn := func(code, path, message string) {
+		out = append(out, domain.WorkflowDiagnostic{Code: code, Path: path, Message: message, Severity: domain.DiagnosticSeverityWarning})
+	}
+	celEnv, celErr := sharedCELEnv()
 	if d.SchemaVersion != domain.WorkflowSchemaVersionV1 {
 		add("schema_version", "schemaVersion", "must equal "+domain.WorkflowSchemaVersionV1)
 	}
@@ -131,7 +199,7 @@ func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiag
 		} else {
 			nodes[n.ID] = n
 		}
-		validateNode(n, path, lookup, add)
+		validateNode(n, path, lookup, add, warn)
 	}
 	if _, ok := nodes[d.EntryNode]; !ok {
 		add("entry_node", "entryNode", "must name an existing node")
@@ -148,6 +216,18 @@ func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiag
 		}
 		if edge.MaxTraversals < 0 || edge.MaxTraversals > MaxEdgeTraversals {
 			add("edge_budget", path+".maxTraversals", fmt.Sprintf("must be between 0 and %d", MaxEdgeTraversals))
+		}
+		// Compile the condition the engine actually evaluates at this edge (an
+		// empty condition is the unconditional fallback edge). Sharing the
+		// engine's CEL environment means a condition that compiles here is one
+		// the runtime can evaluate, and a syntax or type error is caught at
+		// registration instead of mid-execution.
+		if strings.TrimSpace(edge.Condition) != "" {
+			if celErr != nil {
+				add("edge_condition", path+".condition", "workflow expression environment unavailable: "+celErr.Error())
+			} else if err := celEnv.Check(edge.Condition); err != nil {
+				add("edge_condition", path+".condition", err.Error())
+			}
 		}
 		adj[edge.From] = append(adj[edge.From], edge)
 	}
@@ -218,7 +298,7 @@ func normalizeSchema(raw json.RawMessage, path string, add func(string, string, 
 	return normalized.Schema
 }
 
-func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add func(string, string, string)) {
+func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn func(string, string, string)) {
 	payloads := 0
 	for _, present := range []bool{n.Run != nil, n.Continue != nil, n.Child != nil, n.Wait != nil, n.Branch != nil, n.Join != nil, n.End != nil} {
 		if present {
@@ -245,10 +325,9 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add func(s
 		if lookup != nil && n.Run.RoleRef != "" && !lookup.RoleExists(n.Run.RoleRef) {
 			add("role_missing", path+".run.roleRef", "portable role does not exist")
 		}
-		if strings.TrimSpace(n.Run.PromptTemplate) == "" {
-			add("prompt", path+".run.promptTemplate", "prompt template is required")
-		}
+		validatePromptSource(n.Run.PromptTemplate, n.Run.PromptRef, n.Run.Bindings, path+".run", add, warn)
 		validateResultSpec(&n.Run.ResultSpec, path+".run.resultSpec", add)
+		validateAgentNodeLimits(n.Run.MaxTurns, n.Run.TimeoutSeconds, path+".run", add)
 		bindings = n.Run.Bindings
 	case domain.WorkflowNodeContinue:
 		if n.Continue == nil {
@@ -258,10 +337,9 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add func(s
 		if n.Continue.ConversationFromNode == "" {
 			add("continuation", path+".continue.conversationFromNode", "explicit prior run node is required")
 		}
-		if strings.TrimSpace(n.Continue.PromptTemplate) == "" {
-			add("prompt", path+".continue.promptTemplate", "prompt template is required")
-		}
+		validatePromptSource(n.Continue.PromptTemplate, n.Continue.PromptRef, n.Continue.Bindings, path+".continue", add, warn)
 		validateResultSpec(&n.Continue.ResultSpec, path+".continue.resultSpec", add)
+		validateAgentNodeLimits(n.Continue.MaxTurns, n.Continue.TimeoutSeconds, path+".continue", add)
 		bindings = n.Continue.Bindings
 	case domain.WorkflowNodeChild:
 		if n.Child == nil {
@@ -284,8 +362,8 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add func(s
 			n.Wait.PayloadSchema = normalizeSchema(n.Wait.PayloadSchema, path+".wait.payloadSchema", add)
 		}
 	case domain.WorkflowNodeBranch:
-		if n.Branch == nil || strings.TrimSpace(n.Branch.Expression) == "" {
-			add("branch", path+".branch.expression", "expression is required")
+		if n.Branch == nil {
+			add("branch", path+".branch", "branch payload is required")
 		}
 	case domain.WorkflowNodeJoin:
 		if n.Join == nil || (n.Join.Strategy != "all" && n.Join.Strategy != "any" && n.Join.Strategy != "quorum") {
@@ -294,8 +372,8 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add func(s
 			add("join", path+".join.quorum", "quorum strategy requires a positive quorum")
 		}
 	case domain.WorkflowNodeEnd:
-		if n.End == nil || (n.End.Status != "succeeded" && n.End.Status != "failed") {
-			add("end", path+".end.status", "status must be succeeded or failed")
+		if n.End == nil || !slices.Contains([]string{"succeeded", "blocked", "abstained", "budget_exhausted", "failed"}, n.End.Status) {
+			add("end", path+".end.status", "status must be succeeded, blocked, abstained, budget_exhausted, or failed")
 		} else {
 			bindings = n.End.Bindings
 		}
@@ -303,6 +381,15 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add func(s
 		add("node_kind", path+".kind", "unsupported node kind")
 	}
 	validateBindings(bindings, path, add)
+}
+
+func validateAgentNodeLimits(maxTurns, timeoutSeconds int, path string, add func(string, string, string)) {
+	if maxTurns < 0 || maxTurns > MaxTurns {
+		add("node_limit", path+".maxTurns", "must be zero or within the workflow safety ceiling")
+	}
+	if timeoutSeconds < 0 || timeoutSeconds > MaxWallTimeSeconds {
+		add("node_limit", path+".timeoutSeconds", "must be zero or within the workflow safety ceiling")
+	}
 }
 
 func validateResultSpec(spec **domain.ResultSpec, path string, add func(string, string, string)) {
@@ -326,7 +413,7 @@ func validateBindings(bindings []domain.WorkflowInputBinding, path string, add f
 		}
 		seen[b.Name] = true
 		switch b.Source {
-		case domain.WorkflowBindingInput, domain.WorkflowBindingAttempts, domain.WorkflowBindingRunResult, domain.WorkflowBindingStructured, domain.WorkflowBindingHandoff, domain.WorkflowBindingSignal, domain.WorkflowBindingCounter:
+		case domain.WorkflowBindingInput, domain.WorkflowBindingAttempts, domain.WorkflowBindingRunResult, domain.WorkflowBindingStructured, domain.WorkflowBindingHandoff, domain.WorkflowBindingSignal, domain.WorkflowBindingCounter, domain.WorkflowBindingChild:
 		default:
 			add("binding_source", p+".source", "unsupported journal source")
 		}
@@ -343,6 +430,124 @@ func validateBindings(bindings []domain.WorkflowInputBinding, path string, add f
 			add("binding_missing", p+".missingPolicy", "must be error, omit, or null")
 		}
 	}
+}
+
+// validatePromptSource enforces that a run/continue node authors exactly one of
+// an inline promptTemplate or a promptRef, and validates whichever is present.
+// A promptRef is a pre-reconcile authoring form: reconcile resolves it into an
+// embedded promptTemplate (plus pinned provenance) before this validator runs on
+// the resolved definition, so by the time a definition is digested it always
+// carries a concrete template. When a promptRef survives to validation (e.g. the
+// pure `workflow validate` lint path, which does not reach prompt-manager), it is
+// accepted structurally but its placeholders cannot be cross-checked until it
+// resolves.
+func validatePromptSource(promptTemplate string, ref *domain.WorkflowPromptRef, bindings []domain.WorkflowInputBinding, path string, add, warn func(string, string, string)) {
+	hasTemplate := strings.TrimSpace(promptTemplate) != ""
+	hasRef := ref != nil
+	switch {
+	case hasTemplate && hasRef:
+		add("prompt", path, "exactly one of promptTemplate or promptRef is allowed")
+	case !hasTemplate && !hasRef:
+		add("prompt", path, "exactly one of promptTemplate or promptRef is required")
+	case hasRef:
+		if strings.TrimSpace(ref.SkillID) == "" {
+			add("prompt_ref", path+".promptRef.skillId", "promptRef requires a skillId")
+		}
+	default:
+		validatePromptTemplate(promptTemplate, bindings, path+".promptTemplate", add, warn)
+	}
+}
+
+// validatePromptTemplate parses the prompt with the exact text/template dialect
+// the binding renderer uses (missingkey=error) and cross-checks every top-level
+// placeholder against the node's declared binding names. A placeholder with no
+// backing binding is an error (the render would fail at runtime); a binding the
+// prompt never references is a warning (harmless but likely a mistake). It
+// asserts against declared binding names, not runtime presence, so a binding
+// with an omit/null missing policy is still considered satisfied.
+func validatePromptTemplate(source string, bindings []domain.WorkflowInputBinding, path string, add, warn func(string, string, string)) {
+	tmpl, err := workflowexpr.ParsePrompt(source)
+	if err != nil {
+		add("prompt_template", path, err.Error())
+		return
+	}
+	refs := templateFieldRefs(tmpl.Tree)
+	declared := make(map[string]bool, len(bindings))
+	for _, b := range bindings {
+		declared[b.Name] = true
+	}
+	unbound := make([]string, 0, len(refs))
+	for ref := range refs {
+		if !declared[ref] {
+			unbound = append(unbound, ref)
+		}
+	}
+	sort.Strings(unbound)
+	for _, ref := range unbound {
+		add("prompt_unbound", path, fmt.Sprintf("prompt references {{.%s}} but no binding declares it", ref))
+	}
+	for _, b := range bindings {
+		if !refs[b.Name] {
+			warn("prompt_unused_binding", path, fmt.Sprintf("binding %q is declared but never referenced by the prompt", b.Name))
+		}
+	}
+}
+
+// templateFieldRefs collects the set of top-level field names a parsed prompt
+// references. A reference like {{.a.b}} contributes only its root field "a"
+// because bindings render into a flat map keyed by binding name.
+func templateFieldRefs(tree *parse.Tree) map[string]bool {
+	refs := map[string]bool{}
+	if tree == nil {
+		return refs
+	}
+	var walk func(parse.Node)
+	walkPipe := func(pipe *parse.PipeNode) {
+		if pipe != nil {
+			walk(pipe)
+		}
+	}
+	walk = func(n parse.Node) {
+		switch x := n.(type) {
+		case *parse.ListNode:
+			if x == nil {
+				return
+			}
+			for _, c := range x.Nodes {
+				walk(c)
+			}
+		case *parse.ActionNode:
+			walkPipe(x.Pipe)
+		case *parse.PipeNode:
+			for _, cmd := range x.Cmds {
+				walk(cmd)
+			}
+		case *parse.CommandNode:
+			for _, arg := range x.Args {
+				walk(arg)
+			}
+		case *parse.FieldNode:
+			if len(x.Ident) > 0 {
+				refs[x.Ident[0]] = true
+			}
+		case *parse.IfNode:
+			walkPipe(x.Pipe)
+			walk(x.List)
+			walk(x.ElseList)
+		case *parse.RangeNode:
+			walkPipe(x.Pipe)
+			walk(x.List)
+			walk(x.ElseList)
+		case *parse.WithNode:
+			walkPipe(x.Pipe)
+			walk(x.List)
+			walk(x.ElseList)
+		case *parse.TemplateNode:
+			walkPipe(x.Pipe)
+		}
+	}
+	walk(tree.Root)
+	return refs
 }
 
 func positiveBudgets(b domain.WorkflowBudgets) bool {

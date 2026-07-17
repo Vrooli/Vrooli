@@ -17,8 +17,8 @@ import (
 )
 
 // newTestOrchestrationSettings creates an OrchestrationSettingsStore backed by a
-// temp file with a custom RunTimeoutMinutes value. The short timeout lets tests
-// exercise the continuation timeout path without waiting 30 minutes.
+// temp file with a custom RunTimeoutMinutes value. Tests can then distinguish
+// the persisted fallback from a workflow node's per-turn override.
 func newTestOrchestrationSettings(t *testing.T, runTimeoutMinutes int) *agentconfig.OrchestrationSettingsStore {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "orchestration-settings.json")
@@ -53,6 +53,8 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 
 	var hadDeadline bool
 	var deadlineDuration time.Duration
+	var resolvedMaxTurns int
+	var resolvedTimeout time.Duration
 	continueDone := make(chan struct{})
 	mockRunner.ContinueFunc = func(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
 		defer close(continueDone)
@@ -60,6 +62,10 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 		if deadline, ok := ctx.Deadline(); ok {
 			hadDeadline = true
 			deadlineDuration = time.Until(deadline)
+		}
+		if req.ResolvedConfig != nil {
+			resolvedMaxTurns = req.ResolvedConfig.MaxTurns
+			resolvedTimeout = req.ResolvedConfig.Timeout
 		}
 		// Return immediately — no need to wait for the actual timeout.
 		// The executor-level timeout tests already cover the timeout path.
@@ -75,8 +81,8 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 		t.Fatalf("register runner: %v", err)
 	}
 
-	// Configure with RunTimeoutMinutes=1 (minimum). We only verify the
-	// deadline exists and has the right magnitude — we don't wait for it.
+	// Configure the persisted fallback to one minute, then verify that the
+	// workflow node's two-second override wins for this continuation turn.
 	settingsStore := newTestOrchestrationSettings(t, 1)
 
 	svc := orchestration.New(
@@ -131,9 +137,13 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 		t.Fatalf("create run: %v", err)
 	}
 
+	nodeTimeout := 2 * time.Second
+	nodeMaxTurns := 3
 	_, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
-		RunID:   runID,
-		Message: "please continue",
+		RunID:    runID,
+		Message:  "please continue",
+		MaxTurns: &nodeMaxTurns,
+		Timeout:  &nodeTimeout,
 	})
 	if err != nil {
 		t.Fatalf("ContinueRun: %v", err)
@@ -149,9 +159,11 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 	if !hadDeadline {
 		t.Error("expected continuation context to have a deadline from per-turn timeout")
 	}
-	// The deadline should be approximately 1 minute from now (within reason)
-	if deadlineDuration < 30*time.Second || deadlineDuration > 90*time.Second {
-		t.Errorf("expected deadline ~1 minute in the future, got %v", deadlineDuration)
+	if deadlineDuration < time.Second || deadlineDuration > 3*time.Second {
+		t.Errorf("expected workflow node deadline ~2 seconds in the future, got %v", deadlineDuration)
+	}
+	if resolvedMaxTurns != nodeMaxTurns || resolvedTimeout != nodeTimeout {
+		t.Errorf("continuation resolved limits=(%d,%s), want (%d,%s)", resolvedMaxTurns, resolvedTimeout, nodeMaxTurns, nodeTimeout)
 	}
 }
 

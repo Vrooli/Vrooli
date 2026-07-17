@@ -59,10 +59,6 @@ func (a *App) cmdRun(args []string) error {
 		return a.runApplyInvestigation(args[1:])
 	case "sandbox-sync":
 		return a.runSandboxSync(args[1:])
-	case "extract-recommendations":
-		return a.runExtractRecommendations(args[1:])
-	case "regenerate-recommendations":
-		return a.runRegenerateRecommendations(args[1:])
 	case "approve":
 		return a.runApprove(args[1:])
 	case "reject":
@@ -99,8 +95,6 @@ Subcommands:
   investigate                 Create an investigation run from existing runs
   apply-investigation <id>    Apply investigation recommendations
   sandbox-sync <id>           Sync run state from sandbox
-  extract-recommendations <id>     Extract recommendations from investigation run
-  regenerate-recommendations <id>  Regenerate recommendations for investigation run
   approve <id>                Approve run changes
   reject <id>                 Reject run changes
   diff <id>                   Show sandbox diff
@@ -126,7 +120,6 @@ Examples:
   agent-manager run recover abc123
   agent-manager run investigate --run-ids id1,id2 --depth standard
   agent-manager run apply-investigation abc123
-  agent-manager run extract-recommendations abc123
   agent-manager run events xyz789 --after-sequence 42 --limit 100
   agent-manager run events xyz789 --follow`)
 	return nil
@@ -1447,87 +1440,5 @@ func (a *App) runSandboxSync(args []string) error {
 	}
 
 	fmt.Printf("Synced run: %s\n", id)
-	return nil
-}
-
-// =============================================================================
-// Run Extract Recommendations
-// =============================================================================
-
-func (a *App) runExtractRecommendations(args []string) error {
-	fs := flag.NewFlagSet("run extract-recommendations", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-
-	// Parse with positional ID first
-	var id string
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		id = args[0]
-		args = args[1:]
-	}
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if id == "" {
-		return fmt.Errorf("usage: agent-manager run extract-recommendations <id>")
-	}
-
-	body, err := a.services.Runs.ExtractRecommendations(id)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	// Pretty print the JSON result
-	var prettyJSON interface{}
-	if err := json.Unmarshal(body, &prettyJSON); err == nil {
-		formatted, _ := json.MarshalIndent(prettyJSON, "", "  ")
-		fmt.Println(string(formatted))
-	} else {
-		cliutil.PrintJSON(body)
-	}
-
-	return nil
-}
-
-// =============================================================================
-// Run Regenerate Recommendations
-// =============================================================================
-
-func (a *App) runRegenerateRecommendations(args []string) error {
-	fs := flag.NewFlagSet("run regenerate-recommendations", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-
-	// Parse with positional ID first
-	var id string
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		id = args[0]
-		args = args[1:]
-	}
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if id == "" {
-		return fmt.Errorf("usage: agent-manager run regenerate-recommendations <id>")
-	}
-
-	body, err := a.services.Runs.RegenerateRecommendations(id)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	fmt.Printf("Regenerating recommendations for run: %s\n", id)
 	return nil
 }

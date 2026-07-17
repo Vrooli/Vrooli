@@ -131,12 +131,12 @@
       "steps": [
         {
           "name": "build-api",
-          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o development-toolchain-validator-api .",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o development-toolchain-validator-api .",
           "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -144,7 +144,7 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
         }
       ]
@@ -154,7 +154,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api \u0026\u0026 ./development-toolchain-validator-api",
+          "run": "cd api && ./development-toolchain-validator-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -163,7 +163,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js",
+          "run": "cd ui && node server.js",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {
@@ -218,11 +218,11 @@
         "startup_policy": "must_start",
         "description": "Spawns sandboxed skill runs; provides run summary + diff reference for skill validation.",
         "config": {
-          "profiles": {
+          "declarations": {
             "reconcile": true,
-            "mode": "update_if_unmodified",
+            "profileMode": "update_if_unmodified",
             "sources": [
-              ".vrooli/agent-profiles/default.json"
+              ".vrooli/agent-manager/default.json"
             ]
           }
         }

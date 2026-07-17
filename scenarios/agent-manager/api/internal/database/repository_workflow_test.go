@@ -133,6 +133,85 @@ func TestWorkflowExecutionRepositoryCASAndJournalSurviveReload(t *testing.T) {
 	}
 }
 
+func TestWorkflowExecutionRepositoryExecutionIDForRun(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	catalog := &workflowRepository{db: db, log: logrus.New()}
+	revision := workflowRevision("owner/flow", "sha256:reverse", "1.0.0")
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatal(err)
+	}
+	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
+	now := time.Now().UTC()
+	execution := &domain.WorkflowExecution{ID: uuid.New(), Owner: "owner", WorkflowKey: "owner/flow", DefinitionDigest: revision.Digest, Status: domain.WorkflowExecutionRunning, CurrentNodeID: "start", Input: json.RawMessage(`{}`), EdgeTraversals: map[string]int{}, Version: 1, IdempotencyKey: "exec-reverse", CreatedAt: now, UpdatedAt: now}
+	initial := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: json.RawMessage(`{}`), CreatedAt: now}
+	if err := repo.Create(ctx, execution, initial); err != nil {
+		t.Fatal(err)
+	}
+	runID := uuid.New()
+	attempt := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: execution.ID, NodeID: "start", Ordinal: 1, Strategy: domain.WorkflowAttemptFreshRun, Status: domain.WorkflowAttemptDispatched, IdempotencyKey: "attempt-reverse", InputSnapshot: json.RawMessage(`{}`), RunID: &runID, Version: 1, CreatedAt: now, UpdatedAt: now}
+	execution.Version = 2
+	execution.UpdatedAt = now.Add(time.Second)
+	entry := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 2, Kind: domain.WorkflowJournalAttempt, NodeID: "start", AttemptID: &attempt.ID, Payload: json.RawMessage(`{"strategy":"fresh_run"}`), CreatedAt: execution.UpdatedAt}
+	if ok, err := repo.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: 1, Execution: execution, Attempt: attempt, Journal: []*domain.WorkflowJournalEntry{entry}}); err != nil || !ok {
+		t.Fatalf("commit ok=%t err=%v", ok, err)
+	}
+
+	got, err := repo.ExecutionIDForRun(ctx, runID)
+	if err != nil || got != execution.ID {
+		t.Fatalf("ExecutionIDForRun(dispatched run) = %v err=%v, want %v", got, err, execution.ID)
+	}
+
+	// A run that belongs to no workflow attempt resolves to uuid.Nil, nil — the
+	// common non-workflow run the completion nudge must ignore.
+	orphan, err := repo.ExecutionIDForRun(ctx, uuid.New())
+	if err != nil || orphan != uuid.Nil {
+		t.Fatalf("ExecutionIDForRun(non-workflow run) = %v err=%v, want Nil,nil", orphan, err)
+	}
+}
+
+func TestWorkflowExecutionRepositoryRecoveryUsesCurrentCleanupGeneration(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	catalog := &workflowRepository{db: db, log: logrus.New()}
+	revision := workflowRevision("owner/flow", "sha256:cleanup-generation", "1.0.0")
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatal(err)
+	}
+	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
+	now := time.Now().UTC()
+	execution := &domain.WorkflowExecution{
+		ID: uuid.New(), Owner: "owner", WorkflowKey: "owner/flow", DefinitionDigest: revision.Digest,
+		Status: domain.WorkflowExecutionFailed, CurrentNodeID: "start", Input: json.RawMessage(`{}`),
+		BudgetUsage: domain.WorkflowBudgetUsage{Retries: 2}, EdgeTraversals: map[string]int{},
+		Version: 1, IdempotencyKey: "cleanup-generation", CreatedAt: now, UpdatedAt: now, EndedAt: &now,
+	}
+	initial := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: json.RawMessage(`{}`), CreatedAt: now}
+	if err := repo.Create(ctx, execution, initial); err != nil {
+		t.Fatal(err)
+	}
+	recoverable, err := repo.ListRecoverable(ctx, 10)
+	if err != nil || len(recoverable) != 1 {
+		t.Fatalf("terminal execution without cleanup should be recoverable: %+v err=%v", recoverable, err)
+	}
+	execution.Version++
+	execution.UpdatedAt = now.Add(time.Second)
+	disposition := &domain.WorkflowJournalEntry{
+		ID: uuid.New(), ExecutionID: execution.ID, Sequence: 2, Kind: domain.WorkflowJournalCleanup,
+		Payload: json.RawMessage(`{"retry":2,"stoppedRuns":1}`), CreatedAt: execution.UpdatedAt,
+	}
+	ok, err := repo.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: 1, Execution: execution, Journal: []*domain.WorkflowJournalEntry{disposition}})
+	if err != nil || !ok {
+		t.Fatalf("cleanup commit ok=%t err=%v", ok, err)
+	}
+	recoverable, err = repo.ListRecoverable(ctx, 10)
+	if err != nil || len(recoverable) != 0 {
+		t.Fatalf("current cleanup generation remained recoverable: %+v err=%v", recoverable, err)
+	}
+}
+
 func workflowRevision(key, digest, version string) *domain.WorkflowRevision {
 	return &domain.WorkflowRevision{ID: uuid.New(), Owner: "owner", Key: key, SemanticVersion: version, Digest: digest, Definition: domain.WorkflowDefinition{SchemaVersion: domain.WorkflowSchemaVersionV1, Owner: "owner", Key: key, Version: version, InputSchema: json.RawMessage(`{}`), OutputSchema: json.RawMessage(`{}`)}, SourcePath: ".vrooli/agent-workflows/flow.json", SourceHash: digest, SourceUpdatedAt: time.Now().UTC(), CreatedAt: time.Now().UTC()}
 }

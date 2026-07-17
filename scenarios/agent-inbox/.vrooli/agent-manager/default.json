@@ -1,4 +1,5 @@
 {
+  "schemaVersion": "agent-profile/v1",
   "name": "agent-inbox-default",
   "profileKey": "agent-inbox/default",
   "description": "Portable default profile for Agent Inbox coding chats",
