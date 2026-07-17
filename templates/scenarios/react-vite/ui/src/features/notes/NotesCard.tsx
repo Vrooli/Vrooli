@@ -15,6 +15,7 @@ import { useTranslation } from "../../i18n";
 import { notesClient } from "../../api/notes";
 import { errorMessage } from "../../lib/errorMessage";
 import { AttachmentUpload } from "./AttachmentUpload";
+import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
 
 const NOTES_QUERY_KEY = ["notes"] as const;
 
@@ -90,56 +91,72 @@ export function NotesCard() {
       accessor: (note) => <AttachmentUpload noteId={note.id} />,
     },
   ];
+  const experienceState: ExperienceSurfaceState = notesQuery.isLoading
+    ? "loading"
+    : notesQuery.error
+    ? "error"
+    : notesQuery.data?.notes.length === 0
+    ? "empty"
+    : "ready";
+  const experienceStatus = notesQuery.isLoading
+    ? t(strings.notes.loading)
+    : notesQuery.error
+    ? errorMessage(notesQuery.error, t)
+    : undefined;
 
   return (
-    <Card
-      data-testid={selectors.notes.card}
-      aria-label={t(strings.notes.title)}
+    <ExperienceSurface
+      surfaceId="notes"
+      state={experienceState}
+      statusMessage={experienceStatus}
+      data-testid={selectors.notes.surface}
     >
-      <CardHeader className="flex-row items-center justify-between gap-3">
-        <CardTitle>{t(strings.notes.title)}</CardTitle>
-        <Button
-          data-testid={selectors.notes.createButton}
-          size="sm"
-          onClick={handleCreateNote}
-          disabled={createNoteMutation.isPending}
-        >
-          {t(strings.notes.create)}
-        </Button>
-      </CardHeader>
-      <CardContent>
-      {notesQuery.isLoading && (
-        <p data-testid={selectors.notes.loading} className="text-sm text-app-muted-foreground">
-          {t(strings.notes.loading)}
-        </p>
-      )}
-      {notesQuery.error && (
-        <p data-testid={selectors.notes.error} className="text-sm text-app-danger">
-          {errorMessage(notesQuery.error, t)}
-        </p>
-      )}
-      {notesQuery.data && notesQuery.data.notes.length === 0 && (
-        <div data-testid={selectors.notes.empty}>
-          <EmptyState title={t(strings.notes.empty)} />
-        </div>
-      )}
-      {notesQuery.data && notesQuery.data.notes.length > 0 && (
-        <DataTable
-          rows={notesQuery.data.notes}
-          columns={columns}
-          getRowKey={(note) => note.id}
-          caption={t(strings.notes.title)}
-          searchPlaceholder={t(strings.notes.table.search)}
-          emptyMessage={t(strings.notes.empty)}
-          tableTestId={selectors.notes.list}
-        />
-      )}
-      {createNoteMutation.error && (
-        <p data-testid={selectors.notes.error} className="mt-3 text-sm text-app-danger">
-          {errorMessage(createNoteMutation.error, t)}
-        </p>
-      )}
-      </CardContent>
-    </Card>
+      <Card data-testid={selectors.notes.card} aria-label={t(strings.notes.title)}>
+        <CardHeader className="flex-row items-center justify-between gap-3">
+          <CardTitle>{t(strings.notes.title)}</CardTitle>
+          <Button
+            data-testid={selectors.notes.createButton}
+            size="sm"
+            onClick={handleCreateNote}
+            disabled={createNoteMutation.isPending}
+          >
+            {t(strings.notes.create)}
+          </Button>
+        </CardHeader>
+        <CardContent>
+        {notesQuery.isLoading && (
+          <p data-testid={selectors.notes.loading} className="text-sm text-app-muted-foreground">
+            {t(strings.notes.loading)}
+          </p>
+        )}
+        {notesQuery.error && (
+          <p data-testid={selectors.notes.error} className="text-sm text-app-danger">
+            {errorMessage(notesQuery.error, t)}
+          </p>
+        )}
+        {notesQuery.data && notesQuery.data.notes.length === 0 && (
+          <div data-testid={selectors.notes.empty}>
+            <EmptyState title={t(strings.notes.empty)} />
+          </div>
+        )}
+        {notesQuery.data && notesQuery.data.notes.length > 0 && (
+          <DataTable
+            rows={notesQuery.data.notes}
+            columns={columns}
+            getRowKey={(note) => note.id}
+            caption={t(strings.notes.title)}
+            searchPlaceholder={t(strings.notes.table.search)}
+            emptyMessage={t(strings.notes.empty)}
+            tableTestId={selectors.notes.list}
+          />
+        )}
+        {createNoteMutation.error && (
+          <p data-testid={selectors.notes.error} className="mt-3 text-sm text-app-danger">
+            {errorMessage(createNoteMutation.error, t)}
+          </p>
+        )}
+        </CardContent>
+      </Card>
+    </ExperienceSurface>
   );
 }

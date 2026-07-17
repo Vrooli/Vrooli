@@ -215,6 +215,7 @@ type exampleFile struct {
 	Props       json.RawMessage `json:"props"`
 	Setup       json.RawMessage `json:"setup"`
 	Expect      json.RawMessage `json:"expect"`
+	Controls    json.RawMessage `json:"controls"`
 }
 
 func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[string]string, error) {
@@ -562,19 +563,25 @@ func (idx *Indexer) readVersionExamples(sourcePath, libraryID, version string) (
 			findings = append(findings, invalidExampleFinding(sourcePath, fmt.Sprintf("examples[%d].expect", i), "JSON array", string(ex.Expect), "expect must be a JSON array"))
 			continue
 		}
+		controls, ok := normalizeExampleJSON(ex.Controls, "{}")
+		if !ok {
+			findings = append(findings, invalidExampleFinding(sourcePath, fmt.Sprintf("examples[%d].controls", i), "JSON object", string(ex.Controls), "controls must be a JSON object"))
+			continue
+		}
 		displayName := strings.TrimSpace(ex.DisplayName)
 		if displayName == "" {
 			displayName = name
 		}
 		out = append(out, ComponentExample{
-			LibraryID:   libraryID,
-			Version:     version,
-			Name:        name,
-			DisplayName: displayName,
-			PropsJSON:   props,
-			SetupJSON:   setup,
-			ExpectJSON:  expect,
-			SourcePath:  sourcePath,
+			LibraryID:    libraryID,
+			Version:      version,
+			Name:         name,
+			DisplayName:  displayName,
+			PropsJSON:    props,
+			SetupJSON:    setup,
+			ExpectJSON:   expect,
+			ControlsJSON: controls,
+			SourcePath:   sourcePath,
 		})
 	}
 	return out, findings

@@ -185,17 +185,18 @@ func versionFilesToProto(files []components.ComponentVersionFile) []*componentsv
 
 func exampleToProto(ex components.ComponentExample) *componentsv1.ComponentExample {
 	return &componentsv1.ComponentExample{
-		Id:          ex.ID,
-		ComponentId: ex.ComponentID,
-		LibraryId:   ex.LibraryID,
-		Version:     ex.Version,
-		Name:        ex.Name,
-		DisplayName: ex.DisplayName,
-		PropsJson:   ex.PropsJSON,
-		SetupJson:   ex.SetupJSON,
-		ExpectJson:  ex.ExpectJSON,
-		SourcePath:  ex.SourcePath,
-		IndexedAt:   timestamppb.New(ex.IndexedAt.UTC()),
+		Id:           ex.ID,
+		ComponentId:  ex.ComponentID,
+		LibraryId:    ex.LibraryID,
+		Version:      ex.Version,
+		Name:         ex.Name,
+		DisplayName:  ex.DisplayName,
+		PropsJson:    ex.PropsJSON,
+		SetupJson:    ex.SetupJSON,
+		ExpectJson:   ex.ExpectJSON,
+		ControlsJson: ex.ControlsJSON,
+		SourcePath:   ex.SourcePath,
+		IndexedAt:    timestamppb.New(ex.IndexedAt.UTC()),
 	}
 }
 

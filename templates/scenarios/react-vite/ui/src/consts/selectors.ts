@@ -310,6 +310,7 @@ const literalSelectors = {
   },
   // EXAMPLE-DOMAIN:notes START
   notes: {
+    surface: "notes-surface",
     card: "notes-card",
     list: "notes-list",
     loading: "notes-loading",

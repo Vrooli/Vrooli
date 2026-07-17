@@ -21,3 +21,8 @@ attestations with expiry; aspirational claims are useful intent but never gate.
 The generated `notes` page is part of the removable example domain. Running
 `template-manager detemplate {{SCENARIO_ID}}` removes its page spec and registry
 entry with the rest of the notes example.
+
+The Notes example also demonstrates the generated semantic foundation: its
+`notes` region is bound to `data-experience-surface="notes"` and reports the
+canonical lifecycle vocabulary. Keep this boundary for every independently
+meaningful async region; passive UI primitives inherit their parent state.

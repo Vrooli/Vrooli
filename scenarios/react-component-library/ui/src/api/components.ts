@@ -62,6 +62,7 @@ export interface ComponentExample {
   propsJson: string;
   setupJson: string;
   expectJson: string;
+  controlsJson: string;
   sourcePath: string;
 }
 

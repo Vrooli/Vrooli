@@ -291,7 +291,7 @@ describe("ComponentEditor", () => {
     });
   });
 
-  it("renders example gallery iframes with named harness URLs", async () => {
+  it("renders the selected named state in the workbench canvas", async () => {
     const { componentsClient, listComponentExamples } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-gallery" }),
@@ -312,10 +312,9 @@ describe("ComponentEditor", () => {
     const frames = await screen.findAllByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
 
     expect(screen.getByTestId(selectors.components.editor.gallery)).toBeInTheDocument();
-    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(2);
-    expect(frames).toHaveLength(2);
+    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
+    expect(frames).toHaveLength(1);
     expect(frames[0]?.getAttribute("src")).toContain("example=primary");
-    expect(frames[1]?.getAttribute("src")).toContain("example=disabled");
 
     // Each gallery frame posts the resolved theme once it loads.
     if (frames[0]) fireEvent.load(frames[0]);
@@ -348,7 +347,7 @@ describe("ComponentEditor", () => {
     });
   });
 
-  it("sends a temporary props override only to the active named specimen", async () => {
+  it("sends a temporary props override to the visible selected state", async () => {
     const { componentsClient, listComponentExamples } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-props" }),
@@ -363,10 +362,8 @@ describe("ComponentEditor", () => {
     );
     const user = userEvent.setup();
     renderWithProviders(<ComponentEditor id="cmp-props" libraryId="lib:Props" onClose={() => {}} activePane="preview" />);
-    const frames = await screen.findAllByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
-    const firstPost = vi.spyOn(frames[0]!.contentWindow!, "postMessage");
-    const secondPost = vi.spyOn(frames[1]!.contentWindow!, "postMessage");
-    await user.click(screen.getAllByRole("button", { name: "Play" })[0]!);
+    const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+    const firstPost = vi.spyOn(frame.contentWindow!, "postMessage");
     const draft = await screen.findByTestId<HTMLTextAreaElement>(selectors.components.editor.propsDraft);
     fireEvent.change(draft, { target: { value: '{"title":"A deliberately much longer value"}' } });
     await waitFor(() => expect(draft).toHaveValue('{"title":"A deliberately much longer value"}'));
@@ -377,10 +374,9 @@ describe("ComponentEditor", () => {
       example: "primary",
       props: { title: "A deliberately much longer value" },
     }), "*");
-    expect(secondPost).not.toHaveBeenCalledWith(expect.objectContaining({ type: "rcl-preview-props-override" }), "*");
   });
 
-  it("moves a selected example into a single-specimen playground before exposing props", async () => {
+  it("keeps state, canvas, and controls together without a playground mode", async () => {
     const { componentsClient, listComponentExamples } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-playground" }),
@@ -393,11 +389,11 @@ describe("ComponentEditor", () => {
     }));
     const user = userEvent.setup();
     renderWithProviders(<ComponentEditor id="cmp-playground" libraryId="lib:Playground" onClose={() => {}} activePane="preview" />);
-    expect((await screen.findAllByTestId(selectors.components.editor.exampleCard))).toHaveLength(2);
-    expect(screen.queryByTestId(selectors.components.editor.propsPanel)).not.toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: "Play" })[1]!);
+    expect((await screen.findAllByTestId(selectors.components.editor.exampleCard))).toHaveLength(1);
+    expect(screen.getByTestId(selectors.components.editor.propsPanel)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Secondary" }));
     expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
-    expect(screen.getByText("Editing: Secondary")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.components.editor.exampleTitle)).toHaveTextContent("Secondary");
     expect(screen.getByTestId(selectors.components.editor.propsPanel)).toBeInTheDocument();
   });
 

@@ -7,6 +7,7 @@
         "children": { "$text": "Current" },
         "tone": "success"
       },
+      "controls": {"fields":[{"key":"tone","label":"Tone","kind":"select","options":["success","warning","info","danger"]}]},
       "expect": [
         { "kind": "text", "value": "Current" }
       ]
@@ -18,6 +19,7 @@
         "children": { "$text": "Behind" },
         "tone": "warning"
       },
+      "controls": {"fields":[{"key":"tone","label":"Tone","kind":"select","options":["success","warning","info","danger"]}]},
       "expect": [
         { "kind": "text", "value": "Behind" }
       ]
@@ -29,6 +31,7 @@
         "children": { "$text": "Requires manual review" },
         "tone": "info"
       },
+      "controls": {"fields":[{"key":"tone","label":"Tone","kind":"select","options":["success","warning","info","danger"]}]},
       "expect": [
         { "kind": "text", "value": "Requires manual review" }
       ]

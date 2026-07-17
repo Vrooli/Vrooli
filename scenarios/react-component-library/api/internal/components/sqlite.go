@@ -156,17 +156,18 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 		}
 		if _, err := s.db.ExecContext(ctx, `
 INSERT INTO component_examples
-  (id, component_id, library_id, version, name, display_name, props_json, setup_json, expect_json, source_path, indexed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  (id, component_id, library_id, version, name, display_name, props_json, setup_json, expect_json, controls_json, source_path, indexed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(component_id, version, name) DO UPDATE SET
   library_id = excluded.library_id,
   display_name = excluded.display_name,
   props_json = excluded.props_json,
   setup_json = excluded.setup_json,
   expect_json = excluded.expect_json,
+	  controls_json = excluded.controls_json,
   source_path = excluded.source_path,
   indexed_at = excluded.indexed_at
-`, ex.ID, ex.ComponentID, ex.LibraryID, ex.Version, ex.Name, ex.DisplayName, ex.PropsJSON, ex.SetupJSON, ex.ExpectJSON, ex.SourcePath, ex.IndexedAt.UTC().Format(timeFormat)); err != nil {
+`, ex.ID, ex.ComponentID, ex.LibraryID, ex.Version, ex.Name, ex.DisplayName, ex.PropsJSON, ex.SetupJSON, ex.ExpectJSON, ex.ControlsJSON, ex.SourcePath, ex.IndexedAt.UTC().Format(timeFormat)); err != nil {
 			return Component{}, fmt.Errorf("upsert component example %s@%s/%s: %w", c.LibraryID, ex.Version, ex.Name, err)
 		}
 	}
@@ -783,7 +784,7 @@ func (s *sqliteRepository) ListExamples(ctx context.Context, q ExampleQuery) ([]
 	}
 	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
-SELECT id, component_id, library_id, version, name, display_name, props_json, setup_json, expect_json, source_path, indexed_at
+SELECT id, component_id, library_id, version, name, display_name, props_json, setup_json, expect_json, controls_json, source_path, indexed_at
 FROM component_examples
 %s
 ORDER BY library_id ASC, version DESC, name ASC
@@ -877,7 +878,7 @@ func scanComponentVersion(s rowScanner) (ComponentVersion, error) {
 func scanComponentExample(s rowScanner) (ComponentExample, error) {
 	var ex ComponentExample
 	var indexedRaw string
-	if err := s.Scan(&ex.ID, &ex.ComponentID, &ex.LibraryID, &ex.Version, &ex.Name, &ex.DisplayName, &ex.PropsJSON, &ex.SetupJSON, &ex.ExpectJSON, &ex.SourcePath, &indexedRaw); err != nil {
+	if err := s.Scan(&ex.ID, &ex.ComponentID, &ex.LibraryID, &ex.Version, &ex.Name, &ex.DisplayName, &ex.PropsJSON, &ex.SetupJSON, &ex.ExpectJSON, &ex.ControlsJSON, &ex.SourcePath, &indexedRaw); err != nil {
 		return ComponentExample{}, err
 	}
 	indexed, err := time.Parse(timeFormat, indexedRaw)

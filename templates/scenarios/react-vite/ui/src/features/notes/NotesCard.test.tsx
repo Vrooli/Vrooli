@@ -40,6 +40,7 @@ describe("NotesCard", () => {
     await waitFor(() => {
       expect(screen.getByTestId(selectors.notes.empty)).toBeInTheDocument();
     });
+    expect(screen.getByTestId(selectors.notes.surface)).toHaveAttribute("data-experience-state", "empty");
     expect(screen.queryByTestId(selectors.notes.list)).not.toBeInTheDocument();
   });
 
@@ -59,10 +60,25 @@ describe("NotesCard", () => {
       expect(screen.getByTestId(selectors.notes.list)).toBeInTheDocument();
     });
     const list = screen.getByTestId(selectors.notes.list);
+    expect(screen.getByTestId(selectors.notes.surface)).toHaveAttribute("data-experience-state", "ready");
     expect(list.textContent).toContain("First persisted note");
     expect(list.textContent).toContain("Second persisted note");
     expect(screen.getAllByTestId(selectors.notes.createdAt)).toHaveLength(2);
     expect(screen.getAllByTestId(selectors.notes.attachmentCount)[0]?.textContent).toContain("1");
+  });
+
+  it("reports loading and request failure through the semantic surface", async () => {
+    const { notesClient } = await import("../../api/notes");
+    let reject!: (reason?: unknown) => void;
+    vi.mocked(notesClient.listNotes).mockReturnValueOnce(new Promise((_, fail) => { reject = fail; }));
+
+    renderWithProviders(<NotesCard />);
+    expect(await screen.findByTestId(selectors.notes.surface)).toHaveAttribute("data-experience-state", "loading");
+
+    reject(new Error("notes unavailable"));
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.notes.surface)).toHaveAttribute("data-experience-state", "error");
+    });
   });
 
   it("invokes createNote when the create button is clicked", async () => {

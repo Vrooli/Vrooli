@@ -323,17 +323,18 @@ type ExampleQuery struct {
 }
 
 type ComponentExample struct {
-	ID          string
-	ComponentID string
-	LibraryID   string
-	Version     string
-	Name        string
-	DisplayName string
-	PropsJSON   string
-	SetupJSON   string
-	ExpectJSON  string
-	SourcePath  string
-	IndexedAt   time.Time
+	ID           string
+	ComponentID  string
+	LibraryID    string
+	Version      string
+	Name         string
+	DisplayName  string
+	PropsJSON    string
+	SetupJSON    string
+	ExpectJSON   string
+	ControlsJSON string
+	SourcePath   string
+	IndexedAt    time.Time
 }
 
 type InitializeComponentInput struct {

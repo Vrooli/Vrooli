@@ -212,9 +212,10 @@ without suppressing the rest of the gallery. A bounded comparison set (two
 specimens) changes the gallery to an intentional side-by-side grid; it is not
 a freeform canvas and does not persist layout state.
 
-The active specimen is the only target of inspector and **Try props** traffic.
-Try props sends a shallow, data-only JSON-object override over the harness
-message bridge and can reset to indexed props. It is deliberately not stored,
+The selected named state is the only target of inspector and control traffic.
+The workbench renders declared controls beside the selected canvas; raw JSON is
+an Advanced fallback. Both send a shallow, data-only JSON-object override over
+the harness message bridge and can reset to indexed props. It is deliberately not stored,
 does not modify source/index data, and never evaluates example `setup`; the
 data contract and sequence are owned by [`DATA.md`](DATA.md#preview-session-boundary)
 and [`FLOWS.md`](FLOWS.md#preview-workspace-experiment).

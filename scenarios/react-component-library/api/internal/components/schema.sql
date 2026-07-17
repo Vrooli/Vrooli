@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS component_examples (
   props_json    TEXT NOT NULL DEFAULT '{}',
   setup_json    TEXT NOT NULL DEFAULT '{}',
   expect_json   TEXT NOT NULL DEFAULT '[]',
+  controls_json TEXT NOT NULL DEFAULT '{}',
   source_path   TEXT NOT NULL,
   indexed_at    TEXT NOT NULL,
   UNIQUE(component_id, version, name)

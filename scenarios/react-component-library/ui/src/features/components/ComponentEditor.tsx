@@ -201,7 +201,6 @@ export function ComponentEditor({
   const [specimenRetries, setSpecimenRetries] = useState<Record<string, number>>({});
   const [comparedSpecimens, setComparedSpecimens] = useState<ReadonlySet<SpecimenIdentity>>(() => new Set());
   const [activeSpecimen, setActiveSpecimen] = useState<SpecimenIdentity | null>(null);
-  const [previewMode, setPreviewMode] = useState<"gallery" | "playground">("gallery");
   const [mobileTool, setMobileTool] = useState<"props" | "inspector" | null>(null);
   const [specimenOverrides, setSpecimenOverrides] = useState<Record<string, Record<string, unknown>>>({});
   const [overrideStatus, setOverrideStatus] = useState<Record<string, "idle" | "applying" | "applied" | "error">>({});
@@ -275,11 +274,6 @@ export function ComponentEditor({
       return next;
     });
     activateSpecimen(identity);
-  }, [activateSpecimen]);
-  const openPlayground = useCallback((identity: SpecimenIdentity) => {
-    activateSpecimen(identity);
-    setComparedSpecimens(new Set());
-    setPreviewMode("playground");
   }, [activateSpecimen]);
 
   useEffect(() => {
@@ -485,12 +479,12 @@ export function ComponentEditor({
   };
 
   const specimens: Array<ComponentExample | undefined> = examples.length > 0 ? examples : [undefined];
-  const comparisonActive = previewMode === "gallery" && comparedSpecimens.size === 2;
-  const visibleSpecimens = previewMode === "playground"
-    ? specimens.filter((example) => specimenIdentity(example) === activeSpecimen)
-    : comparisonActive
+  const comparisonActive = comparedSpecimens.size === 2;
+  const visibleSpecimens = comparisonActive
     ? specimens.filter((example) => comparedSpecimens.has(specimenIdentity(example)))
-    : specimens;
+    : activeSpecimen
+    ? specimens.filter((example) => specimenIdentity(example) === activeSpecimen)
+    : [specimens[0]];
   const activeExample = specimens.find((example) => specimenIdentity(example) === activeSpecimen);
   const activeSpecimenLabel = activeExample?.displayName || activeExample?.name;
   const paneLabels: Record<WorkspacePane, string> = {
@@ -652,10 +646,9 @@ export function ComponentEditor({
                     >
                       {splitView && paneHeader("preview", index, paneLabels.preview, <Eye aria-hidden className="h-3.5 w-3.5" />)}
                       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
-                        <div className="inline-flex overflow-hidden rounded-control border border-app-border" role="tablist" aria-label={t("components.editor.previewWorkspace", { defaultValue: "Preview workspace" })}>
-                          <Button type="button" variant={previewMode === "gallery" ? "primary" : "secondary"} className="h-7 rounded-none px-2 text-xs" aria-selected={previewMode === "gallery"} onClick={() => setPreviewMode("gallery")}>{t("components.editor.galleryMode", { defaultValue: "Examples" })}</Button>
-                          <Button type="button" variant={previewMode === "playground" ? "primary" : "secondary"} className="h-7 rounded-none border-l border-app-border px-2 text-xs" aria-selected={previewMode === "playground"} disabled={!activeSpecimen} onClick={() => setPreviewMode("playground")}>{t("components.editor.playgroundMode", { defaultValue: "Playground" })}</Button>
-                        </div>
+                        <nav className="flex max-w-full gap-1 overflow-x-auto" aria-label="Component states">
+                          {specimens.map((example) => { const identity = specimenIdentity(example); const selected = identity === activeSpecimen; return <Button key={identity} type="button" variant={selected ? "primary" : "secondary"} className="h-8 shrink-0 px-2 text-xs" aria-current={selected ? "true" : undefined} onClick={() => { setComparedSpecimens(new Set()); activateSpecimen(identity); }}>{example?.displayName || example?.name || "Default"}</Button>; })}
+                        </nav>
                         <ThemeSwitcher postToFrames={postToPreviewFrames} previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} filters={filters} />
                         <EmulatorToolbar emulator={emulator} />
                       </div>
@@ -674,7 +667,6 @@ export function ComponentEditor({
                                 </Button>
                               </div>
                             )}
-                            {previewMode === "playground" && activeSpecimenLabel && <div className="mb-2 flex items-center justify-between gap-2 rounded-control border border-app-primary/30 bg-app-primary/10 px-3 py-2"><p className="text-xs text-app-foreground">{t("components.editor.editingSpecimen", { defaultValue: "Editing: {{name}}", name: activeSpecimenLabel })}</p><Button type="button" variant="secondary" className="h-7 px-2 text-xs" onClick={() => setPreviewMode("gallery")}>{t("components.editor.backToExamples", { defaultValue: "Examples" })}</Button></div>}
                             <p data-testid={selectors.components.editor.galleryStatus} aria-live="polite" className="mb-2 text-xs text-app-muted-foreground">
                               {previewMessage || t(strings.components.editor.specimenStatus, { ready: readyExamples.size, total: specimens.length })}
                             </p>
@@ -684,16 +676,11 @@ export function ComponentEditor({
                                 const title = example?.displayName || example?.name || t(strings.components.editor.previewHeading);
                                 const error = specimenErrors[identity];
                                 const isActive = activeSpecimen === identity;
-                                const compared = comparedSpecimens.has(identity);
                                 return (
                                   <section key={identity} data-testid={selectors.components.editor.exampleCard} data-specimen={identity} className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}>
                                     <header className="flex items-center justify-between gap-2 border-b border-app-border px-3 py-2">
                                       <h3 data-testid={selectors.components.editor.exampleTitle} className="min-w-0 truncate text-sm font-semibold text-app-foreground">{title}</h3>
-                                      <div className="flex shrink-0 gap-1">
-                                        {previewMode === "gallery" && <Button data-testid={selectors.components.editor.exampleFocus} type="button" variant={isActive ? "primary" : "secondary"} className="h-7 px-2 text-xs" onClick={() => activateSpecimen(identity)}>{t("components.editor.selectSpecimen", { defaultValue: "Select" })}</Button>}
-                                        {previewMode === "gallery" && <Button type="button" variant="primary" className="h-7 px-2 text-xs" onClick={() => openPlayground(identity)}>{t("components.editor.openPlayground", { defaultValue: "Play" })}</Button>}
-                                        {previewMode === "gallery" && examples.length > 1 && <Button data-testid={selectors.components.editor.exampleCompare} type="button" variant={compared ? "primary" : "secondary"} aria-pressed={compared} disabled={!compared && comparedSpecimens.size >= 2} className="h-7 px-2 text-xs" onClick={() => toggleComparison(identity)}>{t(strings.components.editor.compareSpecimen)}</Button>}
-                                      </div>
+                                      {examples.length > 1 && <Button data-testid={selectors.components.editor.exampleCompare} type="button" variant={comparedSpecimens.has(identity) ? "primary" : "secondary"} aria-pressed={comparedSpecimens.has(identity)} disabled={!comparedSpecimens.has(identity) && comparedSpecimens.size >= 2} className="h-7 px-2 text-xs" onClick={() => toggleComparison(identity)}>{t(strings.components.editor.compareSpecimen)}</Button>}
                                     </header>
                                     {error ? (
                                       <div data-testid={selectors.components.editor.specimenError} className="flex min-h-[18rem] flex-col items-center justify-center gap-3 bg-app-danger/5 p-4 text-center">
@@ -726,10 +713,9 @@ export function ComponentEditor({
                           </div>
                         </EmulatorViewport>
                       </div>
-                      {previewMode === "playground" && activeSpecimen && <>
-                        <div className="hidden lg:block"><PropsExperimentPanel key={activeSpecimen} example={activeExample} status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")} message={overrideMessages[activeSpecimen]} onApply={applyPropsOverride} onReset={resetPropsOverride} /></div>
+                      {activeSpecimen && <>
+                        <div className="hidden lg:block border-t border-app-border bg-app-surface p-3"><div className="grid gap-3 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(20rem,1.2fr)]"><PropsExperimentPanel key={activeSpecimen} example={activeExample} status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")} message={overrideMessages[activeSpecimen]} onApply={applyPropsOverride} onReset={resetPropsOverride} /><InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} /></div></div>
                         <div className="flex shrink-0 gap-2 border-t border-app-border bg-app-surface p-2 lg:hidden"><Button type="button" className="h-9 flex-1 text-xs" onClick={() => setMobileTool("props")}>{t("components.editor.editProps", { defaultValue: "Edit props" })}</Button><Button type="button" variant="secondary" className="h-9 flex-1 text-xs" onClick={() => setMobileTool("inspector")}>{t("components.inspector.title", { defaultValue: "Inspect" })}</Button><Button type="button" variant="secondary" className="h-9 px-3 text-xs" onClick={resetPropsOverride}>{t("components.editor.reset", { defaultValue: "Reset" })}</Button></div>
-                        <div className="hidden lg:block"><InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} /></div>
                       </>}
                       <Dialog open={mobileTool !== null} onClose={() => setMobileTool(null)} title={mobileTool === "props" ? t(strings.components.editor.tryProps) : t("components.inspector.title", { defaultValue: "Inspect" })} closeLabel={t("common.close", { defaultValue: "Close" })} className="lg:hidden">
                         {mobileTool === "props" && activeSpecimen ? <PropsExperimentPanel key={activeSpecimen} example={activeExample} status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")} message={overrideMessages[activeSpecimen]} onApply={applyPropsOverride} onReset={resetPropsOverride} /> : null}

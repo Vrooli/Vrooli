@@ -14,7 +14,7 @@ This document is the canonical workflow map for ordered behavior.
 | Reapply component | adoptions | CLI/API `adoptions reapply` | Adopted file is overwritten from a selected version; local edits require confirmation | Service and handler tests |
 | Diff versions/adoptions | versions | CLI/API/UI diff request | Server returns aligned line diff rows | Versions service and handler tests |
 | Graduate scenario component | components / experience | Scenario UI component becomes reusable | TSX, examples, and experience-component claims land in the catalog as one versioned contract | Catalog conformance, preview e2e, experience phase |
-| Preview workspace experiment | preview | User focuses a rendered specimen and applies temporary JSON props | Exactly that iframe rerenders from an in-memory shallow merge; Reset/reload restores the indexed example | Component editor UI tests, preview harness tests, preview E2E, BAS workflow |
+| Preview workbench experiment | preview | User selects a named state and varies declared controls | Exactly that iframe rerenders from an in-memory shallow merge; Reset/reload restores the indexed example | Component editor UI tests, preview harness tests, preview E2E, BAS workflow |
 
 ## Apply Component
 
@@ -99,15 +99,14 @@ component machine claims against the BAS accessibility tree.
 
 ## Preview Workspace Experiment
 
-1. The editor queries indexed examples and renders each named example in its
-   own sandboxed harness iframe.
-2. The user browses canonical specimens in the gallery, then opens exactly one
-   named specimen in the Playground. Desktop docks controls beside that canvas;
-   mobile opens Props and Inspect as focused sheets, never below the canvas.
-   Comparison remains a deliberate two-specimen gallery state; this changes host UI state only.
-3. Try props in the Playground presents the indexed `props` as JSON. Apply accepts only a JSON
-   object, posts it to the matching registered iframe, and the harness
-   shallow-merges it over indexed props using the existing `$` resolver.
+1. The editor queries indexed examples as named states and renders the selected
+   state in its own sandboxed harness iframe.
+2. The default workbench keeps state navigation, canvas, declared controls, status,
+   and Reset together. Narrow screens use focused controls and inspector sheets.
+   Comparison is an intentional two-state canvas mode; it changes host UI state only.
+3. Declared data-only controls edit the indexed `props` object. Advanced JSON is
+   available as a fallback. Apply accepts only a JSON object, posts it to the
+   matching registered iframe, and the harness shallow-merges it using the `$` resolver.
 4. A malformed or non-object value remains in the host with an inline error;
    it never reaches the iframe. A mismatched identity or message origin is
    ignored.
