@@ -356,7 +356,7 @@ function StepIndicator({ current }: { current: number }) {
  * moving between steps. Once an op is started the wizard is replaced by the live
  * progress view (GetOnboarding polled until terminal), so a reload re-attaches.
  */
-export function OnboardNodeForm() {
+export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | null } = {}) {
   const { t } = useTranslation();
   const start = useStartOnboardingMutation();
 
@@ -390,6 +390,21 @@ export function OnboardNodeForm() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [opId, setOpId] = useState<string | null>(null);
+
+  // A saved failed attempt pre-fills only durable, non-secret target identity.
+  // The SSH password is deliberately absent from OnboardingOp and must be
+  // entered again for a retry.
+  useEffect(() => {
+    if (!retryTarget) return;
+    setHost(retryTarget.host);
+    setUser(retryTarget.user);
+    setPort(retryTarget.port > 0 ? String(retryTarget.port) : "");
+    setNodeName(retryTarget.nodeName);
+    setRevision(retryTarget.targetRevision || DEFAULT_REVISION);
+    setPassword("");
+    setStep(0);
+    setOpId(null);
+  }, [retryTarget]);
 
   const onboarding = useOnboardingQuery(opId);
   const op = onboarding.data?.op ?? null;

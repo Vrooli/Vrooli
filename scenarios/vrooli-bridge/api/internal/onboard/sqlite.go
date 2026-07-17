@@ -70,6 +70,9 @@ FROM onboarding_step_events
 WHERE op_id = ?
 ORDER BY sequence ASC
 `
+
+	deleteEventsSQL   = `DELETE FROM onboarding_step_events WHERE op_id = ?`
+	deleteFailedOpSQL = `DELETE FROM onboarding_ops WHERE id = ? AND state = ?`
 )
 
 func (s *sqliteRepository) Create(ctx context.Context, op Op) (Op, error) {
@@ -200,6 +203,27 @@ func (s *sqliteRepository) ListEvents(ctx context.Context, opID string) ([]StepE
 		return nil, fmt.Errorf("iterate step events: %w", err)
 	}
 	return events, nil
+}
+
+func (s *sqliteRepository) DeleteFailed(ctx context.Context, id string) error {
+	op, err := s.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if op.State != StateFailed {
+		return ErrInvalid{Field: "id", Reason: "only failed onboarding attempts can be removed"}
+	}
+	if _, err := s.db.ExecContext(ctx, deleteEventsSQL, id); err != nil {
+		return fmt.Errorf("delete onboarding events %q: %w", id, err)
+	}
+	result, err := s.db.ExecContext(ctx, deleteFailedOpSQL, id, int(StateFailed))
+	if err != nil {
+		return fmt.Errorf("delete failed onboarding op %q: %w", id, err)
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		return ErrOpNotFound{ID: id}
+	}
+	return nil
 }
 
 // rowScanner unifies *sql.Row and *sql.Rows under their common Scan surface.

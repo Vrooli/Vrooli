@@ -56,9 +56,12 @@ maintains presence. Operate nodes **through** the control plane:
 - Revoke a node: `vrooli-bridge nodes revoke <node>` — atomically kills its
   job and provisioning rights.
 
-All owner-gated verbs require an owner token. Set one once with
-`vrooli-bridge configure token "<owner-token>"` (or export
-`VROOLI_BRIDGE_API_TOKEN`) — the cli-core framework token source. In the
+All owner-gated verbs require an owner token. Sign the CLI in once with
+`vrooli-bridge auth login --email "you@example.com"`; it prompts for the
+password without echoing it and saves the returned owner session in the
+per-user CLI config. For non-interactive use, pipe the password to
+`vrooli-bridge auth login --email "you@example.com" --password-stdin`.
+`VROOLI_BRIDGE_API_TOKEN` remains available for managed environments. In the
 **UI**, the console shows a sign-in screen instead: sign in (or create the
 owner account) and it proxies same-origin to scenario-authenticator via the
 bridge's `IdentityService`, keeping the JWT in browser storage until you sign
@@ -80,7 +83,7 @@ code server-side (injected over SSH stdin, never argv/logs) → run the
 script → confirm the node is ONLINE. The op is server-owned: it survives
 your client disconnecting and is re-attachable by id.
 
-CLI path (owner-authenticated; `configure token` first):
+CLI path (owner-authenticated; `auth login` first):
 
 ```bash
 # `start` NEVER prompts. Supply the SSH password one of three ways (or the
@@ -117,13 +120,14 @@ is the **OnboardNodeForm** on the fleet dashboard (same durable op, live step
 states, failure-taxonomy rendering), including the same password,
 control-plane-URL, setup-profile, and source-mode inputs.
 
-**Elevated, profile-driven setup.** The node-side `vrooli setup` is the sole
-machine-provisioning authority. When passwordless sudo is available on the node
-(provision it at onboarding via `--provision-sudo`, the default), setup runs
-**under sudo** so no requirement is skipped for privilege. Without it, setup runs
-unprivileged and the **skipped root-required requirements are named loudly** in
-the `setup` step detail — a warning in the op step events / `onboard watch` /
-UI, not a failure. The setup profile is operator-chosen and reaches the node's
+**Profile-driven setup.** The node-side `vrooli setup` is the sole
+machine-provisioning authority. Setup runs as the target user. On Linux Bridge
+may invoke the whole setup under verified passwordless sudo; on macOS it remains
+unprivileged so Homebrew can run, and only a genuinely privileged operation may
+use its explicit policy. Without available privilege, **blocked root-required
+requirements are named loudly** in the `setup` step detail — a warning in the op
+step events / `onboard watch` / UI, not a platform-gate failure. The setup
+profile is operator-chosen and reaches the node's
 `make setup SETUP_ARGS='…'`:
 
 | Flag (CLI + UI advanced options) | Maps to | Values |
@@ -175,17 +179,15 @@ up; a re-run converges).
 
 Onboarding a headless Mac mini uses the same `onboard start` flow, but
 macOS imposes manual pre-steps the control plane cannot perform remotely,
-and a **darwin-gate dependency** (below) that must be satisfied first.
+and an **evidence-tier dependency** (below) that must be satisfied first.
 
-**Darwin-gate dependency.** Bringing a node ONLINE runs `vrooli setup` on
-it. On macOS this depends on the macOS-compatibility workstream that
-flips the darwin gate and supplies the pnpm host tool + launchd supervisor
-install (tracked as project `macos-compatibility-phase-a`). Until a given
-Mac mini's Vrooli install can complete `vrooli setup`, onboarding will
-fail at the `setup` step with exit code `3` (unsupported platform). If
-setup is not yet viable on the target mini, run onboarding with
-`--skip-setup` to pair + come ONLINE for presence, and complete setup out
-of band before dispatching jobs.
+**Evidence-tier dependency.** The Darwin setup gate is open and Bridge now
+uses setup's structured terminal result: only an explicit
+`unsupported_platform` category maps to onboarding exit `3`. A missing tool,
+privilege policy, network, or checksum failure remains a normal setup failure
+(exit `1`) with its remediation preserved. macOS remains build-verified until
+the real-hardware ladder is recorded; do not use `--skip-setup` as a substitute
+for qualification. See the canonical [platform support matrix](../../../../docs/reference/platform-support.md).
 
 **Manual pre-steps on the Mac mini (operator, one-time):**
 
@@ -212,7 +214,7 @@ ONLINE.
 **Then onboard from the control-plane host:**
 
 ```bash
-vrooli-bridge configure token "<owner-token>"
+vrooli-bridge auth login --email "you@example.com"
 vrooli-bridge onboard start --host mini-01.local --user admin --name mac-mini-01 --revision "<already-pushed-sha>"
 vrooli-bridge onboard watch "<op-id>"
 ```
@@ -223,9 +225,9 @@ shows the agent running. Local agent recovery on the mini uses
 `vrooli-bridge-agent service status|install|uninstall`; routine fleet
 operations go through the control plane.
 
-See the macOS-compat parallel workstream for the current darwin-gate
-status; do not assume `vrooli setup` succeeds on a mini until that track
-confirms it for the target hardware.
+See the canonical [platform support matrix](../../../../docs/reference/platform-support.md)
+for the current evidence tier. Do not assume `vrooli setup` succeeds on a mini
+until the target hardware has completed the recorded qualification ladder.
 
 ## Common Incidents
 

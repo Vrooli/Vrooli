@@ -311,6 +311,7 @@ const literalSelectors = {
     error: "fleet-error",
     empty: "fleet-empty",
     list: "fleet-list",
+    failedOnboardings: "fleet-failed-onboardings",
     pairing: {
       disclosure: "fleet-pairing-disclosure",
       form: "fleet-pairing-form",
@@ -483,6 +484,21 @@ const dynamicSelectorDefinitions = {
       description: "One onboarding step row by step id",
       testIdPattern: "fleet-onboard-step-${step}",
       params: { step: { type: "string" } },
+    }),
+    onboardRetry: defineDynamicSelector({
+      description: "Retry action for a saved failed onboarding target by operation id",
+      testIdPattern: "fleet-onboard-retry-${id}",
+      params: { id: { type: "string" } },
+    }),
+    onboardViewLogs: defineDynamicSelector({
+      description: "View-or-hide durable onboarding diagnostics by operation id",
+      testIdPattern: "fleet-onboard-view-logs-${id}",
+      params: { id: { type: "string" } },
+    }),
+    onboardRemove: defineDynamicSelector({
+      description: "Remove action for a saved failed onboarding target by operation id",
+      testIdPattern: "fleet-onboard-remove-${id}",
+      params: { id: { type: "string" } },
     }),
   },
   runs: {

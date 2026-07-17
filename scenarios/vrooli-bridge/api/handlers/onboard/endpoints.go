@@ -120,4 +120,23 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "Cancel onboarding op", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.onboard.OnboardService/CancelOnboarding -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\"}'"},
 		},
 	},
+	{
+		ID:          "onboard_remove_failed_onboarding",
+		Path:        onboardconnect.OnboardServiceRemoveFailedOnboardingProcedure,
+		Method:      "POST",
+		Summary:     "Remove a failed onboarding attempt",
+		Description: "Permanently removes a FAILED onboarding operation and its local diagnostic history. It never contacts the target machine and cannot remove a live, cancelled, or successfully paired node. Owner-gated.",
+		Category:    "onboard",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"id": "string (required)"}},
+		Response:    &module.Schema{Type: "object"},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing id or operation is not failed"},
+			{Status: 401, Code: "unauthenticated", Description: "Owner token required"},
+			{Status: 404, Code: "not_found", Description: "No op with that id"},
+			{Status: 500, Code: "internal", Description: "Repository delete failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Remove failed onboarding", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.onboard.OnboardService/RemoveFailedOnboarding -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\"}'"},
+		},
+	},
 }

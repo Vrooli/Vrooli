@@ -516,19 +516,30 @@ step_setup() {
   # node. Run it ELEVATED when passwordless sudo is available so no requirement is
   # skipped for privilege; otherwise run unprivileged and surface the skipped
   # root-required items LOUDLY (a warning in the step detail, never a failure).
+  # --result-file is setup's stable automation transport. It is intentionally
+  # separate from the human output captured below: bridge decisions may inspect
+  # only its JSON category, never arbitrary diagnostics.
+  local setup_result
+  setup_result="$(mktemp "${BOOTSTRAP_STATE_DIR}/setup-result.XXXXXX")"
+  rm -f "$setup_result"
+
   local elevated=0
   local -a cmd
   if [ "$PREBUILT_MODE" -eq 1 ]; then
     # Point freshness checks at the exact plain tree the control plane shipped.
     # The transferred .fp sidecar must match it, so this invocation cannot try a
     # node-side rebuild before setup has installed Go.
-    cmd=(env "VROOLI_SOURCE_ROOT=${CHECKOUT_DIR}" "$VROOLI_BIN_OVERRIDE" setup)
+    # The transfer fingerprint has already verified this exact binary against
+    # the shipped tree.  Setup intentionally runs before Go is available, so
+    # its own stale-binary guard must not attempt a node-side rebuild here.
+    cmd=(env "VROOLI_SOURCE_ROOT=${CHECKOUT_DIR}" "$VROOLI_BIN_OVERRIDE" --no-stale-check setup)
     [ -n "$SETUP_ENVIRONMENT" ] && cmd+=(--environment "$SETUP_ENVIRONMENT")
     [ -n "$SETUP_RESOURCES" ] && cmd+=(--resources "$SETUP_RESOURCES")
     [ -n "$SETUP_SCENARIOS" ] && cmd+=(--scenarios "$SETUP_SCENARIOS")
     [ "$INCLUDE_OPTIONAL" -eq 1 ] && cmd+=(--include-optional)
+    cmd+=(--result-file "$setup_result")
   else
-    cmd=(make -C "$CHECKOUT_DIR" setup "SETUP_ARGS=${setup_args}")
+    cmd=(make -C "$CHECKOUT_DIR" setup "SETUP_ARGS=${setup_args} --result-file=${setup_result}")
   fi
   # Homebrew refuses to run as root. On macOS, keep setup under the SSH user and
   # let its individual host requirements use the provisioned passwordless sudo
@@ -547,13 +558,15 @@ step_setup() {
   fi
   cat "$out" >&2
   if [ "$rc" -ne 0 ]; then
-    # Darwin degradation contract: a host whose vrooli build still refuses setup
-    # on darwin must fail fast with an actionable pointer, not half-install.
-    if [ "$OS" = "darwin" ] && grep -qiE 'darwin|macos|not supported|unsupported' "$out"; then
-      rm -f "$out"
-      fail 3 "vrooli setup refuses to run on this macOS host — the darwin setup gate is not yet open here. Track the macOS-compatibility / workspace-sandbox-cross-platform workstream, then re-run. (Do NOT --skip-setup unless prerequisites are already provisioned.)"
+    # Only setup's versioned structured contract may classify an unsupported
+    # platform. In particular, a requirement error which merely mentions macOS
+    # must stay a normal retryable bootstrap failure (exit 1).
+    local setup_category
+    setup_category="$(sed -n 's/.*"category":"\([a-z_]*\)".*/\1/p' "$setup_result" 2>/dev/null | head -n 1)"
+    rm -f "$out" "$setup_result"
+    if [ "$setup_category" = "unsupported_platform" ]; then
+      fail 3 "vrooli setup reports this node's platform is unsupported. Use a supported host or update vrooli when support is available."
     fi
-    rm -f "$out"
     fail 1 "vrooli setup failed (exit ${rc}) — see output above"
   fi
 
@@ -561,7 +574,7 @@ step_setup() {
   # op step events, CLI watch output, and the UI — a warning, not a failure.
   local skipped
   skipped="$(parse_needs_sudo "$out")"
-  rm -f "$out"
+  rm -f "$out" "$setup_result"
   touch "$sentinel"
 
   local mode="unprivileged"

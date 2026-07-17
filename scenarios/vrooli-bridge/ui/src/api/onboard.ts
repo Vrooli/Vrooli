@@ -10,6 +10,7 @@ import {
   type OnboardingStepEvent,
   type StartOnboardingRequest,
   type GetOnboardingResponse,
+  type ListOnboardingsResponse,
 } from "@vrooli/proto-types/vrooli-bridge/v1/onboard/onboard_pb";
 
 import { transport } from "./client";
@@ -38,4 +39,5 @@ export type {
   OnboardingStepEvent,
   StartOnboardingRequest,
   GetOnboardingResponse,
+  ListOnboardingsResponse,
 };

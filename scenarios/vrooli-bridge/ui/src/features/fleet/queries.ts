@@ -7,6 +7,7 @@ import {
   onboardClient,
   OnboardingState,
   type GetOnboardingResponse,
+  type ListOnboardingsResponse,
   type StartOnboardingInput,
 } from "../../api/onboard";
 
@@ -96,6 +97,29 @@ export function useStartOnboardingMutation() {
 
 /** react-query key for a single onboarding op's live progress. */
 export const ONBOARDING_QUERY_KEY = (opId: string) => ["fleet", "onboarding", opId] as const;
+export const FAILED_ONBOARDINGS_QUERY_KEY = ["fleet", "onboardings", "failed"] as const;
+
+/**
+ * Failed onboarding attempts are durable operational targets, not fleet nodes:
+ * the agent has not paired yet, but the host identity and diagnostics remain
+ * available after a reload so an operator can correct the host and retry.
+ */
+export function useFailedOnboardingsQuery() {
+  return useQuery({
+    queryKey: FAILED_ONBOARDINGS_QUERY_KEY,
+    queryFn: async (): Promise<ListOnboardingsResponse> => onboardClient.listOnboardings({ limit: 50 }),
+    select: (response) => response.ops.filter((op) => op.state === OnboardingState.FAILED),
+  });
+}
+
+/** Permanently remove a failed attempt's local operation history. */
+export function useRemoveFailedOnboardingMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => onboardClient.removeFailedOnboarding({ id }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: FAILED_ONBOARDINGS_QUERY_KEY }),
+  });
+}
 
 const TERMINAL_ONBOARDING_STATES: ReadonlySet<OnboardingState> = new Set([
   OnboardingState.SUCCEEDED,

@@ -6,15 +6,17 @@ import { Code, ConnectError } from "@connectrpc/connect";
 
 import { renderWithProviders } from "../../test-utils";
 import { NodeStatus } from "../../api/nodes";
+import { OnboardingState } from "../../api/onboard";
 import { strings } from "../../consts/strings";
 import { selectors } from "../../consts/selectors";
-import { makeNode } from "./mocks/factories";
+import { makeGetOnboardingResponse, makeNode, makeOnboardingOp, makeStepEvent } from "./mocks/factories";
 
 const { listNodes, revokeNode } = vi.hoisted(() => ({
   listNodes: vi.fn(),
   revokeNode: vi.fn(),
 }));
 const { listQueue } = vi.hoisted(() => ({ listQueue: vi.fn() }));
+const { listOnboardings, getOnboarding, removeFailedOnboarding } = vi.hoisted(() => ({ listOnboardings: vi.fn(), getOnboarding: vi.fn(), removeFailedOnboarding: vi.fn() }));
 
 vi.mock("../../api/nodes", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/nodes")>();
@@ -28,6 +30,10 @@ vi.mock("../../api/queue", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/queue")>();
   return { ...actual, queueClient: { listQueue } };
 });
+vi.mock("../../api/onboard", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/onboard")>();
+  return { ...actual, onboardClient: { listOnboardings, getOnboarding, removeFailedOnboarding } };
+});
 
 import { FleetPanel } from "./FleetPanel";
 
@@ -36,6 +42,7 @@ describe("FleetPanel", () => {
     // The queue overlay is best-effort; default it to empty so the panel
     // renders idle job status without a real network attempt.
     listQueue.mockResolvedValue({ nodes: [] });
+    listOnboardings.mockResolvedValue({ ops: [] });
   });
 
   afterEach(() => {
@@ -129,6 +136,52 @@ describe("FleetPanel", () => {
     listNodes.mockResolvedValue({ nodes: [] });
     renderWithProviders(<FleetPanel />);
     await waitFor(() => expect(screen.getByTestId(selectors.fleet.empty)).toBeInTheDocument());
+  });
+
+  it("keeps a failed onboarding target visible and sends its non-secret identity to retry", async () => {
+    const onRetryOnboarding = vi.fn();
+    const user = userEvent.setup();
+    listNodes.mockResolvedValue({ nodes: [] });
+    listOnboardings.mockResolvedValue({
+      ops: [makeOnboardingOp({ id: "op-build-node", nodeName: "build-node", host: "192.0.2.10", state: OnboardingState.FAILED })],
+    });
+    renderWithProviders(<FleetPanel onRetryOnboarding={onRetryOnboarding} />);
+
+    await screen.findByTestId(selectors.fleet.failedOnboardings);
+    await user.click(screen.getByTestId(selectors.fleet.onboardRetry({ id: "op-build-node" })));
+    expect(onRetryOnboarding).toHaveBeenCalledWith(expect.objectContaining({ host: "192.0.2.10" }));
+  });
+
+  it("retrieves persisted diagnostics for a failed onboarding after reload", async () => {
+    const user = userEvent.setup();
+    const failed = makeOnboardingOp({ id: "op-history", host: "192.0.2.9", state: OnboardingState.FAILED });
+    listNodes.mockResolvedValue({ nodes: [] });
+    listOnboardings.mockResolvedValue({ ops: [failed] });
+    getOnboarding.mockResolvedValue(
+      makeGetOnboardingResponse(
+        { ...failed, failureDetail: "make setup: checksum mismatch" },
+        [makeStepEvent({ stepId: "setup", detail: "checksum mismatch", status: 4 })],
+      ),
+    );
+    renderWithProviders(<FleetPanel />);
+
+    await user.click(await screen.findByTestId(selectors.fleet.onboardViewLogs({ id: "op-history" })));
+    await waitFor(() => expect(getOnboarding).toHaveBeenCalledWith({ id: "op-history" }));
+    expect(await screen.findByTestId(selectors.fleet.onboard.failureOutput)).toHaveTextContent("make setup: checksum mismatch");
+    expect(screen.getByTestId(selectors.fleet.onboard.failureOutput)).toHaveTextContent("setup");
+  });
+
+  it("removes a failed onboarding target from durable history", async () => {
+    const user = userEvent.setup();
+    listNodes.mockResolvedValue({ nodes: [] });
+    listOnboardings.mockResolvedValue({
+      ops: [makeOnboardingOp({ id: "op-remove", state: OnboardingState.FAILED })],
+    });
+    removeFailedOnboarding.mockResolvedValue({});
+    renderWithProviders(<FleetPanel />);
+
+    await user.click(await screen.findByTestId(selectors.fleet.onboardRemove({ id: "op-remove" })));
+    await waitFor(() => expect(removeFailedOnboarding).toHaveBeenCalledWith({ id: "op-remove" }));
   });
 
   it("invites adding the first node from the empty state and fires the callback", async () => {

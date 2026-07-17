@@ -58,8 +58,8 @@ func failureGuidance(op *onboardv1.OnboardingOp) string {
 		return "The bootstrap script rejected its arguments (exit 2). This is a control-plane defect in how the op was built, " +
 			"not a host problem — capture the op id and file a bug (report-bug → scenario-qa)."
 	case failUnsupportedPlatform:
-		return fmt.Sprintf("%s runs an unsupported platform (exit 3). macOS onboarding is gated; "+
-			"onboard a Linux host, or wait for cross-platform support.", target)
+		return fmt.Sprintf("%s runs a platform that this Bridge build does not support (exit 3). "+
+			"Use a supported target or update Bridge when support for that platform is available.", target)
 	case failPairing:
 		return "Pairing was rejected on the node (exit 4): the single-use code was already consumed or expired. " +
 			"Re-run `onboard start` to reissue a fresh code."

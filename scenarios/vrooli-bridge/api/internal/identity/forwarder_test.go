@@ -113,6 +113,14 @@ func TestForwarderLogin(t *testing.T) {
 		_, err := f.Login(context.Background(), identity.Credentials{Email: "o@x.io", Password: "pw"})
 		assert.ErrorIs(t, err, identity.ErrAuthUnavailable)
 	})
+
+	t.Run("stopped authenticator names the dependency and remediation", func(t *testing.T) {
+		f := identity.NewForwarder(identity.Config{Resolver: stoppedResolver{}})
+		_, err := f.Login(context.Background(), identity.Credentials{Email: "o@x.io", Password: "pw"})
+		assert.ErrorIs(t, err, identity.ErrAuthUnavailable)
+		assert.Contains(t, err.Error(), "scenario-authenticator is stopped")
+		assert.Contains(t, err.Error(), "vrooli scenario start scenario-authenticator")
+	})
 }
 
 func TestForwarderRegister(t *testing.T) {
@@ -154,4 +162,10 @@ type failingResolver struct{}
 
 func (failingResolver) ResolveScenarioURLDefault(context.Context, string) (string, error) {
 	return "", errors.New("scenario not running")
+}
+
+type stoppedResolver struct{}
+
+func (stoppedResolver) ResolveScenarioURLDefault(context.Context, string) (string, error) {
+	return "", &discovery.Error{Kind: discovery.ErrScenarioNotRunning, Scenario: "scenario-authenticator", PortKey: "API_PORT"}
 }

@@ -101,6 +101,21 @@ func (f *FakeRepository) ListNonTerminal(_ context.Context) ([]onboard.Op, error
 	return out, nil
 }
 
+func (f *FakeRepository) DeleteFailed(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	op, ok := f.ops[id]
+	if !ok {
+		return onboard.ErrOpNotFound{ID: id}
+	}
+	if op.State != onboard.StateFailed {
+		return onboard.ErrInvalid{Field: "id", Reason: "only failed onboarding attempts can be removed"}
+	}
+	delete(f.ops, id)
+	delete(f.events, id)
+	return nil
+}
+
 func (f *FakeRepository) Update(_ context.Context, op onboard.Op) (onboard.Op, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

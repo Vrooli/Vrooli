@@ -438,6 +438,22 @@ func TestCancel_DrivesToCancelled(t *testing.T) {
 	require.Equal(t, onboard.StateCancelled, op.State)
 }
 
+func TestRemoveFailed_RemovesOnlyFailedLocalHistory(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	repo.Seed(onboard.Op{ID: "failed", Host: "build-node.example.test", State: onboard.StateFailed, CreatedAt: time.Now().UTC()})
+	repo.Seed(onboard.Op{ID: "succeeded", Host: "build-node.example.test", State: onboard.StateSucceeded, CreatedAt: time.Now().UTC()})
+	svc := newTestService(repo, &mocks.FakeSSHDriver{}, &mocks.FakeCodeIssuer{}, &mocks.FakeOnlineConfirmer{})
+
+	require.NoError(t, svc.RemoveFailed(context.Background(), "failed"))
+	_, _, err := svc.GetOp(context.Background(), "failed")
+	require.ErrorAs(t, err, new(onboard.ErrOpNotFound))
+
+	err = svc.RemoveFailed(context.Background(), "succeeded")
+	require.ErrorAs(t, err, new(onboard.ErrInvalid))
+	_, _, err = svc.GetOp(context.Background(), "succeeded")
+	require.NoError(t, err)
+}
+
 func TestResumeInterrupted_MarksOrphansFailed(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	svc := newTestService(repo, &mocks.FakeSSHDriver{}, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{})

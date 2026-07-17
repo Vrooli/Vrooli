@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
 
 	"vrooli-bridge/internal/httpc"
 
@@ -153,6 +154,9 @@ func (f *Forwarder) baseURL(ctx context.Context) (string, error) {
 	}
 	base, err := f.resolver.ResolveScenarioURLDefault(ctx, f.scenario)
 	if err != nil {
+		if discovery.IsScenarioNotRunning(err) {
+			return "", fmt.Errorf("%w: %s is stopped; start it with `vrooli scenario start %s` and try signing in again", ErrAuthUnavailable, f.scenario, f.scenario)
+		}
 		return "", fmt.Errorf("%w: resolve %s url: %v", ErrAuthUnavailable, f.scenario, err)
 	}
 	return strings.TrimRight(base, "/"), nil

@@ -37,9 +37,11 @@ Use this document to answer:
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
 | Local Vrooli stack (control plane on Linux) | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite path; owner token (cli-core `configure token` or `VROOLI_BRIDGE_API_TOKEN`) | Built and running as an ordinary Vrooli scenario. |
-| Per-node agent service (Linux / macOS) | supported | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as systemd (`--user`, requires linger) / launchd (LaunchAgent, requires a logged-in user) | Cross-compiled agent + `vrooli-bridge-agent service install` + one-shot onboarding are built and tested. Per-OS installer wrappers and code-signing are still convenience gaps. |
+| Per-node agent service (Linux) | supported | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a systemd user service (requires linger) | Cross-compiled agent + `vrooli-bridge-agent service install` + one-shot onboarding are built and tested. Per-OS installer wrappers and code-signing are still convenience gaps. |
+| Per-node agent service (macOS) | build-verified | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a launchd LaunchAgent (requires a logged-in user) | Darwin builds and Linux-runnable launchd contract tests pass. Real-Mac lifecycle, reconnect, and onboarding evidence are required before support can be claimed; see the [platform support matrix](../../../../docs/reference/platform-support.md). |
 | Per-node agent service (Windows) | gated | Full Vrooli install with `vrooli` CLI on the node; node-agent installed as a Windows Service | Service unit is render-only (`sc.exe create` argv); live install/onboarding on Windows is not yet exercised. |
-| Control plane on macOS / Windows | gated P2 | Vrooli-the-platform installable/runnable on those OSes | Depends on platform portability work outside this scenario (OT-P2-001). Bridge is written cross-platform so it is never the blocker. |
+| Control plane on macOS | build-verified | Vrooli-the-platform installable/runnable on macOS | Real-Mac qualification is still required; Bridge does not add a separate platform gate. See the [platform support matrix](../../../../docs/reference/platform-support.md). |
+| Control plane on Windows | gated P2 | Vrooli-the-platform installable/runnable on Windows | Native Windows full-project lifecycle remains outside the current qualification. |
 | Managed cloud / SaaS | out of scope (v1) | — | Bridge is single-owner fleet infrastructure, not multi-tenant SaaS. |
 
 Today's deployment tier is the **Tier 1 local stack** described in the

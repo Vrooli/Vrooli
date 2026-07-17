@@ -44,6 +44,10 @@ type Service interface {
 	// it to CANCELLED at the next boundary. A terminal op is returned unchanged.
 	Cancel(ctx context.Context, id string) (Op, error)
 
+	// RemoveFailed permanently removes a failed attempt's local operation
+	// history. It never contacts the target machine or removes a fleet node.
+	RemoveFailed(ctx context.Context, id string) error
+
 	// Subscribe registers a live step-event subscriber for the op, returning a
 	// channel and an unsubscribe func the caller MUST invoke.
 	Subscribe(id string) (<-chan StepEvent, func())
@@ -328,6 +332,13 @@ func (s *service) Cancel(ctx context.Context, id string) (Op, error) {
 	// terminal CANCELLED state.
 	s.coord.cancelOp(id)
 	return op, nil
+}
+
+func (s *service) RemoveFailed(ctx context.Context, id string) error {
+	if trimField(id) == "" {
+		return ErrInvalid{Field: "id", Reason: "required"}
+	}
+	return s.repo.DeleteFailed(ctx, id)
 }
 
 func (s *service) Subscribe(id string) (<-chan StepEvent, func()) {

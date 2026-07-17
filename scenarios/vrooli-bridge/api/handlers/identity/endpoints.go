@@ -15,8 +15,8 @@ var Endpoints = []module.EndpointDescriptor{
 		ID:          "identity_login",
 		Path:        identityconnect.IdentityServiceLoginProcedure,
 		Method:      "POST",
-		Summary:     "Owner sign-in (same-origin)",
-		Description: "Forwards email + password to scenario-authenticator (resolved by name via api-core/discovery) and returns the issued owner JWT. The control plane owns no credential logic — it relays. Called same-origin by the bridge UI so the browser never makes a cross-origin call.",
+		Summary:     "Owner sign-in",
+		Description: "Forwards email + password to scenario-authenticator (resolved by name via api-core/discovery) and returns the issued owner JWT. The control plane owns no credential logic — it relays. Used by the same-origin Bridge UI and by `vrooli-bridge auth login`; neither client calls scenario-authenticator directly.",
 		Category:    "identity",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"email": "string", "password": "string"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"token": "string (owner JWT)", "refresh_token": "string", "email": "string", "user_id": "string"}}, //nolint:gosec // schema field labels in an API descriptor, not hardcoded credentials

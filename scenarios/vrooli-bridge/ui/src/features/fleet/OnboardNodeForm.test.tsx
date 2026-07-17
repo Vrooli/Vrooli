@@ -7,7 +7,7 @@ import { renderWithProviders } from "../../test-utils";
 import { strings } from "../../consts/strings";
 import { selectors } from "../../consts/selectors";
 import { OnboardingState, OnboardingStepStatus, SourceMode } from "../../api/onboard";
-import { makeGetOnboardingResponse, makeStepEvent } from "./mocks/factories";
+import { makeGetOnboardingResponse, makeOnboardingOp, makeStepEvent } from "./mocks/factories";
 
 const { startOnboarding, getOnboarding } = vi.hoisted(() => ({
   startOnboarding: vi.fn(),
@@ -101,6 +101,27 @@ describe("OnboardNodeForm wizard", () => {
     await user.click(screen.getByTestId(s.back));
     // Back returns to Connect with the address preserved.
     expect(screen.getByTestId(s.host)).toHaveValue("node-01.example.com");
+  });
+
+  it("retries a saved target with its identity but never a saved SSH password", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <OnboardNodeForm
+        retryTarget={makeOnboardingOp({
+          host: "build-node.example.test",
+          port: 2222,
+          user: "operator",
+          nodeName: "build-node",
+          targetRevision: "abc123",
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId(s.host)).toHaveValue("build-node.example.test");
+    expect(screen.getByTestId(s.user)).toHaveValue("operator");
+    await user.click(screen.getByTestId(s.moreToggle));
+    expect(screen.getByTestId(s.port)).toHaveValue(2222);
+    expect(screen.queryByTestId(s.password)).not.toBeInTheDocument();
   });
 
   it("preserves values entered on earlier steps across navigation", async () => {

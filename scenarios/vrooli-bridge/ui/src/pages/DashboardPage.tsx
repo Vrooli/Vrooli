@@ -1,9 +1,10 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { FleetPanel } from "../features/fleet/FleetPanel";
 import { OnboardNodeForm } from "../features/fleet/OnboardNodeForm";
+import { type OnboardingOp } from "../api/onboard";
 import { PairNodeForm } from "../features/fleet/PairNodeForm";
 import { HealthCard } from "../features/health/HealthCard";
 import { RunHistory } from "../features/runs/RunHistory";
@@ -22,6 +23,7 @@ import { useTranslation } from "../i18n";
  */
 export function DashboardPage() {
   const { t } = useTranslation();
+  const [retryTarget, setRetryTarget] = useState<OnboardingOp | null>(null);
 
   const handleAddNode = useCallback(() => {
     const section = document.getElementById("add-node");
@@ -30,6 +32,11 @@ export function DashboardPage() {
       section.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     document.getElementById("fleet-onboard-heading")?.focus();
+  }, []);
+
+  const handleRetryOnboarding = useCallback((op: OnboardingOp) => {
+    setRetryTarget(op);
+    requestAnimationFrame(() => document.getElementById("add-node")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }, []);
 
   return (
@@ -45,8 +52,8 @@ export function DashboardPage() {
         <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
       </div>
 
-      <FleetPanel onAddNode={handleAddNode} />
-      <OnboardNodeForm />
+      <FleetPanel onAddNode={handleAddNode} onRetryOnboarding={handleRetryOnboarding} />
+      <OnboardNodeForm retryTarget={retryTarget} />
       <RunHistory />
       <HealthCard />
 

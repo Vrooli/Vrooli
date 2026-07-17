@@ -4,6 +4,40 @@
   "description": "Vrooli Bridge fleet control-plane CLI surface. Single source of truth for the operator/agent command shape: schema-validated against cli-manifest/v1 and cross-validated against each domain's proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
+      "name": "auth",
+      "description": "Sign in the local CLI as a Bridge owner",
+      "commands": [
+        {
+          "name": "login",
+          "description": "Sign in with your owner email and a masked password prompt, then save the owner session for CLI commands. Use --password-stdin for non-interactive use; passwords are never accepted on argv or from an environment variable.",
+          "flags": [
+            {
+              "name": "email",
+              "required": true,
+              "description": "Owner account email address"
+            },
+            {
+              "name": "password-stdin",
+              "bool": true,
+              "description": "Read the password from standard input instead of the masked terminal prompt"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IdentityService",
+            "method": "Login"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "nodes",
       "description": "Manage trusted fleet nodes (registry)",
       "commands": [
@@ -1290,13 +1324,8 @@
     },
     {
       "service": "IdentityService",
-      "method": "Login",
-      "reason": "Browser-facing same-origin owner sign-in facade, called by the bridge UI only (ui/src/features/session). It forwards to scenario-authenticator and relays the owner JWT so the browser never makes a cross-origin call. The CLI authenticates via an owner token supplied out-of-band, so there is no `auth login` command."
-    },
-    {
-      "service": "IdentityService",
       "method": "Register",
-      "reason": "Browser-facing same-origin owner account-creation facade, called by the bridge UI only (ui/src/features/session). Same rationale as IdentityService/Login: the CLI supplies an owner token out-of-band and never registers accounts."
+      "reason": "Browser-facing owner account-creation facade. The CLI supports sign-in for an existing owner but deliberately does not create accounts; registration remains the UI's guided first-run flow."
     }
   ]
 }

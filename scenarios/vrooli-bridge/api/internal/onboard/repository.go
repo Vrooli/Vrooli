@@ -34,4 +34,9 @@ type Repository interface {
 	// ListNonTerminal returns every op that is not in a terminal state. Used on
 	// startup to reconcile ops orphaned by a control-plane restart.
 	ListNonTerminal(ctx context.Context) ([]Op, error)
+
+	// DeleteFailed permanently removes a FAILED op and its event history. It must
+	// reject every other lifecycle state so a UI cleanup can never affect a live
+	// operation or a successfully paired node.
+	DeleteFailed(ctx context.Context, id string) error
 }

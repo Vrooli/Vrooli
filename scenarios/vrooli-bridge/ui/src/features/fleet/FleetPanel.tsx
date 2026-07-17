@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import {
   CheckCircle2,
@@ -18,8 +19,9 @@ import { formatDate } from "../../i18n/format";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
 import { NodeStatus, type Node } from "../../api/nodes";
+import { OnboardingStepStatus, type OnboardingOp } from "../../api/onboard";
 import { type NodeQueue } from "../../api/queue";
-import { useFleetQueueQuery, useNodesQuery, useRevokeNodeMutation } from "./queries";
+import { useFailedOnboardingsQuery, useFleetQueueQuery, useNodesQuery, useOnboardingQuery, useRemoveFailedOnboardingMutation, useRevokeNodeMutation } from "./queries";
 
 const STATUS_LABEL = {
   [NodeStatus.UNSPECIFIED]: strings.fleet.status.unspecified,
@@ -38,6 +40,14 @@ const STATUS_ICON: Record<NodeStatus, LucideIcon> = {
   [NodeStatus.NEEDS_UPDATE]: RefreshCw,
   [NodeStatus.REVOKED]: CircleSlash,
 };
+
+const ONBOARDING_STEP_STATUS_KEY = {
+  [OnboardingStepStatus.UNSPECIFIED]: strings.fleet.onboard.stepStatus.unspecified,
+  [OnboardingStepStatus.STARTED]: strings.fleet.onboard.stepStatus.started,
+  [OnboardingStepStatus.OK]: strings.fleet.onboard.stepStatus.ok,
+  [OnboardingStepStatus.SKIPPED]: strings.fleet.onboard.stepStatus.skipped,
+  [OnboardingStepStatus.FAILED]: strings.fleet.onboard.stepStatus.failed,
+} as const satisfies Record<OnboardingStepStatus, string>;
 
 function dotClass(node: Node): string {
   if (node.status === NodeStatus.REVOKED) return "bg-app-danger";
@@ -86,6 +96,69 @@ function JobStatus({ nodeId, queue }: { nodeId: string; queue?: NodeQueue }) {
 }
 
 /**
+ * A failed operation's list entry. The list endpoint intentionally carries only
+ * the compact operation record; opening diagnostics fetches GetOnboarding,
+ * whose durable append-only event history and failure output survive reloads.
+ */
+function FailedOnboardingItem({
+  op,
+  onRetry,
+  onRemove,
+  removing,
+}: {
+  op: OnboardingOp;
+  onRetry?: (op: OnboardingOp) => void;
+  onRemove: (id: string) => void;
+  removing: boolean;
+}) {
+  const { t } = useTranslation();
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const diagnostics = useOnboardingQuery(showDiagnostics ? op.id : null);
+  const detail = diagnostics.data?.op?.failureDetail;
+  const events = diagnostics.data?.events ?? [];
+
+  return (
+    <li className="rounded-control border border-app-warning/30 bg-app-background/50 p-2 text-xs text-app-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span>{t(strings.fleet.onboard.savedFailureDetail, { name: op.nodeName || op.host, host: op.host })}</span>
+        <span className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" data-testid={selectors.fleet.onboardViewLogs({ id: op.id })} onClick={() => setShowDiagnostics((open) => !open)}>
+            {t(showDiagnostics ? strings.fleet.onboard.hideLogs : strings.fleet.onboard.viewLogs)}
+          </Button>
+          <Button type="button" size="sm" variant="outline" data-testid={selectors.fleet.onboardRetry({ id: op.id })} onClick={() => onRetry?.(op)}>
+            {t(strings.fleet.onboard.retrySaved)}
+          </Button>
+          <Button type="button" size="sm" variant="outline" data-testid={selectors.fleet.onboardRemove({ id: op.id })} onClick={() => onRemove(op.id)} disabled={removing}>
+            {t(strings.fleet.onboard.removeSaved)}
+          </Button>
+        </span>
+      </div>
+      {showDiagnostics && (
+        <div data-testid={selectors.fleet.onboard.failureOutput} className="mt-2 border-t border-app-warning/30 pt-2">
+          {diagnostics.isLoading && <p>{t(strings.fleet.onboard.loadingLogs)}</p>}
+          {diagnostics.error && <p className="text-app-danger">{errorMessage(diagnostics.error, t)}</p>}
+          {diagnostics.data && (
+            <>
+              {detail && <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-control bg-app-surface p-2 font-mono text-[0.65rem] leading-relaxed">{detail}</pre>}
+              {events.length > 0 && (
+                <ol className="mt-2 flex max-h-64 flex-col gap-1 overflow-auto font-mono text-[0.65rem] leading-relaxed">
+                  {events.map((event) => (
+                    <li key={`${event.sequence}-${event.stepId}`}>
+                      {event.stepId} — {t(ONBOARDING_STEP_STATUS_KEY[event.status])}{event.detail ? ` — ${event.detail}` : ""}
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {!detail && events.length === 0 && <p>{t(strings.fleet.onboard.noLogs)}</p>}
+            </>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+
+/**
  * FleetPanel is the fleet-dashboard surface (OT-P0-001/003, OT-P1-005): the
  * owner's trusted nodes with their live presence, OS / arch / version / health
  * (status conveyed by icon + text, never color alone), live per-node job status
@@ -98,10 +171,18 @@ function JobStatus({ nodeId, queue }: { nodeId: string; queue?: NodeQueue }) {
  * it has nodes. The dashboard wires it to scroll to and focus the Add-a-node
  * wizard; when omitted (isolated renders) the button is inert.
  */
-export function FleetPanel({ onAddNode }: { onAddNode?: () => void } = {}) {
+export function FleetPanel({
+  onAddNode,
+  onRetryOnboarding,
+}: {
+  onAddNode?: () => void;
+  onRetryOnboarding?: (op: OnboardingOp) => void;
+} = {}) {
   const { t } = useTranslation();
   const nodesQuery = useNodesQuery();
   const queueQuery = useFleetQueueQuery();
+  const failedOnboardingsQuery = useFailedOnboardingsQuery();
+  const removeFailedOnboarding = useRemoveFailedOnboardingMutation();
   const revoke = useRevokeNodeMutation();
   const hasNodes = (nodesQuery.data?.length ?? 0) > 0;
 
@@ -232,6 +313,17 @@ export function FleetPanel({ onAddNode }: { onAddNode?: () => void } = {}) {
             );
           })}
         </ul>
+      )}
+
+      {failedOnboardingsQuery.data && failedOnboardingsQuery.data.length > 0 && (
+        <section data-testid={selectors.fleet.failedOnboardings} className="mt-3 rounded-panel border border-app-warning/40 bg-app-warning/10 p-3">
+          <h4 className="text-sm font-semibold text-app-foreground">{t(strings.fleet.onboard.savedFailuresHeading)}</h4>
+          <ul className="mt-2 flex flex-col gap-2">
+            {failedOnboardingsQuery.data.map((op) => (
+              <FailedOnboardingItem key={op.id} op={op} onRetry={onRetryOnboarding} onRemove={(id) => removeFailedOnboarding.mutate(id)} removing={removeFailedOnboarding.isPending} />
+            ))}
+          </ul>
+        </section>
       )}
     </section>
   );

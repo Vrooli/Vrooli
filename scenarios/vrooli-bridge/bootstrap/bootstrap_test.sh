@@ -177,8 +177,18 @@ CLI
 #!/usr/bin/env bash
 set -euo pipefail
 [ -n "${FAKE_VROOLI_LOG:-}" ] && printf 'root=%s argv=%s\n' "${VROOLI_SOURCE_ROOT:-}" "$*" >>"$FAKE_VROOLI_LOG"
-[ "${1:-}" = "setup" ] || { echo "expected setup" >&2; exit 2; }
-exit 0
+[ "${1:-}" = "--no-stale-check" ] || { echo "expected prebuilt stale-check bypass" >&2; exit 2; }
+[ "${2:-}" = "setup" ] || { echo "expected setup" >&2; exit 2; }
+result_file=""
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--result-file" ]; then result_file="$arg"; break; fi
+  prev="$arg"
+done
+if [ -n "${FAKE_VROOLI_RESULT_CATEGORY:-}" ] && [ -n "$result_file" ]; then
+  printf '{"version":"v1","status":"failed","category":"%s","stage":"requirements","retryable":true,"remediation":"fixture"}\n' "${FAKE_VROOLI_RESULT_CATEGORY}" >"$result_file"
+fi
+exit "${FAKE_VROOLI_EXIT:-0}"
 VROOLI
 
   # apt-get: records every invocation's argv to $FAKE_APT_LOG so a test can assert
@@ -390,13 +400,38 @@ rcpre=$?
 set -e
 check "prebuilt no-Go run exits 0" "$([ "$rcpre" -eq 0 ] && echo 0 || echo 1)"
 check "prebuilt bundle reports received binaries" "$(grep 'step=prebuilt-artifacts' "$OUTPRE" | grep -q 'received prebuilt binaries' && echo 0 || echo 1)"
-check "prebuilt setup invokes transferred vrooli directly" "$(grep -q 'argv=setup' "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
+check "prebuilt setup invokes transferred vrooli directly" "$(grep -q 'argv=--no-stale-check setup' "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
+check "prebuilt setup bypasses stale self-rebuild before Go exists" "$(grep -q 'argv=--no-stale-check setup' "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
 check "prebuilt setup points freshness at shipped tree" "$(grep -q "root=${CHECKOUT}" "$FAKE_VROOLI_LOG" && echo 0 || echo 1)"
 check "prebuilt service work-dir follows shipped tree" "$(grep -q -- "--work-dir ${CHECKOUT}" "$FAKE_AGENT_LOG" && echo 0 || echo 1)"
 check "prebuilt run never invokes make" "$([ -s "$FAKE_MAKE_LOG" ] && echo 1 || echo 0)"
 check "prebuilt run never invokes go build" "$(grep -q 'go build\|build from source' "${OUTPRE}" "${OUTPRE}.err" && echo 1 || echo 0)"
 check "prebuilt toolchain guard skips source-build requirement" "$(marker_is "$OUTPRE" step-skip toolchain && echo 0 || echo 1)"
 check "prebuilt run reaches ONLINE" "$(grep -q 'event=run-ok' "$OUTPRE" && echo 0 || echo 1)"
+
+echo "== setup result categories control Bridge failure classification =="
+run_prebuilt_setup_failure() { # category exit output
+  local category="$1" expected_exit="$2" out="$3"
+  rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$CHECKOUT"
+  printf 'shipped tree\n' >"${CHECKOUT}/WORKING.txt"
+  PATH="${FAKEBIN}:${TOOLLESS}" HOME="${WORKROOT}/result-home-${category}" \
+  FAKE_VROOLI_RESULT_CATEGORY="$category" FAKE_VROOLI_EXIT=1 BRIDGE_PAIRING_CODE="TESTCODE1234" \
+    bash "$SCRIPT" \
+      --control-plane-url "http://cp.test" --node-name "test-node" \
+      --checkout-dir "${WORKROOT}/result-checkout-${category}" --source-dir "$CHECKOUT" --source-digest "live-tree-fingerprint" \
+      --state-dir "$STATE" --vrooli-bin "$FAKE_VROOLI" \
+      --agent-bin "$FAKE_AGENT" --bridge-cli "$FAKE_CLI" --verify-timeout 10 \
+      >"$out" 2>"${out}.err"
+  return $?
+}
+OUTREQ="${WORKROOT}/result-required.out"
+set +e; run_prebuilt_setup_failure required_requirement_blocked 1 "$OUTREQ"; rcreq=$?; set -e
+check "required setup failure stays exit 1" "$([ "$rcreq" -eq 1 ] && echo 0 || echo 1)"
+check "required setup failure is not platform-gated" "$(grep -q 'platform is unsupported' "${OUTREQ}.err" && echo 1 || echo 0)"
+OUTUNSUPPORTED="${WORKROOT}/result-unsupported.out"
+set +e; run_prebuilt_setup_failure unsupported_platform 3 "$OUTUNSUPPORTED"; rcunsupported=$?; set -e
+check "explicit unsupported-platform result maps to exit 3" "$([ "$rcunsupported" -eq 3 ] && echo 0 || echo 1)"
+check "unsupported result has platform guidance" "$(grep -q 'platform is unsupported' "${OUTUNSUPPORTED}.err" && echo 0 || echo 1)"
 
 echo "== toolchain guard recovers a tool installed OFF the non-interactive PATH =="
 # go/pnpm are absent from PATH (TOOLBIN withheld; TOOLLESS has no toolchains) but

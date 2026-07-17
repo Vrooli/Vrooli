@@ -48,9 +48,10 @@ func TestFailureGuidance_NamesTheTargetAndNextStep(t *testing.T) {
 	require.Contains(t, msg, "onboard start") // every retryable failure points at the retry
 }
 
-func TestFailureGuidance_UnsupportedPlatformMentionsMacGate(t *testing.T) {
+func TestFailureGuidance_UnsupportedPlatformDoesNotMisclassifyMacOS(t *testing.T) {
 	msg := failureGuidance(&onboardv1.OnboardingOp{FailureReason: failUnsupportedPlatform, Host: "mac", User: "admin"})
-	require.True(t, strings.Contains(strings.ToLower(msg), "macos"), "unsupported-platform guidance should name the macOS gate: %q", msg)
+	require.Contains(t, msg, "does not support")
+	require.NotContains(t, strings.ToLower(msg), "macos onboarding is gated")
 }
 
 func TestFailureGuidance_EmptyReasonIsHonest(t *testing.T) {

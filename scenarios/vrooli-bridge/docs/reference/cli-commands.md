@@ -84,6 +84,19 @@ vrooli-bridge configure api_base http://localhost:15001/api/v1
 vrooli-bridge configure token <token>
 ```
 
+### `vrooli-bridge auth login --email <email>`
+
+Sign in the local CLI with the same owner account as the Bridge UI. The
+password is read from a masked terminal prompt and is never accepted on argv
+or printed. The returned owner session is saved for later owner-gated commands.
+
+```bash
+vrooli-bridge auth login --email you@example.com
+
+# Non-interactive: read the password from standard input.
+password-manager read bridge-owner | vrooli-bridge auth login --email you@example.com --password-stdin
+```
+
 Read values back without an argument:
 
 ```bash

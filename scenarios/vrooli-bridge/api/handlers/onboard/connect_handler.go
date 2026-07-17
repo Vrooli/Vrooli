@@ -177,6 +177,16 @@ func (h *connectHandler) CancelOnboarding(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(&onboardv1.CancelOnboardingResponse{Op: domainOpToProto(op)}), nil
 }
 
+func (h *connectHandler) RemoveFailedOnboarding(ctx context.Context, req *connect.Request[onboardv1.RemoveFailedOnboardingRequest]) (*connect.Response[onboardv1.RemoveFailedOnboardingResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if err := h.deps.Service.RemoveFailed(ctx, req.Msg.GetId()); err != nil {
+		return nil, h.mapErr("RemoveFailedOnboarding", req.Msg.GetId(), err)
+	}
+	return connect.NewResponse(&onboardv1.RemoveFailedOnboardingResponse{}), nil
+}
+
 // mapErr logs internal errors and returns the Connect translation.
 func (h *connectHandler) mapErr(op, id string, err error) error {
 	connectErr := onboard.ToConnectError(err)
