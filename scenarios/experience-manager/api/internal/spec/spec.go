@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 const (
@@ -156,6 +157,7 @@ type PageDocument struct {
 	States        []State                    `json:"states"`
 	Elements      []Element                  `json:"elements"`
 	Claims        []Claim                    `json:"claims"`
+	Regions       []ExperienceRegion         `json:"regions"`
 	Bindings      Bindings                   `json:"bindings"`
 	FloorOptOuts  []FloorOptOut              `json:"floorOptOuts"`
 	Sketch        Sketch                     `json:"sketch"`
@@ -231,6 +233,58 @@ func (c *Claim) UnmarshalJSON(data []byte) error {
 
 type Bindings struct {
 	Elements map[string]Binding `json:"elements"`
+	Regions  map[string]Binding `json:"regions"`
+}
+
+// ExperienceRegion is the authored composition boundary for a meaningful
+// independently rendered surface. Its stable identity and lifecycle intent are
+// separate from the volatile selector/testid held in Bindings.Regions.
+type ExperienceRegion struct {
+	ID        string             `json:"id"`
+	Purpose   string             `json:"purpose"`
+	Required  bool               `json:"required"`
+	Component ComponentReference `json:"component"`
+	Lifecycle RegionLifecycle    `json:"lifecycle"`
+}
+
+// UnmarshalJSON applies the authored contract's required-by-default rule.
+// A bool alone cannot distinguish an omitted field from explicit false.
+func (r *ExperienceRegion) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		ID        string             `json:"id"`
+		Purpose   string             `json:"purpose"`
+		Required  *bool              `json:"required"`
+		Component ComponentReference `json:"component"`
+		Lifecycle RegionLifecycle    `json:"lifecycle"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	r.ID, r.Purpose, r.Component, r.Lifecycle = raw.ID, raw.Purpose, raw.Component, raw.Lifecycle
+	r.Required = true
+	if raw.Required != nil {
+		r.Required = *raw.Required
+	}
+	return nil
+}
+
+type ComponentReference struct {
+	Local   string               `json:"local"`
+	Library *LibraryComponentRef `json:"library"`
+}
+
+type LibraryComponentRef struct {
+	Component string `json:"component"`
+	Version   string `json:"version"`
+}
+
+type ComponentExtension struct {
+	Purpose string `json:"purpose"`
+}
+
+type RegionLifecycle struct {
+	Kind   string   `json:"kind"`
+	States []string `json:"states"`
 }
 
 type Binding struct {
@@ -285,11 +339,13 @@ type ComponentDocument struct {
 }
 
 type ComponentIdentity struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	Purpose     string   `json:"purpose"`
-	ExamplesRef string   `json:"examplesRef"`
-	PRDRefs     []string `json:"prd_refs"`
+	ID          string               `json:"id"`
+	Title       string               `json:"title"`
+	Purpose     string               `json:"purpose"`
+	ExamplesRef string               `json:"examplesRef"`
+	Extends     *LibraryComponentRef `json:"extends"`
+	Extension   *ComponentExtension  `json:"extension"`
+	PRDRefs     []string             `json:"prd_refs"`
 }
 
 type ComponentState struct {
@@ -548,8 +604,61 @@ func checkPages(report *Report, spec *ScenarioSpec, prdRefs map[string]bool) {
 		loc := "experience/" + indexByID[id].Path
 		checkPageShape(report, loc, page, indexByID[id])
 		checkPRDRefs(report, loc, "page", page.Page.PRDRefs, prdRefs)
-		checkPageReferences(report, loc, page)
+		checkPageReferences(report, loc, page, spec.Components)
+		checkPinnedLibraryContracts(report, loc, filepath.Dir(spec.ExperienceDir), page)
 	}
+}
+
+// checkPinnedLibraryContracts verifies canonical ownership when parsing inside
+// a repository that contains the RCL library. Parser fixtures intentionally
+// remain self-contained, so an absent sibling library means there is no local
+// artifact to verify rather than a fabricated resolution failure.
+func checkPinnedLibraryContracts(report *Report, loc, scenarioDir string, page PageDocument) {
+	scenariosDir := filepath.Dir(scenarioDir)
+	libraryRoot := filepath.Join(scenariosDir, "react-component-library", "library", "components")
+	if info, err := os.Stat(libraryRoot); err != nil || !info.IsDir() {
+		return
+	}
+	for _, region := range page.Regions {
+		library := region.Component.Library
+		if library == nil || !idPattern.MatchString(library.Component) || !schemaVersionPattern.MatchString(library.Version) {
+			continue
+		}
+		contract := pinnedLibraryContractPath(libraryRoot, library.Component, library.Version)
+		if contract == "" {
+			contract = filepath.Join(libraryRoot, library.Component, "versions", library.Version, "experience-contract.json")
+		}
+		if _, err := os.Stat(contract); err != nil {
+			report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("region %q pins library component %s@%s without a canonical experience contract", region.ID, library.Component, library.Version), loc, "Promote the component contract into the exact RCL version or change the pin to an available canonical version.")
+		}
+	}
+}
+
+func pinnedLibraryContractPath(libraryRoot, component, version string) string {
+	entries, err := os.ReadDir(libraryRoot)
+	if err != nil {
+		return ""
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() || canonicalLibraryComponentID(entry.Name()) != component {
+			continue
+		}
+		return filepath.Join(libraryRoot, entry.Name(), "versions", version, "experience-contract.json")
+	}
+	return ""
+}
+
+func canonicalLibraryComponentID(name string) string {
+	var out []rune
+	for index, r := range strings.TrimSpace(name) {
+		if unicode.IsUpper(r) && index > 0 {
+			out = append(out, '-')
+		}
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			out = append(out, unicode.ToLower(r))
+		}
+	}
+	return strings.Trim(string(out), "-")
 }
 
 func checkPageShape(report *Report, loc string, page PageDocument, ref DocumentRef) {
@@ -573,6 +682,7 @@ func checkPageShape(report *Report, loc string, page PageDocument, ref DocumentR
 	checkUniqueIDs(report, loc, "state", stateIDs(page.States))
 	checkUniqueIDs(report, loc, "element", elementIDs(page.Elements))
 	checkUniqueIDs(report, loc, "claim", claimIDs(page.Claims))
+	checkUniqueIDs(report, loc, "region", regionIDs(page.Regions))
 	for _, el := range page.Elements {
 		if !idPattern.MatchString(el.ID) || !rolePattern.MatchString(el.Role) {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("element %q has invalid id or role", el.ID), loc, "Use kebab-case ids and ARIA or x- namespaced roles.")
@@ -583,7 +693,7 @@ func checkPageShape(report *Report, loc string, page PageDocument, ref DocumentR
 	}
 }
 
-func checkPageReferences(report *Report, loc string, page PageDocument) {
+func checkPageReferences(report *Report, loc string, page PageDocument, components map[string]ComponentDocument) {
 	elementSet := stringSet(elementIDs(page.Elements))
 	stateSet := stringSet(stateIDs(page.States))
 	for _, claim := range page.Claims {
@@ -610,6 +720,36 @@ func checkPageReferences(report *Report, loc string, page PageDocument) {
 			report.add(CodeBindingOrphan, SeverityError, fmt.Sprintf("binding references unknown element %q", el), loc, "Remove the binding or declare the element.")
 		}
 	}
+	for _, region := range page.Regions {
+		checkRegionShape(report, loc, region)
+		if region.Component.Local != "" && region.Component.Library != nil {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q must reference exactly one local or library component", region.ID), loc, "Use either component.local or component.library.")
+		}
+		if region.Component.Local == "" && region.Component.Library == nil {
+			report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("region %q has no component reference", region.ID), loc, "Reference a local component or a pinned library component.")
+		}
+		if region.Component.Local != "" {
+			if !idPattern.MatchString(region.Component.Local) {
+				report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q has invalid local component id %q", region.ID, region.Component.Local), loc, "Use a kebab-case local component id.")
+			}
+			if _, ok := components[region.Component.Local]; !ok {
+				report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("region %q references unknown local component %q", region.ID, region.Component.Local), loc, "Reference a component declared in experience/index.json.")
+			}
+		}
+		if library := region.Component.Library; library != nil {
+			if !idPattern.MatchString(library.Component) || !schemaVersionPattern.MatchString(library.Version) {
+				report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q has an invalid pinned library component", region.ID), loc, "Use a kebab-case component name and exact semver version.")
+			}
+		}
+		if !bindingFor(page.Bindings.Regions, region.ID) {
+			report.add(CodeBindingOrphan, SeverityError, fmt.Sprintf("region %q has no runtime binding", region.ID), loc, "Bind each meaningful region to a data-testid or selector.")
+		}
+	}
+	for region := range page.Bindings.Regions {
+		if !stringSet(regionIDs(page.Regions))[region] {
+			report.add(CodeBindingOrphan, SeverityError, fmt.Sprintf("region binding references unknown region %q", region), loc, "Remove the binding or declare the region.")
+		}
+	}
 	for _, el := range page.Elements {
 		if !bindingFor(page.Bindings.Elements, el.ID) {
 			report.add(CodeBindingOrphan, SeverityError, fmt.Sprintf("element %q has no binding", el.ID), loc, "Bind each element to a testid or selector.")
@@ -621,6 +761,42 @@ func checkPageReferences(report *Report, loc string, page PageDocument) {
 				report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("sketch region %q references unknown element %q", region.ID, el), loc, "Keep sketch element refs aligned with declared elements.")
 			}
 		}
+	}
+}
+
+func checkRegionShape(report *Report, loc string, region ExperienceRegion) {
+	if !idPattern.MatchString(region.ID) || len(strings.TrimSpace(region.Purpose)) < 10 {
+		report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q must include a kebab-case id and meaningful purpose", region.ID), loc, "Declare a stable region id and purpose.")
+	}
+	stateSet := stringSet(region.Lifecycle.States)
+	if len(stateSet) != len(region.Lifecycle.States) || len(stateSet) == 0 {
+		report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q lifecycle must declare unique states", region.ID), loc, "Declare one or more lifecycle states.")
+	}
+	for state := range stateSet {
+		if !validRegionLifecycleState(state) {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q has unsupported lifecycle state %q", region.ID, state), loc, "Use loading, ready, empty, partial, error, or static.")
+		}
+	}
+	switch region.Lifecycle.Kind {
+	case "static":
+		if len(stateSet) != 1 || !stateSet["static"] {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("static region %q must declare only static lifecycle", region.ID), loc, "Static regions use lifecycle.kind static with states [static].")
+		}
+	case "async":
+		if stateSet["static"] {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("async region %q cannot declare static lifecycle", region.ID), loc, "Use loading, ready, empty, partial, or error for async regions.")
+		}
+	default:
+		report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q lifecycle kind %q is invalid", region.ID, region.Lifecycle.Kind), loc, "Use async or static.")
+	}
+}
+
+func validRegionLifecycleState(state string) bool {
+	switch state {
+	case "loading", "ready", "empty", "partial", "error", "static":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -692,7 +868,7 @@ func checkComponents(report *Report, spec *ScenarioSpec, prdRefs map[string]bool
 		path := filepath.Join(spec.ExperienceDir, filepath.FromSlash(indexByID[id].Path))
 		checkComponentShape(report, loc, component, indexByID[id])
 		checkPRDRefs(report, loc, "component", component.Component.PRDRefs, prdRefs)
-		checkComponentReferences(report, loc, path, component)
+		checkComponentReferences(report, loc, path, filepath.Dir(spec.ExperienceDir), component)
 	}
 }
 
@@ -708,6 +884,14 @@ func checkComponentShape(report *Report, loc string, component ComponentDocument
 	}
 	if component.Component.Title == "" || len(component.Component.Purpose) < 15 || strings.TrimSpace(component.Component.ExamplesRef) == "" {
 		report.add(CodeSchemaInvalid, SeverityError, "component identity must include title, purpose, and examplesRef", loc, "Fill component.title, component.purpose, and component.examplesRef.")
+	}
+	if component.Component.Extends != nil {
+		if !idPattern.MatchString(component.Component.Extends.Component) || !schemaVersionPattern.MatchString(component.Component.Extends.Version) {
+			report.add(CodeSchemaInvalid, SeverityError, "component extends must pin a kebab-case library component and exact semver version", loc, "Set component.extends.component and component.extends.version to the canonical RCL pin.")
+		}
+		if component.Component.Extension == nil || len(strings.TrimSpace(component.Component.Extension.Purpose)) < 15 {
+			report.add(CodeSchemaInvalid, SeverityError, "component wrapper must declare an additive extension purpose", loc, "Add component.extension.purpose explaining the scenario-local behavior.")
+		}
 	}
 	checkUniqueIDs(report, loc, "state", componentStateIDs(component.States))
 	checkUniqueIDs(report, loc, "element", elementIDs(component.Elements))
@@ -727,7 +911,7 @@ func checkComponentShape(report *Report, loc string, component ComponentDocument
 	}
 }
 
-func checkComponentReferences(report *Report, loc, path string, component ComponentDocument) {
+func checkComponentReferences(report *Report, loc, path, scenarioDir string, component ComponentDocument) {
 	elementSet := stringSet(elementIDs(component.Elements))
 	stateSet := stringSet(componentStateIDs(component.States))
 	exampleSet := componentExamples(filepath.Dir(path), component.Component.ExamplesRef)
@@ -767,6 +951,63 @@ func checkComponentReferences(report *Report, loc, path string, component Compon
 		}
 		if !exampleSet[state.Example] {
 			report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("component state %q references unknown example %q", state.ID, state.Example), loc, "Reference an example name declared in examples.json.")
+		}
+	}
+	checkWrapperExtension(report, loc, scenarioDir, component)
+}
+
+// checkWrapperExtension makes local extension ownership explicit. Canonical
+// contracts own their lifecycle and claims; a scenario wrapper can add new
+// behavior but may not silently redefine an existing canonical identifier.
+func checkWrapperExtension(report *Report, loc, scenarioDir string, component ComponentDocument) {
+	pin := component.Component.Extends
+	if pin == nil || !idPattern.MatchString(pin.Component) || !schemaVersionPattern.MatchString(pin.Version) {
+		return
+	}
+	libraryRoot := filepath.Join(filepath.Dir(scenarioDir), "react-component-library", "library", "components")
+	contractPath := pinnedLibraryContractPath(libraryRoot, pin.Component, pin.Version)
+	if contractPath == "" {
+		contractPath = filepath.Join(libraryRoot, pin.Component, "versions", pin.Version, "experience-contract.json")
+	}
+	raw, err := os.ReadFile(contractPath)
+	if err != nil {
+		report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("component wrapper %q pins %s@%s without a canonical experience contract", component.Component.ID, pin.Component, pin.Version), loc, "Promote the canonical contract into the exact RCL version before creating a wrapper.")
+		return
+	}
+	var canonical struct {
+		Component struct {
+			ID string `json:"id"`
+		} `json:"component"`
+		States []struct {
+			ID string `json:"id"`
+		} `json:"states"`
+		Claims []struct {
+			ID string `json:"id"`
+		} `json:"claims"`
+	}
+	if err := json.Unmarshal(raw, &canonical); err != nil {
+		report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("component wrapper %q pins an unreadable canonical contract", component.Component.ID), loc, "Repair the pinned RCL experience-contract.json before extending it.")
+		return
+	}
+	if canonical.Component.ID != "" && canonical.Component.ID != pin.Component {
+		report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("component wrapper %q pin %s@%s identifies canonical component %q", component.Component.ID, pin.Component, pin.Version, canonical.Component.ID), loc, "Pin the library component id declared by the canonical contract.")
+	}
+	canonicalStates := map[string]bool{}
+	for _, state := range canonical.States {
+		canonicalStates[state.ID] = true
+	}
+	for _, state := range component.States {
+		if canonicalStates[state.ID] {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("component wrapper %q redefines canonical state %q", component.Component.ID, state.ID), loc, "Remove the overlapping state; wrappers may add behavior but cannot override canonical lifecycle semantics.")
+		}
+	}
+	canonicalClaims := map[string]bool{}
+	for _, claim := range canonical.Claims {
+		canonicalClaims[claim.ID] = true
+	}
+	for _, claim := range component.Claims {
+		if canonicalClaims[claim.ID] {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("component wrapper %q redefines canonical claim %q", component.Component.ID, claim.ID), loc, "Use a new claim id for additive wrapper behavior; canonical claims remain authoritative.")
 		}
 	}
 }
@@ -905,6 +1146,14 @@ func elementIDs(elements []Element) []string {
 	out := make([]string, 0, len(elements))
 	for _, element := range elements {
 		out = append(out, element.ID)
+	}
+	return out
+}
+
+func regionIDs(regions []ExperienceRegion) []string {
+	out := make([]string, 0, len(regions))
+	for _, region := range regions {
+		out = append(out, region.ID)
 	}
 	return out
 }

@@ -293,10 +293,10 @@ func TestComponentsIngest_ForwardsOriginAndRendersFindings(t *testing.T) {
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "scenario"}, {Name: "source-file"}, {Name: "slug"}},
-		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}, {Name: "accept-behavior-loss"}},
+		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}, {Name: "experience-contract"}, {Name: "accept-behavior-loss"}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"scenario": "web-console", "source-file": "ui/src/components/DrawerShell.tsx", "slug": "drawer-shell"},
-		Flags:       map[string]string{"display-name": "Drawer Shell", "tags": "overlay,layout", "slot": "ui-pattern", "companion-files": "ui/src/components/useFocusTrap.ts"},
+		Flags:       map[string]string{"display-name": "Drawer Shell", "tags": "overlay,layout", "slot": "ui-pattern", "companion-files": "ui/src/components/useFocusTrap.ts", "experience-contract": "experience/components/drawer-shell.json"},
 	})
 
 	require.NoError(t, h.ingest(ctx))
@@ -304,6 +304,7 @@ func TestComponentsIngest_ForwardsOriginAndRendersFindings(t *testing.T) {
 	require.Equal(t, "web-console", svc.ingestReqs[0].Scenario)
 	require.Equal(t, []string{"overlay", "layout"}, svc.ingestReqs[0].Tags)
 	require.Equal(t, []string{"ui/src/components/useFocusTrap.ts"}, svc.ingestReqs[0].SourceFiles)
+	require.Equal(t, "experience/components/drawer-shell.json", svc.ingestReqs[0].ExperienceContractPath)
 	require.Contains(t, out.String(), "draft 0.1.0-draft.1")
 	require.Contains(t, out.String(), "token-violation")
 	require.False(t, svc.ingestReqs[0].AcceptBehaviorLoss)
@@ -316,7 +317,7 @@ func TestComponentsIngest_BlockedHarvestNamesLossAndPointsAtOverride(t *testing.
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "scenario"}, {Name: "source-file"}, {Name: "slug"}},
-		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}, {Name: "accept-behavior-loss"}},
+		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}, {Name: "experience-contract"}, {Name: "accept-behavior-loss"}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"scenario": "web-console", "source-file": "ui/src/components/DrawerShell.tsx", "slug": "drawer-shell"},
 	})
@@ -338,7 +339,7 @@ func TestComponentsIngest_AcceptBehaviorLossForwardsOverride(t *testing.T) {
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "scenario"}, {Name: "source-file"}, {Name: "slug"}},
-		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}, {Name: "accept-behavior-loss"}},
+		Flags:       []cliapp.Flag{{Name: "display-name"}, {Name: "description"}, {Name: "tags"}, {Name: "slot"}, {Name: "version"}, {Name: "companion-files"}, {Name: "experience-contract"}, {Name: "accept-behavior-loss"}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"scenario": "web-console", "source-file": "ui/src/components/DrawerShell.tsx", "slug": "drawer-shell"},
 		Flags:       map[string]string{"accept-behavior-loss": "true"},

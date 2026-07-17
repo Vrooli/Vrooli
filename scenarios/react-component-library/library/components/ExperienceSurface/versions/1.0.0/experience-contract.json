@@ -1,0 +1,25 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library/ExperienceSurface@1.0.0"
+  },
+  "component": {
+    "id": "experience-surface",
+    "title": "Experience Surface",
+    "purpose": "Expose the lifecycle of an independently meaningful rendered region without imposing layout or visual presentation."
+  },
+  "states": [
+    {"id": "loading", "example": "loading", "description": "The surface is waiting for its required work and announces progress."},
+    {"id": "ready", "example": "ready", "description": "The surface has usable primary content."},
+    {"id": "empty", "example": "empty", "description": "The surface completed successfully with no applicable content."},
+    {"id": "partial", "example": "partial", "description": "The primary task remains usable while some supporting data is unavailable."},
+    {"id": "error", "example": "error", "description": "The surface reached a terminal failure and announces it accessibly."},
+    {"id": "static", "example": "static", "description": "The surface has no asynchronous lifecycle requirement."}
+  ],
+  "claims": [
+    {"id": "stable-surface-identity", "type": "custom", "statement": "Every example exposes its stable surface identity and lifecycle state through data-experience-surface and data-experience-state.", "tier": "machine", "states": ["loading", "ready", "empty", "partial", "error", "static"]},
+    {"id": "loading-busy-state", "type": "custom", "statement": "Loading examples expose aria-busy=true on the semantic surface.", "tier": "machine", "states": ["loading"]},
+    {"id": "live-terminal-status", "type": "custom", "statement": "Loading, partial, and error examples expose a polite status announcement when a status message is supplied.", "tier": "machine", "states": ["loading", "partial", "error"]}
+  ]
+}

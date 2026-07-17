@@ -2,15 +2,20 @@ package uiruntime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	urlpkg "net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
+	contractconnect "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract/contract_v1connect"
 	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
 
 	"ui-health/internal/evidence"
@@ -40,9 +45,10 @@ type Runner struct {
 	bas basRunner
 	// resolveUI returns the target scenario's running UI base URL (or an error /
 	// empty when it is not up).
-	resolveUI      func(ctx context.Context, scenario string) (string, error)
-	log            *log.Logger
-	runtimeTimeout time.Duration
+	resolveUI        func(ctx context.Context, scenario string) (string, error)
+	log              *log.Logger
+	runtimeTimeout   time.Duration
+	readinessProfile func(context.Context, string) (*readinessProfile, error)
 }
 
 // New constructs the production runtime checker over BAS + discovery.
@@ -51,7 +57,7 @@ func New(logger *log.Logger) *Runner {
 		logger = log.Default()
 	}
 	resolver := discovery.NewResolver(discovery.ResolverConfig{})
-	return &Runner{
+	runner := &Runner{
 		bas: &connectRunner{
 			resolveBAS: func(ctx context.Context) (string, error) {
 				return resolver.ResolveScenarioURLDefault(ctx, basScenarioID)
@@ -66,6 +72,22 @@ func New(logger *log.Logger) *Runner {
 		log:            logger,
 		runtimeTimeout: defaultRuntimeGroupTimeout,
 	}
+	runner.readinessProfile = func(ctx context.Context, scenario string) (*readinessProfile, error) {
+		base, err := resolver.ResolveScenarioURLDefault(ctx, "experience-manager")
+		if err != nil {
+			return nil, err
+		}
+		resp, err := contractconnect.NewContractServiceClient(&http.Client{Timeout: 15 * time.Second}, base).GetReadinessProfile(ctx, connect.NewRequest(&contractv1.GetReadinessProfileRequest{Scenario: scenario}))
+		if err != nil {
+			return nil, err
+		}
+		var profile readinessProfile
+		if err := json.Unmarshal([]byte(resp.Msg.GetProfileJson()), &profile); err != nil {
+			return nil, err
+		}
+		return &profile, nil
+	}
+	return runner
 }
 
 // Check runs the runtime/render group. It never returns an error; infra absence
@@ -80,7 +102,41 @@ func (r *Runner) Check(ctx context.Context, in Input) []manifestvalidation.Findi
 		)}
 	}
 
-	return r.checkProfiles(ctx, url)
+	var profile *readinessProfile
+	if r.readinessProfile != nil {
+		if resolved, profileErr := r.readinessProfile(ctx, in.Scenario); profileErr == nil {
+			profile = resolved
+		}
+	}
+	routes := []string{"/"}
+	if declared := profile.routes(); len(declared) > 0 {
+		routes = declared
+	}
+	var findings []manifestvalidation.Finding
+	for _, route := range routes {
+		targetURL := runtimeURLForRoute(url, route)
+		findings = append(findings, r.checkProfiles(ctx, targetURL, profile.requiredSurfacesForRoute(route))...)
+	}
+	return findings
+}
+
+func runtimeURLForRoute(base, route string) string {
+	u, err := urlpkg.Parse(base)
+	if err != nil || strings.TrimSpace(route) == "" {
+		return base
+	}
+	routeURL, err := urlpkg.Parse(route)
+	if err != nil {
+		return base
+	}
+	if !strings.HasPrefix(routeURL.Path, "/") {
+		routeURL.Path = "/" + routeURL.Path
+		if routeURL.RawPath != "" {
+			routeURL.RawPath = "/" + routeURL.RawPath
+		}
+	}
+	u.Path, u.RawPath, u.RawQuery, u.Fragment = routeURL.Path, routeURL.RawPath, routeURL.RawQuery, ""
+	return u.String()
 }
 
 type profileResult struct {
@@ -89,7 +145,7 @@ type profileResult struct {
 	err      error
 }
 
-func (r *Runner) checkProfiles(ctx context.Context, url string) []manifestvalidation.Finding {
+func (r *Runner) checkProfiles(ctx context.Context, url string, expected []requiredSurface) []manifestvalidation.Finding {
 	runCtx, cancel := r.runtimeContext(ctx)
 	defer cancel()
 
@@ -108,7 +164,7 @@ func (r *Runner) checkProfiles(ctx context.Context, url string) []manifestvalida
 				resultCh <- profileResult{index: index, err: runCtx.Err()}
 				return
 			}
-			resultCh <- r.checkProfile(runCtx, url, index, p)
+			resultCh <- r.checkProfile(runCtx, url, index, p, expected)
 		}(i, profile)
 	}
 	go func() {
@@ -160,8 +216,8 @@ func (r *Runner) runtimeContext(ctx context.Context) (context.Context, context.C
 	return context.WithTimeout(ctx, timeout)
 }
 
-func (r *Runner) checkProfile(ctx context.Context, url string, index int, profile viewportProfile) profileResult {
-	def := buildHandshakeWorkflow(url, nil, 0, profile.width, profile.height)
+func (r *Runner) checkProfile(ctx context.Context, url string, index int, profile viewportProfile, expected []requiredSurface) profileResult {
+	def := buildHandshakeWorkflow(url, nil, expected, 0, profile.width, profile.height)
 	res, err := r.bas.Run(ctx, def)
 	if err != nil {
 		return profileResult{index: index, err: err}
@@ -169,6 +225,7 @@ func (r *Runner) checkProfile(ctx context.Context, url string, index int, profil
 	ev := res.evidenceFor(url)
 	visualFinds := applyVisualHealth(&ev, res.visualStep(url, profile.id))
 	finds := findingsFromEvidence(ev, profile.id)
+	finds = append(finds, readinessSurfaceFindings(res.layoutJSON, expected, url, profile.id)...)
 	if missing := missingEvidenceArtifacts(res, profile); len(missing) > 0 {
 		finds = append([]manifestvalidation.Finding{evidenceIncompleteFinding(url, profile.id, missing)}, finds...)
 	}

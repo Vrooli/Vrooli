@@ -3,6 +3,7 @@ package uiruntime
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -122,6 +123,38 @@ func TestCheckHandshakePasses(t *testing.T) {
 	}
 	if !hasViewportDef(bas.defs, 390, 844) {
 		t.Fatalf("mobile viewport definition not found in %#v", bas.defs)
+	}
+}
+
+func TestCheckCollectsEveryDeclaredReadinessRoute(t *testing.T) {
+	bas := &fakeBAS{run: func(_ context.Context, def map[string]any) (*runResult, error) {
+		width, height := viewportFromDef(def)
+		return completeRuntimeResult(t, width, height), nil
+	}}
+	r := newRunner("http://localhost:5173/base", nil, bas)
+	var profile readinessProfile
+	if err := json.Unmarshal([]byte(`{"pages":[{"routes":["/dashboard","/settings"],"regions":[]}]}`), &profile); err != nil {
+		t.Fatal(err)
+	}
+	r.readinessProfile = func(context.Context, string) (*readinessProfile, error) { return &profile, nil }
+	finds := r.Check(context.Background(), Input{Scenario: "demo"})
+	if len(finds) != 4 {
+		t.Fatalf("expected two viewport results for each declared route, got %v", codes(finds))
+	}
+	if len(bas.defs) != 4 || !hasNavigationURL(bas.defs, "http://localhost:5173/dashboard") || !hasNavigationURL(bas.defs, "http://localhost:5173/settings") {
+		t.Fatalf("route workflows = %#v", bas.defs)
+	}
+}
+
+func TestRuntimeURLForRoutePreservesStateSetupQuery(t *testing.T) {
+	if got := runtimeURLForRoute("http://localhost:5173/base", "/assets/Button?tab=preview"); got != "http://localhost:5173/assets/Button?tab=preview" {
+		t.Fatalf("runtime URL = %q", got)
+	}
+}
+
+func TestRuntimeURLForRouteDoesNotDoubleEscapeEncodedPathSegments(t *testing.T) {
+	if got := runtimeURLForRoute("http://localhost:5173/base", "/assets/react-component-library%3AButton?tab=preview"); got != "http://localhost:5173/assets/react-component-library%3AButton?tab=preview" {
+		t.Fatalf("runtime URL = %q", got)
 	}
 }
 
@@ -475,6 +508,21 @@ func hasViewportDef(defs []map[string]any, width, height int) bool {
 		}
 		if settings["viewport_width"] == width && settings["viewport_height"] == height {
 			return true
+		}
+	}
+	return false
+}
+
+func hasNavigationURL(defs []map[string]any, want string) bool {
+	for _, def := range defs {
+		nodes, _ := def["nodes"].([]any)
+		for _, raw := range nodes {
+			node, _ := raw.(map[string]any)
+			action, _ := node["action"].(map[string]any)
+			navigate, _ := action["navigate"].(map[string]any)
+			if navigate["url"] == want {
+				return true
+			}
 		}
 	}
 	return false

@@ -80,17 +80,20 @@ claims together. Do not move TSX alone.
    `library/components/<Slug>/versions/<version>/examples.json`. Keep
    the examples data-only; use the `$` vocabulary for React nodes,
    icons, handlers, row keys, columns, and filters.
-4. Move reusable page element/claim intent into
-   `experience/components/<slug>.json` as an `experience-component`
-   document. Anchor each component state to a named example through
-   `states[].example` and point `component.examplesRef` at the versioned
-   `examples.json`.
-5. Run `react-component-library components index --json` so SQLite
+4. Copy the canonical experience contract into
+   `library/components/<Slug>/versions/<version>/experience-contract.json`.
+   That immutable version directory, not RCL's scenario-level `experience/`
+   folder, is the reusable contract authority.
+5. Replace the origin scenario's full component contract with a direct page
+   library pin, or retain a local component only as an explicit additive
+   wrapper. A wrapper declares `component.extends` and an extension purpose;
+   it cannot reuse canonical lifecycle-state or claim identifiers.
+6. Run `react-component-library components index --json` so SQLite
    projections for versions, dependencies, examples, and design
    affinities match Git.
-6. Run the catalog gates: `pnpm run catalog:check` and
+7. Run the catalog gates: `pnpm run catalog:check` and
    `pnpm run test:preview-e2e` from `ui/`.
-7. Run `test-genie execute react-component-library experience --json`
+8. Run `test-genie execute react-component-library experience --json`
    so Experience Manager captures the preview harness and reconciles
 component machine claims against the BAS accessibility tree.
 

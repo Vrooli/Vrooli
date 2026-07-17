@@ -227,6 +227,43 @@ func TestService_IngestScaffoldsCatalogMetadataContract(t *testing.T) {
 	}
 }
 
+func TestService_IngestTransfersExplicitExperienceContractIntoReleasedVersion(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	contract := `{"kind":"experience-component","component":{"id":"panel"},"states":[]}`
+	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(_ context.Context, _, sourceFile string) ([]byte, error) {
+		switch sourceFile {
+		case "ui/src/components/Panel.tsx":
+			return []byte(`export default function Panel() { return <div>Panel</div>; }`), nil
+		case "experience/components/panel.json":
+			return []byte(contract), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}))
+
+	ingested, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "demo", SourceFile: "ui/src/components/Panel.tsx", Slug: "panel", DisplayName: "Panel",
+		ExperienceContractPath: "experience/components/panel.json",
+	})
+	require.NoError(t, err)
+	draftPath := filepath.Join(root, "components", "panel", "versions", ingested.DraftVersion, "experience-contract.json")
+	require.FileExists(t, draftPath)
+	draftContract, err := os.ReadFile(draftPath)
+	require.NoError(t, err)
+	require.Equal(t, contract, string(draftContract))
+
+	component, err := svc.GetByLibraryID(context.Background(), ingested.Component.LibraryID)
+	require.NoError(t, err)
+	_, err = svc.CreateComponentVersion(context.Background(), components.CreateComponentVersionInput{ComponentID: component.ID, Version: "1.0.0", FromVersion: ingested.DraftVersion, Intent: components.VersionIntentRelease})
+	require.NoError(t, err)
+	releasePath := filepath.Join(root, "components", "panel", "versions", "1.0.0", "experience-contract.json")
+	releaseContract, err := os.ReadFile(releasePath)
+	require.NoError(t, err)
+	require.Equal(t, contract, string(releaseContract))
+}
+
 func TestService_IngestComponentCopiesRelativeImportClosureAsOneVersionUnit(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()

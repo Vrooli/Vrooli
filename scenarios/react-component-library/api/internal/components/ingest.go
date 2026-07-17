@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -44,6 +45,10 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 	}
 	if !strings.HasSuffix(in.SourceFile, ".tsx") {
 		return IngestComponentResult{}, fmt.Errorf("source_file must be a .tsx file")
+	}
+	contract, err := readIngestExperienceContract(ctx, s.ingest, in.Scenario, in.ExperienceContractPath)
+	if err != nil {
+		return IngestComponentResult{}, err
 	}
 	unit, err := readIngestUnit(ctx, s.ingest, in.Scenario, in.SourceFile, in.SourceFiles)
 	if err != nil {
@@ -100,7 +105,7 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 		draft, err := s.CreateComponentVersion(ctx, CreateComponentVersionInput{
 			ComponentID: existing.ID, Version: draftVersion, Intent: VersionIntentDraft,
 			FileName: draftFiles[0].Path, Source: draftSource, Files: draftFiles, ParityReport: &report,
-			ScaffoldExamples: true,
+			ScaffoldExamples: true, ExperienceContract: contract,
 		})
 		if err != nil {
 			return IngestComponentResult{}, err
@@ -119,7 +124,7 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 	draft, err := s.CreateComponentVersion(ctx, CreateComponentVersionInput{
 		ComponentID: created.Component.ID, Version: draftVersion, Intent: VersionIntentDraft,
 		FileName: draftFiles[0].Path, Source: draftSource, Files: draftFiles, ParityReport: &report,
-		ScaffoldExamples: true,
+		ScaffoldExamples: true, ExperienceContract: contract,
 	})
 	if err != nil {
 		return IngestComponentResult{}, err
@@ -128,6 +133,25 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 		Component: draft.Component, ManifestPath: created.ManifestPath, SourcePath: draft.SourcePath,
 		DraftVersion: draftVersion, Findings: findings, ParityReport: report, ChecklistPath: ingestChecklistPath,
 	}, nil
+}
+
+func readIngestExperienceContract(ctx context.Context, reader ScenarioSourceReader, scenario, requested string) (string, error) {
+	path := strings.TrimSpace(requested)
+	if path == "" {
+		return "", nil
+	}
+	raw, err := reader.Read(ctx, scenario, path)
+	if err != nil {
+		return "", fmt.Errorf("read experience contract %q: %w", path, err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		return "", fmt.Errorf("decode experience contract %q: %w", path, err)
+	}
+	if strings.TrimSpace(fmt.Sprint(document["kind"])) != "experience-component" {
+		return "", fmt.Errorf("experience contract %q must be an experience-component document", path)
+	}
+	return string(raw), nil
 }
 
 func ingestFilePaths(files []ComponentVersionFile) []string {

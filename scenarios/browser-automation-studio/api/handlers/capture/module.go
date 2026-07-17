@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
+	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 
@@ -53,6 +54,29 @@ type URLResolver interface {
 	ResolveScenarioURLDefault(ctx context.Context, slug string) (string, error)
 }
 
+// uiURLResolver is implemented by api-core's discovery resolver. Keep it
+// optional so focused handler tests and legacy callers that only expose a
+// default API URL retain a safe fallback.
+type uiURLResolver interface {
+	ResolveScenarioURL(ctx context.Context, slug, portKey string) (string, error)
+}
+
+// ReadinessProfileResolver obtains the Experience Manager-owned compiled
+// profile for a known local scenario. It is optional: unavailable profiles
+// preserve generic capture behavior.
+type ReadinessProfileResolver interface {
+	ResolveReadinessWaits(ctx context.Context, scenario, route string) (ReadinessResolution, error)
+}
+
+// ReadinessResolution preserves the contract provenance alongside the graph
+// waits so Capture reports why a declared strategy was selected.
+type ReadinessResolution struct {
+	Waits              []*actionsv1.WaitParams
+	ProfileVersion     string
+	Route              string
+	RequiredSurfaceIDs []string
+}
+
 // Deps wires the capture handler. Executor and Logger are required;
 // Storage is required to produce real screenshot files; Resolver and Now
 // are optional (Now defaults to time.Now). Producers, InlineDom and
@@ -62,6 +86,7 @@ type Deps struct {
 	Executor            Executor
 	Storage             storage.StorageInterface
 	Resolver            URLResolver
+	ReadinessResolver   ReadinessProfileResolver
 	Logger              *logrus.Logger
 	Now                 func() time.Time
 	Producers           *ProducerRegistry

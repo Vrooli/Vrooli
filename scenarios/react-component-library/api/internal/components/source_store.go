@@ -156,7 +156,7 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 		if entries, err := os.ReadDir(fromDir); err == nil {
 			files = files[:0]
 			for _, entry := range entries {
-				if entry.IsDir() || (!strings.HasSuffix(entry.Name(), ".ts") && !strings.HasSuffix(entry.Name(), ".tsx")) {
+				if entry.IsDir() || (!strings.HasSuffix(entry.Name(), ".ts") && !strings.HasSuffix(entry.Name(), ".tsx") && entry.Name() != "experience-contract.json") {
 					continue
 				}
 				raw, err := os.ReadFile(filepath.Join(fromDir, entry.Name()))
@@ -192,6 +192,11 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	if in.ParityReport != nil {
 		if err := writeParityReport(filepath.Join(filepath.Dir(sourceAbs), "parity.json"), *in.ParityReport); err != nil {
 			return "", err
+		}
+	}
+	if strings.TrimSpace(in.ExperienceContract) != "" {
+		if err := os.WriteFile(filepath.Join(filepath.Dir(sourceAbs), "experience-contract.json"), []byte(in.ExperienceContract), 0o600); err != nil {
+			return "", fmt.Errorf("write version experience contract: %w", err)
 		}
 	}
 	if in.ScaffoldExamples {

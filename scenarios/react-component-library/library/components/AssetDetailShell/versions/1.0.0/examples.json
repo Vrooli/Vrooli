@@ -1,0 +1,6 @@
+{
+  "examples": [
+    {"name":"ready-detail","displayName":"Ready asset detail","props":{"title":"Release artifact","preview":{"$node":"img","props":{"alt":"Release artifact preview","src":"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320'%3E%3C/svg%3E"}},"metadata":{"$node":"dl","children":[{"$node":"dt","children":[{"$text":"Version"}]},{"$node":"dd","children":[{"$text":"1.2.0"}]}]},"activity":{"$node":"p","children":[{"$text":"Validated by 12 checks."}]}},"expect":[{"kind":"role","role":"main"},{"kind":"text","value":"Validated by 12 checks."},{"kind":"attribute","selector":"[data-experience-surface]","name":"data-experience-state","value":"ready"}]},
+    {"name":"activity-partial","displayName":"Partial activity","props":{"title":"Release artifact","preview":{"$node":"div","children":[{"$text":"Artifact preview"}]},"metadata":{"$node":"p","children":[{"$text":"Version 1.2.0"}]},"activityState":"partial"},"expect":[{"kind":"role","role":"status","name":"Some information is unavailable."}]}
+  ]
+}

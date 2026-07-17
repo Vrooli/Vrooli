@@ -145,16 +145,17 @@ func (h *connectHandler) InitializeComponent(ctx context.Context, req *connect.R
 
 func (h *connectHandler) IngestComponent(ctx context.Context, req *connect.Request[componentsv1.IngestComponentRequest]) (*connect.Response[componentsv1.IngestComponentResponse], error) {
 	out, err := h.deps.Service.IngestComponent(ctx, components.IngestComponentInput{
-		Scenario:           req.Msg.Scenario,
-		SourceFile:         req.Msg.SourceFile,
-		SourceFiles:        append([]string(nil), req.Msg.SourceFiles...),
-		Version:            req.Msg.Version,
-		Slug:               req.Msg.Slug,
-		DisplayName:        req.Msg.DisplayName,
-		Description:        req.Msg.Description,
-		Tags:               append([]string(nil), req.Msg.Tags...),
-		Slot:               req.Msg.Slot,
-		AcceptBehaviorLoss: req.Msg.AcceptBehaviorLoss,
+		Scenario:               req.Msg.Scenario,
+		SourceFile:             req.Msg.SourceFile,
+		SourceFiles:            append([]string(nil), req.Msg.SourceFiles...),
+		Version:                req.Msg.Version,
+		Slug:                   req.Msg.Slug,
+		DisplayName:            req.Msg.DisplayName,
+		Description:            req.Msg.Description,
+		Tags:                   append([]string(nil), req.Msg.Tags...),
+		Slot:                   req.Msg.Slot,
+		AcceptBehaviorLoss:     req.Msg.AcceptBehaviorLoss,
+		ExperienceContractPath: req.Msg.ExperienceContractPath,
 	})
 	if err != nil {
 		connectErr := components.ToConnectError(err)

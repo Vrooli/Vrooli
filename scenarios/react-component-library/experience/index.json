@@ -7,8 +7,15 @@
   },
   "schemaVersion": "1.1.0",
   "scenario": "react-component-library",
-  "description": "Experience-component contracts for representative catalog primitives. Page specs stay deferred; component specs bind behavior claims to catalog examples and distinguish deterministic capture from manual evidence.",
-  "pages": [],
+  "description": "Experience contracts for reusable catalog primitives and the live component-preview workspace that composes them.",
+  "pages": [
+    {
+      "id": "component-preview-workspace",
+      "path": "pages/component-preview-workspace.json",
+      "title": "Component preview workspace",
+      "status": "active"
+    }
+  ],
   "journeys": [],
   "components": [
     {

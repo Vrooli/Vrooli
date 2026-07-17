@@ -27,6 +27,7 @@ import { ADOPTION_TEMPLATES, DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplat
 import { VersionDiffViewer } from "../versions/VersionDiffViewer";
 import { AssetWorkspace } from "../assets/AssetWorkspace";
 import type { DiffRow } from "../../api/versions";
+import { ExperienceSurface } from "../../../../library/components/ExperienceSurface/versions/1.0.0/ExperienceSurface";
 
 const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
 const PANEL_LAYOUT_STORAGE_KEY = "rcl.component-editor.split-view.v1";
@@ -211,6 +212,16 @@ export function ComponentEditor({
   const savedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewReady = previewState === "ready";
+  // A preview is usable once all specimens settle. Failed individual specimens
+  // retain their own retry UI, so the composed region is honestly partial
+  // rather than falsely ready when any of them fail.
+  const previewExperienceState = previewState === "waiting"
+    ? "loading"
+    : previewState === "error"
+    ? "error"
+    : Object.keys(specimenErrors).length > 0
+    ? "partial"
+    : "ready";
   const resolvedPreviewTheme = filters.colorScheme === "system"
     ? appResolvedTheme
     : filters.colorScheme;
@@ -667,7 +678,13 @@ export function ComponentEditor({
                     </div>
                   )}
                   {pane === "preview" && (
-                    <div data-testid={selectors.components.editor.workspacePane} data-pane="preview" className="flex h-full min-h-0 flex-col overflow-hidden bg-app-background">
+                    <ExperienceSurface
+                      surfaceId="component-preview"
+                      state={previewExperienceState}
+                      data-testid={selectors.components.editor.workspacePane}
+                      data-pane="preview"
+                      className="flex h-full min-h-0 flex-col overflow-hidden bg-app-background"
+                    >
                       {splitView && paneHeader("preview", index, paneLabels.preview, <Eye aria-hidden className="h-3.5 w-3.5" />)}
                       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
                         <ThemeSwitcher postToFrames={postToPreviewFrames} previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} filters={filters} />
@@ -721,7 +738,10 @@ export function ComponentEditor({
                                         sandbox="allow-scripts"
                                         ref={(frame) => registerPreviewFrame(identity, frame)}
                                         onLoad={() => {
-                                          activateSpecimen(identity);
+                                          // Loading a later iframe must not steal the user's active
+                                          // specimen: that remounts the keyed props editor and discards
+                                          // an in-progress temporary override draft.
+                                          setActiveSpecimen((current) => current ?? identity);
                                           postToPreviewFrames({ type: "rcl-resolved-theme", theme: resolvedPreviewTheme });
                                         }}
                                         onError={() => setSpecimenErrors((current) => ({ ...current, [identity]: t(strings.components.editor.previewFailed) }))}
@@ -746,7 +766,7 @@ export function ComponentEditor({
                         />
                       )}
                       <InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} />
-                    </div>
+                    </ExperienceSurface>
                   )}
                   {pane === "details" && (
                     <aside data-testid={selectors.components.editor.workspacePane} data-pane="details" className="flex h-full min-h-0 flex-col overflow-hidden bg-app-surface">

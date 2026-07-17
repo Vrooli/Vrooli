@@ -171,8 +171,11 @@ export class NavigationHandler extends BaseHandler {
       const normalizedUrl = urlValidation.normalized || url;
       // DECISION: Use 'navigation' category - networks can be slow, need longer timeout
       const timeout = resolveTimeoutFromContext(params.timeoutMs, context, 'navigation');
-      // DECISION: Use 'domcontentloaded' as default - 'networkidle' times out on ad-heavy sites
-      const waitUntil = (params.waitUntil || 'domcontentloaded') as 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
+      // Navigation establishes a document boundary only. Readiness is a
+      // separate post-navigation operation so caller waits cannot be confused
+      // with page.goto's timeout.
+      const requestedWaitUntil = params.waitUntil as 'load' | 'domcontentloaded' | 'networkidle' | 'commit' | undefined;
+      const waitUntil = 'domcontentloaded' as const;
 
       logger.debug('instruction: navigate starting', {
         targetUrl: normalizedUrl,
@@ -185,6 +188,14 @@ export class NavigationHandler extends BaseHandler {
         timeout,
         waitUntil,
       });
+
+      if (requestedWaitUntil === 'load' || requestedWaitUntil === 'networkidle') {
+        await page.waitForLoadState(requestedWaitUntil, { timeout });
+      }
+
+      if (params.waitForSelector) {
+        await page.waitForSelector(params.waitForSelector, { timeout, state: 'visible' });
+      }
 
       const finalUrl = page.url();
 

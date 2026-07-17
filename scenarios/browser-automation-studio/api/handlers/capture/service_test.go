@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,8 +14,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
+	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
+	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
 // newTestServer wires the service through the generated Connect HTTP
@@ -55,6 +59,121 @@ func TestCapture_HappyPath_Screenshot(t *testing.T) {
 	nav := exec.LastReq.FlowDefinition.Nodes[0].GetAction().GetNavigate()
 	require.NotNil(t, nav)
 	require.Equal(t, "https://example.com", nav.Url)
+	require.Equal(t, "generic-navigation", resp.Msg.GetReadiness().GetSelectedStrategy())
+	require.Equal(t, "ready", resp.Msg.GetReadiness().GetOutcome())
+}
+
+func TestCaptureReadinessDiagnosticsCarriesDeclaredProfileProvenance(t *testing.T) {
+	diagnostics := captureReadinessDiagnosticsWithResolution(nil, "declared-surface", "ready", 42, "", ReadinessResolution{
+		ProfileVersion:     "experience-readiness-profile/v1",
+		Route:              "/results",
+		RequiredSurfaceIDs: []string{"summary", "results"},
+	})
+	require.Equal(t, "experience-readiness-profile/v1", diagnostics.GetProfileVersion())
+	require.Equal(t, "/results", diagnostics.GetRoute())
+	require.Equal(t, []string{"summary", "results"}, diagnostics.GetRequiredSurfaceIds())
+}
+
+func TestCaptureReadinessDiagnosticsCarriesNavigationAndWaitTiming(t *testing.T) {
+	diagnostics := captureReadinessDiagnosticsWithTiming(nil, "declared-surface", "ready", 190, "", ReadinessResolution{}, readinessTimelineTiming{navigationMS: 120, readinessWaitMS: 70})
+	require.EqualValues(t, 120, diagnostics.GetNavigationDurationMs())
+	require.EqualValues(t, 70, diagnostics.GetReadinessWaitDurationMs())
+}
+
+func TestCapture_ReadinessWaitsFollowNavigation(t *testing.T) {
+	tests := []struct {
+		name   string
+		wait   *capturev1.WaitFor
+		assert func(t *testing.T, nodes []*workflowsv1.WorkflowNodeV2)
+	}{
+		{
+			name: "duration",
+			wait: &capturev1.WaitFor{Spec: &capturev1.WaitFor_TimeoutMs{TimeoutMs: 3000}},
+			assert: func(t *testing.T, nodes []*workflowsv1.WorkflowNodeV2) {
+				require.EqualValues(t, 3000, nodes[1].GetAction().GetWait().GetDurationMs())
+			},
+		},
+		{
+			name: "selector",
+			wait: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Selector{Selector: "[data-testid=ready]"}},
+			assert: func(t *testing.T, nodes []*workflowsv1.WorkflowNodeV2) {
+				require.Equal(t, "[data-testid=ready]", nodes[1].GetAction().GetWait().GetSelector())
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{WaitFor: tt.wait}, 1440, 900, "document.documentElement.outerHTML")
+			require.NoError(t, err)
+			nodes := req.GetFlowDefinition().GetNodes()
+			require.Len(t, nodes, 2)
+			require.NotNil(t, nodes[0].GetAction().GetNavigate())
+			require.NotNil(t, nodes[1].GetAction().GetWait())
+			require.Len(t, req.GetFlowDefinition().GetEdges(), 1)
+			require.Equal(t, nodes[0].GetId(), req.GetFlowDefinition().GetEdges()[0].GetSource())
+			require.Equal(t, nodes[1].GetId(), req.GetFlowDefinition().GetEdges()[0].GetTarget())
+			tt.assert(t, nodes)
+		})
+	}
+}
+
+func TestCapture_NetworkIdleIsADeclaredPostNavigationWait(t *testing.T) {
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{WaitFor: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Networkidle{Networkidle: true}}}, 1440, 900, "document.documentElement.outerHTML")
+	require.NoError(t, err)
+	nodes := req.GetFlowDefinition().GetNodes()
+	require.Len(t, nodes, 1)
+	require.Equal(t, actionsv1.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE, nodes[0].GetAction().GetNavigate().GetWaitUntil())
+}
+
+func TestAppendPostNavigationWaitInsertsProfileReadinessBeforeFollowers(t *testing.T) {
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InlineDom: true}, 1440, 900, "document.documentElement.outerHTML")
+	require.NoError(t, err)
+	appendPostNavigationWait(req, &actionsv1.WaitParams{WaitFor: &actionsv1.WaitParams_Selector{Selector: "[data-testid=results]"}})
+	flow := req.GetFlowDefinition()
+	require.Len(t, flow.GetNodes(), 3)
+	var waitID string
+	for _, node := range flow.GetNodes() {
+		if node.GetAction().GetWait() != nil {
+			waitID = node.GetId()
+			require.Equal(t, "[data-testid=results]", node.GetAction().GetWait().GetSelector())
+		}
+	}
+	require.NotEmpty(t, waitID)
+	for _, edge := range flow.GetEdges() {
+		if edge.GetTarget() == waitID {
+			require.Equal(t, flow.GetNodes()[0].GetId(), edge.GetSource())
+		}
+		if edge.GetSource() == waitID {
+			require.NotEqual(t, waitID, edge.GetTarget())
+		}
+	}
+}
+
+func TestAppendPostNavigationWaitsChainsEveryDeclaredSurface(t *testing.T) {
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InlineDom: true}, 1440, 900, "document.documentElement.outerHTML")
+	require.NoError(t, err)
+	appendPostNavigationWaits(req, []*actionsv1.WaitParams{
+		{WaitFor: &actionsv1.WaitParams_Selector{Selector: "[data-testid=summary]"}},
+		{WaitFor: &actionsv1.WaitParams_Selector{Selector: "[data-testid=results]"}},
+	})
+	flow := req.GetFlowDefinition()
+	require.Len(t, flow.GetNodes(), 4)
+	var waits []*workflowsv1.WorkflowNodeV2
+	for _, node := range flow.GetNodes() {
+		if node.GetAction().GetWait() != nil {
+			waits = append(waits, node)
+		}
+	}
+	require.Len(t, waits, 2)
+	require.Equal(t, "[data-testid=summary]", waits[0].GetAction().GetWait().GetSelector())
+	require.Equal(t, "[data-testid=results]", waits[1].GetAction().GetWait().GetSelector())
+	var chained bool
+	for _, edge := range flow.GetEdges() {
+		if edge.GetSource() == waits[0].GetId() && edge.GetTarget() == waits[1].GetId() {
+			chained = true
+		}
+	}
+	require.True(t, chained)
 }
 
 func TestCapture_MultiCapture_ScreenshotConsoleNetwork(t *testing.T) {
@@ -137,6 +256,68 @@ func TestCapture_URLShorthand_ResolvesScenarioSlug(t *testing.T) {
 	require.Equal(t, "http://127.0.0.1:9101/dashboard", *exec.LastReq.Parameters.StartUrl)
 	nav := exec.LastReq.FlowDefinition.Nodes[0].GetAction().GetNavigate()
 	require.Equal(t, "http://127.0.0.1:9101/dashboard", nav.Url)
+}
+
+func TestCapture_URLShorthand_PrefersScenarioUIPort(t *testing.T) {
+	exec := &fakeExecutor{}
+	resolver := &fakeResolver{URL: "http://127.0.0.1:9101", UIURL: "http://127.0.0.1:9201"}
+	client, _ := newTestServer(t, Deps{Executor: exec, Resolver: resolver})
+
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "scenario=react-component-library,path=/assets/Button?tab=preview",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "http://127.0.0.1:9201/assets/Button?tab=preview", *exec.LastReq.Parameters.StartUrl)
+}
+
+func TestCapture_DeclaredReadinessReportsObservedTerminalState(t *testing.T) {
+	exec := &fakeExecutor{ExportFunc: func(_ *fakeExecutor, outputDir string) error {
+		return os.WriteFile(filepath.Join(outputDir, "timeline.json"), []byte(`{"frames":[{"step_type":"navigate"},{"step_type":"wait","extracted_data_preview":{"experience_surface_state":"partial"}}]}`), 0o644)
+	}}
+	client, _ := newTestServer(t, Deps{
+		Executor:          exec,
+		Resolver:          &fakeResolver{URL: "http://127.0.0.1:9101"},
+		ReadinessResolver: &fakeReadinessResolver{Resolution: ReadinessResolution{Waits: []*actionsv1.WaitParams{{WaitFor: &actionsv1.WaitParams_Selector{Selector: `[data-testid="results"]`}}}, ProfileVersion: "experience-readiness-profile/v1", Route: "/dashboard", RequiredSurfaceIDs: []string{"results"}}},
+	})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "scenario=app-monitor,path=/dashboard"}))
+	require.NoError(t, err)
+	require.Equal(t, "declared-surface", resp.Msg.GetReadiness().GetSelectedStrategy())
+	require.Equal(t, "partial", resp.Msg.GetReadiness().GetOutcome())
+	require.Equal(t, "experience-readiness-profile/v1", resp.Msg.GetReadiness().GetProfileVersion())
+}
+
+func TestCapture_ExternalURLRetainsGenericReadinessWithoutProfileLookup(t *testing.T) {
+	exec := &fakeExecutor{}
+	readiness := &fakeReadinessResolver{Resolution: ReadinessResolution{Waits: []*actionsv1.WaitParams{{WaitFor: &actionsv1.WaitParams_Selector{Selector: `[data-testid="results"]`}}}}}
+	client, _ := newTestServer(t, Deps{Executor: exec, ReadinessResolver: readiness})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "https://example.com/results"}))
+	require.NoError(t, err)
+	require.Equal(t, 0, readiness.Calls)
+	require.Equal(t, "generic-navigation", resp.Msg.GetReadiness().GetSelectedStrategy())
+	require.Len(t, exec.LastReq.GetFlowDefinition().GetNodes(), 1)
+}
+
+func TestCapture_ExplicitWaitOverridesDeclaredReadiness(t *testing.T) {
+	exec := &fakeExecutor{}
+	readiness := &fakeReadinessResolver{Resolution: ReadinessResolution{Waits: []*actionsv1.WaitParams{{WaitFor: &actionsv1.WaitParams_Selector{Selector: `[data-testid="declared-ready"]`}}}}}
+	client, _ := newTestServer(t, Deps{
+		Executor:          exec,
+		Resolver:          &fakeResolver{URL: "http://127.0.0.1:9101"},
+		ReadinessResolver: readiness,
+	})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:     "scenario=app-monitor,path=/dashboard",
+		WaitFor: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Selector{Selector: `[data-testid="caller-ready"]`}},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, 0, readiness.Calls)
+	require.Equal(t, "explicit-selector", resp.Msg.GetReadiness().GetSelectedStrategy())
+	nodes := exec.LastReq.GetFlowDefinition().GetNodes()
+	require.Len(t, nodes, 2)
+	require.Equal(t, `[data-testid="caller-ready"]`, nodes[1].GetAction().GetWait().GetSelector())
 }
 
 func TestCapture_DryRun_ShortCircuits(t *testing.T) {

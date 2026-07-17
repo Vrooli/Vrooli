@@ -49,10 +49,19 @@ export class WaitHandler extends BaseHandler {
 
         // Capture element context AFTER the wait completes (element now exists)
         const elementContext = await captureElementContext(page, params.selector);
+        const attributes = elementContext.elementMeta?.attributes ?? {};
+        const extracted_data: Record<string, string> = {};
+        if (attributes['data-experience-surface']) {
+          extracted_data.experience_surface_id = attributes['data-experience-surface'];
+        }
+        if (attributes['data-experience-state']) {
+          extracted_data.experience_surface_state = attributes['data-experience-state'];
+        }
 
         return {
           success: true,
           elementContext,
+          extracted_data: Object.keys(extracted_data).length > 0 ? extracted_data : undefined,
           focus: {
             selector: elementContext.selector,
             bounding_box: elementContext.boundingBox ? {

@@ -325,6 +325,32 @@ describe("ComponentEditor", () => {
     expect(screen.queryByTestId(selectors.components.editor.previewError)).not.toBeInTheDocument();
   });
 
+  it("exposes the preview gallery as a semantic readiness surface", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "v1", sha256: "sha-surface" }),
+    );
+
+    renderWithProviders(
+      <ComponentEditor id="cmp-surface" libraryId="lib:Surface" onClose={() => {}} activePane="preview" />,
+    );
+
+    await screen.findByTestId(selectors.components.editor.workspacePane);
+    const surface = document.querySelector('[data-experience-surface="component-preview"]');
+    expect(surface).not.toBeNull();
+    expect(surface).toHaveAttribute("data-experience-surface", "component-preview");
+    expect(surface).toHaveAttribute("data-experience-state", "loading");
+
+    const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+    await waitFor(() => {
+      window.dispatchEvent(new MessageEvent("message", {
+        data: { type: "preview-ready", id: "cmp-surface", example: "", version: "" },
+        source: frame.contentWindow,
+      }));
+      expect(surface).toHaveAttribute("data-experience-state", "ready");
+    });
+  });
+
   it("sends a temporary props override only to the active named specimen", async () => {
     const { componentsClient, listComponentExamples } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(

@@ -811,6 +811,13 @@
       ]
     }
   ],
+  "omitted": [
+    {
+      "service": "ContractService",
+      "method": "GetReadinessProfile",
+      "reason": "Machine-to-machine compiled projection consumed by Browser Automation Studio and UI Health; it intentionally has no user-facing Experience Manager CLI command."
+    }
+  ],
   "measures": {
     "domains": [],
     "omitted": [

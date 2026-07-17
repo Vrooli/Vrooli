@@ -94,8 +94,20 @@ func (f *fakeExecutor) ExportToFolder(
 
 // fakeResolver makes scenario= shorthand deterministic in tests.
 type fakeResolver struct {
-	URL string
-	Err error
+	URL   string
+	UIURL string
+	Err   error
+}
+
+type fakeReadinessResolver struct {
+	Resolution ReadinessResolution
+	Err        error
+	Calls      int
+}
+
+func (f *fakeReadinessResolver) ResolveReadinessWaits(_ context.Context, _, _ string) (ReadinessResolution, error) {
+	f.Calls++
+	return f.Resolution, f.Err
 }
 
 func (f *fakeResolver) ResolveScenarioURLDefault(_ context.Context, slug string) (string, error) {
@@ -106,4 +118,14 @@ func (f *fakeResolver) ResolveScenarioURLDefault(_ context.Context, slug string)
 		return "", errors.New("no fake URL configured for slug " + slug)
 	}
 	return f.URL, nil
+}
+
+func (f *fakeResolver) ResolveScenarioURL(_ context.Context, slug, portKey string) (string, error) {
+	if f.Err != nil {
+		return "", f.Err
+	}
+	if portKey != "UI_PORT" || f.UIURL == "" {
+		return "", errors.New("no fake UI URL configured for " + slug)
+	}
+	return f.UIURL, nil
 }

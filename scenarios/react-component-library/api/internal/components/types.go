@@ -400,6 +400,9 @@ type IngestComponentInput struct {
 	// the diff — the losses are still named and persisted as an acknowledged
 	// parity report on the created version.
 	AcceptBehaviorLoss bool
+	// ExperienceContractPath is the scenario-relative source contract promoted
+	// with the component. Empty derives experience/components/<slug>.json.
+	ExperienceContractPath string
 }
 
 type IngestComponentResult struct {
@@ -435,6 +438,9 @@ type CreateComponentVersionInput struct {
 	// ScaffoldExamples writes a starter examples.json into the created version
 	// folder when the caller supplies none. Ingest sets it for harvested drafts.
 	ScaffoldExamples bool
+	// ExperienceContract is the canonical JSON document written alongside this
+	// immutable version's source and examples.
+	ExperienceContract string
 }
 
 type CreateComponentVersionResult struct {

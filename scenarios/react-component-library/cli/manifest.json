@@ -270,6 +270,7 @@
             { "name": "slot", "description": "Target component slot" },
             { "name": "version", "description": "Released version baseline when re-harvesting an existing component" },
             { "name": "companion-files", "description": "Optional comma-separated origin .ts/.tsx companions not reachable by relative imports" },
+            { "name": "experience-contract", "description": "Scenario-relative experience-component JSON contract to promote beside the immutable version" },
             { "name": "accept-behavior-loss", "description": "Record and accept a static behavior-inventory loss so the blocked harvest proceeds (losses persist on the draft's parity report)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "IngestComponent" },

@@ -328,10 +328,11 @@ func main() {
 	// is a separate, per-endpoint decision.
 	connectMounts := []connectx.ServiceMount{
 		captureconnect.Module(captureconnect.Deps{
-			Executor: deps.ExecutionService,
-			Storage:  deps.Storage,
-			Resolver: discovery.NewResolver(discovery.ResolverConfig{}),
-			Logger:   log,
+			Executor:          deps.ExecutionService,
+			Storage:           deps.Storage,
+			Resolver:          discovery.NewResolver(discovery.ResolverConfig{}),
+			ReadinessResolver: captureconnect.NewReadinessProfileResolver(),
+			Logger:            log,
 		}),
 		scenariosconnect.Module(scenariosconnect.Deps{
 			Logger: log,

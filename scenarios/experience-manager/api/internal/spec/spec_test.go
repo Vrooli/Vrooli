@@ -219,6 +219,116 @@ func TestParseScenarioFindsContractViolations(t *testing.T) { // [REQ:EXPERIEN-P
 	}
 }
 
+func TestPageRegionsValidateCompositionLifecycleAndBindings(t *testing.T) {
+	page := PageDocument{
+		Regions: []ExperienceRegion{
+			{ID: "results", Purpose: "Show the query results once the data is available.", Component: ComponentReference{Local: "result-table"}, Lifecycle: RegionLifecycle{Kind: "async", States: []string{"loading", "ready", "empty", "error"}}},
+			{ID: "help", Purpose: "Provide static guidance for using this page.", Component: ComponentReference{Library: &LibraryComponentRef{Component: "help-panel", Version: "1.0.0"}}, Lifecycle: RegionLifecycle{Kind: "static", States: []string{"static"}}},
+		},
+		Bindings: Bindings{Regions: map[string]Binding{
+			"results": {TestID: "results-surface"},
+			"help":    {Selector: "[data-testid=help-surface]"},
+		}},
+	}
+	report := &Report{}
+	checkPageReferences(report, "experience/pages/home.json", page, map[string]ComponentDocument{"result-table": {}})
+	if len(report.Findings) != 0 {
+		t.Fatalf("valid regions produced findings: %+v", report.Findings)
+	}
+}
+
+func TestExperienceRegionDefaultsToRequired(t *testing.T) {
+	var region ExperienceRegion
+	if err := json.Unmarshal([]byte(`{"id":"results","purpose":"Show meaningful results once the data is available.","component":{"local":"result-table"},"lifecycle":{"kind":"async","states":["ready"]}}`), &region); err != nil {
+		t.Fatal(err)
+	}
+	if !region.Required {
+		t.Fatal("omitted region.required must default to true")
+	}
+}
+
+func TestPageRegionsRejectUnboundAndInvalidLifecycle(t *testing.T) {
+	page := PageDocument{Regions: []ExperienceRegion{{
+		ID:        "results",
+		Purpose:   "Show the query results once the data is available.",
+		Component: ComponentReference{Local: "missing-component"},
+		Lifecycle: RegionLifecycle{Kind: "static", States: []string{"ready"}},
+	}}}
+	report := &Report{}
+	checkPageReferences(report, "experience/pages/home.json", page, nil)
+	if !hasCode(report.Findings, CodeBindingOrphan) || !hasCode(report.Findings, CodeRefUnresolved) || !hasCode(report.Findings, CodeSchemaInvalid) {
+		t.Fatalf("invalid region findings = %+v", report.Findings)
+	}
+}
+
+func TestPinnedLibraryRegionRequiresCanonicalVersionContract(t *testing.T) {
+	root := t.TempDir()
+	library := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "data-table", "versions", "1.2.0")
+	if err := os.MkdirAll(library, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	page := PageDocument{Regions: []ExperienceRegion{{
+		ID: "table", Purpose: "Show the primary data needed to complete this task.",
+		Component: ComponentReference{Library: &LibraryComponentRef{Component: "data-table", Version: "1.2.0"}},
+		Lifecycle: RegionLifecycle{Kind: "static", States: []string{"static"}},
+	}}}
+	report := &Report{}
+	checkPinnedLibraryContracts(report, "experience/pages/home.json", filepath.Join(root, "scenarios", "demo"), page)
+	if !hasCode(report.Findings, CodeRefUnresolved) {
+		t.Fatalf("missing canonical contract finding: %+v", report.Findings)
+	}
+	if err := os.WriteFile(filepath.Join(library, "experience-contract.json"), []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	report = &Report{}
+	checkPinnedLibraryContracts(report, "experience/pages/home.json", filepath.Join(root, "scenarios", "demo"), page)
+	if len(report.Findings) != 0 {
+		t.Fatalf("canonical contract should resolve pin: %+v", report.Findings)
+	}
+}
+
+func TestPinnedLibraryContractResolvesPascalCaseRCLFolder(t *testing.T) {
+	root := t.TempDir()
+	contract := filepath.Join(root, "DataTable", "versions", "1.2.0", "experience-contract.json")
+	if err := os.MkdirAll(filepath.Dir(contract), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(contract, []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := pinnedLibraryContractPath(root, "data-table", "1.2.0"); got != contract {
+		t.Fatalf("canonical contract path = %q, want %q", got, contract)
+	}
+}
+
+func TestWrapperExtensionMustRemainAdditiveToCanonicalContract(t *testing.T) {
+	root := t.TempDir()
+	contract := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "ExperienceSurface", "versions", "1.0.0", "experience-contract.json")
+	if err := os.MkdirAll(filepath.Dir(contract), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(contract, []byte(`{"component":{"id":"experience-surface"},"states":[{"id":"ready"}],"claims":[{"id":"stable-identity"}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	component := ComponentDocument{Component: ComponentIdentity{
+		ID: "scenario-surface", Extends: &LibraryComponentRef{Component: "experience-surface", Version: "1.0.0"},
+		Extension: &ComponentExtension{Purpose: "Add scenario-specific retry guidance around the canonical surface."},
+	}}
+	report := &Report{}
+	checkWrapperExtension(report, "experience/components/scenario-surface.json", filepath.Join(root, "scenarios", "demo"), component)
+	if len(report.Findings) != 0 {
+		t.Fatalf("additive wrapper findings = %+v", report.Findings)
+	}
+
+	component.States = []ComponentState{{ID: "ready"}}
+	component.Claims = []Claim{{ID: "stable-identity"}}
+	report = &Report{}
+	checkWrapperExtension(report, "experience/components/scenario-surface.json", filepath.Join(root, "scenarios", "demo"), component)
+	if !hasCode(report.Findings, CodeSchemaInvalid) {
+		t.Fatalf("wrapper override findings = %+v", report.Findings)
+	}
+}
+
 func TestIndexParityFindingHasGoldenAssertion(t *testing.T) {
 	root := t.TempDir()
 	scenario := filepath.Join(root, "demo")

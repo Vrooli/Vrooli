@@ -2,8 +2,12 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"path/filepath"
 
 	"connectrpc.com/connect"
+	"experience-manager/internal/spec"
 
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 )
@@ -48,4 +52,20 @@ func (s *contractService) ScaffoldCases(_ context.Context, req *connect.Request[
 		return nil, err
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func (s *contractService) GetReadinessProfile(_ context.Context, req *connect.Request[contractv1.GetReadinessProfileRequest]) (*connect.Response[contractv1.GetReadinessProfileResponse], error) {
+	path := req.Msg.GetPath()
+	if path == "" {
+		path = filepath.Join(s.core.deps.RepoRoot, "scenarios", req.Msg.GetScenario())
+	}
+	profile, err := spec.ReadinessProfileForScenario(path)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("compile readiness profile: %w", err))
+	}
+	encoded, err := json.Marshal(profile)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode readiness profile: %w", err))
+	}
+	return connect.NewResponse(&contractv1.GetReadinessProfileResponse{Scenario: profile.Scenario, ProfileJson: string(encoded), ProfileVersion: profile.Version}), nil
 }

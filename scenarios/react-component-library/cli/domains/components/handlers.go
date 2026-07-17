@@ -58,8 +58,12 @@ func (h *handlers) testShow(ctx cliapp.RunContext) error {
 }
 func (h *handlers) testRerun(ctx cliapp.RunContext) error {
 	resp, err := h.testClient.RerunComponentTest(context.Background(), connect.NewRequest(&componenttestsv1.RerunComponentTestRequest{ReportId: ctx.Positional("report-id")}))
-	if err != nil { return cliapp.WrapAPIError("rerun component test", err, nil) }
-	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil { return fmt.Errorf("server returned no component test report") }
+	if err != nil {
+		return cliapp.WrapAPIError("rerun component test", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
+		return fmt.Errorf("server returned no component test report")
+	}
 	return renderTestReport(ctx, resp.Msg.Report, "Component test rerun completed.")
 }
 func (h *handlers) testList(ctx cliapp.RunContext) error {
@@ -300,14 +304,15 @@ func (h *handlers) init(ctx cliapp.RunContext) error {
 
 func (h *handlers) ingest(ctx cliapp.RunContext) error {
 	req := &componentsv1.IngestComponentRequest{
-		Scenario:           ctx.Positional("scenario"),
-		SourceFile:         ctx.Positional("source-file"),
-		Slug:               ctx.Positional("slug"),
-		DisplayName:        ctx.Flag("display-name"),
-		Description:        ctx.Flag("description"),
-		Slot:               ctx.Flag("slot"),
-		Version:            ctx.Flag("version"),
-		AcceptBehaviorLoss: ctx.Flag("accept-behavior-loss") == "true",
+		Scenario:               ctx.Positional("scenario"),
+		SourceFile:             ctx.Positional("source-file"),
+		Slug:                   ctx.Positional("slug"),
+		DisplayName:            ctx.Flag("display-name"),
+		Description:            ctx.Flag("description"),
+		Slot:                   ctx.Flag("slot"),
+		Version:                ctx.Flag("version"),
+		AcceptBehaviorLoss:     ctx.Flag("accept-behavior-loss") == "true",
+		ExperienceContractPath: ctx.Flag("experience-contract"),
 	}
 	if rawTags := ctx.Flag("tags"); rawTags != "" {
 		req.Tags = splitCSV(rawTags)

@@ -1,0 +1,9 @@
+{
+  "examples": [
+    {"name":"loading","displayName":"Loading data","props":{"surfaceId":"activity","state":"loading"},"expect":[{"kind":"role","role":"status","name":"Loading…"}]},
+    {"name":"ready","displayName":"Ready data","props":{"surfaceId":"activity","state":"ready","children":{"$node":"p","children":[{"$text":"Recent activity"}]}},"expect":[{"kind":"text","value":"Recent activity"}]},
+    {"name":"empty","displayName":"Empty result","props":{"surfaceId":"activity","state":"empty"},"expect":[{"kind":"text","value":"Nothing to show yet."}]},
+    {"name":"partial","displayName":"Partial data","props":{"surfaceId":"activity","state":"partial"},"expect":[{"kind":"role","role":"status","name":"Some information is unavailable."}]},
+    {"name":"error","displayName":"Retryable error","props":{"surfaceId":"activity","state":"error"},"expect":[{"kind":"role","role":"status","name":"This section could not be loaded."}]}
+  ]
+}

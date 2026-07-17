@@ -168,15 +168,15 @@
         "required": false,
         "description": "Optional server-side dispatcher for attributable assisted extraction and adoption workflows; direct RCL APIs remain available when it is unavailable.",
         "config": {
-          "profiles": {
+          "declarations": {
             "reconcile": true,
-            "mode": "update_if_unmodified",
+            "profileMode": "update_if_unmodified",
             "sources": [
-              ".vrooli/agent-profiles/catalog-maintainer.json"
+              ".vrooli/agent-manager/catalog-maintainer.json"
             ]
           }
         }
-    }
+      }
     },
     "resources": {}
   },

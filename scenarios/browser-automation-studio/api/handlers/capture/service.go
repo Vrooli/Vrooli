@@ -69,12 +69,34 @@ func (s *service) Capture(
 			Artifacts:   synthesizeArtifacts(outDir, captures),
 			DurationMs:  0,
 			DryRun:      true,
+			Readiness:   captureReadinessDiagnostics(msg.GetWaitFor(), "generic-navigation", "dry-run", 0, "dry run does not navigate"),
 		}), nil
 	}
 
 	adhocReq, domNodeID, err := buildAdhocRequest(resolvedURL, msg, width, height, s.deps.InlineDom.Expression)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	// Explicit caller waits are authoritative. For a known local scenario with
+	// no explicit wait, ask Experience Manager for its compiled profile and add
+	// the selected required-surface binding as a post-navigation Wait action.
+	// Missing/unavailable profiles intentionally fall back to generic capture.
+	selectedReadiness := "generic-navigation"
+	var declaredResolution ReadinessResolution
+	fallbackReason := ""
+	if msg.GetWaitFor() != nil {
+		selectedReadiness = requestedReadinessStrategy(msg.GetWaitFor())
+	}
+	if msg.GetWaitFor() == nil && s.deps.ReadinessResolver != nil {
+		if scenario, route, ok := scenarioTarget(msg.GetUrl()); ok {
+			if resolution, resolveErr := s.deps.ReadinessResolver.ResolveReadinessWaits(ctx, scenario, route); resolveErr == nil && len(resolution.Waits) > 0 {
+				appendPostNavigationWaits(adhocReq, resolution.Waits)
+				declaredResolution = resolution
+				selectedReadiness = "declared-surface"
+			} else if resolveErr != nil {
+				fallbackReason = "declared readiness profile unavailable: " + resolveErr.Error()
+			}
+		}
 	}
 	opts := &workflow.ExecuteOptions{}
 	for _, ct := range captures {
@@ -139,15 +161,124 @@ func (s *service) Capture(
 		}
 	}
 
+	duration := s.deps.Now().Sub(start).Milliseconds()
+	readinessOutcome := "ready"
+	timing := readinessTimelineTiming{}
+	timingAvailable := false
+	if observedTiming, timingErr := readinessTiming(executionOutDir); timingErr != nil {
+		if s.deps.Logger != nil {
+			s.deps.Logger.WithError(timingErr).Warn("capture: readiness timing unavailable")
+		}
+	} else {
+		timing = observedTiming
+		timingAvailable = true
+	}
+	if selectedReadiness == "declared-surface" {
+		if timing.outcome != "" {
+			readinessOutcome = timing.outcome
+		} else if !timingAvailable && s.deps.Logger != nil {
+			s.deps.Logger.Warn("capture: declared readiness outcome unavailable")
+		}
+	}
 	return connect.NewResponse(&capturev1.CaptureResponse{
 		ExecutionId:       execID,
 		OutDir:            executionOutDir,
 		Artifacts:         artifacts,
-		DurationMs:        s.deps.Now().Sub(start).Milliseconds(),
+		DurationMs:        duration,
 		DryRun:            false,
 		DomHtml:           domHTML,
 		AccessibilityJson: accessibilityJSON,
+		Readiness:         captureReadinessDiagnosticsWithTiming(msg.GetWaitFor(), selectedReadiness, readinessOutcome, duration, fallbackReason, declaredResolution, timing),
 	}), nil
+}
+
+func requestedReadinessStrategy(wait *capturev1.WaitFor) string {
+	if wait == nil {
+		return "generic-navigation"
+	}
+	switch wait.GetSpec().(type) {
+	case *capturev1.WaitFor_Selector:
+		return "explicit-selector"
+	case *capturev1.WaitFor_TimeoutMs:
+		return "explicit-delay"
+	case *capturev1.WaitFor_Networkidle:
+		return "explicit-networkidle"
+	default:
+		return "generic-navigation"
+	}
+}
+
+func captureReadinessDiagnostics(wait *capturev1.WaitFor, selected, outcome string, duration int64, fallback string) *capturev1.CaptureReadinessDiagnostics {
+	return captureReadinessDiagnosticsWithResolution(wait, selected, outcome, duration, fallback, ReadinessResolution{})
+}
+
+func captureReadinessDiagnosticsWithResolution(wait *capturev1.WaitFor, selected, outcome string, duration int64, fallback string, resolution ReadinessResolution) *capturev1.CaptureReadinessDiagnostics {
+	return captureReadinessDiagnosticsWithTiming(wait, selected, outcome, duration, fallback, resolution, readinessTimelineTiming{})
+}
+
+func captureReadinessDiagnosticsWithTiming(wait *capturev1.WaitFor, selected, outcome string, duration int64, fallback string, resolution ReadinessResolution, timing readinessTimelineTiming) *capturev1.CaptureReadinessDiagnostics {
+	return &capturev1.CaptureReadinessDiagnostics{RequestedStrategy: requestedReadinessStrategy(wait), SelectedStrategy: selected, Outcome: outcome, DurationMs: duration, FallbackReason: fallback, ProfileVersion: resolution.ProfileVersion, Route: resolution.Route, RequiredSurfaceIds: resolution.RequiredSurfaceIDs, NavigationDurationMs: timing.navigationMS, ReadinessWaitDurationMs: timing.readinessWaitMS}
+}
+
+func scenarioTarget(raw string) (scenario, route string, ok bool) {
+	if !strings.HasPrefix(strings.TrimSpace(raw), "scenario=") {
+		return "", "", false
+	}
+	scenario, route, err := parseScenarioShorthand(raw)
+	if err != nil {
+		return "", "", false
+	}
+	return scenario, route, true
+}
+
+// appendPostNavigationWait inserts a resolved profile wait after Navigate and
+// before any inline DOM or interaction nodes. It is intentionally graph-level
+// rather than a NavigateParams timeout so the diagnostic workflow preserves
+// the distinction between navigation and functional readiness.
+func appendPostNavigationWaits(req *basexecution.ExecuteAdhocRequest, waits []*actionsv1.WaitParams) {
+	if req == nil || req.GetFlowDefinition() == nil || len(waits) == 0 {
+		return
+	}
+	flow := req.GetFlowDefinition()
+	var navID string
+	for _, node := range flow.GetNodes() {
+		if node.GetAction().GetNavigate() != nil {
+			navID = node.GetId()
+			break
+		}
+	}
+	if navID == "" {
+		return
+	}
+	var waitIDs []string
+	for _, wait := range waits {
+		if wait == nil {
+			continue
+		}
+		waitID := uuid.NewString()
+		waitIDs = append(waitIDs, waitID)
+		flow.Nodes = append(flow.Nodes, &workflowsv1.WorkflowNodeV2{Id: waitID, Action: &actionsv1.ActionDefinition{Type: actionsv1.ActionType_ACTION_TYPE_WAIT, Params: &actionsv1.ActionDefinition_Wait{Wait: wait}}})
+	}
+	if len(waitIDs) == 0 {
+		return
+	}
+	var edges []*workflowsv1.WorkflowEdgeV2
+	for _, edge := range flow.GetEdges() {
+		if edge.GetSource() == navID {
+			edges = append(edges, &workflowsv1.WorkflowEdgeV2{Id: edge.GetId(), Source: waitIDs[len(waitIDs)-1], Target: edge.GetTarget()})
+			continue
+		}
+		edges = append(edges, edge)
+	}
+	edges = append(edges, &workflowsv1.WorkflowEdgeV2{Id: uuid.NewString(), Source: navID, Target: waitIDs[0]})
+	for index := 1; index < len(waitIDs); index++ {
+		edges = append(edges, &workflowsv1.WorkflowEdgeV2{Id: uuid.NewString(), Source: waitIDs[index-1], Target: waitIDs[index]})
+	}
+	flow.Edges = edges
+}
+
+func appendPostNavigationWait(req *basexecution.ExecuteAdhocRequest, wait *actionsv1.WaitParams) {
+	appendPostNavigationWaits(req, []*actionsv1.WaitParams{wait})
 }
 
 // resolveURL accepts either a fully-qualified http(s) URL or the
@@ -172,7 +303,13 @@ func (s *service) resolveURL(ctx context.Context, raw string) (string, error) {
 		return "", connect.NewError(connect.CodeInvalidArgument,
 			errors.New("scenario= shorthand requires a URL resolver; none configured"))
 	}
-	base, err := s.deps.Resolver.ResolveScenarioURLDefault(ctx, slug)
+	base := ""
+	if resolver, ok := s.deps.Resolver.(uiURLResolver); ok {
+		base, err = resolver.ResolveScenarioURL(ctx, slug, "UI_PORT")
+	}
+	if base == "" || err != nil {
+		base, err = s.deps.Resolver.ResolveScenarioURLDefault(ctx, slug)
+	}
 	if err != nil {
 		return "", connect.NewError(connect.CodeFailedPrecondition,
 			fmt.Errorf("resolve scenario %q: %w", slug, err))
@@ -286,6 +423,16 @@ func buildAdhocRequest(
 
 	nodes := []*workflowsv1.WorkflowNodeV2{navigateNode}
 	var edges []*workflowsv1.WorkflowEdgeV2
+	// Readiness is deliberately a distinct node. A capture's caller-supplied
+	// wait must happen after navigation, not silently become page.goto's
+	// deadline. Network-idle remains a NavigateParams wait_until because the
+	// driver performs that signal after goto completes.
+	predecessorID := navigateNode.Id
+	if waitNode := postNavigationWaitNode(msg.GetWaitFor()); waitNode != nil {
+		nodes = append(nodes, waitNode)
+		edges = append(edges, &workflowsv1.WorkflowEdgeV2{Id: uuid.NewString(), Source: navigateNode.Id, Target: waitNode.Id})
+		predecessorID = waitNode.Id
+	}
 
 	// Splice an interaction flow after the navigate node, inside the same
 	// perf-trace window. The compiler orders nodes topologically (roots =
@@ -293,7 +440,7 @@ func buildAdhocRequest(
 	// navigate→entry edge guarantees the navigate runs first and the
 	// interaction's own internal edges sequence the rest.
 	if raw := strings.TrimSpace(msg.GetInteractionFlowJson()); raw != "" {
-		spliced, err := spliceInteractionFlow(navigateNode.Id, raw)
+		spliced, err := spliceInteractionFlow(predecessorID, raw)
 		if err != nil {
 			return nil, "", err
 		}
@@ -316,7 +463,7 @@ func buildAdhocRequest(
 		nodes = append(nodes, domNode)
 		edges = append(edges, &workflowsv1.WorkflowEdgeV2{
 			Id:     uuid.NewString(),
-			Source: navigateNode.Id,
+			Source: predecessorID,
 			Target: domNode.Id,
 		})
 	}
@@ -399,12 +546,6 @@ func navigateParamsFor(url string, waitFor *capturev1.WaitFor) *actionsv1.Naviga
 		return p
 	}
 	switch spec := waitFor.GetSpec().(type) {
-	case *capturev1.WaitFor_Selector:
-		s := spec.Selector
-		p.WaitForSelector = &s
-	case *capturev1.WaitFor_TimeoutMs:
-		t := spec.TimeoutMs
-		p.TimeoutMs = &t
 	case *capturev1.WaitFor_Networkidle:
 		if spec.Networkidle {
 			ev := actionsv1.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE
@@ -412,6 +553,31 @@ func navigateParamsFor(url string, waitFor *capturev1.WaitFor) *actionsv1.Naviga
 		}
 	}
 	return p
+}
+
+// postNavigationWaitNode maps capture-specific selector and duration waits to
+// the workflow's first-class Wait action. Keeping this separate from Navigate
+// preserves the navigation timeout as a bounded transport operation.
+func postNavigationWaitNode(waitFor *capturev1.WaitFor) *workflowsv1.WorkflowNodeV2 {
+	if waitFor == nil {
+		return nil
+	}
+	wait := &actionsv1.WaitParams{}
+	switch spec := waitFor.GetSpec().(type) {
+	case *capturev1.WaitFor_Selector:
+		wait.WaitFor = &actionsv1.WaitParams_Selector{Selector: spec.Selector}
+	case *capturev1.WaitFor_TimeoutMs:
+		wait.WaitFor = &actionsv1.WaitParams_DurationMs{DurationMs: spec.TimeoutMs}
+	default:
+		return nil
+	}
+	return &workflowsv1.WorkflowNodeV2{
+		Id: uuid.NewString(),
+		Action: &actionsv1.ActionDefinition{
+			Type:   actionsv1.ActionType_ACTION_TYPE_WAIT,
+			Params: &actionsv1.ActionDefinition_Wait{Wait: wait},
+		},
+	}
 }
 
 // synthesizeArtifacts produces one CaptureArtifact per requested type

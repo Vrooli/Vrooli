@@ -378,6 +378,12 @@ func renderCaptureResponse(msg *capturev1.CaptureResponse, asJSON bool) error {
 	if strings.TrimSpace(msg.OutDir) != "" {
 		result = append(result, fmt.Sprintf("Output: %s", msg.OutDir))
 	}
+	if readiness := msg.GetReadiness(); readiness != nil {
+		result = append(result, fmt.Sprintf("Readiness: %s → %s (%s)", readiness.GetRequestedStrategy(), readiness.GetSelectedStrategy(), readiness.GetOutcome()))
+		if readiness.GetProfileVersion() != "" {
+			result = append(result, fmt.Sprintf("Readiness profile: %s route %s surfaces %s", readiness.GetProfileVersion(), readiness.GetRoute(), strings.Join(readiness.GetRequiredSurfaceIds(), ", ")))
+		}
+	}
 
 	changes := make([]string, 0, len(msg.Artifacts))
 	for _, a := range msg.Artifacts {
@@ -415,6 +421,18 @@ func protoToJSON(m *capturev1.CaptureResponse) map[string]interface{} {
 		"duration_ms":  m.DurationMs,
 		"dry_run":      m.DryRun,
 		"artifacts":    arts,
+	}
+	if readiness := m.GetReadiness(); readiness != nil {
+		out["readiness"] = map[string]interface{}{
+			"requested_strategy":   readiness.GetRequestedStrategy(),
+			"selected_strategy":    readiness.GetSelectedStrategy(),
+			"outcome":              readiness.GetOutcome(),
+			"duration_ms":          readiness.GetDurationMs(),
+			"fallback_reason":      readiness.GetFallbackReason(),
+			"profile_version":      readiness.GetProfileVersion(),
+			"route":                readiness.GetRoute(),
+			"required_surface_ids": readiness.GetRequiredSurfaceIds(),
+		}
 	}
 	// Surface the inline accessibility snapshot when requested — it is the
 	// remote-friendly payload (artifact paths are server-local). Omitted when

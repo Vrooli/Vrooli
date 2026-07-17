@@ -107,6 +107,22 @@ func TestNativeValidateScenarioReturnsStatusFromFindings(t *testing.T) {
 	}
 }
 
+func TestGetReadinessProfileCompilesTheParserOwnedProjection(t *testing.T) {
+	root := fixtureScenarioRoot(t)
+	core := NewConnectHandler(Deps{RepoRoot: t.TempDir()})
+	service := newContractService(core)
+	resp, err := service.GetReadinessProfile(context.Background(), connect.NewRequest(&contractv1.GetReadinessProfileRequest{Scenario: "demo", Path: root}))
+	if err != nil {
+		t.Fatalf("GetReadinessProfile: %v", err)
+	}
+	if resp.Msg.GetScenario() != "demo" || resp.Msg.GetProfileVersion() != "experience-readiness-profile/v1" {
+		t.Fatalf("profile response = %+v", resp.Msg)
+	}
+	if !strings.Contains(resp.Msg.GetProfileJson(), `"scenario":"demo"`) {
+		t.Fatalf("profile json = %s", resp.Msg.GetProfileJson())
+	}
+}
+
 func TestFixRPCsPreviewAndApplyLiveRegistry(t *testing.T) { // [REQ:EXPERIEN-P1-003]
 	root := t.TempDir()
 	h := NewConnectHandler(Deps{})

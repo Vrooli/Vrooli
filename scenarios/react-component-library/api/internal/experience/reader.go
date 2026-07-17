@@ -65,11 +65,11 @@ func (r *reader) Get(ctx context.Context, component Component) (Snapshot, error)
 		contractID = kebabID(strings.TrimPrefix(component.LibraryID, "react-component-library:"))
 	}
 	out := Snapshot{ComponentID: component.ID, LibraryID: component.LibraryID, Version: component.Version, ContractID: contractID, EvidenceStatus: "unavailable"}
-	data, err := os.ReadFile(filepath.Join(r.repoRoot, "scenarios", "react-component-library", "experience", "components", contractID+".json"))
+	data, err := r.readVersionContract(component)
 	if err != nil {
 		if os.IsNotExist(err) {
 			out.EvidenceStatus = "not-configured"
-			out.EvidenceMessage = "This component does not yet have an experience contract."
+			out.EvidenceMessage = "This exact library version does not yet have a canonical experience contract."
 			return out, nil
 		}
 		return Snapshot{}, fmt.Errorf("read component experience contract: %w", err)
@@ -114,6 +114,29 @@ func (r *reader) Get(ctx context.Context, component Component) (Snapshot, error)
 		out.EvidenceMessage = "No reconciliation capture has been recorded yet."
 	}
 	return out, nil
+}
+
+// readVersionContract resolves only an exact component version. Scenario-level
+// contracts are intentionally not consulted: that would make a mutable slug
+// the authority for an immutable library version.
+func (r *reader) readVersionContract(component Component) ([]byte, error) {
+	name := strings.TrimSpace(component.Slug)
+	if name == "" {
+		name = strings.TrimPrefix(strings.TrimSpace(component.LibraryID), "react-component-library:")
+	}
+	version := strings.TrimSpace(component.Version)
+	if name == "" || version == "" {
+		return nil, os.ErrNotExist
+	}
+	root := filepath.Join(r.repoRoot, "scenarios", "react-component-library", "library")
+	for _, kind := range []string{"components", "hooks"} {
+		path := filepath.Join(root, kind, filepath.Clean(name), "versions", filepath.Clean(version), "experience-contract.json")
+		data, err := os.ReadFile(path)
+		if err == nil || !os.IsNotExist(err) {
+			return data, err
+		}
+	}
+	return nil, os.ErrNotExist
 }
 
 func (r *reader) evidence(ctx context.Context, componentID string) ([]Evidence, error) {

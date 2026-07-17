@@ -1,0 +1,12 @@
+{
+  "contract": {"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library/InspectorLayout@1.0.0"},
+  "component": {"id":"inspector-layout","title":"Inspector Layout","purpose":"Compose a primary work canvas with an independently observable inspector surface."},
+  "states": [
+    {"id":"loading","example":"loading-inspector","description":"The inspector is resolving while the canvas remains usable."},
+    {"id":"ready","example":"ready-inspector","description":"Canvas and inspector are usable."},
+    {"id":"empty","example":"empty-inspector","description":"No item is selected for inspection."},
+    {"id":"partial","example":"partial-inspector","description":"Some inspector details are unavailable without blocking canvas work."},
+    {"id":"error","example":"error-inspector","description":"Inspector loading failed and can offer retry."}
+  ],
+  "claims": [{"id":"inspector-observable","type":"custom","statement":"The inspector region uses AsyncPanel and exposes a stable ExperienceSurface lifecycle.","tier":"machine","states":["loading","ready","empty","partial","error"]}]
+}

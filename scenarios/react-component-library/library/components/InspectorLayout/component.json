@@ -1,0 +1,12 @@
+{
+  "libraryId": "react-component-library:InspectorLayout",
+  "displayName": "Inspector Layout",
+  "description": "A responsive workbench composition that keeps a primary canvas usable while an inspector region reports its lifecycle.",
+  "tags": ["layout", "inspector", "workbench", "experience"],
+  "slot": "ui-pattern",
+  "category": "layout",
+  "designStyles": [{"styleId": "vrooli-default", "affinity": "native"}],
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

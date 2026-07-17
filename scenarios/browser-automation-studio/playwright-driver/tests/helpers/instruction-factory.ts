@@ -142,6 +142,7 @@ function buildAction(actionType: string, params: Record<string, unknown>): Actio
           url: String(params.url ?? params.target ?? params.href ?? ''),
           timeoutMs: params.timeoutMs != null ? Number(params.timeoutMs) : undefined,
           waitUntil: stringToNavigateWaitEvent(params.waitUntil as string | undefined),
+          waitForSelector: params.waitForSelector != null ? String(params.waitForSelector) : undefined,
         }),
       };
       break;

@@ -13,6 +13,7 @@ const (
 	nodeNavigate  = "smoke-navigate-host"
 	nodeInject    = "smoke-inject-frame"
 	nodeHandshake = "smoke-assert-handshake"
+	nodeReadiness = "smoke-assert-experience-settled"
 	nodeArtifacts = "visual-capture-artifacts"
 	nodeScreens   = "smoke-screenshot-frame"
 
@@ -53,7 +54,7 @@ var defaultHandshakeSignals = []string{
 //     timeoutMs — succeeds the moment the marker appears, fails on timeout;
 //  4. evaluate: best-effort DOM/layout/viewport artifact capture;
 //  5. screenshot the host iframe element.
-func buildHandshakeWorkflow(scenarioURL string, signals []string, timeout time.Duration, vw, vh int) map[string]any {
+func buildHandshakeWorkflow(scenarioURL string, signals []string, expected []requiredSurface, timeout time.Duration, vw, vh int) map[string]any {
 	if len(signals) == 0 {
 		signals = defaultHandshakeSignals
 	}
@@ -67,7 +68,36 @@ func buildHandshakeWorkflow(scenarioURL string, signals []string, timeout time.D
 		timeout = defaultHandshakeTimeout
 	}
 
-	injectExpr := injectionScript(scenarioURL, signals)
+	injectExpr := injectionScript(scenarioURL, signals, expected)
+	nodes := []any{
+		node(nodeNavigate, "Navigate host shell", map[string]any{
+			"type":     "ACTION_TYPE_NAVIGATE",
+			"navigate": map[string]any{"url": scenarioURL, "wait_until": "NAVIGATE_WAIT_EVENT_LOAD"},
+		}),
+		node(nodeInject, "Embed scenario UI + arm handshake listener", map[string]any{
+			"type":     "ACTION_TYPE_EVALUATE",
+			"evaluate": map[string]any{"expression": injectExpr},
+		}),
+		node(nodeHandshake, "Wait for iframe-bridge handshake", map[string]any{
+			"type": "ACTION_TYPE_ASSERT",
+			"assert": map[string]any{"selector": bridgeReadyMarker, "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": timeout.Milliseconds(), "failure_message": "Iframe bridge never signaled ready."},
+		}),
+	}
+	edges := []any{edge(nodeNavigate, nodeInject), edge(nodeInject, nodeHandshake)}
+	previous := nodeHandshake
+	if len(expected) > 0 {
+		nodes = append(nodes, node(nodeReadiness, "Wait for declared experience surfaces to settle", map[string]any{
+			"type": "ACTION_TYPE_ASSERT",
+			"assert": map[string]any{"selector": "[data-smoke-experience-settled]", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": timeout.Milliseconds(), "failure_message": "Declared required experience surfaces did not settle to a terminal state."},
+		}))
+		edges = append(edges, edge(previous, nodeReadiness))
+		previous = nodeReadiness
+	}
+	nodes = append(nodes,
+		node(nodeArtifacts, "Capture visual health artifacts", map[string]any{"type": "ACTION_TYPE_EVALUATE", "evaluate": map[string]any{"expression": artifactCaptureScript(), "storeResult": "visual_artifacts"}}),
+		node(nodeScreens, "Screenshot embedded UI", map[string]any{"type": "ACTION_TYPE_SCREENSHOT", "screenshot": map[string]any{"selector": hostFrameSelector}}),
+	)
+	edges = append(edges, edge(previous, nodeArtifacts), edge(nodeArtifacts, nodeScreens))
 
 	return map[string]any{
 		"metadata": map[string]any{
@@ -78,42 +108,8 @@ func buildHandshakeWorkflow(scenarioURL string, signals []string, timeout time.D
 			"viewport_width":  vw,
 			"viewport_height": vh,
 		},
-		"nodes": []any{
-			node(nodeNavigate, "Navigate host shell", map[string]any{
-				"type":     "ACTION_TYPE_NAVIGATE",
-				"navigate": map[string]any{"url": scenarioURL, "wait_until": "NAVIGATE_WAIT_EVENT_LOAD"},
-			}),
-			node(nodeInject, "Embed scenario UI + arm handshake listener", map[string]any{
-				"type":     "ACTION_TYPE_EVALUATE",
-				"evaluate": map[string]any{"expression": injectExpr},
-			}),
-			node(nodeHandshake, "Wait for iframe-bridge handshake", map[string]any{
-				"type": "ACTION_TYPE_ASSERT",
-				"assert": map[string]any{
-					"selector":        bridgeReadyMarker,
-					"mode":            "ASSERTION_MODE_EXISTS",
-					"timeout_ms":      timeout.Milliseconds(),
-					"failure_message": "Iframe bridge never signaled ready.",
-				},
-			}),
-			node(nodeArtifacts, "Capture visual health artifacts", map[string]any{
-				"type": "ACTION_TYPE_EVALUATE",
-				"evaluate": map[string]any{
-					"expression":  artifactCaptureScript(),
-					"storeResult": "visual_artifacts",
-				},
-			}),
-			node(nodeScreens, "Screenshot embedded UI", map[string]any{
-				"type":       "ACTION_TYPE_SCREENSHOT",
-				"screenshot": map[string]any{"selector": hostFrameSelector},
-			}),
-		},
-		"edges": []any{
-			edge(nodeNavigate, nodeInject),
-			edge(nodeInject, nodeHandshake),
-			edge(nodeHandshake, nodeArtifacts),
-			edge(nodeArtifacts, nodeScreens),
-		},
+		"nodes": nodes,
+		"edges": edges,
 	}
 }
 
@@ -137,9 +133,18 @@ func edge(source, target string) map[string]any {
 // ready. The marker is what the handshake assert gates on. Side-effect only —
 // all observable state is exposed through the DOM marker (BAS's evaluate does
 // not reliably return a value).
-func injectionScript(scenarioURL string, signals []string) string {
+func injectionScript(scenarioURL string, signals []string, expected []requiredSurface) string {
 	urlJSON, _ := json.Marshal(scenarioURL)
-	return fmt.Sprintf(injectionTemplate, string(urlJSON), framePropertyPredicate(signals))
+	type expectedSurface struct { ID string `json:"id"`; States []string `json:"states"` }
+	items := make([]expectedSurface, 0, len(expected))
+	for _, surface := range expected {
+		if !surface.required || strings.TrimSpace(surface.id) == "" { continue }
+		states := make([]string, 0, len(surface.states))
+		for state := range surface.states { if state != "loading" { states = append(states, state) } }
+		items = append(items, expectedSurface{ID: surface.id, States: states})
+	}
+	expectedJSON, _ := json.Marshal(items)
+	return fmt.Sprintf(injectionTemplate, string(urlJSON), framePropertyPredicate(signals), string(expectedJSON))
 }
 
 // framePropertyPredicate renders a JS boolean expression true when any readiness
@@ -195,11 +200,14 @@ func signalCheck(signal string) string {
 }
 
 // injectionTemplate is the page-context script. Placeholders: %[1]s =
-// JSON-quoted scenario URL, %[2]s = the frame-window readiness predicate body
+// JSON-quoted scenario URL, %[2]s = the frame-window readiness predicate body,
+// %[3]s = declared required surface terminal-state expectations.
 // (references `w`).
 const injectionTemplate = `(() => {
   var doc = document;
   var target = %[1]s;
+  var expectedSurfaces = %[3]s;
+  var observedDocument = null;
 
   function signalReady() {
     try { doc.documentElement.setAttribute('data-smoke-bridge-ready', '1'); } catch (e) {}
@@ -224,11 +232,39 @@ const injectionTemplate = `(() => {
   frame.src = target;
   doc.body.appendChild(frame);
 
+  function updateExperienceSettlement() {
+    if (!expectedSurfaces.length || !frame.contentDocument) { return; }
+    var child = frame.contentDocument;
+    for (var i = 0; i < expectedSurfaces.length; i++) {
+      var expected = expectedSurfaces[i];
+      var nodes = child.querySelectorAll('[data-experience-surface]');
+      var matched = null;
+      for (var j = 0; j < nodes.length; j++) {
+        if (nodes[j].getAttribute('data-experience-surface') === expected.id) { matched = nodes[j]; break; }
+      }
+      if (!matched) { doc.documentElement.removeAttribute('data-smoke-experience-settled'); return; }
+      var state = matched.getAttribute('data-experience-state') || '';
+      if (expected.states.length && expected.states.indexOf(state) === -1) { doc.documentElement.removeAttribute('data-smoke-experience-settled'); return; }
+    }
+    doc.documentElement.setAttribute('data-smoke-experience-settled', '1');
+  }
+
+  function observeExperienceSurfaces() {
+    var child = null;
+    try { child = frame.contentDocument; } catch (e) { child = null; }
+    if (!child || !child.documentElement || child === observedDocument) { return; }
+    observedDocument = child;
+    new MutationObserver(updateExperienceSettlement).observe(child.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-experience-surface', 'data-experience-state'] });
+    updateExperienceSettlement();
+  }
+
   var poll = setInterval(function () {
     var w = null;
     try { w = frame.contentWindow; } catch (e) { w = null; }
-    if (w && frameReady(w)) { signalReady(); clearInterval(poll); }
-    if (doc.documentElement.hasAttribute('data-smoke-bridge-ready')) { clearInterval(poll); }
+    if (w && frameReady(w)) { signalReady(); }
+    observeExperienceSurfaces();
+    updateExperienceSettlement();
+    if (doc.documentElement.hasAttribute('data-smoke-bridge-ready') && (!expectedSurfaces.length || doc.documentElement.hasAttribute('data-smoke-experience-settled'))) { clearInterval(poll); }
   }, 100);
 })();`
 
@@ -320,6 +356,22 @@ const artifactCaptureTemplate = `(() => {
     return Array.prototype.slice.call(doc.querySelectorAll(selector), 0, 250).map(elementRecord);
   }
 
+  // Shell readiness only proves the iframe booted. Semantic surfaces are
+  // collected separately so adopted experience contracts can validate
+  // functional lifecycle without treating every DOM primitive as a surface.
+  function experienceSurfaces(doc) {
+    return Array.prototype.slice.call(doc.querySelectorAll('[data-experience-surface]')).map(function (el) {
+      var rect = el.getBoundingClientRect();
+      var style = window.getComputedStyle(el);
+      return {
+        id: el.getAttribute('data-experience-surface') || '',
+        state: el.getAttribute('data-experience-state') || '',
+        visible: !!(rect.width || rect.height) && style.display !== 'none' && style.visibility !== 'hidden',
+        role: el.getAttribute('role') || ''
+      };
+    });
+  }
+
   function metaContent(doc, name) {
     try {
       var el = doc.querySelector('meta[name="' + name + '"]');
@@ -398,7 +450,8 @@ const artifactCaptureTemplate = `(() => {
     },
     chrome: declaredChrome(doc),
     safeArea: readSafeAreaInsets(doc),
-    elements: collectElements(doc)
+    elements: collectElements(doc),
+    experienceSurfaces: experienceSurfaces(doc)
   };
   var network = [];
   try {
