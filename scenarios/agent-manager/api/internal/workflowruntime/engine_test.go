@@ -117,6 +117,166 @@ func TestExecutionBudgetExhaustionPersistsCompletedAttempt(t *testing.T) {
 	}
 }
 
+func TestInvalidStructuredResultPreservesRawAttemptEvidence(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work", ResultSpec: &domain.ResultSpec{Version: "result-spec/v1", Kind: domain.ResultSpecKindJSONSchema, ExtractionMode: domain.StructuredExtractionDeterministic, Schema: json.RawMessage(`{"type":"object","required":["answer"]}`)}}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+	definition.EntryNode = "run"
+	definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "invalid-structured")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	runID := children.requests[0].runID
+	state := children.states[runID]
+	state.Terminal = true
+	state.Result = &domain.RunResult{FinalOutput: `{"wrong":true}`, Structured: &domain.StructuredResult{Status: domain.StructuredResultInvalid, Diagnostics: []domain.StructuredDiagnostic{{Code: "schema_mismatch", Path: "$.answer", Message: "required property missing"}}}}
+	children.states[runID] = state
+	repairPending := mustAdvance(t, engine, execution.ID)
+	if repairPending.Status != domain.WorkflowExecutionRunning || repairPending.BudgetUsage.NodeAttempts != 2 {
+		t.Fatalf("repairPending=%+v", repairPending)
+	}
+	attempts, _ := store.ListAttempts(context.Background(), execution.ID)
+	if len(attempts) != 2 || attempts[0].RawOutput != `{"wrong":true}` || !strings.Contains(attempts[0].ValidationError, "schema_mismatch") || attempts[1].Strategy != domain.WorkflowAttemptContinue || attempts[1].SourceAttemptID == nil || *attempts[1].SourceAttemptID != attempts[0].ID {
+		t.Fatalf("attempt evidence=%+v", attempts)
+	}
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 2 || children.requests[1].source == nil || *children.requests[1].source != runID {
+		t.Fatalf("repair did not continue the failed run: %+v", children.requests)
+	}
+	repairRunID := children.requests[1].runID
+	state = children.states[repairRunID]
+	state.Terminal = true
+	state.Result = &domain.RunResult{FinalOutput: `{"answer":"fixed"}`, Structured: &domain.StructuredResult{Status: domain.StructuredResultSuccess, Value: json.RawMessage(`{"answer":"fixed"}`)}}
+	children.states[repairRunID] = state
+	mustAdvance(t, engine, execution.ID)
+	terminal := mustAdvance(t, engine, execution.ID)
+	if terminal.Status != domain.WorkflowExecutionSucceeded {
+		t.Fatalf("repaired result did not finish workflow: %+v", terminal)
+	}
+}
+
+func TestInvalidStructuredResultCanDisableSchemaRepair(t *testing.T) {
+	disabled := 0
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work", ResultSpec: &domain.ResultSpec{Version: "result-spec/v1", Kind: domain.ResultSpecKindJSONSchema, ExtractionMode: domain.StructuredExtractionDeterministic, Schema: json.RawMessage(`{"type":"object","required":["answer"]}`), SchemaRepairAttempts: &disabled}}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+	definition.EntryNode = "run"
+	definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "disabled-structured-repair")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	state := children.states[children.requests[0].runID]
+	state.Terminal = true
+	state.Result = &domain.RunResult{FinalOutput: `{"wrong":true}`, Structured: &domain.StructuredResult{Status: domain.StructuredResultInvalid, Diagnostics: []domain.StructuredDiagnostic{{Code: "schema_mismatch"}}}}
+	children.states[children.requests[0].runID] = state
+	mustAdvance(t, engine, execution.ID)
+	attempts, _ := store.ListAttempts(context.Background(), execution.ID)
+	if len(attempts) != 1 || attempts[0].RawOutput == "" || attempts[0].ValidationError == "" || attempts[0].Status != domain.WorkflowAttemptFailed {
+		t.Fatalf("disabled repair attempt evidence=%+v", attempts)
+	}
+}
+
+func TestInvalidStructuredRepairIsBoundedAndAccounted(t *testing.T) {
+	definition := baseDefinition()
+	definition.Budgets.MaxNodeAttempts = 2
+	definition.Budgets.MaxChildren = 2
+	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work", ResultSpec: &domain.ResultSpec{Version: "result-spec/v1", Kind: domain.ResultSpecKindJSONSchema, ExtractionMode: domain.StructuredExtractionDeterministic, Schema: json.RawMessage(`{"type":"object","required":["answer"]}`)}}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+	definition.EntryNode = "run"
+	definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "bounded-structured-repair")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+
+	invalid := func(runID uuid.UUID) {
+		state := children.states[runID]
+		state.Terminal = true
+		state.Result = &domain.RunResult{FinalOutput: `{"wrong":true}`, Structured: &domain.StructuredResult{Status: domain.StructuredResultInvalid, Diagnostics: []domain.StructuredDiagnostic{{Code: "schema_mismatch"}}}}
+		children.states[runID] = state
+	}
+	invalid(children.requests[0].runID)
+	repairPending := mustAdvance(t, engine, execution.ID)
+	if repairPending.Status != domain.WorkflowExecutionRunning || repairPending.BudgetUsage.NodeAttempts != 2 {
+		t.Fatalf("repairPending=%+v", repairPending)
+	}
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 2 {
+		t.Fatalf("repair dispatches=%d, want 2", len(children.requests))
+	}
+	invalid(children.requests[1].runID)
+	terminal := mustAdvance(t, engine, execution.ID)
+	if terminal.Status != domain.WorkflowExecutionFailed || terminal.TerminalReason.Code != "structured_result_invalid" || terminal.BudgetUsage.NodeAttempts != 2 || terminal.BudgetUsage.Children != 2 {
+		t.Fatalf("terminal=%+v", terminal)
+	}
+	attempts, _ := store.ListAttempts(context.Background(), execution.ID)
+	if len(attempts) != 2 || schemaRepairCount(attempts, "run") != 1 {
+		t.Fatalf("attempts=%+v", attempts)
+	}
+}
+
+func TestInvalidStructuredResultDoesNotScheduleRepairWithoutBudget(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		maxNodeAttempts int
+		maxChildren     int
+	}{
+		{name: "node_attempt_capacity", maxNodeAttempts: 1, maxChildren: 2},
+		{name: "child_capacity", maxNodeAttempts: 2, maxChildren: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			definition := baseDefinition()
+			definition.Budgets.MaxNodeAttempts = tc.maxNodeAttempts
+			definition.Budgets.MaxChildren = tc.maxChildren
+			definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work", ResultSpec: &domain.ResultSpec{Version: "result-spec/v1", Kind: domain.ResultSpecKindJSONSchema, ExtractionMode: domain.StructuredExtractionDeterministic, Schema: json.RawMessage(`{"type":"object","required":["answer"]}`)}}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+			definition.EntryNode = "run"
+			definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
+			engine, store, children := testEngine(t, definition)
+			execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "structured-repair-no-budget-"+tc.name)
+			mustAdvance(t, engine, execution.ID)
+			mustAdvance(t, engine, execution.ID)
+			state := children.states[children.requests[0].runID]
+			state.Terminal = true
+			state.Result = &domain.RunResult{FinalOutput: `{"wrong":true}`, Structured: &domain.StructuredResult{Status: domain.StructuredResultInvalid, Diagnostics: []domain.StructuredDiagnostic{{Code: "schema_mismatch"}}}}
+			children.states[children.requests[0].runID] = state
+			terminal := mustAdvance(t, engine, execution.ID)
+			if terminal.Status != domain.WorkflowExecutionFailed || terminal.TerminalReason.Code != "structured_result_invalid" || terminal.BudgetUsage.NodeAttempts != 1 || terminal.BudgetUsage.Children != 1 {
+				t.Fatalf("terminal=%+v", terminal)
+			}
+			attempts, _ := store.ListAttempts(context.Background(), execution.ID)
+			if len(attempts) != 1 || len(children.requests) != 1 {
+				t.Fatalf("attempts=%+v children=%+v", attempts, children.requests)
+			}
+		})
+	}
+}
+
+func TestBindingClampIsJournaledWithAttempt(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "{{.context}}", Bindings: []domain.WorkflowInputBinding{{Name: "context", Source: domain.WorkflowBindingInput, Selector: "$.context", Limit: 1, MaxBytes: 36, RenderAs: "text", Overflow: "truncate", MissingPolicy: "error"}}}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+	definition.EntryNode = "run"
+	definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
+	engine, store, _ := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{"context":"this input is deliberately longer than the small binding budget"}`), "binding-diagnostic")
+	mustAdvance(t, engine, execution.ID)
+	journal, err := store.ListJournal(context.Background(), execution.ID, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range journal {
+		if entry.Kind != domain.WorkflowJournalDiagnostic {
+			continue
+		}
+		var diagnostic BindingDiagnostic
+		if err := json.Unmarshal(entry.Payload, &diagnostic); err != nil {
+			t.Fatal(err)
+		}
+		if diagnostic.Code == "binding_truncated" && diagnostic.Binding == "context" && diagnostic.DroppedBytes > 0 {
+			return
+		}
+	}
+	t.Fatalf("binding truncation journal missing: %+v", journal)
+}
+
 func TestWaitSignalIsTypedDurableAndIdempotent(t *testing.T) { // [REQ:REQ-P2-001]
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved", PayloadSchema: json.RawMessage(`{"type":"object","required":["actor"],"properties":{"actor":{"type":"string"}},"additionalProperties":false}`), TimeoutSeconds: 30}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
@@ -146,6 +306,117 @@ func TestWaitSignalIsTypedDurableAndIdempotent(t *testing.T) { // [REQ:REQ-P2-00
 	journal, _ := store.ListJournal(context.Background(), execution.ID, 0, 0)
 	if len(journal) < 3 || journal[1].Kind != domain.WorkflowJournalWait || journal[2].Kind != domain.WorkflowJournalSignal {
 		t.Fatalf("journal=%+v", journal)
+	}
+}
+
+func TestSignalBuffersBeforeWaitArmsAndConsumesOnArrival(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work"}},
+		{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved", PayloadSchema: json.RawMessage(`{"type":"object","required":["actor"],"properties":{"actor":{"type":"string"}},"additionalProperties":false}`), TimeoutSeconds: 30}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "run"
+	definition.Edges = []domain.WorkflowEdge{{From: "run", To: "approval"}, {From: "approval", To: "done"}}
+	engine, store, children := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "signal-before-wait")
+	mustAdvance(t, engine, execution.ID) // persist dispatch intent
+	mustAdvance(t, engine, execution.ID) // dispatch run
+	children.complete(children.requests[0].runID, "complete")
+
+	// The run has completed, but the nudge has not yet driven the execution to
+	// its wait node. The declared contract still accepts and durably buffers the
+	// signal.
+	buffered, duplicate, err := engine.Signal(context.Background(), execution.ID, "approved", json.RawMessage(`{"actor":"operator"}`), "approval-before-arm", 0)
+	if err != nil || duplicate || buffered.Status != domain.WorkflowExecutionRunning {
+		t.Fatalf("buffered signal execution=%+v duplicate=%t err=%v", buffered, duplicate, err)
+	}
+
+	// Completion progression arms and consumes the buffer without a caller-side
+	// advance between the terminal run and Signal.
+	advanced := mustAdvance(t, engine, execution.ID)
+	if advanced.CurrentNodeID != "approval" || advanced.Status != domain.WorkflowExecutionRunning {
+		t.Fatalf("wait did not consume buffered signal: %+v", advanced)
+	}
+	consumed := mustAdvance(t, engine, execution.ID)
+	if consumed.CurrentNodeID != "done" || consumed.Status != domain.WorkflowExecutionRunning {
+		t.Fatalf("buffered signal was not consumed: %+v", consumed)
+	}
+	final := mustAdvance(t, engine, execution.ID)
+	if final.Status != domain.WorkflowExecutionSucceeded {
+		t.Fatalf("final=%+v", final)
+	}
+	journal, _ := store.ListJournal(context.Background(), execution.ID, 0, 0)
+	var signalEntry *domain.WorkflowJournalEntry
+	for _, entry := range journal {
+		if entry.Kind == domain.WorkflowJournalSignal {
+			signalEntry = entry
+			break
+		}
+	}
+	if signalEntry == nil || signalEntry.NodeID != "approval" {
+		t.Fatalf("buffered signal journal=%+v", journal)
+	}
+}
+
+func TestBoundedWaitRoutesTimeoutAndPreservesReason(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved", TimeoutSeconds: 10, OnTimeout: "timed-out"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+		{ID: "timed-out", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "blocked"}},
+	}
+	definition.EntryNode = "approval"
+	definition.Edges = []domain.WorkflowEdge{{From: "approval", To: "done"}}
+	engine, store, _ := testEngine(t, definition)
+	now := time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)
+	engine.Now = func() time.Time { return now }
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "wait-timeout")
+	if waiting := mustAdvance(t, engine, execution.ID); waiting.Status != domain.WorkflowExecutionWaiting {
+		t.Fatalf("waiting=%+v", waiting)
+	}
+	now = now.Add(11 * time.Second)
+	routed := mustAdvance(t, engine, execution.ID)
+	if routed.CurrentNodeID != "timed-out" || routed.Status != domain.WorkflowExecutionRunning || routed.TerminalReason == nil || routed.TerminalReason.Code != "wait_timeout" {
+		t.Fatalf("routed=%+v", routed)
+	}
+	terminal := mustAdvance(t, engine, execution.ID)
+	if terminal.Status != domain.WorkflowExecutionBlocked || terminal.TerminalReason == nil || terminal.TerminalReason.Code != "wait_timeout" {
+		t.Fatalf("terminal=%+v", terminal)
+	}
+	journal, _ := store.ListJournal(context.Background(), execution.ID, 0, 0)
+	if journal[len(journal)-1].Kind != domain.WorkflowJournalWaitTimeout {
+		t.Fatalf("timeout journal missing: %+v", journal)
+	}
+}
+
+func TestIndefiniteWaitAndWallTimeExcludePausedDuration(t *testing.T) {
+	definition := baseDefinition()
+	definition.Budgets.WallTimeSeconds = 5
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved", TimeoutSeconds: 0}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "approval"
+	definition.Edges = []domain.WorkflowEdge{{From: "approval", To: "done"}}
+	engine, _, _ := testEngine(t, definition)
+	now := time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)
+	engine.Now = func() time.Time { return now }
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "indefinite-wait")
+	mustAdvance(t, engine, execution.ID)
+	now = now.Add(24 * time.Hour)
+	stillWaiting := mustAdvance(t, engine, execution.ID)
+	if stillWaiting.Status != domain.WorkflowExecutionWaiting {
+		t.Fatalf("indefinite wait exhausted wall time: %+v", stillWaiting)
+	}
+	if _, _, err := engine.Signal(context.Background(), execution.ID, "approved", json.RawMessage(`{}`), "after-day", 0); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(6 * time.Second)
+	mustAdvance(t, engine, execution.ID)
+	terminal := mustAdvance(t, engine, execution.ID)
+	if terminal.Status != domain.WorkflowExecutionBudgetExhausted || terminal.TerminalReason == nil || terminal.TerminalReason.BudgetName != "wall_time" {
+		t.Fatalf("active time after wait did not exhaust wall budget: %+v", terminal)
 	}
 }
 
@@ -196,6 +467,9 @@ func TestCancelWinsAgainstLateSignalAndIsIdempotent(t *testing.T) {
 	cancelled, duplicate, err := engine.Cancel(context.Background(), execution.ID, "cancel-op", "operator request", waiting.Version)
 	if err != nil || duplicate || cancelled.Status != domain.WorkflowExecutionCancelling {
 		t.Fatalf("cancelled=%+v duplicate=%t err=%v", cancelled, duplicate, err)
+	}
+	if advanced, err := engine.Advance(context.Background(), execution.ID); err != nil || advanced.Status != domain.WorkflowExecutionCancelling {
+		t.Fatalf("advance after cancellation=%+v err=%v; cancelling must be a hard barrier until cleanup settles it", advanced, err)
 	}
 	cancelled, err = engine.RecordCancellationDisposition(context.Background(), execution.ID, 0, 0, nil)
 	if err != nil || cancelled.Status != domain.WorkflowExecutionCancelled {
@@ -858,6 +1132,70 @@ func TestBindingsSelectBoundedChildWorkflowOutput(t *testing.T) { // [REQ:REQ-P2
 	}
 }
 
+func TestBindingPresentationVocabularyAndTruncationAreDeterministic(t *testing.T) {
+	ctx := BindingContext{Input: json.RawMessage(`{"title":"Hello","object":{"a":1}}`)}
+	cases := []struct {
+		name    string
+		binding domain.WorkflowInputBinding
+		want    string
+	}{
+		{"text", domain.WorkflowInputBinding{Name: "title", Source: domain.WorkflowBindingInput, Selector: "$.title", Limit: 1, MaxBytes: 100, RenderAs: "text", MissingPolicy: "error"}, "Hello"},
+		{"pretty", domain.WorkflowInputBinding{Name: "object", Source: domain.WorkflowBindingInput, Selector: "$.object", Limit: 1, MaxBytes: 100, RenderAs: "json_pretty", MissingPolicy: "error"}, "{\n  \"a\": 1\n}"},
+		{"xml", domain.WorkflowInputBinding{Name: "title", Source: domain.WorkflowBindingInput, Selector: "$.title", Limit: 1, MaxBytes: 100, RenderAs: "xml", WrapTag: "context", MissingPolicy: "error"}, "<context>\nHello\n</context>"},
+		{"markdown", domain.WorkflowInputBinding{Name: "title", Source: domain.WorkflowBindingInput, Selector: "$.title", Limit: 1, MaxBytes: 100, RenderAs: "markdown", MissingPolicy: "error"}, "## title\n\nHello"},
+		{"fenced", domain.WorkflowInputBinding{Name: "title", Source: domain.WorkflowBindingInput, Selector: "$.title", Limit: 1, MaxBytes: 100, RenderAs: "fenced", Lang: "text", MissingPolicy: "error"}, "```text\nHello\n```"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			first, err := EvaluateBindings([]domain.WorkflowInputBinding{tc.binding}, ctx)
+			if err != nil || first[tc.binding.Name] != tc.want {
+				t.Fatalf("first=%#v err=%v", first, err)
+			}
+			second, err := EvaluateBindings([]domain.WorkflowInputBinding{tc.binding}, ctx)
+			if err != nil || second[tc.binding.Name] != first[tc.binding.Name] {
+				t.Fatalf("renderer was not deterministic: second=%#v err=%v", second, err)
+			}
+		})
+	}
+	truncated := domain.WorkflowInputBinding{Name: "title", Source: domain.WorkflowBindingInput, Selector: "$.title", Limit: 1, MaxBytes: 30, RenderAs: "text", Overflow: "truncate", MissingPolicy: "error"}
+	values, diagnostics, err := EvaluateBindingsWithDiagnostics([]domain.WorkflowInputBinding{truncated}, BindingContext{Input: json.RawMessage(`{"title":"this is deliberately much longer than the binding budget"}`)})
+	if err != nil || !strings.Contains(values["title"].(string), "truncated") || len(values["title"].(string)) > truncated.MaxBytes {
+		t.Fatalf("truncation=%#v err=%v", values, err)
+	}
+	if len(diagnostics) != 1 || diagnostics[0].Code != "binding_truncated" || diagnostics[0].DroppedBytes <= 0 {
+		t.Fatalf("truncation diagnostics=%+v", diagnostics)
+	}
+}
+
+func TestXMLListBindingEvictsWholeProvenanceTaggedItems(t *testing.T) {
+	ctx := BindingContext{Journal: []*domain.WorkflowJournalEntry{
+		{Kind: domain.WorkflowJournalHandoff, NodeID: "slice", Sequence: 1, Payload: json.RawMessage(`{"summary":"first framing handoff"}`)},
+		{Kind: domain.WorkflowJournalHandoff, NodeID: "slice", Sequence: 2, Payload: json.RawMessage(`{"summary":"middle handoff that should be elided"}`)},
+		{Kind: domain.WorkflowJournalHandoff, NodeID: "slice", Sequence: 3, Payload: json.RawMessage(`{"summary":"latest handoff"}`)},
+	}}
+	binding := domain.WorkflowInputBinding{Name: "priorHandoffs", Source: domain.WorkflowBindingHandoff, Selector: "node=slice;$.summary", Limit: 10, MaxBytes: 260, RenderAs: "xml", ItemTag: "handoff", ItemMaxBytes: 16, EvictionPolicy: "keep_ends", KeepFirst: 1, MissingPolicy: "error"}
+	values, diagnostics, err := EvaluateBindingsWithDiagnostics([]domain.WorkflowInputBinding{binding}, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := values["priorHandoffs"].(string)
+	if len(rendered) > binding.MaxBytes || !strings.Contains(rendered, `sequence="1"`) || !strings.Contains(rendered, `sequence="3"`) || !strings.Contains(rendered, "elided") || !strings.Contains(rendered, "truncated") {
+		t.Fatalf("rendered list=%q", rendered)
+	}
+	var itemClamp, eviction bool
+	for _, diagnostic := range diagnostics {
+		itemClamp = itemClamp || diagnostic.Code == "binding_item_truncated"
+		eviction = eviction || diagnostic.Code == "binding_items_evicted"
+	}
+	if !itemClamp || !eviction {
+		t.Fatalf("list diagnostics=%+v", diagnostics)
+	}
+	again, err := EvaluateBindings([]domain.WorkflowInputBinding{binding}, ctx)
+	if err != nil || again["priorHandoffs"] != rendered {
+		t.Fatalf("list rendering is nondeterministic: %#v err=%v", again, err)
+	}
+}
+
 func TestExpressionEnvironmentRejectsNonBooleanAndUnknownNames(t *testing.T) {
 	e, err := NewExpressionEvaluator()
 	if err != nil {
@@ -1091,8 +1429,19 @@ func (s *memoryStore) Commit(_ context.Context, c repository.WorkflowCommit) (bo
 	}
 	for _, attempt := range c.Attempts {
 		list := s.attempts[x.ID]
-		v := clone(*attempt)
-		list = append(list, &v)
+		updated := false
+		for i, existing := range list {
+			if existing.ID == attempt.ID {
+				v := clone(*attempt)
+				list[i] = &v
+				updated = true
+				break
+			}
+		}
+		if !updated {
+			v := clone(*attempt)
+			list = append(list, &v)
+		}
 		s.attempts[x.ID] = list
 	}
 	for _, j := range c.Journal {

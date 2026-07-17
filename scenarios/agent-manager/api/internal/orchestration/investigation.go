@@ -222,13 +222,6 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, domain.NewValidationError("investigationRunId", "run is not part of an investigation workflow")
 	}
 
-	// Ensure the execution has advanced from the just-completed investigate run
-	// to the awaiting-approval wait node before we signal (closes the race
-	// between run completion and the completion nudge).
-	if _, err = o.AdvanceWorkflowExecution(ctx, executionID); err != nil {
-		return nil, err
-	}
-
 	decision := strings.TrimSpace(req.Decision)
 	if decision == "" {
 		decision = "completed"
@@ -274,11 +267,11 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 }
 
 // workflowNodeRun resolves the run dispatched for the newest attempt of the
-// named node in an execution. It backs the REST/UI surface, which still returns
-// the investigation and apply runs even though they are now workflow node
-// attempts rather than directly created runs.
+// named node through the first-class execution-runs projection. It backs the
+// REST/UI surface, which still returns the investigation and apply runs even
+// though they are workflow node attempts rather than directly created runs.
 func (o *Orchestrator) workflowNodeRun(ctx context.Context, executionID uuid.UUID, nodeID string) (*domain.Run, error) {
-	attempts, err := o.workflowExecutions.ListAttempts(ctx, executionID)
+	attempts, err := o.ListWorkflowExecutionRuns(ctx, executionID)
 	if err != nil {
 		return nil, err
 	}

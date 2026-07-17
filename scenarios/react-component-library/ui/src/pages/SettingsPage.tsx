@@ -25,18 +25,6 @@ export function SettingsPage() {
 
   return (
     <div data-testid="settings-page" className="flex max-w-3xl flex-col gap-6">
-      <header>
-        <h1 className="text-2xl font-semibold text-app-foreground">
-          {t("settings.title", { defaultValue: "Settings" })}
-        </h1>
-        <p className="mt-1 text-sm text-app-muted-foreground">
-          {t("settings.subtitle", {
-            defaultValue:
-              "Theme and locale preferences persist locally in your browser.",
-          })}
-        </p>
-      </header>
-
       <Section title={t("settings.appearance", { defaultValue: "Appearance" })}>
         <Field label={t("settings.theme", { defaultValue: "Theme" })}>
           <Segmented

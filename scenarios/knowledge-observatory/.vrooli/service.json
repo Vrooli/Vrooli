@@ -225,25 +225,25 @@
         "degraded_behavior": "Reranking falls back to the qwen3:4b LLM reranker, then to raw RRF-fused order; search still returns results, only the final ordering is less precise."
       }
     },
-  "scenarios": {
-    "agent-manager": {
-      "enabled": true,
-      "required": false,
-      "startup_policy": "try_start",
-      "description": "Optional coding-agent execution for deep documentation search and documentation healing. Agent Manager owns portable profile reconciliation and resource-owned runner/model selection.",
-      "config": {
-        "profiles": {
-          "reconcile": true,
-          "mode": "update_if_unmodified",
-          "sources": [
-            ".vrooli/agent-profiles/deep-search.json",
-            ".vrooli/agent-profiles/doc-healing.json"
-          ]
-        }
+    "scenarios": {
+      "agent-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional coding-agent execution for deep documentation search and documentation healing. Agent Manager owns portable profile reconciliation and resource-owned runner/model selection.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/deep-search.json",
+              ".vrooli/agent-manager/doc-healing.json"
+            ]
+          }
+        },
+        "degraded_behavior": "Documentation indexing and standard health checks continue when Agent Manager is unavailable; deep-search and document-healing actions return a clear unavailable error."
       },
-      "degraded_behavior": "Documentation indexing and standard health checks continue when Agent Manager is unavailable; deep-search and document-healing actions return a clear unavailable error."
-    },
-    "search-hub": {
+      "search-hub": {
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",

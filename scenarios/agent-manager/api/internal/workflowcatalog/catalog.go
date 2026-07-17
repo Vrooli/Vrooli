@@ -201,6 +201,15 @@ func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiag
 		}
 		validateNode(n, path, lookup, add, warn)
 	}
+	for i := range d.Nodes {
+		n := &d.Nodes[i]
+		if n.Wait == nil || n.Wait.OnTimeout == "" {
+			continue
+		}
+		if _, ok := nodes[n.Wait.OnTimeout]; !ok {
+			add("wait_timeout_target", fmt.Sprintf("nodes[%d].wait.onTimeout", i), "must name an existing node")
+		}
+	}
 	if _, ok := nodes[d.EntryNode]; !ok {
 		add("entry_node", "entryNode", "must name an existing node")
 	}
@@ -355,8 +364,11 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn 
 			add("node_kind", path, "wait payload is required")
 			return
 		}
-		if n.Wait.Signal == "" || n.Wait.TimeoutSeconds <= 0 {
-			add("wait", path+".wait", "signal and finite timeoutSeconds are required")
+		if n.Wait.Signal == "" || n.Wait.TimeoutSeconds < 0 {
+			add("wait", path+".wait", "signal is required and timeoutSeconds cannot be negative")
+		}
+		if n.Wait.TimeoutSeconds == 0 && n.Wait.OnTimeout != "" {
+			add("wait_timeout", path+".wait.onTimeout", "onTimeout requires a bounded timeoutSeconds")
 		}
 		if len(n.Wait.PayloadSchema) != 0 {
 			n.Wait.PayloadSchema = normalizeSchema(n.Wait.PayloadSchema, path+".wait.payloadSchema", add)
@@ -423,8 +435,35 @@ func validateBindings(bindings []domain.WorkflowInputBinding, path string, add f
 		if b.MaxBytes <= 0 || b.MaxBytes > MaxBindingBytes {
 			add("binding_size", p+".maxBytes", "must be finite and within limit")
 		}
-		if b.RenderAs != "json" && b.RenderAs != "text" {
-			add("binding_render", p+".renderAs", "must be json or text")
+		if !slices.Contains([]string{"text", "json", "json_pretty", "xml", "markdown", "fenced"}, b.RenderAs) {
+			add("binding_render", p+".renderAs", "must be text, json, json_pretty, xml, markdown, or fenced")
+		}
+		if b.WrapTag != "" && (b.RenderAs != "xml" || !identifierPattern.MatchString(b.WrapTag)) {
+			add("binding_wrap_tag", p+".wrapTag", "requires xml rendering and a canonical tag")
+		}
+		if b.Lang != "" && b.RenderAs != "fenced" {
+			add("binding_lang", p+".lang", "requires fenced rendering")
+		}
+		if b.Overflow != "" && b.Overflow != "error" && b.Overflow != "truncate" {
+			add("binding_overflow", p+".overflow", "must be error or truncate")
+		}
+		if b.ItemMaxBytes < 0 || b.ItemMaxBytes > b.MaxBytes {
+			add("binding_item_size", p+".itemMaxBytes", "must be positive and no greater than maxBytes")
+		}
+		if b.ItemTag != "" && !identifierPattern.MatchString(b.ItemTag) {
+			add("binding_item_tag", p+".itemTag", "must be a canonical tag")
+		}
+		if b.EvictionPolicy != "" && !slices.Contains([]string{"keep_last", "keep_first", "keep_ends"}, b.EvictionPolicy) {
+			add("binding_eviction", p+".evictionPolicy", "must be keep_last, keep_first, or keep_ends")
+		}
+		if b.EvictionPolicy != "" && b.RenderAs != "xml" {
+			add("binding_eviction", p+".evictionPolicy", "requires xml rendering")
+		}
+		if (b.ItemTag != "" || b.ItemMaxBytes != 0) && (b.RenderAs != "xml" || b.EvictionPolicy == "") {
+			add("binding_item", p, "item presentation requires xml rendering with an evictionPolicy")
+		}
+		if b.KeepFirst < 0 || b.EvictionPolicy != "keep_ends" && b.KeepFirst != 0 {
+			add("binding_keep_first", p+".keepFirst", "requires keep_ends and cannot be negative")
 		}
 		if b.MissingPolicy != "error" && b.MissingPolicy != "omit" && b.MissingPolicy != "null" {
 			add("binding_missing", p+".missingPolicy", "must be error, omit, or null")

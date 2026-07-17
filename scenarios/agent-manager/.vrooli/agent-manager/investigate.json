@@ -86,7 +86,7 @@
       "kind": "wait",
       "wait": {
         "signal": "investigation.approval",
-        "timeoutSeconds": 86400,
+        "timeoutSeconds": 0,
         "payloadSchema": {
           "type": "object",
           "properties": {

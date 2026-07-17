@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/workflowcatalog"
 )
@@ -80,17 +81,52 @@ func (o *Orchestrator) ListWorkflowRevisions(ctx context.Context, owner, key str
 	if o.workflows == nil {
 		return nil, domain.NewConfigInvalidError("workflowRepository", "workflow catalog persistence is not configured", nil)
 	}
-	return o.workflows.List(ctx, strings.TrimSpace(owner), strings.TrimSpace(key), repository.ListFilter{Limit: opts.Limit, Offset: opts.Offset})
+	revisions, err := o.workflows.List(ctx, strings.TrimSpace(owner), strings.TrimSpace(key), repository.ListFilter{Limit: opts.Limit, Offset: opts.Offset})
+	if err != nil {
+		return nil, err
+	}
+	return o.withWorkflowPromptStaleness(ctx, revisions)
 }
 
 func (o *Orchestrator) GetWorkflowRevision(ctx context.Context, owner, key, digest string) (*domain.WorkflowRevision, error) {
 	if o.workflows == nil {
 		return nil, domain.NewConfigInvalidError("workflowRepository", "workflow catalog persistence is not configured", nil)
 	}
+	var (
+		revision *domain.WorkflowRevision
+		err      error
+	)
 	if strings.TrimSpace(digest) != "" {
-		return o.workflows.GetByDigest(ctx, strings.TrimSpace(digest))
+		revision, err = o.workflows.GetByDigest(ctx, strings.TrimSpace(digest))
+	} else {
+		revision, err = o.workflows.GetActive(ctx, strings.TrimSpace(owner), strings.TrimSpace(key))
 	}
-	return o.workflows.GetActive(ctx, strings.TrimSpace(owner), strings.TrimSpace(key))
+	if err != nil || revision == nil {
+		return revision, err
+	}
+	items, err := o.withWorkflowPromptStaleness(ctx, []*domain.WorkflowRevision{revision})
+	if err != nil {
+		return nil, err
+	}
+	return items[0], nil
+}
+
+func (o *Orchestrator) withWorkflowPromptStaleness(ctx context.Context, revisions []*domain.WorkflowRevision) ([]*domain.WorkflowRevision, error) {
+	source, _ := o.promptClient.(promptmanager.SourceClient)
+	items := make([]*domain.WorkflowRevision, 0, len(revisions))
+	for _, revision := range revisions {
+		if revision == nil {
+			continue
+		}
+		copy := *revision
+		stale, err := workflowPromptStale(ctx, source, revision)
+		if err != nil {
+			return nil, err
+		}
+		copy.PromptStale = stale
+		items = append(items, &copy)
+	}
+	return items, nil
 }
 
 func readWorkflowSource(path string) ([]byte, os.FileInfo, error) {

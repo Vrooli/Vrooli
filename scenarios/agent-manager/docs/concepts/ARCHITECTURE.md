@@ -587,9 +587,36 @@ source Run's immutable stored configuration and conversation ancestry.
 
 External waits belong to `WorkflowExecution`, not Run park/wake state. Their
 signal contract, correlation key, opaque resume token, and deadline are
-durable. Signal, cancel, retry, and resume writes require idempotency keys and
-support compare-and-swap preconditions; cancellation disposition reports
-which active children stopped and which external work could not be stopped.
+durable. A signal may arrive before its wait arms: the pinned definition
+validates and buffers it, and arming consumes the newest matching record. A
+signal wait with `timeoutSeconds: 0` is indefinite and its paused time does not
+consume the workflow wall-time budget. A bounded wait may declare `onTimeout`
+as an existing node id; expiry appends a `wait_timeout` journal record and
+routes there, preserving `wait_timeout` as the terminal reason when that route
+reaches an end node. Signal, cancel, retry, and resume writes require
+idempotency keys and support compare-and-swap preconditions; cancellation
+disposition reports which active children stopped and which external work could
+not be stopped.
+
+Prompt bindings keep selection separate from presentation. `renderAs` supports
+raw `text`, structured output `json`, prompt-facing `json_pretty`, `xml`,
+`markdown`, and `fenced` forms; `wrapTag` and `lang` make XML and fenced blocks
+explicit. Prompt-facing bindings may declare `overflow: "truncate"`, which
+uses an in-band byte-loss marker. Repeated journal selections can render as an
+XML container with `itemTag`, `itemMaxBytes`, and an `evictionPolicy` of
+`keep_last`, `keep_first`, or `keep_ends`; each retained item carries its node,
+sequence, and ordinal, while omitted whole items are shown with an explicit
+`elided` marker. Rendering is deterministic from the pinned binding and
+journal; it does not summarize or otherwise call a model.
+
+When a run node requires a structured result and validation fails, its raw
+terminal output and normalized validation context are retained on the failed
+node attempt. Before the normal node-attempt budget considers a fresh rerun,
+the runtime dispatches one repair continuation on the same Run conversation;
+the repair prompt requests corrected JSON and carries the concrete validation
+errors. A repaired success journals and routes as the normal result. A failed
+repair remains durable evidence and returns control to the declared fresh-attempt
+budget rather than looping indefinitely.
 
 ### Final-output evidence tiers
 

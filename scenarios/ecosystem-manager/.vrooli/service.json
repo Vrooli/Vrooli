@@ -264,14 +264,16 @@
         "type": "scenario",
         "enabled": true,
         "required": true,
-      "description": "Centralized agent orchestration for task execution through Ecosystem Manager's declared role-only profile.",
-      "config": {
-        "profiles": {
-          "reconcile": true,
-          "mode": "update_if_unmodified",
-          "sources": [".vrooli/agent-profiles/default.json"]
+        "description": "Centralized agent orchestration for task execution through Ecosystem Manager's declared role-only profile.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/default.json"
+            ]
+          }
         }
-      }
       },
       "prompt-manager": {
         "type": "scenario",

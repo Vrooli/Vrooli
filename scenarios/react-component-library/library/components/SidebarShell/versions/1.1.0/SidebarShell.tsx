@@ -17,6 +17,8 @@ export interface SidebarShellProps {
   children: ReactNode;
   mode?: "responsive" | "overlay" | "persistent";
   mobileOpen: boolean;
+  /** Hide the persistent desktop rail without changing mobile drawer state. */
+  desktopCollapsed?: boolean;
   onMobileClose: () => void;
   mobileLabel: string;
   desktopLabel?: string;
@@ -39,6 +41,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
       children,
       mode = "responsive",
       mobileOpen,
+      desktopCollapsed = false,
       onMobileClose,
       mobileLabel,
       desktopLabel,
@@ -84,7 +87,9 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
         ? "flex translate-x-0"
         : isOverlay
           ? "hidden -translate-x-full"
-          : "hidden -translate-x-full md:flex md:translate-x-0";
+          : desktopCollapsed
+            ? "hidden -translate-x-full md:!hidden"
+            : "hidden -translate-x-full md:flex md:translate-x-0";
     const safeAreaClasses = isPersistent
       ? "p-0"
       : isOverlay

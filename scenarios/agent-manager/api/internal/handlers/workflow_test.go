@@ -55,3 +55,15 @@ func TestWorkflowAttemptProjectionExposesIdentityAndInputMetadataWithoutPayload(
 		t.Fatalf("input size = %d, want %d", projected.GetInputSnapshotSizeBytes(), len(input))
 	}
 }
+
+func TestWorkflowAttemptProjectionExposesStructuredFailureEvidenceOnly(t *testing.T) {
+	failed := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: uuid.New(), RawOutput: `{"wrong":true}`, ValidationError: "schema_mismatch", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	projected := workflowAttemptToProto(failed)
+	if projected.GetRawOutput() != failed.RawOutput || projected.GetValidationError() != failed.ValidationError {
+		t.Fatalf("failed evidence projection=%+v", projected)
+	}
+	success := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: uuid.New(), RawOutput: `{"answer":"ok"}`, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	if projected := workflowAttemptToProto(success); projected.GetRawOutput() != "" || projected.GetValidationError() != "" {
+		t.Fatalf("successful output leaked through attempt projection=%+v", projected)
+	}
+}

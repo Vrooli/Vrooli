@@ -336,20 +336,6 @@ func intPtr(v int) *int {
 	return &v
 }
 
-func recoveredSummaryHasContent(summary *domain.RunSummary) bool {
-	if summary == nil {
-		return false
-	}
-	return summary.Description != "" ||
-		len(summary.FilesModified) > 0 ||
-		len(summary.FilesCreated) > 0 ||
-		len(summary.FilesDeleted) > 0 ||
-		summary.TokensUsed > 0 ||
-		summary.TurnsUsed > 0 ||
-		summary.CostEstimate > 0 ||
-		summary.ContextTokens > 0
-}
-
 func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
 	cutoff := time.Now().Add(-time.Duration(r.levers.Storage.RunStateRetentionDays) * 24 * time.Hour)
 	statuses := []domain.RunStatus{

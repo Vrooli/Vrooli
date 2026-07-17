@@ -156,6 +156,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/workflow-executions/{id}/advance", h.AdvanceWorkflowExecution).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/wait", h.WaitWorkflowExecution).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/trace", h.GetWorkflowExecutionTrace).Methods("GET")
+	r.HandleFunc("/api/v1/workflow-executions/{id}/runs", h.ListWorkflowExecutionRuns).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/signals", h.SignalWorkflowExecution).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/cancel", h.CancelWorkflowExecution).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/retry", h.RetryWorkflowExecution).Methods("POST")

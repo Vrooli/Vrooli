@@ -101,9 +101,11 @@ component machine claims against the BAS accessibility tree.
 
 1. The editor queries indexed examples and renders each named example in its
    own sandboxed harness iframe.
-2. The user can focus a specimen for inspection or add it to the bounded,
-   deterministic comparison workspace; this changes host UI state only.
-3. Try props presents the indexed `props` as JSON. Apply accepts only a JSON
+2. The user browses canonical specimens in the gallery, then opens exactly one
+   named specimen in the Playground. Desktop docks controls beside that canvas;
+   mobile opens Props and Inspect as focused sheets, never below the canvas.
+   Comparison remains a deliberate two-specimen gallery state; this changes host UI state only.
+3. Try props in the Playground presents the indexed `props` as JSON. Apply accepts only a JSON
    object, posts it to the matching registered iframe, and the harness
    shallow-merges it over indexed props using the existing `$` resolver.
 4. A malformed or non-object value remains in the host with an inline error;

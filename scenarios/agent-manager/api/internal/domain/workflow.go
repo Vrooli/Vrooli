@@ -116,6 +116,11 @@ type WorkflowPromptSource struct {
 	Revision    int    `json:"revision,omitempty"`
 	VariantID   string `json:"variantId,omitempty"`
 	ContentHash string `json:"contentHash"`
+	// Variables and WithScope preserve the exact prompt-manager read contract so
+	// staleness checks compare the pinned rendered prompt with like-for-like
+	// current source content.
+	Variables map[string]string `json:"variables,omitempty"`
+	WithScope bool              `json:"withScope,omitempty"`
 }
 
 type WorkflowChildNode struct {
@@ -129,6 +134,7 @@ type WorkflowWaitNode struct {
 	Signal         string          `json:"signal"`
 	PayloadSchema  json.RawMessage `json:"payloadSchema,omitempty"`
 	TimeoutSeconds int             `json:"timeoutSeconds"`
+	OnTimeout      string          `json:"onTimeout,omitempty"`
 }
 
 // WorkflowBranchNode marks a routing node. A non-parallel branch selects among
@@ -150,14 +156,21 @@ type WorkflowEndNode struct {
 }
 
 type WorkflowInputBinding struct {
-	Name          string                `json:"name"`
-	Source        WorkflowBindingSource `json:"source"`
-	Selector      string                `json:"selector,omitempty"`
-	Order         string                `json:"order,omitempty"`
-	Limit         int                   `json:"limit"`
-	MaxBytes      int                   `json:"maxBytes"`
-	RenderAs      string                `json:"renderAs"`
-	MissingPolicy string                `json:"missingPolicy"`
+	Name           string                `json:"name"`
+	Source         WorkflowBindingSource `json:"source"`
+	Selector       string                `json:"selector,omitempty"`
+	Order          string                `json:"order,omitempty"`
+	Limit          int                   `json:"limit"`
+	MaxBytes       int                   `json:"maxBytes"`
+	RenderAs       string                `json:"renderAs"`
+	WrapTag        string                `json:"wrapTag,omitempty"`
+	Lang           string                `json:"lang,omitempty"`
+	Overflow       string                `json:"overflow,omitempty"`
+	ItemTag        string                `json:"itemTag,omitempty"`
+	ItemMaxBytes   int                   `json:"itemMaxBytes,omitempty"`
+	EvictionPolicy string                `json:"evictionPolicy,omitempty"`
+	KeepFirst      int                   `json:"keepFirst,omitempty"`
+	MissingPolicy  string                `json:"missingPolicy"`
 }
 
 type WorkflowEdge struct {
@@ -194,6 +207,9 @@ type WorkflowRevision struct {
 	SourceUpdatedAt time.Time          `json:"sourceUpdatedAt" db:"source_updated_at"`
 	Active          bool               `json:"active" db:"active"`
 	CreatedAt       time.Time          `json:"createdAt" db:"created_at"`
+	// PromptStale is a live status projection, deliberately excluded from the
+	// immutable revision row and digest-addressed definition.
+	PromptStale bool `json:"promptStale,omitempty" db:"-"`
 }
 
 // Diagnostic severities. An empty severity is treated as an error so every

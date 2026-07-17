@@ -14,19 +14,23 @@ import (
 // source-snapshot seams so promptRef resolution can be exercised without a live
 // prompt-manager.
 type fakePromptSource struct {
-	content string
-	hash    string
-	rev     int
-	err     error
-	calls   int
+	content   string
+	hash      string
+	rev       int
+	err       error
+	calls     int
+	variables map[string]string
+	withScope bool
 }
 
 func (f *fakePromptSource) ReadSkill(_ context.Context, _ string, _ map[string]string, _ bool) (string, error) {
 	return f.content, f.err
 }
 
-func (f *fakePromptSource) ReadSkillSource(_ context.Context, skillID string, _ map[string]string, _ bool) (promptmanager.SkillSourceSnapshot, error) {
+func (f *fakePromptSource) ReadSkillSource(_ context.Context, skillID string, variables map[string]string, withScope bool) (promptmanager.SkillSourceSnapshot, error) {
 	f.calls++
+	f.variables = clonePromptVariables(variables)
+	f.withScope = withScope
 	if f.err != nil {
 		return promptmanager.SkillSourceSnapshot{}, f.err
 	}
@@ -99,6 +103,40 @@ func TestPromptRefResolvesAndPinsProvenance(t *testing.T) {
 	}
 	if revision.Digest == "" {
 		t.Fatal("resolved revision earned no digest")
+	}
+}
+
+func TestWorkflowPromptStalenessFlipsAndReconcileClears(t *testing.T) {
+	prompt := &fakePromptSource{content: "First body.", hash: "sha256:one", rev: 1}
+	o := newPromptRefOrchestrator(t, prompt)
+	ctx := context.Background()
+	declaration := strings.Replace(promptRefWorkflow, `"skillId": "fixture-skill"`, `"skillId": "fixture-skill", "variables": {"project": "alpha"}, "withScope": true`, 1)
+	scenarioRoot, servicePath := writeScenarioFixture(t, map[string]string{
+		".vrooli/service.json":               declarationManifest(".vrooli/agent-manager/default.json", ".vrooli/agent-manager/ref.json"),
+		".vrooli/agent-manager/default.json": fixtureProfile,
+		".vrooli/agent-manager/ref.json":     declaration,
+	})
+	if _, err := o.reconcileScenarioDeclarationsAt(ctx, "fixture-scn", scenarioRoot, servicePath, false, false); err != nil {
+		t.Fatalf("initial reconcile: %v", err)
+	}
+	current, err := o.GetWorkflowRevision(ctx, "fixture-scn", "fixture-scn/refround", "")
+	if err != nil || current.PromptStale {
+		t.Fatalf("initial prompt status: revision=%+v err=%v", current, err)
+	}
+	if prompt.variables["project"] != "alpha" || !prompt.withScope {
+		t.Fatalf("staleness read did not retain promptRef contract: variables=%v withScope=%v", prompt.variables, prompt.withScope)
+	}
+	prompt.content, prompt.hash, prompt.rev = "Changed body.", "sha256:two", 2
+	stale, err := o.GetWorkflowRevision(ctx, "fixture-scn", "fixture-scn/refround", "")
+	if err != nil || !stale.PromptStale {
+		t.Fatalf("changed prompt should be stale: revision=%+v err=%v", stale, err)
+	}
+	if _, err := o.reconcileScenarioDeclarationsAt(ctx, "fixture-scn", scenarioRoot, servicePath, false, false); err != nil {
+		t.Fatalf("reconcile changed prompt: %v", err)
+	}
+	resolved, err := o.GetWorkflowRevision(ctx, "fixture-scn", "fixture-scn/refround", "")
+	if err != nil || resolved.PromptStale {
+		t.Fatalf("reconciled prompt should be current: revision=%+v err=%v", resolved, err)
 	}
 }
 

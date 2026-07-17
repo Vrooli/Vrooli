@@ -93,6 +93,8 @@ CREATE TABLE IF NOT EXISTS workflow_node_attempts (
     source_attempt_id TEXT,
     child_execution_id TEXT,
     error_code TEXT,
+    raw_output TEXT,
+    validation_error TEXT,
     version INTEGER NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,

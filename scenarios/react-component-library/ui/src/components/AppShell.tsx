@@ -13,15 +13,15 @@
 import { type ReactNode, useCallback, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
-import { SidebarShell } from "../../../library/components/SidebarShell/versions/1.0.0/SidebarShell";
+import { SidebarShell } from "../../../library/components/SidebarShell/versions/1.1.0/SidebarShell";
+import { WorkspaceHeader } from "../../../library/components/WorkspaceHeader/versions/1.0.0/WorkspaceHeader";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useTranslation } from "../i18n";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Menu, Settings as SettingsIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { ActiveWorkMenu } from "./ActiveWorkMenu";
-import { MobileHeader } from "./MobileHeader";
 import { SidebarContent } from "./Sidebar";
+import { ShellNavigationContext } from "./ShellNavigationContext";
 import { CatalogBrowser } from "../features/catalog/CatalogBrowser";
 
 const SIDEBAR_STORAGE = "react-component-library.sidebar.width.v1";
@@ -37,6 +37,7 @@ export function AppShell({ children }: Props) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
 
   const { size: sidebarWidth, resizeHandleProps } = useResizablePanel({
     containerRef: shellRef,
@@ -51,11 +52,18 @@ export function AppShell({ children }: Props) {
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const sidebarCollapsed = isMobile ? !drawerOpen : desktopSidebarCollapsed;
+  const openSidebar = useCallback(() => {
+    if (isMobile) openDrawer();
+    else setDesktopSidebarCollapsed(false);
+  }, [isMobile, openDrawer]);
 
-  const headerSlot = <div className="flex items-center gap-1"><ActiveWorkMenu /><Link to="/settings" aria-label={t("nav.settings", { defaultValue: "Settings" })} className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><SettingsIcon aria-hidden className="h-4 w-4" /></Link></div>;
   const isComponentDetail = /^\/assets\/[^/]+/.test(location.pathname);
+  const pageTitle = isComponentDetail ? t("catalog.title", { defaultValue: "Component Library" }) : location.pathname === "/settings" ? t("settings.title", { defaultValue: "Settings" }) : t("catalog.title", { defaultValue: "Library workspace" });
+  const pageDescription = isComponentDetail ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" }) : location.pathname === "/settings" ? t("settings.subtitle", { defaultValue: "Theme and locale preferences persist locally in your browser." }) : t("catalog.subtitle", { defaultValue: "Find reusable components and non-renderable hooks." });
 
   return (
+    <ShellNavigationContext.Provider value={{ sidebarCollapsed, openSidebar }}>
     <div
       ref={shellRef}
       data-testid="app-shell"
@@ -64,6 +72,7 @@ export function AppShell({ children }: Props) {
       <SidebarShell
         ref={sidebarRef}
         mobileOpen={drawerOpen}
+        desktopCollapsed={desktopSidebarCollapsed}
         onMobileClose={closeDrawer}
         mobileLabel={t("nav.drawerLabel", { defaultValue: "Navigation drawer" })}
         desktopLabel={t("nav.label", { defaultValue: "Primary navigation" })}
@@ -79,13 +88,18 @@ export function AppShell({ children }: Props) {
       >
         <SidebarContent
           onNavigate={closeDrawer}
-          headerSlot={headerSlot}
+          onCollapse={() => setDesktopSidebarCollapsed(true)}
+          headerSlot={<Link to="/settings" aria-label={t("nav.settings", { defaultValue: "Settings" })} className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><SettingsIcon aria-hidden className="h-4 w-4" /></Link>}
           inventorySlot={<CatalogBrowser compact onNavigate={closeDrawer} />}
         />
       </SidebarShell>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <MobileHeader onOpenDrawer={openDrawer} />
+        {!isComponentDetail && <WorkspaceHeader
+          title={pageTitle}
+          description={pageDescription}
+          leading={sidebarCollapsed ? <button type="button" onClick={openSidebar} aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })} data-testid="workspace-header-open-sidebar" className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><Menu aria-hidden className="h-5 w-5" /></button> : undefined}
+        />}
         <main
           data-testid="app-main"
           className={
@@ -98,5 +112,6 @@ export function AppShell({ children }: Props) {
         </main>
       </div>
     </div>
+    </ShellNavigationContext.Provider>
   );
 }

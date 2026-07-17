@@ -277,6 +277,18 @@ func (s *WorkflowService) Trace(id string, after int64, limit int) ([]byte, *api
 	return body, &resp, nil
 }
 
+func (s *WorkflowService) ExecutionRuns(id string) ([]byte, *apipb.ListWorkflowExecutionRunsResponse, error) {
+	body, err := s.api.Get("/api/v1/workflow-executions/"+id+"/runs", nil)
+	if err != nil {
+		return body, nil, err
+	}
+	var resp apipb.ListWorkflowExecutionRunsResponse
+	if unmarshalProtoResponse(body, &resp) != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
 func (s *WorkflowService) Simulate(req *apipb.SimulateWorkflowRequest) ([]byte, *apipb.SimulateWorkflowResponse, error) {
 	payload, err := marshalProtoRequest(req)
 	if err != nil {

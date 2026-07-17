@@ -121,6 +121,12 @@ export function ComponentDetailPage() {
     enabled: Boolean(id) && Boolean(data?.component) && infoTab === "overview",
     retry: false,
   });
+  const sourceContentQuery = useQuery({
+    queryKey: ["components", "content", id, "overview"],
+    queryFn: () => componentsClient.getComponentContent({ id: data?.component?.id ?? id ?? "" }),
+    enabled: Boolean(data?.component) && infoTab === "overview",
+    retry: false,
+  });
 
   const adoptionsQuery = useQuery({
     queryKey: ["adoptions", "component", id],
@@ -200,6 +206,7 @@ export function ComponentDetailPage() {
                   <dt className="text-app-muted-foreground">{t(strings.components.editor.slotLabel)}</dt><dd>{component.slot || "—"}</dd>
                   <dt className="text-app-muted-foreground">{t(strings.components.editor.categoryLabel)}</dt><dd>{component.category || headers.category || "—"}</dd>
                   <dt className="text-app-muted-foreground">{t(strings.components.editor.tagsLabel)}</dt><dd>{tags.join(", ") || "—"}</dd>
+                  <dt className="text-app-muted-foreground">{t("componentDetail.info.sourceHash", { defaultValue: "Source hash" })}</dt><dd className="break-all font-mono">{sourceContentQuery.data?.sha256 || "—"}</dd>
                 </dl>
               </section>
               <section className="rounded-lg border border-app-border bg-app-surface-muted p-3 text-sm text-app-foreground">

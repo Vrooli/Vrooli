@@ -352,6 +352,16 @@ func (o *Orchestrator) GetWorkflowExecutionTrace(ctx context.Context, id uuid.UU
 	return &WorkflowExecutionTrace{Execution: execution, Attempts: attempts, Journal: journal}, nil
 }
 
+// ListWorkflowExecutionRuns is the bounded node-to-Run projection for callers
+// that need dispatched Run identities without reimplementing an attempt scan.
+func (o *Orchestrator) ListWorkflowExecutionRuns(ctx context.Context, id uuid.UUID) ([]*domain.WorkflowNodeAttempt, error) {
+	trace, err := o.GetWorkflowExecutionTrace(ctx, id, 0, 1)
+	if err != nil {
+		return nil, err
+	}
+	return trace.Attempts, nil
+}
+
 func (o *Orchestrator) SignalWorkflowExecution(ctx context.Context, req WorkflowExecutionSignalRequest) (*WorkflowExecutionOperationResult, error) {
 	execution, idempotent, err := o.workflowEngine.Signal(ctx, req.ExecutionID, strings.TrimSpace(req.Signal), req.Payload, strings.TrimSpace(req.IdempotencyKey), req.ExpectedVersion)
 	if err != nil {

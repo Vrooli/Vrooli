@@ -124,14 +124,19 @@ func (e *Engine) start(ctx context.Context, revision *domain.WorkflowRevision, i
 
 func (e *Engine) Advance(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {
 	execution, err := e.Store.Get(ctx, id)
-	if err != nil || execution == nil || execution.Status.Terminal() {
+	if err != nil || execution == nil || execution.Status.Terminal() || execution.Status == domain.WorkflowExecutionCancelling {
 		return execution, err
 	}
 	revision, err := e.Catalog.GetByDigest(ctx, execution.DefinitionDigest)
 	if err != nil || revision == nil {
 		return e.fail(ctx, execution, "definition_missing", "pinned workflow revision is unavailable")
 	}
-	if e.now().Sub(execution.CreatedAt) > time.Duration(revision.Definition.Budgets.WallTimeSeconds)*time.Second {
+	journal, err := e.Store.ListJournal(ctx, execution.ID, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	now := e.now()
+	if now.Sub(execution.CreatedAt)-waitedDuration(journal, now) > time.Duration(revision.Definition.Budgets.WallTimeSeconds)*time.Second {
 		return e.exhaust(ctx, execution, "wall_time")
 	}
 	node := findNode(revision.Definition.Nodes, execution.CurrentNodeID)
@@ -164,11 +169,13 @@ type waitIntent struct {
 	CorrelationKey string          `json:"correlationKey"`
 	ResumeToken    string          `json:"resumeToken"`
 	Deadline       time.Time       `json:"deadline"`
+	OnTimeout      string          `json:"onTimeout,omitempty"`
 	PayloadSchema  json.RawMessage `json:"payloadSchema,omitempty"`
 }
 
 type signalRecord struct {
 	Signal         string          `json:"signal"`
+	WaitNodeID     string          `json:"waitNodeId"`
 	CorrelationKey string          `json:"correlationKey"`
 	IdempotencyKey string          `json:"idempotencyKey"`
 	Payload        json.RawMessage `json:"payload"`
@@ -180,7 +187,6 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 		return nil, err
 	}
 	var intent *waitIntent
-	var waitSequence int64
 	waitVisits := 0
 	for _, entry := range journal {
 		if entry.NodeID != node.ID || entry.Kind != domain.WorkflowJournalWait {
@@ -189,7 +195,7 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 		waitVisits++
 		var candidate waitIntent
 		if json.Unmarshal(entry.Payload, &candidate) == nil {
-			intent, waitSequence = &candidate, entry.Sequence
+			intent = &candidate
 		}
 	}
 	completedVisits := 0
@@ -208,7 +214,10 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 		}
 		now := e.now()
 		visit := completedVisits + 1
-		intent = &waitIntent{Signal: node.Wait.Signal, CorrelationKey: fmt.Sprintf("workflow/%s/wait/%s/visit/%d", x.ID, node.ID, visit), ResumeToken: uuid.NewString(), Deadline: now.Add(time.Duration(limit) * time.Second), PayloadSchema: append(json.RawMessage(nil), node.Wait.PayloadSchema...)}
+		intent = &waitIntent{Signal: node.Wait.Signal, CorrelationKey: fmt.Sprintf("workflow/%s/wait/%s/visit/%d", x.ID, node.ID, visit), ResumeToken: uuid.NewString(), OnTimeout: node.Wait.OnTimeout, PayloadSchema: append(json.RawMessage(nil), node.Wait.PayloadSchema...)}
+		if limit > 0 {
+			intent.Deadline = now.Add(time.Duration(limit) * time.Second)
+		}
 		payload, _ := json.Marshal(intent)
 		x.Status = domain.WorkflowExecutionWaiting
 		x.Version++
@@ -219,14 +228,19 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 		} else if !ok {
 			return nil, ErrConcurrentAdvance
 		}
-		return x, nil
+		// A signal may have arrived after the preceding node completed but before
+		// this wait armed. Re-enter after persisting the intent so the buffered
+		// signal is consumed as part of arming, without asking callers to race an
+		// explicit Advance between completion and Signal.
+		return e.advanceWait(ctx, x, r, node)
 	}
-	for _, entry := range journal {
-		if entry.Sequence <= waitSequence || entry.NodeID != node.ID || entry.Kind != domain.WorkflowJournalSignal {
+	for i := len(journal) - 1; i >= 0; i-- {
+		entry := journal[i]
+		if entry.NodeID != node.ID || entry.Kind != domain.WorkflowJournalSignal {
 			continue
 		}
 		var signal signalRecord
-		if json.Unmarshal(entry.Payload, &signal) == nil && signal.Signal == intent.Signal && signal.CorrelationKey == intent.CorrelationKey {
+		if json.Unmarshal(entry.Payload, &signal) == nil && signal.Signal == intent.Signal && signal.WaitNodeID == node.ID && (signal.CorrelationKey == "" || signal.CorrelationKey == intent.CorrelationKey) {
 			next, edgeErr := selectUnconditionalEdge(r.Definition.Edges, node.ID)
 			if edgeErr != nil {
 				return e.fail(ctx, x, "edge_invalid", edgeErr.Error())
@@ -240,10 +254,35 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 			return e.commitOnly(ctx, x)
 		}
 	}
-	if !e.now().Before(intent.Deadline) {
-		return e.fail(ctx, x, "wait_timeout", "external signal deadline elapsed")
+	if !intent.Deadline.IsZero() && !e.now().Before(intent.Deadline) {
+		return e.routeWaitTimeout(ctx, x, r, node, intent, journal)
 	}
 	x.Status = domain.WorkflowExecutionWaiting
+	return x, nil
+}
+
+func (e *Engine) routeWaitTimeout(ctx context.Context, x *domain.WorkflowExecution, r *domain.WorkflowRevision, node *domain.WorkflowNode, intent *waitIntent, journal []*domain.WorkflowJournalEntry) (*domain.WorkflowExecution, error) {
+	if intent.OnTimeout == "" {
+		return e.fail(ctx, x, "wait_timeout", "external signal deadline elapsed")
+	}
+	if findNode(r.Definition.Nodes, intent.OnTimeout) == nil {
+		return e.fail(ctx, x, "wait_timeout_target_missing", "declared timeout target is unavailable")
+	}
+	now := e.now()
+	payload, _ := json.Marshal(map[string]any{"signal": intent.Signal, "correlationKey": intent.CorrelationKey, "deadline": intent.Deadline, "target": intent.OnTimeout})
+	entry := nextJournal(x.ID, journal, domain.WorkflowJournalWaitTimeout, node.ID, nil, payload, now)
+	x.CurrentNodeID = intent.OnTimeout
+	x.Status = domain.WorkflowExecutionRunning
+	x.TerminalReason = &domain.WorkflowTerminalReason{Code: "wait_timeout", Message: "external signal deadline elapsed"}
+	x.UpdatedAt = now
+	x.Version++
+	ok, err := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}})
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrConcurrentAdvance
+	}
 	return x, nil
 }
 
@@ -290,8 +329,8 @@ func (e *Engine) Signal(ctx context.Context, id uuid.UUID, signal string, payloa
 			return x, true, nil
 		}
 	}
-	if x.Status.Terminal() || x.Status != domain.WorkflowExecutionWaiting {
-		return x, false, fmt.Errorf("workflow execution is not waiting")
+	if x.Status.Terminal() {
+		return x, false, fmt.Errorf("workflow execution is already terminal")
 	}
 	if expectedVersion > 0 && x.Version != expectedVersion {
 		return x, false, ErrConcurrentAdvance
@@ -300,9 +339,9 @@ func (e *Engine) Signal(ctx context.Context, id uuid.UUID, signal string, payloa
 	if err != nil || revision == nil {
 		return x, false, fmt.Errorf("pinned workflow revision is unavailable")
 	}
-	node := findNode(revision.Definition.Nodes, x.CurrentNodeID)
-	if node == nil || node.Wait == nil || node.Wait.Signal != signal {
-		return x, false, fmt.Errorf("signal does not match the active wait contract")
+	node, err := signalWaitNode(revision.Definition, x.CurrentNodeID, signal)
+	if err != nil {
+		return x, false, err
 	}
 	if len(node.Wait.PayloadSchema) > 0 {
 		if err := structuredresult.ValidateValue(node.Wait.PayloadSchema, payload); err != nil {
@@ -310,21 +349,19 @@ func (e *Engine) Signal(ctx context.Context, id uuid.UUID, signal string, payloa
 		}
 	}
 	var intent waitIntent
-	found := false
 	for i := len(journal) - 1; i >= 0; i-- {
 		if journal[i].Kind == domain.WorkflowJournalWait && journal[i].NodeID == node.ID && json.Unmarshal(journal[i].Payload, &intent) == nil {
-			found = true
 			break
 		}
 	}
-	if !found || intent.Signal != signal {
-		return x, false, fmt.Errorf("durable wait intent is unavailable")
-	}
-	record := signalRecord{Signal: signal, CorrelationKey: intent.CorrelationKey, IdempotencyKey: idempotencyKey, Payload: append(json.RawMessage(nil), payload...)}
+	record := signalRecord{Signal: signal, WaitNodeID: node.ID, CorrelationKey: intent.CorrelationKey, IdempotencyKey: idempotencyKey, Payload: append(json.RawMessage(nil), payload...)}
 	data, _ := json.Marshal(record)
 	now := e.now()
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalSignal, node.ID, nil, data, now)
-	x.Status, x.UpdatedAt = domain.WorkflowExecutionRunning, now
+	if x.Status == domain.WorkflowExecutionWaiting {
+		x.Status = domain.WorkflowExecutionRunning
+	}
+	x.UpdatedAt = now
 	x.Version++
 	if ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Journal: []*domain.WorkflowJournalEntry{entry}}); commitErr != nil {
 		return nil, false, commitErr
@@ -332,6 +369,31 @@ func (e *Engine) Signal(ctx context.Context, id uuid.UUID, signal string, payloa
 		return nil, false, ErrConcurrentAdvance
 	}
 	return x, false, nil
+}
+
+// signalWaitNode resolves a signal against the pinned declaration rather than
+// only an already-armed wait. A signal name must therefore identify one wait
+// contract unless that wait is the current node; this prevents a buffered
+// signal from being ambiguously delivered to a future wait.
+func signalWaitNode(definition domain.WorkflowDefinition, currentNodeID, signal string) (*domain.WorkflowNode, error) {
+	if current := findNode(definition.Nodes, currentNodeID); current != nil && current.Wait != nil && current.Wait.Signal == signal {
+		return current, nil
+	}
+	var match *domain.WorkflowNode
+	for i := range definition.Nodes {
+		node := &definition.Nodes[i]
+		if node.Wait == nil || node.Wait.Signal != signal {
+			continue
+		}
+		if match != nil {
+			return nil, fmt.Errorf("signal matches multiple declared wait contracts")
+		}
+		match = node
+	}
+	if match == nil {
+		return nil, fmt.Errorf("signal does not match a declared wait contract")
+	}
+	return match, nil
 }
 
 func (e *Engine) Cancel(ctx context.Context, id uuid.UUID, idempotencyKey, reason string, expectedVersion int64) (*domain.WorkflowExecution, bool, error) {
@@ -527,7 +589,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		if x.BudgetUsage.Children >= r.Definition.Budgets.MaxChildren {
 			return e.exhaust(ctx, x, "children")
 		}
-		bindings, prompt, spec, strategy, source, err := e.resolveAgentInput(node, attempts, journal, x.Input)
+		bindings, prompt, spec, strategy, source, diagnostics, err := e.resolveAgentInput(node, attempts, journal, x.Input)
 		if err != nil {
 			return e.fail(ctx, x, "binding_invalid", err.Error())
 		}
@@ -537,8 +599,12 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		x.Version++
 		x.UpdatedAt = now
 		payload, _ := json.Marshal(map[string]any{"nodeId": node.ID, "ordinal": ordinal, "strategy": strategy})
-		entry := nextJournal(x.ID, journal, domain.WorkflowJournalAttempt, node.ID, &active.ID, payload, now)
-		if ok, err := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempt: active, Journal: []*domain.WorkflowJournalEntry{entry}}); err != nil {
+		entries := []*domain.WorkflowJournalEntry{nextJournal(x.ID, journal, domain.WorkflowJournalAttempt, node.ID, &active.ID, payload, now)}
+		for _, diagnostic := range diagnostics {
+			payload, _ := json.Marshal(diagnostic)
+			entries = append(entries, nextJournal(x.ID, append(journal, entries...), domain.WorkflowJournalDiagnostic, node.ID, &active.ID, payload, now))
+		}
+		if ok, err := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempt: active, Journal: entries}); err != nil {
 			return nil, err
 		} else if !ok {
 			return nil, ErrConcurrentAdvance
@@ -601,6 +667,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	x.BudgetUsage.CostUSD += state.CostUSD
 	entries := []*domain.WorkflowJournalEntry{}
 	if state.Result != nil {
+		active.RawOutput = state.Result.FinalOutput
 		payload, _ := json.Marshal(state.Result)
 		entries = append(entries, nextJournal(x.ID, append(journal, entries...), domain.WorkflowJournalRunResult, node.ID, &active.ID, payload, now))
 		if state.Result.Structured != nil {
@@ -614,6 +681,28 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	}
 	if state.Failed {
 		return e.commitFailure(ctx, x, active, entries, "child_failed", "child Run failed")
+	}
+	if validationError := structuredValidationError(node, state.Result); validationError != "" {
+		active.Status = domain.WorkflowAttemptFailed
+		active.ErrorCode = "structured_result_invalid"
+		active.ValidationError = validationError
+		if schemaRepairCount(attempts, node.ID) < schemaRepairLimit(node) && x.BudgetUsage.NodeAttempts < r.Definition.Budgets.MaxNodeAttempts && x.BudgetUsage.Children < r.Definition.Budgets.MaxChildren {
+			repair := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: domain.WorkflowAttemptContinue, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: fmt.Sprintf("workflow/%s/node/%s/attempt/%d/schema-repair", x.ID, node.ID, ordinal), InputSnapshot: append(json.RawMessage(nil), active.InputSnapshot...), PromptSnapshot: schemaRepairPrompt(validationError), SourceAttemptID: &active.ID, Version: 1, CreatedAt: now, UpdatedAt: now}
+			x.Status, x.UpdatedAt = domain.WorkflowExecutionRunning, now
+			x.BudgetUsage.NodeAttempts++
+			x.Version++
+			payload, _ := json.Marshal(map[string]any{"nodeId": node.ID, "ordinal": repair.Ordinal, "strategy": repair.Strategy, "repair": true, "sourceAttemptId": active.ID})
+			entries = append(entries, nextJournal(x.ID, append(journal, entries...), domain.WorkflowJournalAttempt, node.ID, &repair.ID, payload, now))
+			ok, commitErr := e.Store.Commit(ctx, repository.WorkflowCommit{ExpectedVersion: x.Version - 1, Execution: x, Attempts: []*domain.WorkflowNodeAttempt{active, repair}, Journal: entries})
+			if commitErr != nil {
+				return nil, commitErr
+			}
+			if !ok {
+				return nil, ErrConcurrentAdvance
+			}
+			return x, nil
+		}
+		return e.commitFailure(ctx, x, active, entries, "structured_result_invalid", validationError)
 	}
 	if x.BudgetUsage.Turns > r.Definition.Budgets.MaxTurns {
 		return e.commitExhaust(ctx, x, active, entries, "turns")
@@ -641,6 +730,55 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		return nil, ErrConcurrentAdvance
 	}
 	return x, nil
+}
+
+func schemaRepairCount(attempts []*domain.WorkflowNodeAttempt, nodeID string) int {
+	count := 0
+	for _, attempt := range attempts {
+		if attempt.NodeID == nodeID && strings.HasSuffix(attempt.IdempotencyKey, "/schema-repair") {
+			count++
+		}
+	}
+	return count
+}
+
+func schemaRepairLimit(node *domain.WorkflowNode) int {
+	var spec *domain.ResultSpec
+	if node.Run != nil {
+		spec = node.Run.ResultSpec
+	} else if node.Continue != nil {
+		spec = node.Continue.ResultSpec
+	}
+	if spec == nil || spec.SchemaRepairAttempts == nil {
+		return 1
+	}
+	return *spec.SchemaRepairAttempts
+}
+
+func schemaRepairPrompt(validationError string) string {
+	return "Your previous response did not satisfy the required structured-result schema. Return only a corrected JSON value that fixes these validation errors; do not add explanation.\n\nValidation errors:\n" + validationError
+}
+
+func structuredValidationError(node *domain.WorkflowNode, result *domain.RunResult) string {
+	if result == nil || result.Structured == nil || (node.Run == nil || node.Run.ResultSpec == nil) && (node.Continue == nil || node.Continue.ResultSpec == nil) {
+		return ""
+	}
+	if result.Structured.Status == domain.StructuredResultSuccess {
+		return ""
+	}
+	parts := make([]string, 0, len(result.Structured.Diagnostics)+1)
+	parts = append(parts, string(result.Structured.Status))
+	for _, diagnostic := range result.Structured.Diagnostics {
+		part := diagnostic.Code
+		if diagnostic.Path != "" {
+			part += " at " + diagnostic.Path
+		}
+		if diagnostic.Message != "" {
+			part += ": " + diagnostic.Message
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, "; ")
 }
 
 func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, r *domain.WorkflowRevision, node *domain.WorkflowNode) (*domain.WorkflowExecution, error) {
@@ -781,7 +919,7 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 	return x, nil
 }
 
-func (e *Engine) resolveAgentInput(node *domain.WorkflowNode, attempts []*domain.WorkflowNodeAttempt, journal []*domain.WorkflowJournalEntry, input json.RawMessage) (json.RawMessage, string, *domain.ResultSpec, domain.WorkflowAttemptStrategy, *uuid.UUID, error) {
+func (e *Engine) resolveAgentInput(node *domain.WorkflowNode, attempts []*domain.WorkflowNodeAttempt, journal []*domain.WorkflowJournalEntry, input json.RawMessage) (json.RawMessage, string, *domain.ResultSpec, domain.WorkflowAttemptStrategy, *uuid.UUID, []BindingDiagnostic, error) {
 	var bindings []domain.WorkflowInputBinding
 	var tmpl string
 	var spec *domain.ResultSpec
@@ -804,19 +942,19 @@ func (e *Engine) resolveAgentInput(node *domain.WorkflowNode, attempts []*domain
 			}
 		}
 		if source == nil {
-			return nil, "", nil, "", nil, fmt.Errorf("explicit continuation source has no completed attempt")
+			return nil, "", nil, "", nil, nil, fmt.Errorf("explicit continuation source has no completed attempt")
 		}
 	}
-	values, err := EvaluateBindings(bindings, BindingContext{Input: input, Journal: journal})
+	values, diagnostics, err := EvaluateBindingsWithDiagnostics(bindings, BindingContext{Input: input, Journal: journal})
 	if err != nil {
-		return nil, "", nil, "", nil, err
+		return nil, "", nil, "", nil, nil, err
 	}
 	snapshot, err := json.Marshal(values)
 	if err != nil {
-		return nil, "", nil, "", nil, err
+		return nil, "", nil, "", nil, nil, err
 	}
 	prompt, err := RenderPrompt(tmpl, values)
-	return snapshot, prompt, spec, strategy, source, err
+	return snapshot, prompt, spec, strategy, source, diagnostics, err
 }
 
 func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecution, a *domain.WorkflowNodeAttempt, attempts []*domain.WorkflowNodeAttempt, journal []*domain.WorkflowJournalEntry) (ChildRequest, error) {
@@ -846,6 +984,17 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		}
 		if request.SourceRunID == nil {
 			return ChildRequest{}, fmt.Errorf("continuation source Run is unavailable")
+		}
+	}
+	if a.Strategy == domain.WorkflowAttemptContinue && a.SourceAttemptID != nil {
+		for _, prior := range attempts {
+			if prior.ID == *a.SourceAttemptID && prior.RunID != nil {
+				request.SourceRunID = prior.RunID
+				break
+			}
+		}
+		if request.SourceRunID == nil {
+			return ChildRequest{}, fmt.Errorf("schema repair source attempt has no Run id")
 		}
 	}
 	return request, nil
@@ -1040,7 +1189,6 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 			entries = append(entries, nextJournal(x.ID, journal, domain.WorkflowJournalChild, targetID, &attempt.ID, data, now))
 		}
 		if childStatus != "" && childStatus != domain.WorkflowExecutionSucceeded {
-			failed = true
 			attempt.Status, attempt.ErrorCode = domain.WorkflowAttemptFailed, "parallel_child_failed"
 		}
 		memberEdge, edgeErr := selectUnconditionalEdge(r.Definition.Edges, target.ID)
@@ -1217,7 +1365,7 @@ func (e *Engine) prepareParallelAttempt(x *domain.WorkflowExecution, forkID stri
 	if node.Kind != domain.WorkflowNodeRun && node.Kind != domain.WorkflowNodeContinue {
 		return nil, fmt.Errorf("parallel member %s must be run, continue, or child_workflow", node.ID)
 	}
-	input, prompt, _, strategy, source, err := e.resolveAgentInput(node, attempts, journal, x.Input)
+	input, prompt, _, strategy, source, _, err := e.resolveAgentInput(node, attempts, journal, x.Input)
 	if err != nil {
 		return nil, err
 	}
@@ -1338,19 +1486,28 @@ func (e *Engine) advanceEnd(ctx context.Context, x *domain.WorkflowExecution, r 
 	switch node.End.Status {
 	case "succeeded":
 		x.Status = domain.WorkflowExecutionSucceeded
-		x.TerminalReason = &domain.WorkflowTerminalReason{Code: "completed"}
 	case "blocked":
 		x.Status = domain.WorkflowExecutionBlocked
-		x.TerminalReason = &domain.WorkflowTerminalReason{Code: "blocked"}
 	case "abstained":
 		x.Status = domain.WorkflowExecutionAbstained
-		x.TerminalReason = &domain.WorkflowTerminalReason{Code: "abstained"}
 	case "budget_exhausted":
 		x.Status = domain.WorkflowExecutionBudgetExhausted
-		x.TerminalReason = &domain.WorkflowTerminalReason{Code: "budget_exhausted", BudgetName: "authored_limit"}
 	default:
 		x.Status = domain.WorkflowExecutionFailed
-		x.TerminalReason = &domain.WorkflowTerminalReason{Code: "definition_failed"}
+	}
+	if x.TerminalReason == nil || x.TerminalReason.Code != "wait_timeout" {
+		switch node.End.Status {
+		case "succeeded":
+			x.TerminalReason = &domain.WorkflowTerminalReason{Code: "completed"}
+		case "blocked":
+			x.TerminalReason = &domain.WorkflowTerminalReason{Code: "blocked"}
+		case "abstained":
+			x.TerminalReason = &domain.WorkflowTerminalReason{Code: "abstained"}
+		case "budget_exhausted":
+			x.TerminalReason = &domain.WorkflowTerminalReason{Code: "budget_exhausted", BudgetName: "authored_limit"}
+		default:
+			x.TerminalReason = &domain.WorkflowTerminalReason{Code: "definition_failed"}
+		}
 	}
 	x.EndedAt = &now
 	x.UpdatedAt = now
@@ -1451,6 +1608,52 @@ func (e *Engine) now() time.Time {
 		return e.Now().UTC()
 	}
 	return time.Now().UTC()
+}
+
+// waitedDuration derives paused time from the durable journal. A wait starts at
+// its intent and ends at either its matching signal or its routed timeout. An
+// open wait is counted through now. Keeping this derived rather than persisted
+// preserves replayability and excludes every human approval pause from the
+// wall-time budget.
+func waitedDuration(journal []*domain.WorkflowJournalEntry, now time.Time) time.Duration {
+	type openWait struct {
+		started time.Time
+	}
+	open := map[string]openWait{}
+	var total time.Duration
+	for _, entry := range journal {
+		switch entry.Kind {
+		case domain.WorkflowJournalWait:
+			var intent waitIntent
+			if json.Unmarshal(entry.Payload, &intent) == nil && intent.CorrelationKey != "" {
+				open[intent.CorrelationKey] = openWait{started: entry.CreatedAt}
+			}
+		case domain.WorkflowJournalSignal:
+			var signal signalRecord
+			if json.Unmarshal(entry.Payload, &signal) == nil && signal.CorrelationKey != "" {
+				if wait, ok := open[signal.CorrelationKey]; ok && entry.CreatedAt.After(wait.started) {
+					total += entry.CreatedAt.Sub(wait.started)
+					delete(open, signal.CorrelationKey)
+				}
+			}
+		case domain.WorkflowJournalWaitTimeout:
+			var timeout struct {
+				CorrelationKey string `json:"correlationKey"`
+			}
+			if json.Unmarshal(entry.Payload, &timeout) == nil {
+				if wait, ok := open[timeout.CorrelationKey]; ok && entry.CreatedAt.After(wait.started) {
+					total += entry.CreatedAt.Sub(wait.started)
+					delete(open, timeout.CorrelationKey)
+				}
+			}
+		}
+	}
+	for _, wait := range open {
+		if now.After(wait.started) {
+			total += now.Sub(wait.started)
+		}
+	}
+	return total
 }
 
 func findNode(nodes []domain.WorkflowNode, id string) *domain.WorkflowNode {

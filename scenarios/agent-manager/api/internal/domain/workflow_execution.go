@@ -102,6 +102,8 @@ type WorkflowNodeAttempt struct {
 	SourceAttemptID  *uuid.UUID              `json:"sourceAttemptId,omitempty"`
 	ChildExecutionID *uuid.UUID              `json:"childExecutionId,omitempty"`
 	ErrorCode        string                  `json:"errorCode,omitempty"`
+	RawOutput        string                  `json:"rawOutput,omitempty"`
+	ValidationError  string                  `json:"validationError,omitempty"`
 	Version          int64                   `json:"version"`
 	CreatedAt        time.Time               `json:"createdAt"`
 	UpdatedAt        time.Time               `json:"updatedAt"`
@@ -114,20 +116,24 @@ type WorkflowNodeAttempt struct {
 type WorkflowJournalKind string
 
 const (
-	WorkflowJournalInput      WorkflowJournalKind = "workflow_input"
-	WorkflowJournalAttempt    WorkflowJournalKind = "node_attempt"
-	WorkflowJournalRunResult  WorkflowJournalKind = "run_result"
-	WorkflowJournalStructured WorkflowJournalKind = "structured_result"
-	WorkflowJournalHandoff    WorkflowJournalKind = "final_handoff"
-	WorkflowJournalSignal     WorkflowJournalKind = "signal"
-	WorkflowJournalCounter    WorkflowJournalKind = "counter"
-	WorkflowJournalWait       WorkflowJournalKind = "wait"
-	WorkflowJournalCancel     WorkflowJournalKind = "cancel"
-	WorkflowJournalRetry      WorkflowJournalKind = "retry"
-	WorkflowJournalResume     WorkflowJournalKind = "resume"
-	WorkflowJournalChild      WorkflowJournalKind = "child_workflow"
-	WorkflowJournalJoin       WorkflowJournalKind = "join"
-	WorkflowJournalCleanup    WorkflowJournalKind = "cleanup"
+	WorkflowJournalInput       WorkflowJournalKind = "workflow_input"
+	WorkflowJournalAttempt     WorkflowJournalKind = "node_attempt"
+	WorkflowJournalRunResult   WorkflowJournalKind = "run_result"
+	WorkflowJournalStructured  WorkflowJournalKind = "structured_result"
+	WorkflowJournalHandoff     WorkflowJournalKind = "final_handoff"
+	WorkflowJournalSignal      WorkflowJournalKind = "signal"
+	WorkflowJournalCounter     WorkflowJournalKind = "counter"
+	WorkflowJournalWait        WorkflowJournalKind = "wait"
+	WorkflowJournalWaitTimeout WorkflowJournalKind = "wait_timeout"
+	WorkflowJournalCancel      WorkflowJournalKind = "cancel"
+	WorkflowJournalRetry       WorkflowJournalKind = "retry"
+	WorkflowJournalResume      WorkflowJournalKind = "resume"
+	WorkflowJournalChild       WorkflowJournalKind = "child_workflow"
+	WorkflowJournalJoin        WorkflowJournalKind = "join"
+	WorkflowJournalCleanup     WorkflowJournalKind = "cleanup"
+	// WorkflowJournalDiagnostic records deterministic binding clamps and
+	// evictions without placing the diagnostic in prompt content alone.
+	WorkflowJournalDiagnostic WorkflowJournalKind = "binding_diagnostic"
 )
 
 type WorkflowJournalEntry struct {

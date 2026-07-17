@@ -304,6 +304,49 @@ func TestValidateRejectsInvalidAgentNodeLimits(t *testing.T) {
 	}
 }
 
+func TestValidateWaitTimeoutContracts(t *testing.T) {
+	d := validDefinition()
+	d.Nodes = []domain.WorkflowNode{
+		{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved", TimeoutSeconds: 0, OnTimeout: "missing"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "blocked"}},
+	}
+	d.EntryNode = "approval"
+	d.Edges = []domain.WorkflowEdge{{From: "approval", To: "done"}}
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCode(result.Diagnostics, "wait_timeout") || !hasCode(result.Diagnostics, "wait_timeout_target") {
+		t.Fatalf("invalid wait timeout contract accepted: %+v", result.Diagnostics)
+	}
+	d.Nodes[0].Wait.TimeoutSeconds = 10
+	d.Nodes[0].Wait.OnTimeout = "done"
+	result, err = Validate(d, nil)
+	if err != nil || domain.HasBlockingDiagnostic(result.Diagnostics) {
+		t.Fatalf("bounded timeout route rejected: result=%+v err=%v", result, err)
+	}
+}
+
+func TestValidateBindingPresentationContracts(t *testing.T) {
+	d := validDefinition()
+	b := &d.Nodes[0].Run.Bindings[0]
+	b.RenderAs, b.WrapTag, b.Lang, b.Overflow = "xml", "not valid", "go", "clip"
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, code := range []string{"binding_wrap_tag", "binding_lang", "binding_overflow"} {
+		if !hasCode(result.Diagnostics, code) {
+			t.Fatalf("missing %s in %+v", code, result.Diagnostics)
+		}
+	}
+	b.WrapTag, b.Lang, b.Overflow = "context", "", "truncate"
+	result, err = Validate(d, nil)
+	if err != nil || domain.HasBlockingDiagnostic(result.Diagnostics) {
+		t.Fatalf("valid xml binding rejected: result=%+v err=%v", result, err)
+	}
+}
+
 func diagnosticFor(diagnostics []domain.WorkflowDiagnostic, code string) (domain.WorkflowDiagnostic, bool) {
 	for _, d := range diagnostics {
 		if d.Code == code {

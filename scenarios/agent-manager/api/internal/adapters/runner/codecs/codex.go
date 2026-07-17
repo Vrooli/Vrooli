@@ -205,9 +205,6 @@ func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []str
 		"exec", "resume",
 		"--json",
 		"--skip-git-repo-check",
-		// `--full-auto` is deprecated on codex ≥0.135.0; use the explicit
-		// sandbox policy instead (see BuildArgs).
-		"--sandbox", "workspace-write",
 	}
 	if _, isOllama := splitOllamaModel(model); isOllama {
 		args = append(args, "--oss", "--local-provider", "ollama")

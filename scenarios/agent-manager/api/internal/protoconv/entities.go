@@ -525,6 +525,7 @@ func ResultSpecToProto(spec *domain.ResultSpec) *pb.ResultSpec {
 		Schema: append([]byte(nil), spec.Schema...), SchemaDigest: spec.SchemaDigest,
 		ClassificationValues: append([]string(nil), spec.ClassificationValues...),
 		ExtractionMode:       StructuredExtractionModeToProto(spec.ExtractionMode), ExtractionRole: spec.ExtractionRole,
+		SchemaRepairAttempts: intToInt32Ptr(spec.SchemaRepairAttempts),
 	}
 }
 
@@ -537,7 +538,24 @@ func ResultSpecFromProto(spec *pb.ResultSpec) *domain.ResultSpec {
 		Schema: append([]byte(nil), spec.Schema...), SchemaDigest: spec.SchemaDigest,
 		ClassificationValues: append([]string(nil), spec.ClassificationValues...),
 		ExtractionMode:       StructuredExtractionModeFromProto(spec.ExtractionMode), ExtractionRole: spec.ExtractionRole,
+		SchemaRepairAttempts: int32ToIntPtr(spec.SchemaRepairAttempts),
 	}
+}
+
+func intToInt32Ptr(value *int) *int32 {
+	if value == nil {
+		return nil
+	}
+	converted := int32(*value)
+	return &converted
+}
+
+func int32ToIntPtr(value *int32) *int {
+	if value == nil {
+		return nil
+	}
+	converted := int(*value)
+	return &converted
 }
 
 func ResultSpecKindToProto(kind domain.ResultSpecKind) pb.ResultSpecKind {

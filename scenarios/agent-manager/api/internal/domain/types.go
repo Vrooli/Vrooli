@@ -1012,6 +1012,9 @@ type ResultSpec struct {
 	ClassificationValues []string                 `json:"classificationValues,omitempty"`
 	ExtractionMode       StructuredExtractionMode `json:"extractionMode,omitempty"`
 	ExtractionRole       string                   `json:"extractionRole,omitempty"`
+	// SchemaRepairAttempts is nil for the safe workflow default of one repair,
+	// zero to disable repair, and one to request the single bounded correction.
+	SchemaRepairAttempts *int `json:"schemaRepairAttempts,omitempty"`
 }
 
 // StructuredResultStatus separates all honest terminal outcomes. Only

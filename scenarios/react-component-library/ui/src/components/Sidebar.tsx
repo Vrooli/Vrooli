@@ -2,15 +2,17 @@ import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { useTranslation } from "../i18n";
+import { PanelLeftClose } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 
 interface SidebarContentProps {
   onNavigate?: () => void;
   headerSlot?: ReactNode;
   inventorySlot?: ReactNode;
+  onCollapse?: () => void;
 }
 
-export function SidebarContent({ onNavigate, headerSlot, inventorySlot }: SidebarContentProps) {
+export function SidebarContent({ onNavigate, headerSlot, inventorySlot, onCollapse }: SidebarContentProps) {
   const { t } = useTranslation();
 
   return (
@@ -27,7 +29,7 @@ export function SidebarContent({ onNavigate, headerSlot, inventorySlot }: Sideba
             {t("app.brand", { defaultValue: "Component Library" })}
           </span>
         </Link>
-        <div className="ms-auto">{headerSlot}</div>
+        <div className="ms-auto flex items-center gap-1">{headerSlot}{onCollapse ? <button type="button" onClick={onCollapse} aria-label={t("nav.closeDrawer", { defaultValue: "Close navigation" })} data-testid="sidebar-collapse" className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><PanelLeftClose aria-hidden className="h-4 w-4" /></button> : null}</div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-2 py-3">

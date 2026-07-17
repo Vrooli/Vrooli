@@ -156,7 +156,7 @@ func TestCodex_BuildContinueArgs_IncludesSessionAndPrompt(t *testing.T) {
 		SessionID: "thread-abc",
 		Prompt:    "follow up message",
 	})
-	want := []string{"exec", "resume", "--json", "--skip-git-repo-check", "--sandbox", "workspace-write", "thread-abc", "follow up message"}
+	want := []string{"exec", "resume", "--json", "--skip-git-repo-check", "thread-abc", "follow up message"}
 	if len(args) != len(want) {
 		t.Fatalf("len=%d want=%d args=%v", len(args), len(want), args)
 	}

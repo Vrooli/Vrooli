@@ -1,11 +1,16 @@
 {
+  "schemaVersion": "agent-profile/v1",
   "name": "knowledge-observatory-deep-search",
   "profileKey": "knowledge-observatory/deep-search",
   "description": "Read-only portable profile for deep documentation search",
   "roleRef": "code.cheap",
   "maxTurns": 10,
   "timeout": "60s",
-  "allowedTools": ["Read", "Glob", "Grep"],
+  "allowedTools": [
+    "Read",
+    "Glob",
+    "Grep"
+  ],
   "skipPermissionPrompt": true,
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_OFF"

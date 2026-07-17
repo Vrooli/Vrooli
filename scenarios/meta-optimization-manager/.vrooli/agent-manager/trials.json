@@ -1,4 +1,5 @@
 {
+  "schemaVersion": "agent-profile/v1",
   "name": "meta-optimization-manager-trials",
   "profileKey": "meta-optimization-manager/trials",
   "description": "Portable role-only profile for explicitly invoked MoM empirical trials",

@@ -45,10 +45,10 @@ describe("AppShell", () => {
     expect(screen.getByTestId("app-shell")).toBeInTheDocument();
     expect(screen.getByTestId("sidebar-shell")).toBeInTheDocument();
     expect(screen.getByTestId("app-sidebar-content")).toBeInTheDocument();
-    expect(screen.getByTestId("mobile-header")).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-header")).toBeInTheDocument();
     expect(screen.queryByTestId("mobile-nav")).not.toBeInTheDocument();
     expect(screen.getByTestId("child")).toBeInTheDocument();
-    expect(screen.getByTestId("active-work-menu")).toBeInTheDocument();
+    expect(screen.queryByTestId("active-work-menu")).not.toBeInTheDocument();
   });
 
   it("does not wrap content in a centered card or eyebrow text", () => {
@@ -63,6 +63,21 @@ describe("AppShell", () => {
     expect(container.querySelector(".max-w-xl")).toBeNull();
     const shell = screen.getByTestId("app-shell");
     expect(shell.className).toContain("w-full");
+  });
+
+  it("collapses desktop navigation and exposes the header hamburger to restore it", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}><Route path="/" element={<div>page</div>} /></Route>
+      </Routes>,
+      { routerEntries: ["/"] },
+    );
+    await user.click(screen.getByTestId("sidebar-collapse"));
+    expect(screen.getByTestId("workspace-header-open-sidebar")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-shell").className).toContain("md:!hidden");
+    await user.click(screen.getByTestId("workspace-header-open-sidebar"));
+    expect(screen.queryByTestId("workspace-header-open-sidebar")).not.toBeInTheDocument();
   });
 
   it("uses the full-bleed main layout for component detail routes", () => {
@@ -101,7 +116,7 @@ describe("AppShell", () => {
     expect(screen.getByTestId("sidebar-shell")).toBeInTheDocument();
   });
 
-  it("opens a full-width safe-area sidebar shell from the mobile header", async () => {
+  it("opens a full-width safe-area sidebar shell from the workspace header", async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <Routes>
@@ -112,7 +127,7 @@ describe("AppShell", () => {
       { routerEntries: ["/"] },
     );
 
-    await user.click(screen.getByTestId("mobile-header-drawer"));
+    await user.click(screen.getByTestId("workspace-header-open-sidebar"));
 
     const shell = screen.getByTestId("sidebar-shell");
     expect(shell).toHaveAttribute("role", "dialog");

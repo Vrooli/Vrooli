@@ -40,6 +40,8 @@ func (a *App) cmdWorkflow(args []string) error {
 		return a.workflowExecution(args[1:], false)
 	case "execution-list":
 		return a.workflowExecutionList(args[1:])
+	case "execution-runs":
+		return a.workflowExecutionRuns(args[1:])
 	case "execution-result":
 		return a.workflowExecutionResult(args[1:])
 	case "execution-advance":
@@ -73,6 +75,7 @@ Subcommands:
   simulate           Simulate a workflow execution plan from input
   start              Start a workflow execution
   execution-list     List workflow executions
+  execution-runs     List node attempts and dispatched runs for one execution
   execution-get      Get a workflow execution
   execution-result   Get a workflow execution with input/output payloads
   execution-advance  Advance a workflow execution (ops recovery)
@@ -114,6 +117,29 @@ func (a *App) workflowExecutionList(args []string) error {
 	}
 	for _, execution := range resp.Executions {
 		fmt.Printf("%s %s %s node=%s version=%d depth=%d\n", execution.Id, execution.WorkflowKey, execution.Status.String(), execution.CurrentNodeId, execution.Version, execution.Depth)
+	}
+	return nil
+}
+
+func (a *App) workflowExecutionRuns(args []string) error {
+	fs := flag.NewFlagSet("workflow execution-runs", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 1 {
+		return fmt.Errorf("execution-runs requires an execution id")
+	}
+	body, resp, err := a.services.Workflows.ExecutionRuns(fs.Args()[0])
+	if err != nil {
+		return apiError(body, err)
+	}
+	if *jsonOut || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	for _, attempt := range resp.Attempts {
+		fmt.Printf("%s node=%s status=%s run=%s attempt=%d\n", attempt.Id, attempt.NodeId, attempt.Status, attempt.RunId, attempt.Ordinal)
 	}
 	return nil
 }

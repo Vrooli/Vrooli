@@ -129,9 +129,6 @@ describe("ComponentEditor", () => {
         "// real content\n",
       );
     });
-    expect(screen.getByTestId(selectors.components.editor.shaHash).textContent).toContain(
-      "abc123def456",
-    );
   });
 
   it("keeps the default workspace to one pane and enables a resizable desktop split view", async () => {
@@ -369,6 +366,7 @@ describe("ComponentEditor", () => {
     const frames = await screen.findAllByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
     const firstPost = vi.spyOn(frames[0]!.contentWindow!, "postMessage");
     const secondPost = vi.spyOn(frames[1]!.contentWindow!, "postMessage");
+    await user.click(screen.getAllByRole("button", { name: "Play" })[0]!);
     const draft = await screen.findByTestId<HTMLTextAreaElement>(selectors.components.editor.propsDraft);
     fireEvent.change(draft, { target: { value: '{"title":"A deliberately much longer value"}' } });
     await waitFor(() => expect(draft).toHaveValue('{"title":"A deliberately much longer value"}'));
@@ -380,6 +378,27 @@ describe("ComponentEditor", () => {
       props: { title: "A deliberately much longer value" },
     }), "*");
     expect(secondPost).not.toHaveBeenCalledWith(expect.objectContaining({ type: "rcl-preview-props-override" }), "*");
+  });
+
+  it("moves a selected example into a single-specimen playground before exposing props", async () => {
+    const { componentsClient, listComponentExamples } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "v1", sha256: "sha-playground" }),
+    );
+    vi.mocked(listComponentExamples).mockResolvedValueOnce(makeListComponentExamplesResponse({
+      examples: [
+        makeComponentExample({ name: "primary", displayName: "Primary" }),
+        makeComponentExample({ name: "secondary", displayName: "Secondary" }),
+      ],
+    }));
+    const user = userEvent.setup();
+    renderWithProviders(<ComponentEditor id="cmp-playground" libraryId="lib:Playground" onClose={() => {}} activePane="preview" />);
+    expect((await screen.findAllByTestId(selectors.components.editor.exampleCard))).toHaveLength(2);
+    expect(screen.queryByTestId(selectors.components.editor.propsPanel)).not.toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Play" })[1]!);
+    expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
+    expect(screen.getByText("Editing: Secondary")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.components.editor.propsPanel)).toBeInTheDocument();
   });
 
   it("reloads the iframe when save returns a new sha256", async () => {

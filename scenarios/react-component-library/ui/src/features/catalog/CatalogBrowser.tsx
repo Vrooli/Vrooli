@@ -125,7 +125,6 @@ export function CatalogBrowser({ compact = false, onNavigate }: Props) {
 
   return (
     <section data-testid={selectors.catalog.browser} className={compact ? "flex min-h-0 flex-1 flex-col gap-2" : "flex max-w-5xl flex-col gap-4"}>
-      {!compact && <header><h1 className="text-2xl font-semibold">{t("catalog.title", { defaultValue: "Library workspace" })}</h1><p className="mt-1 text-sm text-app-muted-foreground">{t("catalog.subtitle", { defaultValue: "Find reusable components and non-renderable hooks." })}</p></header>}
       {!compact && <CatalogActions />}
       <div className="flex items-center gap-1" role="tablist" aria-label={t("catalog.kindTabs", { defaultValue: "Asset kind" })}>
         {(["components", "hooks"] as const).map((kind) => <button key={kind} type="button" role="tab" aria-selected={tab === kind} data-testid={kind === "components" ? selectors.catalog.componentsTab : selectors.catalog.hooksTab} onClick={() => setTab(kind)} className={tab === kind ? "rounded-control bg-app-surface-muted px-3 py-1.5 text-sm font-medium" : "rounded-control px-3 py-1.5 text-sm text-app-muted-foreground hover:bg-app-surface-muted"}>{kind === "components" ? t("catalog.components", { defaultValue: "Components" }) : t("catalog.hooks", { defaultValue: "Hooks" })}</button>)}

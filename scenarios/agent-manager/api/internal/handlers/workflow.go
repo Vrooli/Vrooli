@@ -202,6 +202,24 @@ func (h *Handler) GetWorkflowExecutionTrace(w http.ResponseWriter, r *http.Reque
 	writeProtoJSON(w, http.StatusOK, response)
 }
 
+func (h *Handler) ListWorkflowExecutionRuns(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		writeError(w, r, domain.NewValidationError("id", "must be a UUID"))
+		return
+	}
+	attempts, err := h.svc.ListWorkflowExecutionRuns(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response := &apipb.ListWorkflowExecutionRunsResponse{Attempts: make([]*domainpb.WorkflowNodeAttempt, 0, len(attempts))}
+	for _, attempt := range attempts {
+		response.Attempts = append(response.Attempts, workflowAttemptToProto(attempt))
+	}
+	writeProtoJSON(w, http.StatusOK, response)
+}
+
 func (h *Handler) SignalWorkflowExecution(w http.ResponseWriter, r *http.Request) {
 	var req apipb.SignalWorkflowExecutionRequest
 	if !h.readWorkflowProto(w, r, &req) {
@@ -348,7 +366,7 @@ func workflowRevisionToProto(revision *domain.WorkflowRevision) *domainpb.Workfl
 	if revision == nil {
 		return nil
 	}
-	return &domainpb.WorkflowRevision{Id: revision.ID.String(), Owner: revision.Owner, Key: revision.Key, SemanticVersion: revision.SemanticVersion, Digest: revision.Digest, Definition: workflowDefinitionToProto(revision.Definition), SourcePath: revision.SourcePath, SourceHash: revision.SourceHash, SourceUpdatedAt: timestamppb.New(revision.SourceUpdatedAt), Active: revision.Active, CreatedAt: timestamppb.New(revision.CreatedAt)}
+	return &domainpb.WorkflowRevision{Id: revision.ID.String(), Owner: revision.Owner, Key: revision.Key, SemanticVersion: revision.SemanticVersion, Digest: revision.Digest, Definition: workflowDefinitionToProto(revision.Definition), SourcePath: revision.SourcePath, SourceHash: revision.SourceHash, SourceUpdatedAt: timestamppb.New(revision.SourceUpdatedAt), Active: revision.Active, CreatedAt: timestamppb.New(revision.CreatedAt), PromptStale: revision.PromptStale}
 }
 
 func workflowReconcileToProto(result *orchestration.ReconcileScenarioWorkflowsResult) *apipb.ReconcileScenarioWorkflowsResponse {
@@ -447,6 +465,12 @@ func workflowAttemptToProto(a *domain.WorkflowNodeAttempt) *domainpb.WorkflowNod
 	}
 	digest := sha256.Sum256(a.InputSnapshot)
 	out := &domainpb.WorkflowNodeAttempt{Id: a.ID.String(), ExecutionId: a.ExecutionID.String(), NodeId: a.NodeID, Ordinal: int32(a.Ordinal), Strategy: string(a.Strategy), Status: string(a.Status), IdempotencyKey: a.IdempotencyKey, ConversationId: a.ConversationID, ErrorCode: a.ErrorCode, Version: a.Version, CreatedAt: timestamppb.New(a.CreatedAt), UpdatedAt: timestamppb.New(a.UpdatedAt), ProfileIdentity: a.ProfileIdentity, InputSnapshotDigest: fmt.Sprintf("sha256:%x", digest[:]), InputSnapshotSizeBytes: int64(len(a.InputSnapshot))}
+	// Raw output is diagnostic evidence for failed structured extraction only;
+	// successful model output remains in the protected durable result path.
+	if a.ValidationError != "" {
+		out.RawOutput = a.RawOutput
+		out.ValidationError = a.ValidationError
+	}
 	if a.RunID != nil {
 		out.RunId = a.RunID.String()
 	}

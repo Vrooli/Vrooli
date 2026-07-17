@@ -98,6 +98,9 @@ func NormalizeSpec(in *domain.ResultSpec) (*domain.ResultSpec, error) {
 	} else {
 		out.ExtractionRole = ""
 	}
+	if out.SchemaRepairAttempts != nil && (*out.SchemaRepairAttempts < 0 || *out.SchemaRepairAttempts > 1) {
+		return nil, fmt.Errorf("schemaRepairAttempts must be zero or one")
+	}
 
 	var schemaValue any
 	switch out.Kind {
