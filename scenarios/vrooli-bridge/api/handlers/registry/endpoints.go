@@ -116,4 +116,9 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "Revoke node", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RevokeNode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"},
 		},
 	},
+	{
+		ID: "registry_remove_node", Path: registryconnect.NodeRegistryServiceRemoveNodeProcedure, Method: "POST", Summary: "Remove a revoked node", Description: "Permanently removes a revoked registry record. Active nodes must be revoked first. Owner-gated.", Category: "registry",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{"id": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"removed_node_id": "string"}},
+		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing id"}, {Status: 401, Code: "unauthenticated", Description: "Owner token required"}, {Status: 404, Code: "not_found", Description: "No node with that id"}, {Status: 412, Code: "failed_precondition", Description: "Node must be revoked first"}},
+	},
 }

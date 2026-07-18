@@ -305,7 +305,7 @@ const literalSelectors = {
     refreshButton: "health-refresh-button",
     refreshCount: "health-refresh-count",
   },
-  fleet: {
+    fleet: {
     panel: "fleet-panel",
     loading: "fleet-loading",
     error: "fleet-error",
@@ -314,6 +314,7 @@ const literalSelectors = {
     failedOnboardings: "fleet-failed-onboardings",
     bridgeReadiness: "fleet-bridge-readiness",
     machineLifecycle: "machine-lifecycle-panel",
+    management: "fleet-node-management",
     pairing: {
       disclosure: "fleet-pairing-disclosure",
       form: "fleet-pairing-form",

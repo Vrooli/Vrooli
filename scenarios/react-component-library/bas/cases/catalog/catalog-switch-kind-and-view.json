@@ -7,6 +7,7 @@
     "labels": {
       "reset": "none",
       "surface": "catalog-workspace",
+      "spec_entry_id": "catalog-workspace",
       "requirements_json": "[\"TC-006\"]"
     },
     "execution_mode": "observer"

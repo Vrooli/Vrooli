@@ -105,10 +105,8 @@ EOF
 - [ ] Generate and publish the PRD:
 
 ```bash
-business-health wizard start  # (was: prd generate) react-component-library \
-  --context-file /tmp/prd_context_react-component-library.md \
-  --publish \
-  --json
+# The former `prd generate` command is now a session-based wizard.
+business-health wizard start react-component-library --json
 ```
 
 - [ ] Validate the PRD:
@@ -160,9 +158,8 @@ EOF
 - [ ] Generate requirements:
 
 ```bash
-business-health wizard apply  # (was: requirements generate) react-component-library \
-  --context-file /tmp/requirements_context_react-component-library.md \
-  --json
+# Apply the completed wizard session and re-validate its contract.
+business-health wizard apply react-component-library --json
 ```
 
 - [ ] Validate requirements:

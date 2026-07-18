@@ -13,6 +13,7 @@ type FakeService struct {
 	RegisterInputs []registry.RegisterInput
 	UpdateInputs   []registry.UpdateInput
 	RevokeIDs      []string
+	RemoveIDs      []string
 	GetIDs         []string
 
 	RegisterOut registry.Node
@@ -25,6 +26,7 @@ type FakeService struct {
 	UpdateErr   error
 	RevokeOut   registry.Node
 	RevokeErr   error
+	RemoveErr   error
 
 	RegisterCalls atomic.Int64
 	RevokeCalls   atomic.Int64
@@ -60,4 +62,9 @@ func (f *FakeService) Revoke(_ context.Context, id string) (registry.Node, error
 	f.RevokeCalls.Add(1)
 	f.RevokeIDs = append(f.RevokeIDs, id)
 	return f.RevokeOut, f.RevokeErr
+}
+
+func (f *FakeService) Remove(_ context.Context, id string) error {
+	f.RemoveIDs = append(f.RemoveIDs, id)
+	return f.RemoveErr
 }

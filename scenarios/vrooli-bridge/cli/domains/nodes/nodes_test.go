@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sync"
 	"testing"
@@ -86,6 +87,20 @@ func (f *fakeRegistry) RevokeNode(_ context.Context, req *connect.Request[regist
 	n.Status = registryv1.NodeStatus_NODE_STATUS_REVOKED
 	n.RevokedAt = timestamppb.Now()
 	return connect.NewResponse(&registryv1.RevokeNodeResponse{Node: n}), nil
+}
+
+func (f *fakeRegistry) RemoveNode(_ context.Context, req *connect.Request[registryv1.RemoveNodeRequest]) (*connect.Response[registryv1.RemoveNodeResponse], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n, ok := f.nodes[req.Msg.Id]
+	if !ok {
+		return nil, connect.NewError(connect.CodeNotFound, registryNotFound{})
+	}
+	if n.Status != registryv1.NodeStatus_NODE_STATUS_REVOKED {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("node must be revoked"))
+	}
+	delete(f.nodes, req.Msg.Id)
+	return connect.NewResponse(&registryv1.RemoveNodeResponse{RemovedNodeId: req.Msg.Id}), nil
 }
 
 type registryNotFound struct{}

@@ -44,7 +44,7 @@ export function DashboardPage() {
     <section
       data-testid={selectors.pages.dashboard}
       aria-labelledby="dashboard-heading"
-      className="mx-auto flex w-full max-w-3xl flex-col gap-6"
+      className="mx-auto flex w-full max-w-6xl flex-col gap-6"
     >
       <div className="flex flex-col gap-1">
         <h2 id="dashboard-heading" className="text-2xl font-semibold">
@@ -54,10 +54,17 @@ export function DashboardPage() {
       </div>
 
       <FleetPanel onAddNode={handleAddNode} onRetryOnboarding={handleRetryOnboarding} />
-      <MachineLifecyclePanel />
-      <OnboardNodeForm retryTarget={retryTarget} />
-      <RunHistory />
-      <HealthCard />
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,.65fr)]">
+        <div className="flex flex-col gap-6">
+          <OnboardNodeForm retryTarget={retryTarget} />
+          <RunHistory />
+        </div>
+        <div className="flex flex-col gap-6">
+          <MachineLifecyclePanel />
+          <HealthCard />
+        </div>
+      </div>
 
       <details className="rounded-panel border border-app-border bg-app-surface">
         <summary

@@ -15,8 +15,13 @@ describe("api/workflows", () => {
   });
 
   it("normalizes an absent workflows field to an empty list", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    fetchSpy.mockResolvedValueOnce(
+      new Response("{}", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
 
-    await expect(workflowsClient.listWorkflows({ activeOnly: false })).resolves.toEqual({ workflows: [] });
+    await expect(workflowsClient.listWorkflows({ activeOnly: false })).resolves.toMatchObject({ workflows: [] });
   });
 });

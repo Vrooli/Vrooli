@@ -78,7 +78,7 @@ export function AnchoredMenu({
       >
         {icon}
         <span className="truncate">{label}</span>
-        {summary && <span className="max-w-28 truncate text-app-muted-foreground">{summary}</span>}
+        {summary && <span className="max-w-28 break-words text-app-muted-foreground">{summary}</span>}
         <ChevronDown aria-hidden className={cn("h-3.5 w-3.5 shrink-0 transition-transform", open && "rotate-180")} />
       </button>
       {open && (

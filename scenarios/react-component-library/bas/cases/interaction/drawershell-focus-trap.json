@@ -35,7 +35,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[role=dialog]",
+          "selector": "@selector/preview.openDialog",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
@@ -78,7 +78,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "body[data-focus-trapped=\"yes\"]",
+          "selector": "@selector/preview.drawerFocusTrapped",
           "mode": "ASSERTION_MODE_EXISTS",
           "timeout_ms": 5000,
           "failure_message": "Focus escaped the DrawerShell panel after Tab — the focus trap (useFocusTrap) is not holding keyboard focus inside role=dialog. This is the lost-focus-trap regression screenshots cannot catch."

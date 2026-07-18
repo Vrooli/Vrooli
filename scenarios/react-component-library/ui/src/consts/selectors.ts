@@ -294,9 +294,14 @@ const literalSelectors = {
     title: "app-title",
     eyebrow: "app-eyebrow",
     description: "app-description",
+    shell: "app-shell",
+    main: "app-main",
   },
   assets: {
     hookWorkspace: "hook-detail-page",
+    hookOverviewTab: "hook-detail-overview-tab",
+    hookFilesTab: "hook-detail-files-tab",
+    componentPreviewTab: "component-detail-preview-tab",
     hookSource: "hook-workspace-source",
     hookDetails: "hook-workspace-details",
     hookAdoptions: "hook-effective-adoptions",
@@ -313,6 +318,9 @@ const literalSelectors = {
   },
   notifications: {
     summary: "notifications-summary",
+  },
+  preview: {
+    bottomNav: "bottom-nav",
   },
   components: {
     card: "components-card",
@@ -562,6 +570,28 @@ const literalSelectors = {
 // is a TypeScript error when "fr" isn't a supported locale. The runtime enum
 // validation in `normalizeParams` provides the same guarantee at call time.
 const dynamicSelectorDefinitions = {
+  preview: {
+    select: defineDynamicSelector({
+      description: "Preview harness native select control",
+      selectorPattern: "select",
+    }),
+    openDialog: defineDynamicSelector({
+      description: "Visible preview dialog",
+      selectorPattern: "[role=dialog]",
+    }),
+    bottomNavAdvanced: defineDynamicSelector({
+      description: "Bottom navigation focus advanced marker",
+      selectorPattern: 'body[data-nav-advanced="yes"]',
+    }),
+    drawerFocusTrapped: defineDynamicSelector({
+      description: "Drawer focus trap marker",
+      selectorPattern: 'body[data-focus-trapped="yes"]',
+    }),
+    selectCompatible: defineDynamicSelector({
+      description: "Select keyboard navigation result marker",
+      selectorPattern: 'body[data-select-value="compatible"]',
+    }),
+  },
   locale: {
     toggle: defineDynamicSelector({
       description: "Locale toggle button by language code",

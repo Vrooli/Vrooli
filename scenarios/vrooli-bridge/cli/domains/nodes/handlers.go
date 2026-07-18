@@ -132,6 +132,18 @@ func (h *handlers) revoke(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) remove(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.RemoveNode(context.Background(), connect.NewRequest(&registryv1.RemoveNodeRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("remove node %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no remove response")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Removed revoked node %s from the fleet.", resp.Msg.RemovedNodeId)}, NextCommand: []string{"`nodes list` — confirm the fleet"}})
+}
+
 // splitCSV parses a comma-separated flag value into a trimmed, empty-free slice.
 func splitCSV(raw string) []string {
 	if strings.TrimSpace(raw) == "" {

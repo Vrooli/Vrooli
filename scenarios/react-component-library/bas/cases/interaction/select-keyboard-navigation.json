@@ -35,7 +35,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "select",
+          "selector": "@selector/preview.select",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
@@ -78,7 +78,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "body[data-select-value=\"compatible\"]",
+          "selector": "@selector/preview.selectCompatible",
           "mode": "ASSERTION_MODE_EXISTS",
           "timeout_ms": 5000,
           "failure_message": "ArrowDown did not advance the Select value from 'native' to 'compatible' — keyboard option navigation regressed."

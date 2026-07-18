@@ -171,8 +171,8 @@
             ]
           }
         },
-        {
-          "name": "revoke",
+    {
+      "name": "revoke",
           "description": "Revoke a node, severing its access atomically",
           "positionals": [
             {
@@ -193,8 +193,15 @@
             "permissions": [
               "network:internal"
             ]
-          }
-        }
+      }
+    },
+    {
+      "name": "remove",
+      "description": "Permanently remove a revoked node from the fleet",
+      "positionals": [{"name": "id", "required": true, "description": "Revoked node id"}],
+      "binding": {"kind": "connect-rpc", "service": "NodeRegistryService", "method": "RemoveNode"},
+      "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+    }
       ]
     },
     {

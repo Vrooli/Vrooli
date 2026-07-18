@@ -117,6 +117,19 @@ the root CLI stays scenario-agnostic, while bridge owns the
 control-plane↔node wire protocol end to end. The node side is thin —
 hold the channel, validate the job, call the node's own `vrooli`.
 
+### Fleet UI surfaces
+
+The browser UI is organized around fleet readiness. The overview leads with
+the trusted node list and opens contextual node management for the selected
+node; it does not make an operator hunt through an internal Machine record to
+edit ordinary node metadata. That surface can update the registry-owned name,
+endpoint, capabilities, scopes, and revision, and can revoke the node.
+
+Machine lifecycle actions remain intentionally separate: archive/remove the
+durable operator-intent record and request SSH cleanup are not disguised as a
+node revoke. This preserves the security model: revocation severs a node's
+credential and live channel; record removal never claims remote cleanup.
+
 ## System Boundaries
 
 The scenario owns:

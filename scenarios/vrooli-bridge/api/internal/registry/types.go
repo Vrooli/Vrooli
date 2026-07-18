@@ -92,3 +92,9 @@ type ErrInvalidNode struct {
 func (e ErrInvalidNode) Error() string {
 	return fmt.Sprintf("%s: %s", e.Field, e.Reason)
 }
+
+type ErrNodeActive struct{ ID string }
+
+func (e ErrNodeActive) Error() string {
+	return fmt.Sprintf("node %q must be revoked before removal", e.ID)
+}

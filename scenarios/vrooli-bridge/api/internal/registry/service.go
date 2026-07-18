@@ -27,6 +27,7 @@ type Service interface {
 
 	// Revoke severs a node (idempotent). Returns ErrNodeNotFound when unknown.
 	Revoke(ctx context.Context, id string) (Node, error)
+	Remove(ctx context.Context, id string) error
 }
 
 type service struct {
@@ -102,6 +103,14 @@ func (s *service) Revoke(ctx context.Context, id string) (Node, error) {
 		return Node{}, ErrInvalidNode{Field: "id", Reason: "required"}
 	}
 	return s.repo.Revoke(ctx, id)
+}
+
+func (s *service) Remove(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return ErrInvalidNode{Field: "id", Reason: "required"}
+	}
+	return s.repo.Remove(ctx, id)
 }
 
 // trimAll trims each element and drops empties, normalising the

@@ -32,7 +32,7 @@
           "requiredBy": ["generated"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["What You Get", "Documentation Map", "Customize Safely"],
+            "requiredHeadings": ["What's In This Scenario", "Placeholders vs. Durable Scaffolding", "Documentation Map"],
             "forbiddenPlaceholders": ["[TODO]", "[Summarize]"]
           }
         },
@@ -159,7 +159,7 @@
           "completion": "required",
           "ownerSkills": ["screaming-architecture-audit"],
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Domain Inventory", "Domain Details", "Shared Concepts", "Deferred Domains", "Non-Domains", "Cross-References"],
+            "requiredHeadings": ["Domain Inventory", "Domain Notes", "Non-Domains", "Cross-References"],
             "forbiddenPlaceholders": ["[TODO]"],
             "requiredLinks": ["ARCHITECTURE.md", "FLOWS.md", "DATA.md", "../internal/SEAMS.md"]
           }
@@ -178,7 +178,7 @@
           "condition": "Required once a real domain has lifecycle states, retries, cancellation, stale-completion risk, or formal workflow invariants.",
           "ownerSkills": ["temporal-flow-audit"],
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Flow Inventory", "Flow Details", "State Machines", "Maturity Ladder", "Production Shape", "Deferred / Unmodeled Flows", "Cross-References"],
+            "requiredHeadings": ["Flow Inventory", "Preview Workspace Experiment", "Component Test Contracts", "Deferred Flows", "Cross-References"],
             "forbiddenPlaceholders": ["[TODO]"],
             "allowNotApplicable": true
           }
@@ -196,7 +196,7 @@
           "completion": "required",
           "ownerSkills": ["storage-steer"],
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Storage Overview", "Data Ownership", "Schema Map", "Migrations And Compatibility", "Import / Export", "Retention And Deletion", "Privacy Notes", "Cross-References"],
+            "requiredHeadings": ["Storage Overview", "Data Ownership", "Schema Map", "Migration Policy", "Cross-References"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         },
@@ -375,7 +375,7 @@
           "requiredBy": ["generated", "implemented"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["System", "Notes (CRUD reference)", "Adding a new endpoint", "Cross-references"],
+            "requiredHeadings": ["System", "Components", "Adding a new endpoint", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"],
             "requiredLinks": ["../../.vrooli/endpoints.json"]
           }
@@ -392,7 +392,7 @@
           "requiredBy": ["generated", "implemented"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Global flags (provided by cli-core)", "Built-in commands (auto-provided by `cli-core`)", "Scenario commands — `notes` (CRUD reference)", "Output contracts", "Adding a new command", "Cross-references"],
+            "requiredHeadings": ["Global flags (provided by cli-core)", "Built-in commands (auto-provided by `cli-core`)", "Scenario commands — `components`", "Output contracts", "Adding a new command", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         },

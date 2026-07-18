@@ -50,8 +50,7 @@ Or check the URL directly:
 vrooli scenario port react-component-library UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-notes pane backed by the local SQLite store.
+You should see the component catalog and its live preview workbench.
 
 ## 4 — Talk to the API
 
@@ -60,18 +59,16 @@ automatically):
 
 ```bash
 react-component-library status
-react-component-library notes list
-react-component-library notes create --title "First note" --body "Hello"
+react-component-library components list
+react-component-library components index
 ```
 
-Or directly via HTTP:
+The catalog is served through the scenario API; use the health endpoint
+to verify that surface directly:
 
 ```bash
 API_PORT=$(vrooli scenario port react-component-library API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.react_component_library.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
 ```
 
 ## 5 — Run the tests

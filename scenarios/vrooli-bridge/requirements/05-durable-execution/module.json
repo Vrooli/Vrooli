@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Server-owned durable remote runs (test-genie lifecycle reuse); survive disconnect; re-attach by id; stream results/logs back.",
-    "last_validated_at": "2026-07-17T20:12:48-04:00",
+    "last_validated_at": "2026-07-17T21:50:26-04:00",
     "module": "durable-execution",
     "prd_ref": "OT-P0-005",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P0-005",
       "title": "Durable Remote Execution \u0026 Result Collection",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "core",
       "description": "A dispatched job runs as a server-owned durable run on the node (reusing test-genie's run-lifecycle philosophy): it survives client and agent disconnect, is re-attachable by id with a block-once wait verb (no polling), and streams exit status, logs, and result artifacts back to the control plane for aggregation.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/internal/runs/durable_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A run continues after the dispatching client disconnects and is re-attachable by run-id; wait returns exactly once with the real exit code."
         },
         {

@@ -21,6 +21,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { NodeStatus, type Node } from "../../api/nodes";
 import { OnboardingStepStatus, type OnboardingOp } from "../../api/onboard";
 import { type NodeQueue } from "../../api/queue";
+import { NodeManagementPanel } from "./NodeManagementPanel";
 import { useBridgeFirewallActionMutation, useBridgeReadinessQuery, useFailedOnboardingsQuery, useFleetQueueQuery, useNodesQuery, useOnboardingQuery, useRemoveFailedOnboardingMutation, useRevokeNodeMutation } from "./queries";
 
 const STATUS_LABEL = {
@@ -186,6 +187,7 @@ export function FleetPanel({
   const firewallAction = useBridgeFirewallActionMutation();
   const removeFailedOnboarding = useRemoveFailedOnboardingMutation();
   const revoke = useRevokeNodeMutation();
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const hasNodes = (nodesQuery.data?.length ?? 0) > 0;
 
   const handleRevoke = (node: Node) => {
@@ -338,23 +340,19 @@ export function FleetPanel({
                   <JobStatus nodeId={node.id} queue={queueQuery.data?.get(node.id)} />
                 </div>
 
-                {node.status !== NodeStatus.REVOKED && (
-                  <Button
-                    data-testid={selectors.fleet.revoke({ id: node.id })}
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleRevoke(node)}
-                    disabled={revoke.isPending}
-                    aria-label={t(strings.fleet.revoke)}
-                  >
-                    <ShieldOff aria-hidden="true" className="h-4 w-4" />
-                  </Button>
-                )}
+                <div className="flex shrink-0 gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setSelectedNode(node)}>{t(strings.fleet.management.details)}</Button>
+                  {node.status !== NodeStatus.REVOKED && (
+                    <Button data-testid={selectors.fleet.revoke({ id: node.id })} size="sm" variant="outline" onClick={() => handleRevoke(node)} disabled={revoke.isPending} aria-label={t(strings.fleet.revoke)}><ShieldOff aria-hidden="true" className="h-4 w-4" /></Button>
+                  )}
+                </div>
               </li>
             );
           })}
         </ul>
       )}
+
+      {selectedNode && <div data-testid={selectors.fleet.management} className="mt-4"><NodeManagementPanel node={selectedNode} onClose={() => setSelectedNode(null)} /></div>}
 
       {failedOnboardingsQuery.data && failedOnboardingsQuery.data.length > 0 && (
         <section data-testid={selectors.fleet.failedOnboardings} className="mt-3 rounded-panel border border-app-warning/40 bg-app-warning/10 p-3">

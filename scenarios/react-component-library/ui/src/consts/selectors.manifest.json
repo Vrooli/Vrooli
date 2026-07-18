@@ -12,9 +12,29 @@
       "testId": "app-description",
       "selector": "[data-testid=\"app-description\"]"
     },
+    "app.shell": {
+      "testId": "app-shell",
+      "selector": "[data-testid=\"app-shell\"]"
+    },
+    "app.main": {
+      "testId": "app-main",
+      "selector": "[data-testid=\"app-main\"]"
+    },
     "assets.hookWorkspace": {
       "testId": "hook-detail-page",
       "selector": "[data-testid=\"hook-detail-page\"]"
+    },
+    "assets.hookOverviewTab": {
+      "testId": "hook-detail-overview-tab",
+      "selector": "[data-testid=\"hook-detail-overview-tab\"]"
+    },
+    "assets.hookFilesTab": {
+      "testId": "hook-detail-files-tab",
+      "selector": "[data-testid=\"hook-detail-files-tab\"]"
+    },
+    "assets.componentPreviewTab": {
+      "testId": "component-detail-preview-tab",
+      "selector": "[data-testid=\"component-detail-preview-tab\"]"
     },
     "assets.hookSource": {
       "testId": "hook-workspace-source",
@@ -63,6 +83,10 @@
     "notifications.summary": {
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "preview.bottomNav": {
+      "testId": "bottom-nav",
+      "selector": "[data-testid=\"bottom-nav\"]"
     },
     "components.card": {
       "testId": "components-card",
@@ -902,6 +926,31 @@
     }
   },
   "dynamicSelectors": {
+    "preview.select": {
+      "description": "Preview harness native select control",
+      "selectorPattern": "select",
+      "params": []
+    },
+    "preview.openDialog": {
+      "description": "Visible preview dialog",
+      "selectorPattern": "[role=dialog]",
+      "params": []
+    },
+    "preview.bottomNavAdvanced": {
+      "description": "Bottom navigation focus advanced marker",
+      "selectorPattern": "body[data-nav-advanced=\"yes\"]",
+      "params": []
+    },
+    "preview.drawerFocusTrapped": {
+      "description": "Drawer focus trap marker",
+      "selectorPattern": "body[data-focus-trapped=\"yes\"]",
+      "params": []
+    },
+    "preview.selectCompatible": {
+      "description": "Select keyboard navigation result marker",
+      "selectorPattern": "body[data-select-value=\"compatible\"]",
+      "params": []
+    },
     "locale.toggle": {
       "description": "Locale toggle button by language code",
       "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",

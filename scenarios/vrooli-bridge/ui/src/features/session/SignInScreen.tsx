@@ -16,7 +16,7 @@ export function SignInScreen() {
   return (
     <div
       data-testid={selectors.session.signInScreen}
-      className="flex min-h-screen flex-col bg-app-background text-app-foreground"
+      className="flex min-h-full flex-col bg-app-background text-app-foreground"
     >
       <TopBar />
       <main className="flex flex-1 items-center justify-center p-6">

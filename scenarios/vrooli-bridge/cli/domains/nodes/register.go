@@ -27,6 +27,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"NodeRegistryService.GetNode":      h.get,
 		"NodeRegistryService.UpdateNode":   h.update,
 		"NodeRegistryService.RevokeNode":   h.revoke,
+		"NodeRegistryService.RemoveNode":   h.remove,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

@@ -244,7 +244,26 @@
       "passwordOptionalNote": "Leave this blank if this computer can already sign in to the machine without a password.",
       "reviewSummary": "We'll connect to {{target}}, install a secure key, set the machine up, and bring it online. This can take several minutes — you can watch every step."
     },
-    "emptyHeading": "No machines in your fleet yet"
+    "emptyHeading": "No machines in your fleet yet",
+    "management": {
+      "details": "Manage",
+      "heading": "Manage {{name}}",
+      "overview": "This machine's live status and trusted configuration.",
+      "endpoint": "Endpoint",
+      "scopes": "Allowed commands",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "revokeHeading": "Remove access",
+      "revokeDescription": "Revoking immediately disconnects this node and prevents it from running work. Its audit history remains.",
+      "revoke": "Revoke node",
+      "removeHeading": "Remove from fleet",
+      "removeDescription": "Permanently remove this revoked node from the visible fleet. Its separate audit history is retained.",
+      "removeAction": "Remove revoked node",
+      "removeBlocked": "Revoke this node's access before removing it from the fleet.",
+      "removeUnavailable": "This node has no linked Machine record to remove.",
+      "removeConfirm": "Remove this revoked node from the fleet? This cannot be undone.",
+      "close": "Close"
+    }
   },
   "runs": {
     "title": "Run history",

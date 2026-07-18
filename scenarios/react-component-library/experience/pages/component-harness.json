@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "component-harness",
+    "title": "Component specimen harness",
+    "routes": ["/preview/:component/harness.html"],
+    "purpose": "Render one selected component example at top level so its behavior can be inspected and exercised without the component editor workspace."
+  },
+  "priorities": [
+    {
+      "statement": "The selected component example is rendered and ready for direct interaction."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A selected component example is rendered in the standalone harness."
+    }
+  ]
+}

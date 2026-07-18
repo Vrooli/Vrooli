@@ -15,6 +15,7 @@ import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/empty-state";
 import { StatusBadge } from "../components/ui/status-badge";
 import { componentsClient, getCatalogAsset, getComponentExperience, type CatalogAsset } from "../api/components";
+import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { CreateAdoptionDialog } from "../features/adoptions/CreateAdoptionDialog";
 import { ComponentEditor, type ComparisonSession } from "../features/components/ComponentEditor";
@@ -38,7 +39,7 @@ function DetailTabs({ active, onChange, versionCount, adoptionCount, renderable 
   ];
 
   return <div role="tablist" aria-label={t("componentDetail.info.tabs", { defaultValue: "Asset information" })} className="flex border-b border-app-border">
-    {tabs.map((tab) => <Button key={tab.id} type="button" role="tab" variant="secondary" aria-selected={active === tab.id} onClick={() => onChange(tab.id)} className={`min-h-0 rounded-none border-0 px-2 py-2 text-xs font-medium ${active === tab.id ? "border-b-2 border-app-primary text-app-foreground" : "text-app-muted-foreground"}`}>
+    {tabs.map((tab) => <Button key={tab.id} data-testid={tab.id === "overview" ? selectors.assets.hookOverviewTab : tab.id === "files" ? selectors.assets.hookFilesTab : tab.id === "preview" ? selectors.assets.componentPreviewTab : undefined} type="button" role="tab" variant="secondary" aria-selected={active === tab.id} onClick={() => onChange(tab.id)} className={`min-h-0 rounded-none border-0 px-2 py-2 text-xs font-medium ${active === tab.id ? "border-b-2 border-app-primary text-app-foreground" : "text-app-muted-foreground"}`}>
       {tab.label}{tab.count !== undefined && <span aria-hidden="true" className="ml-1.5 inline-flex min-w-4 items-center justify-center rounded-pill bg-app-surface-muted px-1 py-0.5 text-[10px] leading-none text-app-muted-foreground">{tab.count}</span>}
     </Button>)}
   </div>;

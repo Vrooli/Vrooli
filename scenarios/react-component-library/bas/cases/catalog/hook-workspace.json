@@ -14,6 +14,10 @@
       "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "react-component-library", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED", "timeout_ms": 30000 }, "metadata": { "label": "Open catalog" } }
     },
     {
+      "id": "wait-catalog",
+      "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/catalog.browser", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }, "metadata": { "label": "Catalog workspace visible" } }
+    },
+    {
       "id": "select-hooks",
       "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/catalog.hooksTab" }, "metadata": { "label": "Select Hooks" } }
     },
@@ -26,8 +30,16 @@
       "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/assets.hookWorkspace", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Hook route did not render the shared workspace." }, "metadata": { "label": "Hook workspace visible" } }
     },
     {
+      "id": "open-files",
+      "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/assets.hookFilesTab" }, "metadata": { "label": "Open Hook Files" } }
+    },
+    {
       "id": "assert-source",
       "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/assets.hookSource", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "Hook Files source is unavailable." }, "metadata": { "label": "Hook Files visible" } }
+    },
+    {
+      "id": "open-overview",
+      "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/assets.hookOverviewTab" }, "metadata": { "label": "Open Hook Overview" } }
     },
     {
       "id": "assert-details",
@@ -35,10 +47,13 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "open-catalog", "target": "select-hooks", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "select-hooks", "target": "open-hook", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "open-hook", "target": "assert-workspace", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e4", "source": "assert-workspace", "target": "assert-source", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e5", "source": "assert-source", "target": "assert-details", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    { "id": "e1", "source": "open-catalog", "target": "wait-catalog", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-catalog", "target": "select-hooks", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "select-hooks", "target": "open-hook", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "open-hook", "target": "assert-workspace", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-workspace", "target": "open-files", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "open-files", "target": "assert-source", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "assert-source", "target": "open-overview", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "open-overview", "target": "assert-details", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

@@ -68,6 +68,7 @@ UPDATE nodes
 SET revoked_at = ?, updated_at = ?
 WHERE id = ? AND revoked_at = ''
 `
+	removeNodeSQL = `DELETE FROM nodes WHERE id = ?`
 
 	touchLastSeenSQL = `
 UPDATE nodes
@@ -204,6 +205,20 @@ func (s *sqliteRepository) Revoke(ctx context.Context, id string) (Node, error) 
 	existing.RevokedAt = now
 	existing.UpdatedAt = now
 	return existing, nil
+}
+
+func (s *sqliteRepository) Remove(ctx context.Context, id string) error {
+	existing, err := s.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !existing.Revoked() {
+		return ErrNodeActive{ID: id}
+	}
+	if _, err := s.db.ExecContext(ctx, removeNodeSQL, id); err != nil {
+		return fmt.Errorf("remove node %q: %w", id, err)
+	}
+	return nil
 }
 
 func (s *sqliteRepository) TouchLastSeen(ctx context.Context, id string, t time.Time) error {

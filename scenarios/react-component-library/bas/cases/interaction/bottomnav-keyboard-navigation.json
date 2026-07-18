@@ -35,7 +35,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "nav",
+          "selector": "@selector/preview.bottomNav",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
@@ -78,7 +78,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "body[data-nav-advanced=\"yes\"]",
+          "selector": "@selector/preview.bottomNavAdvanced",
           "mode": "ASSERTION_MODE_EXISTS",
           "timeout_ms": 5000,
           "failure_message": "Tab did not move focus to a later BottomNav item — navigation items are not keyboard-reachable in sequence."

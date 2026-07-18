@@ -53,6 +53,18 @@ func TestHandler_RequiresOwner(t *testing.T) {
 
 	_, err = h.RevokeNode(ctx, connect.NewRequest(&registryv1.RevokeNodeRequest{Id: "x"}))
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+
+	_, err = h.RemoveNode(ctx, connect.NewRequest(&registryv1.RemoveNodeRequest{Id: "x"}))
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+}
+
+func TestHandler_RemoveNode_DelegatesForOwner(t *testing.T) {
+	svc := &mocks.FakeService{}
+	h := newHarness(svc, nil)
+	resp, err := h.RemoveNode(ownerCtx(), connect.NewRequest(&registryv1.RemoveNodeRequest{Id: "revoked-node"}))
+	require.NoError(t, err)
+	require.Equal(t, "revoked-node", resp.Msg.RemovedNodeId)
+	require.Equal(t, []string{"revoked-node"}, svc.RemoveIDs)
 }
 
 // [REQ:BRG-P1-001] An online node whose agent protocol is flagged

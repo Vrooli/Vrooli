@@ -34,6 +34,7 @@ type Repository interface {
 	// when no row matches. Atomic credential destruction is layered on in
 	// Phase 2; this is the durable lifecycle half.
 	Revoke(ctx context.Context, id string) (Node, error)
+	Remove(ctx context.Context, id string) error
 
 	// TouchLastSeen records that a heartbeat was received from the node at t.
 	// A no-op (nil) when no row matches — a heartbeat from an unknown/removed

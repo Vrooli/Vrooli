@@ -2110,6 +2110,48 @@
       ]
     },
     {
+      "id": "registry_remove_node",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RemoveNode",
+      "method": "POST",
+      "summary": "Remove a revoked node",
+      "description": "Permanently removes a revoked registry record. Active nodes must be revoked first. Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "removed_node_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No node with that id"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Node must be revoked first"
+        }
+      ]
+    },
+    {
       "id": "bridge-readiness",
       "path": "/api/v1/readiness",
       "method": "GET",

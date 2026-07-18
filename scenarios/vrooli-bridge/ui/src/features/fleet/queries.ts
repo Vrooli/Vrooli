@@ -166,6 +166,31 @@ export function useRevokeNodeMutation() {
   });
 }
 
+/** Permanently remove a revoked registry node from the fleet list. */
+export function useRemoveNodeMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => nodesClient.removeNode({ id }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: NODES_QUERY_KEY }),
+  });
+}
+
+/** Update the owner-editable node metadata without changing its trust state. */
+export function useUpdateNodeMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (node: Node) => nodesClient.updateNode({
+      id: node.id,
+      name: node.name,
+      endpoint: node.endpoint,
+      capabilities: node.capabilities,
+      scopes: node.scopes,
+      revision: node.revision,
+    }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: NODES_QUERY_KEY }),
+  });
+}
+
 /**
  * Mint a single-use pairing code (owner-gated PairingService.IssuePairingCode).
  * The plaintext code + control-plane public key are returned ONCE; the caller

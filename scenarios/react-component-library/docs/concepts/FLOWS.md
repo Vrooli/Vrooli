@@ -125,10 +125,10 @@ The runner resolves the manifest dependency closure in pinned order, checks the
 restricted action/assertion vocabulary, and persists a normalized report.
 
 ```sh
-react-component-library components test <component-id> --version 1.0.0 --closure true
-react-component-library components test-list <component-id>
-react-component-library components test-show <report-id>
-react-component-library components test-rerun <report-id>
+react-component-library components test "<component-id>" --version 1.0.0 --closure true
+react-component-library components test-list "<component-id>"
+react-component-library components test-show "<report-id>"
+react-component-library components test-rerun "<report-id>"
 ```
 
 No contract can name a file, command, or arbitrary setup. In particular,

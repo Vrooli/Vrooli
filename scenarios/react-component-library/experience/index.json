@@ -10,9 +10,21 @@
   "description": "Experience contracts for reusable catalog primitives and the live component-preview workspace that composes them.",
   "pages": [
     {
+      "id": "catalog-workspace",
+      "path": "pages/catalog-workspace.json",
+      "title": "Component catalog workspace",
+      "status": "active"
+    },
+    {
       "id": "component-preview-workspace",
       "path": "pages/component-preview-workspace.json",
       "title": "Component preview workspace",
+      "status": "active"
+    },
+    {
+      "id": "component-harness",
+      "path": "pages/component-harness.json",
+      "title": "Component specimen harness",
       "status": "active"
     }
   ],

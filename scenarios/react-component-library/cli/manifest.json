@@ -531,11 +531,6 @@
       "reason": "Internal/UI-only surface. UI resolves a target scenario's DESIGN.md theme via this RPC; no themes CLI domain exists. Promotion would require net-new handlers. Documented intent in this manifest's description."
     },
     {
-      "service": "InventoryService",
-      "method": "ScanScenario",
-      "reason": "Shared cross-scenario service exposed alongside this scenario's own services. InventoryService is ui-health's contract (vrooli.ui_health.v1.inventory) implemented here for React scenarios; it is invoked by ui-health over Connect-RPC, not via this scenario's CLI. No inventory CLI domain exists; this is the pre-approved omit-with-reason case for a shared service surfaced alongside the scenario's own."
-    },
-    {
       "service": "ScenarioValidationService",
       "method": "ValidateScenario",
       "reason": "Test Genie invokes this shared provider contract to run the complete RCL component-test suite. The component CLI deliberately exposes targeted asset runs through ComponentTestsService instead."

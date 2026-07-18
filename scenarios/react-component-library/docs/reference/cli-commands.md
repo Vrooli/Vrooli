@@ -49,7 +49,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 react-component-library configure api_base http://localhost:15001/api/v1
-react-component-library configure token <token>
+react-component-library configure token "<token>"
 ```
 
 Read values back without an argument:
@@ -64,23 +64,18 @@ The `components` group is the authoring and registry surface for the
 Git-tracked library source tree.
 
 ```bash
-react-component-library components init Header \
-  --library-id react-component-library:Header \
-  --display-name Header \
-  --description "Scenario header" \
-  --tags layout,navigation \
-  --version 0.1.0
+react-component-library components init header --library-id react-component-library:header --display-name Header --description "Scenario header" --tags layout,navigation --version 0.1.0
 
-react-component-library components version-create <component-id> 0.2.0-beta.1 --draft
-react-component-library components manifest-update <component-id> --latest-version 1.0.0
+react-component-library components version-create "<component-id>" 0.2.0-beta.1 --draft true
+react-component-library components manifest-update "<component-id>" --latest-version 1.0.0
 react-component-library components index
 react-component-library components list --match header --tags layout,navigation
-react-component-library components get <component-id>
+react-component-library components get "<component-id>"
 react-component-library components get-by-library-id react-component-library:Header
-react-component-library components content-get <component-id>
-react-component-library components content-set <component-id> ./Header.tsx --expected-sha256 <sha>
-react-component-library components versions <component-id>
-react-component-library components show-version <component-id> 0.1.0
+react-component-library components content-get "<component-id>"
+react-component-library components content-set "<component-id>" ./Header.tsx --expected-sha256 "<sha>"
+react-component-library components versions "<component-id>"
+react-component-library components show-version "<component-id>" 0.1.0
 react-component-library components ingest web-console ui/src/components/DrawerShell.tsx drawer-shell --slot ui-pattern
 ```
 
@@ -98,8 +93,8 @@ promoting the draft.
 ## Scenario commands — `adoptions`
 
 ```bash
-react-component-library adoptions apply <component-id> web-console ui/src/components/adopted/Button.tsx
-react-component-library adoptions apply <component-id> web-console ui/src/components/Button.tsx --replace-existing true --confirm-overwrite true
+react-component-library adoptions apply "<component-id>" web-console ui/src/components/adopted/Button.tsx
+react-component-library adoptions apply "<component-id>" web-console ui/src/components/Button.tsx --replace-existing true --confirm-overwrite true
 react-component-library adoptions suggest --scenario web-console --limit 10
 ```
 

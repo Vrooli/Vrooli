@@ -128,7 +128,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 react-component-library configure api_base http://localhost:15001/api/v1
-react-component-library configure token <token>
+react-component-library configure token "<token>"
 ```
 
 ## API-base resolution precedence

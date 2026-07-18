@@ -25,6 +25,7 @@ type FakeRepository struct {
 	ListErr          error
 	UpdateErr        error
 	RevokeErr        error
+	RemoveErr        error
 	TouchErr         error
 	TouchLastSeenIDs []string
 
@@ -145,6 +146,23 @@ func (f *FakeRepository) Revoke(_ context.Context, id string) (registry.Node, er
 	existing.UpdatedAt = f.now()
 	f.nodes[id] = existing
 	return existing, nil
+}
+
+func (f *FakeRepository) Remove(_ context.Context, id string) error {
+	if f.RemoveErr != nil {
+		return f.RemoveErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n, ok := f.nodes[id]
+	if !ok {
+		return registry.ErrNodeNotFound{ID: id}
+	}
+	if !n.Revoked() {
+		return registry.ErrNodeActive{ID: id}
+	}
+	delete(f.nodes, id)
+	return nil
 }
 
 func (f *FakeRepository) TouchLastSeen(_ context.Context, id string, t time.Time) error {

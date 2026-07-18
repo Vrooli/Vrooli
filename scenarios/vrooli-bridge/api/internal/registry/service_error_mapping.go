@@ -22,5 +22,9 @@ func ToConnectError(err error) error {
 	if errors.As(err, &notFound) {
 		return connect.NewError(connect.CodeNotFound, notFound)
 	}
+	var active ErrNodeActive
+	if errors.As(err, &active) {
+		return connect.NewError(connect.CodeFailedPrecondition, active)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

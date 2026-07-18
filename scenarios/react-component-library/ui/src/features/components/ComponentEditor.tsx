@@ -333,7 +333,10 @@ export function ComponentEditor({
   }, [baselineSha, previewReloadKey]);
 
   const examples = useMemo(() => examplesQuery.data?.examples ?? [], [examplesQuery.data?.examples]);
-  const expectedReadyCount = Math.max(1, examples.length);
+  // Only the active specimen is mounted in the normal workspace; comparison
+  // mounts exactly two. Waiting for every indexed example left the region in
+  // loading forever even after the visible preview had announced readiness.
+  const expectedReadyCount = comparedSpecimens.size === 2 ? 2 : 1;
 
   useEffect(() => {
     if (activeSpecimen || examples.length === 0) return;

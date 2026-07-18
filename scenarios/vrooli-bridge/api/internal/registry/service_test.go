@@ -88,3 +88,16 @@ func TestService_Revoke_NotFound(t *testing.T) {
 	require.ErrorAs(t, err, &registry.ErrNodeNotFound{})
 	require.Equal(t, int64(1), repo.RevokeCalls.Load())
 }
+
+func TestService_Remove_RequiresRevocation(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	repo.Seed(registry.Node{ID: "active"})
+	repo.Seed(registry.Node{ID: "revoked", RevokedAt: repo.Now.Add(1)})
+	svc := registry.NewService(repo)
+	err := svc.Remove(context.Background(), "active")
+	var active registry.ErrNodeActive
+	require.ErrorAs(t, err, &active)
+	require.NoError(t, svc.Remove(context.Background(), "revoked"))
+	_, err = repo.Get(context.Background(), "revoked")
+	require.ErrorAs(t, err, &registry.ErrNodeNotFound{})
+}

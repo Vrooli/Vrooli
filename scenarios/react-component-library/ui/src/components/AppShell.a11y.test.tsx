@@ -41,7 +41,7 @@ describe("AppShell accessibility", () => {
       </Routes>,
       { routerEntries: ["/"] },
     );
-    expect(screen.getByTestId("active-work-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("app-main")).toBeInTheDocument();
     await expectNoA11yViolations(container);
   });
 });

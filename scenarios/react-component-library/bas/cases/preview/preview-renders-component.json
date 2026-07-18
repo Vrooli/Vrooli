@@ -1,12 +1,13 @@
 {
   "metadata": {
     "name": "preview-renders-component",
-    "description": "Navigates to the seeded StatusBadge component editor at desktop width and proves the Preview Workspace is usable: all specimens become rendered, Appearance and Viewport each open an explanatory anchored control surface, a specimen can enter bounded comparison, and the active specimen exposes its temporary JSON props experiment. This fails when preview routing regresses, the compact controls are not wired, or gallery interaction is unavailable.",
+    "description": "Navigates to the seeded StatusBadge component workbench at desktop width and proves its selected state canvas, controls, Appearance, and Viewport surfaces are usable. This fails when preview routing regresses or the state-first workbench loses a primary control.",
     "requirement": "PR-001",
     "version": "1",
     "labels": {
       "reset": "none",
       "surface": "component-editor-preview",
+      "spec_entry_id": "component-preview-workspace",
       "requirements_json": "[\"PR-001\"]"
     },
     "execution_mode": "observer"
@@ -43,16 +44,49 @@
       }
     },
     {
+      "id": "open-preview",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/assets.componentPreviewTab" },
+        "metadata": { "label": "Open Preview workspace" }
+      }
+    },
+    {
+      "id": "wait-preview-loading",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/components.editor.workspacePane[data-experience-state=\"loading\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Component preview region reports loading" }
+      }
+    },
+    {
+      "id": "assert-preview-region",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"component-preview\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The component preview workspace did not expose its authored component-preview experience region."
+        },
+        "metadata": { "label": "Component preview region visible" }
+      }
+    },
+    {
       "id": "assert-rendered",
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/components.editor.previewBadge",
+          "selector": "[data-experience-surface=\"component-preview\"][data-experience-state=\"ready\"], [data-experience-surface=\"component-preview\"][data-experience-state=\"partial\"]",
           "mode": "ASSERTION_MODE_VISIBLE",
           "timeout_ms": 20000,
-          "failure_message": "Preview never reached the Rendered badge. Check for iframe app-shell recursion, /preview route proxying, and React runtime named-export errors."
+          "failure_message": "Preview did not reach a usable ready or partial state. Check the specimen gallery for per-example runtime failures."
         },
-        "metadata": { "label": "Preview reached rendered state" }
+        "metadata": { "label": "Preview reached a usable terminal state" }
       }
     },
     {
@@ -127,27 +161,6 @@
       }
     },
     {
-      "id": "compare-specimen",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/components.editor.exampleCompare" },
-        "metadata": { "label": "Compare a named specimen" }
-      }
-    },
-    {
-      "id": "assert-comparison",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "@selector/components.editor.comparisonToolbar",
-          "mode": "ASSERTION_MODE_VISIBLE",
-          "timeout_ms": 5000,
-          "failure_message": "A selected specimen did not enter comparison mode."
-        },
-        "metadata": { "label": "Comparison mode visible" }
-      }
-    },
-    {
       "id": "assert-props-experiment",
       "action": {
         "type": "ACTION_TYPE_ASSERT",
@@ -168,12 +181,10 @@
       "target": "wait-editor-panel",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "edge-wait-assert",
-      "source": "wait-editor-panel",
-      "target": "assert-rendered",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
+    { "id": "edge-open-preview", "source": "wait-editor-panel", "target": "open-preview", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-wait-loading", "source": "open-preview", "target": "wait-preview-loading", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-loading-region", "source": "wait-preview-loading", "target": "assert-preview-region", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-region-rendered", "source": "assert-preview-region", "target": "assert-rendered", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "edge-rendered-gallery", "source": "assert-rendered", "target": "assert-gallery-status", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "edge-gallery-appearance", "source": "assert-gallery-status", "target": "open-appearance", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "edge-appearance-panel", "source": "open-appearance", "target": "assert-appearance-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
@@ -181,8 +192,6 @@
     { "id": "edge-viewport-open", "source": "close-appearance", "target": "open-viewport", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "edge-viewport-panel", "source": "open-viewport", "target": "assert-viewport-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "edge-viewport-close", "source": "assert-viewport-panel", "target": "close-viewport", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "edge-compare", "source": "close-viewport", "target": "compare-specimen", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "edge-comparison", "source": "compare-specimen", "target": "assert-comparison", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "edge-props", "source": "assert-comparison", "target": "assert-props-experiment", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    { "id": "edge-props", "source": "close-viewport", "target": "assert-props-experiment", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

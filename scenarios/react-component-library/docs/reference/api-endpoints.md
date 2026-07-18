@@ -81,7 +81,7 @@ row.
 | **Request** | `CreateComponentVersionRequest { component_id, version, from_version, intent, file_name, source, changelog_md }` |
 | **Response** | `CreateComponentVersionResponse { component, version, source_path }` |
 | **Errors** | `not_found` — component missing<br>`invalid_argument` — invalid version/file/header<br>`internal` — filesystem/index failure |
-| **CLI** | `react-component-library components version-create <component-id> <version>` |
+| **CLI** | `react-component-library components version-create "<component-id>" "<version>"` |
 
 ### `POST /vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentManifest`
 
@@ -93,7 +93,7 @@ Update display metadata and explicit version pointers in
 | **Request** | `UpdateComponentManifestRequest { component_id, display_name, description, tags[], latest_version, draft_version, deprecated_versions[] }` |
 | **Response** | `UpdateComponentManifestResponse { component }` |
 | **Errors** | `not_found` — component missing<br>`invalid_argument` — invalid manifest values<br>`internal` — filesystem/index failure |
-| **CLI** | `react-component-library components manifest-update <component-id>` |
+| **CLI** | `react-component-library components manifest-update "<component-id>"` |
 
 ---
 

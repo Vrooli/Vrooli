@@ -187,3 +187,13 @@ func (h *connectHandler) RevokeNode(ctx context.Context, req *connect.Request[re
 		Node: domainToProto(node, false, false),
 	}), nil
 }
+
+func (h *connectHandler) RemoveNode(ctx context.Context, req *connect.Request[registryv1.RemoveNodeRequest]) (*connect.Response[registryv1.RemoveNodeResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if err := h.deps.Service.Remove(ctx, req.Msg.Id); err != nil {
+		return nil, registry.ToConnectError(err)
+	}
+	return connect.NewResponse(&registryv1.RemoveNodeResponse{RemovedNodeId: req.Msg.Id}), nil
+}
