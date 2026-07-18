@@ -3028,37 +3028,42 @@ func (x *GetComponentVersionContentResponse) GetContent() string {
 	return ""
 }
 
-type ComponentExample struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ComponentId   string                 `protobuf:"bytes,2,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
-	LibraryId     string                 `protobuf:"bytes,3,opt,name=library_id,json=libraryId,proto3" json:"library_id,omitempty"`
-	Version       string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
-	Name          string                 `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,6,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	PropsJson     string                 `protobuf:"bytes,7,opt,name=props_json,json=propsJson,proto3" json:"props_json,omitempty"`
-	SetupJson     string                 `protobuf:"bytes,8,opt,name=setup_json,json=setupJson,proto3" json:"setup_json,omitempty"`
-	ExpectJson    string                 `protobuf:"bytes,9,opt,name=expect_json,json=expectJson,proto3" json:"expect_json,omitempty"`
-	SourcePath    string                 `protobuf:"bytes,10,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
-	IndexedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=indexed_at,json=indexedAt,proto3" json:"indexed_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+// ComponentStory is the validated, version-level projection of story.json.
+// Args, fixtures, and stories remain JSON to retain the declarative field
+// grammar while avoiding separate, drifting transport schemas for each asset.
+type ComponentStory struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ComponentId     string                 `protobuf:"bytes,2,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
+	LibraryId       string                 `protobuf:"bytes,3,opt,name=library_id,json=libraryId,proto3" json:"library_id,omitempty"`
+	Version         string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	SchemaVersion   int32                  `protobuf:"varint,5,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	Kind            string                 `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
+	Title           string                 `protobuf:"bytes,7,opt,name=title,proto3" json:"title,omitempty"`
+	ArgsJson        string                 `protobuf:"bytes,8,opt,name=args_json,json=argsJson,proto3" json:"args_json,omitempty"`
+	EnvironmentJson string                 `protobuf:"bytes,9,opt,name=environment_json,json=environmentJson,proto3" json:"environment_json,omitempty"`
+	StoriesJson     string                 `protobuf:"bytes,10,opt,name=stories_json,json=storiesJson,proto3" json:"stories_json,omitempty"`
+	ContractJson    string                 `protobuf:"bytes,11,opt,name=contract_json,json=contractJson,proto3" json:"contract_json,omitempty"`
+	SourcePath      string                 `protobuf:"bytes,12,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
+	IndexedAt       *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=indexed_at,json=indexedAt,proto3" json:"indexed_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
-func (x *ComponentExample) Reset() {
-	*x = ComponentExample{}
+func (x *ComponentStory) Reset() {
+	*x = ComponentStory{}
 	mi := &file_react_component_library_v1_components_components_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ComponentExample) String() string {
+func (x *ComponentStory) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ComponentExample) ProtoMessage() {}
+func (*ComponentStory) ProtoMessage() {}
 
-func (x *ComponentExample) ProtoReflect() protoreflect.Message {
+func (x *ComponentStory) ProtoReflect() protoreflect.Message {
 	mi := &file_react_component_library_v1_components_components_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -3070,89 +3075,103 @@ func (x *ComponentExample) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ComponentExample.ProtoReflect.Descriptor instead.
-func (*ComponentExample) Descriptor() ([]byte, []int) {
+// Deprecated: Use ComponentStory.ProtoReflect.Descriptor instead.
+func (*ComponentStory) Descriptor() ([]byte, []int) {
 	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{36}
 }
 
-func (x *ComponentExample) GetId() string {
+func (x *ComponentStory) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *ComponentExample) GetComponentId() string {
+func (x *ComponentStory) GetComponentId() string {
 	if x != nil {
 		return x.ComponentId
 	}
 	return ""
 }
 
-func (x *ComponentExample) GetLibraryId() string {
+func (x *ComponentStory) GetLibraryId() string {
 	if x != nil {
 		return x.LibraryId
 	}
 	return ""
 }
 
-func (x *ComponentExample) GetVersion() string {
+func (x *ComponentStory) GetVersion() string {
 	if x != nil {
 		return x.Version
 	}
 	return ""
 }
 
-func (x *ComponentExample) GetName() string {
+func (x *ComponentStory) GetSchemaVersion() int32 {
 	if x != nil {
-		return x.Name
+		return x.SchemaVersion
+	}
+	return 0
+}
+
+func (x *ComponentStory) GetKind() string {
+	if x != nil {
+		return x.Kind
 	}
 	return ""
 }
 
-func (x *ComponentExample) GetDisplayName() string {
+func (x *ComponentStory) GetTitle() string {
 	if x != nil {
-		return x.DisplayName
+		return x.Title
 	}
 	return ""
 }
 
-func (x *ComponentExample) GetPropsJson() string {
+func (x *ComponentStory) GetArgsJson() string {
 	if x != nil {
-		return x.PropsJson
+		return x.ArgsJson
 	}
 	return ""
 }
 
-func (x *ComponentExample) GetSetupJson() string {
+func (x *ComponentStory) GetEnvironmentJson() string {
 	if x != nil {
-		return x.SetupJson
+		return x.EnvironmentJson
 	}
 	return ""
 }
 
-func (x *ComponentExample) GetExpectJson() string {
+func (x *ComponentStory) GetStoriesJson() string {
 	if x != nil {
-		return x.ExpectJson
+		return x.StoriesJson
 	}
 	return ""
 }
 
-func (x *ComponentExample) GetSourcePath() string {
+func (x *ComponentStory) GetContractJson() string {
+	if x != nil {
+		return x.ContractJson
+	}
+	return ""
+}
+
+func (x *ComponentStory) GetSourcePath() string {
 	if x != nil {
 		return x.SourcePath
 	}
 	return ""
 }
 
-func (x *ComponentExample) GetIndexedAt() *timestamppb.Timestamp {
+func (x *ComponentStory) GetIndexedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.IndexedAt
 	}
 	return nil
 }
 
-type ListComponentExamplesRequest struct {
+type ListComponentStoriesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ComponentId   string                 `protobuf:"bytes,1,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
 	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
@@ -3161,20 +3180,20 @@ type ListComponentExamplesRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListComponentExamplesRequest) Reset() {
-	*x = ListComponentExamplesRequest{}
+func (x *ListComponentStoriesRequest) Reset() {
+	*x = ListComponentStoriesRequest{}
 	mi := &file_react_component_library_v1_components_components_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListComponentExamplesRequest) String() string {
+func (x *ListComponentStoriesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListComponentExamplesRequest) ProtoMessage() {}
+func (*ListComponentStoriesRequest) ProtoMessage() {}
 
-func (x *ListComponentExamplesRequest) ProtoReflect() protoreflect.Message {
+func (x *ListComponentStoriesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_react_component_library_v1_components_components_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -3186,53 +3205,53 @@ func (x *ListComponentExamplesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListComponentExamplesRequest.ProtoReflect.Descriptor instead.
-func (*ListComponentExamplesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListComponentStoriesRequest.ProtoReflect.Descriptor instead.
+func (*ListComponentStoriesRequest) Descriptor() ([]byte, []int) {
 	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{37}
 }
 
-func (x *ListComponentExamplesRequest) GetComponentId() string {
+func (x *ListComponentStoriesRequest) GetComponentId() string {
 	if x != nil {
 		return x.ComponentId
 	}
 	return ""
 }
 
-func (x *ListComponentExamplesRequest) GetVersion() string {
+func (x *ListComponentStoriesRequest) GetVersion() string {
 	if x != nil {
 		return x.Version
 	}
 	return ""
 }
 
-func (x *ListComponentExamplesRequest) GetLimit() int32 {
+func (x *ListComponentStoriesRequest) GetLimit() int32 {
 	if x != nil {
 		return x.Limit
 	}
 	return 0
 }
 
-type ListComponentExamplesResponse struct {
+type ListComponentStoriesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Examples      []*ComponentExample    `protobuf:"bytes,1,rep,name=examples,proto3" json:"examples,omitempty"`
+	Stories       []*ComponentStory      `protobuf:"bytes,1,rep,name=stories,proto3" json:"stories,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListComponentExamplesResponse) Reset() {
-	*x = ListComponentExamplesResponse{}
+func (x *ListComponentStoriesResponse) Reset() {
+	*x = ListComponentStoriesResponse{}
 	mi := &file_react_component_library_v1_components_components_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListComponentExamplesResponse) String() string {
+func (x *ListComponentStoriesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListComponentExamplesResponse) ProtoMessage() {}
+func (*ListComponentStoriesResponse) ProtoMessage() {}
 
-func (x *ListComponentExamplesResponse) ProtoReflect() protoreflect.Message {
+func (x *ListComponentStoriesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_react_component_library_v1_components_components_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -3244,14 +3263,14 @@ func (x *ListComponentExamplesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListComponentExamplesResponse.ProtoReflect.Descriptor instead.
-func (*ListComponentExamplesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListComponentStoriesResponse.ProtoReflect.Descriptor instead.
+func (*ListComponentStoriesResponse) Descriptor() ([]byte, []int) {
 	return file_react_component_library_v1_components_components_proto_rawDescGZIP(), []int{38}
 }
 
-func (x *ListComponentExamplesResponse) GetExamples() []*ComponentExample {
+func (x *ListComponentStoriesResponse) GetStories() []*ComponentStory {
 	if x != nil {
-		return x.Examples
+		return x.Stories
 	}
 	return nil
 }
@@ -3801,32 +3820,31 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\x04path\x18\x03 \x01(\tR\x04path\"\x98\x01\n" +
 	"\"GetComponentVersionContentResponse\x12X\n" +
 	"\aversion\x18\x01 \x01(\v2>.vrooli.react_component_library.v1.components.ComponentVersionR\aversion\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\"\xf0\x02\n" +
-	"\x10ComponentExample\x12\x0e\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"\xb9\x03\n" +
+	"\x0eComponentStory\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fcomponent_id\x18\x02 \x01(\tR\vcomponentId\x12\x1d\n" +
 	"\n" +
 	"library_id\x18\x03 \x01(\tR\tlibraryId\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\tR\aversion\x12\x12\n" +
-	"\x04name\x18\x05 \x01(\tR\x04name\x12!\n" +
-	"\fdisplay_name\x18\x06 \x01(\tR\vdisplayName\x12\x1d\n" +
-	"\n" +
-	"props_json\x18\a \x01(\tR\tpropsJson\x12\x1d\n" +
-	"\n" +
-	"setup_json\x18\b \x01(\tR\tsetupJson\x12\x1f\n" +
-	"\vexpect_json\x18\t \x01(\tR\n" +
-	"expectJson\x12\x1f\n" +
-	"\vsource_path\x18\n" +
-	" \x01(\tR\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12%\n" +
+	"\x0eschema_version\x18\x05 \x01(\x05R\rschemaVersion\x12\x12\n" +
+	"\x04kind\x18\x06 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05title\x18\a \x01(\tR\x05title\x12\x1b\n" +
+	"\targs_json\x18\b \x01(\tR\bargsJson\x12)\n" +
+	"\x10environment_json\x18\t \x01(\tR\x0fenvironmentJson\x12!\n" +
+	"\fstories_json\x18\n" +
+	" \x01(\tR\vstoriesJson\x12#\n" +
+	"\rcontract_json\x18\v \x01(\tR\fcontractJson\x12\x1f\n" +
+	"\vsource_path\x18\f \x01(\tR\n" +
 	"sourcePath\x129\n" +
 	"\n" +
-	"indexed_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tindexedAt\"q\n" +
-	"\x1cListComponentExamplesRequest\x12!\n" +
+	"indexed_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tindexedAt\"p\n" +
+	"\x1bListComponentStoriesRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"{\n" +
-	"\x1dListComponentExamplesResponse\x12Z\n" +
-	"\bexamples\x18\x01 \x03(\v2>.vrooli.react_component_library.v1.components.ComponentExampleR\bexamples\"a\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"v\n" +
+	"\x1cListComponentStoriesResponse\x12V\n" +
+	"\astories\x18\x01 \x03(\v2<.vrooli.react_component_library.v1.components.ComponentStoryR\astories\"a\n" +
 	"\vDesignStyle\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -3870,7 +3888,7 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\"STYLE_FIT_VERDICT_KIND_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19STYLE_FIT_VERDICT_KIND_OK\x10\x01\x12\x1f\n" +
 	"\x1bSTYLE_FIT_VERDICT_KIND_INFO\x10\x02\x12\x1f\n" +
-	"\x1bSTYLE_FIT_VERDICT_KIND_WARN\x10\x032\xb3\x14\n" +
+	"\x1bSTYLE_FIT_VERDICT_KIND_WARN\x10\x032\xb0\x14\n" +
 	"\x11ComponentsService\x12\x9b\x01\n" +
 	"\x0eListComponents\x12C.vrooli.react_component_library.v1.components.ListComponentsRequest\x1aD.vrooli.react_component_library.v1.components.ListComponentsResponse\x12\x95\x01\n" +
 	"\fGetComponent\x12A.vrooli.react_component_library.v1.components.GetComponentRequest\x1aB.vrooli.react_component_library.v1.components.GetComponentResponse\x12\xb6\x01\n" +
@@ -3883,8 +3901,8 @@ const file_react_component_library_v1_components_components_proto_rawDesc = "" +
 	"\x13GetComponentContent\x12H.vrooli.react_component_library.v1.components.GetComponentContentRequest\x1aI.vrooli.react_component_library.v1.components.GetComponentContentResponse\x12\xb3\x01\n" +
 	"\x16UpdateComponentContent\x12K.vrooli.react_component_library.v1.components.UpdateComponentContentRequest\x1aL.vrooli.react_component_library.v1.components.UpdateComponentContentResponse\x12\xb0\x01\n" +
 	"\x15ListComponentVersions\x12J.vrooli.react_component_library.v1.components.ListComponentVersionsRequest\x1aK.vrooli.react_component_library.v1.components.ListComponentVersionsResponse\x12\xbf\x01\n" +
-	"\x1aGetComponentVersionContent\x12O.vrooli.react_component_library.v1.components.GetComponentVersionContentRequest\x1aP.vrooli.react_component_library.v1.components.GetComponentVersionContentResponse\x12\xb0\x01\n" +
-	"\x15ListComponentExamples\x12J.vrooli.react_component_library.v1.components.ListComponentExamplesRequest\x1aK.vrooli.react_component_library.v1.components.ListComponentExamplesResponse\x12\xa1\x01\n" +
+	"\x1aGetComponentVersionContent\x12O.vrooli.react_component_library.v1.components.GetComponentVersionContentRequest\x1aP.vrooli.react_component_library.v1.components.GetComponentVersionContentResponse\x12\xad\x01\n" +
+	"\x14ListComponentStories\x12I.vrooli.react_component_library.v1.components.ListComponentStoriesRequest\x1aJ.vrooli.react_component_library.v1.components.ListComponentStoriesResponse\x12\xa1\x01\n" +
 	"\x10ListDesignStyles\x12E.vrooli.react_component_library.v1.components.ListDesignStylesRequest\x1aF.vrooli.react_component_library.v1.components.ListDesignStylesResponse\x12\xa1\x01\n" +
 	"\x10ValidateStyleFit\x12E.vrooli.react_component_library.v1.components.ValidateStyleFitRequest\x1aF.vrooli.react_component_library.v1.components.ValidateStyleFitResponseBdZbgithub.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components;components_v1b\x06proto3"
 
@@ -3944,9 +3962,9 @@ var file_react_component_library_v1_components_components_proto_goTypes = []any{
 	(*ListComponentVersionsResponse)(nil),      // 38: vrooli.react_component_library.v1.components.ListComponentVersionsResponse
 	(*GetComponentVersionContentRequest)(nil),  // 39: vrooli.react_component_library.v1.components.GetComponentVersionContentRequest
 	(*GetComponentVersionContentResponse)(nil), // 40: vrooli.react_component_library.v1.components.GetComponentVersionContentResponse
-	(*ComponentExample)(nil),                   // 41: vrooli.react_component_library.v1.components.ComponentExample
-	(*ListComponentExamplesRequest)(nil),       // 42: vrooli.react_component_library.v1.components.ListComponentExamplesRequest
-	(*ListComponentExamplesResponse)(nil),      // 43: vrooli.react_component_library.v1.components.ListComponentExamplesResponse
+	(*ComponentStory)(nil),                     // 41: vrooli.react_component_library.v1.components.ComponentStory
+	(*ListComponentStoriesRequest)(nil),        // 42: vrooli.react_component_library.v1.components.ListComponentStoriesRequest
+	(*ListComponentStoriesResponse)(nil),       // 43: vrooli.react_component_library.v1.components.ListComponentStoriesResponse
 	(*DesignStyle)(nil),                        // 44: vrooli.react_component_library.v1.components.DesignStyle
 	(*ListDesignStylesRequest)(nil),            // 45: vrooli.react_component_library.v1.components.ListDesignStylesRequest
 	(*ListDesignStylesResponse)(nil),           // 46: vrooli.react_component_library.v1.components.ListDesignStylesResponse
@@ -3988,8 +4006,8 @@ var file_react_component_library_v1_components_components_proto_depIdxs = []int3
 	3,  // 29: vrooli.react_component_library.v1.components.ComponentDesignAffinity.affinity:type_name -> vrooli.react_component_library.v1.components.DesignAffinity
 	34, // 30: vrooli.react_component_library.v1.components.ListComponentVersionsResponse.versions:type_name -> vrooli.react_component_library.v1.components.ComponentVersion
 	34, // 31: vrooli.react_component_library.v1.components.GetComponentVersionContentResponse.version:type_name -> vrooli.react_component_library.v1.components.ComponentVersion
-	50, // 32: vrooli.react_component_library.v1.components.ComponentExample.indexed_at:type_name -> google.protobuf.Timestamp
-	41, // 33: vrooli.react_component_library.v1.components.ListComponentExamplesResponse.examples:type_name -> vrooli.react_component_library.v1.components.ComponentExample
+	50, // 32: vrooli.react_component_library.v1.components.ComponentStory.indexed_at:type_name -> google.protobuf.Timestamp
+	41, // 33: vrooli.react_component_library.v1.components.ListComponentStoriesResponse.stories:type_name -> vrooli.react_component_library.v1.components.ComponentStory
 	44, // 34: vrooli.react_component_library.v1.components.ListDesignStylesResponse.styles:type_name -> vrooli.react_component_library.v1.components.DesignStyle
 	4,  // 35: vrooli.react_component_library.v1.components.ValidateStyleFitResponse.kind:type_name -> vrooli.react_component_library.v1.components.StyleFitVerdictKind
 	3,  // 36: vrooli.react_component_library.v1.components.ValidateStyleFitResponse.affinity:type_name -> vrooli.react_component_library.v1.components.DesignAffinity
@@ -4005,7 +4023,7 @@ var file_react_component_library_v1_components_components_proto_depIdxs = []int3
 	32, // 46: vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentContent:input_type -> vrooli.react_component_library.v1.components.UpdateComponentContentRequest
 	37, // 47: vrooli.react_component_library.v1.components.ComponentsService.ListComponentVersions:input_type -> vrooli.react_component_library.v1.components.ListComponentVersionsRequest
 	39, // 48: vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent:input_type -> vrooli.react_component_library.v1.components.GetComponentVersionContentRequest
-	42, // 49: vrooli.react_component_library.v1.components.ComponentsService.ListComponentExamples:input_type -> vrooli.react_component_library.v1.components.ListComponentExamplesRequest
+	42, // 49: vrooli.react_component_library.v1.components.ComponentsService.ListComponentStories:input_type -> vrooli.react_component_library.v1.components.ListComponentStoriesRequest
 	45, // 50: vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles:input_type -> vrooli.react_component_library.v1.components.ListDesignStylesRequest
 	47, // 51: vrooli.react_component_library.v1.components.ComponentsService.ValidateStyleFit:input_type -> vrooli.react_component_library.v1.components.ValidateStyleFitRequest
 	9,  // 52: vrooli.react_component_library.v1.components.ComponentsService.ListComponents:output_type -> vrooli.react_component_library.v1.components.ListComponentsResponse
@@ -4020,7 +4038,7 @@ var file_react_component_library_v1_components_components_proto_depIdxs = []int3
 	33, // 61: vrooli.react_component_library.v1.components.ComponentsService.UpdateComponentContent:output_type -> vrooli.react_component_library.v1.components.UpdateComponentContentResponse
 	38, // 62: vrooli.react_component_library.v1.components.ComponentsService.ListComponentVersions:output_type -> vrooli.react_component_library.v1.components.ListComponentVersionsResponse
 	40, // 63: vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent:output_type -> vrooli.react_component_library.v1.components.GetComponentVersionContentResponse
-	43, // 64: vrooli.react_component_library.v1.components.ComponentsService.ListComponentExamples:output_type -> vrooli.react_component_library.v1.components.ListComponentExamplesResponse
+	43, // 64: vrooli.react_component_library.v1.components.ComponentsService.ListComponentStories:output_type -> vrooli.react_component_library.v1.components.ListComponentStoriesResponse
 	46, // 65: vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles:output_type -> vrooli.react_component_library.v1.components.ListDesignStylesResponse
 	48, // 66: vrooli.react_component_library.v1.components.ComponentsService.ValidateStyleFit:output_type -> vrooli.react_component_library.v1.components.ValidateStyleFitResponse
 	52, // [52:67] is the sub-list for method output_type

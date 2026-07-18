@@ -119,7 +119,7 @@ const (
 // The sweeper is read-only-then-single-write and idempotent (digest dedup).
 // It must always receive a cancellable process context and a bounded run
 // context so it cannot indefinitely starve foreground SQLite work.
-func startSelfHealthSweeper(ctx context.Context, repo selfhealthsnapshots.SnapshotRepository, build selfhealthsnapshots.RollupBuilder, status *selfhealthsnapshots.StatusStore) {
+func runSelfHealthSweeper(ctx context.Context, repo selfhealthsnapshots.SnapshotRepository, build selfhealthsnapshots.RollupBuilder, status *selfhealthsnapshots.StatusStore, observe func(selfhealthsnapshots.SweepStatus)) {
 	if isTruthy(os.Getenv("TEST_GENIE_SELFHEALTH_SWEEP_DISABLED")) {
 		log.Printf("[test-genie] self-health snapshot sweeper disabled via env")
 		return
@@ -137,12 +137,13 @@ func startSelfHealthSweeper(ctx context.Context, repo selfhealthsnapshots.Snapsh
 		RunTimeout:         timeout,
 		PersistenceTimeout: persistTimeout,
 		Status:             status,
+		Observe:            observe,
 	})
 	if err != nil {
 		log.Printf("[test-genie] self-health snapshot sweeper not started: %v", err)
 		return
 	}
-	go sweeper.RunLoop(ctx)
+	sweeper.RunLoop(ctx)
 }
 
 func randomizedDelay(max time.Duration) time.Duration {

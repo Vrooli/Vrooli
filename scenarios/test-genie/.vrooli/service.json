@@ -190,13 +190,15 @@
         "enabled": true,
         "required": false,
         "description": "Optional evidence-bound remediation executor using Test Genie's declared role-only profile.",
-      "config": {
-        "profiles": {
-          "reconcile": true,
-          "mode": "update_if_unmodified",
-          "sources": [".vrooli/agent-profiles/generation.json"]
-        }
-      },
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/generation.json"
+            ]
+          }
+        },
         "degraded_behavior": "Core test execution continues when agent-manager is unavailable; evidence-bound remediation returns a clear unavailable error."
       },
       "browser-automation-studio": {

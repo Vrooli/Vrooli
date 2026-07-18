@@ -66,6 +66,15 @@ The latest advisory sweep is exposed as an optional health dependency. A failed
 or timed-out sweep produces `degraded` while keeping HTTP 200/readiness true;
 a failed primary-store probe remains `unhealthy` with HTTP 503.
 
+Each completed advisory sweep emits one structured log line with its outcome,
+duration, input run cardinality, configured deadline, and SQLite pool
+`waits`, cumulative `wait`, `open`, and `in_use` values. Rising waits or wait
+duration while `in_use=1` identifies contention on the intentionally single
+runtime pool; investigate foreground work or defer analytics rather than
+raising the pool limit. Health itself uses its separate lifecycle connection,
+so an advisory timeout is visible as degraded state rather than a blocked
+health request.
+
 There is intentionally no separate `/live` or `/ready` endpoint. The canonical
 endpoint is already bounded, externally enforceable, and distinguishes a
 genuinely unavailable primary store from ordinary background analytics.
@@ -75,11 +84,21 @@ genuinely unavailable primary store from ordinary background analytics.
 Use `test-genie evidence-cutover plan` and `apply` only while Test Genie is
 stopped and its SQLite WAL has been checkpointed. Both commands require the
 scenario directory, coverage archive destination, database path, and database
-archive destination. `apply` additionally requires
-`--confirm ARCHIVE_TEST_GENIE_EVIDENCE`. The operation archives the old
-evidence tree and SQLite store, creates a fresh canonical SQLite store, verifies
-integrity, and writes receipts. Rehearse against a copied store first; a live
-cutover needs an approved maintenance window.
+archive destination. `plan` rejects queued/in-progress indexed runs and emits
+`required_free_bytes`, the minimum combined archive capacity; reserve extra
+space for the replacement database on its live volume. `apply` additionally
+requires `--confirm ARCHIVE_TEST_GENIE_EVIDENCE`. The operation archives the
+old evidence tree and SQLite store, creates a fresh canonical SQLite store,
+verifies integrity, and writes receipts.
+
+Operator procedure: record the expected outage window, stop Test Genie, wait
+for no active runs, checkpoint/remove WAL and SHM sidecars, copy the complete
+scenario evidence and SQLite store into an isolated rehearsal directory, run
+`plan`, compare its digests and free-space requirement to the copied inventory,
+then run the confirmed `apply`. Verify archive readability, replacement
+integrity, row counts, receipts, and rollback before requesting a separately
+approved live maintenance window. Never run this procedure against
+`scenarios/test-genie/data` during rehearsal.
 
 For an active incident only, set `TEST_GENIE_PROFILING_ENABLED=1` and a strong
 `TEST_GENIE_PROFILING_TOKEN`. A token-authenticated `POST /api/v1/admission/profile?kind=heap`

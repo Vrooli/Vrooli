@@ -324,8 +324,13 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 			a, b, recordA, okA, recordB, okB, descriptorA, hasDescriptorA, descriptorB, hasDescriptorB,
 		)
 		diff.Reasons = reasons
+		neutralAbsence := symmetricNeutralAbsence(recordA, okA, recordB, okB, descriptorA, descriptorB)
 
 		switch {
+		case neutralAbsence:
+			// Both runs deliberately lack evidence for the same optional surface.
+			// Keep the reason visible, but do not report a comparability failure.
+			diff.Verdict = verdictClean
 		case forceNotComparable:
 			diff.Verdict = verdictNotComparable
 		case !okB:
@@ -347,20 +352,26 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 			diff.Verdict = verdictClean
 		}
 
-		// A phase that is not applicable in BOTH runs is a matched, expected
-		// state carrying no regression signal (conditional phases simply don't
-		// apply to this scenario). Its per-phase diff stays visible with
-		// INAPPLICABLE reasons, but it must not worsen the run-level verdict —
-		// otherwise any scenario with a conditional phase can never compare
-		// better than not-comparable. Asymmetric applicability still worsens:
-		// the tested surface genuinely changed between the runs.
-		if !(descriptorInapplicable(descriptorA) && descriptorInapplicable(descriptorB)) {
+		// Symmetric optional absence is a matched state carrying no regression
+		// signal. Asymmetric absence still worsens: the tested surface changed.
+		if !neutralAbsence {
 			worst = worsen(worst, diff.Verdict)
 		}
 		out = append(out, diff)
 	}
 
 	return &runspb.CompareRunsResponse{Phases: out, Verdict: worst}
+}
+
+func symmetricNeutralAbsence(recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
+	if descriptorInapplicable(descriptorA) && descriptorInapplicable(descriptorB) {
+		return true
+	}
+	return okA && okB && recordA.Status == "provider_unavailable" && recordB.Status == "provider_unavailable" && providerUnavailableIsBestEffort(descriptorA) && providerUnavailableIsBestEffort(descriptorB)
+}
+
+func providerUnavailableIsBestEffort(descriptor *sharedruns.PhaseDescriptorSnapshot) bool {
+	return descriptor != nil && descriptor.Policy.Unavailable == "skip_without_failing"
 }
 
 // descriptorInapplicable reports whether a captured phase descriptor recorded

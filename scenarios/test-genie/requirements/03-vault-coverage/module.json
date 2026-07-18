@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Expose execution evidence, requirement evidence, and remediation state in the React operator experience.",
-    "last_validated_at": "2026-07-16T10:45:22-04:00",
+    "last_validated_at": "2026-07-16T21:36:29-04:00",
     "module_name": "Remediation Evidence Experience",
     "prd_ref": "OT-P1-003",
     "priority": "P1"

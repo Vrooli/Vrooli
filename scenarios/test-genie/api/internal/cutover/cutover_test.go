@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"test-genie/internal/persistence"
+	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/storage/sqlitedb"
 
 	_ "modernc.org/sqlite"
@@ -52,5 +53,15 @@ func TestApplyOfflineArchivesBothStores(t *testing.T) {
 	var rows int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_executions`).Scan(&rows); err != nil || rows != 0 {
 		t.Fatalf("replacement rows=%d err=%v", rows, err)
+	}
+}
+
+func TestPlanOfflineRejectsActiveRun(t *testing.T) {
+	dir := t.TempDir()
+	if err := sharedruns.NewIndex(dir).Append(sharedruns.RunRecord{RunID: "running", Status: sharedruns.StatusInProgress}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := PlanOffline(dir, filepath.Join(dir, "evidence-archive"), filepath.Join(dir, "live.db"), filepath.Join(dir, "archive.db")); err == nil {
+		t.Fatal("active run must reject cutover preflight")
 	}
 }

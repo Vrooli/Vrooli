@@ -38,7 +38,7 @@ type AgentSessionAttribution struct {
 	// Swarm Manager agent session ID when the run belongs to a session.
 	SessionId *string `protobuf:"bytes,5,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
 	// Swarm Manager session kind when the run belongs to a session.
-	// @constraint one of: empty, meta_orchestration, operating_mode_authoring, swarm_operations
+	// @constraint one of: empty, meta_orchestration, operating_mode_authoring, swarm_operations, workflow_authoring
 	SessionKind *string `protobuf:"bytes,6,opt,name=session_kind,json=sessionKind,proto3,oneof" json:"session_kind,omitempty"`
 	// Source marker for observability, such as session/<session_id>.
 	Source        *string `protobuf:"bytes,7,opt,name=source,proto3,oneof" json:"source,omitempty"`
@@ -674,7 +674,7 @@ type AgentSession struct {
 	// Human-readable title.
 	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	// Session kind.
-	// @constraint one of: meta_orchestration, operating_mode_authoring, swarm_operations
+	// @constraint one of: meta_orchestration, operating_mode_authoring, swarm_operations, workflow_authoring
 	Kind string `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
 	// Session lifecycle.
 	// @constraint one of: draft, starting, running, waiting_for_user, proposal_ready, applying, complete, failed, canceled
@@ -855,7 +855,7 @@ var File_swarm_manager_v1_domain_agent_session_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\n" +
-	"+swarm-manager/v1/domain/agent_session.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xa9\x03\n" +
+	"+swarm-manager/v1/domain/agent_session.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xbe\x03\n" +
 	"\x17AgentSessionAttribution\x12*\n" +
 	"\x04type\x18\x01 \x01(\tB\x16\xbaH\x13r\x11R\boperatorR\x05agentR\x04type\x12\x1a\n" +
 	"\x06run_id\x18\x02 \x01(\tH\x00R\x05runId\x88\x01\x01\x12\x1c\n" +
@@ -863,8 +863,8 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\vprofile_key\x18\x04 \x01(\tH\x02R\n" +
 	"profileKey\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"session_id\x18\x05 \x01(\tH\x03R\tsessionId\x88\x01\x01\x12o\n" +
-	"\fsession_kind\x18\x06 \x01(\tBG\xbaHDrBR\x00R\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsH\x04R\vsessionKind\x88\x01\x01\x12\x1b\n" +
+	"session_id\x18\x05 \x01(\tH\x03R\tsessionId\x88\x01\x01\x12\x83\x01\n" +
+	"\fsession_kind\x18\x06 \x01(\tB[\xbaHXrVR\x00R\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsR\x12workflow_authoringH\x04R\vsessionKind\x88\x01\x01\x12\x1b\n" +
 	"\x06source\x18\a \x01(\tH\x05R\x06source\x88\x01\x01B\t\n" +
 	"\a_run_idB\n" +
 	"\n" +
@@ -942,11 +942,11 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\f_activity_idB\t\n" +
 	"\a_run_idB\x12\n" +
 	"\x10_mutation_sourceB\x0e\n" +
-	"\f_attribution\"\xd5\a\n" +
+	"\f_attribution\"\xe9\a\n" +
 	"\fAgentSession\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1d\n" +
-	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12Y\n" +
-	"\x04kind\x18\x03 \x01(\tBE\xbaHBr@R\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsR\x04kind\x12\x7f\n" +
+	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12m\n" +
+	"\x04kind\x18\x03 \x01(\tBY\xbaHVrTR\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsR\x12workflow_authoringR\x04kind\x12\x7f\n" +
 	"\x06status\x18\x04 \x01(\tBg\xbaHdrbR\x05draftR\bstartingR\arunningR\x10waiting_for_userR\x0eproposal_readyR\bapplyingR\bcompleteR\x06failedR\bcanceledR\x06status\x12\"\n" +
 	"\bskill_id\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\askillId\x12\x1c\n" +
 	"\atask_id\x18\x06 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n" +

@@ -550,33 +550,37 @@ class GetComponentVersionContentResponse(_message.Message):
     content: str
     def __init__(self, version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., content: _Optional[str] = ...) -> None: ...
 
-class ComponentExample(_message.Message):
-    __slots__ = ("id", "component_id", "library_id", "version", "name", "display_name", "props_json", "setup_json", "expect_json", "source_path", "indexed_at")
+class ComponentStory(_message.Message):
+    __slots__ = ("id", "component_id", "library_id", "version", "schema_version", "kind", "title", "args_json", "environment_json", "stories_json", "contract_json", "source_path", "indexed_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
-    PROPS_JSON_FIELD_NUMBER: _ClassVar[int]
-    SETUP_JSON_FIELD_NUMBER: _ClassVar[int]
-    EXPECT_JSON_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    ARGS_JSON_FIELD_NUMBER: _ClassVar[int]
+    ENVIRONMENT_JSON_FIELD_NUMBER: _ClassVar[int]
+    STORIES_JSON_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_JSON_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     INDEXED_AT_FIELD_NUMBER: _ClassVar[int]
     id: str
     component_id: str
     library_id: str
     version: str
-    name: str
-    display_name: str
-    props_json: str
-    setup_json: str
-    expect_json: str
+    schema_version: int
+    kind: str
+    title: str
+    args_json: str
+    environment_json: str
+    stories_json: str
+    contract_json: str
     source_path: str
     indexed_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., name: _Optional[str] = ..., display_name: _Optional[str] = ..., props_json: _Optional[str] = ..., setup_json: _Optional[str] = ..., expect_json: _Optional[str] = ..., source_path: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., schema_version: _Optional[int] = ..., kind: _Optional[str] = ..., title: _Optional[str] = ..., args_json: _Optional[str] = ..., environment_json: _Optional[str] = ..., stories_json: _Optional[str] = ..., contract_json: _Optional[str] = ..., source_path: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
-class ListComponentExamplesRequest(_message.Message):
+class ListComponentStoriesRequest(_message.Message):
     __slots__ = ("component_id", "version", "limit")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -586,11 +590,11 @@ class ListComponentExamplesRequest(_message.Message):
     limit: int
     def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
 
-class ListComponentExamplesResponse(_message.Message):
-    __slots__ = ("examples",)
-    EXAMPLES_FIELD_NUMBER: _ClassVar[int]
-    examples: _containers.RepeatedCompositeFieldContainer[ComponentExample]
-    def __init__(self, examples: _Optional[_Iterable[_Union[ComponentExample, _Mapping]]] = ...) -> None: ...
+class ListComponentStoriesResponse(_message.Message):
+    __slots__ = ("stories",)
+    STORIES_FIELD_NUMBER: _ClassVar[int]
+    stories: _containers.RepeatedCompositeFieldContainer[ComponentStory]
+    def __init__(self, stories: _Optional[_Iterable[_Union[ComponentStory, _Mapping]]] = ...) -> None: ...
 
 class DesignStyle(_message.Message):
     __slots__ = ("id", "name", "tags", "supports")

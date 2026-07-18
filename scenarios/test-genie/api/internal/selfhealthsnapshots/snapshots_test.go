@@ -209,3 +209,34 @@ func TestSweeperRunLoopBoundsAdvisoryBuild(t *testing.T) {
 		t.Fatal("advisory build exceeded its configured deadline")
 	}
 }
+
+func TestSweeperPublishesTimedOutStatusToObserver(t *testing.T) {
+	repo := newTestRepo(t)
+	observed := make(chan SweepStatus, 1)
+	sweeper, err := NewSweeper(SweeperConfig{
+		Repository: repo,
+		Build: func(ctx context.Context) (Rollup, error) {
+			<-ctx.Done()
+			return Rollup{}, ctx.Err()
+		},
+		Interval:   time.Hour,
+		RunTimeout: 20 * time.Millisecond,
+		Observe: func(status SweepStatus) {
+			observed <- status
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go sweeper.RunLoop(ctx)
+	select {
+	case status := <-observed:
+		if status.Outcome != "timed_out" || status.Deadline != 20*time.Millisecond {
+			t.Fatalf("status = %+v", status)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed-out sweep status was not observed")
+	}
+}

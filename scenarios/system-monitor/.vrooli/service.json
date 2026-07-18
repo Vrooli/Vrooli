@@ -186,11 +186,11 @@
         "required": true,
         "description": "Agent orchestration layer for investigations and anomaly checks",
         "config": {
-          "profiles": {
+          "declarations": {
             "reconcile": true,
-            "mode": "update_if_unmodified",
+            "profileMode": "update_if_unmodified",
             "sources": [
-              ".vrooli/agent-profiles/default.json"
+              ".vrooli/agent-manager/default.json"
             ]
           }
         }

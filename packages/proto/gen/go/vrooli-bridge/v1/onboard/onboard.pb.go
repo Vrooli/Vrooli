@@ -292,8 +292,13 @@ type OnboardingOp struct {
 	// lan, tunnel, or manual: the endpoint selection context used for validation
 	// and the mandatory candidate admission probe.
 	ReachabilityMode string `protobuf:"bytes,20,opt,name=reachability_mode,json=reachabilityMode,proto3" json:"reachability_mode,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Composed from the immutable attempt correlated to this operation. These
+	// identifiers are not copied into the operation table; the attempt remains
+	// the owner of Machine enrollment history.
+	MachineId           string `protobuf:"bytes,21,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	EnrollmentAttemptId string `protobuf:"bytes,22,opt,name=enrollment_attempt_id,json=enrollmentAttemptId,proto3" json:"enrollment_attempt_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *OnboardingOp) Reset() {
@@ -466,6 +471,20 @@ func (x *OnboardingOp) GetReachabilityMode() string {
 	return ""
 }
 
+func (x *OnboardingOp) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *OnboardingOp) GetEnrollmentAttemptId() string {
+	if x != nil {
+		return x.EnrollmentAttemptId
+	}
+	return ""
+}
+
 // OnboardingStepEvent is one entry in an op's append-only progress history. It
 // captures both the orchestrator's own phase milestones (step_id like
 // "ssh-setup", "push-script", "sync-tree" (working-tree mode), "verify-online")
@@ -634,8 +653,16 @@ type StartOnboardingRequest struct {
 	// default; tunnel is selected only by the owner for segmented/off-LAN nodes;
 	// manual retains managed-DNS/VPN deployments. Every mode is remotely probed.
 	ReachabilityMode string `protobuf:"bytes,20,opt,name=reachability_mode,json=reachabilityMode,proto3" json:"reachability_mode,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Durable operator-intent Machine that owns this enrollment. First-class
+	// clients create it before contacting SSH, so retries and paired failures
+	// retain a stable identity. Empty is accepted only for legacy callers during
+	// the in-flight server cutover.
+	MachineId string `protobuf:"bytes,21,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	// A retry must name the terminal immutable attempt it supersedes. The same
+	// Machine remains durable; a new linked attempt and correlation are created.
+	RetryOfEnrollmentAttemptId string `protobuf:"bytes,22,opt,name=retry_of_enrollment_attempt_id,json=retryOfEnrollmentAttemptId,proto3" json:"retry_of_enrollment_attempt_id,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *StartOnboardingRequest) Reset() {
@@ -808,6 +835,20 @@ func (x *StartOnboardingRequest) GetReachabilityMode() string {
 	return ""
 }
 
+func (x *StartOnboardingRequest) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *StartOnboardingRequest) GetRetryOfEnrollmentAttemptId() string {
+	if x != nil {
+		return x.RetryOfEnrollmentAttemptId
+	}
+	return ""
+}
+
 type StartOnboardingResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The server-owned durable op id to wait on / re-attach by. Empty on a
@@ -818,11 +859,14 @@ type StartOnboardingResponse struct {
 	DryRun bool `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	// Echo of the validated SSH target so the caller can confirm what would be
 	// onboarded.
-	Host          string `protobuf:"bytes,3,opt,name=host,proto3" json:"host,omitempty"`
-	Port          int32  `protobuf:"varint,4,opt,name=port,proto3" json:"port,omitempty"`
-	User          string `protobuf:"bytes,5,opt,name=user,proto3" json:"user,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Host string `protobuf:"bytes,3,opt,name=host,proto3" json:"host,omitempty"`
+	Port int32  `protobuf:"varint,4,opt,name=port,proto3" json:"port,omitempty"`
+	User string `protobuf:"bytes,5,opt,name=user,proto3" json:"user,omitempty"`
+	// Set when this onboarding was started through the Machine enrollment path.
+	MachineId           string `protobuf:"bytes,6,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	EnrollmentAttemptId string `protobuf:"bytes,7,opt,name=enrollment_attempt_id,json=enrollmentAttemptId,proto3" json:"enrollment_attempt_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *StartOnboardingResponse) Reset() {
@@ -886,6 +930,20 @@ func (x *StartOnboardingResponse) GetPort() int32 {
 func (x *StartOnboardingResponse) GetUser() string {
 	if x != nil {
 		return x.User
+	}
+	return ""
+}
+
+func (x *StartOnboardingResponse) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *StartOnboardingResponse) GetEnrollmentAttemptId() string {
+	if x != nil {
+		return x.EnrollmentAttemptId
 	}
 	return ""
 }
@@ -1368,7 +1426,7 @@ var File_vrooli_bridge_v1_onboard_onboard_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\n" +
-	"&vrooli-bridge/v1/onboard/onboard.proto\x12\x1fvrooli.vrooli_bridge.v1.onboard\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\x06\n" +
+	"&vrooli-bridge/v1/onboard/onboard.proto\x12\x1fvrooli.vrooli_bridge.v1.onboard\x1a\x1fgoogle/protobuf/timestamp.proto\"\x89\a\n" +
 	"\fOnboardingOp\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x12\n" +
@@ -1394,7 +1452,10 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\x13working_tree_digest\x18\x11 \x01(\tR\x11workingTreeDigest\x12%\n" +
 	"\x0efailure_detail\x18\x12 \x01(\tR\rfailureDetail\x12*\n" +
 	"\x11control_plane_url\x18\x13 \x01(\tR\x0fcontrolPlaneUrl\x12+\n" +
-	"\x11reachability_mode\x18\x14 \x01(\tR\x10reachabilityMode\"\x81\x02\n" +
+	"\x11reachability_mode\x18\x14 \x01(\tR\x10reachabilityMode\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x15 \x01(\tR\tmachineId\x122\n" +
+	"\x15enrollment_attempt_id\x18\x16 \x01(\tR\x13enrollmentAttemptId\"\x81\x02\n" +
 	"\x13OnboardingStepEvent\x12\x13\n" +
 	"\x05op_id\x18\x01 \x01(\tR\x04opId\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12\x17\n" +
@@ -1402,7 +1463,7 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\x0e25.vrooli.vrooli_bridge.v1.onboard.OnboardingStepStatusR\x06status\x12\x16\n" +
 	"\x06detail\x18\x05 \x01(\tR\x06detail\x129\n" +
 	"\n" +
-	"emitted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\temittedAt\"\x8f\x06\n" +
+	"emitted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\temittedAt\"\xf2\x06\n" +
 	"\x16StartOnboardingRequest\x12\x12\n" +
 	"\x04host\x18\x01 \x01(\tR\x04host\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12\x12\n" +
@@ -1426,13 +1487,19 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\x10include_optional\x18\x12 \x01(\bR\x0fincludeOptional\x12L\n" +
 	"\vsource_mode\x18\x13 \x01(\x0e2+.vrooli.vrooli_bridge.v1.onboard.SourceModeR\n" +
 	"sourceMode\x12+\n" +
-	"\x11reachability_mode\x18\x14 \x01(\tR\x10reachabilityMode\"\x83\x01\n" +
+	"\x11reachability_mode\x18\x14 \x01(\tR\x10reachabilityMode\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x15 \x01(\tR\tmachineId\x12B\n" +
+	"\x1eretry_of_enrollment_attempt_id\x18\x16 \x01(\tR\x1aretryOfEnrollmentAttemptId\"\xd6\x01\n" +
 	"\x17StartOnboardingResponse\x12\x13\n" +
 	"\x05op_id\x18\x01 \x01(\tR\x04opId\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x12\n" +
 	"\x04host\x18\x03 \x01(\tR\x04host\x12\x12\n" +
 	"\x04port\x18\x04 \x01(\x05R\x04port\x12\x12\n" +
-	"\x04user\x18\x05 \x01(\tR\x04user\"&\n" +
+	"\x04user\x18\x05 \x01(\tR\x04user\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x06 \x01(\tR\tmachineId\x122\n" +
+	"\x15enrollment_attempt_id\x18\a \x01(\tR\x13enrollmentAttemptId\"&\n" +
 	"\x14GetOnboardingRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\xa4\x01\n" +
 	"\x15GetOnboardingResponse\x12=\n" +

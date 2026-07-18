@@ -206,6 +206,56 @@
         "fix_class": "manual",
         "reason": "Selector registry choices depend on the UI component contract."
       },
+      "workflow.experience_profile_unavailable": {
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "An adopted contract cannot be checked until Experience Manager can compile and serve its canonical profile."
+      },
+      "workflow.experience_route_undeclared": {
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "A tested adopted route must have one authoritative page declaration."
+      },
+      "workflow.experience_region_uncovered": {
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "browser-automation-studio",
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Required declared surfaces need workflow assertions through their authored runtime bindings."
+      },
+      "workflow.experience_lifecycle_uncovered": {
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "browser-automation-studio",
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Adopted async surfaces need workflow evidence for both loading and a declared terminal lifecycle state."
+      },
       "workflow.subflow_unresolved": {
         "local_level_impact": "L2",
         "global_impact": "foundation_blocker",

@@ -773,6 +773,94 @@ func (x *RevokeNodeResponse) GetNode() *Node {
 	return nil
 }
 
+type RemoveNodeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveNodeRequest) Reset() {
+	*x = RemoveNodeRequest{}
+	mi := &file_vrooli_bridge_v1_registry_registry_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveNodeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveNodeRequest) ProtoMessage() {}
+
+func (x *RemoveNodeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_registry_registry_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveNodeRequest.ProtoReflect.Descriptor instead.
+func (*RemoveNodeRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_registry_registry_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RemoveNodeRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type RemoveNodeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RemovedNodeId string                 `protobuf:"bytes,1,opt,name=removed_node_id,json=removedNodeId,proto3" json:"removed_node_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveNodeResponse) Reset() {
+	*x = RemoveNodeResponse{}
+	mi := &file_vrooli_bridge_v1_registry_registry_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveNodeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveNodeResponse) ProtoMessage() {}
+
+func (x *RemoveNodeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_registry_registry_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveNodeResponse.ProtoReflect.Descriptor instead.
+func (*RemoveNodeResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_registry_registry_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RemoveNodeResponse) GetRemovedNodeId() string {
+	if x != nil {
+		return x.RemovedNodeId
+	}
+	return ""
+}
+
 var File_vrooli_bridge_v1_registry_registry_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_registry_registry_proto_rawDesc = "" +
@@ -826,14 +914,18 @@ const file_vrooli_bridge_v1_registry_registry_proto_rawDesc = "" +
 	"\x11RevokeNodeRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"P\n" +
 	"\x12RevokeNodeResponse\x12:\n" +
-	"\x04node\x18\x01 \x01(\v2&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node*\x91\x01\n" +
+	"\x04node\x18\x01 \x01(\v2&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node\"#\n" +
+	"\x11RemoveNodeRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"<\n" +
+	"\x12RemoveNodeResponse\x12&\n" +
+	"\x0fremoved_node_id\x18\x01 \x01(\tR\rremovedNodeId*\x91\x01\n" +
 	"\n" +
 	"NodeStatus\x12\x1b\n" +
 	"\x17NODE_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13NODE_STATUS_OFFLINE\x10\x01\x12\x16\n" +
 	"\x12NODE_STATUS_ONLINE\x10\x02\x12\x1c\n" +
 	"\x18NODE_STATUS_NEEDS_UPDATE\x10\x03\x12\x17\n" +
-	"\x13NODE_STATUS_REVOKED\x10\x042\xec\x04\n" +
+	"\x13NODE_STATUS_REVOKED\x10\x042\xe5\x05\n" +
 	"\x13NodeRegistryService\x12}\n" +
 	"\fRegisterNode\x125.vrooli.vrooli_bridge.v1.registry.RegisterNodeRequest\x1a6.vrooli.vrooli_bridge.v1.registry.RegisterNodeResponse\x12t\n" +
 	"\tListNodes\x122.vrooli.vrooli_bridge.v1.registry.ListNodesRequest\x1a3.vrooli.vrooli_bridge.v1.registry.ListNodesResponse\x12n\n" +
@@ -841,7 +933,9 @@ const file_vrooli_bridge_v1_registry_registry_proto_rawDesc = "" +
 	"\n" +
 	"UpdateNode\x123.vrooli.vrooli_bridge.v1.registry.UpdateNodeRequest\x1a4.vrooli.vrooli_bridge.v1.registry.UpdateNodeResponse\x12w\n" +
 	"\n" +
-	"RevokeNode\x123.vrooli.vrooli_bridge.v1.registry.RevokeNodeRequest\x1a4.vrooli.vrooli_bridge.v1.registry.RevokeNodeResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry;registry_v1b\x06proto3"
+	"RevokeNode\x123.vrooli.vrooli_bridge.v1.registry.RevokeNodeRequest\x1a4.vrooli.vrooli_bridge.v1.registry.RevokeNodeResponse\x12w\n" +
+	"\n" +
+	"RemoveNode\x123.vrooli.vrooli_bridge.v1.registry.RemoveNodeRequest\x1a4.vrooli.vrooli_bridge.v1.registry.RemoveNodeResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry;registry_v1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_registry_registry_proto_rawDescOnce sync.Once
@@ -856,7 +950,7 @@ func file_vrooli_bridge_v1_registry_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_bridge_v1_registry_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vrooli_bridge_v1_registry_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_vrooli_bridge_v1_registry_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_vrooli_bridge_v1_registry_registry_proto_goTypes = []any{
 	(NodeStatus)(0),               // 0: vrooli.vrooli_bridge.v1.registry.NodeStatus
 	(*Node)(nil),                  // 1: vrooli.vrooli_bridge.v1.registry.Node
@@ -870,14 +964,16 @@ var file_vrooli_bridge_v1_registry_registry_proto_goTypes = []any{
 	(*UpdateNodeResponse)(nil),    // 9: vrooli.vrooli_bridge.v1.registry.UpdateNodeResponse
 	(*RevokeNodeRequest)(nil),     // 10: vrooli.vrooli_bridge.v1.registry.RevokeNodeRequest
 	(*RevokeNodeResponse)(nil),    // 11: vrooli.vrooli_bridge.v1.registry.RevokeNodeResponse
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(*RemoveNodeRequest)(nil),     // 12: vrooli.vrooli_bridge.v1.registry.RemoveNodeRequest
+	(*RemoveNodeResponse)(nil),    // 13: vrooli.vrooli_bridge.v1.registry.RemoveNodeResponse
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
 }
 var file_vrooli_bridge_v1_registry_registry_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_bridge.v1.registry.Node.status:type_name -> vrooli.vrooli_bridge.v1.registry.NodeStatus
-	12, // 1: vrooli.vrooli_bridge.v1.registry.Node.created_at:type_name -> google.protobuf.Timestamp
-	12, // 2: vrooli.vrooli_bridge.v1.registry.Node.updated_at:type_name -> google.protobuf.Timestamp
-	12, // 3: vrooli.vrooli_bridge.v1.registry.Node.last_seen_at:type_name -> google.protobuf.Timestamp
-	12, // 4: vrooli.vrooli_bridge.v1.registry.Node.revoked_at:type_name -> google.protobuf.Timestamp
+	14, // 1: vrooli.vrooli_bridge.v1.registry.Node.created_at:type_name -> google.protobuf.Timestamp
+	14, // 2: vrooli.vrooli_bridge.v1.registry.Node.updated_at:type_name -> google.protobuf.Timestamp
+	14, // 3: vrooli.vrooli_bridge.v1.registry.Node.last_seen_at:type_name -> google.protobuf.Timestamp
+	14, // 4: vrooli.vrooli_bridge.v1.registry.Node.revoked_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: vrooli.vrooli_bridge.v1.registry.RegisterNodeResponse.node:type_name -> vrooli.vrooli_bridge.v1.registry.Node
 	1,  // 6: vrooli.vrooli_bridge.v1.registry.ListNodesResponse.nodes:type_name -> vrooli.vrooli_bridge.v1.registry.Node
 	1,  // 7: vrooli.vrooli_bridge.v1.registry.GetNodeResponse.node:type_name -> vrooli.vrooli_bridge.v1.registry.Node
@@ -888,13 +984,15 @@ var file_vrooli_bridge_v1_registry_registry_proto_depIdxs = []int32{
 	6,  // 12: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.GetNode:input_type -> vrooli.vrooli_bridge.v1.registry.GetNodeRequest
 	8,  // 13: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.UpdateNode:input_type -> vrooli.vrooli_bridge.v1.registry.UpdateNodeRequest
 	10, // 14: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RevokeNode:input_type -> vrooli.vrooli_bridge.v1.registry.RevokeNodeRequest
-	3,  // 15: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RegisterNode:output_type -> vrooli.vrooli_bridge.v1.registry.RegisterNodeResponse
-	5,  // 16: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.ListNodes:output_type -> vrooli.vrooli_bridge.v1.registry.ListNodesResponse
-	7,  // 17: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.GetNode:output_type -> vrooli.vrooli_bridge.v1.registry.GetNodeResponse
-	9,  // 18: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.UpdateNode:output_type -> vrooli.vrooli_bridge.v1.registry.UpdateNodeResponse
-	11, // 19: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RevokeNode:output_type -> vrooli.vrooli_bridge.v1.registry.RevokeNodeResponse
-	15, // [15:20] is the sub-list for method output_type
-	10, // [10:15] is the sub-list for method input_type
+	12, // 15: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RemoveNode:input_type -> vrooli.vrooli_bridge.v1.registry.RemoveNodeRequest
+	3,  // 16: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RegisterNode:output_type -> vrooli.vrooli_bridge.v1.registry.RegisterNodeResponse
+	5,  // 17: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.ListNodes:output_type -> vrooli.vrooli_bridge.v1.registry.ListNodesResponse
+	7,  // 18: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.GetNode:output_type -> vrooli.vrooli_bridge.v1.registry.GetNodeResponse
+	9,  // 19: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.UpdateNode:output_type -> vrooli.vrooli_bridge.v1.registry.UpdateNodeResponse
+	11, // 20: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RevokeNode:output_type -> vrooli.vrooli_bridge.v1.registry.RevokeNodeResponse
+	13, // 21: vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RemoveNode:output_type -> vrooli.vrooli_bridge.v1.registry.RemoveNodeResponse
+	16, // [16:22] is the sub-list for method output_type
+	10, // [10:16] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
 	10, // [10:10] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name
@@ -911,7 +1009,7 @@ func file_vrooli_bridge_v1_registry_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_registry_registry_proto_rawDesc), len(file_vrooli_bridge_v1_registry_registry_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

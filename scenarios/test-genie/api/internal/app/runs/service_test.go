@@ -328,15 +328,37 @@ func TestCompareRunsSymmetricInapplicableDoesNotPoisonOverallVerdict(t *testing.
 	for _, diff := range resp.Msg.GetPhases() {
 		byPhase[diff.GetPhase()] = diff
 	}
-	// The inapplicable phase remains visible and individually not-comparable.
+	// The inapplicable phase remains visible with its reason but is a neutral
+	// matched state, not a comparability failure.
 	assertComparisonReason(t, byPhase["ai-conformance"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_INAPPLICABLE)
-	if got := byPhase["ai-conformance"].GetVerdict(); got != verdictNotComparable {
-		t.Errorf("ai-conformance phase verdict: want %s, got %s", verdictNotComparable, got)
+	if got := byPhase["ai-conformance"].GetVerdict(); got != verdictClean {
+		t.Errorf("ai-conformance phase verdict: want %s, got %s", verdictClean, got)
 	}
 	// The overall verdict rolls up from the comparable phases only.
 	if got := resp.Msg.GetVerdict(); got != verdictPreexisting {
 		t.Errorf("overall verdict: want %s, got %s", verdictPreexisting, got)
 	}
+}
+
+func TestCompareRunsSymmetricBestEffortProviderUnavailableIsNeutral(t *testing.T) {
+	svc, root := newTestService(t)
+	for _, runID := range []string{"base", "cur"} {
+		seedRecord(t, root, sharedruns.RunRecord{RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, Phases: []sharedruns.PhaseRecord{{Name: "architecture", Status: "provider_unavailable"}}})
+		descriptor := capturedPhase("architecture", "Architecture")
+		descriptor.Policy.Unavailable = "skip_without_failing"
+		seedDescriptorSnapshot(t, root, runID, descriptor)
+	}
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if got := resp.Msg.GetVerdict(); got != verdictClean {
+		t.Fatalf("overall verdict: want %s, got %s", verdictClean, got)
+	}
+	if got := resp.Msg.GetPhases()[0].GetVerdict(); got != verdictClean {
+		t.Fatalf("phase verdict: want %s, got %s", verdictClean, got)
+	}
+	assertComparisonReason(t, resp.Msg.GetPhases()[0], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE)
 }
 
 // Asymmetric applicability (applicable in one run, not applicable in the

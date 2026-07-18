@@ -27,7 +27,7 @@ const (
 type ListAgentSessionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional session kind filter.
-	// @constraint one of: empty, meta_orchestration, operating_mode_authoring, swarm_operations
+	// @constraint one of: empty, meta_orchestration, swarm_operations, workflow_authoring
 	Kind *string `protobuf:"bytes,1,opt,name=kind,proto3,oneof" json:"kind,omitempty"`
 	// Optional session status filter.
 	// @constraint one of: empty, draft, starting, running, waiting_for_user, proposal_ready, applying, complete, failed, canceled
@@ -237,7 +237,7 @@ func (x *GetAgentSessionResponse) GetSession() *domain.AgentSession {
 type CreateAgentSessionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Session kind.
-	// @constraint one of: meta_orchestration, operating_mode_authoring, swarm_operations
+	// @constraint one of: meta_orchestration, swarm_operations, workflow_authoring
 	Kind string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
 	// Human-readable title.
 	Title         string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
@@ -1659,9 +1659,9 @@ var File_swarm_manager_v1_api_agent_session_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/api/agent_session.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\"\xeb\x02\n" +
-	"\x18ListAgentSessionsRequest\x12`\n" +
-	"\x04kind\x18\x01 \x01(\tBG\xbaHDrBR\x00R\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsH\x00R\x04kind\x88\x01\x01\x12\x86\x01\n" +
+	"(swarm-manager/v1/api/agent_session.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\"\xe5\x02\n" +
+	"\x18ListAgentSessionsRequest\x12Z\n" +
+	"\x04kind\x18\x01 \x01(\tBA\xbaH>r<R\x00R\x12meta_orchestrationR\x10swarm_operationsR\x12workflow_authoringH\x00R\x04kind\x88\x01\x01\x12\x86\x01\n" +
 	"\x06status\x18\x02 \x01(\tBi\xbaHfrdR\x00R\x05draftR\bstartingR\arunningR\x10waiting_for_userR\x0eproposal_readyR\bapplyingR\bcompleteR\x06failedR\bcanceledH\x01R\x06status\x88\x01\x01\x12\x1f\n" +
 	"\vactive_only\x18\x03 \x01(\bR\n" +
 	"activeOnly\x12%\n" +
@@ -1676,9 +1676,9 @@ const file_swarm_manager_v1_api_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"S\n" +
 	"\x17GetAgentSessionResponse\x128\n" +
-	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xa1\x01\n" +
-	"\x19CreateAgentSessionRequest\x12Y\n" +
-	"\x04kind\x18\x01 \x01(\tBE\xbaHBr@R\x12meta_orchestrationR\x18operating_mode_authoringR\x10swarm_operationsR\x04kind\x12\x1d\n" +
+	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\x9b\x01\n" +
+	"\x19CreateAgentSessionRequest\x12S\n" +
+	"\x04kind\x18\x01 \x01(\tB?\xbaH<r:R\x12meta_orchestrationR\x10swarm_operationsR\x12workflow_authoringR\x04kind\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05titleJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"V\n" +
 	"\x1aCreateAgentSessionResponse\x128\n" +
 	"\asession\x18\x01 \x01(\v2\x1e.swarm_manager.v1.AgentSessionR\asession\"\xb5\x02\n" +

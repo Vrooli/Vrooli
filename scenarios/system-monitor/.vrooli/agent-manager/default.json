@@ -1,4 +1,5 @@
 {
+  "schemaVersion": "agent-profile/v1",
   "name": "system-monitor-investigator",
   "profileKey": "system-monitor/default",
   "description": "Agent profile for system-monitor investigations",

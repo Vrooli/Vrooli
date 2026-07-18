@@ -208,6 +208,13 @@ message OnboardingOp {
   // lan, tunnel, or manual: the endpoint selection context used for validation
   // and the mandatory candidate admission probe.
   string reachability_mode = 20;
+
+  // Composed from the immutable attempt correlated to this operation. These
+  // identifiers are not copied into the operation table; the attempt remains
+  // the owner of Machine enrollment history.
+  string machine_id = 21;
+  string enrollment_attempt_id = 22;
+
 }
 
 // OnboardingStepEvent is one entry in an op's append-only progress history. It
@@ -370,6 +377,15 @@ message StartOnboardingRequest {
   // default; tunnel is selected only by the owner for segmented/off-LAN nodes;
   // manual retains managed-DNS/VPN deployments. Every mode is remotely probed.
   string reachability_mode = 20;
+
+  // Durable operator-intent Machine that owns this enrollment. First-class
+  // clients create it before contacting SSH, so retries and paired failures
+  // retain a stable identity. Empty is accepted only for legacy callers during
+  // the in-flight server cutover.
+  string machine_id = 21;
+  // A retry must name the terminal immutable attempt it supersedes. The same
+  // Machine remains durable; a new linked attempt and correlation are created.
+  string retry_of_enrollment_attempt_id = 22;
 }
 
 message StartOnboardingResponse {
@@ -386,6 +402,10 @@ message StartOnboardingResponse {
   string host = 3;
   int32 port = 4;
   string user = 5;
+
+  // Set when this onboarding was started through the Machine enrollment path.
+  string machine_id = 6;
+  string enrollment_attempt_id = 7;
 }
 
 message GetOnboardingRequest {

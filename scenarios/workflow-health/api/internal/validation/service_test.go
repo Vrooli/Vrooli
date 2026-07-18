@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -35,6 +36,20 @@ func TestEngineFindsWorkflowMaturityGates(t *testing.T) {
 		require.NotEmpty(t, f.Remediation)
 		require.NotEmpty(t, f.Severity)
 	}
+}
+
+func TestEngineAllowsSelectorsDeclaredByExperienceBindings(t *testing.T) {
+	root := makeValidationFixture(t)
+	profile := &readinessProfile{Pages: []readinessPage{{Regions: []readinessRegion{{}}}}}
+	profile.Pages[0].Regions[0].Binding.Selector = "[data-testid='project-list']"
+	engine := NewEngine()
+	engine.ReadinessFetcher = func(context.Context, string) (*readinessProfile, error) {
+		return profile, nil
+	}
+
+	report, err := engine.ValidateScenario(t.Context(), "", root)
+	require.NoError(t, err)
+	require.NotContains(t, findingCodes(report.Findings), CodeSelectorUnregistered)
 }
 
 func TestBuildMaturityAssessmentUsesWorkflowSpec(t *testing.T) {

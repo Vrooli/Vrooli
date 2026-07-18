@@ -16,9 +16,10 @@ match, stop and record what you saw — a mismatch here is the first evidence
 that the OS seam behaves differently in the field than in the cross-compile
 gate.
 
-This checklist hands off to the **mac-mini bridge-onboarding plan**: once
-these steps pass on a Mac reachable through the bridge, wire that host as a
-standing runner so protected runs can target macOS on demand.
+This checklist is one required part of the macOS setup qualification ladder.
+Once it passes on a Mac reachable through Bridge, record the evidence in the
+canonical [platform support matrix](../../../../docs/reference/platform-support.md)
+before treating protected macOS runs as supported.
 
 ## Prerequisites
 
@@ -189,13 +190,14 @@ confirm the SandboxLauncher path works against a live macOS sandbox:
 
 Log outcomes with `swarm-manager records create` (or file defects via the
 report-bug skill). Capture, for each step: the exact command, the observed
-signature, and pass/fail. A green run across Steps 1–6 promotes macOS from
-"compiles + unit-verified" to "field-verified" in
-[`PORTABILITY_AUDIT.md`](../internal/PORTABILITY_AUDIT.md); update the
-"Real-Mac shakeout" deferred item there when that happens.
+signature, and pass/fail. A green run across Steps 1–6 supplies the Sandbox
+portion of real-Mac evidence; it does not by itself qualify all macOS setup or
+Bridge capabilities. Update [`PORTABILITY_AUDIT.md`](../internal/PORTABILITY_AUDIT.md)
+and the [platform support matrix](../../../../docs/reference/platform-support.md)
+with the earned tier.
 
 ## Handoff
 
-On a green run, proceed to the **mac-mini bridge-onboarding plan** to
-register this Mac as a standing bridge-reachable runner, so protected runs
-can be routed to macOS without a manual operator at the keyboard.
+On a green run, complete the remaining macOS setup and Bridge lifecycle ladder
+and record its evidence before registering this Mac as a standing
+bridge-reachable runner.

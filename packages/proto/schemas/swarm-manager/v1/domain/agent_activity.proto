@@ -40,7 +40,8 @@ message AgentActivity {
       "initiative_review",
       "meta_orchestration",
       "operating_mode_authoring",
-      "swarm_operations"
+      "swarm_operations",
+      "workflow_authoring"
     ]
   }];
   string interaction_type = 8 [(buf.validate.field).string = {

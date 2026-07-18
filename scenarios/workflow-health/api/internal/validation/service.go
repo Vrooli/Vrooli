@@ -12,11 +12,12 @@ import (
 )
 
 type Engine struct {
-	Fixers *FixRegistry
+	Fixers           *FixRegistry
+	ReadinessFetcher ReadinessProfileFetcher
 }
 
 func NewEngine() *Engine {
-	return &Engine{Fixers: NewFixRegistry()}
+	return &Engine{Fixers: NewFixRegistry(), ReadinessFetcher: newExperienceManagerFetcher()}
 }
 
 func (e *Engine) ValidateScenario(ctx context.Context, scenario, path string) (Report, error) {
@@ -34,7 +35,7 @@ func (e *Engine) ValidateScenario(ctx context.Context, scenario, path string) (R
 		TargetPath: target,
 		Catalog:    catalog,
 	}
-	report.Findings = e.evaluate(target, catalog)
+	report.Findings = e.evaluate(ctx, target, catalog)
 	sortFindings(report.Findings)
 	return report, nil
 }
@@ -75,7 +76,7 @@ func resolveTarget(scenario, path string) (string, error) {
 	return "", fmt.Errorf("scenario %q not found", scenario)
 }
 
-func (e *Engine) evaluate(target string, catalog *workflows.ScenarioWorkflowCatalog) []Finding {
+func (e *Engine) evaluate(ctx context.Context, target string, catalog *workflows.ScenarioWorkflowCatalog) []Finding {
 	var findings []Finding
 	if len(catalog.Assets) == 0 {
 		findings = append(findings, finding(CodeSurfaceAbsent, "", "", "No BAS workflow assets were discovered.", false))
@@ -103,6 +104,12 @@ func (e *Engine) evaluate(target string, catalog *workflows.ScenarioWorkflowCata
 		findings = append(findings, finding(CodeRegistryStale, path, "", "Registry references a workflow case that no longer exists.", true))
 	}
 
+	var profile *readinessProfile
+	var profileErr error
+	if e.ReadinessFetcher != nil {
+		profile, profileErr = e.ReadinessFetcher(ctx, catalog.Scenario)
+	}
+
 	assetPaths := make(map[string]struct{}, len(catalog.Assets))
 	for _, asset := range catalog.Assets {
 		assetPaths[asset.Path] = struct{}{}
@@ -112,13 +119,27 @@ func (e *Engine) evaluate(target string, catalog *workflows.ScenarioWorkflowCata
 		if asset.Type == workflows.AssetTypeSeed || asset.Type == workflows.AssetTypeRegistryOnly {
 			continue
 		}
-		findings = append(findings, e.evaluateAsset(target, asset, assetPaths)...)
+		findings = append(findings, e.evaluateAsset(target, asset, assetPaths, profile)...)
+	}
+	if e.ReadinessFetcher != nil {
+		if profileErr != nil {
+			if hasExperienceDirectory(target) {
+				findings = append(findings, finding(CodeExperienceUnavailable, "experience", "", fmt.Sprintf("Could not resolve the Experience Manager readiness profile: %v", profileErr), false))
+			}
+		} else {
+			findings = append(findings, experienceCoverageFindings(catalog, profile)...)
+		}
 	}
 
 	return findings
 }
 
-func (e *Engine) evaluateAsset(target string, asset workflows.WorkflowAsset, assetPaths map[string]struct{}) []Finding {
+func hasExperienceDirectory(target string) bool {
+	info, err := os.Stat(filepath.Join(target, "experience"))
+	return err == nil && info.IsDir()
+}
+
+func (e *Engine) evaluateAsset(target string, asset workflows.WorkflowAsset, assetPaths map[string]struct{}, profile *readinessProfile) []Finding {
 	var findings []Finding
 	if asset.ParseError != "" {
 		findings = append(findings, finding(CodeParseError, asset.Path, asset.ID, asset.ParseError, false))
@@ -131,7 +152,7 @@ func (e *Engine) evaluateAsset(target string, asset workflows.WorkflowAsset, ass
 		findings = append(findings, finding(CodeRequirementUnlinked, asset.Path, asset.ID, "Validation case is not linked to a requirement.", false))
 	}
 	for _, ref := range asset.Selectors {
-		if ref.Key == "" && strings.TrimSpace(ref.Raw) != "" {
+		if ref.Key == "" && strings.TrimSpace(ref.Raw) != "" && !isAuthoredExperienceBinding(ref.Raw, profile) {
 			findings = append(findings, finding(CodeSelectorUnregistered, asset.Path, asset.ID, fmt.Sprintf("Selector %q is not an @selector registry reference.", ref.Raw), false))
 		}
 	}
@@ -157,6 +178,28 @@ func (e *Engine) evaluateAsset(target string, asset workflows.WorkflowAsset, ass
 		findings = append(findings, finding(CodeSeedMissing, asset.Path, asset.ID, "Full-reset mutating workflows must declare a seed or fixture dependency.", false))
 	}
 	return findings
+}
+
+// isAuthoredExperienceBinding permits the exact runtime binding declared by an
+// adopted Experience Manager profile. Those bindings are the scenario's
+// selector source of truth, so requiring a duplicate registry alias would make
+// a workflow choose between two validators rather than add useful evidence.
+func isAuthoredExperienceBinding(raw string, profile *readinessProfile) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || profile == nil {
+		return false
+	}
+	for _, page := range profile.Pages {
+		for _, region := range page.Regions {
+			if binding := strings.TrimSpace(region.Binding.Selector); binding != "" && raw == binding {
+				return true
+			}
+			if testID := strings.TrimSpace(region.Binding.TestID); testID != "" && (raw == testID || raw == fmt.Sprintf("[data-testid=%q]", testID)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func validExecutionMode(value string) bool {
@@ -215,6 +258,14 @@ func titleForCode(code string) string {
 		return "Workflow execution refused"
 	case CodeExecutionFailed:
 		return "Workflow execution failed"
+	case CodeExperienceUnavailable:
+		return "Experience profile unavailable"
+	case CodeExperienceRouteMissing:
+		return "Workflow route missing from experience contract"
+	case CodeExperienceBindingMissing:
+		return "Required experience region is not covered"
+	case CodeExperienceStateMissing:
+		return "Experience lifecycle is not covered"
 	default:
 		return code
 	}
@@ -240,6 +291,14 @@ func remediationForCode(code string) string {
 		return "Confirm mutating execution only after routed isolation proof is present."
 	case CodeExecutionFailed:
 		return "Inspect BAS validation, execution output, and workflow artifacts."
+	case CodeExperienceUnavailable:
+		return "Start Experience Manager or repair the adopted experience contract before enforcing workflow coverage."
+	case CodeExperienceRouteMissing:
+		return "Declare the tested route in the scenario experience page contract, or remove the stale workflow target."
+	case CodeExperienceBindingMissing:
+		return "Assert the required region using its authored testid or selector binding; do not create a separate selector registry."
+	case CodeExperienceStateMissing:
+		return "Add workflow assertions for data-experience-state=loading and a declared terminal state on the required async region."
 	default:
 		return "Inspect and repair the workflow asset."
 	}

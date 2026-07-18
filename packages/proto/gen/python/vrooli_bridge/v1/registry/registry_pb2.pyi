@@ -132,3 +132,15 @@ class RevokeNodeResponse(_message.Message):
     NODE_FIELD_NUMBER: _ClassVar[int]
     node: Node
     def __init__(self, node: _Optional[_Union[Node, _Mapping]] = ...) -> None: ...
+
+class RemoveNodeRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class RemoveNodeResponse(_message.Message):
+    __slots__ = ("removed_node_id",)
+    REMOVED_NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    removed_node_id: str
+    def __init__(self, removed_node_id: _Optional[str] = ...) -> None: ...

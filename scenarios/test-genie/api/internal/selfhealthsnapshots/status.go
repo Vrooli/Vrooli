@@ -12,6 +12,11 @@ type SweepStatus struct {
 	CompletedAt time.Time
 	Duration    time.Duration
 	RunCount    int
+	Deadline    time.Duration
+	PoolWaits   int64
+	PoolWait    time.Duration
+	PoolOpen    int
+	PoolInUse   int
 	Outcome     string // succeeded | failed | timed_out
 	Error       string
 }

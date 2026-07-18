@@ -5,20 +5,26 @@ package cutover
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"test-genie/internal/executionevidence"
 	"test-genie/internal/persistence"
+	sharedruns "test-genie/internal/shared/runs"
 )
 
 const Confirmation = executionevidence.CutoverConfirmation
 
 type Plan struct {
-	Evidence executionevidence.CutoverPlan
-	Database persistence.DatabaseCutoverPlan
+	Evidence          executionevidence.CutoverPlan
+	Database          persistence.DatabaseCutoverPlan
+	RequiredFreeBytes int64
 }
 
 func PlanOffline(scenarioDir, evidenceArchive, liveDatabase, databaseArchive string) (Plan, error) {
+	if err := Preflight(scenarioDir); err != nil {
+		return Plan{}, err
+	}
 	evidence, err := executionevidence.PlanCutover(scenarioDir, evidenceArchive)
 	if err != nil {
 		return Plan{}, err
@@ -27,7 +33,33 @@ func PlanOffline(scenarioDir, evidenceArchive, liveDatabase, databaseArchive str
 	if err != nil {
 		return Plan{}, err
 	}
-	return Plan{Evidence: evidence, Database: database}, nil
+	// The operator needs space for both rollback archives before the original
+	// stores can be moved. Replacement-store overhead is intentionally not
+	// guessed; the runbook requires additional headroom on the live volume.
+	return Plan{Evidence: evidence, Database: database, RequiredFreeBytes: evidence.Bytes + database.Bytes}, nil
+}
+
+// Preflight rejects a cutover while the durable index still names a queued or
+// running suite. WAL/SHM checks remain the SQLite-side stopped-process proof.
+func Preflight(scenarioDir string) error {
+	index := sharedruns.NewIndex(scenarioDir)
+	// A missing index is an empty history. Avoid List in that case because its
+	// advisory lock would create a file, violating the read-only plan contract.
+	if _, err := os.Stat(index.Path()); os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("inspect run index for cutover preflight: %w", err)
+	}
+	records, err := index.List()
+	if err != nil {
+		return fmt.Errorf("read run index for cutover preflight: %w", err)
+	}
+	for _, record := range records {
+		if record.Status == sharedruns.StatusQueued || record.Status == sharedruns.StatusInProgress {
+			return fmt.Errorf("cutover preflight rejected: run %s is %s", record.RunID, record.Status)
+		}
+	}
+	return nil
 }
 
 // ApplyOffline performs all read-only validation before changing either store.

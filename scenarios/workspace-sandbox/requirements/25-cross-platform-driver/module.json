@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-13T22:51:14-04:00"
+    "last_validated_at": "2026-07-17T00:01:00-04:00"
   },
   "requirements": [
     {
@@ -15,15 +15,22 @@
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestDriverInterfaceMethods",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Driver interface exists with all required methods (Type, Version, IsAvailable, Mount, etc.)"
         },
         {
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestDriverTypeConstants",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "DriverType enum includes overlayfs, copy, and none types"
+        },
+        {
+          "type": "manual",
+          "ref": "docs/guides/macos-shakeout.md",
+          "phase": "business",
+          "status": "pending",
+          "notes": "Real-Apple-hardware driver selection and Seatbelt evidence are required before this cross-platform contract can be complete."
         }
       ]
     },
@@ -39,57 +46,64 @@
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverType",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CopyDriver returns correct driver type"
         },
         {
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverIsAvailable",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CopyDriver.IsAvailable returns true on any platform"
         },
         {
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverMount",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CopyDriver correctly creates workspace via Mount"
         },
         {
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverGetChangedFiles",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CopyDriver correctly detects added, modified, deleted files"
         },
         {
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverIsMounted",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CopyDriver mount state tracking works correctly"
         },
         {
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverVerifyMountIntegrity",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CopyDriver mount integrity verification"
         },
         {
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverRemoveFromUpper",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CopyDriver file removal with path traversal protection"
         },
         {
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestCopyDriverUnmount",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CopyDriver Unmount is a safe no-op"
+        },
+        {
+          "type": "manual",
+          "ref": "docs/guides/macos-shakeout.md",
+          "phase": "business",
+          "status": "pending",
+          "notes": "The copy driver is build-verified; its macOS behavior remains pending the documented Apple-hardware shakeout."
         }
       ]
     },
@@ -105,22 +119,29 @@
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestSelectDriverReturnsDriver",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "SelectDriver returns a valid driver"
         },
         {
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestSelectDriverFallsBackToCopy",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "SelectDriver falls back to CopyDriver when overlayfs unavailable"
         },
         {
           "type": "test",
           "ref": "api/internal/driver/copy_test.go::TestDriverInfoReturnsAllDrivers",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "DriverInfo returns info about all available drivers"
+        },
+        {
+          "type": "manual",
+          "ref": "docs/guides/macos-shakeout.md",
+          "phase": "business",
+          "status": "pending",
+          "notes": "Darwin cross-builds and unit tests are insufficient to claim real-host selection behavior."
         }
       ]
     }

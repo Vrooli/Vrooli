@@ -57,6 +57,9 @@ type SweeperConfig struct {
 	// Status receives the terminal cached outcome of each advisory sweep.
 	// It must be non-blocking and never used to initiate work.
 	Status *StatusStore
+	// Observe receives the terminal state after it has been cached. It is an
+	// observability seam only and must not block, start work, or mutate state.
+	Observe func(SweepStatus)
 }
 
 // Sweeper writes digest-deduplicated self-health snapshots in the background.
@@ -181,7 +184,7 @@ func (s *Sweeper) RunLoop(ctx context.Context) {
 		}
 		defer cancelBuild()
 		snap, inserted, err := s.runOnce(buildCtx, ctx, persistBudget)
-		status := SweepStatus{StartedAt: started, CompletedAt: s.cfg.Now().UTC(), RunCount: snap.RunCount, Outcome: "succeeded"}
+		status := SweepStatus{StartedAt: started, CompletedAt: s.cfg.Now().UTC(), RunCount: snap.RunCount, Deadline: s.cfg.RunTimeout, Outcome: "succeeded"}
 		status.Duration = status.CompletedAt.Sub(started)
 		if err != nil {
 			status.Outcome = "failed"
@@ -189,18 +192,14 @@ func (s *Sweeper) RunLoop(ctx context.Context) {
 				status.Outcome = "timed_out"
 			}
 			status.Error = err.Error()
-			if s.cfg.Status != nil {
-				s.cfg.Status.Record(status)
-			}
+			s.recordStatus(status)
 			if errors.Is(err, context.Canceled) || errors.Is(err, ErrSweepInProgress) {
 				return
 			}
 			s.cfg.Logger.Printf("[test-genie] self-health sweep failed: %v", err)
 			return
 		}
-		if s.cfg.Status != nil {
-			s.cfg.Status.Record(status)
-		}
+		s.recordStatus(status)
 		if inserted {
 			s.cfg.Logger.Printf("[test-genie] self-health snapshot persisted: availability=%.3f run_count=%d hard_violations=%d",
 				snap.Availability, snap.RunCount, snap.HardViolations)
@@ -217,5 +216,14 @@ func (s *Sweeper) RunLoop(ctx context.Context) {
 		case <-ticker.C:
 			run()
 		}
+	}
+}
+
+func (s *Sweeper) recordStatus(status SweepStatus) {
+	if s.cfg.Status != nil {
+		s.cfg.Status.Record(status)
+	}
+	if s.cfg.Observe != nil {
+		s.cfg.Observe(status)
 	}
 }

@@ -50,6 +50,11 @@ service NodeRegistryService {
   // rights in one operation. Owner-gated. Idempotent: revoking an
   // already-revoked node returns the revoked record.
   rpc RevokeNode(RevokeNodeRequest) returns (RevokeNodeResponse);
+
+  // RemoveNode permanently removes a previously revoked registry record.
+  // It is intentionally unavailable for active nodes: trust must be severed
+  // through RevokeNode before an operator can hide the historical identity.
+  rpc RemoveNode(RemoveNodeRequest) returns (RemoveNodeResponse);
 }
 
 // NodeStatus is the node's current state. The persisted dimension is
@@ -175,3 +180,6 @@ message RevokeNodeRequest {
 message RevokeNodeResponse {
   Node node = 1;
 }
+
+message RemoveNodeRequest { string id = 1; }
+message RemoveNodeResponse { string removed_node_id = 1; }

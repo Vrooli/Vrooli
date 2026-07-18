@@ -37,7 +37,7 @@ func run(args []string, out io.Writer) error {
 	}
 	switch args[0] {
 	case "plan":
-		_, err = fmt.Fprintf(out, "coverage=%s archive=%s files=%d bytes=%d digest=%s database=%s database_archive=%s database_bytes=%d database_digest=%s\n", plan.Evidence.CoverageRoot, plan.Evidence.ArchiveRoot, plan.Evidence.Files, plan.Evidence.Bytes, plan.Evidence.Digest, plan.Database.LivePath, plan.Database.ArchivePath, plan.Database.Bytes, plan.Database.Digest)
+		_, err = fmt.Fprintf(out, "coverage=%s archive=%s files=%d bytes=%d digest=%s database=%s database_archive=%s database_bytes=%d database_digest=%s required_free_bytes=%d\n", plan.Evidence.CoverageRoot, plan.Evidence.ArchiveRoot, plan.Evidence.Files, plan.Evidence.Bytes, plan.Evidence.Digest, plan.Database.LivePath, plan.Database.ArchivePath, plan.Database.Bytes, plan.Database.Digest, plan.RequiredFreeBytes)
 		return err
 	case "apply":
 		if err := cutover.ApplyOffline(plan, *confirm); err != nil {

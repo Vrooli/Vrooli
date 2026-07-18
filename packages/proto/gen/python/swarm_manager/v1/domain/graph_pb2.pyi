@@ -46,33 +46,17 @@ class GraphBacklogNodeData(_message.Message):
     active_execution_count: int
     def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., active_execution_status: _Optional[str] = ..., active_execution_count: _Optional[int] = ...) -> None: ...
 
-class GraphInitiativeActiveRound(_message.Message):
-    __slots__ = ("mode", "phase", "round", "status")
-    MODE_FIELD_NUMBER: _ClassVar[int]
-    PHASE_FIELD_NUMBER: _ClassVar[int]
-    ROUND_FIELD_NUMBER: _ClassVar[int]
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    mode: str
-    phase: str
-    round: int
-    status: str
-    def __init__(self, mode: _Optional[str] = ..., phase: _Optional[str] = ..., round: _Optional[int] = ..., status: _Optional[str] = ...) -> None: ...
-
 class GraphInitiativeNodeData(_message.Message):
-    __slots__ = ("name", "title", "status", "rollup", "operating_mode", "active_round")
+    __slots__ = ("name", "title", "status", "rollup")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ROLLUP_FIELD_NUMBER: _ClassVar[int]
-    OPERATING_MODE_FIELD_NUMBER: _ClassVar[int]
-    ACTIVE_ROUND_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     status: str
     rollup: GraphInitiativeRollup
-    operating_mode: str
-    active_round: GraphInitiativeActiveRound
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., rollup: _Optional[_Union[GraphInitiativeRollup, _Mapping]] = ..., operating_mode: _Optional[str] = ..., active_round: _Optional[_Union[GraphInitiativeActiveRound, _Mapping]] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., rollup: _Optional[_Union[GraphInitiativeRollup, _Mapping]] = ...) -> None: ...
 
 class GraphCaptureNodeData(_message.Message):
     __slots__ = ("id", "text", "status")

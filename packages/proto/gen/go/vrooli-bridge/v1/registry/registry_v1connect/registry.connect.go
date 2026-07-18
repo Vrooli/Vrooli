@@ -48,6 +48,9 @@ const (
 	// NodeRegistryServiceRevokeNodeProcedure is the fully-qualified name of the NodeRegistryService's
 	// RevokeNode RPC.
 	NodeRegistryServiceRevokeNodeProcedure = "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RevokeNode"
+	// NodeRegistryServiceRemoveNodeProcedure is the fully-qualified name of the NodeRegistryService's
+	// RemoveNode RPC.
+	NodeRegistryServiceRemoveNodeProcedure = "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RemoveNode"
 )
 
 // NodeRegistryServiceClient is a client for the
@@ -70,6 +73,10 @@ type NodeRegistryServiceClient interface {
 	// rights in one operation. Owner-gated. Idempotent: revoking an
 	// already-revoked node returns the revoked record.
 	RevokeNode(context.Context, *connect.Request[registry.RevokeNodeRequest]) (*connect.Response[registry.RevokeNodeResponse], error)
+	// RemoveNode permanently removes a previously revoked registry record.
+	// It is intentionally unavailable for active nodes: trust must be severed
+	// through RevokeNode before an operator can hide the historical identity.
+	RemoveNode(context.Context, *connect.Request[registry.RemoveNodeRequest]) (*connect.Response[registry.RemoveNodeResponse], error)
 }
 
 // NewNodeRegistryServiceClient constructs a client for the
@@ -114,6 +121,12 @@ func NewNodeRegistryServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(nodeRegistryServiceMethods.ByName("RevokeNode")),
 			connect.WithClientOptions(opts...),
 		),
+		removeNode: connect.NewClient[registry.RemoveNodeRequest, registry.RemoveNodeResponse](
+			httpClient,
+			baseURL+NodeRegistryServiceRemoveNodeProcedure,
+			connect.WithSchema(nodeRegistryServiceMethods.ByName("RemoveNode")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -124,6 +137,7 @@ type nodeRegistryServiceClient struct {
 	getNode      *connect.Client[registry.GetNodeRequest, registry.GetNodeResponse]
 	updateNode   *connect.Client[registry.UpdateNodeRequest, registry.UpdateNodeResponse]
 	revokeNode   *connect.Client[registry.RevokeNodeRequest, registry.RevokeNodeResponse]
+	removeNode   *connect.Client[registry.RemoveNodeRequest, registry.RemoveNodeResponse]
 }
 
 // RegisterNode calls vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RegisterNode.
@@ -151,6 +165,11 @@ func (c *nodeRegistryServiceClient) RevokeNode(ctx context.Context, req *connect
 	return c.revokeNode.CallUnary(ctx, req)
 }
 
+// RemoveNode calls vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RemoveNode.
+func (c *nodeRegistryServiceClient) RemoveNode(ctx context.Context, req *connect.Request[registry.RemoveNodeRequest]) (*connect.Response[registry.RemoveNodeResponse], error) {
+	return c.removeNode.CallUnary(ctx, req)
+}
+
 // NodeRegistryServiceHandler is an implementation of the
 // vrooli.vrooli_bridge.v1.registry.NodeRegistryService service.
 type NodeRegistryServiceHandler interface {
@@ -171,6 +190,10 @@ type NodeRegistryServiceHandler interface {
 	// rights in one operation. Owner-gated. Idempotent: revoking an
 	// already-revoked node returns the revoked record.
 	RevokeNode(context.Context, *connect.Request[registry.RevokeNodeRequest]) (*connect.Response[registry.RevokeNodeResponse], error)
+	// RemoveNode permanently removes a previously revoked registry record.
+	// It is intentionally unavailable for active nodes: trust must be severed
+	// through RevokeNode before an operator can hide the historical identity.
+	RemoveNode(context.Context, *connect.Request[registry.RemoveNodeRequest]) (*connect.Response[registry.RemoveNodeResponse], error)
 }
 
 // NewNodeRegistryServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -210,6 +233,12 @@ func NewNodeRegistryServiceHandler(svc NodeRegistryServiceHandler, opts ...conne
 		connect.WithSchema(nodeRegistryServiceMethods.ByName("RevokeNode")),
 		connect.WithHandlerOptions(opts...),
 	)
+	nodeRegistryServiceRemoveNodeHandler := connect.NewUnaryHandler(
+		NodeRegistryServiceRemoveNodeProcedure,
+		svc.RemoveNode,
+		connect.WithSchema(nodeRegistryServiceMethods.ByName("RemoveNode")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case NodeRegistryServiceRegisterNodeProcedure:
@@ -222,6 +251,8 @@ func NewNodeRegistryServiceHandler(svc NodeRegistryServiceHandler, opts ...conne
 			nodeRegistryServiceUpdateNodeHandler.ServeHTTP(w, r)
 		case NodeRegistryServiceRevokeNodeProcedure:
 			nodeRegistryServiceRevokeNodeHandler.ServeHTTP(w, r)
+		case NodeRegistryServiceRemoveNodeProcedure:
+			nodeRegistryServiceRemoveNodeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -249,4 +280,8 @@ func (UnimplementedNodeRegistryServiceHandler) UpdateNode(context.Context, *conn
 
 func (UnimplementedNodeRegistryServiceHandler) RevokeNode(context.Context, *connect.Request[registry.RevokeNodeRequest]) (*connect.Response[registry.RevokeNodeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RevokeNode is not implemented"))
+}
+
+func (UnimplementedNodeRegistryServiceHandler) RemoveNode(context.Context, *connect.Request[registry.RemoveNodeRequest]) (*connect.Response[registry.RemoveNodeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.registry.NodeRegistryService.RemoveNode is not implemented"))
 }

@@ -38,7 +38,7 @@ service ComponentsService {
   rpc UpdateComponentContent(UpdateComponentContentRequest) returns (UpdateComponentContentResponse);
   rpc ListComponentVersions(ListComponentVersionsRequest) returns (ListComponentVersionsResponse);
   rpc GetComponentVersionContent(GetComponentVersionContentRequest) returns (GetComponentVersionContentResponse);
-  rpc ListComponentExamples(ListComponentExamplesRequest) returns (ListComponentExamplesResponse);
+  rpc ListComponentStories(ListComponentStoriesRequest) returns (ListComponentStoriesResponse);
   rpc ListDesignStyles(ListDesignStylesRequest) returns (ListDesignStylesResponse);
   rpc ValidateStyleFit(ValidateStyleFitRequest) returns (ValidateStyleFitResponse);
 }
@@ -490,28 +490,33 @@ message GetComponentVersionContentResponse {
   string content = 2;
 }
 
-message ComponentExample {
+// ComponentStory is the validated, version-level projection of story.json.
+// Args, fixtures, and stories remain JSON to retain the declarative field
+// grammar while avoiding separate, drifting transport schemas for each asset.
+message ComponentStory {
   string id = 1;
   string component_id = 2;
   string library_id = 3;
   string version = 4;
-  string name = 5;
-  string display_name = 6;
-  string props_json = 7;
-  string setup_json = 8;
-  string expect_json = 9;
-  string source_path = 10;
-  google.protobuf.Timestamp indexed_at = 11;
+  int32 schema_version = 5;
+  string kind = 6;
+  string title = 7;
+  string args_json = 8;
+  string environment_json = 9;
+  string stories_json = 10;
+  string contract_json = 11;
+  string source_path = 12;
+  google.protobuf.Timestamp indexed_at = 13;
 }
 
-message ListComponentExamplesRequest {
+message ListComponentStoriesRequest {
   string component_id = 1;
   string version = 2;
   int32 limit = 3;
 }
 
-message ListComponentExamplesResponse {
-  repeated ComponentExample examples = 1;
+message ListComponentStoriesResponse {
+  repeated ComponentStory stories = 1;
 }
 
 message DesignStyle {

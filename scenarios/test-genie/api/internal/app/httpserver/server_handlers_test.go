@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -21,12 +22,14 @@ import (
 	"test-genie/internal/scenarios"
 	"test-genie/internal/selfhealthsnapshots"
 	"test-genie/internal/shared"
+	"test-genie/internal/storage/sqlitedb"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
 	apihealth "github.com/vrooli/api-core/health"
+	_ "modernc.org/sqlite"
 )
 
 func TestServer_handleListScenarios(t *testing.T) {
@@ -529,6 +532,37 @@ func TestServer_handleHealthDegradesForCachedSweepFailure(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestServer_handleHealthDoesNotWaitForHeldRuntimeSQLitePool(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test-genie.db")
+	runtimeDB, err := sql.Open("sqlite", sqlitedb.BuildDSN(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtimeDB.Close()
+	runtimeDB.SetMaxOpenConns(1)
+	healthDB, err := sql.Open("sqlite", sqlitedb.BuildDSN(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer healthDB.Close()
+	conn, err := runtimeDB.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	server := &Server{config: Config{Port: "0"}, db: database.NewFromPrimary(runtimeDB), healthDB: healthDB, logger: log.New(io.Discard, "", 0)}
+	start := time.Now()
+	rec := httptest.NewRecorder()
+	server.handleHealth(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if elapsed := time.Since(start); elapsed > 250*time.Millisecond {
+		t.Fatalf("health waited %s on held runtime pool", elapsed)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
 	}
 }
 

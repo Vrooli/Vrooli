@@ -53,7 +53,7 @@ func fleetRosterFromScenariosRoot(scenariosRoot string) func(ctx context.Context
 //   - TEST_GENIE_FLEET_SCHEDULER_CYCLE_BUDGET=<dur>  → per-cycle wall-clock cap (default 0 = none)
 //   - TEST_GENIE_FLEET_SCHEDULER_STALENESS_HORIZON=<dur> → staleness weighting window (default 168h)
 //   - TEST_GENIE_FLEET_SCHEDULER_PRESET=<preset>     → suite shape (default "comprehensive")
-func startFleetScheduler(runManager *runmanager.Manager) {
+func runFleetScheduler(ctx context.Context, runManager *runmanager.Manager) {
 	if !isTruthy(os.Getenv("TEST_GENIE_FLEET_SCHEDULER_ENABLED")) {
 		// Silent by default: the scheduler being off is the normal state, not a
 		// condition worth logging on every boot.
@@ -78,7 +78,7 @@ func startFleetScheduler(runManager *runmanager.Manager) {
 		return
 	}
 	log.Printf("[test-genie] fleet scheduler ENABLED (preset=%s); cycling priority-ordered suites in the background", preset)
-	go scheduler.RunLoop(context.Background())
+	scheduler.RunLoop(ctx)
 }
 
 func parseIntEnv(name string, fallback int) int {

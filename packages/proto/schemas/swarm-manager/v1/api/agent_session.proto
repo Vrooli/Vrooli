@@ -23,13 +23,13 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // ListAgentSessionsRequest filters the session sidebar list.
 message ListAgentSessionsRequest {
   // Optional session kind filter.
-  // @constraint one of: empty, meta_orchestration, operating_mode_authoring, swarm_operations
+  // @constraint one of: empty, meta_orchestration, swarm_operations, workflow_authoring
   optional string kind = 1 [(buf.validate.field).string = {
     in: [
       "",
       "meta_orchestration",
-      "operating_mode_authoring",
-      "swarm_operations"
+      "swarm_operations",
+      "workflow_authoring"
     ]
   }];
 
@@ -80,12 +80,12 @@ message CreateAgentSessionRequest {
   reserved 3, 4;
 
   // Session kind.
-  // @constraint one of: meta_orchestration, operating_mode_authoring, swarm_operations
+  // @constraint one of: meta_orchestration, swarm_operations, workflow_authoring
   string kind = 1 [(buf.validate.field).string = {
     in: [
       "meta_orchestration",
-      "operating_mode_authoring",
-      "swarm_operations"
+      "swarm_operations",
+      "workflow_authoring"
     ]
   }];
 

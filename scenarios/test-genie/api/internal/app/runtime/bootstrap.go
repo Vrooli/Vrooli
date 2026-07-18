@@ -171,8 +171,8 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	selfHealthSnapshots := selfhealthsnapshots.NewSqliteRepository(db)
 	sweepStatus := &selfhealthsnapshots.StatusStore{}
 	runsService.SetSnapshotReader(selfHealthSnapshots)
-	startBackground := func(ctx context.Context) {
-		startSelfHealthSweeper(ctx, selfHealthSnapshots, newSelfHealthRollupBuilder(executionRepo, repoRootFromScenariosRoot(cfg.ScenariosRoot)), sweepStatus)
+	selfHealthJob := func(ctx context.Context) {
+		runSelfHealthSweeper(ctx, selfHealthSnapshots, newSelfHealthRollupBuilder(executionRepo, repoRootFromScenariosRoot(cfg.ScenariosRoot)), sweepStatus, poolSweepObserver(db.Primary(), sweepStatus))
 	}
 
 	// GetFleetHealth aggregates stored runs across the fleet (Stage 3 fleet
@@ -185,7 +185,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	// explicitly enabled via TEST_GENIE_FLEET_SCHEDULER_ENABLED, bounded by
 	// concurrency + per-cycle + wall-clock budgets, and respects the run
 	// manager's one-in-progress-per-scenario invariant.
-	startFleetScheduler(runManager)
+	fleetSchedulerJob := func(ctx context.Context) { runFleetScheduler(ctx, runManager) }
 
 	// Create agent-manager service
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
@@ -200,16 +200,19 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		Enabled:    agentEnabled,
 	})
 
-	// Initialize profile at startup (non-blocking)
+	// Agent initialization is advisory and must share the serving lifetime with
+	// every other background job; it cannot compete with listener startup.
+	var agentInitializationJob func(context.Context)
 	if agentEnabled {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		agentInitializationJob = func(parent context.Context) {
+			ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 			defer cancel()
 			if err := agentService.Initialize(ctx); err != nil {
 				log.Printf("[agent-manager] Warning: failed to initialize profile: %v", err)
 			}
-		}()
+		}
 	}
+	background := NewBackgroundCoordinator(selfHealthJob, fleetSchedulerJob, agentInitializationJob)
 
 	remediationService := remediation.NewService(remediation.NewSQLiteRepository(db), nil)
 	remediationLauncher := remediation.NewAgentManagerAdapter(agentService)
@@ -237,7 +240,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		EligibilityService:  eligibilityService,
 		RunsService:         runsService,
 		ValidationService:   validationService,
-		StartBackground:     startBackground,
+		StartBackground:     background.Start,
 		SweepStatus:         sweepStatus,
 	}, nil
 }
