@@ -72,7 +72,7 @@ func (f *fakeComponentsService) GetVersionContent(ctx context.Context, id, versi
 	return f.getVersionContentFn(ctx, id, version)
 }
 
-func (f *fakeComponentsService) ListExamples(context.Context, components.ExampleQuery) ([]components.ComponentExample, error) {
+func (f *fakeComponentsService) ListStories(context.Context, components.StoryQuery) ([]components.ComponentStory, error) {
 	panic("not called")
 }
 

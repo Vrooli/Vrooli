@@ -20,14 +20,16 @@
         "required": false
       },
       "agent-manager": {
-      "description": "AI agent orchestration and run management through Git Control Tower's declared role-only profile",
-      "config": {
-        "profiles": {
-          "reconcile": true,
-          "mode": "update_if_unmodified",
-          "sources": [".vrooli/agent-profiles/reviewer.json"]
-        }
-      },
+        "description": "AI agent orchestration and run management through Git Control Tower's declared role-only profile",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/reviewer.json"
+            ]
+          }
+        },
         "required": false
       }
     }

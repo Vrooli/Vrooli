@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "VoiceInputButton",
+  "args": {
+    "fields": [
+        {
+          "path": "state",
+          "label": "State",
+          "kind": "text",
+          "default": "idle"
+        },
+        {
+          "path": "mode",
+          "label": "Mode",
+          "kind": "text",
+          "default": "always-on"
+        },
+        {
+          "path": "level",
+          "label": "Level",
+          "kind": "number",
+          "default": 0.8
+        },
+        {
+          "path": "timeoutProgress",
+          "label": "Timeout Progress",
+          "kind": "number",
+          "default": 0.65
+        },
+        {
+          "path": "rejectionReason",
+          "label": "Rejection Reason",
+          "kind": "text",
+          "default": "Speaker could not be verified"
+        },
+        {
+          "path": "onTranscribeAnyway",
+          "label": "On Transcribe Anyway",
+          "kind": "structured",
+          "default": {
+            "$handler": "continue"
+          }
+        },
+        {
+          "path": "error",
+          "label": "Error",
+          "kind": "text",
+          "default": "Voice connection interrupted"
+        },
+        {
+          "path": "onDismissError",
+          "label": "On Dismiss Error",
+          "kind": "structured",
+          "default": {
+            "$handler": "dismiss"
+          }
+        }
+      ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "idle",
+      "name": "Idle",
+      "args": {
+        "state": "idle"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Start voice input"
+        }
+      ]
+    },
+    {
+      "id": "preparing",
+      "name": "Preparing",
+      "args": {
+        "state": "preparing"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Preparing microphone"
+        }
+      ]
+    },
+    {
+      "id": "recording-always-on",
+      "name": "Listening (always on)",
+      "args": {
+        "state": "recording",
+        "mode": "always-on",
+        "level": 0.8
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Stop voice input"
+        }
+      ]
+    },
+    {
+      "id": "recording-level-low",
+      "name": "Listening level (low)",
+      "args": {
+        "state": "recording",
+        "mode": "always-on",
+        "level": 0.2
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Stop voice input"
+        }
+      ]
+    },
+    {
+      "id": "recording-level-high",
+      "name": "Listening level (high)",
+      "args": {
+        "state": "recording",
+        "mode": "always-on",
+        "level": 0.9
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Stop voice input"
+        }
+      ]
+    },
+    {
+      "id": "recording-timeout",
+      "name": "Recording (timeout)",
+      "args": {
+        "state": "recording",
+        "mode": "timeout",
+        "timeoutProgress": 0.65
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Stop voice input"
+        }
+      ]
+    },
+    {
+      "id": "speaker-rejected",
+      "name": "Speaker rejected",
+      "args": {
+        "state": "recording",
+        "rejectionReason": "Speaker could not be verified",
+        "onTranscribeAnyway": {
+          "$handler": "continue"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Transcribe anyway"
+        }
+      ]
+    },
+    {
+      "id": "recovering",
+      "name": "Recovering",
+      "args": {
+        "state": "recovering"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Recovering voice input"
+        }
+      ]
+    },
+    {
+      "id": "unavailable",
+      "name": "Unavailable",
+      "args": {
+        "state": "unavailable"
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "button",
+          "name": "disabled",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "id": "error",
+      "name": "Terminal error",
+      "args": {
+        "state": "error",
+        "error": "Voice connection interrupted",
+        "onDismissError": {
+          "$handler": "dismiss"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Voice input error"
+        },
+        {
+          "kind": "text",
+          "value": "Voice connection interrupted"
+        }
+      ]
+    }
+  ]
+}

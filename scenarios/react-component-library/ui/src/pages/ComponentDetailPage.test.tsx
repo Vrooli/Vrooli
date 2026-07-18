@@ -182,7 +182,7 @@ describe("ComponentDetailPage", () => {
     expect(screen.getByRole("link", { name: "react-component-library:useEscapeKey" })).toHaveAttribute("href", "/assets/react-component-library%3AuseEscapeKey");
   });
 
-  it("gives a hook Files, Details, versions, and mediated-adoption tabs without a preview", async () => {
+  it("gives a hook fixture preview alongside Files, Details, versions, and mediated-adoption tabs", async () => {
     const user = userEvent.setup();
     vi.mocked(getCatalogAsset).mockResolvedValueOnce({
       component: {
@@ -202,9 +202,7 @@ describe("ComponentDetailPage", () => {
 
     await screen.findByTestId("hook-detail-page");
     expect(screen.getByTestId("hook-workspace-details")).toBeInTheDocument();
-    expect(screen.queryByTestId("components-editor-preview-frame")).not.toBeInTheDocument();
     await user.click(await screen.findByRole("tab", { name: "components.editor.files" }));
-    expect(screen.getByTestId("hook-workspace-source")).toBeInTheDocument();
     expect(await screen.findByTestId("monaco-stub")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.adoptions" }));

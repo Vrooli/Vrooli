@@ -14,7 +14,7 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Component registry & header-driven indexing | Disk-walking indexer parses `component.json`, version folders, `@libraryId` / `@version` / `@deps` header comments, and per-version `examples.json`, then upserts SQLite-backed registry, version, dependency, style-affinity, and example projections; malformed structural headers reject with a structured, actionable error and non-fatal contract drift is reported as findings.
+- [ ] OT-P0-001 | Component registry & header-driven indexing | Disk-walking indexer parses `component.json`, version folders, `@libraryId` / `@version` / `@deps` header comments, and per-version `story.json`, then upserts SQLite-backed registry, version, dependency, style-affinity, and story projections; malformed structural headers reject with a structured, actionable error and non-fatal contract drift is reported as findings.
 - [ ] OT-P0-002 | Monaco editor with safe content I/O | TSX editing, save, format-on-type; all reads/writes routed through `package:api-core/storage` with path-traversal rejection.
 - [ ] OT-P0-003 | Live preview executes real React in an isolated iframe | Per-component harness renders the actual component (no placeholder HTML), supports versioned named examples and stable `libraryId` harness URLs, reports preview-ready/error to the host, and reloads on save through cache-busted iframe navigation.
 - [x] OT-P0-004 | Multi-viewport emulator | Device presets (mobile/tablet/desktop and named devices), continuous zoom 10–200%, rotate, reset; state persists across sessions.

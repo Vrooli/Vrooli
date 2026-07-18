@@ -298,8 +298,8 @@ func (h *connectHandler) GetComponentVersionContent(ctx context.Context, req *co
 	}), nil
 }
 
-func (h *connectHandler) ListComponentExamples(ctx context.Context, req *connect.Request[componentsv1.ListComponentExamplesRequest]) (*connect.Response[componentsv1.ListComponentExamplesResponse], error) {
-	rows, err := h.deps.Service.ListExamples(ctx, components.ExampleQuery{
+func (h *connectHandler) ListComponentStories(ctx context.Context, req *connect.Request[componentsv1.ListComponentStoriesRequest]) (*connect.Response[componentsv1.ListComponentStoriesResponse], error) {
+	rows, err := h.deps.Service.ListStories(ctx, components.StoryQuery{
 		ComponentID: req.Msg.ComponentId,
 		Version:     req.Msg.Version,
 		Limit:       int(req.Msg.Limit),
@@ -307,13 +307,13 @@ func (h *connectHandler) ListComponentExamples(ctx context.Context, req *connect
 	if err != nil {
 		connectErr := components.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
-			h.deps.Logger.Printf("components.ListComponentExamples(%q, %q): %v", req.Msg.ComponentId, req.Msg.Version, err)
+			h.deps.Logger.Printf("components.ListComponentStories(%q, %q): %v", req.Msg.ComponentId, req.Msg.Version, err)
 		}
 		return nil, connectErr
 	}
-	resp := &componentsv1.ListComponentExamplesResponse{Examples: make([]*componentsv1.ComponentExample, 0, len(rows))}
-	for _, ex := range rows {
-		resp.Examples = append(resp.Examples, exampleToProto(ex))
+	resp := &componentsv1.ListComponentStoriesResponse{Stories: make([]*componentsv1.ComponentStory, 0, len(rows))}
+	for _, story := range rows {
+		resp.Stories = append(resp.Stories, storyToProto(story))
 	}
 	return connect.NewResponse(resp), nil
 }

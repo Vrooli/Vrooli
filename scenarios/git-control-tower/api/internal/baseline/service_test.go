@@ -105,6 +105,22 @@ func TestServiceCaptureFailureDoesNotPublishEmptyBaseline(t *testing.T) {
 	}
 }
 
+func TestServiceCaptureRejectsSelfIncomparableBaselineEvidence(t *testing.T) {
+	exec := &fakeExecutor{result: terminalResult()}
+	runs := &fakeRuns{compare: CompareResult{Verdict: string(VerdictNotComparable), Phases: []*runspb.PhaseDiff{{Phase: "architecture", Verdict: string(VerdictNotComparable)}}}}
+	svc, _ := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
+	_, err := svc.Create(context.Background(), CreateRequest{RepoID: 1, Scenario: "foo", Name: "unusable"})
+	if err == nil || !strings.Contains(err.Error(), "architecture") {
+		t.Fatalf("capture error = %v", err)
+	}
+	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "unusable"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("unusable capture published a manifest: %v", err)
+	}
+	if len(runs.pins) != 0 {
+		t.Fatalf("unusable capture pinned run: %+v", runs.pins)
+	}
+}
+
 func TestFinalizeCaptureAttachmentTimeoutLeavesDurableIntentPending(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
 	exec := &fakeExecutor{result: terminalResult()}
 	runs := &fakeRuns{}

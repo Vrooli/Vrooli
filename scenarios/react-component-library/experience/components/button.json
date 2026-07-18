@@ -6,7 +6,7 @@
     "id": "button",
     "title": "Button",
     "purpose": "Provide a token-bound action control whose accessible name, disabled state, and variant intent survive reuse across scenario UIs.",
-    "examplesRef": "../../library/components/Button/versions/1.2.0/examples.json",
+    "storyRef": "../../library/components/Button/versions/1.2.0/story.json",
     "prd_refs": ["OT-P0-001", "OT-P0-003"]
   },
   "priorities": [

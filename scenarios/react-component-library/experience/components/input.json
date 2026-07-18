@@ -6,7 +6,7 @@
     "id": "input",
     "title": "Input",
     "purpose": "Provide a token-bound text-entry control that remains recognizable across text, search, and disabled examples.",
-    "examplesRef": "../../library/components/Input/versions/1.1.0/examples.json",
+    "storyRef": "../../library/components/Input/versions/1.1.0/story.json",
     "prd_refs": ["OT-P0-001", "OT-P0-003"]
   },
   "priorities": [

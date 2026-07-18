@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "kind": "hook",
+  "title": "useEscapeKey",
+  "args": {"fields": [{"path":"active","label":"Active","kind":"boolean","default":true}]},
+  "environment": {"fixtures": []},
+  "stories": [{"id": "escape", "name": "Escape action", "args": {"active":true}, "interactions": [{"kind": "key", "text": "Escape"}, {"kind": "settle"}], "expect": [{"kind":"text","value":"escaped"}]}]
+}

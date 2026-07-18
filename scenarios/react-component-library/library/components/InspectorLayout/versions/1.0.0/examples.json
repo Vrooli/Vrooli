@@ -1,6 +1,0 @@
-{
-  "examples": [
-    {"name":"ready-inspector","displayName":"Ready inspector","props":{"title":"Workflow editor","toolbar":{"$node":"button","children":[{"$text":"Run"}]},"canvas":{"$node":"p","children":[{"$text":"Workflow canvas"}]},"inspector":{"$node":"p","children":[{"$text":"Selected step details"}]}},"expect":[{"kind":"role","role":"main"},{"kind":"text","value":"Workflow canvas"},{"kind":"attribute","selector":"[data-experience-surface]","name":"data-experience-state","value":"ready"}]},
-    {"name":"empty-inspector","displayName":"Empty inspector","props":{"title":"Workflow editor","canvas":{"$node":"p","children":[{"$text":"Workflow canvas"}]},"inspectorState":"empty"},"expect":[{"kind":"text","value":"Nothing to show yet."}]}
-  ]
-}

@@ -44,10 +44,10 @@ type HarnessHandler struct {
 }
 
 func NewHarnessHandler(svc preview.Service, logger *log.Logger) *HarnessHandler {
-	return NewHarnessHandlerWithExamples(svc, nil, logger)
+	return NewHarnessHandlerWithStories(svc, nil, logger)
 }
 
-func NewHarnessHandlerWithExamples(svc preview.Service, comp components.Service, logger *log.Logger) *HarnessHandler {
+func NewHarnessHandlerWithStories(svc preview.Service, comp components.Service, logger *log.Logger) *HarnessHandler {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -73,12 +73,12 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeHarnessError(w, h.logger, id, err)
 		return
 	}
-	example, err := h.resolveExample(r, componentID)
+	story, err := h.resolveStory(r, componentID)
 	if err != nil {
 		writeHarnessError(w, h.logger, id, err)
 		return
 	}
-	doc := renderHarnessHTML(id, bundle, example)
+	doc := renderHarnessHTML(id, bundle, story)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	// Same-origin: the host iframe controls the `src`, and same-origin
@@ -123,46 +123,65 @@ func writeHarnessError(w http.ResponseWriter, logger *log.Logger, id string, err
 	}
 }
 
-type harnessExample struct {
-	Name        string
-	Version     string
-	DisplayName string
-	PropsJSON   string
-	SetupJSON   string
-	ExpectJSON  string
+type harnessStory struct {
+	Name                  string
+	Version               string
+	DisplayName           string
+	Kind                  components.StoryKind
+	PropsJSON             string
+	ArgsJSON              string
+	EnvironmentJSON       string
+	EnvironmentSchemaJSON string
+	InteractionsJSON      string
+	ExpectJSON            string
 }
 
-func (h *HarnessHandler) resolveExample(r *http.Request, id string) (harnessExample, error) {
-	name := strings.TrimSpace(r.URL.Query().Get("example"))
-	if name == "" || h.components == nil {
-		return harnessExample{}, nil
+// resolveStory uses the indexed story contract as the only harness baseline.
+func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory, error) {
+	storyID := strings.TrimSpace(r.URL.Query().Get("story"))
+	if storyID == "" || h.components == nil {
+		return harnessStory{}, nil
 	}
 	version := strings.TrimSpace(r.URL.Query().Get("version"))
-	examples, err := h.components.ListExamples(r.Context(), components.ExampleQuery{
-		ComponentID: id,
-		Version:     version,
-		Limit:       500,
-	})
+	stories, err := h.components.ListStories(r.Context(), components.StoryQuery{ComponentID: id, Version: version, Limit: 20})
 	if err != nil {
-		return harnessExample{}, err
+		return harnessStory{}, err
 	}
-	for _, ex := range examples {
-		if ex.Name != name {
-			continue
+	if len(stories) == 0 {
+		return harnessStory{}, fmt.Errorf("preview: story contract not found for component %q", id)
+	}
+	for _, projected := range stories {
+		var contract components.StoryContract
+		if err := json.Unmarshal([]byte(projected.ContractJSON), &contract); err != nil {
+			return harnessStory{}, fmt.Errorf("preview: decode indexed story contract: %w", err)
 		}
-		return harnessExample{
-			Name:        ex.Name,
-			Version:     ex.Version,
-			DisplayName: ex.DisplayName,
-			PropsJSON:   ex.PropsJSON,
-			SetupJSON:   ex.SetupJSON,
-			ExpectJSON:  ex.ExpectJSON,
-		}, nil
+		for _, definition := range contract.Stories {
+			if definition.ID != storyID {
+				continue
+			}
+			args, err := json.Marshal(definition.Args)
+			if err != nil {
+				return harnessStory{}, fmt.Errorf("preview: encode story args: %w", err)
+			}
+			expect, err := json.Marshal(definition.Expect)
+			if err != nil {
+				return harnessStory{}, fmt.Errorf("preview: encode story expectations: %w", err)
+			}
+			interactions, err := json.Marshal(definition.Interactions)
+			if err != nil {
+				return harnessStory{}, fmt.Errorf("preview: encode story interactions: %w", err)
+			}
+			environment, err := json.Marshal(definition.Environment)
+			if err != nil {
+				return harnessStory{}, fmt.Errorf("preview: encode story environment: %w", err)
+			}
+			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect)}, nil
+		}
 	}
-	return harnessExample{}, fmt.Errorf("preview: example %q not found for component %q", name, id)
+	return harnessStory{}, fmt.Errorf("preview: story %q not found for component %q", storyID, id)
 }
 
-func renderHarnessHTML(id string, b preview.Bundle, ex harnessExample) string {
+func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory) string {
 	var sb strings.Builder
 	sb.WriteString(`<!doctype html>
 <html lang="en">
@@ -177,7 +196,7 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessExample) string {
 <meta name="bundle-sha256" content="`)
 	sb.WriteString(html.EscapeString(b.SHA256))
 	sb.WriteString(`" />
-<meta name="example-name" content="`)
+<meta name="story-id" content="`)
 	sb.WriteString(html.EscapeString(ex.Name))
 	sb.WriteString(`" />
 <style>
@@ -217,12 +236,16 @@ const componentModuleURL = "data:text/javascript;base64,`)
 	// for the full ESM payload including non-ASCII characters.
 	sb.WriteString(base64Encode(b.JS))
 	sb.WriteString(`";
-const previewExample = {
+const previewStory = {
   name: ` + jsString(ex.Name) + `,
   version: ` + jsString(ex.Version) + `,
   displayName: ` + jsString(ex.DisplayName) + `,
+	kind: ` + jsString(string(ex.Kind)) + `,
   props: ` + jsonObjectLiteral(ex.PropsJSON) + `,
-  setup: ` + jsonObjectLiteral(ex.SetupJSON) + `,
+	args: ` + jsonObjectLiteral(ex.ArgsJSON) + `,
+	environment: ` + jsonObjectLiteral(ex.EnvironmentJSON) + `,
+	environmentSchema: ` + jsonObjectLiteral(ex.EnvironmentSchemaJSON) + `,
+	interactions: ` + jsonArrayLiteral(ex.InteractionsJSON) + `,
   expect: ` + jsonArrayLiteral(ex.ExpectJSON) + `,
 };
 // Resolved-theme bridge: the host owns the app/system decision and posts
@@ -394,7 +417,7 @@ const showPreviewError = (message) => {
   errEl.hidden = false;
   errEl.textContent = message;
   try {
-    parent.postMessage({ type: "preview-error", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, example: previewExample.name || "", version: previewExample.version || "", message }, "*");
+    parent.postMessage({ type: "preview-error", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, story: previewStory.name || "", version: previewStory.version || "", message }, "*");
   } catch (e) {}
 };
 const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
@@ -424,7 +447,7 @@ const elementsByRole = (role) => Array.from(document.querySelectorAll("body *"))
   .filter((el) => (el.getAttribute("role") || implicitRole(el)) === role);
 const assertPreviewExpectations = () => {
   const failures = [];
-  for (const [index, expectation] of (Array.isArray(previewExample.expect) ? previewExample.expect : []).entries()) {
+  for (const [index, expectation] of (Array.isArray(previewStory.expect) ? previewStory.expect : []).entries()) {
     const kind = expectation && expectation.kind;
     if (kind === "text") {
       const value = normalizeText(expectation.value);
@@ -520,38 +543,157 @@ try {
   const Cmp = isRenderableComponent(Mod.default)
     ? Mod.default
     : Mod[Object.keys(Mod).find(k => isRenderableComponent(Mod[k]))] ?? null;
-  if (!Cmp) {
+  const hookEntry = Object.entries(Mod).find(([name, value]) => name.startsWith("use") && typeof value === "function");
+  if (previewStory.kind === "hook" && !hookEntry) {
+    showPreviewError("preview: hook file exports no callable use* hook");
+  } else if (previewStory.kind !== "hook" && !Cmp) {
     showPreviewError("preview: component file exports neither a default nor a callable named export");
   } else {
     const root = createRoot(document.getElementById("root"));
     const resolveProps = createNodeFactory(React, Icons);
-    const renderPreview = (override) => {
+    const valueAtPath = (object, path) => path.split(".").reduce((value, key) => value && typeof value === "object" ? value[key] : undefined, object);
+    const mergeStoryProps = (base, override) => {
+      const result = { ...(base && typeof base === "object" && !Array.isArray(base) ? base : {}) };
+      for (const [key, value] of Object.entries(override || {})) {
+        result[key] = value && typeof value === "object" && !Array.isArray(value) && result[key] && typeof result[key] === "object" && !Array.isArray(result[key])
+          ? mergeStoryProps(result[key], value)
+          : value;
+      }
+      return result;
+    };
+    const validateOverride = (override) => {
+      const fields = Array.isArray(previewStory.args && previewStory.args.fields) ? previewStory.args.fields : [];
+      const merged = mergeStoryProps(previewStory.props, override);
+      const errors = [];
+      for (const field of fields) {
+        if (!field || typeof field.path !== "string") continue;
+        const value = valueAtPath(merged, field.path);
+        if (value === undefined) {
+          if (field.required && field.default === undefined) errors.push({ path: field.path, rule: "required", message: "A value is required." });
+          continue;
+        }
+        if (field.kind === "text" && typeof value !== "string") errors.push({ path: field.path, rule: "text", message: "Must be text." });
+        if (field.kind === "number" && (typeof value !== "number" || !Number.isFinite(value))) errors.push({ path: field.path, rule: "number", message: "Must be a finite number." });
+        if (field.kind === "boolean" && typeof value !== "boolean") errors.push({ path: field.path, rule: "boolean", message: "Must be true or false." });
+        if (field.kind === "enum" && !Array.isArray(field.options)) errors.push({ path: field.path, rule: "schema", message: "Enum options are unavailable." });
+        if (field.kind === "enum" && Array.isArray(field.options) && !field.options.some((option) => JSON.stringify(option) === JSON.stringify(value))) errors.push({ path: field.path, rule: "enum", message: "Must be one of the declared options." });
+        if (typeof field.minimum === "number" && typeof value === "number" && value < field.minimum) errors.push({ path: field.path, rule: "minimum", message: "Below the minimum." });
+        if (typeof field.maximum === "number" && typeof value === "number" && value > field.maximum) errors.push({ path: field.path, rule: "maximum", message: "Above the maximum." });
+        if (typeof field.minLength === "number" && typeof value === "string" && value.length < field.minLength) errors.push({ path: field.path, rule: "minLength", message: "Too short." });
+        if (typeof field.maxLength === "number" && typeof value === "string" && value.length > field.maxLength) errors.push({ path: field.path, rule: "maxLength", message: "Too long." });
+      }
+      return errors;
+    };
+    const hookFixture = (hookProps, environment) => {
+      const [hookName, Hook] = hookEntry;
+      if (hookName === "useEscapeKey") return () => {
+        const [outcome, setOutcome] = React.useState("waiting for Escape");
+        Hook(hookProps.active !== false, () => setOutcome("escaped"));
+        return React.createElement("div", { role: "status", tabIndex: -1, "data-rcl-hook-root": true }, outcome);
+      };
+      if (hookName === "useFocusTrap") return () => {
+        const panelRef = React.useRef(null);
+        Hook(hookProps.active !== false, panelRef);
+        return React.createElement("div", { ref: panelRef, role: "status", tabIndex: -1, "data-rcl-hook-root": true }, React.createElement("button", null, "First"), React.createElement("button", null, "Last"));
+      };
+      if (hookName === "useVoiceInput") return () => {
+        const fixture = environment && environment.voiceInput || "idle";
+        const media = { acquire: () => fixture === "permission-denied" ? Promise.reject(new Error("permission denied")) : Promise.resolve({ stop() {}, onEnded() { return () => {}; } }) };
+        const adapter = { connect: async () => {}, stop: () => {} };
+        const voice = Hook({ adapter, media, mode: hookProps.mode || (fixture === "timeout" ? "timeout" : "always-on"), timeoutMs: 1 });
+        return React.createElement("div", { role: "status", "data-rcl-hook-root": true }, React.createElement("button", { type: "button", "data-rcl-hook-action": "start", onClick: () => void voice.start() }, "Start"), React.createElement("button", { type: "button", "data-rcl-hook-action": "stop", onClick: () => void voice.stop() }, "Stop"), React.createElement("output", null, voice.state));
+      };
+      throw new Error("preview: no registered fixture for hook " + hookName);
+    };
+    const validateEnvironment = (environment) => {
+      if (!environment || typeof environment !== "object" || Array.isArray(environment)) return ["Environment override must be an object."];
+      const declared = Array.isArray(previewStory.environmentSchema && previewStory.environmentSchema.fixtures) ? previewStory.environmentSchema.fixtures : [];
+      const failures = [];
+      for (const [key, value] of Object.entries(environment)) {
+        const fixture = declared.find((candidate) => candidate && candidate.key === key);
+        if (!fixture) failures.push(key + ": fixture is not declared.");
+        else if (!Array.isArray(fixture.options) || !fixture.options.includes(value)) failures.push(key + ": fixture option is not declared.");
+      }
+      return failures;
+    };
+    const renderPreview = (override, environment = previewStory.environment) => {
       const safeOverride = override && typeof override === "object" && !Array.isArray(override) ? override : {};
-      const props = resolveProps({ ...(previewExample.props || {}), ...safeOverride });
-      root.render(React.createElement(Cmp, props));
+      const props = resolveProps(mergeStoryProps(previewStory.props, safeOverride));
+      root.render(previewStory.kind === "hook" ? React.createElement(hookFixture(props, environment)) : React.createElement(Cmp, props));
+    };
+    const locate = (target) => {
+      if (!target || typeof target !== "object") return null;
+      if (typeof target.selector === "string") return document.querySelector(target.selector);
+      if (typeof target.role !== "string") return null;
+      const candidates = document.querySelectorAll('[role="' + CSS.escape(target.role) + '"], ' + target.role);
+      return Array.from(candidates).find((candidate) => typeof target.name !== "string" || (candidate.getAttribute("aria-label") || candidate.textContent || "").trim() === target.name) || null;
+    };
+    const expectationFailure = (expectation) => {
+      const visible = (node) => !!node && !node.hasAttribute("hidden") && getComputedStyle(node).display !== "none" && getComputedStyle(node).visibility !== "hidden";
+      let node = null;
+      if (expectation.kind === "text") node = Array.from(document.querySelectorAll("body *")).find((candidate) => candidate.textContent && candidate.textContent.includes(expectation.value || ""));
+      else if (expectation.kind === "role") node = locate({ role: expectation.role, name: expectation.name });
+      else node = locate({ selector: expectation.selector });
+	  if (!node && previewStory.kind === "hook" && expectation.kind === "visible") node = document.querySelector("[data-rcl-hook-root]");
+      if (expectation.kind === "notVisible") return visible(node) ? "expected target not to be visible" : "";
+      if (expectation.kind === "visible" || expectation.kind === "text" || expectation.kind === "role") return visible(node) ? "" : "expected target to be visible";
+      if (expectation.kind === "attribute") return node && node.getAttribute(expectation.attribute || "") === expectation.value ? "" : "expected attribute value was not found";
+      return "unsupported expectation";
+    };
+    const runStory = async () => {
+      const failures = [];
+      for (const interaction of previewStory.interactions || []) {
+        let target = locate(interaction.target);
+        if (interaction.kind === "settle") { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))); continue; }
+        if (interaction.kind === "waitFor") { await new Promise((resolve) => setTimeout(resolve, Math.min(Math.max(Number(interaction.text) || 0, 0), 1000))); continue; }
+        if (!target && previewStory.kind === "hook" && interaction.kind === "key") target = window;
+        if (!target && previewStory.kind === "hook" && interaction.kind === "click") target = document.querySelector("[data-rcl-hook-action=start]");
+        if (!target && previewStory.kind === "hook" && interaction.kind === "focus") target = document.querySelector("[data-rcl-hook-root]");
+        if (!target) { failures.push({ kind: "interaction", message: "target not found for " + interaction.kind }); continue; }
+        if (interaction.kind === "click") target.click();
+        else if (interaction.kind === "focus") target.focus();
+        else if (interaction.kind === "blur") target.blur();
+        else if (interaction.kind === "key") target.dispatchEvent(new KeyboardEvent("keydown", { key: interaction.text || "", bubbles: true }));
+        else if (interaction.kind === "type") { target.value = interaction.text || ""; target.dispatchEvent(new Event("input", { bubbles: true })); target.dispatchEvent(new Event("change", { bubbles: true })); }
+      }
+      // React 18 may defer the commit past the first animation frame. Story
+      // expectations run against the committed specimen, never the scheduling
+      // frame that happened to follow root.render().
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      for (const expectation of previewStory.expect || []) {
+        const message = expectationFailure(expectation);
+        if (message) failures.push({ kind: "expect", expectation, message });
+      }
+      parent.postMessage({ type: "rcl-story-result", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", passed: failures.length === 0, failures }, "*");
     };
     renderPreview({});
+    void runStory();
     window.addEventListener("message", (ev) => {
       const data = ev && ev.data;
       if (!data || (data.type !== "rcl-preview-props-override" && data.type !== "rcl-preview-props-reset")) return;
-      if (data.componentId !== ` + jsString(id) + ` || (data.example || "") !== (previewExample.name || "") || (data.version || "") !== (previewExample.version || "")) return;
+      if (data.componentId !== ` + jsString(id) + ` || (data.story || "") !== (previewStory.name || "") || (data.version || "") !== (previewStory.version || "")) return;
       if (data.type === "rcl-preview-props-override") {
         const override = data.props;
         if (!override || typeof override !== "object" || Array.isArray(override)) {
-          parent.postMessage({ type: "rcl-preview-props-error", id: ` + jsString(id) + `, example: previewExample.name || "", version: previewExample.version || "", message: "Props override must be a JSON object." }, "*");
+          parent.postMessage({ type: "rcl-preview-props-error", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", message: "Props override must be a JSON object." }, "*");
           return;
         }
-        renderPreview(override);
-        parent.postMessage({ type: "rcl-preview-props-applied", id: ` + jsString(id) + `, example: previewExample.name || "", version: previewExample.version || "" }, "*");
+		const validationErrors = [...validateOverride(override), ...validateEnvironment(data.environment || previewStory.environment).map((message) => ({ path: "environment", message }))];
+		if (validationErrors.length > 0) {
+		  parent.postMessage({ type: "rcl-preview-props-error", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", message: validationErrors.map((error) => error.path + ": " + error.message).join(" "), fields: validationErrors }, "*");
+		  return;
+		}
+        renderPreview(override, data.environment || previewStory.environment);
+        parent.postMessage({ type: "rcl-preview-props-applied", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "" }, "*");
         return;
       }
       renderPreview({});
-      parent.postMessage({ type: "rcl-preview-props-reset", id: ` + jsString(id) + `, example: previewExample.name || "", version: previewExample.version || "" }, "*");
+      parent.postMessage({ type: "rcl-preview-props-reset", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "" }, "*");
     });
     setTimeout(() => {
       try {
         assertPreviewExpectations();
-        parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, example: previewExample.name || "", version: previewExample.version || "" }, "*");
+        parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, story: previewStory.name || "", version: previewStory.version || "" }, "*");
       } catch (e) {
         showPreviewError("preview: assertion failed - " + (e && e.stack || e));
       }

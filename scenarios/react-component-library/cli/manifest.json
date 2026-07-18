@@ -357,16 +357,16 @@
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
         },
         {
-          "name": "examples",
-          "description": "List indexed example states for a component",
+          "name": "stories",
+          "description": "List validated story contracts for a catalog asset",
           "positionals": [
-            { "name": "component-id", "required": true, "description": "Component id" }
+            { "name": "component-id", "required": true, "description": "Catalog asset id" }
           ],
           "flags": [
-            { "name": "version", "description": "Only examples for this version" },
+            { "name": "version", "description": "Only stories for this version" },
             { "name": "limit", "description": "Maximum number of rows" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "ListComponentExamples" },
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "ListComponentStories" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]

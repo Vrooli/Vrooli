@@ -2,9 +2,8 @@ package componenttests
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -40,27 +39,29 @@ func (a assets) GetVersion(_ context.Context, id, version string) (components.Co
 	return v, nil
 }
 
-type contracts map[string]Contract
+type stories map[string]components.StoryContract
 
-func (c contracts) Load(a components.Component, v components.ComponentVersion) (Contract, error) {
-	contract, ok := c[a.ID+"@"+v.Version]
+func (s stories) ListStories(_ context.Context, query components.StoryQuery) ([]components.ComponentStory, error) {
+	story, ok := s[query.ComponentID+"@"+query.Version]
 	if !ok {
-		return Contract{}, errors.New("missing test contract")
+		return nil, nil
 	}
-	return contract, nil
+	raw, err := json.Marshal(story)
+	if err != nil {
+		return nil, err
+	}
+	return []components.ComponentStory{{ComponentID: query.ComponentID, Version: query.Version, Kind: story.Kind, ContractJSON: string(raw)}}, nil
 }
 
-type examples map[string][]components.ComponentExample
-
-func (e examples) ListExamples(_ context.Context, query components.ExampleQuery) ([]components.ComponentExample, error) {
-	return e[query.ComponentID+"@"+query.Version], nil
+func componentStory(id string) components.StoryContract {
+	return components.StoryContract{SchemaVersion: 1, Kind: components.StoryKindComponent, Args: components.StoryArgsSchema{Fields: []components.StoryField{}}, Environment: components.StoryEnvironment{Fixtures: []components.StoryFixture{}}, Stories: []components.StoryDefinition{{ID: id, Name: id}}}
 }
 
 func TestRunnerRequiresPinAndReportsEachClosureAsset(t *testing.T) {
 	hook := components.Component{ID: "hook", LibraryID: "rcl:hook", Slug: "hook", AssetKind: components.AssetKindHook}
 	root := components.Component{ID: "root", LibraryID: "rcl:button", Slug: "button", AssetKind: components.AssetKindComponent, Dependencies: []components.AssetDependency{{LibraryID: hook.LibraryID, Version: "1.0.0"}}}
 	reader := assets{root: root, dependency: hook, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0", Content: "export const Button = () => null", ContentSHA256: "root"}, "hook@1.0.0": {ComponentID: "hook", Version: "1.0.0", Content: "export const useHook = () => null", ContentSHA256: "hook"}}}
-	runner := Runner{Assets: reader, Examples: examples{"root@1.0.0": {{Name: "idle", ExpectJSON: `[{"kind":"text","value":"Ready"}]`}}}, Contracts: contracts{"root@1.0.0": {SchemaVersion: "1", Examples: []ExampleTrace{{Example: "idle", Assertions: []Assertion{{Kind: "text", Value: "Ready"}}}}}, "hook@1.0.0": {SchemaVersion: "1", Fixtures: []HookFixture{{Name: "start", Assertions: []Assertion{{Kind: "state", Target: "status", Value: "recording"}}}}}}, Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }}
+	runner := Runner{Assets: reader, Stories: stories{"root@1.0.0": componentStory("idle"), "hook@1.0.0": {SchemaVersion: 1, Kind: components.StoryKindHook, Args: components.StoryArgsSchema{Fields: []components.StoryField{}}, Environment: components.StoryEnvironment{Fixtures: []components.StoryFixture{}}, Stories: []components.StoryDefinition{{ID: "start", Name: "start"}}}}, Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }}
 	_, err := runner.Run(context.Background(), Request{ComponentID: "root"})
 	var validation ValidationError
 	require.ErrorAs(t, err, &validation)
@@ -73,64 +74,22 @@ func TestRunnerRequiresPinAndReportsEachClosureAsset(t *testing.T) {
 	require.Equal(t, StageStatic, report.Results[1].Stage)
 }
 
-func TestRunnerDoesNotSuppressSiblingContractFailure(t *testing.T) {
+func TestRunnerFailsWhenStoryIsMissing(t *testing.T) {
 	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "root", AssetKind: components.AssetKindComponent}
-	runner := Runner{Assets: assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0"}}}, Examples: examples{}, Contracts: contracts{}}
+	runner := Runner{Assets: assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0", Content: "export const Root = () => null", ContentSHA256: "root"}}}, Stories: stories{}}
 	report, err := runner.Run(context.Background(), Request{ComponentID: "root", Version: "1.0.0"})
 	require.NoError(t, err)
 	require.Equal(t, VerdictFailed, report.Verdict)
-	require.Len(t, report.Results, 3)
 	require.Equal(t, StageContract, report.Results[2].Stage)
-}
-
-func TestRunnerReportsAbsentContractAsUncoveredWithoutClaimingFailure(t *testing.T) {
-	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "root", AssetKind: components.AssetKindComponent}
-	runner := Runner{Assets: assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0", Content: "export const Root = () => null", ContentSHA256: "root"}}}, Examples: examples{}, Contracts: FSContractReader{Root: t.TempDir()}}
-	report, err := runner.Run(context.Background(), Request{ComponentID: "root", Version: "1.0.0"})
-	require.NoError(t, err)
-	require.Equal(t, VerdictBlocked, report.Verdict)
-	require.Equal(t, VerdictBlocked, report.Results[2].Verdict)
-	require.Contains(t, report.Results[2].Message, "no versioned test contract")
+	require.Contains(t, report.Results[2].Message, "exactly one indexed story")
 }
 
 func TestRunnerRejectsAnEmptyVersionedSourceBeforeBehaviorEvaluation(t *testing.T) {
 	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "root", AssetKind: components.AssetKindComponent}
-	runner := Runner{Assets: assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0"}}}, Examples: examples{"root@1.0.0": {{Name: "idle", ExpectJSON: `[{"kind":"text","value":"Ready"}]`}}}, Contracts: contracts{"root@1.0.0": {SchemaVersion: "1", Examples: []ExampleTrace{{Example: "idle", Assertions: []Assertion{{Kind: "text", Value: "Ready"}}}}}}}
+	runner := Runner{Assets: assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0"}}}, Stories: stories{"root@1.0.0": componentStory("idle")}}
 	report, err := runner.Run(context.Background(), Request{ComponentID: "root", Version: "1.0.0"})
 	require.NoError(t, err)
 	require.Equal(t, VerdictFailed, report.Verdict)
 	require.Equal(t, StageStatic, report.Results[1].Stage)
 	require.Equal(t, VerdictFailed, report.Results[1].Verdict)
-}
-
-func TestRunnerReportsMissingDeclaredExampleWithoutHidingOtherTraces(t *testing.T) {
-	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "root", AssetKind: components.AssetKindComponent}
-	runner := Runner{Assets: assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0"}}}, Examples: examples{"root@1.0.0": {{Name: "present", ExpectJSON: `[{"kind":"text","value":"Ready"}]`}}}, Contracts: contracts{"root@1.0.0": {SchemaVersion: "1", Examples: []ExampleTrace{{Example: "missing", Assertions: []Assertion{{Kind: "text", Value: "Ready"}}}, {Example: "present", Assertions: []Assertion{{Kind: "text", Value: "Ready"}}}}}}}
-	report, err := runner.Run(context.Background(), Request{ComponentID: "root", Version: "1.0.0"})
-	require.NoError(t, err)
-	require.Equal(t, VerdictFailed, report.Verdict)
-	require.Len(t, report.Results, 5)
-	require.Equal(t, VerdictFailed, report.Results[3].Verdict)
-	require.Equal(t, VerdictPassed, report.Results[4].Verdict)
-}
-
-func TestRunnerLinksClaimOnlyWhenThePublishedExperienceContractDeclaresIt(t *testing.T) {
-	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "VoiceInputButton", AssetKind: components.AssetKindComponent}
-	dir := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, "experience", "components"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "experience", "components", "voice-input-button.json"), []byte(`{"claims":[{"id":"voice-input-action"}]}`), 0o644))
-	runner := Runner{
-		Assets:   assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0", Content: "export const VoiceInputButton = () => null", ContentSHA256: "voice"}}},
-		Examples: examples{"root@1.0.0": {{Name: "idle", ExpectJSON: `[{"kind":"text","value":"Ready"}]`}}},
-		Contracts: contracts{"root@1.0.0": {
-			SchemaVersion: "1",
-			Examples:      []ExampleTrace{{Example: "idle", Assertions: []Assertion{{Kind: "text", Value: "Ready"}}, Claims: []string{"voice-input-action"}}},
-		}},
-		Claims: FSClaimReader{Root: dir},
-	}
-	report, err := runner.Run(context.Background(), Request{ComponentID: "root", Version: "1.0.0"})
-	require.NoError(t, err)
-	require.Equal(t, VerdictPassed, report.Verdict)
-	require.Equal(t, StageEvidence, report.Results[4].Stage)
-	require.Equal(t, VerdictPassed, report.Results[4].Verdict)
 }

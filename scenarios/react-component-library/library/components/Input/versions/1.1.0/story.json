@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "Input",
+  "args": {
+    "fields": [
+        {
+          "path": "type",
+          "label": "Type",
+          "kind": "text",
+          "default": "text"
+        },
+        {
+          "path": "placeholder",
+          "label": "Placeholder",
+          "kind": "text",
+          "default": "Component name"
+        },
+        {
+          "path": "defaultValue",
+          "label": "Default Value",
+          "kind": "text",
+          "default": "Button"
+        },
+        {
+          "path": "disabled",
+          "label": "Disabled",
+          "kind": "boolean",
+          "default": true
+        }
+      ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "text",
+      "name": "Text",
+      "args": {
+        "type": "text",
+        "placeholder": "Component name",
+        "defaultValue": "Button"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Button"
+        },
+        {
+          "kind": "attribute",
+          "selector": "input",
+          "name": "placeholder",
+          "value": "Component name"
+        }
+      ]
+    },
+    {
+      "id": "search",
+      "name": "Search",
+      "args": {
+        "type": "search",
+        "placeholder": "Filter components",
+        "defaultValue": "status"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "status"
+        }
+      ]
+    },
+    {
+      "id": "disabled",
+      "name": "Disabled",
+      "args": {
+        "type": "text",
+        "defaultValue": "Read only",
+        "disabled": true
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "input",
+          "name": "disabled",
+          "value": ""
+        }
+      ]
+    }
+  ]
+}

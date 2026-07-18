@@ -201,6 +201,22 @@
           }
         },
         {
+          "path": "concepts/STORY-CONTRACT.md",
+          "docType": "story-contract",
+          "title": "Story Contract",
+          "aliases": ["stories", "preview-contract", "generated-controls"],
+          "description": "Authoritative declarative contract for versioned preview, fixtures, interactions, generated controls, and catalog test semantics",
+          "audience": ["developers", "agents", "designers"],
+          "canonicalFor": ["story-schema", "preview-input-boundary", "fixture-boundary"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Ownership", "Grammar", "Components, state, and environments", "Hook stories", "Migration invariant", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
           "path": "concepts/INTEGRATIONS.md",
           "docType": "integrations",
           "title": "Integrations",

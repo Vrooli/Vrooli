@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "ExperienceSurface",
+  "args": {
+    "fields": [
+        {
+          "path": "surfaceId",
+          "label": "Surface Id",
+          "kind": "text",
+          "default": "results"
+        },
+        {
+          "path": "state",
+          "label": "State",
+          "kind": "text",
+          "default": "ready"
+        },
+        {
+          "path": "children",
+          "label": "Children",
+          "kind": "structured",
+          "default": {
+            "$node": "p",
+            "children": [
+              {
+                "$text": "Results are ready"
+              }
+            ]
+          }
+        },
+        {
+          "path": "statusMessage",
+          "label": "Status Message",
+          "kind": "text",
+          "default": "Loading results"
+        }
+      ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "ready",
+      "name": "Ready",
+      "args": {
+        "surfaceId": "results",
+        "state": "ready",
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Results are ready"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Results are ready"
+        }
+      ]
+    },
+    {
+      "id": "static",
+      "name": "Static",
+      "args": {
+        "surfaceId": "guidance",
+        "state": "static",
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Static guidance"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Static guidance"
+        }
+      ]
+    },
+    {
+      "id": "loading",
+      "name": "Loading",
+      "args": {
+        "surfaceId": "results",
+        "state": "loading",
+        "statusMessage": "Loading results",
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Loading…"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "Loading results"
+        }
+      ]
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "args": {
+        "surfaceId": "results",
+        "state": "empty",
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "No results"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No results"
+        }
+      ]
+    },
+    {
+      "id": "partial",
+      "name": "Partial",
+      "args": {
+        "surfaceId": "results",
+        "state": "partial",
+        "statusMessage": "Some results are unavailable",
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Showing available results"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "Some results are unavailable"
+        }
+      ]
+    },
+    {
+      "id": "error",
+      "name": "Error",
+      "args": {
+        "surfaceId": "results",
+        "state": "error",
+        "statusMessage": "Results could not load",
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Try again"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "Results could not load"
+        }
+      ]
+    }
+  ]
+}

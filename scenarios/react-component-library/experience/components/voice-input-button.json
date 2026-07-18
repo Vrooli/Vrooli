@@ -6,7 +6,7 @@
     "id": "voice-input-button",
     "title": "VoiceInputButton",
     "purpose": "Expose an accessible microphone control whose visual level, timeout, and always-on states communicate capture state.",
-    "examplesRef": "../../library/components/VoiceInputButton/versions/1.0.0/examples.json",
+    "storyRef": "../../library/components/VoiceInputButton/versions/1.0.0/story.json",
     "prd_refs": ["OT-P0-008"]
   },
   "priorities": [{ "statement": "The control always communicates whether voice input can start, is preparing, is recording, or has failed." }],

@@ -1,7 +1,7 @@
 {
   "_metadata": {
-    "description": "Per-version JSON examples that drive catalog previews, specimen galleries, CLI/API queries, and experience-component reconciliation.",
-    "last_validated_at": "2026-07-15T01:58:56-04:00",
+    "description": "Superseded legacy examples/control metadata. Story contracts in 21-story-contracts now own preview, generated controls, fixtures, and catalog-test declarations.",
+    "last_validated_at": "2026-07-18T00:58:59-04:00",
     "module": "examples-as-data",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,11 +11,11 @@
     {
       "id": "EX-001",
       "title": "Version folders may declare data-only component examples",
-      "status": "in_progress",
+      "status": "pending",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
-      "description": "Each component version may include `examples.json` beside the TSX source. Examples are pure JSON with stable `name`, optional display label, JSON `props`, optional `setup`, and optional `expect[]` assertions. Non-serializable React values use the documented `$` vocabulary and are resolved only inside the preview harness. The current preview contract does not execute `setup`; it is retained as indexed data until a separately specified runtime model exists.",
+      "description": "Superseded by SC-001 and SC-003. `examples.json`, per-example controls, and setup metadata are removed during the greenfield story-contract cutover.",
       "tags": [
         "examples",
         "preview",
@@ -41,11 +41,11 @@
     {
       "id": "EX-002",
       "title": "Examples are queryable through API and CLI",
-      "status": "in_progress",
+      "status": "pending",
       "prd_ref": "OT-P0-007",
       "category": "api-cli",
       "criticality": "P0",
-      "description": "`ComponentsService.ListComponentExamples` exposes indexed examples by component id and optional version. The CLI command `react-component-library components examples \u003ccomponent-id\u003e` is a thin Connect-RPC wrapper with human output and `--json` support.",
+      "description": "Superseded by SC-001. API and CLI expose validated typed story data rather than legacy examples.",
       "tags": [
         "examples",
         "connect-rpc",
@@ -69,11 +69,11 @@
     {
       "id": "EX-003",
       "title": "Specimen gallery renders every named example and checks expectations",
-      "status": "in_progress",
+      "status": "pending",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
-      "description": "The component editor preview mode renders one harness iframe per indexed example for the selected version in an adaptive, non-overlapping specimen grid. Users can focus or compare a bounded set of specimens, and each frame has its own readiness, error, retry, and inspection target. The harness resolves `$text`, `$node`, `$icon`, `$handler`, `$rowKey`, `$columns`, and `$filters`, then evaluates `expect[]` assertions after render and reports identity-correlated failures through preview-error. A user may temporarily shallow-merge a valid JSON object over one frame's indexed props; the experiment is session-only, resettable, and never changes the catalog.",
+      "description": "Superseded by SC-002 through SC-004. The workbench renders named stories using one generated argument schema, explicit fixtures, and validated interaction/expectation contracts.",
       "tags": [
         "examples",
         "gallery",
@@ -91,7 +91,7 @@
           "type": "test",
           "ref": "ui/scripts/preview-e2e.mjs",
           "phase": "workflow",
-          "status": "implemented",
+          "status": "failing",
           "notes": "`pnpm run test:preview-e2e` passed across all 11 catalog components and their example frames during Phase 6."
         }
       ]
@@ -103,7 +103,7 @@
       "prd_ref": "OT-P2-003",
       "category": "docs",
       "criticality": "P2",
-      "description": "A future documentation generator can combine component prop metadata, named examples, and version metadata into Storybook-style reference pages without changing the examples data contract.",
+      "description": "Superseded by SC-001. Documentation derives from the asset-level story contract rather than legacy examples.",
       "tags": [
         "docs",
         "prop-types",

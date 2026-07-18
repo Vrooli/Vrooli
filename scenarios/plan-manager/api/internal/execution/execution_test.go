@@ -394,6 +394,25 @@ func TestExplicitLegacyPlanRequiresBaselineAdoption(t *testing.T) {
 	require.Equal(t, []string{"exec", "baseline-adopt", e.ID, "--mode", "recapture", "--name", "<collection-name>", "--members", "<scenario,...>", "--reason", "<why this is a trustworthy before-state>"}, step.NextActions[0].Argv)
 }
 
+func TestRecaptureBaselineCanSupersedeExistingTicketWithNewName(t *testing.T) {
+	plan := threePhasePlan()
+	plan.BaselineSet = internalplans.BaselineSetIntent{Name: "invalid-before", ScenarioTargets: []string{"plan-manager"}}
+	h := newHarness(t, plan, nil)
+	run, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+
+	updated, _, _, err := h.svc.AdoptBaseline(context.Background(), run.ID, execution.BaselineAdoptionRequest{
+		Mode:    execution.BaselineAdoptionRecapture,
+		Name:    "valid-before-v2",
+		Members: []string{"plan-manager"},
+		Reason:  "the prior baseline ticket was terminally non-comparable",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "valid-before-v2", updated.BaselineSet.Name)
+	require.Equal(t, execution.BaselineSetStatusRequired, updated.BaselineSet.Status)
+	require.Contains(t, updated.BaselineSet.Detail, "supersedes invalid-before")
+}
+
 func TestResumePointDerivationEarliestNonDone(t *testing.T) {
 	plan := threePhasePlan()
 	plan.Phases[0].Status = internalplans.PhaseStatusDone // ph-1 done

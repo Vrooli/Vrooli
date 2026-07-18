@@ -1,7 +1,0 @@
-{
-  "examples": [
-    { "name": "start-recording", "description": "Always-on fixture enters recording." },
-    { "name": "timeout", "description": "Timeout fixture returns to idle." },
-    { "name": "failure", "description": "Denied media fixture enters an error state." }
-  ]
-}

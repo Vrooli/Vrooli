@@ -40,11 +40,6 @@ func EnsureSchemaMigrations(ctx context.Context, db schemaMigrator) error {
 			column: "slot",
 			sql:    `ALTER TABLE component_version_files ADD COLUMN slot TEXT NOT NULL DEFAULT '';`,
 		},
-		{
-			table:  "component_examples",
-			column: "controls_json",
-			sql:    `ALTER TABLE component_examples ADD COLUMN controls_json TEXT NOT NULL DEFAULT '{}';`,
-		},
 	}
 	for _, m := range migrations {
 		has, err := tableHasColumn(ctx, db, m.table, m.column)

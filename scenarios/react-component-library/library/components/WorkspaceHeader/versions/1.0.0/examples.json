@@ -1,1 +1,0 @@
-{"examples":[{"name":"basic","displayName":"Workspace header","props":{"title":"Component Library","description":"Browse reusable UI assets","primaryAction":{"$node":"button","children":[{"$text":"Add component"}]}},"expect":[{"kind":"text","value":"Component Library"}]}]}

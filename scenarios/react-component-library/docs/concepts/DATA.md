@@ -16,8 +16,8 @@ uses SQLite as an indexed registry and adoption ledger.
 | Component registry | components | SQLite `components` | Manifest indexer | Rebuilt by `components index` | Soft-referenced by other domains through component id/library id. Includes the indexed adoption `slot` and latest-version `category` facet. |
 | Component versions | versions | SQLite `component_versions`, `component_version_files` | Manifest indexer | Rebuilt by `components index` | `component_versions` mirrors the entry for legacy reads; `component_version_files` is the authoritative per-file path/content/hash set and carries a per-file `slot` so multi-file versions place each file independently. The table is single-owner: the former mirrored `internal/versions` schema was deleted so `internal/components/schema.sql` is the sole DDL. |
 | Reviewed template divergences | adoptions | `api/internal/adoptions/testdata/reviewed-template-divergences.json` | Human review (Git-tracked) | Until the divergence is resolved | Dated allowlist of explicitly-accepted mismatches between the react-vite template's vendored copies and catalog latest (path, library id, vendored version, catalog version, status, reason, report pointer). The parity test fails for any un-listed behind/deprecated copy and for stale entries, so the allowlist is an audit trail, not a suppression. |
-| Component examples | components | `library/components/<slug>/versions/<version>/examples.json` plus SQLite `component_examples` | Git-tracked examples file | Rebuilt by `components index` | Data-only named states for preview. Each example has a stable `name`, display label, JSON `props`, optional declared `controls`, optional `setup`, and optional `expect[]` assertions. Controls only describe text, number, boolean, and select editing; they cannot execute code. Non-serializable props use `$` vocabulary values such as `{ "$text": "Save" }`; the preview harness resolves them at render time. |
-| Preview-session props overrides | preview host / harness | Component-editor React state and one registered iframe's memory | Volatile user input over the indexed example's `props` | Cleared by Reset, reload, navigation, or unmount | A valid JSON object is shallow-merged over the selected example's indexed props and resolved through the same `$` vocabulary. It is never written to `examples.json`, SQLite, localStorage, source, or an RPC. `setup` remains indexed data only; it has no runtime semantics in this workspace. |
+| Version story contracts | components | `library/<kind>/<slug>/versions/<version>/story.json` plus typed SQLite story projections | Git-tracked story file | Rebuilt by `components index` | One schemaVersioned contract owns public args/input validation, named baselines, explicit environment fixtures, interactions, and expectations. It is declarative data only; the preview harness resolves only the documented allowlisted `$` vocabulary. |
+| Preview-session story edits | preview host / harness | Component-editor React state and one registered iframe's memory | Validated public-path edits over the selected story | Cleared by Reset, reload, navigation, or unmount | Generated Args controls update only declared paths after complete effective-args validation. Environment controls select declared fixtures. Neither is written to story.json, SQLite, localStorage, source, or an RPC. |
 | Component headers | components | SQLite `component_headers` | Latest version source header | Rebuilt by `components index` | Stores non-structural header metadata. Identity, version, category, and deps are stored in typed columns/tables instead; conflicting structural header hints emit `header_disagreement` findings instead of owning projection facts. |
 | Component design affinities | components | SQLite `component_design_affinities` | `component.json` `designStyles[]` | Rebuilt by `components index` | Component-scoped, reconciled against `templates/design/*/metadata.json`, and carries optional rationale text for search, adoption workflows, and UI. Unknown style IDs emit non-fatal staleness findings so catalog drift is visible without dropping the component. |
 | Adoption records | adoptions | SQLite `adoption_records`, `adoption_files` | Apply/reapply service | Until deleted | One direct parent record owns a materialized closure. Each `adoption_files` row records its originating asset/library/version as authoritative provenance, enabling direct and effective usage projections without filename inference; old rows with no deterministic origin remain explicitly unknown. |
@@ -34,7 +34,7 @@ uses SQLite as an indexed registry and adoption ledger.
 | `component_versions` | components | `api/internal/components/schema.sql` (single-owner; the mirrored `api/internal/versions` schema was removed) | Version browsing, apply/reapply, diffs |
 | `component_version_files` | components | `api/internal/components/schema.sql` | File tabs, file-scoped content RPCs, per-file slot placement, preview/adoption units |
 | `reviewed-template-divergences.json` | adoptions | `api/internal/adoptions/testdata/` | Template origin-parity test (allowlisted divergences + calibration) |
-| `component_examples` | components | `api/internal/components/schema.sql` | Example browsing, preview harness inputs, component spec reconciliation |
+| `component_stories` and typed child projections | components | `api/internal/components/schema.sql` | Story browsing, generated controls, preview harness, runner, and component spec reconciliation |
 | `component_headers` | components | `api/internal/components/schema.sql` | Component get for non-structural latest-version metadata |
 | `component_design_affinities` | components | `api/internal/components/schema.sql` | Component get/list, style/affinity search, UI badges |
 | `component_asset_dependencies` | components | `api/internal/components/schema.sql` | Deterministic preview/adoption closure resolution |
@@ -55,13 +55,14 @@ drift.
 
 ## Preview-session boundary
 
-The editor treats the indexed example as the immutable baseline for every
-specimen. A Try props experiment is intentionally not a second example and is
-not an edit to the component: the host sends a data-only object to the matching
-iframe, the harness shallow-merges it over indexed `props`, and Reset restores
-the indexed object. The existing `setup` field is visible in the index contract
-but is not evaluated by the harness; no consumer may infer arbitrary code or
-setup-program execution from its presence.
+The editor treats a selected named story as its immutable baseline. Generated
+Args controls edit only declared public paths, and every partial edit is
+validated before the matching iframe receives the complete effective args.
+Reset restores the selected story; no source file, SQLite row, localStorage
+entry, or write RPC is changed. Environment controls select only declared
+server-owned fixtures. Internal state is reached through real interactions or
+the component's normal controlled/default API; arbitrary setup, imports, and
+hook mutation have no runtime model. See [STORY-CONTRACT.md](STORY-CONTRACT.md).
 
 ## Cross-References
 

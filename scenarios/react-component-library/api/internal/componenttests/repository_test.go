@@ -22,7 +22,7 @@ func TestSQLiteRepositoryPersistsNormalizedReportsNewestFirst(t *testing.T) {
 	newer.CreatedAt = older.CreatedAt.Add(time.Minute)
 	newer.Verdict = VerdictFailed
 	newer.Results = []Result{{Stage: StageContract, Verdict: VerdictFailed, Remediation: "fix contract"}}
-	newer.Artifacts = []Artifact{{Kind: "contract", Label: "Button contract", AssetLibraryID: "rcl:Button", Version: "1.0.0", Reference: "rcl:Button@1.0.0:test-contract.json"}}
+	newer.Artifacts = []Artifact{{Kind: "story-contract", Label: "Button story", AssetLibraryID: "rcl:Button", Version: "1.0.0", Reference: "rcl:Button@1.0.0:story.json"}}
 	require.NoError(t, repository.Save(context.Background(), older))
 	require.NoError(t, repository.Save(context.Background(), newer))
 	got, err := repository.Get(context.Background(), "ctr_new")

@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "CommandCenterShell",
+  "args": {
+    "fields": [
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "Operations command center"
+      },
+      {
+        "path": "navigation",
+        "label": "Navigation",
+        "kind": "structured",
+        "default": {
+          "$node": "nav",
+          "children": [
+            {
+              "$node": "a",
+              "props": {
+                "href": "#runs"
+              },
+              "children": [
+                {
+                  "$text": "Runs"
+                }
+              ]
+            },
+            {
+              "$node": "a",
+              "props": {
+                "href": "#alerts"
+              },
+              "children": [
+                {
+                  "$text": "Alerts"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "path": "metrics",
+        "label": "Metrics",
+        "kind": "structured",
+        "default": [
+          {
+            "label": "Active runs",
+            "value": "12",
+            "detail": "3 need attention"
+          },
+          {
+            "label": "Queued",
+            "value": "28"
+          }
+        ]
+      },
+      {
+        "path": "controls",
+        "label": "Controls",
+        "kind": "structured",
+        "default": {
+          "$node": "button",
+          "children": [
+            {
+              "$text": "Filter runs"
+            }
+          ]
+        }
+      },
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": {
+          "$node": "section",
+          "children": [
+            {
+              "$node": "h2",
+              "children": [
+                {
+                  "$text": "Recent runs"
+                }
+              ]
+            },
+            {
+              "$node": "p",
+              "children": [
+                {
+                  "$text": "Deployment verification is in progress."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "path": "regionState",
+        "label": "Region State",
+        "kind": "text",
+        "default": "partial"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "ready-workspace",
+      "name": "Ready workspace",
+      "args": {
+        "title": "Operations command center",
+        "navigation": {
+          "$node": "nav",
+          "children": [
+            {
+              "$node": "a",
+              "props": {
+                "href": "#runs"
+              },
+              "children": [
+                {
+                  "$text": "Runs"
+                }
+              ]
+            },
+            {
+              "$node": "a",
+              "props": {
+                "href": "#alerts"
+              },
+              "children": [
+                {
+                  "$text": "Alerts"
+                }
+              ]
+            }
+          ]
+        },
+        "metrics": [
+          {
+            "label": "Active runs",
+            "value": "12",
+            "detail": "3 need attention"
+          },
+          {
+            "label": "Queued",
+            "value": "28"
+          }
+        ],
+        "controls": {
+          "$node": "button",
+          "children": [
+            {
+              "$text": "Filter runs"
+            }
+          ]
+        },
+        "children": {
+          "$node": "section",
+          "children": [
+            {
+              "$node": "h2",
+              "children": [
+                {
+                  "$text": "Recent runs"
+                }
+              ]
+            },
+            {
+              "$node": "p",
+              "children": [
+                {
+                  "$text": "Deployment verification is in progress."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "main"
+        },
+        {
+          "kind": "text",
+          "value": "Recent runs"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface]",
+          "name": "data-experience-state",
+          "value": "ready"
+        }
+      ]
+    },
+    {
+      "id": "partial-workspace",
+      "name": "Partial workspace",
+      "args": {
+        "title": "Operations command center",
+        "navigation": {
+          "$node": "nav",
+          "children": [
+            {
+              "$text": "Runs"
+            }
+          ]
+        },
+        "metrics": [
+          {
+            "label": "Active runs",
+            "value": "12"
+          }
+        ],
+        "regionState": "partial"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "Some information is unavailable."
+        }
+      ]
+    }
+  ]
+}

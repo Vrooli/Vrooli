@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "bottomnav-keyboard-navigation",
-    "description": "Opens the BottomNav@1.2.0 preview harness (example=mobile-primary) at top level, focuses the first navigation item, presses Tab, and asserts focus advances to a later item that is still inside the nav element. Proves BottomNav items are keyboard-reachable in sequence rather than only pointer-operable.",
+    "description": "Opens the BottomNav@1.2.0 preview harness (story=mobile-primary) at top level, focuses the first navigation item, presses Tab, and asserts focus advances to a later item that is still inside the nav element. Proves BottomNav items are keyboard-reachable in sequence rather than only pointer-operable.",
     "requirement": "TC-006",
     "version": "1",
     "labels": {
@@ -23,7 +23,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "react-component-library",
-          "scenario_path": "/preview/react-component-library:BottomNav/harness.html?example=mobile-primary",
+          "scenario_path": "/preview/react-component-library:BottomNav/harness.html?story=mobile-primary",
           "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
           "timeout_ms": 30000
         },

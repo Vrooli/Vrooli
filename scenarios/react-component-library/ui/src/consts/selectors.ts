@@ -402,6 +402,8 @@ const literalSelectors = {
       propsApply: "components-editor-props-apply",
       propsReset: "components-editor-props-reset",
       propsError: "components-editor-props-error",
+      previewToolsPanel: "components-editor-preview-tools-panel",
+      previewToolsToggle: "components-editor-preview-tools-toggle",
       previewFrame: "components-editor-preview-frame",
       previewBadge: "components-editor-preview-badge",
       previewError: "components-editor-preview-error",

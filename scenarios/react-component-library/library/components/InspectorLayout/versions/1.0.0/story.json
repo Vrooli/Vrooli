@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "InspectorLayout",
+  "args": {
+    "fields": [
+        {
+          "path": "title",
+          "label": "Title",
+          "kind": "text",
+          "default": "Workflow editor"
+        },
+        {
+          "path": "toolbar",
+          "label": "Toolbar",
+          "kind": "structured",
+          "default": {
+            "$node": "button",
+            "children": [
+              {
+                "$text": "Run"
+              }
+            ]
+          }
+        },
+        {
+          "path": "canvas",
+          "label": "Canvas",
+          "kind": "structured",
+          "default": {
+            "$node": "p",
+            "children": [
+              {
+                "$text": "Workflow canvas"
+              }
+            ]
+          }
+        },
+        {
+          "path": "inspector",
+          "label": "Inspector",
+          "kind": "structured",
+          "default": {
+            "$node": "p",
+            "children": [
+              {
+                "$text": "Selected step details"
+              }
+            ]
+          }
+        },
+        {
+          "path": "inspectorState",
+          "label": "Inspector State",
+          "kind": "text",
+          "default": "empty"
+        }
+      ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "ready-inspector",
+      "name": "Ready inspector",
+      "args": {
+        "title": "Workflow editor",
+        "toolbar": {
+          "$node": "button",
+          "children": [
+            {
+              "$text": "Run"
+            }
+          ]
+        },
+        "canvas": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        },
+        "inspector": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Selected step details"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "main"
+        },
+        {
+          "kind": "text",
+          "value": "Workflow canvas"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface]",
+          "name": "data-experience-state",
+          "value": "ready"
+        }
+      ]
+    },
+    {
+      "id": "empty-inspector",
+      "name": "Empty inspector",
+      "args": {
+        "title": "Workflow editor",
+        "canvas": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        },
+        "inspectorState": "empty"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing to show yet."
+        }
+      ]
+    }
+  ]
+}

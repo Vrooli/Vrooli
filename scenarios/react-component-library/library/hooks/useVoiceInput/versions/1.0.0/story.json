@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "hook",
+  "title": "useVoiceInput",
+  "args": {"fields": [{"path":"mode","label":"Mode","kind":"enum","default":"always-on","options":["always-on","timeout"]}]},
+  "environment": {"fixtures": [{"key": "voiceInput", "adapter": "voice-input", "options": ["idle", "timeout", "permission-denied"]}]},
+  "stories": [
+    {"id": "start-recording", "name": "Always-on fixture enters recording", "args": {"mode":"always-on"}, "environment": {"voiceInput": "idle"}, "interactions": [{"kind": "click"}, {"kind": "settle"}], "expect": [{"kind":"role","role":"status"}]},
+    {"id": "timeout", "name": "Timeout fixture returns to idle", "args": {"mode":"timeout"}, "environment": {"voiceInput": "timeout"}, "interactions": [{"kind": "settle"}], "expect": [{"kind":"role","role":"status"}]},
+    {"id": "failure", "name": "Denied media fixture enters an error state", "args": {"mode":"always-on"}, "environment": {"voiceInput": "permission-denied"}, "interactions": [{"kind": "click"}, {"kind": "settle"}], "expect": [{"kind":"role","role":"status"}]}
+  ]
+}

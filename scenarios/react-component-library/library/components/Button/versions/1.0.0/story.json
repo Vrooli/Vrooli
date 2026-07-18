@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "Button",
+  "args": {
+    "fields": [
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": {
+          "$text": "Save changes"
+        }
+      },
+      {
+        "path": "variant",
+        "label": "Variant",
+        "kind": "text",
+        "default": "primary"
+      },
+      {
+        "path": "disabled",
+        "label": "Disabled",
+        "kind": "boolean",
+        "default": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "primary",
+      "name": "Primary",
+      "args": {
+        "children": {
+          "$text": "Save changes"
+        },
+        "variant": "primary"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Save changes"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Save changes"
+        }
+      ]
+    },
+    {
+      "id": "destructive",
+      "name": "Destructive",
+      "args": {
+        "children": {
+          "$text": "Delete record"
+        },
+        "variant": "danger"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Delete record"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Delete record"
+        }
+      ]
+    },
+    {
+      "id": "disabled-long-label",
+      "name": "Disabled Long Label",
+      "args": {
+        "children": {
+          "$text": "Sync all queued workspace changes"
+        },
+        "variant": "secondary",
+        "disabled": true
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Sync all queued workspace changes"
+        },
+        {
+          "kind": "attribute",
+          "selector": "button",
+          "name": "disabled",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "id": "icon-start",
+      "name": "Icon Start",
+      "args": {
+        "children": [
+          {
+            "$icon": "Save"
+          },
+          {
+            "$text": "Save draft"
+          }
+        ],
+        "variant": "primary"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Save draft"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Save draft"
+        }
+      ]
+    }
+  ]
+}

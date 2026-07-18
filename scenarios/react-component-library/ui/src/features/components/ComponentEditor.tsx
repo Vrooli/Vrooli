@@ -2,8 +2,8 @@ import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useS
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
-import { ArrowLeft, Eye, FileCode2, Info, Menu, Minus, PanelsLeftRight, Plus, RotateCcw, Save, X } from "lucide-react";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { ArrowLeft, ChevronDown, ChevronUp, Eye, FileCode2, Info, Menu, Minus, PanelsLeftRight, Plus, RotateCcw, Save, X } from "lucide-react";
+import { Group, Panel, Separator, type PanelImperativeHandle } from "react-resizable-panels";
 
 import { Button } from "../../components/ui/button";
 import { StatusBadge } from "../../components/ui/status-badge";
@@ -12,7 +12,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { API_BASE } from "../../api/client";
-import { componentsClient, listComponentExamples, type ComponentExample } from "../../api/components";
+import { componentsClient, listComponentStories, type ComponentStory } from "../../api/components";
 import { useComponentInspector } from "../../hooks/useComponentInspector";
 import { useDeviceEmulation } from "../../hooks/useDeviceEmulation";
 import { useDeviceFilters } from "../../hooks/useDeviceFilters";
@@ -40,9 +40,14 @@ const DEFAULT_PANE_ORDER = ["details", "files", "preview"] as const;
 type WorkspacePane = (typeof DEFAULT_PANE_ORDER)[number];
 type FilesView = "tree" | "source" | "diff";
 type SpecimenIdentity = `${string}:${string}`;
+type PreviewSpecimen = {
+  id: string; componentId: string; libraryId: string; version: string;
+  name: string; displayName: string; propsJson: string; environment: Record<string, string>; expectJson: string;
+  sourcePath: string; storyId: string;
+};
 
 
-function specimenIdentity(example?: Pick<ComponentExample, "version" | "name">): SpecimenIdentity {
+function specimenIdentity(example?: Pick<PreviewSpecimen, "version" | "name">): SpecimenIdentity {
   return `${example?.version || "__current__"}:${example?.name || "__default__"}`;
 }
 
@@ -91,7 +96,7 @@ function harnessUrl(
   id: string,
   contentVersion: string,
   reloadKey = 0,
-  example?: ComponentExample,
+  example?: PreviewSpecimen,
   selectedVersion?: string,
 ): string {
   const base = API_BASE.replace(/\/$/, "");
@@ -101,7 +106,8 @@ function harnessUrl(
   url.searchParams.set("r", String(reloadKey));
   if (selectedVersion) url.searchParams.set("version", selectedVersion);
   if (example) {
-    url.searchParams.set("example", example.name);
+    if (example.storyId) url.searchParams.set("story", example.storyId);
+    else url.searchParams.set("example", example.name);
     url.searchParams.set("version", selectedVersion || example.version);
   }
   return url.toString();
@@ -155,6 +161,7 @@ export function ComponentEditor({
   const desktopLayout = useMediaQuery("(min-width: 1024px)");
   const { resolved: appResolvedTheme } = useTheme();
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const previewToolsPanelRef = useRef<PanelImperativeHandle | null>(null);
   const previewFramesRef = useRef(new Set<HTMLIFrameElement>());
   const specimenFramesRef = useRef(new Map<SpecimenIdentity, HTMLIFrameElement>());
   const inspector = useComponentInspector(previewFrameRef);
@@ -186,9 +193,13 @@ export function ComponentEditor({
     },
   });
 
-  const examplesQuery = useQuery({
-    queryKey: ["components", "examples", id, selectedVersion ?? "current"],
-    queryFn: () => listComponentExamples({ componentId: id, version: selectedVersion, limit: 200 }),
+  const storiesQuery = useQuery({
+    // The editor must resolve exactly the contract that owns the source being
+    // previewed. An empty version used to fetch every historical contract;
+    // before an index existed that degraded to a fabricated Default specimen.
+    queryKey: ["components", "stories", id, activeVersion],
+    queryFn: () => listComponentStories({ componentId: id, version: activeVersion, limit: 1 }),
+    enabled: renderable && Boolean(activeVersion),
   });
 
   const [buffer, setBuffer] = useState<string>("");
@@ -202,6 +213,7 @@ export function ComponentEditor({
   const [comparedSpecimens, setComparedSpecimens] = useState<ReadonlySet<SpecimenIdentity>>(() => new Set());
   const [activeSpecimen, setActiveSpecimen] = useState<SpecimenIdentity | null>(null);
   const [mobileTool, setMobileTool] = useState<"props" | "inspector" | null>(null);
+  const [previewToolsCollapsed, setPreviewToolsCollapsed] = useState(false);
   const [specimenOverrides, setSpecimenOverrides] = useState<Record<string, Record<string, unknown>>>({});
   const [overrideStatus, setOverrideStatus] = useState<Record<string, "idle" | "applying" | "applied" | "error">>({});
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
@@ -278,8 +290,8 @@ export function ComponentEditor({
 
   useEffect(() => {
     const handler = (ev: MessageEvent) => {
-      const data = ev.data as { type?: string; id?: string; message?: string; example?: string; version?: string } | null;
-      const identity: SpecimenIdentity = `${data?.version || "__current__"}:${data?.example || "__default__"}`;
+      const data = ev.data as { type?: string; id?: string; message?: string; story?: string; version?: string; passed?: boolean; failures?: Array<{ message?: string }> } | null;
+      const identity: SpecimenIdentity = `${data?.version || "__current__"}:${data?.story || "__default__"}`;
       const frame = specimenFramesRef.current.get(identity);
       if (!data || data.id !== id || !frame || ev.source !== frame.contentWindow) return;
       if (data.type === "preview-ready") {
@@ -305,6 +317,9 @@ export function ComponentEditor({
       } else if (data.type === "rcl-preview-props-error") {
         setOverrideStatus((current) => ({ ...current, [identity]: "error" }));
         setOverrideMessages((current) => ({ ...current, [identity]: data.message || t(strings.components.editor.propsRejected) }));
+      } else if (data.type === "rcl-story-result" && data.passed === false) {
+        const details = (data.failures ?? []).map((failure) => failure.message).filter(Boolean).join(" ");
+        setSpecimenErrors((current) => ({ ...current, [identity]: details || "Story interactions or expectations failed." }));
       }
     };
     window.addEventListener("message", handler);
@@ -332,7 +347,18 @@ export function ComponentEditor({
     setOverrideMessages({});
   }, [baselineSha, previewReloadKey]);
 
-  const examples = useMemo(() => examplesQuery.data?.examples ?? [], [examplesQuery.data?.examples]);
+  const storySpecimens = useMemo<PreviewSpecimen[]>(() => (storiesQuery.data?.stories ?? []).flatMap((contract) => {
+    try {
+      const definitions = JSON.parse(contract.storiesJson) as Array<{ id?: unknown; name?: unknown; args?: unknown; environment?: unknown; expect?: unknown }>;
+      if (!Array.isArray(definitions)) return [];
+      return definitions.flatMap((definition) => {
+        if (!definition || typeof definition.id !== "string" || typeof definition.name !== "string" || !definition.args || typeof definition.args !== "object" || Array.isArray(definition.args)) return [];
+        const environment: Record<string, string> = definition.environment && typeof definition.environment === "object" && !Array.isArray(definition.environment) ? Object.fromEntries(Object.entries(definition.environment as Record<string, unknown>).filter(([, value]) => typeof value === "string")) as Record<string, string> : {};
+        return [{ id: `${contract.id}:${definition.id}`, componentId: contract.componentId, libraryId: contract.libraryId, version: contract.version, name: definition.id, displayName: definition.name, propsJson: JSON.stringify(definition.args), environment, expectJson: JSON.stringify(Array.isArray(definition.expect) ? definition.expect : []), sourcePath: contract.sourcePath, storyId: definition.id }];
+      });
+    } catch { return []; }
+  }), [storiesQuery.data?.stories]);
+  const examples = storySpecimens;
   // Only the active specimen is mounted in the normal workspace; comparison
   // mounts exactly two. Waiting for every indexed example left the region in
   // loading forever even after the visible preview had announced readiness.
@@ -481,7 +507,7 @@ export function ComponentEditor({
     );
   };
 
-  const specimens: Array<ComponentExample | undefined> = examples.length > 0 ? examples : [undefined];
+  const specimens: Array<PreviewSpecimen | undefined> = examples.length > 0 ? examples : [undefined];
   const comparisonActive = comparedSpecimens.size === 2;
   const visibleSpecimens = comparisonActive
     ? specimens.filter((example) => comparedSpecimens.has(specimenIdentity(example)))
@@ -489,13 +515,14 @@ export function ComponentEditor({
     ? specimens.filter((example) => specimenIdentity(example) === activeSpecimen)
     : [specimens[0]];
   const activeExample = specimens.find((example) => specimenIdentity(example) === activeSpecimen);
+  const activeStoryContract: ComponentStory | undefined = (storiesQuery.data?.stories ?? []).find((story) => story.version === (activeExample?.version || activeVersion));
   const activeSpecimenLabel = activeExample?.displayName || activeExample?.name;
   const paneLabels: Record<WorkspacePane, string> = {
     files: t(strings.components.editor.files),
     preview: t(strings.components.editor.previewMode),
     details: t(strings.components.editor.info),
   };
-  const applyPropsOverride = (props: Record<string, unknown>) => {
+  const applyPropsOverride = (props: Record<string, unknown>, environment?: Record<string, string>) => {
     if (!activeSpecimen) return;
     const example = specimens.find((candidate) => specimenIdentity(candidate) === activeSpecimen);
     setSpecimenOverrides((current) => ({ ...current, [activeSpecimen]: props }));
@@ -504,9 +531,10 @@ export function ComponentEditor({
     postToSpecimen(activeSpecimen, {
       type: "rcl-preview-props-override",
       componentId: id,
-      example: example?.name || "",
+      story: example?.storyId || "",
       version: example?.version || "",
       props,
+	  environment: environment ?? example?.environment ?? {},
     });
   };
   const resetPropsOverride = () => {
@@ -519,8 +547,15 @@ export function ComponentEditor({
     postToSpecimen(activeSpecimen, {
       type: "rcl-preview-props-reset",
       componentId: id,
-      example: example?.name || "",
+      story: example?.storyId || "",
       version: example?.version || "",
+    });
+  };
+  const togglePreviewTools = () => {
+    setPreviewToolsCollapsed((collapsed) => {
+      if (collapsed) previewToolsPanelRef.current?.expand();
+      else previewToolsPanelRef.current?.collapse();
+      return !collapsed;
     });
   };
 
@@ -654,8 +689,11 @@ export function ComponentEditor({
                         </nav>
                         <ThemeSwitcher postToFrames={postToPreviewFrames} previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} filters={filters} />
                         <EmulatorToolbar emulator={emulator} />
+                        {activeSpecimen && <Button data-testid={selectors.components.editor.previewToolsToggle} type="button" variant="secondary" className="ml-auto h-8 gap-1.5 px-2 text-xs" aria-expanded={!previewToolsCollapsed} aria-controls="component-preview-tools" onClick={togglePreviewTools}>{previewToolsCollapsed ? <ChevronUp aria-hidden className="h-3.5 w-3.5" /> : <ChevronDown aria-hidden className="h-3.5 w-3.5" />}{previewToolsCollapsed ? t("components.editor.showTools", { defaultValue: "Show controls" }) : t("components.editor.hideTools", { defaultValue: "Hide controls" })}</Button>}
                       </div>
-                      <div className="relative min-h-0 flex-1">
+                      <Group id="component-preview-workbench" orientation="vertical" defaultLayout={{ specimen: 1, tools: 280 }} className="min-h-0 flex-1">
+                      <Panel id="specimen" minSize={220} className="min-h-0">
+                      <div className="relative h-full min-h-0">
                         <EmulatorViewport emulator={emulator} filters={filters}>
                           <div
                             data-testid={selectors.components.editor.gallery}
@@ -716,12 +754,17 @@ export function ComponentEditor({
                           </div>
                         </EmulatorViewport>
                       </div>
+                      </Panel>
                       {activeSpecimen && <>
-                        <div className="hidden lg:block border-t border-app-border bg-app-surface p-3"><div className="grid gap-3 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(20rem,1.2fr)]"><PropsExperimentPanel key={activeSpecimen} example={activeExample} status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")} message={overrideMessages[activeSpecimen]} onApply={applyPropsOverride} onReset={resetPropsOverride} /><InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} /></div></div>
-                        <div className="flex shrink-0 gap-2 border-t border-app-border bg-app-surface p-2 lg:hidden"><Button type="button" className="h-9 flex-1 text-xs" onClick={() => setMobileTool("props")}>{t("components.editor.editProps", { defaultValue: "Edit props" })}</Button><Button type="button" variant="secondary" className="h-9 flex-1 text-xs" onClick={() => setMobileTool("inspector")}>{t("components.inspector.title", { defaultValue: "Inspect" })}</Button><Button type="button" variant="secondary" className="h-9 px-3 text-xs" onClick={resetPropsOverride}>{t("components.editor.reset", { defaultValue: "Reset" })}</Button></div>
+                        <Separator className="hidden h-1 shrink-0 bg-app-border hover:bg-app-primary lg:block" />
+                        <Panel panelRef={previewToolsPanelRef} id="tools" defaultSize={280} minSize={160} maxSize="45%" collapsible collapsedSize={0} onResize={(size) => setPreviewToolsCollapsed(size.inPixels === 0)} className="hidden min-h-0 lg:block">
+                          <div id="component-preview-tools" data-testid={selectors.components.editor.previewToolsPanel} className="h-full overflow-y-auto border-t border-app-border bg-app-surface p-3"><div className="grid gap-3 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(20rem,1.2fr)]"><PropsExperimentPanel key={activeSpecimen} storyId={activeExample?.storyId} storyName={activeSpecimenLabel} initialArgs={activeExample ? JSON.parse(activeExample.propsJson) : {}} initialEnvironment={activeExample?.environment} storyContract={activeStoryContract} status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")} message={overrideMessages[activeSpecimen]} onApply={applyPropsOverride} onReset={resetPropsOverride} /><InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} /></div></div>
+                        </Panel>
                       </>}
+                      </Group>
+                      {activeSpecimen && <div className="flex shrink-0 gap-2 border-t border-app-border bg-app-surface p-2 lg:hidden"><Button type="button" className="h-9 flex-1 text-xs" onClick={() => setMobileTool("props")}>{t("components.editor.editProps", { defaultValue: "Edit props" })}</Button><Button type="button" variant="secondary" className="h-9 flex-1 text-xs" onClick={() => setMobileTool("inspector")}>{t("components.inspector.title", { defaultValue: "Inspect" })}</Button><Button type="button" variant="secondary" className="h-9 px-3 text-xs" onClick={resetPropsOverride}>{t("components.editor.reset", { defaultValue: "Reset" })}</Button></div>}
                       <Dialog open={mobileTool !== null} onClose={() => setMobileTool(null)} title={mobileTool === "props" ? t(strings.components.editor.tryProps) : t("components.inspector.title", { defaultValue: "Inspect" })} closeLabel={t("common.close", { defaultValue: "Close" })} className="lg:hidden">
-                        {mobileTool === "props" && activeSpecimen ? <PropsExperimentPanel key={activeSpecimen} example={activeExample} status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")} message={overrideMessages[activeSpecimen]} onApply={applyPropsOverride} onReset={resetPropsOverride} /> : null}
+                        {mobileTool === "props" && activeSpecimen ? <PropsExperimentPanel key={activeSpecimen} storyId={activeExample?.storyId} storyName={activeSpecimenLabel} initialArgs={activeExample ? JSON.parse(activeExample.propsJson) : {}} initialEnvironment={activeExample?.environment} storyContract={activeStoryContract} status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")} message={overrideMessages[activeSpecimen]} onApply={applyPropsOverride} onReset={resetPropsOverride} /> : null}
                         {mobileTool === "inspector" ? <InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} /> : null}
                       </Dialog>
                     </ExperienceSurface>

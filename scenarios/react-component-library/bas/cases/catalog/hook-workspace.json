@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "hook-workspace",
-    "description": "Opens the catalog, selects Hooks, enters the first hook asset, and proves its shared non-renderable workspace exposes Files and Details rather than a preview iframe.",
+    "description": "Opens the catalog, selects Hooks, enters the first hook asset, and proves its shared fixture-preview workspace still exposes Files and Details alongside the story-driven preview.",
     "requirement": "OT-P0-002",
     "version": "1",
     "labels": { "reset": "none", "surface": "hook-workspace", "requirements_json": "[\"OT-P0-002\"]" },
@@ -35,7 +35,7 @@
     },
     {
       "id": "assert-source",
-      "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/assets.hookSource", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "Hook Files source is unavailable." }, "metadata": { "label": "Hook Files visible" } }
+      "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/components.editor.workspacePane", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "Hook Files source is unavailable." }, "metadata": { "label": "Hook Files visible" } }
     },
     {
       "id": "open-overview",

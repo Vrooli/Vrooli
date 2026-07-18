@@ -15,7 +15,7 @@
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
-      "description": "API serves `GET /preview/{component_id_or_library_id}/harness.html` returning an HTML shell that imports the component's bundled source and mounts it via `ReactDOM.createRoot`. The harness resolves optional `version` and `example` query params from indexed `examples.json`, supports stable `libraryId` URLs for external capture tooling, posts identity-correlated `preview-ready`/`preview-error`, accepts only the documented data-only temporary props override/reset messages for its own example, and preserves same-origin runtime imports.",
+      "description": "API serves `GET /preview/{component_id_or_library_id}/harness.html` returning an HTML shell that imports the component's bundled source and mounts it via `ReactDOM.createRoot`. The harness resolves optional `version` and `story` query params from indexed `story.json`, supports stable `libraryId` URLs for external capture tooling, posts identity-correlated `preview-ready`/`preview-error`, accepts only validated data-only temporary args override/reset messages for its own story, and preserves same-origin runtime imports.",
       "tags": [
         "preview",
         "iframe",

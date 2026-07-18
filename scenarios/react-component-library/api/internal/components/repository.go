@@ -31,11 +31,11 @@ type Repository interface {
 
 	GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error)
 
-	ListExamples(ctx context.Context, q ExampleQuery) ([]ComponentExample, error)
+	ListStories(ctx context.Context, q StoryQuery) ([]ComponentStory, error)
 
 	// DeleteMissing removes registry rows whose LibraryID is not in
 	// keep, cascading to that component's child rows (versions, files,
-	// parity, examples, headers, design affinities) since the soft-FK
+	// parity, stories, headers, design affinities) since the soft-FK
 	// model has no ON DELETE CASCADE. Used by the indexer at the end of
 	// a full walk so deleted files leave the registry without stranding
 	// child rows. Returns the number of registry rows deleted.

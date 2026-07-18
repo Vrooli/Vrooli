@@ -1,9 +1,0 @@
-{
-  "name": "git-control-tower-reviewer",
-  "profileKey": "git-control-tower/reviewer",
-  "description": "Portable profile for Git Control Tower reviews",
-  "roleRef": "code.default",
-  "maxTurns": 500,
-  "skipPermissionPrompt": true,
-  "createdBy": "git-control-tower"
-}

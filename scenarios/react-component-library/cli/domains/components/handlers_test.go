@@ -38,7 +38,7 @@ type componentsService struct {
 	ingestResp     *componentsv1.IngestComponentResponse
 	versionResp    *componentsv1.CreateComponentVersionResponse
 	manifestResp   *componentsv1.UpdateComponentManifestResponse
-	examplesResp   *componentsv1.ListComponentExamplesResponse
+	storiesResp    *componentsv1.ListComponentStoriesResponse
 	styleFitResp   *componentsv1.ValidateStyleFitResponse
 	listErr        error
 	getErr         error
@@ -50,7 +50,7 @@ type componentsService struct {
 	ingestErr      error
 	versionErr     error
 	manifestErr    error
-	examplesErr    error
+	storiesErr     error
 	styleFitErr    error
 	listReqs       []*componentsv1.ListComponentsRequest
 	getReqs        []string
@@ -60,7 +60,7 @@ type componentsService struct {
 	ingestReqs     []*componentsv1.IngestComponentRequest
 	versionReqs    []*componentsv1.CreateComponentVersionRequest
 	manifestReqs   []*componentsv1.UpdateComponentManifestRequest
-	examplesReqs   []*componentsv1.ListComponentExamplesRequest
+	storiesReqs    []*componentsv1.ListComponentStoriesRequest
 	styleFitReqs   []*componentsv1.ValidateStyleFitRequest
 }
 
@@ -196,17 +196,17 @@ func (s *componentsService) GetComponentVersionContent(_ context.Context, _ *con
 	return connect.NewResponse(&componentsv1.GetComponentVersionContentResponse{}), nil
 }
 
-func (s *componentsService) ListComponentExamples(_ context.Context, req *connect.Request[componentsv1.ListComponentExamplesRequest]) (*connect.Response[componentsv1.ListComponentExamplesResponse], error) {
+func (s *componentsService) ListComponentStories(_ context.Context, req *connect.Request[componentsv1.ListComponentStoriesRequest]) (*connect.Response[componentsv1.ListComponentStoriesResponse], error) {
 	s.mu.Lock()
-	s.examplesReqs = append(s.examplesReqs, req.Msg)
+	s.storiesReqs = append(s.storiesReqs, req.Msg)
 	s.mu.Unlock()
-	if s.examplesErr != nil {
-		return nil, s.examplesErr
+	if s.storiesErr != nil {
+		return nil, s.storiesErr
 	}
-	if s.examplesResp == nil {
-		s.examplesResp = &componentsv1.ListComponentExamplesResponse{}
+	if s.storiesResp == nil {
+		s.storiesResp = &componentsv1.ListComponentStoriesResponse{}
 	}
-	return connect.NewResponse(s.examplesResp), nil
+	return connect.NewResponse(s.storiesResp), nil
 }
 
 func (s *componentsService) ListDesignStyles(_ context.Context, _ *connect.Request[componentsv1.ListDesignStylesRequest]) (*connect.Response[componentsv1.ListDesignStylesResponse], error) {
@@ -415,37 +415,18 @@ func TestComponentsStyleFit_ForwardsInputsAndRendersVerdict(t *testing.T) {
 	require.Contains(t, body, "component is native")
 }
 
-func TestComponentsExamples_ForwardsInputsAndRenders(t *testing.T) {
-	svc := &componentsService{examplesResp: &componentsv1.ListComponentExamplesResponse{
-		Examples: []*componentsv1.ComponentExample{
-			{
-				Name:       "primary",
-				LibraryId:  "lib:Button",
-				Version:    "1.0.0",
-				PropsJson:  `{"children":{"$text":"Save changes"}}`,
-				SourcePath: "components/Button/versions/1.0.0/examples.json",
-			},
-		},
-	}}
+func TestComponentsStories_ForwardsInputsAndRenders(t *testing.T) {
+	svc := &componentsService{storiesResp: &componentsv1.ListComponentStoriesResponse{Stories: []*componentsv1.ComponentStory{{LibraryId: "lib:Button", Version: "1.0.0", Kind: "component", SchemaVersion: 1, SourcePath: "components/Button/versions/1.0.0/story.json"}}}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
-	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Positionals: []cliapp.Positional{{Name: "component-id", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "version"}, {Name: "limit"}},
-	}, cliapptest.TestRunContextOptions{
-		Positionals: map[string]string{"component-id": "cmp-1"},
-		Flags:       map[string]string{"version": "1.0.0", "limit": "10"},
-	})
-
-	require.NoError(t, h.examples(ctx))
-	require.Len(t, svc.examplesReqs, 1)
-	require.Equal(t, "cmp-1", svc.examplesReqs[0].ComponentId)
-	require.Equal(t, "1.0.0", svc.examplesReqs[0].Version)
-	require.Equal(t, int32(10), svc.examplesReqs[0].Limit)
-	body := out.String()
-	require.Contains(t, body, "Found 1 example(s).")
-	require.Contains(t, body, "primary")
-	require.Contains(t, body, "Save changes")
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "component-id", Required: true}}, Flags: []cliapp.Flag{{Name: "version"}, {Name: "limit"}}}, cliapptest.TestRunContextOptions{Positionals: map[string]string{"component-id": "cmp-1"}, Flags: map[string]string{"version": "1.0.0", "limit": "10"}})
+	require.NoError(t, h.stories(ctx))
+	require.Len(t, svc.storiesReqs, 1)
+	require.Equal(t, "cmp-1", svc.storiesReqs[0].ComponentId)
+	require.Equal(t, "1.0.0", svc.storiesReqs[0].Version)
+	require.Equal(t, int32(10), svc.storiesReqs[0].Limit)
+	require.Contains(t, out.String(), "Found 1 story contract(s).")
+	require.Contains(t, out.String(), "story.json")
 }
 
 func TestComponentsList_ForwardsMultiTagAndCategory(t *testing.T) {

@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "Card",
+  "args": {
+    "fields": [
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": [
+          {
+            "$node": "div",
+            "props": {
+              "className": "border-b border-app-border px-4 py-3"
+            },
+            "children": [
+              {
+                "$node": "h3",
+                "children": [
+                  {
+                    "$text": "Adoption health"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "$node": "div",
+            "props": {
+              "className": "px-4 py-4"
+            },
+            "children": [
+              {
+                "$text": "8 scenarios current"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": "className",
+        "label": "Class Name",
+        "kind": "text",
+        "default": "max-w-sm"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "metric-card",
+      "name": "Metric Card",
+      "args": {
+        "children": [
+          {
+            "$node": "div",
+            "props": {
+              "className": "border-b border-app-border px-4 py-3"
+            },
+            "children": [
+              {
+                "$node": "h3",
+                "children": [
+                  {
+                    "$text": "Adoption health"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "$node": "div",
+            "props": {
+              "className": "px-4 py-4"
+            },
+            "children": [
+              {
+                "$text": "8 scenarios current"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Adoption health"
+        },
+        {
+          "kind": "text",
+          "value": "8 scenarios current"
+        }
+      ]
+    },
+    {
+      "id": "empty-tool",
+      "name": "Empty Tool",
+      "args": {
+        "children": [
+          {
+            "$node": "div",
+            "props": {
+              "className": "px-4 py-4"
+            },
+            "children": [
+              {
+                "$text": "No drift detected"
+              }
+            ]
+          }
+        ],
+        "className": "max-w-sm"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No drift detected"
+        }
+      ]
+    },
+    {
+      "id": "compact-record",
+      "name": "Compact Record",
+      "args": {
+        "children": [
+          {
+            "$node": "div",
+            "props": {
+              "className": "px-4 py-3"
+            },
+            "children": [
+              {
+                "$text": "Button / v1.2.0 / native"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Button / v1.2.0 / native"
+        }
+      ]
+    }
+  ]
+}

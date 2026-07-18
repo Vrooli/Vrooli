@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Complete greenfield story-contract cutover inventory. Every version below must contain exactly one story.json before conformance can pass.",
+  "assets": [
+    {"kind":"component","id":"AssetDetailShell","versions":["1.0.0"],"classification":"structured-layout"},
+    {"kind":"component","id":"AsyncPanel","versions":["1.0.0"],"classification":"stateful-interactions"},
+    {"kind":"component","id":"BottomNav","versions":["1.0.0","1.1.0","1.2.0"],"classification":"stateful-interactions"},
+    {"kind":"component","id":"Button","versions":["1.0.0","1.1.0","1.2.0"],"classification":"public-args"},
+    {"kind":"component","id":"Card","versions":["1.0.0","1.1.0"],"classification":"public-args"},
+    {"kind":"component","id":"CommandCenterShell","versions":["1.0.0"],"classification":"structured-layout"},
+    {"kind":"component","id":"DataTable","versions":["1.0.0","1.1.0","1.1.1","1.1.2","1.2.0"],"classification":"stateful-interactions"},
+    {"kind":"component","id":"Dialog","versions":["1.0.0","1.1.0"],"classification":"controlled-state"},
+    {"kind":"component","id":"DrawerShell","versions":["0.1.0","0.1.0-draft.1","0.2.0","1.0.0","1.0.0-draft.1"],"classification":"controlled-state"},
+    {"kind":"component","id":"EmptyState","versions":["1.0.0","1.1.0"],"classification":"public-args"},
+    {"kind":"component","id":"ExperienceSurface","versions":["1.0.0"],"classification":"structured-layout"},
+    {"kind":"component","id":"FocusTrapPanel","versions":["1.0.0"],"classification":"stateful-interactions"},
+    {"kind":"component","id":"Input","versions":["1.0.0","1.1.0"],"classification":"controlled-state"},
+    {"kind":"component","id":"InspectorLayout","versions":["1.0.0"],"classification":"structured-layout"},
+    {"kind":"component","id":"Select","versions":["1.0.0","1.1.0"],"classification":"controlled-state"},
+    {"kind":"component","id":"SidebarShell","versions":["1.0.0","1.1.0","1.2.0"],"classification":"structured-layout"},
+    {"kind":"component","id":"StatusBadge","versions":["1.0.0","1.1.0"],"classification":"public-args"},
+    {"kind":"component","id":"Textarea","versions":["1.0.0"],"classification":"controlled-state"},
+    {"kind":"component","id":"VoiceInputButton","versions":["1.0.0"],"classification":"provider-backed"},
+    {"kind":"component","id":"WorkspaceHeader","versions":["1.0.0"],"classification":"structured-layout"},
+    {"kind":"hook","id":"useEscapeKey","versions":["1.0.0"],"classification":"hook-actions"},
+    {"kind":"hook","id":"useFocusTrap","versions":["1.0.0"],"classification":"hook-actions"},
+    {"kind":"hook","id":"useVoiceInput","versions":["1.0.0"],"classification":"provider-backed-hook"}
+  ],
+  "legacyArtifacts": ["examples.json", "controls", "setup"],
+  "completionRule": "Every listed version has exactly one valid story.json, no listed legacy artifact, and an assigned classification-specific migration test."
+}

@@ -28,7 +28,7 @@ type FakeRepository struct {
 	mu          sync.Mutex
 	items       map[string]components.Component // by ID
 	versions    map[string]map[string]components.ComponentVersion
-	examples    map[string][]components.ComponentExample
+	stories     map[string][]components.ComponentStory
 	libToID     map[string]string // library_id → id
 	UpsertErr   error
 	GetErr      error
@@ -45,7 +45,7 @@ func NewFakeRepository() *FakeRepository {
 	return &FakeRepository{
 		items:    map[string]components.Component{},
 		versions: map[string]map[string]components.ComponentVersion{},
-		examples: map[string][]components.ComponentExample{},
+		stories:  map[string][]components.ComponentStory{},
 		libToID:  map[string]string{},
 		NowFn:    func() time.Time { return time.Now().UTC() },
 	}
@@ -108,7 +108,7 @@ func (f *FakeRepository) UpsertManifest(ctx context.Context, in components.Index
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.versions[c.ID] = map[string]components.ComponentVersion{}
-	f.examples[c.ID] = nil
+	f.stories[c.ID] = nil
 	for _, v := range in.Versions {
 		if v.ID == "" {
 			v.ID = uuid.NewString()
@@ -121,13 +121,13 @@ func (f *FakeRepository) UpsertManifest(ctx context.Context, in components.Index
 			f.items[c.ID] = c
 		}
 	}
-	for _, ex := range in.Examples {
-		if ex.ID == "" {
-			ex.ID = uuid.NewString()
+	for _, story := range in.Stories {
+		if story.ID == "" {
+			story.ID = uuid.NewString()
 		}
-		ex.ComponentID = c.ID
-		ex.LibraryID = c.LibraryID
-		f.examples[c.ID] = append(f.examples[c.ID], ex)
+		story.ComponentID = c.ID
+		story.LibraryID = c.LibraryID
+		f.stories[c.ID] = append(f.stories[c.ID], story)
 	}
 	return c, nil
 }
@@ -301,7 +301,7 @@ func (f *FakeRepository) DeleteMissing(ctx context.Context, keep []string) (int,
 			// Cascade: mirror the soft-FK cleanup the sqlite repo does
 			// so deleting a registry row leaves no orphaned children.
 			delete(f.versions, id)
-			delete(f.examples, id)
+			delete(f.stories, id)
 			deleted++
 		}
 	}
@@ -325,7 +325,7 @@ func (f *FakeRepository) SweepOrphans(ctx context.Context) ([]components.OrphanV
 			})
 		}
 		delete(f.versions, cid)
-		delete(f.examples, cid)
+		delete(f.stories, cid)
 	}
 	sort.Slice(orphans, func(i, j int) bool {
 		if orphans[i].LibraryID != orphans[j].LibraryID {
@@ -358,25 +358,24 @@ func (f *FakeRepository) GetVersion(ctx context.Context, componentID, version st
 	return components.ComponentVersion{}, components.ErrComponentNotFound{IDOrLibraryID: componentID + "@" + version}
 }
 
-func (f *FakeRepository) ListExamples(ctx context.Context, q components.ExampleQuery) ([]components.ComponentExample, error) {
+func (f *FakeRepository) ListStories(ctx context.Context, q components.StoryQuery) ([]components.ComponentStory, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	limit := q.Limit
 	if limit <= 0 {
 		limit = 200
 	}
-	var out []components.ComponentExample
-	for componentID, rows := range f.examples {
+	var out []components.ComponentStory
+	for componentID, rows := range f.stories {
 		if q.ComponentID != "" && q.ComponentID != componentID {
 			continue
 		}
-		for _, ex := range rows {
-			if q.Version != "" && q.Version != ex.Version {
-				continue
-			}
-			out = append(out, ex)
-			if len(out) >= limit {
-				return out, nil
+		for _, story := range rows {
+			if q.Version == "" || q.Version == story.Version {
+				out = append(out, story)
+				if len(out) >= limit {
+					return out, nil
+				}
 			}
 		}
 	}

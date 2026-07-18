@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "AsyncPanel",
+  "args": {
+    "fields": [
+      {
+        "path": "surfaceId",
+        "label": "Surface Id",
+        "kind": "text",
+        "default": "activity"
+      },
+      {
+        "path": "state",
+        "label": "State",
+        "kind": "text",
+        "default": "loading"
+      },
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Recent activity"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "loading",
+      "name": "Loading data",
+      "args": {
+        "surfaceId": "activity",
+        "state": "loading"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "Loading…"
+        }
+      ]
+    },
+    {
+      "id": "ready",
+      "name": "Ready data",
+      "args": {
+        "surfaceId": "activity",
+        "state": "ready",
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Recent activity"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Recent activity"
+        }
+      ]
+    },
+    {
+      "id": "empty",
+      "name": "Empty result",
+      "args": {
+        "surfaceId": "activity",
+        "state": "empty"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing to show yet."
+        }
+      ]
+    },
+    {
+      "id": "partial",
+      "name": "Partial data",
+      "args": {
+        "surfaceId": "activity",
+        "state": "partial"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "Some information is unavailable."
+        }
+      ]
+    },
+    {
+      "id": "error",
+      "name": "Retryable error",
+      "args": {
+        "surfaceId": "activity",
+        "state": "error"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "This section could not be loaded."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "Status Badge",
+  "args": {
+    "fields": [
+      {
+        "path": "tone",
+        "label": "Tone",
+        "kind": "enum",
+        "required": true,
+        "default": "success",
+        "options": ["success", "warning", "info", "danger"]
+      },
+      {
+        "path": "children",
+        "label": "Label",
+        "kind": "structured",
+        "required": true,
+        "default": {"$text": "Current"}
+      }
+    ]
+  },
+  "environment": {"fixtures": []},
+  "stories": [
+    {
+      "id": "success",
+      "name": "Success",
+      "args": {"tone": "success", "children": {"$text": "Current"}},
+      "expect": [{"kind": "text", "value": "Current"}]
+    },
+    {
+      "id": "warning",
+      "name": "Warning",
+      "args": {"tone": "warning", "children": {"$text": "Behind"}},
+      "expect": [{"kind": "text", "value": "Behind"}]
+    },
+    {
+      "id": "long-label",
+      "name": "Long Label",
+      "args": {"tone": "info", "children": {"$text": "Requires manual review"}},
+      "expect": [{"kind": "text", "value": "Requires manual review"}]
+    }
+  ]
+}

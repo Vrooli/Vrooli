@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "drawershell-focus-trap",
-    "description": "Opens the DrawerShell@1.0.0 preview harness (example=full-open) at top level and proves the focus trap: after focusing the in-panel close button and pressing Tab, keyboard focus stays inside the role=dialog panel instead of leaking to the backdrop or document body. This is the exact failure class the DrawerShell pilot exposed that screenshot-diffs cannot catch. The paired calibration bas/calibration/drawershell-focus-trap-broken.json runs the same assertion against DrawerShell@0.1.0 (which has no useFocusTrap) and must fail.",
+    "description": "Opens the DrawerShell@1.0.0 preview harness (story=full-open) at top level and proves the focus trap: after focusing the in-panel close button and pressing Tab, keyboard focus stays inside the role=dialog panel instead of leaking to the backdrop or document body. This is the exact failure class the DrawerShell pilot exposed that screenshot-diffs cannot catch. The paired calibration bas/calibration/drawershell-focus-trap-broken.json runs the same assertion against DrawerShell@0.1.0 (which has no useFocusTrap) and must fail.",
     "requirement": "TC-006",
     "version": "1",
     "labels": {
@@ -23,7 +23,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "react-component-library",
-          "scenario_path": "/preview/react-component-library:DrawerShell/harness.html?example=full-open",
+          "scenario_path": "/preview/react-component-library:DrawerShell/harness.html?story=full-open",
           "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
           "timeout_ms": 30000
         },

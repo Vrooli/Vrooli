@@ -95,7 +95,7 @@ func TestRenderHarnessHTMLInjectsDesignSystemCSS(t *testing.T) {
 		JS:         "export default function Demo() { return null }",
 		SourcePath: "components/Demo.tsx",
 		SHA256:     "sha",
-	}, harnessExample{})
+	}, harnessStory{})
 	require.Contains(t, html, `--color-primary`)
 	require.Contains(t, html, `.bg-app-primary`)
 	require.Contains(t, html, `.rounded-control`)
@@ -113,7 +113,7 @@ func TestRenderHarnessHTMLShowsImportMapDiagnostics(t *testing.T) {
 		Dependencies: []internaldeps.Declaration{
 			{DepName: "some-lib", VersionRange: "*"},
 		},
-	}, harnessExample{})
+	}, harnessStory{})
 	require.Contains(t, html, `id="preview-importmap-diagnostics"`)
 	require.Contains(t, html, `cannot pin dependency`)
 	require.False(t, strings.Contains(html, `some-lib@*`))
@@ -124,7 +124,7 @@ func TestRenderHarnessHTMLCanShowRuntimeImportFailure(t *testing.T) {
 		JS:         "export default function Demo() { return null }",
 		SourcePath: "components/Demo.tsx",
 		SHA256:     "sha",
-	}, harnessExample{})
+	}, harnessStory{})
 	require.NotContains(t, html, `import { createRoot } from "react-dom/client";`)
 	require.Contains(t, html, `try {`)
 	require.Contains(t, html, `import("react-dom/client")`)
@@ -139,13 +139,22 @@ func TestRenderHarnessHTMLSupportsScopedTemporaryPropsOverrides(t *testing.T) {
 		JS:         "export default function Demo() { return null }",
 		SourcePath: "components/Demo.tsx",
 		SHA256:     "sha",
-	}, harnessExample{Name: "default", Version: "1.0.0", PropsJSON: `{"title":"Indexed"}`})
+	}, harnessStory{Name: "default", Version: "1.0.0", PropsJSON: `{"title":"Indexed"}`})
 	require.Contains(t, html, `const root = createRoot(document.getElementById("root"))`)
-	require.Contains(t, html, `const renderPreview = (override)`)
+	require.Contains(t, html, `const renderPreview = (override, environment = previewStory.environment)`)
+	require.Contains(t, html, `const validateEnvironment = (environment)`)
+	require.Contains(t, html, `fixture option is not declared.`)
+	require.Contains(t, html, `data.environment || previewStory.environment`)
+	require.Contains(t, html, `const mergeStoryProps = (base, override)`)
+	require.Contains(t, html, `valueAtPath(merged, field.path)`)
+	require.NotContains(t, html, `field.path.includes(".")`)
 	require.Contains(t, html, `rcl-preview-props-override`)
 	require.Contains(t, html, `rcl-preview-props-reset`)
 	require.Contains(t, html, `rcl-preview-props-applied`)
 	require.Contains(t, html, `rcl-preview-props-error`)
+	require.Contains(t, html, `rcl-story-result`)
+	require.Contains(t, html, `const runStory = async ()`)
+	require.Contains(t, html, `const expectationFailure = (expectation)`)
 	require.Contains(t, html, `data.componentId !== "cmp-1"`)
 	require.NotContains(t, html, `eval(`)
 }

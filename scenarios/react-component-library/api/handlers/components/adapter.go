@@ -183,20 +183,21 @@ func versionFilesToProto(files []components.ComponentVersionFile) []*componentsv
 	return out
 }
 
-func exampleToProto(ex components.ComponentExample) *componentsv1.ComponentExample {
-	return &componentsv1.ComponentExample{
-		Id:           ex.ID,
-		ComponentId:  ex.ComponentID,
-		LibraryId:    ex.LibraryID,
-		Version:      ex.Version,
-		Name:         ex.Name,
-		DisplayName:  ex.DisplayName,
-		PropsJson:    ex.PropsJSON,
-		SetupJson:    ex.SetupJSON,
-		ExpectJson:   ex.ExpectJSON,
-		ControlsJson: ex.ControlsJSON,
-		SourcePath:   ex.SourcePath,
-		IndexedAt:    timestamppb.New(ex.IndexedAt.UTC()),
+func storyToProto(story components.ComponentStory) *componentsv1.ComponentStory {
+	return &componentsv1.ComponentStory{
+		Id:              story.ID,
+		ComponentId:     story.ComponentID,
+		LibraryId:       story.LibraryID,
+		Version:         story.Version,
+		SchemaVersion:   int32(story.SchemaVersion),
+		Kind:            string(story.Kind),
+		Title:           story.Title,
+		ArgsJson:        story.ArgsJSON,
+		EnvironmentJson: story.EnvironmentJSON,
+		StoriesJson:     story.StoriesJSON,
+		ContractJson:    story.ContractJSON,
+		SourcePath:      story.SourcePath,
+		IndexedAt:       timestamppb.New(story.IndexedAt.UTC()),
 	}
 }
 

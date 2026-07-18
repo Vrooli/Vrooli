@@ -502,12 +502,9 @@ func (h *handlers) showVersion(ctx cliapp.RunContext) error {
 	})
 }
 
-func (h *handlers) examples(ctx cliapp.RunContext) error {
+func (h *handlers) stories(ctx cliapp.RunContext) error {
 	componentID := ctx.Positional("component-id")
-	req := &componentsv1.ListComponentExamplesRequest{
-		ComponentId: componentID,
-		Version:     ctx.Flag("version"),
-	}
+	req := &componentsv1.ListComponentStoriesRequest{ComponentId: componentID, Version: ctx.Flag("version")}
 	if raw := ctx.Flag("limit"); raw != "" {
 		n, err := strconv.Atoi(raw)
 		if err != nil {
@@ -515,22 +512,18 @@ func (h *handlers) examples(ctx cliapp.RunContext) error {
 		}
 		req.Limit = int32(n)
 	}
-	resp, err := h.client.ListComponentExamples(context.Background(), connect.NewRequest(req))
+	resp, err := h.client.ListComponentStories(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("list examples for component %q", componentID), err, nil)
+		return cliapp.WrapAPIError(fmt.Sprintf("list stories for component %q", componentID), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no examples response")
+		return fmt.Errorf("server returned no stories response")
 	}
-	results := make([]string, 0, len(resp.Msg.Examples))
-	for _, ex := range resp.Msg.Examples {
-		results = append(results, formatExample(ex))
+	results := make([]string, 0, len(resp.Msg.Stories))
+	for _, story := range resp.Msg.Stories {
+		results = append(results, formatStory(story))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d example(s).", len(resp.Msg.Examples))},
-		ResultsHeading: "Examples",
-		Results:        results,
-	})
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d story contract(s).", len(resp.Msg.Stories))}, ResultsHeading: "Stories", Results: results})
 }
 
 // contentSet reads <file> from disk (or "-" for stdin) and calls
@@ -654,9 +647,9 @@ func formatVersion(v *componentsv1.ComponentVersion) string {
 	return fmt.Sprintf("%s — %s %s sha=%s @ %s", v.Id, v.Version, v.Status.String(), v.ContentSha256, v.SourcePath)
 }
 
-func formatExample(ex *componentsv1.ComponentExample) string {
-	if ex == nil {
+func formatStory(story *componentsv1.ComponentStory) string {
+	if story == nil {
 		return "(nil)"
 	}
-	return fmt.Sprintf("%s — %s %s props=%s @ %s", ex.Name, ex.LibraryId, ex.Version, ex.PropsJson, ex.SourcePath)
+	return fmt.Sprintf("%s — %s %s schema=%d @ %s", story.LibraryId, story.Version, story.Kind, story.SchemaVersion, story.SourcePath)
 }

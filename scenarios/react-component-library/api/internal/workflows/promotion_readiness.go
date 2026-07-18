@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -44,11 +45,19 @@ func (r promotionReadinessReader) PromotionReadiness(ctx context.Context, in Pro
 	if err != nil {
 		return PromotionReadiness{}, err
 	}
-	examples, err := r.components.ListExamples(ctx, components.ExampleQuery{ComponentID: c.ID, Version: version})
+	stories, err := r.components.ListStories(ctx, components.StoryQuery{ComponentID: c.ID, Version: version, Limit: 20})
 	if err != nil {
 		return PromotionReadiness{}, err
 	}
-	out := PromotionReadiness{AssetID: c.ID, LibraryID: c.LibraryID, SelectedVersion: version, OriginScenario: in.OriginScenario, RequiredExampleCount: 1, AvailableExampleCount: len(examples), ParityReportPresent: v.ParityReport != nil, NextValidationCommand: "vrooli scenario test react-component-library"}
+	availableStoryCount := 0
+	for _, story := range stories {
+		var contract components.StoryContract
+		if err := json.Unmarshal([]byte(story.ContractJSON), &contract); err != nil {
+			return PromotionReadiness{}, fmt.Errorf("decode story contract for %s@%s: %w", c.LibraryID, version, err)
+		}
+		availableStoryCount += len(contract.Stories)
+	}
+	out := PromotionReadiness{AssetID: c.ID, LibraryID: c.LibraryID, SelectedVersion: version, OriginScenario: in.OriginScenario, RequiredExampleCount: 1, AvailableExampleCount: availableStoryCount, ParityReportPresent: v.ParityReport != nil, NextValidationCommand: "vrooli scenario test react-component-library"}
 	for _, d := range c.Dependencies {
 		out.DependencyLibraryIDs = append(out.DependencyLibraryIDs, d.LibraryID)
 	}
@@ -63,7 +72,7 @@ func (r promotionReadinessReader) PromotionReadiness(ctx context.Context, in Pro
 		out.Blockers = append(out.Blockers, "selected version has no origin parity report")
 	}
 	if out.AvailableExampleCount < out.RequiredExampleCount {
-		out.Blockers = append(out.Blockers, "selected version has no required example")
+		out.Blockers = append(out.Blockers, "selected version has no required story")
 	}
 	if in.OriginScenario == "" {
 		out.Blockers = append(out.Blockers, "origin_scenario is required to verify replacement and drift")

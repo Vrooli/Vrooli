@@ -13,8 +13,8 @@ This document is the canonical workflow map for ordered behavior.
 | Refresh drift | adoptions | CLI/API/UI `adoptions refresh` | Adoption rows receive separate library-version and local-edit statuses | Service status matrix and UI tests |
 | Reapply component | adoptions | CLI/API `adoptions reapply` | Adopted file is overwritten from a selected version; local edits require confirmation | Service and handler tests |
 | Diff versions/adoptions | versions | CLI/API/UI diff request | Server returns aligned line diff rows | Versions service and handler tests |
-| Graduate scenario component | components / experience | Scenario UI component becomes reusable | TSX, examples, and experience-component claims land in the catalog as one versioned contract | Catalog conformance, preview e2e, experience phase |
-| Preview workbench experiment | preview | User selects a named state and varies declared controls | Exactly that iframe rerenders from an in-memory shallow merge; Reset/reload restores the indexed example | Component editor UI tests, preview harness tests, preview E2E, BAS workflow |
+| Graduate scenario component | components / experience | Scenario UI component becomes reusable | TSX, story contract, and experience-component claims land in the catalog as one versioned contract | Catalog conformance, preview e2e, experience phase |
+| Story workbench | preview | User selects a named story and varies generated Args or explicit environment fixtures | Exactly that iframe rerenders from validated effective story args; Reset/reload restores the named baseline | Component editor UI tests, preview harness tests, preview E2E, BAS workflow |
 
 ## Apply Component
 
@@ -67,7 +67,7 @@ edited copy that is also behind.
 
 ## Graduate Scenario Component
 
-Reusable component graduation carries code, examples, and experience
+Reusable component graduation carries code, a story contract, and experience
 claims together. Do not move TSX alone.
 
 1. Identify the scenario-local component and the page or state claims
@@ -76,9 +76,10 @@ claims together. Do not move TSX alone.
    `library/components/<Slug>/versions/<version>/<Slug>.tsx` and keep
    its `@libraryId`, `@version`, `@status`, and `@deps` headers aligned
    with `component.json`.
-3. Move the component's representative states into
-   `library/components/<Slug>/versions/<version>/examples.json`. Keep
-   the examples data-only; use the `$` vocabulary for React nodes,
+3. Define representative states in
+   `library/components/<Slug>/versions/<version>/story.json`. Declare the
+   public args schema once, then keep stories data-only; use the `$` vocabulary
+   only for allowlisted React nodes,
    icons, handlers, row keys, columns, and filters.
 4. Copy the canonical experience contract into
    `library/components/<Slug>/versions/<version>/experience-contract.json`.
@@ -89,7 +90,7 @@ claims together. Do not move TSX alone.
    wrapper. A wrapper declares `component.extends` and an extension purpose;
    it cannot reuse canonical lifecycle-state or claim identifiers.
 6. Run `react-component-library components index --json` so SQLite
-   projections for versions, dependencies, examples, and design
+   projections for versions, dependencies, stories, and design
    affinities match Git.
 7. Run the catalog gates: `pnpm run catalog:check` and
    `pnpm run test:preview-e2e` from `ui/`.
@@ -97,30 +98,32 @@ claims together. Do not move TSX alone.
    so Experience Manager captures the preview harness and reconciles
 component machine claims against the BAS accessibility tree.
 
-## Preview Workspace Experiment
+## Story Workbench
 
-1. The editor queries indexed examples as named states and renders the selected
-   state in its own sandboxed harness iframe.
-2. The default workbench keeps state navigation, canvas, declared controls, status,
-   and Reset together. Narrow screens use focused controls and inspector sheets.
-   Comparison is an intentional two-state canvas mode; it changes host UI state only.
-3. Declared data-only controls edit the indexed `props` object. Advanced JSON is
-   available as a fallback. Apply accepts only a JSON object, posts it to the
-   matching registered iframe, and the harness shallow-merges it using the `$` resolver.
-4. A malformed or non-object value remains in the host with an inline error;
-   it never reaches the iframe. A mismatched identity or message origin is
-   ignored.
-5. Reset, iframe reload, editor navigation, or unmount discards the override
-   and restores the indexed props. No source file, SQLite row, localStorage
-   entry, or write RPC is involved.
-6. `setup` is not executed in this flow. It remains an indexed field awaiting
-   a separate runtime contract.
+1. The editor queries indexed stories as named states and renders the selected
+   story in its own sandboxed harness iframe.
+2. The workbench keeps story navigation, a dominant canvas, generated Args,
+   explicit Environment controls, status, and Reset together. Narrow screens
+   move contextual tools into focused sheets. Comparison remains intentional
+   host UI state only.
+3. The Args form is generated from one asset-level schema. Editing a field
+   updates only that path, validates the complete effective args, and posts
+   the resulting data-only object to the matching iframe. Raw JSON is a
+   diagnostic view, never the default input path.
+4. A malformed, unsupported, or invalid value is retained in the host with a
+   field-addressable error; the last valid iframe render remains. A mismatched
+   identity or message origin is ignored.
+5. Environment controls select only contract-declared provider/adapter
+   fixtures. Internal component state is reached through real interactions or
+   public controlled/default APIs; hook internals are never mutated.
+6. Reset, iframe reload, editor navigation, or unmount discards the session
+   edit and restores the named story. No source file, SQLite row, localStorage
+   entry, or write RPC is involved. Arbitrary setup is never executed.
 
 ## Component Test Contracts
 
-RCL component tests are opt-in, declarative, and version-pinned. Place a
-`test-contract.json` beside the selected version's source and examples. A
-component contract names catalog examples; a hook contract names fixtures.
+RCL component tests are version-pinned story runs. The selected version's
+`story.json` names valid component stories or hook fixtures.
 The runner resolves the manifest dependency closure in pinned order, checks the
 restricted action/assertion vocabulary, and persists a normalized report.
 
@@ -131,10 +134,9 @@ react-component-library components test-show "<report-id>"
 react-component-library components test-rerun "<report-id>"
 ```
 
-No contract can name a file, command, or arbitrary setup. In particular,
-`examples.setup` is preview data and is never executed by the test runner. An
-asset without a contract stays previewable and is reported as **blocked**
-(uncovered), never as a passing test. Test Genie owns the scenario-level
+No contract can name a file, command, arbitrary setup, or mutable hook
+implementation. An asset without a contract is an actionable conformance
+failure, never a passing test. Test Genie owns the scenario-level
 provider phase; the catalog Test tab exposes the same durable report history.
 Report URLs use `?tab=tests&testReport=<report-id>` so a durable CLI report can
 be opened directly in the catalog. The preview browser sweep evaluates each
@@ -160,8 +162,8 @@ imports a scenario endpoint, provider, resource, or audio-capture package.
 3. Explicit stop, timer expiry, device end, permission denial, and adapter
    failure all converge on one cleanup operation. It clears the timer,
    unsubscribes, stops the capture/adapter, and emits at most one stop cue.
-4. Catalog examples are controlled, fake-backed visual specimens. They never
-   request microphone permission or execute example setup in the preview iframe.
+4. Catalog stories are controlled, fake-backed visual specimens. They never
+   request microphone permission or execute arbitrary setup in the preview iframe.
 
 Web-console adoption, durable audio-tools streaming/recovery, provider/resource
 simplification, and deletion of copied implementations remain follow-on work

@@ -191,7 +191,7 @@ func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *te
 	require.Contains(t, gotIDs, "react-component-library:DataTable")
 }
 
-func TestSQLiteRepository_UpsertManifestPersistsExamples(t *testing.T) {
+func TestSQLiteRepository_UpsertManifestPersistsStories(t *testing.T) {
 	repo, _ := newComponentsDB(t)
 	ctx := context.Background()
 
@@ -206,27 +206,22 @@ func TestSQLiteRepository_UpsertManifestPersistsExamples(t *testing.T) {
 		Versions: []components.ComponentVersion{
 			{Version: "1.0.0", Status: components.VersionStatusReleased, SourcePath: "components/Button/versions/1.0.0/Button.tsx", ContentSHA256: "button"},
 		},
-		Examples: []components.ComponentExample{
-			{
-				Version:     "1.0.0",
-				Name:        "primary",
-				DisplayName: "Primary",
-				PropsJSON:   `{"children":{"$text":"Save changes"}}`,
-				SetupJSON:   `{}`,
-				ExpectJSON:  `[{"kind":"text","value":"Save changes"}]`,
-				SourcePath:  "components/Button/versions/1.0.0/examples.json",
-			},
-		},
+		Stories: []components.ComponentStory{{
+			Version: "1.0.0", SchemaVersion: 1, Kind: components.StoryKindComponent,
+			ArgsJSON:        `{"fields":[{"path":"tone","kind":"enum"}]}`,
+			EnvironmentJSON: `{"fixtures":[]}`,
+			StoriesJSON:     `[{"id":"primary","name":"Primary","args":{"tone":"primary"}}]`,
+			ContractJSON:    `{"schemaVersion":1,"kind":"component"}`,
+			SourcePath:      "components/Button/versions/1.0.0/story.json",
+		}},
 	})
 	require.NoError(t, err)
 
-	got, err := repo.ListExamples(ctx, components.ExampleQuery{ComponentID: c.ID, Version: "1.0.0"})
+	stories, err := repo.ListStories(ctx, components.StoryQuery{ComponentID: c.ID, Version: "1.0.0"})
 	require.NoError(t, err)
-	require.Len(t, got, 1)
-	require.Equal(t, "react-component-library:Button", got[0].LibraryID)
-	require.Equal(t, "primary", got[0].Name)
-	require.JSONEq(t, `{"children":{"$text":"Save changes"}}`, got[0].PropsJSON)
-	require.JSONEq(t, `[{"kind":"text","value":"Save changes"}]`, got[0].ExpectJSON)
+	require.Len(t, stories, 1)
+	require.Equal(t, components.StoryKindComponent, stories[0].Kind)
+	require.JSONEq(t, `{"fixtures":[]}`, stories[0].EnvironmentJSON)
 
 	_, err = repo.UpsertManifest(ctx, components.IndexManifestInput{
 		Manifest: components.ComponentManifest{
@@ -242,9 +237,9 @@ func TestSQLiteRepository_UpsertManifestPersistsExamples(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	got, err = repo.ListExamples(ctx, components.ExampleQuery{ComponentID: c.ID, Version: "1.0.0"})
+	stories, err = repo.ListStories(ctx, components.StoryQuery{ComponentID: c.ID, Version: "1.0.0"})
 	require.NoError(t, err)
-	require.Empty(t, got, "examples are rebuilt from disk and removed when examples.json disappears")
+	require.Empty(t, stories, "stories are rebuilt from disk and removed when story.json disappears")
 }
 
 func TestSQLiteRepository_AdditiveCategoryAndReasonMigrationPreservesRows(t *testing.T) {

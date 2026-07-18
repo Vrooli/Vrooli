@@ -4,10 +4,8 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
 import {
-  makeComponentExample,
   makeGetComponentContentResponse,
   makeGetComponentVersionContentResponse,
-  makeListComponentExamplesResponse,
   makeUpdateComponentContentResponse,
 } from "./mocks/factories";
 import { makeComponentsMocks } from "./mocks/components";
@@ -292,29 +290,24 @@ describe("ComponentEditor", () => {
   });
 
   it("renders the selected named state in the workbench canvas", async () => {
-    const { componentsClient, listComponentExamples } = await import("../../api/components");
+    const { componentsClient, listComponentStories } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-gallery" }),
     );
-    vi.mocked(listComponentExamples).mockResolvedValueOnce(
-      makeListComponentExamplesResponse({
-        examples: [
-          makeComponentExample({ name: "primary", displayName: "Primary" }),
-          makeComponentExample({ name: "disabled", displayName: "Disabled" }),
-        ],
-      }),
-    );
+    vi.mocked(listComponentStories).mockResolvedValueOnce({ stories: [{ id: "contract", componentId: "cmp-7", libraryId: "lib:Gallery", version: "1.0.0", schemaVersion: 1, kind: "component", title: "", argsJson: '{"fields":[]}', environmentJson: '{"fixtures":[]}', storiesJson: '[{"id":"primary","name":"Primary","args":{}},{"id":"disabled","name":"Disabled","args":{}}]', contractJson: "{}", sourcePath: "story.json" }] });
 
     renderWithProviders(
       <ComponentEditor id="cmp-7" libraryId="lib:Gallery" onClose={() => {}} activePane="preview" />,
     );
 
+    await screen.findByRole("button", { name: "Primary" });
     const frames = await screen.findAllByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
 
     expect(screen.getByTestId(selectors.components.editor.gallery)).toBeInTheDocument();
     expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
     expect(frames).toHaveLength(1);
-    expect(frames[0]?.getAttribute("src")).toContain("example=primary");
+    expect(frames[0]?.getAttribute("src")).toContain("story=primary");
+    expect(vi.mocked(listComponentStories)).toHaveBeenCalledWith({ componentId: "cmp-7", version: "1.0.0", limit: 1 });
 
     // Each gallery frame posts the resolved theme once it loads.
     if (frames[0]) fireEvent.load(frames[0]);
@@ -348,49 +341,43 @@ describe("ComponentEditor", () => {
   });
 
   it("sends a temporary props override to the visible selected state", async () => {
-    const { componentsClient, listComponentExamples } = await import("../../api/components");
+    const { componentsClient, listComponentStories } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-props" }),
     );
-    vi.mocked(listComponentExamples).mockResolvedValueOnce(
-      makeListComponentExamplesResponse({
-        examples: [
-          makeComponentExample({ name: "primary", displayName: "Primary", propsJson: '{"title":"Short"}' }),
-          makeComponentExample({ name: "secondary", displayName: "Secondary", propsJson: '{"title":"Other"}' }),
-        ],
-      }),
-    );
+    vi.mocked(listComponentStories).mockResolvedValueOnce({ stories: [{ id: "contract", componentId: "cmp-props", libraryId: "lib:Props", version: "1.0.0", schemaVersion: 1, kind: "component", title: "", argsJson: '{"fields":[{"path":"title","kind":"text"}]}', environmentJson: '{"fixtures":[]}', storiesJson: '[{"id":"primary","name":"Primary","args":{"title":"Short"}},{"id":"secondary","name":"Secondary","args":{"title":"Other"}}]', contractJson: "{}", sourcePath: "story.json" }] });
     const user = userEvent.setup();
     renderWithProviders(<ComponentEditor id="cmp-props" libraryId="lib:Props" onClose={() => {}} activePane="preview" />);
+    await screen.findByRole("button", { name: "Primary" });
     const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
     const firstPost = vi.spyOn(frame.contentWindow!, "postMessage");
-    const draft = await screen.findByTestId<HTMLTextAreaElement>(selectors.components.editor.propsDraft);
-    fireEvent.change(draft, { target: { value: '{"title":"A deliberately much longer value"}' } });
-    await waitFor(() => expect(draft).toHaveValue('{"title":"A deliberately much longer value"}'));
+    const title = await screen.findByLabelText("title");
+    fireEvent.change(title, { target: { value: "A deliberately much longer value" } });
+    await waitFor(() => expect(title).toHaveValue("A deliberately much longer value"));
     await user.click(screen.getByTestId(selectors.components.editor.propsApply));
     expect(firstPost).toHaveBeenCalledWith(expect.objectContaining({
       type: "rcl-preview-props-override",
       componentId: "cmp-props",
-      example: "primary",
+      story: "primary",
       props: { title: "A deliberately much longer value" },
     }), "*");
   });
 
   it("keeps state, canvas, and controls together without a playground mode", async () => {
-    const { componentsClient, listComponentExamples } = await import("../../api/components");
+    const { componentsClient, listComponentStories } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-playground" }),
     );
-    vi.mocked(listComponentExamples).mockResolvedValueOnce(makeListComponentExamplesResponse({
-      examples: [
-        makeComponentExample({ name: "primary", displayName: "Primary" }),
-        makeComponentExample({ name: "secondary", displayName: "Secondary" }),
-      ],
-    }));
+    vi.mocked(listComponentStories).mockResolvedValueOnce({ stories: [{ id: "contract", componentId: "cmp-playground", libraryId: "lib:Playground", version: "1.0.0", schemaVersion: 1, kind: "component", title: "", argsJson: '{"fields":[]}', environmentJson: '{"fixtures":[]}', storiesJson: '[{"id":"primary","name":"Primary","args":{}},{"id":"secondary","name":"Secondary","args":{}}]', contractJson: "{}", sourcePath: "story.json" }] });
     const user = userEvent.setup();
     renderWithProviders(<ComponentEditor id="cmp-playground" libraryId="lib:Playground" onClose={() => {}} activePane="preview" />);
+    await screen.findByRole("button", { name: "Primary" });
     expect((await screen.findAllByTestId(selectors.components.editor.exampleCard))).toHaveLength(1);
     expect(screen.getByTestId(selectors.components.editor.propsPanel)).toBeInTheDocument();
+    const toolsToggle = screen.getByTestId(selectors.components.editor.previewToolsToggle);
+    expect(toolsToggle).toHaveAttribute("aria-expanded", "true");
+    await user.click(toolsToggle);
+    expect(toolsToggle).toHaveAttribute("aria-expanded", "false");
     await user.click(screen.getByRole("button", { name: "Secondary" }));
     expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
     expect(screen.getByTestId(selectors.components.editor.exampleTitle)).toHaveTextContent("Secondary");

@@ -7,12 +7,8 @@ import {
   GetComponentContentResponseSchema,
   GetComponentVersionContentResponseSchema,
   UpdateComponentContentResponseSchema,
-  ComponentExampleSchema,
-  ListComponentExamplesResponseSchema,
   type Component,
-  type ComponentExample,
   type ListComponentsResponse,
-  type ListComponentExamplesResponse,
   type IndexComponentsResponse,
   type GetComponentContentResponse,
   type GetComponentVersionContentResponse,
@@ -21,9 +17,7 @@ import {
 
 export type {
   Component,
-  ComponentExample,
   ListComponentsResponse,
-  ListComponentExamplesResponse,
   IndexComponentsResponse,
   GetComponentContentResponse,
   GetComponentVersionContentResponse,
@@ -53,31 +47,6 @@ export const makeListComponentsResponse = (
 ): ListComponentsResponse =>
   create(ListComponentsResponseSchema, {
     components: [],
-    ...overrides,
-  });
-
-export const makeComponentExample = (
-  overrides: MessageInitShape<typeof ComponentExampleSchema> = {},
-): ComponentExample =>
-  create(ComponentExampleSchema, {
-    id: "cmp-1:1.0.0:primary",
-    componentId: "cmp-1",
-    libraryId: "react-component-library:Button",
-    version: "1.0.0",
-    name: "primary",
-    displayName: "Primary",
-    propsJson: "{}",
-    setupJson: "{}",
-    expectJson: "[]",
-    sourcePath: "components/Button/versions/1.0.0/examples.json",
-    ...overrides,
-  });
-
-export const makeListComponentExamplesResponse = (
-  overrides: MessageInitShape<typeof ListComponentExamplesResponseSchema> = {},
-): ListComponentExamplesResponse =>
-  create(ListComponentExamplesResponseSchema, {
-    examples: [],
     ...overrides,
   });
 

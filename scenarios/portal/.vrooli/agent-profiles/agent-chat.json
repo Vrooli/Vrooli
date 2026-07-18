@@ -1,8 +1,0 @@
-{
-  "name": "portal-agent-chat",
-  "profileKey": "portal/agent-chat",
-  "description": "Portable profile for Portal agent-mode conversations",
-  "roleRef": "code.default",
-  "maxTurns": 20,
-  "createdBy": "portal"
-}

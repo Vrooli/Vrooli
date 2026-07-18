@@ -183,7 +183,7 @@ export default function DrawerShell() { const navigate = useNavigate(); return <
 // TestService_IngestScaffoldsCatalogMetadataContract asserts a fresh harvest
 // lands catalog-complete: the manifest carries slot, category, and tags (slot
 // and category defaulted when the harvester omits them), and every created
-// version folder ships an examples.json stub. This is the contract that keeps
+// version folder ships a story.json stub. This is the contract that keeps
 // harvested drafts indistinguishable from authored components at ingest time.
 func TestService_IngestScaffoldsCatalogMetadataContract(t *testing.T) {
 	repo := mocks.NewFakeRepository()
@@ -212,18 +212,11 @@ func TestService_IngestScaffoldsCatalogMetadataContract(t *testing.T) {
 	require.Equal(t, "uncategorized", mf.Category)
 	require.Equal(t, []string{"surface"}, mf.Tags)
 
-	// Both the released baseline and the working draft carry the examples stub.
+	// Both the released baseline and the working draft carry the story stub.
 	for _, version := range []string{"0.1.0", got.DraftVersion} {
-		examplesRaw, err := os.ReadFile(filepath.Join(root, "components", "panel", "versions", version, "examples.json"))
-		require.NoError(t, err, "examples.json missing for version %s", version)
-		var ef struct {
-			Examples []struct {
-				Name string `json:"name"`
-			} `json:"examples"`
-		}
-		require.NoError(t, json.Unmarshal(examplesRaw, &ef))
-		require.Len(t, ef.Examples, 1)
-		require.Equal(t, "default", ef.Examples[0].Name)
+		storyRaw, err := os.ReadFile(filepath.Join(root, "components", "panel", "versions", version, "story.json"))
+		require.NoError(t, err, "story.json missing for version %s", version)
+		require.Contains(t, string(storyRaw), `"id": "default"`)
 	}
 }
 

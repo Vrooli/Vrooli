@@ -35,7 +35,7 @@ func TestPromotionReadinessRequiresParityExamplesAndCleanOriginReplacement(t *te
 	component, err := componentRepo.UpsertManifest(ctx, components.IndexManifestInput{
 		Manifest: components.ComponentManifest{LibraryID: "react-component-library:DrawerShell", Slug: "drawer-shell", DisplayName: "DrawerShell", LatestVersion: "1.0.0", DraftVersion: "1.0.0-draft.1", Dependencies: []components.AssetDependency{{LibraryID: "react-component-library:useFocusTrap", Version: "1.0.0"}}},
 		Versions: []components.ComponentVersion{{Version: "1.0.0-draft.1", ParityReport: &components.IngestParityReport{OriginFiles: []string{"DrawerShell.tsx", "useFocusTrap.ts"}}}},
-		Examples: []components.ComponentExample{{Version: "1.0.0-draft.1", Name: "default"}},
+		Stories:  []components.ComponentStory{{Version: "1.0.0-draft.1", SchemaVersion: 1, Kind: components.StoryKindComponent, ContractJSON: `{"schemaVersion":1,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{}}]}`}},
 	})
 	require.NoError(t, err)
 	adoptionRepo := adoptionmocks.NewFakeRepository()

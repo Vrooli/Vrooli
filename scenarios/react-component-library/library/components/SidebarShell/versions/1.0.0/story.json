@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "SidebarShell",
+  "args": {
+    "fields": [
+        {
+          "path": "mode",
+          "label": "Mode",
+          "kind": "text",
+          "default": "persistent"
+        },
+        {
+          "path": "mobileOpen",
+          "label": "Mobile Open",
+          "kind": "boolean",
+          "default": false
+        },
+        {
+          "path": "mobileLabel",
+          "label": "Mobile Label",
+          "kind": "text",
+          "default": "Workspace navigation"
+        },
+        {
+          "path": "desktopLabel",
+          "label": "Desktop Label",
+          "kind": "text",
+          "default": "Workspace"
+        },
+        {
+          "path": "closeLabel",
+          "label": "Close Label",
+          "kind": "text",
+          "default": "Close navigation"
+        },
+        {
+          "path": "width",
+          "label": "Width",
+          "kind": "number",
+          "default": 280
+        },
+        {
+          "path": "children",
+          "label": "Children",
+          "kind": "structured",
+          "default": {
+            "$node": "nav",
+            "props": {
+              "className": "p-3"
+            },
+            "children": [
+              {
+                "$text": "Dashboard Components Adoptions"
+              }
+            ]
+          }
+        },
+        {
+          "path": "mobileHeader",
+          "label": "Mobile Header",
+          "kind": "structured",
+          "default": {
+            "$node": "strong",
+            "children": [
+              {
+                "$text": "Menu"
+              }
+            ]
+          }
+        },
+        {
+          "path": "onMobileClose",
+          "label": "On Mobile Close",
+          "kind": "structured",
+          "default": {
+            "$handler": "close"
+          }
+        }
+      ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "persistent",
+      "name": "Persistent",
+      "args": {
+        "mode": "persistent",
+        "mobileOpen": false,
+        "mobileLabel": "Workspace navigation",
+        "desktopLabel": "Workspace",
+        "closeLabel": "Close navigation",
+        "width": 280,
+        "children": {
+          "$node": "nav",
+          "props": {
+            "className": "p-3"
+          },
+          "children": [
+            {
+              "$text": "Dashboard Components Adoptions"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "complementary",
+          "name": "Workspace"
+        },
+        {
+          "kind": "text",
+          "value": "Dashboard Components Adoptions"
+        }
+      ]
+    },
+    {
+      "id": "overlay-open",
+      "name": "Overlay Open",
+      "args": {
+        "mode": "overlay",
+        "mobileOpen": true,
+        "mobileLabel": "Mobile navigation",
+        "closeLabel": "Close menu",
+        "mobileHeader": {
+          "$node": "strong",
+          "children": [
+            {
+              "$text": "Menu"
+            }
+          ]
+        },
+        "onMobileClose": {
+          "$handler": "close"
+        },
+        "children": {
+          "$node": "div",
+          "props": {
+            "className": "p-4"
+          },
+          "children": [
+            {
+              "$text": "Settings and account"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Mobile navigation"
+        },
+        {
+          "kind": "text",
+          "value": "Settings and account"
+        }
+      ]
+    },
+    {
+      "id": "responsive-closed",
+      "name": "Responsive Closed",
+      "args": {
+        "mode": "responsive",
+        "mobileOpen": false,
+        "mobileLabel": "Scenario navigation",
+        "desktopLabel": "Scenario",
+        "closeLabel": "Close menu",
+        "onMobileClose": {
+          "$handler": "close"
+        },
+        "children": {
+          "$node": "div",
+          "props": {
+            "className": "p-4"
+          },
+          "children": [
+            {
+              "$text": "Scenario links"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Scenario links"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='sidebar-shell']",
+          "name": "data-mode",
+          "value": "responsive"
+        }
+      ]
+    }
+  ]
+}

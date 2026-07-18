@@ -46,28 +46,29 @@ export const componentsClient = baseComponentsClient as typeof baseComponentsCli
   validateStyleFit(input: ValidateStyleFitRequest): Promise<ValidateStyleFitResponse>;
 };
 
-export interface ListComponentExamplesRequest {
+export interface ComponentStory {
+  id: string;
+  componentId: string;
+  libraryId: string;
+  version: string;
+  schemaVersion: number;
+  kind: "component" | "hook" | string;
+  title: string;
+  argsJson: string;
+  environmentJson: string;
+  storiesJson: string;
+  contractJson: string;
+  sourcePath: string;
+}
+
+export interface ListComponentStoriesRequest {
   componentId: string;
   version?: string;
   limit?: number;
 }
 
-export interface ComponentExample {
-  id: string;
-  componentId: string;
-  libraryId: string;
-  version: string;
-  name: string;
-  displayName: string;
-  propsJson: string;
-  setupJson: string;
-  expectJson: string;
-  controlsJson: string;
-  sourcePath: string;
-}
-
-export interface ListComponentExamplesResponse {
-  examples: ComponentExample[];
+export interface ListComponentStoriesResponse {
+  stories: ComponentStory[];
 }
 
 export interface ComponentExperienceState {
@@ -117,13 +118,13 @@ export async function getComponentExperience(componentId: string): Promise<Compo
   return response.experience as ComponentExperience;
 }
 
-export async function listComponentExamples(
-  input: ListComponentExamplesRequest,
-): Promise<ListComponentExamplesResponse> {
+export async function listComponentStories(
+  input: ListComponentStoriesRequest,
+): Promise<ListComponentStoriesResponse> {
   const client = baseComponentsClient as unknown as {
-    listComponentExamples(request: ListComponentExamplesRequest): Promise<ListComponentExamplesResponse>;
+    listComponentStories(request: ListComponentStoriesRequest): Promise<ListComponentStoriesResponse>;
   };
-  return client.listComponentExamples(input);
+  return client.listComponentStories(input);
 }
 
 export type { Component, ListComponentsResponse };

@@ -4,7 +4,6 @@ import {
   makeGetComponentContentResponse,
   makeGetComponentVersionContentResponse,
   makeIndexComponentsResponse,
-  makeListComponentExamplesResponse,
   makeListComponentsResponse,
   makeUpdateComponentContentResponse,
 } from "./factories";
@@ -17,9 +16,10 @@ export interface ComponentsMocks {
     indexComponents: ReturnType<typeof vi.fn>;
     getComponentContent: ReturnType<typeof vi.fn>;
     getComponentVersionContent: ReturnType<typeof vi.fn>;
+    listComponentVersions: ReturnType<typeof vi.fn>;
     updateComponentContent: ReturnType<typeof vi.fn>;
   };
-  listComponentExamples: ReturnType<typeof vi.fn>;
+	listComponentStories: ReturnType<typeof vi.fn>;
 }
 
 export const makeComponentsMocks = (): ComponentsMocks => ({
@@ -30,7 +30,8 @@ export const makeComponentsMocks = (): ComponentsMocks => ({
     indexComponents: vi.fn().mockResolvedValue(makeIndexComponentsResponse()),
     getComponentContent: vi.fn().mockResolvedValue(makeGetComponentContentResponse()),
     getComponentVersionContent: vi.fn().mockResolvedValue(makeGetComponentVersionContentResponse()),
+    listComponentVersions: vi.fn().mockResolvedValue({ versions: [{ version: "1.0.0", files: [] }] }),
     updateComponentContent: vi.fn().mockResolvedValue(makeUpdateComponentContentResponse()),
   },
-  listComponentExamples: vi.fn().mockResolvedValue(makeListComponentExamplesResponse()),
+	listComponentStories: vi.fn().mockResolvedValue({ stories: [] }),
 });

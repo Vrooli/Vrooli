@@ -123,6 +123,9 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 	if err != nil {
 		return CreateResult{}, fmt.Errorf("comprehensive run failed: %w", err)
 	}
+	if err := s.validateBaselineEvidence(ctx, req.Scenario, terminal.RunID); err != nil {
+		return CreateResult{}, err
+	}
 	if err := s.attachRun(ctx, &manifest, req, terminal); err != nil {
 		return CreateResult{}, err
 	}
@@ -198,6 +201,10 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", msg)
 		return CreateResult{}, errors.New(msg)
 	}
+	if err := s.validateBaselineEvidence(ctx, pending.Req.Scenario, res.RunID); err != nil {
+		_ = s.saveSnapshotIntent(ctx, pending, "failed", err.Error())
+		return CreateResult{}, err
+	}
 
 	// The only shared critical section begins after terminal Test Genie truth is
 	// available. Rechecking storage here makes duplicate finalizers converge:
@@ -227,6 +234,33 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 	out := CreateResult{Manifest: manifest, DirtyWarning: pending.DirtyWarning}
 	_ = s.saveSnapshotIntent(ctx, pending, "ready", "")
 	return out, nil
+}
+
+// validateBaselineEvidence rejects a terminal run that cannot compare even to
+// itself. A baseline with skipped required execution, missing artifacts, or an
+// asymmetric descriptor snapshot is not a valid measurement anchor; accepting
+// it merely defers failure until a later plan diff.
+func (s *Service) validateBaselineEvidence(ctx context.Context, scenario, runID string) error {
+	if s.runs == nil {
+		return fmt.Errorf("validate baseline evidence: Test Genie runs client is unavailable")
+	}
+	comparison, err := s.runs.CompareRuns(ctx, scenario, runID, runID, "")
+	if err != nil {
+		return fmt.Errorf("validate baseline evidence for run %s: %w", runID, err)
+	}
+	if comparison.Verdict != string(VerdictNotComparable) {
+		return nil
+	}
+	problematic := make([]string, 0)
+	for _, phase := range comparison.Phases {
+		if phase.GetVerdict() == string(VerdictNotComparable) {
+			problematic = append(problematic, phase.GetPhase())
+		}
+	}
+	if len(problematic) == 0 {
+		return fmt.Errorf("baseline run %s is not comparable to itself", runID)
+	}
+	return fmt.Errorf("baseline run %s has unusable required evidence in phase(s): %s", runID, strings.Join(problematic, ", "))
 }
 
 func (s *Service) saveSnapshotIntent(_ context.Context, pending PendingCapture, status, errMsg string) error {

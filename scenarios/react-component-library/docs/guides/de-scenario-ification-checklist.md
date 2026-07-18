@@ -21,7 +21,7 @@ Use this checklist after `react-component-library components ingest` returns a d
 
 Ingest scaffolds this contract so a fresh draft lands with the same catalog
 fields authored components carry — `slot` and `category` default when omitted,
-and each version folder ships a one-example `examples.json` stub. Promotion is
+and each version folder ships a one-story `story.json` stub. Promotion is
 not finished until you replace the defaults and the stub with real values:
 
 - **Design affinities.** Declare `designStyles` in `component.json` — one entry

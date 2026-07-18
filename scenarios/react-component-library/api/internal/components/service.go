@@ -24,7 +24,7 @@ type Service interface {
 	GetContentAt(ctx context.Context, id, path string) (Content, error)
 	ListVersions(ctx context.Context, componentID string, limit int) ([]ComponentVersion, error)
 	GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error)
-	ListExamples(ctx context.Context, q ExampleQuery) ([]ComponentExample, error)
+	ListStories(ctx context.Context, q StoryQuery) ([]ComponentStory, error)
 	GetVersionContent(ctx context.Context, componentID, version string) (Content, error)
 	ListDesignStyles(ctx context.Context) ([]DesignStyle, error)
 	ValidateDesignStyle(ctx context.Context, id string) error
@@ -161,11 +161,11 @@ func (s *service) GetVersion(ctx context.Context, componentID, version string) (
 	return s.repo.GetVersion(ctx, componentID, version)
 }
 
-func (s *service) ListExamples(ctx context.Context, q ExampleQuery) ([]ComponentExample, error) {
+func (s *service) ListStories(ctx context.Context, q StoryQuery) ([]ComponentStory, error) {
 	if q.Limit <= 0 {
 		q.Limit = defaultListLimit
 	}
-	return s.repo.ListExamples(ctx, q)
+	return s.repo.ListStories(ctx, q)
 }
 
 func (s *service) ValidateStyleFit(ctx context.Context, componentID, version, scenario string) (StyleFitVerdict, error) {

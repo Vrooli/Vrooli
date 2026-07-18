@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"path/filepath"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -23,7 +22,7 @@ import (
 )
 
 func Module(db *sql.DB, assets components.Service, sourceRoot string, logger *log.Logger) module.Module {
-	svc := domain.NewService(domain.Runner{Assets: assets, Examples: assets, Contracts: domain.FSContractReader{Root: sourceRoot}, Claims: domain.FSClaimReader{Root: filepath.Dir(sourceRoot)}}, domain.NewSQLiteRepository(db))
+	svc := domain.NewService(domain.Runner{Assets: assets, Stories: assets}, domain.NewSQLiteRepository(db))
 	path, handler := componenttestsconnect.NewComponentTestsServiceHandler(&connectHandler{service: svc, logger: logger})
 	sharedPath, shared := scenariovalidationconnect.NewScenarioValidationServiceHandler(&sharedHandler{service: svc, assets: assets, logger: logger})
 	return module.Module{Name: "component-tests", Mount: func(r *mux.Router) {

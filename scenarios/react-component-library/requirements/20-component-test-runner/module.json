@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "First-class, safe, version-pinned component and hook test contracts.",
-    "last_validated_at": "2026-07-16T22:52:18-04:00",
+    "last_validated_at": "2026-07-18T01:34:26-04:00",
     "module": "component-test-runner",
     "prd_ref": "OT-P0-008",
     "priority": "P0",
@@ -15,7 +15,7 @@
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "A component or hook contract is a versioned JSON declaration with allowlisted actions/assertions and never invokes arbitrary source, paths, commands, or examples.setup.",
+      "description": "A component or hook story contract is a versioned JSON declaration with allowlisted actions/assertions and never invokes arbitrary source, paths, commands, or setup code.",
       "tags": [
         "component-test",
         "security",
@@ -24,7 +24,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/componenttests/contracts_test.go",
+          "ref": "api/internal/components/story_contract_test.go",
           "phase": "unit",
           "status": "failing"
         }
@@ -83,12 +83,12 @@
     },
     {
       "id": "CTR-004",
-      "title": "Rendered component examples prove their declared safe expectations",
+      "title": "Rendered catalog stories prove their declared safe expectations",
       "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "testing",
       "criticality": "P0",
-      "description": "The preview browser sweep evaluates indexed role, text, and attribute expectations in the rendered iframe and captures light/dark evidence.",
+      "description": "The preview browser sweep evaluates indexed component and hook story role, text, and attribute expectations in the rendered iframe and captures light/dark evidence.",
       "tags": [
         "component-test",
         "browser",

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "DrawerShell",
+  "args": {
+    "fields": [
+        {
+          "path": "open",
+          "label": "Open",
+          "kind": "boolean",
+          "default": true
+        },
+        {
+          "path": "title",
+          "label": "Title",
+          "kind": "text",
+          "default": "Drawer title"
+        },
+        {
+          "path": "children",
+          "label": "Children",
+          "kind": "structured",
+          "default": {
+            "$text": "Drawer content"
+          }
+        },
+        {
+          "path": "size",
+          "label": "Size",
+          "kind": "text",
+          "default": "compact"
+        },
+        {
+          "path": "headerActions",
+          "label": "Header Actions",
+          "kind": "structured",
+          "default": {
+            "$node": "button",
+            "children": [
+              {
+                "$text": "Save"
+              }
+            ]
+          }
+        }
+      ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "full-open",
+      "name": "Full drawer",
+      "args": {
+        "open": true,
+        "title": "Drawer title",
+        "children": {
+          "$text": "Drawer content"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Drawer title"
+        }
+      ]
+    },
+    {
+      "id": "compact-open",
+      "name": "Compact drawer",
+      "args": {
+        "open": true,
+        "size": "compact",
+        "title": "Compact drawer",
+        "children": {
+          "$text": "Compact content"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Compact content"
+        }
+      ]
+    },
+    {
+      "id": "with-header-actions",
+      "name": "Header actions",
+      "args": {
+        "open": true,
+        "title": "Actions",
+        "headerActions": {
+          "$node": "button",
+          "children": [
+            {
+              "$text": "Save"
+            }
+          ]
+        },
+        "children": {
+          "$text": "Actionable content"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Save"
+        }
+      ]
+    }
+  ]
+}

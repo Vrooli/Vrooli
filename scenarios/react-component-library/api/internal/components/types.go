@@ -209,7 +209,7 @@ type UpsertInput struct {
 type IndexManifestInput struct {
 	Manifest ComponentManifest
 	Versions []ComponentVersion
-	Examples []ComponentExample
+	Stories  []ComponentStory
 	Headers  map[string]string
 	Findings []IndexFinding
 }
@@ -259,7 +259,9 @@ type IndexFindingKind string
 const (
 	IndexFindingHeaderDisagreement IndexFindingKind = "header_disagreement"
 	IndexFindingStaleDesignStyle   IndexFindingKind = "stale_design_style"
-	IndexFindingInvalidExample     IndexFindingKind = "invalid_example"
+	IndexFindingInvalidStory       IndexFindingKind = "invalid_story"
+	IndexFindingMissingStory       IndexFindingKind = "missing_story"
+	IndexFindingLegacyStorySource  IndexFindingKind = "legacy_story_source"
 	// IndexFindingRegistryOrphan is emitted when a component_versions
 	// row (or its sibling child rows) has no owning row in the
 	// components registry — soft-FK cruft the reindex sweep removes.
@@ -316,25 +318,29 @@ type SearchQuery struct {
 	Limit     int
 }
 
-type ExampleQuery struct {
+// ComponentStory is the durable typed projection of one version's story.json.
+// The canonical source remains the file; SQLite exists so every transport and
+// runtime consumer sees the exact same validated contract.
+type ComponentStory struct {
+	ID              string
+	ComponentID     string
+	LibraryID       string
+	Version         string
+	SchemaVersion   int
+	Kind            StoryKind
+	Title           string
+	ArgsJSON        string
+	EnvironmentJSON string
+	StoriesJSON     string
+	ContractJSON    string
+	SourcePath      string
+	IndexedAt       time.Time
+}
+
+type StoryQuery struct {
 	ComponentID string
 	Version     string
 	Limit       int
-}
-
-type ComponentExample struct {
-	ID           string
-	ComponentID  string
-	LibraryID    string
-	Version      string
-	Name         string
-	DisplayName  string
-	PropsJSON    string
-	SetupJSON    string
-	ExpectJSON   string
-	ControlsJSON string
-	SourcePath   string
-	IndexedAt    time.Time
 }
 
 type InitializeComponentInput struct {
@@ -355,7 +361,7 @@ type InitializeComponentInput struct {
 	// to the version folder; exactly one member is the renderable entry.
 	// Empty retains the single-file InitialSource contract.
 	InitialFiles []ComponentVersionFile
-	// ScaffoldExamples writes a starter examples.json into the created version
+	// ScaffoldExamples is retained for CLI compatibility and writes a starter story.json.
 	// folder when the caller supplies none. Ingest sets it so every harvested
 	// draft carries the examples contract authored components ship with.
 	ScaffoldExamples bool
@@ -436,7 +442,7 @@ type CreateComponentVersionInput struct {
 	ParityReport            *IngestParityReport
 	AcknowledgeParityWaiver bool
 	ChangelogMD             string
-	// ScaffoldExamples writes a starter examples.json into the created version
+	// ScaffoldExamples is retained for CLI compatibility and writes a starter story.json.
 	// folder when the caller supplies none. Ingest sets it for harvested drafts.
 	ScaffoldExamples bool
 	// ExperienceContract is the canonical JSON document written alongside this

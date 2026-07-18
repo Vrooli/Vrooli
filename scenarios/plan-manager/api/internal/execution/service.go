@@ -919,7 +919,7 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	if e.BaselineSet.Name != "" && !e.BaselineSet.LegacyAdoptionRequired {
+	if e.BaselineSet.Name != "" && !e.BaselineSet.LegacyAdoptionRequired && req.Mode != BaselineAdoptionRecapture {
 		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "execution already has a baseline ticket; use baseline-sync or record a partial handoff"}
 	}
 	if strings.TrimSpace(req.Reason) == "" {
@@ -938,7 +938,15 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 		if name == "-baseline" || len(members) == 0 {
 			return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "recapture adoption requires collection name and at least one member"}
 		}
-		e.BaselineSet = baselineTicket(e.ID, name, members, uniqueStrings(req.RepoPaths), "legacy adoption recapture: "+strings.TrimSpace(req.Reason))
+		priorName := strings.TrimSpace(e.BaselineSet.Name)
+		if priorName != "" && name == priorName {
+			return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "recapture adoption must use a new collection name to preserve the prior ticket"}
+		}
+		detail := "legacy adoption recapture: " + strings.TrimSpace(req.Reason)
+		if priorName != "" {
+			detail = "recapture supersedes " + priorName + ": " + strings.TrimSpace(req.Reason)
+		}
+		e.BaselineSet = baselineTicket(e.ID, name, members, uniqueStrings(req.RepoPaths), detail)
 		e.FreshenStatus, e.FreshenDetail, e.UpdatedAt = "baseline_required", e.BaselineSet.Detail, s.now()
 	default:
 		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "baseline adoption mode must be recapture or degraded"}

@@ -24,7 +24,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "react-component-library",
-          "scenario_path": "/preview/react-component-library:DrawerShell/harness.html?example=full-open&version=0.1.0",
+          "scenario_path": "/preview/react-component-library:DrawerShell/harness.html?story=full-open&version=0.1.0",
           "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
           "timeout_ms": 30000
         },

@@ -100,8 +100,8 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_versions WHERE component_id = ?`, c.ID); err != nil {
 		return Component{}, fmt.Errorf("clear component versions for %q: %w", c.ID, err)
 	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_examples WHERE component_id = ?`, c.ID); err != nil {
-		return Component{}, fmt.Errorf("clear component examples for %q: %w", c.ID, err)
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_stories WHERE component_id = ?`, c.ID); err != nil {
+		return Component{}, fmt.Errorf("clear component stories for %q: %w", c.ID, err)
 	}
 	now := s.clock.Now().UTC()
 	for _, v := range in.Versions {
@@ -145,30 +145,24 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 			}
 		}
 	}
-	for _, ex := range in.Examples {
-		if ex.ID == "" {
-			ex.ID = uuid.NewString()
+	for _, story := range in.Stories {
+		if story.ID == "" {
+			story.ID = uuid.NewString()
 		}
-		ex.ComponentID = c.ID
-		ex.LibraryID = c.LibraryID
-		if ex.IndexedAt.IsZero() {
-			ex.IndexedAt = now
+		story.ComponentID = c.ID
+		story.LibraryID = c.LibraryID
+		if story.IndexedAt.IsZero() {
+			story.IndexedAt = now
 		}
 		if _, err := s.db.ExecContext(ctx, `
-INSERT INTO component_examples
-  (id, component_id, library_id, version, name, display_name, props_json, setup_json, expect_json, controls_json, source_path, indexed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(component_id, version, name) DO UPDATE SET
-  library_id = excluded.library_id,
-  display_name = excluded.display_name,
-  props_json = excluded.props_json,
-  setup_json = excluded.setup_json,
-  expect_json = excluded.expect_json,
-	  controls_json = excluded.controls_json,
-  source_path = excluded.source_path,
-  indexed_at = excluded.indexed_at
-`, ex.ID, ex.ComponentID, ex.LibraryID, ex.Version, ex.Name, ex.DisplayName, ex.PropsJSON, ex.SetupJSON, ex.ExpectJSON, ex.ControlsJSON, ex.SourcePath, ex.IndexedAt.UTC().Format(timeFormat)); err != nil {
-			return Component{}, fmt.Errorf("upsert component example %s@%s/%s: %w", c.LibraryID, ex.Version, ex.Name, err)
+INSERT INTO component_stories (id, component_id, library_id, version, schema_version, kind, title, args_json, environment_json, stories_json, contract_json, source_path, indexed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(component_id, version) DO UPDATE SET
+  library_id=excluded.library_id, schema_version=excluded.schema_version, kind=excluded.kind, title=excluded.title,
+  args_json=excluded.args_json, environment_json=excluded.environment_json, stories_json=excluded.stories_json,
+  contract_json=excluded.contract_json, source_path=excluded.source_path, indexed_at=excluded.indexed_at
+`, story.ID, story.ComponentID, story.LibraryID, story.Version, story.SchemaVersion, string(story.Kind), story.Title, story.ArgsJSON, story.EnvironmentJSON, story.StoriesJSON, story.ContractJSON, story.SourcePath, story.IndexedAt.UTC().Format(timeFormat)); err != nil {
+			return Component{}, fmt.Errorf("upsert component story %s@%s: %w", c.LibraryID, story.Version, err)
 		}
 	}
 	if err := s.replaceHeaders(ctx, c.ID, in.Headers); err != nil {
@@ -618,7 +612,6 @@ func (s *sqliteRepository) deleteOrphanChildRows(ctx context.Context) error {
 		`DELETE FROM component_version_parity_reports WHERE version_id IN (
 			SELECT id FROM component_versions WHERE component_id NOT IN (SELECT id FROM components))`,
 		`DELETE FROM component_versions WHERE component_id NOT IN (SELECT id FROM components)`,
-		`DELETE FROM component_examples WHERE component_id NOT IN (SELECT id FROM components)`,
 		`DELETE FROM component_headers WHERE component_id NOT IN (SELECT id FROM components)`,
 		`DELETE FROM component_design_affinities WHERE component_id NOT IN (SELECT id FROM components)`,
 		`DELETE FROM component_asset_dependencies WHERE component_id NOT IN (SELECT id FROM components)`,
@@ -763,44 +756,38 @@ func (s *sqliteRepository) listVersionFiles(ctx context.Context, versionID strin
 	return files, rows.Err()
 }
 
-func (s *sqliteRepository) ListExamples(ctx context.Context, q ExampleQuery) ([]ComponentExample, error) {
+func (s *sqliteRepository) ListStories(ctx context.Context, q StoryQuery) ([]ComponentStory, error) {
 	limit := q.Limit
 	if limit <= 0 {
 		limit = 200
 	}
 	var clauses []string
 	var args []any
-	if componentID := strings.TrimSpace(q.ComponentID); componentID != "" {
+	if q.ComponentID != "" {
 		clauses = append(clauses, "component_id = ?")
-		args = append(args, componentID)
+		args = append(args, q.ComponentID)
 	}
-	if version := strings.TrimSpace(q.Version); version != "" {
+	if q.Version != "" {
 		clauses = append(clauses, "version = ?")
-		args = append(args, version)
+		args = append(args, q.Version)
 	}
 	where := ""
 	if len(clauses) > 0 {
 		where = "WHERE " + strings.Join(clauses, " AND ")
 	}
 	args = append(args, limit)
-	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
-SELECT id, component_id, library_id, version, name, display_name, props_json, setup_json, expect_json, controls_json, source_path, indexed_at
-FROM component_examples
-%s
-ORDER BY library_id ASC, version DESC, name ASC
-LIMIT ?
-`, where), args...)
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`SELECT id, component_id, library_id, version, schema_version, kind, title, args_json, environment_json, stories_json, contract_json, source_path, indexed_at FROM component_stories %s ORDER BY library_id ASC, version DESC LIMIT ?`, where), args...)
 	if err != nil {
-		return nil, fmt.Errorf("list component examples: %w", err)
+		return nil, fmt.Errorf("list component stories: %w", err)
 	}
 	defer rows.Close()
-	var out []ComponentExample
+	var out []ComponentStory
 	for rows.Next() {
-		ex, err := scanComponentExample(rows)
+		story, err := scanComponentStory(rows)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, ex)
+		out = append(out, story)
 	}
 	return out, rows.Err()
 }
@@ -875,18 +862,19 @@ func scanComponentVersion(s rowScanner) (ComponentVersion, error) {
 	return v, nil
 }
 
-func scanComponentExample(s rowScanner) (ComponentExample, error) {
-	var ex ComponentExample
-	var indexedRaw string
-	if err := s.Scan(&ex.ID, &ex.ComponentID, &ex.LibraryID, &ex.Version, &ex.Name, &ex.DisplayName, &ex.PropsJSON, &ex.SetupJSON, &ex.ExpectJSON, &ex.ControlsJSON, &ex.SourcePath, &indexedRaw); err != nil {
-		return ComponentExample{}, err
+func scanComponentStory(s rowScanner) (ComponentStory, error) {
+	var story ComponentStory
+	var kind, indexedRaw string
+	if err := s.Scan(&story.ID, &story.ComponentID, &story.LibraryID, &story.Version, &story.SchemaVersion, &kind, &story.Title, &story.ArgsJSON, &story.EnvironmentJSON, &story.StoriesJSON, &story.ContractJSON, &story.SourcePath, &indexedRaw); err != nil {
+		return ComponentStory{}, err
 	}
+	story.Kind = StoryKind(kind)
 	indexed, err := time.Parse(timeFormat, indexedRaw)
 	if err != nil {
-		return ComponentExample{}, fmt.Errorf("parse indexed_at %q: %w", indexedRaw, err)
+		return ComponentStory{}, fmt.Errorf("parse indexed_at %q: %w", indexedRaw, err)
 	}
-	ex.IndexedAt = indexed
-	return ex, nil
+	story.IndexedAt = indexed
+	return story, nil
 }
 
 func formatOptionalTime(t time.Time) string {

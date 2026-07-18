@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "select-keyboard-navigation",
-    "description": "Opens the Select@1.1.0 preview harness (example=selected, defaultValue=native) at top level, focuses the combobox, presses ArrowDown, and asserts the selected value advances from 'native' to 'compatible'. Proves the Select component honours keyboard option navigation, not merely that it renders a combobox.",
+    "description": "Opens the Select@1.1.0 preview harness (story=selected, defaultValue=native) at top level, focuses the combobox, presses ArrowDown, and asserts the selected value advances from 'native' to 'compatible'. Proves the Select component honours keyboard option navigation, not merely that it renders a combobox.",
     "requirement": "TC-006",
     "version": "1",
     "labels": {
@@ -23,7 +23,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "react-component-library",
-          "scenario_path": "/preview/react-component-library:Select/harness.html?example=selected",
+          "scenario_path": "/preview/react-component-library:Select/harness.html?story=selected",
           "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
           "timeout_ms": 30000
         },
