@@ -19,17 +19,8 @@ type rawAgentService interface {
 	IsAvailable(ctx context.Context) bool
 	ResolveURL(ctx context.Context) (string, error)
 	GetProfileID() string
-	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
 	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
 	StopRun(ctx context.Context, runID string) error
-}
-
-// initiativeSpawner is satisfied by agentmanager.AgentService and any test
-// double that wants to participate in tracked initiative spawns. Kept
-// separate from rawAgentService so existing stubs (capture, backlog) need
-// no churn when agentactivity is extended.
-type initiativeSpawner interface {
-	SpawnInitiative(ctx context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error)
 }
 
 type sessionSpawner interface {
@@ -61,16 +52,15 @@ type ServiceConfig struct {
 // All backlog/capture/scenario work spawns and continuations must flow through
 // this service so durable activity records remain complete.
 type Service struct {
-	store             Store
-	agentService      rawAgentService
-	continuer         runContinuer
-	differ            runDiffer
-	eventReader       runEventReader
-	initiativeSpawner initiativeSpawner
-	sessionSpawner    sessionSpawner
-	lanePolicy        LanePolicy
-	eventDispatcher   dispatch.NodeDispatcher
-	mu                sync.Mutex
+	store           Store
+	agentService    rawAgentService
+	continuer       runContinuer
+	differ          runDiffer
+	eventReader     runEventReader
+	sessionSpawner  sessionSpawner
+	lanePolicy      LanePolicy
+	eventDispatcher dispatch.NodeDispatcher
+	mu              sync.Mutex
 }
 
 func NewService(cfg ServiceConfig) *Service {
@@ -87,9 +77,6 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	if reader, ok := cfg.AgentService.(runEventReader); ok {
 		svc.eventReader = reader
-	}
-	if spawner, ok := cfg.AgentService.(initiativeSpawner); ok {
-		svc.initiativeSpawner = spawner
 	}
 	if spawner, ok := cfg.AgentService.(sessionSpawner); ok {
 		svc.sessionSpawner = spawner
@@ -170,28 +157,6 @@ func (s *Service) GetProfileID() string {
 		return ""
 	}
 	return s.agentService.GetProfileID()
-}
-
-func (s *Service) SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	spec, err := specFromContext(ctx)
-	if err != nil {
-		return agentmanager.RunResult{}, err
-	}
-	return s.spawnTracked(ctx, spec, req)
-}
-
-// SpawnInitiative tracks an initiative-scoped agent run (feedback rounds,
-// initiative reviews) so the activity log carries the same provenance as
-// backlog work. The Spec on the context must use OwnerInitiative.
-func (s *Service) SpawnInitiative(ctx context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error) {
-	spec, err := specFromContext(ctx)
-	if err != nil {
-		return agentmanager.RunResult{}, err
-	}
-	if spec.OwnerType != OwnerInitiative {
-		return agentmanager.RunResult{}, fmt.Errorf("SpawnInitiative requires owner_type=initiative")
-	}
-	return s.spawnInitiativeTracked(ctx, spec, req)
 }
 
 func (s *Service) SpawnSession(ctx context.Context, req agentmanager.SessionSpawnRequest) (agentmanager.RunResult, error) {

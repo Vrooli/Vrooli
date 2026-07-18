@@ -62,6 +62,48 @@ func (s *Service) SetPhasedPlanWorkflow(workflow agentmanager.PhasedPlanWorkflow
 	s.phasedPlanWorkflow = workflow
 }
 
+// SetConclusionWorkflow installs the generic declared-workflow seam for
+// planless research conclusions. Its typed domain adapter owns snapshot and
+// terminal application; this service does not own prompt construction.
+func (s *Service) SetConclusionWorkflow(workflow agentmanager.WorkflowInvoker) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.conclusionWorkflow = workflow
+}
+
+// SetWorkWorkflow installs the generic declared-workflow seam for bounded
+// follow-up and correction work. The domain adapter owns snapshots and apply;
+// the workflow owns the agent invocation and typed extraction.
+func (s *Service) SetWorkWorkflow(workflow agentmanager.WorkflowInvoker) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.workWorkflow = workflow
+}
+
+// SetSpecSyncWorkflow installs the declaration-backed scenario spec-sync seam.
+func (s *Service) SetSpecSyncWorkflow(workflow agentmanager.WorkflowInvoker) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.specSyncWorkflow = workflow
+}
+
+// SetWorkflowStartGuard applies server-owned transition policy to the default
+// generic workflow adapter without coupling execution to registry internals.
+func (s *Service) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
+	if workflow, ok := s.phasedPlanWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetStartGuard(guard)
+	}
+	if workflow, ok := s.conclusionWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetStartGuard(guard)
+	}
+	if workflow, ok := s.workWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetStartGuard(guard)
+	}
+	if workflow, ok := s.specSyncWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetStartGuard(guard)
+	}
+}
+
 func phasedPlanSnapshot(item backlogItem, record Record, planHandle string, rendered renderedPlanContent) (agentmanager.PhasedPlanSnapshot, error) {
 	itemBytes, err := json.Marshal(item)
 	if err != nil {

@@ -45,7 +45,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { EXECUTION_LENSES } from "../components/detail/lens-options";
 import { selectors } from "../consts/selectors";
 import { canRunPostRunChecks } from "../lib/finalization";
-import { OperationProvenancePopover } from "../components/workflow/operation-provenance-popover";
 import type { ExecutionRecord } from "../types";
 import { routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
@@ -75,7 +74,6 @@ export function ExecutionDetailsPage() {
     reviewRounds,
     isGatheringEvidence,
     isAwaitingManualReview,
-    canonicalOperation,
     targetScenarios: _targetScenarios,
     isLoading,
     error,
@@ -155,14 +153,7 @@ export function ExecutionDetailsPage() {
     </Button>
   ) : null;
 
-  // Canonical (runner-owned) operation record — inspectability affordance
-  // alongside the primary action. Absent for pre-migration legacy records.
-  const headerAction = canonicalOperation ? (
-    <div className="flex items-center gap-2">
-      <OperationProvenancePopover data={canonicalOperation} />
-      {primaryAction}
-    </div>
-  ) : primaryAction;
+  const headerAction = primaryAction;
 
   // --- Tab bar ---
   const tabBar = (

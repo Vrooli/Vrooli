@@ -34,6 +34,22 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}/review/decide", h.decide).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/review/decisions", h.listDecisions).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}/review/{round:[0-9]+}", h.getRound).Methods("GET")
+	r.HandleFunc("/api/v1/initiatives/{name}/review/{round:[0-9]+}/workflow/apply", h.applyWorkflow).Methods("POST")
+}
+
+func (h *Handler) applyWorkflow(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(mux.Vars(r)["name"])
+	round, err := strconv.Atoi(mux.Vars(r)["round"])
+	if name == "" || err != nil || round <= 0 {
+		apierr.MapError(w, "[initiative-review] workflow apply", apierr.BadRequest("initiative name and round are required"))
+		return
+	}
+	applied, idempotent, err := h.service.ApplyWorkflowRound(r.Context(), name, round)
+	if err != nil {
+		apierr.MapError(w, "[initiative-review] workflow apply", apierr.Internal("apply workflow: %s", err.Error()))
+		return
+	}
+	_ = httputil.JSONWithStatus(w, http.StatusOK, map[string]any{"round": applied, "idempotent": idempotent})
 }
 
 func (h *Handler) listRounds(w http.ResponseWriter, r *http.Request) {

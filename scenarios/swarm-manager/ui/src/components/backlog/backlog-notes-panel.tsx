@@ -15,7 +15,6 @@ import { ConfirmDialog } from "../ui/confirm-dialog";
 import { formatBacklogStatus } from "../../types";
 import type { WorkshopRound } from "../../types/domain";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
-import type { OperationProvenanceData } from "../../lib/agent-ops-utils";
 import { useBacklogDetail } from "../../contexts/BacklogDetailContext";
 import { EntityLink } from "../ui/entity-link";
 
@@ -30,8 +29,6 @@ export interface BacklogNotesPanelProps {
   onFinalizeWorkshop: () => void;
   onInitializeWorkshop: () => void;
   onDeleteRound: (roundNumber: number) => void;
-  /** Canonical operation provenance per workshop round (workflow projection). */
-  workshopProvenanceByRound?: ReadonlyMap<number, OperationProvenanceData>;
 }
 
 export function BacklogNotesPanel({
@@ -45,7 +42,6 @@ export function BacklogNotesPanel({
   onFinalizeWorkshop,
   onInitializeWorkshop,
   onDeleteRound,
-  workshopProvenanceByRound,
 }: BacklogNotesPanelProps) {
   const {
     backlogKind, item, itemActions, isLocked, isTerminal,
@@ -135,7 +131,6 @@ export function BacklogNotesPanel({
         isFinalized={isWorkshopFinalized}
         deliverableLabel={deliverableLabel}
         runningLabel={agentRunningLabel}
-        provenanceByRound={workshopProvenanceByRound}
       />
       {workshopAutoAdvance?.nextMode && item?.name ? (
         <WorkshopTransitionStatus

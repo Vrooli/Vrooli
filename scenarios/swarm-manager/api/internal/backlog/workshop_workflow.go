@@ -395,23 +395,3 @@ func (h *Handler) ProcessWorkshopWorkflows(ctx context.Context) error {
 	}
 	return nil
 }
-
-// StartWorkshopWorkflowWorker performs one boot-time reconciliation and then
-// retries healthy non-terminal workflows until shutdown.
-func (h *Handler) StartWorkshopWorkflowWorker(stop <-chan struct{}) {
-	if err := h.ProcessWorkshopWorkflows(context.Background()); err != nil {
-		slog.Warn("workshop workflow boot reconciliation failed", "err", err)
-	}
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-stop:
-			return
-		case <-ticker.C:
-			if err := h.ProcessWorkshopWorkflows(context.Background()); err != nil {
-				slog.Warn("workshop workflow reconciliation failed", "err", err)
-			}
-		}
-	}
-}

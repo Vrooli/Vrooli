@@ -13,6 +13,9 @@ import (
 	"swarm-manager/internal/handoff"
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptmanager"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // stubPolicyProvider implements PolicyProvider for tests.
@@ -42,6 +45,33 @@ type stubPhasedPlanWorkflow struct {
 	cancelCalls  int
 }
 
+type stubConclusionWorkflow struct {
+	start        agentmanager.WorkflowStart
+	startErr     error
+	invocation   agentmanager.Invocation
+	startCalls   int
+	completion   agentmanager.InvocationCompletion
+	collectErr   error
+	collectCalls int
+}
+
+func (s *stubConclusionWorkflow) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
+	s.startCalls++
+	s.invocation = invocation
+	if s.startErr != nil {
+		return agentmanager.WorkflowStart{}, s.startErr
+	}
+	if s.start.ExecutionID == "" {
+		return agentmanager.WorkflowStart{ExecutionID: "conclusion-1", RunID: "run-c", DefinitionDigest: "sha256:conclusion"}, nil
+	}
+	return s.start, nil
+}
+
+func (s *stubConclusionWorkflow) CollectWorkflow(context.Context, string) (agentmanager.InvocationCompletion, error) {
+	s.collectCalls++
+	return s.completion, s.collectErr
+}
+
 func (s *stubPhasedPlanWorkflow) StartPhasedPlan(_ context.Context, snapshot agentmanager.PhasedPlanSnapshot, key string) (agentmanager.WorkflowStart, error) {
 	s.startCalls++
 	s.snapshot, s.startKey = snapshot, key
@@ -69,39 +99,32 @@ func (s *stubPhasedPlanWorkflow) CancelPhasedPlan(context.Context, string, strin
 	return nil
 }
 
+func TestSetWorkflowStartGuardAlsoGuardsConclusionWorkflow(t *testing.T) {
+	service := NewService(ServiceConfig{DataRoot: t.TempDir(), StorePath: filepath.Join(t.TempDir(), "runs.json")})
+	workflow, ok := service.conclusionWorkflow.(*agentmanager.WorkflowService)
+	if !ok {
+		t.Fatalf("default conclusion workflow = %T, want generic workflow service", service.conclusionWorkflow)
+	}
+	called := false
+	service.SetWorkflowStartGuard(func(_ context.Context, key string) error {
+		called = key == "swarm-manager/research-conclude"
+		return errors.New("blocked")
+	})
+	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "research", "name": "x", "version": "v"}, "snapshot": map[string]any{}, "operatorNote": ""})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := workflow.StartWorkflow(context.Background(), agentmanager.Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/research-conclude", Input: input}); err == nil || !called {
+		t.Fatalf("conclusion start guard was not applied: err=%v called=%v", err, called)
+	}
+}
+
 func (s *stubAgentService) IsEnabled() bool { return true }
 
-func (s *stubAgentService) SpawnBacklog(_ context.Context, _ agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	s.spawnCalls++
-	if s.spawnErr != nil {
-		return agentmanager.RunResult{}, s.spawnErr
-	}
-	return agentmanager.RunResult{TaskID: "task-1", RunID: "run-1"}, nil
-}
-
-// stubOperationStarter fakes the operation runner seam for plan-backed execution
-// starts. It records the request and returns a live run association; the default
-// (zero-value result) yields run-1/wf-1/opx-1 so downstream RunID assertions and
-// the cancel-by-run-id path work exactly as the legacy spawn did.
+// stubOperationStarter fakes the historical operation reaper seam.
 type stubOperationStarter struct {
-	calls       int
-	req         OperationStartRequest
-	err         error
-	result      OperationStartResult
 	cancelCalls int
 	cancelReq   OperationCancelRequest
-}
-
-func (s *stubOperationStarter) StartOperation(_ context.Context, req OperationStartRequest) (OperationStartResult, error) {
-	s.calls++
-	s.req = req
-	if s.err != nil {
-		return OperationStartResult{}, s.err
-	}
-	if (s.result == OperationStartResult{}) {
-		return OperationStartResult{RunID: "run-1", WorkflowID: "wf-1", ExecutionID: "opx-1"}, nil
-	}
-	return s.result, nil
 }
 
 func (s *stubOperationStarter) CancelOperation(_ context.Context, req OperationCancelRequest) error {
@@ -237,11 +260,10 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	}
 }
 
-// TestQueueAndStartManualExecution_ResearchRoutesToConcludeOperation proves a
-// plan-less research item's primary execution starts the research-conclude
-// operation against its backlog-item target (the mode owns the prompt), instead
-// of the legacy direct spawn.
-func TestQueueAndStartManualExecution_ResearchRoutesToConcludeOperation(t *testing.T) {
+// TestQueueAndStartManualExecution_ResearchRoutesToConcludeWorkflow proves a
+// planless research item's primary execution uses its declared workflow rather
+// than an operation wrapper or a direct programmatic Run.
+func TestQueueAndStartManualExecution_ResearchRoutesToConcludeWorkflow(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "research", "test-research", map[string]any{
 		"name":        "test-research",
@@ -261,8 +283,8 @@ func TestQueueAndStartManualExecution_ResearchRoutesToConcludeOperation(t *testi
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
-	starter := &stubOperationStarter{result: OperationStartResult{RunID: "run-c", WorkflowID: "wf-c", ExecutionID: "opx-c"}}
-	service.SetOperationStarter(starter)
+	workflow := &stubConclusionWorkflow{}
+	service.SetConclusionWorkflow(workflow)
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "research",
@@ -277,20 +299,55 @@ func TestQueueAndStartManualExecution_ResearchRoutesToConcludeOperation(t *testi
 	if err != nil {
 		t.Fatalf("Start error: %v", err)
 	}
-	if starter.calls != 1 {
-		t.Fatalf("expected 1 operation start, got %d", starter.calls)
+	if workflow.startCalls != 1 || workflow.invocation.WorkflowKey != "swarm-manager/research-conclude" {
+		t.Fatalf("expected declared conclusion workflow invocation, got calls=%d key=%q", workflow.startCalls, workflow.invocation.WorkflowKey)
 	}
-	if starter.req.Operation != operationResearchConclude {
-		t.Fatalf("expected research-conclude operation, got %q", starter.req.Operation)
+	entity := workflow.invocation.Input.AsInterface().(map[string]any)["entity"].(map[string]any)
+	if entity["kind"] != "research" || entity["name"] != "test-research" || entity["version"] == "" {
+		t.Fatalf("expected immutable research entity snapshot, got %#v", entity)
 	}
-	if starter.req.TargetKind != targetKindBacklogItem || starter.req.TargetID != "research/test-research" {
-		t.Fatalf("expected backlog-item target research/test-research, got %s/%s", starter.req.TargetKind, starter.req.TargetID)
-	}
-	if started.Status != StatusStarting || started.RunID != "run-c" || started.OpExecutionID != "opx-c" {
-		t.Fatalf("expected starting record with run/op ids, got status=%s run=%s op=%s", started.Status, started.RunID, started.OpExecutionID)
+	if started.Status != StatusStarting || started.RunID != "run-c" || started.AgentWorkflowExecutionID != "conclusion-1" || started.AgentWorkflowKey != "swarm-manager/research-conclude" || started.OpExecutionID != "" {
+		t.Fatalf("expected workflow-backed record without operation correlation, got %#v", started)
 	}
 	if agent.spawnCalls != 0 {
 		t.Fatalf("expected 0 direct agent spawns, got %d", agent.spawnCalls)
+	}
+}
+
+func TestApplyConclusionWorkflow_ExactlyOnce(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "research", "conclusion-apply", map[string]any{
+		"name": "conclusion-apply", "title": "Conclusion Apply", "description": "desc", "status": "backlog", "priority": 3, "tags": []string{},
+	})
+	mustWriteDeliverableFile(t, root, "research", "conclusion-apply")
+	workflow := &stubConclusionWorkflow{}
+	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"), PlanRenderer: testPlanRenderer(), AgentService: &stubAgentService{}, PromptClient: &promptmanager.MockClient{Result: "test prompt"}, ConclusionWorkflow: workflow})
+	queued, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "research", BacklogName: "conclusion-apply", Mode: ModeManual})
+	if err != nil {
+		t.Fatal(err)
+	}
+	started, err := service.Start(context.Background(), queued.ExecutionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"handoff": map[string]any{"summary": "done", "blockers": []any{}, "next_step": "review", "changed_files": []any{}, "tests": []any{}, "progress": "complete"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow.completion = agentmanager.InvocationCompletion{ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition, Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: workflow.invocation.Input, Output: output}
+	first, err := service.ApplyConclusionWorkflow(context.Background(), started.ExecutionID)
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if first.Idempotent || first.Record.AgentWorkflowApplyState != workflowApplyComplete || first.Record.AgentWorkflowOutcome != "complete" {
+		t.Fatalf("unexpected first apply: %#v", first)
+	}
+	second, err := service.ApplyConclusionWorkflow(context.Background(), started.ExecutionID)
+	if err != nil {
+		t.Fatalf("replay apply: %v", err)
+	}
+	if !second.Idempotent {
+		t.Fatalf("expected idempotent replay, got %#v", second)
 	}
 }
 
@@ -376,13 +433,13 @@ func TestQueueBacklog_YOLORollsBackWhenSpawnFails(t *testing.T) {
 	})
 	mustWriteDeliverableFile(t, root, "idea", "rollback-idea")
 
-	agent := &stubAgentService{spawnErr: errors.New("spawn failed")}
+	workflow := &stubPhasedPlanWorkflow{startErr: errors.New("workflow start failed")}
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		PhasedPlanWorkflow: workflow,
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 	})
 
 	_, err := service.QueueBacklog(context.Background(), CreateRequest{

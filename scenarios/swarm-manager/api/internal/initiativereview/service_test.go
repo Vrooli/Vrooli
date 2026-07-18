@@ -12,24 +12,23 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
-	"swarm-manager/internal/opsrunner"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/review"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
-// fakeSpawner records SpawnInitiative calls and returns a canned RunResult.
-// Also satisfies the optional RunInspector interface so the service wires
-// polling against it.
+// fakeSpawner provides availability and run inspection for workflow tests.
 type fakeSpawner struct {
 	enabled       bool
 	spawnErr      error
 	returnRunID   string
-	spawnCalls    []agentmanager.InitiativeSpawnRequest
+	spawnCalls    []any
 	runStateQueue map[string]agentmanager.RunState
 }
 
@@ -43,18 +42,6 @@ func newFakeSpawner() *fakeSpawner {
 
 func (f *fakeSpawner) IsEnabled() bool { return f.enabled }
 
-func (f *fakeSpawner) SpawnInitiative(_ context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error) {
-	f.spawnCalls = append(f.spawnCalls, req)
-	if f.spawnErr != nil {
-		return agentmanager.RunResult{}, f.spawnErr
-	}
-	return agentmanager.RunResult{
-		TaskID:    "task-" + f.returnRunID,
-		RunID:     f.returnRunID,
-		CreatedAt: "2026-04-23T00:00:00Z",
-	}, nil
-}
-
 func (f *fakeSpawner) GetRunState(_ context.Context, runID string) (agentmanager.RunState, error) {
 	if state, ok := f.runStateQueue[runID]; ok {
 		return state, nil
@@ -62,48 +49,26 @@ func (f *fakeSpawner) GetRunState(_ context.Context, runID string) (agentmanager
 	return agentmanager.RunState{RunID: runID, Status: "running"}, nil
 }
 
-// fakeInitiativeReviewOperationStarter records the last OperationStartRequest and
-// returns a configurable OperationStartResult. It stands in for the operation
-// runner adapter so trigger tests can assert the initiative-review operation was
-// started without wiring the real declarative runner.
-type fakeInitiativeReviewOperationStarter struct {
-	calls   int
-	lastReq OperationStartRequest
-	result  OperationStartResult
-	err     error
+type fakeInitiativeReviewWorkflow struct {
+	calls      int
+	invocation agentmanager.Invocation
+	completion agentmanager.InvocationCompletion
 }
 
-func newFakeInitiativeReviewOperationStarter() *fakeInitiativeReviewOperationStarter {
-	return &fakeInitiativeReviewOperationStarter{
-		result: OperationStartResult{RunID: "run-init-1", WorkflowID: "wf-test", ExecutionID: "exec-test"},
-	}
-}
-
-func (f *fakeInitiativeReviewOperationStarter) StartInitiativeReviewOperation(_ context.Context, req OperationStartRequest) (OperationStartResult, error) {
+func (f *fakeInitiativeReviewWorkflow) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
 	f.calls++
-	f.lastReq = req
-	if f.err != nil {
-		return OperationStartResult{}, f.err
-	}
-	return f.result, nil
+	f.invocation = invocation
+	return agentmanager.WorkflowStart{ExecutionID: "workflow-init-1", RunID: "run-init-1", DefinitionDigest: "sha256:initiative-review"}, nil
+}
+func (f *fakeInitiativeReviewWorkflow) CollectWorkflow(context.Context, string) (agentmanager.InvocationCompletion, error) {
+	return f.completion, nil
 }
 
 // newCommitInitiativeReviewActionContext assembles the ActionContext the runner
 // completion bridge hands the commit-initiative-review handler for a completing
 // initiative-review operation, correlated by run id.
-func newCommitInitiativeReviewActionContext(initiativeName, executionID, runID, outcome string, result json.RawMessage) opsrunner.ActionContext {
-	return opsrunner.ActionContext{
-		Target: opsrunner.TargetRef{Kind: agentops.TargetInitiative, ID: initiativeName},
-		Workflow: agentops.WorkflowInstance{
-			Operations: []agentops.OperationExecutionRecord{
-				{ExecutionID: executionID, RunID: runID},
-			},
-		},
-		Action:      agentops.ActionCommitInitiativeReview,
-		ExecutionID: executionID,
-		Outcome:     outcome,
-		Result:      result,
-	}
+func newCommitInitiativeReviewActionContext(initiativeName, executionID, runID, outcome string, result json.RawMessage) legacyCompletionAction {
+	return legacyCompletionAction{InitiativeName: initiativeName, ExecutionID: executionID, RunID: runID, Outcome: outcome, Result: result}
 }
 
 // initiativeReviewResultJSON builds the reviewResult contract payload the
@@ -160,7 +125,7 @@ type env struct {
 	mat       *graph.Materializer
 	svc       *Service
 	spawner   *fakeSpawner
-	starter   *fakeInitiativeReviewOperationStarter
+	workflow  *fakeInitiativeReviewWorkflow
 	prompts   *stubPromptClient
 	clock     func() time.Time
 }
@@ -180,6 +145,7 @@ func newEnv(t *testing.T) *env {
 	mat := graph.NewMaterializer(graph.NewInitiativeAdapter(initStore), bStore, initStore.InitDir)
 	spawner := newFakeSpawner()
 	prompts := &stubPromptClient{}
+	workflow := &fakeInitiativeReviewWorkflow{}
 	clock := func() time.Time { return time.Date(2026, 4, 23, 12, 0, 0, 0, time.UTC) }
 
 	svc, err := NewService(Config{
@@ -189,18 +155,17 @@ func newEnv(t *testing.T) *env {
 		RunInspector:  spawner,
 		PromptClient:  prompts,
 		Clock:         clock,
+		Workflow:      workflow,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Wire the operation-runner adapter by default so TriggerIfReady reroutes to
 	// the initiative-review operation (the production path) instead of degrading.
-	starter := newFakeInitiativeReviewOperationStarter()
-	svc.SetOperationStarter(starter)
 	return &env{
 		t: t, root: root,
 		initStore: initStore, initSvc: initSvc, bStore: bStore, mat: mat,
-		svc: svc, spawner: spawner, starter: starter, prompts: prompts, clock: clock,
+		svc: svc, spawner: spawner, workflow: workflow, prompts: prompts, clock: clock,
 	}
 }
 
@@ -343,11 +308,11 @@ func TestTriggerIfReady_StartsWhenAllItemsTerminal(t *testing.T) {
 	}
 	// The round must be runner-owned, carrying the run association the
 	// commit-initiative-review handler correlates back to.
-	if !rounds[0].RunnerOwned() {
-		t.Fatalf("expected runner-owned round (OpExecutionID set), got %#v", rounds[0])
+	if !rounds[0].WorkflowOwned() {
+		t.Fatalf("expected workflow-owned round, got %#v", rounds[0])
 	}
-	if rounds[0].RunID != "run-init-1" || rounds[0].OpExecutionID != "exec-test" {
-		t.Errorf("round missing run association: RunID=%q OpExecutionID=%q", rounds[0].RunID, rounds[0].OpExecutionID)
+	if rounds[0].RunID != "run-init-1" || rounds[0].AgentWorkflowExecutionID != "workflow-init-1" {
+		t.Errorf("round missing workflow association: %#v", rounds[0])
 	}
 
 	init, err := e.initStore.Load("ready-init")
@@ -363,17 +328,12 @@ func TestTriggerIfReady_StartsWhenAllItemsTerminal(t *testing.T) {
 	if len(e.spawner.spawnCalls) != 0 {
 		t.Errorf("expected no direct spawn, got %d", len(e.spawner.spawnCalls))
 	}
-	if e.starter.calls != 1 {
-		t.Fatalf("expected 1 operation start, got %d", e.starter.calls)
+	if e.workflow.calls != 1 {
+		t.Fatalf("expected 1 workflow start, got %d", e.workflow.calls)
 	}
-	if e.starter.lastReq.Operation != "initiative-review" {
-		t.Errorf("Operation = %q, want initiative-review", e.starter.lastReq.Operation)
-	}
-	if e.starter.lastReq.TargetKind != "initiative" {
-		t.Errorf("TargetKind = %q, want initiative", e.starter.lastReq.TargetKind)
-	}
-	if e.starter.lastReq.TargetID != "ready-init" {
-		t.Errorf("TargetID = %q, want ready-init", e.starter.lastReq.TargetID)
+	entity := e.workflow.invocation.Input.AsInterface().(map[string]any)["entity"].(map[string]any)
+	if entity["kind"] != "initiative" || entity["name"] != "ready-init" {
+		t.Errorf("workflow entity = %#v, want ready-init initiative", entity)
 	}
 }
 
@@ -396,8 +356,36 @@ func TestTriggerIfReady_Idempotent(t *testing.T) {
 	if !strings.Contains(result.Reason, "in_review") {
 		t.Fatalf("expected 'in_review' in reason, got %q", result.Reason)
 	}
-	if e.starter.calls != 1 {
-		t.Fatalf("expected 1 operation start total, got %d", e.starter.calls)
+	if e.workflow.calls != 1 {
+		t.Fatalf("expected 1 workflow start total, got %d", e.workflow.calls)
+	}
+}
+
+func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
+	e := newEnv(t)
+	e.seedItem("execute", "apply-item", "Apply", backlog.StatusCompleted)
+	e.createInitiative("apply-init", "Apply", "execute/apply-item")
+	e.setItemInitiative("execute", "apply-item", "apply-init")
+	triggered, err := e.svc.TriggerIfReady(context.Background(), "apply-init")
+	if err != nil || !triggered.Started {
+		t.Fatalf("trigger = %#v, err=%v", triggered, err)
+	}
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"assessment": "ready", "classification": "delivered"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.workflow.completion = agentmanager.InvocationCompletion{ExecutionID: "workflow-init-1", DefinitionDigest: "sha256:initiative-review", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: e.workflow.invocation.Input, Output: output}
+	first, idempotent, err := e.svc.ApplyWorkflowRound(context.Background(), "apply-init", triggered.Round)
+	if err != nil || idempotent || first.Status != review.RoundStatusComplete {
+		t.Fatalf("first apply = %#v idempotent=%v err=%v", first, idempotent, err)
+	}
+	init, _ := e.initStore.Load("apply-init")
+	if init.Status != initiatives.InitiativeStatusReviewPending {
+		t.Fatalf("initiative status = %s, want review_pending", init.Status)
+	}
+	_, idempotent, err = e.svc.ApplyWorkflowRound(context.Background(), "apply-init", triggered.Round)
+	if err != nil || !idempotent {
+		t.Fatalf("replay idempotent=%v err=%v", idempotent, err)
 	}
 }
 
@@ -575,11 +563,12 @@ func TestTriggerForItem_RoutesToInitiativeTrigger(t *testing.T) {
 	e.setItemInitiative("execute", "beta", "auto-init")
 
 	e.svc.TriggerForItem(context.Background(), "execute", "beta")
-	if e.starter.calls != 1 {
-		t.Fatalf("expected 1 operation start from TriggerForItem, got %d", e.starter.calls)
+	if e.workflow.calls != 1 {
+		t.Fatalf("expected 1 workflow start from TriggerForItem, got %d", e.workflow.calls)
 	}
-	if e.starter.lastReq.TargetID != "auto-init" {
-		t.Errorf("TargetID = %q, want auto-init", e.starter.lastReq.TargetID)
+	entity := e.workflow.invocation.Input.AsInterface().(map[string]any)["entity"].(map[string]any)
+	if entity["name"] != "auto-init" {
+		t.Errorf("workflow entity = %#v, want auto-init", entity)
 	}
 	init, _ := e.initStore.Load("auto-init")
 	if init.Status != initiatives.InitiativeStatusInReview {
@@ -644,8 +633,8 @@ func TestStartReview_LockConflict_RejectsSpawn(t *testing.T) {
 	if conflict.Holder.RunID != "feedback-run-99" {
 		t.Errorf("conflict should surface existing holder; got %+v", conflict.Holder)
 	}
-	if e.starter.calls != 0 {
-		t.Fatalf("expected 0 operation starts under conflict, got %d", e.starter.calls)
+	if e.workflow.calls != 0 {
+		t.Fatalf("expected 0 workflow starts under conflict, got %d", e.workflow.calls)
 	}
 }
 
@@ -853,8 +842,8 @@ func TestTriggerIfReady_ConcurrentCallsOnlySpawnOnce(t *testing.T) {
 	if startedCount != 1 {
 		t.Errorf("expected exactly 1 Started=true, got %d (results: %+v)", startedCount, results)
 	}
-	if e.starter.calls != 1 {
-		t.Errorf("expected exactly 1 operation start, got %d", e.starter.calls)
+	if e.workflow.calls != 1 {
+		t.Errorf("expected exactly 1 workflow start, got %d", e.workflow.calls)
 	}
 	// The loser must report the in_review status so callers can render
 	// a correct "already under review" message rather than a silent no-op.

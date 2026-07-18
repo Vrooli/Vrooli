@@ -82,6 +82,10 @@ type ImportPlanInput struct {
 	Markdown   string
 	Title      string
 	Slug       string
+	// Supersede preserves history when a workflow returns a repaired candidate.
+	// Plan Manager creates and validates the new canonical plan; Swarm later
+	// decides whether its domain reference may move to that new revision.
+	Supersede string
 }
 
 type RenderMarkdownResult struct {
@@ -195,6 +199,7 @@ func (c *ConnectClient) ImportPlan(ctx context.Context, input ImportPlanInput) (
 		Markdown:   input.Markdown,
 		Title:      input.Title,
 		Slug:       input.Slug,
+		Supersede:  input.Supersede,
 	}))
 	if err != nil {
 		return nil, opError("ImportPlan", firstNonEmpty(input.Slug, input.SourcePath, input.Title), err)

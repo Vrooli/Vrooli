@@ -5,7 +5,7 @@
 // The package owns one seam: a time-bounded join over (a) the agentactivity
 // ledger, (b) the operating-mode round projection, and (c) the governance
 // lane caps. Everything the operations view needs comes through Aggregator —
-// callers do not reach past it into agentactivity / operatingmode / settings
+// callers do not reach past it into activity tracking or settings
 // to recompute parts of the view.
 //
 // See docs/internal/SEAMS.md "Operations Aggregate" for the contract.

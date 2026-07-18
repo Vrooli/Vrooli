@@ -7,7 +7,7 @@ export const GRAPH_MODES = ["topology", "focus"] as const;
 export type AppGraphSurface = (typeof GRAPH_SURFACES)[number];
 export type GraphMode = (typeof GRAPH_MODES)[number];
 export type AppGraphLens = AppGraphSurface | "focus";
-export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "goal" | "capture" | "session" | "operatingMode";
+export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "goal" | "capture" | "session";
 
 export interface DetailRouteTarget {
   entityType: DetailEntityType;
@@ -94,10 +94,6 @@ export function sessionDetailPath(sessionId: string, query?: QueryParams): strin
   return appendQuery(`/sessions/${enc(sessionId)}`, query);
 }
 
-export function operatingModeDetailPath(mode: string, query?: QueryParams): string {
-  return appendQuery(`/operating-modes/${enc(mode)}`, query);
-}
-
 export function detailPath(target: DetailRouteTarget): string | null {
   switch (target.entityType) {
     case "backlog":
@@ -116,18 +112,10 @@ export function detailPath(target: DetailRouteTarget): string | null {
       return target.identifier ? captureDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
     case "session":
       return target.identifier ? sessionDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
-    case "operatingMode":
-      return target.identifier ? operatingModeDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
   }
 }
 
 export function detailPathFromNodeId(nodeId: string): string | null {
-  // Operating-mode node IDs aren't part of the graph entity registry — handle
-  // them before parseNodeId, which only knows about graph entities.
-  if (nodeId.startsWith("operatingMode/")) {
-    const mode = nodeId.slice("operatingMode/".length);
-    return mode ? operatingModeDetailPath(mode) : null;
-  }
   if (nodeId.startsWith("goal/")) {
     const name = nodeId.slice("goal/".length);
     return name ? goalDetailPath(name) : null;
@@ -166,8 +154,6 @@ export function routeTargetToNodeId(target: DetailRouteTarget): string | null {
       return target.identifier ? `capture/${target.identifier}` : null;
     case "session":
       return null;
-    case "operatingMode":
-      return target.identifier ? `operatingMode/${target.identifier}` : null;
   }
 }
 

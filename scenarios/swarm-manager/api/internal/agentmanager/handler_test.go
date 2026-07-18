@@ -29,14 +29,6 @@ func (s *handlerStubService) ResolveURL(_ context.Context) (string, error) {
 
 func (s *handlerStubService) GetProfileID() string { return "" }
 
-func (s *handlerStubService) SpawnBacklog(_ context.Context, _ BacklogSpawnRequest) (RunResult, error) {
-	return RunResult{}, nil
-}
-
-func (s *handlerStubService) SpawnResearch(_ context.Context, _ ResearchSpawnRequest) (RunResult, error) {
-	return RunResult{}, nil
-}
-
 func (s *handlerStubService) ApproveRun(_ context.Context, _ string, _ string, _ string) error {
 	return nil
 }

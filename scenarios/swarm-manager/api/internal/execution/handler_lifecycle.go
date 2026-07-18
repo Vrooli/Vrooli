@@ -95,13 +95,28 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) ApplyPhasedPlanWorkflow(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ApplyWorkflow(w http.ResponseWriter, r *http.Request) {
 	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
 	if executionID == "" {
 		apierr.MapError(w, "[execution] workflow-apply", apierr.BadRequest("execution_id is required"))
 		return
 	}
-	result, err := h.service.ApplyPhasedPlanWorkflow(r.Context(), executionID)
+	record, err := h.service.Get(r.Context(), executionID)
+	if err != nil {
+		apierr.MapError(w, "[execution] workflow-apply", err)
+		return
+	}
+	var result PhasedPlanApplyResult
+	switch record.AgentWorkflowKey {
+	case "swarm-manager/research-conclude":
+		result, err = h.service.ApplyConclusionWorkflow(r.Context(), executionID)
+	case "swarm-manager/work-follow-up", "swarm-manager/work-correct":
+		result, err = h.service.ApplyWorkWorkflow(r.Context(), executionID)
+	case "swarm-manager/scenario-spec-sync":
+		result, err = h.service.ApplySpecSyncWorkflow(r.Context(), executionID)
+	default:
+		result, err = h.service.ApplyPhasedPlanWorkflow(r.Context(), executionID)
+	}
 	if err != nil {
 		apierr.MapError(w, "[execution] workflow-apply", err)
 		return

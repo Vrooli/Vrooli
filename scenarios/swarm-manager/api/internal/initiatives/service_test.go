@@ -171,21 +171,6 @@ func TestService_Create_DefaultsModeAndNormalizesAcceptanceCriteria(t *testing.T
 	}
 }
 
-func TestService_SetModeLifecycle_InvalidMode(t *testing.T) {
-	svc := newTestService(t, nil)
-
-	if _, err := svc.Create(CreateRequest{Name: "bad-mode", Title: "Bad Mode"}); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-	_, err := svc.SetModeLifecycle("bad-mode", "sideways")
-	if err == nil {
-		t.Fatal("expected invalid mode error")
-	}
-	if !errors.Is(err, ErrValidation) {
-		t.Fatalf("expected ErrValidation, got %v", err)
-	}
-}
-
 func TestService_Create_DuplicateName(t *testing.T) {
 	svc := newTestService(t, nil)
 
@@ -197,52 +182,6 @@ func TestService_Create_DuplicateName(t *testing.T) {
 	_, err = svc.Create(CreateRequest{Name: "dup", Title: "Second"})
 	if err == nil {
 		t.Fatal("expected error for duplicate name")
-	}
-}
-
-func TestService_SetModeLifecycle_EmitsEvent(t *testing.T) {
-	svc := newTestService(t, nil)
-	logger := &initiativeEventLogger{}
-	svc.SetEventLogger(logger)
-
-	if _, err := svc.Create(CreateRequest{Name: "mode-switch", Title: "Mode Switch"}); err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-	mode := "phased-plan-drain"
-	updated, err := svc.SetModeLifecycle("mode-switch", mode)
-	if err != nil {
-		t.Fatalf("SetModeLifecycle failed: %v", err)
-	}
-	if updated.Mode != mode {
-		t.Fatalf("Mode = %q, want %q", updated.Mode, mode)
-	}
-	if len(logger.modeChanges) != 1 {
-		t.Fatalf("modeChanges = %v, want one event", logger.modeChanges)
-	}
-	got := logger.modeChanges[0]
-	if got.name != "mode-switch" || got.from != "item-level" || got.to != mode {
-		t.Fatalf("mode change event = %+v", got)
-	}
-}
-
-func TestService_SetModeLifecycle_RejectsArchivedInitiative(t *testing.T) {
-	svc := newTestService(t, nil)
-	init, err := svc.Create(CreateRequest{Name: "archived-mode", Title: "Archived Mode"})
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-	archivedAt := "2026-04-30T12:00:00Z"
-	init.ArchivedAt = &archivedAt
-	if err := svc.store.Save(init); err != nil {
-		t.Fatalf("Save archived initiative: %v", err)
-	}
-
-	_, err = svc.SetModeLifecycle("archived-mode", "holistic-loop")
-	if err == nil {
-		t.Fatal("expected archived initiative mode switch error")
-	}
-	if !errors.Is(err, ErrValidation) {
-		t.Fatalf("expected ErrValidation, got %v", err)
 	}
 }
 

@@ -1,0 +1,206 @@
+// Package transitions loads the inspectable Swarm-to-Agent-Manager transition
+// registry. It deliberately selects a mechanism; it never describes how an
+// agent workflow executes.
+package transitions
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+)
+
+const SchemaVersion = "swarm-transition/v1"
+
+type Kind string
+
+const (
+	KindSession       Kind = "session"
+	KindWorkflow      Kind = "workflow"
+	KindDeterministic Kind = "deterministic"
+)
+
+// Definition is one domain transition. Workflow mechanics belong exclusively
+// to the Agent Manager declaration identified by Workflow.
+type Definition struct {
+	SchemaVersion    string   `json:"schemaVersion"`
+	Key              string   `json:"key"`
+	Subject          string   `json:"subject"`
+	Kind             Kind     `json:"kind"`
+	Workflow         *Locator `json:"workflow,omitempty"`
+	Requires         []string `json:"requires,omitempty"`
+	InputContract    string   `json:"inputContract"`
+	TerminalOutcomes []string `json:"terminalOutcomes"`
+	ApplyAction      string   `json:"applyAction"`
+}
+
+type Locator struct {
+	Owner string `json:"owner"`
+	Key   string `json:"key"`
+}
+
+// Registry is immutable after loading. Callers select a definition by its
+// stable key and use its requirements for integration preflight.
+type Registry struct{ byKey map[string]Definition }
+
+func (r Registry) Get(key string) (Definition, bool) {
+	definition, ok := r.byKey[strings.TrimSpace(key)]
+	return definition, ok
+}
+
+func (r Registry) Definitions() []Definition {
+	definitions := make([]Definition, 0, len(r.byKey))
+	for _, definition := range r.byKey {
+		definitions = append(definitions, definition)
+	}
+	sort.Slice(definitions, func(i, j int) bool { return definitions[i].Key < definitions[j].Key })
+	return definitions
+}
+
+func LoadDir(dir string) (Registry, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return Registry{}, fmt.Errorf("read transition registry: %w", err)
+	}
+	registry := Registry{byKey: make(map[string]Definition, len(entries))}
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			return Registry{}, fmt.Errorf("read %s: %w", path, err)
+		}
+		definitions, err := decodeDefinitions(contents)
+		if err != nil {
+			return Registry{}, fmt.Errorf("decode %s: %w", path, err)
+		}
+		if err := addDefinitions(registry.byKey, definitions); err != nil {
+			return Registry{}, fmt.Errorf("validate %s: %w", path, err)
+		}
+	}
+	if len(registry.byKey) == 0 {
+		return Registry{}, fmt.Errorf("transition registry %s contains no JSON definitions", dir)
+	}
+	return registry, nil
+}
+
+func Validate(definition Definition) error {
+	if definition.SchemaVersion != SchemaVersion {
+		return fmt.Errorf("schemaVersion must be %q", SchemaVersion)
+	}
+	for field, value := range map[string]string{
+		"key": definition.Key, "subject": definition.Subject,
+		"inputContract": definition.InputContract, "applyAction": definition.ApplyAction,
+	} {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("%s is required", field)
+		}
+	}
+	if len(definition.TerminalOutcomes) == 0 {
+		return fmt.Errorf("terminalOutcomes is required")
+	}
+	seenOutcome := make(map[string]struct{}, len(definition.TerminalOutcomes))
+	for _, outcome := range definition.TerminalOutcomes {
+		outcome = strings.TrimSpace(outcome)
+		if outcome == "" {
+			return fmt.Errorf("terminalOutcomes cannot contain an empty value")
+		}
+		if _, duplicate := seenOutcome[outcome]; duplicate {
+			return fmt.Errorf("terminalOutcomes contains duplicate %q", outcome)
+		}
+		seenOutcome[outcome] = struct{}{}
+	}
+	switch definition.Kind {
+	case KindWorkflow:
+		if definition.Workflow == nil || strings.TrimSpace(definition.Workflow.Owner) == "" || strings.TrimSpace(definition.Workflow.Key) == "" {
+			return fmt.Errorf("workflow kind requires workflow.owner and workflow.key")
+		}
+	case KindSession, KindDeterministic:
+		if definition.Workflow != nil {
+			return fmt.Errorf("%s kind must not define workflow", definition.Kind)
+		}
+	default:
+		return fmt.Errorf("kind must be session, workflow, or deterministic")
+	}
+	seenRequirement := make(map[string]struct{}, len(definition.Requires))
+	for _, requirement := range definition.Requires {
+		requirement = strings.TrimSpace(requirement)
+		if requirement == "" {
+			return fmt.Errorf("requires cannot contain an empty value")
+		}
+		if _, duplicate := seenRequirement[requirement]; duplicate {
+			return fmt.Errorf("requires contains duplicate %q", requirement)
+		}
+		seenRequirement[requirement] = struct{}{}
+	}
+	return nil
+}
+
+// LoadFS is the test-friendly form of LoadDir. Keeping validation independent
+// of process paths makes malformed registry fixtures deterministic.
+func LoadFS(fsys fs.FS, dir string) (Registry, error) {
+	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		return Registry{}, err
+	}
+	registry := Registry{byKey: make(map[string]Definition, len(entries))}
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		contents, err := fs.ReadFile(fsys, filepath.Join(dir, entry.Name()))
+		if err != nil {
+			return Registry{}, err
+		}
+		definitions, err := decodeDefinitions(contents)
+		if err != nil {
+			return Registry{}, err
+		}
+		if err := addDefinitions(registry.byKey, definitions); err != nil {
+			return Registry{}, err
+		}
+	}
+	if len(registry.byKey) == 0 {
+		return Registry{}, fmt.Errorf("transition registry contains no JSON definitions")
+	}
+	return registry, nil
+}
+
+func decodeDefinitions(contents []byte) ([]Definition, error) {
+	decoder := json.NewDecoder(bytes.NewReader(contents))
+	decoder.DisallowUnknownFields()
+	var definitions []Definition
+	if len(bytes.TrimSpace(contents)) > 0 && bytes.TrimSpace(contents)[0] == '[' {
+		if err := decoder.Decode(&definitions); err != nil {
+			return nil, err
+		}
+		return definitions, nil
+	}
+	var definition Definition
+	if err := decoder.Decode(&definition); err != nil {
+		return nil, err
+	}
+	return []Definition{definition}, nil
+}
+
+func addDefinitions(target map[string]Definition, definitions []Definition) error {
+	if len(definitions) == 0 {
+		return fmt.Errorf("file contains no transition definitions")
+	}
+	for _, definition := range definitions {
+		if err := Validate(definition); err != nil {
+			return err
+		}
+		if _, exists := target[definition.Key]; exists {
+			return fmt.Errorf("duplicate transition key %q", definition.Key)
+		}
+		target[definition.Key] = definition
+	}
+	return nil
+}

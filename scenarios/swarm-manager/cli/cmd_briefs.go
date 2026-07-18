@@ -45,24 +45,6 @@ func (a *App) cmdInitiativesCandidates(args []string) error {
 	return printBriefResponse(body, *jsonOut)
 }
 
-func (a *App) cmdOperatingModeBrief(args []string) error {
-	fs := flag.NewFlagSet("operating-mode brief", flag.ContinueOnError)
-	modeFlag := fs.String("mode", "", "Mode to use as comparison target")
-	jsonOut := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	query := url.Values{}
-	if mode := strings.TrimSpace(*modeFlag); mode != "" {
-		query.Set("mode", mode)
-	}
-	body, err := a.core.Get("/operating-mode/brief", query)
-	if err != nil {
-		return err
-	}
-	return printBriefResponse(body, *jsonOut)
-}
-
 func printBriefResponse(body []byte, jsonOut bool) error {
 	if printJSONIfRequested(jsonOut, body) {
 		return nil

@@ -11,7 +11,6 @@ package backlog
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"math"
 	"net/http"
@@ -19,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/workshop"
@@ -202,19 +200,9 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("failed to link clarification to item", "err", err)
 	}
 
-	// Start the clarification operation, forwarding the operator's question and the
-	// decision topic as typed caller context so the clarify mode's providers steer
-	// the first turn (the committed thread is the durable record; these inputs are
-	// the run-start steering). On a start failure the thread persists (identity +
-	// user message + attachments) for retry.
-	clarInputs := map[string]any{}
-	putCallerString(clarInputs, "USER_QUESTION", userMessage)
-	decisionTopic := strings.TrimSpace(targetItem.Topic)
-	if decisionTopic == "" {
-		decisionTopic = strings.TrimSpace(targetItem.Text)
-	}
-	putCallerString(clarInputs, "DECISION_TOPIC", decisionTopic)
-	handle, err := h.invokeItemOperation(r.Context(), kind, item.Name, agentops.OpClarificationStart, "clarification-start-"+thread.ID, clarInputs)
+	// The declared workflow owns prompt construction and the typed reply. Swarm
+	// retains only the persisted thread and immutable domain snapshot.
+	handle, err := h.startClarificationWorkflow(r.Context(), item, targetItem, thread)
 	if err != nil {
 		mapClarificationInvokeError(w, "clarification-create", err)
 		return
@@ -247,10 +235,10 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 // clarification entrypoint into the API error the legacy spawn path returned.
 func mapClarificationInvokeError(w http.ResponseWriter, action string, err error) {
 	tag := "[backlog] " + action
-	switch mapInvokeError(err).kind {
-	case invokeUnavailable:
+	switch classifyWorkflowStartError(err) {
+	case workflowStartUnavailable:
 		apierr.MapError(w, tag, apierr.Unavailable("agent-manager is not available"))
-	case invokeBusy:
+	case workflowStartBusy:
 		apierr.MapError(w, tag, apierr.Conflict("an agent is already active for this backlog item"))
 	default:
 		apierr.MapError(w, tag, apierr.Internal("failed to start clarification operation"))
@@ -332,20 +320,22 @@ func (h *Handler) ContinueClarification(w http.ResponseWriter, r *http.Request) 
 		AttachmentIDs: continueAttachmentIDs,
 	})
 	thread.UpdatedAt = now
-	turnKey := fmt.Sprintf("clarification-continue-%s-%d", thread.ID, len(thread.Messages))
 	if err := workshop.SaveClarification(itemDir, thread); err != nil {
 		apierr.MapError(w, "[backlog] clarification-continue", apierr.Internal("failed to save clarification"))
 		return
 	}
 
-	// Start the follow-up clarification operation, forwarding the operator's message
-	// as the required USER_MESSAGE caller input (the continue contract declares it
-	// required, so the runner fails closed on an empty message). The committed thread
-	// is the durable record; the assistant turn is written by the resolve-
-	// clarification action handler on completion.
-	continueInputs := map[string]any{}
-	putCallerString(continueInputs, "USER_MESSAGE", continueMessage)
-	handle, err := h.invokeItemOperation(r.Context(), kind, name, agentops.OpClarificationContinue, turnKey, continueInputs)
+	item, err := h.store.LoadItem(kind, name)
+	if err != nil {
+		apierr.MapError(w, "[backlog] clarification-continue", apierr.NotFound("backlog item not found"))
+		return
+	}
+	decision, err := clarificationDecisionForThread(itemDir, thread)
+	if err != nil {
+		apierr.MapError(w, "[backlog] clarification-continue", apierr.Conflict("clarification decision is no longer available"))
+		return
+	}
+	handle, err := h.startClarificationWorkflow(r.Context(), item, decision, thread)
 	if err != nil {
 		mapClarificationInvokeError(w, "clarification-continue", err)
 		return

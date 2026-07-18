@@ -247,7 +247,7 @@ type OperatingModePhasePayload struct {
 	// PhaseKind is the lane classification (investigate / execute /
 	// review / reconcile) attached at emit-time so stats aggregation does
 	// not have to round-trip through the registry. Resolved by
-	// operatingmode.events.phasePayload via def.PhaseDefinition().Kind.
+	// historical phase payloads via their stored phase kind.
 	PhaseKind       string   `json:"phase_kind,omitempty"`
 	RunStrategy     string   `json:"run_strategy"`
 	AgentProfileKey string   `json:"agent_profile_key"`

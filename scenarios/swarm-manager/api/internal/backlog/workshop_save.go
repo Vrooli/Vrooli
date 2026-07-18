@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/fileops"
@@ -276,11 +275,20 @@ func (h *Handler) computeAutoAdvance(item BacklogItem, round *workshop.Round, ki
 	}
 
 	result := workshop.ShouldAutoAdvance(controls.AutoAdvance.Enabled, round, roundCount, string(kind), controls.AutoAdvance.MaxAutoRounds)
+	// Plan authoring is now a declared Agent Manager workflow with a Plan
+	// Manager validation/apply boundary. Do not let legacy auto-advance silently
+	// route a ready workshop into the retired workshop-finalize operation.
+	if result.NextMode == string(ResearchModeFinalize) {
+		result.Advance = false
+	}
 	if result.NextMode == string(ResearchModeFinalize) && !workshop.NeedsSynthesis(round) {
 		result.Advance = false
 		result.NextMode = ""
 	}
 	autoAdvance.Reason = result.Reason
+	if result.NextMode == string(ResearchModeFinalize) {
+		autoAdvance.Reason = "plan_author_requires_explicit_start"
+	}
 	if nextMode := resolveNextMode(result, controls.AutoAdvance.Enabled, round, roundCount, kind, controls.AutoAdvance.MaxAutoRounds); nextMode != "" {
 		autoAdvance.NextMode = &nextMode
 	}
@@ -295,43 +303,29 @@ func (h *Handler) computeAutoAdvance(item BacklogItem, round *workshop.Round, ki
 	}
 
 	if controls.AutoAdvance.DelaySeconds > 0 {
-		h.scheduleDeferredAdvance(autoAdvance, kind, name, runMode, controls.AutoAdvance.DelaySeconds)
-	} else {
-		h.executeImmediateAdvance(autoAdvance, item, kind, name, runMode)
+		// A delayed programmatic start belongs to an Agent Manager wait node. Do
+		// not preserve the old Swarm scheduler by dispatching a legacy operation
+		// after the delay; surface an explicit handoff until that declared wait is
+		// available.
+		autoAdvance.Reason = "workflow_delay_requires_explicit_start"
+		return autoAdvance
 	}
+	h.executeImmediateAdvance(autoAdvance, item, kind, name, runMode)
 	return autoAdvance
 }
 
-// scheduleDeferredAdvance records a durable scheduler intent that fires the
-// advance OPERATION after the configured delay. It replaces the legacy pending
-// advance file + in-memory ticker: the intent lives on the item's persisted
-// workflow, so a restart resumes it, and the scheduler firer re-derives the
-// concrete operation from current readiness through the AdvanceResolver.
-func (h *Handler) scheduleDeferredAdvance(aa *apipb.WorkshopAutoAdvance, kind BacklogKind, name string, runMode ResearchMode, delaySec int) {
-	op := advanceOperationForMode(runMode)
-	notBefore := time.Now().UTC().Add(time.Duration(delaySec) * time.Second).Format(time.RFC3339)
-	if err := h.scheduleDeferredAdvanceIntent(kind, name, op, notBefore); err != nil {
-		slog.Error("failed to schedule deferred advance", "kind", kind, "name", name, "err", err)
-		aa.Reason = "error"
+// executeImmediateAdvance starts the declared workshop workflow immediately.
+// Finalization never reaches this method: it requires an explicit plan-author
+// start so Swarm can retain the Plan Manager validation/apply boundary.
+func (h *Handler) executeImmediateAdvance(aa *apipb.WorkshopAutoAdvance, item BacklogItem, kind BacklogKind, name string, runMode ResearchMode) {
+	if runMode == ResearchModeFinalize {
+		aa.Reason = "plan_author_requires_explicit_start"
 		return
 	}
-	aa.Pending = true
-	aa.AdvanceAt = &notBefore
-	aa.DelaySeconds = int32(delaySec)
-	if aa.NextMode == nil {
-		nm := string(runMode)
-		aa.NextMode = &nm
-	}
-}
-
-// executeImmediateAdvance starts the advance operation immediately through the
-// runner.
-func (h *Handler) executeImmediateAdvance(aa *apipb.WorkshopAutoAdvance, item BacklogItem, kind BacklogKind, name string, runMode ResearchMode) {
-	op := advanceOperationForMode(runMode)
-	handle, err := h.invokeItemOperation(context.Background(), kind, item.Name, op, "", nil)
+	handle, err := h.startWorkshopRoundWorkflow(context.Background(), item, "")
 	if err != nil {
-		switch mapInvokeError(err).kind {
-		case invokeBusy:
+		switch classifyWorkflowStartError(err) {
+		case workflowStartBusy:
 			slog.Info("auto-advance skipped: agent already active", "kind", kind, "name", name)
 			aa.Reason = "agent_active"
 		default:
@@ -342,7 +336,7 @@ func (h *Handler) executeImmediateAdvance(aa *apipb.WorkshopAutoAdvance, item Ba
 	}
 	aa.Triggered = true
 	aa.RunId = &handle.RunID
-	aa.TaskId = &handle.TaskID
+	aa.TaskId = &handle.ExecutionID
 }
 
 func resolveNextMode(result workshop.AutoAdvanceResult, autoAdvanceEnabled bool, round *workshop.Round, roundCount int, kind BacklogKind, maxAutoRounds int) string {
@@ -539,11 +533,11 @@ func (h *Handler) ReWorkshop(w http.ResponseWriter, r *http.Request) {
 
 	// Kick off a fresh workshop round. Bypass dependency gating because the
 	// caller has explicitly asked us to re-author against the current repo.
-	go func(k BacklogKind, n string) {
-		if _, err := h.invokeItemOperation(context.Background(), k, n, agentops.OpResearchRefine, "", nil); err != nil {
-			slog.Error("re-workshop invoke failed", "kind", k, "name", n, "err", err)
+	go func(item BacklogItem) {
+		if _, err := h.startWorkshopRoundWorkflow(context.Background(), item, ""); err != nil {
+			slog.Error("re-workshop invoke failed", "kind", item.Kind, "name", item.Name, "err", err)
 		}
-	}(kind, item.Name)
+	}(item)
 
 	slog.Info("re-workshop triggered", "kind", kind, "name", name, "deleted_rounds", deleted, "status_reverted", statusReverted)
 

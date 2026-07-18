@@ -51,20 +51,6 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/operatingmode/delegation_test.go::TestStartTargetPhaseStartsDrainOnBarePlan [REQ:REQ-P1-011-OWNER-RECONCILIATION]",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "A verified plan-target run resolves to its operating-mode execution without initiative-specific inference."
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/operatingmode/execution_test.go::TestLookupRunOwnersBackfillsPreGlobalPlanTargetIndex [REQ:REQ-P1-011-OWNER-RECONCILIATION]",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "An active pre-index plan-target run is recovered once and backfilled into the canonical owner index."
-        },
-        {
-          "type": "test",
           "ref": "api/internal/evidence/service_test.go::TestReconcilePlanManagerCreatesAuthoritativeLinkedEvidence",
           "phase": "integration",
           "status": "implemented",
@@ -86,13 +72,6 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Absence is not a negative result before producer completion."
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/operatingmode/evidence_gates_test.go::TestEvidenceRequirementStaysPendingThenRecoversFromLateFact [REQ:REQ-P1-011-EVIDENCE-GATES]",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "A late verified fact resolves an evidence-pending operating-mode round."
         }
       ]
     }

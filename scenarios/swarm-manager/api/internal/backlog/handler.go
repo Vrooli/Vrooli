@@ -19,13 +19,12 @@ import (
 	"strings"
 
 	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/opsrunner"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/planclient"
+	"swarm-manager/internal/planrepair"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/settings"
@@ -97,40 +96,45 @@ type RecordCreator interface {
 // scenario source path used purely as a repo anchor (e.g. by
 // validate_globs.go to resolve `.vrooli/repo-contract.json`).
 type Handler struct {
-	dataRoot             string
-	repoRoot             string
-	store                Store
-	activityChecker      AgentActivityChecker
-	promptClient         promptmanager.Client
-	planClient           planclient.Client
-	initiativeAssigner   InitiativeAssigner
-	sessionArtifacts     sessionArtifactRecorder
-	executionQueuer      ExecutionQueuer
-	eventDispatcher      dispatch.Invalidator
-	eventLogger          EventLogger
-	opsRunner            *opsrunner.Runner
-	opsScheduler         *opsrunner.Scheduler
-	itemTerminalHandler  ItemTerminalHandler
-	recordCreator        RecordCreator
-	reviewRoundInspector ReviewRoundInspector
-	policyControls       agentops.PolicyControlsProvider
-	workshopWorkflow     agentmanager.WorkshopWorkflowService
+	dataRoot              string
+	repoRoot              string
+	store                 Store
+	activityChecker       AgentActivityChecker
+	promptClient          promptmanager.Client
+	planClient            planclient.Client
+	initiativeAssigner    InitiativeAssigner
+	sessionArtifacts      sessionArtifactRecorder
+	executionQueuer       ExecutionQueuer
+	eventDispatcher       dispatch.Invalidator
+	eventLogger           EventLogger
+	itemTerminalHandler   ItemTerminalHandler
+	recordCreator         RecordCreator
+	reviewRoundInspector  ReviewRoundInspector
+	policyControls        settings.PolicyControlsProvider
+	workshopWorkflow      agentmanager.WorkshopWorkflowService
+	clarificationWorkflow agentmanager.WorkflowInvoker
+	planAuthorWorkflow    agentmanager.WorkflowInvoker
+	planRepair            *planrepair.Service
 }
+
+// SetPlanRepair installs the declared workflow adapter and its durable Swarm
+// authority ledger. The handler retains domain binding; it never owns runs.
+func (h *Handler) SetPlanRepair(service *planrepair.Service) { h.planRepair = service }
 
 // SetPolicyControlsProvider injects the policy-controls seam used by the
 // workshop auto-initialize / auto-advance / cascade paths. When unset, the
 // handler falls back to the settings-backed provider that resolves the
 // scenario settings file on every load (the pre-seam behavior).
-func (h *Handler) SetPolicyControlsProvider(p agentops.PolicyControlsProvider) {
+func (h *Handler) SetPolicyControlsProvider(p settings.PolicyControlsProvider) {
 	h.policyControls = p
 }
 
 // loadPolicyControls reads the current orchestration policy controls through
 // the PolicyControlsProvider seam. On load failure it logs (with the given
 // context string, preserving legacy per-site log messages) and degrades to
-// agentops.DefaultPolicyControls(), which equals the projection of default
+// the default policy-controls projection, which equals the default
 // settings — identical to the legacy DefaultSettings() fallback.
-func (h *Handler) loadPolicyControls(logContext string) agentops.PolicyControls {
+func (h *Handler) loadPolicyControls(logContext string) settings.PolicyControls {
 	provider := h.policyControls
 	if provider == nil {
 		provider = settings.NewPolicyControlsAdapter(nil)
@@ -138,7 +142,7 @@ func (h *Handler) loadPolicyControls(logContext string) agentops.PolicyControls 
 	controls, err := provider.LoadPolicyControls()
 	if err != nil {
 		slog.Warn(logContext, "err", err)
-		return agentops.DefaultPolicyControls()
+		return settings.DefaultPolicyControls()
 	}
 	return controls
 }
@@ -170,12 +174,14 @@ func NewHandler(dataRoot, repoRoot string) *Handler {
 	dataRoot = resolveDataRootOrDefault(dataRoot)
 	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	return &Handler{
-		dataRoot:         dataRoot,
-		repoRoot:         repoRoot,
-		store:            NewFileStore(dataRoot),
-		promptClient:     promptmanager.NewHTTPClient(),
-		planClient:       planclient.NewConnectClient(nil, nil),
-		workshopWorkflow: agentmanager.NewWorkflowService(),
+		dataRoot:              dataRoot,
+		repoRoot:              repoRoot,
+		store:                 NewFileStore(dataRoot),
+		promptClient:          promptmanager.NewHTTPClient(),
+		planClient:            planclient.NewConnectClient(nil, nil),
+		workshopWorkflow:      agentmanager.NewWorkflowService(),
+		clarificationWorkflow: agentmanager.NewWorkflowService(),
+		planAuthorWorkflow:    agentmanager.NewWorkflowService(),
 	}
 }
 
@@ -186,12 +192,14 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentManagerA
 	dataRoot = resolveDataRootOrDefault(dataRoot)
 	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	h := &Handler{
-		dataRoot:         dataRoot,
-		repoRoot:         repoRoot,
-		store:            NewFileStore(dataRoot),
-		promptClient:     promptClient,
-		planClient:       planclient.NewConnectClient(nil, nil),
-		workshopWorkflow: agentmanager.NewWorkflowService(),
+		dataRoot:              dataRoot,
+		repoRoot:              repoRoot,
+		store:                 NewFileStore(dataRoot),
+		promptClient:          promptClient,
+		planClient:            planclient.NewConnectClient(nil, nil),
+		workshopWorkflow:      agentmanager.NewWorkflowService(),
+		clarificationWorkflow: agentmanager.NewWorkflowService(),
+		planAuthorWorkflow:    agentmanager.NewWorkflowService(),
 	}
 	// The injected agent service is consumed only as the active-agent guard source
 	// (a narrow, read-only capability). Its Agent Manager spawn methods are never
@@ -210,6 +218,33 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentManagerA
 // primarily a deterministic test seam; production uses the default adapter.
 func (h *Handler) SetWorkshopWorkflow(service agentmanager.WorkshopWorkflowService) {
 	h.workshopWorkflow = service
+}
+
+func (h *Handler) SetClarificationWorkflow(service agentmanager.WorkflowInvoker) {
+	h.clarificationWorkflow = service
+}
+
+// SetPlanAuthorWorkflow injects the generic declared-workflow seam for plan
+// authoring. Swarm retains only snapshot and validated plan-ref binding.
+func (h *Handler) SetPlanAuthorWorkflow(service agentmanager.WorkflowInvoker) {
+	h.planAuthorWorkflow = service
+}
+
+// SetWorkflowStartGuard applies the server-owned transition policy to the
+// default workflow adapter. Test fakes intentionally remain policy-free.
+func (h *Handler) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
+	if workflow, ok := h.workshopWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetStartGuard(guard)
+	}
+	if workflow, ok := h.clarificationWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetStartGuard(guard)
+	}
+	if workflow, ok := h.planAuthorWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetStartGuard(guard)
+	}
+	if h.planRepair != nil {
+		h.planRepair.SetStartGuard(guard)
+	}
 }
 
 // SetPlanClient injects the canonical plan-manager client used for linked-plan
@@ -314,17 +349,6 @@ func (h *Handler) SetAIIndexer(indexer AIIndexer) {
 	}
 }
 
-// SetRunner injects the declarative operation runner and its durable scheduler.
-// After this, the pre-execution backlog flows (research/workshop refinement,
-// clarification, deferred auto-advance) start operations through the runner
-// instead of spawning agents directly, and the scheduler owns the deferred
-// auto-advance timer that the in-memory workshop ticker used to. main.go calls
-// this once both the backlog handler and the operation runner are constructed.
-func (h *Handler) SetRunner(runner *opsrunner.Runner, scheduler *opsrunner.Scheduler) {
-	h.opsRunner = runner
-	h.opsScheduler = scheduler
-}
-
 func (h *Handler) emitDependencyChanges(entityID string, oldDeps, newDeps []string) {
 	old := make(map[string]bool, len(oldDeps))
 	for _, d := range oldDeps {
@@ -384,6 +408,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.OperateFile).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-render", h.RenderLinkedPlan).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair", h.StartPlanRepair).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair/{repairID}/apply", h.ApplyPlanRepair).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-author/{executionID}/apply", h.ApplyPlanAuthor).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/process-preflight", h.ProcessPreflight).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Archive).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Unarchive).Methods("DELETE")
@@ -401,6 +428,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification", h.CreateClarification).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}", h.GetClarification).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/continue", h.ContinueClarification).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/workflow/{executionID}/apply", h.ApplyClarificationWorkflow).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/action", h.ClarificationAction).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.GetArchiveTargets).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.CreateTargetHandler).Methods("POST")

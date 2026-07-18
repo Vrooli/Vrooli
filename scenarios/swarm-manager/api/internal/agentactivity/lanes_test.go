@@ -54,7 +54,6 @@ func TestLaneOf_FallsBackToPurposeDefault(t *testing.T) {
 		{PurposeFeedback, LaneInvestigate},
 		{PurposeFeedbackContinue, LaneInvestigate},
 		{PurposeMetaOrchestration, LaneInvestigate},
-		{PurposeOperatingModeAuthoring, LaneInvestigate},
 		{PurposeSwarmOperations, LaneInvestigate},
 		{PurposeInitialize, LaneInvestigate},
 		{PurposeFinalize, LaneReview},

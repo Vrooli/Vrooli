@@ -37,8 +37,6 @@ type Service interface {
 	ResolveURL(ctx context.Context) (string, error)
 	GetProfileID() string
 
-	SpawnBacklog(ctx context.Context, req BacklogSpawnRequest) (RunResult, error)
-	SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error)
 	GetRunState(ctx context.Context, runID string) (RunState, error)
 	GetRunDiff(ctx context.Context, runID string) (RunDiff, error)
 	ApproveRun(ctx context.Context, runID, actor, commitMsg string) error

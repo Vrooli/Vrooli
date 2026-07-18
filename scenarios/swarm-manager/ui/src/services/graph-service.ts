@@ -120,14 +120,6 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
     }
     case "initiative": {
       const initiative = data.value.value;
-      const activeRound = initiative.activeRound
-        ? {
-            mode: initiative.activeRound.mode,
-            phase: initiative.activeRound.phase,
-            round: initiative.activeRound.round ?? 0,
-            status: initiative.activeRound.status,
-          }
-        : undefined;
       return {
         id: raw.id,
         type: entityType,
@@ -139,8 +131,6 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
           name: initiative.name,
           title: initiative.title,
           status: initiative.status,
-          operatingMode: initiative.operatingMode,
-          activeRound,
           rollup: mapRollup(initiative.rollup),
         },
       };

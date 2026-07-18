@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -44,13 +45,13 @@ import (
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/initiativereview"
 	"swarm-manager/internal/initiatives"
-	"swarm-manager/internal/operatingmode"
+	"swarm-manager/internal/integrationstatus"
 	"swarm-manager/internal/operations"
-	"swarm-manager/internal/opsbridge"
 	"swarm-manager/internal/overview"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/planimport"
+	"swarm-manager/internal/planrepair"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/queue"
@@ -61,6 +62,7 @@ import (
 	"swarm-manager/internal/sessioncontext"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/stats"
+	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -68,6 +70,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	corediscovery "github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -82,6 +85,7 @@ type Server struct {
 	agentSessionSvc     *agentsessions.Service
 	agentSessionStore   agentsessions.Store
 	settingsStore       *settings.Store
+	integrationStatus   *integrationstatus.Provider
 	backlogHandler      *backlog.Handler
 	capturesHandler     *captures.Handler
 	recordsService      *records.Service
@@ -94,15 +98,12 @@ type Server struct {
 	overviewSvc         *overview.Service
 	executionSvc        *execution.Service
 	executionHandler    *execution.Handler
-	operatingModeSvc    *operatingmode.Service
 	reviewSvc           *review.Service
 	reviewHandler       *review.Handler
 	initiativeReviewSvc *initiativereview.Service
-	backlogOpsRunner    *opsbridge.BacklogRunner
 	executionStopChan   chan struct{}
 	reviewStopChan      chan struct{}
 	initReviewStopChan  chan struct{}
-	opsRunnerStopChan   chan struct{}
 	graphBroker         *graph.Broker
 	graphDispatch       *graph.Dispatch
 	graphProjection     *graph.ProjectionService
@@ -181,19 +182,10 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 
 	agentEnabled := strings.ToLower(strings.TrimSpace(os.Getenv("AGENT_MANAGER_ENABLED"))) != "false"
 	// Loading the operating-mode registry from the resolved scenario modes dir
-	// is the validation step (LoadModesFromDir runs ValidateLoadedModes); a
-	// malformed or missing mode folder is a fatal, actionable startup error.
-	if err := operatingmode.ValidateRegistry(); err != nil {
-		log.Fatalf("invalid operating-mode registry: %v", err)
-	}
-	requiredProfileKeys, err := operatingmode.RequiredProfileKeys()
-	if err != nil {
-		log.Fatalf("invalid operating-mode profile policy: %v", err)
-	}
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
 		ProfileName:  getEnvDefault("AGENT_MANAGER_PROFILE_NAME", "swarm-manager"),
 		ProfileKey:   getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "swarm-manager/default"),
-		RequiredKeys: requiredProfileKeys,
+		RequiredKeys: []string{"swarm-manager/analysis", "swarm-manager/deep-work"},
 		Timeout:      30 * time.Second,
 		Enabled:      agentEnabled,
 	})
@@ -204,7 +196,6 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		executionStopChan:  make(chan struct{}),
 		reviewStopChan:     make(chan struct{}),
 		initReviewStopChan: make(chan struct{}),
-		opsRunnerStopChan:  make(chan struct{}),
 		aiSearchStopChan:   make(chan struct{}),
 		reviewSweeperStop:  make(chan struct{}),
 		autoFilerStopChan:  make(chan struct{}),
@@ -265,7 +256,8 @@ func (s *Server) setupRoutes() {
 	s.registerHealthRoutes()
 	s.registerDiscoveryRoutes()
 	s.registerAudioRoutes()
-	s.registerSettingsRoutes(scenarioRoot)      // Must be before backlog/execution (they depend on settings store)
+	s.registerSettingsRoutes(scenarioRoot) // Must be before backlog/execution (they depend on settings store)
+	s.registerIntegrationStatusRoutes()
 	s.registerAgentActivityRoutes(scenarioRoot) // Must be before backlog/execution (they depend on agent activity)
 	s.registerScenarioRoutes(scenariosDir)
 	s.registerAgentSessionRoutes(scenarioRoot)
@@ -281,6 +273,7 @@ func (s *Server) setupRoutes() {
 	// --- Execution & review ---
 	execSvc := s.registerExecutionRoutes(s.dataRoot, scenarioRoot)
 	s.registerReviewRoutes(scenarioRoot, execSvc)
+	s.wireWorkflowStartGuards(backlogHandler, execSvc)
 	s.registerQueueRoutes(scenarioRoot)
 
 	// --- Cross-domain wiring ---
@@ -307,9 +300,10 @@ func (s *Server) setupRoutes() {
 	materializer := s.registerGraphRoutes(scenarioRoot)
 	s.wireSessionMutationProposals(materializer)
 	s.registerInitiativeReviewRoutes(materializer)
-	s.registerOperatingModeRoutes(scenarioRoot, materializer)
-	s.registerAgentOperationsDiagnostics(scenarioRoot)
-	s.registerBacklogOperationsRunner(scenarioRoot)
+	// Initiative review is registered after the initial workflow guard wiring.
+	// Reapply the same guard so its declared workflow receives registry and
+	// integration preflight before any trigger can start it.
+	s.wireWorkflowStartGuards(backlogHandler, execSvc)
 	s.wireEvidence()
 	s.registerOperationsRoutes()
 	s.registerPlanRoutes(scenarioRoot)
@@ -418,6 +412,11 @@ func (s *Server) registerHealthRoutes() {
 
 func (s *Server) registerBacklogRoutes(dataRoot, scenarioRoot string) *backlog.Handler {
 	backlogHandler := backlog.NewHandlerWithClients(dataRoot, scenarioRoot, s.requireTrackedAgentService(), nil)
+	if path, err := runtimepaths.StatePath("plan-repairs.json"); err == nil {
+		backlogHandler.SetPlanRepair(planrepair.NewService(planrepair.NewStore(path), agentmanager.NewWorkflowService()))
+	} else {
+		panic(err)
+	}
 	backlogHandler.SetAgentSessionArtifactRecorder(s.agentSessionSvc)
 	s.agentSessionSvc.SetBacklogBatchApplier(backlogHandler)
 	backlogHandler.RegisterRoutes(s.router)
@@ -586,10 +585,7 @@ func (l planImportInitiativeLander) LandInitiative(
 	if title == "" {
 		title = name
 	}
-	mode := initiatives.NormalizeMode(spec.Mode)
-	if mode == "" {
-		mode = initiatives.NormalizeMode("")
-	}
+	mode := initiatives.NormalizeMode("")
 	planRef := initiativePlanRef(spec.PlanRef)
 	refs := importedItemRefs(itemRefs)
 
@@ -610,11 +606,6 @@ func (l planImportInitiativeLander) LandInitiative(
 		}); err != nil {
 			return planimport.ImportedInitiative{}, err
 		}
-		if mode != initiatives.NormalizeMode("") {
-			if _, err := l.svc.SetModeLifecycle(name, mode); err != nil {
-				return planimport.ImportedInitiative{}, err
-			}
-		}
 		return planimport.ImportedInitiative{Name: name, Title: title, Mode: mode, Action: "created"}, nil
 	}
 
@@ -630,12 +621,6 @@ func (l planImportInitiativeLander) LandInitiative(
 			PlanRef:     planRef,
 			PlanRefSet:  true,
 		}); err != nil {
-			return planimport.ImportedInitiative{}, err
-		}
-		action = "updated"
-	}
-	if initiatives.NormalizeMode(init.Mode) != mode {
-		if _, err := l.svc.SetModeLifecycle(name, mode); err != nil {
 			return planimport.ImportedInitiative{}, err
 		}
 		action = "updated"
@@ -746,7 +731,7 @@ func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initSer
 }
 
 func (s *Server) registerCapturesRoutes(cacheRoot string, backlogHandler *backlog.Handler) {
-	capturesHandler := captures.NewHandler(cacheRoot, s.requireTrackedAgentService(), nil)
+	capturesHandler := captures.NewHandler(cacheRoot)
 	capturesHandler.SetBacklogCreator(captures.NewBacklogItemCreatorAdapter(backlogHandler.Store()))
 	capturesHandler.RegisterRoutes(s.router)
 	s.capturesHandler = capturesHandler
@@ -788,6 +773,62 @@ func (s *Server) registerSettingsRoutes(scenarioRoot string) {
 	settingsHandler := settings.NewHandler(settingsPath)
 	settingsHandler.RegisterRoutes(s.router)
 	s.settingsStore = settingsHandler.GetStore()
+}
+
+func (s *Server) registerIntegrationStatusRoutes() {
+	degraded := map[string]string{
+		"agent-manager":     "new workflow starts and sessions are blocked; existing work remains inspectable",
+		"plan-manager":      "plan-gated work is parked until plan validity can be verified",
+		"prompt-manager":    "new prompt-dependent workflow starts are blocked; pinned executions remain explainable",
+		"test-genie":        "validation-dependent completion is parked with missing-evidence attention",
+		"git-control-tower": "regression-gated completion is parked with missing-evidence attention",
+		"ecosystem-manager": "scenario-management actions are unavailable; unrelated planning remains usable",
+	}
+	checkers := make(map[string]integrationstatus.Checker, len(degraded))
+	for scenario, behavior := range degraded {
+		checkers[scenario] = integrationstatus.ScenarioChecker{
+			Scenario: scenario, Required: true, DegradedBehavior: behavior,
+			ResolveURL: corediscovery.ResolveScenarioURLDefault, HTTPClient: &http.Client{Timeout: 3 * time.Second}, FreshFor: 30 * time.Second,
+		}
+	}
+	s.integrationStatus = integrationstatus.New(checkers)
+	integrationstatus.NewHandler(s.integrationStatus).RegisterRoutes(s.router)
+}
+
+func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, executionService *execution.Service) {
+	registry, err := transitions.LoadDir(filepath.Join(s.scenarioRoot, ".vrooli", "swarm-transitions"))
+	if err != nil {
+		// Unit fixtures use a minimal temporary scenario root and intentionally
+		// omit declaration assets. Real scenario roots carry this directory and
+		// fail closed for malformed registry contents below.
+		if errors.Is(err, os.ErrNotExist) {
+			return
+		}
+		panic(fmt.Errorf("load workflow transition registry: %w", err))
+	}
+	s.integrationStatus.SetTransitionRegistry(registry)
+	guard := func(ctx context.Context, workflowKey string) error {
+		for _, definition := range registry.Definitions() {
+			if definition.Kind != transitions.KindWorkflow || definition.Workflow == nil || definition.Workflow.Key != workflowKey {
+				continue
+			}
+			return s.integrationStatus.Preflight(ctx, definition)
+		}
+		return fmt.Errorf("workflow start %q is not registered by swarm-transition/v1", workflowKey)
+	}
+	backlogHandler.SetWorkflowStartGuard(guard)
+	if s.capturesHandler != nil {
+		s.capturesHandler.SetWorkflowStartGuard(guard)
+	}
+	if executionService != nil {
+		executionService.SetWorkflowStartGuard(guard)
+	}
+	if s.reviewSvc != nil {
+		s.reviewSvc.SetWorkflowStartGuard(guard)
+	}
+	if s.initiativeReviewSvc != nil {
+		s.initiativeReviewSvc.SetWorkflowStartGuard(guard)
+	}
 }
 
 func (s *Server) registerAgentActivityRoutes(_ string) {
@@ -903,7 +944,12 @@ func main() {
 		go srv.executionHandler.StartBackgroundWorker(srv.executionStopChan)
 	}
 	if srv.backlogHandler != nil {
-		go srv.backlogHandler.StartWorkshopWorkflowWorker(srv.executionStopChan)
+		// Recovery is a bounded one-shot scan of durable correlations. Active
+		// workflow completion is applied through the explicit domain endpoint;
+		// Swarm must not run a background polling loop over Agent Manager.
+		if err := srv.backlogHandler.ProcessWorkshopWorkflows(context.Background()); err != nil {
+			slog.Warn("workshop workflow boot reconciliation failed", "err", err)
+		}
 	}
 
 	if srv.reviewSvc != nil {
@@ -914,26 +960,6 @@ func main() {
 	if srv.initiativeReviewSvc != nil {
 		srv.initiativeReviewSvc.RecoverActiveRounds()
 		go srv.initiativeReviewSvc.StartBackgroundWorker(srv.initReviewStopChan)
-	}
-
-	// Declarative operation runner: poll active target rounds toward completion
-	// (nothing else drives a non-initiative target round) and fire due scheduled
-	// intents. Both reload durable workflow state each tick, so a restart resumes
-	// cleanly. The stop chan cancels the shared context on shutdown.
-	if srv.backlogOpsRunner != nil {
-		go func(built *opsbridge.BacklogRunner, stop <-chan struct{}) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			go func() { <-stop; cancel() }()
-			go func() {
-				if err := built.RefreshDriver.Run(ctx, 5*time.Second); err != nil && ctx.Err() == nil {
-					slog.Warn("backlog-ops refresh driver stopped", "err", err)
-				}
-			}()
-			if err := built.Scheduler.Run(ctx, 5*time.Second); err != nil && ctx.Err() == nil {
-				slog.Warn("backlog-ops scheduler stopped", "err", err)
-			}
-		}(srv.backlogOpsRunner, srv.opsRunnerStopChan)
 	}
 
 	if srv.autoFilerSweeper != nil {
@@ -984,7 +1010,6 @@ func main() {
 	close(srv.executionStopChan)
 	close(srv.reviewStopChan)
 	close(srv.initReviewStopChan)
-	close(srv.opsRunnerStopChan)
 	close(srv.aiSearchStopChan)
 	close(srv.reviewSweeperStop)
 	close(srv.autoFilerStopChan)

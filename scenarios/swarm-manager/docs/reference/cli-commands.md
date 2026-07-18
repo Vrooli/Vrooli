@@ -11,7 +11,6 @@ swarm-manager sessions startup-brief --id sess_123 --json
 swarm-manager sessions startup-brief --id sess_123 --refresh --json
 swarm-manager portfolio brief --json
 swarm-manager initiatives candidates --purpose next-action --json
-swarm-manager operating-mode brief --json
 swarm-manager backlog pending-questions --brief --json
 ```
 
@@ -228,123 +227,6 @@ Response shape (`--json`):
 
 Only direct upstream and downstream are returned — the endpoint is a one-hop neighborhood view, not a transitive traversal. Use it in place of the global `overview` command when the question is scoped to one initiative.
 
-## Operating Mode Catalog
-
-Top-level `operating-mode` commands operate on the mode catalog itself (not a
-specific initiative). Use these to browse modes, inspect linked initiatives,
-or edit a mode's display label/description (persisted to the overlay file at
-`<scenario>/.vrooli/operating-modes/overrides.json`).
-
-```bash
-swarm-manager operating-mode list                      # list modes with usage counts
-swarm-manager operating-mode get --mode holistic-loop  # full detail incl. linked initiatives
-swarm-manager operating-mode set --mode holistic-loop --label "Loop (renamed)" --description "Custom wording."
-swarm-manager operating-mode set --mode holistic-loop --clear-description
-```
-
-## Initiative Operating Modes
-
-List registered modes from the backend registry catalog:
-
-```bash
-swarm-manager initiatives mode-list
-swarm-manager initiatives mode-list --json
-```
-
-Inspect the mode workspace:
-
-```bash
-swarm-manager initiatives mode-workspace --name desktop-release-governance
-swarm-manager initiatives mode-workspace --name desktop-release-governance --json
-```
-
-Switch modes through the lifecycle boundary. When switching from `item-level` into
-an initiative-scoped mode, add `--cancel-active-item-executions` only after you
-intend to stop active member item runs. Switching out of an initiative-scoped
-mode is rejected while any mode round is reserved or agent-running:
-
-```bash
-swarm-manager initiatives mode-switch \
-  --name desktop-release-governance \
-  --mode holistic-loop \
-  --cancel-active-item-executions
-```
-
-Start and manage phase rounds. `mode-start` follows backend phase action state;
-invalid phases are rejected even if the CLI command is formed correctly.
-Round-control commands require `--mode` to name a registered non-default mode;
-do not omit it or pass `item-level`:
-
-```bash
-swarm-manager initiatives mode-start --name desktop-release-governance --phase investigate
-swarm-manager initiatives mode-refresh --name desktop-release-governance --mode holistic-loop --round 1
-swarm-manager initiatives mode-cancel --name desktop-release-governance --mode holistic-loop --round 1
-```
-
-Apply the audited mark-complete reconciliation from a completed mode round:
-
-```bash
-swarm-manager initiatives mode-complete-items \
-  --name desktop-release-governance \
-  --mode holistic-loop \
-  --round 3 \
-  --run-id run_abc123 \
-  --items execute/item-a,fix/item-b
-```
-
-Apply selected proposal-backed create/update/follow-up reconciliation from a
-completed mode round:
-
-```bash
-swarm-manager initiatives mode-apply-backlog-sync \
-  --name desktop-release-governance \
-  --mode phased-plan-drain \
-  --round 4 \
-  --run-id run_def456 \
-  --mutations m1,m3
-```
-
-Rules:
-- `mode-switch` is the only CLI path for changing initiative `mode`; generic initiative updates do not own mode lifecycle.
-- `mode-refresh`, `mode-cancel`, `mode-complete-items`, and `mode-apply-backlog-sync` are non-default-mode-only operations and should always include `--mode`.
-- `mode-refresh` fails completed runs whose final output is missing or violates the registered phase output contract; those failures release the initiative lock and do not advance the phase graph.
-- `mode-complete-items` requires the round's AgentManager `run_id` and only accepts member item refs from the round.
-- `mode-apply-backlog-sync` requires the round's AgentManager `run_id` and applies the round's `backlog_sync.proposal` through the existing proposal boundary.
-
-## Agent Operations
-
-`swarm-manager agent-operations <sub>` is the diagnostic surface over the
-declarative agent-operations runtime (`AgentOperationsService`). Every subcommand
-is a thin, read-only Connect client except `overrides set|clear` and `reconcile`;
-the server owns every decision. Targets are selected with
-`--target-kind <backlog-item|initiative|plan-execution|scenario> --target <id>`.
-
-```bash
-# Catalog & bindings
-swarm-manager agent-operations catalog                 # the 15 operation contracts
-swarm-manager agent-operations compatible-modes --operation <id> --target-kind <kind> --target <id>
-swarm-manager agent-operations bindings --target-kind <kind> --target <id>   # resolved bindings for a target
-swarm-manager agent-operations resolve-binding --operation <id> --target-kind <kind> --target <id>
-swarm-manager agent-operations validate --operation <id> --target-kind <kind> --target <id>
-
-# Binding overrides (domain storage; never the shipped catalog)
-swarm-manager agent-operations overrides list --target-kind <kind> --target <id>
-swarm-manager agent-operations overrides set  --operation <id> --mode <mode> --target-kind <kind> --target <id>
-swarm-manager agent-operations overrides clear --operation <id> --target-kind <kind> --target <id>
-
-# Workflow & executions
-swarm-manager agent-operations workflow  --target-kind <kind> --target <id>   # workflow projection
-swarm-manager agent-operations history   --target-kind <kind> --target <id> [--limit N]
-swarm-manager agent-operations inspect-workflow  --target-kind <kind> --target <id>
-swarm-manager agent-operations inspect-execution --target-kind <kind> --target <id> --execution-id <id>
-
-# Migration (historical) & recovery
-swarm-manager agent-operations migration-status       # served read-only from diagnostics
-swarm-manager agent-operations reconcile              # orphan-snapshot reconciliation sweep
-```
-
-Legacy-import executions surface labeled `[legacy import]` and are refused for
-reproduction; `migration-status` reports the completed epoch-1 promotion.
 
 ## Cascade semantics
 
@@ -363,7 +245,7 @@ The API maintains referential integrity automatically when items or initiatives 
 
 Evidence is owner-neutral: the same immutable record can be queried by its
 verified Agent Manager run or affected entity, regardless of whether its owner
-is a Session or an operating-mode execution. Reconciliation retries producer
+is a Session or workflow execution. Reconciliation retries producer
 collection; it does not trust an agent's prose.
 
 ```bash

@@ -62,7 +62,7 @@ const PURPOSE_LABELS: Record<AgentActivityPurpose, string> = {
   feedback_continue: "Continuing feedback",
   initiative_review: "Reviewing initiative",
   meta_orchestration: "Planning work",
-  operating_mode_authoring: "Authoring mode",
+  operating_mode_authoring: "Archived mode authoring",
   swarm_operations: "Managing Swarm",
 };
 

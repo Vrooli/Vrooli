@@ -3,8 +3,9 @@
 package initiatives
 
 import (
+	"strings"
+
 	"swarm-manager/internal/identity"
-	"swarm-manager/internal/operatingmode"
 )
 
 // Initiative represents a named grouping of backlog items into a coherent
@@ -169,21 +170,24 @@ func ValidatePriority(p int) bool {
 // historical metadata normalizes to the member-item workflow strategy
 // sentinel ("item-level").
 func NormalizeMode(mode string) string {
-	return string(operatingmode.NormalizeMode(mode))
+	if strings.TrimSpace(mode) == "" {
+		return "item-level"
+	}
+	return strings.ToLower(strings.TrimSpace(mode))
 }
 
 // ValidateMode returns true if the mode string is a valid initiative mode
 // value: the member-item workflow strategy sentinel ("item-level", or blank
 // which normalizes to it) or a registered operating mode.
 func ValidateMode(mode string) bool {
-	return operatingmode.IsMemberItemStrategySentinel(mode) || operatingmode.ValidateMode(mode)
+	return strings.TrimSpace(mode) == "" || strings.EqualFold(strings.TrimSpace(mode), "item-level")
 }
 
 // OperatingModeList returns the human-readable list of valid initiative mode
 // values for API validation errors: the strategy sentinel plus every
 // registered operating mode.
 func OperatingModeList() string {
-	return string(operatingmode.ModeItemLevel) + " (member-item workflow strategy), " + operatingmode.ModeList()
+	return "item-level (member-item workflow strategy)"
 }
 
 // ContextItem is the compact view of a member item inside an initiative

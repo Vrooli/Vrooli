@@ -16,7 +16,6 @@ const REFERENCE_MARKERS: Record<string, string> = {
   execution: "execution",
   capture: "capture",
   session: "session",
-  operating_mode: "operating-mode",
   scenario: "scenario",
 };
 

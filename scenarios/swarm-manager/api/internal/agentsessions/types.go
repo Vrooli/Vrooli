@@ -13,9 +13,8 @@ import (
 type Kind string
 
 const (
-	KindMetaOrchestration      Kind = "meta_orchestration"
-	KindOperatingModeAuthoring Kind = "operating_mode_authoring"
-	KindSwarmOperations        Kind = "swarm_operations"
+	KindMetaOrchestration Kind = "meta_orchestration"
+	KindSwarmOperations   Kind = "swarm_operations"
 )
 
 type Status string
@@ -107,9 +106,8 @@ const (
 const OperationsBriefingLatestRef = "operations_briefing/latest"
 
 const (
-	StartupBriefMetaOrchestrationRef      = "startup_brief/meta_orchestration"
-	StartupBriefOperatingModeAuthoringRef = "startup_brief/operating_mode_authoring"
-	StartupBriefSwarmOperationsRef        = "startup_brief/swarm_operations"
+	StartupBriefMetaOrchestrationRef = "startup_brief/meta_orchestration"
+	StartupBriefSwarmOperationsRef   = "startup_brief/swarm_operations"
 )
 
 type AutoContextPolicy string
@@ -256,7 +254,7 @@ func (s Session) Validate() error {
 		return validationError("title is required")
 	}
 	if !IsKnownKind(s.Kind) {
-		return validationError("kind must be meta_orchestration, operating_mode_authoring, or swarm_operations")
+		return validationError("kind must be meta_orchestration or swarm_operations")
 	}
 	if !IsKnownStatus(s.Status) {
 		return validationError("status is invalid")
@@ -455,7 +453,7 @@ func (a Attribution) Validate() error {
 
 func IsKnownKind(kind Kind) bool {
 	switch kind {
-	case KindMetaOrchestration, KindOperatingModeAuthoring, KindSwarmOperations:
+	case KindMetaOrchestration, KindSwarmOperations:
 		return true
 	default:
 		return false
@@ -535,8 +533,6 @@ func StartupBriefRefForKind(kind Kind) string {
 	switch kind {
 	case KindMetaOrchestration:
 		return StartupBriefMetaOrchestrationRef
-	case KindOperatingModeAuthoring:
-		return StartupBriefOperatingModeAuthoringRef
 	case KindSwarmOperations:
 		return StartupBriefSwarmOperationsRef
 	default:

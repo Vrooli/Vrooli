@@ -30,10 +30,7 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		PlanRenderer: testPlanRenderer(),
-		AgentService: &testutil.AgentSpawner{
-			Enabled:  true,
-			SpawnErr: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed),
-		},
+		AgentService: &testutil.AgentSpawner{Enabled: true},
 	})
 	service.SetPhasedPlanWorkflow(&stubPhasedPlanWorkflow{startErr: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed)})
 	handler := NewHandlerFromService(service)

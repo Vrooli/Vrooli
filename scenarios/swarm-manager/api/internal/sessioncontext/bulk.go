@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentsessions"
-	"swarm-manager/internal/operatingmode"
 )
 
 // ReferenceCandidate is a single typed entity mention extracted from agent
@@ -77,15 +76,8 @@ func (r *Resolver) resolveOne(ctx context.Context, cand ReferenceCandidate, limi
 	if !known || strings.TrimSpace(cand.Name) == "" {
 		return res // unknown marker or empty ref: Exists stays false
 	}
-
-	// Operating modes are a closed, registry-backed set. resolve() trusts the
-	// caller for operating-mode refs (it never reads a file), so validate
-	// existence here against the registry to keep the "resolver verdict only"
-	// contract honest for this type.
 	if contextType == agentsessions.ContextOperatingMode {
-		if !operatingmode.ValidateMode(cand.Name) {
-			return res
-		}
+		return res // retired runtime; operating-mode references are historical only
 	}
 
 	item, err := r.resolve(ctx, agentsessions.ContextRef{Type: contextType, Ref: cand.Name}, limits)

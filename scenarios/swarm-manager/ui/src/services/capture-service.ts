@@ -13,17 +13,15 @@ import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type { Capture, CaptureClassification, CaptureFailureReason } from "../types";
 
 export interface ClassifyResponse {
-  taskId: string;
-  runId: string;
-  baseUrl: string;
+  workflowExecutionId: string;
+  workflowDefinitionDigest: string;
   created: string;
 }
 
 export interface CreateCaptureResponse {
   capture: Capture;
-  taskId?: string;
-  runId?: string;
-  baseUrl?: string;
+  workflowExecutionId?: string;
+  workflowDefinitionDigest?: string;
 }
 
 export interface ICaptureService {
@@ -32,6 +30,7 @@ export interface ICaptureService {
   create(text: string, files?: File[]): Promise<CreateCaptureResponse>;
   remove(id: string): Promise<void>;
   classify(id: string): Promise<ClassifyResponse>;
+  applyClassification(id: string, executionId: string): Promise<Capture>;
   updateNote(id: string, note: string): Promise<Capture>;
 }
 
@@ -44,6 +43,9 @@ function mapCapture(raw: Record<string, unknown>): Capture {
     created: (raw.created as string) ?? "",
     status: (raw.status as Capture["status"]) ?? "classifying",
     failureReason: (raw.failure_reason as CaptureFailureReason) || undefined,
+    workflowExecutionId: (raw.workflow_execution_id as string) || undefined,
+    workflowDefinitionDigest: (raw.workflow_definition_digest as string) || undefined,
+    workflowEntityVersion: (raw.workflow_entity_version as string) || undefined,
     note: (raw.note as string) ?? "",
     classification: cls
       ? {
@@ -83,15 +85,13 @@ export function createCaptureService(apiClient: IApiClient = defaultApiClient): 
       }
       const data = await apiClient.post<{
         capture: Record<string, unknown>;
-        task_id?: string;
-        run_id?: string;
-        base_url?: string;
+        workflow_execution_id?: string;
+        workflow_definition_digest?: string;
       }>(API_ENDPOINTS.captures, formData);
       return {
         capture: mapCapture(data.capture),
-        taskId: data.task_id,
-        runId: data.run_id,
-        baseUrl: data.base_url,
+        workflowExecutionId: data.workflow_execution_id,
+        workflowDefinitionDigest: data.workflow_definition_digest,
       };
     },
 
@@ -101,17 +101,23 @@ export function createCaptureService(apiClient: IApiClient = defaultApiClient): 
 
     async classify(id: string): Promise<ClassifyResponse> {
       const data = await apiClient.post<{
-        task_id: string;
-        run_id: string;
-        base_url: string;
+        workflow_execution_id: string;
+        workflow_definition_digest: string;
         created: string;
       }>(API_ENDPOINTS.captureClassify(id), {});
       return {
-        taskId: data.task_id,
-        runId: data.run_id,
-        baseUrl: data.base_url,
+        workflowExecutionId: data.workflow_execution_id,
+        workflowDefinitionDigest: data.workflow_definition_digest,
         created: data.created,
       };
+    },
+
+    async applyClassification(id: string, executionId: string): Promise<Capture> {
+      const data = await apiClient.post<{ capture: Record<string, unknown> }>(
+        API_ENDPOINTS.captureClassificationApply(id, executionId),
+        {},
+      );
+      return mapCapture(data.capture);
     },
 
     async updateNote(id: string, note: string): Promise<Capture> {

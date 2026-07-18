@@ -6,22 +6,8 @@ import (
 	"strings"
 )
 
-// Operation identities and pins the execution service launches its autonomous
-// runs as. These mirror the agentops operation vocabulary + the pinned
-// system-default binding version; kept as local constants so the execution
-// package does not import the agentops catalog (the adapter in the api package
-// bridges to it).
 const (
-	operationExecutionRun      = "execution-run"
-	operationExecutionRetry    = "execution-retry"
-	operationExecutionFollowup = "execution-followup"
-	operationExecutionFixup    = "execution-fixup"
-	operationResearchConclude  = "research-conclude"
-	operationSpecSync          = "spec-sync"
-	operationVersionPinned     = "1.0.0"
-	targetKindPlanExecution    = "plan-execution"
-	targetKindBacklogItem      = "backlog-item"
-	targetKindScenario         = "scenario"
+	targetKindPlanExecution = "plan-execution"
 )
 
 // OperationStarter launches a target-bound execution operation through the
@@ -33,7 +19,6 @@ const (
 // status and finalization (transitional — slice C consolidates on the workflow;
 // see plan-manager note d789cb50).
 type OperationStarter interface {
-	StartOperation(ctx context.Context, req OperationStartRequest) (OperationStartResult, error)
 	// CancelOperation reaps a running operation execution after its agent run was
 	// stopped, so the durable workflow record does not linger "running" and the
 	// refresh driver stops polling the stopped run. Best-effort and idempotent: an
@@ -46,30 +31,6 @@ type OperationStarter interface {
 type OperationCancelRequest struct {
 	TargetKind  string
 	TargetID    string
-	ExecutionID string
-}
-
-// OperationStartRequest names the operation, target, and caller context for one
-// operation start. CallerInputs are keyed by the operation contract's declared
-// caller-input names (e.g. OPERATOR_NOTE, RETRY_NOTE); empty/absent values are
-// omitted by the caller so an optional input never appears.
-type OperationStartRequest struct {
-	Operation        string
-	OperationVersion string
-	TargetKind       string
-	TargetID         string
-	CallerInputs     map[string]string
-	IdempotencyKey   string
-	RequestedBy      string
-}
-
-// OperationStartResult is the live run association a non-blocking operation
-// start returns: the agent run id (stored on the execution record so polling /
-// finalization / cancel keep working) plus the durable operation-execution
-// correlation ids.
-type OperationStartResult struct {
-	RunID       string
-	WorkflowID  string
 	ExecutionID string
 }
 

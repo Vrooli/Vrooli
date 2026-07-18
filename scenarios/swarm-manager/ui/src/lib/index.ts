@@ -41,23 +41,6 @@ export {
 } from "./backlog-queue-utils";
 export type { ActionContext, ItemActions, PrimaryCta } from "./backlog-queue-utils";
 
-// Canonical workflow projection (agent operations)
-export { applyWorkflowLegalActions } from "./workflow-legal-actions";
-export type { WorkflowActionGate } from "./workflow-legal-actions";
-export {
-  bindingSourceLabel,
-  isWorkflowProjectionActive,
-  isReviewOperation,
-  isWorkshopOperation,
-  provenanceByAttempt,
-  provenanceByExecutionId,
-  provenanceForRun,
-  provenanceFromExecutionSummary,
-  provenanceFromOperation,
-  shortDigest,
-} from "./agent-ops-utils";
-export type { OperationProvenanceData } from "./agent-ops-utils";
-
 // Theme Utilities
 export { applyTheme, resolveTheme, useResolvedTheme, watchSystemTheme } from "./theme-utils";
 export type { ThemePreference, ResolvedTheme } from "./theme-utils";

@@ -7,8 +7,6 @@
  * actually need are fetched — opening the picker later reuses these caches.
  */
 import { useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { initiativeModeService } from "../../../services";
 import { useBacklogStore, useExecutionStore, useInitiativeStore } from "../../../stores";
 import type { AgentSessionContextType, AgentSessionKind, ExecutionRecord } from "../../../types";
 import { buildContextOptionsByType } from "./session-context-options";
@@ -37,24 +35,10 @@ export function useStarterContextCounts(sessionKind: AgentSessionKind): StarterC
   const initiatives = useInitiativeStore((s) => s.items);
   const initiativeStatus = useInitiativeStore((s) => s.status);
 
-  const wantsModes = neededTypes.has("operating_mode");
-  const modesQuery = useQuery({
-    queryKey: ["operating-modes", "catalog"],
-    queryFn: () => initiativeModeService.catalog(),
-    enabled: wantsModes,
-  });
-  // Read scalars before combining — TanStack's result union otherwise narrows
-  // `data` to `never` when `isLoading` is used inline in the same expression.
-  const modesData = modesQuery.data?.modes;
-  const modes = useMemo(() => modesData ?? [], [modesData]);
-  const modesLoading = modesQuery.isLoading;
-  const modesCount = modes.length;
-
   useEffect(() => {
     if (neededTypes.has("backlog_item")) void fetchBacklog();
     if (neededTypes.has("execution")) void fetchExecutions();
     if (neededTypes.has("initiative")) void fetchInitiatives();
-    // operating_mode is fetched by the React Query above (enabled-gated).
   }, [neededTypes, fetchBacklog, fetchExecutions, fetchInitiatives]);
 
   const optionsByType = useMemo(
@@ -63,7 +47,6 @@ export function useStarterContextCounts(sessionKind: AgentSessionKind): StarterC
         backlogItems,
         initiatives,
         executions,
-        modes,
         // Types the starter cards never count — picker builds these from its own
         // full subscriptions; empty here keeps the hook's fetch surface minimal.
         captures: [],
@@ -73,7 +56,7 @@ export function useStarterContextCounts(sessionKind: AgentSessionKind): StarterC
         sessionKind,
         currentSessionId: undefined,
       }),
-    [backlogItems, initiatives, executions, modes, sessionKind],
+    [backlogItems, initiatives, executions, sessionKind],
   );
 
   const loading = useMemo<Partial<Record<AgentSessionContextType, boolean>>>(() => {
@@ -84,9 +67,6 @@ export function useStarterContextCounts(sessionKind: AgentSessionKind): StarterC
     if (neededTypes.has("backlog_item")) result.backlog_item = pending(backlogStatus, backlogItems.length);
     if (neededTypes.has("execution")) result.execution = pending(executionStatus, executions.length);
     if (neededTypes.has("initiative")) result.initiative = pending(initiativeStatus, initiatives.length);
-    if (neededTypes.has("operating_mode")) {
-      result.operating_mode = modesLoading && modesCount === 0;
-    }
     return result;
   }, [
     neededTypes,
@@ -96,8 +76,6 @@ export function useStarterContextCounts(sessionKind: AgentSessionKind): StarterC
     executions.length,
     initiativeStatus,
     initiatives.length,
-    modesLoading,
-    modesCount,
   ]);
 
   return { optionsByType, executions, loading };

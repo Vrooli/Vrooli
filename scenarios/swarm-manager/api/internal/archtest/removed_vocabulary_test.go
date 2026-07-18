@@ -102,21 +102,6 @@ func TestRemovedVocabularyStaysRemoved(t *testing.T) {
 	}
 }
 
-// TestItemLevelModeFolderStaysDeleted asserts the item-level MODE cannot be
-// resurrected as data: modes/item-level/ (and in particular its mode.json)
-// must not exist. The loader also rejects a mode.json declaring the reserved
-// id (operatingmode's authored-modes static test); this folder check catches
-// the resurrection even before a loader runs.
-func TestItemLevelModeFolderStaysDeleted(t *testing.T) {
-	dir, err := filepath.Abs(filepath.Join(modesRoot, "item-level"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
-		t.Fatalf("modes/item-level exists (stat err: %v) — \"item-level\" is the reserved member-item-strategy sentinel, never a mode folder", statErr)
-	}
-}
-
 // TestRemovedVocabularyScannerFiresOnViolation red-proofs the sweep: the same
 // primitive run over a synthetic tree containing one removed identifier must
 // flag it, and must honor the self-exclusion and directory skips.

@@ -8,10 +8,6 @@ import {
   type PlanImportResult,
 } from "../../services/plan-service";
 import { cn } from "../../lib/utils";
-import {
-  MEMBER_ITEM_STRATEGY_LABEL,
-  MEMBER_ITEM_STRATEGY_WIRE_VALUE,
-} from "../../lib/member-item-strategy";
 import { BottomSheet } from "../ui/bottom-sheet";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -24,18 +20,6 @@ export interface CreateWorkFromPlanDialogProps {
 
 type SourceMode = "existing" | "markdown";
 type ContainerType = "items" | "initiative";
-
-// The first option writes the member-item strategy's legacy wire value —
-// items run their own workflows, no mode-wide drain (label mapped via
-// lib/member-item-strategy.ts; data vocabulary migrates in Phase 8).
-const MODE_OPTIONS = [
-  {
-    value: MEMBER_ITEM_STRATEGY_WIRE_VALUE,
-    label: MEMBER_ITEM_STRATEGY_LABEL,
-    hint: "Creates phase items that run their own workflows — no mode-wide drain.",
-  },
-  { value: "holistic-loop", label: "Holistic loop", hint: "Binds the plan and drains it through the delegated phased-plan-drain." },
-] as const;
 
 export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: CreateWorkFromPlanDialogProps) {
   const [sourceMode, setSourceMode] = useState<SourceMode>("existing");
@@ -50,7 +34,6 @@ export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: Create
   const [initiativeName, setInitiativeName] = useState("");
   const [initiativeTitle, setInitiativeTitle] = useState("");
   const [initiativeDescription, setInitiativeDescription] = useState("");
-  const [mode, setMode] = useState("holistic-loop");
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +99,6 @@ export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: Create
         name: containerType === "initiative" ? initiativeName.trim() || undefined : undefined,
         title: containerType === "initiative" ? initiativeTitle.trim() || undefined : undefined,
         description: containerType === "initiative" ? initiativeDescription.trim() || undefined : undefined,
-        mode: containerType === "initiative" ? mode : undefined,
       },
     })
       .then((next) => {
@@ -268,20 +250,6 @@ export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: Create
                 placeholder="Initiative description"
                 className="min-h-20 w-full resize-y rounded-lg border border-white/10 bg-slate-800/50 px-3 py-2 text-base text-slate-50 placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 md:text-sm"
               />
-              <div className="space-y-2">
-                <span className="text-xs font-medium uppercase text-slate-500">Operating mode</span>
-                <div className="grid gap-2">
-                  {MODE_OPTIONS.map((option) => (
-                    <ContainerOption
-                      key={option.value}
-                      selected={mode === option.value}
-                      title={option.label}
-                      hint={option.hint}
-                      onClick={() => setMode(option.value)}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
           )}
           {result && <ImportResultLinks result={result} />}

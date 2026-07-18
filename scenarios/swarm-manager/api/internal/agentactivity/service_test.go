@@ -10,19 +10,13 @@ import (
 )
 
 type stubAgentService struct {
-	enabled              bool
-	spawnResult          agentmanager.RunResult
-	spawnErr             error
-	initiativeSpawnReq   agentmanager.InitiativeSpawnRequest
-	initiativeSpawnCalls int
-	initiativeSpawnRes   agentmanager.RunResult
-	initiativeSpawnErr   error
-	runStates            map[string]agentmanager.RunState
-	runStateCalls        int
-	stopErr              error
-	continueErr          error
-	continueRuns         []string
-	stopRuns             []string
+	enabled       bool
+	runStates     map[string]agentmanager.RunState
+	runStateCalls int
+	stopErr       error
+	continueErr   error
+	continueRuns  []string
+	stopRuns      []string
 }
 
 func (s *stubAgentService) IsEnabled() bool {
@@ -42,22 +36,6 @@ func (s *stubAgentService) ResolveURL(_ context.Context) (string, error) {
 
 func (s *stubAgentService) GetProfileID() string {
 	return "swarm-manager"
-}
-
-func (s *stubAgentService) SpawnBacklog(_ context.Context, _ agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	if s.spawnErr != nil {
-		return agentmanager.RunResult{}, s.spawnErr
-	}
-	return s.spawnResult, nil
-}
-
-func (s *stubAgentService) SpawnInitiative(_ context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error) {
-	s.initiativeSpawnCalls++
-	s.initiativeSpawnReq = req
-	if s.initiativeSpawnErr != nil {
-		return agentmanager.RunResult{}, s.initiativeSpawnErr
-	}
-	return s.initiativeSpawnRes, nil
 }
 
 func (s *stubAgentService) GetRunState(_ context.Context, runID string) (agentmanager.RunState, error) {
@@ -145,68 +123,6 @@ func TestListSnapshotDoesNotRefreshRunState(t *testing.T) {
 	}
 	if agent.runStateCalls != 0 {
 		t.Fatalf("ListSnapshot called GetRunState %d times, want 0", agent.runStateCalls)
-	}
-}
-
-func TestServiceSpawnBacklogCreatesTrackedActivity(t *testing.T) {
-	t.Parallel()
-
-	raw := &stubAgentService{
-		enabled: true,
-		spawnResult: agentmanager.RunResult{
-			TaskID: "task-1",
-			RunID:  "run-1",
-		},
-	}
-	service := newTestService(t, raw)
-
-	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog,
-		OwnerKind: "execute",
-		OwnerName: "task-a",
-		Purpose:   PurposeProcess,
-	})
-
-	result, err := service.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Kind: "execute",
-		Name: "task-a",
-	})
-	if err != nil {
-		t.Fatalf("SpawnBacklog returned error: %v", err)
-	}
-	if result.RunID != "run-1" || result.TaskID != "task-1" {
-		t.Fatalf("unexpected run result: %+v", result)
-	}
-
-	records, err := service.store.Load()
-	if err != nil {
-		t.Fatalf("Load returned error: %v", err)
-	}
-	if len(records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(records))
-	}
-
-	record := records[0]
-	if record.OwnerType != OwnerBacklog {
-		t.Fatalf("expected backlog owner, got %q", record.OwnerType)
-	}
-	if record.OwnerKind != "execute" || record.OwnerName != "task-a" {
-		t.Fatalf("unexpected owner: %+v", record)
-	}
-	if record.InteractionType != InteractionSpawn {
-		t.Fatalf("expected spawn interaction, got %q", record.InteractionType)
-	}
-	if record.Status != StatusStarting {
-		t.Fatalf("expected starting status, got %q", record.Status)
-	}
-	if record.RunID != "run-1" || record.TaskID != "task-1" {
-		t.Fatalf("unexpected identifiers: %+v", record)
-	}
-	if record.RequestedBy != "swarm-manager" {
-		t.Fatalf("expected default requested_by, got %q", record.RequestedBy)
-	}
-	if record.RequestedAt == "" || record.StartedAt == "" || record.UpdatedAt == "" {
-		t.Fatalf("expected timestamps to be populated: %+v", record)
 	}
 }
 
@@ -373,186 +289,6 @@ func TestServiceStopRunCancelsActiveActivities(t *testing.T) {
 // Per-backlog-item guard tests
 // ---------------------------------------------------------------------------
 
-func TestSpawnBacklog_RejectsWhenItemAlreadyActive(t *testing.T) {
-	t.Parallel()
-	raw := &stubAgentService{
-		enabled:     true,
-		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
-	}
-	svc := newTestService(t, raw)
-
-	// First spawn succeeds.
-	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
-		Purpose: PurposeWorkshop,
-	})
-	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Kind: "idea", Name: "item-a",
-	}); err != nil {
-		t.Fatalf("first spawn should succeed: %v", err)
-	}
-
-	// Second spawn for the same item should fail.
-	ctx2 := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
-		Purpose: PurposeFinalize,
-	})
-	_, err := svc.SpawnBacklog(ctx2, agentmanager.BacklogSpawnRequest{
-		Kind: "idea", Name: "item-a",
-	})
-	if !errors.Is(err, ErrBacklogItemBusy) {
-		t.Fatalf("expected ErrBacklogItemBusy, got %v", err)
-	}
-}
-
-func TestSpawnBacklog_AllowsWhenDifferentItem(t *testing.T) {
-	t.Parallel()
-	raw := &stubAgentService{
-		enabled:     true,
-		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
-	}
-	svc := newTestService(t, raw)
-
-	// Spawn for item-a.
-	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
-		Purpose: PurposeWorkshop,
-	})
-	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Kind: "idea", Name: "item-a",
-	}); err != nil {
-		t.Fatalf("spawn item-a should succeed: %v", err)
-	}
-
-	// Spawn for item-b should succeed (different item).
-	ctx2 := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-b",
-		Purpose: PurposeWorkshop,
-	})
-	if _, err := svc.SpawnBacklog(ctx2, agentmanager.BacklogSpawnRequest{
-		Kind: "idea", Name: "item-b",
-	}); err != nil {
-		t.Fatalf("spawn item-b should succeed: %v", err)
-	}
-}
-
-func TestSpawnBacklog_AllowsAfterPriorCompletes(t *testing.T) {
-	t.Parallel()
-	raw := &stubAgentService{
-		enabled:     true,
-		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
-		runStates: map[string]agentmanager.RunState{
-			"r1": {Status: "complete", TaskID: "t1"},
-		},
-	}
-	svc := newTestService(t, raw)
-
-	// First spawn.
-	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
-		Purpose: PurposeWorkshop,
-	})
-	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Kind: "idea", Name: "item-a",
-	}); err != nil {
-		t.Fatalf("first spawn should succeed: %v", err)
-	}
-
-	// Second spawn — the refresh should detect that r1 completed,
-	// clearing the way for a new spawn.
-	raw.spawnResult = agentmanager.RunResult{TaskID: "t2", RunID: "r2"}
-	ctx2 := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
-		Purpose: PurposeFinalize,
-	})
-	if _, err := svc.SpawnBacklog(ctx2, agentmanager.BacklogSpawnRequest{
-		Kind: "idea", Name: "item-a",
-	}); err != nil {
-		t.Fatalf("second spawn should succeed after prior completed: %v", err)
-	}
-}
-
-func TestSpawnBacklog_AllowsStalePending(t *testing.T) {
-	t.Parallel()
-	raw := &stubAgentService{
-		enabled:     true,
-		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
-	}
-	svc := newTestService(t, raw)
-
-	// Pre-seed a stale pending record (no RunID, old timestamp).
-	staleRecord := Record{
-		ActivityID:      "stale-1",
-		OwnerType:       OwnerBacklog,
-		OwnerKind:       "idea",
-		OwnerName:       "item-a",
-		Purpose:         PurposeWorkshop,
-		InteractionType: InteractionSpawn,
-		Status:          StatusPending,
-		RequestedAt:     "2020-01-01T00:00:00Z", // well past the 5min TTL
-		UpdatedAt:       "2020-01-01T00:00:00Z",
-	}
-	if err := svc.store.Save([]Record{staleRecord}); err != nil {
-		t.Fatal(err)
-	}
-
-	// Spawn should succeed — stale pending records are auto-failed.
-	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog, OwnerKind: "idea", OwnerName: "item-a",
-		Purpose: PurposeWorkshop,
-	})
-	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Kind: "idea", Name: "item-a",
-	}); err != nil {
-		t.Fatalf("spawn should succeed with stale pending record: %v", err)
-	}
-
-	// The stale record should now be failed.
-	records, _ := svc.store.Load()
-	for _, rec := range records {
-		if rec.ActivityID == "stale-1" && rec.Status != StatusFailed {
-			t.Errorf("expected stale record to be auto-failed, got %q", rec.Status)
-		}
-	}
-}
-
-func TestSpawnBacklog_SkipsGuardForNonBacklog(t *testing.T) {
-	t.Parallel()
-	raw := &stubAgentService{
-		enabled:     true,
-		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
-	}
-	svc := newTestService(t, raw)
-
-	// Pre-seed an active capture record — should not block a new capture spawn
-	// because the per-item guard only applies to OwnerBacklog.
-	activeRecord := Record{
-		ActivityID:      "capture-1",
-		OwnerType:       OwnerCapture,
-		OwnerKind:       "",
-		OwnerName:       "some-capture",
-		Purpose:         PurposeClassify,
-		InteractionType: InteractionSpawn,
-		Status:          StatusRunning,
-		RunID:           "r0",
-		RequestedAt:     nowRFC3339(),
-		UpdatedAt:       nowRFC3339(),
-	}
-	if err := svc.store.Save([]Record{activeRecord}); err != nil {
-		t.Fatal(err)
-	}
-
-	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerCapture, OwnerName: "some-capture",
-		Purpose: PurposeClassify,
-	})
-	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{
-		Name: "some-capture",
-	}); err != nil {
-		t.Fatalf("capture spawn should not be blocked by per-item guard: %v", err)
-	}
-}
-
 func TestHasActiveAgent_ReturnsTrueWhenActive(t *testing.T) {
 	t.Parallel()
 	raw := &stubAgentService{enabled: true}
@@ -587,114 +323,6 @@ func TestHasActiveAgent_ReturnsTrueWhenActive(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Initiative-owned spawn flow
 // ---------------------------------------------------------------------------
-
-func TestSpawnInitiative_TracksRecordWithInitiativeOwner(t *testing.T) {
-	t.Parallel()
-	raw := &stubAgentService{
-		enabled:            true,
-		initiativeSpawnRes: agentmanager.RunResult{TaskID: "init-task-1", RunID: "init-run-1"},
-	}
-	svc := newTestService(t, raw)
-
-	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerInitiative,
-		OwnerName: "command-center-foundation",
-		Purpose:   PurposeFeedback,
-		Metadata: map[string]string{
-			"round_number": "3",
-			"round_slug":   "ui-rewrite",
-			"entrypoint":   "initiative.feedback",
-		},
-	})
-	res, err := svc.SpawnInitiative(ctx, agentmanager.InitiativeSpawnRequest{
-		Name:        "command-center-foundation",
-		Purpose:     "feedback",
-		RoundNumber: 3,
-		RoundSlug:   "ui-rewrite",
-	})
-	if err != nil {
-		t.Fatalf("SpawnInitiative: %v", err)
-	}
-	if res.RunID != "init-run-1" {
-		t.Fatalf("unexpected run id: %q", res.RunID)
-	}
-	if raw.initiativeSpawnCalls != 1 {
-		t.Fatalf("expected 1 spawn call, got %d", raw.initiativeSpawnCalls)
-	}
-
-	records, _ := svc.store.Load()
-	if len(records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(records))
-	}
-	rec := records[0]
-	if rec.OwnerType != OwnerInitiative {
-		t.Fatalf("expected OwnerInitiative, got %q", rec.OwnerType)
-	}
-	if rec.OwnerName != "command-center-foundation" {
-		t.Fatalf("unexpected owner name: %q", rec.OwnerName)
-	}
-	if rec.Purpose != PurposeFeedback {
-		t.Fatalf("expected PurposeFeedback, got %q", rec.Purpose)
-	}
-	if rec.Status != StatusStarting {
-		t.Fatalf("expected starting status, got %q", rec.Status)
-	}
-	if rec.RunID != "init-run-1" {
-		t.Fatalf("unexpected run id on record: %q", rec.RunID)
-	}
-	if rec.Metadata["round_number"] != "3" || rec.Metadata["round_slug"] != "ui-rewrite" || rec.Metadata["entrypoint"] != "initiative.feedback" {
-		t.Fatalf("metadata not preserved: %+v", rec.Metadata)
-	}
-}
-
-func TestSpawnInitiative_RejectsBacklogOwner(t *testing.T) {
-	t.Parallel()
-	raw := &stubAgentService{enabled: true}
-	svc := newTestService(t, raw)
-
-	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog,
-		OwnerKind: "execute",
-		OwnerName: "x",
-		Purpose:   PurposeFeedback,
-	})
-	if _, err := svc.SpawnInitiative(ctx, agentmanager.InitiativeSpawnRequest{Name: "x"}); err == nil {
-		t.Fatal("expected error when context spec is OwnerBacklog")
-	}
-	if raw.initiativeSpawnCalls != 0 {
-		t.Fatalf("expected no spawn call, got %d", raw.initiativeSpawnCalls)
-	}
-}
-
-func TestSpawnInitiative_FailureMarksRecordFailed(t *testing.T) {
-	t.Parallel()
-	raw := &stubAgentService{
-		enabled:            true,
-		initiativeSpawnErr: errors.New("agent-manager exploded"),
-	}
-	svc := newTestService(t, raw)
-
-	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerInitiative,
-		OwnerName: "init-x",
-		Purpose:   PurposeFeedback,
-	})
-	if _, err := svc.SpawnInitiative(ctx, agentmanager.InitiativeSpawnRequest{Name: "init-x"}); err == nil {
-		t.Fatal("expected spawn error")
-	}
-
-	records, _ := svc.store.Load()
-	if len(records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(records))
-	}
-	rec := records[0]
-	if rec.Status != StatusFailed {
-		t.Fatalf("expected failed status, got %q", rec.Status)
-	}
-	if rec.FailureReason == "" {
-		t.Fatal("expected failure reason to be populated")
-	}
-}
 
 func TestContinueRun_AcceptsInitiativeOwner(t *testing.T) {
 	t.Parallel()
@@ -784,68 +412,6 @@ func TestHasActiveAgent_ReturnsFalseAfterComplete(t *testing.T) {
 
 	if svc.HasActiveAgent(context.Background(), "idea", "item-a") {
 		t.Error("expected HasActiveAgent to return false after refresh shows complete")
-	}
-}
-
-func TestSpawnTracked_LaneSaturationReturnsErrLaneSaturated(t *testing.T) {
-	t.Parallel()
-
-	raw := &stubAgentService{
-		enabled:     true,
-		spawnResult: agentmanager.RunResult{TaskID: "t1", RunID: "r1"},
-	}
-	policy := &stubLanePolicy{limits: map[Lane]int{
-		LaneInvestigate: 1,
-		LaneExecute:     5,
-		LaneReview:      5,
-		LaneReconcile:   5,
-	}}
-	svc := newTestServiceWithLanePolicy(t, raw, policy)
-
-	// Pre-fill the Investigate lane with one running record.
-	pre := Record{
-		ActivityID:      "investigate-1",
-		OwnerType:       OwnerBacklog,
-		OwnerKind:       "idea",
-		OwnerName:       "item-a",
-		Purpose:         PurposeWorkshop, // → LaneInvestigate
-		InteractionType: InteractionSpawn,
-		Status:          StatusRunning,
-		RunID:           "r-existing",
-		RequestedAt:     nowRFC3339(),
-		UpdatedAt:       nowRFC3339(),
-	}
-	if err := svc.store.Save([]Record{pre}); err != nil {
-		t.Fatalf("Save: %v", err)
-	}
-
-	// Now try to spawn a *different* backlog item into the same lane —
-	// per-item busy gate doesn't trip (different name), but the lane gate
-	// should.
-	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog,
-		OwnerKind: "idea",
-		OwnerName: "item-b",
-		Purpose:   PurposeWorkshop,
-	})
-	_, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{Kind: "idea", Name: "item-b"})
-	if err == nil {
-		t.Fatal("expected ErrLaneSaturated, got nil")
-	}
-	if !errors.Is(err, ErrLaneSaturated) {
-		t.Fatalf("expected ErrLaneSaturated, got %v", err)
-	}
-
-	// And the Execute lane (cap=5) should still accept new spawns —
-	// saturation is per-lane, not global.
-	ctx = WithSpec(context.Background(), Spec{
-		OwnerType: OwnerBacklog,
-		OwnerKind: "idea",
-		OwnerName: "item-c",
-		Purpose:   PurposeProcess, // → LaneExecute
-	})
-	if _, err := svc.SpawnBacklog(ctx, agentmanager.BacklogSpawnRequest{Kind: "idea", Name: "item-c"}); err != nil {
-		t.Fatalf("Execute lane should accept; got %v", err)
 	}
 }
 

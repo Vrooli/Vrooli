@@ -33,23 +33,22 @@ const (
 type Purpose string
 
 const (
-	PurposeInitialize             Purpose = "initialize"
-	PurposeWorkshop               Purpose = "workshop"
-	PurposeFinalize               Purpose = "finalize"
-	PurposeResearch               Purpose = "research"
-	PurposeProcess                Purpose = "process"
-	PurposeFixup                  Purpose = "fixup"
-	PurposeFollowUp               Purpose = "followup"
-	PurposeSpecSync               Purpose = "spec_sync"
-	PurposeClassify               Purpose = "classify"
-	PurposeClarify                Purpose = "clarify"
-	PurposeReview                 Purpose = "review"
-	PurposeFeedback               Purpose = "feedback"
-	PurposeFeedbackContinue       Purpose = "feedback_continue"
-	PurposeInitiativeReview       Purpose = "initiative_review"
-	PurposeMetaOrchestration      Purpose = "meta_orchestration"
-	PurposeOperatingModeAuthoring Purpose = "operating_mode_authoring"
-	PurposeSwarmOperations        Purpose = "swarm_operations"
+	PurposeInitialize        Purpose = "initialize"
+	PurposeWorkshop          Purpose = "workshop"
+	PurposeFinalize          Purpose = "finalize"
+	PurposeResearch          Purpose = "research"
+	PurposeProcess           Purpose = "process"
+	PurposeFixup             Purpose = "fixup"
+	PurposeFollowUp          Purpose = "followup"
+	PurposeSpecSync          Purpose = "spec_sync"
+	PurposeClassify          Purpose = "classify"
+	PurposeClarify           Purpose = "clarify"
+	PurposeReview            Purpose = "review"
+	PurposeFeedback          Purpose = "feedback"
+	PurposeFeedbackContinue  Purpose = "feedback_continue"
+	PurposeInitiativeReview  Purpose = "initiative_review"
+	PurposeMetaOrchestration Purpose = "meta_orchestration"
+	PurposeSwarmOperations   Purpose = "swarm_operations"
 )
 
 type InteractionType string
@@ -106,11 +105,10 @@ type Spec struct {
 	ExecutionID string
 	Purpose     Purpose
 	// PhaseKind classifies the spawn for lane bookkeeping. Mirrors
-	// `operatingmode.PhaseKind` as a string to avoid an import cycle
-	// (operatingmode already imports agentactivity). Empty is allowed in
+	// a persisted phase kind as a string. Empty is allowed in
 	// P1 — P2 introduces a lane policy that consumes this field and
 	// rejects unrecognized values. Call sites should pass
-	// `string(operatingmode.PhaseKind…)`.
+	// historical activity records.
 	PhaseKind   string
 	RequestedBy string
 	Metadata    map[string]string

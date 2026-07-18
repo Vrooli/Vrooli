@@ -2,6 +2,9 @@ package review
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -10,6 +13,8 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // RunInspector retrieves the current state of an agent run.
@@ -71,6 +76,7 @@ type ServiceConfig struct {
 	// OnRoundTerminal fires when a review round transitions to complete/failed.
 	// Used to flip the backlog item's status to review_pending.
 	OnRoundTerminal RoundTerminalHandler
+	Workflow        agentmanager.WorkflowInvoker
 	// RoundMaxAge bounds how long a round may sit in `gathering` before the
 	// poller treats its run as abandoned and finalizes it as failed (which
 	// fires OnRoundTerminal so the item leaves in_review). Zero uses
@@ -88,7 +94,7 @@ const DefaultRoundMaxAge = 30 * time.Minute
 // Service provides review evidence management for completed executions.
 type Service struct {
 	dataRoot             string
-	operationStarter     OperationStarter
+	workflow             agentmanager.WorkflowInvoker
 	inspector            RunInspector
 	promptClient         promptmanager.Client
 	eventLogger          EventLogger
@@ -123,9 +129,13 @@ func NewService(cfg ServiceConfig) *Service {
 		loadExecutionContext: cfg.LoadExecutionContext,
 		planContentResolver:  cfg.PlanContentResolver,
 		onRoundTerminal:      cfg.OnRoundTerminal,
+		workflow:             cfg.Workflow,
 		roundMaxAge:          roundMaxAge,
 		clock:                time.Now,
 		activeRounds:         make(map[string]activeRound),
+	}
+	if svc.workflow == nil {
+		svc.workflow = agentmanager.NewWorkflowService()
 	}
 	return svc
 }
@@ -133,6 +143,14 @@ func NewService(cfg ServiceConfig) *Service {
 // SetEventLogger injects an optional event logger for analytics.
 func (s *Service) SetEventLogger(e EventLogger) {
 	s.eventLogger = e
+}
+
+// SetWorkflowStartGuard applies server-owned transition and integration policy
+// to the default generic workflow adapter; test fakes remain policy-free.
+func (s *Service) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
+	if workflow, ok := s.workflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetStartGuard(guard)
+	}
 }
 
 // StartReviewForExecution is called by the execution service during finalization
@@ -164,21 +182,13 @@ type startReviewParams struct {
 	BaselineDiffJSON       string // Pre-serialized before/after baseline diff per scenario
 }
 
-// startReview creates a review round and starts the review-round operation
-// through the operation runner. The runner resolves the bound backlog-review mode
-// and spawns the agent through the operating-mode engine's chokepoint; the round's
-// completion arrives through the runner completion bridge, which fires the
-// commit-review-round handler (see opshandlers.go). The round is written BEFORE
-// the start (commit-before-async) so a start failure leaves a resolvable record;
-// its run id is stamped after start so the completion handler correlates back to
-// it. The round is NOT tracked for legacy polling — it is runner-owned, and the
-// completion bridge + refresh driver own its terminal transition (see the
-// OpExecutionID guard in polling.go).
+// startReview creates a review round then invokes the declared independent-review
+// workflow with an immutable execution snapshot. Swarm retains only the local
+// review ledger and terminal operator-gate application.
 func (s *Service) startReview(ctx context.Context, params startReviewParams) error {
-	if s.operationStarter == nil {
-		return fmt.Errorf("review operation runner not available")
+	if s.workflow == nil {
+		return fmt.Errorf("independent review workflow service is not available")
 	}
-
 	roundNum, err := NextRoundNumber(params.ItemDir)
 	if err != nil {
 		return fmt.Errorf("determine next round: %w", err)
@@ -196,22 +206,36 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 		return fmt.Errorf("save review round: %w", err)
 	}
 
-	res, err := s.operationStarter.StartReviewOperation(ctx, OperationStartRequest{
-		Operation:      opReviewRound,
-		TargetKind:     targetKindBacklogItem,
-		TargetID:       params.BacklogKind + "/" + params.BacklogName,
-		IdempotencyKey: fmt.Sprintf("review-%s-r%d", params.ExecutionID, roundNum),
-		RequestedBy:    "swarm-manager",
+	encoded, err := json.Marshal(params)
+	if err != nil {
+		return fmt.Errorf("encode independent review snapshot: %w", err)
+	}
+	digest := sha256.Sum256(encoded)
+	version := "sha256:" + hex.EncodeToString(digest[:])
+	var snapshot map[string]any
+	if err := json.Unmarshal(encoded, &snapshot); err != nil {
+		return fmt.Errorf("decode independent review snapshot: %w", err)
+	}
+	input, err := structpb.NewValue(map[string]any{
+		"entity":   map[string]any{"kind": params.BacklogKind, "name": params.BacklogName, "executionId": params.ExecutionID, "version": version},
+		"snapshot": snapshot,
 	})
 	if err != nil {
-		return fmt.Errorf("start review operation: %w", err)
+		return fmt.Errorf("build independent review input: %w", err)
+	}
+	res, err := s.workflow.StartWorkflow(ctx, agentmanager.Invocation{
+		Owner: "swarm-manager", WorkflowKey: "swarm-manager/independent-review", Input: input,
+		IdempotencyKey: fmt.Sprintf("review-%s-r%d", params.ExecutionID, roundNum), FirstRunNodeID: "review",
+	})
+	if err != nil {
+		return fmt.Errorf("start independent review workflow: %w", err)
 	}
 
-	// Stamp the run association + operation execution refs on the round so the
-	// completion handler correlates back and the poller defers to the runner.
+	// Persist the pinned workflow provenance before exposing the gathering round.
 	round.RunID = res.RunID
-	round.OpWorkflowID = res.WorkflowID
-	round.OpExecutionID = res.ExecutionID
+	round.AgentWorkflowExecutionID = res.ExecutionID
+	round.AgentWorkflowDefinition = res.DefinitionDigest
+	round.AgentWorkflowVersion = version
 	if err := SaveRound(params.ItemDir, round); err != nil {
 		return fmt.Errorf("save review round run association: %w", err)
 	}
@@ -221,7 +245,7 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 	}
 
 	slog.Info("review round started", "round", roundNum, "execution_id", params.ExecutionID,
-		"run_id", res.RunID, "op_execution", res.ExecutionID)
+		"run_id", res.RunID, "workflow_execution", res.ExecutionID)
 	return nil
 }
 

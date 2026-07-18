@@ -17,14 +17,6 @@ export interface SessionContextOption extends AgentSessionContextRef {
   nodeId?: string;
 }
 
-interface OperatingModeOption {
-  mode?: string;
-  id?: string;
-  label?: string;
-  title?: string;
-  description?: string;
-}
-
 export function backlogOption(item: BacklogItem): SessionContextOption {
   const ref = `${item.kind}/${item.name}`;
   return {
@@ -98,17 +90,6 @@ export function scenarioOption(scenario: Scenario): SessionContextOption {
   };
 }
 
-export function operatingModeOption(mode: OperatingModeOption): SessionContextOption {
-  const ref = mode.mode || mode.id || mode.label || "";
-  return {
-    type: "operating_mode",
-    ref,
-    title: mode.label || mode.title || ref,
-    subtitle: mode.description,
-    nodeId: `operatingMode/${ref}`,
-  };
-}
-
 export function sessionOption(session: AgentSession): SessionContextOption {
   return {
     type: "session",
@@ -135,7 +116,7 @@ export function startupBriefOption(kind: string, title = "Startup brief", genera
     ref: `startup_brief/${kind}`,
     title,
     subtitle: generatedAt ? `Generated ${generatedAt}` : "Brief-first context and drill-down commands",
-    nodeId: kind === "swarm_operations" ? "/operations" : kind === "operating_mode_authoring" ? "/operating-modes" : "/initiatives",
+    nodeId: kind === "swarm_operations" ? "/operations" : "/initiatives",
   };
 }
 

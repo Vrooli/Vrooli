@@ -116,23 +116,24 @@ type Config struct {
 	GCTPollTimeout  time.Duration
 	PromptClient    promptmanager.Client
 	Clock           func() time.Time
+	Workflow        agentmanager.WorkflowInvoker
 }
 
 // Service orchestrates initiative review rounds.
 type Service struct {
-	initStore        InitiativeStore
-	backlogLoader    BacklogLoader
-	graphReader      GraphReader
-	operationStarter OperationStarter
-	inspector        RunInspector
-	lock             *initiativelock.Lock
-	executionLookup  ExecutionLookup
-	planContent      PlanContentResolver
-	gctClient        GCTClient
-	gctPollInterval  time.Duration
-	gctPollTimeout   time.Duration
-	promptClient     promptmanager.Client
-	clock            func() time.Time
+	initStore       InitiativeStore
+	backlogLoader   BacklogLoader
+	graphReader     GraphReader
+	workflow        agentmanager.WorkflowInvoker
+	inspector       RunInspector
+	lock            *initiativelock.Lock
+	executionLookup ExecutionLookup
+	planContent     PlanContentResolver
+	gctClient       GCTClient
+	gctPollInterval time.Duration
+	gctPollTimeout  time.Duration
+	promptClient    promptmanager.Client
+	clock           func() time.Time
 
 	mu           sync.Mutex
 	activeRounds map[string]activeRound // keyed by RunID
@@ -182,7 +183,11 @@ func NewService(cfg Config) (*Service, error) {
 		gctPollTimeout:  cfg.GCTPollTimeout,
 		promptClient:    pc,
 		clock:           clk,
+		workflow:        cfg.Workflow,
 		activeRounds:    make(map[string]activeRound),
+	}
+	if svc.workflow == nil {
+		svc.workflow = agentmanager.NewWorkflowService()
 	}
 	return svc, nil
 }
@@ -208,7 +213,7 @@ func (s *Service) ListRounds(initiativeName string) ([]review.Round, error) {
 		// Runner-owned rounds are finalized by the operation runner's completion
 		// bridge (commit-initiative-review), not this poll — defer so the two
 		// never race to drive the same round.
-		if r.RunnerOwned() {
+		if r.RunnerOwned() || r.WorkflowOwned() {
 			continue
 		}
 		state, stateErr := s.inspector.GetRunState(context.Background(), r.RunID)

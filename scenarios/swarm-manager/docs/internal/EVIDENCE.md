@@ -1,14 +1,11 @@
 # Canonical evidence
 
 Swarm Manager stores owner-neutral evidence in its SQLite event database. An
-observation is immutable producer output; an evidence link attaches it to
-exactly one Agent Session or operating-mode execution after both run-owner
-indexes have been queried. Operating-mode runs publish to one cross-target
-index when they start, so initiative and plan-target modes resolve by the same
-run identity. A bounded target-root recovery scan imports an active pre-index
-plan-target owner on its first lookup; it immediately backfills the canonical
-index and never becomes a second authority. A zero-owner result remains
-unresolved and a dual-owner result remains ambiguous: neither is guessed.
+observation is immutable producer output; an evidence link attaches it to an
+Agent Session or a workflow execution through the live owner index. Retired
+operating-mode owner records remain readable only as historical provenance; a
+zero-owner result remains unresolved and a dual-owner result remains ambiguous:
+neither is guessed.
 
 ## Trust and completeness
 

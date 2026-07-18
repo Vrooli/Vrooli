@@ -24,7 +24,6 @@
 - [ ] OT-P0-008 | Tabbed navigation UI | Header tabs (desktop) / bottom-nav (mobile) with five tabs: Backlog, Scenarios, Execution, Prompts, Settings
 - [ ] OT-P0-009 | agent-manager integration | Spawn agents for all automated work through agent-manager
 - [ ] OT-P0-010 | ecosystem-manager integration | Initialize and improve scenarios from backlog ideas via ecosystem-manager
-- [ ] OT-P0-011 | Data-defined operating-mode execution | Validate, snapshot, and replay a generic operating-mode input, prompt, output, and provenance contract without consulting mutable live definitions
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Execution control policy | Manual/scheduled/yolo defaults with configurable delay

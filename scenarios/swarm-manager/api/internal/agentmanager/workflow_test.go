@@ -77,6 +77,8 @@ func TestWorkflowServiceRejectsCanceledCompletion(t *testing.T) {
 			writeWorkflowProto(t, w, &apipb.WaitWorkflowExecutionResponse{Execution: execution}, http.StatusOK)
 		case strings.HasSuffix(r.URL.Path, "/result"):
 			writeWorkflowProto(t, w, &apipb.WorkflowExecutionResponse{Execution: execution}, http.StatusOK)
+		case strings.HasSuffix(r.URL.Path, "/trace"):
+			writeWorkflowProto(t, w, &apipb.GetWorkflowExecutionTraceResponse{Execution: execution}, http.StatusOK)
 		default:
 			http.NotFound(w, r)
 		}

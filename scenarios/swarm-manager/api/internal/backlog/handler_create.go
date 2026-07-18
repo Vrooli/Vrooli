@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 
-	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/identity"
@@ -176,11 +175,11 @@ func (h *Handler) maybeAutoWorkshop(item BacklogItem, forceOverride bool) {
 			return
 		}
 	}
-	go func(k BacklogKind, n string) {
-		if _, err := h.invokeItemOperation(context.Background(), k, n, agentops.OpResearchRefine, "", nil); err != nil {
-			slog.Error("auto-init failed", "kind", k, "name", n, "err", err)
+	go func(item BacklogItem) {
+		if _, err := h.startWorkshopRoundWorkflow(context.Background(), item, ""); err != nil {
+			slog.Error("auto-init failed", "kind", item.Kind, "name", item.Name, "err", err)
 		}
-	}(item.Kind, item.Name)
+	}(item)
 }
 
 // cascadeWorkshopTrigger finds items that depend on the given item and
@@ -227,10 +226,10 @@ func (h *Handler) cascadeWorkshopTrigger(readyItem BacklogItem) {
 		}
 
 		slog.Info("cascade triggering workshop", "kind", item.Kind, "name", item.Name, "unblocked_by", readyKey)
-		go func(k BacklogKind, n string) {
-			if _, err := h.invokeItemOperation(context.Background(), k, n, agentops.OpResearchRefine, "", nil); err != nil {
-				slog.Error("cascade workshop invoke failed", "kind", k, "name", n, "err", err)
+		go func(item BacklogItem) {
+			if _, err := h.startWorkshopRoundWorkflow(context.Background(), item, ""); err != nil {
+				slog.Error("cascade workshop invoke failed", "kind", item.Kind, "name", item.Name, "err", err)
 			}
-		}(item.Kind, item.Name)
+		}(item)
 	}
 }

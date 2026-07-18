@@ -118,6 +118,9 @@ type ServiceConfig struct {
 	BaselineEngagementRunner BaselineEngagementRunner
 	PlanRenderer             planclient.MarkdownRenderer
 	PhasedPlanWorkflow       agentmanager.PhasedPlanWorkflowService
+	ConclusionWorkflow       agentmanager.WorkflowInvoker
+	WorkWorkflow             agentmanager.WorkflowInvoker
+	SpecSyncWorkflow         agentmanager.WorkflowInvoker
 	Finalization             FinalizationConfig
 }
 
@@ -141,6 +144,9 @@ type Service struct {
 	baselineEngagementRunner BaselineEngagementRunner
 	planRenderer             planclient.MarkdownRenderer
 	phasedPlanWorkflow       agentmanager.PhasedPlanWorkflowService
+	conclusionWorkflow       agentmanager.WorkflowInvoker
+	workWorkflow             agentmanager.WorkflowInvoker
+	specSyncWorkflow         agentmanager.WorkflowInvoker
 	engagementStore          *EngagementStore
 	differ                   RunDiffer
 	stopper                  RunStopper
@@ -230,6 +236,9 @@ func NewService(cfg ServiceConfig) *Service {
 		baselineEngagementRunner: cfg.BaselineEngagementRunner,
 		planRenderer:             cfg.PlanRenderer,
 		phasedPlanWorkflow:       cfg.PhasedPlanWorkflow,
+		conclusionWorkflow:       cfg.ConclusionWorkflow,
+		workWorkflow:             cfg.WorkWorkflow,
+		specSyncWorkflow:         cfg.SpecSyncWorkflow,
 		engagementStore:          NewEngagementStore(engagementStorePath(cfg.StorePath)),
 		scenarioLifecycle:        cfg.ScenarioLifecycle,
 		scenarioHealth:           cfg.ScenarioHealthChecker,
@@ -239,6 +248,15 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	if service.phasedPlanWorkflow == nil {
 		service.phasedPlanWorkflow = agentmanager.NewWorkflowService()
+	}
+	if service.conclusionWorkflow == nil {
+		service.conclusionWorkflow = agentmanager.NewWorkflowService()
+	}
+	if service.workWorkflow == nil {
+		service.workWorkflow = agentmanager.NewWorkflowService()
+	}
+	if service.specSyncWorkflow == nil {
+		service.specSyncWorkflow = agentmanager.NewWorkflowService()
 	}
 	if differ, ok := cfg.AgentService.(RunDiffer); ok {
 		service.differ = differ

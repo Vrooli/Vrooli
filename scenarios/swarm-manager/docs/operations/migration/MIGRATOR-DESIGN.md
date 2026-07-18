@@ -1,5 +1,9 @@
 # Phase-8 migrator design (slice A preflight — design only; slice B builds it)
 
+> Historical migration design. Its implementation references are retired and
+> this document is preserved solely for migration provenance. Current behavior
+> is defined by [Target Operating Model](../../concepts/TARGET-OPERATING-MODEL.md).
+
 Concrete design for the one-shot persisted-state migrator of the
 "Declarative agent operations for backlog items and initiatives" plan, Phase 8.
 Companion documents (authoritative; this design does not restate them):

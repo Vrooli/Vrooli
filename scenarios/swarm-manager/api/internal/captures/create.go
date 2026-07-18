@@ -107,9 +107,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-trigger classification agent.
+	// Auto-trigger the declared classification workflow. Its typed output is
+	// applied separately, so the workflow never receives filesystem authority.
 	resp := map[string]any{"capture": cap}
-	runResult, err := h.spawnClassifyAgent(r, &cap)
+	cap.WorkflowEntityVersion = captureVersion(&cap)
+	start, err := h.startClassificationWorkflow(r, &cap)
 	if err != nil {
 		// Classification failed to start, but capture was created. Mark as failed
 		// with a categorized reason so the UI can show actionable guidance.
@@ -125,9 +127,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 		resp["capture"] = cap
 	} else {
-		resp["task_id"] = runResult.TaskID
-		resp["run_id"] = runResult.RunID
-		resp["base_url"] = runResult.BaseURL
+		cap.WorkflowExecutionID = start.ExecutionID
+		cap.WorkflowDefinitionDigest = start.DefinitionDigest
+		if writeErr := h.writeCapture(&cap); writeErr != nil {
+			apierr.MapError(w, "[captures] create", apierr.Internal("failed to persist classification workflow"))
+			return
+		}
+		resp["capture"] = cap
+		resp["workflow_execution_id"] = start.ExecutionID
+		resp["workflow_definition_digest"] = start.DefinitionDigest
 	}
 
 	h.invalidateTopologyGraph()

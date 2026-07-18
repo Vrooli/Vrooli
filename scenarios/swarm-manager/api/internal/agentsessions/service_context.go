@@ -101,19 +101,13 @@ func contextLimitsForKind(kind Kind) ContextLimits {
 		ContextExecution:            6,
 		ContextAgentActivity:        6,
 		ContextScenario:             3,
-		ContextOperatingMode:        3,
 		ContextSession:              2,
 		ContextOperationsBriefing:   1,
 		ContextStartupBrief:         1,
 		ContextPlanDependencyCycles: 1,
 		ContextPlanEta:              1,
 	}
-	switch kind {
-	case KindOperatingModeAuthoring:
-		return ContextLimits{Kind: kind, MaxTotal: 8, MaxPerType: common, MaxSummaryRunes: 1200}
-	default:
-		return ContextLimits{Kind: kind, MaxTotal: 12, MaxPerType: common, MaxSummaryRunes: 1200}
-	}
+	return ContextLimits{Kind: kind, MaxTotal: 12, MaxPerType: common, MaxSummaryRunes: 1200}
 }
 
 func refsWithAutoContext(kind Kind, refs []ContextRef, policy AutoContextPolicy, resolverAvailable bool) []ContextRef {

@@ -1,5 +1,9 @@
 # swarm-manager state migration — safety runbook
 
+> Historical migration runbook. It documents the retired runtime for audit
+> purposes and must not be used to operate current Swarm Manager behavior. See
+> [Target Operating Model](../../concepts/TARGET-OPERATING-MODEL.md).
+
 Operational procedure for the Phase 8 persisted-state migration of the
 "Declarative agent operations for backlog items and initiatives" plan. It exists
 to make the migration **backed-up, fenced, staged, verified, and reversible**.

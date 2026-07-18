@@ -2,7 +2,6 @@ package agentsessions
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -86,12 +85,12 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 // or if a required service is unavailable.
 func (s *Service) checkProposalApplyCapability(proposal Proposal) error {
 	switch proposal.Kind {
-	case ProposalBacklogBatchImport, ProposalOperatingModeImplementationPlan:
+	case ProposalBacklogBatchImport:
 		if s.backlogBatchApplier == nil {
 			return apierr.Unavailable("backlog batch proposal apply is unavailable")
 		}
-	case ProposalOperatingModeDraft:
-		// no extra dependency needed
+	case ProposalOperatingModeDraft, ProposalOperatingModeImplementationPlan:
+		return apierr.Wrapf(apierr.ErrNotImplemented, http.StatusGone, "legacy agent session proposal kind %q is read-only", string(proposal.Kind))
 	default:
 		return apierr.Wrapf(apierr.ErrNotImplemented, http.StatusNotImplemented, "agent session proposal kind %q apply is not implemented yet", string(proposal.Kind))
 	}
@@ -110,32 +109,6 @@ func (s *Service) executeProposalApplyWork(ctx context.Context, session *Session
 		if err != nil {
 			return nil, s.failProposalApply(session, proposal, err)
 		}
-	case ProposalOperatingModeImplementationPlan:
-		payloadJSON, extractErr := backlogBatchPayloadForOperatingModePlan(proposal.PayloadJSON)
-		if extractErr != nil {
-			return nil, s.failProposalApply(session, proposal, extractErr)
-		}
-		artifacts, err = s.backlogBatchApplier.ApplyAgentSessionBacklogBatchImport(identity.NewContext(ctx, prov), payloadJSON, prov)
-		if err != nil {
-			return nil, s.failProposalApply(session, proposal, err)
-		}
-	case ProposalOperatingModeDraft:
-		attr := AttributionFromProvenance(prov)
-		artifact, attachErr := s.AttachArtifact(ctx, Artifact{
-			SessionID:      session.ID,
-			ArtifactType:   ArtifactOperatingModeProposal,
-			Action:         ArtifactActionProposed,
-			EntityRef:      operatingModeProposalRef(*proposal),
-			Title:          proposal.Summary,
-			ProposalID:     proposal.ID,
-			RunID:          prov.RunID,
-			MutationSource: "agent_sessions.apply.operating_mode_draft",
-			Attribution:    &attr,
-		})
-		if attachErr != nil {
-			return nil, s.failProposalApply(session, proposal, attachErr)
-		}
-		artifacts = append(artifacts, artifact)
 	}
 	return artifacts, nil
 }
@@ -156,37 +129,6 @@ func (s *Service) failProposalApply(session *Session, proposal *Proposal, applyE
 		slog.Warn("agentsessions: persist session failed", "session", session.ID, "err", err)
 	}
 	return applyErr
-}
-
-func backlogBatchPayloadForOperatingModePlan(payloadJSON string) (string, error) {
-	var payload map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(payloadJSON), &payload); err != nil {
-		return "", apierr.BadRequest("invalid operating-mode implementation plan payload: %s", err)
-	}
-	for _, field := range []string{"backlog_batch_import", "batch_import", "backlog_batch"} {
-		if raw, ok := payload[field]; ok {
-			if !json.Valid(raw) {
-				return "", apierr.BadRequest("operating-mode implementation plan field %q must be valid JSON", field)
-			}
-			return string(raw), nil
-		}
-	}
-	if _, ok := payload["items"]; ok {
-		return payloadJSON, nil
-	}
-	return "", apierr.BadRequest("operating-mode implementation plan payload must include items or backlog_batch_import")
-}
-
-func operatingModeProposalRef(proposal Proposal) string {
-	var payload map[string]any
-	if err := json.Unmarshal([]byte(proposal.PayloadJSON), &payload); err == nil {
-		for _, field := range []string{"mode_id", "mode", "id", "name"} {
-			if value, ok := payload[field].(string); ok && strings.TrimSpace(value) != "" {
-				return strings.TrimSpace(value)
-			}
-		}
-	}
-	return proposal.ID
 }
 
 func findProposal(session Session, proposalID string) (Proposal, bool) {

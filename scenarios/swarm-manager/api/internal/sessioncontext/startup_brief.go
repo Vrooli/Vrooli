@@ -11,7 +11,6 @@ import (
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
-	"swarm-manager/internal/operatingmode"
 	"swarm-manager/internal/operations"
 )
 
@@ -71,8 +70,6 @@ func (r *Resolver) ResolveSessionStartupBrief(ctx context.Context, kind agentses
 		return r.operationsStartupBrief(ctx, limits)
 	case agentsessions.KindMetaOrchestration:
 		return r.portfolioStartupBrief(limits)
-	case agentsessions.KindOperatingModeAuthoring:
-		return r.operatingModeStartupBrief(limits)
 	default:
 		return agentsessions.ContextItem{}, fmt.Errorf("%w: unsupported startup brief kind", agentsessions.ErrValidation)
 	}
@@ -84,8 +81,6 @@ func kindForStartupBriefRef(ref string) (agentsessions.Kind, error) {
 		return agentsessions.KindSwarmOperations, nil
 	case agentsessions.StartupBriefMetaOrchestrationRef:
 		return agentsessions.KindMetaOrchestration, nil
-	case agentsessions.StartupBriefOperatingModeAuthoringRef:
-		return agentsessions.KindOperatingModeAuthoring, nil
 	default:
 		return "", fmt.Errorf("%w: unknown startup brief ref %q", agentsessions.ErrValidation, ref)
 	}
@@ -271,67 +266,6 @@ func (r *Resolver) portfolioStartupBrief(limits agentsessions.ContextLimits) (ag
 		Warnings: warnings,
 	}
 	return startupContextItem(agentsessions.KindMetaOrchestration, "Portfolio startup brief", b.String(), "/initiatives", metadata, limits)
-}
-
-func (r *Resolver) operatingModeStartupBrief(limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
-	now := time.Now().UTC()
-	if err := operatingmode.ValidateRegistry(); err != nil {
-		return agentsessions.ContextItem{}, err
-	}
-	modes := operatingmode.Modes()
-	var b strings.Builder
-	fmt.Fprintf(&b, "Generated: %s. Registered operating modes: %d.\n", now.Format(time.RFC3339), len(modes))
-	for _, mode := range modes {
-		def, err := operatingmode.DefinitionFor(mode)
-		if err != nil {
-			continue
-		}
-		fmt.Fprintf(&b, "- %s: %s. Target=%s strategy=%s phases=%d.\n", def.Mode, def.Label, def.Target.Kind, def.RunStrategy.Kind, len(def.PhaseGraph.Phases))
-		if len(def.BestFor) > 0 {
-			fmt.Fprintf(&b, "  Best for: %s\n", strings.Join(def.BestFor, "; "))
-		}
-		if len(def.NotFor) > 0 {
-			fmt.Fprintf(&b, "  Not for: %s\n", strings.Join(def.NotFor, "; "))
-		}
-		if def.WhenInDoubtPickInstead != "" {
-			fmt.Fprintf(&b, "  When in doubt pick instead: %s\n", def.WhenInDoubtPickInstead)
-		}
-	}
-	b.WriteString("\nAuthoring is a data task (no Go edits, no rebuild). A mode is a data folder ")
-	b.WriteString("scenarios/swarm-manager/modes/<id>/ (mode.json + example-runs/) validated by ")
-	b.WriteString(".vrooli/schemas/operating-mode.schema.json. A mode declares a target (its unit of ")
-	b.WriteString("work: backlog-item | initiative | plan-execution), per-phase reads (base ∪ target ")
-	b.WriteString("adapter), declared emits, and transitions — including classification-on-transition ")
-	b.WriteString("(a routing field derived from the handoff at the edge) and executed_by (a phase ")
-	b.WriteString("delegated to another mode, one level deep). Reuse first: start from the closest ")
-	b.WriteString("existing mode with `scaffold --start-from <mode>`, and compose the generic ")
-	b.WriteString("phased-plan-drain via executed_by instead of duplicating an execute loop. Flow: ")
-	b.WriteString("describe the workflow → propose a phase graph reusing existing modes → scaffold ")
-	b.WriteString("(--start-from) → edit → validate (covers every guarded/classified branch with an ")
-	b.WriteString("example-run) → simulate each branch and walk the operator through it → restart so ")
-	b.WriteString("the registry loads it. See docs/internal/OPERATING-MODE-AUTHORING.md.\n")
-	metadata := startupBriefMetadata{
-		Kind:             string(agentsessions.KindOperatingModeAuthoring),
-		GeneratedAt:      now.Format(time.RFC3339),
-		StaleAfter:       now.Add(startupBriefFreshnessModeSeconds * time.Second).Format(time.RFC3339),
-		FreshnessSeconds: startupBriefFreshnessModeSeconds,
-		SourceCounts:     map[string]int{"operating_modes": len(modes)},
-		RecommendedNextActions: []briefAction{
-			{ID: "classify-first", Label: "Classify before authoring", Reason: "Compare the requested workflow with existing modes before proposing a new mode."},
-			{ID: "reuse-existing", Label: "Prefer reuse", Reason: "Recommend an existing mode unless the workflow needs a distinct phase graph, artifact contract, or governance policy — and when a new mode is warranted, start from the closest existing one (scaffold --start-from) and compose the generic drain via executed_by rather than duplicating it."},
-			{ID: "propose-graph", Label: "Propose a phase graph from the description", Reason: "Turn the operator's described workflow into a concrete phase graph (target, phases, reads, classified transitions, executed_by) before touching data."},
-			{ID: "cover-then-walkthrough", Label: "Cover every branch, then walk the simulation", Reason: "Author an example-run for each guarded/classified path (validate reports uncovered branches), then simulate each branch and walk the operator through the flow to confirm it matches their mental model before registration."},
-		},
-		DrillDownCommands: []briefDrillDownCommand{
-			{Label: "Mode catalog", Command: "swarm-manager operating-mode list --json"},
-			{Label: "Mode detail", Command: "swarm-manager operating-mode get --mode <mode> --json"},
-			{Label: "Scaffold from an existing mode", Command: "swarm-manager operating-mode scaffold --id <mode> --start-from <existing-mode> --label <Label>"},
-			{Label: "Scaffold blank", Command: "swarm-manager operating-mode scaffold --id <mode> --label <Label>"},
-			{Label: "Validate + branch coverage", Command: "swarm-manager operating-mode validate --mode <mode>"},
-			{Label: "Simulate a branch", Command: "swarm-manager operating-mode simulate --mode <mode> --preset <example-run-id>"},
-		},
-	}
-	return startupContextItem(agentsessions.KindOperatingModeAuthoring, "Operating mode authoring startup brief", b.String(), "/operating-modes", metadata, limits)
 }
 
 func startupContextItem(kind agentsessions.Kind, title, summary, nodeID string, metadata startupBriefMetadata, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {

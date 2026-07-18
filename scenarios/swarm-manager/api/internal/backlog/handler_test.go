@@ -153,10 +153,10 @@ func createReadyTestItem(t *testing.T, rootDir string, kind BacklogKind, item Ba
 }
 
 type mockAgentService struct {
-	lastReq  *agentmanager.BacklogSpawnRequest
+	lastReq  any
 	result   agentmanager.RunResult
 	err      error
-	spawnedC chan struct{} // closed on SpawnBacklog call (optional)
+	spawnedC chan struct{}
 }
 
 func (m *mockAgentService) IsEnabled() bool                    { return true }
@@ -165,28 +165,12 @@ func (m *mockAgentService) ResolveURL(_ context.Context) (string, error) {
 	return "http://agent", nil
 }
 func (m *mockAgentService) GetProfileID() string { return "" }
-func (m *mockAgentService) SpawnBacklog(_ context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	m.lastReq = &req
-	if m.spawnedC != nil {
-		select {
-		case <-m.spawnedC:
-		default:
-			close(m.spawnedC)
-		}
-	}
-	return m.result, m.err
-}
-
 func (m *mockAgentService) ApproveRun(_ context.Context, _ string, _ string, _ string) error {
 	return nil
 }
 
 func (m *mockAgentService) ContinueRun(_ context.Context, _ string, _ string) error {
 	return nil
-}
-
-func (m *mockAgentService) SpawnResearch(_ context.Context, _ agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
-	return agentmanager.RunResult{}, nil
 }
 
 func (m *mockAgentService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {

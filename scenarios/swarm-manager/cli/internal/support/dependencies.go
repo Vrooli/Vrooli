@@ -6,6 +6,7 @@ type CommandFunc func(args []string) error
 
 type Dependencies struct {
 	Overview                CommandFunc
+	IntegrationStatus       CommandFunc
 	PortfolioBrief          CommandFunc
 	MigrateWorkshop         CommandFunc
 	BacklogList             CommandFunc
@@ -102,15 +103,6 @@ type Dependencies struct {
 	InitiativesReviewTrigger   CommandFunc
 	InitiativesReviewDecide    CommandFunc
 	InitiativesReviewDecisions CommandFunc
-	// Initiative operating-mode CLI (see cmd_initiatives_operating_mode.go).
-	InitiativesModeList             CommandFunc
-	InitiativesModeWorkspace        CommandFunc
-	InitiativesModeSwitch           CommandFunc
-	InitiativesModeStart            CommandFunc
-	InitiativesModeRefresh          CommandFunc
-	InitiativesModeCancel           CommandFunc
-	InitiativesModeComplete         CommandFunc
-	InitiativesModeApplyBacklogSync CommandFunc
 	// Graph projection view (see cmd_initiatives_graph.go).
 	InitiativesGraphShow  CommandFunc
 	CapturesList          CommandFunc
@@ -154,30 +146,6 @@ type Dependencies struct {
 	EvidenceEntity        CommandFunc
 	EvidenceReconcile     CommandFunc
 	EvidenceVerify        CommandFunc
-	// Top-level operating-mode catalog CLI (see cmd_operating_mode.go).
-	OperatingModeList  CommandFunc
-	OperatingModeGet   CommandFunc
-	OperatingModeBrief CommandFunc
-	OperatingModeSet   CommandFunc
-	// Self-serve operating-mode authoring CLI (see cmd_operating_mode_authoring.go).
-	OperatingModeScaffold CommandFunc
-	OperatingModeValidate CommandFunc
-	OperatingModeSimulate CommandFunc
-	OperatingModeStart    CommandFunc
-	// Agent-operations diagnostics + binding controls CLI (see
-	// cmd_agent_operations*.go).
-	AgentOpsResolveBinding     CommandFunc
-	AgentOpsValidateInvocation CommandFunc
-	AgentOpsInspectWorkflow    CommandFunc
-	AgentOpsInspectExecution   CommandFunc
-	AgentOpsCatalog            CommandFunc
-	AgentOpsCompatibleModes    CommandFunc
-	AgentOpsBindings           CommandFunc
-	AgentOpsOverrides          CommandFunc
-	AgentOpsWorkflow           CommandFunc
-	AgentOpsHistory            CommandFunc
-	AgentOpsMigrationStatus    CommandFunc
-	AgentOpsReconcile          CommandFunc
 }
 
 func APICommand(name, description string, run CommandFunc) cliapp.Command {

@@ -1,12 +1,10 @@
 package testutil
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"sync"
 
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/dispatch"
 )
 
@@ -66,41 +64,21 @@ func (e *ErrorWriter) HasStatus(code int) bool {
 	return false
 }
 
-// AgentSpawner is a recording fake for the agentmanager backlog-spawn seam.
+// AgentSpawner is a minimal enabled agent-manager double for tests that only
+// need availability while a declared workflow owns execution.
 type AgentSpawner struct {
-	mu       sync.Mutex
-	Enabled  bool
-	Result   agentmanager.RunResult
-	SpawnErr error
-	Requests []agentmanager.BacklogSpawnRequest
+	Enabled bool
 }
 
 // NewAgentSpawner returns an enabled AgentSpawner with a default success result.
 func NewAgentSpawner() *AgentSpawner {
 	return &AgentSpawner{
 		Enabled: true,
-		Result:  agentmanager.RunResult{TaskID: "task-test", RunID: "run-test"},
 	}
 }
 
 func (s *AgentSpawner) IsEnabled() bool {
 	return s.Enabled
-}
-
-func (s *AgentSpawner) SpawnBacklog(_ context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.Requests = append(s.Requests, req)
-	if s.SpawnErr != nil {
-		return agentmanager.RunResult{}, s.SpawnErr
-	}
-	return s.Result, nil
-}
-
-func (s *AgentSpawner) SpawnCount() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return len(s.Requests)
 }
 
 // RecordingScheduler counts ScheduleAll invocations for assertions.

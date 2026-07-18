@@ -12,7 +12,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  applyWorkflowLegalActions,
   getItemActions,
   scenariosFromGlobs,
 } from "../lib";
@@ -87,9 +86,6 @@ export function useBacklogDetailData({
     maturitySummaryData,
     readinessData,
     archiveTargets,
-    workflowProjection,
-    workflowProjectionError,
-    canonicalExecutionHistory,
   } = queries;
 
   // -----------------------------------------------------------------------
@@ -218,8 +214,8 @@ export function useBacklogDetailData({
         (e) => e.status === "completed" || e.status === "failed" || e.status === "canceled" || e.status === "needs_fixup",
       ),
     });
-    return applyWorkflowLegalActions(clientActions, workflowProjection ?? null);
-  }, [item, blockingMap, readinessData, agentRunIsBlocking, agentRunIsExecuting, workshopRounds, executionHistory, workflowProjection]);
+    return clientActions;
+  }, [item, blockingMap, readinessData, agentRunIsBlocking, agentRunIsExecuting, workshopRounds, executionHistory]);
 
   const isLocked = itemActions?.locked ?? false;
   const isTerminal = itemActions?.terminal ?? false;
@@ -296,10 +292,6 @@ export function useBacklogDetailData({
     refetchFiles: () => void refetchFiles(),
 
     executionHistory,
-
-    workflowProjection,
-    workflowProjectionError,
-    canonicalExecutionHistory,
 
     reviewRounds: reviewRounds ?? ([] as ReviewRound[]),
     isGatheringEvidence,

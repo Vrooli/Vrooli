@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 
@@ -103,12 +102,9 @@ func (h *Handler) parseResearchRequestBody(w http.ResponseWriter, r *http.Reques
 // Extracted from Research to remove two branches (mode check + ticker nil
 // check) from the handler body.
 func (h *Handler) cancelPendingAdvanceIfNeeded(kind BacklogKind, name, itemName string, mode ResearchMode) {
-	if mode != ResearchModeWorkshop && mode != ResearchModeFinalize {
-		return
-	}
-	if err := h.cancelDeferredAdvanceIntent(kind, itemName); err != nil {
-		slog.Warn("research: cancel pending auto-advance failed", "kind", kind, "name", name, "mode", mode, "err", err)
-	}
+	// Deferred Swarm scheduler intents were retired with the operation runner.
+	// New declared workflows own their own waits and have no local intent to
+	// cancel here.
 }
 
 // researchHandleDependencyBlocking evaluates dependency blocking for a research
@@ -273,70 +269,51 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-
-	// The bound operating mode owns prompt construction from the item folder; the
-	// entrypoint forwards the operator's typed research context (prompt + attached
-	// context) so the research-refine mode's caller-context providers can steer the
-	// round. Finalize takes no research context (its contract declares only an
-	// operator note), so caller inputs are gated to the refine operation.
-	op := operationForResearchMode(mode)
-	var callerInputs map[string]any
-	if op == agentops.OpResearchRefine {
-		callerInputs = researchRefineCallerInputs(req)
+	if mode == ResearchModeFinalize {
+		started, err := h.startPlanAuthorWorkflow(r.Context(), item)
+		if err != nil {
+			mapResearchInvokeError(w, err)
+			return
+		}
+		resp := &apipb.BacklogResearchResponse{
+			TaskId: started.ExecutionID, RunId: started.RunID, Created: time.Now().UTC().Format(time.RFC3339),
+			DryRun: false, Started: true, Message: "Plan author workflow started: " + started.ExecutionID,
+		}
+		if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
+			apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode response"))
+		}
+		return
 	}
-	handle, err := h.invokeItemOperation(r.Context(), kind, item.Name, op, "", callerInputs)
+
+	// Initialize is another bounded workshop round. Its prompt and typed outcome
+	// are owned by the declared workflow; Swarm supplies only the immutable item
+	// snapshot and the operator context.
+	handle, err := h.startWorkshopRoundWorkflow(r.Context(), item, workshopOperatorNote(req))
 	if err != nil {
 		mapResearchInvokeError(w, err)
 		return
 	}
 
 	resp := &apipb.BacklogResearchResponse{
-		TaskId:  handle.TaskID,
+		TaskId:  handle.ExecutionID,
 		RunId:   handle.RunID,
-		BaseUrl: handle.BaseURL,
-		Created: handle.CreatedAt,
+		Created: time.Now().UTC().Format(time.RFC3339),
 		DryRun:  false,
 		Started: true,
-		Message: "Research operation started.",
+		Message: "Backlog workshop workflow started: " + handle.ExecutionID,
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode response"))
 	}
 }
 
-// researchRefineCallerInputs maps the research request's operator-supplied context
-// onto the research-refine operation's typed caller inputs. Only non-empty fields
-// are included, so the pinned snapshot carries exactly what the operator supplied;
-// a request with no context yields a nil map (an empty caller-input set, which the
-// mode still accepts). The repeated context fields are joined one-per-line to match
-// the CONTEXT_* providers' rendered shape.
-//
-// GAP_REPORT is intentionally NOT forwarded here: the readiness/gap report the
-// legacy finalize prompt embedded is now the operating mode's concern, derived from
-// the item folder rather than passed by the caller (see the Research handler), and
-// there is no request field carrying one.
-func researchRefineCallerInputs(req *apipb.BacklogResearchRequest) map[string]any {
-	if req == nil {
-		return nil
-	}
-	inputs := map[string]any{}
-	putCallerString(inputs, "USER_PROMPT", readOptionalString(req.Prompt))
-	putCallerString(inputs, "CONTEXT_PATHS", strings.Join(req.GetContextPaths(), "\n"))
-	putCallerString(inputs, "CONTEXT_TARGETS", strings.Join(req.GetContextTargetIds(), "\n"))
-	putCallerString(inputs, "CONTEXT_REQUIREMENTS", strings.Join(req.GetContextRequirementIds(), "\n"))
-	if len(inputs) == 0 {
-		return nil
-	}
-	return inputs
-}
-
 // mapResearchInvokeError classifies a runner Invoke error into the API error the
 // legacy spawn path returned (unavailable / busy / internal).
 func mapResearchInvokeError(w http.ResponseWriter, err error) {
-	switch mapInvokeError(err).kind {
-	case invokeUnavailable:
+	switch classifyWorkflowStartError(err) {
+	case workflowStartUnavailable:
 		apierr.MapError(w, "[backlog] research", apierr.Unavailable("agent-manager is not available"))
-	case invokeBusy:
+	case workflowStartBusy:
 		apierr.MapError(w, "[backlog] research", apierr.Conflict("an agent is already active for this backlog item"))
 	default:
 		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to start research operation"))

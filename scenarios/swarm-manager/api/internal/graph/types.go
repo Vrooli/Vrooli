@@ -51,22 +51,10 @@ type GraphInitiativeRollup struct {
 
 // GraphInitiativeNodeData describes an initiative node payload.
 type GraphInitiativeNodeData struct {
-	Name          string                      `json:"name"`
-	Title         string                      `json:"title"`
-	Status        string                      `json:"status"`
-	OperatingMode string                      `json:"operating_mode,omitempty"`
-	ActiveRound   *GraphInitiativeActiveRound `json:"active_round,omitempty"`
-	Rollup        GraphInitiativeRollup       `json:"rollup"`
-}
-
-// GraphInitiativeActiveRound surfaces the first non-terminal round of an
-// initiative's operating mode so the workspace graph can render a phase chip
-// + pulse without re-deriving state from per-initiative workspace endpoints.
-type GraphInitiativeActiveRound struct {
-	Mode   string `json:"mode"`
-	Phase  string `json:"phase"`
-	Round  int    `json:"round"`
-	Status string `json:"status"`
+	Name   string                `json:"name"`
+	Title  string                `json:"title"`
+	Status string                `json:"status"`
+	Rollup GraphInitiativeRollup `json:"rollup"`
 }
 
 // GraphCaptureNodeData describes a capture node payload.

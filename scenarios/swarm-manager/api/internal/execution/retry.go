@@ -3,7 +3,6 @@ package execution
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"swarm-manager/internal/apierr"
@@ -75,35 +74,10 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		return Record{}, fmt.Errorf("cannot retry: %w", loadErr)
 	}
 
-	// Build the unified execution prompt with run_type="retry". Critically:
-	// no ReviewFeedback (we are not iterating on prior feedback) — the only
-	// channel for user context is the optional Note, surfaced via the
-	// FollowUpNote slot in the prompt template.
-	itemDir := s.itemDir(item.Kind, item.Name)
 	preflight := s.processPreflightForItem(item, false)
 	if !preflight.Ready && !parent.Force && hasNonForceableExecutionReasons(preflight.BlockingReasons) {
 		return Record{}, apierr.BadRequest("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
 	}
-	deliverable, err := s.resolveExecutionDeliverable(ctx, item, itemDir)
-	if err != nil {
-		return Record{}, apierr.BadRequest("%s", err.Error())
-	}
-	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, preflight, deliverable.Path)
-	if handoffErr != nil {
-		slog.Warn("failed to build idea handoff for retry", "kind", item.Kind, "name", item.Name, "err", handoffErr)
-	}
-	prompt := buildExecutionPrompt(executionPromptParams{
-		Kind:               item.Kind,
-		Name:               item.Name,
-		Title:              item.Title,
-		ItemFolder:         itemDir,
-		RunType:            "retry",
-		DeliverablePath:    deliverable.Path,
-		DeliverableContent: deliverable.Markdown,
-		FollowUpNote:       strings.TrimSpace(req.Note),
-		IdeaHandoff:        ideaHandoff,
-		SuggestedSkills:    item.SuggestedSkills,
-	})
 
 	now := nowRFC3339()
 	retryRecord := Record{
@@ -116,85 +90,31 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		StartedBy:         "swarm-manager:retry",
 		Operation:         "retry",
 		ParentExecutionID: parent.ExecutionID,
-		// FixupAttempt intentionally not carried forward: a retry is a user
-		// action, not an auto-fixup. Conflating would consume the fixup-attempt
-		// budget for unrelated reasons.
-		PromptTrace: &PromptTrace{
-			Purpose:        "retry",
-			Prompt:         prompt,
-			PromptRevision: promptRevision(prompt),
-			UsedFallback:   false,
-			// Reconstructed caller-context provenance; the agent runs the
-			// bound operation's mode prompt (see PromptTrace doc).
-			Synthetic:  true,
-			CapturedAt: now,
-		},
-		CreatedAt: now,
-		UpdatedAt: now,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 
-	// Retry re-drains as a brand-new attempt. Plan-backed items start the
-	// execution-retry operation against their plan-execution target (mirroring the
-	// primary start; Retry-as-New-Attempt lineage is preserved on the record).
-	// Research-conclusion items have no plan_ref and retry through the
-	// research-conclude operation. "Continue existing session" semantics belong
-	// to FollowUp, never here.
+	// Retry creates a new declared workflow execution with its own immutable
+	// intent, never an operation-runner retry. Plan-backed work uses the same
+	// phase-drain declaration as a first attempt; planless research uses its
+	// declared conclusion workflow. The parent link remains Swarm domain data.
 	if hasExecutionPlanRef(item) {
-		if s.operationStarter == nil {
-			return Record{}, apierr.Unavailable("execution operation runner is not available")
-		}
-		planHandle, herr := executionPlanHandle(item)
-		if herr != nil {
-			return Record{}, apierr.BadRequest("%s", herr.Error())
-		}
-		var inputs map[string]string
-		if note := strings.TrimSpace(req.Note); note != "" {
-			inputs = map[string]string{"RETRY_NOTE": note}
-		}
-		res, opErr := s.operationStarter.StartOperation(ctx, OperationStartRequest{
-			Operation:        operationExecutionRetry,
-			OperationVersion: operationVersionPinned,
-			TargetKind:       targetKindPlanExecution,
-			TargetID:         planHandle,
-			CallerInputs:     inputs,
-			IdempotencyKey:   "exec-" + retryRecord.ExecutionID,
-			RequestedBy:      retryRecord.StartedBy,
-		})
-		if opErr != nil {
-			return Record{}, wrapAgentError(fmt.Errorf("start retry operation failed: %w", opErr))
-		}
-		retryRecord.RunID = res.RunID
-		retryRecord.OpWorkflowID = res.WorkflowID
-		retryRecord.OpExecutionID = res.ExecutionID
-		retryRecord.Status = StatusStarting
-		retryRecord.StartedAt = now
+		records = append(records, retryRecord)
+		return s.startPlanOperationLocked(ctx, records, len(records)-1, retryRecord, item)
 	} else {
-		// Research-conclusion items (no plan_ref) retry as a fresh research-conclude
-		// operation against their backlog-item target — the same operation their
-		// primary execution uses (retry-as-new-attempt lineage preserved on the
-		// record). The optional note rides as OPERATOR_NOTE.
-		if s.operationStarter == nil {
-			return Record{}, apierr.Unavailable("execution operation runner is not available")
+		res, snapshot, startErr := s.startConclusionWorkflow(ctx, item, retryRecord, req.Note)
+		if startErr != nil {
+			return Record{}, wrapAgentError(fmt.Errorf("start retry conclusion workflow failed: %w", startErr))
 		}
-		var inputs map[string]string
-		if note := strings.TrimSpace(req.Note); note != "" {
-			inputs = map[string]string{"OPERATOR_NOTE": note}
-		}
-		res, opErr := s.operationStarter.StartOperation(ctx, OperationStartRequest{
-			Operation:        operationResearchConclude,
-			OperationVersion: operationVersionPinned,
-			TargetKind:       targetKindBacklogItem,
-			TargetID:         item.Kind + "/" + item.Name,
-			CallerInputs:     inputs,
-			IdempotencyKey:   "exec-" + retryRecord.ExecutionID,
-			RequestedBy:      retryRecord.StartedBy,
-		})
-		if opErr != nil {
-			return Record{}, wrapAgentError(fmt.Errorf("start retry conclusion operation failed: %w", opErr))
+		if strings.TrimSpace(res.ExecutionID) == "" {
+			return Record{}, apierr.BadGateway("research-conclude workflow started but returned no execution id")
 		}
 		retryRecord.RunID = res.RunID
-		retryRecord.OpWorkflowID = res.WorkflowID
-		retryRecord.OpExecutionID = res.ExecutionID
+		retryRecord.TaskID = res.ExecutionID
+		retryRecord.AgentWorkflowExecutionID = res.ExecutionID
+		retryRecord.AgentWorkflowKey = "swarm-manager/research-conclude"
+		retryRecord.AgentWorkflowDefinition = res.DefinitionDigest
+		retryRecord.AgentWorkflowEntityVersion = snapshot.EntityVersion
 		retryRecord.Status = StatusStarting
 		retryRecord.StartedAt = now
 	}

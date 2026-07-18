@@ -26,9 +26,7 @@
     "18-app-issue-tracker-integration/module.json",
     "19-test-genie-integration/module.json",
     "20-settings-modal/module.json",
-    "21-data-defined-operating-mode-execution/module.json",
-    "22-verified-evidence-ledger/module.json",
-    "23-declarative-agent-operations/module.json"
+    "22-verified-evidence-ledger/module.json"
   ],
   "modules": [
     {
@@ -152,22 +150,10 @@
       "title": "Settings modal"
     },
     {
-      "id": "MOD-P0-011",
-      "path": "21-data-defined-operating-mode-execution",
-      "priority": "P0",
-      "title": "Data-defined operating-mode execution"
-    },
-    {
       "id": "MOD-P1-021",
       "path": "22-verified-evidence-ledger",
       "priority": "P1",
       "title": "Verified evidence ledger"
-    },
-    {
-      "id": "MOD-P0-012",
-      "path": "23-declarative-agent-operations",
-      "priority": "P0",
-      "title": "Declarative agent operations"
     }
   ]
 }

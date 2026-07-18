@@ -138,17 +138,6 @@ func encodeInitiativeNodeData(value *GraphInitiativeNodeData) (*domainpb.GraphNo
 			Pending:    value.Rollup.Pending,
 		},
 	}
-	if value.OperatingMode != "" {
-		initiative.OperatingMode = proto.String(value.OperatingMode)
-	}
-	if value.ActiveRound != nil {
-		initiative.ActiveRound = &domainpb.GraphInitiativeActiveRound{
-			Mode:   value.ActiveRound.Mode,
-			Phase:  value.ActiveRound.Phase,
-			Round:  int32(value.ActiveRound.Round),
-			Status: value.ActiveRound.Status,
-		}
-	}
 	return &domainpb.GraphNodeData{
 		Value: &domainpb.GraphNodeData_Initiative{
 			Initiative: initiative,

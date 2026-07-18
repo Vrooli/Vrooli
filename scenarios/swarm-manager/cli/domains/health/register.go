@@ -14,6 +14,7 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		Title: "Overview",
 		Commands: []cliapp.Command{
 			support.APICommand("overview", "Full backlog situational awareness [--format json|markdown]", deps.Overview),
+			support.APICommand("integrations", "Show shared integration availability, freshness, and degradation [--json]", deps.IntegrationStatus),
 		},
 	}
 }

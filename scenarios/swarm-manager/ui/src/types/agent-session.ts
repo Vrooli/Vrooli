@@ -16,6 +16,10 @@ import type { ProtoMessage } from "./shared";
 
 export type AgentSessionKind = "meta_orchestration" | "operating_mode_authoring" | "swarm_operations";
 
+/** Session kinds that can be started by current UI controls. The retired kind
+ * remains in AgentSessionKind solely so historical records can be displayed. */
+export type CreatableAgentSessionKind = Exclude<AgentSessionKind, "operating_mode_authoring">;
+
 export type AgentSessionStatus =
   | "draft"
   | "starting"

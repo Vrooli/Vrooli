@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/testutil"
 )
@@ -13,7 +12,7 @@ import (
 // that a settings-store outage (DefaultPolicyControls fallback) behaves
 // exactly like a missing settings file (DefaultSettings projection).
 func TestDefaultPolicyControlsEqualsDefaultSettingsProjection(t *testing.T) {
-	got := agentops.DefaultPolicyControls()
+	got := DefaultPolicyControls()
 	want := ProjectPolicyControls(DefaultSettings())
 	if got != want {
 		t.Fatalf("DefaultPolicyControls() = %+v, want projection of DefaultSettings() = %+v", got, want)

@@ -115,36 +115,7 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
         },
       ];
     case "operating_mode_authoring":
-      return [
-        {
-          id: "mode-describe",
-          icon: Workflow,
-          text: "Describe a workflow and I'll propose a phase graph that reuses existing modes.",
-          detail: "Name the unit of work and each step; I'll map it to a target, phases, reads, and classified transitions before writing any data.",
-        },
-        {
-          id: "mode-start-from",
-          icon: GitPullRequestArrow,
-          text: "Start a new mode from the closest existing one, then adapt it.",
-          detail: "Reuse-first: clone an existing mode (or compose the generic drain via executed_by) instead of a blank template.",
-          contextText: (title) => `Start a new mode from "${title}", then adapt it.`,
-          requirements: [{ kind: "context", type: "operating_mode" }],
-        },
-        {
-          id: "mode-compare",
-          icon: Gauge,
-          text: "Compare this workflow against an existing operating mode.",
-          contextText: (title) => `Compare this workflow against "${title}".`,
-          requirements: [{ kind: "context", type: "operating_mode" }],
-        },
-        {
-          id: "mode-initiative",
-          icon: Layers,
-          text: "Design an operating mode for this initiative's workflow.",
-          contextText: (title) => `Design an operating mode for the workflow behind "${title}".`,
-          requirements: [{ kind: "context", type: "initiative" }],
-        },
-      ];
+      return [];
     case "meta_orchestration":
     default:
       return [

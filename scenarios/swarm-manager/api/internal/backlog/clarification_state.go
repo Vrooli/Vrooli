@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentops"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/workshop"
@@ -282,13 +281,13 @@ func (h *Handler) clarificationActionInvalidateRound(w http.ResponseWriter, r *h
 	if _, delErr := workshop.DeleteRoundAndRenumber(itemDir, thread.RoundNumber); delErr != nil {
 		slog.Error("clarification-action delete round failed", "err", delErr)
 	}
-	// Start a fresh workshop round through the runner.
+	// Start a fresh workshop round through the declared workflow.
 	item, loadErr := h.store.LoadItem(kind, name)
 	if loadErr == nil {
-		handle, invokeErr := h.invokeItemOperation(r.Context(), kind, item.Name, agentops.OpWorkshopRound, "", nil)
+		handle, invokeErr := h.startWorkshopRoundWorkflow(r.Context(), item, "")
 		if invokeErr == nil {
 			resp.RunId = &handle.RunID
-			resp.TaskId = &handle.TaskID
+			resp.TaskId = &handle.ExecutionID
 		} else {
 			slog.Error("clarification-action workshop invoke failed", "err", invokeErr)
 		}

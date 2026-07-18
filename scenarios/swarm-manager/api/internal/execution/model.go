@@ -123,6 +123,7 @@ type Record struct {
 	// its idempotent backlog transition still needs finishing; "complete" means
 	// that transition has been applied exactly once from this consumer's view.
 	AgentWorkflowExecutionID   string                      `json:"agent_workflow_execution_id,omitempty"`
+	AgentWorkflowKey           string                      `json:"agent_workflow_key,omitempty"`
 	AgentWorkflowDefinition    string                      `json:"agent_workflow_definition_digest,omitempty"`
 	AgentWorkflowFrontier      string                      `json:"agent_workflow_frontier_digest,omitempty"`
 	AgentWorkflowEntityVersion string                      `json:"agent_workflow_entity_version,omitempty"`
@@ -276,7 +277,7 @@ type GoalReadyItem struct {
 type GovernanceSettings struct {
 	// LaneLimits caps simultaneous tracked agent activity by phase-kind
 	// lane. Keys are lane names matching agentactivity.Lane /
-	// operatingmode.PhaseKind: "investigate", "execute", "review",
+	// Phase kinds: "investigate", "execute", "review",
 	// "reconcile". Zero or missing keys fall back to the per-lane default
 	// in DefaultGovernanceSettings — see docs/internal/SEAMS.md
 	// "Concurrency Lane Boundary" for the full contract.

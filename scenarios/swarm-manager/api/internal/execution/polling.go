@@ -35,15 +35,9 @@ func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// Workflow-owned records use Agent Manager's durable WorkflowExecution as
-	// their completion authority. Collect and apply them outside the service
-	// lock; ApplyPhasedPlanWorkflow takes the lock while persisting its replay
-	// claim and terminal consumer transition.
-	for _, executionID := range s.workflowApplyCandidates() {
-		if _, applyErr := s.ApplyPhasedPlanWorkflow(ctx, executionID); applyErr != nil && !errors.Is(applyErr, agentmanager.ErrWorkflowNotReady) {
-			slog.Warn("phased-plan workflow result reconciliation failed", "execution_id", executionID, "err", applyErr)
-		}
-	}
+	// Workflow-owned records are applied only through the explicit workflow
+	// apply endpoint. This legacy housekeeping pass must not poll Agent Manager
+	// or decide when a workflow's terminal result becomes domain state.
 	// Pre-merge engagement holds (plan P-b.3): open shadow restore points from
 	// the actual diff and approve the merge for runs parked at needs_review.
 	// Runs outside the service lock (baseline start is slow); a failure leaves the
@@ -67,26 +61,6 @@ func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
 	s.drainPendingLocked(ctx)
 
 	return nil
-}
-
-func (s *Service) workflowApplyCandidates() []string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	records, err := s.store.Load()
-	if err != nil {
-		slog.Warn("phased-plan workflow reconciliation could not load executions", "err", err)
-		return nil
-	}
-	var candidates []string
-	for _, record := range records {
-		if strings.TrimSpace(record.AgentWorkflowExecutionID) == "" || record.AgentWorkflowApplyState == workflowApplyComplete {
-			continue
-		}
-		if isInspectableStatus(record.Status) || record.AgentWorkflowApplyState == workflowApplyClaimed {
-			candidates = append(candidates, record.ExecutionID)
-		}
-	}
-	return pathutil.UniqueSortedStrings(candidates)
 }
 
 // drainRef is the goal-priority map key for a pending record.

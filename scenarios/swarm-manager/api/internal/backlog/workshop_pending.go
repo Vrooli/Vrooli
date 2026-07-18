@@ -25,15 +25,10 @@ func (h *Handler) WorkshopCancelPendingAdvance(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Auto-advance no longer creates a Swarm scheduler intent. A declared
+	// workflow must model any future wait itself, so historical requests are a
+	// harmless no-op.
 	cancelled := false
-	if h.opsScheduler != nil {
-		before := h.hasScheduledAdvance(kind, name)
-		if err := h.cancelDeferredAdvanceIntent(kind, name); err != nil {
-			apierr.MapError(w, "[backlog] workshop-cancel-pending", apierr.Internal("failed to cancel pending advance"))
-			return
-		}
-		cancelled = before && !h.hasScheduledAdvance(kind, name)
-	}
 
 	if cancelled {
 		slog.Info("workshop pending advance cancelled", "kind", kind, "name", name)

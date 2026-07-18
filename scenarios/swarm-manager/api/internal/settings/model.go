@@ -101,7 +101,7 @@ type Settings struct {
 	// Concurrency and governance.
 	// LaneConcurrencyLimits caps simultaneous tracked agent activities by
 	// phase-kind lane. Keys are lane names matching agentactivity.Lane /
-	// operatingmode.PhaseKind values: "investigate", "execute", "review",
+	// Phase kinds: "investigate", "execute", "review",
 	// "reconcile". Values <= 0 are clamped to 1 by normalize. Replaces the
 	// pre-P2 single global cap.
 	LaneConcurrencyLimits         map[string]int `json:"lane_concurrency_limits"`

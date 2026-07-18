@@ -99,7 +99,6 @@ const SESSION_STATUSES = ["starting", "running", "waiting_for_user", "proposal_r
 const SESSION_KINDS = [
   { value: "meta_orchestration", label: "Plan work" },
   { value: "swarm_operations", label: "Operations" },
-  { value: "operating_mode_authoring", label: "Author modes" },
 ] as const;
 
 function toggleInArray<T>(arr: T[], value: T): T[] {
@@ -309,7 +308,6 @@ function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captur
     case "goals": return sortChanged;
     case "executions": return executions.statuses.length > 0 || executions.modes.length > 0 || sortChanged;
     case "sessions": return sessions.statuses.length > 0 || sessions.kinds.length > 0 || sessions.activeOnly || sessions.hasProposals || sessions.hasAppliedArtifacts || sortChanged;
-    case "operatingModes": return sortChanged;
   }
 }
 

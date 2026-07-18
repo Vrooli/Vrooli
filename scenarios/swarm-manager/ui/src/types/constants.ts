@@ -5,7 +5,7 @@
  * Presentation-layer code should import these rather than defining their own.
  */
 
-import { Activity, Bot, Bug, Circle, CheckCircle, AlertCircle, Cpu, Layers, Lightbulb, MessageSquare, Package, Rocket, Search, Target, Trophy, Wrench, Zap, type LucideIcon } from "lucide-react";
+import { Activity, Bot, Bug, Circle, CheckCircle, AlertCircle, Cpu, Lightbulb, MessageSquare, Package, Rocket, Search, Target, Trophy, Wrench, Zap, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
 import type { BacklogKind, BacklogStatus } from "./backlog";
 import type { CaptureStatus } from "./capture";
@@ -171,7 +171,6 @@ export type SidebarEntityType =
   | "captures"
   | "initiatives"
   | "goals"
-  | "operatingModes"
   | "executions"
   | "sessions";
 
@@ -185,7 +184,6 @@ export const SIDEBAR_TAB_ICONS: Record<SidebarEntityType, LucideIcon> = {
   captures: ENTITY_TYPE_ICONS.capture,
   initiatives: ENTITY_TYPE_ICONS.initiative,
   goals: ENTITY_TYPE_ICONS.goal,
-  operatingModes: Layers,
   executions: ENTITY_TYPE_ICONS.execution,
   sessions: Bot,
 };

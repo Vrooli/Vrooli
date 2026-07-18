@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { BottomSheet } from "../../ui/bottom-sheet";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { CompactTabBar } from "../../ui/compact-tab-bar";
 import { cn } from "../../../lib/utils";
 import { selectors } from "../../../consts/selectors";
-import { initiativeModeService } from "../../../services";
 import {
   useAgentActivitiesStore,
   useAgentSessionStore,
@@ -23,7 +21,6 @@ import { BacklogCard } from "../../backlog/backlog-card";
 import { InitiativeSummaryCard } from "../../initiative/initiative-summary-card";
 import { ExecutionSummaryCard } from "../../execution/execution-summary-card";
 import { ScenarioSummaryCard } from "../../scenario/scenario-summary-card";
-import { OperatingModeCard } from "../../initiative/operating-mode/operating-mode-card";
 import { SessionSummaryCard } from "../session-summary-card";
 import { PickModeRow } from "./selectable-card";
 import type { CardSelection } from "./selectable";
@@ -37,7 +34,6 @@ import {
   contextKey,
   executionOption,
   initiativeOption,
-  operatingModeOption,
   operationsBriefingOption,
   scenarioOption,
   sessionOption,
@@ -98,11 +94,6 @@ function SessionContextPickerContent({
   const scenarios = useScenariosStore((s) => s.scenarios);
   const fetchSessions = useAgentSessionStore((s) => s.fetchSessions);
   const sessions = useAgentSessionStore((s) => s.sessions);
-  const modesQuery = useQuery({
-    queryKey: ["operating-modes", "catalog"],
-    queryFn: () => initiativeModeService.catalog(),
-    enabled: isOpen && allowedTypes.includes("operating_mode"),
-  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -128,11 +119,10 @@ function SessionContextPickerContent({
     executions,
     activities,
     scenarios,
-    modes: modesQuery.data?.modes ?? [],
     sessions,
     sessionKind,
     currentSessionId,
-  }), [activities, backlogItems, captures, currentSessionId, executions, initiatives, modesQuery.data?.modes, scenarios, sessionKind, sessions]);
+  }), [activities, backlogItems, captures, currentSessionId, executions, initiatives, scenarios, sessionKind, sessions]);
 
   // Phase-3 narrowing: when opened from a starter card carrying a filter key,
   // the targeted type's list (and its tab count) shrink to the actionable subset,
@@ -249,14 +239,6 @@ function SessionContextPickerContent({
           .slice(0, 80)
           .map(({ entity, option }) => (
             <ScenarioSummaryCard key={contextKey(option.type, option.ref)} scenario={entity} selection={selectionFor(option)} />
-          ));
-      case "operating_mode":
-        return (modesQuery.data?.modes ?? [])
-          .map((entity) => ({ entity, option: operatingModeOption(entity) }))
-          .filter(({ option }) => option.ref && matchesNeedle(option))
-          .slice(0, 80)
-          .map(({ entity, option }) => (
-            <OperatingModeCard key={contextKey(option.type, option.ref)} mode={entity} selection={selectionFor(option)} />
           ));
       case "capture":
         return captures.map(captureOption).filter(matchesNeedle).slice(0, 80).map(fallbackRow);

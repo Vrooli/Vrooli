@@ -19,7 +19,7 @@ import type {
 // Tab Definitions
 // ============================================================================
 
-export const SIDEBAR_TABS = ["backlog", "captures", "initiatives", "goals", "operatingModes", "executions", "sessions"] as const;
+export const SIDEBAR_TABS = ["backlog", "captures", "initiatives", "goals", "executions", "sessions"] as const;
 export type SidebarTab = (typeof SIDEBAR_TABS)[number];
 
 export const TAB_LABELS: Record<SidebarTab, string> = {
@@ -27,7 +27,6 @@ export const TAB_LABELS: Record<SidebarTab, string> = {
   captures: "Captures",
   initiatives: "Initiatives",
   goals: "Goals",
-  operatingModes: "Operating Modes",
   executions: "Executions",
   sessions: "Sessions",
 };
@@ -49,7 +48,6 @@ export const DEFAULT_SORT: Record<SidebarTab, SortConfig> = {
   captures: { field: "recency", direction: "desc" },
   initiatives: { field: "alphabetical", direction: "asc" },
   goals: { field: "priority", direction: "desc" },
-  operatingModes: { field: "alphabetical", direction: "asc" },
   executions: { field: "recency", direction: "desc" },
   sessions: { field: "recency", direction: "desc" },
 };
@@ -93,7 +91,6 @@ export interface TabFilters {
   captures: CaptureFilters;
   initiatives: InitiativeFilters;
   goals: Record<string, never>;
-  operatingModes: Record<string, never>;
   executions: ExecutionFilters;
   sessions: SessionFilters;
 }
@@ -103,7 +100,6 @@ export const DEFAULT_FILTERS: TabFilters = {
   captures: { statuses: [] },
   initiatives: { statuses: [], showArchived: false },
   goals: {},
-  operatingModes: {},
   executions: { statuses: [], modes: [] },
   sessions: { statuses: [], kinds: [], activeOnly: false, hasProposals: false, hasAppliedArtifacts: false },
 };

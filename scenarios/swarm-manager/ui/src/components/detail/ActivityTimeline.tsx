@@ -47,7 +47,7 @@ const ACTIVITY_PURPOSE_COLORS: Record<AgentActivityPurpose, string> = {
   feedback_continue: "bg-yellow-500",
   initiative_review: "bg-purple-500",
   meta_orchestration: "bg-fuchsia-500",
-  operating_mode_authoring: "bg-rose-500",
+  operating_mode_authoring: "bg-slate-500",
   swarm_operations: "bg-emerald-500",
 };
 

@@ -36,7 +36,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution/{execution_id}/prompt-trace", h.GetPromptTrace).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}/start", h.Start).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/cancel", h.Cancel).Methods("POST")
-	r.HandleFunc("/api/v1/execution/{execution_id}/workflow/apply", h.ApplyPhasedPlanWorkflow).Methods("POST")
+	r.HandleFunc("/api/v1/execution/{execution_id}/workflow/apply", h.ApplyWorkflow).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/workflow/approve", h.ApprovePhasedPlanWorkflow).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/retry", h.Retry).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/follow-up", h.FollowUp).Methods("POST")

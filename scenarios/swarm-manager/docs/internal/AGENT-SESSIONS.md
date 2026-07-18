@@ -1,6 +1,6 @@
 # Agent Sessions
 
-Agent Sessions are durable Swarm Manager-owned conversations with Agent Manager runs. They are used for workflows that need more context and iteration than Quick Capture, such as meta-orchestration, Swarm operations, and operating-mode authoring.
+Agent Sessions are durable Swarm Manager-owned human conversations backed by Agent Manager runs. Programmatic prompt composition and typed result handling belong to declared Agent Manager workflows, not sessions.
 
 ## Lifecycle
 
@@ -56,7 +56,6 @@ Supported context ref types are closed at the API boundary:
 | `execution` | Attach an execution-control record. |
 | `agent_activity` | Attach tracked Agent Manager activity. |
 | `scenario` | Attach scenario status and metadata. |
-| `operating_mode` | Attach an operating-mode recommendation or definition reference. |
 | `session` | Attach another Agent Session summary for continuity. |
 | `startup_brief` | Attach the kind-specific startup packet used to answer broad first prompts quickly. |
 | `operations_briefing` | Attach the current operations briefing directly for operations drill-downs. |
@@ -98,8 +97,7 @@ Initial session kinds are closed at the contract boundary:
 | Kind | Skill | Purpose |
 |---|---|---|
 | `meta_orchestration` | `swarm-manager-meta-orchestrator` | Conversational planning that can propose multiple initiatives and backlog items in one audited apply action. |
-| `swarm_operations` | `swarm-manager-operations-session` | Conversational operations coordination for initiative progress, pending decisions, run review, and operating-mode recommendations. It routes decision draining to `workshop-decision-sync` and keeps mutations operator-gated. |
-| `operating_mode_authoring` | `swarm-manager-operating-mode-authoring` | Conversational operating-mode proposal work, followed by proposal-backed implementation planning. |
+| `swarm_operations` | `swarm-manager-operations-session` | Conversational operations coordination for initiative progress, pending decisions, and run review. It routes decision draining to `workshop-decision-sync` and keeps mutations operator-gated. |
 
 Adding a kind should mean adding a skill mapping, prompt builder behavior if needed, allowed proposal kinds, tests, stats expectations, and docs. Do not add an untyped generic chat mode to bypass those contracts.
 
@@ -133,10 +131,8 @@ Supported proposal kinds:
 | Kind | Apply behavior |
 |---|---|
 | `backlog_batch_import` | Uses the backlog batch applier to create or update initiatives and create multiple backlog items in one audited action. |
-| `operating_mode_draft` | Records an accepted operating-mode proposal artifact linked to the session. It does not edit operating-mode code. |
-| `operating_mode_implementation_plan` | Extracts a backlog batch payload from `items` or `backlog_batch_import` and creates implementation work through the same audited batch applier. |
 
-Proposal apply never lets a session agent directly mutate project-management files or operating-mode registry code from the chat flow. The session can propose; Swarm Manager applies.
+Proposal apply never lets a session agent directly mutate project-management files from the chat flow. The session can propose; Swarm Manager applies.
 
 ## Artifacts
 
@@ -170,7 +166,6 @@ The graph bottom action launcher owns session creation:
 - Quick Capture opens the existing one-shot capture panel.
 - Plan Work With Agent creates a `meta_orchestration` session.
 - Manage Swarm creates a `swarm_operations` session.
-- Author Operating Mode creates an `operating_mode_authoring` session.
 
 All agent-session launchers create a draft and route to the session detail surface immediately. They do not send canned bootstrap prompts. The composer placeholder is kind-specific, and the first submitted message starts the run.
 
@@ -183,7 +178,7 @@ messages behave consistently.
 The graph sidebar owns session history through the `Sessions` tab. Selecting a session opens the session detail panel rather than navigating to a dedicated Sessions page.
 
 Routed entity detail pages for backlog items, initiatives, captures,
-executions, scenarios, operating modes, and sessions expose `Attach to session`.
+executions, scenarios, and sessions expose `Attach to session`.
 The action filters target sessions by the same context-type policy used by the
 composer picker, excludes the source session when attaching a session, and can
 quick-start a compatible draft session with the entity staged in its composer.

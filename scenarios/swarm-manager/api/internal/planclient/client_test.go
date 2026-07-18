@@ -15,13 +15,14 @@ import (
 
 type fakePlansService struct {
 	plansconnect.UnimplementedPlansServiceHandler
-	gotList         bool
-	gotGetID        string
-	gotRenderID     string
-	gotCompact      bool
-	gotImportSource string
-	gotImportSlug   string
-	gotAuditRunID   string
+	gotList            bool
+	gotGetID           string
+	gotRenderID        string
+	gotCompact         bool
+	gotImportSource    string
+	gotImportSlug      string
+	gotImportSupersede string
+	gotAuditRunID      string
 }
 
 func (f *fakePlansService) ListPlans(_ context.Context, _ *connect.Request[plansv1.ListPlansRequest]) (*connect.Response[plansv1.ListPlansResponse], error) {
@@ -53,6 +54,7 @@ func (f *fakePlansService) RenderMarkdown(_ context.Context, req *connect.Reques
 func (f *fakePlansService) ImportPlan(_ context.Context, req *connect.Request[plansv1.ImportPlanRequest]) (*connect.Response[plansv1.ImportPlanResponse], error) {
 	f.gotImportSource = req.Msg.GetSourcePath()
 	f.gotImportSlug = req.Msg.GetSlug()
+	f.gotImportSupersede = req.Msg.GetSupersede()
 	return connect.NewResponse(&plansv1.ImportPlanResponse{Plan: &sharedv1.Plan{
 		Id:   "imported-id",
 		Slug: req.Msg.GetSlug(),
@@ -114,11 +116,11 @@ func TestConnectClient_PlansCallsResolvePerCall(t *testing.T) {
 		t.Fatalf("RenderMarkdown mismatch result=%+v service=%+v", rendered, service)
 	}
 
-	imported, err := client.ImportPlan(context.Background(), ImportPlanInput{SourcePath: "/tmp/external-plan.markdown", Slug: "new-plan"})
+	imported, err := client.ImportPlan(context.Background(), ImportPlanInput{SourcePath: "/tmp/external-plan.markdown", Slug: "new-plan", Supersede: "previous-plan"})
 	if err != nil {
 		t.Fatalf("ImportPlan: %v", err)
 	}
-	if imported.GetId() != "imported-id" || service.gotImportSource != "/tmp/external-plan.markdown" || service.gotImportSlug != "new-plan" {
+	if imported.GetId() != "imported-id" || service.gotImportSource != "/tmp/external-plan.markdown" || service.gotImportSlug != "new-plan" || service.gotImportSupersede != "previous-plan" {
 		t.Fatalf("ImportPlan mismatch plan=%+v service=%+v", imported, service)
 	}
 

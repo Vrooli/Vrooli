@@ -88,23 +88,12 @@ export interface BacklogGraphNodeData extends GraphBaseNodeData {
   activeExecutionCount?: number;
 }
 
-export interface InitiativeActiveRoundSummary {
-  mode: string;
-  phase: string;
-  round: number;
-  status: string;
-}
-
 export interface InitiativeGraphNodeData extends GraphBaseNodeData {
   entityType: "initiative";
   rawType: "Initiative";
   name: string;
   title: string;
   status: string;
-  /** Operating mode of the initiative when an active round is in flight. */
-  operatingMode?: string;
-  /** First non-terminal round, or undefined when no round is active. */
-  activeRound?: InitiativeActiveRoundSummary;
   rollup: InitiativeRollupData;
 }
 

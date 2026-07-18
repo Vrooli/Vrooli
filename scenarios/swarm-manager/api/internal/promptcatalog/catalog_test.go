@@ -2,8 +2,6 @@ package promptcatalog
 
 import (
 	"testing"
-
-	"swarm-manager/internal/operatingmode"
 )
 
 func TestResolveBacklogSkill(t *testing.T) {
@@ -78,63 +76,14 @@ func TestResolveInitiativeSkill(t *testing.T) {
 }
 
 func TestResolveInitiativeModeSkill(t *testing.T) {
-	for _, mode := range []operatingmode.Mode{operatingmode.ModeHolisticLoop, operatingmode.ModePhasedPlanDrain} {
-		def, err := operatingmode.DefinitionFor(mode)
-		if err != nil {
-			t.Fatalf("DefinitionFor(%q): %v", mode, err)
-		}
-		for phase, phaseDef := range def.PhaseGraph.Phases {
-			entry, ok := ResolveInitiativeModeSkill(string(mode), string(phase))
-			if phaseDef.Delegated() {
-				// A delegated phase has no prompt of its own — its execution
-				// surface resolves through the sub-mode's phases.
-				if ok {
-					t.Fatalf("ResolveInitiativeModeSkill(%q, %q) resolved %q for a delegated phase", mode, phase, entry.ID)
-				}
-				continue
-			}
-			if !ok {
-				t.Fatalf("ResolveInitiativeModeSkill(%q, %q) missed", mode, phase)
-			}
-			if entry.ID != phaseDef.CatalogID {
-				t.Fatalf("%s/%s catalog id = %q, want %q", mode, phase, entry.ID, phaseDef.CatalogID)
-			}
-			if entry.SkillID != phaseDef.SkillID {
-				t.Fatalf("%s/%s skill = %q, want %q", mode, phase, entry.SkillID, phaseDef.SkillID)
-			}
-			expected, ok := operatingmode.ExpectedPromptCatalogEntry(string(mode), string(phase))
-			if !ok {
-				t.Fatalf("ExpectedPromptCatalogEntry(%q, %q) missed", mode, phase)
-			}
-			if !sameStrings(entry.OutputPaths, expected.OutputPaths) {
-				t.Fatalf("%s/%s output paths = %v, want %v", mode, phase, entry.OutputPaths, expected.OutputPaths)
-			}
-		}
-	}
-
 	if _, ok := ResolveInitiativeModeSkill("item-level", "execute"); ok {
-		t.Fatal("item-level should not resolve through initiative mode phase catalog")
-	}
-	if _, ok := ResolveInitiativeModeSkill("holistic-loop", "unknown"); ok {
-		t.Fatal("unknown phase should miss")
+		t.Fatal("workflow composition must not resolve retired initiative-mode prompts")
 	}
 }
 
 func TestInitiativeModePromptCatalogEntriesComeFromRegistry(t *testing.T) {
-	for _, expected := range operatingmode.PromptCatalogEntries() {
-		entry, ok := ResolveInitiativeModeSkill(expected.Mode, expected.Phase)
-		if !ok {
-			t.Fatalf("ResolveInitiativeModeSkill(%q, %q) missed generated entry", expected.Mode, expected.Phase)
-		}
-		if entry.ID != expected.CatalogID || entry.SkillID != expected.SkillID {
-			t.Fatalf("%s/%s prompt IDs = %q/%q, want %q/%q", expected.Mode, expected.Phase, entry.ID, entry.SkillID, expected.CatalogID, expected.SkillID)
-		}
-		if entry.Title != expected.Title || entry.Trigger != expected.Trigger || entry.Purpose != expected.Purpose {
-			t.Fatalf("%s/%s prompt metadata drifted: got title=%q trigger=%q purpose=%q", expected.Mode, expected.Phase, entry.Title, entry.Trigger, entry.Purpose)
-		}
-		if !sameStrings(entry.OutputPaths, expected.OutputPaths) {
-			t.Fatalf("%s/%s output paths = %v, want %v", expected.Mode, expected.Phase, entry.OutputPaths, expected.OutputPaths)
-		}
+	if _, ok := ResolveInitiativeModeSkill("holistic-loop", "investigate"); ok {
+		t.Fatal("retired operating modes must not publish runtime prompts")
 	}
 }
 

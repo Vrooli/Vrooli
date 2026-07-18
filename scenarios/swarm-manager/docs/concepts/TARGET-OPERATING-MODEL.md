@@ -1,10 +1,9 @@
 # Target Operating Model
 
-> **Status: target architecture.** This document defines the intended steady
-> state for Swarm Manager before the implementation migration. It is normative
-> for new design work, but does not claim that all current operating-mode,
-> agent-operation, or execution code already conforms. The current architecture
-> remains documented in [ARCHITECTURE.md](./ARCHITECTURE.md).
+> **Status: implemented architecture.** This document is normative for Swarm
+> Manager. The retired operating-mode and agent-operation runtime survives only
+> as read-only historical data; [ARCHITECTURE.md](./ARCHITECTURE.md) describes
+> the active implementation.
 
 ## Purpose
 

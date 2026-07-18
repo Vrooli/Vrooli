@@ -74,7 +74,7 @@ backlog, scenarios, initiatives, executions, and captures. The former standalone
 **Scenarios** and **Execution** list tabs were absorbed into it; their old routes
 (`/scenarios`, `/executions`, `/operations`, `/command-post`) now redirect to
 `/plan`, while the detail pages (`/scenarios/{name}`, `/executions/{id}`,
-`/backlog/{kind}/{name}`, `/initiatives/{name}`, `/operating-modes/{mode}`) remain
+`/backlog/{kind}/{name}`, `/initiatives/{name}`) remain
 directly reachable.
 
 - **Plan** (`/plan`) — the primary board; decisions live in its drawer.

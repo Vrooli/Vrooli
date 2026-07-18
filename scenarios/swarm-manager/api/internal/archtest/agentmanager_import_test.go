@@ -31,11 +31,11 @@ var allowedAgentManagerImporters = map[string]string{
 	"agentsessions":    "the interactive human-in-the-loop session boundary",
 	"agentmanager":     "the client package itself",
 	"backlog":          "availability signaling (agentmanager.ErrNotAvailable) on the operation reroute paths",
-	"captures":         "classify spawn kept by recorded class-(d) scope decision (AGENT-CUTOVER-LEDGER closeout)",
+	"captures":         "typed capture-classification workflow invocation and terminal-result application; no raw runs",
 	"evidence":         "agent-manager-backed evidence collection (run transcripts as evidence sources)",
 	"execution":        "typed workflow command/result adapter plus legacy run management; domain code never creates or continues runs",
 	"initiativereview": "run management for review rounds (RunInspector wiring) — never launch",
-	"operatingmode":    "the engine: builds spawn requests, launched via the agentactivity chokepoint",
+	"planrepair":       "typed plan-repair workflow invocation and terminal-result application; no raw runs",
 	"review":           "run management for gathering rounds (RunInspector wiring) — never launch",
 	"testutil":         "shared test fakes for the client seam",
 }

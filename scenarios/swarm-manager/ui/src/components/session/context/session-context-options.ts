@@ -10,14 +10,12 @@ import type {
   InitiativeWithRollup,
   Scenario,
 } from "../../../types";
-import type { OperatingModeCatalogEntry } from "../../../types/operating-mode";
 import {
   activityOption,
   backlogOption,
   captureOption,
   executionOption,
   initiativeOption,
-  operatingModeOption,
   operationsBriefingOption,
   scenarioOption,
   sessionOption,
@@ -40,7 +38,6 @@ export interface ContextOptionInputs {
   executions: ExecutionRecord[];
   activities: AgentActivity[];
   scenarios: Scenario[];
-  modes: OperatingModeCatalogEntry[];
   sessions: AgentSession[];
   sessionKind: AgentSessionKind;
   currentSessionId?: string;
@@ -64,7 +61,6 @@ export function buildContextOptionsByType(
     executions,
     activities,
     scenarios,
-    modes,
     sessions,
     sessionKind,
     currentSessionId,
@@ -76,7 +72,7 @@ export function buildContextOptionsByType(
     execution: executions.map(executionOption),
     agent_activity: activities.map(activityOption),
     scenario: scenarios.map(scenarioOption),
-    operating_mode: modes.map(operatingModeOption).filter((mode) => mode.ref),
+    operating_mode: [],
     session: sessions.filter((session) => session.id !== currentSessionId).map(sessionOption),
     operations_briefing: [operationsBriefingOption()],
     startup_brief: [startupBriefOption(sessionKind)],

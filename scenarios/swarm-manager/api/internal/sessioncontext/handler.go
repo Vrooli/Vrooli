@@ -26,16 +26,11 @@ func NewHandler(resolver *Resolver) *Handler {
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/portfolio/brief", h.PortfolioBrief).Methods(http.MethodGet)
-	r.HandleFunc("/api/v1/operating-mode/brief", h.OperatingModeBrief).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/initiative-candidates", h.InitiativeCandidates).Methods(http.MethodGet)
 }
 
 func (h *Handler) PortfolioBrief(w http.ResponseWriter, r *http.Request) {
 	h.writeStartupBrief(w, r, agentsessions.KindMetaOrchestration, "[session-context] portfolio brief")
-}
-
-func (h *Handler) OperatingModeBrief(w http.ResponseWriter, r *http.Request) {
-	h.writeStartupBrief(w, r, agentsessions.KindOperatingModeAuthoring, "[session-context] operating-mode brief")
 }
 
 func (h *Handler) InitiativeCandidates(w http.ResponseWriter, r *http.Request) {

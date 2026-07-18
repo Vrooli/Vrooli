@@ -47,20 +47,6 @@ func TestCmdInitiativesCandidates_PassesPurpose(t *testing.T) {
 	}
 }
 
-func TestCmdOperatingModeBrief_JSONPassthrough(t *testing.T) {
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/operating-mode/brief" {
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-		_, _ = w.Write([]byte(`{"brief":{"title":"X"}}`))
-	}))
-	app := newAppT(t)
-	out := clitest.CaptureStdout(t, func() error { return app.cmdOperatingModeBrief([]string{"--json"}) })
-	if !strings.Contains(out, `"title"`) {
-		t.Errorf("json passthrough = %q", out)
-	}
-}
-
 func TestRunExecutionMutation_StartPostsAndRenders(t *testing.T) {
 	var method, path string
 	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

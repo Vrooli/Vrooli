@@ -10,27 +10,21 @@
 package captures
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/promptmanager"
 
 	"github.com/gorilla/mux"
 )
-
-type AgentSpawner interface {
-	IsEnabled() bool
-	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
-}
 
 // BacklogItemCreator abstracts backlog item creation for the create-item endpoint.
 type BacklogItemCreator interface {
@@ -49,25 +43,30 @@ type EventLogger interface {
 // per the cache-class invariant: paths_test.go T-R2). Captures live at
 // `<cacheRoot>/captures/<id>/`.
 type Handler struct {
-	cacheRoot       string
-	agentService    AgentSpawner
-	promptClient    promptmanager.Client
-	backlogCreator  BacklogItemCreator
-	eventDispatcher dispatch.Invalidator
-	eventLogger     EventLogger
+	cacheRoot              string
+	classificationWorkflow agentmanager.WorkflowInvoker
+	classificationMu       sync.Mutex
+	backlogCreator         BacklogItemCreator
+	eventDispatcher        dispatch.Invalidator
+	eventLogger            EventLogger
 }
 
 // NewHandler creates a new captures handler.
-func NewHandler(cacheRoot string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
-	h := &Handler{
-		cacheRoot:    cacheRoot,
-		agentService: agentService,
-		promptClient: promptClient,
+func NewHandler(cacheRoot string) *Handler {
+	return &Handler{cacheRoot: cacheRoot, classificationWorkflow: agentmanager.NewWorkflowService()}
+}
+
+// SetClassificationWorkflow injects the Agent Manager workflow transport.
+func (h *Handler) SetClassificationWorkflow(workflow agentmanager.WorkflowInvoker) {
+	h.classificationWorkflow = workflow
+}
+
+// SetWorkflowStartGuard applies transition-registry preflight policy at the
+// composition edge without leaking it into capture domain code.
+func (h *Handler) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
+	if workflow, ok := h.classificationWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetStartGuard(guard)
 	}
-	if h.promptClient == nil {
-		h.promptClient = promptmanager.NewHTTPClient()
-	}
-	return h
 }
 
 // SetBacklogCreator sets the backlog item creator for the create-item endpoint.
@@ -107,6 +106,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/captures/{id}", h.Update).Methods("PATCH")
 	r.HandleFunc("/api/v1/captures/{id}", h.Delete).Methods("DELETE")
 	r.HandleFunc("/api/v1/captures/{id}/classify", h.Classify).Methods("POST")
+	r.HandleFunc("/api/v1/captures/{id}/classify/{executionID}/apply", h.ApplyClassification).Methods("POST")
 	r.HandleFunc("/api/v1/captures/{id}/create-item", h.CreateItem).Methods("POST")
 }
 

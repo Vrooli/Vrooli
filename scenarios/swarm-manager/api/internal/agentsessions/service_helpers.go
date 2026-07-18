@@ -17,8 +17,6 @@ func skillIDForKind(kind Kind) string {
 	switch kind {
 	case KindMetaOrchestration:
 		return SkillMetaOrchestrator
-	case KindOperatingModeAuthoring:
-		return SkillOperatingModeAuthoring
 	case KindSwarmOperations:
 		return SkillSwarmOperations
 	default:

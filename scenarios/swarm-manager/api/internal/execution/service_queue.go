@@ -218,10 +218,6 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		return Record{}, apierr.BadRequest("scenario path does not exist: %s", ac.ScenarioPath)
 	}
 
-	if s.operationStarter == nil {
-		return Record{}, apierr.Unavailable("execution operation runner is not available")
-	}
-
 	records, err := s.store.Load()
 	if err != nil {
 		return Record{}, err
@@ -242,34 +238,21 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		UpdatedAt:      now,
 	}
 
-	// Start the spec-sync operation against the scenario target. The mode owns the
-	// prompt (prompt-manager skill swarm-manager-scenario-spec-sync-spec-sync). The
-	// record keeps its ArchiveContext, so the completion bridge's
-	// commit-execution-round handler runs handleSpecSyncComplete (archive + delete)
-	// via applyTerminalTransition's ArchiveContext branch on a completed outcome.
-	res, err := s.operationStarter.StartOperation(ctx, OperationStartRequest{
-		Operation:        operationSpecSync,
-		OperationVersion: operationVersionPinned,
-		TargetKind:       targetKindScenario,
-		TargetID:         ac.ScenarioName,
-		IdempotencyKey:   "exec-" + record.ExecutionID,
-		RequestedBy:      record.StartedBy,
-	})
+	// The declared workflow owns the spec-sync agent work. Swarm retains the
+	// archive capability and applies a matching typed terminal result explicitly.
+	res, snapshot, err := s.startSpecSyncWorkflow(ctx, record)
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
-	if strings.TrimSpace(res.RunID) == "" {
-		if cerr := s.operationStarter.CancelOperation(ctx, OperationCancelRequest{
-			TargetKind: targetKindScenario, TargetID: ac.ScenarioName, ExecutionID: res.ExecutionID,
-		}); cerr != nil {
-			slog.Warn("execution: reap of run-id-less spec-sync start failed", "scenario", ac.ScenarioName, "err", cerr)
-		}
-		return Record{}, apierr.BadGateway("spec-sync operation started but returned no run id; agent-manager may be unavailable")
+	if strings.TrimSpace(res.ExecutionID) == "" {
+		return Record{}, apierr.BadGateway("scenario spec-sync workflow started but returned no execution id")
 	}
-
 	record.RunID = res.RunID
-	record.OpWorkflowID = res.WorkflowID
-	record.OpExecutionID = res.ExecutionID
+	record.TaskID = res.ExecutionID
+	record.AgentWorkflowExecutionID = res.ExecutionID
+	record.AgentWorkflowKey = "swarm-manager/scenario-spec-sync"
+	record.AgentWorkflowDefinition = res.DefinitionDigest
+	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
 	record.StartedAt = nowRFC3339()
 	record.Status = StatusStarting
 	record.UpdatedAt = nowRFC3339()

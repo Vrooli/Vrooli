@@ -103,11 +103,11 @@ func TestWorkshopSave_ValidRound_WritesFile(t *testing.T) {
 	if resp.File.Name != "round-001.json" {
 		t.Errorf("expected file name 'round-001.json', got %q", resp.File.Name)
 	}
-	if !resp.AutoAdvance.Triggered {
-		t.Fatal("expected finalize auto-advance to trigger")
+	if resp.AutoAdvance.Triggered {
+		t.Fatal("expected ready workshop to require an explicit plan-author workflow start")
 	}
-	if resp.AutoAdvance.Reason != "finalizing" {
-		t.Errorf("expected reason 'finalizing', got %q", resp.AutoAdvance.Reason)
+	if resp.AutoAdvance.Reason != "plan_author_requires_explicit_start" {
+		t.Errorf("expected plan-author handoff reason, got %q", resp.AutoAdvance.Reason)
 	}
 	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "finalize" {
 		t.Errorf("expected next mode 'finalize', got %v", resp.AutoAdvance.NextMode)
@@ -244,17 +244,17 @@ func TestWorkshopSave_Ready_AutoFinalizes(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
-	if !resp.AutoAdvance.Triggered {
-		t.Error("expected auto-finalize to be triggered when ready")
+	if resp.AutoAdvance.Triggered {
+		t.Error("expected ready workshop not to auto-start the retired finalizer")
 	}
-	if resp.AutoAdvance.Reason != "finalizing" {
-		t.Errorf("expected reason 'finalizing', got %q", resp.AutoAdvance.Reason)
+	if resp.AutoAdvance.Reason != "plan_author_requires_explicit_start" {
+		t.Errorf("expected plan-author handoff reason, got %q", resp.AutoAdvance.Reason)
 	}
 	if resp.AutoAdvance.NextMode == nil || *resp.AutoAdvance.NextMode != "finalize" {
 		t.Errorf("expected next mode 'finalize', got %v", resp.AutoAdvance.NextMode)
 	}
-	if resp.AutoAdvance.RunID == nil || *resp.AutoAdvance.RunID != "run-x" {
-		t.Fatalf("expected finalize auto-advance run id 'run-x', got %v", resp.AutoAdvance.RunID)
+	if resp.AutoAdvance.RunID != nil {
+		t.Fatalf("expected no legacy finalizer run id, got %v", resp.AutoAdvance.RunID)
 	}
 }
 
@@ -263,6 +263,7 @@ func TestWorkshopSave_MaxRounds_NoAutoAdvance(t *testing.T) {
 		result: agentmanager.RunResult{RunID: "run-x", TaskID: "task-x"},
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h.SetWorkshopWorkflow(&fakeWorkshopWorkflow{err: agentmanager.ErrNotAvailable})
 	enableAutoAdvanceSettings(t, rootDir)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "ws-maxrounds", Title: "WS Max", Status: StatusBacklog,
@@ -472,6 +473,7 @@ func TestWorkshopSave_AgentDown_StillSaves(t *testing.T) {
 		err: fmt.Errorf("agent unavailable"),
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
+	h.SetWorkshopWorkflow(&fakeWorkshopWorkflow{err: agentmanager.ErrNotAvailable})
 
 	// Enable auto-advance to test agent-down resilience.
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{

@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/operatingmode"
 )
 
 // aggregateState holds all running counters and maps needed for metric computation.
@@ -238,37 +237,6 @@ func (s *aggregateState) recordModePhaseTerminal(p eventlog.OperatingModePhasePa
 		addNestedFloat(s.modeDurationSums, p.Mode, p.Phase, p.DurationSeconds)
 		incrementNested(s.modeDurationCounts, p.Mode, p.Phase, 1)
 	}
-	if outcome == "completed" {
-		policy, ok := operatingModeMetricsPolicy(p.Mode)
-		if !ok {
-			return
-		}
-		s.recordOperatingModePolicyMetrics(p, policy)
-	}
-}
-
-func (s *aggregateState) recordOperatingModePolicyMetrics(p eventlog.OperatingModePhasePayload, policy operatingmode.MetricsPolicy) {
-	phase := operatingmode.Phase(p.Phase)
-	if policy.CountsReplanSample(phase) {
-		s.modeReplanDenominator[p.Mode]++
-		if p.ReplanNeeded {
-			s.modeReplanNumerator[p.Mode]++
-		}
-	}
-	if policy.CountsAcceptanceSample(phase) && p.Verdict != "" {
-		s.modeAcceptanceDenom[p.Mode]++
-		if policy.IsAcceptedVerdict(p.Verdict) {
-			s.modeAcceptanceNumerator[p.Mode]++
-		}
-	}
-}
-
-func operatingModeMetricsPolicy(mode string) (operatingmode.MetricsPolicy, bool) {
-	def, err := operatingmode.DefinitionFor(operatingmode.Mode(mode))
-	if err != nil {
-		return operatingmode.MetricsPolicy{}, false
-	}
-	return def.Metrics, true
 }
 
 func incrementNested(m map[string]map[string]int, outer, inner string, delta int) {

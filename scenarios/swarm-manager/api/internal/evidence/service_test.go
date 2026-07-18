@@ -35,6 +35,7 @@ func (s *stubOwnerIndex) LookupOwners(_ context.Context, _ string) ([]Owner, err
 
 func newEvidenceService(t *testing.T, sessions, modes *stubOwnerIndex) (*Service, *sql.DB) {
 	t.Helper()
+	_ = modes // retained in fixtures for legacy-record cases; live resolution is session-only.
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
@@ -44,7 +45,7 @@ func newEvidenceService(t *testing.T, sessions, modes *stubOwnerIndex) (*Service
 	if err := store.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init schema: %v", err)
 	}
-	return NewService(store, RunOwnerResolver{Sessions: sessions, OperatingModes: modes}), db
+	return NewService(store, RunOwnerResolver{Sessions: sessions}), db
 }
 
 func verifiedObservation() Observation {
@@ -74,8 +75,8 @@ func TestIngestLinksResolvedEvidenceIdempotently(t *testing.T) {
 	if first.Duplicate || !second.Duplicate || first.Owner == nil || second.Owner == nil {
 		t.Fatalf("ingest results: first=%+v second=%+v", first, second)
 	}
-	if sessions.calls != 2 || modes.calls != 2 {
-		t.Fatalf("every ingest must query both owner indexes: sessions=%d modes=%d", sessions.calls, modes.calls)
+	if sessions.calls != 2 || modes.calls != 0 {
+		t.Fatalf("every ingest must query the session index only: sessions=%d modes=%d", sessions.calls, modes.calls)
 	}
 	var observations, links int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM evidence_observations`).Scan(&observations); err != nil {
@@ -117,15 +118,14 @@ func TestIngestLeavesUnresolvedAndAmbiguousOwnershipRetryable(t *testing.T) {
 	tests := []struct {
 		name     string
 		sessions []Owner
-		modes    []Owner
 		want     OwnershipStatus
 	}{
 		{name: "unresolved", want: OwnershipUnresolved},
-		{name: "ambiguous", sessions: []Owner{{Kind: OwnerAgentSession, ID: "session-1"}}, modes: []Owner{{Kind: OwnerOperatingModeExecution, ID: "execution-1", Round: 2}}, want: OwnershipAmbiguous},
+		{name: "ambiguous", sessions: []Owner{{Kind: OwnerAgentSession, ID: "session-1"}, {Kind: OwnerAgentSession, ID: "session-2"}}, want: OwnershipAmbiguous},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, db := newEvidenceService(t, &stubOwnerIndex{owners: tt.sessions}, &stubOwnerIndex{owners: tt.modes})
+			service, db := newEvidenceService(t, &stubOwnerIndex{owners: tt.sessions}, &stubOwnerIndex{})
 			result, err := service.Ingest(context.Background(), verifiedObservation())
 			if err != nil {
 				t.Fatalf("ingest: %v", err)

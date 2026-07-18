@@ -36,8 +36,8 @@ func TestResolveBulkVerdicts(t *testing.T) {
 		{Type: "initiative", Name: "does-not-exist"},     // fake
 		{Type: "backlog", Name: "execute/wire-snapshot"}, // real
 		{Type: "backlog", Name: "execute/ghost"},         // fake
-		{Type: "operating-mode", Name: "holistic-loop"},  // valid registry mode
-		{Type: "operating-mode", Name: "not-a-mode"},     // invalid mode
+		{Type: "operating-mode", Name: "holistic-loop"},  // retired reference
+		{Type: "operating-mode", Name: "not-a-mode"},     // retired reference
 		{Type: "bogus-marker", Name: "whatever"},         // unknown marker
 		{Type: "initiative", Name: ""},                   // empty ref
 	}
@@ -56,7 +56,7 @@ func TestResolveBulkVerdicts(t *testing.T) {
 		{false, ""},
 		{true, "/backlog/execute/wire-snapshot"},
 		{false, ""},
-		{true, "/operating-modes/holistic-loop"},
+		{false, ""},
 		{false, ""},
 		{false, ""},
 		{false, ""},

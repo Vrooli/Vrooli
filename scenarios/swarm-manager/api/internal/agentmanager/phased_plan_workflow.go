@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -81,28 +80,7 @@ func (s *WorkflowService) StartPhasedPlan(ctx context.Context, snapshot PhasedPl
 	if err != nil {
 		return WorkflowStart{}, fmt.Errorf("encode phased plan snapshot: %w", err)
 	}
-	resp, err := s.client.StartWorkflowExecution(ctx, &apipb.StartWorkflowExecutionRequest{
-		Owner: "swarm-manager", WorkflowKey: phasedPlanWorkflowKey, Input: input,
-		IdempotencyKey: strings.TrimSpace(idempotencyKey),
-	})
-	if err != nil {
-		return WorkflowStart{}, err
-	}
-	if resp.Execution == nil || strings.TrimSpace(resp.Execution.Id) == "" {
-		return WorkflowStart{}, fmt.Errorf("%w: workflow start omitted execution", ErrRequestFailed)
-	}
-	trace, err := s.client.GetWorkflowExecutionTrace(ctx, resp.Execution.Id)
-	if err != nil {
-		return WorkflowStart{}, err
-	}
-	start := WorkflowStart{ExecutionID: resp.Execution.Id, DefinitionDigest: resp.Execution.DefinitionDigest, Status: resp.Execution.Status}
-	for _, attempt := range trace.Attempts {
-		if attempt.NodeId == "slice" {
-			start.RunID = strings.TrimSpace(attempt.RunId)
-			break
-		}
-	}
-	return start, nil
+	return s.StartWorkflow(ctx, Invocation{Owner: "swarm-manager", WorkflowKey: phasedPlanWorkflowKey, Input: input, IdempotencyKey: idempotencyKey, FirstRunNodeID: "slice"})
 }
 
 func (s *WorkflowService) CollectPhasedPlan(ctx context.Context, executionID string) (PhasedPlanWorkflowCompletion, error) {
@@ -110,28 +88,14 @@ func (s *WorkflowService) CollectPhasedPlan(ctx context.Context, executionID str
 	if executionID == "" {
 		return PhasedPlanWorkflowCompletion{}, fmt.Errorf("%w: execution id is required", ErrRequestFailed)
 	}
-	// Block on the server-owned wait rather than pumping Advance: the completion
-	// nudge drives the execution to terminal and wakes this wait. A wait that
-	// reaches its bound without a terminal execution surfaces as not-ready so the
-	// durable pending-file backstop re-arms it.
-	waited, err := s.client.WaitWorkflowExecution(ctx, executionID, workshopWaitTimeoutSeconds)
+	invocation, err := s.CollectWorkflow(ctx, executionID)
 	if err != nil {
 		return PhasedPlanWorkflowCompletion{}, err
 	}
-	if waited.Execution == nil || waited.TimedOut || !terminalWorkflowStatus(waited.Execution.Status) {
-		return PhasedPlanWorkflowCompletion{}, fmt.Errorf("%w: workflow execution is not terminal", ErrWorkflowNotReady)
-	}
-	resp, err := s.client.GetWorkflowExecutionResult(ctx, executionID)
-	if err != nil {
-		return PhasedPlanWorkflowCompletion{}, err
-	}
-	if resp.Execution == nil || !terminalWorkflowStatus(resp.Execution.Status) {
-		return PhasedPlanWorkflowCompletion{}, fmt.Errorf("%w: workflow execution is not terminal", ErrWorkflowNotReady)
-	}
-	if resp.Execution.Input == nil {
+	if invocation.Input == nil {
 		return PhasedPlanWorkflowCompletion{}, fmt.Errorf("%w: authorized workflow input is incomplete", ErrRequestFailed)
 	}
-	input, ok := resp.Execution.Input.AsInterface().(map[string]any)
+	input, ok := invocation.Input.AsInterface().(map[string]any)
 	if !ok {
 		return PhasedPlanWorkflowCompletion{}, fmt.Errorf("%w: workflow input is not an object", ErrRequestFailed)
 	}
@@ -144,27 +108,21 @@ func (s *WorkflowService) CollectPhasedPlan(ctx context.Context, executionID str
 		return PhasedPlanWorkflowCompletion{}, fmt.Errorf("%w: workflow plan frontier is missing", ErrRequestFailed)
 	}
 	completion := PhasedPlanWorkflowCompletion{
-		ExecutionID: executionID, DefinitionDigest: resp.Execution.DefinitionDigest, Status: resp.Execution.Status,
+		ExecutionID: executionID, DefinitionDigest: invocation.DefinitionDigest, Status: invocation.Status,
 		ConsumerID: stringValue(consumer["executionId"]), EntityKind: stringValue(consumer["entityKind"]),
 		EntityName: stringValue(consumer["entityName"]), EntityVersion: stringValue(consumer["entityVersion"]),
 		FrontierDigest: stringValue(plan["frontierDigest"]),
 	}
-	if reason := resp.Execution.TerminalReason; reason != nil {
-		completion.TerminalCode, completion.BudgetName = reason.Code, reason.BudgetName
-	}
-	if resp.Execution.Output != nil {
-		if output, ok := resp.Execution.Output.AsInterface().(map[string]any); ok {
+	completion.TerminalCode, completion.BudgetName = invocation.TerminalCode, invocation.BudgetName
+	if invocation.Output != nil {
+		if output, ok := invocation.Output.AsInterface().(map[string]any); ok {
 			completion.Result, err = json.Marshal(output["result"])
 			if err != nil {
 				return PhasedPlanWorkflowCompletion{}, fmt.Errorf("encode phased plan result: %w", err)
 			}
 		}
 	}
-	trace, err := s.client.GetWorkflowExecutionTrace(ctx, executionID)
-	if err != nil {
-		return PhasedPlanWorkflowCompletion{}, err
-	}
-	for _, attempt := range trace.Attempts {
+	for _, attempt := range invocation.Attempts {
 		completion.Attempts = append(completion.Attempts, WorkflowAttemptProvenance{
 			NodeID: attempt.NodeId, Ordinal: attempt.Ordinal, Strategy: attempt.Strategy,
 			RunID: attempt.RunId, ConversationID: attempt.ConversationId,
@@ -193,17 +151,11 @@ func (s *WorkflowService) SignalPhasedPlanApproval(ctx context.Context, executio
 	if err != nil {
 		return err
 	}
-	_, err = s.client.workflowOperationPost(ctx, "/api/v1/workflow-executions/"+url.PathEscape(executionID)+"/signals", &apipb.SignalWorkflowExecutionRequest{
-		ExecutionId: executionID, Signal: "slice_approved", Payload: payload, IdempotencyKey: idempotencyKey,
-	})
-	return err
+	return s.SignalWorkflow(ctx, executionID, "slice_approved", payload, idempotencyKey)
 }
 
 func (s *WorkflowService) CancelPhasedPlan(ctx context.Context, executionID, reason string) error {
-	_, err := s.client.workflowOperationPost(ctx, "/api/v1/workflow-executions/"+url.PathEscape(executionID)+"/cancel", &apipb.WorkflowExecutionOperationRequest{
-		ExecutionId: executionID, IdempotencyKey: "cancel-" + executionID, Reason: reason,
-	})
-	return err
+	return s.CancelWorkflow(ctx, executionID, "cancel-"+executionID, reason)
 }
 
 func (c *HTTPClient) workflowOperationPost(ctx context.Context, path string, req proto.Message) (*apipb.WorkflowExecutionOperationResponse, error) {

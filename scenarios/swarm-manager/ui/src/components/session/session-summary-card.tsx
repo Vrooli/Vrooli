@@ -9,7 +9,7 @@
  *   single toggle with checkbox + selected ring, no navigation.
  */
 import { memo } from "react";
-import { Gauge, GitPullRequestArrow, Layers3, MessageSquareMore, Workflow } from "lucide-react";
+import { Archive, Gauge, GitPullRequestArrow, Layers3, MessageSquareMore, Workflow } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../lib/format-utils";
 import { isActiveAgentSession } from "../../stores";
@@ -31,13 +31,13 @@ const STATUS_COLORS: Record<AgentSession["status"], string> = {
 
 const KIND_LABELS: Record<AgentSession["kind"], string> = {
   meta_orchestration: "Plan work",
-  operating_mode_authoring: "Author mode",
+  operating_mode_authoring: "Archived mode authoring",
   swarm_operations: "Swarm operations",
 };
 
 const KIND_ICONS = {
   meta_orchestration: Workflow,
-  operating_mode_authoring: GitPullRequestArrow,
+  operating_mode_authoring: Archive,
   swarm_operations: Gauge,
 };
 

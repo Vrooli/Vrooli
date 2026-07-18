@@ -5,7 +5,7 @@ import { sessionDetailPath } from "../../../app/routes/route-paths";
 import { selectors } from "../../../consts/selectors";
 import { useAgentSessionStore } from "../../../stores";
 import { proposalSessionService } from "../../../services/proposal-session-service";
-import type { AgentSession, AgentSessionKind } from "../../../types";
+import type { AgentSession, CreatableAgentSessionKind } from "../../../types";
 import { cn } from "../../../lib/utils";
 import { BottomSheet } from "../../ui/bottom-sheet";
 import { Button } from "../../ui/button";
@@ -72,7 +72,7 @@ function EntityAttachToSessionSheetContent({
   const [mode, setMode] = useState<AttachMode>("new");
   const [query, setQuery] = useState("");
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [selectedKind, setSelectedKind] = useState<AgentSessionKind>(() => compatibleSessionKindsForContextType(option.type)[0] ?? "meta_orchestration");
+  const [selectedKind, setSelectedKind] = useState<CreatableAgentSessionKind>(() => compatibleSessionKindsForContextType(option.type)[0] ?? "meta_orchestration");
   const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -373,9 +373,9 @@ function SessionKindChoices({
   selectedKind,
   onSelect,
 }: {
-  kinds: AgentSessionKind[];
-  selectedKind: AgentSessionKind;
-  onSelect: (kind: AgentSessionKind) => void;
+  kinds: CreatableAgentSessionKind[];
+  selectedKind: CreatableAgentSessionKind;
+  onSelect: (kind: CreatableAgentSessionKind) => void;
 }) {
   if (kinds.length === 0) {
     return <p className="text-xs text-amber-300">No compatible draft session types.</p>;

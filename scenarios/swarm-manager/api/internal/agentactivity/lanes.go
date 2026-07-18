@@ -7,12 +7,12 @@ import (
 )
 
 // Lane is one of the four canonical concurrency lanes. Lane names are
-// identical to `operatingmode.PhaseKind` values — Lane is the runtime
+// identical to the historical phase-kind values — Lane is the runtime
 // projection of the phase classification, used here as a string to avoid
-// importing operatingmode (which already imports agentactivity).
+// importing an orchestration runtime.
 type Lane string
 
-// Lane constants mirror operatingmode.PhaseKind. Keep these in lock-step.
+// Lane constants mirror the persisted phase-kind vocabulary.
 const (
 	LaneInvestigate Lane = "investigate"
 	LaneExecute     Lane = "execute"
@@ -59,23 +59,22 @@ type LanePolicy interface {
 // MUST appear here; init() panics on first import otherwise so a forgotten
 // lane assignment cannot ship.
 var purposeLane = map[Purpose]Lane{
-	PurposeInitialize:             LaneInvestigate,
-	PurposeWorkshop:               LaneInvestigate,
-	PurposeFinalize:               LaneReview,
-	PurposeResearch:               LaneInvestigate,
-	PurposeProcess:                LaneExecute,
-	PurposeFixup:                  LaneExecute,
-	PurposeFollowUp:               LaneExecute,
-	PurposeSpecSync:               LaneExecute,
-	PurposeClassify:               LaneInvestigate,
-	PurposeClarify:                LaneInvestigate,
-	PurposeReview:                 LaneReview,
-	PurposeFeedback:               LaneInvestigate,
-	PurposeFeedbackContinue:       LaneInvestigate,
-	PurposeInitiativeReview:       LaneReview,
-	PurposeMetaOrchestration:      LaneInvestigate,
-	PurposeOperatingModeAuthoring: LaneInvestigate,
-	PurposeSwarmOperations:        LaneInvestigate,
+	PurposeInitialize:        LaneInvestigate,
+	PurposeWorkshop:          LaneInvestigate,
+	PurposeFinalize:          LaneReview,
+	PurposeResearch:          LaneInvestigate,
+	PurposeProcess:           LaneExecute,
+	PurposeFixup:             LaneExecute,
+	PurposeFollowUp:          LaneExecute,
+	PurposeSpecSync:          LaneExecute,
+	PurposeClassify:          LaneInvestigate,
+	PurposeClarify:           LaneInvestigate,
+	PurposeReview:            LaneReview,
+	PurposeFeedback:          LaneInvestigate,
+	PurposeFeedbackContinue:  LaneInvestigate,
+	PurposeInitiativeReview:  LaneReview,
+	PurposeMetaOrchestration: LaneInvestigate,
+	PurposeSwarmOperations:   LaneInvestigate,
 }
 
 // allRegisteredPurposes mirrors the Purpose constants in types.go. It is
@@ -99,7 +98,6 @@ var allRegisteredPurposes = []Purpose{
 	PurposeFeedbackContinue,
 	PurposeInitiativeReview,
 	PurposeMetaOrchestration,
-	PurposeOperatingModeAuthoring,
 	PurposeSwarmOperations,
 }
 
@@ -111,7 +109,7 @@ func init() {
 	}
 }
 
-// laneFromPhaseKind maps an operatingmode.PhaseKind value (carried as a
+// laneFromPhaseKind maps a persisted phase-kind value (carried as a
 // string to avoid an import cycle) to its lane. Inputs are normalized to
 // lower-case + trimmed to mirror Spec.normalized().
 func laneFromPhaseKind(phaseKind string) (Lane, bool) {

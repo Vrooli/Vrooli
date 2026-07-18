@@ -20,7 +20,6 @@ import (
 
 const (
 	SkillMetaOrchestrator       = "swarm-manager-meta-orchestrator"
-	SkillOperatingModeAuthoring = "swarm-manager-operating-mode-authoring"
 	SkillSwarmOperations        = "swarm-manager-operations-session"
 	SkillProposals              = "swarm-manager-proposals"
 

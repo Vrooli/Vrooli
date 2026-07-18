@@ -9,18 +9,17 @@ import (
 	"swarm-manager/internal/planclient"
 )
 
-// wireEvidence joins the independent Session and operating-mode owner indexes
-// after both services are constructed. A dual match remains ambiguous.
+// wireEvidence registers the durable evidence ledger for interactive Session
+// Runs. Programmatic workflow evidence is applied by its owning domain adapter;
+// operating-mode executions no longer own live Runs after the workflow cutover.
 func (s *Server) wireEvidence() {
-	if s.evidenceStore == nil || s.agentSessionSvc == nil || s.operatingModeSvc == nil {
+	if s.evidenceStore == nil || s.agentSessionSvc == nil {
 		return
 	}
 	s.evidenceSvc = evidence.NewService(s.evidenceStore, evidence.RunOwnerResolver{
-		Sessions:       s.agentSessionSvc,
-		OperatingModes: s.operatingModeSvc,
+		Sessions: s.agentSessionSvc,
 	})
 	s.agentSessionSvc.SetEvidenceService(s.evidenceSvc)
-	s.operatingModeSvc.SetEvidenceService(s.evidenceSvc)
 	if err := s.agentSessionSvc.MigrateArtifactEvidence(context.Background()); err != nil {
 		// Keep the legacy read path active; an incomplete migration must never
 		// hide artifacts from operators.
@@ -30,7 +29,6 @@ func (s *Server) wireEvidence() {
 	}
 	reconciler := evidenceReconciler{service: s.evidenceSvc, planReader: planclient.NewConnectClient(nil, nil), agentReader: s.agentSvc}
 	s.agentSessionSvc.SetEvidenceReconciler(reconciler)
-	s.operatingModeSvc.SetEvidenceReconciler(reconciler)
 	s.router.Use(s.evidenceInvocationMiddleware)
 	evidence.RegisterConnectService(s.router, s.evidenceSvc, reconciler)
 }

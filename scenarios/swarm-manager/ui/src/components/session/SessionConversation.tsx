@@ -366,7 +366,7 @@ function contextRequirementLabel(type: AgentSessionContextType): string {
     case "backlog_item":
       return "Backlog";
     case "operating_mode":
-      return "Mode";
+      return "Archived workflow";
     default:
       return type.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
   }
@@ -424,7 +424,7 @@ function countNoun(type: AgentSessionContextType, count: number): string {
     case "initiative":
       return plural ? "initiatives" : "initiative";
     case "operating_mode":
-      return plural ? "modes" : "mode";
+      return plural ? "archived workflows" : "archived workflow";
     case "scenario":
       return plural ? "scenarios" : "scenario";
     default:
@@ -439,7 +439,7 @@ function contextLabel(type: AgentSessionContextType): string {
 function draftPlaceholderForKind(kind: AgentSessionKind): string {
   switch (kind) {
     case "operating_mode_authoring":
-      return "Describe the recurring agent workflow you want to author...";
+      return "This archived session is read-only.";
     case "swarm_operations":
       return "Ask what to review, unblock, decide, or move forward in Swarm Manager...";
     case "meta_orchestration":

@@ -34,14 +34,17 @@ const (
 
 // capture represents the on-disk capture state.
 type capture struct {
-	ID             string          `json:"id"`
-	Text           string          `json:"text"`
-	Attachments    []string        `json:"attachments"`
-	Created        string          `json:"created"`
-	Status         string          `json:"status"`
-	FailureReason  string          `json:"failure_reason,omitempty"`
-	Classification *classification `json:"classification,omitempty"`
-	Note           string          `json:"note,omitempty"`
+	ID                       string          `json:"id"`
+	Text                     string          `json:"text"`
+	Attachments              []string        `json:"attachments"`
+	Created                  string          `json:"created"`
+	Status                   string          `json:"status"`
+	FailureReason            string          `json:"failure_reason,omitempty"`
+	Classification           *classification `json:"classification,omitempty"`
+	WorkflowExecutionID      string          `json:"workflow_execution_id,omitempty"`
+	WorkflowDefinitionDigest string          `json:"workflow_definition_digest,omitempty"`
+	WorkflowEntityVersion    string          `json:"workflow_entity_version,omitempty"`
+	Note                     string          `json:"note,omitempty"`
 }
 
 // classification represents the AI-generated classification result.
@@ -99,8 +102,10 @@ func (h *Handler) loadCapture(id string) (*capture, error) {
 		}
 	}
 
-	// Auto-fail captures stuck in classifying for > 2 minutes.
-	if cap.Status == "classifying" {
+	// Historical raw-run captures had no durable execution status, so retain the
+	// old timeout only for those records. A workflow-backed capture is governed
+	// by Agent Manager's own timeout, retry, and terminal journal instead.
+	if cap.Status == "classifying" && cap.WorkflowExecutionID == "" {
 		created, parseErr := time.Parse(time.RFC3339, cap.Created)
 		if parseErr == nil && time.Since(created) > 2*time.Minute {
 			cap.Status = "failed"

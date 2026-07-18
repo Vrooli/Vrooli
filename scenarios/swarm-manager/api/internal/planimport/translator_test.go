@@ -229,8 +229,8 @@ func TestService_ImportRejectsPlanTargetMode(t *testing.T) {
 			Mode: "phased-plan-drain",
 		},
 	}, identity.Provenance{})
-	if err == nil || !strings.Contains(err.Error(), "not an initiative") {
-		t.Fatalf("Import err = %v, want plan-target mode rejection", err)
+	if err == nil || !strings.Contains(err.Error(), "retired") {
+		t.Fatalf("Import err = %v, want retired-mode rejection", err)
 	}
 }
 
@@ -245,7 +245,7 @@ func TestService_ImportInitiativeContainer(t *testing.T) {
 			Type:  "initiative",
 			Name:  "my-plan-work",
 			Title: "My Plan Work",
-			Mode:  "holistic-loop",
+			Mode:  "item-level",
 		},
 	}, identity.Provenance{})
 	if err != nil {

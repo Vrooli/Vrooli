@@ -1,10 +1,44 @@
 package settings
 
-import (
-	"swarm-manager/internal/agentops"
-)
+type PolicyControls struct {
+	Execution   ExecutionControls
+	AutoAdvance AutoAdvanceControls
+	Retry       RetryControls
+	Review      ReviewControls
+	Budgets     AgentBudgetControls
+}
+type ExecutionControls struct{ DefaultMode string }
+type AutoAdvanceControls struct {
+	AutoInitialize bool
+	Enabled        bool
+	Cascade        bool
+	DelaySeconds   int
+	MaxAutoRounds  int
+}
+type RetryControls struct {
+	AutoFixup        bool
+	MaxFixupAttempts int
+}
+type ReviewControls struct {
+	AgentEnabled          bool
+	CodeQualityMinScore   float64
+	TestMinPassRate       float64
+	MaxBlockingViolations int
+	MaxWarnings           int
+	RequireScreenshots    bool
+	RequireTests          bool
+}
+type AgentBudgetControls struct {
+	MaxTurns       int
+	TimeoutSeconds int
+}
+type PolicyControlsProvider interface {
+	LoadPolicyControls() (PolicyControls, error)
+}
 
-// ProjectPolicyControls derives the typed agentops.PolicyControls projection
+func DefaultPolicyControls() PolicyControls { return ProjectPolicyControls(DefaultSettings()) }
+
+// ProjectPolicyControls derives the typed policy-controls projection
 // from a (normalized) Settings value. This is the SINGLE mapping from
 // persisted user settings to the controls orchestration consumers read; the
 // legacy execution.Policy / execution.ReviewThresholds adapters are derived
@@ -13,23 +47,23 @@ import (
 // The mapping is field-for-field lossless: identical settings produce
 // identical controls, so re-plumbing a consumer onto the projection is a
 // behavior no-op (asserted by TestProjectionEquivalence).
-func ProjectPolicyControls(s Settings) agentops.PolicyControls {
-	return agentops.PolicyControls{
-		Execution: agentops.ExecutionControls{
+func ProjectPolicyControls(s Settings) PolicyControls {
+	return PolicyControls{
+		Execution: ExecutionControls{
 			DefaultMode: s.DefaultMode,
 		},
-		AutoAdvance: agentops.AutoAdvanceControls{
+		AutoAdvance: AutoAdvanceControls{
 			AutoInitialize: s.AutoInitializeWorkshop,
 			Enabled:        s.AutoAdvanceWorkshop,
 			Cascade:        s.AutoCascadeWorkshop,
 			DelaySeconds:   s.AutoAdvanceDelaySeconds,
 			MaxAutoRounds:  s.MaxAutoRounds,
 		},
-		Retry: agentops.RetryControls{
+		Retry: RetryControls{
 			AutoFixup:        s.AutoFixup,
 			MaxFixupAttempts: s.MaxFixupAttempts,
 		},
-		Review: agentops.ReviewControls{
+		Review: ReviewControls{
 			AgentEnabled:          s.ReviewAgentEnabled,
 			CodeQualityMinScore:   s.ReviewCodeQualityMinScore,
 			TestMinPassRate:       s.ReviewTestMinPassRate,
@@ -38,14 +72,14 @@ func ProjectPolicyControls(s Settings) agentops.PolicyControls {
 			RequireScreenshots:    s.ReviewRequireScreenshots,
 			RequireTests:          s.ReviewRequireTests,
 		},
-		Budgets: agentops.AgentBudgetControls{
+		Budgets: AgentBudgetControls{
 			MaxTurns:       s.AgentMaxTurns,
 			TimeoutSeconds: s.AgentTimeoutSeconds,
 		},
 	}
 }
 
-// policyControlsAdapter bridges Store to agentops.PolicyControlsProvider.
+// policyControlsAdapter bridges Store to the policy-controls provider.
 // Load happens on every call so operator updates apply without restart.
 type policyControlsAdapter struct {
 	store *Store
@@ -55,18 +89,18 @@ type policyControlsAdapter struct {
 // given store. A nil store resolves the default scenario settings path on
 // every load (matching the legacy per-call settings.NewStore("") pattern, so
 // tests that repoint SCENARIO_ROOT keep working).
-func NewPolicyControlsAdapter(store *Store) agentops.PolicyControlsProvider {
+func NewPolicyControlsAdapter(store *Store) PolicyControlsProvider {
 	return &policyControlsAdapter{store: store}
 }
 
-func (a *policyControlsAdapter) LoadPolicyControls() (agentops.PolicyControls, error) {
+func (a *policyControlsAdapter) LoadPolicyControls() (PolicyControls, error) {
 	store := a.store
 	if store == nil {
 		store = NewStore("")
 	}
 	s, err := store.Load()
 	if err != nil {
-		return agentops.PolicyControls{}, err
+		return PolicyControls{}, err
 	}
 	return ProjectPolicyControls(s), nil
 }

@@ -6,12 +6,16 @@ import (
 	"path/filepath"
 	"testing"
 
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
-// followUpTestService creates a Service with seeded records, returning the
-// service and the stub operation starter follow-up/fixup now route through.
-func followUpTestService(t *testing.T, root string, records []Record, agent AgentManagerAvailability) (*Service, *stubOperationStarter) {
+// followUpTestService creates a Service with seeded records and a declared
+// workflow seam. Follow-up and correction never launch an operation runner.
+func followUpTestService(t *testing.T, root string, records []Record, agent AgentManagerAvailability) (*Service, *stubConclusionWorkflow) {
 	t.Helper()
 	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
 	store := NewStore(storePath)
@@ -25,12 +29,10 @@ func followUpTestService(t *testing.T, root string, records []Record, agent Agen
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
-	// Follow-up and fix-up start through the generic operation runner
-	// (execution-followup / execution-fixup on the backlog-item target), so the
-	// stub starter — not the agent spawner — records their launches.
-	starter := &stubOperationStarter{}
-	svc.SetOperationStarter(starter)
-	return svc, starter
+	workflow := &stubConclusionWorkflow{}
+	svc.SetWorkWorkflow(workflow)
+	svc.SetPhasedPlanWorkflow(&stubPhasedPlanWorkflow{})
+	return svc, workflow
 }
 
 func TestFollowUp_NewRunFromCompleted(t *testing.T) {
@@ -59,7 +61,7 @@ func TestFollowUp_NewRunFromCompleted(t *testing.T) {
 		UpdatedAt:      "2026-03-24T01:00:00Z",
 	}
 
-	svc, starter := followUpTestService(t, root, []Record{parentRecord}, agent)
+	svc, workflow := followUpTestService(t, root, []Record{parentRecord}, agent)
 
 	record, err := svc.FollowUp(context.Background(), FollowUpRequest{
 		ExecutionID:  "parent-exec-1",
@@ -90,19 +92,14 @@ func TestFollowUp_NewRunFromCompleted(t *testing.T) {
 	if record.FixupAttempt != 0 {
 		t.Fatalf("expected fixup_attempt 0 for followup type, got %d", record.FixupAttempt)
 	}
-	if starter.calls != 1 {
-		t.Fatalf("expected 1 operation start, got %d", starter.calls)
-	}
-	if starter.req.Operation != operationExecutionFollowup {
-		t.Fatalf("expected execution-followup operation, got %q", starter.req.Operation)
+	if workflow.startCalls != 1 || workflow.invocation.WorkflowKey != "swarm-manager/work-follow-up" {
+		t.Fatalf("expected work-follow-up workflow start, got calls=%d key=%q", workflow.startCalls, workflow.invocation.WorkflowKey)
 	}
 	if agent.spawnCalls != 0 {
 		t.Fatalf("expected 0 direct agent spawns (rerouted through the runner), got %d", agent.spawnCalls)
 	}
-	// The reroute tracks the live run + operation-execution correlation; TaskID is
-	// no longer a follow-up concept (the runner owns the run association).
-	if record.RunID == "" || record.OpExecutionID == "" {
-		t.Fatalf("expected run + op execution IDs set, got run=%s op=%s", record.RunID, record.OpExecutionID)
+	if record.RunID == "" || record.AgentWorkflowExecutionID == "" || record.OpExecutionID != "" {
+		t.Fatalf("expected workflow correlation without an operation execution, got %#v", record)
 	}
 }
 
@@ -157,7 +154,7 @@ func TestFollowUp_FixupFromNeedsFixup(t *testing.T) {
 		UpdatedAt: "2026-03-24T01:00:00Z",
 	}
 
-	svc, starter := followUpTestService(t, root, []Record{parentRecord}, agent)
+	svc, workflow := followUpTestService(t, root, []Record{parentRecord}, agent)
 
 	record, err := svc.FollowUp(context.Background(), FollowUpRequest{
 		ExecutionID:  "parent-fixup-1",
@@ -179,20 +176,17 @@ func TestFollowUp_FixupFromNeedsFixup(t *testing.T) {
 	if record.Status != StatusStarting {
 		t.Fatalf("expected starting status, got %s", record.Status)
 	}
-	// A fix-up-flavored follow-up routes to the execution-fixup operation.
-	if starter.calls != 1 || starter.req.Operation != operationExecutionFixup {
-		t.Fatalf("expected 1 execution-fixup operation start, got calls=%d op=%q", starter.calls, starter.req.Operation)
+	if workflow.startCalls != 1 || workflow.invocation.WorkflowKey != "swarm-manager/work-correct" {
+		t.Fatalf("expected work-correct workflow start, got calls=%d key=%q", workflow.startCalls, workflow.invocation.WorkflowKey)
 	}
 	if agent.spawnCalls != 0 {
 		t.Fatalf("expected 0 direct agent spawns, got %d", agent.spawnCalls)
 	}
 }
 
-// TestFollowUp_ContinueCollapsesToFreshOperation pins the declarative-operations
-// behavior: run_mode=continue no longer resumes the parent agent session (session
-// continuation is not part of the operation model). It starts a fresh
-// execution-followup operation whose caller context carries the note.
-func TestFollowUp_ContinueCollapsesToFreshOperation(t *testing.T) {
+// TestFollowUp_ContinueCollapsesToFreshWorkflow pins that a continuation request
+// becomes a fresh, declared workflow with the note in its immutable snapshot.
+func TestFollowUp_ContinueCollapsesToFreshWorkflow(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "idea", "continue-idea", map[string]any{
 		"name":        "continue-idea",
@@ -217,7 +211,7 @@ func TestFollowUp_ContinueCollapsesToFreshOperation(t *testing.T) {
 		UpdatedAt:      "2026-03-24T01:00:00Z",
 	}
 
-	svc, starter := followUpTestService(t, root, []Record{parentRecord}, agent)
+	svc, workflow := followUpTestService(t, root, []Record{parentRecord}, agent)
 
 	record, err := svc.FollowUp(context.Background(), FollowUpRequest{
 		ExecutionID:  "parent-continue-1",
@@ -229,21 +223,21 @@ func TestFollowUp_ContinueCollapsesToFreshOperation(t *testing.T) {
 		t.Fatalf("FollowUp error: %v", err)
 	}
 	if record.Status != StatusStarting {
-		t.Fatalf("expected starting status for a fresh follow-up operation, got %s", record.Status)
+		t.Fatalf("expected starting status for a fresh follow-up workflow, got %s", record.Status)
 	}
 	// A fresh operation: the record does not inherit the parent run id.
 	if record.RunID == "run-continue-1" {
 		t.Fatal("expected a fresh run id, not the inherited parent run id")
 	}
-	if record.OpExecutionID == "" {
-		t.Fatal("expected an operation-execution correlation id on the follow-up record")
+	if record.AgentWorkflowExecutionID == "" || record.OpExecutionID != "" {
+		t.Fatal("expected a workflow correlation and no operation-execution correlation")
 	}
-	if starter.calls != 1 || starter.req.Operation != operationExecutionFollowup {
-		t.Fatalf("expected 1 execution-followup operation start, got calls=%d op=%q", starter.calls, starter.req.Operation)
+	if workflow.startCalls != 1 || workflow.invocation.WorkflowKey != "swarm-manager/work-follow-up" {
+		t.Fatalf("expected work-follow-up workflow start, got calls=%d key=%q", workflow.startCalls, workflow.invocation.WorkflowKey)
 	}
-	// The follow-up note rides as a caller input for the mode's prompt.
-	if got := starter.req.CallerInputs["FOLLOWUP_NOTE"]; got != "Please fix the remaining lint errors" {
-		t.Fatalf("expected the note carried as FOLLOWUP_NOTE caller input, got %q", got)
+	snapshot := workflow.invocation.Input.AsInterface().(map[string]any)["snapshot"].(map[string]any)
+	if got := snapshot["operatorNote"]; got != "Please fix the remaining lint errors" {
+		t.Fatalf("expected note in immutable snapshot, got %q", got)
 	}
 	if agent.spawnCalls != 0 {
 		t.Fatalf("expected 0 direct agent spawns, got %d", agent.spawnCalls)
@@ -290,6 +284,36 @@ func TestFollowUp_RejectsRunningState(t *testing.T) {
 		if err.Error() != expected {
 			t.Fatalf("expected error %q, got %q", expected, err.Error())
 		}
+	}
+}
+
+func TestApplyWorkWorkflow_ExactlyOnce(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "work-apply", map[string]any{"name": "work-apply", "title": "Work Apply", "description": "desc", "status": "completed", "priority": 3, "tags": []string{}})
+	parent := Record{ExecutionID: "parent-work", BacklogKind: "idea", BacklogName: "work-apply", Status: StatusCompleted, Mode: ModeYOLO}
+	svc, workflow := followUpTestService(t, root, []Record{parent}, &stubAgentService{})
+	started, err := svc.FollowUp(context.Background(), FollowUpRequest{ExecutionID: parent.ExecutionID, FollowUpType: "followup"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "proposed", "summary": "needs review"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow.completion = agentmanager.InvocationCompletion{ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition, Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: workflow.invocation.Input, Output: output}
+	first, err := svc.ApplyWorkWorkflow(context.Background(), started.ExecutionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Idempotent || first.Record.Status != StatusNeedsReview || first.Record.AgentWorkflowApplyState != workflowApplyComplete {
+		t.Fatalf("unexpected first apply: %#v", first)
+	}
+	second, err := svc.ApplyWorkWorkflow(context.Background(), started.ExecutionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !second.Idempotent || workflow.collectCalls != 1 {
+		t.Fatalf("expected idempotent replay with one collect, got %#v collects=%d", second, workflow.collectCalls)
 	}
 }
 

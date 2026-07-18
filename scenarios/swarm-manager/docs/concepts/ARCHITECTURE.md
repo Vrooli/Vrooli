@@ -35,8 +35,8 @@ per loop visit, node-local profiles, named continuation, child workflow,
 bounded journal context, finite cycles, durable waits, and consumer-owned
 exactly-once mutation all pass focused and race gates without domain vocabulary
 in Agent Manager. This is not authorization for a broad Swarm replacement.
-Replacing or deleting operating modes, agent operations, migrations, policy,
-or UI requires a separate plan with its own compatibility and data strategy.
+The legacy operating-mode and agent-operation runtime has been removed. Legacy
+records and event projections remain read-only for audit and migration history.
 
 ## Mental Model
 
@@ -85,7 +85,7 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 | **Dependency** | Directed edge between backlog items (`depends_on` field in spec.json) | N/A (structural, validated on write) | [CODE: api/internal/depgraph/graph.go] |
 | **Execution Run** | Governed execution-control record linked to backlog work | `pending` -> `scheduled` -> `running` -> `completed`/`failed`/`canceled` | [CODE: ui/src/types/domain.ts#ExecutionRecord] |
 | **Agent Activity** | Durable record for one tracked AgentManager interaction (`spawn` or `continue`) across backlog, scenario, capture, and session flows | `pending` -> `starting`/`running`/`needs_review` -> `complete`/`failed`/`cancelled` | [CODE: ui/src/types/domain.ts#AgentActivity] |
-| **Agent Session** | Durable typed conversation for meta-orchestration, Swarm operations, and operating-mode authoring, with proposals, artifacts, and verified attribution | `starting` -> `running` -> `waiting_for_user`/`proposal_ready` -> `complete`/`failed`/`canceled` | [DOC: docs/internal/AGENT-SESSIONS.md] |
+| **Agent Session** | Durable human-led conversation for meta-orchestration and Swarm operations, with proposals, artifacts, and verified attribution | `starting` -> `running` -> `waiting_for_user`/`proposal_ready` -> `complete`/`failed`/`canceled` | [DOC: docs/internal/AGENT-SESSIONS.md] |
 | **Scenario** | Runtime scenario in the Vrooli ecosystem | `running`, `stopped`, `error`, `unknown` | [CODE: ui/src/types/domain.ts#Scenario] |
 | **Capture** | Raw operator/agent observation (text + optional images) classified into a candidate kind | `pending` -> `classified` -> consumed (converted to backlog or discarded) | [CODE: api/internal/captures/io.go] |
 | **Record** | Immutable narrative artifact of completed work (`trigger`, `approach`, `ruled_out`, `commit`, `files_changed`, `outcome`); mirrors `BacklogKind`; supports `supersedes` chains for amendments | Stub (auto-created on backlog completion) -> filled (one-shot via `records edit`) -> immutable (further changes require supersedes) | [CODE: api/internal/records/types.go] |
@@ -169,7 +169,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
    ```
    Graph launcher -> draft agent session -> composer message + context/images -> Agent Manager run -> proposal -> API-owned apply -> artifact attribution
    ```
-   Agent Sessions support longer conversational planning, operations, and authoring flows inside Swarm Manager. Session details uses the shared composer also used by Quick Capture, with session-only context chips for existing backlog items, initiatives, captures, executions, agent activity, scenarios, operating modes, prior sessions, and the current operations briefing. Message context is resolved by the API before it reaches Agent Manager, and uploaded images are stored as session-owned attachments. Meta-orchestration sessions can create multiple initiatives and backlog items through the batch apply seam. Swarm operations sessions receive a bounded `operations_briefing/latest` context by default, answer broad current-status questions from that packet first, then drill down through the operations/overview/stats commands only when needed. Operating-mode authoring sessions can accept mode proposal drafts and create implementation work without letting the chat agent mutate operating-mode code directly. See [DOC: docs/internal/AGENT-SESSIONS.md].
+   Agent Sessions support longer human-led planning and operations conversations inside Swarm Manager. Session details uses the shared composer also used by Quick Capture, with session-only context chips for existing backlog items, initiatives, captures, executions, agent activity, scenarios, prior sessions, and the current operations briefing. Message context is resolved by the API before it reaches Agent Manager, and uploaded images are stored as session-owned attachments. Meta-orchestration sessions can create multiple initiatives and backlog items through the batch apply seam. Swarm operations sessions receive a bounded `operations_briefing/latest` context by default, answer broad current-status questions from that packet first, then drill down through the operations/overview/stats commands only when needed. See [DOC: docs/internal/AGENT-SESSIONS.md].
 
 8. **UI route navigation**
    ```

@@ -140,7 +140,7 @@ func (s *Service) RecoverActiveRounds() {
 		for _, r := range rounds {
 			// Runner-owned rounds are recovered + driven by the operation runner's
 			// refresh driver (from durable workflow state), not this poller.
-			if r.RunnerOwned() {
+			if r.RunnerOwned() || r.WorkflowOwned() {
 				continue
 			}
 			if r.Status == review.RoundStatusGathering && r.RunID != "" {

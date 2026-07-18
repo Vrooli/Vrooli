@@ -413,32 +413,3 @@ func validateStatusTransition(currentStatus, requestedStatus string) (string, er
 	}
 	return status, nil
 }
-
-// SetModeLifecycle is the single initiative-mode mutation path. It is intended
-// for the operating-mode lifecycle service only; public initiative create/update
-// APIs always create initiatives on the member-item workflow strategy (blank
-// mode, which normalizes to the sentinel) and reject mode mutation.
-func (s *Service) SetModeLifecycle(name, mode string) (*Initiative, error) {
-	init, err := s.store.Load(name)
-	if err != nil {
-		return nil, err
-	}
-	if init.ArchivedAt != nil {
-		return nil, validationErr("archived initiative %q cannot change operating mode", name)
-	}
-	oldMode := NormalizeMode(init.Mode)
-	nextMode := NormalizeMode(mode)
-	if !ValidateMode(nextMode) {
-		return nil, validationErr("invalid operating mode %q: must be one of %s", mode, OperatingModeList())
-	}
-	init.Mode = nextMode
-	init.Updated = time.Now().UTC().Format(time.RFC3339)
-	if err := s.store.Save(init); err != nil {
-		return nil, fmt.Errorf("save initiative: %w", err)
-	}
-	if s.eventLogger != nil && oldMode != init.Mode {
-		s.eventLogger.EmitInitiativeModeChanged(name, oldMode, init.Mode)
-	}
-	s.invalidateTopologyGraph()
-	return init, nil
-}

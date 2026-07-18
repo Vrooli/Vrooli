@@ -2,6 +2,7 @@ package backlog
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +15,18 @@ import (
 	"swarm-manager/internal/workshop"
 
 	"github.com/gorilla/mux"
+	"google.golang.org/protobuf/types/known/structpb"
 )
+
+type planAuthorWorkflowFake struct{ start agentmanager.WorkflowStart }
+
+func (f planAuthorWorkflowFake) StartWorkflow(_ context.Context, _ agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
+	return f.start, nil
+}
+
+func (f planAuthorWorkflowFake) CollectWorkflow(context.Context, string) (agentmanager.InvocationCompletion, error) {
+	return agentmanager.InvocationCompletion{Input: structpb.NewNullValue()}, nil
+}
 
 func TestResearch_InitializeMode_SpawnsAgent(t *testing.T) {
 	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-init")
@@ -160,6 +172,7 @@ func TestResearch_InitializeMode_DryRun(t *testing.T) {
 
 func TestResearch_InitializeMode_AgentUnavailable(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, &mockAgentErrorService{err: agentmanager.ErrNotAvailable})
+	h.SetWorkshopWorkflow(&fakeWorkshopWorkflow{err: agentmanager.ErrNotAvailable})
 
 	item := BacklogItem{
 		Name:     "init-unavail",
@@ -325,8 +338,9 @@ func TestResearch_FinalizeMode_RejectsWhenNotReady(t *testing.T) {
 	}
 }
 
-func TestResearch_FinalizeMode_SpawnsAgent(t *testing.T) {
+func TestResearch_FinalizeMode_StartsPlanAuthorWorkflow(t *testing.T) {
 	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-finalize")
+	h.SetPlanAuthorWorkflow(planAuthorWorkflowFake{start: agentmanager.WorkflowStart{ExecutionID: "plan-author-finalize", RunID: "run-finalize", DefinitionDigest: "sha256:def"}})
 
 	item := BacklogItem{
 		Name:     "finalize-ok",
@@ -356,8 +370,8 @@ func TestResearch_FinalizeMode_SpawnsAgent(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
-	if !phase.started {
-		t.Fatal("expected the live phase engine to start the finalize operation")
+	if phase.started {
+		t.Fatal("finalize must not start the legacy operating-mode phase engine")
 	}
 	var resp map[string]any
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
@@ -367,7 +381,8 @@ func TestResearch_FinalizeMode_SpawnsAgent(t *testing.T) {
 }
 
 func TestResearch_FinalizeMode_AllowsLegacyAnsweredRound(t *testing.T) {
-	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-legacy")
+	h, rootDir, _, _ := setupTestHandlerWithRunner(t, "run-legacy")
+	h.SetPlanAuthorWorkflow(planAuthorWorkflowFake{start: agentmanager.WorkflowStart{ExecutionID: "plan-author-legacy", RunID: "run-legacy", DefinitionDigest: "sha256:def"}})
 
 	item := BacklogItem{
 		Name:     "legacy-finalize-ok",
@@ -398,9 +413,6 @@ func TestResearch_FinalizeMode_AllowsLegacyAnsweredRound(t *testing.T) {
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
-	}
-	if !phase.started {
-		t.Fatal("expected the live phase engine to start the finalize operation for a legacy answered round")
 	}
 }
 
@@ -493,7 +505,8 @@ func TestResearch_BlocksOnUnmetDeps_ForceOverrides(t *testing.T) {
 }
 
 func TestResearch_FinalizeMode_SkipsDepsCheck(t *testing.T) {
-	h, rootDir, phase, _ := setupTestHandlerWithRunner(t, "run-fin")
+	h, rootDir, _, _ := setupTestHandlerWithRunner(t, "run-fin")
+	h.SetPlanAuthorWorkflow(planAuthorWorkflowFake{start: agentmanager.WorkflowStart{ExecutionID: "plan-author-fin", RunID: "run-fin", DefinitionDigest: "sha256:def"}})
 
 	// Create dep in "backlog" status — would block if checked.
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
@@ -524,8 +537,5 @@ func TestResearch_FinalizeMode_SkipsDepsCheck(t *testing.T) {
 	// Finalize should proceed despite unmet dep — it skips dep checks.
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
-	}
-	if !phase.started {
-		t.Fatal("expected the live phase engine to start the finalize operation despite unmet dep")
 	}
 }

@@ -1,7 +1,7 @@
 # Prepared one-shot: retire legacy Qdrant collections (namespace adoption cleanup)
 
-Status: **PREPARED — DO NOT APPLY.** Application is the job of the persisted-state
-migration phase (Phase 8) of the declarative-agent-operations initiative, behind a
+Status: **HISTORICAL — DO NOT APPLY.** This retired preparation note predates the
+completed workflow cutover and is retained only as migration evidence behind a
 `data-backup-manager` snapshot and a Qdrant collection snapshot. This note is the
 plan + runbook only.
 

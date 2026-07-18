@@ -11,51 +11,41 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
-// capturingSpawner records the BacklogSpawnRequest for inspection.
+// capturingSpawner supplies agent availability and run inspection for workflow tests.
 type capturingSpawner struct {
 	enabled  bool
-	captured *agentmanager.BacklogSpawnRequest
+	captured any
 	runState agentmanager.RunState
 	stateErr error
 }
 
 func (s *capturingSpawner) IsEnabled() bool { return s.enabled }
 
-func (s *capturingSpawner) SpawnBacklog(_ context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	s.captured = &req
-	return agentmanager.RunResult{RunID: "test-run-id"}, nil
-}
-
 func (s *capturingSpawner) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
 	return s.runState, s.stateErr
 }
 
-// fakeReviewOperationStarter records the last OperationStartRequest and returns a
-// configurable OperationStartResult. It stands in for the operation runner adapter
-// so review tests can assert the review flow starts the right operation without
-// wiring the real declarative runner.
-type fakeReviewOperationStarter struct {
-	calls   int
-	lastReq OperationStartRequest
-	result  OperationStartResult
-	err     error
+type fakeReviewWorkflow struct {
+	calls      int
+	invocation agentmanager.Invocation
+	completion agentmanager.InvocationCompletion
+	collects   int
 }
 
-func newFakeReviewOperationStarter() *fakeReviewOperationStarter {
-	return &fakeReviewOperationStarter{
-		result: OperationStartResult{RunID: "test-run-id", WorkflowID: "wf-test", ExecutionID: "exec-test"},
-	}
-}
-
-func (f *fakeReviewOperationStarter) StartReviewOperation(_ context.Context, req OperationStartRequest) (OperationStartResult, error) {
+func (f *fakeReviewWorkflow) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
 	f.calls++
-	f.lastReq = req
-	if f.err != nil {
-		return OperationStartResult{}, f.err
-	}
-	return f.result, nil
+	f.invocation = invocation
+	return agentmanager.WorkflowStart{ExecutionID: "review-workflow", RunID: "test-run-id", DefinitionDigest: "sha256:review"}, nil
+}
+
+func (f *fakeReviewWorkflow) CollectWorkflow(context.Context, string) (agentmanager.InvocationCompletion, error) {
+	f.collects++
+	return f.completion, nil
 }
 
 func newTestService(spawner *capturingSpawner, promptResult string) *Service {
@@ -76,6 +66,7 @@ func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 		// exercise the backstop set roundMaxAge + clock explicitly.
 		roundMaxAge:  100 * 365 * 24 * time.Hour,
 		activeRounds: make(map[string]activeRound),
+		workflow:     &fakeReviewWorkflow{},
 	}
 	return svc
 }
@@ -143,18 +134,13 @@ func setupItemDir(t *testing.T, kind string) string {
 	return dir
 }
 
-// TestStartReview_StartsOperationAndWritesRound verifies the rerouted startReview
-// starts the review-round operation through the injected OperationStarter and
-// writes a gathering round carrying the run association (RunID + OpExecutionID)
-// the completion handler correlates back to. It no longer builds prompts/context
-// attachments or spawns an agent directly — that is the operation runner's job now.
-func TestStartReview_StartsOperationAndWritesRound(t *testing.T) {
+func TestStartReview_StartsDeclaredWorkflowAndWritesRound(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "review instructions here")
 	itemDir := setupItemDir(t, "task")
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
-	starter := newFakeReviewOperationStarter()
-	svc.SetOperationStarter(starter)
+	workflow := &fakeReviewWorkflow{}
+	svc.workflow = workflow
 
 	err := svc.startReview(context.Background(), startReviewParams{
 		ExecutionID: "exec-123",
@@ -167,47 +153,29 @@ func TestStartReview_StartsOperationAndWritesRound(t *testing.T) {
 		t.Fatalf("startReview failed: %v", err)
 	}
 
-	if starter.calls != 1 {
-		t.Fatalf("expected exactly 1 operation start, got %d", starter.calls)
-	}
-	if starter.lastReq.Operation != "review-round" {
-		t.Errorf("Operation = %q, want review-round", starter.lastReq.Operation)
-	}
-	if starter.lastReq.TargetKind != "backlog-item" {
-		t.Errorf("TargetKind = %q, want backlog-item", starter.lastReq.TargetKind)
-	}
-	if starter.lastReq.TargetID != "task/test-item" {
-		t.Errorf("TargetID = %q, want task/test-item", starter.lastReq.TargetID)
+	if workflow.calls != 1 || workflow.invocation.WorkflowKey != "swarm-manager/independent-review" {
+		t.Fatalf("expected one independent-review workflow invocation, got calls=%d key=%q", workflow.calls, workflow.invocation.WorkflowKey)
 	}
 
-	// A gathering round must be written carrying the run association so the
-	// commit-review-round handler can correlate the operation result back to it.
 	round, err := LoadRound(itemDir, 1)
 	if err != nil || round == nil {
 		t.Fatalf("expected round 1 on disk: err=%v round=%v", err, round)
 	}
 	if round.Status != RoundStatusGathering {
-		t.Errorf("round status = %q, want gathering (runner finalizes on completion)", round.Status)
+		t.Errorf("round status = %q, want gathering", round.Status)
 	}
 	if round.RunID != "test-run-id" {
 		t.Errorf("round RunID = %q, want test-run-id", round.RunID)
 	}
-	if round.OpWorkflowID != "wf-test" {
-		t.Errorf("round OpWorkflowID = %q, want wf-test", round.OpWorkflowID)
-	}
-	if round.OpExecutionID != "exec-test" {
-		t.Errorf("round OpExecutionID = %q, want exec-test", round.OpExecutionID)
-	}
-	if !round.RunnerOwned() {
-		t.Error("round should be runner-owned (OpExecutionID set)")
+	if round.AgentWorkflowExecutionID != "review-workflow" || round.AgentWorkflowDefinition != "sha256:review" || round.AgentWorkflowVersion == "" || round.OpExecutionID != "" {
+		t.Fatalf("round did not retain declared workflow provenance: %#v", round)
 	}
 }
 
-// TestStartReview_RequiresOperationStarter pins the degraded-mode guard: without
-// an injected operation runner, startReview refuses rather than silently spawning.
-func TestStartReview_RequiresOperationStarter(t *testing.T) {
+func TestStartReview_RequiresWorkflow(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "instructions")
+	svc.workflow = nil
 	itemDir := setupItemDir(t, "task")
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
 
@@ -217,8 +185,63 @@ func TestStartReview_RequiresOperationStarter(t *testing.T) {
 		BacklogName: "test-item",
 		ItemDir:     itemDir,
 	})
-	if err == nil || !strings.Contains(err.Error(), "review operation runner not available") {
-		t.Fatalf("expected operation-runner-unavailable error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "independent review workflow service is not available") {
+		t.Fatalf("expected workflow-unavailable error, got %v", err)
+	}
+}
+
+func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
+	itemDir := t.TempDir()
+	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "task", "name": "item", "executionId": "exec-1", "version": "sha256:snapshot"}, "snapshot": map[string]any{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"handoff": map[string]any{"verdict": "ready", "agent_assessment": "verified", "evidence": []any{}, "improvement_suggestions": []any{}, "regression_introduced": false, "notes": []any{}, "summary": "ready"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow := &fakeReviewWorkflow{completion: agentmanager.InvocationCompletion{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}}
+	svc := newTestService(&capturingSpawner{enabled: true}, "")
+	svc.workflow = workflow
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowExecutionID: "workflow-1", AgentWorkflowDefinition: "sha256:def", AgentWorkflowVersion: "sha256:snapshot"}); err != nil {
+		t.Fatal(err)
+	}
+	first, replay, err := svc.ApplyWorkflowRound(context.Background(), "task", "item", 1)
+	if err != nil || replay || first.Status != RoundStatusComplete || first.Classification != "ready" {
+		t.Fatalf("first apply = %#v replay=%v err=%v", first, replay, err)
+	}
+	second, replay, err := svc.ApplyWorkflowRound(context.Background(), "task", "item", 1)
+	if err != nil || !replay || second.AgentWorkflowApplyState != reviewWorkflowApplyComplete || workflow.collects != 1 {
+		t.Fatalf("replay = %#v replay=%v collects=%d err=%v", second, replay, workflow.collects, err)
+	}
+}
+
+func TestApplyEvidenceRequestWorkflow_ExactlyOnce(t *testing.T) {
+	itemDir := t.TempDir()
+	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "task", "name": "item", "executionId": "exec-1/thread-1", "version": "sha256:snapshot"}, "snapshot": map[string]any{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"summary": "Evidence gathered", "evidence": []any{map[string]any{"id": "evidence-1", "type": "log", "title": "Test log", "description": "The requested evidence."}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow := &fakeReviewWorkflow{completion: agentmanager.InvocationCompletion{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}}
+	svc := newTestService(&capturingSpawner{enabled: true}, "")
+	svc.workflow = workflow
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, RequestThreads: []RequestThread{{ID: "thread-1", Status: "pending", AgentWorkflowExecutionID: "workflow-1", AgentWorkflowDefinition: "sha256:def", AgentWorkflowVersion: "sha256:snapshot"}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	first, replay, err := svc.ApplyEvidenceRequestWorkflow(context.Background(), "task", "item", 1, "thread-1")
+	if err != nil || replay || len(first.Evidence) != 1 || first.RequestThreads[0].Status != "fulfilled" || len(first.RequestThreads[0].Messages) != 1 {
+		t.Fatalf("first apply = %#v replay=%v err=%v", first, replay, err)
+	}
+	second, replay, err := svc.ApplyEvidenceRequestWorkflow(context.Background(), "task", "item", 1, "thread-1")
+	if err != nil || !replay || second.RequestThreads[0].AgentWorkflowApplyState != reviewWorkflowApplyComplete || workflow.collects != 1 {
+		t.Fatalf("replay = %#v replay=%v collects=%d err=%v", second, replay, workflow.collects, err)
 	}
 }
 
@@ -534,7 +557,7 @@ func TestStartReview_DoesNotTrackRunnerOwnedRound(t *testing.T) {
 	svc := newTestService(spawner, "instructions")
 	itemDir := setupItemDir(t, "task")
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
-	svc.SetOperationStarter(newFakeReviewOperationStarter())
+	svc.workflow = &fakeReviewWorkflow{}
 
 	err := svc.startReview(context.Background(), startReviewParams{
 		ExecutionID: "exec-track",
@@ -632,18 +655,13 @@ func TestListRounds_ExposesCurrentRunStatusForNeedsReview(t *testing.T) {
 	}
 }
 
-// TestTriggerReviewAgent_ReroutesToOperation verifies the manual trigger rebuilds
-// the backlog identity from the execution context and reroutes it to the
-// review-round operation (correct target ref), writing a runner-owned gathering
-// round. The old prompt/attachment building is gone — the operation runner owns
-// context assembly now.
-func TestTriggerReviewAgent_ReroutesToOperation(t *testing.T) {
+func TestTriggerReviewAgent_RoutesToDeclaredWorkflow(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "review instructions here")
 	itemDir := setupItemDir(t, "research")
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
-	starter := newFakeReviewOperationStarter()
-	svc.SetOperationStarter(starter)
+	workflow := &fakeReviewWorkflow{}
+	svc.workflow = workflow
 	svc.loadExecutionContext = func(_ context.Context, executionID string) (*ExecutionContext, error) {
 		if executionID != "exec-rebuild" {
 			t.Fatalf("unexpected execution id: %s", executionID)
@@ -660,24 +678,15 @@ func TestTriggerReviewAgent_ReroutesToOperation(t *testing.T) {
 		t.Fatalf("TriggerReviewAgent failed: %v", err)
 	}
 
-	if starter.calls != 1 {
-		t.Fatalf("expected exactly 1 operation start, got %d", starter.calls)
-	}
-	if starter.lastReq.Operation != "review-round" {
-		t.Errorf("Operation = %q, want review-round", starter.lastReq.Operation)
-	}
-	if starter.lastReq.TargetKind != "backlog-item" {
-		t.Errorf("TargetKind = %q, want backlog-item", starter.lastReq.TargetKind)
-	}
-	if starter.lastReq.TargetID != "research/test-item" {
-		t.Errorf("TargetID = %q, want research/test-item", starter.lastReq.TargetID)
+	if workflow.calls != 1 || workflow.invocation.WorkflowKey != "swarm-manager/independent-review" {
+		t.Fatalf("expected independent-review invocation, got calls=%d key=%q", workflow.calls, workflow.invocation.WorkflowKey)
 	}
 
 	round, err := LoadRound(itemDir, 1)
 	if err != nil || round == nil {
 		t.Fatalf("expected round 1 on disk: err=%v round=%v", err, round)
 	}
-	if round.RunID != "test-run-id" || round.OpExecutionID != "exec-test" {
-		t.Errorf("round missing run association: RunID=%q OpExecutionID=%q", round.RunID, round.OpExecutionID)
+	if round.RunID != "test-run-id" || round.AgentWorkflowExecutionID != "review-workflow" || round.OpExecutionID != "" {
+		t.Errorf("round missing workflow association: %#v", round)
 	}
 }

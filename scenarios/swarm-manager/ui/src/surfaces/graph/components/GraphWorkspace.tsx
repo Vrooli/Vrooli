@@ -122,7 +122,7 @@ export function GraphWorkspace() {
   });
 
   const handleCreateAgentSession = useCallback(
-    async (kind: AgentSessionKind) => {
+    async (kind: Exclude<AgentSessionKind, "operating_mode_authoring">) => {
       if (isCreatingSession) return;
       setLauncherError(null);
       setLauncherStatus("Starting session...");
@@ -203,7 +203,6 @@ export function GraphWorkspace() {
           }}
           onPlanWork={() => void handleCreateAgentSession("meta_orchestration")}
           onManageSwarm={() => void handleCreateAgentSession("swarm_operations")}
-          onAuthorOperatingMode={() => void handleCreateAgentSession("operating_mode_authoring")}
           onCreateFromPlan={() => {
             setLauncherError(null);
             setLauncherStatus(null);

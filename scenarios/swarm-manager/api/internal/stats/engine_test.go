@@ -11,7 +11,6 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/eta"
 	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/operatingmode"
 
 	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
@@ -496,80 +495,6 @@ func TestOperatingModeReplanRateFalseExecutePayload(t *testing.T) {
 	got := engine.GetStats().Mode.ReplanRateByMode["holistic-loop"]
 	if got.SampleSize != 0 {
 		t.Fatalf("replan rate = %+v, want no sample (replan_needed retired)", got)
-	}
-}
-
-func TestOperatingModeAcceptanceStats(t *testing.T) {
-	engine, repo := setupEngine(t)
-	ctx := context.Background()
-	now := time.Now().UTC()
-
-	appendEvent(t, repo, now, eventlog.EntityInitiative, "init-a",
-		eventlog.EventOperatingModePhaseCompleted, eventlog.OperatingModePhasePayload{
-			Mode:        "holistic-loop",
-			ScopeKind:   "initiative",
-			ScopeID:     "init-a",
-			Phase:       "review",
-			RunStrategy: "operator_gated_loop",
-			Verdict:     "accept",
-		})
-	appendEvent(t, repo, now, eventlog.EntityInitiative, "init-b",
-		eventlog.EventOperatingModePhaseCompleted, eventlog.OperatingModePhasePayload{
-			Mode:        "holistic-loop",
-			ScopeKind:   "initiative",
-			ScopeID:     "init-b",
-			Phase:       "review",
-			RunStrategy: "operator_gated_loop",
-			Verdict:     "request_changes",
-		})
-
-	if err := engine.Rebuild(ctx); err != nil {
-		t.Fatalf("rebuild: %v", err)
-	}
-	got := engine.GetStats().Mode.AcceptanceRateByMode["holistic-loop"]
-	if got.SampleSize != 2 || got.Rate != 0.5 {
-		t.Fatalf("acceptance rate = %+v, want n=2 rate=.5", got)
-	}
-}
-
-func TestOperatingModeMetricsUseRegistryPolicy(t *testing.T) {
-	state := newAggregateState()
-	policy := operatingmode.MetricsPolicy{
-		EventSource:            "synthetic-mode",
-		ReplanSamplePhases:     []operatingmode.Phase{"ship"},
-		AcceptanceSamplePhases: []operatingmode.Phase{"judge"},
-		AcceptedVerdicts:       []string{"yes"},
-	}
-
-	state.recordOperatingModePolicyMetrics(eventlog.OperatingModePhasePayload{
-		Mode:         "synthetic-mode",
-		Phase:        "ship",
-		ReplanNeeded: true,
-		Verdict:      "yes",
-	}, policy)
-	state.recordOperatingModePolicyMetrics(eventlog.OperatingModePhasePayload{
-		Mode:         "synthetic-mode",
-		Phase:        "execute",
-		ReplanNeeded: true,
-		Verdict:      "yes",
-	}, policy)
-	state.recordOperatingModePolicyMetrics(eventlog.OperatingModePhasePayload{
-		Mode:    "synthetic-mode",
-		Phase:   "judge",
-		Verdict: "YES",
-	}, policy)
-	state.recordOperatingModePolicyMetrics(eventlog.OperatingModePhasePayload{
-		Mode:    "synthetic-mode",
-		Phase:   "review",
-		Verdict: "yes",
-	}, policy)
-
-	modeStats := state.buildMode()
-	if got := modeStats.ReplanRateByMode["synthetic-mode"]; got.SampleSize != 1 || got.Rate != 1 {
-		t.Fatalf("replan rate = %+v, want n=1 rate=1", got)
-	}
-	if got := modeStats.AcceptanceRateByMode["synthetic-mode"]; got.SampleSize != 1 || got.Rate != 1 {
-		t.Fatalf("acceptance rate = %+v, want n=1 rate=1", got)
 	}
 }
 

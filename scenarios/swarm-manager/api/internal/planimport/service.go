@@ -7,7 +7,6 @@ import (
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
-	"swarm-manager/internal/operatingmode"
 	"swarm-manager/internal/planclient"
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
@@ -223,19 +222,10 @@ func validateInitiativeMode(raw string) error {
 	if mode == "" {
 		return nil
 	}
-	// The member-item workflow strategy sentinel is a valid initiative mode
-	// value (the default): each member item runs its own operation.
-	if operatingmode.IsMemberItemStrategySentinel(mode) {
+	if strings.EqualFold(mode, "item-level") {
 		return nil
 	}
-	def, err := operatingmode.DefinitionFor(operatingmode.Mode(mode))
-	if err != nil {
-		return apierr.BadRequest("unknown operating mode %q (registered: %s)", mode, operatingmode.ModeList())
-	}
-	if def.Target.Kind != operatingmode.TargetInitiative {
-		return apierr.BadRequest("mode %q targets %s, not an initiative; start it directly on the plan (operating-mode start / StartTargetPhase) or pick an initiative-target mode", def.Mode, def.Target.Kind)
-	}
-	return nil
+	return apierr.BadRequest("initiative mode %q is retired; use item-level workflow strategy", mode)
 }
 
 func initiativeSpec(container ContainerSpec, plan *sharedv1.Plan) InitiativeSpec {

@@ -32,8 +32,7 @@ func TestEvidenceInvocationMiddlewareRecordsOnlyVerifiedSuccessfulCLIRequests(t 
 		t.Fatal(err)
 	}
 	service := evidence.NewService(store, evidence.RunOwnerResolver{
-		Sessions:       evidenceOwnerIndex{owners: []evidence.Owner{{Kind: evidence.OwnerAgentSession, ID: "session-1"}}},
-		OperatingModes: evidenceOwnerIndex{},
+		Sessions: evidenceOwnerIndex{owners: []evidence.Owner{{Kind: evidence.OwnerAgentSession, ID: "session-1"}}},
 	})
 	server := &Server{evidenceSvc: service}
 	handler := server.evidenceInvocationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

@@ -46,7 +46,7 @@ describe("pending session context", () => {
 
   it("derives compatible session kinds from the shared kind policy [REQ:REQ-P1-010-SESSION-CONTEXT]", () => {
     expect(compatibleSessionKindsForContextType("scenario")).toEqual(["meta_orchestration"]);
-    expect(compatibleSessionKindsForContextType("operating_mode")).toEqual(["operating_mode_authoring"]);
+    expect(compatibleSessionKindsForContextType("operating_mode")).toEqual([]);
     expect(compatibleSessionKindsForContextType("session")).toEqual(["meta_orchestration", "swarm_operations"]);
   });
 });

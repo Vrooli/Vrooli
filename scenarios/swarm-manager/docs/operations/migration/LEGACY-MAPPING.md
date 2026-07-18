@@ -1,5 +1,9 @@
 # Legacy → declarative-operations mapping
 
+> Historical migration record. The runtime described below is retired; this
+> mapping remains only to explain legacy records. Current behavior is defined
+> by [Target Operating Model](../../concepts/TARGET-OPERATING-MODEL.md).
+
 The authoritative map from **every** legacy identity found in the Phase-1
 inventory to its destination in the declarative agent-operations model
 (EXECUTION-MODES.md D1–D8, [AGENT-OPERATIONS.md](../../concepts/AGENT-OPERATIONS.md)).

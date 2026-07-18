@@ -8,7 +8,6 @@ import (
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/operatingmode"
 )
 
 // fakeActivityLister returns a fixed slice and records the filters it
@@ -50,22 +49,6 @@ func recordWithinWindowForTest(rec agentactivity.Record, since time.Time) bool {
 		return true
 	}
 	return !t.Before(since)
-}
-
-type fakeRoundProjection struct {
-	rounds map[string]operatingmode.ActiveRoundSummary
-	err    error
-}
-
-func (f *fakeRoundProjection) ActiveRoundsByInitiative(_ context.Context) (map[string]operatingmode.ActiveRoundSummary, error) {
-	if f.err != nil {
-		return nil, f.err
-	}
-	out := make(map[string]operatingmode.ActiveRoundSummary, len(f.rounds))
-	for k, v := range f.rounds {
-		out[k] = v
-	}
-	return out, nil
 }
 
 type fakeGovernance struct {
@@ -356,13 +339,8 @@ func TestAggregate_JoinsRoundsByRunID(t *testing.T) {
 		},
 	}
 
-	rounds := map[string]operatingmode.ActiveRoundSummary{
-		"auth-rewrite": {Mode: "holistic-loop", Phase: "review", Round: 4, Status: "running", RunID: "run-abc"},
-	}
-
 	agg := mustAgg(t, AggregatorConfig{
 		Activities: &fakeActivityLister{records: records},
-		Rounds:     &fakeRoundProjection{rounds: rounds},
 		Governance: &fakeGovernance{resp: defaultGovernance()},
 	})
 
@@ -375,8 +353,8 @@ func TestAggregate_JoinsRoundsByRunID(t *testing.T) {
 		byID[row.ActivityID] = row
 	}
 	got := byID["rnd-1"]
-	if got.Mode != "holistic-loop" || got.Phase != "review" || got.Round != 4 {
-		t.Errorf("rnd-1 round join wrong: %+v", got)
+	if got.Mode != "" || got.Round != 0 {
+		t.Errorf("rnd-1 must not carry retired round metadata: %+v", got)
 	}
 	if got.InitiativeName != "auth-rewrite" {
 		t.Errorf("rnd-1 initiative = %q, want auth-rewrite", got.InitiativeName)

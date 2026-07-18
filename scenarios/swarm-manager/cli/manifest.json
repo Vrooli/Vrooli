@@ -1,177 +1,8 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "swarm-manager",
-  "description": "swarm-manager declared measures surface plus the agent-operations operator surface. This manifest is the SSOT for the scenario's analytical measures (the granular replacement for the monolithic /stats blob) — consumed by measures-health (coverage + behavioral probe) and the search-hub central index — and models the AgentOperationsService command bindings and governance. swarm-manager's broader CLI is hand-registered (not yet manifest-driven).",
+  "description": "Swarm Manager declared measures surface. This manifest is the SSOT for the scenario's analytical measures, consumed by measures-health and search-hub; the broader CLI remains hand-registered.",
   "groups": [
-    {
-      "name": "agent-operations",
-      "description": "Declarative agent-operations operator surface: catalog/compatibility/binding/workflow/provenance projections, mutating binding-override administration, and the idempotent reconciliation sweep. All commands are thin Connect clients over AgentOperationsService. The overrides trio is invoked as 'agent-operations overrides {list|set|clear}' (one registered subcommand dispatching on its first positional); the dashed names here are the manifest identifiers for the three bound RPCs.",
-      "commands": [
-        {
-          "name": "resolve-binding",
-          "description": "Resolve the winning binding for an operation against a target by deterministic precedence.",
-          "flags": [
-            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
-            { "name": "target", "description": "Target id (backlog item kind/name, initiative name, plan execution id, or scenario name).", "required": true },
-            { "name": "operation", "description": "Operation id.", "required": true },
-            { "name": "version", "description": "Exact operation version (optional)." },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ResolveBinding" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "validate",
-          "description": "Dry-run-validate an invocation (declared, target-compatible, binding-resolvable) without starting a run.",
-          "flags": [
-            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
-            { "name": "target", "description": "Target id.", "required": true },
-            { "name": "operation", "description": "Operation id.", "required": true },
-            { "name": "version", "description": "Exact operation version (optional)." },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ValidateInvocation" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "inspect-workflow",
-          "description": "Inspect the durable workflow instance correlating a target's operation executions.",
-          "flags": [
-            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
-            { "name": "target", "description": "Target id.", "required": true },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "InspectWorkflow" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "inspect-execution",
-          "description": "Inspect an execution's pinned provenance, outcome, and snapshot reproducibility.",
-          "flags": [
-            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
-            { "name": "target", "description": "Target id.", "required": true },
-            { "name": "execution", "description": "Execution id.", "required": true },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "InspectExecution" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "catalog",
-          "description": "List every authored operation contract with its pinned revision and compatible target kinds.",
-          "flags": [
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ListOperationCatalog" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "compatible-modes",
-          "description": "List authored operating modes with server-computed per-operation compatibility verdicts for a target.",
-          "flags": [
-            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
-            { "name": "target", "description": "Target id.", "required": true },
-            { "name": "operation", "description": "Narrow verdicts to one catalog operation id (optional)." },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ListCompatibleModes" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "bindings",
-          "description": "Resolve the winning binding per catalog operation for a target, with source layer and contributing layers.",
-          "flags": [
-            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
-            { "name": "target", "description": "Target id.", "required": true },
-            { "name": "verbose", "bool": true, "description": "Show every contributing layer, not just the winner." },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "GetResolvedBindings" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "overrides-list",
-          "description": "List the raw binding-override documents stored at one owner's layer, with file-level provenance. Invoked as 'agent-operations overrides list'.",
-          "flags": [
-            { "name": "owner-kind", "description": "Override owner kind.", "required": true, "values": ["backlog-item", "initiative"] },
-            { "name": "owner", "description": "Owner id (backlog item kind/name, or initiative name).", "required": true },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ListBindingOverrides" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "overrides-set",
-          "description": "Write (idempotent-replace) one binding override at the owner's layer; validated fail-closed before the write. Snapshot-at-invoke: affects only operations started afterwards. Invoked as 'agent-operations overrides set'.",
-          "flags": [
-            { "name": "owner-kind", "description": "Override owner kind.", "required": true, "values": ["backlog-item", "initiative"] },
-            { "name": "owner", "description": "Owner id.", "required": true },
-            { "name": "operation", "description": "Operation id.", "required": true },
-            { "name": "version", "description": "Exact operation version pin (optional; empty binds across versions)." },
-            { "name": "mode", "description": "Operating mode the override selects.", "required": true },
-            { "name": "mode-revision", "description": "Exact mode content revision to pin.", "required": true },
-            { "name": "disabled", "bool": true, "description": "Write a fail-closed veto: refuse the operation for this scope." },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "PutBindingOverride" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "overrides-clear",
-          "description": "Delete the owner's binding override for an operation (+ optional exact version pin); reports found=false for an absent override rather than erroring. Invoked as 'agent-operations overrides clear'.",
-          "flags": [
-            { "name": "owner-kind", "description": "Override owner kind.", "required": true, "values": ["backlog-item", "initiative"] },
-            { "name": "owner", "description": "Owner id.", "required": true },
-            { "name": "operation", "description": "Operation id.", "required": true },
-            { "name": "version", "description": "Exact version pin of the stored override (optional)." },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "DeleteBindingOverride" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "workflow",
-          "description": "Canonical workflow projection: durable state, operations enriched with mode@revision/binding layer/attempt lineage, decisions, timers, and legal actions.",
-          "flags": [
-            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
-            { "name": "target", "description": "Target id.", "required": true },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "GetWorkflowProjection" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "history",
-          "description": "Execution provenance summaries for a target, newest first.",
-          "flags": [
-            { "name": "target-kind", "description": "Target kind.", "required": true, "values": ["backlog-item", "initiative", "plan-execution", "scenario"] },
-            { "name": "target", "description": "Target id.", "required": true },
-            { "name": "limit", "description": "Cap the number of summaries returned (0 = no cap)." },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "ListExecutionHistory" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "migration-status",
-          "description": "Read the persisted-state migration status document (written by the Phase-8 migration tooling); absent means not-started.",
-          "flags": [
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "GetMigrationStatus" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
-        },
-        {
-          "name": "reconcile",
-          "description": "Run the idempotent, race-safe orphan-snapshot reconciliation sweep (the same sweep the API runs at startup); mutates only by reaping aged, unreferenced execution snapshots.",
-          "flags": [
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "AgentOperationsService", "method": "RunReconciliation" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
-        }
-      ]
-    },
     {
       "name": "backlog",
       "description": "Backlog work-item measures.",
@@ -180,10 +11,23 @@
           "name": "completed",
           "description": "Count backlog items completed in a time window.",
           "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "CountBacklogCompleted" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountBacklogCompleted"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
           "measure": {
             "domain": "backlog",
             "intent": "How many backlog items were completed in a time window.",
@@ -192,18 +36,41 @@
               "backlog items closed last month",
               "how many work items were finished in the last 7 days"
             ],
-            "params": { "window": { "type": "time_window", "default": "this_week" } },
-            "result": { "kind": "scalar", "value_field": "count", "unit": "items", "summary_template": "{count} backlog items completed ({window})" }
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "items",
+              "summary_template": "{count} backlog items completed ({window})"
+            }
           }
         },
         {
           "name": "created",
           "description": "Count backlog items created in a time window.",
           "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "CountBacklogCreated" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountBacklogCreated"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
           "measure": {
             "domain": "backlog",
             "intent": "How many backlog items were created in a time window.",
@@ -212,22 +79,59 @@
               "new work items added last month",
               "how many backlog items did we add in the last 30 days"
             ],
-            "params": { "window": { "type": "time_window", "default": "this_week" } },
-            "result": { "kind": "scalar", "value_field": "count", "unit": "items", "summary_template": "{count} backlog items created ({window})" }
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "items",
+              "summary_template": "{count} backlog items created ({window})"
+            }
           }
         },
         {
           "name": "dismiss",
           "description": "Dismiss a suggested auto-filer item and remember its finding.",
           "flags": [
-            { "name": "kind", "description": "Backlog item kind.", "required": true },
-            { "name": "name", "description": "Backlog item name.", "required": true },
-            { "name": "reason", "description": "Optional dismissal reason." },
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
+            {
+              "name": "kind",
+              "description": "Backlog item kind.",
+              "required": true
+            },
+            {
+              "name": "name",
+              "description": "Backlog item name.",
+              "required": true
+            },
+            {
+              "name": "reason",
+              "description": "Optional dismissal reason."
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Emit JSON output."
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AutoFilerService", "method": "DismissSuggestion" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "proto_mutation" }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AutoFilerService",
+            "method": "DismissSuggestion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         }
       ]
     },
@@ -239,21 +143,53 @@
           "name": "status",
           "description": "Show backlog auto-filer policy and latest cycle status.",
           "flags": [
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Emit JSON output."
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AutoFilerService", "method": "GetStatus" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "operational" }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AutoFilerService",
+            "method": "GetStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "run-now",
           "description": "Run one governed auto-filer cycle immediately.",
           "flags": [
-            { "name": "json", "bool": true, "description": "Emit JSON output." }
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Emit JSON output."
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AutoFilerService", "method": "RunNow" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "proto_mutation" }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AutoFilerService",
+            "method": "RunNow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         }
       ]
     },
@@ -265,10 +201,23 @@
           "name": "completed",
           "description": "Count executions completed in a time window.",
           "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "CountExecutionsCompleted" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountExecutionsCompleted"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
           "measure": {
             "domain": "execution",
             "intent": "How many executions completed in a time window.",
@@ -277,8 +226,18 @@
               "agent executions finished last month",
               "how many runs completed in the last 7 days"
             ],
-            "params": { "window": { "type": "time_window", "default": "this_week" } },
-            "result": { "kind": "scalar", "value_field": "count", "unit": "executions", "summary_template": "{count} executions completed ({window})" }
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "executions",
+              "summary_template": "{count} executions completed ({window})"
+            }
           }
         }
       ]
@@ -291,10 +250,23 @@
           "name": "created",
           "description": "Count initiatives created in a time window.",
           "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "CountInitiativesCreated" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountInitiativesCreated"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
           "measure": {
             "domain": "initiative",
             "intent": "How many initiatives were created in a time window.",
@@ -303,8 +275,18 @@
               "new initiatives started last month",
               "how many initiatives did we open this quarter"
             ],
-            "params": { "window": { "type": "time_window", "default": "this_week" } },
-            "result": { "kind": "scalar", "value_field": "count", "unit": "initiatives", "summary_template": "{count} initiatives created ({window})" }
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "initiatives",
+              "summary_template": "{count} initiatives created ({window})"
+            }
           }
         }
       ]
@@ -317,10 +299,23 @@
           "name": "created",
           "description": "Count agent sessions created in a time window.",
           "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "CountAgentSessionsCreated" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountAgentSessionsCreated"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
           "measure": {
             "domain": "agent_session",
             "intent": "How many agent sessions were created in a time window.",
@@ -329,61 +324,179 @@
               "new conversations started last month",
               "how many agent sessions did we open in the last 7 days"
             ],
-            "params": { "window": { "type": "time_window", "default": "this_week" } },
-            "result": { "kind": "scalar", "value_field": "count", "unit": "sessions", "summary_template": "{count} agent sessions created ({window})" }
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "sessions",
+              "summary_template": "{count} agent sessions created ({window})"
+            }
           }
         }
       ]
     }
   ],
   "omitted": [
-    { "service": "AudioAdminService", "method": "ClearSpeakerProfileBinding", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin, mounted in main.go); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "DeleteSpeakerProfile", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "DeleteWakeWordTemplate", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "EnrollSpeakerProfile", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "GetSpeakerConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "GetSpeakerStatus", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "GetStreamConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "GetSummarizeConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "GetTTSConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "GetWakeWordConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "ListSpeakerProfiles", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "ListSummarizeModels", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "UnbindSpeakerProfile", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "UpdateSpeakerConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "UpdateStreamConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "UpdateSummarizeConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "UpdateTTSConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioAdminService", "method": "UpdateWakeWordTemplate", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
-    { "service": "AudioRuntimeService", "method": "GetTTSCache", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
-    { "service": "AudioRuntimeService", "method": "ListVoices", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
-    { "service": "AudioRuntimeService", "method": "RecordPlaybackEvent", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
-    { "service": "AudioRuntimeService", "method": "Summarize", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
-    { "service": "AudioRuntimeService", "method": "Synthesize", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
-    { "service": "AudioRuntimeService", "method": "Transcribe", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
-    { "service": "BacklogService", "method": "CreateItem", "reason": "Cross-scenario backlog contract RPC consumed by other scenarios' Connect clients (api/internal/backlog/connect_service.go); item creation is offered to operators via the hand-registered 'backlog create' command, not this raw contract method." },
-    { "service": "BacklogService", "method": "GetItem", "reason": "Cross-scenario backlog contract RPC consumed by other scenarios' Connect clients (api/internal/backlog/connect_service.go); item retrieval is offered to operators via the hand-registered 'backlog get' command, not this raw contract method." },
-    { "service": "DiscoveryService", "method": "GetAudioToolsEndpoint", "reason": "Service-discovery RPC the web-console UI and integrations use to locate the audio-tools scenario (api/handlers/discovery); not an operator CLI command." },
-    { "service": "EvidenceService", "method": "ListEntity", "reason": "Hand-registered as 'evidence entity' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "EvidenceService", "method": "ListRun", "reason": "Hand-registered as 'evidence run' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "EvidenceService", "method": "Reconcile", "reason": "Hand-registered as 'evidence reconcile' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "EvidenceService", "method": "RecordOperatorVerification", "reason": "Hand-registered as 'evidence verify' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "ApplyBacklogSync", "reason": "Hand-registered as 'initiatives mode-apply-backlog-sync' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "CancelRound", "reason": "Hand-registered as 'initiatives mode-cancel' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "Catalog", "reason": "Hand-registered as 'operating-mode list' and 'initiatives mode-list' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "CompleteItems", "reason": "Hand-registered as 'initiatives mode-complete-items' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "GetMode", "reason": "Hand-registered as 'operating-mode get' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "GetWorkspace", "reason": "Hand-registered as 'initiatives mode-workspace' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "RefreshRound", "reason": "Hand-registered as 'initiatives mode-refresh' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "RenderLivePrompt", "reason": "Live prompt rendering is consumed by the Swarm Manager UI; the CLI exposes registered simulation prompt rendering through 'operating-mode get --show-prompt' instead." },
-    { "service": "OperatingModeService", "method": "RenderSimulationPrompt", "reason": "Hand-registered behind 'operating-mode get --show-prompt' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "ScaffoldMode", "reason": "Hand-registered as 'operating-mode scaffold' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "SimulateMode", "reason": "Hand-registered as 'operating-mode simulate' and used by 'operating-mode get --show-prompt' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "StartPhase", "reason": "Hand-registered as 'initiatives mode-start' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "StartTargetPhase", "reason": "Hand-registered as 'operating-mode start' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "SwitchMode", "reason": "Hand-registered as 'initiatives mode-switch' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "UpdateMode", "reason": "Hand-registered as 'operating-mode set' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." },
-    { "service": "OperatingModeService", "method": "ValidateMode", "reason": "Hand-registered as 'operating-mode validate' through the generated OperatingModeService Connect client; the broader Swarm Manager CLI is not yet manifest-driven." }
+    {
+      "service": "AudioAdminService",
+      "method": "ClearSpeakerProfileBinding",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin, mounted in main.go); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "DeleteSpeakerProfile",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "DeleteWakeWordTemplate",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "EnrollSpeakerProfile",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "GetSpeakerConfig",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "GetSpeakerStatus",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "GetStreamConfig",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "GetSummarizeConfig",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "GetTTSConfig",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "GetWakeWordConfig",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "ListSpeakerProfiles",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "ListSummarizeModels",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "UnbindSpeakerProfile",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "UpdateSpeakerConfig",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "UpdateStreamConfig",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "UpdateSummarizeConfig",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "UpdateTTSConfig",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioAdminService",
+      "method": "UpdateWakeWordTemplate",
+      "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface."
+    },
+    {
+      "service": "AudioRuntimeService",
+      "method": "GetTTSCache",
+      "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command."
+    },
+    {
+      "service": "AudioRuntimeService",
+      "method": "ListVoices",
+      "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command."
+    },
+    {
+      "service": "AudioRuntimeService",
+      "method": "RecordPlaybackEvent",
+      "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command."
+    },
+    {
+      "service": "AudioRuntimeService",
+      "method": "Summarize",
+      "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command."
+    },
+    {
+      "service": "AudioRuntimeService",
+      "method": "Synthesize",
+      "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command."
+    },
+    {
+      "service": "AudioRuntimeService",
+      "method": "Transcribe",
+      "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command."
+    },
+    {
+      "service": "BacklogService",
+      "method": "CreateItem",
+      "reason": "Cross-scenario backlog contract RPC consumed by other scenarios' Connect clients (api/internal/backlog/connect_service.go); item creation is offered to operators via the hand-registered 'backlog create' command, not this raw contract method."
+    },
+    {
+      "service": "BacklogService",
+      "method": "GetItem",
+      "reason": "Cross-scenario backlog contract RPC consumed by other scenarios' Connect clients (api/internal/backlog/connect_service.go); item retrieval is offered to operators via the hand-registered 'backlog get' command, not this raw contract method."
+    },
+    {
+      "service": "DiscoveryService",
+      "method": "GetAudioToolsEndpoint",
+      "reason": "Service-discovery RPC the web-console UI and integrations use to locate the audio-tools scenario (api/handlers/discovery); not an operator CLI command."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "ListEntity",
+      "reason": "Hand-registered as 'evidence entity' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "ListRun",
+      "reason": "Hand-registered as 'evidence run' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "Reconcile",
+      "reason": "Hand-registered as 'evidence reconcile' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "RecordOperatorVerification",
+      "reason": "Hand-registered as 'evidence verify' through the generated EvidenceService Connect client; the broader Swarm Manager CLI is not yet manifest-driven."
+    }
   ],
   "measures": {
     "omitted": [

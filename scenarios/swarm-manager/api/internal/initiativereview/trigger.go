@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
@@ -106,7 +107,7 @@ func (s *Service) TriggerForItem(ctx context.Context, kind, name string) {
 //
 // Lock contract: when a lock is wired, startReview acquires it with a
 // provisional RunID before the spawn, then overrides it with the agent-
-// manager RunID once SpawnInitiative succeeds. On spawn failure the
+// manager RunID once the workflow starts. On start failure the
 // provisional release clears the lock so the initiative isn't wedged.
 // Release happens in handleTerminalRound (or on decide, if a future verdict
 // path lands while the round is still alive). Returns a *initiativelock.
@@ -142,7 +143,7 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		}
 	}
 
-	if s.operationStarter == nil {
+	if s.workflow == nil {
 		// Degraded mode (no runner): the round still lands on disk and the
 		// initiative flips to in_review so the UI doesn't lie about lifecycle,
 		// but no agent-manager work happens. The provisional lock is released
@@ -166,23 +167,19 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		return TriggerResult{Started: true, Round: roundNum}, nil
 	}
 
-	// Start the initiative-review operation through the runner. The bound
-	// initiative-review-loop mode renders its own prompt + assembles context from
-	// the initiative target adapters (member items, acceptance criteria); the
-	// completion arrives through the runner completion bridge, which fires
-	// commit-initiative-review (see opshandlers.go).
-	res, err := s.operationStarter.StartInitiativeReviewOperation(ctx, OperationStartRequest{
-		Operation:      opInitiativeReview,
-		TargetKind:     targetKindInitiative,
-		TargetID:       init.Name,
-		IdempotencyKey: fmt.Sprintf("initiative-review-%s-r%d", init.Name, roundNum),
-		RequestedBy:    "swarm-manager:initiative-review",
-	})
+	input, version, inputErr := initiativeReviewInput(init.Name, roundNum, init)
+	if inputErr != nil {
+		if s.lock != nil {
+			_ = s.lock.Release(init.Name, provisionalRunID)
+		}
+		return TriggerResult{}, fmt.Errorf("build initiative review snapshot: %w", inputErr)
+	}
+	res, err := s.workflow.StartWorkflow(ctx, agentmanager.Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/initiative-review", Input: input, IdempotencyKey: fmt.Sprintf("initiative-review-%s-r%d", init.Name, roundNum), FirstRunNodeID: "review"})
 	if err != nil {
 		if s.lock != nil {
 			_ = s.lock.Release(init.Name, provisionalRunID)
 		}
-		return TriggerResult{}, fmt.Errorf("start initiative review operation: %w", err)
+		return TriggerResult{}, fmt.Errorf("start initiative review workflow: %w", err)
 	}
 
 	// Swap the provisional holder for the agent-manager RunID so a later
@@ -205,33 +202,26 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 
 	round.RunID = res.RunID
 	round.ExecutionID = "" // initiative reviews have no single execution owner
-	round.OpWorkflowID = res.WorkflowID
-	round.OpExecutionID = res.ExecutionID
+	round.AgentWorkflowExecutionID = res.ExecutionID
+	round.AgentWorkflowDefinition = res.DefinitionDigest
+	round.AgentWorkflowVersion = version
 	if err := review.SaveRound(itemDir, round); err != nil {
 		return TriggerResult{}, fmt.Errorf("save round: %w", err)
 	}
 	if err := s.setInitiativeStatus(init, initiatives.InitiativeStatusInReview, generatedAt); err != nil {
 		return TriggerResult{}, err
 	}
-	// NOT tracked for legacy polling: the round is runner-owned (OpExecutionID
-	// set), so the operation runner's completion bridge + refresh driver own its
-	// terminal transition.
+	// Workflow-owned rounds are finalized only by ApplyWorkflowRound.
 
 	slog.Info("initiative review started",
 		"initiative", init.Name,
 		"round", roundNum,
 		"run_id", res.RunID,
-		"op_execution", res.ExecutionID,
+		"workflow_execution", res.ExecutionID,
 	)
 
 	return TriggerResult{Started: true, Round: roundNum, RunID: res.RunID}, nil
 }
-
-// Operation + target identifiers the initiative-review reroute pins.
-const (
-	opInitiativeReview   = "initiative-review"
-	targetKindInitiative = "initiative"
-)
 
 // findNonTerminalItems returns the "kind/name" refs of member items that
 // are not yet in a terminal state. Missing-from-disk items are treated as

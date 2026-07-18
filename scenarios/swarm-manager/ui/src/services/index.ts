@@ -27,6 +27,15 @@ export type { IScenariosService } from "./scenarios-service";
 export { settingsService, createSettingsService } from "./settings-service";
 export type { ISettingsService } from "./settings-service";
 
+// Integration status
+export { integrationStatusService, createIntegrationStatusService } from "./integration-status-service";
+export type {
+  IIntegrationStatusService,
+  IntegrationAvailability,
+  IntegrationStatus,
+  IntegrationStatusResponse,
+} from "./integration-status-service";
+
 // Agent Manager
 export { agentManagerService, createAgentManagerService } from "./agent-manager-service";
 export type { IAgentManagerService, AgentRunDetails } from "./agent-manager-service";
@@ -57,14 +66,6 @@ export type { IInitiativeService } from "./initiative-service";
 // Goals
 export { goalsService, createGoalsService } from "./goals-service";
 export type { IGoalsService } from "./goals-service";
-
-// Initiative Operating Modes
-export { initiativeModeService, createInitiativeModeService } from "./initiative-mode-service";
-export type { IInitiativeModeService, StartOperatingModePhaseArgs, SwitchOperatingModeArgs } from "./initiative-mode-service";
-
-// Agent Operations (declarative agent-operations operator surface)
-export { agentOperationsService, createAgentOperationsService } from "./agent-operations-service";
-export type { IAgentOperationsService, PutBindingOverrideArgs } from "./agent-operations-service";
 
 // Prompt Center
 export { promptService, createPromptService } from "./prompt-service";

@@ -30,7 +30,6 @@ import { BacklogTab } from "./BacklogTab";
 import { CapturesTab } from "./CapturesTab";
 import { InitiativesTab } from "./InitiativesTab";
 import { GoalsTab } from "./GoalsTab";
-import { OperatingModesTab } from "./OperatingModesTab";
 import { ExecutionsTab } from "./ExecutionsTab";
 import { SessionsTab } from "./SessionsTab";
 import { useSidebarSelection } from "./useSidebarSelection";
@@ -315,13 +314,6 @@ export function Sidebar({
                   onItemClick={onItemClick}
                   onClearSearch={clearSearch}
                   onCreateGoal={createAction?.tab === "goals" ? createAction.onClick : undefined}
-                />
-              )}
-              {activeTab === "operatingModes" && (
-                <OperatingModesTab
-                  searchQuery={debouncedSearch}
-                  onItemClick={onItemClick}
-                  onClearSearch={clearSearch}
                 />
               )}
               {activeTab === "executions" && (

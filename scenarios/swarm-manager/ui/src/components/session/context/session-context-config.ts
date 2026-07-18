@@ -1,4 +1,4 @@
-import type { AgentSessionContextType, AgentSessionKind } from "../../../types";
+import type { AgentSessionContextType, AgentSessionKind, CreatableAgentSessionKind } from "../../../types";
 
 export const CONTEXT_TYPE_LABELS: Record<AgentSessionContextType, string> = {
   backlog_item: "Backlog",
@@ -7,7 +7,7 @@ export const CONTEXT_TYPE_LABELS: Record<AgentSessionContextType, string> = {
   execution: "Executions",
   agent_activity: "Activity",
   scenario: "Scenarios",
-  operating_mode: "Modes",
+  operating_mode: "Archived workflows",
   session: "Sessions",
   operations_briefing: "Briefing",
   startup_brief: "Startup",
@@ -35,7 +35,7 @@ export const CONTEXT_TYPE_CAPS: Record<AgentSessionContextType, number> = {
 export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSessionContextType[] {
   switch (kind) {
     case "operating_mode_authoring":
-      return ["startup_brief", "operating_mode", "initiative", "backlog_item", "execution", "agent_activity", "capture", "goal"];
+      return [];
     case "swarm_operations":
       return ["startup_brief", "operations_briefing", "initiative", "backlog_item", "execution", "agent_activity", "capture", "session", "plan_dependency_cycles", "plan_eta", "goal"];
     case "meta_orchestration":
@@ -44,8 +44,8 @@ export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSession
   }
 }
 
-export function compatibleSessionKindsForContextType(type: AgentSessionContextType): AgentSessionKind[] {
-  const kinds: AgentSessionKind[] = ["meta_orchestration", "swarm_operations", "operating_mode_authoring"];
+export function compatibleSessionKindsForContextType(type: AgentSessionContextType): CreatableAgentSessionKind[] {
+  const kinds: CreatableAgentSessionKind[] = ["meta_orchestration", "swarm_operations"];
   return kinds.filter((kind) => allowedContextTypesForKind(kind).includes(type));
 }
 
@@ -53,6 +53,6 @@ export function sessionKindAllowsContextType(kind: AgentSessionKind, type: Agent
   return allowedContextTypesForKind(kind).includes(type);
 }
 
-export function totalContextCapForKind(kind: AgentSessionKind): number {
-  return kind === "operating_mode_authoring" ? 8 : 12;
+export function totalContextCapForKind(_kind: AgentSessionKind): number {
+  return 12;
 }

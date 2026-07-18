@@ -103,7 +103,6 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
           showArchived: filters.initiatives?.showArchived === true,
         },
         goals: {},
-        operatingModes: {},
         executions: {
           statuses: restoreArray(filters.executions?.statuses),
           modes: restoreArray(filters.executions?.modes),
@@ -121,7 +120,6 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
         captures: restoreSort(sorts.captures, DEFAULT_SORT.captures),
         initiatives: restoreSort(sorts.initiatives, DEFAULT_SORT.initiatives),
         goals: restoreSort(sorts.goals, DEFAULT_SORT.goals),
-        operatingModes: restoreSort(sorts.operatingModes, DEFAULT_SORT.operatingModes),
         executions: restoreSort(sorts.executions, DEFAULT_SORT.executions),
         sessions: restoreSort(sorts.sessions, DEFAULT_SORT.sessions),
       },

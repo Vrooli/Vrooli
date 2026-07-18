@@ -3,7 +3,6 @@ package agentsessions
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -40,7 +39,7 @@ func TestMigrateArtifactEvidenceProjectsLegacyArtifactsWithoutUpgradingTrust(t *
 	if err := store.InitSchema(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	svc.SetEvidenceService(evidence.NewService(store, evidence.RunOwnerResolver{Sessions: emptyOwnerIndex{}, OperatingModes: emptyOwnerIndex{}}))
+	svc.SetEvidenceService(evidence.NewService(store, evidence.RunOwnerResolver{Sessions: emptyOwnerIndex{}}))
 	if err := svc.MigrateArtifactEvidence(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +188,7 @@ func TestServiceStartRejectsContextOverKindCaps(t *testing.T) {
 
 	svc := newTestService(t, &fakeSessionSpawner{})
 	draft, err := svc.Create(context.Background(), CreateRequest{
-		Kind:  KindOperatingModeAuthoring,
+		Kind:  KindMetaOrchestration,
 		Title: "Author mode",
 	})
 	if err != nil {
@@ -344,7 +343,7 @@ func TestServiceStartInitialPromptDeliversFullSkill(t *testing.T) {
 	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
 	svc := newTestService(t, spawner)
 	draft, err := svc.Create(context.Background(), CreateRequest{
-		Kind:  KindOperatingModeAuthoring,
+		Kind:  KindMetaOrchestration,
 		Title: "Author a mode",
 	})
 	if err != nil {
@@ -357,7 +356,7 @@ func TestServiceStartInitialPromptDeliversFullSkill(t *testing.T) {
 		t.Fatalf("Start() error = %v", err)
 	}
 	prompt := spawner.spawnReq.Prompt
-	if !strings.Contains(prompt, "prompt-manager skill read "+SkillOperatingModeAuthoring) {
+	if !strings.Contains(prompt, "prompt-manager skill read "+SkillMetaOrchestrator) {
 		t.Fatalf("initial prompt does not direct the agent to read the full skill: %s", prompt)
 	}
 }
@@ -366,7 +365,7 @@ func TestServiceStartInjectsStartupBriefContextByDefault(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
 
-	for _, kind := range []Kind{KindSwarmOperations, KindMetaOrchestration, KindOperatingModeAuthoring} {
+	for _, kind := range []Kind{KindSwarmOperations, KindMetaOrchestration} {
 		t.Run(string(kind), func(t *testing.T) {
 			spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
 			svc := newTestService(t, spawner)
@@ -432,7 +431,7 @@ func TestServiceContinueAppendsMessageAndUsesTrackedContinuation(t *testing.T) {
 
 	spawner := &fakeSessionSpawner{}
 	svc := newTestService(t, spawner)
-	session := createStartedSession(t, svc, KindOperatingModeAuthoring, "Author mode", "Draft a mode.")
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Session", "Continue.")
 
 	continued, err := svc.Continue(context.Background(), ContinueRequest{
 		SessionID: session.ID,
@@ -444,7 +443,7 @@ func TestServiceContinueAppendsMessageAndUsesTrackedContinuation(t *testing.T) {
 	if spawner.continueRunID != "run-1" || spawner.continueMessage != "Continue." {
 		t.Fatalf("continue call = run:%q message:%q", spawner.continueRunID, spawner.continueMessage)
 	}
-	if spawner.continueSpec.OwnerType != agentactivity.OwnerSession || spawner.continueSpec.Purpose != agentactivity.PurposeOperatingModeAuthoring {
+	if spawner.continueSpec.OwnerType != agentactivity.OwnerSession || spawner.continueSpec.Purpose != agentactivity.PurposeMetaOrchestration {
 		t.Fatalf("continue spec = %+v", spawner.continueSpec)
 	}
 	if len(continued.Messages) != 2 {
@@ -832,12 +831,12 @@ func TestServiceAttachArtifactsPersistsBatchAtomically(t *testing.T) {
 	}
 }
 
-func TestServiceApplyOperatingModeDraftRecordsProposalArtifact(t *testing.T) {
+func TestServiceApplyLegacyOperatingModeDraftIsReadOnly(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
 
 	svc := newTestService(t, &fakeSessionSpawner{})
-	session := createStartedSession(t, svc, KindOperatingModeAuthoring, "Author mode", "Draft a mode.")
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Session", "Continue.")
 	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
 		ID:          "prop-draft",
 		Kind:        ProposalOperatingModeDraft,
@@ -851,36 +850,19 @@ func TestServiceApplyOperatingModeDraftRecordsProposalArtifact(t *testing.T) {
 		t.Fatalf("RecordProposal() error = %v", err)
 	}
 
-	applied, artifacts, err := svc.ApplyProposal(context.Background(), session.ID, proposal.ID)
-	if err != nil {
-		t.Fatalf("ApplyProposal() error = %v", err)
-	}
-	if applied.Proposals[0].Status != ProposalStatusApplied {
-		t.Fatalf("proposal status = %q, want applied", applied.Proposals[0].Status)
-	}
-	if len(artifacts) != 1 {
-		t.Fatalf("artifact count = %d, want 1", len(artifacts))
-	}
-	artifact := artifacts[0]
-	if artifact.ArtifactType != ArtifactOperatingModeProposal || artifact.Action != ArtifactActionProposed {
-		t.Fatalf("artifact kind/action = %q/%q", artifact.ArtifactType, artifact.Action)
-	}
-	if artifact.EntityRef != "phased-refactor" || artifact.ProposalID != proposal.ID {
-		t.Fatalf("artifact ref/proposal = %q/%q", artifact.EntityRef, artifact.ProposalID)
-	}
-	if artifact.Attribution == nil || artifact.Attribution.SessionID != session.ID || artifact.Attribution.SessionKind != KindOperatingModeAuthoring {
-		t.Fatalf("artifact attribution = %+v", artifact.Attribution)
+	if _, _, err := svc.ApplyProposal(context.Background(), session.ID, proposal.ID); err == nil {
+		t.Fatal("ApplyProposal() error = nil, want legacy proposal rejection")
 	}
 }
 
-func TestServiceApplyOperatingModeImplementationPlanUsesBatchApplier(t *testing.T) {
+func TestServiceApplyLegacyOperatingModeImplementationPlanIsReadOnly(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
 
 	applier := &fakeBacklogBatchApplier{}
 	svc := newTestService(t, &fakeSessionSpawner{})
 	svc.SetBacklogBatchApplier(applier)
-	session := createStartedSession(t, svc, KindOperatingModeAuthoring, "Author mode", "Draft a mode.")
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Session", "Continue.")
 	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
 		ID:      "prop-plan",
 		Kind:    ProposalOperatingModeImplementationPlan,
@@ -900,30 +882,11 @@ func TestServiceApplyOperatingModeImplementationPlanUsesBatchApplier(t *testing.
 		t.Fatalf("RecordProposal() error = %v", err)
 	}
 
-	_, _, err = svc.ApplyProposal(context.Background(), session.ID, proposal.ID)
-	if err != nil {
-		t.Fatalf("ApplyProposal() error = %v", err)
+	if _, _, err = svc.ApplyProposal(context.Background(), session.ID, proposal.ID); err == nil {
+		t.Fatal("ApplyProposal() error = nil, want legacy proposal rejection")
 	}
-	var appliedPayload struct {
-		Initiatives []struct {
-			Name string `json:"name"`
-		} `json:"initiatives"`
-		Items []struct {
-			Name       string `json:"name"`
-			Initiative string `json:"initiative"`
-		} `json:"items"`
-	}
-	if err := json.Unmarshal([]byte(applier.payloadJSON), &appliedPayload); err != nil {
-		t.Fatalf("applier payload is invalid JSON: %v", err)
-	}
-	if len(appliedPayload.Initiatives) != 1 || appliedPayload.Initiatives[0].Name != "phased-refactor-mode" {
-		t.Fatalf("initiatives payload = %+v", appliedPayload.Initiatives)
-	}
-	if len(appliedPayload.Items) != 1 || appliedPayload.Items[0].Name != "implement-mode" || appliedPayload.Items[0].Initiative != "phased-refactor-mode" {
-		t.Fatalf("items payload = %+v", appliedPayload.Items)
-	}
-	if applier.provenance.SessionID != session.ID || applier.provenance.SessionKind != string(KindOperatingModeAuthoring) {
-		t.Fatalf("provenance = %+v", applier.provenance)
+	if applier.payloadJSON != "" {
+		t.Fatalf("legacy proposal invoked backlog batch applier: %s", applier.payloadJSON)
 	}
 }
 
@@ -947,7 +910,7 @@ func newTestService(t *testing.T, spawner *fakeSessionSpawner) *Service {
 	if err := evidenceStore.InitSchema(context.Background()); err != nil {
 		t.Fatalf("init evidence schema: %v", err)
 	}
-	svc.SetEvidenceService(evidence.NewService(evidenceStore, evidence.RunOwnerResolver{Sessions: svc, OperatingModes: emptyOwnerIndex{}}))
+	svc.SetEvidenceService(evidence.NewService(evidenceStore, evidence.RunOwnerResolver{Sessions: svc}))
 	svc.EnableEvidenceProjection()
 	return svc
 }

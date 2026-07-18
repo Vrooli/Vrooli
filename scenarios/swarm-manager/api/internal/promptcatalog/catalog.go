@@ -7,8 +7,6 @@ package promptcatalog
 
 import (
 	"strings"
-
-	"swarm-manager/internal/operatingmode"
 )
 
 type Group string
@@ -425,22 +423,5 @@ func ResolveSpecSyncSkill() (Entry, bool) {
 }
 
 func catalogEntries() []Entry {
-	result := make([]Entry, 0, len(staticEntries)+len(operatingmode.PromptCatalogEntries()))
-	result = append(result, staticEntries...)
-	for _, entry := range operatingmode.PromptCatalogEntries() {
-		result = append(result, Entry{
-			ID:          entry.CatalogID,
-			Title:       entry.Title,
-			Group:       GroupInitiative,
-			UsageType:   UsageDirectRuntime,
-			SourceType:  SourceSkill,
-			Trigger:     entry.Trigger,
-			SkillID:     entry.SkillID,
-			Modes:       []string{entry.Mode},
-			Operations:  []string{entry.Phase},
-			Purpose:     entry.Purpose,
-			OutputPaths: append([]string{}, entry.OutputPaths...),
-		})
-	}
-	return result
+	return append([]Entry(nil), staticEntries...)
 }

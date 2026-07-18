@@ -165,29 +165,6 @@ func TestBoolLabel(t *testing.T) {
 	}
 }
 
-func TestDefaultString(t *testing.T) {
-	if got := defaultString("  ", "fb"); got != "fb" {
-		t.Errorf("defaultString blank = %q, want fb", got)
-	}
-	if got := defaultString("x", "fb"); got != "x" {
-		t.Errorf("defaultString value = %q", got)
-	}
-}
-
-func TestModeRoundActionTitle(t *testing.T) {
-	cases := map[string]string{
-		"refresh": "Refreshed Round",
-		"cancel":  "Canceled Round",
-		"other":   "Updated Round",
-		"":        "Updated Round",
-	}
-	for in, want := range cases {
-		if got := modeRoundActionTitle(in); got != want {
-			t.Errorf("modeRoundActionTitle(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 func TestSubmissionPreview(t *testing.T) {
 	if got := submissionPreview("   "); got != "" {
 		t.Errorf("blank = %q", got)

@@ -1,5 +1,9 @@
 # Phase 8 slice C — live migration evidence (PROMOTED)
 
+> Historical migration evidence. The runtime named in this record has been
+> retired; use [Target Operating Model](../../concepts/TARGET-OPERATING-MODEL.md)
+> for current architecture and contracts.
+
 Executed 2026-07-15 against the live swarm-manager persisted state, per
 [RUNBOOK.md](RUNBOOK.md) and [MIGRATOR-DESIGN.md](MIGRATOR-DESIGN.md).
 Final state: **promoted** (epoch 1, 125/125 documents, 0 quarantined).

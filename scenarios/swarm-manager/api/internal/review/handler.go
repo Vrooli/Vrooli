@@ -28,10 +28,46 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review", h.ListRounds).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/captures/{filepath:.*}", h.GetCapture).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/{round}/verify/{evidence_id}", h.VerifyEvidence).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/{round}/workflow/apply", h.ApplyWorkflowRound).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/{round}/request", h.RequestMoreEvidence).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/{round}/request/{thread_id}/workflow/apply", h.ApplyEvidenceRequestWorkflow).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/{round}/request/{thread_id}", h.ContinueRequest).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review/{round}/request/{thread_id}/dismiss", h.DismissRequest).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/trigger-review-agent", h.TriggerReviewAgent).Methods("POST")
+}
+
+func (h *Handler) ApplyEvidenceRequestWorkflow(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	round, err := strconv.Atoi(vars["round"])
+	if err != nil || round <= 0 {
+		apierr.MapError(w, "[review] evidence workflow apply", apierr.BadRequest("invalid round number"))
+		return
+	}
+	applied, idempotent, err := h.service.ApplyEvidenceRequestWorkflow(r.Context(), vars["kind"], vars["name"], round, vars["thread_id"])
+	if err != nil {
+		apierr.MapError(w, "[review] evidence workflow apply", apierr.Internal("apply evidence workflow: %v", err))
+		return
+	}
+	_ = httputil.JSONWithStatus(w, http.StatusOK, map[string]any{"round": applied, "idempotent": idempotent})
+}
+
+// ApplyWorkflowRound explicitly applies a terminal declared-review result to
+// the local review ledger. Replays return the already applied round.
+func (h *Handler) ApplyWorkflowRound(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	roundNum, err := strconv.Atoi(vars["round"])
+	if err != nil || roundNum < 1 {
+		apierr.MapError(w, "[review]", apierr.BadRequest("invalid round number"))
+		return
+	}
+	round, idempotent, err := h.service.ApplyWorkflowRound(r.Context(), vars["kind"], vars["name"], roundNum)
+	if err != nil {
+		apierr.MapError(w, "[review] workflow-apply", err)
+		return
+	}
+	if err := httputil.JSONWithStatus(w, http.StatusOK, map[string]any{"round": round, "idempotent": idempotent}); err != nil {
+		apierr.MapError(w, "[review]", apierr.Internal("failed to encode response"))
+	}
 }
 
 // ListRounds returns all review evidence rounds for a backlog item.

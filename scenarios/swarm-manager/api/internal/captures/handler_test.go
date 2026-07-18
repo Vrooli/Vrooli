@@ -2,6 +2,7 @@ package captures
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
@@ -10,16 +11,36 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"swarm-manager/internal/agentmanager"
+
 	"github.com/gorilla/mux"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
 )
+
+type classificationWorkflowStub struct {
+	start      agentmanager.WorkflowStart
+	completion agentmanager.InvocationCompletion
+	invocation agentmanager.Invocation
+}
+
+func (s *classificationWorkflowStub) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
+	s.invocation = invocation
+	return s.start, nil
+}
+
+func (s *classificationWorkflowStub) CollectWorkflow(_ context.Context, _ string) (agentmanager.InvocationCompletion, error) {
+	return s.completion, nil
+}
 
 func setupTestHandler(t *testing.T) (*Handler, string) {
 	t.Helper()
 	rootDir := t.TempDir()
-	h := NewHandler(rootDir, nil, nil)
+	h := NewHandler(rootDir)
 	return h, rootDir
 }
 
@@ -78,6 +99,7 @@ func TestList_Empty(t *testing.T) {
 
 func TestCreate_Success(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
+	h.SetClassificationWorkflow(&classificationWorkflowStub{start: agentmanager.WorkflowStart{ExecutionID: "execution-create", DefinitionDigest: "sha256:capture"}})
 	req := newMultipartRequest(t, "we should add a backup cron", nil)
 	w := httptest.NewRecorder()
 
@@ -106,9 +128,10 @@ func TestCreate_Success(t *testing.T) {
 		t.Errorf("unexpected text: %v", capMap["text"])
 	}
 
-	// Status should be "failed" since no agent service is configured.
-	if capMap["status"] != "failed" {
-		t.Errorf("expected status failed (no agent), got %v", capMap["status"])
+	// Starting a declared workflow leaves the capture classifying until its
+	// terminal typed result is explicitly applied.
+	if capMap["status"] != "classifying" {
+		t.Errorf("expected status classifying, got %v", capMap["status"])
 	}
 
 	// Verify file was created on disk.
@@ -516,5 +539,73 @@ func TestClassify_NotFound(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestClassify_StartsDeclaredWorkflowWithVersionedCapture(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	stub := &classificationWorkflowStub{start: agentmanager.WorkflowStart{ExecutionID: "execution-1", DefinitionDigest: "sha256:capture"}}
+	h.SetClassificationWorkflow(stub)
+	cap := &capture{ID: "cap-1", Text: "add a backup job", Attachments: []string{}, Created: time.Now().UTC().Format(time.RFC3339), Status: "failed"}
+	if err := os.MkdirAll(filepath.Join(rootDir, "captures", cap.ID), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.writeCapture(cap); err != nil {
+		t.Fatal(err)
+	}
+	req := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/cap-1/classify", nil), map[string]string{"id": cap.ID})
+	w := httptest.NewRecorder()
+	h.Classify(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if stub.invocation.WorkflowKey != "swarm-manager/capture-classify" || stub.invocation.IdempotencyKey == "" {
+		t.Fatalf("unexpected invocation: %#v", stub.invocation)
+	}
+	stored, err := h.loadCapture(cap.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.WorkflowExecutionID != "execution-1" || stored.WorkflowEntityVersion == "" {
+		t.Fatalf("workflow state not persisted: %#v", stored)
+	}
+}
+
+func TestApplyClassification_OnlyAppliesMatchingTerminalSnapshot(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	version := "snapshot-1"
+	input, err := structpb.NewValue(map[string]any{"capture": map[string]any{"id": "cap-apply", "version": version}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "suggested", "items": []any{map[string]any{"kind": "idea", "title": "Backups", "description": "add backups", "priority": 2, "tags": []any{"ops"}, "confidence": 0.9}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.SetClassificationWorkflow(&classificationWorkflowStub{completion: agentmanager.InvocationCompletion{ExecutionID: "execution-apply", DefinitionDigest: "sha256:capture", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}})
+	cap := &capture{ID: "cap-apply", Text: "add backups", Attachments: []string{}, Created: time.Now().UTC().Format(time.RFC3339), Status: "classifying", WorkflowExecutionID: "execution-apply", WorkflowDefinitionDigest: "sha256:capture", WorkflowEntityVersion: version}
+	if err := os.MkdirAll(filepath.Join(rootDir, "captures", cap.ID), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.writeCapture(cap); err != nil {
+		t.Fatal(err)
+	}
+	req := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/cap-apply/classify/execution-apply/apply", nil), map[string]string{"id": cap.ID, "executionID": "execution-apply"})
+	w := httptest.NewRecorder()
+	h.ApplyClassification(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	stored, err := h.loadCapture(cap.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != "classified" || stored.Classification == nil || len(stored.Classification.Items) != 1 {
+		t.Fatalf("expected applied classification, got %#v", stored)
+	}
+	second := httptest.NewRecorder()
+	h.ApplyClassification(second, req)
+	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"already_applied":true`) {
+		t.Fatalf("expected idempotent apply response, got %d: %s", second.Code, second.Body.String())
 	}
 }

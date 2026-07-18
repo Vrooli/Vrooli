@@ -2,14 +2,19 @@ package review
 
 import (
 	"context"
-	"errors"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentactivity"
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/idgen"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // ListRounds returns all review evidence rounds for a backlog item.
@@ -34,7 +39,7 @@ func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 		// Runner-owned rounds are finalized by the operation runner's completion
 		// bridge (commit-review-round), not this poll — defer so the two never
 		// race to drive the same round.
-		if round.RunnerOwned() {
+		if round.RunnerOwned() || round.WorkflowOwned() {
 			continue
 		}
 		state, stateErr := s.inspector.GetRunState(context.Background(), round.RunID)
@@ -101,8 +106,8 @@ func (s *Service) VerifyEvidence(kind, name string, roundNum int, evidenceID str
 	return nil
 }
 
-// RequestMoreEvidence creates a new request thread and optionally spawns a
-// targeted review agent run.
+// RequestMoreEvidence creates a new request thread and starts its declared
+// evidence-request workflow when workflow support is available.
 func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, roundNum int, message string, evidenceID string) (string, error) {
 	itemDir := s.resolveItemDir(kind, name)
 	round, err := LoadRound(itemDir, roundNum)
@@ -137,12 +142,10 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 		s.eventLogger.EmitReviewRequestCreated(round.ExecutionID, threadID, message)
 	}
 
-	// Start a targeted evidence-request operation with the operator's request.
-	// It runs through the operation runner (bound backlog-evidence mode); the
-	// EVIDENCE_REQUEST caller input carries the operator's ask into the mode via
-	// the generic.evidence_request provider. The gathered evidence + assistant
-	// turn land on this thread through the request-evidence completion handler.
-	if s.operationStarter != nil {
+	// Start the declared evidence-request workflow with the operator's request.
+	// The immutable input carries the operator's ask; the typed terminal result
+	// is applied to this thread by ApplyEvidenceRequestWorkflow.
+	if s.workflow != nil {
 		// #nosec G118 -- intentional: the operation is started detached from the
 		// HTTP request, which returns immediately. Inheriting the request context
 		// would cancel the start the moment the handler responds; instead it gets
@@ -150,20 +153,18 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 		go func() {
 			opCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			res, startErr := s.operationStarter.StartReviewOperation(opCtx, OperationStartRequest{
-				Operation:      opEvidenceRequest,
-				TargetKind:     targetKindBacklogItem,
-				TargetID:       kind + "/" + name,
-				IdempotencyKey: "evidence-" + threadID,
-				CallerInputs:   map[string]any{"EVIDENCE_REQUEST": message},
-				RequestedBy:    "swarm-manager-ui",
-			})
+			payload := map[string]any{"entity": map[string]any{"kind": kind, "name": name, "executionId": round.ExecutionID + "/" + threadID, "version": ""}, "snapshot": map[string]any{"round": roundNum, "thread": threadID, "request": message, "evidenceId": evidenceID}}
+			raw, _ := json.Marshal(payload["snapshot"])
+			digest := sha256.Sum256(append([]byte(threadID+"\x00"), raw...))
+			version := "sha256:" + hex.EncodeToString(digest[:])
+			payload["entity"].(map[string]any)["version"] = version
+			input, inputErr := structpb.NewValue(payload)
+			if inputErr != nil {
+				return
+			}
+			res, startErr := s.workflow.StartWorkflow(opCtx, agentmanager.Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/evidence-request", Input: input, IdempotencyKey: "evidence-" + threadID, FirstRunNodeID: "gather"})
 			if startErr != nil {
-				if errors.Is(startErr, agentactivity.ErrBacklogItemBusy) {
-					slog.Info("evidence request skipped: agent already active", "kind", kind, "name", name, "thread_id", threadID)
-				} else {
-					slog.Error("start evidence-request operation", "error", startErr, "thread_id", threadID)
-				}
+				slog.Error("start evidence-request workflow", "error", startErr, "thread_id", threadID)
 				return
 			}
 
@@ -176,15 +177,86 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 			for i := range r.RequestThreads {
 				if r.RequestThreads[i].ID == threadID {
 					r.RequestThreads[i].RunID = res.RunID
+					r.RequestThreads[i].AgentWorkflowExecutionID = res.ExecutionID
+					r.RequestThreads[i].AgentWorkflowDefinition = res.DefinitionDigest
+					r.RequestThreads[i].AgentWorkflowVersion = version
 					break
 				}
 			}
 			_ = SaveRound(itemDir, *r)
-			slog.Info("evidence request operation started", "thread_id", threadID, "run_id", res.RunID)
+			slog.Info("evidence-request workflow started", "thread_id", threadID, "run_id", res.RunID, "workflow_execution_id", res.ExecutionID)
 		}()
 	}
 
 	return threadID, nil
+}
+
+// ApplyEvidenceRequestWorkflow applies a terminal typed evidence result to one
+// request thread exactly once; workflow execution itself remains Agent Manager's
+// authority.
+func (s *Service) ApplyEvidenceRequestWorkflow(ctx context.Context, kind, name string, roundNum int, threadID string) (Round, bool, error) {
+	itemDir := s.resolveItemDir(kind, name)
+	round, err := LoadRound(itemDir, roundNum)
+	if err != nil {
+		return Round{}, false, fmt.Errorf("load review round: %w", err)
+	}
+	if round == nil {
+		return Round{}, false, fmt.Errorf("review round %d does not exist", roundNum)
+	}
+	for i := range round.RequestThreads {
+		thread := &round.RequestThreads[i]
+		if thread.ID != threadID {
+			continue
+		}
+		if thread.AgentWorkflowApplyState == reviewWorkflowApplyComplete {
+			return *round, true, nil
+		}
+		if thread.AgentWorkflowExecutionID == "" || s.workflow == nil {
+			return Round{}, false, fmt.Errorf("thread is not workflow-owned")
+		}
+		completion, err := s.workflow.CollectWorkflow(ctx, thread.AgentWorkflowExecutionID)
+		if err != nil {
+			return Round{}, false, err
+		}
+		if completion.ExecutionID != thread.AgentWorkflowExecutionID || completion.DefinitionDigest != thread.AgentWorkflowDefinition || completion.Input == nil {
+			return Round{}, false, fmt.Errorf("workflow completion does not match evidence request provenance")
+		}
+		input, ok := completion.Input.AsInterface().(map[string]any)
+		entity, ok := input["entity"].(map[string]any)
+		if !ok || entity["kind"] != kind || entity["name"] != name || entity["version"] != thread.AgentWorkflowVersion {
+			return Round{}, false, fmt.Errorf("workflow completion does not match evidence request snapshot")
+		}
+		var result struct {
+			Result struct {
+				Summary  string         `json:"summary"`
+				Evidence []EvidenceItem `json:"evidence"`
+			} `json:"result"`
+		}
+		if completion.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED && completion.Output != nil {
+			raw, _ := json.Marshal(completion.Output.AsInterface())
+			_ = json.Unmarshal(raw, &result)
+		}
+		if strings.TrimSpace(result.Result.Summary) == "" {
+			result.Result.Summary = firstNonEmptyString(completion.TerminalCode, "Evidence request did not complete.")
+		}
+		round.Evidence = append(round.Evidence, result.Result.Evidence...)
+		ids := make([]string, 0, len(result.Result.Evidence))
+		for _, evidence := range result.Result.Evidence {
+			if evidence.ID != "" {
+				ids = append(ids, evidence.ID)
+			}
+		}
+		thread.Messages = append(thread.Messages, RequestMessage{Role: "assistant", Content: result.Result.Summary, Timestamp: s.now().Format(time.RFC3339), AddedEvidenceIDs: ids})
+		if completion.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
+			thread.Status = "fulfilled"
+		}
+		thread.AgentWorkflowApplyState = reviewWorkflowApplyComplete
+		if err := SaveRound(itemDir, *round); err != nil {
+			return Round{}, false, err
+		}
+		return *round, false, nil
+	}
+	return Round{}, false, fmt.Errorf("thread %s not found", threadID)
 }
 
 // ContinueRequest appends a user message to an existing request thread.

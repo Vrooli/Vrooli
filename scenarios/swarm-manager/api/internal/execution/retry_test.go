@@ -69,11 +69,11 @@ func TestRetry_NewAttemptFromFailed(t *testing.T) {
 	if agent.spawnCalls != 0 {
 		t.Fatalf("plan-backed retry must not direct-spawn, got %d", agent.spawnCalls)
 	}
-	if record.RunID == "" {
-		t.Fatal("expected run id from retry operation start")
+	if record.RunID == "" || record.AgentWorkflowExecutionID == "" {
+		t.Fatal("expected declared workflow correlation on retry record")
 	}
-	if record.OpExecutionID == "" {
-		t.Fatal("expected operation-execution ref on retry record")
+	if record.AgentWorkflowKey != "swarm-manager/phased-plan-drain" || record.OpExecutionID != "" {
+		t.Fatalf("retry must use phased-plan workflow, not operation runtime: %#v", record)
 	}
 
 	// Parent record must be untouched on disk.
@@ -240,7 +240,7 @@ func TestRetry_IdempotentWhenInFlight(t *testing.T) {
 	}
 }
 
-func TestRetry_PromptHasNoReviewFeedback(t *testing.T) {
+func TestRetry_DoesNotPersistConsumerOwnedPrompt(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "idea", "retry-prompt", map[string]any{
 		"name":        "retry-prompt",
@@ -272,16 +272,10 @@ func TestRetry_PromptHasNoReviewFeedback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Retry: %v", err)
 	}
-	if rec.PromptTrace == nil {
-		t.Fatal("expected prompt trace on retry record")
+	if rec.PromptTrace != nil {
+		t.Fatalf("retry must not persist a consumer-built prompt, got %#v", rec.PromptTrace)
 	}
-	if rec.PromptTrace.Purpose != "retry" {
-		t.Errorf("expected purpose retry, got %q", rec.PromptTrace.Purpose)
-	}
-	if strings.Contains(rec.PromptTrace.Prompt, "Tests failing") {
-		t.Errorf("retry prompt must NOT carry parent review feedback; found it in:\n%s", rec.PromptTrace.Prompt)
-	}
-	if !strings.Contains(rec.PromptTrace.Prompt, "trying again") {
-		t.Errorf("retry prompt should include user note, got:\n%s", rec.PromptTrace.Prompt)
+	if rec.AgentWorkflowKey != "swarm-manager/phased-plan-drain" {
+		t.Fatalf("expected declared phased-plan workflow, got %q", rec.AgentWorkflowKey)
 	}
 }

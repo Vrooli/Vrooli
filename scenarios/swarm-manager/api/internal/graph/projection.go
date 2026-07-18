@@ -3,7 +3,6 @@ package graph
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
@@ -11,65 +10,31 @@ import (
 
 // ProjectionService builds lens-specific graph projections from data sources.
 type ProjectionService struct {
-	backlog       BacklogLister
-	initiative    InitiativeLister
-	capture       CaptureLister
-	scenario      ScenarioLister
-	execution     ExecutionLister
-	operatingMode OperatingModeReader
+	backlog    BacklogLister
+	initiative InitiativeLister
+	capture    CaptureLister
+	scenario   ScenarioLister
+	execution  ExecutionLister
 }
 
 // ProjectionConfig holds constructor dependencies for ProjectionService.
 type ProjectionConfig struct {
-	Backlog       BacklogLister
-	Initiative    InitiativeLister
-	Capture       CaptureLister
-	Scenario      ScenarioLister
-	Execution     ExecutionLister
-	OperatingMode OperatingModeReader
+	Backlog    BacklogLister
+	Initiative InitiativeLister
+	Capture    CaptureLister
+	Scenario   ScenarioLister
+	Execution  ExecutionLister
 }
 
 // NewProjectionService creates a ProjectionService.
 func NewProjectionService(cfg ProjectionConfig) *ProjectionService {
 	return &ProjectionService{
-		backlog:       cfg.Backlog,
-		initiative:    cfg.Initiative,
-		capture:       cfg.Capture,
-		scenario:      cfg.Scenario,
-		execution:     cfg.Execution,
-		operatingMode: cfg.OperatingMode,
+		backlog:    cfg.Backlog,
+		initiative: cfg.Initiative,
+		capture:    cfg.Capture,
+		scenario:   cfg.Scenario,
+		execution:  cfg.Execution,
 	}
-}
-
-// SetOperatingModeReader wires the active-rounds reader after construction.
-// The graph routes are registered before the operating-mode service exists,
-// so this setter lets `registerOperatingModeRoutes` attach the reader once
-// it's built. Safe to call once; subsequent calls overwrite the reader.
-func (p *ProjectionService) SetOperatingModeReader(r OperatingModeReader) {
-	if p == nil {
-		return
-	}
-	p.operatingMode = r
-}
-
-// loadActiveRounds returns the bulk active-round map. A nil reader (tests
-// that don't wire it) or a reader error degrades gracefully — the caller
-// gets an empty map and continues building the projection. Reader errors
-// are logged so operators can see drift; the graph stays useful without
-// active-round info.
-func (p *ProjectionService) loadActiveRounds(ctx context.Context) map[string]OperatingModeActiveRound {
-	if p.operatingMode == nil {
-		return map[string]OperatingModeActiveRound{}
-	}
-	rounds, err := p.operatingMode.ActiveRoundsByInitiative(ctx)
-	if err != nil {
-		slog.Warn("graph: active-rounds read failed; omitting active-round chips", "error", err)
-		return map[string]OperatingModeActiveRound{}
-	}
-	if rounds == nil {
-		return map[string]OperatingModeActiveRound{}
-	}
-	return rounds
 }
 
 // Project builds a graph for the given lens. Topology is the only

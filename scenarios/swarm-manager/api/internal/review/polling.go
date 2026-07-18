@@ -195,7 +195,7 @@ func (s *Service) RecoverActiveRounds() {
 				// Runner-owned rounds are recovered + driven by the operation
 				// runner's refresh driver (from durable workflow state), not this
 				// poller — skip them so the two never race.
-				if round.RunnerOwned() {
+				if round.RunnerOwned() || round.WorkflowOwned() {
 					continue
 				}
 				if round.Status == RoundStatusGathering && round.RunID != "" {

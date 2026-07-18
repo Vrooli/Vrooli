@@ -25,7 +25,8 @@ import { ReviewTab } from "../components/settings/ReviewTab";
 import { AudioTab } from "../components/settings/AudioTab";
 import { selectors } from "../consts/selectors";
 import { applyTheme, defaultQueryOptions } from "../lib";
-import { settingsService } from "../services";
+import { integrationStatusService, settingsService } from "../services";
+import type { IntegrationStatusResponse } from "../services";
 import type { Settings, SettingsPolicyProjection } from "../types";
 
 type NavigationContextValue = React.ContextType<typeof UNSAFE_NavigationContext>;
@@ -95,6 +96,16 @@ export function SettingsPage() {
   const { data: policyProjection } = useQuery<SettingsPolicyProjection | null>({
     queryKey: ["settings", "policy-projection"],
     queryFn: () => settingsService.getPolicyProjection(),
+    ...defaultQueryOptions,
+  });
+
+  const {
+    data: integrationStatus,
+    isLoading: integrationsLoading,
+    error: integrationsError,
+  } = useQuery<IntegrationStatusResponse>({
+    queryKey: ["integrations"],
+    queryFn: () => integrationStatusService.get(),
     ...defaultQueryOptions,
   });
 
@@ -218,6 +229,56 @@ export function SettingsPage() {
           />
         ) : null}
       </div>
+
+      <section
+        className="rounded-lg border border-slate-700 bg-slate-900/50 p-4"
+        data-testid={selectors.settings.integrations}
+        aria-labelledby="integration-status-heading"
+      >
+        <div className="flex items-baseline justify-between gap-4">
+          <div>
+            <h3 id="integration-status-heading" className="font-medium text-slate-100">
+              Integration status
+            </h3>
+            <p className="mt-1 text-sm text-slate-400">
+              Dependencies used to start and observe Swarm Manager workflows.
+            </p>
+          </div>
+          {integrationsLoading && <span className="text-sm text-slate-400">Checking…</span>}
+        </div>
+
+        {integrationsError ? (
+          <p className="mt-3 text-sm text-amber-300">
+            Integration status is currently unavailable. Workflow starts will still perform their
+            required preflight checks.
+          </p>
+        ) : integrationStatus ? (
+          <ul className="mt-3 divide-y divide-slate-800">
+            {integrationStatus.integrations.map((integration) => (
+              <li key={integration.id} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                <div>
+                  <p className="font-medium text-slate-200">{integration.id}</p>
+                  <p className="mt-1 text-sm text-slate-400">{integration.degradedBehavior}</p>
+                  {integration.affectedTransitions.length > 0 && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Affects: {integration.affectedTransitions.join(", ")}
+                    </p>
+                  )}
+                </div>
+                <span
+                  className={
+                    integration.availability === "available"
+                      ? "rounded-full bg-emerald-950 px-2 py-1 text-xs font-medium text-emerald-300"
+                      : "rounded-full bg-amber-950 px-2 py-1 text-xs font-medium text-amber-300"
+                  }
+                >
+                  {integration.availability}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
 
       <Tabs defaultValue="general" data-testid={selectors.settings.settingsTabs}>
         <TabsList className="w-full">

@@ -13,7 +13,7 @@ func TestRegister(t *testing.T) {
 		t.Errorf("group Title = %q, want %q", g.Title, "Overview")
 	}
 
-	want := []string{"overview"}
+	want := []string{"overview", "integrations"}
 	if len(g.Commands) != len(want) {
 		t.Fatalf("command count = %d, want %d", len(g.Commands), len(want))
 	}

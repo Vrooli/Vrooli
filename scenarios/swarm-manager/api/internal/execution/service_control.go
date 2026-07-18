@@ -66,10 +66,9 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 	// the slow snapshot runs detached. Best-effort — never blocks the start.
 	record.PreExecBaselines = s.capturePreExecBaselinesLocked(ctx, item)
 
-	// Plan-backed items start as an execution-run operation against their
-	// plan-execution target. Research-conclusion items have no execution plan_ref
-	// and cannot target a plan-execution operation, so they start the
-	// research-conclude operation against their backlog-item target instead.
+	// Plan-backed items use the phased-plan workflow. Planless research items use
+	// their declared conclusion workflow; neither path creates a consumer-owned
+	// programmatic Run.
 	if hasExecutionPlanRef(item) {
 		return s.startPlanOperationLocked(ctx, records, idx, record, item)
 	}
@@ -110,6 +109,7 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	record.RunID = res.RunID
 	record.TaskID = res.ExecutionID
 	record.AgentWorkflowExecutionID = res.ExecutionID
+	record.AgentWorkflowKey = "swarm-manager/phased-plan-drain"
 	record.AgentWorkflowDefinition = res.DefinitionDigest
 	record.AgentWorkflowFrontier = snapshot.FrontierDigest
 	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
@@ -126,44 +126,27 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	return record, nil
 }
 
-// startConclusionOperationLocked starts a research-conclusion item's primary
-// execution as a research-conclude operation against its backlog-item target.
-// Research/idea items have no execution plan_ref (their deliverable is the
-// conclusion itself), so they cannot target a plan-execution operation; the
-// research-conclude mode reads the item spec directly. The operation runner spawns
-// the agent through the operating-mode engine's chokepoint and returns the live
-// run association; the completion bridge's commit-execution-round handler drives
-// the record to terminal, so the poller defers it (OpExecutionID set). Mirrors
-// startPlanOperationLocked (no Go-side prompt: the mode owns it).
+// startConclusionOperationLocked starts a planless item's declared conclusion
+// workflow. Swarm supplies only its immutable domain snapshot and applies the
+// terminal typed outcome through ApplyConclusionWorkflow.
 func (s *Service) startConclusionOperationLocked(ctx context.Context, records []Record, idx int, record Record) (Record, error) {
-	if s.operationStarter == nil {
-		return Record{}, apierr.Unavailable("execution operation runner is not available")
+	item, err := s.loadBacklogItem(record.BacklogKind, record.BacklogName)
+	if err != nil {
+		return Record{}, err
 	}
-	res, err := s.operationStarter.StartOperation(ctx, OperationStartRequest{
-		Operation:        operationResearchConclude,
-		OperationVersion: operationVersionPinned,
-		TargetKind:       targetKindBacklogItem,
-		TargetID:         record.BacklogKind + "/" + record.BacklogName,
-		IdempotencyKey:   "exec-" + record.ExecutionID,
-		RequestedBy:      record.StartedBy,
-	})
+	res, snapshot, err := s.startConclusionWorkflow(ctx, item, record, "")
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
-	// A start that yields no trackable agent run id could never be driven to a
-	// terminal status — reap the dangling operation and fail the start so the
-	// record stays pending/retryable (mirrors startPlanOperationLocked).
-	if strings.TrimSpace(res.RunID) == "" {
-		if cerr := s.operationStarter.CancelOperation(ctx, OperationCancelRequest{
-			TargetKind: targetKindBacklogItem, TargetID: record.BacklogKind + "/" + record.BacklogName, ExecutionID: res.ExecutionID,
-		}); cerr != nil {
-			slog.Warn("execution: reap of run-id-less conclusion start failed", "execution_id", record.ExecutionID, "err", cerr)
-		}
-		return Record{}, apierr.BadGateway("research-conclude operation started but returned no run id; agent-manager may be unavailable")
+	if strings.TrimSpace(res.ExecutionID) == "" {
+		return Record{}, apierr.BadGateway("research-conclude workflow started but returned no execution id")
 	}
 	record.RunID = res.RunID
-	record.OpWorkflowID = res.WorkflowID
-	record.OpExecutionID = res.ExecutionID
+	record.TaskID = res.ExecutionID
+	record.AgentWorkflowExecutionID = res.ExecutionID
+	record.AgentWorkflowKey = "swarm-manager/research-conclude"
+	record.AgentWorkflowDefinition = res.DefinitionDigest
+	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
 	record.StartedAt = nowRFC3339()
 	record.FinishedAt = ""
 	record.FailureReason = ""
@@ -232,11 +215,43 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		return record, nil
 	case StatusStarting, StatusRunning, StatusNeedsReview:
 		if strings.TrimSpace(record.AgentWorkflowExecutionID) != "" {
-			if s.phasedPlanWorkflow == nil {
-				return Record{}, apierr.BadRequest("cancel is not supported by current workflow service")
-			}
-			if err := s.phasedPlanWorkflow.CancelPhasedPlan(ctx, record.AgentWorkflowExecutionID, "consumer execution canceled"); err != nil {
-				return Record{}, wrapAgentError(err)
+			if record.AgentWorkflowKey == "swarm-manager/research-conclude" {
+				canceler, ok := s.conclusionWorkflow.(interface {
+					CancelWorkflow(context.Context, string, string, string) error
+				})
+				if !ok {
+					return Record{}, apierr.BadRequest("cancel is not supported by current conclusion workflow service")
+				}
+				if err := canceler.CancelWorkflow(ctx, record.AgentWorkflowExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
+					return Record{}, wrapAgentError(err)
+				}
+			} else if record.AgentWorkflowKey == "swarm-manager/work-follow-up" || record.AgentWorkflowKey == "swarm-manager/work-correct" {
+				canceler, ok := s.workWorkflow.(interface {
+					CancelWorkflow(context.Context, string, string, string) error
+				})
+				if !ok {
+					return Record{}, apierr.BadRequest("cancel is not supported by current work workflow service")
+				}
+				if err := canceler.CancelWorkflow(ctx, record.AgentWorkflowExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
+					return Record{}, wrapAgentError(err)
+				}
+			} else if record.AgentWorkflowKey == "swarm-manager/scenario-spec-sync" {
+				canceler, ok := s.specSyncWorkflow.(interface {
+					CancelWorkflow(context.Context, string, string, string) error
+				})
+				if !ok {
+					return Record{}, apierr.BadRequest("cancel is not supported by current scenario spec-sync workflow service")
+				}
+				if err := canceler.CancelWorkflow(ctx, record.AgentWorkflowExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
+					return Record{}, wrapAgentError(err)
+				}
+			} else {
+				if s.phasedPlanWorkflow == nil {
+					return Record{}, apierr.BadRequest("cancel is not supported by current workflow service")
+				}
+				if err := s.phasedPlanWorkflow.CancelPhasedPlan(ctx, record.AgentWorkflowExecutionID, "consumer execution canceled"); err != nil {
+					return Record{}, wrapAgentError(err)
+				}
 			}
 			record.Status = StatusCanceled
 			record.AgentWorkflowOutcome = "cancelled"

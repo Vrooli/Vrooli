@@ -68,7 +68,7 @@ func TestApplyPhasedPlanWorkflow_BlockedExactlyOnce(t *testing.T) { // [REQ:REQ-
 	}
 }
 
-func TestProcessActiveExecutionsAutomaticallyAppliesPhasedPlanWorkflow(t *testing.T) {
+func TestProcessActiveExecutionsDoesNotApplyPhasedPlanWorkflow(t *testing.T) {
 	service, workflow, started, _ := setupPhasedPlanExecution(t, "auto-plan")
 	workflow.completion = agentmanager.PhasedPlanWorkflowCompletion{
 		ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition,
@@ -89,8 +89,8 @@ func TestProcessActiveExecutionsAutomaticallyAppliesPhasedPlanWorkflow(t *testin
 			applied = record
 		}
 	}
-	if applied.Status != StatusNeedsReview || applied.AgentWorkflowApplyState != workflowApplyComplete || workflow.collectCalls != 1 {
-		t.Fatalf("workflow not automatically applied: record=%#v collects=%d", applied, workflow.collectCalls)
+	if applied.Status != StatusStarting || applied.AgentWorkflowApplyState != "" || workflow.collectCalls != 0 {
+		t.Fatalf("legacy housekeeping must not apply workflow: record=%#v collects=%d", applied, workflow.collectCalls)
 	}
 }
 

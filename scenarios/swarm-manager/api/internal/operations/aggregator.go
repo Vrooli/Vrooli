@@ -9,7 +9,6 @@ import (
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/operatingmode"
 )
 
 // ActivityLister is the seam into the agentactivity ledger. It is a
@@ -17,14 +16,6 @@ import (
 // without standing up the full service tree.
 type ActivityLister interface {
 	List(ctx context.Context, filters agentactivity.ListFilters) ([]agentactivity.Record, error)
-}
-
-// RoundProjection is the seam into the operating-mode round projection.
-// ActiveRoundsByInitiative returns the first non-terminal round per
-// initiative, keyed by initiative name (see operatingmode.Service for
-// the canonical implementation).
-type RoundProjection interface {
-	ActiveRoundsByInitiative(ctx context.Context) (map[string]operatingmode.ActiveRoundSummary, error)
 }
 
 // GovernanceReader exposes the per-lane caps + queue ceiling used to size
@@ -39,7 +30,6 @@ type GovernanceReader interface {
 // fixed clock.
 type AggregatorConfig struct {
 	Activities ActivityLister
-	Rounds     RoundProjection
 	Governance GovernanceReader
 	Now        func() time.Time
 }
@@ -103,25 +93,15 @@ func (a *Aggregator) Aggregate(ctx context.Context, f Filters) (*OperationsView,
 		return nil, fmt.Errorf("operations: list activities: %w", err)
 	}
 
-	rounds := map[string]operatingmode.ActiveRoundSummary{}
-	if a.cfg.Rounds != nil {
-		rounds, err = a.cfg.Rounds.ActiveRoundsByInitiative(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("operations: active rounds: %w", err)
-		}
-	}
-
 	gov, err := a.cfg.Governance.GovernanceStatus()
 	if err != nil {
 		return nil, fmt.Errorf("operations: governance status: %w", err)
 	}
 
-	roundByRunID := indexRoundsByRunID(rounds)
-
 	active := make([]ActivityRow, 0, len(records))
 	finished := make([]ActivityRow, 0, len(records))
 	for _, rec := range records {
-		row := buildRow(rec, roundByRunID, now)
+		row := buildRow(rec, nil, now)
 		if !matchesFilter(row, f) {
 			continue
 		}
@@ -161,19 +141,10 @@ func (a *Aggregator) Aggregate(ctx context.Context, f Filters) (*OperationsView,
 // key — initiative name is not present on activity records.
 type roundIndexEntry struct {
 	initiativeName string
-	round          operatingmode.ActiveRoundSummary
-}
-
-func indexRoundsByRunID(rounds map[string]operatingmode.ActiveRoundSummary) map[string]roundIndexEntry {
-	out := make(map[string]roundIndexEntry, len(rounds))
-	for name, round := range rounds {
-		runID := strings.TrimSpace(round.RunID)
-		if runID == "" {
-			continue
-		}
-		out[runID] = roundIndexEntry{initiativeName: name, round: round}
+	round          struct {
+		Mode, Phase string
+		Round       int
 	}
-	return out
 }
 
 func buildRow(rec agentactivity.Record, roundByRunID map[string]roundIndexEntry, now time.Time) ActivityRow {

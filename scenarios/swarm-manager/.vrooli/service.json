@@ -200,8 +200,23 @@
               ".vrooli/agent-manager/deep-work.json",
               ".vrooli/agent-manager/analysis.json",
               ".vrooli/agent-manager/backlog-workshop-round.json",
+              ".vrooli/agent-manager/plan-author.json",
               ".vrooli/agent-manager/phased-plan-slice-review.json",
-              ".vrooli/agent-manager/phased-plan-drain.json"
+    ".vrooli/agent-manager/phased-plan-drain.json",
+    ".vrooli/agent-manager/plan-repair.json",
+    ".vrooli/agent-manager/capture-classify.json",
+    ".vrooli/agent-manager/backlog-clarify.json",
+    ".vrooli/agent-manager/research-conclude.json",
+    ".vrooli/agent-manager/independent-review.json"
+    ,".vrooli/agent-manager/work-follow-up.json"
+    ,".vrooli/agent-manager/work-correct.json"
+    ,".vrooli/agent-manager/scenario-spec-sync.json"
+    ,".vrooli/agent-manager/initiative-review.json"
+    ,".vrooli/agent-manager/evidence-request.json"
+    ,".vrooli/agent-manager/fix-and-revalidate.json"
+    ,".vrooli/agent-manager/initiative-discover.json"
+    ,".vrooli/agent-manager/initiative-plan.json"
+    ,".vrooli/agent-manager/initiative-execute.json"
             ]
           }
         }

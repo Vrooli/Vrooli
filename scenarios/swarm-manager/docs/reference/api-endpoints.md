@@ -16,8 +16,9 @@ This document captures the canonical Swarm Manager API shapes that matter for ba
 Creates a typed draft session. It does not spawn Agent Manager and does not
 append a message.
 
-Valid `kind` values are `meta_orchestration`, `swarm_operations`, and
-`operating_mode_authoring`.
+Valid creatable `kind` values are `meta_orchestration` and `swarm_operations`.
+Historical `operating_mode_authoring` sessions remain readable but cannot be
+created or resumed.
 
 ```json
 {
@@ -308,8 +309,8 @@ All list endpoints support `?archived=` query parameter:
 `PUT /api/v1/initiatives/{name}`
 
 Updates are partial. This endpoint owns descriptive initiative metadata and
-acceptance criteria. Operating-mode changes use the dedicated switch endpoint
-below so active item-level executions can be handled explicitly.
+acceptance criteria. Workflow execution state is recorded separately from
+initiative metadata.
 
 ```json
 {
@@ -321,260 +322,9 @@ below so active item-level executions can be handled explicitly.
 }
 ```
 
-New initiatives always start in `item-level`. The generic create/update
-endpoints reject `mode`; use the operating-mode switch endpoint below for every
-mode change.
+New initiatives start with item-level work. The generic create/update endpoints
+reject retired mode fields.
 
-## Operating Mode Catalog
-
-`GET /api/v1/operating-modes`
-
-Returns the backend registry's switchable operating modes, merged with any
-persisted overlay (label/description) and annotated with current per-mode
-`usage_count`. UI and CLI selection surfaces consume this endpoint instead of
-maintaining hard-coded mode lists.
-
-The member-item workflow strategy (persisted initiative mode value
-`item-level`) is NOT in this catalog — it is not an operating mode; the UI
-synthesizes its picker entry client-side (`ui/src/lib/member-item-strategy.ts`).
-
-```json
-{
-  "modes": [
-    {
-      "mode": "holistic-loop",
-      "label": "Holistic Loop",
-      "description": "investigate → plan → execute → review → reconcile...",
-      "usage_count": 2,
-      "target_kind": "initiative",
-      "run_strategy": "operator_gated_loop",
-      "workspace_tab_id": "operating-mode",
-      "default": false,
-      "switchable": true,
-      "supports_phases": true,
-      "phases": ["..."]
-    }
-  ]
-}
-```
-
-`GET /api/v1/operating-modes/{mode}`
-
-Returns one mode's catalog entry plus the list of initiatives currently bound
-to it. Backs the operating-mode details page. Returns `404` for unknown modes.
-
-```json
-{
-  "entry": { "mode": "holistic-loop", "label": "Holistic Loop", "...": "..." },
-  "linked_initiatives": [
-    { "name": "init-a", "title": "Initiative A", "status": "active", "updated": "2026-04-30" }
-  ]
-}
-```
-
-`PATCH /api/v1/operating-modes/{mode}`
-
-Edits user-visible fields (label, description) via the overlay store. Pointer
-semantics: a missing field leaves the existing value unchanged; an empty-string
-`description` clears the override (registry default returns); empty-string
-`label` is rejected with `400`. Mode IDs and structural fields (phases,
-capabilities) are immutable. Returns the same shape as the GET endpoint.
-
-```json
-{ "label": "Holistic Loop (renamed)", "description": "Updated for our team." }
-```
-
-`POST /api/v1/operating-modes/{mode}/simulate?preset={preset}`
-
-Backs the operating-mode detail page's **Flow** tab. Deterministically walks a
-phase mode's registered graph against an ephemeral fixture target (an initiative
-or a plan, per the mode's declared `target`) and returns the same
-structured-result projection live rounds use — without spawning agents,
-rendering prompts, acquiring locks, or persisting state. Rejects `item-level`
-(no phase graph) with a `400`.
-
-The optional `preset` query param (or `{"preset": "..."}` body field) selects a
-named branch-covering scenario; an empty/unknown id falls back to the first
-(happy-path) preset. The response lists all `presets` for the mode and echoes the
-resolved `active_preset`. Presets seed different phase outputs to exercise real
-transition guards (replan, continue, blocked, non-accepting review, reconcile).
-
-```json
-{
-  "mode": "phased-plan-drain",
-  "label": "Phased Plan Drain",
-  "active_preset": "blocked",
-  "presets": [
-    { "id": "happy-path", "label": "Drains in one slice", "branch": "execute →(progress=continue)→ execute →(progress=complete)→ stop" },
-    { "id": "blocked", "label": "Work is blocked", "branch": "execute →(progress=blocked)→ guarded stop" }
-  ],
-  "target": { "kind": "plan-execution", "…": "…" },
-  "trace": [ { "phase": "execute", "inputs": {}, "output": {}, "transition": {} } ]
-}
-```
-
-## Initiative Operating Mode Switch
-
-`POST /api/v1/initiatives/{name}/operating-mode/switch`
-
-Switches the initiative's operating mode through the lifecycle-aware mode
-boundary. When switching from `item-level` into a non-default mode, active
-member item executions cause a `409 active_item_executions` response unless the
-request explicitly confirms cancellation. Switching out of an initiative-scoped
-mode is rejected with `409 active_operating_mode_round` while any mode round is
-reserved or agent-running.
-
-```json
-{
-  "mode": "holistic-loop",
-  "cancel_active_item_executions": true,
-  "requested_by": "operator"
-}
-```
-
-Response:
-
-```json
-{
-  "initiative_name": "desktop-release-governance",
-  "from_mode": "item-level",
-  "to_mode": "holistic-loop",
-  "canceled_item_executions": [
-    {
-      "item_ref": "execute/item-1",
-      "execution_id": "exec-123",
-      "run_id": "run-456",
-      "status": "canceled"
-    }
-  ]
-}
-```
-
-## Initiative Operating Mode Workspace
-
-`GET /api/v1/initiatives/{name}/operating-mode/workspace`
-
-Returns the current mode definition, backend-computed phase action state, live
-initiative lock holder if present, declared mode artifacts, and durable phase
-rounds. For active rounds, the API best-effort refreshes AgentManager state
-before responding.
-
-## Initiative Operating Mode Phase Start
-
-`POST /api/v1/initiatives/{name}/operating-mode/phases/{phase}/start`
-
-Starts an initiative-scoped operating-mode phase through the registered mode
-definition. The backend validates the registered phase graph before attempting
-the lifecycle, then owns round reservation, initiative lock acquisition, prompt
-rendering, AgentManager spawn, and run-ID lock ownership as one temporal flow
-[CODE: api/internal/operatingmode/phase_runner.go]. Failed/canceled rounds do
-not advance the graph; active rounds block all new phase starts. Lock conflicts,
-prompt failures, spawn failures, and run-ID lock swap failures are terminally
-recorded as failed audit rounds and must not leave an active reserved/running
-round behind. Prompt skills, AgentManager profiles, activity purposes, lock
-purposes, run strategies, and artifact policies are resolved from the registry.
-Prompt rendering is fail-closed: catalog misses, skill mismatches,
-prompt-manager errors, and empty rendered content fail the start before
-AgentManager spawn.
-
-```json
-{
-  "note": "Focus this pass on the API runner foundation.",
-  "override": false,
-  "requested_by": "operator"
-}
-```
-
-Response: `202 Accepted` with the created round envelope.
-
-Supported non-default phases (initiative-target modes only — this surface is
-initiative-keyed and rejects plan-target modes such as `phased-plan-drain`,
-which start via `OperatingModeService.StartTargetPhase`):
-- `holistic-loop`: `investigate`, `plan`, `execute` (`executed_by: phased-plan-drain`), `review`, `reconcile`
-
-## Initiative Operating Mode Round Control
-
-`POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/refresh?mode={mode}`
-
-Round-control endpoints are non-default-mode-only. Callers should pass
-`mode={mode}` explicitly. If the query value is omitted, the API may infer the
-mode from the initiative only when the initiative is already in a non-default
-operating mode; blank mode and `item-level` are rejected rather than treated as
-fallbacks [CODE: api/internal/operatingmode/connect_service.go].
-
-Polls AgentManager for the round's run and persists terminal state when the run
-is complete, failed, or canceled. Completed runs may include a final
-`operating_mode_result` JSON envelope. Required phases fail closed when the
-envelope is missing, malformed, empty, or violates the phase output contract.
-Swarm Manager stages artifact and payload changes, validates required
-artifacts, handoffs, progress decisions, review verdicts, and allowed replan
-signals, and only then marks the round completed [CODE: api/internal/operatingmode/artifact_applier.go].
-Contract failures mark the round failed, release the initiative lock, and emit
-a phase-failed event rather than a misleading completion.
-
-`POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/cancel?mode={mode}`
-
-Stops the AgentManager run when it is still active, marks the round canceled,
-and releases the initiative lock when the run is the current holder.
-
-`POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/complete-items?mode={mode}`
-
-Run-id-validated backlog reconciliation endpoint for non-default operating
-modes. It marks only member backlog items complete and emits an
-`operating_mode.backlog_synced` audit event. The underlying
-`backlog.status_changed` event also carries a structured `source` payload with
-entrypoint, initiative, mode, phase, round, run ID, requested-by, and item refs.
-Agents must use this boundary instead of editing backlog `spec.json` files.
-
-```json
-{
-  "run_id": "run-456",
-  "item_refs": ["execute/item-1"],
-  "requested_by": "operator-or-agent"
-}
-```
-
-Response:
-
-```json
-{
-  "initiative_name": "desktop-release-governance",
-  "mode": "holistic-loop",
-  "phase": "execute",
-  "round": 3,
-  "run_id": "run-456",
-  "completed_items": [
-    {
-      "item_ref": "execute/item-1",
-      "from_status": "ready",
-      "to_status": "completed"
-    }
-  ]
-}
-```
-
-`POST /api/v1/initiatives/{name}/operating-mode/rounds/{round}/apply-backlog-sync?mode={mode}`
-
-Run-id-validated backlog reconciliation endpoint for create/update/follow-up
-work proposed by a completed operating-mode round. The round must contain a
-`backlog_sync.proposal` object in its final `operating_mode_result`; Swarm
-Manager normalizes and validates that proposal through the same proposal
-applier used by proposal sessions before applying the accepted mutation IDs.
-
-```json
-{
-  "run_id": "run-456",
-  "accepted_mutation_ids": ["m1", "m3"],
-  "requested_by": "operator"
-}
-```
-
-Response includes `proposal_result` with applied/failed/skipped counts,
-per-mutation outcomes, and created/updated summary counts. The round payload is
-updated with the applied sync result and an `operating_mode.backlog_synced`
-event is emitted. Applied proposal mutation events carry the same operating-mode
-source metadata (`mode`, `phase`, `round`, `run_id`, and `entrypoint`) through
-the proposal event payload.
 
 ## Initiative Archive / Unarchive
 
@@ -683,7 +433,7 @@ The CLI uses `settings.default_mode` when `execution create` is called without `
 ## Canonical Evidence
 
 Canonical evidence is immutable producer output linked to exactly one Session
-or operating-mode execution after exhaustive owner resolution. The endpoints
+or workflow execution after exhaustive owner resolution. The endpoints
 return owner-linked records; they never expose identity tokens or raw Agent
 Manager tool payloads.
 
@@ -716,16 +466,6 @@ Returns 400 if the execution is not in a terminal status. Returns 500 if ReviewC
 ### GCT Status
 
 Lightweight health check against git-control-tower. Always returns 200 with `{"available": true}` or `{"available": false}`. Uses a 3-second timeout.
-
-## Agent Operations (declarative)
-
-`AgentOperationsService` is a Connect-RPC service (not REST) exposing the
-declarative agent-operations runtime — the operation catalog, binding resolution,
-binding overrides, workflow/execution projections, migration status, and the
-reconciliation sweep. Every RPC delegates the decision to the runtime
-(`opsrunner`); every RPC is read-only except `PutBindingOverride`,
-`DeleteBindingOverride`, and `RunReconciliation`. Targets are addressed by a
-selector (`kind` ∈ `backlog-item|initiative|plan-execution|scenario`, plus `id`).
 
 | RPC | Description |
 |-----|-------------|

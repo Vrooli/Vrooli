@@ -223,11 +223,12 @@ func TestHandler_TriggerRoutes_StartsOperation(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d", rec.Code)
 	}
-	if e.starter.calls != 1 {
-		t.Fatalf("expected exactly one operation start, got %d", e.starter.calls)
+	if e.workflow.calls != 1 {
+		t.Fatalf("expected exactly one workflow start, got %d", e.workflow.calls)
 	}
-	if e.starter.lastReq.TargetID != "smoke-init" {
-		t.Errorf("operation TargetID = %q, want smoke-init", e.starter.lastReq.TargetID)
+	entity := e.workflow.invocation.Input.AsInterface().(map[string]any)["entity"].(map[string]any)
+	if entity["name"] != "smoke-init" {
+		t.Errorf("workflow entity = %#v, want smoke-init", entity)
 	}
 	if len(e.spawner.spawnCalls) != 0 {
 		t.Errorf("expected no direct agent spawn, got %d", len(e.spawner.spawnCalls))

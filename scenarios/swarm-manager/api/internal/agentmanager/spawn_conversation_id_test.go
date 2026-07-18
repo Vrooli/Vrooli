@@ -9,7 +9,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -53,9 +52,8 @@ type capturedCreateRun struct {
 func newSpawnTestService(t *testing.T, baseURL string) *AgentService {
 	t.Helper()
 	// The lifecycle always injects the scenario identity into a running
-	// swarm-manager process; the variant-aware research tag (buildResearchTag)
-	// resolves its namespace from it. Mirror that here so spawn tests exercise
-	// the live path instead of failing loud on a missing namespace.
+	// swarm-manager process; mirror that identity so the session spawn follows
+	// the same profile reconciliation path as production.
 	t.Setenv("VROOLI_SCENARIO", "swarm-manager")
 	svc := NewAgentService(AgentServiceConfig{
 		ProfileName: "swarm-manager",
@@ -66,66 +64,6 @@ func newSpawnTestService(t *testing.T, baseURL string) *AgentService {
 		return baseURL, nil
 	}, nil)
 	return svc
-}
-
-func TestSpawnResearch_PopulatesConversationId(t *testing.T) {
-	srv, cap := captureCreateRunSurface(t)
-	svc := newSpawnTestService(t, srv.URL)
-
-	_, err := svc.SpawnResearch(context.Background(), ResearchSpawnRequest{
-		IdeaName:    "demo",
-		Prompt:      "go",
-		ScopePath:   ".",
-		ProjectRoot: "/tmp/p",
-	})
-	if err != nil {
-		t.Fatalf("SpawnResearch: %v", err)
-	}
-	if cap.req == nil {
-		t.Fatal("CreateRunRequest was not captured")
-	}
-	if cap.req.ConversationId == nil || strings.TrimSpace(*cap.req.ConversationId) == "" {
-		t.Fatal("expected SpawnResearch to populate CreateRunRequest.ConversationId")
-	}
-}
-
-func TestSpawnBacklog_PopulatesConversationId(t *testing.T) {
-	srv, cap := captureCreateRunSurface(t)
-	svc := newSpawnTestService(t, srv.URL)
-
-	_, err := svc.SpawnBacklog(context.Background(), BacklogSpawnRequest{
-		Kind:        "execute",
-		Name:        "demo",
-		Prompt:      "do",
-		ScopePath:   ".",
-		ProjectRoot: "/tmp/p",
-	})
-	if err != nil {
-		t.Fatalf("SpawnBacklog: %v", err)
-	}
-	if cap.req == nil || cap.req.ConversationId == nil || *cap.req.ConversationId == "" {
-		t.Fatal("expected SpawnBacklog to populate CreateRunRequest.ConversationId")
-	}
-}
-
-func TestSpawnInitiative_PopulatesConversationId(t *testing.T) {
-	srv, cap := captureCreateRunSurface(t)
-	svc := newSpawnTestService(t, srv.URL)
-
-	_, err := svc.SpawnInitiative(context.Background(), InitiativeSpawnRequest{
-		Name:        "demo",
-		Purpose:     "review",
-		Prompt:      "do",
-		ScopePath:   ".",
-		ProjectRoot: "/tmp/p",
-		RoundNumber: 1,
-	})
-	if err != nil {
-		t.Fatalf("SpawnInitiative: %v", err)
-	}
-	if cap.req == nil || cap.req.ConversationId == nil || *cap.req.ConversationId == "" {
-		t.Fatal("expected SpawnInitiative to populate CreateRunRequest.ConversationId")
-	}
 }
 
 // Two consecutive spawns should produce two distinct ConversationIds; each

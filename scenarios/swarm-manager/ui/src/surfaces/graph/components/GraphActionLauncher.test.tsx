@@ -7,7 +7,6 @@ describe("GraphActionLauncher", () => {
     const onQuickCapture = vi.fn();
     const onPlanWork = vi.fn();
     const onManageSwarm = vi.fn();
-    const onAuthorOperatingMode = vi.fn();
     const onCreateFromPlan = vi.fn();
 
     render(
@@ -15,7 +14,6 @@ describe("GraphActionLauncher", () => {
         onQuickCapture={onQuickCapture}
         onPlanWork={onPlanWork}
         onManageSwarm={onManageSwarm}
-        onAuthorOperatingMode={onAuthorOperatingMode}
         onCreateFromPlan={onCreateFromPlan}
       />,
     );
@@ -40,10 +38,6 @@ describe("GraphActionLauncher", () => {
     expect(onManageSwarm).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByTestId("graph-action-fab"));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Author Operating Mode" }));
-    expect(onAuthorOperatingMode).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByTestId("graph-action-fab"));
     fireEvent.click(screen.getByRole("menuitem", { name: "Create from plan" }));
     expect(onCreateFromPlan).toHaveBeenCalledTimes(1);
   });
@@ -56,7 +50,6 @@ describe("GraphActionLauncher", () => {
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}
         onManageSwarm={vi.fn()}
-        onAuthorOperatingMode={vi.fn()}
         onCreateFromPlan={vi.fn()}
       />,
     );
@@ -68,7 +61,6 @@ describe("GraphActionLauncher", () => {
     expect(screen.getByRole("menuitem", { name: "Quick Capture" })).toBeEnabled();
     expect(screen.getByRole("menuitem", { name: "Plan Work With Agent" })).toBeDisabled();
     expect(screen.getByRole("menuitem", { name: "Manage Swarm" })).toBeDisabled();
-    expect(screen.getByRole("menuitem", { name: "Author Operating Mode" })).toBeDisabled();
   });
 
   it("shows dismissible launcher errors outside the closed menu", () => {
@@ -81,7 +73,6 @@ describe("GraphActionLauncher", () => {
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}
         onManageSwarm={vi.fn()}
-        onAuthorOperatingMode={vi.fn()}
         onCreateFromPlan={vi.fn()}
       />,
     );
@@ -98,7 +89,6 @@ describe("GraphActionLauncher", () => {
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}
         onManageSwarm={vi.fn()}
-        onAuthorOperatingMode={vi.fn()}
         onCreateFromPlan={vi.fn()}
       />,
     );

@@ -12,9 +12,7 @@ import { ActionMenu } from "../ui/action-menu";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { WorkshopItemCard } from "./workshop-item-card";
 import { ReadinessDots } from "./readiness-dots";
-import { OperationProvenancePopover } from "../workflow/operation-provenance-popover";
 import { buildWorkshopRoundContent, getPendingDecisionCount } from "../../lib/workshop-files";
-import type { OperationProvenanceData } from "../../lib/agent-ops-utils";
 import type { WorkshopRound, WorkshopItem, BacklogKind } from "../../types/domain";
 
 /** Small dropdown menu for round-level actions. */
@@ -63,12 +61,6 @@ interface WorkshopPanelProps {
   deliverableLabel?: string;
   /** Human-readable label shown on buttons while an agent is running (e.g. "Running workshop…"). */
   runningLabel?: string;
-  /**
-   * Canonical operation provenance per round number (from the workflow
-   * projection). When present for a round, an inspectability affordance is
-   * rendered on the round header.
-   */
-  provenanceByRound?: ReadonlyMap<number, OperationProvenanceData>;
 }
 
 export function WorkshopPanel({
@@ -88,7 +80,6 @@ export function WorkshopPanel({
   isFinalized,
   deliverableLabel = "Plan",
   runningLabel = "Running…",
-  provenanceByRound,
 }: WorkshopPanelProps) {
   // Confirmation dialog for running a new round after finalization.
   const [showPostFinalizeConfirm, setShowPostFinalizeConfirm] = useState(false);
@@ -385,13 +376,6 @@ export function WorkshopPanel({
                   <span>{(round.items ?? []).length} items</span>
                 </div>
               </button>
-              {provenanceByRound?.get(round.round) && (
-                <div className="pr-1" onClick={(event) => event.stopPropagation()}>
-                  <OperationProvenancePopover
-                    data={provenanceByRound.get(round.round) as OperationProvenanceData}
-                  />
-                </div>
-              )}
               {onDeleteRound && !disabled && (
                 <div className="pr-2">
                   <RoundMenu

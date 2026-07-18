@@ -115,36 +115,6 @@
             "oriented"
           ],
           "completion": "required"
-        },
-        {
-          "path": "concepts/EXECUTION-MODES.md",
-          "docType": "concept",
-          "title": "Operating Modes",
-          "description": "Reusable, inspectable, testable methodology loops for agentic software engineering \u2014 a mode is data interpreted by one generic engine",
-          "audience": [
-            "developers",
-            "operators"
-          ],
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "concepts/AGENT-OPERATIONS.md",
-          "docType": "agent-operations",
-          "title": "Agent Operations",
-          "description": "The declarative agent-operations layer above modes: operation contracts, layered bindings, workflow instances, provenance, and the closed domain-action registry",
-          "audience": [
-            "developers",
-            "operators"
-          ],
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
         }
       ]
     },
@@ -158,36 +128,6 @@
           "docType": "guide-workshop-workflow",
           "title": "Workshop Refinement Workflow",
           "description": "Universal iterative workshop loop with readiness scoring for all backlog kinds",
-          "audience": [
-            "developers",
-            "operators"
-          ],
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "guides/holistic-loop-mode.md",
-          "docType": "guide-holistic-loop-mode",
-          "title": "Holistic Loop Mode",
-          "description": "Operator workflow and backend boundaries for initiative-scoped holistic execution",
-          "audience": [
-            "developers",
-            "operators"
-          ],
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "guides/phased-plan-drain-mode.md",
-          "docType": "guide-phased-plan-drain-mode",
-          "title": "Phased Plan Drain Mode",
-          "description": "Operator workflow and backend boundaries for sequential initiative execution",
           "audience": [
             "developers",
             "operators"
@@ -341,6 +281,22 @@
       "icon": "wrench",
       "visibility": "developers-only",
       "documents": [
+        {
+          "path": "operations/migration/WORKFLOW-CUTOVER-INVENTORY.md",
+          "docType": "workflow-cutover-inventory",
+          "title": "Workflow Cutover Inventory",
+          "description": "Ordered transition, state, and retirement inventory for the Agent Manager workflow migration",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        },
         {
           "path": "operations/qdrant-namespace-migration-prep.md",
           "docType": "runbook-qdrant-migration-prep",
@@ -562,36 +518,6 @@
             "validated"
           ],
           "completion": "required"
-        },
-        {
-          "path": "internal/OPERATING-MODE-AUTHORING.md",
-          "docType": "authoring-guide",
-          "title": "Operating Mode Authoring",
-          "description": "Data-driven authoring flow (scaffold/validate/simulate) for adding an operating mode with no Go edits",
-          "audience": [
-            "developers",
-            "agents"
-          ],
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "internal/AGENT-CUTOVER-LEDGER.md",
-          "docType": "cutover-ledger",
-          "title": "Agent Cutover Ledger",
-          "description": "The 14 Phase-1 target-bound agent spawns and their operation-model destinations",
-          "audience": [
-            "developers",
-            "agents"
-          ],
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "optional"
         },
         {
           "path": "internal/AGENT-SESSIONS.md",

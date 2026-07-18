@@ -59,14 +59,25 @@ type Round struct {
 	// RUNNER-OWNED: the operation runner's completion bridge finalizes it (via the
 	// commit-review-round / commit-initiative-review handler), so the legacy
 	// review poller defers and never re-drives it from agent-run state.
-	OpWorkflowID  string `json:"op_workflow_id,omitempty"`
-	OpExecutionID string `json:"op_execution_id,omitempty"`
+	OpWorkflowID             string `json:"op_workflow_id,omitempty"`
+	OpExecutionID            string `json:"op_execution_id,omitempty"`
+	AgentWorkflowExecutionID string `json:"agent_workflow_execution_id,omitempty"`
+	AgentWorkflowDefinition  string `json:"agent_workflow_definition_digest,omitempty"`
+	AgentWorkflowVersion     string `json:"agent_workflow_entity_version,omitempty"`
+	AgentWorkflowApplyState  string `json:"agent_workflow_apply_state,omitempty"`
+	AgentWorkflowAppliedAt   string `json:"agent_workflow_applied_at,omitempty"`
 }
 
 // RunnerOwned reports whether the round's terminal transition is owned by the
 // operation runner (started through the reroute) rather than the legacy poller.
 func (r Round) RunnerOwned() bool {
 	return r.OpExecutionID != ""
+}
+
+// WorkflowOwned reports a round whose terminal result is applied through the
+// declared Agent Manager workflow boundary rather than legacy run polling.
+func (r Round) WorkflowOwned() bool {
+	return r.AgentWorkflowExecutionID != ""
 }
 
 // EvidenceItem is a single piece of proof that work was done correctly.
@@ -97,7 +108,11 @@ type RequestThread struct {
 	Messages   []RequestMessage `json:"messages"`
 	CreatedAt  string           `json:"created_at"`
 	// RunID is the agent-manager run ID for the targeted evidence request.
-	RunID string `json:"run_id,omitempty"`
+	RunID                    string `json:"run_id,omitempty"`
+	AgentWorkflowExecutionID string `json:"agent_workflow_execution_id,omitempty"`
+	AgentWorkflowDefinition  string `json:"agent_workflow_definition_digest,omitempty"`
+	AgentWorkflowVersion     string `json:"agent_workflow_entity_version,omitempty"`
+	AgentWorkflowApplyState  string `json:"agent_workflow_apply_state,omitempty"`
 }
 
 // ImprovementSuggestion recommends a durable automation to replace one-off evidence.

@@ -56,7 +56,10 @@ type WorkshopWorkflowService interface {
 	CollectWorkshopRound(context.Context, string) (WorkshopWorkflowCompletion, error)
 }
 
-type WorkflowService struct{ client *HTTPClient }
+type WorkflowService struct {
+	client     *HTTPClient
+	startGuard WorkflowStartGuard
+}
 
 func NewWorkflowService() *WorkflowService { return &WorkflowService{client: NewHTTPClient()} }
 
@@ -85,28 +88,7 @@ func (s *WorkflowService) StartWorkshopRound(ctx context.Context, snapshot Backl
 	if err != nil {
 		return WorkflowStart{}, fmt.Errorf("encode workshop snapshot: %w", err)
 	}
-	resp, err := s.client.StartWorkflowExecution(ctx, &apipb.StartWorkflowExecutionRequest{
-		Owner: "swarm-manager", WorkflowKey: backlogWorkshopWorkflowKey, Input: input,
-		IdempotencyKey: strings.TrimSpace(idempotencyKey),
-	})
-	if err != nil {
-		return WorkflowStart{}, err
-	}
-	if resp.Execution == nil || strings.TrimSpace(resp.Execution.Id) == "" {
-		return WorkflowStart{}, fmt.Errorf("%w: workflow start omitted execution", ErrRequestFailed)
-	}
-	trace, err := s.client.GetWorkflowExecutionTrace(ctx, resp.Execution.Id)
-	if err != nil {
-		return WorkflowStart{}, err
-	}
-	start := WorkflowStart{ExecutionID: resp.Execution.Id, DefinitionDigest: resp.Execution.DefinitionDigest, Status: resp.Execution.Status}
-	for _, attempt := range trace.Attempts {
-		if attempt.NodeId == "workshop" {
-			start.RunID = strings.TrimSpace(attempt.RunId)
-			break
-		}
-	}
-	return start, nil
+	return s.StartWorkflow(ctx, Invocation{Owner: "swarm-manager", WorkflowKey: backlogWorkshopWorkflowKey, Input: input, IdempotencyKey: idempotencyKey, FirstRunNodeID: "workshop"})
 }
 
 // workshopWaitTimeoutSeconds bounds each server-side blocking wait. It stays
@@ -120,28 +102,17 @@ func (s *WorkflowService) CollectWorkshopRound(ctx context.Context, executionID 
 	if executionID == "" {
 		return WorkshopWorkflowCompletion{}, fmt.Errorf("%w: execution id is required", ErrRequestFailed)
 	}
-	// Block on the server-owned wait instead of pumping AdvanceWorkflowExecution:
-	// the completion nudge drives the execution to terminal and wakes this wait,
-	// so no consumer-side advance loop is needed. Canceling the wait never
-	// cancels the execution.
-	waited, err := s.client.WaitWorkflowExecution(ctx, executionID, workshopWaitTimeoutSeconds)
+	invocation, err := s.CollectWorkflow(ctx, executionID)
 	if err != nil {
 		return WorkshopWorkflowCompletion{}, err
 	}
-	if waited.Execution == nil || waited.TimedOut || waited.Execution.Status != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
+	if invocation.Status != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
 		return WorkshopWorkflowCompletion{}, fmt.Errorf("%w: workflow execution is not successfully terminal", ErrWorkflowNotReady)
 	}
-	resp, err := s.client.GetWorkflowExecutionResult(ctx, executionID)
-	if err != nil {
-		return WorkshopWorkflowCompletion{}, err
-	}
-	if resp.Execution == nil || resp.Execution.Status != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
-		return WorkshopWorkflowCompletion{}, fmt.Errorf("%w: workflow execution is not successfully terminal", ErrWorkflowNotReady)
-	}
-	if resp.Execution.Input == nil || resp.Execution.Output == nil {
+	if invocation.Input == nil || invocation.Output == nil {
 		return WorkshopWorkflowCompletion{}, fmt.Errorf("%w: authorized workflow payload is incomplete", ErrRequestFailed)
 	}
-	input, ok := resp.Execution.Input.AsInterface().(map[string]any)
+	input, ok := invocation.Input.AsInterface().(map[string]any)
 	if !ok {
 		return WorkshopWorkflowCompletion{}, fmt.Errorf("%w: workflow input is not an object", ErrRequestFailed)
 	}
@@ -149,7 +120,7 @@ func (s *WorkflowService) CollectWorkshopRound(ctx context.Context, executionID 
 	if !ok {
 		return WorkshopWorkflowCompletion{}, fmt.Errorf("%w: workflow entity snapshot is missing", ErrRequestFailed)
 	}
-	output, ok := resp.Execution.Output.AsInterface().(map[string]any)
+	output, ok := invocation.Output.AsInterface().(map[string]any)
 	if !ok {
 		return WorkshopWorkflowCompletion{}, fmt.Errorf("%w: workflow output is not an object", ErrRequestFailed)
 	}
@@ -157,16 +128,12 @@ func (s *WorkflowService) CollectWorkshopRound(ctx context.Context, executionID 
 	if err != nil {
 		return WorkshopWorkflowCompletion{}, fmt.Errorf("encode workflow result: %w", err)
 	}
-	trace, err := s.client.GetWorkflowExecutionTrace(ctx, executionID)
-	if err != nil {
-		return WorkshopWorkflowCompletion{}, err
-	}
 	completion := WorkshopWorkflowCompletion{
-		ExecutionID: executionID, DefinitionDigest: resp.Execution.DefinitionDigest,
+		ExecutionID: executionID, DefinitionDigest: invocation.DefinitionDigest,
 		EntityKind: stringValue(entity["kind"]), EntityName: stringValue(entity["name"]), EntityVersion: stringValue(entity["version"]),
 		Result: result,
 	}
-	for _, attempt := range trace.Attempts {
+	for _, attempt := range invocation.Attempts {
 		if attempt.NodeId == "workshop" {
 			completion.RunID, completion.ProfileIdentity = attempt.RunId, attempt.ProfileIdentity
 			break

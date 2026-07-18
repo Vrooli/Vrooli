@@ -105,7 +105,6 @@ func (p *ProjectionService) appendTopologyInitiativeNodes(
 		slog.Error("topology: initiatives error", "error", err)
 		return nodes
 	}
-	activeRounds := p.loadActiveRounds(ctx)
 	for _, init := range inits {
 		if init.ArchivedAt != nil {
 			continue
@@ -124,15 +123,6 @@ func (p *ProjectionService) appendTopologyInitiativeNodes(
 				Failed:     int32(rollup.Failed),
 				Pending:    int32(rollup.Pending),
 			},
-		}
-		if round, ok := activeRounds[init.Name]; ok {
-			data.OperatingMode = round.Mode
-			data.ActiveRound = &GraphInitiativeActiveRound{
-				Mode:   round.Mode,
-				Phase:  round.Phase,
-				Round:  round.Round,
-				Status: round.Status,
-			}
 		}
 		nodes = append(nodes, Node{
 			ID:   initNodeID,

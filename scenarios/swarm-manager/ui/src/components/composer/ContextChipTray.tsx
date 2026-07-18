@@ -136,7 +136,7 @@ function labelForContextType(type: AgentSessionContextType): string {
     case "agent_activity":
       return "Activity";
     case "operating_mode":
-      return "Mode";
+      return "Archived workflow";
     case "operations_briefing":
       return "Briefing";
     case "startup_brief":

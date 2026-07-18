@@ -17,12 +17,10 @@ import { Target } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { BACKLOG_KIND_ICONS } from "../../../types";
 import type { BacklogKind } from "../../../types";
-import { selectors } from "../../../consts/selectors";
 import { useGovernanceStore, isCircuitBroken } from "../../../stores/governance-store";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import type { GraphEntityType, GraphNodeData } from "../types";
-import { phaseLabel } from "../../../components/initiative/operating-mode/utils";
 import { ActionableBadge, CircuitBrokenNodeBadge, StatusBadge } from "./StatusBadge";
 import {
   getClipPathStyle,
@@ -57,11 +55,6 @@ function GraphNodeComponent({ id, data }: NodeProps) {
   const isClipped = usesClipPath(entityType);
   const dims = getShapeDimensions(entityType);
   const clipStyle = getClipPathStyle(entityType);
-  const activeRound =
-    entityType === "initiative" && "activeRound" in nodeData
-      ? (nodeData as { activeRound?: { mode: string; phase: string; round: number; status: string } }).activeRound
-      : undefined;
-  const isAgentRunning = activeRound?.status === "agent_running";
 
   return (
     <>
@@ -77,10 +70,6 @@ function GraphNodeComponent({ id, data }: NodeProps) {
           Boolean(nodeData.pulsing) && (nodeData.pulseMode === "persistent"
             ? "graph-node-attention-pulse"
             : "graph-node-pulse"),
-          // Active operating-mode round in agent_running state pulses
-          // persistently so operators can spot mid-phase initiatives at a
-          // glance from the workspace graph.
-          isAgentRunning && "graph-node-attention-pulse",
         )}
         onAnimationEnd={(e) => {
           if (e.animationName === "graph-node-pulse") {
@@ -150,20 +139,6 @@ function GraphNodeComponent({ id, data }: NodeProps) {
             {goalBadges.length > 1 && <span>{goalBadges.length}</span>}
           </div>
         )}
-        {entityType === "initiative" && activeRound ? (
-          <div
-            data-testid={selectors.initiativeDetails.graphNodeActiveRoundChip}
-            className={cn(
-              "absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-medium",
-              isAgentRunning
-                ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-200"
-                : "border-amber-400/60 bg-amber-500/10 text-amber-200",
-            )}
-            title={`${activeRound.mode} · round ${activeRound.round} · ${activeRound.status.replace(/_/g, " ")}`}
-          >
-            {phaseLabel(activeRound.phase)}
-          </div>
-        ) : null}
       </div>
       <Handle type="source" position={Position.Bottom} className="!opacity-0 !w-1 !h-1 !min-w-0 !min-h-0 !border-0 !p-0" />
     </>
