@@ -174,7 +174,9 @@
           },
           {
             "type": "files",
-            "paths": ["ui/package.json"]
+            "paths": [
+              "ui/package.json"
+            ]
           }
         ]
       },
@@ -276,11 +278,11 @@
         "startup_policy": "must_start",
         "description": "Agent orchestration layer for pipeline investigations",
         "config": {
-          "profiles": {
+          "declarations": {
             "reconcile": true,
-            "mode": "update_if_unmodified",
+            "profileMode": "update_if_unmodified",
             "sources": [
-              ".vrooli/agent-profiles/default.json"
+              ".vrooli/agent-manager/default.json"
             ]
           }
         }

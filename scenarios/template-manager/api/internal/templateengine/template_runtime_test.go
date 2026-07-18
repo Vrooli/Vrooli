@@ -249,6 +249,36 @@ func TestValidateGeneratedScenarioAcceptsStartDocument(t *testing.T) {
 	}
 }
 
+func TestValidateGeneratedExperienceFoundationRequiresValidReactViteIndex(t *testing.T) {
+	destination := t.TempDir()
+	issues := validateGeneratedExperienceFoundation(destination, "react-vite")
+	if len(issues) != 1 || issues[0].Path != "experience/index.json" {
+		t.Fatalf("missing foundation issues = %#v", issues)
+	}
+	if err := os.MkdirAll(filepath.Join(destination, "experience"), 0o755); err != nil {
+		t.Fatalf("mkdir experience: %v", err)
+	}
+	valid := `{"kind":"experience-index","contract":{"kind":"scenario-experience","schema":"scenario-experience-spec/v1"}}`
+	if err := os.WriteFile(filepath.Join(destination, "experience", "index.json"), []byte(valid), 0o644); err != nil {
+		t.Fatalf("write experience index: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(destination, "ui", "src", "components", "experience"), 0o755); err != nil {
+		t.Fatalf("mkdir semantic foundation: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(destination, "ui", "src", "components", "experience", "ExperienceSurface.tsx"), []byte("export {}\n"), 0o644); err != nil {
+		t.Fatalf("write semantic foundation: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(destination, "experience", "pages"), 0o755); err != nil {
+		t.Fatalf("mkdir page foundation: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(destination, "experience", "pages", "notes.json"), []byte(`{"regions":[{"id":"notes","component":{"library":{"component":"experience-surface"}}}]}`), 0o644); err != nil {
+		t.Fatalf("write notes foundation: %v", err)
+	}
+	if issues := validateGeneratedExperienceFoundation(destination, "react-vite"); len(issues) != 0 {
+		t.Fatalf("valid foundation issues = %#v", issues)
+	}
+}
+
 func TestFilterTemplatesForValidation(t *testing.T) {
 	templates := []scenariocli.TemplateInfo{
 		{Name: "alpha"},

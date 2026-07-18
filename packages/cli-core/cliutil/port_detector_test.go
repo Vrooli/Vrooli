@@ -63,6 +63,39 @@ func TestDetectPortFromVrooliUsesNoStaleCheck(t *testing.T) {
 	}
 }
 
+func TestDetectScenarioRuntimeStatusReadsStoppedLifecycleState(t *testing.T) {
+	originalLookPath := lookPathFn
+	originalExec := execCommandContextFn
+	t.Cleanup(func() {
+		lookPathFn = originalLookPath
+		execCommandContextFn = originalExec
+	})
+	lookPathFn = func(string) (string, error) { return "/custom/vrooli", nil }
+	execCommandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		if name != "/custom/vrooli" {
+			t.Fatalf("expected resolved vrooli path, got %s", name)
+		}
+		want := []string{"--no-stale-check", "--json", "scenario", "status", "vrooli-bridge"}
+		if !reflect.DeepEqual(args, want) {
+			t.Fatalf("args = %#v, want %#v", args, want)
+		}
+		return exec.CommandContext(ctx, "bash", "-lc", "printf '{\"scenario\":{\"status\":\"stopped\"}}\\n'")
+	}
+
+	if got := DetectScenarioRuntimeStatus("vrooli-bridge")(); got != "stopped" {
+		t.Fatalf("status = %q, want stopped", got)
+	}
+}
+
+func TestRuntimeStatusFromJSONFallsBackToRuntime(t *testing.T) {
+	if got := runtimeStatusFromJSON(`{"runtime":{"status":"running"}}`); got != "running" {
+		t.Fatalf("status = %q, want running", got)
+	}
+	if got := runtimeStatusFromJSON("not-json"); got != "" {
+		t.Fatalf("invalid JSON status = %q, want empty", got)
+	}
+}
+
 func TestDetectPortFromVrooliFallsBackToBareCommand(t *testing.T) {
 	originalLookPath := lookPathFn
 	originalExec := execCommandContextFn

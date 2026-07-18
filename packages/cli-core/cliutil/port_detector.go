@@ -49,6 +49,55 @@ func detectPortForTarget(target, portVar string) string {
 	return sanitizePortOutput(string(output))
 }
 
+// DetectScenarioRuntimeStatus returns a detector for Vrooli's lifecycle state.
+// Unlike a port lookup, the status command distinguishes an intentionally
+// stopped scenario from an unknown or merely unconfigured local API. Failures
+// intentionally return "" so callers can retain conservative generic guidance.
+func DetectScenarioRuntimeStatus(scenarioName string) func() string {
+	return func() string {
+		target := ResolveShadowTarget(scenarioName)
+		status := detectRuntimeStatusForTarget(target)
+		if status == "" && IsNonLiveTarget(target) {
+			WarnShadowFallback(scenarioName)
+			status = detectRuntimeStatusForTarget(BareScenarioName(scenarioName))
+		}
+		return status
+	}
+}
+
+func detectRuntimeStatusForTarget(target string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	argv0 := "vrooli"
+	if resolved, err := lookPathFn("vrooli"); err == nil && strings.TrimSpace(resolved) != "" {
+		argv0 = resolved
+	}
+	cmd := execCommandContextFn(ctx, argv0, "--no-stale-check", "--json", "scenario", "status", target)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	return runtimeStatusFromJSON(string(output))
+}
+
+func runtimeStatusFromJSON(output string) string {
+	var payload struct {
+		Scenario struct {
+			Status string `json:"status"`
+		} `json:"scenario"`
+		Runtime struct {
+			Status string `json:"status"`
+		} `json:"runtime"`
+	}
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		return ""
+	}
+	if status := strings.TrimSpace(payload.Scenario.Status); status != "" {
+		return status
+	}
+	return strings.TrimSpace(payload.Runtime.Status)
+}
+
 func sanitizePortOutput(output string) string {
 	trimmed := strings.TrimSpace(output)
 	if trimmed == "" {

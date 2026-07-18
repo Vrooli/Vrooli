@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// WorkflowRevision is an immutable, digest-addressed catalog projection.
+message WorkflowRevision {
+  string id = 1;
+  string owner = 2;
+  string key = 3;
+  string semantic_version = 4;
+  string digest = 5;
+  google.protobuf.Struct definition = 6;
+  string source_path = 7;
+  string source_hash = 8;
+  google.protobuf.Timestamp source_updated_at = 9;
+  bool active = 10;
+  google.protobuf.Timestamp created_at = 11;
+  // True when any promptRef source pinned in this revision differs from the
+  // current prompt-manager source. This is a live status projection.
+  bool prompt_stale = 12;
+}
+
+message WorkflowDiagnostic {
+  string code = 1;
+  string path = 2;
+  string message = 3;
+  // Severity distinguishes a blocking error (withholds the digest) from a
+  // non-blocking warning (surfaced but still registrable). Empty means error.
+  string severity = 4;
+}
+
+enum WorkflowExecutionStatus {
+  WORKFLOW_EXECUTION_STATUS_UNSPECIFIED = 0;
+  WORKFLOW_EXECUTION_STATUS_PENDING = 1;
+  WORKFLOW_EXECUTION_STATUS_RUNNING = 2;
+  WORKFLOW_EXECUTION_STATUS_WAITING = 3;
+  WORKFLOW_EXECUTION_STATUS_SUCCEEDED = 4;
+  WORKFLOW_EXECUTION_STATUS_BLOCKED = 5;
+  WORKFLOW_EXECUTION_STATUS_ABSTAINED = 6;
+  WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED = 7;
+  WORKFLOW_EXECUTION_STATUS_FAILED = 8;
+  WORKFLOW_EXECUTION_STATUS_CANCELLED = 9;
+  WORKFLOW_EXECUTION_STATUS_CANCELLING = 10;
+}
+
+message WorkflowTerminalReason {
+  string code = 1;
+  string message = 2;
+  bool retryable = 3;
+  string budget_name = 4;
+}
+
+message WorkflowBudgetUsage {
+  int32 turns = 1;
+  int32 tokens = 2;
+  double cost_usd = 3;
+  int32 node_attempts = 4;
+  int32 children = 5;
+  int32 retries = 6;
+}
+
+message WorkflowExecution {
+  string id = 1;
+  string owner = 2;
+  string workflow_key = 3;
+  string definition_digest = 4;
+  WorkflowExecutionStatus status = 5;
+  string current_node_id = 6;
+  google.protobuf.Value input = 7;
+  google.protobuf.Value output = 8;
+  WorkflowTerminalReason terminal_reason = 9;
+  WorkflowBudgetUsage budget_usage = 10;
+  map<string, int32> edge_traversals = 11;
+  int64 version = 12;
+  string idempotency_key = 13;
+  string parent_execution_id = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
+  google.protobuf.Timestamp ended_at = 17;
+  string parent_attempt_id = 18;
+  int32 depth = 19;
+}
+
+// WorkflowNodeAttempt is the durable, per-node execution identity. Prompt
+// snapshots are deliberately excluded from this operator-facing contract.
+message WorkflowNodeAttempt {
+  string id = 1;
+  string execution_id = 2;
+  string node_id = 3;
+  int32 ordinal = 4;
+  string strategy = 5;
+  string status = 6;
+  string idempotency_key = 7;
+  string run_id = 8;
+  string conversation_id = 9;
+  string source_attempt_id = 10;
+  string error_code = 11;
+  int64 version = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+  google.protobuf.Timestamp completed_at = 15;
+  string child_execution_id = 16;
+  // Derived from the pinned node definition (profile:, role:, or workflow:).
+  string profile_identity = 17;
+  string input_snapshot_digest = 18;
+  int64 input_snapshot_size_bytes = 19;
+  // Raw output and validation error are exposed only for failed structured
+  // extraction attempts, so operators can diagnose schema repair.
+  string raw_output = 20;
+  string validation_error = 21;
+}
+
+// WorkflowJournalEntry is a safe lifecycle-event projection. The durable
+// payload remains internal; digest and byte count permit correlation without
+// leaking prompts, model output, or structured results.
+message WorkflowJournalEntry {
+  string id = 1;
+  string execution_id = 2;
+  int64 sequence = 3;
+  string kind = 4;
+  string node_id = 5;
+  string attempt_id = 6;
+  string payload_digest = 7;
+  int64 payload_size_bytes = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
