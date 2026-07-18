@@ -65,7 +65,7 @@ func TestOnboarding_FullFlow_ThroughConnectHandler(t *testing.T) {
 	driver := onboard.NewSSHDriver(sshSvc, stubPath)
 	issuer := &mocks.FakeCodeIssuer{Code: intCode}
 	confirmer := &mocks.FakeOnlineConfirmer{Online: true}
-	svc := onboard.NewService(onboard.NewSQLiteRepository(d, clock.System{}), driver, issuer, confirmer, clock.System{})
+	svc := onboard.NewService(onboard.NewSQLiteRepository(d, clock.System{}), driver, issuer, confirmer, clock.System{}, onboard.WithEnrollmentResolver(onboard.EnrollmentResolverFunc(func(context.Context, string) (string, bool, error) { return intNodeID, true, nil })))
 
 	handler := onboardhandler.NewConnectHandler(onboardhandler.Deps{Service: svc})
 
@@ -91,10 +91,13 @@ func TestOnboarding_FullFlow_ThroughConnectHandler(t *testing.T) {
 		TargetRevision:  "a1b2c3d",
 		ControlPlaneUrl: endpoint,
 		SkipSetup:       true,
+		MachineId:       "machine-integration-1",
 	}))
 	require.NoError(t, err)
 	opID := startResp.Msg.GetOpId()
 	require.NotEmpty(t, opID)
+	require.Equal(t, "machine-integration-1", startResp.Msg.GetMachineId())
+	require.NotEmpty(t, startResp.Msg.GetEnrollmentAttemptId())
 
 	waitResp, err := handler.WaitOnboarding(ownerCtx, connect.NewRequest(&onboardv1.WaitOnboardingRequest{
 		Id: opID, TimeoutSeconds: 30,

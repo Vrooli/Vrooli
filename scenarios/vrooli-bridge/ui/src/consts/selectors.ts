@@ -313,6 +313,7 @@ const literalSelectors = {
     list: "fleet-list",
     failedOnboardings: "fleet-failed-onboardings",
     bridgeReadiness: "fleet-bridge-readiness",
+    machineLifecycle: "machine-lifecycle-panel",
     pairing: {
       disclosure: "fleet-pairing-disclosure",
       form: "fleet-pairing-form",
@@ -466,6 +467,11 @@ const dynamicSelectorDefinitions = {
     }),
   },
   fleet: {
+    machineLifecycleRow: defineDynamicSelector({
+      description: "Durable Machine lifecycle row by Machine id",
+      testIdPattern: "machine-lifecycle-${id}",
+      params: { id: { type: "string" } },
+    }),
     row: defineDynamicSelector({
       description: "Fleet node row by node id",
       testIdPattern: "fleet-row-${id}",

@@ -13,13 +13,35 @@ CREATE TABLE IF NOT EXISTS pairing_codes (
   code_hash        TEXT NOT NULL UNIQUE,
   name             TEXT NOT NULL DEFAULT '',
   scopes           TEXT NOT NULL DEFAULT '[]',
+  correlation_id   TEXT NOT NULL DEFAULT '',
   created_at       TEXT NOT NULL,
   expires_at       TEXT NOT NULL,
+  claimed_at       TEXT NOT NULL DEFAULT '',
   redeemed_at      TEXT NOT NULL DEFAULT '',
   redeemed_node_id TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_pairing_codes_expires_at ON pairing_codes(expires_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pairing_codes_correlation
+  ON pairing_codes(correlation_id) WHERE correlation_id <> '';
+
+-- A durable saga record is written before a correlated redemption can create a
+-- Registry Node. It contains only public key/facts and enables restart-safe
+-- reconciliation of the otherwise cross-domain Registry/credential/code work.
+CREATE TABLE IF NOT EXISTS pairing_enrollment_sagas (
+  correlation_id TEXT PRIMARY KEY,
+  code_id TEXT NOT NULL,
+  public_key TEXT NOT NULL,
+  facts TEXT NOT NULL DEFAULT '{}',
+  state TEXT NOT NULL DEFAULT 'prepared',
+  node_id TEXT NOT NULL DEFAULT '',
+  last_error TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  completed_at TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_pairing_enrollment_sagas_state
+  ON pairing_enrollment_sagas(state, created_at);
 
 -- node_credentials — the node's Ed25519 PUBLIC key (standard base64). This is
 -- NOT secret material: with asymmetric mutual auth the node keeps the private

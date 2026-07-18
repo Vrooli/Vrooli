@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { nodesClient, type Node } from "../../api/nodes";
+import { machinesClient, type GetMachineResponse, type Machine, type MachineTrust } from "../../api/machines";
 import { queueClient, type NodeQueue } from "../../api/queue";
 import { pairingClient, type IssuePairingCodeResponse } from "../../api/pairing";
 import {
@@ -28,6 +29,93 @@ export function useBridgeFirewallActionMutation() {
 
 /** Canonical react-query key for the owner's fleet node list. */
 export const NODES_QUERY_KEY = ["fleet", "nodes"] as const;
+export const MACHINES_QUERY_KEY = ["fleet", "machines"] as const;
+export const MACHINE_DETAIL_QUERY_KEY = (id: string) => ["fleet", "machine", id] as const;
+export const MACHINE_TRUST_QUERY_KEY = (id: string) => ["fleet", "machine", id, "trust"] as const;
+
+/** Durable Machine intent records, separate from their current paired Node. */
+export function useMachinesQuery() {
+  return useQuery({
+    queryKey: MACHINES_QUERY_KEY,
+    queryFn: async (): Promise<Machine[]> => (await machinesClient.listMachines({})).machines,
+  });
+}
+
+export function useMachineDetailQuery(id: string | null) {
+  return useQuery({
+    queryKey: MACHINE_DETAIL_QUERY_KEY(id ?? ""),
+    enabled: id !== null,
+    queryFn: (): Promise<GetMachineResponse> => machinesClient.getMachine({ id: id ?? "" }),
+  });
+}
+
+export function useMachineTrustQuery(id: string | null) {
+  return useQuery({
+    queryKey: MACHINE_TRUST_QUERY_KEY(id ?? ""),
+    enabled: id !== null,
+    queryFn: async (): Promise<MachineTrust | undefined> => (await machinesClient.getMachineTrust({ machineId: id ?? "" })).trust,
+  });
+}
+
+function invalidateMachines(queryClient: ReturnType<typeof useQueryClient>) {
+  return void queryClient.invalidateQueries({ queryKey: MACHINES_QUERY_KEY });
+}
+
+function invalidateMachineDetail(queryClient: ReturnType<typeof useQueryClient>, machineID: string) {
+  void queryClient.invalidateQueries({ queryKey: MACHINE_DETAIL_QUERY_KEY(machineID) });
+  void queryClient.invalidateQueries({ queryKey: MACHINE_TRUST_QUERY_KEY(machineID) });
+}
+
+export function useApplyMachinePolicyMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ machine, profileID, reason, confirmRemoval }: { machine: Machine; profileID: string; reason: string; confirmRemoval: boolean }) => machinesClient.applyMachinePolicy({ machineId: machine.id, version: machine.version, profileId: profileID, profileVersion: "", overrides: {}, reason, confirmRemoval }),
+    onSuccess: (_response, { machine }) => { invalidateMachines(queryClient); invalidateMachineDetail(queryClient, machine.id); },
+  });
+}
+
+export function useReviewMachineHostKeyMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ machineID, fingerprint }: { machineID: string; fingerprint: string }) => machinesClient.reviewMachineHostKey({ machineId: machineID, replacementHostKeyFingerprint: fingerprint }),
+    onSuccess: (_response, { machineID }) => invalidateMachineDetail(queryClient, machineID),
+  });
+}
+
+export function useArchiveMachineMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (machine: Machine) => machinesClient.archiveMachine({ id: machine.id, version: machine.version }),
+    onSuccess: () => invalidateMachines(queryClient),
+  });
+}
+
+export function useRemoveMachineMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (machine: Machine) => machinesClient.removeMachine({ id: machine.id, version: machine.version }),
+    onSuccess: () => invalidateMachines(queryClient),
+  });
+}
+
+export function useRevokeMachineNodeMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (machineId: string) => machinesClient.revokeMachineNode({ machineId }),
+    onSuccess: () => {
+      invalidateMachines(queryClient);
+      return void queryClient.invalidateQueries({ queryKey: NODES_QUERY_KEY });
+    },
+  });
+}
+
+export function useRequestMachineCleanupMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (machineId: string) => machinesClient.requestMachineSSHCleanup({ machineId }),
+    onSuccess: () => invalidateMachines(queryClient),
+  });
+}
 
 /** Canonical react-query key for the fleet-wide live queue overlay. */
 export const QUEUE_QUERY_KEY = ["fleet", "queue"] as const;
@@ -103,9 +191,16 @@ export function useIssuePairingCodeMutation() {
  * success so the freshly onboarded node appears once it dials in.
  */
 export function useStartOnboardingMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: StartOnboardingInput) => onboardClient.startOnboarding(input),
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async (input: StartOnboardingInput) => {
+			// Retry reuses its durable Machine. First enrollment creates intent
+			// before the SSH password leaves the browser.
+			if (input.machineId) return onboardClient.startOnboarding(input);
+			const created = await machinesClient.createMachine({ locators: [{ kind: "hostname", value: input.host, ordinal: 0 }] });
+			if (!created.machine) throw new Error("Machine creation returned no Machine identity");
+			return onboardClient.startOnboarding({ ...input, machineId: created.machine.id });
+		},
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: NODES_QUERY_KEY }),
   });
 }

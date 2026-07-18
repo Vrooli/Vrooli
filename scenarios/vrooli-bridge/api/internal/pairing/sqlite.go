@@ -51,9 +51,9 @@ func (s *sqliteRepository) CreateCode(ctx context.Context, c PairingCode) (Pairi
 		return PairingCode{}, fmt.Errorf("encode scopes: %w", err)
 	}
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO pairing_codes (id, code_hash, name, scopes, created_at, expires_at, redeemed_at, redeemed_node_id)
-		 VALUES (?, ?, ?, ?, ?, ?, '', '')`,
-		c.ID, c.CodeHash, c.Name, scopes,
+		`INSERT INTO pairing_codes (id, code_hash, name, scopes, correlation_id, created_at, expires_at, claimed_at, redeemed_at, redeemed_node_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '')`,
+		c.ID, c.CodeHash, c.Name, scopes, c.CorrelationID,
 		c.CreatedAt.Format(timeFormat), c.ExpiresAt.UTC().Format(timeFormat),
 	)
 	if err != nil {
@@ -64,7 +64,7 @@ func (s *sqliteRepository) CreateCode(ctx context.Context, c PairingCode) (Pairi
 
 func (s *sqliteRepository) GetCodeByHash(ctx context.Context, codeHash string) (PairingCode, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, code_hash, name, scopes, created_at, expires_at, redeemed_at, redeemed_node_id
+		`SELECT id, code_hash, name, scopes, correlation_id, created_at, expires_at, claimed_at, redeemed_at, redeemed_node_id
 		 FROM pairing_codes WHERE code_hash = ?`, codeHash)
 	c, err := scanCode(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -74,6 +74,100 @@ func (s *sqliteRepository) GetCodeByHash(ctx context.Context, codeHash string) (
 		return PairingCode{}, fmt.Errorf("get pairing code: %w", err)
 	}
 	return c, nil
+}
+
+func (s *sqliteRepository) ClaimCode(ctx context.Context, id string) error {
+	now := s.clock.Now().UTC().Format(timeFormat)
+	result, err := s.db.ExecContext(ctx, `UPDATE pairing_codes SET claimed_at=? WHERE id=? AND claimed_at='' AND redeemed_at=''`, now, id)
+	if err != nil {
+		return fmt.Errorf("claim pairing code: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("claim pairing code rows: %w", err)
+	}
+	if changed == 0 {
+		return ErrCodeUsed
+	}
+	return nil
+}
+
+func (s *sqliteRepository) FinalizeClaimedCode(ctx context.Context, id, nodeID string) error {
+	now := s.clock.Now().UTC().Format(timeFormat)
+	result, err := s.db.ExecContext(ctx, `UPDATE pairing_codes SET redeemed_at=?, redeemed_node_id=? WHERE id=? AND claimed_at<>'' AND redeemed_at=''`, now, nodeID, id)
+	if err != nil {
+		return fmt.Errorf("finalize pairing code: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("finalize pairing code rows: %w", err)
+	}
+	if changed == 0 {
+		return ErrCodeUsed
+	}
+	return nil
+}
+
+func (s *sqliteRepository) PrepareEnrollmentSaga(ctx context.Context, saga EnrollmentSaga) (EnrollmentSaga, error) {
+	if saga.CreatedAt.IsZero() {
+		saga.CreatedAt = s.clock.Now().UTC()
+	}
+	if saga.UpdatedAt.IsZero() {
+		saga.UpdatedAt = saga.CreatedAt
+	}
+	if saga.State == "" {
+		saga.State = "prepared"
+	}
+	facts, err := json.Marshal(saga.Facts)
+	if err != nil {
+		return EnrollmentSaga{}, fmt.Errorf("encode enrollment facts: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO pairing_enrollment_sagas (correlation_id,code_id,public_key,facts,state,node_id,last_error,created_at,updated_at,completed_at)
+        VALUES (?,?,?,?,?,?,?, ?,?,?) ON CONFLICT(correlation_id) DO NOTHING`,
+		saga.CorrelationID, saga.CodeID, saga.PublicKey, string(facts), saga.State, saga.NodeID, saga.LastError,
+		saga.CreatedAt.Format(timeFormat), saga.UpdatedAt.Format(timeFormat), formatNullableTime(saga.CompletedAt))
+	if err != nil {
+		return EnrollmentSaga{}, fmt.Errorf("prepare enrollment saga: %w", err)
+	}
+	return s.GetEnrollmentSaga(ctx, saga.CorrelationID)
+}
+
+func (s *sqliteRepository) GetEnrollmentSaga(ctx context.Context, correlationID string) (EnrollmentSaga, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT correlation_id,code_id,public_key,facts,state,node_id,last_error,created_at,updated_at,completed_at FROM pairing_enrollment_sagas WHERE correlation_id=?`, correlationID)
+	return scanEnrollmentSaga(row)
+}
+
+func (s *sqliteRepository) UpdateEnrollmentSaga(ctx context.Context, saga EnrollmentSaga) error {
+	saga.UpdatedAt = s.clock.Now().UTC()
+	result, err := s.db.ExecContext(ctx, `UPDATE pairing_enrollment_sagas SET state=?,node_id=?,last_error=?,updated_at=?,completed_at=? WHERE correlation_id=?`, saga.State, saga.NodeID, saga.LastError, saga.UpdatedAt.Format(timeFormat), formatNullableTime(saga.CompletedAt), saga.CorrelationID)
+	if err != nil {
+		return fmt.Errorf("update enrollment saga: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed == 0 {
+		return ErrCodeNotFound
+	}
+	return nil
+}
+
+func (s *sqliteRepository) ListIncompleteEnrollmentSagas(ctx context.Context) ([]EnrollmentSaga, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT correlation_id,code_id,public_key,facts,state,node_id,last_error,created_at,updated_at,completed_at FROM pairing_enrollment_sagas WHERE state <> 'completed' ORDER BY created_at`)
+	if err != nil {
+		return nil, fmt.Errorf("list incomplete enrollment sagas: %w", err)
+	}
+	defer rows.Close()
+	var out []EnrollmentSaga
+	for rows.Next() {
+		saga, err := scanEnrollmentSaga(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, saga)
+	}
+	return out, rows.Err()
 }
 
 func (s *sqliteRepository) BurnCode(ctx context.Context, id, nodeID string) error {
@@ -242,7 +336,8 @@ func scanCode(s rowScanner) (PairingCode, error) {
 		expiresRaw string
 		redeemRaw  string
 	)
-	if err := s.Scan(&c.ID, &c.CodeHash, &c.Name, &scopesRaw, &createdRaw, &expiresRaw, &redeemRaw, &c.RedeemedNodeID); err != nil {
+	var claimedRaw string
+	if err := s.Scan(&c.ID, &c.CodeHash, &c.Name, &scopesRaw, &c.CorrelationID, &createdRaw, &expiresRaw, &claimedRaw, &redeemRaw, &c.RedeemedNodeID); err != nil {
 		return PairingCode{}, err
 	}
 	var err error
@@ -258,7 +353,32 @@ func scanCode(s rowScanner) (PairingCode, error) {
 	if c.RedeemedAt, err = parseNullableTime(redeemRaw); err != nil {
 		return PairingCode{}, fmt.Errorf("parse redeemed_at: %w", err)
 	}
+	if c.ClaimedAt, err = parseNullableTime(claimedRaw); err != nil {
+		return PairingCode{}, fmt.Errorf("parse claimed_at: %w", err)
+	}
 	return c, nil
+}
+
+func scanEnrollmentSaga(s rowScanner) (EnrollmentSaga, error) {
+	var saga EnrollmentSaga
+	var facts, created, updated, completed string
+	if err := s.Scan(&saga.CorrelationID, &saga.CodeID, &saga.PublicKey, &facts, &saga.State, &saga.NodeID, &saga.LastError, &created, &updated, &completed); err != nil {
+		return EnrollmentSaga{}, err
+	}
+	if err := json.Unmarshal([]byte(facts), &saga.Facts); err != nil {
+		return EnrollmentSaga{}, fmt.Errorf("decode enrollment facts: %w", err)
+	}
+	var err error
+	if saga.CreatedAt, err = time.Parse(timeFormat, created); err != nil {
+		return EnrollmentSaga{}, err
+	}
+	if saga.UpdatedAt, err = time.Parse(timeFormat, updated); err != nil {
+		return EnrollmentSaga{}, err
+	}
+	if saga.CompletedAt, err = parseNullableTime(completed); err != nil {
+		return EnrollmentSaga{}, err
+	}
+	return saga, nil
 }
 
 func scanRequest(s rowScanner) (PairingRequest, error) {
@@ -317,4 +437,11 @@ func parseNullableTime(raw string) (time.Time, error) {
 		return time.Time{}, nil
 	}
 	return time.Parse(timeFormat, raw)
+}
+
+func formatNullableTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(timeFormat)
 }

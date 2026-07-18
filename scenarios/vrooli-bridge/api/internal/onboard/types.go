@@ -238,6 +238,7 @@ type Op struct {
 
 	State         State
 	NodeID        string
+	CorrelationID string
 	FailureReason FailureReason
 	ExitCode      int32
 
@@ -285,6 +286,12 @@ type StepEvent struct {
 // owned, mutable slice you do not reuse.
 type StartInput struct {
 	Actor string
+	// EnrollmentCorrelationID binds this operation to an immutable Machine
+	// attempt. It is internal until the typed Machine API cutover.
+	EnrollmentCorrelationID string
+	// SSHKeyName selects the Bridge-owned client key. Machine enrollment assigns
+	// a stable per-Machine value; direct legacy onboarding leaves it empty.
+	SSHKeyName string
 
 	Host     string
 	Port     int

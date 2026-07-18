@@ -2,8 +2,10 @@ package onboard
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/pairing"
 	"vrooli-bridge/internal/presence"
@@ -134,12 +136,57 @@ type codeIssuerAdapter struct {
 
 var _ onboard.CodeIssuer = codeIssuerAdapter{}
 
+var _ onboard.EnrollmentResolver = codeIssuerAdapter{}
+
 func (a codeIssuerAdapter) Issue(ctx context.Context, p onboard.IssueParams) ([]byte, error) {
-	issued, err := a.svc.IssueCode(ctx, p.NodeName, p.Scopes, 0)
+	issued, err := a.svc.IssueCodeForEnrollment(ctx, p.NodeName, p.Scopes, 0, p.CorrelationID)
 	if err != nil {
 		return nil, err
 	}
 	return []byte(issued.Code), nil
+}
+
+func (a codeIssuerAdapter) ResolveEnrollment(ctx context.Context, correlationID string) (string, bool, error) {
+	return a.svc.ResolveEnrollment(ctx, correlationID)
+}
+
+type machineLinkerAdapter struct {
+	attempts onboard.AttemptStore
+	machines machines.Service
+}
+
+var _ onboard.MachineLinker = machineLinkerAdapter{}
+
+func (a machineLinkerAdapter) LinkCorrelatedNode(ctx context.Context, correlationID, nodeID string) error {
+	attempt, err := a.attempts.GetAttemptByCorrelation(ctx, correlationID)
+	if err != nil {
+		var absent onboard.ErrOpNotFound
+		if errors.As(err, &absent) {
+			// The legacy operation did not originate from a Machine attempt; do
+			// not guess a relationship from host/name/locator data.
+			return nil
+		}
+		return err
+	}
+	_, err = a.machines.LinkNode(ctx, attempt.MachineID, nodeID, correlationID)
+	return err
+}
+
+func (a machineLinkerAdapter) RecordCorrelatedTrust(ctx context.Context, correlationID string, conn onboard.Conn) error {
+	attempt, err := a.attempts.GetAttemptByCorrelation(ctx, correlationID)
+	if err != nil {
+		var absent onboard.ErrOpNotFound
+		if errors.As(err, &absent) {
+			return nil
+		}
+		return err
+	}
+	state := machines.HostKeyUnverified
+	if conn.HostKeyFingerprint != "" {
+		state = machines.HostKeyVerified
+	}
+	_, err = a.machines.UpsertTrust(ctx, machines.TrustRecord{MachineID: attempt.MachineID, ClientKeyRef: conn.ClientKeyRef, ClientKeyFingerprint: conn.ClientKeyFingerprint, HostKeyFingerprint: conn.HostKeyFingerprint, HostKeyState: state})
+	return err
 }
 
 // nodeRevisionRecorderAdapter stamps a node's provenance revision after

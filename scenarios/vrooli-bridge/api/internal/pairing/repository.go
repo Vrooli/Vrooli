@@ -45,3 +45,15 @@ type Repository interface {
 	// approved/rejected ones.
 	ListRequests(ctx context.Context, includeDecided bool) ([]PairingRequest, error)
 }
+
+// EnrollmentRepository is implemented by durable pairing repositories. It is
+// deliberately separate from Repository so small legacy test fakes remain
+// focused; production requires it whenever a correlation is supplied.
+type EnrollmentRepository interface {
+	ClaimCode(context.Context, string) error
+	PrepareEnrollmentSaga(context.Context, EnrollmentSaga) (EnrollmentSaga, error)
+	GetEnrollmentSaga(context.Context, string) (EnrollmentSaga, error)
+	UpdateEnrollmentSaga(context.Context, EnrollmentSaga) error
+	ListIncompleteEnrollmentSagas(context.Context) ([]EnrollmentSaga, error)
+	FinalizeClaimedCode(context.Context, string, string) error
+}

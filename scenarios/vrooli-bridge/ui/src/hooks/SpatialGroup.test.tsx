@@ -18,6 +18,7 @@
  * `controllerRef.current` to it (matching the shape `useSpatialNav`
  * exposes). No `vi.mock` of the spatial SDK needed — SpatialGroup only
  * touches the controller via the ref it's handed.
+ * provider-free-exception: this isolated controller harness intentionally has no app providers.
  */
 import { useEffect, useRef } from "react";
 import { afterEach, describe, expect, it } from "vitest";

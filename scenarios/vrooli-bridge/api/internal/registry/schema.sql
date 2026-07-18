@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS nodes (
   endpoint     TEXT NOT NULL DEFAULT '',
   capabilities TEXT NOT NULL DEFAULT '[]',
   scopes       TEXT NOT NULL DEFAULT '[]',
+  pairing_correlation_id TEXT NOT NULL DEFAULT '',
   created_at   TEXT NOT NULL,
   updated_at   TEXT NOT NULL,
   last_seen_at TEXT NOT NULL DEFAULT '',
@@ -21,3 +22,5 @@ CREATE TABLE IF NOT EXISTS nodes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_nodes_created_at ON nodes(created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_nodes_pairing_correlation
+  ON nodes(pairing_correlation_id) WHERE pairing_correlation_id <> '';

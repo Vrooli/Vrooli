@@ -105,6 +105,7 @@ STATE_DIR="${BRIDGE_AGENT_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/vrool
 WORK_DIR="${BRIDGE_WORK_DIR:-}"
 SERVICE_USER="${BRIDGE_SERVICE_USER:-}"
 CAPABILITIES="${BRIDGE_CAPABILITIES:-}"
+PRESENCE_ONLY="${BRIDGE_PRESENCE_ONLY:-true}"
 VERIFY_TIMEOUT="${BRIDGE_VERIFY_TIMEOUT:-120}"
 
 # Setup profile: the operator-chosen shape of the node-side `vrooli setup` this
@@ -146,6 +147,7 @@ Options (flag overrides env in parentheses):
   --work-dir DIR            Dir the agent runs jobs in.       (BRIDGE_WORK_DIR; default: checkout dir)
   --service-user USER       OS principal the service runs as. (BRIDGE_SERVICE_USER; default: current user)
   --capabilities LIST       Comma-separated verb namespaces.  (BRIDGE_CAPABILITIES)
+  --presence-only BOOL      Hold presence only; reject jobs/provisioning. (BRIDGE_PRESENCE_ONLY; default: true)
   --verify-timeout SECONDS  Dial-out verification budget.     (BRIDGE_VERIFY_TIMEOUT; default: 120)
 
 Setup profile (shapes the node-side `vrooli setup`; empty = vrooli setup default):
@@ -180,6 +182,7 @@ while [ $# -gt 0 ]; do
     --work-dir)          WORK_DIR="$2"; shift 2 ;;
     --service-user)      SERVICE_USER="$2"; shift 2 ;;
     --capabilities)      CAPABILITIES="$2"; shift 2 ;;
+    --presence-only)     PRESENCE_ONLY="$2"; shift 2 ;;
     --verify-timeout)    VERIFY_TIMEOUT="$2"; shift 2 ;;
     --setup-environment) SETUP_ENVIRONMENT="$2"; shift 2 ;;
     --setup-resources)   SETUP_RESOURCES="$2"; shift 2 ;;
@@ -720,6 +723,7 @@ step_pair_redeem() {
     --public-key "$NODE_PUBLIC_KEY" --name "$NODE_NAME"
     --os "$OS" --arch "$ARCH" --state-dir "$STATE_DIR" --json)
   [ -n "$CAPABILITIES" ] && args+=(--capabilities "$CAPABILITIES")
+  args+=(--presence-only "$PRESENCE_ONLY")
 
   # The code rides the environment (BRIDGE_PAIRING_CODE), never argv. The CLI
   # pins control_plane.pub BEFORE burning the single-use code, so a redeem that

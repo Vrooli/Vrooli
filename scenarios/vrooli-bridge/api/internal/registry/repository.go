@@ -17,6 +17,10 @@ type Repository interface {
 	// Get returns the node with the given id or ErrNodeNotFound{id}.
 	Get(ctx context.Context, id string) (Node, error)
 
+	// GetByPairingCorrelation returns the Node created by a durable pairing
+	// correlation, if any. It is used only by reconciliation.
+	GetByPairingCorrelation(ctx context.Context, correlationID string) (Node, error)
+
 	// List returns all nodes ordered newest-first by CreatedAt (including
 	// revoked nodes — the read path decides how to present them).
 	List(ctx context.Context) ([]Node, error)

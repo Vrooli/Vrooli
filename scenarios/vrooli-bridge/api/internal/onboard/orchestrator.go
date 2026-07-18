@@ -30,7 +30,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	s.transition(ctx, opID, StateSSHSetup)
 	s.emit(ctx, opID, &seq, StepSSHSetup, StepStatusStarted, "establishing passwordless SSH")
 	conn, err := s.driver.FirstTouch(ctx, FirstTouchParams{
-		Host: in.Host, Port: in.Port, User: in.User, Password: in.Password,
+		Host: in.Host, Port: in.Port, User: in.User, Password: in.Password, KeyName: in.SSHKeyName,
 		ProvisionSudo: in.ProvisionSudo,
 	})
 	if err != nil {
@@ -41,6 +41,12 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.emit(ctx, opID, &seq, StepSSHSetup, StepStatusFailed, err.Error())
 		s.finishFailed(ctx, opID, &seq, FailureSSHSetup, 0, err.Error(), "")
 		return
+	}
+	if s.linker != nil {
+		if err := s.linker.RecordCorrelatedTrust(ctx, correlationForOp(ctx, s.repo, opID), conn); err != nil {
+			s.finishFailed(ctx, opID, &seq, FailureSSHSetup, 0, "could not persist machine trust: "+err.Error(), "")
+			return
+		}
 	}
 	s.emit(ctx, opID, &seq, StepSSHSetup, StepStatusOK, sshSetupDetail(conn.SudoState))
 	if s.cancelled(ctx) {
@@ -167,7 +173,11 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	}
 
 	// ---- Issue the server-side pairing code (operator never handles one) ----
-	code, err := s.issuer.Issue(ctx, IssueParams{NodeName: in.NodeName, Scopes: nil})
+	correlationID := opID
+	if op, getErr := s.repo.Get(ctx, opID); getErr == nil && op.CorrelationID != "" {
+		correlationID = op.CorrelationID
+	}
+	code, err := s.issuer.Issue(ctx, IssueParams{NodeName: in.NodeName, Scopes: nil, CorrelationID: correlationID})
 	if err != nil {
 		s.finishFailed(ctx, opID, &seq, FailurePairingIssue, 0, "could not issue pairing code", "")
 		return
@@ -182,13 +192,35 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	s.transition(ctx, opID, StateBootstrapping)
 	var nodeID string
 	onMarker := func(m Marker) {
-		s.handleMarker(ctx, opID, &seq, m, &nodeID)
+		s.handleMarker(ctx, opID, &seq, m)
 	}
 	res, runErr := s.driver.RunBootstrap(ctx, RunParams{
 		Conn: conn, RemotePath: remotePath, Args: buildBootstrapArgs(in, wtSourceDir, wtDigest, remoteArtifacts), PairingCode: code,
 	}, onMarker)
 	// The code has served its one purpose — destroy our copy immediately.
 	zeroBytes(code)
+	// Pairing may have completed before a later bootstrap/service-install failure.
+	// Resolve the durable correlation before interpreting that terminal process
+	// result so the recovery record never depends on free-text stdout markers.
+	if s.resolver == nil {
+		s.finishFailed(ctx, opID, &seq, FailurePairing, int32(res.ExitCode), "durable pairing result resolver is not configured", res.Diagnostics)
+		return
+	}
+	resolved, paired, resolveErr := s.resolver.ResolveEnrollment(ctx, correlationID)
+	if resolveErr != nil {
+		s.finishFailed(ctx, opID, &seq, FailurePairing, int32(res.ExitCode), "could not resolve durable pairing result: "+resolveErr.Error(), res.Diagnostics)
+		return
+	}
+	if paired {
+		nodeID = resolved
+		s.recordNodeID(ctx, opID, nodeID)
+		if s.linker != nil {
+			if err := s.linker.LinkCorrelatedNode(ctx, correlationID, nodeID); err != nil {
+				s.finishFailed(ctx, opID, &seq, FailurePairing, int32(res.ExitCode), "could not persist machine node lineage: "+err.Error(), res.Diagnostics)
+				return
+			}
+		}
+	}
 
 	if runErr != nil {
 		if s.cancelled(ctx) {
@@ -209,7 +241,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 
 	// ---- Phase: VERIFYING ----
 	if nodeID == "" {
-		s.finishFailed(ctx, opID, &seq, FailureVerifyOnline, int32(res.ExitCode), "bootstrap succeeded but no node id was observed in its markers", res.Diagnostics)
+		s.finishFailed(ctx, opID, &seq, FailureVerifyOnline, int32(res.ExitCode), "bootstrap succeeded without a durable pairing result", res.Diagnostics)
 		return
 	}
 	s.recordNodeID(ctx, opID, nodeID)
@@ -228,6 +260,14 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusOK, "node is online with control-plane key pinned")
 	s.recordNodeRevision(ctx, opID, &seq, nodeID, in)
 	s.finishSucceeded(ctx, opID, nodeID, int32(res.ExitCode))
+}
+
+func correlationForOp(ctx context.Context, repo Repository, opID string) string {
+	op, err := repo.Get(ctx, opID)
+	if err == nil && op.CorrelationID != "" {
+		return op.CorrelationID
+	}
+	return opID
 }
 
 // recordNodeRevision stamps the node record with the provenance the op brought it
@@ -261,14 +301,9 @@ func sshSetupDetail(sudoState string) string {
 	return "passwordless SSH established; sudo: " + sudoState
 }
 
-// handleMarker persists one parsed bootstrap marker as a step event and captures
-// the node id the first time it appears in a marker detail.
-func (s *service) handleMarker(ctx context.Context, opID string, seq *uint64, m Marker, nodeID *string) {
-	if *nodeID == "" {
-		if id := extractNodeID(m.Detail); id != "" {
-			*nodeID = id
-		}
-	}
+// handleMarker persists human/bootstrap diagnostics only. Pairing identity is
+// resolved through the durable correlation, never parsed from marker text.
+func (s *service) handleMarker(ctx context.Context, opID string, seq *uint64, m Marker) {
 	switch m.Event {
 	case eventRunStart:
 		s.emit(ctx, opID, seq, StepRun, StepStatusStarted, m.Detail)
@@ -539,6 +574,23 @@ func (s *service) finish(ctx context.Context, opID string, state State, reason F
 	}
 	if _, err := s.repo.Update(ctx, op); err != nil {
 		return
+	}
+	if op.CorrelationID != "" {
+		if attempts, ok := s.repo.(AttemptStore); ok {
+			if attempt, lookupErr := attempts.GetAttemptByCorrelation(ctx, op.CorrelationID); lookupErr == nil {
+				attemptState := AttemptFailed
+				if state == StateSucceeded {
+					attemptState = AttemptSucceeded
+				} else if state == StateCancelled {
+					attemptState = AttemptInterrupted
+				}
+				result := string(reason)
+				if state == StateSucceeded {
+					result = "enrolled"
+				}
+				_, _ = attempts.CompleteAttempt(ctx, attempt.ID, attemptState, result, diagnostics)
+			}
+		}
 	}
 	s.coord.signalTerminal(opID)
 }

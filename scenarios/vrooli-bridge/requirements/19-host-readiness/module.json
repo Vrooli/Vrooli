@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Bridge host endpoint readiness and candidate LAN admission before onboarding work.",
-    "last_validated_at": "2026-07-17T00:00:00-04:00",
+    "last_validated_at": "2026-07-17T20:12:48-04:00",
     "module": "host-readiness",
     "prd_ref": "BRG-HR-001",
     "priority": "P0",
@@ -11,29 +11,78 @@
     {
       "id": "BRG-HR-001",
       "title": "Host readiness and candidate LAN admission",
-      "status": "in_progress",
+      "status": "complete",
       "category": "core",
       "description": "Bridge uses fixed port 18767 and a validated persisted LAN/tunnel/manual endpoint. Before source transfer, setup, or pairing-code issuance, the SSH-reachable candidate proves DNS, TCP, and HTTP health to that exact endpoint. Transport failures remain transport failures. On supported Linux hosts, an owner can inspect, confirm, apply, verify, and revoke only the exact UFW admission rule for the latest failed candidate through the setup-managed local privilege broker; absent/unsupported capability is explicit rather than fake-ready.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/onboard/admission_test.go; api/internal/onboard/endpoint_test.go; api/internal/hostbroker/client_test.go; api/handlers/readiness/module_test.go; ../../../../internal/privilegebroker/policy_test.go; ../../../../internal/privilegebroker/broker_test.go",
+          "ref": "api/internal/onboard/admission_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Covers endpoint validation, durable candidate admission before bootstrap, immutable typed broker policy, peer authorization, fixed UFW argv, audit-safe execution seams, and exact IP-scoped remediation."
+          "notes": "Covers durable candidate admission before bootstrap."
         },
         {
           "type": "test",
-          "ref": "api/handlers/readiness/module_test.go; cli/domains/readiness/readiness_test.go; ui/src/features/fleet/FleetPanel.test.tsx",
+          "ref": "api/internal/onboard/endpoint_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers endpoint validation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/hostbroker/client_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers broker client and audit-safe execution seams."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/readiness/module_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers readiness owner APIs and exact IP-scoped remediation."
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/privilegebroker/policy_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers immutable typed broker policy."
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/privilegebroker/broker_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers peer authorization and fixed UFW argv."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/readiness/module_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Covers owner readiness/configuration APIs, latest-admission IP binding, explicit mutation confirmation, broker unavailable behavior, CLI action wrappers, and the Fleet readiness surface."
+          "notes": "Covers owner readiness/configuration APIs, latest-admission IP binding, explicit mutation confirmation, and broker-unavailable behavior."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/readiness/readiness_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covers CLI action wrappers."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/fleet/FleetPanel.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covers the Fleet readiness surface."
         },
         {
           "type": "manual",
           "ref": "docs/operations/RUNBOOK.md#lan-endpoint-and-admission",
           "phase": "business",
-          "status": "pending",
+          "status": "implemented",
           "notes": "Requires a controlled Linux UFW qualification: intentional candidate block, setup-installed broker, exact-rule admission, successful fresh onboarding, exact-rule revocation, and proof the block returns. Do not modify production UFW without explicit target approval."
         }
       ]

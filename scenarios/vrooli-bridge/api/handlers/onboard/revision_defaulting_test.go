@@ -85,6 +85,15 @@ func TestStartOnboarding_OmittedRevisionAcceptedAtBoundary(t *testing.T) {
 	require.Equal(t, "", res.last, "resolver saw the omitted (empty) revision")
 }
 
+func TestStartOnboarding_RequiresMachineOutsideDryRun(t *testing.T) {
+	h := handlerWithResolver(&stubResolver{resolved: "1111111111111111111111111111111111111111"})
+	ownerCtx := auth.WithIdentity(context.Background(), auth.Identity{OwnerID: "owner-1"})
+	_, err := h.StartOnboarding(ownerCtx, connect.NewRequest(&onboardv1.StartOnboardingRequest{Host: "web-01.example.com", User: "deploy"}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Contains(t, err.Error(), "machine_id is required")
+}
+
 // TestStartOnboarding_MetacharRevisionFriendlyRejection asserts a relative ref is
 // rejected at the API boundary with InvalidArgument (not an opaque privsep
 // failure on the node).

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Dial-out persistent channel per node; online/offline presence + self-reported readiness; no inbound ports.",
-    "last_validated_at": "2026-07-16T19:06:43-04:00",
+    "last_validated_at": "2026-07-17T20:12:48-04:00",
     "module": "presence-health",
     "prd_ref": "OT-P0-003",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P0-003",
       "title": "Dial-Out Presence \u0026 Health",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "core",
       "description": "Each node-agent maintains a persistent outbound channel to the control plane (no inbound ports on the node; NAT/firewall-proof). The control plane tracks online/offline presence and the node's self-reported readiness (toolchain present, disk headroom, container runtime up) so dispatch only targets capable nodes.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/internal/presence/presence_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Presence transitions online on channel connect and offline on disconnect/heartbeat-miss; health snapshot is stored per node."
         },
         {

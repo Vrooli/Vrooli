@@ -198,6 +198,104 @@
       ]
     },
     {
+      "name": "machines",
+      "description": "Manage durable operator-intent machine identities",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a Machine before any network contact",
+          "flags": [
+            {"name": "locators", "required": true, "description": "Comma-separated kind=value locators, e.g. hostname=host.example,ip=192.0.2.10"},
+            {"name": "profile", "description": "Desired built-in profile id"},
+            {"name": "profile-version", "description": "Desired built-in profile version"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "CreateMachine"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "list",
+          "description": "List durable Machine identities",
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "ListMachines"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "get",
+          "description": "Show Machine intent and Node lineage",
+          "positionals": [{"name": "id", "required": true, "description": "Machine id"}],
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "GetMachine"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "archive",
+          "description": "Archive a Machine without deleting history",
+          "positionals": [{"name": "id", "required": true, "description": "Machine id"}],
+          "flags": [{"name": "version", "required": true, "description": "Current Machine version for optimistic concurrency"}],
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "ArchiveMachine"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "remove",
+          "description": "Record local Machine removal; external cleanup remains explicit",
+          "positionals": [{"name": "id", "required": true, "description": "Machine id"}],
+          "flags": [{"name": "version", "required": true, "description": "Current Machine version for optimistic concurrency"}],
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "RemoveMachine"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "trust",
+          "description": "Show Machine SSH trust metadata",
+          "positionals": [{"name": "id", "required": true, "description": "Machine id"}],
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "GetMachineTrust"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "review-host-key",
+          "description": "Explicitly approve a reviewed replacement SSH host key",
+          "positionals": [{"name": "id", "required": true, "description": "Machine id"}],
+          "flags": [{"name": "fingerprint", "required": true, "description": "Replacement SHA256 host-key fingerprint"}],
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "ReviewMachineHostKey"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "request-ssh-cleanup",
+          "description": "Create an explicit pending SSH-access cleanup effect",
+          "positionals": [{"name": "id", "required": true, "description": "Machine id"}],
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "RequestMachineSSHCleanup"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "update-cleanup",
+          "description": "Record the explicit outcome of a Machine cleanup",
+          "positionals": [{"name": "id", "required": true, "description": "Cleanup id"}],
+          "flags": [{"name": "status", "required": true, "description": "confirmed, not_applicable, or abandoned_with_acknowledgement"}, {"name": "detail", "description": "Operator evidence or reason"}],
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "UpdateMachineCleanup"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "apply-policy",
+          "description": "Apply a versioned built-in policy to a Machine",
+          "positionals": [{"name": "id", "required": true, "description": "Machine id"}],
+          "flags": [
+            {"name": "version", "required": true, "description": "Current Machine version for optimistic concurrency"},
+            {"name": "profile", "required": true, "description": "Built-in profile id"},
+            {"name": "profile-version", "description": "Profile version (defaults to current built-in)"},
+            {"name": "setup-environment", "description": "Explicit custom-profile setup environment override"},
+            {"name": "confirm-removal", "description": "Required true when the policy removes capability or scope intent"},
+            {"name": "reason", "description": "Operator reason recorded with the immutable policy decision"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "ApplyMachinePolicy"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "revoke-node",
+          "description": "Revoke this Machine's current paired Node locally",
+          "positionals": [{"name": "id", "required": true, "description": "Machine id"}],
+          "binding": {"kind": "connect-rpc", "service": "MachineService", "method": "RevokeMachineNode"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
       "name": "pair",
       "description": "Pair nodes into the fleet (one-touch bootstrap + mutual auth)",
       "commands": [

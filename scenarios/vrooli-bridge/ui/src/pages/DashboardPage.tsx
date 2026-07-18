@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { FleetPanel } from "../features/fleet/FleetPanel";
+import { MachineLifecyclePanel } from "../features/fleet/MachineLifecyclePanel";
 import { OnboardNodeForm } from "../features/fleet/OnboardNodeForm";
 import { type OnboardingOp } from "../api/onboard";
 import { PairNodeForm } from "../features/fleet/PairNodeForm";
@@ -53,6 +54,7 @@ export function DashboardPage() {
       </div>
 
       <FleetPanel onAddNode={handleAddNode} onRetryOnboarding={handleRetryOnboarding} />
+      <MachineLifecyclePanel />
       <OnboardNodeForm retryTarget={retryTarget} />
       <RunHistory />
       <HealthCard />

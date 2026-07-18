@@ -41,13 +41,17 @@ All control-plane data lives in SQLite via `api-core/storage`. Bridge deliberate
 |---|---|---|---|---|---|
 | Node records | registry | SQLite | `api/internal/registry/schema.sql` | Until revoked | OS/arch/revision/endpoint/capabilities/permission scopes; durable infrastructure identity. |
 | Pairing codes | pairing | SQLite | `api/internal/pairing/schema.sql` | Single-use, short TTL | Out-of-band bootstrap; expire/burn on redeem. |
-| Node credentials | pairing | SQLite (hashed at rest) | `api/internal/pairing/schema.sql` | Until node revoked | Mutual-auth secret material; never stored in plaintext. |
+| Node credentials | pairing | SQLite (public key only) | `api/internal/pairing/schema.sql` | Until node revoked | Ed25519 public key for verification; the private key never leaves the node. |
 | Presence + health | presence | In-memory (optionally Redis) | live channel state | Ephemeral | Not persisted; rebuilt on reconnect. |
 | Run records | runs | SQLite | `api/internal/runs/schema.sql` | Configurable policy | Durable server-owned run state; survives disconnect. |
 | Run logs / artifact refs | runs | SQLite (refs); bytes via device-sync-hub | `api/internal/runs/schema.sql` | Configurable policy | Bytes stay out of the control-plane store. |
 | Provisioning ops + version history | provisioning | SQLite | `api/internal/provision/schema.sql` | Retained for drift/rollback | Per-node revision history. |
 | Gate runs + per-OS verdicts | gate | SQLite | `api/internal/gate/schema.sql` | Configurable policy | Aggregated cross-OS results. |
 | Audit records | audit | workspace-sandbox (append-only) | workspace-sandbox | Immutable | Every dispatch + provisioning op; not a local mutable table. |
+| Machine intent + locators | machines | SQLite | `api/internal/machines/schema.sql` | Until archive/removal policy completes | Stable UUID and ordered normalized locators; no copied Node, Presence, or capability facts. |
+| Machine Node lineage | machines | SQLite | `api/internal/machines/schema.sql` | Immutable until exceptional purge | At most one current Node per Machine; re-pair appends lineage and supersedes/revokes the prior Node. |
+| Enrollment attempts + checkpoints | enrollment | SQLite | `api/internal/onboard/schema.sql` | Immutable history until exceptional purge | Input snapshots, correlation IDs, typed checkpoints, diagnostics, retry lineage, and reconciliation state. No passwords, pairing codes, or private keys. |
+| SSH private material / host trust | trust store | Filesystem secret store | machine trust-store adapter | Rotated/revoked by lifecycle policy | Per-Machine private key material stays outside SQLite/API/logs. SQLite holds only opaque references and public fingerprints. |
 
 ## Schema Map
 
@@ -62,6 +66,8 @@ Each domain's schema file lives beside the code that interprets it. The
 | `provisioning_ops`, `node_versions` | provisioning | `api/internal/provision/schema.sql` | provisioning service |
 | `gate_runs`, `gate_verdicts` | gate | `api/internal/gate/schema.sql` | gate service |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
+| `machines`, `machine_locators`, `machine_node_lineage`, migration review | machines | `api/internal/machines/schema.sql` | machines service and composed projections |
+| `enrollment_attempts`, checkpoints, reconciliations | enrollment | `api/internal/enrollment/schema.sql` | enrollment service and pairing recovery |
 
 ## Migrations And Compatibility
 
@@ -72,6 +78,23 @@ that interprets them.
 For production data migrations that need column drops, renames, or data
 backfills, add a scenario-specific migration plan here and update
 [`../internal/DECISIONS.md`](../internal/DECISIONS.md) with the tradeoff.
+
+Machine migration is forward-only, idempotent, and preserves historic IDs and
+audit rows. It can automatically link only records with durable pairing
+correlation. All other candidate relationships remain in an explicit
+`needs_review` state with provenance and confidence; hostname, IP, username,
+and display-name matching are forbidden adoption rules.
+
+## Machine Ownership Matrix
+
+| Fact | Sole owner | Allowed projection | Forbidden duplicate |
+|---|---|---|---|
+| Operator intent, locators, lifecycle, desired policy | machines | enrollment/API/CLI/UI reads | Registry Node fields or Presence snapshot on Machine rows |
+| Attempt state, checkpoints, retry/reconciliation history | enrollment | Machine detail/history | mutable Machine lifecycle or Registry Node state |
+| Paired identity and approved scopes | registry | Machine lineage/detail | Machine approval or attempt-scoped authorization |
+| Live reachability and health | presence | composed readiness | persisted Machine/attempt health copy |
+| SSH private key and known-host material | trust store | opaque ref + public fingerprint | SQLite/API/log/private-key field |
+| Workload identity/lifecycle | owning external scenario | typed `WorkloadReference` only | Bridge-owned workload truth |
 
 ## Import / Export
 

@@ -29,7 +29,7 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		// Fresh DB — EnsureSchemas' CREATE TABLE will include the column.
 		return nil
 	}
-	for _, column := range []string{"failure_detail", "control_plane_url", "reachability_mode"} {
+	for _, column := range []string{"failure_detail", "control_plane_url", "reachability_mode", "correlation_id"} {
 		has, err := columnExists(ctx, db, "onboarding_ops", column)
 		if err != nil {
 			return fmt.Errorf("introspect onboarding_ops.%s: %w", column, err)

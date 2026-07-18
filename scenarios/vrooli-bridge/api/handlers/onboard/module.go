@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"vrooli-bridge/internal/clock"
+	"vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/module"
 	internalonboard "vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/onboard/ssh"
@@ -22,6 +23,11 @@ import (
 // presence hub (ONLINE confirmation). main.go constructs it once and calls
 // ResumeInterrupted on it at boot to reconcile ops orphaned by a restart.
 func NewService(db internalonboard.SQLExecutor, clk clock.Clock, pairingSvc *pairing.Service, hub *presence.Hub, sshSvc *ssh.Service, scriptPath string, opts ...internalonboard.Option) internalonboard.Service {
+	opts = append(opts, internalonboard.WithEnrollmentResolver(codeIssuerAdapter{svc: pairingSvc}))
+	attempts, _ := internalonboard.NewSQLiteRepository(db, clk).(internalonboard.AttemptStore)
+	if attempts != nil {
+		opts = append(opts, internalonboard.WithMachineLinker(machineLinkerAdapter{attempts: attempts, machines: machines.NewService(machines.NewSQLiteRepository(db, clk))}))
+	}
 	return internalonboard.NewService(
 		internalonboard.NewSQLiteRepository(db, clk),
 		internalonboard.NewSSHDriver(sshSvc, scriptPath),
@@ -35,10 +41,12 @@ func NewService(db internalonboard.SQLExecutor, clk clock.Clock, pairingSvc *pai
 // Module returns the onboard domain's contribution to the API: the generated
 // Connect-RPC OnboardService handler. It owns its durable op tables, so it
 // re-exports Schema().
-func Module(svc internalonboard.Service, logger *log.Logger) module.Module {
+func Module(svc internalonboard.Service, db internalonboard.SQLExecutor, clk clock.Clock, logger *log.Logger) module.Module {
+	attempts, _ := internalonboard.NewSQLiteRepository(db, clk).(attemptLookup)
 	path, handler := onboardconnect.NewOnboardServiceHandler(NewConnectHandler(Deps{
-		Service: svc,
-		Logger:  logger,
+		Service:  svc,
+		Attempts: attempts,
+		Logger:   logger,
 	}))
 	return module.Module{
 		Name: "onboard",

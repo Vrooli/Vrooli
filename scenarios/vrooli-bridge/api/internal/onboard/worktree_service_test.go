@@ -27,6 +27,7 @@ func workingTreeService(
 		onboard.WithWorkingTreeSource(src),
 		onboard.WithArtifactBuilder(&mocks.FakeArtifactBuilder{}),
 		onboard.WithNodeRevisionRecorder(rec),
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
 	)
 }
 
@@ -146,7 +147,7 @@ func TestStart_WorkingTreeWithoutSourceIsRefused(t *testing.T) {
 	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
 	res := &fakeRevResolver{resolved: wtBase}
 	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, clock.System{},
-		onboard.WithRevisionResolver(res))
+		onboard.WithRevisionResolver(res), onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
 
 	in := validInput()
 	in.SourceMode = onboard.SourceModeWorkingTree

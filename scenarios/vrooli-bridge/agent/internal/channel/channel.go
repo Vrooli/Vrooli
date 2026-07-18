@@ -364,6 +364,10 @@ func (c *Client) handleServerFrame(payload string) {
 		}
 	}
 	if job := frame.GetJob(); job != nil {
+		if c.cfg.PresenceOnly {
+			c.logger.Printf("channel: rejecting job run_id=%q because agent is in presence-only posture", job.GetRunId())
+			return
+		}
 		// A typed job push (OT-P0-004). Run it as the non-privileged runner,
 		// anchored to the base (not session) context so it survives a reconnect.
 		// Errors are streamed back as RunEvents, not returned; a reporter
@@ -372,6 +376,10 @@ func (c *Client) handleServerFrame(payload string) {
 		go c.runJob(job)
 	}
 	if prov := frame.GetProvision(); prov != nil {
+		if c.cfg.PresenceOnly {
+			c.logger.Printf("channel: rejecting provisioning op_id=%q because agent is in presence-only posture", prov.GetOpId())
+			return
+		}
 		// A privileged provisioning command (OT-P0-006). It is executed by the
 		// STRUCTURALLY SEPARATE privileged helper (internal/privsep), never the
 		// runner, and is anchored to the base context so it survives a reconnect.

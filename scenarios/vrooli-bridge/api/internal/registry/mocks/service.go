@@ -47,6 +47,10 @@ func (f *FakeService) Get(_ context.Context, id string) (registry.Node, error) {
 	return f.GetOut, f.GetErr
 }
 
+func (f *FakeService) GetByPairingCorrelation(_ context.Context, correlationID string) (registry.Node, error) {
+	return f.Get(context.Background(), correlationID)
+}
+
 func (f *FakeService) Update(_ context.Context, in registry.UpdateInput) (registry.Node, error) {
 	f.UpdateInputs = append(f.UpdateInputs, in)
 	return f.UpdateOut, f.UpdateErr

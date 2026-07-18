@@ -13,10 +13,13 @@ import (
 // Conn is a resolved, key-authenticated SSH target the orchestrator drives after
 // first touch (host/port/user + the bridge onboarding key that now authorizes).
 type Conn struct {
-	Host    string
-	Port    int
-	User    string
-	KeyPath string
+	Host                 string
+	Port                 int
+	User                 string
+	KeyPath              string
+	ClientKeyRef         string
+	ClientKeyFingerprint string
+	HostKeyFingerprint   string
 
 	// SudoState is the passwordless-sudo provisioning outcome from first touch
 	// (empty when not requested). Informational: the orchestrator surfaces it in
@@ -32,6 +35,7 @@ type FirstTouchParams struct {
 	Port     int
 	User     string
 	Password []byte
+	KeyName  string
 
 	// ProvisionSudo asks the driver to install a scoped passwordless-sudo drop-in
 	// for User while the password is still held, so later privileged steps work
@@ -233,6 +237,9 @@ type RevisionResolver interface {
 type IssueParams struct {
 	NodeName string
 	Scopes   []string
+	// CorrelationID is the opaque durable attempt/op identity. Pairing persists
+	// it before Registry creation so a later bootstrap failure is recoverable.
+	CorrelationID string
 }
 
 // CodeIssuer is the pairing seam: mint a single-use pairing code server-side so
@@ -241,6 +248,25 @@ type IssueParams struct {
 // it; it is never persisted or logged.
 type CodeIssuer interface {
 	Issue(ctx context.Context, p IssueParams) (code []byte, err error)
+}
+
+// EnrollmentResolver provides the Node produced by a durable pairing
+// correlation. It replaces free-text UUID extraction from bootstrap output.
+type EnrollmentResolver interface {
+	ResolveEnrollment(context.Context, string) (nodeID string, paired bool, err error)
+}
+
+type EnrollmentResolverFunc func(context.Context, string) (string, bool, error)
+
+func (f EnrollmentResolverFunc) ResolveEnrollment(ctx context.Context, correlationID string) (string, bool, error) {
+	return f(ctx, correlationID)
+}
+
+// MachineLinker writes immutable Machine Node lineage after pairing resolves.
+// It receives only opaque identifiers; no locator/name matching is permitted.
+type MachineLinker interface {
+	LinkCorrelatedNode(context.Context, string, string) error
+	RecordCorrelatedTrust(context.Context, string, Conn) error
 }
 
 // OnlineConfirmer is the presence read seam: confirm a freshly-onboarded node is

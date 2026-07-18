@@ -23,6 +23,7 @@
     "16-remote-desktop-seam/module.json",
     "17-cloud-runner-nodes/module.json",
     "18-self-healing/module.json",
-    "19-host-readiness/module.json"
+    "19-host-readiness/module.json",
+    "20-machine-enrollment-recovery/module.json"
   ]
 }

@@ -23,8 +23,13 @@ const dryRunHeader = "X-Dry-Run"
 // Deps wires the seams the Connect onboard handler needs. All verbs are
 // owner-gated operator verbs.
 type Deps struct {
-	Service onboard.Service
-	Logger  *log.Logger
+	Service  onboard.Service
+	Attempts attemptLookup
+	Logger   *log.Logger
+}
+
+type attemptLookup interface {
+	GetAttemptByCorrelation(context.Context, string) (onboard.EnrollmentAttempt, error)
 }
 
 type connectHandler struct {
@@ -57,6 +62,9 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 	}
 
 	dryRun := req.Header().Get(dryRunHeader) == "true"
+	if !dryRun && req.Msg.GetMachineId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("machine_id is required for onboarding; create or select a Machine first"))
+	}
 
 	// Copy the password into an owned mutable slice for the service to zero; the
 	// proto string itself is immutable and cannot be wiped, so we never hold it.
@@ -65,7 +73,7 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		password = []byte(pw)
 	}
 
-	dec, err := h.deps.Service.Start(ctx, onboard.StartInput{
+	input := onboard.StartInput{
 		Actor:                actor,
 		Host:                 req.Msg.GetHost(),
 		Port:                 int(req.Msg.GetPort()),
@@ -88,7 +96,22 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		IncludeOptional:      req.Msg.GetIncludeOptional(),
 		SourceMode:           sourceModeFromProto(req.Msg.GetSourceMode()),
 		DryRun:               dryRun,
-	})
+	}
+	var dec onboard.Decision
+	machineID, attemptID := "", ""
+	if req.Msg.GetMachineId() != "" && !dryRun {
+		var machineDecision onboard.MachineEnrollmentDecision
+		var machineErr error
+		if priorAttemptID := req.Msg.GetRetryOfEnrollmentAttemptId(); priorAttemptID != "" {
+			machineDecision, machineErr = h.deps.Service.RetryMachineEnrollment(ctx, req.Msg.GetMachineId(), priorAttemptID, input)
+		} else {
+			machineDecision, machineErr = h.deps.Service.StartMachineEnrollment(ctx, req.Msg.GetMachineId(), input)
+		}
+		dec, err = machineDecision.Decision, machineErr
+		machineID, attemptID = req.Msg.GetMachineId(), machineDecision.Attempt.ID
+	} else {
+		dec, err = h.deps.Service.Start(ctx, input)
+	}
 	if err != nil {
 		// Revision-resolution failures (unsafe ref, unpushed commit, no CP commit)
 		// carry their own friendly Connect codes; fall back to the domain mapping
@@ -104,11 +127,13 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 	}
 
 	return connect.NewResponse(&onboardv1.StartOnboardingResponse{
-		OpId:   dec.OpID,
-		DryRun: dec.DryRun,
-		Host:   dec.Host,
-		Port:   int32(dec.Port),
-		User:   dec.User,
+		OpId:                dec.OpID,
+		DryRun:              dec.DryRun,
+		Host:                dec.Host,
+		Port:                int32(dec.Port),
+		User:                dec.User,
+		MachineId:           machineID,
+		EnrollmentAttemptId: attemptID,
 	}), nil
 }
 
@@ -124,6 +149,7 @@ func (h *connectHandler) GetOnboarding(ctx context.Context, req *connect.Request
 		Op:     domainOpToProto(op),
 		Events: make([]*onboardv1.OnboardingStepEvent, 0, len(events)),
 	}
+	h.composeAttempt(ctx, op, resp.Op)
 	for _, ev := range events {
 		resp.Events = append(resp.Events, domainStepEventToProto(ev))
 	}
@@ -144,9 +170,23 @@ func (h *connectHandler) ListOnboardings(ctx context.Context, req *connect.Reque
 	}
 	resp := &onboardv1.ListOnboardingsResponse{Ops: make([]*onboardv1.OnboardingOp, 0, len(list))}
 	for _, op := range list {
-		resp.Ops = append(resp.Ops, domainOpToProto(op))
+		wireOp := domainOpToProto(op)
+		h.composeAttempt(ctx, op, wireOp)
+		resp.Ops = append(resp.Ops, wireOp)
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) composeAttempt(ctx context.Context, op onboard.Op, wire *onboardv1.OnboardingOp) {
+	if h.deps.Attempts == nil || op.CorrelationID == "" || wire == nil {
+		return
+	}
+	attempt, err := h.deps.Attempts.GetAttemptByCorrelation(ctx, op.CorrelationID)
+	if err != nil {
+		return // Legacy operations have no immutable Machine attempt.
+	}
+	wire.MachineId = attempt.MachineID
+	wire.EnrollmentAttemptId = attempt.ID
 }
 
 func (h *connectHandler) WaitOnboarding(ctx context.Context, req *connect.Request[onboardv1.WaitOnboardingRequest]) (*connect.Response[onboardv1.WaitOnboardingResponse], error) {

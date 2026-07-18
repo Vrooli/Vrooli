@@ -5,6 +5,7 @@
  * merge, prop pass-through, value-on-type). Kept as a separate file so
  * a regression in either primitive has a single locus and the failure
  * message names the primitive that broke.
+ * provider-free-exception: this DOM leaf has no provider dependency.
  */
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";

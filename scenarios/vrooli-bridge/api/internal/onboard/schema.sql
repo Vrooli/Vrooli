@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS onboarding_ops (
   repo_url        TEXT NOT NULL DEFAULT '',
   state           INTEGER NOT NULL DEFAULT 0,
   node_id         TEXT NOT NULL DEFAULT '',
+  correlation_id  TEXT NOT NULL DEFAULT '',
   failure_reason  TEXT NOT NULL DEFAULT '',
   -- A bounded, multi-line tail of the node-side diagnostic output on a FAILED op
   -- (the concrete cause behind failure_reason — e.g. the `make setup` error).
@@ -54,3 +55,28 @@ CREATE TABLE IF NOT EXISTS onboarding_step_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_onboarding_step_events_op ON onboarding_step_events(op_id, sequence);
+
+-- EnrollmentAttempt is the immutable Machine-oriented successor to the legacy
+-- mutable onboarding operation. A retry creates a new row linked by
+-- retry_of_attempt_id; terminal evidence is never reopened or overwritten.
+CREATE TABLE IF NOT EXISTS enrollment_attempts (
+  id TEXT PRIMARY KEY,
+  machine_id TEXT NOT NULL,
+  retry_of_attempt_id TEXT NOT NULL DEFAULT '',
+  correlation_id TEXT NOT NULL UNIQUE,
+  state TEXT NOT NULL DEFAULT 'created',
+  input_snapshot TEXT NOT NULL DEFAULT '{}',
+  terminal_result TEXT NOT NULL DEFAULT '',
+  diagnostics TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  terminal_at TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_enrollment_attempts_machine
+  ON enrollment_attempts(machine_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS enrollment_checkpoints (
+  attempt_id TEXT NOT NULL,
+  checkpoint TEXT NOT NULL,
+  postcondition TEXT NOT NULL,
+  recorded_at TEXT NOT NULL,
+  PRIMARY KEY(attempt_id, checkpoint)
+);

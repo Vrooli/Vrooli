@@ -47,6 +47,20 @@ type IssuedCode struct {
 // IssueCode mints a single-use pairing code, stores only its hash, and returns
 // the plaintext once. ttl<=0 uses the default; it is clamped to maxCodeTTL.
 func (s *Service) IssueCode(ctx context.Context, name string, scopes []string, ttl time.Duration) (IssuedCode, error) {
+	return s.issueCode(ctx, name, scopes, ttl, "")
+}
+
+// IssueCodeForEnrollment issues a code bound to one opaque EnrollmentAttempt
+// correlation. The plaintext remains transient, while the correlation survives
+// redemption and every later bootstrap failure.
+func (s *Service) IssueCodeForEnrollment(ctx context.Context, name string, scopes []string, ttl time.Duration, correlationID string) (IssuedCode, error) {
+	if strings.TrimSpace(correlationID) == "" {
+		return IssuedCode{}, ErrInvalid{Field: "correlation_id", Reason: "is required"}
+	}
+	return s.issueCode(ctx, name, scopes, ttl, strings.TrimSpace(correlationID))
+}
+
+func (s *Service) issueCode(ctx context.Context, name string, scopes []string, ttl time.Duration, correlationID string) (IssuedCode, error) {
 	if ttl <= 0 {
 		ttl = defaultCodeTTL
 	}
@@ -60,11 +74,12 @@ func (s *Service) IssueCode(ctx context.Context, name string, scopes []string, t
 	now := s.clock.Now().UTC()
 	expires := now.Add(ttl)
 	if _, err := s.repo.CreateCode(ctx, PairingCode{
-		CodeHash:  hashCode(code),
-		Name:      strings.TrimSpace(name),
-		Scopes:    normalizeScopes(scopes),
-		CreatedAt: now,
-		ExpiresAt: expires,
+		CodeHash:      hashCode(code),
+		Name:          strings.TrimSpace(name),
+		Scopes:        normalizeScopes(scopes),
+		CorrelationID: correlationID,
+		CreatedAt:     now,
+		ExpiresAt:     expires,
 	}); err != nil {
 		return IssuedCode{}, err
 	}
@@ -89,10 +104,21 @@ func (s *Service) Redeem(ctx context.Context, code, nodePublicKeyB64 string, fac
 		return "", err // ErrCodeNotFound
 	}
 	if stored.Redeemed() {
+		if stored.CorrelationID != "" {
+			if repo, ok := s.repo.(EnrollmentRepository); ok {
+				saga, sagaErr := repo.GetEnrollmentSaga(ctx, stored.CorrelationID)
+				if sagaErr == nil && saga.State == "completed" {
+					return saga.NodeID, nil
+				}
+			}
+		}
 		return "", ErrCodeUsed
 	}
 	if s.clock.Now().UTC().After(stored.ExpiresAt) {
 		return "", ErrCodeExpired
+	}
+	if stored.CorrelationID != "" {
+		return s.redeemCorrelated(ctx, stored, nodePublicKeyB64, facts)
 	}
 
 	// The owner-assigned name/scopes from the code win; os/arch/endpoint/caps are
@@ -115,6 +141,124 @@ func (s *Service) Redeem(ctx context.Context, code, nodePublicKeyB64 string, fac
 		return "", err // ErrCodeUsed
 	}
 	return nodeID, nil
+}
+
+func (s *Service) redeemCorrelated(ctx context.Context, code PairingCode, publicKey string, facts NodeFacts) (string, error) {
+	repo, ok := s.repo.(EnrollmentRepository)
+	if !ok {
+		return "", fmt.Errorf("correlated pairing requires enrollment-capable repository")
+	}
+	registrar, ok := s.registrar.(CorrelatedNodeRegistrar)
+	if !ok {
+		return "", fmt.Errorf("correlated pairing requires correlation-capable node registrar")
+	}
+	saga, err := repo.PrepareEnrollmentSaga(ctx, EnrollmentSaga{CorrelationID: code.CorrelationID, CodeID: code.ID, PublicKey: publicKey, Facts: facts})
+	if err != nil {
+		return "", err
+	}
+	if saga.CodeID != code.ID || saga.PublicKey != publicKey {
+		return "", ErrInvalid{Field: "correlation_id", Reason: "does not match the original redemption"}
+	}
+	if saga.State == "completed" {
+		return saga.NodeID, nil
+	}
+	if saga.State == "prepared" {
+		if err := repo.ClaimCode(ctx, code.ID); err != nil && err != ErrCodeUsed {
+			return "", err
+		}
+		saga.State = "claimed"
+		if err := repo.UpdateEnrollmentSaga(ctx, saga); err != nil {
+			return "", err
+		}
+	}
+	return s.continueEnrollment(ctx, repo, registrar, saga)
+}
+
+func (s *Service) continueEnrollment(ctx context.Context, repo EnrollmentRepository, registrar CorrelatedNodeRegistrar, saga EnrollmentSaga) (string, error) {
+	if saga.State == "completed" {
+		return saga.NodeID, nil
+	}
+	nodeID := saga.NodeID
+	if nodeID == "" {
+		known, err := registrar.FindNodeByPairingCorrelation(ctx, saga.CorrelationID)
+		if err == nil {
+			nodeID = known
+		} else {
+			nodeID, err = registrar.RegisterNodeWithCorrelation(ctx, saga.Facts, saga.CorrelationID)
+			if err != nil {
+				saga.LastError = err.Error()
+				_ = repo.UpdateEnrollmentSaga(ctx, saga)
+				return "", fmt.Errorf("register correlated node: %w", err)
+			}
+		}
+		saga.NodeID, saga.State, saga.LastError = nodeID, "node_registered", ""
+		if err := repo.UpdateEnrollmentSaga(ctx, saga); err != nil {
+			return "", err
+		}
+	}
+	if err := s.repo.StoreCredential(ctx, Credential{NodeID: nodeID, PublicKey: saga.PublicKey, CreatedAt: s.clock.Now().UTC()}); err != nil {
+		saga.LastError = err.Error()
+		_ = repo.UpdateEnrollmentSaga(ctx, saga)
+		return "", fmt.Errorf("store credential: %w", err)
+	}
+	if err := repo.FinalizeClaimedCode(ctx, saga.CodeID, nodeID); err != nil && err != ErrCodeUsed {
+		return "", err
+	}
+	saga.State, saga.NodeID, saga.LastError, saga.CompletedAt = "completed", nodeID, "", s.clock.Now().UTC()
+	if err := repo.UpdateEnrollmentSaga(ctx, saga); err != nil {
+		return "", err
+	}
+	return nodeID, nil
+}
+
+// ReconcileEnrollments resumes every incomplete correlated pairing saga after a
+// restart. Registry correlation makes the operation idempotent even if the
+// prior process died after creating the Node and before recording its ID.
+func (s *Service) ReconcileEnrollments(ctx context.Context) (int, error) {
+	repo, ok := s.repo.(EnrollmentRepository)
+	if !ok {
+		return 0, nil
+	}
+	registrar, ok := s.registrar.(CorrelatedNodeRegistrar)
+	if !ok {
+		return 0, nil
+	}
+	sagas, err := repo.ListIncompleteEnrollmentSagas(ctx)
+	if err != nil {
+		return 0, err
+	}
+	for _, saga := range sagas {
+		if saga.State == "prepared" {
+			if err := repo.ClaimCode(ctx, saga.CodeID); err != nil && err != ErrCodeUsed {
+				return 0, err
+			}
+			saga.State = "claimed"
+			if err := repo.UpdateEnrollmentSaga(ctx, saga); err != nil {
+				return 0, err
+			}
+		}
+		if _, err := s.continueEnrollment(ctx, repo, registrar, saga); err != nil {
+			return 0, err
+		}
+	}
+	return len(sagas), nil
+}
+
+// ResolveEnrollment returns the Node associated with a correlated redemption.
+// It is a typed control-plane result, not bootstrap output parsing.
+func (s *Service) ResolveEnrollment(ctx context.Context, correlationID string) (string, bool, error) {
+	repo, ok := s.repo.(EnrollmentRepository)
+	if !ok {
+		return "", false, nil
+	}
+	saga, err := repo.GetEnrollmentSaga(ctx, strings.TrimSpace(correlationID))
+	if err == ErrCodeNotFound {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return saga.NodeID, saga.State == "completed" && saga.NodeID != "", nil
 }
 
 // RequestPairing records a pending join request (the no-pre-shared-code path).

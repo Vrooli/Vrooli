@@ -20,6 +20,8 @@ type Service interface {
 	// Get is a thin pass-through to Repository.Get; ErrNodeNotFound propagates.
 	Get(ctx context.Context, id string) (Node, error)
 
+	GetByPairingCorrelation(ctx context.Context, correlationID string) (Node, error)
+
 	// Update validates (id + name required) and persists the editable surface.
 	Update(ctx context.Context, in UpdateInput) (Node, error)
 
@@ -53,12 +55,13 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Node, error) 
 		return Node{}, ErrInvalidNode{Field: "arch", Reason: "required"}
 	}
 	return s.repo.Create(ctx, Node{
-		Name:         name,
-		OS:           os,
-		Arch:         arch,
-		Endpoint:     strings.TrimSpace(in.Endpoint),
-		Capabilities: trimAll(in.Capabilities),
-		Scopes:       trimAll(in.Scopes),
+		Name:                 name,
+		OS:                   os,
+		Arch:                 arch,
+		Endpoint:             strings.TrimSpace(in.Endpoint),
+		Capabilities:         trimAll(in.Capabilities),
+		Scopes:               trimAll(in.Scopes),
+		PairingCorrelationID: strings.TrimSpace(in.PairingCorrelationID),
 	})
 }
 
@@ -68,6 +71,10 @@ func (s *service) List(ctx context.Context) ([]Node, error) {
 
 func (s *service) Get(ctx context.Context, id string) (Node, error) {
 	return s.repo.Get(ctx, id)
+}
+
+func (s *service) GetByPairingCorrelation(ctx context.Context, correlationID string) (Node, error) {
+	return s.repo.GetByPairingCorrelation(ctx, strings.TrimSpace(correlationID))
 }
 
 func (s *service) Update(ctx context.Context, in UpdateInput) (Node, error) {

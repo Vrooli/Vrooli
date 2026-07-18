@@ -9,15 +9,18 @@ import { selectors } from "../../consts/selectors";
 import { OnboardingState, OnboardingStepStatus, SourceMode } from "../../api/onboard";
 import { makeGetOnboardingResponse, makeOnboardingOp, makeStepEvent } from "./mocks/factories";
 
-const { startOnboarding, getOnboarding } = vi.hoisted(() => ({
+const { startOnboarding, getOnboarding, createMachine } = vi.hoisted(() => ({
   startOnboarding: vi.fn(),
   getOnboarding: vi.fn(),
+  createMachine: vi.fn().mockResolvedValue({ machine: { id: "machine-1" } }),
 }));
 
 vi.mock("../../api/onboard", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/onboard")>();
   return { ...actual, onboardClient: { startOnboarding, getOnboarding } };
 });
+
+vi.mock("../../api/machines", () => ({ machinesClient: { createMachine } }));
 
 import { OnboardNodeForm } from "./OnboardNodeForm";
 
@@ -148,7 +151,25 @@ describe("OnboardNodeForm wizard", () => {
 });
 
 describe("OnboardNodeForm submission", () => {
-  it("sends the password in the request body and never persists it", async () => {
+	it("retries through the existing Machine and immutable enrollment attempt", async () => {
+		startOnboarding.mockResolvedValue({ opId: "op-retry" });
+		getOnboarding.mockResolvedValue(makeGetOnboardingResponse({ id: "op-retry", state: OnboardingState.BOOTSTRAPPING }, [makeStepEvent()]));
+		renderWithProviders(<OnboardNodeForm retryTarget={makeOnboardingOp({ host: "retry.example", machineId: "machine-existing", enrollmentAttemptId: "attempt-terminal" })} />);
+
+		const user = userEvent.setup();
+		await user.click(screen.getByTestId(s.next));
+		await user.click(screen.getByTestId(s.next));
+		await user.click(screen.getByTestId(s.submit));
+
+		await waitFor(() => expect(startOnboarding).toHaveBeenCalledTimes(1));
+		expect(createMachine).not.toHaveBeenCalled();
+		expect(startOnboarding).toHaveBeenCalledWith(expect.objectContaining({
+			machineId: "machine-existing",
+			retryOfEnrollmentAttemptId: "attempt-terminal",
+		}));
+	});
+
+	it("sends the password in the request body and never persists it", async () => {
     startOnboarding.mockResolvedValue({ opId: "op-77" });
     getOnboarding.mockResolvedValue(
       makeGetOnboardingResponse({ id: "op-77", state: OnboardingState.BOOTSTRAPPING }, [makeStepEvent()]),
@@ -166,6 +187,10 @@ describe("OnboardNodeForm submission", () => {
 
     await waitFor(() => expect(startOnboarding).toHaveBeenCalledTimes(1));
     const input = startOnboarding.mock.calls[0]?.[0];
+    expect(createMachine).toHaveBeenCalledWith({
+      locators: [{ kind: "hostname", value: "node-01.example.com", ordinal: 0 }],
+    });
+    expect(input?.machineId).toBe("machine-1");
     expect(input?.sshPassword).toBe("s3cret-pw");
     expect(input?.host).toBe("node-01.example.com");
     expect(input?.capabilities).toEqual(["scenario", "deploy"]);

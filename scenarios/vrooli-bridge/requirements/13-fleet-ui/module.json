@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "React dashboard: nodes with OS/arch/version/health, pairing/revocation, live job status, run history with log/artifact drill-in.",
-    "last_validated_at": "2026-07-16T19:06:43-04:00",
+    "last_validated_at": "2026-07-17T20:12:48-04:00",
     "module": "fleet-ui",
     "prd_ref": "OT-P1-005",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P1-005",
       "title": "Fleet Control-Plane UI",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "ui",
       "description": "A React dashboard shows the fleet at a glance — nodes with OS/arch/version/health, pairing and revocation, live job status, and run history with drill-into logs/artifacts — so the owner can operate the fleet without the CLI.",
@@ -20,14 +20,14 @@
           "type": "test",
           "ref": "ui/src/features/fleet/Fleet.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Node list renders OS/arch/version/health with non-color-only status; pairing and revoke flows handle loading/error/empty states."
         },
         {
           "type": "test",
           "ref": "ui/src/features/runs/RunHistory.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Run history streams live job output and exposes downloadable artifacts; long jobs show progress + cancel + ETA."
         },
         {

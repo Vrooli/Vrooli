@@ -54,7 +54,7 @@ func (f *fakeRevResolver) ResolveWorkingTree(_ context.Context, requested string
 }
 
 func newResolverService(repo *mocks.FakeRepository, driver *mocks.FakeSSHDriver, issuer *mocks.FakeCodeIssuer, confirmer *mocks.FakeOnlineConfirmer, res onboard.RevisionResolver) onboard.Service {
-	return onboard.NewService(repo, driver, issuer, confirmer, clock.System{}, onboard.WithRevisionResolver(res))
+	return onboard.NewService(repo, driver, issuer, confirmer, clock.System{}, onboard.WithRevisionResolver(res), onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
 }
 
 // TestStart_OmittedRevisionDefaultsViaResolver is the core phase-6 acceptance:

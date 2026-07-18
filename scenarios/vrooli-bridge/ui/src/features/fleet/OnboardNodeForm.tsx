@@ -391,6 +391,7 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
   const [moreOpen, setMoreOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [opId, setOpId] = useState<string | null>(null);
+	const [retryUnavailable, setRetryUnavailable] = useState(false);
 
   // A saved failed attempt pre-fills only durable, non-secret target identity.
   // The SSH password is deliberately absent from OnboardingOp and must be
@@ -403,6 +404,7 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
     setNodeName(retryTarget.nodeName);
     setRevision(retryTarget.targetRevision || DEFAULT_REVISION);
     setPassword("");
+		setRetryUnavailable(false);
     setStep(0);
     setOpId(null);
   }, [retryTarget]);
@@ -448,6 +450,10 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
     }
     const trimmedHost = host.trim();
     if (!trimmedHost || submitting) return;
+    if (retryTarget && (!retryTarget.machineId || !retryTarget.enrollmentAttemptId)) {
+      setRetryUnavailable(true);
+      return;
+    }
     const parsedPort = Number.parseInt(port.trim(), 10);
     start.mutate(
       {
@@ -466,6 +472,8 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
         setupScenarios: setupScenarios.trim(),
         includeOptional,
         sourceMode: workingTree ? SourceMode.WORKING_TREE : SourceMode.PINNED_REVISION,
+        machineId: retryTarget?.machineId ?? "",
+        retryOfEnrollmentAttemptId: retryTarget?.enrollmentAttemptId ?? "",
       },
       {
         onSuccess: (resp) => setOpId(resp.opId),
@@ -787,6 +795,11 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
             {errorMessage(start.error, t)}
           </p>
         )}
+			{retryUnavailable && (
+				<p data-testid={selectors.fleet.onboard.error} role="alert" className="text-sm text-app-danger">
+					{t(strings.fleet.onboard.retryUnavailable)}
+				</p>
+			)}
 
         <div className="flex items-center justify-between gap-2">
           <Button

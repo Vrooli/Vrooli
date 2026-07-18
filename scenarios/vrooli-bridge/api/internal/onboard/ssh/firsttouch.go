@@ -44,6 +44,7 @@ type FirstTouchResult struct {
 	KeyPath             string `json:"key_path"`
 	PublicKey           string `json:"public_key,omitempty"`
 	Fingerprint         string `json:"fingerprint,omitempty"`
+	HostKeyFingerprint  string `json:"host_key_fingerprint,omitempty"`
 	KeyGenerated        bool   `json:"key_generated"`
 	AlreadyPasswordless bool   `json:"already_passwordless"`
 	CopyKeyAttempted    bool   `json:"copy_key_attempted"`
@@ -135,6 +136,7 @@ func (s *Service) FirstTouch(ctx context.Context, req FirstTouchRequest) (FirstT
 	// 2. Initial passwordless test — already-working hosts short-circuit here.
 	initial := s.TestConnection(ctx, testReq)
 	if initial.OK {
+		result.HostKeyFingerprint = initial.Fingerprint
 		result.OK = true
 		result.AlreadyPasswordless = true
 		result.ConnectionVerified = true
@@ -180,6 +182,7 @@ func (s *Service) FirstTouch(ctx context.Context, req FirstTouchRequest) (FirstT
 	result.ConnectionVerified = final.OK
 	result.OK = final.OK
 	if final.OK {
+		result.HostKeyFingerprint = final.Fingerprint
 		result.Status = StatusSuccess
 		result.Message = "passwordless SSH established"
 		// 5. Optional passwordless-sudo provisioning while the password is still in

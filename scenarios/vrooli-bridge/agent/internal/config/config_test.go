@@ -21,6 +21,18 @@ func TestLoad_DefaultsAndStateDir(t *testing.T) {
 	require.Equal(t, defaultHeartbeatInterval, cfg.HeartbeatInterval)
 	require.False(t, cfg.Paired(), "no URL/node id yet")
 	require.Empty(t, cfg.Capabilities)
+	require.True(t, cfg.PresenceOnly, "new agents must not accept control frames by default")
+}
+
+func TestLoad_PresenceOnlyCanBeExplicitlyDisabled(t *testing.T) {
+	dir := t.TempDir()
+	cfg, err := Load([]string{"--state-dir", dir, "--presence-only=false"})
+	require.NoError(t, err)
+	require.False(t, cfg.PresenceOnly)
+	t.Setenv("BRIDGE_PRESENCE_ONLY", "false")
+	cfg, err = Load([]string{"--state-dir", dir})
+	require.NoError(t, err)
+	require.False(t, cfg.PresenceOnly)
 }
 
 func TestLoad_FlagsOverrideEnv(t *testing.T) {

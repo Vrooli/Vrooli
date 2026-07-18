@@ -88,6 +88,12 @@ type Config struct {
 	// cross-network default and the fallback when discovery finds nothing; an
 	// explicit ControlPlaneURL always wins over discovery.
 	Discover bool
+
+	// PresenceOnly denies all pushed job and provisioning frames after pairing.
+	// It defaults true so a newly enrolled agent can heartbeat without gaining
+	// remote execution authority. An explicit policy-approved upgrade must opt
+	// in to control actions.
+	PresenceOnly bool
 }
 
 // Paired reports whether the agent has the minimum configuration to hold a
@@ -116,6 +122,7 @@ func Load(args []string) (Config, error) {
 		printServiceUnit = fs.Bool("print-service-unit", false, "Render this binary's platform-native background-service unit and exit (bootstrap helper)")
 		serviceUser      = fs.String("service-user", envOr("BRIDGE_SERVICE_USER", ""), "OS principal the rendered service runs as (with --print-service-unit)")
 		discover         = fs.Bool("discover", envBoolOr("BRIDGE_DISCOVER", false), "Try mDNS LAN auto-discovery of the control plane when no --control-plane-url is set (manual URL stays the cross-network default)")
+		presenceOnly     = fs.Bool("presence-only", envBoolOr("BRIDGE_PRESENCE_ONLY", true), "Hold presence only; reject pushed jobs and provisioning commands (default true)")
 	)
 
 	if err := fs.Parse(args); err != nil {
@@ -153,6 +160,7 @@ func Load(args []string) (Config, error) {
 		PrintServiceUnit:    *printServiceUnit,
 		ServiceUser:         strings.TrimSpace(*serviceUser),
 		Discover:            *discover,
+		PresenceOnly:        *presenceOnly,
 	}, nil
 }
 

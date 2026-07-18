@@ -14,6 +14,7 @@
  *
  * No dedicated mock seam needed; the primitive is a leaf wrapper. When
  * a scenario adds form-validation behaviour, tests grow alongside.
+ * provider-free-exception: this DOM leaf has no provider dependency.
  */
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";

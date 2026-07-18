@@ -238,3 +238,63 @@ func hostFingerprint(knownHostsPath, host string, port int) string {
 	}
 	return ""
 }
+
+// ForgetHostKey removes only the Bridge-owned known_hosts entries for host:port.
+// It is an explicit recovery primitive used after the owner has reviewed a
+// changed server key; it is not a generic shell or arbitrary file operation.
+// The next authenticated first-touch will pin the reviewed host anew through
+// the normal strict TOFU path.
+func (s *Service) ForgetHostKey(host string, port int) error {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return errors.New("host key review: host is required")
+	}
+	if port == 0 {
+		port = DefaultPort
+	}
+	path := s.knownHostsPath()
+	if err := ensureKnownHostsFile(path); err != nil {
+		return err
+	}
+	target := knownhosts.Normalize(net.JoinHostPort(host, strconv.Itoa(port)))
+	knownHostsWriteMu.Lock()
+	defer knownHostsWriteMu.Unlock()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	kept := make([][]byte, 0)
+	for _, raw := range bytes.Split(data, []byte("\n")) {
+		line := bytes.TrimSpace(raw)
+		if len(line) == 0 {
+			continue
+		}
+		if line[0] == '#' {
+			kept = append(kept, raw)
+			continue
+		}
+		_, hosts, _, _, _, parseErr := gossh.ParseKnownHosts(line)
+		if parseErr != nil {
+			kept = append(kept, raw)
+			continue
+		}
+		remove := false
+		for _, entry := range hosts {
+			if knownHostMatches(entry, target) {
+				remove = true
+				break
+			}
+		}
+		if !remove {
+			kept = append(kept, raw)
+		}
+	}
+	output := bytes.Join(kept, []byte("\n"))
+	if len(output) > 0 {
+		output = append(output, '\n')
+	}
+	if err := os.WriteFile(path, output, 0o600); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0o600)
+}

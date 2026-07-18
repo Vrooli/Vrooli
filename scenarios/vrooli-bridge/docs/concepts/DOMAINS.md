@@ -28,7 +28,7 @@ belong in [`DATA.md`](DATA.md).
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/vrooli-bridge/v1/health/` |
-| registry | Durable identity and lifecycle of trusted Vrooli nodes (OS/arch/version/endpoint/capabilities/scopes). | CRUD / entity | `nodes`. | API, CLI, UI | OT-P0-001 | `api/internal/registry/`, `cli/domains/nodes/`, `ui/src/features/fleet/` |
+| registry | Paired Node identity and explicitly approved scopes. | CRUD / entity | `nodes`. | API, CLI, UI | OT-P0-001 | `api/internal/registry/`, `cli/domains/nodes/`, `ui/src/features/fleet/` |
 | pairing | One-touch bootstrap, single-use pairing codes/tokens, mutual-auth credentialing, atomic revocation. | Workflow / security | `pairing_codes`, node credentials. | API, CLI, UI | OT-P0-002 | `api/internal/pairing/`, `api/internal/auth/` |
 | presence | Dial-out channel management; online/offline presence and self-reported node health. | Realtime / reporting | Ephemeral presence + health snapshots (optionally Redis). | API, UI | OT-P0-003 | `api/internal/presence/` |
 | dispatch | Validate `{scenario, verb, args}` against the CLI manifest + per-node scopes; dispatch typed jobs. | Policy / command | Job definitions, allowlist decisions. | API, CLI, UI | OT-P0-004 | `api/internal/dispatch/` |
@@ -39,6 +39,8 @@ belong in [`DATA.md`](DATA.md).
 | fleet | Fleet-wide version roll: pin every (or named) node to a target revision by fanning provisioning out across the fleet; per-node rollout ledger + protocol-compat gating. | Aggregation / workflow | `rollouts`, `rollout_results`. | API, CLI, UI | OT-P1-001 | `api/internal/fleet/`, `api/handlers/fleet/`, `cli/domains/fleet/` |
 | queue | Per-node bounded-concurrency + fair-FIFO scheduler on the dispatch→push path; read-only control-plane view of running-vs-queued. | Policy / realtime | In-memory scheduler state (the run is the durable record). | API, CLI, UI | OT-P1-004 | `api/internal/queue/`, `api/handlers/queue/`, `cli/domains/queue/` |
 | artifacts | Distribute non-git artifacts (installers, fixtures) to nodes via device-sync-hub directed delivery; bridge stores no bytes. | Integration / workflow | `distributions` (reference + metadata only). | API, CLI, UI | OT-P1-003 | `api/internal/artifacts/`, `api/handlers/artifacts/`, `cli/domains/artifacts/` |
+| machines | Durable operator intent for a managed machine: stable identity, ordered connection locators, lifecycle, desired policy reference, trust references, and immutable Node lineage. | Entity / lifecycle | `machines`, `machine_locators`, `machine_node_lineage`, migration-review records. | API, CLI, UI | BRG-MEC-001, BRG-MEC-002 | `api/internal/machines/`, `packages/proto/schemas/vrooli-bridge/v1/machines/` |
+| enrollment | Immutable attempts to enroll a Machine, including checkpoints, typed pairing correlation, retry lineage, and recovery diagnostics. | Workflow / recovery | `enrollment_attempts`, checkpoint and reconciliation records. | API, CLI, UI | BRG-MEC-003 | `api/internal/onboard/attempts.go`, `packages/proto/schemas/vrooli-bridge/v1/onboard/onboard.proto`, and the Machine detail projection |
 
 ## Domain Details
 
@@ -61,9 +63,9 @@ belong in [`DATA.md`](DATA.md).
 
 ### registry
 
-- Purpose: register, list, inspect, and revoke trusted Vrooli nodes; hold each node's durable identity (OS, arch, current revision, reachable endpoint, capabilities, permission scopes).
+- Purpose: register, list, inspect, and revoke paired Vrooli Nodes; hold the paired identity and explicitly approved scopes.
 - Primary archetype: CRUD / entity. Distinct from device-sync-hub's ephemeral sync-peer grants — nodes are persistent infrastructure.
-- Owns: the `nodes` table and node lifecycle. Does not own: pairing/credential issuance (pairing), execution (dispatch/runs).
+- Owns: the `nodes` table and Node revocation. Does not own: durable operator Machine intent/lifecycle or locators (machines), pairing/credential issuance (pairing), execution (dispatch/runs), or Presence.
 - Related docs: [`DATA.md`](DATA.md), [`FLOWS.md`](FLOWS.md).
 
 ### pairing
@@ -72,6 +74,35 @@ belong in [`DATA.md`](DATA.md).
 - Primary archetype: workflow / security. Models on device-sync-hub's proven pairing mechanics, with a richer, longer-lived node record.
 - Owns: `pairing_codes` and per-node credentials. Does not own: the node record itself (registry).
 - Related docs: [`../internal/SECURITY.md`](../internal/SECURITY.md), [`FLOWS.md`](FLOWS.md).
+
+### machines
+
+- Purpose: own durable operator intent before any network contact. A Machine is
+  not a paired Node, a current health snapshot, an SSH key, or an enrollment
+  attempt.
+- Owns: stable UUID identity; normalized, ordered connection locators;
+  archive/removal lifecycle; desired-policy reference; opaque trust references;
+  and immutable references to Node lineage.
+- Does not own: Registry Node identity and approved scopes; Presence liveness;
+  private key bytes or host keys; pairing-code lifecycle; capability
+  observations; or external workload truth.
+- Invariant: locator equality is advisory only. Host, IP, username, display
+  name, and Node name never establish Machine identity or cause automatic
+  historic-data adoption.
+
+### enrollment
+
+- Purpose: record one immutable enrollment attempt for one Machine. It carries
+  the input snapshot, correlation id, typed checkpoints, diagnostics, terminal
+  outcome, and optional `retry_of_attempt_id`.
+- Owns: attempt lifecycle and reconciliation state. A retry always creates a
+  new attempt; a terminal attempt is never reopened, deleted by retry, or
+  mutated into success.
+- Does not own: the Machine lifecycle, Registry Node record, Presence, or SSH
+  secret material. It references each owner instead of copying their mutable
+  fields.
+- Related docs: [`DATA.md`](DATA.md), [`FLOWS.md`](FLOWS.md), and
+  [`../internal/SECURITY.md`](../internal/SECURITY.md).
 
 ### presence
 
@@ -119,7 +150,7 @@ belong in [`DATA.md`](DATA.md).
 
 ### Cross-cutting: the node-agent
 
-The cross-compiled **node-agent** (OT-P0-007) is not a control-plane domain — it is the thin client installed on each node. It holds the dial-out channel (presence), accepts typed jobs (dispatch), runs them durably via the local `vrooli` CLI (runs), and executes privileged provisioning when explicitly invoked (provisioning). It installs itself as a platform-native service (systemd / launchd / Windows Service). It is bridge-owned so the root `vrooli` CLI stays scenario-agnostic. See [`ARCHITECTURE.md`](ARCHITECTURE.md).
+The cross-compiled **node-agent** (OT-P0-007) is not a control-plane domain — it is the thin client installed on each node. It holds the dial-out channel (presence) in **presence-only posture by default**; verified job and provisioning frames are dropped until an explicit policy-approved control-action configuration opts in. When enabled, it accepts typed jobs (dispatch), runs them durably via the local `vrooli` CLI (runs), and executes privileged provisioning when explicitly invoked (provisioning). It installs itself as a platform-native service (systemd / launchd / Windows Service). It is bridge-owned so the root `vrooli` CLI stays scenario-agnostic. See [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Shared Concepts
 
@@ -129,6 +160,10 @@ The cross-compiled **node-agent** (OT-P0-007) is not a control-plane domain — 
 | Surface | API, UI, CLI, or contract layer exposing the same product capability. | `ARCHITECTURE.md`. |
 | Seam | Test-substitutable boundary wired once in production. | `../internal/SEAMS.md`. |
 | Requirement | Implementation-facing measurement tied back to the PRD. | `requirements/`. |
+| Machine | Durable operator intent and lifecycle. | machines domain. |
+| EnrollmentAttempt | Immutable execution history for an effort to enroll one Machine. | enrollment domain. |
+| Node | A paired Registry identity. It can be absent for a managed SSH connection. | registry domain. |
+| Presence | A live observation from the existing restricted agent, never durable Machine state. | presence domain. |
 
 ## Deferred Domains
 

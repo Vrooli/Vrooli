@@ -772,6 +772,299 @@
       ]
     },
     {
+      "id": "machines_create",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/CreateMachine",
+      "method": "POST",
+      "summary": "Create a durable machine",
+      "description": "Creates operator-intent identity with validated connection locators. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "desired_profile_id": "string",
+          "desired_profile_version": "string",
+          "locators": "array<ConnectionLocator> (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid or missing locator"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        }
+      ]
+    },
+    {
+      "id": "machines_get",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/GetMachine",
+      "method": "POST",
+      "summary": "Get a machine",
+      "description": "Returns durable intent and node lineage; live Node state is not copied. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
+        }
+      ]
+    },
+    {
+      "id": "machines_list",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ListMachines",
+      "method": "POST",
+      "summary": "List machines",
+      "description": "Lists durable Machine identities and histories. Owner-gated.",
+      "category": "machines",
+      "response": {
+        "type": "object",
+        "properties": {
+          "machines": "array<Machine>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        }
+      ]
+    },
+    {
+      "id": "machines_archive",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ArchiveMachine",
+      "method": "POST",
+      "summary": "Archive a machine",
+      "description": "Applies an optimistic-version lifecycle archive without deleting history. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "version": "int64 (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "Version conflict"
+        }
+      ]
+    },
+    {
+      "id": "machines_remove",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/RemoveMachine",
+      "method": "POST",
+      "summary": "Remove a machine locally",
+      "description": "Records local removal only; it does not claim external cleanup or erase history. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "version": "int64 (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "Version conflict"
+        }
+      ]
+    },
+    {
+      "id": "machines_get_trust",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/GetMachineTrust",
+      "method": "POST",
+      "summary": "Get Machine trust metadata",
+      "description": "Returns public fingerprints and review state only. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "trust": "MachineTrust"
+        }
+      }
+    },
+    {
+      "id": "machines_review_host_key",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ReviewMachineHostKey",
+      "method": "POST",
+      "summary": "Approve a reviewed host key",
+      "description": "Explicitly accepts a replacement SSH server host-key fingerprint after fail-closed detection. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "replacement_host_key_fingerprint": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "trust": "MachineTrust"
+        }
+      }
+    },
+    {
+      "id": "machines_request_ssh_cleanup",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/RequestMachineSSHCleanup",
+      "method": "POST",
+      "summary": "Record SSH-access cleanup",
+      "description": "Creates an explicit pending cleanup effect; it does not claim remote success. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cleanup": "MachineCleanup"
+        }
+      }
+    },
+    {
+      "id": "machines_update_cleanup",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/UpdateMachineCleanup",
+      "method": "POST",
+      "summary": "Update explicit cleanup result",
+      "description": "Marks cleanup confirmed, not applicable, or acknowledged abandoned. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "detail": "string",
+          "id": "string (required)",
+          "status": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cleanup": "MachineCleanup"
+        }
+      }
+    },
+    {
+      "id": "machines_apply_policy",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ApplyMachinePolicy",
+      "method": "POST",
+      "summary": "Apply a versioned Machine policy",
+      "description": "Resolves a built-in profile into immutable evidence and updates desired intent; suggested scopes never grant authorization. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "overrides": "map<string,string>",
+          "profile_id": "string (required)",
+          "profile_version": "string",
+          "reason": "string",
+          "version": "int64 (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine",
+          "policy": "EffectivePolicy"
+        }
+      }
+    },
+    {
+      "id": "machines_revoke_node",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/RevokeMachineNode",
+      "method": "POST",
+      "summary": "Revoke a Machine's current Node",
+      "description": "Locally revokes durable Node identity, credential, and live channel before any separate SSH cleanup. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine",
+          "revoked_node_id": "string"
+        }
+      }
+    },
+    {
       "id": "onboard_start_onboarding",
       "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/StartOnboarding",
       "method": "POST",

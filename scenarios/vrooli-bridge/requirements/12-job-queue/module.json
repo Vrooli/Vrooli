@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Per-node bounded concurrency with fair scheduling; mirrors test-genie one-run-per-scenario discipline.",
-    "last_validated_at": "2026-07-16T19:06:43-04:00",
+    "last_validated_at": "2026-07-17T20:12:48-04:00",
     "module": "job-queue",
     "prd_ref": "OT-P1-004",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P1-004",
       "title": "Per-Node Job Queue \u0026 Scheduling",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "core",
       "description": "Each node runs at most one job at a time (or a small bounded concurrency), with queued jobs scheduled fairly and surfaced in the control plane, mirroring test-genie's one-run-per-scenario discipline so a gate run never thrashes a node.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/internal/queue/queue_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A second job for a busy node queues rather than running concurrently beyond the node's bound; ordering is fair."
         },
         {

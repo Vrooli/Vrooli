@@ -41,7 +41,7 @@ var _ SSHDriver = (*sshDriver)(nil)
 
 func (d *sshDriver) FirstTouch(ctx context.Context, p FirstTouchParams) (Conn, error) {
 	res, err := d.svc.FirstTouch(ctx, ssh.FirstTouchRequest{
-		Host: p.Host, Port: p.Port, User: p.User, Password: p.Password,
+		Host: p.Host, Port: p.Port, User: p.User, Password: p.Password, KeyName: p.KeyName,
 		ProvisionSudo: p.ProvisionSudo,
 	})
 	if err != nil {
@@ -56,7 +56,7 @@ func (d *sshDriver) FirstTouch(ctx context.Context, p FirstTouchParams) (Conn, e
 		}
 		return Conn{}, fmt.Errorf("passwordless SSH not established: %s", detail)
 	}
-	return Conn{Host: res.Host, Port: res.Port, User: res.User, KeyPath: res.KeyPath, SudoState: string(res.SudoState)}, nil
+	return Conn{Host: res.Host, Port: res.Port, User: res.User, KeyPath: res.KeyPath, ClientKeyRef: "ssh-key://" + filepath.Base(res.KeyPath), ClientKeyFingerprint: res.Fingerprint, HostKeyFingerprint: res.HostKeyFingerprint, SudoState: string(res.SudoState)}, nil
 }
 
 func (d *sshDriver) PushScript(ctx context.Context, conn Conn) (string, error) {

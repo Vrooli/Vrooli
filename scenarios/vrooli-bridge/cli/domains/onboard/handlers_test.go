@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
+	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
 	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 	onboardconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard/onboard_v1connect"
 
@@ -24,9 +26,12 @@ import (
 // tests. It records the last request per verb and returns canned responses; the
 // Get sequence lets a watch test model progress → terminal without polling.
 type fakeOnboard struct {
-	startReq  *onboardv1.StartOnboardingRequest
-	startResp *onboardv1.StartOnboardingResponse
-	startErr  error
+	machinesconnect.UnimplementedMachineServiceHandler
+
+	createMachineReq *machinesv1.CreateMachineRequest
+	startReq         *onboardv1.StartOnboardingRequest
+	startResp        *onboardv1.StartOnboardingResponse
+	startErr         error
 
 	getResps []*onboardv1.GetOnboardingResponse
 	getCalls int
@@ -40,6 +45,11 @@ type fakeOnboard struct {
 
 	cancelReq  *onboardv1.CancelOnboardingRequest
 	cancelResp *onboardv1.CancelOnboardingResponse
+}
+
+func (f *fakeOnboard) CreateMachine(_ context.Context, req *connect.Request[machinesv1.CreateMachineRequest]) (*connect.Response[machinesv1.CreateMachineResponse], error) {
+	f.createMachineReq = req.Msg
+	return connect.NewResponse(&machinesv1.CreateMachineResponse{Machine: &machinesv1.Machine{Id: "machine-test-1"}}), nil
 }
 
 func (f *fakeOnboard) StartOnboarding(_ context.Context, req *connect.Request[onboardv1.StartOnboardingRequest]) (*connect.Response[onboardv1.StartOnboardingResponse], error) {
@@ -79,10 +89,12 @@ func (f *fakeOnboard) RemoveFailedOnboarding(_ context.Context, _ *connect.Reque
 	return connect.NewResponse(&onboardv1.RemoveFailedOnboardingResponse{}), nil
 }
 
-func connectAPI(svc onboardconnect.OnboardServiceHandler) http.Handler {
+func connectAPI(svc *fakeOnboard) http.Handler {
 	path, handler := onboardconnect.NewOnboardServiceHandler(svc)
+	machinePath, machineHandler := machinesconnect.NewMachineServiceHandler(svc)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
+	mux.Handle(machinePath, machineHandler)
 	return mux
 }
 
@@ -150,6 +162,8 @@ func TestStart_PasswordStdinFlagPipesTheSecret(t *testing.T) {
 	})
 	require.NoError(t, h.start(ctx))
 
+	require.Equal(t, "machine-test-1", svc.startReq.MachineId)
+	require.Equal(t, []*machinesv1.ConnectionLocator{{Kind: "hostname", Value: "10.0.0.5", Ordinal: 0}}, svc.createMachineReq.Locators)
 	// The piped secret reached the request body with the pipe newline stripped...
 	require.Equal(t, "piped-pw", svc.startReq.SshPassword)
 	// ...and the report names the (non-secret) source without leaking the value.

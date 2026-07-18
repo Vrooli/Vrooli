@@ -44,12 +44,12 @@ const (
 	nodeTimeFormat = time.RFC3339Nano
 
 	insertNodeSQL = `
-INSERT INTO nodes (id, name, os, arch, revision, endpoint, capabilities, scopes, created_at, updated_at, last_seen_at, revoked_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO nodes (id, name, os, arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	selectNodeColumns = `
-SELECT id, name, os, arch, revision, endpoint, capabilities, scopes, created_at, updated_at, last_seen_at, revoked_at
+SELECT id, name, os, arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at
 FROM nodes
 `
 
@@ -98,11 +98,24 @@ func (s *sqliteRepository) Create(ctx context.Context, n Node) (Node, error) {
 
 	_, err = s.db.ExecContext(ctx, insertNodeSQL,
 		n.ID, n.Name, n.OS, n.Arch, n.Revision, n.Endpoint, caps, scopes,
+		n.PairingCorrelationID,
 		n.CreatedAt.Format(nodeTimeFormat), n.UpdatedAt.Format(nodeTimeFormat),
 		formatNullableTime(n.LastSeenAt), formatNullableTime(n.RevokedAt),
 	)
 	if err != nil {
 		return Node{}, fmt.Errorf("insert node %q: %w", n.ID, err)
+	}
+	return n, nil
+}
+
+func (s *sqliteRepository) GetByPairingCorrelation(ctx context.Context, correlationID string) (Node, error) {
+	row := s.db.QueryRowContext(ctx, selectNodeColumns+"WHERE pairing_correlation_id = ?", correlationID)
+	n, err := scanNode(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Node{}, ErrNodeNotFound{ID: correlationID}
+	}
+	if err != nil {
+		return Node{}, fmt.Errorf("get node by pairing correlation %q: %w", correlationID, err)
 	}
 	return n, nil
 }
@@ -216,7 +229,7 @@ func scanNode(s rowScanner) (Node, error) {
 		revokedRaw  string
 	)
 	if err := s.Scan(&n.ID, &n.Name, &n.OS, &n.Arch, &n.Revision, &n.Endpoint,
-		&capsRaw, &scopesRaw, &createdRaw, &updatedRaw, &lastSeenRaw, &revokedRaw); err != nil {
+		&capsRaw, &scopesRaw, &n.PairingCorrelationID, &createdRaw, &updatedRaw, &lastSeenRaw, &revokedRaw); err != nil {
 		return Node{}, err
 	}
 

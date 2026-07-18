@@ -49,7 +49,17 @@ func successMarkers(nodeID string) []onboard.Marker {
 }
 
 func newTestService(repo *mocks.FakeRepository, driver *mocks.FakeSSHDriver, issuer *mocks.FakeCodeIssuer, confirmer *mocks.FakeOnlineConfirmer) onboard.Service {
-	return onboard.NewService(repo, driver, issuer, confirmer, clock.System{})
+	return onboard.NewService(repo, driver, issuer, confirmer, clock.System{}, onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}))
+}
+
+type fixedEnrollmentResolver struct {
+	nodeID string
+	paired bool
+	err    error
+}
+
+func (r fixedEnrollmentResolver) ResolveEnrollment(context.Context, string) (string, bool, error) {
+	return r.nodeID, r.paired, r.err
 }
 
 func validInput() onboard.StartInput {
@@ -349,10 +359,10 @@ func TestStart_FailAtEachPhase(t *testing.T) {
 	})
 
 	t.Run("bootstrap-ok-but-no-node-id", func(t *testing.T) {
-		// A run-ok with no node id anywhere: the orchestrator cannot verify.
+		// Bootstrap text is not identity evidence; an absent durable result fails.
 		markers := []onboard.Marker{{Event: "run-start"}, {Event: "run-ok", Detail: "done"}}
 		driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: markers}
-		svc := newTestService(mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true})
+		svc := onboard.NewService(mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, clock.System{}, onboard.WithEnrollmentResolver(fixedEnrollmentResolver{}))
 		dec, err := svc.Start(context.Background(), validInput())
 		require.NoError(t, err)
 		op := waitTerminal(t, svc, dec.OpID)

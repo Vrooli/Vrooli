@@ -35,6 +35,8 @@ Bridge has three distinct authorization boundaries, all enforced at the API/serv
    **Status: built + tested (Phase 3 / G7).** CP→node: the control plane signs every server frame with its long-lived Ed25519 key and wraps it in a `SignedServerFrame` envelope (`api/internal/channelsign`, signature over the exact serialized frame bytes); the agent verifies each frame against the pinned control-plane key (`agent/internal/cpverify`) before acting on it. The pin is written to `<state-dir>/control_plane.pub` (0600, dir 0700) by `vrooli-bridge pair redeem --state-dir …`, **before** the single-use pairing code is burned; a redeem that cannot pin surfaces the key so the operator can pin by hand. At startup a paired agent that finds **no pin fails hard** (`cpverify.ErrNoPin`, no TOFU fallback), and any frame that fails verification is dropped and surfaced in the `rejected_cp_frames` health counter on the agent heartbeat. Node→CP: node calls carry an Ed25519 signature verifiable against the public key stored in `node_credentials` at pairing.
 3. **Per-node verb scopes + trust tiers.** Authorization for *what a node will run* is the manifest-validated verb allowlist plus that node's granted verb-namespaces (e.g. `scenario test*` yes, `secrets*` / `scenario deploy*` no). **Trust-tier mechanism (decided 2026-06-18, see `DECISIONS.md`): the runner executes as a dedicated non-privileged service user with no escalation path; a structurally separate privileged provisioning helper (a distinct root/admin process installed at bootstrap) performs only whitelisted provisioning ops over a local IPC the runner cannot forge.** The two tiers are different OS principals, not a flag. The non-privileged runner cannot invoke the privileged provisioning tier. Revocation is atomic and kills both job and provisioning rights immediately.
 
+   New enrollments are additionally **presence-only by default** (`--presence-only=true` / `BRIDGE_PRESENCE_ONLY=true`): the agent continues signed heartbeats but drops even correctly signed job and provisioning frames. Enabling control actions is a separate, explicit policy-approved change; profile selection or self-reported capability cannot enable it implicitly.
+
 ## Secrets
 
 | Secret | Source | Required? | Details |
@@ -87,12 +89,13 @@ accidentally move a secret to weaker custody.
   is now also used to install the `sudoers.d` drop-in in the same touch — but it
   is still zeroed on all paths and never persisted; the hold is longer, not
   durable.
-- **Durable credential = the bridge keypair, on-disk at `0600` (dir `0700`).**
-  The one long-lived per-node secret is the generated SSH/identity keypair under
-  the bridge-owned storage namespace (never the operator's `~/.ssh`). The DB
-  stores **only** paths and key fingerprints — never private key bytes. This is
-  the professional shape: the filesystem's owner-only permission bits are the
-  custody boundary, and the durable record is a pointer, not the secret.
+- **Durable credential = a per-Machine bridge keypair, on-disk at `0600` (dir
+  `0700`).** New Machine enrollment selects a stable Machine-scoped key name
+  under the bridge-owned trust-store namespace (never the operator's `~/.ssh`).
+  The DB stores **only** an opaque `ssh-key://…` reference plus public client-key
+  and server-host-key fingerprints — never a filesystem path exposed as an API
+  credential and never private key bytes. The filesystem's owner-only permission
+  bits are the custody boundary; a trust record is metadata, not the secret.
 - **Recorded privilege artifact = the `sudoers.d` drop-in.** The scoped
   passwordless-sudo grant installed at first touch is itself the auditable record
   that the node was elevated; it lives where the OS expects a sudoers fragment
@@ -206,3 +209,30 @@ rule rollback. See [`../../../../docs/architecture/PRIVILEGE_BROKER.md`](../../.
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — external services and secrets
 - [`ERROR-HANDLING.md`](ERROR-HANDLING.md) — error response behavior
 - [`PROBLEMS.md`](PROBLEMS.md) — unresolved security debt
+
+## Machine enrollment boundaries
+
+- Pairing codes and passwords are transient. An attempt may retain an opaque
+  correlation ID and safe diagnostics, never either secret.
+- Every new Machine uses a per-Machine client key. Private bytes remain in the
+  trust store; database, API, CLI, UI, audit, and logs see only opaque
+  references and public client-key fingerprints.
+- SSH server host-key fingerprints and Bridge client-key fingerprints are
+  distinct typed values. A changed host key fails closed until an explicit
+  review; no retry or locator match may silently accept it. Review clears only
+  that Machine's Bridge-owned `known_hosts` pin, then the next strict
+  first-touch re-verifies and re-pins the replacement key. It never exposes a
+  shell, private key material, or arbitrary known-hosts file operation.
+- Observed capabilities can suggest scopes but cannot approve them. Registry is
+  the sole owner of approved scopes, and profile selection is never authority.
+- A policy transition that removes required capability or suggested-scope intent
+  requires an explicit operator confirmation. The confirmation is recorded with
+  the immutable policy decision; it never approves or revokes Registry scope.
+- Archive Machine, revoke Node, remove SSH access, remove Machine, cleanup
+  tombstone, and exceptional purge are separate authorized/audited effects.
+  Machine-effect audit records are append-only and contain actor, action, safe
+  detail, and timestamp only; they never carry secrets or raw command input.
+  Local revocation is durable before remote cleanup; cleanup is `pending`,
+  `confirmed`, `not_applicable`, or `abandoned_with_acknowledgement`.
+- The existing agent remains a restricted Presence client. It cannot gain a
+  shell, provisioning, or scope-approval path from Machine enrollment.

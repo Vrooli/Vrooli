@@ -2,6 +2,7 @@ package onboard
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -29,6 +30,15 @@ type Service interface {
 	// and launches the detached orchestration goroutine that drives it. Returns
 	// the created op id; the caller then blocks on Wait.
 	Start(ctx context.Context, in StartInput) (Decision, error)
+
+	// StartMachineEnrollment creates immutable Machine intent before any SSH
+	// contact, then launches its correlated orchestration operation.
+	StartMachineEnrollment(ctx context.Context, machineID string, in StartInput) (MachineEnrollmentDecision, error)
+
+	// RetryMachineEnrollment creates a new immutable attempt linked to a
+	// terminal predecessor, then launches a fresh orchestration. It never
+	// reopens or mutates the failed attempt.
+	RetryMachineEnrollment(ctx context.Context, machineID, priorAttemptID string, in StartInput) (MachineEnrollmentDecision, error)
 
 	// GetOp returns an op and its full persisted step-event history.
 	GetOp(ctx context.Context, id string) (Op, []StepEvent, error)
@@ -58,10 +68,17 @@ type Service interface {
 	ResumeInterrupted(ctx context.Context) (int, error)
 }
 
+type MachineEnrollmentDecision struct {
+	Attempt  EnrollmentAttempt
+	Decision Decision
+}
+
 type service struct {
 	repo      Repository
 	driver    SSHDriver
 	issuer    CodeIssuer
+	resolver  EnrollmentResolver
+	linker    MachineLinker
 	confirmer OnlineConfirmer
 	clock     clock.Clock
 	coord     *coordinator
@@ -86,6 +103,15 @@ type Option func(*service)
 func WithDefaultControlPlaneURL(url string) Option {
 	return func(s *service) { s.defaultControlPlaneURL = url }
 }
+
+// WithEnrollmentResolver supplies typed pairing outcomes for the orchestration
+// path. Production wires pairing.Service; unit tests may inject a deterministic
+// fake without parsing bootstrap diagnostics.
+func WithEnrollmentResolver(resolver EnrollmentResolver) Option {
+	return func(s *service) { s.resolver = resolver }
+}
+
+func WithMachineLinker(linker MachineLinker) Option { return func(s *service) { s.linker = linker } }
 
 // EndpointResolver supplies the persisted host-level endpoint selection for a
 // request that did not explicitly name an endpoint. Its result is still
@@ -290,6 +316,7 @@ func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
 		BaseRevision:     in.BaseRevision,
 		ControlPlaneURL:  cpURL,
 		ReachabilityMode: string(mode),
+		CorrelationID:    trimField(in.EnrollmentCorrelationID),
 	})
 	if err != nil {
 		zeroBytes(in.Password)
@@ -308,6 +335,63 @@ func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
 	}()
 
 	return Decision{OpID: op.ID, Host: host, Port: port, User: user}, nil
+}
+
+func (s *service) StartMachineEnrollment(ctx context.Context, machineID string, in StartInput) (MachineEnrollmentDecision, error) {
+	return s.startMachineEnrollment(ctx, machineID, "", in)
+}
+
+func (s *service) RetryMachineEnrollment(ctx context.Context, machineID, priorAttemptID string, in StartInput) (MachineEnrollmentDecision, error) {
+	store, ok := s.repo.(AttemptStore)
+	if !ok {
+		zeroBytes(in.Password)
+		return MachineEnrollmentDecision{}, fmt.Errorf("machine enrollment requires attempt-capable repository")
+	}
+	prior, err := store.GetAttempt(ctx, priorAttemptID)
+	if err != nil {
+		zeroBytes(in.Password)
+		return MachineEnrollmentDecision{}, err
+	}
+	if prior.MachineID != machineID {
+		zeroBytes(in.Password)
+		return MachineEnrollmentDecision{}, ErrInvalid{Field: "prior_attempt_id", Reason: "does not belong to machine"}
+	}
+	if !prior.State.Terminal() {
+		zeroBytes(in.Password)
+		return MachineEnrollmentDecision{}, ErrInvalid{Field: "prior_attempt_id", Reason: "must be terminal before retry"}
+	}
+	return s.startMachineEnrollment(ctx, machineID, prior.ID, in)
+}
+
+func (s *service) startMachineEnrollment(ctx context.Context, machineID, retryOfAttemptID string, in StartInput) (MachineEnrollmentDecision, error) {
+	store, ok := s.repo.(AttemptStore)
+	if !ok {
+		zeroBytes(in.Password)
+		return MachineEnrollmentDecision{}, fmt.Errorf("machine enrollment requires attempt-capable repository")
+	}
+	attempt, err := NewAttempt(machineID, map[string]string{
+		"host": in.Host, "port": fmt.Sprintf("%d", in.Port), "user": in.User,
+		"node_name": in.NodeName, "target_revision": in.TargetRevision,
+		"control_plane_url": in.ControlPlaneURL,
+	})
+	if err != nil {
+		zeroBytes(in.Password)
+		return MachineEnrollmentDecision{}, err
+	}
+	attempt.RetryOfAttemptID = retryOfAttemptID
+	attempt, err = store.CreateAttempt(ctx, attempt)
+	if err != nil {
+		zeroBytes(in.Password)
+		return MachineEnrollmentDecision{}, err
+	}
+	in.EnrollmentCorrelationID = attempt.CorrelationID
+	in.SSHKeyName = "machine-" + machineID
+	decision, err := s.Start(ctx, in)
+	if err != nil {
+		_, _ = store.CompleteAttempt(ctx, attempt.ID, AttemptFailed, "start_rejected", err.Error())
+		return MachineEnrollmentDecision{Attempt: attempt}, err
+	}
+	return MachineEnrollmentDecision{Attempt: attempt, Decision: decision}, nil
 }
 
 func (s *service) GetOp(ctx context.Context, id string) (Op, []StepEvent, error) {

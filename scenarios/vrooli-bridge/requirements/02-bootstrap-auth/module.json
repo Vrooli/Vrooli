@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "One-touch per-OS bootstrap that installs Vrooli + node-agent and pairs out-of-band; mutual auth; atomic revocation.",
-    "last_validated_at": "2026-07-16T19:06:43-04:00",
+    "last_validated_at": "2026-07-17T20:12:48-04:00",
     "module": "bootstrap-auth",
     "prd_ref": "OT-P0-002",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P0-002",
       "title": "One-Touch Bootstrap \u0026 Mutual Auth",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "security",
       "description": "A single bootstrap command run once on a new machine installs Vrooli, runs setup, installs the node-agent as an OS service, and pairs to the control plane via an out-of-band single-use code/token. Node and control plane mutually authenticate every exchange; revoking a node atomically kills both its job and provisioning rights.",
@@ -20,42 +20,42 @@
           "type": "test",
           "ref": "api/internal/pairing/pairing_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Single-use short-TTL pairing token issues a mutual-auth credential; reuse and expiry are rejected."
         },
         {
           "type": "test",
           "ref": "api/internal/nodeauth/nodeauth_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Node→control-plane mutual auth: a valid signed proof verifies; unknown/revoked node, cross-node replay, stale timestamp, and tampered signatures are all rejected."
         },
         {
           "type": "test",
           "ref": "api/internal/cpkeys/cpkeys_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Control-plane→node identity: a stable persisted Ed25519 key (owner-only seed) signs pushes a node can verify against the pinned public key (rejects an impostor coordinator)."
         },
         {
           "type": "test",
           "ref": "api/handlers/registry/connect_handler_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Atomic revocation: a single RevokeNode revokes the durable record AND severs the mutual-auth credential AND drops the live channel in one operation."
         },
         {
           "type": "test",
           "ref": "api/handlers/channel/heartbeat_handler_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Live enforcement: with the verifier wired, an unsigned or impostor-signed heartbeat is rejected; a validly-signed one is accepted."
         },
         {
           "type": "test",
           "ref": "agent/internal/nodecred/nodecred_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Agent signing: the node keypair is stable + owner-only and its signatures match the canonical nodeauth wire format (cross-module contract)."
         },
         {

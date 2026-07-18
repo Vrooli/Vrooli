@@ -83,6 +83,17 @@ func (f *FakeRepository) Get(_ context.Context, id string) (registry.Node, error
 	return n, nil
 }
 
+func (f *FakeRepository) GetByPairingCorrelation(_ context.Context, correlationID string) (registry.Node, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, n := range f.nodes {
+		if n.PairingCorrelationID == correlationID {
+			return n, nil
+		}
+	}
+	return registry.Node{}, registry.ErrNodeNotFound{ID: correlationID}
+}
+
 func (f *FakeRepository) List(_ context.Context) ([]registry.Node, error) {
 	if f.ListErr != nil {
 		return nil, f.ListErr

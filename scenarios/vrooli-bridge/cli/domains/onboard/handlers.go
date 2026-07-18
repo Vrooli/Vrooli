@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
+	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
 	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 	onboardconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard/onboard_v1connect"
 
@@ -25,7 +27,12 @@ const defaultRevision = "@cp"
 type handlers struct {
 	core     *cliapp.ScenarioApp
 	client   onboardconnect.OnboardServiceClient
+	machines machineCreator
 	password passwordSource
+}
+
+type machineCreator interface {
+	CreateMachine(context.Context, *connect.Request[machinesv1.CreateMachineRequest]) (*connect.Response[machinesv1.CreateMachineResponse], error)
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -33,6 +40,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{
 		core:     core,
 		client:   onboardconnect.NewOnboardServiceClient(httpClient, baseURL),
+		machines: machinesconnect.NewMachineServiceClient(httpClient, baseURL),
 		password: newPasswordSource(),
 	}
 }
@@ -54,6 +62,17 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
+	machineID := ""
+	machineResp, err := h.machines.CreateMachine(context.Background(), connect.NewRequest(&machinesv1.CreateMachineRequest{
+		Locators: []*machinesv1.ConnectionLocator{{Kind: "hostname", Value: host, Ordinal: 0}},
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("create Machine before onboarding", err, nil)
+	}
+	if machineResp == nil || machineResp.Msg == nil || machineResp.Msg.Machine == nil || strings.TrimSpace(machineResp.Msg.Machine.Id) == "" {
+		return fmt.Errorf("server returned no machine for onboarding")
+	}
+	machineID = machineResp.Msg.Machine.Id
 
 	revision := strings.TrimSpace(ctx.Flag("revision"))
 	if revision == "" {
@@ -66,6 +85,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	}
 
 	resp, err := h.client.StartOnboarding(context.Background(), connect.NewRequest(&onboardv1.StartOnboardingRequest{
+		MachineId:            machineID,
 		Host:                 host,
 		Port:                 int32(parseInt(ctx.Flag("port"))),
 		User:                 user,

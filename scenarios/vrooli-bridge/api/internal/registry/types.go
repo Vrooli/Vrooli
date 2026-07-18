@@ -33,8 +33,12 @@ type Node struct {
 	Endpoint     string
 	Capabilities []string
 	Scopes       []string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	// PairingCorrelationID is an opaque enrollment correlation written only by
+	// the pairing saga. It makes a post-registration crash recoverable without
+	// inferring identity from a hostname, IP, or display name.
+	PairingCorrelationID string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 	// LastSeenAt is the last time a heartbeat was received; zero if never seen.
 	// Persisted so "last seen 2h ago" survives a control-plane restart.
 	LastSeenAt time.Time
@@ -49,12 +53,13 @@ func (n Node) Revoked() bool { return !n.RevokedAt.IsZero() }
 // RegisterInput is the explicit DTO Service.Register accepts. Distinct from
 // Node so callers cannot pass an id/timestamp the service has no way to honour.
 type RegisterInput struct {
-	Name         string
-	OS           string
-	Arch         string
-	Endpoint     string
-	Capabilities []string
-	Scopes       []string
+	Name                 string
+	OS                   string
+	Arch                 string
+	Endpoint             string
+	Capabilities         []string
+	Scopes               []string
+	PairingCorrelationID string
 }
 
 // UpdateInput is the desired post-state of a node's owner-editable surface.

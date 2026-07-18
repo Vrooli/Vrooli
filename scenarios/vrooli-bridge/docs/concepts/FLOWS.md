@@ -64,14 +64,57 @@ Code: `internal/dispatch`, `internal/runs`, `agent/internal/exec`. Tests:
 `internal/runs/durable_test.go`, `internal/runs/results_test.go`,
 `handlers/runs/connect_handler_test.go`.
 
-### One-shot node onboarding
+### Current one-shot onboarding (legacy path to replace)
 
-The `onboard` domain (phase 5) is the **orchestration tier** that turns a raw,
+### Machine enrollment and recovery
+
+The Machine is created before contact. An enrollment request creates a fresh
+EnrollmentAttempt with an immutable input snapshot and opaque correlation ID;
+the attempt does not reuse a failed terminal operation.
+
+| Checkpoint | Durable write before proceeding | Retry class | Reconciliation / compensation |
+|---|---|---|---|
+| Machine intent accepted | Machine + ordered locator rows | idempotent create by Machine UUID/version | return existing version conflict or composed detail; never match by locator |
+| Attempt created | attempt input snapshot + correlation | new attempt on explicit retry | terminal attempts remain history |
+| SSH trust verified | trust reference + host fingerprint state | revalidate before reuse | mismatch fails closed and requires host-key review |
+| Pairing issued | correlation-bound issue record | safely resumable only while code valid | expired/burned code creates a new attempt or typed repair |
+| Node redeemed | Registry Node + credential + correlation + lineage | idempotent reconciliation | exactly one current Node; never infer it from bootstrap text |
+| Service install / Presence | attempt checkpoint + observed result | resume only after checkpoint postcondition revalidation | paired-but-install-failed remains linked and exposes retry/repair |
+| Terminal result | immutable terminal outcome + diagnostics | no revival | retry creates `retry_of_attempt_id` |
+
+Readiness is derived, never written as a single mutable flag:
+
+`MachineService.GetMachine` returns this read-time explanation as
+`MachineReadiness`: lifecycle, SSH host-key verification, current Node,
+Presence, required observed capabilities, and approval of policy-suggested
+scopes are evaluated from their respective owners. A missing suggested scope
+is reported as `scope_not_approved:<scope>`; it does not grant that scope.
+
+| Machine lifecycle | SSH trust | paired current Node | Presence | policy approval | Derived readiness |
+|---|---|---|---|---|---|
+| active | verified | yes | online | approved | ready |
+| active | verified | yes | offline | approved | paired_not_present |
+| active | mismatch/review | any | any | any | trust_action_required |
+| archived/removed | any | any | any | any | unavailable |
+| active | verified | no | any | any | managed_connection_only / enrollment_needed |
+
+The current failure trace is specifically **paired then service-install
+failed**. Node redemption must durably associate Machine, attempt, and Node
+before service installation can fail. The operator receives a typed
+`interrupted_or_repair_required` result, not an uncorrelated bootstrap log; a
+retry must converge on that Node or create an explicit replacement lineage.
+
+The current `onboard` domain is the **legacy orchestration tier** that turns a raw,
 SSH-reachable host into a paired, ONLINE, auto-starting fleet node in one durable
 `OnboardingOp`. It sequences the artifacts the earlier phases built — SSH
 first-touch (phase 1), the server-side pairing code (phase 3), and the idempotent
 node bootstrap script (phase 4) — so the operator kicks off `onboard start` and
 walks away.
+
+It is now the execution engine beneath the Machine/EnrollmentAttempt path.
+`StartMachineEnrollment` creates immutable pre-contact intent and an opaque
+correlation before SSH starts; the legacy operation remains progress transport,
+not the aggregate of record.
 
 **States (persisted):** `pending → ssh_setup → pushing_script → bootstrapping →
 verifying → (succeeded | failed | cancelled)`. `succeeded/failed/cancelled` are
@@ -88,9 +131,12 @@ terminal transition (no polling) or `timed_out` when its window elapses.
    argv/logs). Each `VBOOTSTRAP` stdout marker is parsed into a persisted
    `OnboardingStepEvent` (the 12 bootstrap steps + the run envelope), so the
    progress trail matches the script's actual emitted steps.
-4. **verifying** — the node id is captured from the pair-redeem/run-ok marker;
-   the orchestrator confirms the node is ONLINE in the fleet (holds a live
-   dial-out channel ⇒ its control-plane key is pinned).
+4. **correlation resolve** — the orchestrator resolves the Node solely through
+   the durable pairing saga correlation, records Machine lineage before
+   interpreting bootstrap/service-install failure, and never parses Node identity
+   from marker text.
+5. **verifying** — the orchestrator confirms that correlated Node is ONLINE in
+   the fleet (holds a live dial-out channel ⇒ its control-plane key is pinned).
 
 **Failure taxonomy** (recorded on the FAILED op, machine-branchable):
 `ssh_setup_failed`, `script_push_failed`, `pairing_issue_failed`,
@@ -114,7 +160,9 @@ absent from DB rows, step events, and captured logs in tests.
 
 **Tests:** `internal/onboard/service_test.go` (state machine incl. cancel +
 failure at each phase, dry-run, resume, secret-non-persistence, block-once wait),
-`internal/onboard/marker_test.go` (VBOOTSTRAP parsing + node-id extraction),
+`internal/onboard/attempts_test.go` (immutable attempt/retry and pre-contact
+Machine intent), `internal/pairing/correlation_test.go` (correlated redemption
+replay),
 `internal/onboard/sqlite_test.go` (durable round-trip + migrate-never-recreate),
 `handlers/onboard/integration_test.go` (full flow through the Connect handler over
 a real SSH/SCP/streaming round-trip against an in-process sshd + stub bootstrap;

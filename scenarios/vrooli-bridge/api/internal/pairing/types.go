@@ -29,8 +29,10 @@ type PairingCode struct {
 	CodeHash       string
 	Name           string
 	Scopes         []string
+	CorrelationID  string
 	CreatedAt      time.Time
 	ExpiresAt      time.Time
+	ClaimedAt      time.Time
 	RedeemedAt     time.Time
 	RedeemedNodeID string
 }
@@ -89,6 +91,28 @@ type NodeFacts struct {
 // by the registry domain). main.go wires an adapter over registry.Service.
 type NodeRegistrar interface {
 	RegisterNode(ctx context.Context, facts NodeFacts) (nodeID string, err error)
+}
+
+// CorrelatedNodeRegistrar extends NodeRegistrar for the durable enrollment
+// path. The Registry owns the stored correlation; pairing only uses it to
+// reconcile a crash without identity inference.
+type CorrelatedNodeRegistrar interface {
+	NodeRegistrar
+	RegisterNodeWithCorrelation(context.Context, NodeFacts, string) (string, error)
+	FindNodeByPairingCorrelation(context.Context, string) (string, error)
+}
+
+type EnrollmentSaga struct {
+	CorrelationID string
+	CodeID        string
+	PublicKey     string
+	Facts         NodeFacts
+	State         string
+	NodeID        string
+	LastError     string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	CompletedAt   time.Time
 }
 
 // Typed sentinels — handlers translate these to Connect codes.

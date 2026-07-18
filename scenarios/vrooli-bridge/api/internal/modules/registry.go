@@ -30,6 +30,7 @@ import (
 	gateH "vrooli-bridge/handlers/gate"
 	healthH "vrooli-bridge/handlers/health"
 	identityH "vrooli-bridge/handlers/identity"
+	machinesH "vrooli-bridge/handlers/machines"
 	onboardH "vrooli-bridge/handlers/onboard"
 	pairingH "vrooli-bridge/handlers/pairing"
 	provisionH "vrooli-bridge/handlers/provision"
@@ -38,6 +39,7 @@ import (
 	registryH "vrooli-bridge/handlers/registry"
 	runsH "vrooli-bridge/handlers/runs"
 	localdb "vrooli-bridge/internal/database"
+	internalmachines "vrooli-bridge/internal/machines"
 	internalreadiness "vrooli-bridge/internal/readiness"
 
 	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
@@ -46,6 +48,7 @@ import (
 	fleetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/fleet"
 	gatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate"
 	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity"
+	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
 	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
@@ -69,6 +72,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, fleetH.Endpoints...)
 	out = append(out, gateH.Endpoints...)
 	out = append(out, identityH.Endpoints...)
+	out = append(out, machinesH.Endpoints...)
 	out = append(out, onboardH.Endpoints...)
 	out = append(out, pairingH.Endpoints...)
 	out = append(out, provisionH.Endpoints...)
@@ -109,6 +113,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "fleet", File: fleetv1.File_vrooli_bridge_v1_fleet_fleet_proto},
 		{Module: "gate", File: gatev1.File_vrooli_bridge_v1_gate_gate_proto},
 		{Module: "identity", File: identityv1.File_vrooli_bridge_v1_identity_identity_proto},
+		{Module: "machines", File: machinesv1.File_vrooli_bridge_v1_machines_machines_proto},
 		{Module: "onboard", File: onboardv1.File_vrooli_bridge_v1_onboard_onboard_proto},
 		{Module: "pairing", File: pairingv1.File_vrooli_bridge_v1_pairing_pairing_proto},
 		{Module: "provision", File: provisionv1.File_vrooli_bridge_v1_provision_provision_proto},
@@ -136,6 +141,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(fleetH.Schema),
 		apidb.SchemaProviderFunc(gateH.Schema),
 		apidb.SchemaProviderFunc(identityH.Schema),
+		apidb.SchemaProviderFunc(internalmachines.Schema),
 		apidb.SchemaProviderFunc(onboardH.Schema),
 		apidb.SchemaProviderFunc(pairingH.Schema),
 		apidb.SchemaProviderFunc(provisionH.Schema),

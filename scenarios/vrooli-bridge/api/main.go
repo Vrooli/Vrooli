@@ -16,6 +16,7 @@ import (
 	"vrooli-bridge/internal/cpkeys"
 	"vrooli-bridge/internal/cprev"
 	"vrooli-bridge/internal/hostbroker"
+	internalmachines "vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/modules"
 	"vrooli-bridge/internal/nodeauth"
 	internalonboard "vrooli-bridge/internal/onboard"
@@ -46,6 +47,7 @@ import (
 	gateH "vrooli-bridge/handlers/gate"
 	healthH "vrooli-bridge/handlers/health"
 	identityH "vrooli-bridge/handlers/identity"
+	machinesH "vrooli-bridge/handlers/machines"
 	onboardH "vrooli-bridge/handlers/onboard"
 	pairingH "vrooli-bridge/handlers/pairing"
 	provisionH "vrooli-bridge/handlers/provision"
@@ -63,14 +65,31 @@ type registrarAdapter struct {
 }
 
 func (a registrarAdapter) RegisterNode(ctx context.Context, facts internalpairing.NodeFacts) (string, error) {
+	return a.registerNode(ctx, facts, "")
+}
+
+func (a registrarAdapter) RegisterNodeWithCorrelation(ctx context.Context, facts internalpairing.NodeFacts, correlationID string) (string, error) {
+	return a.registerNode(ctx, facts, correlationID)
+}
+
+func (a registrarAdapter) registerNode(ctx context.Context, facts internalpairing.NodeFacts, correlationID string) (string, error) {
 	node, err := a.svc.Register(ctx, internalregistry.RegisterInput{
-		Name:         facts.Name,
-		OS:           facts.OS,
-		Arch:         facts.Arch,
-		Endpoint:     facts.Endpoint,
-		Capabilities: facts.Capabilities,
-		Scopes:       facts.Scopes,
+		Name:                 facts.Name,
+		OS:                   facts.OS,
+		Arch:                 facts.Arch,
+		Endpoint:             facts.Endpoint,
+		Capabilities:         facts.Capabilities,
+		Scopes:               facts.Scopes,
+		PairingCorrelationID: correlationID,
 	})
+	if err != nil {
+		return "", err
+	}
+	return node.ID, nil
+}
+
+func (a registrarAdapter) FindNodeByPairingCorrelation(ctx context.Context, correlationID string) (string, error) {
+	node, err := a.svc.GetByPairingCorrelation(ctx, correlationID)
 	if err != nil {
 		return "", err
 	}
@@ -272,8 +291,20 @@ func main() {
 	if err := internalonboard.Migrate(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("onboard schema migration failed: %v", err)
 	}
+	if err := internalregistry.Migrate(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("registry schema migration failed: %v", err)
+	}
+	if err := internalpairing.Migrate(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("pairing schema migration failed: %v", err)
+	}
+	if err := internalmachines.Migrate(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("machine schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
+	}
+	if err := internalmachines.BackfillLegacy(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("machine legacy backfill failed: %v", err)
 	}
 
 	clk := clock.System{}
@@ -316,6 +347,9 @@ func main() {
 	registrySvc := internalregistry.NewService(nodeLastSeen)
 	registrar := registrarAdapter{svc: registrySvc}
 	pairingSvc := internalpairing.NewService(pairingRepo, registrar, clk)
+	if _, err := pairingSvc.ReconcileEnrollments(context.Background()); err != nil {
+		log.Fatalf("pairing enrollment reconciliation failed: %v", err)
+	}
 
 	// The node mutual-auth verifier reads node public keys from the pairing
 	// repository (a revoked credential reads as absent). Threaded into the
@@ -424,7 +458,8 @@ func main() {
 		log.Printf("onboard: default control-plane URL derived as %s (override per request or with BRIDGE_CONTROL_PLANE_URL)", derived)
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(derived))
 	}
-	onboardSvc := onboardH.NewService(db, clk, pairingSvc, presenceHub, onboardssh.NewService(sshStateDir), bootstrapScript, onboardOpts...)
+	sshSvc := onboardssh.NewService(sshStateDir)
+	onboardSvc := onboardH.NewService(db, clk, pairingSvc, presenceHub, sshSvc, bootstrapScript, onboardOpts...)
 	if n, rerr := onboardSvc.ResumeInterrupted(context.Background()); rerr != nil {
 		log.Printf("onboard: reconcile interrupted ops failed: %v", rerr)
 	} else if n > 0 {
@@ -447,6 +482,9 @@ func main() {
 		// authResolver) and relays the issued owner JWT. Unauthenticated (it precedes
 		// the caller holding a token); owns no credential logic and no tables.
 		identityH.Module(authResolver, logger),
+		// machines: operator-intent identity and lifecycle. It references Node
+		// lineage rather than copying Registry or live Presence state.
+		machinesH.Module(db, clk, sshSvc, registrySvc, pairingSvc, presenceHub, logger),
 		// registry RevokeNode performs atomic revocation: durable revoke +
 		// credential destruction (pairingSvc) + live-channel drop (presenceHub).
 		registryH.Module(db, clk, presenceHub, pairingSvc, presenceHub, logger),
@@ -471,7 +509,7 @@ func main() {
 		// SSH. Owns its durable op tables; drives SSH first-touch + SCP + remote
 		// bootstrap (streamed VBOOTSTRAP markers), issues the pairing code
 		// server-side (pairingSvc), and confirms the node ONLINE (presenceHub).
-		onboardH.Module(onboardSvc, logger),
+		onboardH.Module(onboardSvc, db, clk, logger),
 		// fleet (OT-P1-001): fleet-wide version roll. Enumerates nodes
 		// (registrySvc), gates on presence + protocol compatibility (presenceHub),
 		// and dispatches a privileged provisioning op per eligible node by

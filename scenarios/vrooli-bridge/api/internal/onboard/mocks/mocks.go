@@ -209,6 +209,7 @@ type FakeSSHDriver struct {
 	CapturedArgs          []string
 	FirstTouchCalls       int
 	CapturedProvisionSudo bool
+	CapturedKeyName       string
 	AdmissionResult       onboard.AdmissionResult
 	AdmissionResults      []onboard.AdmissionResult
 	AdmissionErr          error
@@ -221,6 +222,7 @@ func (d *FakeSSHDriver) FirstTouch(ctx context.Context, p onboard.FirstTouchPara
 	d.mu.Lock()
 	d.FirstTouchCalls++
 	d.CapturedProvisionSudo = p.ProvisionSudo
+	d.CapturedKeyName = p.KeyName
 	d.mu.Unlock()
 	if d.FirstTouchBlock {
 		<-ctx.Done()
