@@ -12,6 +12,28 @@ agent-manager provides:
 - **Event tracking** with append-only logs of all agent activity
 - **Approval workflows** with diff review before canonical repo changes
 
+## Choose the right primitive
+
+Agent Manager has two deliberately different integration surfaces:
+
+| Situation | Use | Owner of the prompt and interpretation |
+| --- | --- | --- |
+| A person is having a conversation with an agent. | **Run** (often owned by a consumer's session). | The person. |
+| Code builds typed input and needs a typed result to continue. | Declared **Workflow**. | The workflow declaration. |
+
+The distinction is independent of the number of agent turns: a single
+programmatic agent turn is still a workflow. A workflow uses Runs as its
+execution substrate, but adds a declared input/output contract, pinned prompt
+provenance, validation, budgets, durable routing, and inspectable execution
+history. Consumer code should retain only its two domain adapters: create a
+bounded input snapshot and authorize/apply the typed terminal result. Prompt
+assembly, result parsing, retries, loops, branches, and waits belong in the
+workflow declaration.
+
+Read [Workflow adoption](docs/guides/workflow-adoption.md) before adding an
+agent integration, and [scenario declarations](docs/reference/scenario-declarations.md)
+for the declaration schema and reconciliation commands.
+
 ## Quick Start
 
 ```bash

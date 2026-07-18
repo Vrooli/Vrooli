@@ -90,7 +90,7 @@
         {
           "name": "execution-runs",
           "description": "List durable node attempts and dispatched run identities for one workflow execution",
-          "args": [{"name":"execution-id","required":true,"description":"Workflow execution UUID"}],
+          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
           "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListWorkflowExecutionRuns"},
           "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
           "architecture": {"primitive":"proto_list"}

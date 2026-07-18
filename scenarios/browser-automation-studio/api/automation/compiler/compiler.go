@@ -1335,22 +1335,30 @@ func resolveSelectorReference(selectorRef string, manifest map[string]interface{
 	if manifest == nil {
 		return ""
 	}
-	selectors, ok := manifest["selectors"].(map[string]interface{})
-	if !ok {
-		return ""
+	if selectors, ok := manifest["selectors"].(map[string]interface{}); ok {
+		if entry, ok := selectors[basePath].(map[string]interface{}); ok {
+			if selector, ok := entry["selector"].(string); ok {
+				return selector + suffix
+			}
+		}
 	}
 
-	entry, ok := selectors[basePath].(map[string]interface{})
-	if !ok {
-		return ""
+	// Zero-argument dynamic selectors are stable selector aliases. They belong in
+	// the same runtime namespace as literal selectors; only parameterized
+	// definitions need call-time interpolation that BAS does not yet support.
+	if dynamicSelectors, ok := manifest["dynamicSelectors"].(map[string]interface{}); ok {
+		if entry, ok := dynamicSelectors[basePath].(map[string]interface{}); ok {
+			params, hasParams := entry["params"].([]interface{})
+			if hasParams && len(params) > 0 {
+				return ""
+			}
+			if selector, ok := entry["selectorPattern"].(string); ok {
+				return selector + suffix
+			}
+		}
 	}
 
-	selector, ok := entry["selector"].(string)
-	if !ok {
-		return ""
-	}
-
-	return selector + suffix
+	return ""
 }
 
 // resolveSelectorTokens replaces any @selector/ references embedded in a selector string.

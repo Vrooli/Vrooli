@@ -44,6 +44,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -700,11 +701,21 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	// Detailed health for UI (includes sandbox + runner dependencies).
 	// Keep /health minimal for infra probes.
+	eventsBaseURL := os.Getenv("VROOLI_EVENTS_API_BASE")
+	if eventsBaseURL == "" {
+		// Discovery occurs at startup only. Receipt reads remain optional; an
+		// unavailable Vrooli Events service must not affect Agent Manager
+		// readiness or workflow execution.
+		if resolved, err := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events"); err == nil {
+			eventsBaseURL = resolved
+		}
+	}
 	handler := handlers.New(
 		s.orchestrator,
 		handlers.WithStorage(s.storage),
 		handlers.WithRolePolicyState(s.rolePolicyState),
 		handlers.WithPermissionPolicy(s.permissionPolicyState, s.permissionPolicy),
+		handlers.WithObservedReceipts(eventbus.Client{BaseURL: eventsBaseURL}),
 	)
 	handler.SetWebSocketHub(s.wsHub)
 	s.router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")

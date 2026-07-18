@@ -45,6 +45,7 @@ import (
 	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/eventbus"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -61,6 +62,7 @@ type Handler struct {
 	rolePolicy            *rolepolicy.State
 	permissionPolicyState *permissionpolicy.State
 	permissionPolicy      *permissionpolicy.Service
+	receipts              eventbus.Client
 }
 
 // HandlerOption configures the Handler.
@@ -89,6 +91,13 @@ func WithPermissionPolicy(state *permissionpolicy.State, service *permissionpoli
 		h.permissionPolicyState = state
 		h.permissionPolicy = service
 	}
+}
+
+// WithObservedReceipts installs the optional Vrooli Events read client. It is
+// deliberately a read-only projection: workflow output and state transitions
+// never depend on receipt availability.
+func WithObservedReceipts(client eventbus.Client) HandlerOption {
+	return func(h *Handler) { h.receipts = client }
 }
 
 // New creates a new Handler with the given orchestration service.
@@ -181,6 +190,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
 	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
+	r.HandleFunc("/api/v1/runs/{id}/observed-receipts", h.GetObservedReceipts).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/recover", h.RecoverRun).Methods("POST")

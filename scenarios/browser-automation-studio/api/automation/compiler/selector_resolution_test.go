@@ -96,6 +96,39 @@ func TestCompileResolvesSelectorReferenceFromBasSubdirRoot(t *testing.T) {
 	}
 }
 
+func TestCompileResolvesZeroArgumentDynamicSelectorReference(t *testing.T) {
+	root := t.TempDir()
+	manifest := map[string]any{
+		"selectors": map[string]any{},
+		"dynamicSelectors": map[string]any{
+			"preview.openDialog": map[string]any{
+				"selectorPattern": "[role=dialog]",
+				"params":          []any{},
+			},
+		},
+	}
+	content, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	path := filepath.Join(root, "ui", "src", "consts", "selectors.manifest.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	workflow := makeTestWorkflow(uuid.New(), "selector-flow", makeSelectorClickWorkflow("@selector/preview.openDialog").Nodes, makeSelectorClickWorkflow("@selector/preview.openDialog").Edges)
+	plan, err := CompileWorkflowWithOptions(workflow, &CompileOptions{SelectorManifestRoot: root})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions() error = %v", err)
+	}
+	if got, want := plan.Steps[1].Params["selector"], "[role=dialog]"; got != want {
+		t.Fatalf("resolved selector = %#v, want %q", got, want)
+	}
+}
+
 // An unresolved @selector/ reference must fail compilation with a diagnostic
 // naming the token, instead of forwarding the literal token to the driver
 // (which used to surface as an opaque runtime "Selector not found: unknown").
