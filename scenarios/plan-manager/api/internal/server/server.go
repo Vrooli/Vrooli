@@ -34,6 +34,11 @@ type Deps struct {
 	Clock    clock.Clock
 	Logger   *log.Logger
 	Verifier provenance.Verifier
+	// ReceiptMiddleware is an optional standard api-core boundary. It is
+	// installed after provenance so receipt attribution sees only verified
+	// Agent Manager claims, and before domain handlers so it can measure the
+	// complete typed operation response.
+	ReceiptMiddleware func(http.Handler) http.Handler
 }
 
 // Server is the wired HTTP application: cross-cutting deps + router
@@ -67,6 +72,9 @@ func New(d Deps, modules ...module.Module) *Server {
 		d.Verifier = provenance.CLIUtilVerifier{}
 	}
 	s.router.Use(provenance.Middleware(d.Verifier))
+	if d.ReceiptMiddleware != nil {
+		s.router.Use(d.ReceiptMiddleware)
+	}
 	for _, m := range modules {
 		m.Mount(s.router)
 	}

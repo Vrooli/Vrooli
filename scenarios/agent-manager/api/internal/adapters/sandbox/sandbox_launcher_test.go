@@ -933,6 +933,9 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	if got, _ := envAny["VROOLI_SANDBOX_MERGED"].(string); got != nsPath {
 		t.Errorf("env VROOLI_SANDBOX_MERGED = %q; want %q", got, nsPath)
 	}
+	if got, _ := envAny["VROOLI_HOST_LIFECYCLE_BASE"].(string); got != server.URL {
+		t.Errorf("env VROOLI_HOST_LIFECYCLE_BASE = %q; want %q", got, server.URL)
+	}
 	if _, ok := envAny["PATH"]; ok {
 		t.Errorf("env PATH should be omitted; workspace-sandbox owns vrooli-aware PATH construction")
 	}

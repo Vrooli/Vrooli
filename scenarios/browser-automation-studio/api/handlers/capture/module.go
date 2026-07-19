@@ -75,6 +75,7 @@ type ReadinessResolution struct {
 	ProfileVersion     string
 	Route              string
 	RequiredSurfaceIDs []string
+	RouteMatched       bool
 }
 
 // Deps wires the capture handler. Executor and Logger are required;

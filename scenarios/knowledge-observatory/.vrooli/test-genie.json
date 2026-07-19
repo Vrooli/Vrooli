@@ -1063,7 +1063,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "documentation-health",
-          "cli-health"
+          "cli-steer"
         ],
         "fix_class": "manual",
         "reason": "Unknown CLI refs require deciding whether the command is real, renamed, or intentionally illustrative.",
@@ -1077,7 +1077,7 @@
         "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
           "documentation-health",
-          "cli-health"
+          "cli-steer"
         ],
         "fix_class": "manual",
         "reason": "Partial CLI refs require deciding whether stricter command validation is required.",
@@ -1091,7 +1091,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "documentation-health",
-          "cli-health"
+          "cli-steer"
         ],
         "fix_class": "manual",
         "reason": "Unknown command snippets require deciding whether to update the command, narrow validation, or keep prose-only guidance.",
@@ -1105,7 +1105,7 @@
         "severity_default": "SEVERITY_INFO",
         "recommended_skill_ids": [
           "documentation-health",
-          "cli-health"
+          "cli-steer"
         ],
         "fix_class": "manual",
         "reason": "Partial command snippets require deciding whether argument-level validation is needed.",
@@ -1119,7 +1119,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "documentation-health",
-          "cli-health"
+          "cli-steer"
         ],
         "fix_class": "manual",
         "reason": "Broken command snippets require choosing the correct current command invocation.",

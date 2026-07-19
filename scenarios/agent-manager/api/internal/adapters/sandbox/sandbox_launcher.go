@@ -315,6 +315,16 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 	withStdin := len(stdinBytes) > 0
 
 	envMap := envSliceToMap(req.Env)
+	if envMap == nil {
+		envMap = make(map[string]string, 1)
+	}
+	// The Vrooli CLI inside a protected sandbox uses this one bootstrap
+	// transport to reach workspace-sandbox's narrow host-lifecycle proxy.
+	// It is deliberately not a target-scenario endpoint: the proxy executes
+	// the host Vrooli CLI, which resolves target ports from the authoritative
+	// runtime registry. Supplying it here prevents recursive in-sandbox
+	// attempts to discover workspace-sandbox's own dynamic port.
+	envMap["VROOLI_HOST_LIFECYCLE_BASE"] = strings.TrimRight(l.provider.baseURL, "/")
 	// workspace-sandbox's vrooli-aware profile owns PATH construction.
 	// Dropping inherited PATH here prevents an interactive shell's tool
 	// order from becoming part of the audited sandbox launch contract.

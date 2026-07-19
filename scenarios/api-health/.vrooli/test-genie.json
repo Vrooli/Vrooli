@@ -318,7 +318,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented"
@@ -331,7 +331,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "Moving or inserting preflight in api/main.go can depend on startup ordering and side effects."
@@ -344,7 +344,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "Migrating server startup to api-core/server.Run requires understanding handler construction and shutdown hooks."
@@ -357,7 +357,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented"
@@ -370,7 +370,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "A failed live probe may require starting lifecycle services, fixing runtime dependencies, or repairing API code."
@@ -383,7 +383,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "Repairing a malformed health payload can require changing the handler response model and dependency status semantics."
@@ -396,7 +396,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented"
@@ -409,7 +409,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "Choosing the correct error status and envelope can depend on API semantics."
@@ -422,7 +422,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented"
@@ -435,7 +435,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "Changing endpoint paths is an API compatibility decision."
@@ -448,7 +448,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "Timeout values and client ownership depend on call semantics and retry policy."
@@ -461,7 +461,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "auto",
         "fixer_status": "implemented"
@@ -474,7 +474,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "Correct context propagation can require changing service signatures across a call graph."
@@ -487,7 +487,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "Adding cancellation requires understanding goroutine ownership and shutdown semantics."
@@ -500,7 +500,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "Logging architecture and field vocabulary require local API design judgment."
@@ -513,7 +513,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "api-health"
+          "api-steer"
         ],
         "fix_class": "manual",
         "reason": "Building deterministic fixers is provider implementation work."

@@ -343,6 +343,7 @@ type ComponentIdentity struct {
 	Title       string               `json:"title"`
 	Purpose     string               `json:"purpose"`
 	ExamplesRef string               `json:"examplesRef"`
+	StoryRef    string               `json:"storyRef"`
 	Extends     *LibraryComponentRef `json:"extends"`
 	Extension   *ComponentExtension  `json:"extension"`
 	PRDRefs     []string             `json:"prd_refs"`
@@ -404,10 +405,10 @@ func ParseScenario(scenarioDir string) (Report, error) {
 }
 
 // ComputeComponentDepth returns the L0-L3 experience depth for one component.
-// Components do not participate in journeys; example-anchored states are their
+// Components do not participate in journeys; catalog-specimen anchored states are their
 // highest parser-era depth.
 func ComputeComponentDepth(component ComponentDocument) int {
-	if component.Component.ID == "" || component.Component.ExamplesRef == "" {
+	if component.Component.ID == "" || (component.Component.ExamplesRef == "" && component.Component.StoryRef == "") {
 		return 0
 	}
 	depth := 0
@@ -683,6 +684,9 @@ func checkPageShape(report *Report, loc string, page PageDocument, ref DocumentR
 	checkUniqueIDs(report, loc, "element", elementIDs(page.Elements))
 	checkUniqueIDs(report, loc, "claim", claimIDs(page.Claims))
 	checkUniqueIDs(report, loc, "region", regionIDs(page.Regions))
+	if pageRequiresRuntimeReadiness(page) && pageDeclaresAsyncLifecycle(page) && !pageHasRequiredAsyncRegion(page) {
+		report.add(CodeSchemaInvalid, SeverityError, "page declares loading or recovery states without a required async region", loc, "Declare the primary async region with lifecycle.kind async and a runtime binding, or remove lifecycle states from a static page.")
+	}
 	for _, el := range page.Elements {
 		if !idPattern.MatchString(el.ID) || !rolePattern.MatchString(el.Role) {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("element %q has invalid id or role", el.ID), loc, "Use kebab-case ids and ARIA or x- namespaced roles.")
@@ -691,6 +695,37 @@ func checkPageShape(report *Report, loc string, page PageDocument, ref DocumentR
 	for _, claim := range page.Claims {
 		checkClaimShape(report, loc, claim)
 	}
+}
+
+// Schema v1.1 is the readiness-contract revision. Older documents retain their
+// existing descriptive page states while scenarios migrate deliberately; new
+// v1.1+ contracts cannot name async page modes without machine-readable
+// runtime ownership.
+func pageRequiresRuntimeReadiness(page PageDocument) bool {
+	return strings.TrimSpace(page.SchemaVersion) >= "1.1.0"
+}
+
+// Page states describe user-visible modes, while regions are the runtime
+// contract consumed by BAS and UI Health. A page that names loading or recovery
+// modes without a required async region is ambiguous: automation cannot know
+// what must settle, and a shell mount can be mistaken for usable content.
+func pageDeclaresAsyncLifecycle(page PageDocument) bool {
+	for _, state := range page.States {
+		id := strings.TrimSpace(state.ID)
+		if id == "loading" || strings.HasSuffix(id, "-loading") || id == "error" || strings.HasSuffix(id, "-error") {
+			return true
+		}
+	}
+	return false
+}
+
+func pageHasRequiredAsyncRegion(page PageDocument) bool {
+	for _, region := range page.Regions {
+		if region.Required && region.Lifecycle.Kind == "async" {
+			return true
+		}
+	}
+	return false
 }
 
 func checkPageReferences(report *Report, loc string, page PageDocument, components map[string]ComponentDocument) {
@@ -882,8 +917,8 @@ func checkComponentShape(report *Report, loc string, component ComponentDocument
 	if component.Component.ID != ref.ID {
 		report.add(CodeIndexParity, SeverityError, fmt.Sprintf("component id %q does not match index id %q", component.Component.ID, ref.ID), loc, "Keep index and component ids identical.")
 	}
-	if component.Component.Title == "" || len(component.Component.Purpose) < 15 || strings.TrimSpace(component.Component.ExamplesRef) == "" {
-		report.add(CodeSchemaInvalid, SeverityError, "component identity must include title, purpose, and examplesRef", loc, "Fill component.title, component.purpose, and component.examplesRef.")
+	if component.Component.Title == "" || len(component.Component.Purpose) < 15 || (strings.TrimSpace(component.Component.ExamplesRef) == "" && strings.TrimSpace(component.Component.StoryRef) == "") {
+		report.add(CodeSchemaInvalid, SeverityError, "component identity must include title, purpose, and a catalog story or examples reference", loc, "Fill component.title, component.purpose, and component.storyRef (or examplesRef for a legacy catalog).")
 	}
 	if component.Component.Extends != nil {
 		if !idPattern.MatchString(component.Component.Extends.Component) || !schemaVersionPattern.MatchString(component.Component.Extends.Version) {
@@ -914,7 +949,7 @@ func checkComponentShape(report *Report, loc string, component ComponentDocument
 func checkComponentReferences(report *Report, loc, path, scenarioDir string, component ComponentDocument) {
 	elementSet := stringSet(elementIDs(component.Elements))
 	stateSet := stringSet(componentStateIDs(component.States))
-	exampleSet := componentExamples(filepath.Dir(path), component.Component.ExamplesRef)
+	specimenSet := componentSpecimens(filepath.Dir(path), component.Component.StoryRef, component.Component.ExamplesRef)
 	for _, claim := range component.Claims {
 		for _, el := range claim.Elements {
 			if !elementSet[el] {
@@ -945,12 +980,13 @@ func checkComponentReferences(report *Report, loc, path, scenarioDir string, com
 		}
 	}
 	for _, state := range component.States {
-		if len(exampleSet) == 0 {
-			report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("component examplesRef %q has no readable examples", component.Component.ExamplesRef), loc, "Point examplesRef at a readable catalog examples.json file.")
+		if len(specimenSet) == 0 {
+			ref := firstNonEmpty(component.Component.StoryRef, component.Component.ExamplesRef)
+			report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("component catalog reference %q has no readable specimens", ref), loc, "Point storyRef at a readable catalog story.json file (or examplesRef at a legacy catalog file).")
 			break
 		}
-		if !exampleSet[state.Example] {
-			report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("component state %q references unknown example %q", state.ID, state.Example), loc, "Reference an example name declared in examples.json.")
+		if !specimenSet[state.Example] {
+			report.add(CodeRefUnresolved, SeverityError, fmt.Sprintf("component state %q references unknown specimen %q", state.ID, state.Example), loc, "Reference a named story or legacy example declared by the catalog asset.")
 		}
 	}
 	checkWrapperExtension(report, loc, scenarioDir, component)
@@ -1012,8 +1048,8 @@ func checkWrapperExtension(report *Report, loc, scenarioDir string, component Co
 	}
 }
 
-func componentExamples(baseDir, examplesRef string) map[string]bool {
-	ref := strings.TrimSpace(examplesRef)
+func componentSpecimens(baseDir, storyRef, examplesRef string) map[string]bool {
+	ref := strings.TrimSpace(firstNonEmpty(storyRef, examplesRef))
 	if ref == "" {
 		return nil
 	}
@@ -1025,6 +1061,9 @@ func componentExamples(baseDir, examplesRef string) map[string]bool {
 		Examples []struct {
 			Name string `json:"name"`
 		} `json:"examples"`
+		Stories []struct {
+			ID string `json:"id"`
+		} `json:"stories"`
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil
@@ -1035,7 +1074,21 @@ func componentExamples(baseDir, examplesRef string) map[string]bool {
 			out[example.Name] = true
 		}
 	}
+	for _, story := range doc.Stories {
+		if story.ID != "" {
+			out[story.ID] = true
+		}
+	}
 	return out
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func checkPRDRefs(report *Report, loc, owner string, refs []string, prdRefs map[string]bool) {

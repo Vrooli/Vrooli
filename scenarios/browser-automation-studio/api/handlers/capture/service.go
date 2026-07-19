@@ -89,11 +89,19 @@ func (s *service) Capture(
 	}
 	if msg.GetWaitFor() == nil && s.deps.ReadinessResolver != nil {
 		if scenario, route, ok := scenarioTarget(msg.GetUrl()); ok {
-			if resolution, resolveErr := s.deps.ReadinessResolver.ResolveReadinessWaits(ctx, scenario, route); resolveErr == nil && len(resolution.Waits) > 0 {
-				appendPostNavigationWaits(adhocReq, resolution.Waits)
+			if resolution, resolveErr := s.deps.ReadinessResolver.ResolveReadinessWaits(ctx, scenario, route); resolveErr == nil {
 				declaredResolution = resolution
-				selectedReadiness = "declared-surface"
-			} else if resolveErr != nil {
+				if len(resolution.Waits) > 0 {
+					appendPostNavigationWaits(adhocReq, resolution.Waits)
+					selectedReadiness = "declared-surface"
+				} else if resolution.ProfileVersion == "" {
+					fallbackReason = "declared readiness profile returned no version"
+				} else if !resolution.RouteMatched {
+					fallbackReason = "declared readiness profile does not include the requested route"
+				} else {
+					fallbackReason = "declared readiness route has no bound required surfaces"
+				}
+			} else {
 				fallbackReason = "declared readiness profile unavailable: " + resolveErr.Error()
 			}
 		}

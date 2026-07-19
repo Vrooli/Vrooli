@@ -242,7 +242,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "screaming-architecture-audit",
-          "architecture-cartographer"
+          "screaming-architecture-audit"
         ]
       },
       "domain_authority/low": {

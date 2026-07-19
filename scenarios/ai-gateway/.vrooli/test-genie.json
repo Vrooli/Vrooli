@@ -318,7 +318,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "storage-health"
+          "storage-steer"
         ],
         "fix_class": "manual",
         "reason": "Embedding schema migration requires data-retention judgment."
@@ -331,7 +331,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "storage-health"
+          "storage-steer"
         ],
         "fix_class": "manual",
         "reason": "Vector metadata repair depends on the stored corpus and migration plan."

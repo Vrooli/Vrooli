@@ -299,6 +299,20 @@ func TestCapture_ExternalURLRetainsGenericReadinessWithoutProfileLookup(t *testi
 	require.Len(t, exec.LastReq.GetFlowDefinition().GetNodes(), 1)
 }
 
+func TestCapture_DeclaredRouteWithoutSurfacesExplainsGenericFallback(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{
+		Executor:          exec,
+		Resolver:          &fakeResolver{URL: "http://127.0.0.1:9101"},
+		ReadinessResolver: &fakeReadinessResolver{Resolution: ReadinessResolution{ProfileVersion: "experience-readiness-profile/v1", Route: "/", RouteMatched: true}},
+	})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "scenario=app-monitor,path=/"}))
+	require.NoError(t, err)
+	require.Equal(t, "generic-navigation", resp.Msg.GetReadiness().GetSelectedStrategy())
+	require.Equal(t, "declared readiness route has no bound required surfaces", resp.Msg.GetReadiness().GetFallbackReason())
+}
+
 func TestCapture_ExplicitWaitOverridesDeclaredReadiness(t *testing.T) {
 	exec := &fakeExecutor{}
 	readiness := &fakeReadinessResolver{Resolution: ReadinessResolution{Waits: []*actionsv1.WaitParams{{WaitFor: &actionsv1.WaitParams_Selector{Selector: `[data-testid="declared-ready"]`}}}}}

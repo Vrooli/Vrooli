@@ -268,7 +268,7 @@
         "fix_class": "manual",
         "reason": "A meaningful display name requires human/product judgment, not a deterministic default.",
         "recommended_skill_ids": [
-          "branding",
+          "brand-manager",
           "ecosystem-fit"
         ],
         "clean_requirement": "required"
@@ -282,7 +282,7 @@
         "fix_class": "auto",
         "fixer_status": "implemented",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -296,7 +296,7 @@
         "fixer_status": "implemented",
         "reason": "A complete baseline token set is only created when none exists; an existing-but-incomplete file is left to a human (not advertised as auto-fixable).",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -309,7 +309,7 @@
         "fix_class": "manual",
         "reason": "Font selection is a design choice, not a deterministic default.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -322,8 +322,8 @@
         "fix_class": "manual",
         "reason": "Fetching/self-hosting a typeface is not a deterministic edit; font selection is a design choice.",
         "recommended_skill_ids": [
-          "branding",
-          "accessibility"
+          "brand-manager",
+          "ui-health"
         ],
         "clean_requirement": "required"
       },
@@ -336,7 +336,7 @@
         "fix_class": "manual",
         "reason": "Logo image generation is non-deterministic and requires AI or a human asset.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -350,7 +350,7 @@
         "fixer_status": "implemented",
         "reason": "Self-contained: derived from an existing logo. When no logo exists it is honestly guidance-only (autofix not advertised).",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -364,7 +364,7 @@
         "fixer_status": "implemented",
         "reason": "Default Vite favicon/title residue is removed deterministically; lorem-ipsum copy stays a manual finding.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -377,8 +377,8 @@
         "fix_class": "manual",
         "reason": "Flattening/re-encoding an icon or generating an icon set is an image transform left to the brand-projection path.",
         "recommended_skill_ids": [
-          "branding",
-          "accessibility"
+          "brand-manager",
+          "ui-health"
         ],
         "clean_requirement": "required"
       },
@@ -391,7 +391,7 @@
         "fix_class": "manual",
         "reason": "A dangling reference is fixed by shipping the missing image bytes, which cannot be synthesized deterministically.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -404,8 +404,8 @@
         "fix_class": "manual",
         "reason": "Stripping nodes from a hand/tool-authored SVG can silently break its rendering, so sanitizing stays a human decision.",
         "recommended_skill_ids": [
-          "branding",
-          "accessibility"
+          "brand-manager",
+          "ui-health"
         ],
         "clean_requirement": "required"
       },
@@ -418,7 +418,7 @@
         "fix_class": "manual",
         "reason": "A home-screen icon is a branded visual asset and should be derived from the approved brand/logo source, not invented by validation.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -432,7 +432,7 @@
         "fixer_status": "implemented",
         "reason": "Branding/PWA/OG assets and their references are deterministically relocated under /public/ (ui/public/public) and repointed, so an edge Access bypass can serve them to anonymous fetchers.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -445,8 +445,8 @@
         "fix_class": "manual",
         "reason": "Re-balancing a palette to pass AA requires design judgment, not a mechanical edit.",
         "recommended_skill_ids": [
-          "branding",
-          "accessibility"
+          "brand-manager",
+          "ui-health"
         ],
         "clean_requirement": "required"
       },
@@ -459,8 +459,8 @@
         "fix_class": "manual",
         "reason": "Re-balancing the dark palette to pass AA requires design judgment.",
         "recommended_skill_ids": [
-          "branding",
-          "accessibility"
+          "brand-manager",
+          "ui-health"
         ],
         "clean_requirement": "required"
       },
@@ -473,8 +473,8 @@
         "fix_class": "auto",
         "fixer_status": "implemented",
         "recommended_skill_ids": [
-          "branding",
-          "accessibility"
+          "brand-manager",
+          "ui-health"
         ],
         "clean_requirement": "required"
       },
@@ -488,8 +488,8 @@
         "fixer_status": "implemented",
         "reason": "A uniform prefers-reduced-motion reduce block is appended to the existing design tokens; when no tokens file exists it is guidance-only.",
         "recommended_skill_ids": [
-          "branding",
-          "accessibility"
+          "brand-manager",
+          "ui-health"
         ],
         "clean_requirement": "required"
       },
@@ -502,7 +502,7 @@
         "fix_class": "manual",
         "reason": "Applying markers is brand-projection: it needs an assigned brand via the apply domain, which the served validation path has no input for, so it is guidance-only here.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -516,7 +516,7 @@
         "fixer_status": "implemented",
         "reason": "The missing-entirely case is auto-injected; deriving a dark-scheme variant value is left guidance-only.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -529,7 +529,7 @@
         "fix_class": "auto",
         "fixer_status": "implemented",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -542,7 +542,7 @@
         "fix_class": "auto",
         "fixer_status": "implemented",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -555,7 +555,7 @@
         "fix_class": "manual",
         "reason": "A scenario may intentionally use a launch chrome color that differs from the canonical surface token, but that divergence must be documented in DESIGN.md.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -569,7 +569,7 @@
         "fixer_status": "implemented",
         "reason": "Injects viewport-fit=cover + a safe-area-inset token deterministically; the runtime render is out of scope (ui-health/device harness).",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -583,7 +583,7 @@
         "fixer_status": "implemented",
         "reason": "Scalar fields are filled from identity + house defaults; missing icons require a logo and stay guidance-only.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -596,7 +596,7 @@
         "fix_class": "auto",
         "fixer_status": "implemented",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -609,7 +609,7 @@
         "fix_class": "auto",
         "fixer_status": "implemented",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -622,7 +622,7 @@
         "fix_class": "manual",
         "reason": "A share-card image requires a branded 1200x630 asset or approved visual composition, so validation only reports the missing surface.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -635,7 +635,7 @@
         "fix_class": "manual",
         "reason": "Human-facing CLI help copy is a writing decision, not a deterministic default.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       },
@@ -648,7 +648,7 @@
         "fix_class": "manual",
         "reason": "The API/OpenAPI title (service.description) is human-authored product copy.",
         "recommended_skill_ids": [
-          "branding"
+          "brand-manager"
         ],
         "clean_requirement": "required"
       }

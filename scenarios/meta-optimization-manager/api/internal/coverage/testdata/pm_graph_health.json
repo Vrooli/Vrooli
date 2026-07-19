@@ -3339,48 +3339,6 @@
     ]
   },
   {
-    "nodeId": "ecosystem-manager-tools",
-    "score": 0.2,
-    "factors": {
-      "action-command": 0.5,
-      "action-contract": 0.5,
-      "action-examples": 0.5,
-      "action-owner": 0.5,
-      "agent-context-load": 0.5,
-      "code-usage": 1,
-      "command-reference": 0,
-      "incoming-edges": 0.2,
-      "outgoing-edges": 0.6,
-      "recent-activity": 0.5,
-      "skill-content-length": 1,
-      "team-member-count-balance": 0.5,
-      "team-role-coverage": 0.5
-    },
-    "messages": [
-      {
-        "key": "skill.command.invalid",
-        "severity": "critical",
-        "summary": "Skill references an invalid current command",
-        "detail": "CLI Health rejected `ecosystem-manager task add scenario \u003cname\u003e`.",
-        "recommendation": "unsupported_shell_syntax: unsupported shell redirection \"\u003c\"; `\u003c` and `\u003e` are shell redirection operators in executable shell snippets. If this was a placeholder, use a shell-safe value like `TOKEN_VALUE`; if the text is not meant to run, mark it as literal/text instead."
-      },
-      {
-        "key": "skill.command.invalid",
-        "severity": "critical",
-        "summary": "Skill references an invalid current command",
-        "detail": "CLI Health rejected `notes`.",
-        "recommendation": "unknown_command: command path was not found in the CLI Health catalog; suggestion: notes configure; suggestion: notes status; suggestion: notes version; Fix the command to a current catalog command, or use cli[future]/cli[old] only when the reference is intentionally not current."
-      },
-      {
-        "key": "skill.command.partial",
-        "severity": "warning",
-        "summary": "Skill command has partial validation coverage",
-        "detail": "CLI Health confirmed `vrooli scenario start ecosystem-manager` exists, but could not fully validate its arguments.",
-        "recommendation": "argument_schema_unavailable: command exists, but argument shape cannot be validated from reliable metadata; CLI Health proved the command path exists, but not every flag or positional argument."
-      }
-    ]
-  },
-  {
     "nodeId": "error-semantics-recovery-path-design",
     "score": 0.49333333333333335,
     "factors": {

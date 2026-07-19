@@ -21,6 +21,8 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -143,8 +145,29 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	eventsURL := strings.TrimSpace(os.Getenv("VROOLI_EVENTS_API_BASE"))
+	if eventsURL == "" {
+		// This one-time discovery is setup only. Request handling reads its
+		// local snapshot and never depends on Vrooli Events availability.
+		eventsURL, _ = discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events")
+	}
+	policyCache := eventbus.NewCache()
+	eventsClient := eventbus.Client{BaseURL: eventsURL}
+	eventbus.StartRefresher(context.Background(), eventsClient, policyCache, eventbus.RefreshConfig{})
+	receiptMiddleware := eventbus.Middleware(eventbus.MiddlewareConfig{
+		Source: "agent-manager", Target: "plan-manager", Evaluator: policyCache, ReceiptPolicy: policyCache, Reporter: eventsClient,
+		Operation: func(r *http.Request) string { return r.Method + " " + r.URL.Path },
+		Projection: func(r *http.Request, status int) (map[string]any, bool) {
+			// This pilot intentionally does not inspect a Connect response body.
+			// A matching central projection rule may authorize an empty receipt;
+			// richer typed fields require an explicit module-owned extractor.
+			return map[string]any{}, status >= http.StatusOK && status < http.StatusMultipleChoices
+		},
+		Correlation: eventbus.VerifiedCorrelation,
+	})
+
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clock.System{}, Logger: log.Default(), ReceiptMiddleware: receiptMiddleware},
 		healthH.Module(db, "plan-manager-api", "1.0.0"),
 		plansH.Module(db, clock.System{}, log.Default()),
 		validationH.Module(db, clock.System{}, log.Default()),

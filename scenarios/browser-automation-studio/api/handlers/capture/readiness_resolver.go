@@ -39,11 +39,12 @@ func (r *experienceReadinessResolver) ResolveReadinessWaits(ctx context.Context,
 	if err := json.Unmarshal([]byte(resp.Msg.GetProfileJson()), &profile); err != nil {
 		return ReadinessResolution{}, fmt.Errorf("decode readiness profile: %w", err)
 	}
+	resolution := ReadinessResolution{ProfileVersion: resp.Msg.GetProfileVersion(), Route: route}
 	for _, page := range profile.Pages {
 		if !containsRoute(page.Routes, route) {
 			continue
 		}
-		resolution := ReadinessResolution{ProfileVersion: resp.Msg.GetProfileVersion(), Route: route}
+		resolution.RouteMatched = true
 		for _, region := range page.Regions {
 			if !region.Required {
 				continue
@@ -60,7 +61,7 @@ func (r *experienceReadinessResolver) ResolveReadinessWaits(ctx context.Context,
 		}
 		return resolution, nil
 	}
-	return ReadinessResolution{}, nil
+	return resolution, nil
 }
 
 type readinessProfile struct {

@@ -56,6 +56,27 @@ func TestParseScenarioFixturesContractGreen(t *testing.T) { // [REQ:EXPERIEN-P0-
 	}
 }
 
+func TestV11AsyncPageStatesRequireARequiredAsyncRegion(t *testing.T) {
+	page := PageDocument{
+		SchemaVersion: "1.1.0",
+		States:        []State{{ID: "loading"}, {ID: "request-error"}},
+	}
+	if !pageRequiresRuntimeReadiness(page) || !pageDeclaresAsyncLifecycle(page) || pageHasRequiredAsyncRegion(page) {
+		t.Fatalf("fixture does not represent a v1.1 page with unowned async lifecycle: %+v", page)
+	}
+
+	page.Regions = []ExperienceRegion{{Required: true, Lifecycle: RegionLifecycle{Kind: "async", States: []string{"loading", "ready"}}}}
+	if !pageHasRequiredAsyncRegion(page) {
+		t.Fatal("required async region must satisfy the runtime-readiness invariant")
+	}
+
+	legacy := page
+	legacy.SchemaVersion = "1.0.0"
+	if pageRequiresRuntimeReadiness(legacy) {
+		t.Fatal("legacy v1.0 contract must remain descriptive until explicitly migrated")
+	}
+}
+
 func TestScenarioExperienceDocumentsValidateAgainstJSONSchema(t *testing.T) { // [REQ:EXPERIEN-P0-001]
 	root := repoRoot(t)
 	schemaBytes, err := os.ReadFile(filepath.Join(root, ".vrooli", "schemas", "scenario-experience-spec.schema.json"))
@@ -157,7 +178,7 @@ func TestParseScenarioParsesComponentDocuments(t *testing.T) {
 	if !ok {
 		t.Fatalf("button component not parsed: %+v", report.Spec.Components)
 	}
-	if button.Kind != kindComponent || button.Component.ExamplesRef == "" {
+	if button.Kind != kindComponent || button.Component.StoryRef == "" {
 		t.Fatalf("button component identity not preserved: %+v", button)
 	}
 	if got := report.ComponentDepths["button"]; got != 3 {
