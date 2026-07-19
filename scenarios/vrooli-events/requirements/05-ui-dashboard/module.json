@@ -1,12 +1,13 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-04-05T14:45:23-04:00"
+    "last_validated_at": "2026-07-18T12:22:14-04:00"
   },
   "requirements": [
     {
       "id": "REQ-UI-001",
       "title": "Event stream viewer",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Real-time scrolling feed of incoming events via SSE with filtering and pause/resume.",
       "children": [
         "REQ-UI-001A",
@@ -17,28 +18,22 @@
           "type": "test",
           "ref": "ui/src/lib/errors.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "ui/src/lib/utils.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      ]
     },
     {
       "id": "REQ-UI-001A",
       "title": "Real-time SSE event feed",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Events arrive via SSE and render in scrolling feed with color-coded event types",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
       "children": [
         "REQ-UI-001A1"
       ],
@@ -47,20 +42,16 @@
           "type": "test",
           "ref": "ui/src/consts/selectors.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P2"
+      ]
     },
     {
       "id": "REQ-UI-001A1",
       "title": "Event type color coding",
       "status": "complete",
-      "description": "Events color-coded by source scenario",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
       "criticality": "P2",
+      "description": "Events color-coded by source scenario",
       "children": [
         "REQ-UI-001A1a"
       ]
@@ -69,107 +60,93 @@
       "id": "REQ-UI-001B",
       "title": "Stream pause/resume control",
       "status": "complete",
-      "description": "Pause/resume button to freeze stream for inspection",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
       "criticality": "P2",
+      "description": "Pause/resume button to freeze stream for inspection",
       "children": [
         "REQ-UI-001B1"
       ]
     },
     {
       "id": "REQ-UI-002",
-      "title": "Analytics dashboard \u2014 throughput",
-      "status": "complete",
+      "title": "Analytics dashboard — throughput",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Time-series chart showing events/second with source scenario breakdown.",
+      "children": [
+        "REQ-UI-002A",
+        "REQ-UI-002B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/consts/selectors.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-002A",
-        "REQ-UI-002B"
       ]
     },
     {
       "id": "REQ-UI-003",
-      "title": "Analytics dashboard \u2014 per-scenario metrics",
-      "status": "complete",
+      "title": "Analytics dashboard — per-scenario metrics",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Table and bar chart showing per-scenario call volume.",
+      "children": [
+        "REQ-UI-003A",
+        "REQ-UI-003B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/pages/ScenarioMetricsPage.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-003A",
-        "REQ-UI-003B"
       ]
     },
     {
       "id": "REQ-UI-004",
       "title": "Event detail view",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Event detail panel with JSON payload and correlation chain.",
+      "children": [
+        "REQ-UI-004A",
+        "REQ-UI-004B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/pages/EventDetail.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-005"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-004A",
-        "REQ-UI-004B"
       ]
     },
     {
       "id": "REQ-UI-005",
       "title": "Correlation trace view",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Visual timeline of related events by correlation_id.",
+      "children": [
+        "REQ-UI-005A",
+        "REQ-UI-005B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/pages/CorrelationTracePage.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-005"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-005A",
-        "REQ-UI-005B"
       ]
     },
     {
       "id": "REQ-UI-006",
-      "title": "Policy management \u2014 rule list",
-      "status": "complete",
+      "title": "Policy management — rule list",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Table of policy rules with filtering and bulk operations.",
       "children": [
         "REQ-UI-006A",
@@ -180,36 +157,26 @@
           "type": "test",
           "ref": "ui/src/pages/PoliciesPage.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-002"
-      ],
-      "criticality": "P2"
+      ]
     },
     {
       "id": "REQ-UI-006A",
       "title": "Rule type filtering",
       "status": "complete",
+      "criticality": "P2",
       "description": "Filter by access, rate_limit, circuit_breaker and scenario",
-      "operational_targets": [
-        "OT-P2-002"
-      ],
       "children": [
         "REQ-UI-006A1"
-      ],
-      "criticality": "P2"
+      ]
     },
     {
       "id": "REQ-UI-006A1",
       "title": "Sortable policy columns",
       "status": "complete",
-      "description": "Columns sortable by type, priority, source, target, and dates",
-      "operational_targets": [
-        "OT-P2-002"
-      ],
       "criticality": "P2",
+      "description": "Columns sortable by type, priority, source, target, and dates",
       "children": [
         "REQ-UI-006A1a"
       ]
@@ -218,41 +185,36 @@
       "id": "REQ-UI-006B",
       "title": "Bulk enable/disable",
       "status": "complete",
-      "description": "Select multiple rules and toggle enabled status in bulk",
-      "operational_targets": [
-        "OT-P2-002"
-      ],
       "criticality": "P2",
+      "description": "Select multiple rules and toggle enabled status in bulk",
       "children": [
         "REQ-UI-006B1"
       ]
     },
     {
       "id": "REQ-UI-007",
-      "title": "Policy management \u2014 rule editor",
-      "status": "complete",
+      "title": "Policy management — rule editor",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Form for creating/editing policy rules with validation.",
+      "children": [
+        "REQ-UI-007A",
+        "REQ-UI-007B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/pages/PolicyEditorPage.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-002"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-007A",
-        "REQ-UI-007B"
       ]
     },
     {
       "id": "REQ-UI-008",
       "title": "Circuit breaker dashboard",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Grid of circuit breaker pairs with state indicators and manual override.",
       "children": [
         "REQ-UI-008A",
@@ -263,36 +225,26 @@
           "type": "test",
           "ref": "ui/src/pages/CircuitBreakerPage.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-007"
-      ],
-      "criticality": "P2"
+      ]
     },
     {
       "id": "REQ-UI-008A",
       "title": "Circuit breaker state visualization",
       "status": "complete",
+      "criticality": "P2",
       "description": "Color-coded state cards: closed=green, half-open=yellow, open=red",
-      "operational_targets": [
-        "OT-P2-007"
-      ],
       "children": [
         "REQ-UI-008A1"
-      ],
-      "criticality": "P2"
+      ]
     },
     {
       "id": "REQ-UI-008A1",
       "title": "Cooldown timer display",
       "status": "complete",
-      "description": "Shows remaining cooldown time for open circuit breakers",
-      "operational_targets": [
-        "OT-P2-007"
-      ],
       "criticality": "P2",
+      "description": "Shows remaining cooldown time for open circuit breakers",
       "children": [
         "REQ-UI-008A1a"
       ]
@@ -301,11 +253,8 @@
       "id": "REQ-UI-008B",
       "title": "Manual override buttons",
       "status": "complete",
-      "description": "Force open/close circuit breaker buttons with confirmation",
-      "operational_targets": [
-        "OT-P2-007"
-      ],
       "criticality": "P2",
+      "description": "Force open/close circuit breaker buttons with confirmation",
       "children": [
         "REQ-UI-008B1"
       ]
@@ -313,164 +262,137 @@
     {
       "id": "REQ-UI-009",
       "title": "Subscription management",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Subscription table with CRUD and glob pattern tester.",
+      "children": [
+        "REQ-UI-009A",
+        "REQ-UI-009B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/pages/SubscriptionsPage.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-003"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-009A",
-        "REQ-UI-009B"
       ]
     },
     {
       "id": "REQ-UI-010",
       "title": "Subscription health detail",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Delivery stats, recent log, and re-enable button.",
+      "children": [
+        "REQ-UI-010A",
+        "REQ-UI-010B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/pages/SubscriptionHealthPage.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-003"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-010A",
-        "REQ-UI-010B"
       ]
     },
     {
       "id": "REQ-UI-011",
-      "title": "Compliance & audit view",
-      "status": "complete",
+      "title": "Compliance \u0026 audit view",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Searchable policy violations log with export.",
+      "children": [
+        "REQ-UI-011A",
+        "REQ-UI-011B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/pages/CompliancePage.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-004"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-011A",
-        "REQ-UI-011B"
       ]
     },
     {
       "id": "REQ-UI-012",
-      "title": "Retention & storage settings",
-      "status": "complete",
+      "title": "Retention \u0026 storage settings",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Settings panel for retention, size cap, and manual prune.",
+      "children": [
+        "REQ-UI-012A",
+        "REQ-UI-012B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/pages/SettingsPage.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-006"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-012A",
-        "REQ-UI-012B"
       ]
     },
     {
       "id": "REQ-UI-013",
       "title": "System health overview",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Dashboard card showing API status and ingestion rate.",
+      "children": [
+        "REQ-UI-013A",
+        "REQ-UI-013B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/pages/AnalyticsPage.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-013A",
-        "REQ-UI-013B"
       ]
     },
     {
       "id": "REQ-UI-014",
       "title": "Navigation and layout",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P2",
       "description": "Sidebar navigation with responsive layout and dark theme.",
+      "children": [
+        "REQ-UI-014A",
+        "REQ-UI-014B"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/consts/selectors.test.ts",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2",
-      "children": [
-        "REQ-UI-014A",
-        "REQ-UI-014B"
       ]
     },
     {
       "id": "REQ-UI-001A1a",
       "title": "Color legend for event sources",
-      "description": "Displays color legend mapping source scenarios to their assigned colors",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Displays color legend mapping source scenarios to their assigned colors"
     },
     {
       "id": "REQ-UI-001B1",
       "title": "Pause state visual indicator",
-      "description": "Clear visual indicator when stream is paused vs actively receiving",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Clear visual indicator when stream is paused vs actively receiving"
     },
     {
       "id": "REQ-UI-002A",
       "title": "Throughput data aggregation",
-      "description": "Aggregates events per second from API with configurable time window",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
       "criticality": "P2",
+      "description": "Aggregates events per second from API with configurable time window",
       "children": [
         "REQ-UI-002A1"
       ]
@@ -478,32 +400,23 @@
     {
       "id": "REQ-UI-002A1",
       "title": "Interval selection control",
-      "description": "User can select 1m, 5m, 15m, 1h aggregation intervals",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "User can select 1m, 5m, 15m, 1h aggregation intervals"
     },
     {
       "id": "REQ-UI-002B",
       "title": "Source scenario breakdown chart",
-      "description": "Stacked area chart showing per-source contribution to total throughput",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Stacked area chart showing per-source contribution to total throughput"
     },
     {
       "id": "REQ-UI-003A",
       "title": "Per-scenario volume calculation",
-      "description": "Aggregates total events sent and received per scenario from query API",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
       "criticality": "P2",
+      "description": "Aggregates total events sent and received per scenario from query API",
       "children": [
         "REQ-UI-003A1"
       ]
@@ -511,32 +424,23 @@
     {
       "id": "REQ-UI-003A1",
       "title": "Sortable metric columns",
-      "description": "Scenario table columns sortable by name, sent count, received count",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Scenario table columns sortable by name, sent count, received count"
     },
     {
       "id": "REQ-UI-003B",
       "title": "Scenario bar chart visualization",
-      "description": "Horizontal bar chart comparing scenario volumes with clickable bars",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Horizontal bar chart comparing scenario volumes with clickable bars"
     },
     {
       "id": "REQ-UI-004A",
       "title": "Event detail data expansion",
-      "description": "Fetches full event record including metadata and payload on selection",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-005"
-      ],
       "criticality": "P2",
+      "description": "Fetches full event record including metadata and payload on selection",
       "children": [
         "REQ-UI-004A1"
       ]
@@ -544,32 +448,23 @@
     {
       "id": "REQ-UI-004A1",
       "title": "Correlation chain link",
-      "description": "Correlation ID in detail view links to correlation trace page",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-005"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Correlation ID in detail view links to correlation trace page"
     },
     {
       "id": "REQ-UI-004B",
       "title": "JSON payload syntax highlighting",
-      "description": "Renders JSON payload with syntax highlighting and collapsible sections",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-005"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Renders JSON payload with syntax highlighting and collapsible sections"
     },
     {
       "id": "REQ-UI-005A",
       "title": "Correlation event grouping",
-      "description": "Groups events by correlation_id with chronological ordering",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-005"
-      ],
       "criticality": "P2",
+      "description": "Groups events by correlation_id with chronological ordering",
       "children": [
         "REQ-UI-005A1"
       ]
@@ -577,52 +472,37 @@
     {
       "id": "REQ-UI-005A1",
       "title": "Deep-link via query parameter",
-      "description": "Accepts ?cid= query param to pre-fill and auto-search correlation ID",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-005"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Accepts ?cid= query param to pre-fill and auto-search correlation ID"
     },
     {
       "id": "REQ-UI-005B",
       "title": "Timeline visualization",
-      "description": "Renders event chain as vertical timeline with timestamps and source labels",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-005"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Renders event chain as vertical timeline with timestamps and source labels"
     },
     {
       "id": "REQ-UI-006A1a",
       "title": "Sort direction toggle persistence",
-      "description": "Sort column and direction preserved across page navigations",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-002"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Sort column and direction preserved across page navigations"
     },
     {
       "id": "REQ-UI-006B1",
       "title": "Bulk action confirmation",
-      "description": "Confirmation dialog before applying bulk enable/disable changes",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-002"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Confirmation dialog before applying bulk enable/disable changes"
     },
     {
       "id": "REQ-UI-007A",
       "title": "Policy form field rendering",
-      "description": "Dynamic form fields based on rule type selection (access, rate_limit, circuit_breaker)",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-002"
-      ],
       "criticality": "P2",
+      "description": "Dynamic form fields based on rule type selection (access, rate_limit, circuit_breaker)",
       "children": [
         "REQ-UI-007A1"
       ]
@@ -630,52 +510,37 @@
     {
       "id": "REQ-UI-007A1",
       "title": "Conditional fields by rule type",
-      "description": "Rate limit shows window/max fields; circuit breaker shows threshold/cooldown",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-002"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Rate limit shows window/max fields; circuit breaker shows threshold/cooldown"
     },
     {
       "id": "REQ-UI-007B",
       "title": "Form validation feedback",
-      "description": "Inline validation errors with field-level feedback before submission",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-002"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Inline validation errors with field-level feedback before submission"
     },
     {
       "id": "REQ-UI-008A1a",
       "title": "Live countdown refresh",
-      "description": "Cooldown timer updates every second without full page refresh",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-007"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Cooldown timer updates every second without full page refresh"
     },
     {
       "id": "REQ-UI-008B1",
       "title": "Override confirmation dialog",
-      "description": "Modal confirmation with current and target state before applying override",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-007"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Modal confirmation with current and target state before applying override"
     },
     {
       "id": "REQ-UI-009A",
       "title": "Subscription CRUD operations",
-      "description": "Create, edit, delete subscriptions with form validation and error handling",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-003"
-      ],
       "criticality": "P2",
+      "description": "Create, edit, delete subscriptions with form validation and error handling",
       "children": [
         "REQ-UI-009A1"
       ]
@@ -683,32 +548,23 @@
     {
       "id": "REQ-UI-009A1",
       "title": "Inline subscription editing",
-      "description": "Edit subscription fields directly in the table row",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-003"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Edit subscription fields directly in the table row"
     },
     {
       "id": "REQ-UI-009B",
       "title": "Glob pattern tester",
-      "description": "Test input field that evaluates pattern against recent event types",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-003"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Test input field that evaluates pattern against recent event types"
     },
     {
       "id": "REQ-UI-010A",
       "title": "Delivery statistics display",
-      "description": "Shows success/failure counts, last delivery time, and status indicator",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-003"
-      ],
       "criticality": "P2",
+      "description": "Shows success/failure counts, last delivery time, and status indicator",
       "children": [
         "REQ-UI-010A1"
       ]
@@ -716,32 +572,23 @@
     {
       "id": "REQ-UI-010A1",
       "title": "Recent delivery log with filtering",
-      "description": "Filterable log of recent delivery attempts with status and response codes",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-003"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Filterable log of recent delivery attempts with status and response codes"
     },
     {
       "id": "REQ-UI-010B",
       "title": "Re-enable subscription flow",
-      "description": "Re-enable button with confirmation for auto-disabled subscriptions",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-003"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Re-enable button with confirmation for auto-disabled subscriptions"
     },
     {
       "id": "REQ-UI-011A",
       "title": "Violation search and filtering",
-      "description": "Search violations by source, target, rule ID, and time range",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-004"
-      ],
       "criticality": "P2",
+      "description": "Search violations by source, target, rule ID, and time range",
       "children": [
         "REQ-UI-011A1"
       ]
@@ -749,32 +596,23 @@
     {
       "id": "REQ-UI-011A1",
       "title": "Persistent filter state",
-      "description": "Active filters preserved in URL query params for bookmarkability",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-004"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Active filters preserved in URL query params for bookmarkability"
     },
     {
       "id": "REQ-UI-011B",
       "title": "Violation export",
-      "description": "Export filtered violations as CSV or JSON download",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-004"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Export filtered violations as CSV or JSON download"
     },
     {
       "id": "REQ-UI-012A",
       "title": "Settings form layout",
-      "description": "Form displaying current retention, size cap, and prune interval values",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-006"
-      ],
       "criticality": "P2",
+      "description": "Form displaying current retention, size cap, and prune interval values",
       "children": [
         "REQ-UI-012A1"
       ]
@@ -782,32 +620,23 @@
     {
       "id": "REQ-UI-012A1",
       "title": "Current value preloading",
-      "description": "Form fields pre-populated with current server settings on page load",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-006"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Form fields pre-populated with current server settings on page load"
     },
     {
       "id": "REQ-UI-012B",
       "title": "Settings save with validation",
-      "description": "Client-side validation before saving with success/error feedback",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-006"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Client-side validation before saving with success/error feedback"
     },
     {
       "id": "REQ-UI-013A",
       "title": "API connection status indicator",
-      "description": "Green/red dot showing live API connectivity based on health check",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
       "criticality": "P2",
+      "description": "Green/red dot showing live API connectivity based on health check",
       "children": [
         "REQ-UI-013A1"
       ]
@@ -815,32 +644,23 @@
     {
       "id": "REQ-UI-013A1",
       "title": "Health card with alert threshold",
-      "description": "Health card changes color when metrics exceed configured thresholds",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Health card changes color when metrics exceed configured thresholds"
     },
     {
       "id": "REQ-UI-013B",
       "title": "Ingestion rate metric",
-      "description": "Displays current events/second rate calculated from recent health data",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Displays current events/second rate calculated from recent health data"
     },
     {
       "id": "REQ-UI-014A",
       "title": "Sidebar navigation structure",
-      "description": "Collapsible sidebar with grouped navigation links and active route highlighting",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
       "criticality": "P2",
+      "description": "Collapsible sidebar with grouped navigation links and active route highlighting",
       "children": [
         "REQ-UI-014A1"
       ]
@@ -848,31 +668,16 @@
     {
       "id": "REQ-UI-014A1",
       "title": "Active route visual indicator",
-      "description": "Current page highlighted in sidebar with accent color and indicator",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Current page highlighted in sidebar with accent color and indicator"
     },
     {
       "id": "REQ-UI-014B",
       "title": "Responsive layout breakpoints",
-      "description": "Layout adapts between desktop sidebar and mobile hamburger menu",
       "status": "complete",
-      "operational_targets": [
-        "OT-P2-001"
-      ],
-      "criticality": "P2"
+      "criticality": "P2",
+      "description": "Layout adapts between desktop sidebar and mobile hamburger menu"
     }
-  ],
-  "operational_targets": [
-    "OT-P2-001",
-    "OT-P2-002",
-    "OT-P2-003",
-    "OT-P2-004",
-    "OT-P2-005",
-    "OT-P2-006",
-    "OT-P2-007"
   ]
 }

@@ -115,6 +115,9 @@ func TestPolicySubscribe_CreateBroadcast(t *testing.T) {
 					if evt.Type != "snapshot" {
 						t.Fatalf("expected type snapshot, got %s", evt.Type)
 					}
+					if evt.Version == 0 {
+						t.Fatal("snapshot must carry a version")
+					}
 					if len(evt.Rules) == 0 {
 						t.Fatal("expected rules to be present in snapshot")
 					}

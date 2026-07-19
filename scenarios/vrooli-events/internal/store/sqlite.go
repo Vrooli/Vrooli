@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS events (
   correlation_id TEXT NOT NULL DEFAULT '',
   payload BLOB,
   metadata TEXT,
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now'))
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now')),
+  expires_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
 CREATE INDEX IF NOT EXISTS idx_events_source ON events(source_scenario);
@@ -102,6 +103,16 @@ func NewSQLiteStore(ctx context.Context, cfg SQLiteConfig) (*SQLiteStore, error)
 		db.Close()
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
+	// Existing deployments predate per-receipt retention. SQLite's CREATE TABLE
+	// IF NOT EXISTS cannot add a column, so make the migration idempotent here.
+	if _, err := db.ExecContext(ctx, `ALTER TABLE events ADD COLUMN expires_at TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		db.Close()
+		return nil, fmt.Errorf("migrate receipt expiry: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_events_expires ON events(expires_at) WHERE expires_at IS NOT NULL`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("index receipt expiry: %w", err)
+	}
 
 	s := &SQLiteStore{db: db, config: cfg}
 	if err := s.reconcileMeta(ctx); err != nil {
@@ -131,9 +142,9 @@ func (s *SQLiteStore) Insert(ctx context.Context, e Event) (int64, error) {
 	defer func() { _ = tx.Rollback() }()
 
 	res, err := tx.ExecContext(ctx,
-		`INSERT INTO events (event_id, source_scenario, target_scenario, event_type, correlation_id, payload, metadata)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		e.EventID, e.SourceScenario, e.TargetScenario, e.EventType, e.CorrelationID, e.Payload, string(metadataJSON))
+		`INSERT INTO events (event_id, source_scenario, target_scenario, event_type, correlation_id, payload, metadata, expires_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		e.EventID, e.SourceScenario, e.TargetScenario, e.EventType, e.CorrelationID, e.Payload, string(metadataJSON), nullableTime(e.ExpiresAt))
 	if err != nil {
 		if isUniqueConstraintError(err) {
 			return 0, fmt.Errorf("%w: %s", ErrDuplicateEvent, e.EventID)
@@ -181,6 +192,10 @@ func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error
 		clauses = append(clauses, "source_scenario = ?")
 		args = append(args, f.Source)
 	}
+	if f.Target != "" {
+		clauses = append(clauses, "target_scenario = ?")
+		args = append(args, f.Target)
+	}
 	if f.CorrelationID != "" {
 		clauses = append(clauses, "correlation_id = ?")
 		args = append(args, f.CorrelationID)
@@ -210,7 +225,7 @@ func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error
 		}
 	}
 
-	query := "SELECT id, event_id, source_scenario, target_scenario, event_type, correlation_id, payload, metadata, created_at FROM events"
+	query := "SELECT id, event_id, source_scenario, target_scenario, event_type, correlation_id, payload, metadata, created_at, expires_at FROM events"
 	if len(clauses) > 0 {
 		query += " WHERE " + strings.Join(clauses, " AND ")
 	}
@@ -241,7 +256,7 @@ func (s *SQLiteStore) GetSince(ctx context.Context, lastID int64, limit int) ([]
 		limit = 100
 	}
 	return s.scanEvents(ctx,
-		"SELECT id, event_id, source_scenario, target_scenario, event_type, correlation_id, payload, metadata, created_at FROM events WHERE id > ? ORDER BY id ASC LIMIT ?",
+		"SELECT id, event_id, source_scenario, target_scenario, event_type, correlation_id, payload, metadata, created_at, expires_at FROM events WHERE id > ? ORDER BY id ASC LIMIT ?",
 		lastID, limit)
 }
 
@@ -275,11 +290,11 @@ func (s *SQLiteStore) pruneByTime(ctx context.Context) (int64, error) {
 
 	var timeBytes int64
 	if err := tx.QueryRowContext(ctx,
-		`SELECT COALESCE(SUM(LENGTH(payload)), 0) FROM events WHERE created_at < ?`, cutoff).Scan(&timeBytes); err != nil {
+		`SELECT COALESCE(SUM(LENGTH(payload)), 0) FROM events WHERE created_at < ? OR (expires_at IS NOT NULL AND expires_at <= ?)`, cutoff, s.config.Now().UTC().Format(sqlutil.TimestampFormat)).Scan(&timeBytes); err != nil {
 		return 0, fmt.Errorf("sum time bytes: %w", err)
 	}
 
-	res, err := tx.ExecContext(ctx, `DELETE FROM events WHERE created_at < ?`, cutoff)
+	res, err := tx.ExecContext(ctx, `DELETE FROM events WHERE created_at < ? OR (expires_at IS NOT NULL AND expires_at <= ?)`, cutoff, s.config.Now().UTC().Format(sqlutil.TimestampFormat))
 	if err != nil {
 		return 0, fmt.Errorf("time prune: %w", err)
 	}
@@ -426,10 +441,11 @@ func (s *SQLiteStore) scanEvents(ctx context.Context, query string, args ...any)
 		var e Event
 		var metaStr sql.NullString
 		var createdStr string
+		var expiresStr sql.NullString
 		var payload []byte
 
 		if err := rows.Scan(&e.ID, &e.EventID, &e.SourceScenario, &e.TargetScenario,
-			&e.EventType, &e.CorrelationID, &payload, &metaStr, &createdStr); err != nil {
+			&e.EventType, &e.CorrelationID, &payload, &metaStr, &createdStr, &expiresStr); err != nil {
 			return nil, err
 		}
 
@@ -440,10 +456,21 @@ func (s *SQLiteStore) scanEvents(ctx context.Context, query string, args ...any)
 			}
 		}
 		e.CreatedAt = sqlutil.ParseTime(createdStr)
+		if expiresStr.Valid && expiresStr.String != "" {
+			expires := sqlutil.ParseTime(expiresStr.String)
+			e.ExpiresAt = &expires
+		}
 
 		events = append(events, e)
 	}
 	return events, rows.Err()
+}
+
+func nullableTime(value *time.Time) any {
+	if value == nil || value.IsZero() {
+		return nil
+	}
+	return value.UTC().Format(sqlutil.TimestampFormat)
 }
 
 // sqliteLikePattern converts segment-aware globs to SQLite LIKE syntax.

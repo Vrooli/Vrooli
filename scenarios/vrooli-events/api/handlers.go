@@ -10,8 +10,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/provenance"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/convert"
@@ -38,6 +40,86 @@ const (
 	ErrCodeSSEUnsupported = "SSE_UNSUPPORTED"
 	ErrCodeInvalidParam   = "INVALID_PARAM"
 )
+
+const receiptEventType = "vrooli.receipt.observed.v1"
+
+// validateReceipt keeps the generic event store safe for the platform receipt
+// projection. Receipts are still ordinary durable events, but their bounded
+// safe projection and correlation fields are validated centrally rather than
+// trusted as arbitrary scenario metadata.
+func validateReceipt(env *domain.EventEnvelope) *envelopeValidationError {
+	if env.EventType != receiptEventType {
+		return nil
+	}
+	if strings.TrimSpace(env.CorrelationId) == "" {
+		return &envelopeValidationError{Field: "correlationId", Message: "receipt correlationId (verified run id) is required"}
+	}
+	if env.Metadata == nil || strings.TrimSpace(env.Metadata["operation"]) == "" {
+		return &envelopeValidationError{Field: "metadata.operation", Message: "receipt operation is required"}
+	}
+	if strings.TrimSpace(env.Metadata["outcome"]) == "" {
+		return &envelopeValidationError{Field: "metadata.outcome", Message: "receipt outcome is required"}
+	}
+	if projection := env.Metadata["safe_projection"]; len(projection) > 64*1024 {
+		return &envelopeValidationError{Field: "metadata.safe_projection", Message: "receipt safe projection exceeds 64KiB"}
+	}
+	return nil
+}
+
+// validateReceiptProjection ensures a verified producer cannot bypass the
+// centrally declared receipt allow-list by placing arbitrary values in
+// safe_projection. The service, not scenario code, remains the authority.
+func (s *Server) validateReceiptProjection(ctx context.Context, env *domain.EventEnvelope) *envelopeValidationError {
+	if env.EventType != receiptEventType {
+		return nil
+	}
+	rule, err := s.policyStore.MatchReceiptProjection(ctx, env.SourceScenario, env.TargetScenario, env.Metadata["operation"])
+	if err != nil {
+		return &envelopeValidationError{Field: "receipt_projection", Message: "failed to evaluate receipt projection policy"}
+	}
+	if rule == nil {
+		return &envelopeValidationError{Field: "receipt_projection", Message: "no approved receipt projection rule matches this operation"}
+	}
+	if rule.SamplePerTenK == 0 || (rule.SamplePerTenK < 10000 && receiptSample(env.EventId) >= rule.SamplePerTenK) {
+		return &envelopeValidationError{Field: "receipt_projection", Message: "receipt excluded by projection sampling policy"}
+	}
+	retentionDays, err := strconv.Atoi(env.Metadata["retention_days"])
+	if err != nil || retentionDays != rule.RetentionDays {
+		return &envelopeValidationError{Field: "metadata.retention_days", Message: "receipt retention must match the approved projection policy"}
+	}
+	projection := env.Metadata["safe_projection"]
+	if len(projection) > rule.MaxBytes {
+		return &envelopeValidationError{Field: "metadata.safe_projection", Message: "receipt safe projection exceeds approved policy limit"}
+	}
+	if projection == "" {
+		return nil
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(projection), &fields); err != nil {
+		return &envelopeValidationError{Field: "metadata.safe_projection", Message: "receipt safe projection must be a JSON object"}
+	}
+	allowed := make(map[string]bool, len(rule.ResponseFields))
+	for _, field := range rule.ResponseFields {
+		allowed[field] = true
+	}
+	for _, field := range rule.RedactFields {
+		delete(allowed, field)
+	}
+	for field := range fields {
+		if !allowed[field] {
+			return &envelopeValidationError{Field: "metadata.safe_projection", Message: "receipt safe projection contains a field not approved by policy"}
+		}
+	}
+	return nil
+}
+
+func receiptSample(eventID string) int {
+	var sum uint32 = 2166136261
+	for i := 0; i < len(eventID); i++ {
+		sum = (sum ^ uint32(eventID[i])) * 16777619
+	}
+	return int(sum % 10000)
+}
 
 // envelopeValidationError describes a missing or invalid field in an inbound EventEnvelope.
 // Keeping validation rules as data (not inline if-chains) means adding a new required
@@ -80,6 +162,7 @@ func parseQueryFilters(q map[string][]string) (store.QueryFilters, *paramError) 
 	filters := store.QueryFilters{
 		EventType:     get("type"),
 		Source:        get("source"),
+		Target:        get("target"),
 		CorrelationID: get("correlation_id"),
 	}
 
@@ -131,11 +214,32 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, ErrCodeMissingField, ve.Message)
 		return
 	}
+	if ve := validateReceipt(&env); ve != nil {
+		writeError(w, http.StatusBadRequest, ErrCodeMissingField, ve.Message)
+		return
+	}
+	if env.EventType == receiptEventType && !provenance.FromContext(r.Context()).IsVerifiedAgent() {
+		p := provenance.FromContext(r.Context())
+		log.Printf("rejected receipt without verified Agent Manager provenance: actor=%s verification=%s", p.Actor, p.VerificationStatus)
+		writeError(w, http.StatusUnauthorized, ErrCodeValidation, "receipt run correlation requires verified Agent Manager identity")
+		return
+	}
+	if ve := s.validateReceiptProjection(r.Context(), &env); ve != nil {
+		writeError(w, http.StatusBadRequest, ErrCodeValidation, ve.Message)
+		return
+	}
 
 	event, err := convert.EnvelopeToEvent(&env)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, ErrCodeConversion, err.Error())
 		return
+	}
+	if env.EventType == receiptEventType {
+		retentionDays, _ := strconv.Atoi(env.Metadata["retention_days"])
+		if retentionDays > 0 {
+			expiresAt := time.Now().UTC().Add(time.Duration(retentionDays) * 24 * time.Hour)
+			event.ExpiresAt = &expiresAt
+		}
 	}
 
 	// Dry-run: full validation passes, but skip persistence and broadcast.

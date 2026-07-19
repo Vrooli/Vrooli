@@ -119,6 +119,32 @@ func TestQuery_CorrelationFilter(t *testing.T) {
 	}
 }
 
+// [REQ:REQ-API-002] Receipt investigations can narrow the event timeline to
+// the destination scenario without client-side filtering or over-fetching.
+func TestQuery_TargetFilter(t *testing.T) {
+	_, ts := newTestServer(t)
+	for _, event := range []string{
+		`{"eventId":"target-1","sourceScenario":"agent-manager","targetScenario":"plan-manager","eventType":"test.target-filter.v1"}`,
+		`{"eventId":"target-2","sourceScenario":"agent-manager","targetScenario":"swarm-manager","eventType":"test.target-filter.v1"}`,
+	} {
+		resp, err := http.Post(ts.URL+"/api/v1/events", "application/json", strings.NewReader(event))
+		if err != nil {
+			t.Fatalf("ingest: %v", err)
+		}
+		resp.Body.Close()
+	}
+
+	resp, err := http.Get(ts.URL + "/api/v1/events?target=plan-manager")
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer resp.Body.Close()
+	events := decodeJSON[[]map[string]any](t, resp)
+	if len(events) != 1 || events[0]["eventId"] != "target-1" {
+		t.Fatalf("unexpected target-filtered events: %#v", events)
+	}
+}
+
 // [REQ:REQ-API-002] Query returns store error as 500
 func TestQuery_StoreError(t *testing.T) {
 	ms := (&testutil.MockStore{}).WithQueryResult(nil, fmt.Errorf("corrupt index"))

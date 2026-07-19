@@ -1,12 +1,37 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
 )
+
+func TestPolicySnapshotReturnsVersionedEnabledRules(t *testing.T) {
+	_, ts := newTestServer(t)
+	resp, err := http.Post(ts.URL+"/api/v1/policies", "application/json", strings.NewReader(`{"rule_type":"access","source_scenario":"agent-manager","target_scenario":"plan-manager","effect":"deny","priority":1,"enabled":true}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	resp, err = http.Get(ts.URL + "/api/v1/policies/snapshot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var snapshot struct {
+		Version int64         `json:"version"`
+		Rules   []policy.Rule `json:"rules"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Version == 0 || len(snapshot.Rules) != 1 {
+		t.Fatalf("snapshot = %+v", snapshot)
+	}
+}
 
 // [REQ:REQ-POL-001] Access control rules: deny rule blocks matching scenarios
 func TestPolicyEvaluate_AccessDeny(t *testing.T) {

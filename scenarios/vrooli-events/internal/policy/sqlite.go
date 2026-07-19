@@ -5,7 +5,9 @@ package policy
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -35,6 +37,23 @@ CREATE TABLE IF NOT EXISTS policy_rules (
 CREATE INDEX IF NOT EXISTS idx_policy_rules_type ON policy_rules(rule_type);
 CREATE INDEX IF NOT EXISTS idx_policy_rules_source ON policy_rules(source_scenario);
 CREATE INDEX IF NOT EXISTS idx_policy_rules_target ON policy_rules(target_scenario);
+
+CREATE TABLE IF NOT EXISTS receipt_projection_rules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_scenario TEXT NOT NULL,
+  target_scenario TEXT NOT NULL,
+  operation_pattern TEXT NOT NULL,
+  response_fields_json TEXT NOT NULL DEFAULT '[]',
+  redact_fields_json TEXT NOT NULL DEFAULT '[]',
+  max_bytes INTEGER NOT NULL DEFAULT 65536,
+  sample_per_ten_k INTEGER NOT NULL DEFAULT 10000,
+  retention_days INTEGER NOT NULL DEFAULT 30,
+  priority INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_receipt_projection_match ON receipt_projection_rules(source_scenario, target_scenario, enabled, priority DESC, id ASC);
 
 CREATE TABLE IF NOT EXISTS policy_violations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -172,6 +191,137 @@ func (s *SQLiteStore) DeleteRule(ctx context.Context, id int64) error {
 		return fmt.Errorf("delete policy rule: %w", err)
 	}
 	return nil
+}
+
+func (s *SQLiteStore) CreateReceiptProjection(ctx context.Context, r ReceiptProjectionRule) (int64, error) {
+	fields, err := json.Marshal(r.ResponseFields)
+	if err != nil {
+		return 0, fmt.Errorf("marshal response fields: %w", err)
+	}
+	redactions, err := json.Marshal(r.RedactFields)
+	if err != nil {
+		return 0, fmt.Errorf("marshal redact fields: %w", err)
+	}
+	res, err := s.db.ExecContext(ctx, `INSERT INTO receipt_projection_rules
+		(source_scenario, target_scenario, operation_pattern, response_fields_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, r.SourceScenario, r.TargetScenario, r.OperationPattern, string(fields), string(redactions), r.MaxBytes, r.SamplePerTenK, r.RetentionDays, r.Priority, sqlutil.BoolToInt(r.Enabled))
+	if err != nil {
+		return 0, fmt.Errorf("insert receipt projection rule: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (s *SQLiteStore) GetReceiptProjection(ctx context.Context, id int64) (ReceiptProjectionRule, error) {
+	return scanReceiptProjection(s.db.QueryRowContext(ctx, receiptProjectionSelect+` WHERE id = ?`, id))
+}
+
+func (s *SQLiteStore) ListReceiptProjections(ctx context.Context, f ReceiptProjectionFilters) ([]ReceiptProjectionRule, error) {
+	clauses, args := []string{}, []any{}
+	if f.Source != "" {
+		clauses = append(clauses, "source_scenario = ?")
+		args = append(args, f.Source)
+	}
+	if f.Target != "" {
+		clauses = append(clauses, "target_scenario = ?")
+		args = append(args, f.Target)
+	}
+	if f.Enabled != nil {
+		clauses = append(clauses, "enabled = ?")
+		args = append(args, sqlutil.BoolToInt(*f.Enabled))
+	}
+	query := receiptProjectionSelect
+	if len(clauses) > 0 {
+		query += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	query += " ORDER BY priority DESC, id ASC"
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list receipt projection rules: %w", err)
+	}
+	defer rows.Close()
+	var result []ReceiptProjectionRule
+	for rows.Next() {
+		r, err := scanReceiptProjection(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
+func (s *SQLiteStore) UpdateReceiptProjection(ctx context.Context, r ReceiptProjectionRule) error {
+	fields, err := json.Marshal(r.ResponseFields)
+	if err != nil {
+		return fmt.Errorf("marshal response fields: %w", err)
+	}
+	redactions, err := json.Marshal(r.RedactFields)
+	if err != nil {
+		return fmt.Errorf("marshal redact fields: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE receipt_projection_rules SET source_scenario=?, target_scenario=?, operation_pattern=?, response_fields_json=?, redact_fields_json=?, max_bytes=?, sample_per_ten_k=?, retention_days=?, priority=?, enabled=?, updated_at=strftime('%Y-%m-%dT%H:%M:%f','now') WHERE id=?`, r.SourceScenario, r.TargetScenario, r.OperationPattern, string(fields), string(redactions), r.MaxBytes, r.SamplePerTenK, r.RetentionDays, r.Priority, sqlutil.BoolToInt(r.Enabled), r.ID)
+	if err != nil {
+		return fmt.Errorf("update receipt projection rule: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) DeleteReceiptProjection(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM receipt_projection_rules WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("delete receipt projection rule: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) MatchReceiptProjection(ctx context.Context, source, target, operation string) (*ReceiptProjectionRule, error) {
+	enabled := true
+	rules, err := s.ListReceiptProjections(ctx, ReceiptProjectionFilters{Enabled: &enabled})
+	if err != nil {
+		return nil, err
+	}
+	for _, rule := range rules {
+		if patternMatches(rule.SourceScenario, source) && patternMatches(rule.TargetScenario, target) && patternMatches(rule.OperationPattern, operation) {
+			return &rule, nil
+		}
+	}
+	return nil, nil
+}
+
+const receiptProjectionSelect = `SELECT id, source_scenario, target_scenario, operation_pattern, response_fields_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled, created_at, updated_at FROM receipt_projection_rules`
+
+type receiptProjectionScanner interface{ Scan(...any) error }
+
+func scanReceiptProjection(row receiptProjectionScanner) (ReceiptProjectionRule, error) {
+	var r ReceiptProjectionRule
+	var responseFields, redactFields, createdAt, updatedAt string
+	var enabled int
+	if err := row.Scan(&r.ID, &r.SourceScenario, &r.TargetScenario, &r.OperationPattern, &responseFields, &redactFields, &r.MaxBytes, &r.SamplePerTenK, &r.RetentionDays, &r.Priority, &enabled, &createdAt, &updatedAt); err != nil {
+		return r, err
+	}
+	if err := json.Unmarshal([]byte(responseFields), &r.ResponseFields); err != nil {
+		return r, fmt.Errorf("decode response fields: %w", err)
+	}
+	if err := json.Unmarshal([]byte(redactFields), &r.RedactFields); err != nil {
+		return r, fmt.Errorf("decode redact fields: %w", err)
+	}
+	r.Enabled = enabled != 0
+	var err error
+	if r.CreatedAt, err = time.Parse(sqlutil.TimestampFormat, createdAt); err != nil {
+		return r, err
+	}
+	if r.UpdatedAt, err = time.Parse(sqlutil.TimestampFormat, updatedAt); err != nil {
+		return r, err
+	}
+	return r, nil
+}
+
+func patternMatches(pattern, value string) bool {
+	if pattern == "" || pattern == "*" || pattern == "**" {
+		return true
+	}
+	ok, err := path.Match(pattern, value)
+	return err == nil && ok
 }
 
 func (s *SQLiteStore) LogViolation(ctx context.Context, v Violation) error {

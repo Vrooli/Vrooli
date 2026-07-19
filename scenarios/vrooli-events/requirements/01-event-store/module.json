@@ -1,21 +1,14 @@
 {
-  "module": "event-store",
-  "description": "SQLite WAL-mode event storage with dual-trigger pruning",
-  "operational_targets": [
-    "OT-P0-001",
-    "OT-P0-005",
-    "OT-P0-006",
-    "OT-P1-003"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-07-18T12:22:14-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-ES-001",
       "title": "SQLite WAL mode storage",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P0",
       "description": "Events stored in SQLite with WAL mode, busy_timeout=10000, synchronous=NORMAL",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
       "children": [
         "REQ-ES-001A",
         "REQ-ES-001B"
@@ -25,19 +18,16 @@
           "type": "test",
           "ref": "internal/store/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P0"
+      ]
     },
     {
       "id": "REQ-ES-001A",
       "title": "WAL mode pragma configuration",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P0",
       "description": "SQLite configured with journal_mode=WAL, busy_timeout=10000, synchronous=NORMAL pragmas",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
       "children": [
         "REQ-ES-001A1"
       ],
@@ -46,20 +36,16 @@
           "type": "test",
           "ref": "internal/store/sqlite_idempotency_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P0"
+      ]
     },
     {
       "id": "REQ-ES-001A1",
       "title": "WAL mode verified at store construction",
       "status": "complete",
-      "description": "NewSQLiteStore applies WAL pragmas during construction and verifies they take effect",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
       "criticality": "P0",
+      "description": "NewSQLiteStore applies WAL pragmas during construction and verifies they take effect",
       "children": [
         "REQ-ES-001A1a"
       ]
@@ -67,67 +53,58 @@
     {
       "id": "REQ-ES-001B",
       "title": "GetSince for replay support",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P0",
       "description": "Store provides GetSince(lastID, limit) for SSE replay on reconnection",
-      "operational_targets": [
-        "OT-P0-001"
+      "children": [
+        "REQ-ES-001B1"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "internal/store/sqlite_getsince_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P0",
-      "children": [
-        "REQ-ES-001B1"
       ]
     },
     {
       "id": "REQ-ES-002",
       "title": "Event schema",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P0",
       "description": "Events table with id (autoincrement), event_id (unique), source_scenario, target_scenario, event_type, correlation_id, payload (BLOB), metadata (JSON), created_at. Duplicate event_id returns ErrDuplicateEvent (409 Conflict at API level).",
-      "operational_targets": [
-        "OT-P0-001",
-        "OT-P0-005"
+      "children": [
+        "REQ-ES-002A",
+        "REQ-ES-002B"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "api/handlers_query_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/handlers_ingest_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "internal/store/sqlite_idempotency_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P0",
-      "children": [
-        "REQ-ES-002A",
-        "REQ-ES-002B"
       ]
     },
     {
       "id": "REQ-ES-003",
       "title": "Dual-trigger pruning",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Background goroutine at configurable interval deletes events older than retention window or when total size exceeds size cap.",
-      "operational_targets": [
-        "OT-P1-003"
-      ],
       "children": [
         "REQ-ES-003A",
         "REQ-ES-003B"
@@ -137,19 +114,16 @@
           "type": "test",
           "ref": "internal/store/pruner_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-ES-003A",
       "title": "Time-based retention pruning",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Prune events older than configurable retention window (default: 30 days)",
-      "operational_targets": [
-        "OT-P1-003"
-      ],
       "children": [
         "REQ-ES-003A1"
       ],
@@ -158,20 +132,16 @@
           "type": "test",
           "ref": "internal/config/config_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-ES-003A1",
       "title": "Configurable prune interval",
       "status": "complete",
-      "description": "Prune cycle interval configurable via environment (default: 6 hours)",
-      "operational_targets": [
-        "OT-P1-003"
-      ],
       "criticality": "P1",
+      "description": "Prune cycle interval configurable via environment (default: 6 hours)",
       "children": [
         "REQ-ES-003A1a"
       ]
@@ -180,11 +150,8 @@
       "id": "REQ-ES-003B",
       "title": "Size-based capacity pruning",
       "status": "complete",
-      "description": "Prune oldest events when total store size exceeds size cap (default: 2GB)",
-      "operational_targets": [
-        "OT-P1-003"
-      ],
       "criticality": "P1",
+      "description": "Prune oldest events when total store size exceeds size cap (default: 2GB)",
       "children": [
         "REQ-ES-003B1"
       ]
@@ -192,55 +159,42 @@
     {
       "id": "REQ-ES-004",
       "title": "Configurable retention settings",
-      "status": "complete",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Retention window, size cap, and prune interval configurable via environment and settings.",
-      "operational_targets": [
-        "OT-P1-003"
+      "children": [
+        "REQ-ES-004A",
+        "REQ-ES-004B"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "internal/store/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-ES-004A",
-        "REQ-ES-004B"
       ]
     },
     {
       "id": "REQ-ES-001A1a",
       "title": "WAL checkpoint verification",
-      "description": "Verifies WAL mode pragma took effect via PRAGMA query after construction",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
-      "criticality": "P0"
+      "criticality": "P0",
+      "description": "Verifies WAL mode pragma took effect via PRAGMA query after construction"
     },
     {
       "id": "REQ-ES-001B1",
       "title": "GetSince cursor-based pagination",
-      "description": "Pagination uses cursor-based approach with last seen ID for efficient replay",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
-      "criticality": "P0"
+      "criticality": "P0",
+      "description": "Pagination uses cursor-based approach with last seen ID for efficient replay"
     },
     {
       "id": "REQ-ES-002A",
       "title": "Table schema and indexing",
-      "description": "Events table with composite indexes on event_id, source_scenario, event_type, correlation_id",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-001",
-        "OT-P0-005"
-      ],
       "criticality": "P0",
+      "description": "Events table with composite indexes on event_id, source_scenario, event_type, correlation_id",
       "children": [
         "REQ-ES-002A1"
       ]
@@ -248,54 +202,37 @@
     {
       "id": "REQ-ES-002A1",
       "title": "Unique constraint on event_id",
-      "description": "UNIQUE constraint on event_id column enables idempotent ingestion with 409 Conflict",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-001",
-        "OT-P0-005"
-      ],
-      "criticality": "P0"
+      "criticality": "P0",
+      "description": "UNIQUE constraint on event_id column enables idempotent ingestion with 409 Conflict"
     },
     {
       "id": "REQ-ES-002B",
       "title": "Metadata JSON serialization",
-      "description": "Metadata stored as JSON text column with structured key-value pairs",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-001",
-        "OT-P0-005"
-      ],
-      "criticality": "P0"
+      "criticality": "P0",
+      "description": "Metadata stored as JSON text column with structured key-value pairs"
     },
     {
       "id": "REQ-ES-003A1a",
       "title": "Interval ticker goroutine lifecycle",
-      "description": "Prune ticker goroutine starts with store and stops on Close()",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-003"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Prune ticker goroutine starts with store and stops on Close()"
     },
     {
       "id": "REQ-ES-003B1",
       "title": "Database size estimation query",
-      "description": "Size estimation via page_count * page_size PRAGMA for pruning threshold",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-003"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Size estimation via page_count * page_size PRAGMA for pruning threshold"
     },
     {
       "id": "REQ-ES-004A",
       "title": "Environment variable configuration",
-      "description": "Retention settings configurable via PRUNE_INTERVAL, RETENTION_DAYS, SIZE_CAP_MB env vars",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-003"
-      ],
       "criticality": "P1",
+      "description": "Retention settings configurable via PRUNE_INTERVAL, RETENTION_DAYS, SIZE_CAP_MB env vars",
       "children": [
         "REQ-ES-004A1"
       ]
@@ -303,22 +240,16 @@
     {
       "id": "REQ-ES-004A1",
       "title": "Default value fallbacks",
-      "description": "Sensible defaults when env vars not set: 6h interval, 30d retention, 2GB cap",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-003"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Sensible defaults when env vars not set: 6h interval, 30d retention, 2GB cap"
     },
     {
       "id": "REQ-ES-004B",
       "title": "Runtime settings update",
-      "description": "Settings modifiable at runtime via API without restart",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-003"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Settings modifiable at runtime via API without restart"
     }
   ]
 }

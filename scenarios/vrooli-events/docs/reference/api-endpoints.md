@@ -36,6 +36,40 @@ Accepts an event and stores it durably. Returns immediately (202 Accepted) — s
 
 **Response**: `202 Accepted` with `{"id": <store_id>}`
 
+#### Receipt observations
+
+`vrooli.receipt.observed.v1` is the platform receipt type. It requires `correlationId` (the verified Agent Manager run ID), `metadata.operation`, and `metadata.outcome`; `metadata.safe_projection` is limited to 64 KiB. Receipt ingestion requires a valid `X-Agent-Identity-Token` verified by Agent Manager. An unverified header or claimed run ID returns `401` and is never stored as agent-attributed evidence.
+
+Receipts are post-response, best-effort observations. Absence of a receipt means **unobserved**, not failed.
+
+### Receipt projection rules
+
+Receipt projection rules are the central allow-list for typed unary receipt data. Scenario code can propose a bounded candidate projection, but a matching rule is required before `api-core/eventbus` emits it and Vrooli Events independently validates it at ingestion. Fields outside `response_fields`, fields in `redact_fields`, payloads over `max_bytes`, and sampling exclusions are rejected or omitted; no matching rule means no receipt.
+
+`retention_days` is copied from the matching rule into the receipt metadata and stored as an event-specific expiry. The normal pruner removes an expired receipt even when the service-wide event retention window is longer.
+
+| Method | Path | Description |
+|---|---|---|
+| POST | /receipt-projections | Create a projection rule |
+| GET | /receipt-projections | List rules (`source`, `target`, `enabled`) |
+| GET | /receipt-projections/:id | Get a rule |
+| PUT | /receipt-projections/:id | Replace a rule |
+| DELETE | /receipt-projections/:id | Delete a rule |
+
+```json
+{
+  "source_scenario": "agent-manager",
+  "target_scenario": "plan-manager",
+  "operation_pattern": "plans.create",
+  "response_fields": ["plan_id", "status"],
+  "redact_fields": ["internal_note"],
+  "max_bytes": 1024,
+  "sample_per_ten_k": 10000,
+  "retention_days": 30,
+  "enabled": true
+}
+```
+
 ### GET /events — Query Events
 
 [CODE: api/handlers.go#handleQuery]
@@ -46,6 +80,7 @@ Returns stored events matching the given filters.
 |-------|------|-------------|
 | type | string | Glob pattern on event type (e.g., `swarm-manager.**`) |
 | source | string | Filter by source scenario |
+| target | string | Filter by target scenario; useful for receipt investigations |
 | correlation_id | string | Filter by correlation ID |
 | since | string | ISO-8601 timestamp lower bound |
 | until | string | ISO-8601 timestamp upper bound |
@@ -125,6 +160,12 @@ Fields vary by `rule_type`:
 | source | string | Filter by source scenario pattern |
 | target | string | Filter by target scenario pattern |
 | enabled | bool | Filter by enabled state |
+
+### GET /policies/snapshot — Fetch Atomic Policy Snapshot
+
+Returns the enabled policy rules and a monotonic `version` for standard API clients. Clients replace their entire local snapshot only when the returned version is newer. This endpoint is for background refresh; it must not be called on the request path.
+
+The snapshot also contains enabled `receipt_projections`; clients use them to decide whether post-response observations may be emitted.
 
 ### GET /policies/:id — Get Rule
 

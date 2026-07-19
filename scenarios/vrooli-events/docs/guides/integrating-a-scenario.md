@@ -2,12 +2,11 @@
 
 How to connect your scenario to vrooli-events for automatic event emission and policy enforcement.
 
-Implementation (scenario-side SDK — currently `scenarios/vrooli-events/internal/*`; see [DOC: internal/SEAMS.md#architecture-alignment] for the planned promotion to `packages/api-core/eventbus-sdk/`):
-EmittingResolver: [CODE: internal/resolver/resolver.go#EmittingResolver] | Event emitter: [CODE: internal/emitter/emitter.go] | Receiver middleware: [CODE: internal/middleware/policy.go] | Graceful fallback: [CODE: internal/fallback/fallback.go] | Source header: [CODE: internal/headers/headers.go]
+The platform integration lives in [`packages/api-core/eventbus`](../../../packages/api-core/eventbus), not in a scenario-local SDK. It provides a local policy snapshot cache, a background refresher, HTTP middleware, and non-blocking receipt publication. The detailed platform rules are in [Vrooli Events Platform Contract](../../../docs/concepts/VROOLI_EVENTS_PLATFORM_CONTRACT.md).
 
-## Automatic Integration (via Discovery Package)
+## Standard API Integration
 
-Once the discovery package is updated with `EmittingResolver`, **all existing scenarios get event emission for free**. No code changes needed — every call through `discovery.ResolveScenarioURL()` automatically emits an event.
+The standard API server path can use `eventbus.Middleware`. It evaluates only the latest locally cached policy snapshot; it does not make a policy network call while serving the request. A fresh cached denial blocks the request. Missing, stale, or unreachable Vrooli Events state fails open for ordinary traffic.
 
 ### What Changes
 
@@ -19,37 +18,30 @@ url, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
 // Makes HTTP call to agent-manager — nobody knows about it
 ```
 
-After (with EmittingResolver):
+With a scenario-specific safe projection:
 ```go
-import "github.com/vrooli/api-core/discovery"
+import "github.com/vrooli/api-core/eventbus"
 
-// At scenario startup, wrap the resolver
-resolver := discovery.NewEmittingResolver(
-    discovery.DefaultResolver(),
-    "http://localhost:15000",  // vrooli-events URL (auto-discovered)
-    "my-scenario",            // This scenario's name
-)
+cache := eventbus.NewCache()
+client := eventbus.Client{BaseURL: eventsURL}
+eventbus.StartRefresher(ctx, client, cache, eventbus.RefreshConfig{})
 
-url, err := resolver.ResolveScenarioURLDefault(ctx, "agent-manager")
-// 1. Checks local policy cache — denies fast if forbidden
-// 2. Resolves port (same as before)
-// 3. Emits discovery event in background (zero latency added)
-// 4. Returns URL to caller
+handler := eventbus.Middleware(eventbus.MiddlewareConfig{
+    Cache: cache,
+    TargetScenario: "my-scenario",
+    Receipts: client,
+    Projection: func(r *http.Request, status int) (eventbus.Projection, bool) {
+        // Return only bounded, explicitly approved fields. Never scrape bodies.
+        return eventbus.Projection{"resource": r.PathValue("id")}, true
+    },
+})(router)
 ```
 
-## Adding Receiver-Side Policy Enforcement
+Receipt emission is post-response and best effort. A receipt that cannot be observed is **not** evidence that the underlying operation failed.
 
-Optional but recommended. Protects your scenario from unauthorized callers.
+## Agent-attributed receipts
 
-```go
-import "github.com/vrooli/api-core/discovery"
-
-// In your router setup
-router := http.NewServeMux()
-handler := discovery.PolicyMiddleware("http://localhost:15000", "my-scenario")(router)
-// Incoming requests now checked against receiver-side policy cache
-// Requests without X-Source-Scenario header treated as "external" policy class
-```
+`eventbus` derives a run correlation only from verified provenance placed in request context by `api-core/provenance`. It never trusts a caller-provided run header. Vrooli Events accepts `vrooli.receipt.observed.v1` only with a verified Agent Manager identity, a run correlation, operation/outcome metadata, and a bounded safe projection.
 
 ## Publishing Custom Events
 
@@ -74,8 +66,8 @@ client.Emit(ctx, &eventspb.EventEnvelope{
 
 Everything still works:
 
-- **EmittingResolver**: Falls back to default behavior — resolves ports normally, events are silently dropped
-- **PolicyMiddleware**: Uses last-known policy or configured default (allow/deny)
-- **Standard Resolver**: Works unchanged — no vrooli-events dependency
+- **Cached policy**: a fresh cached denial is still enforced; otherwise ordinary traffic proceeds.
+- **Receipt publication**: it is skipped or dropped after the response; it never changes the request result.
+- **Refresh**: retries with bounded exponential backoff and jitter.
 
 This makes adoption incremental and non-breaking.

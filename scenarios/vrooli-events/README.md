@@ -1,6 +1,6 @@
 # Vrooli Events
 
-The central nervous system for all inter-scenario communication in Vrooli. Every call through the discovery package emits a structured event here for durable storage, real-time pub/sub, analytics, compliance auditing, and policy enforcement.
+The platform service for durable event receipts, real-time pub/sub, analytics, compliance auditing, and policy distribution across Vrooli.
 
 ## Why This Exists
 
@@ -12,7 +12,7 @@ Before vrooli-events, inter-scenario communication was invisible — scenario A 
 - Audit inter-scenario communication for compliance
 - Build event-driven features (like notifications) that react to any scenario's activity
 
-vrooli-events solves all of this by sitting at the discovery layer. The discovery package's `EmittingResolver` wraps every inter-scenario call with automatic event emission and local policy enforcement — zero changes needed in existing scenarios.
+vrooli-events solves the shared-service part of this problem without becoming a mandatory runtime dependency. Standard clients use the local cache and receipt helpers in `packages/api-core/eventbus`; the complete behavioral contract is [Vrooli Events Platform Contract](../../docs/concepts/VROOLI_EVENTS_PLATFORM_CONTRACT.md).
 
 ## Architecture
 
@@ -121,6 +121,8 @@ make stop     # Stop
 |--------|------|-------------|
 | POST | /api/v1/policies | Create policy rule (access control, rate limit, or circuit breaker) |
 | GET | /api/v1/policies | List rules (filters: rule_type, source, target, enabled) |
+| GET | /api/v1/policies/snapshot | Atomic enabled-rule snapshot for background client refresh |
+| POST/GET | /api/v1/receipt-projections | Centrally managed safe receipt projection allow-lists |
 | GET | /api/v1/policies/:id | Get rule by ID |
 | PUT | /api/v1/policies/:id | Update rule |
 | DELETE | /api/v1/policies/:id | Delete rule |

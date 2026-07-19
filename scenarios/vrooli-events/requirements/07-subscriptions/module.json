@@ -1,18 +1,14 @@
 {
-  "module": "subscriptions",
-  "description": "Persistent subscription management for event-driven consumers like notification-hub",
-  "operational_targets": [
-    "OT-P1-012"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-07-18T12:22:14-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-SUB-001",
       "title": "Subscription CRUD API",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "REST endpoints for subscription create, list, get, update, delete with filters.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
       "children": [
         "REQ-SUB-001A",
         "REQ-SUB-001B"
@@ -22,33 +18,26 @@
           "type": "test",
           "ref": "api/handlers_subscription_crud_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-SUB-001A",
       "title": "Subscription field validation",
-      "description": "Validates required fields and delivery_target for webhooks",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
+      "criticality": "P1",
+      "description": "Validates required fields and delivery_target for webhooks",
       "children": [
         "REQ-SUB-001A1"
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-SUB-001A1",
       "title": "Subscription filter combinations",
-      "description": "List endpoint supports filter by owner, pattern, and enabled status",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
       "criticality": "P1",
+      "description": "List endpoint supports filter by owner, pattern, and enabled status",
       "children": [
         "REQ-SUB-001A1a"
       ]
@@ -56,54 +45,46 @@
     {
       "id": "REQ-SUB-001B",
       "title": "Subscription SQLite storage",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Subscriptions persisted in SQLite with cascade delete for health records",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
+      "children": [
+        "REQ-SUB-001B1"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "internal/subscription/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-SUB-001B1"
       ]
     },
     {
       "id": "REQ-SUB-002",
       "title": "Glob pattern matching on subscriptions",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Subscriptions use segment-aware glob matching.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
+      "children": [
+        "REQ-SUB-002A",
+        "REQ-SUB-002B"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "api/handlers_subscription_features_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-SUB-002A",
-        "REQ-SUB-002B"
       ]
     },
     {
       "id": "REQ-SUB-003",
       "title": "Webhook delivery",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "POST matching events to delivery_target URL with retry policy.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
       "children": [
         "REQ-SUB-003A",
         "REQ-SUB-003B"
@@ -113,19 +94,16 @@
           "type": "test",
           "ref": "api/handlers_subscription_deliver_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-SUB-003A",
       "title": "Webhook HTTP delivery",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "POST events with subscription ID and HMAC-SHA256 signature headers",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
       "children": [
         "REQ-SUB-003A1"
       ],
@@ -134,20 +112,16 @@
           "type": "test",
           "ref": "internal/subscription/webhook_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-SUB-003A1",
       "title": "Webhook retry with exponential backoff",
-      "description": "Failed deliveries retried 3 times with exponential backoff",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
       "criticality": "P1",
+      "description": "Failed deliveries retried 3 times with exponential backoff",
       "children": [
         "REQ-SUB-003A1a"
       ]
@@ -155,12 +129,9 @@
     {
       "id": "REQ-SUB-003B",
       "title": "Delivery result logging",
-      "description": "Failed deliveries logged with status, response_code, error",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
       "criticality": "P1",
+      "description": "Failed deliveries logged with status, response_code, error",
       "children": [
         "REQ-SUB-003B1"
       ]
@@ -168,76 +139,61 @@
     {
       "id": "REQ-SUB-004",
       "title": "Subscription health tracking",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Track delivery health with auto-disable on consecutive failures.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
+      "children": [
+        "REQ-SUB-004A",
+        "REQ-SUB-004B"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "api/handlers_subscription_features_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-SUB-004A",
-        "REQ-SUB-004B"
       ]
     },
     {
       "id": "REQ-SUB-005",
       "title": "Subscription testing endpoint",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "POST /api/v1/subscriptions/:id/test sends a synthetic test event.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
+      "children": [
+        "REQ-SUB-005A",
+        "REQ-SUB-005B"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "api/handlers_subscription_features_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-SUB-005A",
-        "REQ-SUB-005B"
       ]
     },
     {
       "id": "REQ-SUB-001A1a",
       "title": "Combined filter AND semantics",
-      "description": "Multiple filters applied with AND semantics: all conditions must match",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Multiple filters applied with AND semantics: all conditions must match"
     },
     {
       "id": "REQ-SUB-001B1",
       "title": "Cascade delete for health records",
-      "description": "Deleting subscription cascades to remove associated health tracking records",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Deleting subscription cascades to remove associated health tracking records"
     },
     {
       "id": "REQ-SUB-002A",
       "title": "Pattern matcher initialization",
-      "description": "Compiles glob pattern from subscription filter at creation time",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
       "criticality": "P1",
+      "description": "Compiles glob pattern from subscription filter at creation time",
       "children": [
         "REQ-SUB-002A1"
       ]
@@ -245,52 +201,37 @@
     {
       "id": "REQ-SUB-002A1",
       "title": "Pattern syntax validation",
-      "description": "Validates glob pattern syntax on subscription create/update, rejects invalid patterns",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Validates glob pattern syntax on subscription create/update, rejects invalid patterns"
     },
     {
       "id": "REQ-SUB-002B",
       "title": "Event match evaluation",
-      "description": "Matches incoming event type against compiled subscription patterns",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Matches incoming event type against compiled subscription patterns"
     },
     {
       "id": "REQ-SUB-003A1a",
       "title": "Exponential backoff interval calculation",
-      "description": "Retry intervals: 1s, 2s, 4s with jitter for concurrent delivery",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Retry intervals: 1s, 2s, 4s with jitter for concurrent delivery"
     },
     {
       "id": "REQ-SUB-003B1",
       "title": "Structured delivery log format",
-      "description": "Delivery log includes HTTP status, response body snippet, and latency",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Delivery log includes HTTP status, response body snippet, and latency"
     },
     {
       "id": "REQ-SUB-004A",
       "title": "Delivery attempt tracking",
-      "description": "Records each delivery attempt result (success/failure) with timestamp",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
       "criticality": "P1",
+      "description": "Records each delivery attempt result (success/failure) with timestamp",
       "children": [
         "REQ-SUB-004A1"
       ]
@@ -298,32 +239,23 @@
     {
       "id": "REQ-SUB-004A1",
       "title": "Consecutive failure counter",
-      "description": "Maintains running count of consecutive failures, resets on success",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Maintains running count of consecutive failures, resets on success"
     },
     {
       "id": "REQ-SUB-004B",
       "title": "Auto-disable on failure threshold",
-      "description": "Disables subscription after configurable consecutive failure count",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Disables subscription after configurable consecutive failure count"
     },
     {
       "id": "REQ-SUB-005A",
       "title": "Synthetic test event generation",
-      "description": "Generates test event with subscription's pattern and synthetic payload",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
       "criticality": "P1",
+      "description": "Generates test event with subscription's pattern and synthetic payload",
       "children": [
         "REQ-SUB-005A1"
       ]
@@ -331,22 +263,16 @@
     {
       "id": "REQ-SUB-005A1",
       "title": "Test event delivery verification",
-      "description": "Delivers test event to webhook and reports success/failure with response details",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Delivers test event to webhook and reports success/failure with response details"
     },
     {
       "id": "REQ-SUB-005B",
       "title": "Test result reporting",
-      "description": "Returns delivery attempt result with HTTP status, latency, and any error",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-012"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Returns delivery attempt result with HTTP status, latency, and any error"
     }
   ]
 }

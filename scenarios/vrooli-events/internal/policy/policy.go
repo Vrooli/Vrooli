@@ -57,6 +57,32 @@ type Rule struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+// ReceiptProjectionRule centrally authorizes which typed unary operations may
+// create a durable receipt, and bounds the projection retained for each one.
+// Scenario code may provide candidate fields, but this rule is the authority
+// for whether anything is emitted or retained.
+type ReceiptProjectionRule struct {
+	ID               int64     `json:"id"`
+	SourceScenario   string    `json:"source_scenario"`
+	TargetScenario   string    `json:"target_scenario"`
+	OperationPattern string    `json:"operation_pattern"`
+	ResponseFields   []string  `json:"response_fields"`
+	RedactFields     []string  `json:"redact_fields,omitempty"`
+	MaxBytes         int       `json:"max_bytes"`
+	SamplePerTenK    int       `json:"sample_per_ten_k"`
+	RetentionDays    int       `json:"retention_days"`
+	Priority         int       `json:"priority"`
+	Enabled          bool      `json:"enabled"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type ReceiptProjectionFilters struct {
+	Source  string
+	Target  string
+	Enabled *bool
+}
+
 // Violation records a policy denial.
 type Violation struct {
 	ID             int64    `json:"id"`
@@ -134,5 +160,11 @@ type Store interface {
 	ListViolations(ctx context.Context, f ViolationFilters) ([]Violation, error)
 	SetCircuitBreakerOverride(ctx context.Context, ruleID int64, state CircuitState, ttlSeconds int) error
 	GetCircuitBreakerOverride(ctx context.Context, ruleID int64) (*CircuitBreakerOverride, error)
+	CreateReceiptProjection(ctx context.Context, r ReceiptProjectionRule) (int64, error)
+	GetReceiptProjection(ctx context.Context, id int64) (ReceiptProjectionRule, error)
+	ListReceiptProjections(ctx context.Context, f ReceiptProjectionFilters) ([]ReceiptProjectionRule, error)
+	UpdateReceiptProjection(ctx context.Context, r ReceiptProjectionRule) error
+	DeleteReceiptProjection(ctx context.Context, id int64) error
+	MatchReceiptProjection(ctx context.Context, source, target, operation string) (*ReceiptProjectionRule, error)
 	Close() error
 }

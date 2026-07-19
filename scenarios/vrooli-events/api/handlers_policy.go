@@ -68,6 +68,24 @@ func (s *Server) handleListPolicies(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 0, orEmpty(rules))
 }
 
+// handlePolicySnapshot returns one complete enabled-rule generation for local
+// api-core caches. Fetching it is a refresh operation, never request-time
+// policy evaluation. Clients atomically replace only with a newer version.
+func (s *Server) handlePolicySnapshot(w http.ResponseWriter, r *http.Request) {
+	enabled := true
+	rules, err := s.policyStore.ListRules(r.Context(), policy.ListFilters{Enabled: &enabled})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, ErrCodePolicyRead, "failed to load policy snapshot")
+		return
+	}
+	projections, err := s.policyStore.ListReceiptProjections(r.Context(), policy.ReceiptProjectionFilters{Enabled: &enabled})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, ErrCodePolicyRead, "failed to load receipt projection snapshot")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"version": s.policyVersion.Load(), "rules": orEmpty(rules), "receipt_projections": orEmpty(projections)})
+}
+
 // handleGetPolicy returns a single policy rule by ID.
 func (s *Server) handleGetPolicy(w http.ResponseWriter, r *http.Request) {
 	_, rule, ok := requireByID(w, r, "id", s.policyStore.GetRule, ErrCodePolicyRead, "policy rule")
@@ -279,7 +297,9 @@ func (s *Server) handlePolicySubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// broadcastPolicySnapshot queries all enabled rules and broadcasts a full snapshot.
+// broadcastPolicySnapshot publishes the same complete generation returned by
+// GET /policies/snapshot. Push accelerates convergence; caches still refresh
+// independently and never consult this service from a domain request path.
 func (s *Server) broadcastPolicySnapshot(ctx context.Context) {
 	if s.policyBroadcaster == nil {
 		return
@@ -290,7 +310,13 @@ func (s *Server) broadcastPolicySnapshot(ctx context.Context) {
 		log.Printf("policy snapshot broadcast error: %v", err)
 		return
 	}
-	s.policyBroadcaster.BroadcastSnapshot(orEmpty(rules))
+	projections, err := s.policyStore.ListReceiptProjections(ctx, policy.ReceiptProjectionFilters{Enabled: &enabled})
+	if err != nil {
+		log.Printf("receipt projection snapshot broadcast error: %v", err)
+		return
+	}
+	version := s.policyVersion.Add(1)
+	s.policyBroadcaster.BroadcastSnapshot(version, orEmpty(rules), orEmpty(projections))
 }
 
 // validatePolicyRule checks required fields on a policy rule.

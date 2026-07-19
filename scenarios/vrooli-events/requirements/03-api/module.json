@@ -1,20 +1,14 @@
 {
-  "module": "api",
-  "description": "HTTP API for event ingestion, query, and health",
-  "operational_targets": [
-    "OT-P0-001",
-    "OT-P0-003",
-    "OT-P0-004"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-07-18T12:22:14-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-API-001",
       "title": "Event ingestion endpoint",
+      "status": "in_progress",
+      "criticality": "P0",
       "description": "POST /api/v1/events accepts proto-JSON EventEnvelope, validates required fields, returns 202 Accepted.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
       "children": [
         "REQ-API-001A",
         "REQ-API-001B"
@@ -22,35 +16,28 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers_ingest_test.go",
           "phase": "unit",
-          "status": "complete",
-          "ref": "api/handlers_ingest_test.go"
+          "status": "failing"
         }
-      ],
-      "criticality": "P0"
+      ]
     },
     {
       "id": "REQ-API-001A",
       "title": "Envelope field validation",
-      "description": "Validates required fields (eventId, sourceScenario, eventType) and rejects malformed bodies",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
+      "criticality": "P0",
+      "description": "Validates required fields (eventId, sourceScenario, eventType) and rejects malformed bodies",
       "children": [
         "REQ-API-001A1"
-      ],
-      "criticality": "P0"
+      ]
     },
     {
       "id": "REQ-API-001A1",
       "title": "Structured error codes for validation failures",
-      "description": "Returns machine-readable error codes (missing_field, invalid_body) for client-side error handling",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
       "criticality": "P0",
+      "description": "Returns machine-readable error codes (missing_field, invalid_body) for client-side error handling",
       "children": [
         "REQ-API-001A1a"
       ]
@@ -58,12 +45,9 @@
     {
       "id": "REQ-API-001B",
       "title": "Dry-run support",
-      "description": "X-Dry-Run header skips persistence and broadcast while running full validation",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
       "criticality": "P0",
+      "description": "X-Dry-Run header skips persistence and broadcast while running full validation",
       "children": [
         "REQ-API-001B1"
       ]
@@ -71,76 +55,61 @@
     {
       "id": "REQ-API-002",
       "title": "Event query endpoint",
+      "status": "in_progress",
+      "criticality": "P0",
       "description": "GET /api/v1/events with query params: type (glob), source, correlation_id, since, limit",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P0-003"
+      "children": [
+        "REQ-API-002A",
+        "REQ-API-002B"
       ],
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers_query_test.go",
           "phase": "unit",
-          "status": "complete",
-          "ref": "api/handlers_query_test.go"
+          "status": "failing"
         }
-      ],
-      "criticality": "P0",
-      "children": [
-        "REQ-API-002A",
-        "REQ-API-002B"
       ]
     },
     {
       "id": "REQ-API-003",
       "title": "Health endpoint",
+      "status": "in_progress",
+      "criticality": "P0",
       "description": "GET /health returns store stats, subscriber count, status",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P0-004"
+      "children": [
+        "REQ-API-003A",
+        "REQ-API-003B"
       ],
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers_health_test.go",
           "phase": "unit",
-          "status": "complete",
-          "ref": "api/handlers_health_test.go"
+          "status": "failing"
         }
-      ],
-      "criticality": "P0",
-      "children": [
-        "REQ-API-003A",
-        "REQ-API-003B"
       ]
     },
     {
       "id": "REQ-API-001A1a",
       "title": "Error code to HTTP status mapping",
-      "description": "Maps validation error codes to appropriate HTTP status codes (400, 409)",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
-      "criticality": "P0"
+      "criticality": "P0",
+      "description": "Maps validation error codes to appropriate HTTP status codes (400, 409)"
     },
     {
       "id": "REQ-API-001B1",
       "title": "Dry-run validation response",
-      "description": "Returns validation result with would-be event ID without persisting",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-001"
-      ],
-      "criticality": "P0"
+      "criticality": "P0",
+      "description": "Returns validation result with would-be event ID without persisting"
     },
     {
       "id": "REQ-API-002A",
       "title": "Query parameter parsing and validation",
-      "description": "Parses type, source, correlation_id, since, limit with type coercion and bounds",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-003"
-      ],
       "criticality": "P0",
+      "description": "Parses type, source, correlation_id, since, limit with type coercion and bounds",
       "children": [
         "REQ-API-002A1"
       ]
@@ -148,32 +117,23 @@
     {
       "id": "REQ-API-002A1",
       "title": "Glob pattern filter for type parameter",
-      "description": "Type parameter supports glob matching against event_type field",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-003"
-      ],
-      "criticality": "P0"
+      "criticality": "P0",
+      "description": "Type parameter supports glob matching against event_type field"
     },
     {
       "id": "REQ-API-002B",
       "title": "Response format and pagination",
-      "description": "Returns JSON array with total count header for client-side pagination",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-003"
-      ],
-      "criticality": "P0"
+      "criticality": "P0",
+      "description": "Returns JSON array with total count header for client-side pagination"
     },
     {
       "id": "REQ-API-003A",
       "title": "Store statistics collection",
-      "description": "Collects event count, database size, and oldest event timestamp from store",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-004"
-      ],
       "criticality": "P0",
+      "description": "Collects event count, database size, and oldest event timestamp from store",
       "children": [
         "REQ-API-003A1"
       ]
@@ -181,22 +141,16 @@
     {
       "id": "REQ-API-003A1",
       "title": "Size reporting in human-readable format",
-      "description": "Database size returned in bytes with human-readable formatted string",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-004"
-      ],
-      "criticality": "P0"
+      "criticality": "P0",
+      "description": "Database size returned in bytes with human-readable formatted string"
     },
     {
       "id": "REQ-API-003B",
       "title": "Active subscriber count",
-      "description": "Reports current SSE subscriber count from broker state",
       "status": "complete",
-      "operational_targets": [
-        "OT-P0-004"
-      ],
-      "criticality": "P0"
+      "criticality": "P0",
+      "description": "Reports current SSE subscriber count from broker state"
     }
   ]
 }

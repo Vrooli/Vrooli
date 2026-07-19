@@ -5,8 +5,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync/atomic"
+	"time"
 
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/config"
@@ -78,8 +81,13 @@ func main() {
 		policyBroadcaster: policyBroadcaster,
 		webhookDeliverer:  webhookDeliverer,
 	}
+	// A generation is ordered across ordinary restarts as well as in-process
+	// mutations. The value is opaque to clients; only monotonic replacement
+	// matters. Wall-clock nanoseconds provide a durable ordering floor without
+	// making policy reads depend on another persistence layer.
+	srv.policyVersion.Store(time.Now().UTC().UnixNano())
 
-	mux := srv.routes()
+	mux := provenance.Middleware(provenance.CLIUtilVerifier{})(srv.routes())
 
 	if err := server.Run(server.Config{
 		Handler:      mux,
@@ -106,4 +114,5 @@ type Server struct {
 	subStore          subscription.Store
 	policyBroadcaster *policy.PolicyBroadcaster
 	webhookDeliverer  *subscription.WebhookDeliverer
+	policyVersion     atomic.Int64
 }

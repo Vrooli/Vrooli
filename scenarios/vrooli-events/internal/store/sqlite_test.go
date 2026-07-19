@@ -56,6 +56,29 @@ func TestInsertAndQuery(t *testing.T) {
 	}
 }
 
+func TestPruneHonorsReceiptSpecificExpiry(t *testing.T) {
+	now := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
+	s, err := NewSQLiteStore(context.Background(), SQLiteConfig{MaxAge: 365 * 24 * time.Hour, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	expires := now.Add(-time.Minute)
+	event := makeEvent("receipt-expired", "vrooli.receipt.observed.v1", "agent-manager")
+	event.ExpiresAt = &expires
+	if _, err := s.Insert(context.Background(), event); err != nil {
+		t.Fatal(err)
+	}
+	result, err := s.Prune(context.Background())
+	if err != nil || result.TimeDeletedCount != 1 {
+		t.Fatalf("prune = %#v, %v", result, err)
+	}
+	events, err := s.Query(context.Background(), QueryFilters{})
+	if err != nil || len(events) != 0 {
+		t.Fatalf("events after expiry = %#v, %v", events, err)
+	}
+}
+
 // [REQ:REQ-ES-001] Verify query filters (source, correlation, since, limit) on SQLite store
 func TestQueryFilters(t *testing.T) {
 	s := newTestStore(t)

@@ -23,12 +23,16 @@ type Event struct {
 	Payload        []byte
 	Metadata       map[string]string
 	CreatedAt      time.Time
+	// ExpiresAt is an optional receipt-specific retention deadline. Generic
+	// events continue to use the service-wide MaxAge policy.
+	ExpiresAt *time.Time
 }
 
 // QueryFilters defines filters for querying events.
 type QueryFilters struct {
 	EventType     string // glob pattern
 	Source        string // exact match
+	Target        string // exact match
 	CorrelationID string // exact match
 	Since         int64  // return events with ID > Since
 	Limit         int    // max results (default 100)

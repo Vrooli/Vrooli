@@ -1,20 +1,14 @@
 {
-  "module": "discovery-integration",
-  "description": "Integration with packages/api-core/discovery for automatic event emission and local policy enforcement",
-  "operational_targets": [
-    "OT-P1-010",
-    "OT-P1-011",
-    "OT-P1-014"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-07-18T12:22:14-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-DI-001",
       "title": "EmittingResolver decorator",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Wraps discovery.Resolver, emits discovery events via fire-and-forget.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
       "children": [
         "REQ-DI-001A",
         "REQ-DI-001B"
@@ -24,19 +18,16 @@
           "type": "test",
           "ref": "internal/resolver/resolver_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-DI-001A",
       "title": "Resolver wrapping and delegation",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "EmittingResolver delegates all resolve calls to inner resolver and captures results",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
       "children": [
         "REQ-DI-001A1"
       ],
@@ -45,20 +36,16 @@
           "type": "test",
           "ref": "internal/resolver/resolver_emit_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-DI-001A1",
       "title": "Non-blocking emission on resolve",
-      "description": "Event emission MUST NOT block or add latency to the resolve call",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
       "criticality": "P1",
+      "description": "Event emission MUST NOT block or add latency to the resolve call",
       "children": [
         "REQ-DI-001A1a"
       ]
@@ -66,12 +53,9 @@
     {
       "id": "REQ-DI-001B",
       "title": "Resolve event payload",
-      "description": "Event includes source_scenario, target_scenario, port_key, resolved_port, duration_ms",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
       "criticality": "P1",
+      "description": "Event includes source_scenario, target_scenario, port_key, resolved_port, duration_ms",
       "children": [
         "REQ-DI-001B1"
       ]
@@ -79,11 +63,9 @@
     {
       "id": "REQ-DI-002",
       "title": "Fire-and-forget event emission",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Events sent via 256-capacity buffered channel with batching.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
       "children": [
         "REQ-DI-002A",
         "REQ-DI-002B"
@@ -93,19 +75,16 @@
           "type": "test",
           "ref": "internal/emitter/emitter_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-DI-002A",
       "title": "Buffered channel with drop on full",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "256-capacity channel; events dropped with warning counter if full",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
       "children": [
         "REQ-DI-002A1"
       ],
@@ -114,20 +93,16 @@
           "type": "test",
           "ref": "internal/emitter/emitter_retry_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-DI-002A1",
       "title": "Batch size flush",
-      "description": "Background goroutine batches up to 10 events before flushing",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
       "criticality": "P1",
+      "description": "Background goroutine batches up to 10 events before flushing",
       "children": [
         "REQ-DI-002A1a"
       ]
@@ -135,12 +110,9 @@
     {
       "id": "REQ-DI-002B",
       "title": "Timer-based flush",
-      "description": "Events flushed after 100ms if batch not full",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
       "criticality": "P1",
+      "description": "Events flushed after 100ms if batch not full",
       "children": [
         "REQ-DI-002B1"
       ]
@@ -148,55 +120,47 @@
     {
       "id": "REQ-DI-003",
       "title": "Sender-side policy cache",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Local policy cache loaded at construction and kept current via SSE.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-009"
+      "children": [
+        "REQ-DI-003A",
+        "REQ-DI-003B"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "internal/resolver/resolver_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-DI-003A",
-        "REQ-DI-003B"
       ]
     },
     {
       "id": "REQ-DI-004",
       "title": "Receiver-side policy middleware",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Go middleware evaluating policy on incoming requests.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-011"
+      "children": [
+        "REQ-DI-004A",
+        "REQ-DI-004B"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "internal/middleware/policy_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-DI-004A",
-        "REQ-DI-004B"
       ]
     },
     {
       "id": "REQ-DI-005",
       "title": "Graceful degradation",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Empty cache fail-open when vrooli-events unreachable.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-014"
-      ],
       "children": [
         "REQ-DI-005A",
         "REQ-DI-005B"
@@ -206,19 +170,16 @@
           "type": "test",
           "ref": "internal/middleware/policy_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-DI-005A",
       "title": "Empty cache fail-open initialization",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Resolver starts with empty policy cache in fail-open mode when unreachable",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-014"
-      ],
       "children": [
         "REQ-DI-005A1"
       ],
@@ -227,20 +188,16 @@
           "type": "test",
           "ref": "internal/fallback/fallback_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-DI-005A1",
       "title": "Last-known policy retention on SSE drop",
-      "description": "Last-known policy remains in effect until reconnection",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-014"
-      ],
       "criticality": "P1",
+      "description": "Last-known policy remains in effect until reconnection",
       "children": [
         "REQ-DI-005A1a"
       ]
@@ -248,12 +205,9 @@
     {
       "id": "REQ-DI-005B",
       "title": "SSE reconnection with exponential backoff",
-      "description": "Reconnection uses 1s, 2s, 4s, max 30s backoff",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-014"
-      ],
       "criticality": "P1",
+      "description": "Reconnection uses 1s, 2s, 4s, max 30s backoff",
       "children": [
         "REQ-DI-005B1"
       ]
@@ -261,96 +215,75 @@
     {
       "id": "REQ-DI-006",
       "title": "X-Source-Scenario header injection",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Adds X-Source-Scenario header to all outgoing HTTP requests.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
+      "children": [
+        "REQ-DI-006A",
+        "REQ-DI-006B"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "internal/headers/headers_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-DI-006A",
-        "REQ-DI-006B"
       ]
     },
     {
       "id": "REQ-DI-007",
       "title": "Zero-dependency fallback",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "Existing discovery.Resolver works unchanged without vrooli-events.",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-014"
+      "children": [
+        "REQ-DI-007A",
+        "REQ-DI-007B"
       ],
       "validation": [
         {
           "type": "test",
           "ref": "internal/fallback/fallback_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-DI-007A",
-        "REQ-DI-007B"
       ]
     },
     {
       "id": "REQ-DI-001A1a",
       "title": "Goroutine isolation for emission",
-      "description": "Event emission runs in separate goroutine to prevent blocking resolve path",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Event emission runs in separate goroutine to prevent blocking resolve path"
     },
     {
       "id": "REQ-DI-001B1",
       "title": "Nanosecond duration measurement",
-      "description": "Duration measured with monotonic clock for accurate latency reporting",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Duration measured with monotonic clock for accurate latency reporting"
     },
     {
       "id": "REQ-DI-002A1a",
       "title": "Batch size threshold trigger",
-      "description": "Flush triggers when batch reaches 10 events before timer expires",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Flush triggers when batch reaches 10 events before timer expires"
     },
     {
       "id": "REQ-DI-002B1",
       "title": "Timer reset on flush",
-      "description": "100ms timer resets after each flush to prevent stale partial batches",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "100ms timer resets after each flush to prevent stale partial batches"
     },
     {
       "id": "REQ-DI-003A",
       "title": "Initial policy load at startup",
-      "description": "Fetches full policy set from API on resolver construction",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-009"
-      ],
       "criticality": "P1",
+      "description": "Fetches full policy set from API on resolver construction",
       "children": [
         "REQ-DI-003A1"
       ]
@@ -358,32 +291,23 @@
     {
       "id": "REQ-DI-003A1",
       "title": "Startup validation of cached policies",
-      "description": "Validates loaded policy format and logs warning on parse errors",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-009"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Validates loaded policy format and logs warning on parse errors"
     },
     {
       "id": "REQ-DI-003B",
       "title": "SSE-driven cache updates",
-      "description": "Subscribes to policy SSE channel and applies incremental updates to cache",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-009"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Subscribes to policy SSE channel and applies incremental updates to cache"
     },
     {
       "id": "REQ-DI-004A",
       "title": "Source scenario header extraction",
-      "description": "Extracts X-Source-Scenario from incoming request headers for policy evaluation",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-011"
-      ],
       "criticality": "P1",
+      "description": "Extracts X-Source-Scenario from incoming request headers for policy evaluation",
       "children": [
         "REQ-DI-004A1"
       ]
@@ -391,52 +315,37 @@
     {
       "id": "REQ-DI-004A1",
       "title": "Missing header default behavior",
-      "description": "Requests without X-Source-Scenario treated as unknown source in policy eval",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-011"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Requests without X-Source-Scenario treated as unknown source in policy eval"
     },
     {
       "id": "REQ-DI-004B",
       "title": "Policy decision enforcement",
-      "description": "Blocks denied requests with 403 status and structured error response",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-011"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Blocks denied requests with 403 status and structured error response"
     },
     {
       "id": "REQ-DI-005A1a",
       "title": "Staleness detection via SSE keepalive",
-      "description": "Detects policy cache staleness when SSE heartbeats stop arriving",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-014"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Detects policy cache staleness when SSE heartbeats stop arriving"
     },
     {
       "id": "REQ-DI-005B1",
       "title": "Maximum backoff cap at 30 seconds",
-      "description": "Exponential backoff capped at 30s to ensure timely reconnection",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-014"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Exponential backoff capped at 30s to ensure timely reconnection"
     },
     {
       "id": "REQ-DI-006A",
       "title": "Header value from scenario identity",
-      "description": "Resolves source scenario name from process context or configuration",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
       "criticality": "P1",
+      "description": "Resolves source scenario name from process context or configuration",
       "children": [
         "REQ-DI-006A1"
       ]
@@ -444,32 +353,23 @@
     {
       "id": "REQ-DI-006A1",
       "title": "Scenario name resolution order",
-      "description": "Checks SCENARIO_NAME env var, then service.json name field, then process name",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Checks SCENARIO_NAME env var, then service.json name field, then process name"
     },
     {
       "id": "REQ-DI-006B",
       "title": "HTTP client request interception",
-      "description": "Injects header into all outgoing HTTP requests via transport wrapper",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-010"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Injects header into all outgoing HTTP requests via transport wrapper"
     },
     {
       "id": "REQ-DI-007A",
       "title": "Feature detection for vrooli-events",
-      "description": "Checks if vrooli-events is reachable before enabling emission features",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-014"
-      ],
       "criticality": "P1",
+      "description": "Checks if vrooli-events is reachable before enabling emission features",
       "children": [
         "REQ-DI-007A1"
       ]
@@ -477,22 +377,16 @@
     {
       "id": "REQ-DI-007A1",
       "title": "Graceful feature toggle",
-      "description": "Silently disables emission when unreachable, re-enables when available",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-014"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Silently disables emission when unreachable, re-enables when available"
     },
     {
       "id": "REQ-DI-007B",
       "title": "Transparent passthrough mode",
-      "description": "Resolver passes through to inner resolver without modification when disabled",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-014"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Resolver passes through to inner resolver without modification when disabled"
     }
   ]
 }

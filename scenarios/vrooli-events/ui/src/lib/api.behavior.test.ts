@@ -52,12 +52,13 @@ describe("fetchEvents (via globalThis.fetch seam)", () => {
     it("appends filter params to the URL when provided", async () => {
         httpMock.respondTo({ urlPattern: "/events" }, { body: [] });
 
-        await fetchEvents({ type: "discovery.*", source: "agent-manager", limit: 25 });
+        await fetchEvents({ type: "discovery.*", source: "agent-manager", target: "plan-manager", limit: 25 });
 
         const calledUrl = httpMock.calls[0].url;
         // URLSearchParams preserves `*` unencoded (RFC 3986 considers it a sub-delim, not reserved in query).
         expect(calledUrl).toContain("type=discovery.*");
         expect(calledUrl).toContain("source=agent-manager");
+        expect(calledUrl).toContain("target=plan-manager");
         expect(calledUrl).toContain("limit=25");
     });
 

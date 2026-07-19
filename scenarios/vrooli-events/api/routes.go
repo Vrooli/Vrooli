@@ -13,6 +13,12 @@ func (s *Server) routes() *http.ServeMux {
 	// Policy endpoints
 	mux.HandleFunc("POST /api/v1/policies", s.handleCreatePolicy)
 	mux.HandleFunc("GET /api/v1/policies", s.handleListPolicies)
+	mux.HandleFunc("GET /api/v1/policies/snapshot", s.handlePolicySnapshot)
+	mux.HandleFunc("POST /api/v1/receipt-projections", s.handleCreateReceiptProjection)
+	mux.HandleFunc("GET /api/v1/receipt-projections", s.handleListReceiptProjections)
+	mux.HandleFunc("GET /api/v1/receipt-projections/{id}", s.handleGetReceiptProjection)
+	mux.HandleFunc("PUT /api/v1/receipt-projections/{id}", s.handleUpdateReceiptProjection)
+	mux.HandleFunc("DELETE /api/v1/receipt-projections/{id}", s.handleDeleteReceiptProjection)
 	mux.HandleFunc("GET /api/v1/policies/subscribe", s.handlePolicySubscribe)
 	mux.HandleFunc("GET /api/v1/policies/violations", s.handleListViolations)
 	mux.HandleFunc("POST /api/v1/policies/evaluate", s.handleEvaluatePolicy)

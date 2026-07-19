@@ -52,8 +52,30 @@ export default [
       "@typescript-eslint/no-unsafe-argument": "warn",
       "@typescript-eslint/no-unsafe-assignment": "warn",
       "@typescript-eslint/no-unsafe-return": "warn",
+	  "no-restricted-imports": [
+		"error",
+		{
+		  patterns: [{
+			group: ["**/test-utils", "**/test-utils/*", "@/test-utils", "@/test-utils/*", "**/features/*/mocks", "**/features/*/mocks/*", "@/features/*/mocks", "@/features/*/mocks/*"],
+			message: "Production code must not import test helpers or feature mocks.",
+		  }],
+		},
+	  ],
       // CRITICAL: Detects circular dependencies that cause "Cannot access X before initialization"
       // "import/no-cycle": "error", // TODO: install eslint-plugin-import to enable
+    },
+  },
+  {
+    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "src/test-utils/**/*.{ts,tsx}", "src/test-setup.ts"],
+    rules: {
+      "no-restricted-imports": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "react-refresh/only-export-components": "off",
     },
   },
   {
