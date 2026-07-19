@@ -1,8 +1,0 @@
-{
-  "known_uncovered": {
-    "dependencies": {
-      "reason": "The R1 maturity ladder gates dependency hygiene, and production-ready weights it, but no steer skill currently declares the dependencies dimension.",
-      "tracking_ref": "knw-1781286604077741066"
-    }
-  }
-}

@@ -191,8 +191,10 @@ func isAuthoredExperienceBinding(raw string, profile *readinessProfile) bool {
 	}
 	for _, page := range profile.Pages {
 		for _, region := range page.Regions {
-			if binding := strings.TrimSpace(region.Binding.Selector); binding != "" && raw == binding {
-				return true
+			if binding := strings.TrimSpace(region.Binding.Selector); binding != "" {
+				if raw == binding || (strings.Contains(raw, binding) && strings.Contains(raw, "data-experience-state")) {
+					return true
+				}
 			}
 			if testID := strings.TrimSpace(region.Binding.TestID); testID != "" && (raw == testID || raw == fmt.Sprintf("[data-testid=%q]", testID)) {
 				return true

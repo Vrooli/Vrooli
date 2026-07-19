@@ -37,7 +37,8 @@ type hostVrooliScenarioResponse struct {
 
 // HostVrooliScenario runs a narrow set of host-side Vrooli scenario lifecycle
 // commands for sandboxed agents. It is intentionally not a generic host exec
-// endpoint: the only accepted operations are start, restart, and stop.
+// endpoint: the only accepted operations are start, restart, stop, and the
+// read-only port lookup used by scenario CLIs.
 func (h *Handlers) HostVrooliScenario(w http.ResponseWriter, r *http.Request) {
 	var req hostVrooliScenarioRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -1,2 +1,0 @@
-# Runtime audit and task-run artifacts. Keep source packages such as cli/logs tracked.
-/logs/
