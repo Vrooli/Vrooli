@@ -30,7 +30,7 @@ Swarm Manager fills a specific role in Vrooli as the **staging layer** between a
 |----------|--------------|-------|
 | prompt-manager | Primary producer | Teams produce findings and write backlog items via shared swarm-manager tool skill |
 | agent-manager | Execution engine | Runs spawned from backlog research/execution operations |
-| ecosystem-manager | Optional integration | Scenario task initialization/coordination where applicable |
+| ecosystem-manager | Historical optional integration | Not required for active Swarm workflows; scenario templates and Test Genie provide the preferred validation path. |
 | visited-tracker | Integration | Context cleanup campaigns |
 | app-issue-tracker | Integration | Issue tracking per scenario |
 

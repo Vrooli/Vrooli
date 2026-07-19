@@ -33,12 +33,14 @@ const KIND_LABELS: Record<AgentSession["kind"], string> = {
   meta_orchestration: "Plan work",
   operating_mode_authoring: "Archived mode authoring",
   swarm_operations: "Swarm operations",
+	workflow_authoring: "Workflow authoring",
 };
 
 const KIND_ICONS = {
   meta_orchestration: Workflow,
   operating_mode_authoring: Archive,
   swarm_operations: Gauge,
+	workflow_authoring: Workflow,
 };
 
 export interface SessionSummaryCardProps {

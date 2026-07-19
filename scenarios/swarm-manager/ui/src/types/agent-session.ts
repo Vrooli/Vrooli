@@ -14,7 +14,7 @@ import type {
 import type { AgentSessionRunEvent as ProtoAgentSessionRunEvent } from "@vrooli/proto-types/swarm-manager/v1/api/agent_session_pb";
 import type { ProtoMessage } from "./shared";
 
-export type AgentSessionKind = "meta_orchestration" | "operating_mode_authoring" | "swarm_operations";
+export type AgentSessionKind = "meta_orchestration" | "operating_mode_authoring" | "swarm_operations" | "workflow_authoring";
 
 /** Session kinds that can be started by current UI controls. The retired kind
  * remains in AgentSessionKind solely so historical records can be displayed. */

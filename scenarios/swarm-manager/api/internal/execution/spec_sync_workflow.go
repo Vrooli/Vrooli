@@ -23,6 +23,7 @@ type specSyncWorkflowResult struct {
 type specSyncWorkflowSnapshot struct {
 	EntityVersion string
 	Input         *structpb.Value
+	WorkflowKey   string
 }
 
 func buildSpecSyncWorkflowSnapshot(record Record) (specSyncWorkflowSnapshot, error) {
@@ -65,8 +66,13 @@ func (s *Service) startSpecSyncWorkflow(ctx context.Context, record Record) (age
 	if err != nil {
 		return agentmanager.WorkflowStart{}, specSyncWorkflowSnapshot{}, err
 	}
+	workflow, err := s.resolveWorkflow("scenario.spec_sync")
+	if err != nil {
+		return agentmanager.WorkflowStart{}, specSyncWorkflowSnapshot{}, err
+	}
+	snapshot.WorkflowKey = workflow.Key
 	start, err := s.specSyncWorkflow.StartWorkflow(ctx, agentmanager.Invocation{
-		Owner: "swarm-manager", WorkflowKey: "swarm-manager/scenario-spec-sync", Input: snapshot.Input,
+		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: snapshot.Input,
 		IdempotencyKey: "scenario-spec-sync/" + record.ExecutionID + "/" + snapshot.EntityVersion, FirstRunNodeID: "sync",
 	})
 	return start, snapshot, err

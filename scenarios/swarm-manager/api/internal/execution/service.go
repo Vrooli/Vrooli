@@ -18,6 +18,7 @@ import (
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/runtimepaths"
+	"swarm-manager/internal/transitions"
 )
 
 var (
@@ -117,10 +118,11 @@ type ServiceConfig struct {
 	BaselineClient           BaselineClient
 	BaselineEngagementRunner BaselineEngagementRunner
 	PlanRenderer             planclient.MarkdownRenderer
-	PhasedPlanWorkflow       agentmanager.PhasedPlanWorkflowService
+	PhasedPlanWorkflow       agentmanager.WorkflowInvoker
 	ConclusionWorkflow       agentmanager.WorkflowInvoker
 	WorkWorkflow             agentmanager.WorkflowInvoker
 	SpecSyncWorkflow         agentmanager.WorkflowInvoker
+	TransitionRegistry       transitions.Registry
 	Finalization             FinalizationConfig
 }
 
@@ -143,10 +145,11 @@ type Service struct {
 	baselineClient           BaselineClient
 	baselineEngagementRunner BaselineEngagementRunner
 	planRenderer             planclient.MarkdownRenderer
-	phasedPlanWorkflow       agentmanager.PhasedPlanWorkflowService
+	phasedPlanWorkflow       agentmanager.WorkflowInvoker
 	conclusionWorkflow       agentmanager.WorkflowInvoker
 	workWorkflow             agentmanager.WorkflowInvoker
 	specSyncWorkflow         agentmanager.WorkflowInvoker
+	transitionRegistry       transitions.Registry
 	engagementStore          *EngagementStore
 	differ                   RunDiffer
 	stopper                  RunStopper
@@ -190,6 +193,15 @@ func NewService(cfg ServiceConfig) *Service {
 	repoRoot := strings.TrimSpace(cfg.RepoRoot)
 	if repoRoot == "" {
 		repoRoot = pathutil.ResolveScenarioRoot("swarm-manager")
+	}
+	if len(cfg.TransitionRegistry.Definitions()) == 0 {
+		// Direct service users (including focused package tests) still resolve
+		// the scenario declaration rather than reintroducing workflow-key
+		// defaults. Server bootstrap replaces this with its already-validated
+		// registry instance.
+		if registry, err := transitions.LoadDir(filepath.Join(repoRoot, ".vrooli", "swarm-transitions")); err == nil {
+			cfg.TransitionRegistry = registry
+		}
 	}
 
 	pc := cfg.PromptClient
@@ -239,6 +251,7 @@ func NewService(cfg ServiceConfig) *Service {
 		conclusionWorkflow:       cfg.ConclusionWorkflow,
 		workWorkflow:             cfg.WorkWorkflow,
 		specSyncWorkflow:         cfg.SpecSyncWorkflow,
+		transitionRegistry:       cfg.TransitionRegistry,
 		engagementStore:          NewEngagementStore(engagementStorePath(cfg.StorePath)),
 		scenarioLifecycle:        cfg.ScenarioLifecycle,
 		scenarioHealth:           cfg.ScenarioHealthChecker,
@@ -268,6 +281,14 @@ func NewService(cfg ServiceConfig) *Service {
 		service.approver = approver
 	}
 	return service
+}
+
+// SetTransitionRegistry installs the immutable, scenario-owned transition
+// declarations used to resolve Agent Manager workflow locators at runtime.
+func (s *Service) SetTransitionRegistry(registry transitions.Registry) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.transitionRegistry = registry
 }
 
 func defaultCircuitBreakerPath(storePath string) string {

@@ -87,7 +87,13 @@ The session kinds remain explicit rather than becoming an untyped chat bucket:
 | --- | --- |
 | `meta_orchestration` | Explore a broad objective and propose initiatives and/or backlog items. |
 | `swarm_operations` | Understand project status, pending decisions, and available operator actions. |
-| `operating_mode_authoring` | Transitional: discuss and propose methodology changes while operating modes still exist. The target replacement is workflow authoring, not a new mode engine. |
+| `workflow_authoring` | Describe a natural coding-agent method, compare it with the transition catalog, and produce a reviewed workflow or scenario-improvement proposal. |
+
+Historical `operating_mode_authoring` sessions remain readable for attribution,
+but are not creatable or part of the active session contract. Workflow
+authoring is conversational because a human is still shaping and judging the
+method; it produces a reviewable proposal, never silent workflow mutation. A
+code-owned method becomes a declared Agent Manager workflow only after review.
 
 ### Work shaping and completion
 
@@ -124,7 +130,7 @@ unavailable and what path is affected.
 | **Prompt Manager** | Prompt/skill content referenced and pinned by workflow revisions; session guidance. | New workflow reconciliation or prompt-dependent starts fail closed; existing pinned revisions remain explainable. |
 | **Test Genie** | Scenario test execution and structured test evidence. | Validation-dependent completion cannot be asserted; work routes to an explicit blocked/attention state rather than pretending success. |
 | **Git Control Tower** | Baselines, regression comparison, and readiness evidence. | Regression-gated completion cannot be asserted; preserve the missing-evidence reason. |
-| **Ecosystem Manager** | Scenario lifecycle and ecosystem operations. | Scenario-management actions are unavailable; unrelated backlog planning remains usable. |
+| **Ecosystem Manager** | Historical optional scenario-lifecycle integration. | It is not a prerequisite for active workflow selection; scenario specification work uses the declared transition, scenario templates, and Test Genie evidence. |
 | **Knowledge Observatory / Search Hub** | Retrieval, documentation, and historical learning context. | Discovery is degraded; it must not silently become a requirement for normal work mutation. |
 | **Audio Tools** | Optional speech input/output for interactive sessions and capture. | Hide or disable audio affordances; text intake and sessions remain usable. |
 

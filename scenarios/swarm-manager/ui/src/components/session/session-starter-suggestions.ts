@@ -109,13 +109,32 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
         {
           id: "operations-initiative",
           icon: Layers,
-          text: "Assess an initiative and recommend the best operating mode.",
-          contextText: (title) => `Assess "${title}" and recommend the best operating mode.`,
+          text: "Assess an initiative and recommend its next registered transition.",
+          contextText: (title) => `Assess "${title}" and recommend its next registered transition.`,
           requirements: [{ kind: "context", type: "initiative" }],
         },
       ];
     case "operating_mode_authoring":
       return [];
+	case "workflow_authoring":
+		return [
+			{
+				id: "workflow-author-method",
+				icon: Workflow,
+				text: "Describe a coding-agent method you want Swarm Manager to support.",
+			},
+			{
+				id: "workflow-author-transition",
+				icon: GitPullRequestArrow,
+				text: "Review an existing transition and propose a safer or clearer workflow.",
+			},
+			{
+				id: "workflow-author-scenario",
+				icon: Layers,
+				text: "Design a workflow for a scenario or initiative.",
+				requirements: [{ kind: "context", type: "scenario", optional: true }, { kind: "context", type: "initiative", optional: true }],
+			},
+		];
     case "meta_orchestration":
     default:
       return [

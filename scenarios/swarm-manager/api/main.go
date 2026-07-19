@@ -38,7 +38,6 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
 	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/goals"
 	"swarm-manager/internal/graph"
@@ -116,8 +115,6 @@ type Server struct {
 	emitter             *eventlog.Emitter
 	statsEngine         *stats.Engine
 	eventRepo           *eventlog.SQLiteRepository
-	evidenceStore       *evidence.Store
-	evidenceSvc         *evidence.Service
 	aiSearchSvc         *aisearch.Service
 	aiSearchReconciler  *aisearch.Reconciler
 	aiSearchSyncLoop    *aisearch.SyncLoop
@@ -181,7 +178,8 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 	}
 
 	agentEnabled := strings.ToLower(strings.TrimSpace(os.Getenv("AGENT_MANAGER_ENABLED"))) != "false"
-	// Loading the operating-mode registry from the resolved scenario modes dir
+	// Agent Manager owns declared workflow resolution and execution; Swarm only
+	// supplies its profile and required capability keys.
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
 		ProfileName:  getEnvDefault("AGENT_MANAGER_PROFILE_NAME", "swarm-manager"),
 		ProfileKey:   getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "swarm-manager/default"),
@@ -304,7 +302,6 @@ func (s *Server) setupRoutes() {
 	// Reapply the same guard so its declared workflow receives registry and
 	// integration preflight before any trigger can start it.
 	s.wireWorkflowStartGuards(backlogHandler, execSvc)
-	s.wireEvidence()
 	s.registerOperationsRoutes()
 	s.registerPlanRoutes(scenarioRoot)
 	s.registerPlanImportRoutes(backlogHandler, initService)
@@ -807,6 +804,10 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 		panic(fmt.Errorf("load workflow transition registry: %w", err))
 	}
 	s.integrationStatus.SetTransitionRegistry(registry)
+	backlogHandler.SetTransitionRegistry(registry)
+	if executionService != nil {
+		executionService.SetTransitionRegistry(registry)
+	}
 	guard := func(ctx context.Context, workflowKey string) error {
 		for _, definition := range registry.Definitions() {
 			if definition.Kind != transitions.KindWorkflow || definition.Workflow == nil || definition.Workflow.Key != workflowKey {
@@ -818,15 +819,18 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 	}
 	backlogHandler.SetWorkflowStartGuard(guard)
 	if s.capturesHandler != nil {
+		s.capturesHandler.SetTransitionRegistry(registry)
 		s.capturesHandler.SetWorkflowStartGuard(guard)
 	}
 	if executionService != nil {
 		executionService.SetWorkflowStartGuard(guard)
 	}
 	if s.reviewSvc != nil {
+		s.reviewSvc.SetTransitionRegistry(registry)
 		s.reviewSvc.SetWorkflowStartGuard(guard)
 	}
 	if s.initiativeReviewSvc != nil {
+		s.initiativeReviewSvc.SetTransitionRegistry(registry)
 		s.initiativeReviewSvc.SetWorkflowStartGuard(guard)
 	}
 }

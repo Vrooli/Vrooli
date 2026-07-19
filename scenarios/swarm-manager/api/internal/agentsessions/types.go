@@ -15,6 +15,10 @@ type Kind string
 const (
 	KindMetaOrchestration Kind = "meta_orchestration"
 	KindSwarmOperations   Kind = "swarm_operations"
+	// KindWorkflowAuthoring is a human-led conversation for proposing changes
+	// to Swarm's declared transition and workflow catalog. It does not execute
+	// those methods; declared Agent Manager workflows do that after review.
+	KindWorkflowAuthoring Kind = "workflow_authoring"
 )
 
 type Status string
@@ -108,6 +112,7 @@ const OperationsBriefingLatestRef = "operations_briefing/latest"
 const (
 	StartupBriefMetaOrchestrationRef = "startup_brief/meta_orchestration"
 	StartupBriefSwarmOperationsRef   = "startup_brief/swarm_operations"
+	StartupBriefWorkflowAuthoringRef = "startup_brief/workflow_authoring"
 )
 
 type AutoContextPolicy string
@@ -254,7 +259,7 @@ func (s Session) Validate() error {
 		return validationError("title is required")
 	}
 	if !IsKnownKind(s.Kind) {
-		return validationError("kind must be meta_orchestration or swarm_operations")
+		return validationError("kind must be meta_orchestration, swarm_operations, or workflow_authoring")
 	}
 	if !IsKnownStatus(s.Status) {
 		return validationError("status is invalid")
@@ -453,7 +458,7 @@ func (a Attribution) Validate() error {
 
 func IsKnownKind(kind Kind) bool {
 	switch kind {
-	case KindMetaOrchestration, KindSwarmOperations:
+	case KindMetaOrchestration, KindSwarmOperations, KindWorkflowAuthoring:
 		return true
 	default:
 		return false
@@ -535,6 +540,8 @@ func StartupBriefRefForKind(kind Kind) string {
 		return StartupBriefMetaOrchestrationRef
 	case KindSwarmOperations:
 		return StartupBriefSwarmOperationsRef
+	case KindWorkflowAuthoring:
+		return StartupBriefWorkflowAuthoringRef
 	default:
 		return ""
 	}

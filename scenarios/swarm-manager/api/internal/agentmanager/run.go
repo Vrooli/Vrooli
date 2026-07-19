@@ -151,6 +151,13 @@ func (s *AgentService) GetRunEvents(ctx context.Context, runID string, opts RunE
 	return resp.Events, resp.HasMore, nil
 }
 
+func (s *AgentService) GetObservedReceipts(ctx context.Context, runID string, limit int) (ObservedReceiptsResponse, error) {
+	if !s.enabled {
+		return ObservedReceiptsResponse{Status: "unavailable", Observations: []ObservedReceipt{}}, ErrNotAvailable
+	}
+	return s.client.GetObservedReceipts(ctx, runID, limit)
+}
+
 // GetRunDiff resolves changed files for a sandboxed run.
 func (s *AgentService) GetRunDiff(ctx context.Context, runID string) (RunDiff, error) {
 	if !s.enabled {

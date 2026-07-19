@@ -70,6 +70,8 @@ func (r *Resolver) ResolveSessionStartupBrief(ctx context.Context, kind agentses
 		return r.operationsStartupBrief(ctx, limits)
 	case agentsessions.KindMetaOrchestration:
 		return r.portfolioStartupBrief(limits)
+	case agentsessions.KindWorkflowAuthoring:
+		return r.workflowAuthoringStartupBrief(limits)
 	default:
 		return agentsessions.ContextItem{}, fmt.Errorf("%w: unsupported startup brief kind", agentsessions.ErrValidation)
 	}
@@ -81,6 +83,8 @@ func kindForStartupBriefRef(ref string) (agentsessions.Kind, error) {
 		return agentsessions.KindSwarmOperations, nil
 	case agentsessions.StartupBriefMetaOrchestrationRef:
 		return agentsessions.KindMetaOrchestration, nil
+	case agentsessions.StartupBriefWorkflowAuthoringRef:
+		return agentsessions.KindWorkflowAuthoring, nil
 	default:
 		return "", fmt.Errorf("%w: unknown startup brief ref %q", agentsessions.ErrValidation, ref)
 	}
@@ -266,6 +270,30 @@ func (r *Resolver) portfolioStartupBrief(limits agentsessions.ContextLimits) (ag
 		Warnings: warnings,
 	}
 	return startupContextItem(agentsessions.KindMetaOrchestration, "Portfolio startup brief", b.String(), "/initiatives", metadata, limits)
+}
+
+// workflowAuthoringStartupBrief gives the authoring conversation the durable
+// operating model and the current declared catalog, without asking the agent
+// to infer its authority from a broad project snapshot.
+func (r *Resolver) workflowAuthoringStartupBrief(limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	now := time.Now().UTC()
+	metadata := startupBriefMetadata{
+		Kind:             string(agentsessions.KindWorkflowAuthoring),
+		GeneratedAt:      now.Format(time.RFC3339),
+		StaleAfter:       now.Add(startupBriefFreshnessModeSeconds * time.Second).Format(time.RFC3339),
+		FreshnessSeconds: startupBriefFreshnessModeSeconds,
+		RecommendedNextActions: []briefAction{
+			{ID: "read-operating-model", Label: "Read the target operating model", Reason: "Establish the session/workflow boundary before proposing a change.", Command: "sed -n '1,220p' docs/concepts/TARGET-OPERATING-MODEL.md"},
+			{ID: "inspect-transition-catalog", Label: "Inspect registered transitions", Reason: "Prefer improving an existing declared transition over inventing a parallel method.", Command: "cat .vrooli/swarm-transitions/registry.json"},
+		},
+		DrillDownCommands: []briefDrillDownCommand{
+			{Label: "Target operating model", Command: "sed -n '1,220p' docs/concepts/TARGET-OPERATING-MODEL.md"},
+			{Label: "Transition registry", Command: "cat .vrooli/swarm-transitions/registry.json"},
+			{Label: "Workflow declarations", Command: "find .vrooli/agent-manager -maxdepth 1 -name '*.json' -print"},
+		},
+	}
+	summary := "Workflow authoring is a human-led design conversation. Use it to compare a natural agent-working method with Swarm's target operating model and declared transition catalog. Propose an existing-workflow improvement, a new reviewed transition/workflow, or a backlog item when Swarm lacks the required deterministic domain adapter. Do not treat this session as permission to execute or silently mutate workflow declarations.\n\nAuthoritative references:\n- docs/concepts/TARGET-OPERATING-MODEL.md\n- .vrooli/swarm-transitions/registry.json\n- .vrooli/agent-manager/*.json\n"
+	return startupContextItem(agentsessions.KindWorkflowAuthoring, "Workflow authoring startup brief", summary, "/sessions", metadata, limits)
 }
 
 func startupContextItem(kind agentsessions.Kind, title, summary, nodeID string, metadata startupBriefMetadata, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {

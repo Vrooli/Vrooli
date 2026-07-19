@@ -34,6 +34,7 @@ type Store interface {
 	ListSessions(filters ListFilters) ([]Session, error)
 	AppendMessage(sessionID string, message Message) error
 	SaveProposal(sessionID string, proposal Proposal) error
+	AppendArtifacts(sessionID string, artifacts []Artifact) error
 	ListArtifacts(sessionID string) ([]Artifact, error)
 	ListArtifactsByEntity(artifactType ArtifactType, entityRef string) ([]Artifact, error)
 	SaveAttachment(sessionID string, attachment Attachment, reader io.Reader) error
@@ -192,6 +193,24 @@ func (s *FileStore) ListArtifacts(sessionID string) ([]Artifact, error) {
 		return nil, err
 	}
 	return readJSONL[Artifact](filepath.Join(s.sessionDir(sessionID), artifactsFileName))
+}
+
+// AppendArtifacts preserves non-receipt review artifacts in the session's
+// own durable record. These are domain handoff material, not transport
+// evidence, and must remain available after the shared receipt migration.
+func (s *FileStore) AppendArtifacts(sessionID string, artifacts []Artifact) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := s.loadSessionLocked(sessionID); err != nil {
+		return err
+	}
+	path := filepath.Join(s.sessionDir(sessionID), artifactsFileName)
+	for _, artifact := range artifacts {
+		if err := appendJSONL(path, artifact); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *FileStore) ListArtifactsByEntity(artifactType ArtifactType, entityRef string) ([]Artifact, error) {

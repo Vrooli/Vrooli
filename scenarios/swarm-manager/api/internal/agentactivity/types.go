@@ -49,6 +49,7 @@ const (
 	PurposeInitiativeReview  Purpose = "initiative_review"
 	PurposeMetaOrchestration Purpose = "meta_orchestration"
 	PurposeSwarmOperations   Purpose = "swarm_operations"
+	PurposeWorkflowAuthoring Purpose = "workflow_authoring"
 )
 
 type InteractionType string

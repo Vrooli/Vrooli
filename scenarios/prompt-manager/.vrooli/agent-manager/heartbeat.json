@@ -1,12 +1,19 @@
 {
+  "schemaVersion": "agent-profile/v1",
   "name": "prompt-manager-heartbeat",
   "profileKey": "prompt-manager/heartbeat",
   "description": "Portable profile for Prompt Manager multi-process heartbeats",
   "roleRef": "code.smart",
   "maxTurns": 50,
   "timeout": "600s",
-  "allowedTools": ["read_file", "write_file", "execute_command"],
+  "allowedTools": [
+    "read_file",
+    "write_file",
+    "execute_command"
+  ],
   "skipPermissionPrompt": true,
-  "sandboxConfig": {"mode": "SANDBOX_MODE_PROTECTED"},
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
   "createdBy": "prompt-manager"
 }

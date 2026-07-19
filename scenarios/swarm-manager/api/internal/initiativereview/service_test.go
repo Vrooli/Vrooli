@@ -18,6 +18,7 @@ import (
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/review"
+	"swarm-manager/internal/transitions"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -147,15 +148,20 @@ func newEnv(t *testing.T) *env {
 	prompts := &stubPromptClient{}
 	workflow := &fakeInitiativeReviewWorkflow{}
 	clock := func() time.Time { return time.Date(2026, 4, 23, 12, 0, 0, 0, time.UTC) }
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	svc, err := NewService(Config{
-		InitStore:     initStore,
-		BacklogLoader: &backlogAdapter{store: bStore},
-		GraphReader:   mat,
-		RunInspector:  spawner,
-		PromptClient:  prompts,
-		Clock:         clock,
-		Workflow:      workflow,
+		InitStore:          initStore,
+		BacklogLoader:      &backlogAdapter{store: bStore},
+		GraphReader:        mat,
+		RunInspector:       spawner,
+		PromptClient:       prompts,
+		Clock:              clock,
+		Workflow:           workflow,
+		TransitionRegistry: registry,
 	})
 	if err != nil {
 		t.Fatal(err)

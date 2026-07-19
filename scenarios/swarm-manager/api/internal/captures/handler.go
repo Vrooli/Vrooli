@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -22,6 +23,8 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/mux"
 )
@@ -45,6 +48,7 @@ type EventLogger interface {
 type Handler struct {
 	cacheRoot              string
 	classificationWorkflow agentmanager.WorkflowInvoker
+	transitionRegistry     transitions.Registry
 	classificationMu       sync.Mutex
 	backlogCreator         BacklogItemCreator
 	eventDispatcher        dispatch.Invalidator
@@ -53,12 +57,21 @@ type Handler struct {
 
 // NewHandler creates a new captures handler.
 func NewHandler(cacheRoot string) *Handler {
-	return &Handler{cacheRoot: cacheRoot, classificationWorkflow: agentmanager.NewWorkflowService()}
+	h := &Handler{cacheRoot: cacheRoot, classificationWorkflow: agentmanager.NewWorkflowService()}
+	if registry, err := transitions.LoadDir(filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "swarm-transitions")); err == nil {
+		h.transitionRegistry = registry
+	}
+	return h
 }
 
 // SetClassificationWorkflow injects the Agent Manager workflow transport.
 func (h *Handler) SetClassificationWorkflow(workflow agentmanager.WorkflowInvoker) {
 	h.classificationWorkflow = workflow
+}
+
+// SetTransitionRegistry installs scenario declarations for workflow starts.
+func (h *Handler) SetTransitionRegistry(registry transitions.Registry) {
+	h.transitionRegistry = registry
 }
 
 // SetWorkflowStartGuard applies transition-registry preflight policy at the

@@ -11,6 +11,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/transitions"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -49,6 +50,10 @@ func (f *fakeReviewWorkflow) CollectWorkflow(context.Context, string) (agentmana
 }
 
 func newTestService(spawner *capturingSpawner, promptResult string) *Service {
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		panic(err)
+	}
 	svc := &Service{
 		dataRoot:      "/tmp/test-backlog",
 		inspector:     spawner,
@@ -64,9 +69,10 @@ func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 		// Disable the abandoned-round age backstop by default so tests that use
 		// fixed placeholder timestamps aren't force-failed by it. Tests that
 		// exercise the backstop set roundMaxAge + clock explicitly.
-		roundMaxAge:  100 * 365 * 24 * time.Hour,
-		activeRounds: make(map[string]activeRound),
-		workflow:     &fakeReviewWorkflow{},
+		roundMaxAge:        100 * 365 * 24 * time.Hour,
+		activeRounds:       make(map[string]activeRound),
+		workflow:           &fakeReviewWorkflow{},
+		transitionRegistry: registry,
 	}
 	return svc
 }

@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "swarm-manager-backlog-review-review",
   "name": "Backlog Review Round",
-  "description": "a **review** round over a completed backlog-item execution",
+  "description": "Historical Swarm Manager operating-mode guidance retained only for prior session and provenance readability; active structured agent work uses registered Agent Manager workflows.",
   "modes": [
     "tools"
   ],
@@ -13,7 +13,7 @@
     "agent-operations",
     "backlog-review"
   ],
-  "status": "active",
+  "status": "retired",
   "entry": "SKILL.md",
   "revision": 1,
   "createdAt": "2026-07-14T00:00:00Z",

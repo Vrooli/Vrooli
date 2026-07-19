@@ -1,0 +1,11 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "new-skill-58",
+  "name": "New Skill",
+  "status": "draft",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-07-17T10:07:45Z",
+  "updatedAt": "2026-07-17T10:07:45Z"
+}

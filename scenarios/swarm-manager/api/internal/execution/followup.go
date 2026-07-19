@@ -104,7 +104,7 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 			records[i].RunID = res.RunID
 			records[i].TaskID = res.ExecutionID
 			records[i].AgentWorkflowExecutionID = res.ExecutionID
-			records[i].AgentWorkflowKey = "swarm-manager/work-correct"
+			records[i].AgentWorkflowKey = snapshot.WorkflowKey
 			records[i].AgentWorkflowDefinition = res.DefinitionDigest
 			records[i].AgentWorkflowFrontier = snapshot.FrontierDigest
 			records[i].AgentWorkflowEntityVersion = snapshot.EntityVersion
@@ -212,7 +212,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 	followUpRecord.RunID = res.RunID
 	followUpRecord.TaskID = res.ExecutionID
 	followUpRecord.AgentWorkflowExecutionID = res.ExecutionID
-	followUpRecord.AgentWorkflowKey = workWorkflowKey(runType)
+	followUpRecord.AgentWorkflowKey = snapshot.WorkflowKey
 	followUpRecord.AgentWorkflowDefinition = res.DefinitionDigest
 	followUpRecord.AgentWorkflowFrontier = snapshot.FrontierDigest
 	followUpRecord.AgentWorkflowEntityVersion = snapshot.EntityVersion

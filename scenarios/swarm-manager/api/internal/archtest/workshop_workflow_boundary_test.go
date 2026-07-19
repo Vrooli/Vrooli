@@ -29,6 +29,29 @@ func TestBacklogWorkshopPilotUsesWorkflowBoundaryOnly(t *testing.T) {
 	}
 }
 
+func TestBacklogWorkshopUsesGenericInvocationSeam(t *testing.T) {
+	root := swarmScenarioRoot(t)
+	backlogSource, err := os.ReadFile(filepath.Join(root, "api/internal/backlog/workshop_workflow.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(backlogSource)
+	for _, required := range []string{".StartWorkflow(", ".CollectWorkflow(", "agentmanager.Invocation{"} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("backlog workshop adapter missing generic workflow seam %q", required)
+		}
+	}
+	agentManagerSource, err := os.ReadFile(filepath.Join(root, "api/internal/agentmanager/workflow.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"BacklogWorkshop", "StartWorkshopRound", "CollectWorkshopRound"} {
+		if strings.Contains(string(agentManagerSource), forbidden) {
+			t.Fatalf("agent-manager retains a backlog-specific workflow adapter %q", forbidden)
+		}
+	}
+}
+
 func TestBacklogWorkshopDefinitionStaysStructurallySmall(t *testing.T) {
 	path := filepath.Join(swarmScenarioRoot(t), ".vrooli", "agent-manager", "backlog-workshop-round.json")
 	data, err := os.ReadFile(path)

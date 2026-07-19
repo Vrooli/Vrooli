@@ -52,12 +52,12 @@ prompt-manager                         swarm-manager
 │  │ Feature Team     │──┼── idea ────▶│  ┌──────────┐                    │
 │  │ QA Team          │──┼── fix ─────▶│  │ BACKLOG  │  Operator reviews  │
 │  │                  │──┼── execute ─▶│  │ items    │  plans, uses       │
-│  │                  │  │            ▶│  └────┬─────┘  Workshop loop     │
-│  └──────────────────┘  │             │       │        to refine          │
+│  │                  │  │            ▶│  └────┬─────┘  transitions       │
+│  └──────────────────┘  │             │       │        and plans          │
 │                        │             │       ▼                           │
-│  Skills define how     │             │  ┌──────────┐                    │
-│  teams analyze and     │             │  │ WORKSHOP │  iterative rounds  │
-│  produce findings      │             │  │  LOOP    │  → plan_ref         │
+│  Skills define reviewed│             │  ┌──────────┐                    │
+│  workflow or session   │             │  │ DECLARED │  typed result      │
+│  instructions          │             │  │ WORKFLOW │  → plan_ref        │
 │                        │             │  └────┬─────┘                    │
 └────────────────────────┘             │       │                           │
                                        │       ▼                           │
@@ -72,7 +72,7 @@ prompt-manager                         swarm-manager
                                        └──────────────────────────────────┘
 ```
 
-**Why this matters:** Agent teams in prompt-manager do analysis and produce plans, but they do not execute directly. Instead, they deposit their findings as backlog items into swarm-manager. This gives the operator a single place to review all agent-generated plans, refine them through the workshop loop (iterative rounds of questions, proposals, and readiness scoring), and control execution -- effectively a "pull request review" for agent work.
+**Why this matters:** Agent teams in Prompt Manager can analyze and produce proposals, but they do not mutate project work directly. Swarm Manager is the single place to review proposals, retain a Plan Manager plan reference, authorize execution, and retain evidence. Programmatic refinement is selected from the registered workflow catalog; an operator can instead use a natural Session when the next step is conversation rather than a typed result. This is the project-work equivalent of a pull-request review boundary.
 
 Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 
@@ -96,7 +96,7 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 Swarm-manager's domain forms a four-entity pipeline that closes the recursive-learning loop:
 
 1. **Captures** — raw operator/agent input; the front door for observations and ideas before they have shape.
-2. **Backlog** — current-state work tracking; what is being done now, and its workshop/queue/execution lifecycle.
+2. **Backlog** — current-state work tracking; what is being done now, its plan reference, and its queue/execution lifecycle.
 3. **Records** — narrative artifacts of completed work; what was learned, including hypotheses ruled out, files touched, commit, and outcome. Records are the **write side of the recursive-learning loop**: future agents query them via `ai-search query --kind fix` and `records search`. Stub records are auto-created on backlog terminal transitions (`review-decide --accept|--fail`) and filled by the executing agent; records can also be created for work that never touched the backlog.
 4. **Events** — audit log of state deltas (backlog status changes, record creations and supersedes, etc.) consumed by the stats engine to surface throughput, regression rate, and visibility split.
 
@@ -116,10 +116,10 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 1. **Backlog creation and refinement**
    ```
-   Team finding -> Backlog item (idea/fix/execute/chore) -> workshop loop -> plan-manager plan_ref -> queue
-   Team finding -> Research item -> research loop -> conclusion.md
+   Team finding -> Backlog item (idea/fix/execute/chore) -> declared refinement workflow or Session -> plan-manager plan_ref -> queue
+   Team finding -> Research item -> declared research workflow or Session -> conclusion.md
    ```
-   Non-research backlog kinds use the **workshop loop** for iterative refinement. Each round generates questions, proposals, and readiness scores across 5 dimensions. The loop continues until all dimensions reach score 3, binding a canonical plan-manager plan through `spec.json.plan_ref` as the execution artifact. Research items keep `conclusion.md` as their local deliverable. See [DOC: docs/guides/workshop-workflow.md] for the full pipeline, schemas, and readiness model.
+   Non-research backlog kinds use a registered transition when code needs a typed refinement result. Plan Manager is the readiness authority for the canonical plan bound through `spec.json.plan_ref`; Swarm does not reproduce a local agent-readiness loop. Research items keep `conclusion.md` as their local deliverable. See [DOC: docs/reference/transition-catalog.md] for the active catalog.
 
 2. **Archive scenario into backlog context**
    ```
@@ -129,13 +129,13 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 3. **Batch operations**
    ```
    POST /api/v1/backlog/batch (preview=true) -> validate items + initiative plan + dependency refs -> no writes
-   POST /api/v1/backlog/batch -> apply initiative changes -> create items atomically -> assign initiative membership -> auto-trigger workshop init
+   POST /api/v1/backlog/batch -> apply initiative changes -> create items atomically -> assign initiative membership
    POST /api/v1/backlog/batch/queue -> topological sort via depgraph -> queue items in dependency order
    ```
 
 4. **Execution lifecycle**
    ```
-   Queue backlog item (manual/scheduled/yolo) -> execution record -> tracked agent activity -> agent-manager run -> status tracked in Execution page and graph
+   Queue backlog item (manual/scheduled/yolo) -> execution record -> declared Agent Manager workflow -> typed terminal result -> Swarm authorized apply
    ```
 
 5. **Backlog auto-filer**
@@ -245,7 +245,7 @@ The default graph mode renders the topology projection (`GET /api/v1/graph?lens=
 │ settings orchestration                                       │
 ├─────────────────────────────────────────────────────────────┤
 │ INTEGRATION LAYER                                            │
-│ agent-manager + prompt-manager + ecosystem-manager + CLI     │
+│ agent-manager + prompt-manager + CLI                         │
 ├─────────────────────────────────────────────────────────────┤
 │ PERSISTENCE LAYER                                            │
 │ Filesystem: backlog folders + .vrooli/*.json state           │
@@ -262,9 +262,9 @@ The default graph mode renders the topology projection (`GET /api/v1/graph?lens=
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
 | Persistence | Filesystem-first | Backlog items and execution/agent-activity/settings/queue JSON persisted on disk |
 
-## Workshop Readiness Model
+## Historical Workshop Readiness Model
 
-The workshop system uses a 5-dimension readiness model to measure how prepared a backlog item is for execution. Each dimension is scored 0-3 per round by the workshop agent:
+The previous workshop system used a 5-dimension readiness model to measure how prepared a backlog item was for execution. This is retained only to explain historical round records and migration data; it is not an active orchestration contract or a replacement for Plan Manager validation.
 
 | Dimension | Measures |
 |-----------|----------|
@@ -276,7 +276,7 @@ The workshop system uses a 5-dimension readiness model to measure how prepared a
 
 A **round-based boost** rewards iterative engagement: `effective = raw >= 2 ? min(3, raw + floor(rounds/N)) : raw`, where N varies by kind (1 for fix/chore, 2 for idea/research/execute). An item is **ready** when all 5 effective scores reach 3.
 
-The primary output of the non-research workshop loop is a canonical plan-manager plan bound through `spec.json.plan_ref`. Execution, review, initiative review, and idea handoff render that plan from plan-manager when they need the execution specification. Workshop rounds are supporting evidence and audit trail. Research items are the exception: they keep `conclusion.md` as their canonical local deliverable.
+The primary output of current non-research refinement is a canonical Plan Manager plan bound through `spec.json.plan_ref`. Execution, review, initiative review, and idea handoff render that plan when they need the execution specification. Historical workshop rounds are supporting evidence and audit trail. Research items are the exception: they keep `conclusion.md` as their canonical local deliverable.
 
 See [DOC: docs/guides/workshop-workflow.md] for the full workshop pipeline and schemas. Readiness computation lives in [CODE: api/internal/workshop/workshop.go].
 
@@ -323,7 +323,7 @@ api/internal/
 ├── queue/             # Queue state operations
 ├── settings/          # Settings persistence
 ├── prompts/           # Prompt skill CRUD
-└── integrations/      # agent-manager, prompt-manager, ecosystem-manager clients
+└── integrations/      # agent-manager and prompt-manager clients
 ```
 
 ## API Boundaries

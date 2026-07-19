@@ -88,7 +88,7 @@ const STATS_TABS: CompactTabItem<StatsCategory>[] = [
   { value: "timing", label: "Timing", icon: Timer },
   { value: "blocking", label: "Blocking", icon: AlertCircle },
   { value: "scope", label: "Scope", icon: Target },
-  { value: "modes", label: "Modes", icon: Layers },
+  { value: "modes", label: "Legacy history", icon: Layers },
   { value: "sessions", label: "Sessions", icon: MessageSquare },
 ];
 
@@ -801,7 +801,7 @@ function ScopeTab({ data }: { data: ScopeStats }) {
 }
 
 // ---------------------------------------------------------------------------
-// Modes tab
+// Historical operating-mode metrics
 // ---------------------------------------------------------------------------
 
 function ModesTab({ data }: { data: ModeStats }) {
@@ -813,14 +813,14 @@ function ModesTab({ data }: { data: ModeStats }) {
   return (
     <div className="space-y-4" data-testid="stats-content-modes">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <StatCard label="Mode Switches" value={String(data?.mode_switch_count ?? 0)} icon={Layers} />
+        <StatCard label="Historical mode switches" value={String(data?.mode_switch_count ?? 0)} icon={Layers} />
         <StatCard label="Profiles Used" value={String(profileEntries.length)} icon={Users} />
       </div>
 
       <div>
-        <SectionLabel icon={Activity}>Current Mode Usage</SectionLabel>
+        <SectionLabel icon={Activity}>Historical mode usage</SectionLabel>
         {usageEntries.length === 0 ? (
-          <StatsEmptyState>No initiatives recorded yet</StatsEmptyState>
+          <StatsEmptyState>No historical mode records yet</StatsEmptyState>
         ) : (
           <ul className="space-y-2">
             {usageEntries.map(([mode, count]) => (
@@ -834,9 +834,9 @@ function ModesTab({ data }: { data: ModeStats }) {
       </div>
 
       <div>
-        <SectionLabel icon={BarChart3}>Phase Runs</SectionLabel>
+        <SectionLabel icon={BarChart3}>Historical phase runs</SectionLabel>
         {phaseEntries.length === 0 ? (
-          <StatsEmptyState>No operating-mode phase runs yet</StatsEmptyState>
+          <StatsEmptyState>No historical operating-mode phase runs yet</StatsEmptyState>
         ) : (
           <div className="space-y-3">
             {phaseEntries.map(([mode, phases]) => (

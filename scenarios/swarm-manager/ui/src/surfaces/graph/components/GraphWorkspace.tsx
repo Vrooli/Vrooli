@@ -203,6 +203,7 @@ export function GraphWorkspace() {
           }}
           onPlanWork={() => void handleCreateAgentSession("meta_orchestration")}
           onManageSwarm={() => void handleCreateAgentSession("swarm_operations")}
+		  onAuthorWorkflow={() => void handleCreateAgentSession("workflow_authoring")}
           onCreateFromPlan={() => {
             setLauncherError(null);
             setLauncherStatus(null);

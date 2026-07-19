@@ -230,7 +230,7 @@ For `idea` backlog items, swarm-manager also generates a derived `handoff/` pack
 - `handoff/manifest.json`
 - `handoff/source-index.json`
 
-That package is not a separate planning surface. It is a frozen execution bridge into ecosystem-manager, regenerated from the latest finalized backlog state so downstream task creation can preserve the full context without re-reading raw workshop artifacts.
+That package is not a separate planning surface. It is frozen supporting context for swarm-manager plan execution, regenerated from the latest finalized backlog state so downstream slices can preserve context without re-reading raw workshop artifacts. The linked plan-manager plan remains the execution authority.
 
 ## Where Workshop Fits in the Pipeline
 
@@ -239,10 +239,10 @@ That package is not a separate planning surface. It is a frozen execution bridge
     │
     ▼
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  WORKSHOP    │ ──▶ │  GENERATOR   │ ──▶ │  IMPROVER    │
-│  Iterative   │     │  Build       │     │  Iterate     │
-│  refinement  │     │  scenario    │     │  improvements│
-│  → plan_ref  │     │  from plan   │     │              │
+│  WORKSHOP    │ ──▶ │ PLAN DRAIN   │ ──▶ │ EVIDENCE LOOP│
+│  Iterative   │     │  Bounded     │     │ Test Genie → │
+│  refinement  │     │  scenario    │     │ Swarm follow-│
+│  → plan_ref  │     │  slices      │     │ up work      │
 └──────────────┘     └──────────────┘     └──────────────┘
   Status: backlog      Status: queued       Status:
     → researching        → in_progress       in_progress

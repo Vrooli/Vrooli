@@ -11,7 +11,6 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
 
@@ -19,9 +18,10 @@ import (
 )
 
 const (
-	SkillMetaOrchestrator       = "swarm-manager-meta-orchestrator"
-	SkillSwarmOperations        = "swarm-manager-operations-session"
-	SkillProposals              = "swarm-manager-proposals"
+	SkillMetaOrchestrator  = "swarm-manager-meta-orchestrator"
+	SkillSwarmOperations   = "swarm-manager-operations-session"
+	SkillWorkflowAuthoring = "swarm-manager-workflow-authoring"
+	SkillProposals         = "swarm-manager-proposals"
 
 	EnvSessionID   = "VROOLI_SWARM_MANAGER_SESSION_ID"
 	EnvSessionKind = "VROOLI_SWARM_MANAGER_SESSION_KIND"
@@ -89,32 +89,7 @@ type Service struct {
 	eventLogger               EventLogger
 	projectRoot               string
 	profileKey                string
-	evidenceService           *evidence.Service
-	evidenceReconciler        EvidenceReconciler
-	evidenceProjection        bool
 	mutationProposalProcessor MutationProposalProcessor
-}
-
-// EvidenceReconciler pulls producer facts for a verified Agent Manager run.
-// It is deliberately best-effort: evidence outages never roll back sessions.
-type EvidenceReconciler interface {
-	Reconcile(context.Context, string) error
-}
-
-// SetEvidenceService wires the ledger after every owner index is available.
-// Ingestion is intentionally non-transactional with the completed mutation.
-func (s *Service) SetEvidenceService(service *evidence.Service) {
-	s.evidenceService = service
-}
-
-func (s *Service) EnableEvidenceProjection() {
-	if s != nil && s.evidenceService != nil {
-		s.evidenceProjection = true
-	}
-}
-
-func (s *Service) SetEvidenceReconciler(reconciler EvidenceReconciler) {
-	s.evidenceReconciler = reconciler
 }
 
 type ServiceConfig struct {
@@ -319,7 +294,7 @@ func (s *Service) List(ctx context.Context, filters ListFilters) ([]Session, err
 		return nil, err
 	}
 	for index := range sessions {
-		if err := s.hydrateEvidenceArtifacts(ctx, &sessions[index]); err != nil {
+		if err := s.hydrateArtifacts(ctx, &sessions[index]); err != nil {
 			return nil, err
 		}
 	}
@@ -348,39 +323,19 @@ func (s *Service) ResolveSessionForRun(ctx context.Context, runID string) (ident
 	return identity.SessionReference{}, false, nil
 }
 
-// LookupOwners is the Agent Session owner index used by the canonical evidence
-// ledger. The ledger also queries operating-mode ownership before deciding.
-func (s *Service) LookupOwners(ctx context.Context, runID string) ([]evidence.Owner, error) {
-	runID = strings.TrimSpace(runID)
-	if runID == "" {
-		return nil, nil
-	}
-	sessions, err := s.List(ctx, ListFilters{})
-	if err != nil {
-		return nil, err
-	}
-	owners := make([]evidence.Owner, 0, 1)
-	for _, session := range sessions {
-		if strings.TrimSpace(session.RunID) == runID {
-			owners = append(owners, evidence.Owner{Kind: evidence.OwnerAgentSession, ID: session.ID})
-		}
-	}
-	return owners, nil
-}
-
 func (s *Service) Get(ctx context.Context, sessionID string) (Session, error) {
 	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
 	if err != nil {
 		return Session{}, mapStoreError(err)
 	}
-	if err := s.hydrateEvidenceArtifacts(ctx, &session); err != nil {
+	if err := s.hydrateArtifacts(ctx, &session); err != nil {
 		return Session{}, err
 	}
 	return session, nil
 }
 
-func (s *Service) hydrateEvidenceArtifacts(ctx context.Context, session *Session) error {
-	if s == nil || session == nil || !s.evidenceProjection || s.evidenceService == nil {
+func (s *Service) hydrateArtifacts(ctx context.Context, session *Session) error {
+	if s == nil || session == nil {
 		return nil
 	}
 	artifacts, err := s.ListArtifacts(ctx, session.ID)
@@ -499,11 +454,6 @@ func (s *Service) Refresh(ctx context.Context, sessionID string) (Session, error
 		}
 		if next == StatusComplete {
 			s.emitCompleted(session)
-		}
-	}
-	if s.evidenceReconciler != nil {
-		if err := s.evidenceReconciler.Reconcile(ctx, session.RunID); err != nil {
-			slog.Warn("agentsessions: evidence reconciliation failed after refresh", "session_id", session.ID, "run_id", session.RunID, "error", err)
 		}
 	}
 	return s.store.LoadSession(session.ID)

@@ -35,10 +35,9 @@ type stubAgentService struct {
 type stubPhasedPlanWorkflow struct {
 	start        agentmanager.WorkflowStart
 	startErr     error
-	snapshot     agentmanager.PhasedPlanSnapshot
-	startKey     string
+	invocation   agentmanager.Invocation
 	startCalls   int
-	completion   agentmanager.PhasedPlanWorkflowCompletion
+	completion   agentmanager.InvocationCompletion
 	collectErr   error
 	collectCalls int
 	approveCalls int
@@ -72,9 +71,9 @@ func (s *stubConclusionWorkflow) CollectWorkflow(context.Context, string) (agent
 	return s.completion, s.collectErr
 }
 
-func (s *stubPhasedPlanWorkflow) StartPhasedPlan(_ context.Context, snapshot agentmanager.PhasedPlanSnapshot, key string) (agentmanager.WorkflowStart, error) {
+func (s *stubPhasedPlanWorkflow) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
 	s.startCalls++
-	s.snapshot, s.startKey = snapshot, key
+	s.invocation = invocation
 	if s.startErr != nil {
 		return agentmanager.WorkflowStart{}, s.startErr
 	}
@@ -84,17 +83,17 @@ func (s *stubPhasedPlanWorkflow) StartPhasedPlan(_ context.Context, snapshot age
 	return s.start, nil
 }
 
-func (s *stubPhasedPlanWorkflow) CollectPhasedPlan(_ context.Context, _ string) (agentmanager.PhasedPlanWorkflowCompletion, error) {
+func (s *stubPhasedPlanWorkflow) CollectWorkflow(_ context.Context, _ string) (agentmanager.InvocationCompletion, error) {
 	s.collectCalls++
 	return s.completion, s.collectErr
 }
 
-func (s *stubPhasedPlanWorkflow) SignalPhasedPlanApproval(context.Context, string, string, string, string) error {
+func (s *stubPhasedPlanWorkflow) SignalWorkflow(context.Context, string, string, *structpb.Value, string) error {
 	s.approveCalls++
 	return nil
 }
 
-func (s *stubPhasedPlanWorkflow) CancelPhasedPlan(context.Context, string, string) error {
+func (s *stubPhasedPlanWorkflow) CancelWorkflow(context.Context, string, string, string) error {
 	s.cancelCalls++
 	return nil
 }
@@ -252,10 +251,13 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if workflow.startCalls != 1 {
 		t.Fatalf("expected 1 workflow start, got %d", workflow.startCalls)
 	}
-	if workflow.snapshot.PlanReference != "test-plan-test-idea" {
-		t.Fatalf("expected plan handle from the item plan_ref, got %q", workflow.snapshot.PlanReference)
+	input, _ := workflow.invocation.Input.AsInterface().(map[string]any)
+	plan, _ := input["plan"].(map[string]any)
+	consumer, _ := input["consumer"].(map[string]any)
+	if plan["reference"] != "test-plan-test-idea" {
+		t.Fatalf("expected plan handle from the item plan_ref, got %#v", plan["reference"])
 	}
-	if workflow.snapshot.FrontierDigest == "" || workflow.snapshot.EntityVersion == "" {
+	if plan["frontierDigest"] == "" || consumer["entityVersion"] == "" {
 		t.Fatal("expected immutable workflow frontier correlations")
 	}
 }
@@ -1204,7 +1206,7 @@ func TestBuildExecutionPrompt_ProcessRun(t *testing.T) {
 	if !strings.Contains(prompt, "<idea-handoff>") || !strings.Contains(prompt, "<idea-handoff-brief path=\"/path/to/ideas/video-studio/handoff/brief.md\">") {
 		t.Error("missing idea handoff tags")
 	}
-	if !strings.Contains(prompt, "Use brief.md as the ecosystem-manager task notes") {
+	if !strings.Contains(prompt, "Execute the next bounded plan slice through the declared swarm-manager workflow") {
 		t.Error("missing downstream handoff instruction")
 	}
 

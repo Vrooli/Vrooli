@@ -429,7 +429,7 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByText("Proposals")).toBeInTheDocument();
   });
 
-  it("exposes the operating mode workspace tab", async () => {
+  it("does not revive a retired operating-mode workspace for legacy initiative data", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue({
       ...mockInitiativeData,
       initiative: {
@@ -444,11 +444,12 @@ describe("InitiativeDetailsPage", () => {
       expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("initiative-details-tab-mode")).toBeInTheDocument();
-    expect(screen.getByText(/Holistic loop/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("initiative-details-tab-mode")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Holistic loop/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("initiative-details-tab-feedback")).toBeInTheDocument();
   });
 
-  it("renders the Info-tab Mode card as a link to the operating-mode details page", async () => {
+  it("does not expose a retired operating-mode details link for legacy initiative data", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue({
       ...mockInitiativeData,
       initiative: {
@@ -462,12 +463,11 @@ describe("InitiativeDetailsPage", () => {
       expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
     });
 
-    const card = screen.getByTestId("initiative-info-mode-card");
-    expect(card.tagName).toBe("A");
-    expect(card).toHaveAttribute("href", "/operating-modes/holistic-loop");
+    expect(screen.queryByTestId("initiative-info-mode-card")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /holistic loop/i })).not.toBeInTheDocument();
   });
 
-  it("falls back to item-level for the Info-tab Mode card when no mode is set", async () => {
+  it("does not synthesize an item-level operating-mode link for records without a mode", async () => {
     const { mode: _ignored, ...initiativeWithoutMode } = mockInitiativeData.initiative;
     vi.mocked(initiativeService.get).mockResolvedValue({
       ...mockInitiativeData,
@@ -482,10 +482,7 @@ describe("InitiativeDetailsPage", () => {
       expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("initiative-info-mode-card")).toHaveAttribute(
-      "href",
-      "/operating-modes/item-level",
-    );
+    expect(screen.queryByTestId("initiative-info-mode-card")).not.toBeInTheDocument();
   });
 
   it("renders the new in_review status chip colors when an item is in review", async () => {

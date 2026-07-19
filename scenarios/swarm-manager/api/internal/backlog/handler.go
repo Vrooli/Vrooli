@@ -28,6 +28,7 @@ import (
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/settings"
+	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/mux"
 )
@@ -111,15 +112,21 @@ type Handler struct {
 	recordCreator         RecordCreator
 	reviewRoundInspector  ReviewRoundInspector
 	policyControls        settings.PolicyControlsProvider
-	workshopWorkflow      agentmanager.WorkshopWorkflowService
+	workshopWorkflow      agentmanager.WorkflowInvoker
 	clarificationWorkflow agentmanager.WorkflowInvoker
 	planAuthorWorkflow    agentmanager.WorkflowInvoker
 	planRepair            *planrepair.Service
+	transitionRegistry    transitions.Registry
 }
 
 // SetPlanRepair installs the declared workflow adapter and its durable Swarm
 // authority ledger. The handler retains domain binding; it never owns runs.
-func (h *Handler) SetPlanRepair(service *planrepair.Service) { h.planRepair = service }
+func (h *Handler) SetPlanRepair(service *planrepair.Service) {
+	h.planRepair = service
+	if service != nil {
+		service.SetTransitionRegistry(h.transitionRegistry)
+	}
+}
 
 // SetPolicyControlsProvider injects the policy-controls seam used by the
 // workshop auto-initialize / auto-advance / cascade paths. When unset, the
@@ -214,9 +221,9 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentManagerA
 	return h
 }
 
-// SetWorkshopWorkflow injects the narrow Agent Manager workflow adapter. It is
+// SetWorkshopWorkflow injects the generic declared-workflow seam. It is
 // primarily a deterministic test seam; production uses the default adapter.
-func (h *Handler) SetWorkshopWorkflow(service agentmanager.WorkshopWorkflowService) {
+func (h *Handler) SetWorkshopWorkflow(service agentmanager.WorkflowInvoker) {
 	h.workshopWorkflow = service
 }
 
@@ -228,6 +235,24 @@ func (h *Handler) SetClarificationWorkflow(service agentmanager.WorkflowInvoker)
 // authoring. Swarm retains only snapshot and validated plan-ref binding.
 func (h *Handler) SetPlanAuthorWorkflow(service agentmanager.WorkflowInvoker) {
 	h.planAuthorWorkflow = service
+}
+
+// SetTransitionRegistry installs the immutable scenario declaration catalog.
+// Backlog code selects a stable domain transition; only the catalog names the
+// Agent Manager workflow that implements it.
+func (h *Handler) SetTransitionRegistry(registry transitions.Registry) {
+	h.transitionRegistry = registry
+	if h.planRepair != nil {
+		h.planRepair.SetTransitionRegistry(registry)
+	}
+}
+
+func (h *Handler) resolveWorkflow(transitionKey string) (transitions.Locator, error) {
+	workflow, err := h.transitionRegistry.ResolveWorkflow(transitionKey)
+	if err != nil {
+		return transitions.Locator{}, fmt.Errorf("resolve %s workflow: %w", transitionKey, err)
+	}
+	return workflow, nil
 }
 
 // SetWorkflowStartGuard applies the server-owned transition policy to the

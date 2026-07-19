@@ -1,0 +1,18 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-workflow-work-follow-up",
+  "name": "swarm-manager-workflow-work-follow-up",
+  "description": "Typed prompt contract for authorized follow-up.",
+  "tags": [
+    "swarm-manager",
+    "agent-manager",
+    "workflow",
+    "prompt-contract"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-07-18T03:05:28Z",
+  "updatedAt": "2026-07-18T03:05:28Z"
+}

@@ -241,27 +241,17 @@ The API maintains referential integrity automatically when items or initiatives 
 | `initiatives add-items --items kind/name,...` | Rejects items that already belong to a different initiative; attaches orphans. To move an item, use `backlog update` instead. |
 | `initiatives remove-items --items kind/name,...` | Removes from `items[]` and clears each item's `initiative` field if it matches. |
 
-## Canonical Evidence
+## Receipt observations
 
-Evidence is owner-neutral: the same immutable record can be queried by its
-verified Agent Manager run or affected entity, regardless of whether its owner
-is a Session or workflow execution. Reconciliation retries producer
-collection; it does not trust an agent's prose.
+There is no `swarm-manager evidence` command. Query run-correlated operation
+observations from Agent Manager instead:
 
 ```bash
-swarm-manager evidence run --run-id run_abc123
-swarm-manager evidence entity --kind plan --id plan_abc123
-swarm-manager evidence reconcile --run-id run_abc123
-swarm-manager evidence verify \
-  --owner-kind agent_session --owner-id sess_abc123 \
-  --event-id operator-audit-001 --run-id run_abc123 \
-  --subject-kind plan --subject-id plan_abc123 --action finalized \
-  --actor operator-id --reason "Reviewed the canonical plan record"
+curl "http://localhost:${AGENT_MANAGER_API_PORT}/api/v1/runs/<run-id>/observed-receipts"
 ```
 
-`evidence verify` is an append-only operator repair. It requires a stable event
-id, actor, and reason; verified agents cannot use it to certify their own work.
-Use it only when an operator independently checked the source of truth.
+Vrooli Events absence or an empty observation list is represented as degraded
+or unobserved evidence; it never certifies a failure or blocks a transition.
 
 ## Execution Create
 

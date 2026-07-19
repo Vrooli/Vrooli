@@ -290,7 +290,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "proto-contract-audit",
-          "dependency-direction-audit"
+          "architecture-scope"
         ],
         "capability_id": "dependency_reuse"
       },

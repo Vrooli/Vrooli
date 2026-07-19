@@ -3,10 +3,17 @@
   "schemaVersion": 1,
   "id": "swarm-manager-holistic-loop-investigate",
   "name": "Swarm Manager Holistic Loop Investigate",
-  "description": "Investigate initiative-wide code, backlog, artifacts, and system state for holistic-loop mode.",
-  "modes": ["tools"],
-  "tags": ["swarm-manager", "initiative", "operating-mode", "holistic-loop"],
-  "status": "active",
+  "description": "Historical Swarm Manager operating-mode guidance retained only for prior session and provenance readability; active structured agent work uses registered Agent Manager workflows.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "swarm-manager",
+    "initiative",
+    "operating-mode",
+    "holistic-loop"
+  ],
+  "status": "retired",
   "entry": "SKILL.md",
   "revision": 1,
   "createdAt": "2026-04-30T00:00:00Z",

@@ -221,11 +221,11 @@
           }
         }
       },
-      "ecosystem-manager": {
+      "plan-manager": {
         "enabled": true,
         "required": true,
         "startup_policy": "must_start",
-        "description": "Scenario initialization and improvement"
+        "description": "Canonical plan authoring, rendering, and execution-plan validation"
       },
       "knowledge-observatory": {
         "enabled": false,
@@ -246,10 +246,10 @@
         "description": "Completeness metrics (P1)"
       },
       "test-genie": {
-        "enabled": false,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Test execution and reporting (P1)"
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Validation runs, baseline evidence, and completion gates"
       },
       "prompt-manager": {
         "enabled": true,

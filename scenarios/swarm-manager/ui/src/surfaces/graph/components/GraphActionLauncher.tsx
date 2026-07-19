@@ -18,6 +18,7 @@ interface GraphActionLauncherProps {
   onQuickCapture: () => void;
   onPlanWork: () => void;
   onManageSwarm: () => void;
+	 onAuthorWorkflow: () => void;
   onCreateFromPlan: () => void;
 }
 
@@ -29,6 +30,7 @@ export function GraphActionLauncher({
   onQuickCapture,
   onPlanWork,
   onManageSwarm,
+	 onAuthorWorkflow,
   onCreateFromPlan,
 }: GraphActionLauncherProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -69,6 +71,13 @@ export function GraphActionLauncher({
             onClick={() => runAction(onManageSwarm)}
             disabled={isBusy}
           />
+		  <LauncherItem
+			icon={<SESSION_KIND_ICONS.workflow_authoring className="h-5 w-5" />}
+			label={SESSION_KIND_LAUNCHER_LABELS.workflow_authoring}
+			description={SESSION_KIND_DESCRIPTIONS.workflow_authoring}
+			onClick={() => runAction(onAuthorWorkflow)}
+			disabled={isBusy}
+		  />
           <LauncherItem
             icon={<FilePlus2 className="h-5 w-5" />}
             label="Create from plan"

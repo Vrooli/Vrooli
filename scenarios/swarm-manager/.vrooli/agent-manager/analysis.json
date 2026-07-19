@@ -2,7 +2,7 @@
   "schemaVersion": "agent-profile/v1",
   "name": "swarm-manager-analysis",
   "profileKey": "swarm-manager/analysis",
-  "description": "Read-mostly profile for Swarm Manager operating-mode classification and acceptance-review phases",
+  "description": "Read-mostly profile for Swarm Manager workflow classification and acceptance-review phases",
   "roleRef": "code.smart",
   "maxTurns": 450,
   "timeout": "2700s",

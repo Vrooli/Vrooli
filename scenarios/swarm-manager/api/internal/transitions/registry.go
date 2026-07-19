@@ -52,6 +52,20 @@ func (r Registry) Get(key string) (Definition, bool) {
 	return definition, ok
 }
 
+// ResolveWorkflow returns the Agent Manager locator declared for a workflow
+// transition. Consumers select the domain transition they intend to perform;
+// they do not embed Agent Manager workflow identifiers in their own code.
+func (r Registry) ResolveWorkflow(transitionKey string) (Locator, error) {
+	definition, ok := r.Get(transitionKey)
+	if !ok {
+		return Locator{}, fmt.Errorf("transition %q is not registered", strings.TrimSpace(transitionKey))
+	}
+	if definition.Kind != KindWorkflow || definition.Workflow == nil {
+		return Locator{}, fmt.Errorf("transition %q does not declare a workflow", definition.Key)
+	}
+	return *definition.Workflow, nil
+}
+
 func (r Registry) Definitions() []Definition {
 	definitions := make([]Definition, 0, len(r.byKey))
 	for _, definition := range r.byKey {

@@ -79,7 +79,7 @@
             "developers",
             "operators"
           ],
-          "maturity": "draft",
+          "maturity": "active",
           "requiredBy": [
             "oriented"
           ],
@@ -160,6 +160,16 @@
       "title": "Reference",
       "icon": "book",
       "documents": [
+        {
+          "path": "reference/transition-catalog.md",
+          "docType": "transition-catalog",
+          "title": "Active Transition Catalog",
+          "description": "Operator projection of the machine-readable Session, Workflow, and deterministic transition registry",
+          "audience": ["users", "developers", "operators"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required"
+        },
         {
           "path": "reference/configuration.md",
           "docType": "configuration-reference",

@@ -442,6 +442,8 @@ function draftPlaceholderForKind(kind: AgentSessionKind): string {
       return "This archived session is read-only.";
     case "swarm_operations":
       return "Ask what to review, unblock, decide, or move forward in Swarm Manager...";
+	case "workflow_authoring":
+		return "Describe how you want to work with coding agents...";
     case "meta_orchestration":
     default:
       return "Describe what you want to plan...";

@@ -116,7 +116,7 @@ export function startupBriefOption(kind: string, title = "Startup brief", genera
     ref: `startup_brief/${kind}`,
     title,
     subtitle: generatedAt ? `Generated ${generatedAt}` : "Brief-first context and drill-down commands",
-    nodeId: kind === "swarm_operations" ? "/operations" : "/initiatives",
+		nodeId: kind === "swarm_operations" ? "/operations" : kind === "workflow_authoring" ? "/sessions" : "/initiatives",
   };
 }
 

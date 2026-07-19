@@ -85,8 +85,8 @@ func TestBuildIdeaPackage(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(pkg.BriefMarkdown, "Use this `brief.md` file as the ecosystem-manager task notes.") {
-		t.Fatalf("brief missing task notes instruction:\n%s", pkg.BriefMarkdown)
+	if !strings.Contains(pkg.BriefMarkdown, "Use this `brief.md` file as supporting execution context") {
+		t.Fatalf("brief missing execution-context instruction:\n%s", pkg.BriefMarkdown)
 	}
 	if !strings.Contains(pkg.BriefMarkdown, "plan-manager:alpha") {
 		t.Fatalf("brief missing canonical plan path:\n%s", pkg.BriefMarkdown)

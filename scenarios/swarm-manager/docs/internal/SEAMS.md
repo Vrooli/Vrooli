@@ -18,7 +18,8 @@ cannot contain prompts or execution mechanics.
 
 `internal/agentsessions` is the human-conversation boundary. It creates and
 continues Agent Manager Runs only for operator-authored conversations. Creatable
-session kinds are `meta_orchestration` and `swarm_operations`; historical
+session kinds are `meta_orchestration`, `swarm_operations`, and
+`workflow_authoring`; historical
 session kinds remain readable but cannot be started.
 
 ## Workflow application

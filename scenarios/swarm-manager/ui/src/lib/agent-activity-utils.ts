@@ -64,6 +64,7 @@ const PURPOSE_LABELS: Record<AgentActivityPurpose, string> = {
   meta_orchestration: "Planning work",
   operating_mode_authoring: "Archived mode authoring",
   swarm_operations: "Managing Swarm",
+	workflow_authoring: "Authoring workflow",
 };
 
 export function getAgentActivityLabel(purpose: AgentActivityPurpose | undefined | null): string {

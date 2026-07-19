@@ -133,16 +133,17 @@ func itemForFinding(f Finding, opts FileOptions, now time.Time) backlog.BacklogI
 	}
 	timestamp := now.Format(time.RFC3339)
 	return backlog.BacklogItem{
-		Name:        name,
-		Title:       title,
-		Description: descriptionForFinding(f, opts),
-		Status:      status,
-		Kind:        backlog.KindFix,
-		Priority:    priorityForSeverity(f.Severity),
-		Tags:        []string{DefaultTag, string(opts.Strategy)},
-		Created:     timestamp,
-		Updated:     timestamp,
-		FindingRef:  f.StableID(),
+		Name:            name,
+		Title:           title,
+		Description:     descriptionForFinding(f, opts),
+		Status:          status,
+		Kind:            backlog.KindFix,
+		Priority:        priorityForSeverity(f.Severity),
+		Tags:            []string{DefaultTag, string(opts.Strategy)},
+		Created:         timestamp,
+		Updated:         timestamp,
+		FindingRef:      f.StableID(),
+		SuggestedSkills: append([]string(nil), f.RecommendedSkillIDs...),
 		AcceptanceAllow: []string{
 			"scenarios/" + slugPathSegment(f.Scenario) + "/**",
 		},

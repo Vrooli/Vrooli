@@ -23,9 +23,11 @@ describe("attachStarterSuggestions (attach-sheet view of the starter cards)", ()
 
   it("interpolates the entity title into matching cards and sorts them first", () => {
     const suggestions = attachStarterSuggestions("meta_orchestration", backlog);
-    expect(suggestions[0]?.id).toBe("meta-backlog");
-    expect(suggestions[0]?.specific).toBe(true);
-    expect(suggestions[0]?.text).toBe('Plan follow-up work for "Fix flaky stats test".');
+    // Mutation-list proposals are intentionally first for an attached item;
+    // the conversational backlog card remains the specific workflow-aware option.
+    const backlogCard = suggestions.find((suggestion) => suggestion.id === "meta-backlog");
+    expect(backlogCard?.specific).toBe(true);
+    expect(backlogCard?.text).toBe('Plan follow-up work for "Fix flaky stats test".');
     const generic = suggestions.find((s) => s.id === "meta-plan");
     expect(generic?.specific).toBe(false);
     expect(generic?.text).toBe("Turn this idea into initiatives and backlog items.");
@@ -44,9 +46,9 @@ describe("attachStarterSuggestions (attach-sheet view of the starter cards)", ()
 
   it("falls back to the ref for blank titles and truncates long ones", () => {
     const blank = attachStarterSuggestions("meta_orchestration", { type: "backlog_item", ref: "fix/no-title", title: "  " });
-    expect(blank[0]?.text).toBe('Plan follow-up work for "fix/no-title".');
+    expect(blank.find((suggestion) => suggestion.id === "meta-backlog")?.text).toBe('Plan follow-up work for "fix/no-title".');
 
     const long = attachStarterSuggestions("meta_orchestration", { type: "backlog_item", ref: "x", title: "y".repeat(90) });
-    expect(long[0]?.text).toContain(`${"y".repeat(67)}...`);
+    expect(long.find((suggestion) => suggestion.id === "meta-backlog")?.text).toContain(`${"y".repeat(67)}...`);
   });
 });

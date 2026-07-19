@@ -7,6 +7,7 @@ describe("GraphActionLauncher", () => {
     const onQuickCapture = vi.fn();
     const onPlanWork = vi.fn();
     const onManageSwarm = vi.fn();
+	const onAuthorWorkflow = vi.fn();
     const onCreateFromPlan = vi.fn();
 
     render(
@@ -14,6 +15,7 @@ describe("GraphActionLauncher", () => {
         onQuickCapture={onQuickCapture}
         onPlanWork={onPlanWork}
         onManageSwarm={onManageSwarm}
+		onAuthorWorkflow={onAuthorWorkflow}
         onCreateFromPlan={onCreateFromPlan}
       />,
     );
@@ -38,6 +40,10 @@ describe("GraphActionLauncher", () => {
     expect(onManageSwarm).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByTestId("graph-action-fab"));
+	fireEvent.click(screen.getByRole("menuitem", { name: "Author Workflow" }));
+	expect(onAuthorWorkflow).toHaveBeenCalledTimes(1);
+
+	fireEvent.click(screen.getByTestId("graph-action-fab"));
     fireEvent.click(screen.getByRole("menuitem", { name: "Create from plan" }));
     expect(onCreateFromPlan).toHaveBeenCalledTimes(1);
   });
@@ -50,6 +56,7 @@ describe("GraphActionLauncher", () => {
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}
         onManageSwarm={vi.fn()}
+		onAuthorWorkflow={vi.fn()}
         onCreateFromPlan={vi.fn()}
       />,
     );
@@ -61,6 +68,7 @@ describe("GraphActionLauncher", () => {
     expect(screen.getByRole("menuitem", { name: "Quick Capture" })).toBeEnabled();
     expect(screen.getByRole("menuitem", { name: "Plan Work With Agent" })).toBeDisabled();
     expect(screen.getByRole("menuitem", { name: "Manage Swarm" })).toBeDisabled();
+	expect(screen.getByRole("menuitem", { name: "Author Workflow" })).toBeDisabled();
   });
 
   it("shows dismissible launcher errors outside the closed menu", () => {
@@ -73,6 +81,7 @@ describe("GraphActionLauncher", () => {
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}
         onManageSwarm={vi.fn()}
+		onAuthorWorkflow={vi.fn()}
         onCreateFromPlan={vi.fn()}
       />,
     );
@@ -89,6 +98,7 @@ describe("GraphActionLauncher", () => {
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}
         onManageSwarm={vi.fn()}
+		onAuthorWorkflow={vi.fn()}
         onCreateFromPlan={vi.fn()}
       />,
     );

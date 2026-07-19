@@ -48,18 +48,18 @@ func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 	defer server.Close()
 	client := NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
 	service := NewWorkflowServiceWithClient(client)
-	start, err := service.StartWorkshopRound(context.Background(), BacklogWorkshopSnapshot{Kind: "idea", Name: "search", Version: "sha256:v", Title: "Search", OperatorNote: "focus"}, "stable-key")
+	start, err := service.StartWorkflow(context.Background(), Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/backlog-workshop-round", Input: input, IdempotencyKey: "stable-key", FirstRunNodeID: "workshop"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if start.ExecutionID != execution.Id || start.RunID != attempt.RunId {
 		t.Fatalf("start = %#v", start)
 	}
-	completion, err := service.CollectWorkshopRound(context.Background(), execution.Id)
+	completion, err := service.CollectWorkflow(context.Background(), execution.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if completion.EntityName != "search" || completion.EntityVersion != "sha256:v" || completion.RunID != attempt.RunId || !strings.Contains(string(completion.Result), `"no_questions"`) {
+	if completion.Input == nil || completion.Output == nil || len(completion.Attempts) != 1 || !strings.Contains(completion.Output.String(), "no_questions") {
 		t.Fatalf("completion = %#v", completion)
 	}
 	// No per-start reconcile: registration is agent-manager-startup-owned. The
@@ -69,7 +69,7 @@ func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 	}
 }
 
-func TestWorkflowServiceRejectsCanceledCompletion(t *testing.T) {
+func TestWorkflowServiceCollectsCanceledCompletion(t *testing.T) {
 	execution := &domainpb.WorkflowExecution{Id: "11111111-1111-1111-1111-111111111111", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -85,9 +85,9 @@ func TestWorkflowServiceRejectsCanceledCompletion(t *testing.T) {
 	}))
 	defer server.Close()
 	client := NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
-	_, err := NewWorkflowServiceWithClient(client).CollectWorkshopRound(context.Background(), execution.Id)
-	if err == nil || !strings.Contains(err.Error(), "not successfully terminal") {
-		t.Fatalf("canceled completion error = %v", err)
+	completion, err := NewWorkflowServiceWithClient(client).CollectWorkflow(context.Background(), execution.Id)
+	if err != nil || completion.Status != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED {
+		t.Fatalf("canceled completion = %#v, err=%v", completion, err)
 	}
 }
 
@@ -102,7 +102,7 @@ func TestPhasedPlanTerminalStatusesIncludeBlockedAndAbstained(t *testing.T) {
 	}
 }
 
-func TestPhasedPlanWorkflowCommandResultAndControlSurface(t *testing.T) {
+func TestGenericWorkflowCommandResultAndControlSurface(t *testing.T) {
 	input, _ := structpb.NewValue(map[string]any{
 		"plan":        map[string]any{"reference": "plan-1", "frontierDigest": "sha256:frontier"},
 		"consumer":    map[string]any{"executionId": "consumer-1", "entityKind": "execute", "entityName": "bounded-plan", "entityVersion": "sha256:entity"},
@@ -152,28 +152,31 @@ func TestPhasedPlanWorkflowCommandResultAndControlSurface(t *testing.T) {
 	}))
 	defer server.Close()
 	service := NewWorkflowServiceWithClient(NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client()))
-	start, err := service.StartPhasedPlan(context.Background(), PhasedPlanSnapshot{
-		PlanReference: "plan-1", FrontierDigest: "sha256:frontier", ExecutionID: "consumer-1",
-		EntityKind: "execute", EntityName: "bounded-plan", EntityVersion: "sha256:entity", MaxSlices: 6,
-		WriteScope: []string{"scenarios/swarm-manager/**"},
-	}, "stable-drain")
+	start, err := service.StartWorkflow(context.Background(), Invocation{
+		Owner: "swarm-manager", WorkflowKey: "swarm-manager/phased-plan-drain", Input: input,
+		IdempotencyKey: "stable-drain", FirstRunNodeID: "slice",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if start.ExecutionID != execution.Id || start.RunID != "run-slice-1" {
 		t.Fatalf("start = %#v", start)
 	}
-	completion, err := service.CollectPhasedPlan(context.Background(), execution.Id)
+	completion, err := service.CollectWorkflow(context.Background(), execution.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if completion.ConsumerID != "consumer-1" || completion.FrontierDigest != "sha256:frontier" || len(completion.Attempts) != 2 || !strings.Contains(string(completion.Result), `"complete"`) {
+	if completion.ExecutionID != execution.Id || completion.DefinitionDigest != "sha256:def" || len(completion.Attempts) != 2 || completion.Output == nil {
 		t.Fatalf("completion = %#v", completion)
 	}
-	if err := service.SignalPhasedPlanApproval(context.Background(), execution.Id, "consumer-1", "alice", "approve-1"); err != nil {
+	payload, err := structpb.NewValue(map[string]any{"executionId": "consumer-1", "actor": "alice"})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := service.CancelPhasedPlan(context.Background(), execution.Id, "operator canceled"); err != nil {
+	if err := service.SignalWorkflow(context.Background(), execution.Id, "slice_approved", payload, "approve-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.CancelWorkflow(context.Background(), execution.Id, "cancel-"+execution.Id, "operator canceled"); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{`"signal":"slice_approved"`, `"idempotencyKey":"approve-1"`, `"executionId":"consumer-1"`} {

@@ -1,25 +1,26 @@
 ## Investigation
 
-Diagnose why the attached agent run(s) failed. Produce a structured report classifying root causes and recommending specific, actionable fixes.
+Diagnose why the attached agent run(s) failed. Classify root causes and recommend specific, actionable fixes. Your final answer is a single machine-read JSON object (contract below) — not a prose report.
 
 ---
 
-### What you have
+### Context
 
-Context attachments below already contain the key data — **use them first** before calling any CLI commands:
+The investigation context below already contains the key data — **use it first** before calling any CLI commands:
+
 - **Run overview**: status, timing, task description, runner configuration
 - **Event timeline**: chronological tool calls, reasoning, and results
 - **Agent setup paths**: file paths to the agent's prompt-manager configuration
 - **Historical context**: recent runs with the same agent profile (success/fail patterns)
 - **Run diff**: code changes made during the run (if any)
 
-Only use `agent-manager run events`, `agent-manager run get`, etc. for data **not already included** in the attachments (e.g., full untruncated task description, detailed event payloads beyond the timeline summary).
+{{.context}}
 
-The investigation methodology and any reference skills are already included in your system prompt — do not try to fetch skill files from disk.
+Only use `agent-manager run events`, `agent-manager run get`, etc. for data **not already included** above (e.g., full untruncated task description, detailed event payloads beyond the timeline summary).
 
 ### What to do
 
-1. Read the attached timeline and overview to understand what happened
+1. Read the timeline and overview to understand what happened
 2. Identify where things went wrong — errors, loops, wrong approaches, stalls
 3. Classify each failure as one or both of:
    - **Environment/Tooling**: tools broken/missing/misconfigured, config errors, services down, wrong versions, permission issues
@@ -29,47 +30,43 @@ The investigation methodology and any reference skills are already included in y
 
 ### Exploration
 
-- Read agent prompt/instruction files listed in the agent-setup attachment
+- Read agent prompt/instruction files listed in the agent-setup section
 - Run diagnostic commands (`which`, version checks) to verify tools the agent tried to use
 - Check configs and files referenced in error messages
 - When a command fails, try alternate invocations (without flags, different syntax) before concluding the tool is broken
-- Quick depth: categorize from the attachments alone. Standard depth: verify your hypotheses by reading relevant files and running diagnostic commands. Deep depth: exhaustively explore all applicable categories
+- Quick depth: categorize from the context alone. Standard depth: verify your hypotheses by reading relevant files and running diagnostic commands. Deep depth: exhaustively explore all applicable categories
 - **Do NOT modify any files** — investigation is read-only
 
-### Output format
+### Reference: root-cause attribution and severity
 
-```markdown
-# Investigation Report
+Attribute each finding to a primary layer: CLI/tool output, tool capability, skill design, docs/discovery, process/policy, or intent/inputs. Score recommendations by impact × recurrence − cost and prefer fixes that remove repeated manual interpretation. Severity: **Critical** blocks delivery or risks unsafe action; **Major** causes frequent retries/guessing; **Gap** means a capability is implied but not enabled; **Minor** is a low-risk clarity improvement. "Forces the agent to guess the next action" is at least Major.
 
-## Categorization Summary
-- **Primary category**: [Environment/Tooling | Agent Setup | Both]
-- **Confidence**: [High | Medium | Low]
-- **Severity**: [Critical | Major | Gap | Minor]
+### Output format — REQUIRED
 
-## Timeline
-| # | Event | Action | Result | Category Signal |
-|---|---|---|---|---|
-| 1 | ... | ... | ... | ... |
+Your entire final message MUST be exactly one fenced `json` code block and nothing else (no prose before or after). It must be a single JSON object matching this contract:
 
-## Environment/Tooling Findings
-| ID | Finding | Evidence | Severity | Recommendation |
-|---|---|---|---|---|
-| E1 | ... | ... | ... | ... |
-
-## Agent Setup Findings
-| ID | Finding | Evidence | Severity | Recommendation |
-|---|---|---|---|---|
-| A1 | ... | ... | ... | ... |
-
-## Recommendations Summary
-| Priority | ID | Category | Recommendation | Expected Impact |
-|---|---|---|---|---|
-| 1 | ... | ... | ... | ... |
-
-## Risks and Caveats
-- ...
+```
+{
+  "summary": "1-3 paragraph narrative: what failed, the primary category, and overall confidence",
+  "primaryCategory": "Environment/Tooling" | "Agent Setup" | "Both",
+  "confidence": "High" | "Medium" | "Low",
+  "categories": [
+    {
+      "name": "Environment/Tooling",
+      "recommendations": [
+        {
+          "text": "Concrete, actionable fix naming the specific file and change",
+          "severity": "Critical" | "Major" | "Gap" | "Minor",
+          "evidence": "Event numbers, file contents, or command output supporting this"
+        }
+      ]
+    }
+  ]
+}
 ```
 
-If a category has no findings, include the header with "No findings in this category."
-
-Each recommendation should be actionable without further investigation — if a file needs to change, say which file and what the change is.
+Rules:
+- `summary`, `primaryCategory`, and `categories` are required; every category needs a `name` and at least one recommendation; every recommendation needs `text`.
+- Group recommendations under category names that reflect their root layer (e.g., "Environment/Tooling", "Agent Setup"). Omit a category entirely if it has no findings.
+- Each recommendation must be applyable without further investigation — say which file and what change.
+- Output valid JSON only. Do not include comments or trailing commas.

@@ -77,9 +77,9 @@ func buildExecutionPrompt(p executionPromptParams) string {
 		b.WriteString(fmt.Sprintf("Brief path: %s\n", p.IdeaHandoff.BriefPath))
 		b.WriteString(fmt.Sprintf("Manifest path: %s\n", p.IdeaHandoff.ManifestPath))
 		b.WriteString(fmt.Sprintf("Source index path: %s\n", p.IdeaHandoff.SourceIndexPath))
-		b.WriteString("Use brief.md as the ecosystem-manager task notes when creating the downstream task.\n")
-		b.WriteString("Preserve the handoff origin metadata on the ecosystem-manager task so later loops can trace back to swarm-manager.\n")
-		b.WriteString("When creating the downstream task, pass: --handoff-dir, --origin-source swarm-manager, --origin-backlog-item, and --origin-item-folder.\n")
+		b.WriteString("Treat the rendered plan as the execution contract and use brief.md only as supporting context.\n")
+		b.WriteString("Record the true frontier and provenance in the swarm-manager execution handoff so later work can trace back to this item.\n")
+		b.WriteString("Execute the next bounded plan slice through the declared swarm-manager workflow; do not create an ecosystem-manager task.\n")
 		b.WriteString("</idea-handoff>\n")
 
 		if strings.TrimSpace(p.IdeaHandoff.BriefMarkdown) != "" {

@@ -15,6 +15,59 @@ Required reading:
 
 ---
 
+### 0. Preserve the planning source, not just the task title
+
+A plan is a durable compression of the investigation and discussion that led
+to it. Compress repetition and incidental conversation; do **not** compress
+away a decision, constraint, visual model, or acceptance expectation that a
+fresh execution agent would need in order to make the same implementation
+choices.
+
+Before authoring, build a private source inventory from the operator request,
+conversation, attachments, workshop decisions, research, code inspection, and
+durable references available to you. Identify every material item in these
+classes:
+
+- intended outcome, user experience, and non-goals;
+- current behavior, problem evidence, and relevant constraints;
+- selected design, rejected alternatives, and the rationale/tradeoffs;
+- diagrams, flows, examples, or interface contracts that explain the design;
+- invariants, change boundaries, dependencies, assumptions, risks, and open
+  questions;
+- discovered implementation facts, code/doc/requirement references, and
+  validation evidence or expectations.
+
+Do not copy a transcript into a plan. Instead, place each material item in its
+proper durable Plan Manager location:
+
+| Material | Durable destination |
+| --- | --- |
+| Outcome, user value | Purpose and Outcome |
+| Current behavior and evidence | Problem |
+| Chosen design, alternatives, rationale, diagrams, flows | Approach & Decisions |
+| Allowed/forbidden areas and non-goals | Boundaries |
+| Assumptions, dependencies, risks, unresolved questions | Assumptions & Risks |
+| Skills, docs, code, requirements, commands, research | Relevant Context and references |
+| How correctness is demonstrated | Verification and phase validation |
+| Ordered implementation work | Phases and phase acceptance |
+
+When a diagram, example, or flow materially explains the intended system,
+preserve it in the relevant decision content or as a durable referenced
+artifact. Never replace it with “see the prior discussion.”
+
+There are two valid authoring modes:
+
+- **Plan Manager mode (default):** create, validate, and finalize the
+  authoritative Plan Manager plan through the commands below.
+- **Candidate mode:** a calling workflow may explicitly forbid external Plan
+  Manager writes and request a Plan-Manager-compatible candidate markdown
+  artifact. Use the same source inventory, placement map, and quality bar, but
+  return the candidate to the caller instead of running `author start`,
+  `validate`, or `finalize`. Do not claim that a candidate is valid or has a
+  plan reference.
+
+---
+
 ### 1. When To Use This Skill
 
 | Situation | Use this skill? | Why |
@@ -101,6 +154,16 @@ notes, and the first execution command (`plan-manager exec continue <slug>`).
 ### 3. Judgment Rules
 
 - A plan should be executable without this chat history.
+- Before finalization, perform a preservation audit: a fresh execution agent
+  must be able to make the same material design decisions, respect the same
+  constraints, and validate the intended outcome without the source
+  conversation. Add the missing rationale, visual, reference, boundary,
+  acceptance expectation, or open question before finalizing.
+- Specifically reject these lossy plans: a plan that says what to do but not
+  why this design; names a component but omits the relevant interaction/data
+  flow; lists phases without exact acceptance or validation; records a decision
+  without its tradeoff; assumes context that exists only in chat; or leaves
+  already-discovered facts behind an opaque “investigate as needed” step.
 - The change boundary must name the paths the work may touch; do not hide scope
   in prose.
 - `validation` is the method of checking; `acceptance` is the outcome gate.
@@ -152,6 +215,11 @@ notes, and the first execution command (`plan-manager exec continue <slug>`).
 - A rendered review command/path
 - A concise note about degraded dependencies or manual fallbacks
 - The next execution command when implementation should continue
+
+In Candidate mode, ensure the candidate itself records the material source
+context in the appropriate plan sections. Include a concise preservation note
+only when the caller's typed result contract has a field for it; do not claim
+finalization, validation, a plan id, or a rendered Plan Manager path.
 
 **Must not produce:**
 - A standalone hand-formatted markdown plan as the default artifact

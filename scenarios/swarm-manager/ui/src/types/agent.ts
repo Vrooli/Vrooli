@@ -69,7 +69,8 @@ export type AgentActivityPurpose =
   | "initiative_review"
   | "meta_orchestration"
   | "operating_mode_authoring"
-  | "swarm_operations";
+  | "swarm_operations"
+  | "workflow_authoring";
 
 /**
  * Exhaustive array of all AgentActivityPurpose values.
@@ -94,6 +95,7 @@ export const AGENT_ACTIVITY_PURPOSES = [
   "meta_orchestration",
   "operating_mode_authoring",
   "swarm_operations",
+  "workflow_authoring",
 ] as const satisfies readonly AgentActivityPurpose[];
 
 export type AgentActivityInteractionType = "spawn" | "continue";

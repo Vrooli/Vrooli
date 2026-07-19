@@ -22,7 +22,7 @@ item-folder/
 ├── enhance/
 │   └── summary.md         # Refined plan (if enhance ran)
 ├── handoff/
-│   ├── brief.md           # (idea only, generated at process-time) execution brief for ecosystem-manager
+│   ├── brief.md           # (idea only, generated at process-time) execution context for the Swarm workflow
 │   ├── manifest.json      # (idea only) machine-readable downstream contract
 │   └── source-index.json  # (idea only) pointers back to source artifacts
 ├── research/
@@ -48,14 +48,14 @@ For idea processing that initializes or updates scenarios:
 - For existing scenarios, default to merge-with-backup, not overwrite.
 - Never silently discard existing scenario PRD/requirements content; record conflict decisions in `notes.md`.
 
-### 2.2 Idea Handoff Contract
+### 2.2 Idea Execution Context
 
 For `process-idea` runs, swarm-manager may generate `{{ITEM_FOLDER}}/handoff/` just before execution begins. When that directory exists:
 
-- Treat `handoff/brief.md` as the authoritative task-notes payload for ecosystem-manager.
-- Treat `handoff/manifest.json` as the machine-readable contract that preserves backlog provenance and resolved execution boundaries.
-- Pass the handoff into ecosystem-manager using `--handoff-dir`, `--origin-source`, `--origin-backlog-item`, and `--origin-item-folder`. Treat `--handoff-dir` as runtime-only; persisted origin metadata must use portable `path:` references such as `path:scenarios/swarm-manager/ideas/<item-name>`.
-- Do not handcraft a replacement notes summary from memory; use the generated handoff so every downstream loop receives the same context.
+- Treat the rendered plan as the execution contract. Use `handoff/brief.md` as supporting context; it preserves the finalized backlog decisions and provenance for the Swarm workflow.
+- Treat `handoff/manifest.json` and `handoff/source-index.json` as machine-readable provenance, execution boundaries, and source pointers.
+- Execute the next bounded plan slice through the declared swarm-manager workflow. Do not create a separate ecosystem-manager task or translate the handoff into a second queue.
+- Do not handcraft a replacement summary from memory. Preserve the generated context and record the true frontier in the swarm-manager execution handoff.
 
 ### 3. Leave Clear Evidence
 
@@ -64,8 +64,8 @@ Every processing operation must leave evidence of what was done:
 **For Ideas (scenario creation/improvement):**
 - Update or create the scenario
 - Write `notes.md` in the item folder with completion summary
-- Include ecosystem-manager task ID and chosen steering strategy
-- Include the handoff directory used for task creation
+- Include the executed plan slice or swarm-manager workflow execution reference
+- Include the generated handoff directory when one was used
 - List files created/modified
 - Note any deviations from the plan
 
@@ -101,15 +101,9 @@ Example completion summary:
 # Completion Summary
 
 ## Actions Taken
-- Created ecosystem-manager task for `path:scenarios/my-scenario/`
-- Selected steering profile: `balanced` (standard new scenario scope)
-- Started queue processor
-
-## Ecosystem Manager Task
-- **Task ID**: em-task-20260216-001
-- **Steering**: Profile `balanced` (progress -> test -> refactor -> polish)
-- **Rationale**: Standard scope new scenario with no special UX or quality requirements
-- **Monitor**: `ecosystem-manager task show em-task-20260216-001`
+- Executed plan slice: `Foundation — make the generated scenario's onboarding and requirements truthful`
+- Used the declared swarm-manager phased-plan workflow
+- Preserved `handoff/` as provenance and supporting execution context
 
 ## Specification Highlights
 - API with 3 endpoints, UI with React components
@@ -118,13 +112,11 @@ Example completion summary:
 - Admin panel deferred to v2 (scope reduction noted in enhance/summary.md)
 
 ## Verification
-- [x] Task created with correct steering configuration
-- [x] Queue processor running
-- [x] Task confirmed via `ecosystem-manager task show`
+- [x] Workflow execution started with the rendered plan
+- [x] Execution handoff records the completed frontier and evidence
 
 ## Follow-up
-- Monitor task progress: `ecosystem-manager task show em-task-20260216-001`
-- Queue status: `ecosystem-manager queue status`
+- Continue the next bounded slice through the declared swarm-manager workflow.
 ```
 
 ### 5. Error Handling
@@ -146,11 +138,10 @@ Do NOT:
 Before marking processing complete:
 
 ### For Scenario Creation/Improvement
-- [ ] Ecosystem-manager task created with appropriate steering
-- [ ] If `handoff/` exists, task notes were populated from `handoff/brief.md`
-- [ ] If `handoff/` exists, `origin.*` fields on the ecosystem-manager task point back to the swarm-manager item folder and handoff package
-- [ ] Queue processor running or started
-- [ ] Task confirmed via `ecosystem-manager task show <id>`
+- [ ] Rendered plan is the execution contract and its next bounded slice is explicit
+- [ ] If `handoff/` exists, the execution prompt includes it as supporting context and provenance
+- [ ] The declared swarm-manager workflow is started for the bounded slice
+- [ ] Execution handoff records the true frontier, evidence, and follow-up
 - [ ] service.json is valid (if creating/modifying scenario directly)
 - [ ] No security vulnerabilities introduced
 - [ ] No hardcoded secrets

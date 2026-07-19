@@ -2,251 +2,136 @@
 
 ## Purpose
 
-Reference knowledge for creating and improving Vrooli scenarios. Use this skill when authoring implementation plans for idea-type backlog items so the plan includes the correct operational steps, CLI commands, and tool integrations.
+Turn an approved scenario idea into a well-planned, lifecycle-valid permanent
+capability through normal swarm-manager phased execution. Establish the
+scenario-wide invariants and route each implementation slice to focused skills;
+do not act as a one-shot generator or a substitute for those skills.
 
-This is **not** an orchestration script — it describes what tools exist and how to use them, so that plans can include the right steps for the specific situation.
+## Scope
+
+**In scope:** template selection, the initial scenario plan, scaffold and
+onboarding gates, product-contract setup, and the transition to evidence-driven
+maintenance.
+
+**Out of scope:** choosing every implementation detail, writing a complete
+scenario in one pass, or maintaining a hard-coded map from technologies to
+skills. Use prompt-manager discovery for the focused work in each slice.
 
 ## Required Reading
 
-- `prompt-manager skill read ecosystem-manager-tools` — CLI reference for task creation, steering, and queue management
+- `prompt-manager skill read implementation-plan-authoring`
+- `prompt-manager skill read ecosystem-fit`
+- The selected template's `README.md` and generated `docs/START-HERE.md`
 
-## Scenario Scaffolding
+## Plan Before Scaffold
 
-### Listing Templates
+The canonical plan-manager plan is the execution contract. Before a scenario
+directory is generated, it must state:
+
+- the capability, intended users, non-goals, and acceptance boundary;
+- the selected template and why it fits the needed surfaces;
+- the first real vertical slice and how it will be proven;
+- the initial PRD/requirements, domain, API/CLI/proto, UI/UX, and validation
+  work that applies to this scenario; and
+- which decisions are fixed versus deliberately deferred.
+
+Use the template registry as the authority. Do not default to a template merely
+because it is familiar:
 
 ```bash
 template-manager registry list --kind scenario
+template-manager registry show "<template-id>"
 ```
 
-### Selecting a Template
+| Decision | Plan requirement |
+|---|---|
+| Existing scenario or resource can satisfy the need | Stop and revise the idea around composition or extension. |
+| A new scenario is justified | Name the selected template, rationale, and acceptance scope before scaffolding. |
+| Template has a UI | Define user journeys, states, and design direction before treating generated pages as product UI. |
+| API, CLI, proto, or persistence is needed | Put the applicable contract and domain slices in the plan; mark genuinely inapplicable surfaces explicitly. |
 
-| Scenario Characteristic | Recommended Template |
-|-------------------------|---------------------|
-| Has a web UI | `react-vite` |
-| API-only / backend service | Go or API-focused template |
-| CLI tool | CLI-focused template |
+## Establish the Local Continuation Contract
 
-When unsure, `react-vite` is a safe default for anything with a user-facing component.
-
-### Generating the Scaffold
+Generate only after the plan selects a template:
 
 ```bash
-template-manager generate "<template>" --id "<name>" --display-name "<title>" --description "<one-line purpose>"
+template-manager generate "<template-id>" --id "<name>" \
+  --display-name "<title>" --description "<one-line purpose>"
 ```
 
-Follow the template's post-generation checklist (dependency installs, `go mod tidy`, etc.).
+Immediately read `scenarios/<name>/docs/START-HERE.md`. It is the generated
+scenario's local onboarding and continuation contract. The plan must require
+every agent working an initial-development slice to read it before changing
+that scenario, then follow its truthful gates rather than treating generated
+examples or placeholders as product work.
 
-The `react-vite` template also seeds an L0 `experience/` contract. Keep it in
-route parity during generation: if you add/remove user-facing routes before
-handoff, update `experience/index.json` and `experience/pages/*.json`, then run
-`experience-manager spec validate <name> --json`. Do not add machine-tier claims
-until stable selectors and checkable UI exist; L0 is the honest starting point.
+The first post-scaffold slice must make the onboarding guide and its referenced
+documents truthful for the chosen capability. Preserve durable template seams;
+replace illustrative domains, pages, copy, and starter requirements only as
+the real scenario decisions supersede them.
 
-## PRD + Requirements Workflow (Preserve-First)
+## Initial Development Slices
 
-The business contract (`PRD.md` + `requirements/`) is owned by the **business-health** scenario. It validates template conformance, requirements-registry structure, and intent linkage; it never generates prose with AI — judgment stays with you.
+Use normal phased-plan drain. Keep each slice coherent and validated; do not
+ask one agent to finish every surface.
 
-Always check for an existing PRD/requirements baseline before authoring one from scratch. This preserves user-provided or previously refined specifications.
+| Slice | Required outcome | Skill routing |
+|---|---|---|
+| Foundation | Scaffold is lifecycle-valid; PRD and requirements are scenario-specific; START-HERE and the domain map are truthful. | This skill, then `prompt-manager discover` for the selected template and business-contract work. |
+| Contracts and domain | Real bounded contexts own their data, flows, API/CLI/proto contracts, and integration decisions. | Discover architecture, API, CLI, proto, storage, and dependency guidance that the plan needs. |
+| Vertical slice | One user-valuable flow works end-to-end with intentional UX states and design language. | Discover the relevant domain and UX skills; read `DESIGN.md` and experience docs when present. |
+| Evidence | Tests, requirements links, and applicable Test Genie evidence prove the slice; gaps are recorded as bounded follow-up work. | Use the test and provider-recommended skills relevant to the evidence. |
 
-### Decision Flow
+For every slice:
 
-```
-Does an existing contract baseline exist
-  (archive/PRD.md, archive/requirements/index.json, or scenarios/<name>/PRD.md)?
-  → Yes → Copy into scenarios/<name>/ as baseline, then validate + fix
-  → No  → Author it with the business-health wizard (no baseline to preserve)
-```
+1. Recall prior work with `search-hub query "<slice intent>" --type record,skill,doc`.
+2. Run `prompt-manager discover` for the slice's domain, technology, and
+   surface; read only skills that materially improve that slice.
+3. Record the true frontier in the plan-manager handoff so the next agent can
+   continue without rediscovering the scenario's foundations.
 
-### Validate and Fix a Preserved Baseline
+## Product Contract and Documentation
 
-One validate command covers PRD linkage and the requirements registry (linkage/lint checks are included):
+The business contract is owned by business-health. Preserve a refined baseline
+when one exists; otherwise use the wizard, validate the result, and replace
+template starter requirements before product implementation:
 
 ```bash
-vrooli scenario requirements validate "<name>" --json
-business-health fix preview "<name>" --json
-business-health fix apply "<name>" --json
-vrooli scenario requirements validate "<name>" --json
-```
-
-`fix preview` shows the deterministic remediation diff (template-section scaffold, registry creation, status normalization, `prd_ref` stubs for orphaned operational targets); `fix apply` writes it. Scope to specific findings with `--rules <code>,<code>`. The same fixers are reachable via `test-genie fix <name> --deterministic`.
-
-### Author a New Contract (No Baseline)
-
-There is **no AI-generation CLI** — you author the answers, and the wizard renders a contract that is conformant by construction. Synthesize answers from the backlog item's plan, workshop rounds, research findings, and any `enhance/`/`archive/` materials, then drive the deterministic interview:
-
-```bash
-# Interactive TTY interview
 business-health wizard start "<name>" --interactive
-
-# Or non-interactive: supply answers as a file, preview the diff, then apply
-business-health wizard start "<name>"
-business-health wizard answer "<name>" --answers /tmp/answers_"<name>".json
 business-health wizard preview "<name>"
 business-health wizard apply "<name>"
 vrooli scenario requirements validate "<name>" --json
 ```
 
-Wizard sessions are resumable and diff-preview first. When the wizard surfaces a "similar capability already exists in scenario X" dedup hint, take it seriously (cell #34) — resolve the overlap before applying rather than minting a duplicate capability.
+Make the plan explicitly cover the applicable local authorities:
 
-## Archive and Staging Material Incorporation
+- `docs/START-HERE.md` — initial-development gates and agent continuation;
+- `PRD.md` and `requirements/` — product intent and verifiable obligations;
+- `docs/concepts/DOMAINS.md`, `FLOWS.md`, `DATA.md`, and `INTEGRATIONS.md` —
+  owned boundaries and intentional omissions;
+- `DESIGN.md` and experience documents — user journeys and UI quality where a
+  UI exists; and
+- API, CLI, proto, configuration, operations, seam, and testing references
+  for every surface the plan introduces.
 
-Backlog items may contain refined materials that should be incorporated into the scenario.
+## Transition to Maintenance
 
-### Material Sources (Priority Order)
+Initial development ends when a real vertical slice is lifecycle-valid and has
+the applicable evidence—not when every aspirational feature is built. Subsequent
+maintenance is ordinary swarm-managed work: Test Genie supplies structured
+evidence and descriptor-presented skill recommendations; swarm-manager applies
+its configured policy, creates or executes bounded work, then remeasures.
 
-1. **`enhance/` staging materials** (preferred) — pre-synthesized by the workshop enhance step:
-   - `enhance/prd-context.md` — ready-to-use PRD context
-   - `enhance/requirements-context.md` — ready-to-use requirements context
-   - `enhance/doc-outlines.md` — documentation structure outlines
-2. **`archive/` raw materials** (fallback) — user-provided files when staging doesn't exist:
-   - `archive/PRD.md`, `path:archive/requirements/` — structured baselines
-   - Other archive files — reference configs, design docs, prior work
-
-### Incorporation Rules
-
-- Always prefer `enhance/` staging when available — it incorporates answered questions, accepted suggestions, and resolved conflicts
-- When updating an existing scenario's PRD/requirements, **merge with backup** — do not blindly overwrite
-- Documentation materials → `path:scenarios/<name>/docs/`
-- Reference configs → `scenarios/<name>/.vrooli/` or noted in README
-
-## Swarm-Manager Idea Handoff
-
-When you are processing an idea backlog item that originated in swarm-manager, look for an execution handoff package at `<item-folder>/handoff/`.
-
-### Handoff Files
-
-- `handoff/brief.md` — agent-facing execution brief; use this as the ecosystem-manager task notes
-- `handoff/manifest.json` — machine-readable execution contract and provenance
-- `handoff/source-index.json` — pointers back to `plan.md`, workshop rounds, research, and archive materials
-
-### Handoff Rules
-
-- Treat the handoff as the authoritative bridge into ecosystem-manager.
-- Read `brief.md`, `manifest.json`, and `plan.md` before choosing task type or steering.
-- Do not reconstruct notes from scattered workshop files when a handoff exists; the handoff was generated from the latest finalized backlog state specifically to avoid context loss.
-- Preserve upstream provenance on the ecosystem-manager task using the origin flags shown below.
-
-## Ecosystem-Manager Integration
-
-After initializing or updating a scenario, use ecosystem-manager to create an improvement task that drives iterative agent development.
-
-### Creating Tasks from a Swarm-Manager Idea Handoff
-
-When a swarm-manager handoff exists, always pass it through to ecosystem-manager:
-
-```bash
-HANDOFF_DIR="<runtime item folder>/handoff"
-ORIGIN_ITEM_REF="path:scenarios/swarm-manager/ideas/<item-name>"
-
-ecosystem-manager task add --steer-profile "<profile-id>" \
-  --handoff-dir "$HANDOFF_DIR" \
-  --origin-source swarm-manager \
-  --origin-backlog-item idea/<item-name> \
-  --origin-item-folder "$ORIGIN_ITEM_REF" \
-  scenario <name>
-```
-
-For existing scenarios, switch `task add` to `task improve`:
-
-```bash
-ecosystem-manager task improve --steer-profile "<profile-id>" \
-  --handoff-dir "$HANDOFF_DIR" \
-  --origin-source swarm-manager \
-  --origin-backlog-item idea/<item-name> \
-  --origin-item-folder "$ORIGIN_ITEM_REF" \
-  scenario <name>
-```
-
-`--handoff-dir` is a runtime filesystem argument: it validates the handoff package and auto-loads `brief.md` into task notes if no explicit `--notes` or `--notes-file` was provided. Persisted origin metadata should use portable `path:` references, not local home paths.
-
-### Creating Improvement Tasks
-
-```bash
-# With a steering profile (works for both new and existing scenarios)
-ecosystem-manager task improve --steer-profile "<profile-id>" scenario "<name>"
-
-# With a single steer mode (improver tasks only)
-ecosystem-manager task improve --steer-mode "<mode>" scenario "<name>"
-
-# With an ordered list of steer modes (improver tasks only)
-ecosystem-manager task improve --steer-queue "progress,test,refactor" scenario "<name>"
-```
-
-### Creating Generator Tasks (New Scenarios)
-
-```bash
-ecosystem-manager task add --steer-profile "<profile-id>" scenario "<name>"
-```
-
-### Validate Before Creating
-
-```bash
-ecosystem-manager task improve --dry-run --steer-profile balanced scenario "<name>"
-```
-
-For swarm-manager idea runs, also verify the created task retained the upstream contract:
-
-```bash
-ecosystem-manager task show "<task-id>" --json
-```
-
-Confirm the response includes:
-- `notes` populated from `handoff/brief.md`
-- `origin.source = "swarm-manager"`
-- `origin.backlog_item`
-- `origin.handoff_dir` and the three derived handoff file paths
-
-### Ensure Queue is Running
-
-```bash
-ecosystem-manager queue status
-ecosystem-manager queue start  # if paused
-```
-
-## Steering Strategy Selection
-
-| Scenario Characteristic | Recommended Profile | Reasoning |
-|-------------------------|-------------------|-----------|
-| Newly initialized, needs broad first pass | `balanced` or `rapid-mvp` | Covers all aspects of implementation |
-| Quality/stability focus | `production-ready` | Extra test and refactor passes |
-| Heavy UI/UX component | `ux-excellence` | Dedicated UX iteration modes |
-| Test debt or refactoring | `refactor-test-focus` | Prioritizes code quality |
-| Single improvement focus | `--steer-mode` | Single-pass (e.g., "test") |
-| Unique improvement needs | `--steer-queue` | Tailor mode order to requirements |
-
-**Rules:**
-- Prefer built-in templates when one fits
-- `--steer-mode` and `--steer-queue` only work on **scenario improver** tasks
-- One task per scenario at a time — check with `ecosystem-manager task list --type scenario`
-
-## Validation Tools
-
-After initialization, capture baseline metrics for handoff:
-
-```bash
-vrooli scenario status "<name>"
-scenario-completeness-scoring score "<name>"
-scenario-auditor audit "<name>" --timeout 240
-```
-
-Expect low completeness scores and auditor failures for freshly initialized scenarios — this is normal. Capture the results for notes and handoff to the improvement agent.
-
-## Scenario Documentation Initialization
-
-Ensure these files exist with baseline content (the template may have created some already):
-
-- `README.md` — purpose, how to run, link to PRD
-- `docs/PROGRESS.md` — initialization entry with date
-- `docs/PROBLEMS.md` — open issues and deferred ideas from research
-- `docs/RESEARCH.md` — uniqueness check, related scenarios, references
-
-Use `enhance/doc-outlines.md` as a guide when available.
+Do not create an ecosystem-manager task or rely on an ecosystem-manager
+steering profile. The plan and swarm-manager execution history are the durable
+handoff.
 
 ## Anti-Patterns
 
-- **Don't** hand-write PRD.md from nothing — drive the `business-health wizard` (conformant by construction), or validate/fix a preserved baseline
-- **Don't** discard archive/staging materials — they represent refined context
-- **Don't** use raw archive when enhance/ staging exists — staging is pre-synthesized
-- **Don't** skip validation after PRD/requirements copy or generation
-- **Don't** create ecosystem-manager tasks without verifying the queue processor is running
-- **Don't** use custom steer queues when a built-in profile fits
+- Do not scaffold before the plan names and justifies its template.
+- Do not treat starter pages, example domains, or starter requirements as the
+  product.
+- Do not replace focused skill discovery with a giant all-purpose generation
+  prompt.
+- Do not declare a scenario complete without a working vertical slice and
+  applicable evidence.

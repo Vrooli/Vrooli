@@ -1,10 +1,12 @@
 # Workflow Cutover Inventory
 
-> **Status: planning inventory.** This is the ordered migration bridge from
-> Swarm Manager's current agent-operation and operating-mode implementation to
-> Agent Manager declared workflows. It authorizes no deletion, data migration,
-> or implementation by itself. Every row needs an approved implementation plan
-> and fresh state inventory before it changes live behavior.
+> **Status: historical migration rationale and retirement checklist.** The
+> machine-readable [`registry.json`](../../../.vrooli/swarm-transitions/registry.json)
+> and its [Active Transition Catalog](../../reference/transition-catalog.md)
+> describe current behavior. This document explains why the former
+> agent-operation and operating-mode runtime must not return, and records the
+> checks required before historical projections are deleted. It does not
+> authorize deletion or data migration by itself.
 
 ## Goal and boundary
 
@@ -65,7 +67,7 @@ inventory can establish whether the aggregate reaches the target.
 | Capture classification | `capture.classify` | Declared `swarm-manager/capture-classify` workflow; Swarm applies only a matching terminal typed result. | Keep captures and classification history; persist execution, definition digest, and immutable capture-snapshot version. | E |
 | Meta-orchestration conversation | `session.meta_orchestration` | Agent Session / Run. | Retain session/message/proposal model. | A |
 | Swarm operations conversation | `session.swarm_operations` | Agent Session / Run. | Retain session and advisory/proposal boundary. | A |
-| Methodology-authoring conversation | `session.workflow_authoring` | Agent Session / Run; rename only when operating modes are retired. | Retain history; do not create a new generic chat type. | G |
+| Historical methodology-authoring conversation | None; historical sessions only | No new session kind. Discussions use `session.meta_orchestration`; code-owned outcomes become declared workflows. | Retain history; do not create a generic chat type. | G |
 | Session proposal application | `proposal.apply` | Deterministic Swarm validation and apply. | Retain proposal and artifact provenance. | A |
 
 ### Backlog shaping and plan validity
@@ -84,7 +86,7 @@ inventory can establish whether the aggregate reaches the target.
 
 | Current concern | Target transition | Target mechanism | Stored-state disposition | Wave |
 | --- | --- | --- | --- | --- |
-| Execute a valid plan | `plan.execute` | `swarm-manager/plan-drain` workflow, replacing the current narrow adapter after its contract is generalized. | Execution record keeps authorized intent and workflow correlation; Agent Manager owns attempts and loop state. | D → E |
+| Execute a valid plan | `plan.execute` | `swarm-manager/phased-plan-drain` workflow. | Execution record keeps authorized intent and workflow correlation; Agent Manager owns attempts and loop state. | D → E |
 | Slice review | `work.review` | Declared `swarm-manager/independent-review` workflow now starts from an immutable execution snapshot; Swarm retains only the review ledger, snapshot validation, exactly-once apply, and operator gate. | Workflow-owned rounds carry pinned workflow provenance and are excluded from legacy polling/recovery; historical operation rounds remain readable. | D complete; E for correction composition |
 | Review evidence request | `review.evidence_request` | Declared `swarm-manager/evidence-request` workflow receives an immutable review-thread snapshot; Swarm applies the terminal typed evidence result to that thread exactly once. | Preserve review evidence and messages; new threads pin workflow provenance and do not create an operation correlation. | E in progress |
 | Review asks for correction | `work.correct` | Declared `swarm-manager/work-correct` workflow starts from an immutable parent execution/finalization snapshot. Swarm retains only authorization, exact-once terminal apply, and re-review routing. | Keep final evidence and decision; legacy operation executions are historical-read only. | E in progress |
@@ -129,7 +131,6 @@ Plan Manager       plan validation and rendering
 Prompt Manager     prompt reference resolution
 Test Genie         test runs and result freshness
 Git Control Tower  baseline and regression verdicts
-Ecosystem Manager  scenario lifecycle actions
 ```
 
 For each integration it returns availability, configured/required state,
@@ -205,13 +206,13 @@ The operator CLI now exposes the same projection as `swarm-manager integrations`
 availability, freshness, diagnostics, and degradation story cannot diverge from
 workflow-start preflight.
 
-The existing workshop and phased-plan pilot adapters now share
+The existing workshop and phased-plan adapters use
 `agentmanager.WorkflowService`'s generic invocation protocol: start with a
 workflow key plus immutable input, collect a terminal execution with its pinned
 digest/input/output/journal attempts, and send/cancel a durable workflow
-operation. The pilot-specific methods retain only their domain snapshot and
-typed result decoding. New transitions must use this generic seam rather than
-adding another feature-specific Agent Manager workflow client.
+operation. Their domain packages retain only snapshot construction and typed
+result decoding. New transitions must use this generic seam rather than adding
+another feature-specific Agent Manager workflow client.
 
 The active workshop and phased-plan starts now load `swarm-transition/v1` at
 server composition, require a matching workflow registration, and call the same

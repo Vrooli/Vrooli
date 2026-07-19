@@ -21,6 +21,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type workshopWorkflowResult struct {
@@ -114,6 +116,10 @@ func (h *Handler) startWorkshopRoundWorkflow(ctx context.Context, item BacklogIt
 	if h.workshopWorkflow == nil {
 		return agentmanager.WorkflowStart{}, agentmanager.ErrNotAvailable
 	}
+	workflow, err := h.resolveWorkflow("backlog.refine")
+	if err != nil {
+		return agentmanager.WorkflowStart{}, err
+	}
 	_, roundCount, err := workshop.LoadLatestRound(h.store.ItemDir(item.Kind, item.Name))
 	if err != nil {
 		return agentmanager.WorkflowStart{}, err
@@ -121,11 +127,25 @@ func (h *Handler) startWorkshopRoundWorkflow(ctx context.Context, item BacklogIt
 	version := workshopSnapshotVersion(item, roundCount)
 	digest := sha256.Sum256([]byte(operatorNote))
 	key := fmt.Sprintf("backlog-workshop/%s/%s/%s/%x", item.Kind, item.Name, strings.TrimPrefix(version, "sha256:")[:16], digest[:8])
-	started, err := h.workshopWorkflow.StartWorkshopRound(ctx, agentmanager.BacklogWorkshopSnapshot{
-		Kind: string(item.Kind), Name: item.Name, Version: version, Title: item.Title,
-		Description: item.Description, Status: string(item.Status), Priority: item.Priority,
-		Tags: append([]string(nil), item.Tags...), OperatorNote: operatorNote,
-	}, key)
+	tags := make([]any, len(item.Tags))
+	for index, tag := range item.Tags {
+		tags[index] = tag
+	}
+	input, err := structpb.NewValue(map[string]any{
+		"entity": map[string]any{"kind": string(item.Kind), "name": item.Name, "version": version},
+		"snapshot": map[string]any{
+			"title": item.Title, "description": item.Description, "status": string(item.Status),
+			"priority": item.Priority, "tags": tags,
+		},
+		"operatorNote": operatorNote,
+	})
+	if err != nil {
+		return agentmanager.WorkflowStart{}, fmt.Errorf("encode workshop snapshot: %w", err)
+	}
+	started, err := h.workshopWorkflow.StartWorkflow(ctx, agentmanager.Invocation{
+		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
+		IdempotencyKey: key, FirstRunNodeID: "workshop",
+	})
 	if err != nil {
 		return agentmanager.WorkflowStart{}, err
 	}
@@ -222,7 +242,11 @@ func (h *Handler) applyWorkshopWorkflowResult(ctx context.Context, kind BacklogK
 	} else if !errors.Is(readErr, os.ErrNotExist) {
 		return workshopWorkflowApplyResponse{}, workshopApplyFailure(http.StatusInternalServerError, "failed to read workflow provenance")
 	}
-	completion, err := h.workshopWorkflow.CollectWorkshopRound(ctx, executionID)
+	invocation, err := h.workshopWorkflow.CollectWorkflow(ctx, executionID)
+	if err != nil {
+		return workshopWorkflowApplyResponse{}, &workshopApplyError{status: http.StatusConflict, err: fmt.Errorf("workflow result is not ready: %w", err)}
+	}
+	completion, err := decodeWorkshopWorkflowCompletion(invocation)
 	if err != nil {
 		return workshopWorkflowApplyResponse{}, &workshopApplyError{status: http.StatusConflict, err: fmt.Errorf("workflow result is not ready: %w", err)}
 	}
@@ -281,6 +305,63 @@ func (h *Handler) applyWorkshopWorkflowResult(ctx context.Context, kind BacklogK
 		}
 	}
 	return workshopWorkflowApplyResponse{ExecutionID: executionID, Applied: true, Outcome: result.Outcome, Artifact: artifact}, nil
+}
+
+// workshopWorkflowCompletion is a backlog-owned decoding of the generic
+// invocation result. Agent Manager owns workflow transport; this adapter owns
+// only the domain identity and typed proposal checks required for application.
+type workshopWorkflowCompletion struct {
+	DefinitionDigest string
+	RunID            string
+	ProfileIdentity  string
+	EntityKind       string
+	EntityName       string
+	EntityVersion    string
+	Result           json.RawMessage
+}
+
+func decodeWorkshopWorkflowCompletion(invocation agentmanager.InvocationCompletion) (workshopWorkflowCompletion, error) {
+	if invocation.Status != domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
+		return workshopWorkflowCompletion{}, errors.New("workflow execution is not successfully terminal")
+	}
+	if invocation.Input == nil || invocation.Output == nil {
+		return workshopWorkflowCompletion{}, errors.New("authorized workflow payload is incomplete")
+	}
+	input, ok := invocation.Input.AsInterface().(map[string]any)
+	if !ok {
+		return workshopWorkflowCompletion{}, errors.New("workflow input is not an object")
+	}
+	entity, ok := input["entity"].(map[string]any)
+	if !ok {
+		return workshopWorkflowCompletion{}, errors.New("workflow entity snapshot is missing")
+	}
+	output, ok := invocation.Output.AsInterface().(map[string]any)
+	if !ok {
+		return workshopWorkflowCompletion{}, errors.New("workflow output is not an object")
+	}
+	result, err := json.Marshal(output["result"])
+	if err != nil {
+		return workshopWorkflowCompletion{}, fmt.Errorf("encode workflow result: %w", err)
+	}
+	completion := workshopWorkflowCompletion{
+		DefinitionDigest: invocation.DefinitionDigest,
+		EntityKind:       stringValue(entity["kind"]),
+		EntityName:       stringValue(entity["name"]),
+		EntityVersion:    stringValue(entity["version"]),
+		Result:           result,
+	}
+	for _, attempt := range invocation.Attempts {
+		if attempt.NodeId == "workshop" {
+			completion.RunID, completion.ProfileIdentity = attempt.RunId, attempt.ProfileIdentity
+			break
+		}
+	}
+	return completion, nil
+}
+
+func stringValue(value any) string {
+	text, _ := value.(string)
+	return strings.TrimSpace(text)
 }
 
 func validateWorkshopWorkflowResult(result workshopWorkflowResult) error {

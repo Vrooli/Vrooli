@@ -30,6 +30,8 @@ func buildSessionTitle(kind, sessionID string) string {
 		return "Operating mode authoring: " + label
 	case "swarm_operations":
 		return "Swarm operations: " + label
+	case "workflow_authoring":
+		return "Workflow authoring: " + label
 	default:
 		return "Agent session: " + label
 	}

@@ -49,6 +49,7 @@ const ACTIVITY_PURPOSE_COLORS: Record<AgentActivityPurpose, string> = {
   meta_orchestration: "bg-fuchsia-500",
   operating_mode_authoring: "bg-slate-500",
   swarm_operations: "bg-emerald-500",
+	workflow_authoring: "bg-violet-500",
 };
 
 const ACTIVITY_STATUS_COLORS: Record<string, string> = {

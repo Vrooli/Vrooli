@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "swarm-manager-phased-plan-execute-next",
   "name": "Swarm Manager Phased Plan Execute Next",
-  "description": "Execute the next drainable slice of a plan-manager plan in the generic phased-plan-drain mode and hand off the true frontier.",
+  "description": "Historical Swarm Manager operating-mode guidance retained only for prior session and provenance readability; active structured agent work uses registered Agent Manager workflows.",
   "modes": [
     "tools"
   ],
@@ -14,7 +14,7 @@
     "phased-plan-drain",
     "execution"
   ],
-  "status": "active",
+  "status": "retired",
   "entry": "SKILL.md",
   "revision": 2,
   "createdAt": "2026-04-30T00:00:00Z",

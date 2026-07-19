@@ -162,7 +162,12 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 			if inputErr != nil {
 				return
 			}
-			res, startErr := s.workflow.StartWorkflow(opCtx, agentmanager.Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/evidence-request", Input: input, IdempotencyKey: "evidence-" + threadID, FirstRunNodeID: "gather"})
+			workflow, resolveErr := s.transitionRegistry.ResolveWorkflow("review.evidence_request")
+			if resolveErr != nil {
+				slog.Error("resolve evidence-request workflow", "error", resolveErr, "thread_id", threadID)
+				return
+			}
+			res, startErr := s.workflow.StartWorkflow(opCtx, agentmanager.Invocation{Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input, IdempotencyKey: "evidence-" + threadID, FirstRunNodeID: "gather"})
 			if startErr != nil {
 				slog.Error("start evidence-request workflow", "error", startErr, "thread_id", threadID)
 				return

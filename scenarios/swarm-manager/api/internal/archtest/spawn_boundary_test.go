@@ -1,12 +1,9 @@
 // Package archtest holds permanent architecture guardrails for swarm-manager.
 //
-// The spawn-boundary guardrail (this file) enforces the declarative-operations
-// invariant from the "Declarative agent operations" plan: a target-bound domain
-// package must NEVER spawn or continue an Agent Manager run directly. Every
-// autonomous agent launch flows through the generic operation runner
-// (opsrunner/opsbridge) and the operating-mode engine's agentactivity chokepoint;
-// interactive human-in-the-loop runs flow through the agentsessions boundary.
-// Domain packages express work as operations, never as raw spawns.
+// The spawn-boundary guardrail ensures a target-bound domain package never
+// spawns or continues an Agent Manager Run directly. Programmatic work starts
+// a declared workflow through the typed workflow boundary; interactive,
+// human-led conversation uses the agentsessions boundary.
 //
 // The test is AST-based (it inspects real call expressions, not text), so it is
 // robust to comments, string literals, and formatting. It fails on any NEW direct
@@ -39,7 +36,7 @@ var guardedPackages = []string{
 
 // spawnMethods are the Agent Manager spawn/continuation seam method names. A call
 // to any of them from a guarded package is a boundary violation: these launch or
-// resume an autonomous agent run, which must instead go through an operation.
+// resume an autonomous agent run, which must instead use a declared workflow.
 // (ApproveRun / StopRun / GetRunState are run-management, not launch, and are not
 // listed — they do not create autonomous work.)
 var spawnMethods = map[string]bool{
@@ -61,8 +58,8 @@ type spawnSite struct {
 // allowedLegacySpawns is the closed allowlist of direct-spawn calls permitted in
 // the guarded domain packages. It is EMPTY — the Phase 6 reroutes landed and the
 // Phase 9 cutover deleted every legacy spawn site — and it must stay empty: the
-// boundary is fully closed, and every new autonomous launch is expressed as an
-// operation (opsrunner) instead. The guardrail fails on any spawn call that is
+// boundary is fully closed, and every new autonomous launch is expressed as a
+// declared workflow instead. The guardrail fails on any spawn call that is
 // not listed here (a regression) and on any listed entry with no matching call
 // (a stale exception).
 var allowedLegacySpawns = map[spawnSite]string{}
@@ -115,7 +112,7 @@ func TestNoDirectAgentSpawnInDomainPackages(t *testing.T) {
 	sort.Strings(violations)
 	sort.Strings(stale)
 	if len(violations) > 0 {
-		t.Errorf("domain packages must not spawn/continue Agent Manager runs directly — route through an operation (opsrunner/opsbridge) or the agentsessions boundary:\n  %s", strings.Join(violations, "\n  "))
+		t.Errorf("domain packages must not spawn/continue Agent Manager runs directly — route programmatic work through a declared workflow or conversation through agentsessions:\n  %s", strings.Join(violations, "\n  "))
 	}
 	if len(stale) > 0 {
 		t.Errorf("stale spawn-boundary allowlist entries (their reroute is done):\n  %s", strings.Join(stale, "\n  "))

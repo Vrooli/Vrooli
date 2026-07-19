@@ -8,6 +8,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/transitions"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -17,17 +18,22 @@ import (
 // workflow seam. Follow-up and correction never launch an operation runner.
 func followUpTestService(t *testing.T, root string, records []Record, agent AgentManagerAvailability) (*Service, *stubConclusionWorkflow) {
 	t.Helper()
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatalf("load transition registry: %v", err)
+	}
 	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
 	store := NewStore(storePath)
 	if err := store.Save(records); err != nil {
 		t.Fatalf("seed records: %v", err)
 	}
 	svc := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    storePath,
-		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		DataRoot:           root,
+		StorePath:          storePath,
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: registry,
 	})
 	workflow := &stubConclusionWorkflow{}
 	svc.SetWorkWorkflow(workflow)

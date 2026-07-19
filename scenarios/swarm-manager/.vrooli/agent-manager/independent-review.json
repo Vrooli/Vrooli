@@ -7,18 +7,213 @@
   "inputSchema": {
     "type": "object",
     "properties": {
-      "entity": {"type": "object", "properties": {"kind": {"type": "string"}, "name": {"type": "string"}, "executionId": {"type": "string"}, "version": {"type": "string"}}, "required": ["kind", "name", "executionId", "version"], "additionalProperties": false},
-      "snapshot": {"type": "object", "additionalProperties": true}
+      "entity": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "executionId",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
-    "required": ["entity", "snapshot"], "additionalProperties": false
+    "required": [
+      "entity",
+      "snapshot"
+    ],
+    "additionalProperties": false
   },
-  "outputSchema": {"type": "object", "properties": {"result": {"type": "object", "properties": {"handoff": {"type": "object", "properties": {"verdict": {"type": "string", "enum": ["ready", "ready_with_notes", "needs_work", "not_assessable"]}, "agent_assessment": {"type": "string", "minLength": 1, "maxLength": 16384}, "evidence": {"type": "array", "maxItems": 100, "items": {"type": "object", "additionalProperties": true}}, "improvement_suggestions": {"type": "array", "maxItems": 50, "items": {"type": "object", "additionalProperties": true}}, "regression_introduced": {"type": "boolean"}, "notes": {"type": "array", "maxItems": 50, "items": {"type": "string", "maxLength": 4096}}, "summary": {"type": "string", "minLength": 1, "maxLength": 16384}}, "required": ["verdict", "agent_assessment", "evidence", "improvement_suggestions", "regression_introduced", "notes", "summary"], "additionalProperties": false}}, "required": ["handoff"], "additionalProperties": false}}, "required": ["result"], "additionalProperties": false},
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "properties": {
+          "handoff": {
+            "type": "object",
+            "properties": {
+              "verdict": {
+                "type": "string",
+                "enum": [
+                  "ready",
+                  "ready_with_notes",
+                  "needs_work",
+                  "not_assessable"
+                ]
+              },
+              "agent_assessment": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "evidence": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "improvement_suggestions": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "regression_introduced": {
+                "type": "boolean"
+              },
+              "notes": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              }
+            },
+            "required": [
+              "verdict",
+              "agent_assessment",
+              "evidence",
+              "improvement_suggestions",
+              "regression_introduced",
+              "notes",
+              "summary"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "handoff"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
   "entryNode": "review",
   "nodes": [
-    {"id": "review", "kind": "run", "run": {"profileKey": "swarm-manager/analysis", "promptTemplate": "Independently review the completed backlog execution using only the immutable snapshot. Return only typed JSON matching the result contract. Evidence is advisory; do not mutate the backlog item or execution.\n\nEntity:\n{{.entity}}\n\nSnapshot:\n{{.snapshot}}", "resultSpec": {"version": "result-spec/v1", "kind": "json_schema", "extractionMode": "deterministic_only", "schema": {"type": "object", "properties": {"handoff": {"type": "object", "additionalProperties": true}}, "required": ["handoff"], "additionalProperties": false}}, "bindings": [{"name": "entity", "source": "workflow_input", "selector": "$.entity", "limit": 1, "maxBytes": 2048, "renderAs": "json", "missingPolicy": "error"}, {"name": "snapshot", "source": "workflow_input", "selector": "$.snapshot", "limit": 1, "maxBytes": 65536, "renderAs": "json", "missingPolicy": "error"}], "maxTurns": 18, "timeoutSeconds": 1800}},
-    {"id": "complete", "kind": "end", "end": {"status": "succeeded", "bindings": [{"name": "result", "source": "structured_result", "selector": "$.value", "order": "desc", "limit": 1, "maxBytes": 65536, "renderAs": "json", "missingPolicy": "error"}]}}
+    {
+      "id": "review",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/analysis",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "handoff": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": [
+              "handoff"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "entity",
+            "source": "workflow_input",
+            "selector": "$.entity",
+            "limit": 1,
+            "maxBytes": 2048,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 18,
+        "timeoutSeconds": 1800,
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-independent-review"
+        }
+      }
+    },
+    {
+      "id": "complete",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {
+            "name": "result",
+            "source": "structured_result",
+            "selector": "$.value",
+            "order": "desc",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ]
+      }
+    }
   ],
-  "edges": [{"from": "review", "to": "complete", "maxTraversals": 1}],
-  "budgets": {"wallTimeSeconds": 3600, "maxTurns": 18, "maxTokens": 30000, "maxCostUsd": 5, "maxNodeAttempts": 3, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 2, "maxWaitSeconds": 60},
-  "metadata": {"consumerMutationOwner": "swarm-manager", "transition": "work.review"}
+  "edges": [
+    {
+      "from": "review",
+      "to": "complete",
+      "maxTraversals": 1
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 3600,
+    "maxTurns": 18,
+    "maxTokens": 30000,
+    "maxCostUsd": 5,
+    "maxNodeAttempts": 3,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 2,
+    "maxWaitSeconds": 60
+  },
+  "metadata": {
+    "consumerMutationOwner": "swarm-manager",
+    "transition": "work.review"
+  }
 }

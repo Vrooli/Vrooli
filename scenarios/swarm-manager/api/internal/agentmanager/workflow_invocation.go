@@ -3,11 +3,13 @@ package agentmanager
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -45,6 +47,11 @@ type WorkflowInvoker interface {
 	StartWorkflow(context.Context, Invocation) (WorkflowStart, error)
 	CollectWorkflow(context.Context, string) (InvocationCompletion, error)
 }
+
+// workflowWaitTimeoutSeconds bounds each server-side blocking wait. It stays
+// below the HTTP client timeout so callers receive a durable not-ready result
+// without cancelling the workflow itself.
+const workflowWaitTimeoutSeconds = 15
 
 func (s *WorkflowService) SetStartGuard(guard WorkflowStartGuard) { s.startGuard = guard }
 
@@ -86,7 +93,7 @@ func (s *WorkflowService) CollectWorkflow(ctx context.Context, executionID strin
 	if executionID == "" {
 		return InvocationCompletion{}, fmt.Errorf("%w: execution id is required", ErrRequestFailed)
 	}
-	waited, err := s.client.WaitWorkflowExecution(ctx, executionID, workshopWaitTimeoutSeconds)
+	waited, err := s.client.WaitWorkflowExecution(ctx, executionID, workflowWaitTimeoutSeconds)
 	if err != nil {
 		return InvocationCompletion{}, err
 	}
@@ -119,4 +126,38 @@ func (s *WorkflowService) SignalWorkflow(ctx context.Context, executionID, signa
 func (s *WorkflowService) CancelWorkflow(ctx context.Context, executionID, idempotencyKey, reason string) error {
 	_, err := s.client.workflowOperationPost(ctx, "/api/v1/workflow-executions/"+url.PathEscape(executionID)+"/cancel", &apipb.WorkflowExecutionOperationRequest{ExecutionId: executionID, IdempotencyKey: idempotencyKey, Reason: reason})
 	return err
+}
+
+func terminalWorkflowStatus(status domainpb.WorkflowExecutionStatus) bool {
+	switch status {
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *HTTPClient) workflowOperationPost(ctx context.Context, path string, req proto.Message) (*apipb.WorkflowExecutionOperationResponse, error) {
+	body, err := protoJSONMarshal.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.doRequest(ctx, http.MethodPost, path, body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, readErrorResponse(resp)
+	}
+	var result apipb.WorkflowExecutionOperationResponse
+	if err := decodeProtoResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }

@@ -1,0 +1,18 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-workflow-independent-review",
+  "name": "swarm-manager-workflow-independent-review",
+  "description": "Typed prompt contract for independent execution review.",
+  "tags": [
+    "swarm-manager",
+    "agent-manager",
+    "workflow",
+    "prompt-contract"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-07-18T03:05:27Z",
+  "updatedAt": "2026-07-18T03:05:27Z"
+}

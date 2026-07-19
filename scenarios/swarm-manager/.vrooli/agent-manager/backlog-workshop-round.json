@@ -10,23 +10,56 @@
       "entity": {
         "type": "object",
         "properties": {
-          "kind": {"type": "string", "minLength": 1, "maxLength": 32},
-          "name": {"type": "string", "minLength": 1, "maxLength": 255},
-          "version": {"type": "string", "minLength": 1, "maxLength": 128}
+          "kind": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
         },
-        "required": ["kind", "name", "version"],
+        "required": [
+          "kind",
+          "name",
+          "version"
+        ],
         "additionalProperties": false
       },
-      "snapshot": {"type": "object", "additionalProperties": true},
-      "operatorNote": {"type": "string", "maxLength": 32768}
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "operatorNote": {
+        "type": "string",
+        "maxLength": 32768
+      }
     },
-    "required": ["entity", "snapshot", "operatorNote"],
+    "required": [
+      "entity",
+      "snapshot",
+      "operatorNote"
+    ],
     "additionalProperties": false
   },
   "outputSchema": {
     "type": "object",
-    "properties": {"result": {"type": "object", "additionalProperties": true}},
-    "required": ["result"],
+    "properties": {
+      "result": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "result"
+    ],
     "additionalProperties": false
   },
   "entryNode": "workshop",
@@ -36,7 +69,6 @@
       "kind": "run",
       "run": {
         "profileKey": "swarm-manager/deep-work",
-        "promptTemplate": "Run one bounded backlog workshop round. Treat the supplied snapshot as immutable. Return only JSON matching the requested discriminated result contract. Never mutate files or infer a newer entity version.\n\nEntity:\n{{.entity}}\n\nSnapshot:\n{{.snapshot}}\n\nOperator note:\n{{.operator_note}}",
         "resultSpec": {
           "version": "result-spec/v1",
           "kind": "json_schema",
@@ -46,17 +78,33 @@
               {
                 "type": "object",
                 "properties": {
-                  "outcome": {"const": "proposals"},
-                  "note": {"type": "string", "maxLength": 32768},
+                  "outcome": {
+                    "const": "proposals"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 32768
+                  },
                   "decisionQuestions": {
                     "type": "array",
                     "maxItems": 20,
                     "items": {
                       "type": "object",
                       "properties": {
-                        "id": {"type": "string", "minLength": 1, "maxLength": 128},
-                        "topic": {"type": "string", "minLength": 1, "maxLength": 512},
-                        "context": {"type": "string", "maxLength": 4096},
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "topic": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512
+                        },
+                        "context": {
+                          "type": "string",
+                          "maxLength": 4096
+                        },
                         "options": {
                           "type": "array",
                           "minItems": 2,
@@ -64,65 +112,171 @@
                           "items": {
                             "type": "object",
                             "properties": {
-                              "key": {"type": "string", "minLength": 1, "maxLength": 16},
-                              "label": {"type": "string", "minLength": 1, "maxLength": 512},
-                              "rationale": {"type": "string", "maxLength": 2048},
-                              "recommended": {"type": "boolean"}
+                              "key": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 16
+                              },
+                              "label": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 512
+                              },
+                              "rationale": {
+                                "type": "string",
+                                "maxLength": 2048
+                              },
+                              "recommended": {
+                                "type": "boolean"
+                              }
                             },
-                            "required": ["key", "label", "rationale", "recommended"],
+                            "required": [
+                              "key",
+                              "label",
+                              "rationale",
+                              "recommended"
+                            ],
                             "additionalProperties": false
                           }
                         }
                       },
-                      "required": ["id", "topic", "context", "options"],
+                      "required": [
+                        "id",
+                        "topic",
+                        "context",
+                        "options"
+                      ],
                       "additionalProperties": false
                     }
                   },
                   "readiness": {
                     "type": "object",
                     "properties": {
-                      "problem_clarity": {"type": "integer", "minimum": 0, "maximum": 3},
-                      "scope_defined": {"type": "integer", "minimum": 0, "maximum": 3},
-                      "approach_solid": {"type": "integer", "minimum": 0, "maximum": 3},
-                      "testable": {"type": "integer", "minimum": 0, "maximum": 3},
-                      "risk_awareness": {"type": "integer", "minimum": 0, "maximum": 3}
+                      "problem_clarity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3
+                      },
+                      "scope_defined": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3
+                      },
+                      "approach_solid": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3
+                      },
+                      "testable": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3
+                      },
+                      "risk_awareness": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3
+                      }
                     },
-                    "required": ["problem_clarity", "scope_defined", "approach_solid", "testable", "risk_awareness"],
+                    "required": [
+                      "problem_clarity",
+                      "scope_defined",
+                      "approach_solid",
+                      "testable",
+                      "risk_awareness"
+                    ],
                     "additionalProperties": false
                   }
                 },
-                "required": ["outcome", "note", "decisionQuestions", "readiness"],
+                "required": [
+                  "outcome",
+                  "note",
+                  "decisionQuestions",
+                  "readiness"
+                ],
                 "additionalProperties": false
               },
               {
                 "type": "object",
                 "properties": {
-                  "outcome": {"const": "no_questions"},
-                  "note": {"type": "string", "maxLength": 32768},
-                  "readiness": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0, "maximum": 3}}
+                  "outcome": {
+                    "const": "no_questions"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 32768
+                  },
+                  "readiness": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 3
+                    }
+                  }
                 },
-                "required": ["outcome", "note", "readiness"],
+                "required": [
+                  "outcome",
+                  "note",
+                  "readiness"
+                ],
                 "additionalProperties": false
               },
               {
                 "type": "object",
                 "properties": {
-                  "outcome": {"const": "abstained"},
-                  "reason": {"type": "string", "minLength": 1, "maxLength": 4096}
+                  "outcome": {
+                    "const": "abstained"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
                 },
-                "required": ["outcome", "reason"],
+                "required": [
+                  "outcome",
+                  "reason"
+                ],
                 "additionalProperties": false
               }
             ]
           }
         },
         "bindings": [
-          {"name": "entity", "source": "workflow_input", "selector": "$.entity", "limit": 1, "maxBytes": 1024, "renderAs": "json", "missingPolicy": "error"},
-          {"name": "snapshot", "source": "workflow_input", "selector": "$.snapshot", "limit": 1, "maxBytes": 32768, "renderAs": "json", "missingPolicy": "error"},
-          {"name": "operator_note", "source": "workflow_input", "selector": "$.operatorNote", "limit": 1, "maxBytes": 32768, "renderAs": "text", "missingPolicy": "error"}
+          {
+            "name": "entity",
+            "source": "workflow_input",
+            "selector": "$.entity",
+            "limit": 1,
+            "maxBytes": 1024,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 32768,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "operator_note",
+            "source": "workflow_input",
+            "selector": "$.operatorNote",
+            "limit": 1,
+            "maxBytes": 32768,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          }
         ],
         "maxTurns": 12,
-        "timeoutSeconds": 900
+        "timeoutSeconds": 900,
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-backlog-refine"
+        }
       }
     },
     {
@@ -131,12 +285,25 @@
       "end": {
         "status": "succeeded",
         "bindings": [
-          {"name": "result", "source": "structured_result", "selector": "node=workshop;$.value", "limit": 1, "maxBytes": 65536, "renderAs": "json", "missingPolicy": "error"}
+          {
+            "name": "result",
+            "source": "structured_result",
+            "selector": "node=workshop;$.value",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
         ]
       }
     }
   ],
-  "edges": [{"from": "workshop", "to": "done"}],
+  "edges": [
+    {
+      "from": "workshop",
+      "to": "done"
+    }
+  ],
   "budgets": {
     "wallTimeSeconds": 1200,
     "maxTurns": 12,
@@ -149,5 +316,8 @@
     "maxRetries": 1,
     "maxWaitSeconds": 60
   },
-  "metadata": {"pilot": "backlog-workshop-round", "consumerMutationOwner": "swarm-manager"}
+  "metadata": {
+    "pilot": "backlog-workshop-round",
+    "consumerMutationOwner": "swarm-manager"
+  }
 }

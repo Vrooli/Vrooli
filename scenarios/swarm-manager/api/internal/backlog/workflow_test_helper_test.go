@@ -10,6 +10,7 @@ import (
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/testutil"
+	"swarm-manager/internal/transitions"
 )
 
 // workflowStartFake is the workflow-only test seam used by backlog tests. It
@@ -18,18 +19,6 @@ type workflowStartFake struct {
 	runID   string
 	started bool
 	err     error
-}
-
-func (f *workflowStartFake) StartWorkshopRound(_ context.Context, _ agentmanager.BacklogWorkshopSnapshot, _ string) (agentmanager.WorkflowStart, error) {
-	f.started = true
-	if f.err != nil {
-		return agentmanager.WorkflowStart{}, f.err
-	}
-	return agentmanager.WorkflowStart{ExecutionID: "workflow-test", RunID: f.runID, DefinitionDigest: "sha256:test"}, nil
-}
-
-func (f *workflowStartFake) CollectWorkshopRound(context.Context, string) (agentmanager.WorkshopWorkflowCompletion, error) {
-	return agentmanager.WorkshopWorkflowCompletion{}, nil
 }
 
 func (f *workflowStartFake) StartWorkflow(_ context.Context, _ agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
@@ -62,5 +51,15 @@ func setupTestHandlerWithRunner(t *testing.T, runID string) (*Handler, string, *
 	workflow := &workflowStartFake{runID: runID}
 	h.SetWorkshopWorkflow(workflow)
 	h.SetClarificationWorkflow(workflow)
+	installTransitionRegistry(t, h)
 	return h, rootDir, workflow, struct{}{}
+}
+
+func installTransitionRegistry(t *testing.T, h *Handler) {
+	t.Helper()
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatalf("load transition registry: %v", err)
+	}
+	h.SetTransitionRegistry(registry)
 }

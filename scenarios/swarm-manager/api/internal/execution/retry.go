@@ -112,7 +112,7 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		retryRecord.RunID = res.RunID
 		retryRecord.TaskID = res.ExecutionID
 		retryRecord.AgentWorkflowExecutionID = res.ExecutionID
-		retryRecord.AgentWorkflowKey = "swarm-manager/research-conclude"
+		retryRecord.AgentWorkflowKey = snapshot.WorkflowKey
 		retryRecord.AgentWorkflowDefinition = res.DefinitionDigest
 		retryRecord.AgentWorkflowEntityVersion = snapshot.EntityVersion
 		retryRecord.Status = StatusStarting

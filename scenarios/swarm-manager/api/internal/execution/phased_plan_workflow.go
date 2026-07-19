@@ -12,6 +12,7 @@ import (
 	"swarm-manager/internal/apierr"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const (
@@ -25,6 +26,17 @@ type phasedPlanResult struct {
 	Reason  string                  `json:"reason,omitempty"`
 	Blocker phasedPlanResultBlocker `json:"blocker,omitempty"`
 	Handoff string                  `json:"handoff,omitempty"`
+}
+
+type phasedPlanSnapshot struct {
+	PlanReference  string
+	FrontierDigest string
+	ExecutionID    string
+	EntityKind     string
+	EntityName     string
+	EntityVersion  string
+	MaxSlices      int
+	WriteScope     []string
 }
 
 type phasedPlanResultBlocker struct {
@@ -55,8 +67,10 @@ type PhasedPlanApplyResult struct {
 	Idempotent bool   `json:"idempotent"`
 }
 
-// SetPhasedPlanWorkflow replaces the narrow workflow command/result seam.
-func (s *Service) SetPhasedPlanWorkflow(workflow agentmanager.PhasedPlanWorkflowService) {
+// SetPhasedPlanWorkflow installs the generic declared-workflow seam. The
+// execution domain owns its immutable snapshot and terminal application; the
+// Agent Manager transport owns no plan-shaped command/result API.
+func (s *Service) SetPhasedPlanWorkflow(workflow agentmanager.WorkflowInvoker) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.phasedPlanWorkflow = workflow
@@ -104,17 +118,32 @@ func (s *Service) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
 	}
 }
 
-func phasedPlanSnapshot(item backlogItem, record Record, planHandle string, rendered renderedPlanContent) (agentmanager.PhasedPlanSnapshot, error) {
+func buildPhasedPlanSnapshot(item backlogItem, record Record, planHandle string, rendered renderedPlanContent) (phasedPlanSnapshot, error) {
 	itemBytes, err := json.Marshal(item)
 	if err != nil {
-		return agentmanager.PhasedPlanSnapshot{}, fmt.Errorf("encode backlog snapshot: %w", err)
+		return phasedPlanSnapshot{}, fmt.Errorf("encode backlog snapshot: %w", err)
 	}
 	frontier := digestStrings(planHandle, rendered.Markdown)
-	return agentmanager.PhasedPlanSnapshot{
+	return phasedPlanSnapshot{
 		PlanReference: planHandle, FrontierDigest: frontier, ExecutionID: record.ExecutionID,
 		EntityKind: item.Kind, EntityName: item.Name, EntityVersion: digestStrings(string(itemBytes)),
 		MaxSlices: 6, WriteScope: append([]string(nil), item.AcceptanceAllow...),
 	}, nil
+}
+
+func (snapshot phasedPlanSnapshot) input() (*structpb.Value, error) {
+	writeScope := make([]any, len(snapshot.WriteScope))
+	for i, path := range snapshot.WriteScope {
+		writeScope[i] = path
+	}
+	return structpb.NewValue(map[string]any{
+		"plan": map[string]any{"reference": snapshot.PlanReference, "frontierDigest": snapshot.FrontierDigest},
+		"consumer": map[string]any{
+			"executionId": snapshot.ExecutionID, "entityKind": snapshot.EntityKind,
+			"entityName": snapshot.EntityName, "entityVersion": snapshot.EntityVersion,
+		},
+		"constraints": map[string]any{"maxSlices": snapshot.MaxSlices, "writeScope": writeScope},
+	})
 }
 
 func digestStrings(parts ...string) string {
@@ -151,7 +180,17 @@ func (s *Service) ApprovePhasedPlanWorkflow(ctx context.Context, executionID, ac
 			return Record{}, err
 		}
 	}
-	if err := s.phasedPlanWorkflow.SignalPhasedPlanApproval(ctx, record.AgentWorkflowExecutionID, record.ExecutionID, record.AgentWorkflowApprovalBy, "approve-"+record.ExecutionID); err != nil {
+	signaler, ok := s.phasedPlanWorkflow.(interface {
+		SignalWorkflow(context.Context, string, string, *structpb.Value, string) error
+	})
+	if !ok {
+		return Record{}, apierr.BadRequest("approval is not supported by current workflow service")
+	}
+	payload, err := structpb.NewValue(map[string]any{"executionId": record.ExecutionID, "actor": record.AgentWorkflowApprovalBy})
+	if err != nil {
+		return Record{}, apierr.Internal("encode workflow approval: %s", err.Error())
+	}
+	if err := signaler.SignalWorkflow(ctx, record.AgentWorkflowExecutionID, "slice_approved", payload, "approve-"+record.ExecutionID); err != nil {
 		return Record{}, wrapAgentError(err)
 	}
 	return record, nil
@@ -175,7 +214,7 @@ func (s *Service) ApplyPhasedPlanWorkflow(ctx context.Context, executionID strin
 		return PhasedPlanApplyResult{Record: record, Idempotent: true}, nil
 	}
 	if record.AgentWorkflowApplyState != workflowApplyClaimed {
-		completion, collectErr := s.phasedPlanWorkflow.CollectPhasedPlan(ctx, record.AgentWorkflowExecutionID)
+		completion, collectErr := s.phasedPlanWorkflow.CollectWorkflow(ctx, record.AgentWorkflowExecutionID)
 		if collectErr != nil {
 			return PhasedPlanApplyResult{}, wrapAgentError(collectErr)
 		}
@@ -185,12 +224,23 @@ func (s *Service) ApplyPhasedPlanWorkflow(ctx context.Context, executionID strin
 		record.AgentWorkflowDefinition = completion.DefinitionDigest
 		record.AgentWorkflowTerminalCode = completion.TerminalCode
 		record.AgentWorkflowBudgetName = completion.BudgetName
-		record.AgentWorkflowResult = append(json.RawMessage(nil), completion.Result...)
+		resultRaw, parseErr := phasedPlanResultFromCompletion(completion)
+		if parseErr != nil {
+			return PhasedPlanApplyResult{}, parseErr
+		}
+		record.AgentWorkflowResult = append(json.RawMessage(nil), resultRaw...)
 		record.AgentWorkflowAttempts = make([]WorkflowAttemptProvenance, 0, len(completion.Attempts))
 		for _, attempt := range completion.Attempts {
-			record.AgentWorkflowAttempts = append(record.AgentWorkflowAttempts, WorkflowAttemptProvenance(attempt))
+			if attempt == nil {
+				continue
+			}
+			record.AgentWorkflowAttempts = append(record.AgentWorkflowAttempts, WorkflowAttemptProvenance{
+				NodeID: attempt.NodeId, Ordinal: attempt.Ordinal, Strategy: attempt.Strategy,
+				RunID: attempt.RunId, ConversationID: attempt.ConversationId,
+				SourceAttemptID: attempt.SourceAttemptId, ProfileIdentity: attempt.ProfileIdentity,
+			})
 		}
-		result, parseErr := parsePhasedPlanOutcome(completion.Status, completion.Result)
+		result, parseErr := parsePhasedPlanOutcome(completion.Status, resultRaw)
 		if parseErr != nil {
 			return PhasedPlanApplyResult{}, parseErr
 		}
@@ -217,11 +267,19 @@ func (s *Service) ApplyPhasedPlanWorkflow(ctx context.Context, executionID strin
 	return PhasedPlanApplyResult{Record: record}, nil
 }
 
-func (s *Service) validatePhasedPlanCompletion(ctx context.Context, record Record, completion agentmanager.PhasedPlanWorkflowCompletion) error {
-	if completion.ExecutionID != record.AgentWorkflowExecutionID || completion.ConsumerID != record.ExecutionID ||
-		completion.DefinitionDigest != record.AgentWorkflowDefinition ||
-		completion.EntityKind != record.BacklogKind || completion.EntityName != record.BacklogName ||
-		completion.EntityVersion != record.AgentWorkflowEntityVersion || completion.FrontierDigest != record.AgentWorkflowFrontier {
+func (s *Service) validatePhasedPlanCompletion(ctx context.Context, record Record, completion agentmanager.InvocationCompletion) error {
+	if completion.ExecutionID != record.AgentWorkflowExecutionID || completion.DefinitionDigest != record.AgentWorkflowDefinition || completion.Input == nil {
+		return apierr.Conflict("workflow result does not match the authorized execution frontier")
+	}
+	input, ok := completion.Input.AsInterface().(map[string]any)
+	if !ok {
+		return apierr.Conflict("workflow input is not a valid execution snapshot")
+	}
+	consumer, consumerOK := input["consumer"].(map[string]any)
+	plan, planOK := input["plan"].(map[string]any)
+	if !consumerOK || !planOK || stringValue(consumer["executionId"]) != record.ExecutionID ||
+		stringValue(consumer["entityKind"]) != record.BacklogKind || stringValue(consumer["entityName"]) != record.BacklogName ||
+		stringValue(consumer["entityVersion"]) != record.AgentWorkflowEntityVersion || stringValue(plan["frontierDigest"]) != record.AgentWorkflowFrontier {
 		return apierr.Conflict("workflow result does not match the authorized execution frontier")
 	}
 	item, err := s.loadBacklogItemByRecord(&record)
@@ -236,11 +294,35 @@ func (s *Service) validatePhasedPlanCompletion(ctx context.Context, record Recor
 	if err != nil {
 		return apierr.Conflict("execution plan frontier can no longer be rendered")
 	}
-	snapshot, err := phasedPlanSnapshot(item, record, handle, rendered)
+	snapshot, err := buildPhasedPlanSnapshot(item, record, handle, rendered)
 	if err != nil || snapshot.FrontierDigest != record.AgentWorkflowFrontier || snapshot.EntityVersion != record.AgentWorkflowEntityVersion {
 		return apierr.Conflict("execution plan frontier changed while the workflow was running")
 	}
 	return nil
+}
+
+func phasedPlanResultFromCompletion(completion agentmanager.InvocationCompletion) (json.RawMessage, error) {
+	if completion.Output == nil {
+		return nil, nil
+	}
+	output, ok := completion.Output.AsInterface().(map[string]any)
+	if !ok {
+		return nil, apierr.BadGateway("workflow output is not an object")
+	}
+	result, ok := output["result"]
+	if !ok {
+		return nil, apierr.BadGateway("workflow output omitted result")
+	}
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return nil, apierr.BadGateway("workflow result is not serializable")
+	}
+	return raw, nil
+}
+
+func stringValue(value any) string {
+	text, _ := value.(string)
+	return text
 }
 
 func parsePhasedPlanOutcome(status domainpb.WorkflowExecutionStatus, raw json.RawMessage) (phasedPlanResult, error) {

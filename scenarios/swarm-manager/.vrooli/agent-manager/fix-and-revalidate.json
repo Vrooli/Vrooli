@@ -1,1 +1,161 @@
-{"schemaVersion":"agent-workflow/v1","owner":"swarm-manager","key":"swarm-manager/fix-and-revalidate","version":"1.0.0","description":"Apply one bounded correction and report validation evidence from an immutable execution snapshot; Swarm owns result application.","inputSchema":{"type":"object","properties":{"entity":{"type":"object","properties":{"kind":{"type":"string"},"name":{"type":"string"},"executionId":{"type":"string"},"version":{"type":"string"}},"required":["kind","name","executionId","version"],"additionalProperties":false},"snapshot":{"type":"object","additionalProperties":true}},"required":["entity","snapshot"],"additionalProperties":false},"outputSchema":{"type":"object","properties":{"result":{"type":"object","additionalProperties":true}},"required":["result"],"additionalProperties":false},"entryNode":"fix","nodes":[{"id":"fix","kind":"run","run":{"profileKey":"swarm-manager/deep-work","promptTemplate":"Apply the authorized correction and revalidate only from the immutable snapshot. Return typed JSON with outcome validated, needs_attention, or abstained and a summary.\n\nEntity:\n{{.entity}}\n\nSnapshot:\n{{.snapshot}}","resultSpec":{"version":"result-spec/v1","kind":"json_schema","extractionMode":"deterministic_only","schema":{"type":"object","properties":{"outcome":{"type":"string","enum":["validated","needs_attention","abstained"]},"summary":{"type":"string","minLength":1,"maxLength":16384}},"required":["outcome","summary"],"additionalProperties":false}},"bindings":[{"name":"entity","source":"workflow_input","selector":"$.entity","limit":1,"maxBytes":2048,"renderAs":"json","missingPolicy":"error"},{"name":"snapshot","source":"workflow_input","selector":"$.snapshot","limit":1,"maxBytes":65536,"renderAs":"json","missingPolicy":"error"}],"maxTurns":18,"timeoutSeconds":1800}},{"id":"done","kind":"end","end":{"status":"succeeded","bindings":[{"name":"result","source":"structured_result","selector":"node=fix;$.value","limit":1,"maxBytes":65536,"renderAs":"json","missingPolicy":"error"}]}}],"edges":[{"from":"fix","to":"done"}],"budgets":{"wallTimeSeconds":3600,"maxTurns":18,"maxTokens":40000,"maxCostUsd":6,"maxNodeAttempts":3,"maxChildren":1,"maxConcurrency":1,"maxRecursion":1,"maxRetries":2,"maxWaitSeconds":60},"metadata":{"consumerMutationOwner":"swarm-manager","transition":"work.fix_and_revalidate"}}
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/fix-and-revalidate",
+  "version": "1.0.0",
+  "description": "Apply one bounded correction and report validation evidence from an immutable execution snapshot; Swarm owns result application.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "entity": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "executionId",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "entity",
+      "snapshot"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "entryNode": "fix",
+  "nodes": [
+    {
+      "id": "fix",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/deep-work",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "validated",
+                  "needs_attention",
+                  "abstained"
+                ]
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              }
+            },
+            "required": [
+              "outcome",
+              "summary"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "entity",
+            "source": "workflow_input",
+            "selector": "$.entity",
+            "limit": 1,
+            "maxBytes": 2048,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 18,
+        "timeoutSeconds": 1800,
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-fix-and-revalidate"
+        }
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {
+            "name": "result",
+            "source": "structured_result",
+            "selector": "node=fix;$.value",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "fix",
+      "to": "done"
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 3600,
+    "maxTurns": 18,
+    "maxTokens": 40000,
+    "maxCostUsd": 6,
+    "maxNodeAttempts": 3,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 2,
+    "maxWaitSeconds": 60
+  },
+  "metadata": {
+    "consumerMutationOwner": "swarm-manager",
+    "transition": "work.fix_and_revalidate"
+  }
+}

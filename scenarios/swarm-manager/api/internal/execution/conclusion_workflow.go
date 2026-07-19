@@ -29,6 +29,7 @@ type conclusionWorkflowResult struct {
 type conclusionWorkflowSnapshot struct {
 	EntityVersion string
 	Input         *structpb.Value
+	WorkflowKey   string
 }
 
 func buildConclusionWorkflowSnapshot(item backlogItem, record Record, operatorNote string) (conclusionWorkflowSnapshot, error) {
@@ -62,8 +63,13 @@ func (s *Service) startConclusionWorkflow(ctx context.Context, item backlogItem,
 	if err != nil {
 		return agentmanager.WorkflowStart{}, conclusionWorkflowSnapshot{}, err
 	}
+	workflow, err := s.resolveWorkflow("research.conclude")
+	if err != nil {
+		return agentmanager.WorkflowStart{}, conclusionWorkflowSnapshot{}, err
+	}
+	snapshot.WorkflowKey = workflow.Key
 	start, err := s.conclusionWorkflow.StartWorkflow(ctx, agentmanager.Invocation{
-		Owner: "swarm-manager", WorkflowKey: "swarm-manager/research-conclude", Input: snapshot.Input,
+		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: snapshot.Input,
 		IdempotencyKey: "research-conclude/" + record.ExecutionID + "/" + snapshot.EntityVersion,
 		FirstRunNodeID: "conclude",
 	})

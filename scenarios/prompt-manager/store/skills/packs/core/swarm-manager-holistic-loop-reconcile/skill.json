@@ -3,10 +3,18 @@
   "schemaVersion": 1,
   "id": "swarm-manager-holistic-loop-reconcile",
   "name": "Swarm Manager Holistic Loop Reconcile",
-  "description": "Reconcile the initiative backlog with the work just completed in a holistic-loop round; emits a BacklogSyncPlan proposal.",
-  "modes": ["tools"],
-  "tags": ["swarm-manager", "initiative", "operating-mode", "holistic-loop", "reconcile"],
-  "status": "active",
+  "description": "Historical Swarm Manager operating-mode guidance retained only for prior session and provenance readability; active structured agent work uses registered Agent Manager workflows.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "swarm-manager",
+    "initiative",
+    "operating-mode",
+    "holistic-loop",
+    "reconcile"
+  ],
+  "status": "retired",
   "entry": "SKILL.md",
   "revision": 1,
   "createdAt": "2026-05-02T00:00:00Z",

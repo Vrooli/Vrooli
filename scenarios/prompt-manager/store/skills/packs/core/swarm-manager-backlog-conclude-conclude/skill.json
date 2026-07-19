@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "swarm-manager-backlog-conclude-conclude",
   "name": "Backlog Conclusion Run",
-  "description": "the primary execution of a plan-less research/idea item to produce its conclusion deliverable",
+  "description": "Historical Swarm Manager operating-mode guidance retained only for prior session and provenance readability; active structured agent work uses registered Agent Manager workflows.",
   "modes": [
     "tools"
   ],
@@ -13,7 +13,7 @@
     "agent-operations",
     "backlog-conclude"
   ],
-  "status": "active",
+  "status": "retired",
   "entry": "SKILL.md",
   "revision": 1,
   "createdAt": "2026-07-14T00:00:00Z",

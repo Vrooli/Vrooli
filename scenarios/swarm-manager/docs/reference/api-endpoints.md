@@ -16,7 +16,8 @@ This document captures the canonical Swarm Manager API shapes that matter for ba
 Creates a typed draft session. It does not spawn Agent Manager and does not
 append a message.
 
-Valid creatable `kind` values are `meta_orchestration` and `swarm_operations`.
+Valid creatable `kind` values are `meta_orchestration`, `swarm_operations`, and
+`workflow_authoring`.
 Historical `operating_mode_authoring` sessions remain readable but cannot be
 created or resumed.
 
@@ -430,23 +431,17 @@ The CLI uses `settings.default_mode` when `execution create` is called without `
 | POST | `/api/v1/execution/{id}/trigger-review` | Trigger or re-trigger a GCT review for a terminal execution |
 | GET | `/api/v1/gct/status` | Check git-control-tower availability (`{"available": true/false}`) |
 
-## Canonical Evidence
+## Receipt observations
 
-Canonical evidence is immutable producer output linked to exactly one Session
-or workflow execution after exhaustive owner resolution. The endpoints
-return owner-linked records; they never expose identity tokens or raw Agent
-Manager tool payloads.
+Swarm does not maintain a cross-scenario evidence ledger or reconcile producer
+events. Run-correlated operation observations are queried through Agent
+Manager's `observed-receipts` surface, backed by Vrooli Events. Empty results
+mean **unobserved**, never failed. Session artifacts remain available through
+their session endpoints as domain review handoffs.
 
-| RPC | Description |
-|-----|-------------|
-| `EvidenceService.ListRun` | List canonical records for a verified run. |
-| `EvidenceService.ListEntity` | List records affecting a normalized entity. |
-| `EvidenceService.Reconcile` | Retry supported producers for a run. |
-| `EvidenceService.RecordOperatorVerification` | Append an operator repair with owner, stable event id, actor, reason, subject, and action. |
-
-An operator repair is a new `operator_verified` observation, never a mutation
-or confidence promotion of an existing reported record. Requests attributed to
-a verified agent are rejected from this endpoint.
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/agent-manager/runs/{runID}/observed-receipts` | Proxy the bounded Agent Manager receipt projection; `503` means degraded, not failed work. |
 
 ## Agent Activities
 

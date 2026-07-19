@@ -10,9 +10,9 @@ import (
 	"testing"
 )
 
-// TestPlanExecutionStartsOnlyThroughPhasedPlanWorkflow guards the deliberately
-// narrow hard cut: primary plan execution uses the workflow command/result
-// seam, while retry/fixup/followup/research paths remain outside this change.
+// TestPlanExecutionStartsOnlyThroughDeclaredWorkflow guards the programmatic
+// boundary: execution may construct its immutable domain snapshot, but starts
+// it only through Agent Manager's generic declared-workflow seam.
 func TestPlanExecutionStartsOnlyThroughPhasedPlanWorkflow(t *testing.T) {
 	path := filepath.Join("..", "execution", "service_control.go")
 	source, err := os.ReadFile(path)
@@ -35,8 +35,8 @@ func TestPlanExecutionStartsOnlyThroughPhasedPlanWorkflow(t *testing.T) {
 	if body == "" {
 		t.Fatal("startPlanOperationLocked not found")
 	}
-	if !strings.Contains(body, ".StartPhasedPlan(") {
-		t.Fatal("plan execution no longer starts through the phased-plan workflow seam")
+	if !strings.Contains(body, ".StartWorkflow(") || !strings.Contains(body, `WorkflowKey: "swarm-manager/phased-plan-drain"`) {
+		t.Fatal("plan execution no longer starts the declared phased-plan workflow through the generic seam")
 	}
 	for _, forbidden := range []string{".StartOperation(", ".CreateRun(", ".ContinueRun(", "SpawnBacklog(", "SpawnResearch("} {
 		if strings.Contains(body, forbidden) {

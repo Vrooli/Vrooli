@@ -3,7 +3,9 @@ package autofiler
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
+	"time"
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/goals"
@@ -51,11 +53,12 @@ func TestFilerFilesSuggestedItemAndAttachesGoal(t *testing.T) {
 	filer := NewFiler(svc, goalSvc)
 
 	result, err := filer.File(context.Background(), Finding{
-		ID:          "gct:alpha:tests",
-		Scenario:    "alpha",
-		Dimension:   "tests",
-		Severity:    SeverityRed,
-		Description: "Test coverage is below threshold.",
+		ID:                  "gct:alpha:tests",
+		Scenario:            "alpha",
+		Dimension:           "tests",
+		Severity:            SeverityRed,
+		Description:         "Test coverage is below threshold.",
+		RecommendedSkillIDs: []string{"scientific-debugging", "unit-testing-architecture-steer"},
 	}, FileOptions{
 		Mode:     ModeSuggest,
 		Strategy: StrategyFeaturePending,
@@ -78,11 +81,21 @@ func TestFilerFilesSuggestedItemAndAttachesGoal(t *testing.T) {
 	if item.FindingRef != "gct:alpha:tests" {
 		t.Fatalf("finding_ref = %q", item.FindingRef)
 	}
+	if want := []string{"scientific-debugging", "unit-testing-architecture-steer"}; !reflect.DeepEqual(item.SuggestedSkills, want) {
+		t.Fatalf("suggested skills = %#v, want %#v", item.SuggestedSkills, want)
+	}
 	if item.CreatedBy == nil || item.CreatedBy.Source != "auto-filer/feature_pending/gct:alpha:tests" {
 		t.Fatalf("created_by = %+v", item.CreatedBy)
 	}
 	if got := goalSvc.targets["automated-maintenance"]; len(got) != 1 || got[0] != "fix/"+item.Name {
 		t.Fatalf("goal targets = %#v, want filed item ref", got)
+	}
+}
+
+func TestFilerOmitsEmptyRecommendedSkills(t *testing.T) {
+	item := itemForFinding(Finding{ID: "gct:alpha:tests", Scenario: "alpha"}, FileOptions{}, time.Time{})
+	if len(item.SuggestedSkills) != 0 {
+		t.Fatalf("suggested skills = %#v, want empty", item.SuggestedSkills)
 	}
 }
 

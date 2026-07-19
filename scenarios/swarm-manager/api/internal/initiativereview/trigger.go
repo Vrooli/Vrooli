@@ -174,7 +174,14 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		}
 		return TriggerResult{}, fmt.Errorf("build initiative review snapshot: %w", inputErr)
 	}
-	res, err := s.workflow.StartWorkflow(ctx, agentmanager.Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/initiative-review", Input: input, IdempotencyKey: fmt.Sprintf("initiative-review-%s-r%d", init.Name, roundNum), FirstRunNodeID: "review"})
+	workflow, err := s.transitionRegistry.ResolveWorkflow("initiative.review")
+	if err != nil {
+		if s.lock != nil {
+			_ = s.lock.Release(init.Name, provisionalRunID)
+		}
+		return TriggerResult{}, fmt.Errorf("resolve initiative review workflow: %w", err)
+	}
+	res, err := s.workflow.StartWorkflow(ctx, agentmanager.Invocation{Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input, IdempotencyKey: fmt.Sprintf("initiative-review-%s-r%d", init.Name, roundNum), FirstRunNodeID: "review"})
 	if err != nil {
 		if s.lock != nil {
 			_ = s.lock.Release(init.Name, provisionalRunID)

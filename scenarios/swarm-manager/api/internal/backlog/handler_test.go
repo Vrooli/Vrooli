@@ -92,6 +92,7 @@ func setupTestHandler(t *testing.T) (*Handler, string) {
 	}
 	disableAutoWorkshopSettings(t, rootDir)
 	h := NewHandler(rootDir, rootDir)
+	installTransitionRegistry(t, h)
 	scopeExecutionQueuerForTest(t, h, rootDir, nil)
 	return h, rootDir
 }
@@ -104,6 +105,7 @@ func setupTestHandlerWithAgent(t *testing.T, agent agentmanager.Service) (*Handl
 	}
 	disableAutoWorkshopSettings(t, rootDir)
 	h := NewHandlerWithClients(rootDir, rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
+	installTransitionRegistry(t, h)
 	scopeExecutionQueuerForTest(t, h, rootDir, agent)
 	return h, rootDir
 }

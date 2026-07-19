@@ -7,12 +7,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/transitions"
 
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -75,8 +78,9 @@ type ServiceConfig struct {
 	PlanContentResolver  PlanContentResolver
 	// OnRoundTerminal fires when a review round transitions to complete/failed.
 	// Used to flip the backlog item's status to review_pending.
-	OnRoundTerminal RoundTerminalHandler
-	Workflow        agentmanager.WorkflowInvoker
+	OnRoundTerminal    RoundTerminalHandler
+	Workflow           agentmanager.WorkflowInvoker
+	TransitionRegistry transitions.Registry
 	// RoundMaxAge bounds how long a round may sit in `gathering` before the
 	// poller treats its run as abandoned and finalizes it as failed (which
 	// fires OnRoundTerminal so the item leaves in_review). Zero uses
@@ -95,6 +99,7 @@ const DefaultRoundMaxAge = 30 * time.Minute
 type Service struct {
 	dataRoot             string
 	workflow             agentmanager.WorkflowInvoker
+	transitionRegistry   transitions.Registry
 	inspector            RunInspector
 	promptClient         promptmanager.Client
 	eventLogger          EventLogger
@@ -130,12 +135,18 @@ func NewService(cfg ServiceConfig) *Service {
 		planContentResolver:  cfg.PlanContentResolver,
 		onRoundTerminal:      cfg.OnRoundTerminal,
 		workflow:             cfg.Workflow,
+		transitionRegistry:   cfg.TransitionRegistry,
 		roundMaxAge:          roundMaxAge,
 		clock:                time.Now,
 		activeRounds:         make(map[string]activeRound),
 	}
 	if svc.workflow == nil {
 		svc.workflow = agentmanager.NewWorkflowService()
+	}
+	if len(svc.transitionRegistry.Definitions()) == 0 {
+		if registry, err := transitions.LoadDir(filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "swarm-transitions")); err == nil {
+			svc.transitionRegistry = registry
+		}
 	}
 	return svc
 }
@@ -151,6 +162,10 @@ func (s *Service) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
 	if workflow, ok := s.workflow.(*agentmanager.WorkflowService); ok {
 		workflow.SetStartGuard(guard)
 	}
+}
+
+func (s *Service) SetTransitionRegistry(registry transitions.Registry) {
+	s.transitionRegistry = registry
 }
 
 // StartReviewForExecution is called by the execution service during finalization
@@ -223,8 +238,12 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 	if err != nil {
 		return fmt.Errorf("build independent review input: %w", err)
 	}
+	workflow, err := s.transitionRegistry.ResolveWorkflow("work.review")
+	if err != nil {
+		return fmt.Errorf("resolve review workflow: %w", err)
+	}
 	res, err := s.workflow.StartWorkflow(ctx, agentmanager.Invocation{
-		Owner: "swarm-manager", WorkflowKey: "swarm-manager/independent-review", Input: input,
+		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
 		IdempotencyKey: fmt.Sprintf("review-%s-r%d", params.ExecutionID, roundNum), FirstRunNodeID: "review",
 	})
 	if err != nil {

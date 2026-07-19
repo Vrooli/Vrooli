@@ -11,9 +11,8 @@ import (
 )
 
 // agentManagerImportPath is the Agent Manager client package. Direct use of it
-// couples a package to the agent substrate; the declarative-operations
-// architecture funnels all LAUNCH through the operation runner, so only the
-// packages below may import the client at all. The spawn-boundary AST test
+// couples a package to the agent substrate, so only the packages below may
+// import it. The spawn-boundary AST test
 // (spawn_boundary_test.go) enforces the no-launch rule call-by-call; this test
 // enforces the coarser import boundary so a NEW package cannot quietly acquire
 // direct agent-manager coupling without an explicit, reviewed allowlist edit.
@@ -27,13 +26,13 @@ const agentManagerImportPath = "swarm-manager/internal/agentmanager"
 // that must be deleted so the allowlist only ever shrinks or is consciously
 // re-expanded).
 var allowedAgentManagerImporters = map[string]string{
-	"agentactivity":    "the spawn chokepoint: the ONLY launch path (operation runner -> engine -> here)",
+	"agentactivity":    "historical activity projection and session-run attribution",
 	"agentsessions":    "the interactive human-in-the-loop session boundary",
 	"agentmanager":     "the client package itself",
-	"backlog":          "availability signaling (agentmanager.ErrNotAvailable) on the operation reroute paths",
+	"backlog":          "typed workflow invocation and terminal-result application; no raw runs",
 	"captures":         "typed capture-classification workflow invocation and terminal-result application; no raw runs",
 	"evidence":         "agent-manager-backed evidence collection (run transcripts as evidence sources)",
-	"execution":        "typed workflow command/result adapter plus legacy run management; domain code never creates or continues runs",
+	"execution":        "typed workflow snapshots, authorization, and exact-once terminal application; no raw runs",
 	"initiativereview": "run management for review rounds (RunInspector wiring) — never launch",
 	"planrepair":       "typed plan-repair workflow invocation and terminal-result application; no raw runs",
 	"review":           "run management for gathering rounds (RunInspector wiring) — never launch",
@@ -90,7 +89,7 @@ func TestAgentManagerImportBoundary(t *testing.T) {
 	sort.Strings(violations)
 	sort.Strings(stale)
 	if len(violations) > 0 {
-		t.Errorf("packages outside the allowlist import %s — work must be expressed as an operation (opsrunner), not by talking to Agent Manager directly:\n  %s",
+		t.Errorf("packages outside the allowlist import %s — programmatic work must use the reviewed typed workflow boundary, not acquire an unreviewed Agent Manager dependency:\n  %s",
 			agentManagerImportPath, strings.Join(violations, "\n  "))
 	}
 	if len(stale) > 0 {

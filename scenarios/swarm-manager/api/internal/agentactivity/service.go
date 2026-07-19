@@ -48,9 +48,9 @@ type ServiceConfig struct {
 	LanePolicy LanePolicy
 }
 
-// Service is the single Swarm Manager seam for tracked agent-manager usage.
-// All backlog/capture/scenario work spawns and continuations must flow through
-// this service so durable activity records remain complete.
+// Service projects Agent Manager Run activity for human-led sessions. Structured
+// backlog, capture, execution, review, and initiative work uses declared
+// workflows and must never acquire a raw Run continuation through this seam.
 type Service struct {
 	store           Store
 	agentService    rawAgentService
@@ -174,6 +174,9 @@ func (s *Service) ContinueRun(ctx context.Context, runID string, message string)
 	spec, err := specFromContext(ctx)
 	if err != nil {
 		return err
+	}
+	if spec.OwnerType != OwnerSession {
+		return fmt.Errorf("ContinueRun requires owner_type=session")
 	}
 	return s.continueTracked(ctx, spec, runID, message)
 }

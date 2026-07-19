@@ -209,7 +209,7 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
    | Item Kind | Required Skill | Why |
    |-----------|---------------|-----|
-   | `idea` | `scenario-generation` | Scenario scaffolding, PRD/requirements tooling, ecosystem-manager integration |
+   | `idea` | `scenario-generation` | Template selection, scenario-local onboarding, PRD/requirements, and phased initial development |
    | `fix` | `scientific-debugging` | Hypothesis-driven root cause analysis, experiment design, regression test planning |
 
    For `execute` and `chore` kinds, no kind-specific skill is required — discovery is sufficient. Research items use `swarm-manager-workshop-research` and are not handled by this skill.

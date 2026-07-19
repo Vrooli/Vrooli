@@ -8,6 +8,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/transitions"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -24,6 +25,7 @@ type workWorkflowSnapshot struct {
 	EntityVersion  string
 	FrontierDigest string
 	Input          *structpb.Value
+	WorkflowKey    string
 }
 
 // buildWorkWorkflowSnapshot creates the consumer-owned immutable boundary for
@@ -59,11 +61,11 @@ func buildWorkWorkflowSnapshot(item backlogItem, record, parent Record, workType
 	return workWorkflowSnapshot{EntityVersion: version, FrontierDigest: digestStrings(string(encoded)), Input: input}, nil
 }
 
-func workWorkflowKey(workType string) string {
+func workTransitionKey(workType string) string {
 	if workType == "fixup" {
-		return "swarm-manager/work-correct"
+		return "work.correct"
 	}
-	return "swarm-manager/work-follow-up"
+	return "work.follow_up"
 }
 
 func (s *Service) startWorkWorkflow(ctx context.Context, item backlogItem, record, parent Record, workType, note string) (agentmanager.WorkflowStart, workWorkflowSnapshot, error) {
@@ -74,12 +76,25 @@ func (s *Service) startWorkWorkflow(ctx context.Context, item backlogItem, recor
 	if err != nil {
 		return agentmanager.WorkflowStart{}, workWorkflowSnapshot{}, err
 	}
+	workflow, err := s.resolveWorkflow(workTransitionKey(workType))
+	if err != nil {
+		return agentmanager.WorkflowStart{}, workWorkflowSnapshot{}, err
+	}
+	snapshot.WorkflowKey = workflow.Key
 	start, err := s.workWorkflow.StartWorkflow(ctx, agentmanager.Invocation{
-		Owner: "swarm-manager", WorkflowKey: workWorkflowKey(workType), Input: snapshot.Input,
+		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: snapshot.Input,
 		IdempotencyKey: "work/" + record.ExecutionID + "/" + snapshot.EntityVersion,
 		FirstRunNodeID: map[bool]string{true: "correct", false: "follow_up"}[workType == "fixup"],
 	})
 	return start, snapshot, err
+}
+
+func (s *Service) resolveWorkflow(transitionKey string) (transitions.Locator, error) {
+	workflow, err := s.transitionRegistry.ResolveWorkflow(transitionKey)
+	if err != nil {
+		return transitions.Locator{}, fmt.Errorf("resolve %s workflow: %w", transitionKey, err)
+	}
+	return workflow, nil
 }
 
 // ApplyWorkWorkflow applies one terminal typed result exactly once. No polling

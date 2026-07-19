@@ -87,8 +87,12 @@ func (h *Handler) startClassificationWorkflow(r *http.Request, cap *capture) (ag
 	if err != nil {
 		return agentmanager.WorkflowStart{}, fmt.Errorf("classification input: %w", err)
 	}
+	workflow, err := h.transitionRegistry.ResolveWorkflow("capture.classify")
+	if err != nil {
+		return agentmanager.WorkflowStart{}, fmt.Errorf("resolve capture classification workflow: %w", err)
+	}
 	return h.classificationWorkflow.StartWorkflow(r.Context(), agentmanager.Invocation{
-		Owner: "swarm-manager", WorkflowKey: "swarm-manager/capture-classify", Input: input,
+		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
 		IdempotencyKey: "capture-classify/" + cap.ID + "/" + cap.WorkflowEntityVersion, FirstRunNodeID: "classify",
 	})
 }

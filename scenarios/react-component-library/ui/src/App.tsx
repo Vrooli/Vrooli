@@ -47,7 +47,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route path={appRoutes.catalog} element={<Page><CatalogBrowser /></Page>} />
+        <Route path={appRoutes.catalog} element={<Page><CatalogBrowser surfaceId="catalog-results" /></Page>} />
         <Route path={appRoutes.asset} element={<Page><ComponentDetailPage /></Page>} />
         <Route path={appRoutes.settings} element={<Page><SettingsPage /></Page>} />
         <Route path="*" element={<Page><NotFoundPage /></Page>} />

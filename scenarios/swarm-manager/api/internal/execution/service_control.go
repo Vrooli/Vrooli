@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"swarm-manager/internal/agentactivity"
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 )
 
@@ -94,11 +95,22 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err != nil {
 		return Record{}, apierr.BadRequest("%s", err.Error())
 	}
-	snapshot, err := phasedPlanSnapshot(item, record, planHandle, rendered)
+	snapshot, err := buildPhasedPlanSnapshot(item, record, planHandle, rendered)
 	if err != nil {
 		return Record{}, apierr.Internal("prepare phased-plan workflow snapshot: %s", err.Error())
 	}
-	res, err := s.phasedPlanWorkflow.StartPhasedPlan(ctx, snapshot, "execution-plan-drain/"+record.ExecutionID+"/"+snapshot.FrontierDigest)
+	input, err := snapshot.input()
+	if err != nil {
+		return Record{}, apierr.Internal("encode phased-plan workflow snapshot: %s", err.Error())
+	}
+	workflow, err := s.resolveWorkflow("plan.execute")
+	if err != nil {
+		return Record{}, wrapAgentError(err)
+	}
+	res, err := s.phasedPlanWorkflow.StartWorkflow(ctx, agentmanager.Invocation{
+		Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input,
+		IdempotencyKey: "execution-plan-drain/" + record.ExecutionID + "/" + snapshot.FrontierDigest, FirstRunNodeID: "slice",
+	})
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
@@ -109,7 +121,7 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	record.RunID = res.RunID
 	record.TaskID = res.ExecutionID
 	record.AgentWorkflowExecutionID = res.ExecutionID
-	record.AgentWorkflowKey = "swarm-manager/phased-plan-drain"
+	record.AgentWorkflowKey = workflow.Key
 	record.AgentWorkflowDefinition = res.DefinitionDigest
 	record.AgentWorkflowFrontier = snapshot.FrontierDigest
 	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
@@ -144,7 +156,7 @@ func (s *Service) startConclusionOperationLocked(ctx context.Context, records []
 	record.RunID = res.RunID
 	record.TaskID = res.ExecutionID
 	record.AgentWorkflowExecutionID = res.ExecutionID
-	record.AgentWorkflowKey = "swarm-manager/research-conclude"
+	record.AgentWorkflowKey = snapshot.WorkflowKey
 	record.AgentWorkflowDefinition = res.DefinitionDigest
 	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
 	record.StartedAt = nowRFC3339()
@@ -249,7 +261,13 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 				if s.phasedPlanWorkflow == nil {
 					return Record{}, apierr.BadRequest("cancel is not supported by current workflow service")
 				}
-				if err := s.phasedPlanWorkflow.CancelPhasedPlan(ctx, record.AgentWorkflowExecutionID, "consumer execution canceled"); err != nil {
+				canceler, ok := s.phasedPlanWorkflow.(interface {
+					CancelWorkflow(context.Context, string, string, string) error
+				})
+				if !ok {
+					return Record{}, apierr.BadRequest("cancel is not supported by current workflow service")
+				}
+				if err := canceler.CancelWorkflow(ctx, record.AgentWorkflowExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
 					return Record{}, wrapAgentError(err)
 				}
 			}

@@ -75,6 +75,10 @@ func (h *Handler) startClarificationWorkflow(ctx context.Context, item BacklogIt
 	if h.clarificationWorkflow == nil {
 		return agentmanager.WorkflowStart{}, agentmanager.ErrNotAvailable
 	}
+	workflow, err := h.resolveWorkflow("backlog.clarify")
+	if err != nil {
+		return agentmanager.WorkflowStart{}, err
+	}
 	version := clarificationWorkflowVersion(item, thread)
 	decisionJSON, _ := json.Marshal(decision)
 	threadJSON, _ := json.Marshal(thread)
@@ -89,7 +93,7 @@ func (h *Handler) startClarificationWorkflow(ctx context.Context, item BacklogIt
 	if err != nil {
 		return agentmanager.WorkflowStart{}, err
 	}
-	start, err := h.clarificationWorkflow.StartWorkflow(ctx, agentmanager.Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/backlog-clarify", Input: input, IdempotencyKey: "backlog-clarify/" + item.Name + "/" + thread.ID + "/" + strings.TrimPrefix(version, "sha256:"), FirstRunNodeID: "clarify"})
+	start, err := h.clarificationWorkflow.StartWorkflow(ctx, agentmanager.Invocation{Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input, IdempotencyKey: "backlog-clarify/" + item.Name + "/" + thread.ID + "/" + strings.TrimPrefix(version, "sha256:"), FirstRunNodeID: "clarify"})
 	if err != nil {
 		return agentmanager.WorkflowStart{}, err
 	}

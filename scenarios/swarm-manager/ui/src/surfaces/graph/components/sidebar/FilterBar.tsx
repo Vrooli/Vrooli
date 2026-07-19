@@ -99,6 +99,7 @@ const SESSION_STATUSES = ["starting", "running", "waiting_for_user", "proposal_r
 const SESSION_KINDS = [
   { value: "meta_orchestration", label: "Plan work" },
   { value: "swarm_operations", label: "Operations" },
+	{ value: "workflow_authoring", label: "Workflow authoring" },
 ] as const;
 
 function toggleInArray<T>(arr: T[], value: T): T[] {

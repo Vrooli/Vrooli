@@ -19,6 +19,8 @@ func skillIDForKind(kind Kind) string {
 		return SkillMetaOrchestrator
 	case KindSwarmOperations:
 		return SkillSwarmOperations
+	case KindWorkflowAuthoring:
+		return SkillWorkflowAuthoring
 	default:
 		return ""
 	}

@@ -98,6 +98,7 @@ Initial session kinds are closed at the contract boundary:
 |---|---|---|
 | `meta_orchestration` | `swarm-manager-meta-orchestrator` | Conversational planning that can propose multiple initiatives and backlog items in one audited apply action. |
 | `swarm_operations` | `swarm-manager-operations-session` | Conversational operations coordination for initiative progress, pending decisions, and run review. It routes decision draining to `workshop-decision-sync` and keeps mutations operator-gated. |
+| `workflow_authoring` | `swarm-manager-workflow-authoring` | Conversational design of reviewed workflow and transition changes. It distinguishes existing transition improvements, new declared workflows, and required Swarm domain backlog work; it never silently applies a declaration. |
 
 Adding a kind should mean adding a skill mapping, prompt builder behavior if needed, allowed proposal kinds, tests, stats expectations, and docs. Do not add an untyped generic chat mode to bypass those contracts.
 
@@ -136,11 +137,10 @@ Proposal apply never lets a session agent directly mutate project-management fil
 
 ## Artifacts
 
-Artifacts are first-class projections of canonical evidence observations. They
-connect a session to entities or files that were proposed, created, updated,
-deleted, or linked. Domain mutation paths create the observation from verified
-Agent Manager provenance after the mutation commits; an agent's prose is never
-treated as proof that an artifact exists.
+Artifacts are first-class session handoff records. They connect a session to
+entities or files that were proposed, created, updated, deleted, or linked.
+They are retained separately from Vrooli Events receipts: an artifact is domain
+review material, while a receipt is an independently observed operation fact.
 
 Artifact records include:
 
@@ -153,11 +153,11 @@ Artifact records include:
 - verified attribution
 - `created_at`
 
-Backlog and initiative detail views should use persisted attribution and the
-evidence-backed artifact lookup endpoints instead of scraping event logs. Event
-logs are for metrics and chronology; the evidence ledger is the navigable audit
-model. The old per-session `artifacts.jsonl` file is read only during migration
-and recovery; new artifact links are never written there.
+Backlog and initiative detail views use persisted session attribution and
+artifact lookup endpoints instead of scraping event logs. Event logs remain for
+metrics and chronology. New artifact links are durably appended to the
+session's `artifacts.jsonl`; this preserves non-receipt review handoffs without
+recreating a cross-scenario evidence ledger.
 
 ## UI Entry Points
 
@@ -166,6 +166,7 @@ The graph bottom action launcher owns session creation:
 - Quick Capture opens the existing one-shot capture panel.
 - Plan Work With Agent creates a `meta_orchestration` session.
 - Manage Swarm creates a `swarm_operations` session.
+- Author Workflow creates a `workflow_authoring` session.
 
 All agent-session launchers create a draft and route to the session detail surface immediately. They do not send canned bootstrap prompts. The composer placeholder is kind-specific, and the first submitted message starts the run.
 

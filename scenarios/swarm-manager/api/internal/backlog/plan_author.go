@@ -48,6 +48,10 @@ func (h *Handler) startPlanAuthorWorkflow(ctx context.Context, item BacklogItem)
 	if h.planAuthorWorkflow == nil {
 		return agentmanager.WorkflowStart{}, agentmanager.ErrNotAvailable
 	}
+	workflow, err := h.resolveWorkflow("plan.author")
+	if err != nil {
+		return agentmanager.WorkflowStart{}, err
+	}
 	itemDir := h.store.ItemDir(item.Kind, item.Name)
 	rounds, err := workshop.LoadRounds(itemDir)
 	if err != nil {
@@ -68,7 +72,7 @@ func (h *Handler) startPlanAuthorWorkflow(ctx context.Context, item BacklogItem)
 	if err != nil {
 		return agentmanager.WorkflowStart{}, fmt.Errorf("plan author input: %w", err)
 	}
-	started, err := h.planAuthorWorkflow.StartWorkflow(ctx, agentmanager.Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/plan-author", Input: input, IdempotencyKey: "plan-author/" + string(item.Kind) + "/" + item.Name + "/" + strings.TrimPrefix(version, "sha256:"), FirstRunNodeID: "author"})
+	started, err := h.planAuthorWorkflow.StartWorkflow(ctx, agentmanager.Invocation{Owner: workflow.Owner, WorkflowKey: workflow.Key, Input: input, IdempotencyKey: "plan-author/" + string(item.Kind) + "/" + item.Name + "/" + strings.TrimPrefix(version, "sha256:"), FirstRunNodeID: "author"})
 	if err != nil {
 		return agentmanager.WorkflowStart{}, err
 	}

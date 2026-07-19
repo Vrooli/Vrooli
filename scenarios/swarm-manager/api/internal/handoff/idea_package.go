@@ -213,7 +213,7 @@ func renderBrief(manifest Manifest, sourceIndex SourceIndex) string {
 	var b strings.Builder
 
 	b.WriteString("# Idea Execution Handoff\n\n")
-	b.WriteString("This package captures the finalized swarm-manager idea context for downstream ecosystem-manager execution. It is regenerated from the latest finalized backlog state when idea execution begins so downstream work starts from a stable contract rather than scattered workshop artifacts.\n\n")
+	b.WriteString("This package captures finalized swarm-manager idea context for downstream plan execution. It is regenerated from the latest finalized backlog state when execution begins so work starts from a stable contract rather than scattered workshop artifacts.\n\n")
 
 	writeBriefExecutionContract(&b, manifest, sourceIndex)
 	writeBriefDownstreamRequirements(&b)
@@ -237,10 +237,10 @@ func writeBriefExecutionContract(b *strings.Builder, manifest Manifest, sourceIn
 		b.WriteString(fmt.Sprintf("- Target scenario: `%s`\n", manifest.TargetScenario))
 	}
 	if manifest.Operation != "" {
-		b.WriteString(fmt.Sprintf("- Recommended ecosystem operation: `%s`\n", manifest.Operation))
+		b.WriteString(fmt.Sprintf("- Recommended plan operation: `%s`\n", manifest.Operation))
 	}
 	if manifest.SuggestedSteerProfileID != "" {
-		b.WriteString(fmt.Sprintf("- Recommended steer profile: `%s`\n", manifest.SuggestedSteerProfileID))
+		b.WriteString(fmt.Sprintf("- Suggested execution profile: `%s`\n", manifest.SuggestedSteerProfileID))
 	}
 	b.WriteString(fmt.Sprintf("- Item folder: `%s`\n", manifest.ItemFolder))
 	b.WriteString(fmt.Sprintf("- Plan projection: `%s`\n", sourceIndex.PlanPath))
@@ -251,9 +251,9 @@ func writeBriefExecutionContract(b *strings.Builder, manifest Manifest, sourceIn
 
 func writeBriefDownstreamRequirements(b *strings.Builder) {
 	b.WriteString("## Downstream Requirements\n\n")
-	b.WriteString("- Read the rendered plan block in the execution prompt and `manifest.json` before creating the ecosystem-manager task.\n")
-	b.WriteString("- Use this `brief.md` file as the ecosystem-manager task notes.\n")
-	b.WriteString("- Preserve the origin metadata so later ecosystem-manager loops can trace back to the swarm-manager source artifacts.\n\n")
+	b.WriteString("- Read the rendered plan block in the execution prompt and `manifest.json` before starting the next bounded plan slice.\n")
+	b.WriteString("- Use this `brief.md` file as supporting execution context, not as a replacement for the canonical plan.\n")
+	b.WriteString("- Preserve provenance and the true frontier in the swarm-manager handoff so later workflow rounds can trace back to these artifacts.\n\n")
 }
 
 func writeBriefProductIntent(b *strings.Builder, manifest Manifest) {

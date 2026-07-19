@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "swarm-manager-holistic-loop-plan",
   "name": "Swarm Manager Holistic Loop Plan",
-  "description": "Author and bind the canonical initiative-wide plan-manager plan (plan_ref) that the delegated phased-plan-drain executes.",
+  "description": "Historical Swarm Manager operating-mode guidance retained only for prior session and provenance readability; active structured agent work uses registered Agent Manager workflows.",
   "modes": [
     "tools"
   ],
@@ -13,7 +13,7 @@
     "operating-mode",
     "holistic-loop"
   ],
-  "status": "active",
+  "status": "retired",
   "entry": "SKILL.md",
   "revision": 2,
   "createdAt": "2026-04-30T00:00:00Z",

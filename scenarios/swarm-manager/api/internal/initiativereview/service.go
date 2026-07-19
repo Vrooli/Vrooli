@@ -14,6 +14,7 @@ import (
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/review"
+	"swarm-manager/internal/transitions"
 )
 
 // ErrNotReady signals that TriggerIfReady was called before the initiative
@@ -107,33 +108,35 @@ type Config struct {
 	GraphReader   GraphReader
 	// RunInspector polls agent-run state for gathering rounds. Optional —
 	// without it, stale rounds fall back to age-based recovery.
-	RunInspector    RunInspector
-	Lock            *initiativelock.Lock
-	ExecutionLookup ExecutionLookup
-	PlanContent     PlanContentResolver
-	GCTClient       GCTClient
-	GCTPollInterval time.Duration
-	GCTPollTimeout  time.Duration
-	PromptClient    promptmanager.Client
-	Clock           func() time.Time
-	Workflow        agentmanager.WorkflowInvoker
+	RunInspector       RunInspector
+	Lock               *initiativelock.Lock
+	ExecutionLookup    ExecutionLookup
+	PlanContent        PlanContentResolver
+	GCTClient          GCTClient
+	GCTPollInterval    time.Duration
+	GCTPollTimeout     time.Duration
+	PromptClient       promptmanager.Client
+	Clock              func() time.Time
+	Workflow           agentmanager.WorkflowInvoker
+	TransitionRegistry transitions.Registry
 }
 
 // Service orchestrates initiative review rounds.
 type Service struct {
-	initStore       InitiativeStore
-	backlogLoader   BacklogLoader
-	graphReader     GraphReader
-	workflow        agentmanager.WorkflowInvoker
-	inspector       RunInspector
-	lock            *initiativelock.Lock
-	executionLookup ExecutionLookup
-	planContent     PlanContentResolver
-	gctClient       GCTClient
-	gctPollInterval time.Duration
-	gctPollTimeout  time.Duration
-	promptClient    promptmanager.Client
-	clock           func() time.Time
+	initStore          InitiativeStore
+	backlogLoader      BacklogLoader
+	graphReader        GraphReader
+	workflow           agentmanager.WorkflowInvoker
+	transitionRegistry transitions.Registry
+	inspector          RunInspector
+	lock               *initiativelock.Lock
+	executionLookup    ExecutionLookup
+	planContent        PlanContentResolver
+	gctClient          GCTClient
+	gctPollInterval    time.Duration
+	gctPollTimeout     time.Duration
+	promptClient       promptmanager.Client
+	clock              func() time.Time
 
 	mu           sync.Mutex
 	activeRounds map[string]activeRound // keyed by RunID
@@ -171,25 +174,35 @@ func NewService(cfg Config) (*Service, error) {
 		pc = promptmanager.NewHTTPClient()
 	}
 	svc := &Service{
-		initStore:       cfg.InitStore,
-		backlogLoader:   cfg.BacklogLoader,
-		graphReader:     cfg.GraphReader,
-		inspector:       cfg.RunInspector,
-		lock:            cfg.Lock,
-		executionLookup: cfg.ExecutionLookup,
-		planContent:     cfg.PlanContent,
-		gctClient:       cfg.GCTClient,
-		gctPollInterval: cfg.GCTPollInterval,
-		gctPollTimeout:  cfg.GCTPollTimeout,
-		promptClient:    pc,
-		clock:           clk,
-		workflow:        cfg.Workflow,
-		activeRounds:    make(map[string]activeRound),
+		initStore:          cfg.InitStore,
+		backlogLoader:      cfg.BacklogLoader,
+		graphReader:        cfg.GraphReader,
+		inspector:          cfg.RunInspector,
+		lock:               cfg.Lock,
+		executionLookup:    cfg.ExecutionLookup,
+		planContent:        cfg.PlanContent,
+		gctClient:          cfg.GCTClient,
+		gctPollInterval:    cfg.GCTPollInterval,
+		gctPollTimeout:     cfg.GCTPollTimeout,
+		promptClient:       pc,
+		clock:              clk,
+		workflow:           cfg.Workflow,
+		transitionRegistry: cfg.TransitionRegistry,
+		activeRounds:       make(map[string]activeRound),
 	}
 	if svc.workflow == nil {
 		svc.workflow = agentmanager.NewWorkflowService()
 	}
 	return svc, nil
+}
+
+// SetTransitionRegistry supplies the versioned catalog that selects the
+// workflow implementation for initiative review. The domain service selects a
+// transition key; it does not embed an Agent Manager workflow key.
+func (s *Service) SetTransitionRegistry(registry transitions.Registry) {
+	if s != nil {
+		s.transitionRegistry = registry
+	}
 }
 
 // ListRounds returns all review rounds for the initiative, oldest-first.

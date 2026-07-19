@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "swarm-manager-operations-session",
   "name": "Swarm Manager Operations Session",
-  "description": "Coordinate day-to-day Swarm Manager operational progress through conversational triage, initiative prioritization, decision-drain routing, and operating-mode recommendations without bypassing operator-gated mutation seams.",
+  "description": "Conversational project-operations guidance that routes human choices to current sessions, declared workflows, and deterministic Swarm actions.",
   "modes": [
     "tools",
     "conversation",
@@ -12,15 +12,14 @@
   "tags": [
     "swarm-manager",
     "operations",
-    "initiatives",
-    "decisions",
-    "operating-modes",
-    "workflow"
+    "sessions",
+    "workflows",
+    "transition-catalog"
   ],
   "icon": "gauge",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-05-15T00:00:00Z",
-  "updatedAt": "2026-05-15T00:00:00Z"
+  "updatedAt": "2026-07-18T03:12:34Z"
 }

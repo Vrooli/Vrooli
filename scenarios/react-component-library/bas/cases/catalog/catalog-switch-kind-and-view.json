@@ -29,11 +29,19 @@
       }
     },
     {
-      "id": "wait-catalog",
+      "id": "wait-catalog-loading",
       "action": {
         "type": "ACTION_TYPE_WAIT",
-        "wait": { "selector": "@selector/catalog.browser", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 },
-        "metadata": { "label": "Catalog workspace visible" }
+        "wait": { "selector": "[data-experience-surface=\"catalog-results\"][data-experience-state=\"loading\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 },
+        "metadata": { "label": "Primary catalog reports loading" }
+      }
+    },
+    {
+      "id": "wait-catalog-settled",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-experience-surface=\"catalog-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"empty\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"error\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 },
+        "metadata": { "label": "Primary catalog reaches a terminal lifecycle state" }
       }
     },
     {
@@ -54,9 +62,10 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-catalog", "target": "wait-catalog", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "wait-catalog", "target": "switch-hooks", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "switch-hooks", "target": "assert-hooks-selected", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e4", "source": "assert-hooks-selected", "target": "switch-presentation", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    { "id": "e1", "source": "navigate-catalog", "target": "wait-catalog-loading", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-catalog-loading", "target": "wait-catalog-settled", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "wait-catalog-settled", "target": "switch-hooks", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "switch-hooks", "target": "assert-hooks-selected", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-hooks-selected", "target": "switch-presentation", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

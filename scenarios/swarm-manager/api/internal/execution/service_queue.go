@@ -250,7 +250,7 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 	record.RunID = res.RunID
 	record.TaskID = res.ExecutionID
 	record.AgentWorkflowExecutionID = res.ExecutionID
-	record.AgentWorkflowKey = "swarm-manager/scenario-spec-sync"
+	record.AgentWorkflowKey = snapshot.WorkflowKey
 	record.AgentWorkflowDefinition = res.DefinitionDigest
 	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
 	record.StartedAt = nowRFC3339()

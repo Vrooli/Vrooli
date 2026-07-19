@@ -70,6 +70,17 @@ describe("CatalogBrowser", () => {
     await waitFor(() => expect(listCatalogAssets).toHaveBeenLastCalledWith(expect.objectContaining({ assetKind: 2 })));
   });
 
+  it("reports the primary catalog lifecycle without instrumenting the sidebar variant", async () => {
+    let resolveCatalog!: (value: { components: CatalogAsset[] }) => void;
+    listCatalogAssets.mockReturnValueOnce(new Promise((resolve) => { resolveCatalog = resolve; }));
+    renderWithProviders(<CatalogBrowser surfaceId="catalog-results" />);
+
+    const surface = document.querySelector('[data-experience-surface="catalog-results"]');
+    expect(surface).toHaveAttribute("data-experience-state", "loading");
+    resolveCatalog({ components: [component] });
+    await waitFor(() => expect(surface).toHaveAttribute("data-experience-state", "ready"));
+  });
+
   it("aggregates tree adoption counts and changes presentation without changing assets", async () => {
     const user = userEvent.setup();
     renderWithProviders(<CatalogBrowser />);

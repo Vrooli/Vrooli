@@ -38,6 +38,8 @@ export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSession
       return [];
     case "swarm_operations":
       return ["startup_brief", "operations_briefing", "initiative", "backlog_item", "execution", "agent_activity", "capture", "session", "plan_dependency_cycles", "plan_eta", "goal"];
+	case "workflow_authoring":
+		return ["startup_brief", "initiative", "backlog_item", "scenario", "session", "goal"];
     case "meta_orchestration":
     default:
       return ["startup_brief", "initiative", "backlog_item", "capture", "scenario", "session", "plan_dependency_cycles", "plan_eta", "goal"];
@@ -45,7 +47,7 @@ export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSession
 }
 
 export function compatibleSessionKindsForContextType(type: AgentSessionContextType): CreatableAgentSessionKind[] {
-  const kinds: CreatableAgentSessionKind[] = ["meta_orchestration", "swarm_operations"];
+	const kinds: CreatableAgentSessionKind[] = ["meta_orchestration", "swarm_operations", "workflow_authoring"];
   return kinds.filter((kind) => allowedContextTypesForKind(kind).includes(type));
 }
 

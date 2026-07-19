@@ -1,29 +1,40 @@
 ## Apply Investigation Fixes
 
-Implement the recommendations from the attached investigation report. Produce a change report documenting what was applied, verified, and deferred.
+Implement the operator-approved recommendations from a completed investigation. Produce a change report documenting what was applied, verified, and deferred.
 
 ---
 
 ### What you have
 
-Context attachments contain the investigation report (in the investigation run's events/summary), the original failed run data, and any user-provided guidance.
+The structured investigation findings and the operator's approval decision are provided inline below — you do NOT need to re-open the investigation run's transcript.
+
+**Investigation findings** (schema-validated categorized recommendations):
+
+{{.findings}}
+
+**Operator approval** (`decision`, and the `selected` recommendation texts the operator approved to apply):
+
+{{.approval}}
+
+**Original run context** (what the investigation was diagnosing):
+
+{{.context}}
 
 ### What to do
 
-1. Find the investigation report in the attached investigation run events (look for the structured markdown report in the final assistant message)
-2. Extract all recommendations, noting their category and priority
-3. Apply **Environment/Tooling fixes first**, then Agent Setup fixes (each in priority order)
-4. For each fix:
+1. Read the findings and the operator's `selected` list. Apply **only** the recommendations the operator selected (if `selected` is empty, apply every recommendation in the approved findings).
+2. Apply **Environment/Tooling fixes first**, then Agent Setup fixes, each in severity order (Critical → Major → Gap → Minor).
+3. For each fix:
    - Read the target file to understand its current state
    - Make the minimal change needed
    - Verify: configs parse, paths exist, prompts are internally consistent
-5. After all fixes: check that Environment/Tooling changes don't conflict with Agent Setup changes
+4. After all fixes: check that Environment/Tooling changes don't conflict with Agent Setup changes.
 
 ### Rules
 
-- Only implement recommendations from the investigation report — no extras
+- Only implement recommendations that appear in the approved findings — no extras
 - All changes must be git-revertible
-- Don't remove existing safety checks unless the investigation explicitly recommends it with justification
+- Don't remove existing safety checks unless a recommendation explicitly requires it with justification
 - If a recommendation is ambiguous, implement the narrower interpretation
 - If a fix causes a new problem, stop and document it — don't "fix the fix"
 
@@ -33,7 +44,7 @@ Context attachments contain the investigation report (in the investigation run's
 # Apply Investigation Report
 
 ## Summary
-- **Recommendations received**: [count]
+- **Recommendations approved**: [count]
 - **Applied successfully**: [count]
 - **Not applied**: [count]
 - **Verification failures**: [count]

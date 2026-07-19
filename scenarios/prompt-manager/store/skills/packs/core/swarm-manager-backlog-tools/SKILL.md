@@ -35,7 +35,7 @@ item-folder/
 | Subfolder | Creator | Purpose |
 |-----------|---------|---------|
 | `workshop/` | workshop agent | Stores workshop round files with decisions, info items, and readiness scores |
-| `handoff/` | swarm-manager execution code | Idea-only execution package generated from the latest finalized backlog state; contains `brief.md`, `manifest.json`, and `source-index.json` for downstream ecosystem-manager tasks |
+| `handoff/` | swarm-manager execution code | Idea-only execution-context package generated from the latest finalized backlog state; contains `brief.md`, `manifest.json`, and `source-index.json` for the declared Swarm workflow |
 | `research/` | research agent | Stores feasibility research and findings |
 | `archive/` | user / system | User-provided materials (prior scenario artifacts, requirements, designs) and superseded artifacts. Agents should read but not modify. |
 | root | user / system | `spec.json` metadata and user-uploaded context files. Non-research plans are stored in plan-manager and referenced by `spec.json.plan_ref`. Research keeps `conclusion.md` as its local deliverable. |
@@ -103,9 +103,9 @@ The referenced plan must follow the structure, convergence patterns, quality gat
 
 ### `handoff/` (idea only, generated during processing)
 
-`handoff/` is not a workshop artifact. It is a derived execution package written by swarm-manager when an idea backlog item is processed. It exists to preserve the finalized backlog context when work is handed off to ecosystem-manager.
+`handoff/` is not a workshop artifact. It is a derived execution-context package written by swarm-manager when an idea backlog item is processed. It preserves finalized backlog context and provenance for the declared Swarm workflow; the rendered plan remains the execution contract.
 
-- `handoff/brief.md` — agent-facing execution brief; use as ecosystem-manager task notes
+- `handoff/brief.md` — agent-facing supporting execution context; do not treat it as a replacement for the rendered plan
 - `handoff/manifest.json` — machine-readable contract with provenance, boundaries, and resolved decisions
 - `handoff/source-index.json` — pointers back to the source files used to derive the package
 
@@ -214,7 +214,7 @@ Least refined / lowest authority
 
 **Key principle:** `spec.json.plan_ref` identifies the most up-to-date and authoritative non-research plan. Render that plan through swarm-manager/plan-manager instead of reading or writing a local implementation-plan file. When `plan_ref` is missing, reconstruct the draft from lower-authority sources and finalize it into plan-manager before queueing.
 
-For idea execution, `handoff/` is a derived transport artifact, not a competing planning authority. If the canonical plan changes, regenerate the handoff rather than editing the handoff by hand.
+For idea execution, `handoff/` is a derived execution-context artifact, not a competing planning authority. If the canonical plan changes, regenerate the handoff rather than editing the handoff by hand.
 
 ### How Refinement Accumulates
 

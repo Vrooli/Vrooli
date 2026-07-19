@@ -44,6 +44,10 @@ type Finding struct {
 	Title       string
 	Description string
 	Details     string
+	// RecommendedSkillIDs are source-owned prompt-manager skill references. The
+	// auto-filer preserves them without selecting, ranking, or interpreting
+	// them; policy remains owned by the existing filing controls.
+	RecommendedSkillIDs []string
 }
 
 func (f Finding) StableID() string {

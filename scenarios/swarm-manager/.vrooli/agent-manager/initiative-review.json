@@ -1,1 +1,180 @@
-{"schemaVersion":"agent-workflow/v1","owner":"swarm-manager","key":"swarm-manager/initiative-review","version":"1.0.0","description":"Assess one initiative from an immutable membership and acceptance snapshot; Swarm applies the terminal review round and preserves operator decision authority.","inputSchema":{"type":"object","properties":{"entity":{"type":"object","properties":{"kind":{"const":"initiative"},"name":{"type":"string"},"executionId":{"type":"string"},"version":{"type":"string"}},"required":["kind","name","executionId","version"],"additionalProperties":false},"snapshot":{"type":"object","additionalProperties":true}},"required":["entity","snapshot"],"additionalProperties":false},"outputSchema":{"type":"object","properties":{"result":{"type":"object","properties":{"assessment":{"type":"string","minLength":1,"maxLength":16384},"classification":{"type":"string","enum":["delivered","partial","failed"]}},"required":["assessment","classification"],"additionalProperties":false}},"required":["result"],"additionalProperties":false},"entryNode":"review","nodes":[{"id":"review","kind":"run","run":{"profileKey":"swarm-manager/deep-work","promptTemplate":"Independently assess the authorized initiative using only the immutable snapshot. Return only typed JSON with assessment and classification delivered, partial, or failed.\n\nEntity:\n{{.entity}}\n\nSnapshot:\n{{.snapshot}}","resultSpec":{"version":"result-spec/v1","kind":"json_schema","extractionMode":"deterministic_only","schema":{"type":"object","properties":{"assessment":{"type":"string","minLength":1,"maxLength":16384},"classification":{"type":"string","enum":["delivered","partial","failed"]}},"required":["assessment","classification"],"additionalProperties":false}},"bindings":[{"name":"entity","source":"workflow_input","selector":"$.entity","limit":1,"maxBytes":2048,"renderAs":"json","missingPolicy":"error"},{"name":"snapshot","source":"workflow_input","selector":"$.snapshot","limit":1,"maxBytes":65536,"renderAs":"json","missingPolicy":"error"}],"maxTurns":18,"timeoutSeconds":1800}},{"id":"done","kind":"end","end":{"status":"succeeded","bindings":[{"name":"result","source":"structured_result","selector":"node=review;$.value","limit":1,"maxBytes":65536,"renderAs":"json","missingPolicy":"error"}]}}],"edges":[{"from":"review","to":"done"}],"budgets":{"wallTimeSeconds":3600,"maxTurns":18,"maxTokens":40000,"maxCostUsd":6,"maxNodeAttempts":3,"maxChildren":1,"maxConcurrency":1,"maxRecursion":1,"maxRetries":2,"maxWaitSeconds":60},"metadata":{"consumerMutationOwner":"swarm-manager","transition":"initiative.review"}}
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/initiative-review",
+  "version": "1.0.0",
+  "description": "Assess one initiative from an immutable membership and acceptance snapshot; Swarm applies the terminal review round and preserves operator decision authority.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "entity": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "initiative"
+          },
+          "name": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "executionId",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "entity",
+      "snapshot"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "properties": {
+          "assessment": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "delivered",
+              "partial",
+              "failed"
+            ]
+          }
+        },
+        "required": [
+          "assessment",
+          "classification"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "entryNode": "review",
+  "nodes": [
+    {
+      "id": "review",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/deep-work",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "assessment": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "classification": {
+                "type": "string",
+                "enum": [
+                  "delivered",
+                  "partial",
+                  "failed"
+                ]
+              }
+            },
+            "required": [
+              "assessment",
+              "classification"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "entity",
+            "source": "workflow_input",
+            "selector": "$.entity",
+            "limit": 1,
+            "maxBytes": 2048,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 18,
+        "timeoutSeconds": 1800,
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-initiative-review"
+        }
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {
+            "name": "result",
+            "source": "structured_result",
+            "selector": "node=review;$.value",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "review",
+      "to": "done"
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 3600,
+    "maxTurns": 18,
+    "maxTokens": 40000,
+    "maxCostUsd": 6,
+    "maxNodeAttempts": 3,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 2,
+    "maxWaitSeconds": 60
+  },
+  "metadata": {
+    "consumerMutationOwner": "swarm-manager",
+    "transition": "initiative.review"
+  }
+}

@@ -555,8 +555,8 @@ describe("StatsView", () => {
     });
   });
 
-  describe("Modes tab", () => {
-    it("displays operating mode usage and profile metrics", async () => {
+  describe("Legacy history tab", () => {
+    it("labels operating-mode metrics as historical provenance", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
       renderWithProviders(<StatsView />);
 
@@ -564,6 +564,7 @@ describe("StatsView", () => {
       fireEvent.click(screen.getByTestId("stats-tab-modes"));
 
       expect(screen.getByTestId("stats-content-modes")).toBeInTheDocument();
+      expect(screen.getByText("Historical mode usage")).toBeInTheDocument();
       expect(screen.getAllByText("Holistic Loop").length).toBeGreaterThan(0);
       expect(screen.getByText("swarm-manager/deep-work")).toBeInTheDocument();
       expect(screen.getByText("Backlog Sync")).toBeInTheDocument();

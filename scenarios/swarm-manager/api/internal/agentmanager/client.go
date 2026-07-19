@@ -38,6 +38,25 @@ type HTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+// ObservedReceipt is the bounded Vrooli Events projection exposed by Agent
+// Manager. Swarm consumes it as an observation only; it never infers failure
+// from an empty list.
+type ObservedReceipt struct {
+	EventID        string            `json:"eventId"`
+	SourceScenario string            `json:"sourceScenario"`
+	TargetScenario string            `json:"targetScenario"`
+	EventType      string            `json:"eventType"`
+	Timestamp      string            `json:"timestamp"`
+	CorrelationID  string            `json:"correlationId"`
+	Metadata       map[string]string `json:"metadata"`
+}
+
+type ObservedReceiptsResponse struct {
+	Status       string            `json:"status"`
+	Observations []ObservedReceipt `json:"observations"`
+	Message      string            `json:"message,omitempty"`
+}
+
 // NewHTTPClient creates a new agent-manager HTTP client.
 func NewHTTPClient() *HTTPClient {
 	return NewHTTPClientWithTimeout(20 * time.Second)
@@ -290,6 +309,34 @@ func (c *HTTPClient) GetRunDiff(ctx context.Context, runID string) (*domainpb.Ru
 		return nil, fmt.Errorf("%w: missing run diff", ErrRequestFailed)
 	}
 	return result.Diff, nil
+}
+
+// GetObservedReceipts retrieves Agent Manager's bounded receipt projection.
+// A 503 is returned as a normal integration error so callers can present
+// degraded/unobserved state without synthesizing a domain failure.
+func (c *HTTPClient) GetObservedReceipts(ctx context.Context, runID string, limit int) (ObservedReceiptsResponse, error) {
+	if strings.TrimSpace(runID) == "" {
+		return ObservedReceiptsResponse{}, fmt.Errorf("%w: run id is required", ErrRequestFailed)
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 100
+	}
+	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/runs/"+url.PathEscape(runID)+"/observed-receipts?limit="+fmt.Sprint(limit), nil)
+	if err != nil {
+		return ObservedReceiptsResponse{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return ObservedReceiptsResponse{}, readErrorResponse(resp)
+	}
+	var result ObservedReceiptsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return ObservedReceiptsResponse{}, err
+	}
+	if result.Observations == nil {
+		result.Observations = []ObservedReceipt{}
+	}
+	return result, nil
 }
 
 // ApproveRun releases a run that is held at needs_review, merging its sandbox

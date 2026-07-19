@@ -2,7 +2,6 @@ package agentsessions
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
@@ -12,17 +11,14 @@ import (
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/identity"
 
-	"github.com/vrooli/api-core/database"
 	agentdomainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	_ "modernc.org/sqlite"
 )
 
-func TestMigrateArtifactEvidenceProjectsLegacyArtifactsWithoutUpgradingTrust(t *testing.T) {
+func TestLegacyArtifactsRemainReadableFromSessionStorage(t *testing.T) {
 	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
 	svc := newTestService(t, spawner)
 	session, err := svc.Create(context.Background(), CreateRequest{Kind: KindMetaOrchestration, Title: "Evidence migration"})
@@ -30,57 +26,13 @@ func TestMigrateArtifactEvidenceProjectsLegacyArtifactsWithoutUpgradingTrust(t *
 		t.Fatal(err)
 	}
 	writeLegacyArtifacts(t, svc.store.(*FileStore), Artifact{ID: "art-legacy", SessionID: session.ID, ArtifactType: ArtifactInitiative, Action: ArtifactActionCreated, EntityRef: "initiative/evidence", Title: "Evidence", CreatedAt: testTimestamp})
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	store := evidence.NewStore(database.NewFromPrimary(db))
-	if err := store.InitSchema(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	svc.SetEvidenceService(evidence.NewService(store, evidence.RunOwnerResolver{Sessions: emptyOwnerIndex{}}))
-	if err := svc.MigrateArtifactEvidence(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if err := svc.MigrateArtifactEvidence(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	svc.EnableEvidenceProjection()
 	artifacts, err := svc.ListArtifacts(context.Background(), session.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(artifacts) != 1 || artifacts[0].ID != "art-legacy" || artifacts[0].RunID != "" || artifacts[0].Title != "Evidence" {
-		t.Fatalf("projected artifacts = %+v", artifacts)
+		t.Fatalf("stored artifacts = %+v", artifacts)
 	}
-	var verification string
-	if err := db.QueryRow(`SELECT verification FROM evidence_observations`).Scan(&verification); err != nil {
-		t.Fatal(err)
-	}
-	if verification != string(evidence.VerificationUnverified) {
-		t.Fatalf("legacy verification = %q", verification)
-	}
-	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM evidence_observations`).Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-	if count != 1 {
-		t.Fatalf("migration observation count = %d", count)
-	}
-	var sourceCount, projectedCount int
-	if err := db.QueryRow(`SELECT source_count, projected_count FROM evidence_migration_audits WHERE migration_key=?`, sessionArtifactMigrationKey).Scan(&sourceCount, &projectedCount); err != nil {
-		t.Fatal(err)
-	}
-	if sourceCount != 1 || projectedCount != 1 {
-		t.Fatalf("migration parity receipt = source:%d projected:%d", sourceCount, projectedCount)
-	}
-}
-
-type emptyOwnerIndex struct{}
-
-func (emptyOwnerIndex) LookupOwners(context.Context, string) ([]evidence.Owner, error) {
-	return nil, nil
 }
 
 func TestServiceCreateMakesDraftWithoutSpawning(t *testing.T) {
@@ -241,6 +193,31 @@ func TestServiceStartSwarmOperationsUsesOperationsSkillAndPurpose(t *testing.T) 
 	}
 }
 
+func TestServiceStartWorkflowAuthoringUsesAuthoringSkillAndPurpose(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
+	svc := newTestService(t, spawner)
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindWorkflowAuthoring, Title: "Author a workflow"})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	session, err := svc.Start(context.Background(), ContinueRequest{SessionID: draft.ID, Message: "I want a reliable way to repair plans."})
+	if err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if session.SkillID != SkillWorkflowAuthoring {
+		t.Fatalf("skill = %q, want %q", session.SkillID, SkillWorkflowAuthoring)
+	}
+	if spawner.spawnSpec.Purpose != agentactivity.PurposeWorkflowAuthoring {
+		t.Fatalf("spawn purpose = %q, want %q", spawner.spawnSpec.Purpose, agentactivity.PurposeWorkflowAuthoring)
+	}
+	if !strings.Contains(spawner.spawnReq.Prompt, "prompt-manager skill read "+SkillWorkflowAuthoring) {
+		t.Fatalf("initial prompt did not reference workflow authoring skill: %s", spawner.spawnReq.Prompt)
+	}
+}
+
 func TestProposalSessionRefreshIngestsValidatedMutationProposal(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
@@ -365,7 +342,7 @@ func TestServiceStartInjectsStartupBriefContextByDefault(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
 
-	for _, kind := range []Kind{KindSwarmOperations, KindMetaOrchestration} {
+	for _, kind := range []Kind{KindSwarmOperations, KindMetaOrchestration, KindWorkflowAuthoring} {
 		t.Run(string(kind), func(t *testing.T) {
 			spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "running"}}
 			svc := newTestService(t, spawner)
@@ -826,8 +803,8 @@ func TestServiceAttachArtifactsPersistsBatchAtomically(t *testing.T) {
 		t.Fatalf("stored artifact count = %d, want 2", len(loaded.Artifacts))
 	}
 	store := svc.store.(*FileStore)
-	if _, err := os.Stat(filepath.Join(store.sessionDir(session.ID), artifactsFileName)); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("new artifact attachment wrote a legacy JSONL file: %v", err)
+	if _, err := os.Stat(filepath.Join(store.sessionDir(session.ID), artifactsFileName)); err != nil {
+		t.Fatalf("new artifact attachment must persist session artifact JSONL: %v", err)
 	}
 }
 
@@ -901,17 +878,6 @@ func newTestService(t *testing.T, spawner *fakeSessionSpawner) *Service {
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatalf("open evidence database: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	evidenceStore := evidence.NewStore(database.NewFromPrimary(db))
-	if err := evidenceStore.InitSchema(context.Background()); err != nil {
-		t.Fatalf("init evidence schema: %v", err)
-	}
-	svc.SetEvidenceService(evidence.NewService(evidenceStore, evidence.RunOwnerResolver{Sessions: svc}))
-	svc.EnableEvidenceProjection()
 	return svc
 }
 

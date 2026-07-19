@@ -8,7 +8,17 @@ import (
 	"swarm-manager/internal/agentmanager"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
 )
+
+func mustWorkflowOutput(t *testing.T, result map[string]any) *structpb.Value {
+	t.Helper()
+	output, err := structpb.NewValue(map[string]any{"result": result})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return output
+}
 
 func setupPhasedPlanExecution(t *testing.T, name string) (*Service, *stubPhasedPlanWorkflow, Record, string) {
 	t.Helper()
@@ -36,13 +46,12 @@ func setupPhasedPlanExecution(t *testing.T, name string) (*Service, *stubPhasedP
 
 func TestApplyPhasedPlanWorkflow_BlockedExactlyOnce(t *testing.T) { // [REQ:REQ-P0-011-IMMUTABLE-EXECUTION] [REQ:REQ-P0-011-ENVELOPE-PROVENANCE]
 	service, workflow, started, root := setupPhasedPlanExecution(t, "blocked-plan")
-	workflow.completion = agentmanager.PhasedPlanWorkflowCompletion{
+	workflow.completion = agentmanager.InvocationCompletion{
 		ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition,
-		Status:     domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED,
-		ConsumerID: started.ExecutionID, EntityKind: started.BacklogKind, EntityName: started.BacklogName,
-		EntityVersion: started.AgentWorkflowEntityVersion, FrontierDigest: started.AgentWorkflowFrontier,
-		Result:   []byte(`{"outcome":"blocked","handoff":"paused","completedSlice":"","blocker":{"code":"operator_input","summary":"operator input required","retryable":true}}`),
-		Attempts: []agentmanager.WorkflowAttemptProvenance{{NodeID: "slice", Ordinal: 1, RunID: "run-1", ProfileIdentity: "swarm-manager/deep-work"}},
+		Status:   domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED,
+		Input:    workflow.invocation.Input,
+		Output:   mustWorkflowOutput(t, map[string]any{"outcome": "blocked", "handoff": "paused", "completedSlice": "", "blocker": map[string]any{"code": "operator_input", "summary": "operator input required", "retryable": true}}),
+		Attempts: []*domainpb.WorkflowNodeAttempt{{NodeId: "slice", Ordinal: 1, RunId: "run-1", ProfileIdentity: "swarm-manager/deep-work"}},
 	}
 
 	first, err := service.ApplyPhasedPlanWorkflow(context.Background(), started.ExecutionID)
@@ -70,11 +79,10 @@ func TestApplyPhasedPlanWorkflow_BlockedExactlyOnce(t *testing.T) { // [REQ:REQ-
 
 func TestProcessActiveExecutionsDoesNotApplyPhasedPlanWorkflow(t *testing.T) {
 	service, workflow, started, _ := setupPhasedPlanExecution(t, "auto-plan")
-	workflow.completion = agentmanager.PhasedPlanWorkflowCompletion{
+	workflow.completion = agentmanager.InvocationCompletion{
 		ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition,
-		Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED, ConsumerID: started.ExecutionID,
-		EntityKind: started.BacklogKind, EntityName: started.BacklogName, EntityVersion: started.AgentWorkflowEntityVersion,
-		FrontierDigest: started.AgentWorkflowFrontier, Result: []byte(`{"outcome":"blocked","reason":"operator input"}`),
+		Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED, Input: workflow.invocation.Input,
+		Output: mustWorkflowOutput(t, map[string]any{"outcome": "blocked", "reason": "operator input"}),
 	}
 	if err := service.ProcessActiveExecutions(context.Background()); err != nil {
 		t.Fatalf("process active: %v", err)
@@ -150,12 +158,20 @@ func TestApprovePhasedPlanWorkflow_PersistsDecisionBeforeIdempotentSignal(t *tes
 
 func TestApplyPhasedPlanWorkflow_RejectsChangedFrontier(t *testing.T) { // [REQ:REQ-P0-011-IMMUTABLE-EXECUTION]
 	service, workflow, started, _ := setupPhasedPlanExecution(t, "stale-plan")
-	workflow.completion = agentmanager.PhasedPlanWorkflowCompletion{
+	workflow.completion = agentmanager.InvocationCompletion{
 		ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition,
-		Status:     domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
-		ConsumerID: started.ExecutionID, EntityKind: started.BacklogKind, EntityName: started.BacklogName,
-		EntityVersion: started.AgentWorkflowEntityVersion, FrontierDigest: "sha256:stale",
-		Result: []byte(`{"outcome":"complete"}`),
+		Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
+		Input: func() *structpb.Value {
+			payload, _ := workflow.invocation.Input.AsInterface().(map[string]any)
+			plan, _ := payload["plan"].(map[string]any)
+			plan["frontierDigest"] = "sha256:stale"
+			value, err := structpb.NewValue(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return value
+		}(),
+		Output: mustWorkflowOutput(t, map[string]any{"outcome": "complete"}),
 	}
 	if _, err := service.ApplyPhasedPlanWorkflow(context.Background(), started.ExecutionID); err == nil {
 		t.Fatal("expected stale workflow frontier rejection")

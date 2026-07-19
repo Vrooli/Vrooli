@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/stats"
 
@@ -55,16 +54,14 @@ func (s *Server) initEventLog() {
 	// the "primary schema application" seam storage-health requires.
 	if err := database.EnsureSchemas(context.Background(), eventDB.Primary(),
 		database.SchemaProviderFunc(eventlog.Schema),
-		database.SchemaProviderFunc(evidence.Schema),
 	); err != nil {
-		slog.Error("event log / evidence schema init error", "error", err)
+		slog.Error("event log schema init error", "error", err)
 		s.eventDB = eventDB
 		return
 	}
 	repo := eventlog.NewSQLiteRepository(eventDB)
 	s.eventDB = eventDB
 	s.eventRepo = repo
-	s.evidenceStore = evidence.NewStore(eventDB)
 	s.emitter = eventlog.NewEmitter(repo)
 	s.statsEngine = stats.NewEngine(repo)
 	if err := s.statsEngine.Rebuild(context.Background()); err != nil {

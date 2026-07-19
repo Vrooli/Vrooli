@@ -9,6 +9,7 @@ import { strings } from "../../consts/strings.generated";
 import { useTranslation } from "../../i18n";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
+import { ExperienceSurface, type ExperienceSurfaceState } from "../../../../library/components/ExperienceSurface/versions/1.0.0/ExperienceSurface";
 import { CreateComponentDialog } from "../components/CreateComponentDialog";
 import { workflowsClient } from "../../api/workflows";
 import { assetPath } from "../../routes";
@@ -19,6 +20,8 @@ type KindTab = "components" | "hooks";
 interface Props {
   compact?: boolean;
   onNavigate?: () => void;
+  /** Only the primary workspace catalog is an authored readiness surface. */
+  surfaceId?: string;
 }
 
 const assetKindForTab: Record<KindTab, 1 | 2> = {
@@ -101,7 +104,7 @@ function CatalogActions() {
   </div>;
 }
 
-export function CatalogBrowser({ compact = false, onNavigate }: Props) {
+export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props) {
   const { t } = useTranslation();
   const { id: selectedID } = useParams<{ id: string }>();
   const [tab, setTab] = useState<KindTab>("components");
@@ -123,7 +126,14 @@ export function CatalogBrowser({ compact = false, onNavigate }: Props) {
     return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [assets, t]);
 
-  return (
+  const readinessState: ExperienceSurfaceState = query.isLoading
+    ? "loading"
+    : query.error
+      ? "error"
+      : assets.length === 0
+        ? "empty"
+        : "ready";
+  const content = (
     <section data-testid={selectors.catalog.browser} className={compact ? "flex min-h-0 flex-1 flex-col gap-2" : "flex max-w-5xl flex-col gap-4"}>
       {!compact && <CatalogActions />}
       <div className="flex items-center gap-1" role="tablist" aria-label={t("catalog.kindTabs", { defaultValue: "Asset kind" })}>
@@ -139,4 +149,6 @@ export function CatalogBrowser({ compact = false, onNavigate }: Props) {
       {presentation === "tree" ? <div className="space-y-3">{groups.map(([group, groupedAssets]) => <section key={group}><div className="mb-1 flex items-center justify-between px-1 text-xs font-medium uppercase text-app-muted-foreground"><span>{group}</span><span>{groupedAssets.reduce((total, asset) => total + adoptionCounts(asset).direct, 0)}</span></div><div className="space-y-1">{groupedAssets.map((asset) => <AssetRow key={asset.id} asset={asset} presentation="tree" selected={selectedID === asset.id} onNavigate={onNavigate} />)}</div></section>)}</div> : <div className={presentation === "cards" ? "grid gap-2 sm:grid-cols-2" : "space-y-1"}>{assets.map((asset) => <AssetRow key={asset.id} asset={asset} presentation={presentation} selected={selectedID === asset.id} onNavigate={onNavigate} />)}</div>}
     </section>
   );
+  if (!surfaceId) return content;
+  return <ExperienceSurface surfaceId={surfaceId} state={readinessState} statusMessage={query.isLoading ? t("catalog.loading", { defaultValue: "Loading catalog…" }) : undefined}>{content}</ExperienceSurface>;
 }

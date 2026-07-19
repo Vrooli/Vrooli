@@ -84,6 +84,20 @@ func TestOperationsStartupBriefWeavesRankedSnapshot(t *testing.T) {
 	}
 }
 
+func TestWorkflowAuthoringStartupBriefStatesBoundaryAndReferences(t *testing.T) {
+	r := NewResolver("/tmp/scenario", "/tmp/scenarios", nil)
+	item, err := r.ResolveSessionStartupBrief(context.Background(), agentsessions.KindWorkflowAuthoring, agentsessions.ContextLimits{MaxSummaryRunes: 4000})
+	if err != nil {
+		t.Fatalf("ResolveSessionStartupBrief: %v", err)
+	}
+	if item.Ref != agentsessions.StartupBriefWorkflowAuthoringRef {
+		t.Fatalf("ref = %q, want %q", item.Ref, agentsessions.StartupBriefWorkflowAuthoringRef)
+	}
+	if !strings.Contains(item.Summary, "human-led design conversation") || !strings.Contains(item.Summary, "Do not treat this session as permission") {
+		t.Fatalf("summary did not state authoring boundary: %s", item.Summary)
+	}
+}
+
 func TestOperationsStartupBriefDegradesWhenSnapshotErrors(t *testing.T) {
 	r := NewResolver("/tmp/scenario", "/tmp/scenarios", nil, fakeBriefingBuilder{briefing: minimalBriefing()})
 	r.SetSnapshotBuilder(fakeSnapshotProvider{err: context.DeadlineExceeded})

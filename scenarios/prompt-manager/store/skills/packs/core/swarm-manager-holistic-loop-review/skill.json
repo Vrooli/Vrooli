@@ -3,10 +3,18 @@
   "schemaVersion": 1,
   "id": "swarm-manager-holistic-loop-review",
   "name": "Swarm Manager Holistic Loop Review",
-  "description": "Review holistic-loop results against initiative acceptance criteria.",
-  "modes": ["tools"],
-  "tags": ["swarm-manager", "initiative", "operating-mode", "holistic-loop", "review"],
-  "status": "active",
+  "description": "Historical Swarm Manager operating-mode guidance retained only for prior session and provenance readability; active structured agent work uses registered Agent Manager workflows.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "swarm-manager",
+    "initiative",
+    "operating-mode",
+    "holistic-loop",
+    "review"
+  ],
+  "status": "retired",
   "entry": "SKILL.md",
   "revision": 2,
   "createdAt": "2026-04-30T00:00:00Z",

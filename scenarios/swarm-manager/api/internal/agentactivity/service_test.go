@@ -133,11 +133,9 @@ func TestServiceContinueRunCreatesContinuationActivity(t *testing.T) {
 	service := newTestService(t, raw)
 
 	ctx := WithSpec(context.Background(), Spec{
-		OwnerType:   OwnerBacklog,
-		OwnerKind:   "execute",
-		OwnerName:   "task-a",
-		ExecutionID: "exec-1",
-		Purpose:     PurposeFollowUp,
+		OwnerType:   OwnerSession,
+		OwnerName:   "sess-a",
+		Purpose:     PurposeSwarmOperations,
 		RequestedBy: "tester",
 	})
 
@@ -166,8 +164,8 @@ func TestServiceContinueRunCreatesContinuationActivity(t *testing.T) {
 	if record.RunID != "run-continue" {
 		t.Fatalf("expected continued run id, got %q", record.RunID)
 	}
-	if record.ExecutionID != "exec-1" {
-		t.Fatalf("expected execution link, got %q", record.ExecutionID)
+	if record.ExecutionID != "" {
+		t.Fatalf("session continuation must not carry an execution link, got %q", record.ExecutionID)
 	}
 	if record.RequestedBy != "tester" {
 		t.Fatalf("expected requested_by to be preserved, got %q", record.RequestedBy)
@@ -321,10 +319,10 @@ func TestHasActiveAgent_ReturnsTrueWhenActive(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Initiative-owned spawn flow
+// Raw Run continuations are reserved for human-led sessions.
 // ---------------------------------------------------------------------------
 
-func TestContinueRun_AcceptsInitiativeOwner(t *testing.T) {
+func TestContinueRun_RejectsInitiativeOwner(t *testing.T) {
 	t.Parallel()
 	raw := &stubAgentService{enabled: true}
 	svc := newTestService(t, raw)
@@ -335,19 +333,13 @@ func TestContinueRun_AcceptsInitiativeOwner(t *testing.T) {
 		Purpose:   PurposeFeedbackContinue,
 		Metadata:  map[string]string{"round_number": "1"},
 	})
-	if err := svc.ContinueRun(ctx, "run-1", "more please"); err != nil {
-		t.Fatalf("ContinueRun: %v", err)
+	if err := svc.ContinueRun(ctx, "run-1", "more please"); err == nil {
+		t.Fatal("ContinueRun accepted an initiative-owned programmatic continuation")
 	}
 
 	records, _ := svc.store.Load()
-	if len(records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(records))
-	}
-	if records[0].OwnerType != OwnerInitiative {
-		t.Fatalf("expected OwnerInitiative, got %q", records[0].OwnerType)
-	}
-	if records[0].Purpose != PurposeFeedbackContinue {
-		t.Fatalf("expected PurposeFeedbackContinue, got %q", records[0].Purpose)
+	if len(records) != 0 {
+		t.Fatalf("rejected programmatic continuation created activity records: %#v", records)
 	}
 }
 
