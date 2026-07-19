@@ -46,7 +46,7 @@ optional enrichment only and must never gate or slow the core path.
 
 | Package | Why | Contract |
 |---|---|---|
-| `packages/maturity-go` | Dimension vocabulary + R0–R4 ladder gate predicates shared with ecosystem-manager so rung answers agree by construction. | Pure logic; no service calls. |
+| `packages/maturity-go` | Dimension vocabulary + R0–R4 ladder gate predicates shared with swarm-manager so rung answers agree by construction. | Pure logic; no service calls. |
 | `packages/freshness-go` | Treedigest + run-index read + fresh/stale/unknown verdict core shared with test-genie. | Pure logic; digest spec frozen (byte-identical). |
 
 ## Third-Party Services

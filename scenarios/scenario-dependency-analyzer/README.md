@@ -292,7 +292,7 @@ curl "http://localhost:${API_PORT}/health"
 This scenario is designed to be consumed by:
 - **deployment-optimizer** - For surgical deployment configurations
 - **capability-planner** - For strategic scenario development planning
-- **ecosystem-manager** - For dependency prediction in generated scenarios
+- **swarm-manager** - For dependency prediction in generated scenarios
 - **resource-cost-analyzer** - For economic optimization analysis
 
 ## 📈 Value Proposition

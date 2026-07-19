@@ -29,7 +29,7 @@ import (
 )
 
 // Severity classifies a finding. ERROR drives passed=false and is the only level
-// that feeds the ecosystem-manager `measures` ladder dimension as a gap.
+// that feeds the swarm-manager `measures` ladder dimension as a gap.
 type Severity int
 
 const (

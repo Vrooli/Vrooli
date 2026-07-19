@@ -74,18 +74,32 @@ func mintToken(t *testing.T, runID uuid.UUID) string {
 	return token
 }
 
+// activateToken mirrors production token issuance: a signed token is useful
+// only after its hash is persisted on the owning run.
+func activateToken(t *testing.T, ctx context.Context, repos *database.Repositories, run *domain.Run) string {
+	t.Helper()
+	token := mintToken(t, run.ID)
+	run.IdentityTokenHash = identity.HashToken(token)
+	run.IdentityTokenRevokedAt = nil
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("persist active token hash: %v", err)
+	}
+	return token
+}
+
 // TestParkRunFromAgent_OwningTokenParks: an in-run caller presenting its own
 // valid identity token parks the run (running→parked, handle recorded) and gets
 // the clean turn-ending message back.
 func TestParkRunFromAgent_OwningTokenParks(t *testing.T) {
 	ctx := context.Background()
-	svc, run := newParkFromAgentSvc(t)
+	svc, run, repos := newParkFromAgentSvcWithRepos(t)
+	token := activateToken(t, ctx, repos, run)
 
 	res, err := svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
 		RunID:         run.ID,
 		Producer:      "git-control-tower",
 		Key:           "agent-manager/am-park-resume",
-		IdentityToken: mintToken(t, run.ID),
+		IdentityToken: token,
 	})
 	if err != nil {
 		t.Fatalf("ParkRunFromAgent: %v", err)
@@ -110,6 +124,28 @@ func TestParkRunFromAgent_OwningTokenParks(t *testing.T) {
 	}
 	if reloaded.Status != domain.RunStatusParked {
 		t.Fatalf("persisted status = %s, want parked", reloaded.Status)
+	}
+}
+
+func TestVerifyIdentityTokenRejectsRevokedRunToken(t *testing.T) {
+	ctx := context.Background()
+	svc, run, repos := newParkFromAgentSvcWithRepos(t)
+	token := activateToken(t, ctx, repos, run)
+	verified, err := svc.VerifyIdentityToken(ctx, token)
+	if err != nil || verified == nil || !verified.Valid {
+		t.Fatalf("active token verification = %+v, %v", verified, err)
+	}
+	now := time.Now()
+	run.IdentityTokenRevokedAt = &now
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("persist token revocation: %v", err)
+	}
+	verified, err = svc.VerifyIdentityToken(ctx, token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if verified == nil || verified.Valid {
+		t.Fatalf("revoked token verification = %+v, want invalid", verified)
 	}
 }
 
@@ -164,7 +200,8 @@ func TestParkRunFromAgent_InvalidTokenRejected(t *testing.T) {
 // is rejected (CanParkRun: one open handle per run), even with a valid token.
 func TestParkRunFromAgent_NonRunningRejected(t *testing.T) {
 	ctx := context.Background()
-	svc, run := newParkFromAgentSvc(t)
+	svc, run, repos := newParkFromAgentSvcWithRepos(t)
+	token := activateToken(t, ctx, repos, run)
 
 	if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{
 		RunID: run.ID, Producer: "test-genie", Key: "a/b",
@@ -176,7 +213,7 @@ func TestParkRunFromAgent_NonRunningRejected(t *testing.T) {
 		RunID:         run.ID,
 		Producer:      "test-genie",
 		Key:           "a/b",
-		IdentityToken: mintToken(t, run.ID),
+		IdentityToken: token,
 	})
 	if err == nil {
 		t.Fatal("expected rejection when parking an already-parked run")

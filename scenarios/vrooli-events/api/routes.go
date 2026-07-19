@@ -11,21 +11,10 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/v1/events/subscribe", s.handleSubscribe)
 
 	// Policy endpoints
-	mux.HandleFunc("POST /api/v1/policies", s.handleCreatePolicy)
-	mux.HandleFunc("GET /api/v1/policies", s.handleListPolicies)
 	mux.HandleFunc("GET /api/v1/policies/snapshot", s.handlePolicySnapshot)
-	mux.HandleFunc("POST /api/v1/receipt-projections", s.handleCreateReceiptProjection)
-	mux.HandleFunc("GET /api/v1/receipt-projections", s.handleListReceiptProjections)
-	mux.HandleFunc("GET /api/v1/receipt-projections/{id}", s.handleGetReceiptProjection)
-	mux.HandleFunc("PUT /api/v1/receipt-projections/{id}", s.handleUpdateReceiptProjection)
-	mux.HandleFunc("DELETE /api/v1/receipt-projections/{id}", s.handleDeleteReceiptProjection)
+	mux.HandleFunc("POST /api/v1/receipt-capture-policies", s.handleCreateCapturePolicy)
+	mux.HandleFunc("GET /api/v1/receipt-capture-policies", s.handleListCapturePolicies)
 	mux.HandleFunc("GET /api/v1/policies/subscribe", s.handlePolicySubscribe)
-	mux.HandleFunc("GET /api/v1/policies/violations", s.handleListViolations)
-	mux.HandleFunc("POST /api/v1/policies/evaluate", s.handleEvaluatePolicy)
-	mux.HandleFunc("GET /api/v1/policies/{id}", s.handleGetPolicy)
-	mux.HandleFunc("PUT /api/v1/policies/{id}", s.handleUpdatePolicy)
-	mux.HandleFunc("DELETE /api/v1/policies/{id}", s.handleDeletePolicy)
-	mux.HandleFunc("POST /api/v1/policies/{id}/override", s.handleOverrideCircuitBreaker)
 
 	// Subscription endpoints
 	mux.HandleFunc("POST /api/v1/subscriptions", s.handleCreateSubscription)

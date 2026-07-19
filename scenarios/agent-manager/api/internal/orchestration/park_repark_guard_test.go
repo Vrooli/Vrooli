@@ -89,12 +89,13 @@ func TestParkRunFromAgent_RefusesNoProgressRepark(t *testing.T) {
 	if err := repos.Runs.Update(ctx, run); err != nil {
 		t.Fatalf("seed run state: %v", err)
 	}
+	token := activateToken(t, ctx, repos, run)
 
 	res, err := svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
 		RunID:         run.ID,
 		Producer:      "git-control-tower",
 		Key:           "agent-manager/am-park-resume",
-		IdentityToken: mintToken(t, run.ID),
+		IdentityToken: token,
 	})
 	if err != nil {
 		t.Fatalf("ParkRunFromAgent (refused path must not error): %v", err)
@@ -138,12 +139,13 @@ func TestParkRunFromAgent_FirstReparkTolerated(t *testing.T) {
 	if err := repos.Runs.Update(ctx, run); err != nil {
 		t.Fatalf("seed run state: %v", err)
 	}
+	token := activateToken(t, ctx, repos, run)
 
 	res, err := svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
 		RunID:         run.ID,
 		Producer:      "git-control-tower",
 		Key:           "agent-manager/am-park-resume",
-		IdentityToken: mintToken(t, run.ID),
+		IdentityToken: token,
 	})
 	if err != nil {
 		t.Fatalf("ParkRunFromAgent: %v", err)

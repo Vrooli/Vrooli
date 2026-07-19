@@ -35,7 +35,6 @@ typed, parameterized analytical queries — see the shared
 contract library and `docs/concepts/MEASURES.md`). Its two jobs:
 
 1. **Enforce + grade** measure adoption (the `validation` domain) —
-   the producer that feeds the Ecosystem Manager maturity ladder a
    soft `measures` dimension, mirroring `security-health` /
    `cli-health`.
 2. **Federate + answer** analytical questions (the `index` domain) —

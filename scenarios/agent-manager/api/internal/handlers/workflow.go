@@ -151,7 +151,17 @@ func (h *Handler) GetWorkflowExecutionResult(w http.ResponseWriter, r *http.Requ
 		writeError(w, r, err)
 		return
 	}
-	writeProtoJSON(w, http.StatusOK, &apipb.WorkflowExecutionResponse{Execution: workflowExecutionToProto(execution, true)})
+	pbExecution := workflowExecutionToProto(execution, true)
+	if attempts, listErr := h.svc.ListWorkflowExecutionRuns(r.Context(), id); listErr == nil {
+		runIDs := make([]string, 0, len(attempts))
+		for _, attempt := range attempts {
+			if attempt.RunID != nil {
+				runIDs = append(runIDs, attempt.RunID.String())
+			}
+		}
+		pbExecution.Observations = h.workflowObservedReceipts(r.Context(), runIDs)
+	}
+	writeProtoJSON(w, http.StatusOK, &apipb.WorkflowExecutionResponse{Execution: pbExecution})
 }
 
 func (h *Handler) AdvanceWorkflowExecution(w http.ResponseWriter, r *http.Request) {

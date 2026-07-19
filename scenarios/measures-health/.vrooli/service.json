@@ -5,7 +5,7 @@
     "parent": "vrooli",
     "name": "measures-health",
     "displayName": "Measures Health",
-    "description": "Validates and grades scenario adoption of the Measures federated metrics layer; hosts the central measures index and the single registered search-hub measures provider; feeds the Ecosystem Manager maturity ladder.",
+    "description": "Validates and grades scenario adoption of the Measures federated metrics layer; hosts the central measures index and the single registered search-hub measures provider; emits findings for Test Genie validation.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",

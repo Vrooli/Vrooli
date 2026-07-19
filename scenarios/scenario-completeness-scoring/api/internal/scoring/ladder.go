@@ -14,7 +14,7 @@ import (
 )
 
 // otTargetPercent is the operational-target bar the R4 gate is evaluated
-// against. The ecosystem-manager control loop reads this from its active
+// against. The swarm-manager control loop reads this from its active
 // profile; this scenario has no profile concept, so the cached answer uses
 // the strictest interpretation (all declared targets passing). The headline
 // is labeled "as of digest" either way — it never claims to be EM's state.

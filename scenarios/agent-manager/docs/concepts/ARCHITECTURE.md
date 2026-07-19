@@ -637,7 +637,6 @@ remain, selection is `ambiguous`; if no supported candidate exists, it is
 
 The Phase 1 inventory found direct generated-contract or Agent Manager client
 consumers in `agent-inbox`, `development-toolchain-validator`,
-`ecosystem-manager`, `knowledge-observatory`, `prompt-manager`,
 `react-component-library`, `scenario-auditor`, `scenario-to-cloud`,
 `scenario-to-desktop`, `swarm-manager`, `system-monitor`, `test-genie`, and
 `web-search`. Within Agent Manager, the primary writable/readable summary path

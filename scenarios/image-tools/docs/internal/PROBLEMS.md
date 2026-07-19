@@ -104,7 +104,7 @@ and every other feature-introduced finding the suite raised (security G109, docs
 manifest, go-mod-tidy, pnpm release-age, structure/proto `proto_payloads`) was
 fixed. This matches the codebase's existing treatment of react-vite
 template/scaffolding standards+lint debt as a tracked **upstream-template**
-campaign (cf. the ecosystem-manager UI and the fleet standards campaign), not a
+campaign (cf. the swarm-manager UI and the fleet standards campaign), not a
 per-scenario fix — fixing it per scenario diverges from the template and breaks
 on the next template sync.
 

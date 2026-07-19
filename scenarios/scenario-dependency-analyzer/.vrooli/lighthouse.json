@@ -34,7 +34,7 @@
     },
     {
       "id": "scenario-detail",
-      "path": "/?scenario=ecosystem-manager",
+      "path": "/?scenario=swarm-manager",
       "label": "Scenario detail",
       "viewport": "desktop",
       "waitForSelector": "body",

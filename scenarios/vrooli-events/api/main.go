@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -87,7 +88,10 @@ func main() {
 	// making policy reads depend on another persistence layer.
 	srv.policyVersion.Store(time.Now().UTC().UnixNano())
 
-	mux := provenance.Middleware(provenance.CLIUtilVerifier{})(srv.routes())
+	// These baseline headers apply to every API response, including rejected
+	// provenance and malformed-ingest requests. They are safe on localhost and
+	// prevent accidental weakening when Events is later exposed behind TLS.
+	mux := securityHeaders(provenance.Middleware(provenance.CLIUtilVerifier{})(srv.routes()))
 
 	if err := server.Run(server.Config{
 		Handler:      mux,
@@ -100,6 +104,16 @@ func main() {
 	}); err != nil {
 		log.Fatalf("server: %v", err)
 	}
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Server holds dependencies for HTTP handlers.

@@ -93,7 +93,7 @@
           { "title": "Your flows are your tests", "description": "Run the same workflows in CI as end-to-end tests with replay on every failure.", "icon": "shield-check" },
           { "title": "Replay as a movie", "description": "Share fake-browser recordings with smooth cursor motion, zooms, and highlights; export MP4 for docs or marketing.", "icon": "video" },
           { "title": "UX metrics (coming soon)", "description": "See clicks, duration, and visual zig-zag patterns for every flow to spot friction before users do.", "icon": "activity" },
-          { "title": "Agent upgrades (coming soon)", "description": "Future integrations with ecosystem-manager and PRD control tower to auto-fix regressions.", "icon": "cpu" }
+          { "title": "Agent upgrades (coming soon)", "description": "Future integrations with swarm-manager and PRD control tower to auto-fix regressions.", "icon": "cpu" }
         ]
       }
     },

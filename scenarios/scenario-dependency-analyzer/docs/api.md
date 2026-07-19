@@ -119,8 +119,8 @@ List all scenarios with metadata and last-scan status.
 ```json
 [
   {
-    "name": "ecosystem-manager",
-    "display_name": "Ecosystem Manager",
+    "name": "swarm-manager",
+    "display_name": "Swarm Manager",
     "version": "1.0.0",
     "last_scanned": "2025-01-22T09:30:00Z",
     "resource_count": 5,
@@ -138,7 +138,7 @@ Get detailed information for a specific scenario including declared vs detected 
 **Response**:
 ```json
 {
-  "name": "ecosystem-manager",
+  "name": "swarm-manager",
   "service_config": {...},
   "dependencies": {
     "resources": [...],
@@ -168,7 +168,7 @@ Perform full dependency analysis for a scenario.
 **Response**:
 ```json
 {
-  "scenario": "ecosystem-manager",
+  "scenario": "swarm-manager",
   "resources": [
     {
       "id": "uuid",
@@ -238,7 +238,7 @@ Get full deployment readiness report including recursive DAG, tier fitness, and 
 **Response**:
 ```json
 {
-  "scenario": "ecosystem-manager",
+  "scenario": "swarm-manager",
   "report_version": 1,
   "generated_at": "2025-01-22T10:00:00Z",
   "dependencies": [
@@ -272,7 +272,7 @@ Get full deployment readiness report including recursive DAG, tier fitness, and 
     }
   },
   "bundle_manifest": {
-    "scenario": "ecosystem-manager",
+    "scenario": "swarm-manager",
     "files": [...],
     "dependencies": [...]
   },
@@ -308,7 +308,7 @@ Export the recursive dependency DAG for a scenario.
 **Response**:
 ```json
 {
-  "scenario": "ecosystem-manager",
+  "scenario": "swarm-manager",
   "recursive": true,
   "generated_at": "2025-01-22T10:00:00Z",
   "dag": [
@@ -353,14 +353,14 @@ Generate dependency graph for visualization.
       "type": "resource"
     },
     {
-      "id": "ecosystem-manager",
-      "label": "Ecosystem Manager",
+      "id": "swarm-manager",
+      "label": "Swarm Manager",
       "type": "scenario"
     }
   ],
   "edges": [
     {
-      "source": "ecosystem-manager",
+      "source": "swarm-manager",
       "target": "postgres",
       "label": "requires"
     }
@@ -419,7 +419,7 @@ Calculate scenario centrality over the combined dependency graph.
       "required_reverse_dependency_count": 3,
       "required_edge_weighted_score": 9,
       "distance_to_core_seed": 1,
-      "nearest_core_seed": "ecosystem-manager"
+      "nearest_core_seed": "swarm-manager"
     }
   ]
 }
@@ -444,7 +444,7 @@ Analyze the impact of removing a dependency.
   "total_affected": 23,
   "direct_dependents": [
     {
-      "scenario_name": "ecosystem-manager",
+      "scenario_name": "swarm-manager",
       "required": true,
       "purpose": "Store ecosystem metadata"
     }
@@ -467,7 +467,7 @@ Get optimization recommendations for scenarios.
 **Request Body**:
 ```json
 {
-  "scenario": "ecosystem-manager",
+  "scenario": "swarm-manager",
   "type": "resource",
   "apply": false
 }
@@ -477,7 +477,7 @@ Get optimization recommendations for scenarios.
 ```json
 {
   "results": {
-    "ecosystem-manager": {
+    "swarm-manager": {
       "recommendations": [
         {
           "id": "opt-001",
@@ -511,7 +511,7 @@ Analyze dependencies for a proposed scenario description.
   "name": "ai-chatbot",
   "description": "AI-powered chat with database storage",
   "requirements": ["nlp", "database", "api"],
-  "similar_scenarios": ["ecosystem-manager"]
+  "similar_scenarios": ["swarm-manager"]
 }
 ```
 
@@ -522,7 +522,7 @@ Analyze dependencies for a proposed scenario description.
   "recommended_scenarios": ["data-tools", "api-manager"],
   "similar_patterns": [
     {
-      "scenario": "ecosystem-manager",
+      "scenario": "swarm-manager",
       "similarity_score": 0.78
     }
   ],

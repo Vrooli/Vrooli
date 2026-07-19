@@ -182,7 +182,7 @@ type RunListOptions struct {
 	TaskID                    *uuid.UUID
 	AgentProfileID            *uuid.UUID
 	Status                    *domain.RunStatus
-	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all swarm-manager runs)
 	ScopePrefix               string // Filter runs by the joined task's scope_path prefix (e.g., "scenarios/agent-manager")
 	InvestigatesRunID         *uuid.UUID
 	AppliesInvestigationRunID *uuid.UUID
@@ -3682,22 +3682,29 @@ func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*
 		return &IdentityVerifyResult{Valid: false, Error: err.Error()}, nil
 	}
 
-	// Look up the run by token hash to get current status.
+	// A valid signature alone is insufficient. The token must still be the
+	// active token recorded for the same run and must not have been revoked at
+	// run completion. This turns a signed, time-limited bearer token into a
+	// live run credential rather than a 24-hour post-completion capability.
 	tokenHash := identity.HashToken(token)
 	run, err := o.runs.GetByTokenHash(ctx, tokenHash)
 	if err != nil {
 		return nil, err
 	}
-
-	runStatus := domain.RunStatus("unknown")
-	if run != nil {
-		runStatus = run.Status
+	if run == nil {
+		return &IdentityVerifyResult{Valid: false, Error: "identity token is not active"}, nil
+	}
+	if run.ID != claims.RunID {
+		return &IdentityVerifyResult{Valid: false, Error: "identity token does not match its active run"}, nil
+	}
+	if run.IdentityTokenRevokedAt != nil {
+		return &IdentityVerifyResult{Valid: false, Error: "identity token has been revoked"}, nil
 	}
 
 	return &IdentityVerifyResult{
 		Valid:     true,
 		Claims:    claims,
-		RunStatus: runStatus,
+		RunStatus: run.Status,
 	}, nil
 }
 

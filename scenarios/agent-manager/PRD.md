@@ -5,7 +5,7 @@ Purpose: Central orchestration and governance layer for running AI agents agains
 
 Target users:
 - Developers requiring safe multi-agent codebase operations
-- Vrooli ecosystem scenarios (agent-inbox, app-issue-tracker, ecosystem-manager)
+- Vrooli ecosystem scenarios (agent-inbox, app-issue-tracker, swarm-manager)
 - CI/CD pipeline operators
 
 Deployment surfaces: API, CLI, Web UI

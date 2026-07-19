@@ -41,7 +41,7 @@ const (
 	ErrCodeInvalidParam   = "INVALID_PARAM"
 )
 
-const receiptEventType = "vrooli.receipt.observed.v1"
+const receiptEventType = "vrooli.events.receipt.v1"
 
 // validateReceipt keeps the generic event store safe for the platform receipt
 // projection. Receipts are still ordinary durable events, but their bounded
@@ -51,74 +51,53 @@ func validateReceipt(env *domain.EventEnvelope) *envelopeValidationError {
 	if env.EventType != receiptEventType {
 		return nil
 	}
-	if strings.TrimSpace(env.CorrelationId) == "" {
-		return &envelopeValidationError{Field: "correlationId", Message: "receipt correlationId (verified run id) is required"}
+	if env.Target == nil || strings.TrimSpace(env.Target.Scenario) == "" || strings.TrimSpace(env.Target.Operation) == "" || strings.TrimSpace(env.Target.Protocol) == "" {
+		return &envelopeValidationError{Field: "target", Message: "receipt target scenario, operation, and protocol are required"}
 	}
-	if env.Metadata == nil || strings.TrimSpace(env.Metadata["operation"]) == "" {
-		return &envelopeValidationError{Field: "metadata.operation", Message: "receipt operation is required"}
-	}
-	if strings.TrimSpace(env.Metadata["outcome"]) == "" {
-		return &envelopeValidationError{Field: "metadata.outcome", Message: "receipt outcome is required"}
-	}
-	if projection := env.Metadata["safe_projection"]; len(projection) > 64*1024 {
-		return &envelopeValidationError{Field: "metadata.safe_projection", Message: "receipt safe projection exceeds 64KiB"}
+	if env.Data == nil || !strings.HasSuffix(env.Data.TypeUrl, "/vrooli.events.v1.domain.ReceiptData") {
+		return &envelopeValidationError{Field: "data", Message: "receipt data must pack ReceiptData"}
 	}
 	return nil
 }
 
-// validateReceiptProjection ensures a verified producer cannot bypass the
-// centrally declared receipt allow-list by placing arbitrary values in
-// safe_projection. The service, not scenario code, remains the authority.
-func (s *Server) validateReceiptProjection(ctx context.Context, env *domain.EventEnvelope) *envelopeValidationError {
+// applyReceiptProvenance makes Agent Manager run attribution optional but
+// authoritative when present. Receipt bodies never establish agent ownership:
+// only verified token claims can do that.
+func applyReceiptProvenance(env *domain.EventEnvelope, p provenance.Provenance) *envelopeValidationError {
 	if env.EventType != receiptEventType {
 		return nil
 	}
-	rule, err := s.policyStore.MatchReceiptProjection(ctx, env.SourceScenario, env.TargetScenario, env.Metadata["operation"])
-	if err != nil {
-		return &envelopeValidationError{Field: "receipt_projection", Message: "failed to evaluate receipt projection policy"}
+	if p.VerificationStatus == provenance.VerificationInvalid {
+		return &envelopeValidationError{Field: "identity", Message: "supplied Agent Manager identity token is invalid or expired"}
 	}
-	if rule == nil {
-		return &envelopeValidationError{Field: "receipt_projection", Message: "no approved receipt projection rule matches this operation"}
+	if p.VerificationStatus == provenance.VerificationUnavailable {
+		return &envelopeValidationError{Field: "identity", Message: "supplied Agent Manager identity token could not be verified"}
 	}
-	if rule.SamplePerTenK == 0 || (rule.SamplePerTenK < 10000 && receiptSample(env.EventId) >= rule.SamplePerTenK) {
-		return &envelopeValidationError{Field: "receipt_projection", Message: "receipt excluded by projection sampling policy"}
-	}
-	retentionDays, err := strconv.Atoi(env.Metadata["retention_days"])
-	if err != nil || retentionDays != rule.RetentionDays {
-		return &envelopeValidationError{Field: "metadata.retention_days", Message: "receipt retention must match the approved projection policy"}
-	}
-	projection := env.Metadata["safe_projection"]
-	if len(projection) > rule.MaxBytes {
-		return &envelopeValidationError{Field: "metadata.safe_projection", Message: "receipt safe projection exceeds approved policy limit"}
-	}
-	if projection == "" {
+	if !p.IsVerifiedAgent() {
+		if env.Attribution != nil || (env.Correlation != nil && (strings.TrimSpace(env.Correlation.AgentRunId) != "" || strings.TrimSpace(env.Correlation.TaskId) != "" || strings.TrimSpace(env.Correlation.WorkflowExecutionId) != "" || strings.TrimSpace(env.Correlation.WorkflowNodeId) != "" || env.Correlation.Attempt != 0)) {
+			return &envelopeValidationError{Field: "attribution", Message: "agent attribution requires verified Agent Manager identity"}
+		}
 		return nil
 	}
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(projection), &fields); err != nil {
-		return &envelopeValidationError{Field: "metadata.safe_projection", Message: "receipt safe projection must be a JSON object"}
+	if strings.TrimSpace(p.ProfileKey) == "" {
+		return &envelopeValidationError{Field: "identity", Message: "verified Agent Manager identity has no agent profile"}
 	}
-	allowed := make(map[string]bool, len(rule.ResponseFields))
-	for _, field := range rule.ResponseFields {
-		allowed[field] = true
+	if env.Correlation != nil && strings.TrimSpace(env.Correlation.AgentRunId) != "" && env.Correlation.AgentRunId != p.RunID {
+		return &envelopeValidationError{Field: "correlation.agentRunId", Message: "receipt run correlation does not match verified Agent Manager identity"}
 	}
-	for _, field := range rule.RedactFields {
-		delete(allowed, field)
+	if env.Attribution != nil && (env.Attribution.SubjectId != p.ProfileKey || env.Attribution.SubjectKind != "agent" || !env.Attribution.Verified) {
+		return &envelopeValidationError{Field: "attribution", Message: "receipt attribution does not match verified Agent Manager identity"}
 	}
-	for field := range fields {
-		if !allowed[field] {
-			return &envelopeValidationError{Field: "metadata.safe_projection", Message: "receipt safe projection contains a field not approved by policy"}
-		}
+	if env.Correlation == nil {
+		env.Correlation = &domain.EventCorrelation{}
 	}
+	env.Correlation.AgentRunId = p.RunID
+	env.Correlation.TaskId = p.TaskID
+	env.Correlation.WorkflowExecutionId = p.WorkflowExecutionID
+	env.Correlation.WorkflowNodeId = p.WorkflowNodeID
+	env.Correlation.Attempt = p.Attempt
+	env.Attribution = &domain.EventAttribution{SubjectKind: "agent", SubjectId: p.ProfileKey, Verified: true}
 	return nil
-}
-
-func receiptSample(eventID string) int {
-	var sum uint32 = 2166136261
-	for i := 0; i < len(eventID); i++ {
-		sum = (sum ^ uint32(eventID[i])) * 16777619
-	}
-	return int(sum % 10000)
 }
 
 // envelopeValidationError describes a missing or invalid field in an inbound EventEnvelope.
@@ -139,7 +118,12 @@ func validateEnvelope(env *domain.EventEnvelope) *envelopeValidationError {
 	}{
 		{env.EventId, "eventId", "eventId is required"},
 		{env.EventType, "eventType", "eventType is required"},
-		{env.SourceScenario, "sourceScenario", "sourceScenario is required"},
+		{func() string {
+			if env.Source != nil {
+				return env.Source.Scenario
+			}
+			return ""
+		}(), "source.scenario", "source scenario is required"},
 	}
 	for _, r := range rules {
 		if r.value == "" {
@@ -164,6 +148,13 @@ func parseQueryFilters(q map[string][]string) (store.QueryFilters, *paramError) 
 		Source:        get("source"),
 		Target:        get("target"),
 		CorrelationID: get("correlation_id"),
+	}
+	// agent_run_id is the canonical receipt correlation query. The storage
+	// index intentionally reuses the correlation column for this one universal
+	// high-cardinality key; richer correlation coordinates are filtered from the
+	// canonical envelope below.
+	if runID := get("agent_run_id"); runID != "" {
+		filters.CorrelationID = runID
 	}
 
 	if v := get("since"); v != "" {
@@ -218,14 +209,12 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, ErrCodeMissingField, ve.Message)
 		return
 	}
-	if env.EventType == receiptEventType && !provenance.FromContext(r.Context()).IsVerifiedAgent() {
-		p := provenance.FromContext(r.Context())
-		log.Printf("rejected receipt without verified Agent Manager provenance: actor=%s verification=%s", p.Actor, p.VerificationStatus)
-		writeError(w, http.StatusUnauthorized, ErrCodeValidation, "receipt run correlation requires verified Agent Manager identity")
-		return
-	}
-	if ve := s.validateReceiptProjection(r.Context(), &env); ve != nil {
-		writeError(w, http.StatusBadRequest, ErrCodeValidation, ve.Message)
+	if ve := applyReceiptProvenance(&env, provenance.FromContext(r.Context())); ve != nil {
+		status := http.StatusBadRequest
+		if ve.Field == "identity" {
+			status = http.StatusUnauthorized
+		}
+		writeError(w, status, ErrCodeValidation, ve.Message)
 		return
 	}
 
@@ -234,21 +223,14 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, ErrCodeConversion, err.Error())
 		return
 	}
-	if env.EventType == receiptEventType {
-		retentionDays, _ := strconv.Atoi(env.Metadata["retention_days"])
-		if retentionDays > 0 {
-			expiresAt := time.Now().UTC().Add(time.Duration(retentionDays) * 24 * time.Hour)
-			event.ExpiresAt = &expiresAt
-		}
-	}
 
 	// Dry-run: full validation passes, but skip persistence and broadcast.
 	if isDryRun(r) {
 		writeJSON(w, 0, map[string]any{
-			"dry_run":        true,
-			"eventId":        env.EventId,
-			"eventType":      env.EventType,
-			"sourceScenario": env.SourceScenario,
+			"dry_run":    true,
+			"event_id":   env.EventId,
+			"event_type": env.EventType,
+			"source":     env.GetSource(),
 		})
 		return
 	}
@@ -299,7 +281,32 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeEventList(w, events)
+	writeEventList(w, filterCanonicalEvents(events, r.URL.Query()))
+}
+
+func filterCanonicalEvents(events []store.Event, query map[string][]string) []store.Event {
+	get := func(key string) string {
+		if values := query[key]; len(values) > 0 {
+			return values[0]
+		}
+		return ""
+	}
+	workflow, node, task := get("workflow_execution_id"), get("workflow_node_id"), get("task_id")
+	if workflow == "" && node == "" && task == "" {
+		return events
+	}
+	filtered := make([]store.Event, 0, len(events))
+	for _, event := range events {
+		env, err := convert.EventToEnvelope(event)
+		if err != nil {
+			continue
+		}
+		correlation := env.GetCorrelation()
+		if (workflow == "" || correlation.GetWorkflowExecutionId() == workflow) && (node == "" || correlation.GetWorkflowNodeId() == node) && (task == "" || correlation.GetTaskId() == task) {
+			filtered = append(filtered, event)
+		}
+	}
+	return filtered
 }
 
 // writeEventList serializes a slice of store.Event as a JSON array of proto EventEnvelopes.

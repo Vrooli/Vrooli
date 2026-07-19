@@ -1,75 +1,79 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
-	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const validReceiptBody = `{"eventId":"receipt-provenance-1","sourceScenario":"agent-manager","targetScenario":"plan-manager","eventType":"vrooli.receipt.observed.v1","correlationId":"run-1","metadata":{"operation":"plans.create","outcome":"success","retention_days":"30"}}`
-
-// REQ: a receipt may be stored only after the production provenance boundary
-// verifies an Agent Manager token with a run claim.
-func TestReceiptIngestionRequiresVerifiedProvenance(t *testing.T) {
-	s, _ := newTestServer(t)
-	if _, err := s.policyStore.CreateReceiptProjection(t.Context(), policy.ReceiptProjectionRule{
-		SourceScenario: "agent-manager", TargetScenario: "plan-manager", OperationPattern: "plans.create",
-		ResponseFields: []string{"plan_id"}, MaxBytes: 1024, SamplePerTenK: 10000, RetentionDays: 30, Enabled: true,
-	}); err != nil {
-		t.Fatalf("create receipt projection: %v", err)
+func canonicalReceiptBody(t *testing.T, attributed bool) []byte {
+	t.Helper()
+	projection, err := structpb.NewStruct(map[string]any{"plan.id": "plan-1"})
+	if err != nil {
+		t.Fatal(err)
 	}
+	data, err := anypb.New(&domain.ReceiptData{Outcome: "success", StatusCode: 201, Projection: projection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventID := "receipt-provenance-anonymous"
+	if attributed {
+		eventID = "receipt-provenance-agent"
+	}
+	env := &domain.EventEnvelope{EventId: eventID, EventType: receiptEventType, OccurredAt: timestamppb.Now(), Source: &domain.EventSource{Scenario: "plan-manager", ActorKind: "system"}, Target: &domain.EventTarget{Scenario: "plan-manager", Operation: "POST /plans/CreatePlan", Protocol: "connect"}, Data: data}
+	if attributed {
+		env.Correlation = &domain.EventCorrelation{AgentRunId: "run-1"}
+		env.Attribution = &domain.EventAttribution{SubjectKind: "agent", SubjectId: "agent-1", Verified: true}
+	}
+	body, err := protojson.Marshal(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return body
+}
+
+func TestReceiptIngestionAllowsAnonymousAndVerifiesSuppliedAgentIdentity(t *testing.T) {
+	s, _ := newTestServer(t)
 	handler := provenance.Middleware(provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
 		if token != "valid" {
 			return &cliutil.VerifyResult{Valid: false}, nil
 		}
-		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: "run-1"}}, nil
+		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: "run-1", ProfileKey: "agent-1"}}, nil
 	}))(s.routes())
-
 	for _, tc := range []struct {
-		name  string
-		token string
-		want  int
-	}{
-		{name: "absent identity", want: http.StatusUnauthorized},
-		{name: "invalid identity", token: "invalid", want: http.StatusUnauthorized},
-		{name: "verified identity", token: "valid", want: http.StatusAccepted},
-	} {
+		name, token string
+		attributed  bool
+		want        int
+	}{{name: "absent", want: http.StatusAccepted}, {name: "invalid", token: "invalid", want: http.StatusUnauthorized}, {name: "verified", token: "valid", attributed: true, want: http.StatusAccepted}} {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/events", strings.NewReader(validReceiptBody))
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/events", bytes.NewReader(canonicalReceiptBody(t, tc.attributed)))
 			if tc.token != "" {
 				req.Header.Set(cliutil.HeaderAgentIdentityToken, tc.token)
 			}
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
 			if rec.Code != tc.want {
-				t.Fatalf("status = %d, want %d: %s", rec.Code, tc.want, rec.Body.String())
+				t.Fatalf("status=%d want=%d: %s", rec.Code, tc.want, rec.Body.String())
 			}
 		})
 	}
 }
 
-func TestVerifiedReceiptRejectsProjectionOutsideCentralAllowList(t *testing.T) {
+func TestReceiptIngestionRejectsUnverifiedClaimedAgentAttribution(t *testing.T) {
 	s, _ := newTestServer(t)
-	if _, err := s.policyStore.CreateReceiptProjection(t.Context(), policy.ReceiptProjectionRule{
-		SourceScenario: "agent-manager", TargetScenario: "plan-manager", OperationPattern: "plans.create",
-		ResponseFields: []string{"plan_id"}, MaxBytes: 1024, SamplePerTenK: 10000, RetentionDays: 30, Enabled: true,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	handler := provenance.Middleware(provenance.VerifierFunc(func(string) (*cliutil.VerifyResult, error) {
-		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: "run-1"}}, nil
-	}))(s.routes())
-	body := strings.Replace(validReceiptBody, `"outcome":"success"`, `"outcome":"success","safe_projection":"{\"unapproved\":true}"`, 1)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/events", strings.NewReader(body))
-	req.Header.Set(cliutil.HeaderAgentIdentityToken, "valid")
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/events", bytes.NewReader(canonicalReceiptBody(t, true)))
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
+	s.handleIngest(rec, req)
 	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+		t.Fatalf("status=%d want=%d: %s", rec.Code, http.StatusBadRequest, rec.Body.String())
 	}
 }

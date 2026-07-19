@@ -185,10 +185,8 @@ corpus) rather than shipped unexercised.
      **inherited preexisting `standards`** failure remains (the scenario-wide
      react-vite scaffolding campaign, NOT from Gate 7).
    - **test-genie** `baseline diff measures-p4`: ✓ clean (EXIT 0; 1 unit cleared).
-   - **ecosystem-manager** `baseline diff measures-p4`: EXIT 0 but flags a
      **visuals regression** ("page no longer captured: /") + inherited
      preexisting standards/playbooks. **NOT attributable to Gate 7** — Gate 7
-     modified zero files under `scenarios/ecosystem-manager`; the EM working tree
      is being live-churned by its own autosteer/heartbeat loop concurrent with
      this work (the make-test log showed "heartbeat supervised lease batch", and
      the diff reports +3 commits / 660+ files / dirty tree since the 13:43
@@ -216,7 +214,6 @@ dimension at soft R4.
 `api/handlers/validation/`, `cli/domains/validate/`,
 `packages/proto/schemas/measures-health/v1/validation/`; producer:
 `scenarios/test-genie/api/internal/orchestrator/phases/phase_measures.go`,
-`scenarios/ecosystem-manager/api/pkg/{dimensions,ladder}/`.
 
 ### 2026-06-08 — broad `packages/proto/gen` regen churn
 

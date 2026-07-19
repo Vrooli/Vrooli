@@ -38,7 +38,7 @@ What a scenario *does for the ecosystem*, ordered by **multiplicative effect** (
 
 | Role | Multiplier | What it does | Examples |
 |---|---|---|---|
-| **Meta / self-improvement** | Highest | Improves Vrooli's own ability to engineer, test, deploy, monetize, and maintain itself | `swarm-manager`, `test-genie`, `prompt-manager`, `ecosystem-manager`, the `*-health` scenarios |
+| **Meta / self-improvement** | Highest | Improves Vrooli's own ability to engineer, test, deploy, monetize, and maintain itself | `swarm-manager`, `test-genie`, `prompt-manager`, the `*-health` scenarios |
 | **Interface enabler** | High | Makes one of the interfaces below possible or better | `audio-tools`, `agent-inbox`, `tunnel-manager`, `app-monitor`, `cli-health`, `ui-health` |
 | **External integration / connector** | Medium | Bridges Vrooli to outside services and hardware — extends *reach* | `browser-automation-studio`, home-automation, IoT, Slack/GitHub connectors |
 | **Product / personal / monetization** | Low (meta) | Delivers standalone value or revenue — the economic point of the whole thing | finance, health, nutrition, lifestyle apps |

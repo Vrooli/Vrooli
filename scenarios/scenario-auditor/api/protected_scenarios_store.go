@@ -12,7 +12,7 @@ import (
 
 // ProtectedScenariosStore manages a persistent list of scenarios that should be
 // excluded by default from rule testing operations.
-// This allows users to protect critical scenarios (like ecosystem-manager)
+// This allows users to protect critical scenarios (like swarm-manager)
 // from being modified during bulk operations.
 type ProtectedScenariosStore struct {
 	mu               sync.RWMutex

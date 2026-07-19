@@ -64,7 +64,7 @@ func TestPruneHonorsReceiptSpecificExpiry(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = s.Close() })
 	expires := now.Add(-time.Minute)
-	event := makeEvent("receipt-expired", "vrooli.receipt.observed.v1", "agent-manager")
+	event := makeEvent("receipt-expired", "vrooli.events.receipt.v1", "agent-manager")
 	event.ExpiresAt = &expires
 	if _, err := s.Insert(context.Background(), event); err != nil {
 		t.Fatal(err)

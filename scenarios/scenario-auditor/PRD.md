@@ -315,7 +315,7 @@ scenario-auditor scan scenario-auditor  # 1368 violations, 189 files, ~21s
 
 ---
 
-### 2025-10-11 16:10: Final Ecosystem Manager Validation - No Action Required
+### 2025-10-11 16:10: Final Swarm Manager Validation - No Action Required
 **Analysis**: Complete validation pass confirms scenario-auditor requires no improvements
 
 **Validation Performed**:
@@ -341,7 +341,7 @@ scenario-auditor scan scenario-auditor  # 1368 violations, 189 files, ~21s
 ---
 
 ### 2025-10-11 15:50: Comprehensive Re-Validation Confirms Production Readiness
-**Issue**: Ecosystem manager requested thorough validation pass to confirm scenario completion
+**Issue**: Swarm Manager requested thorough validation pass to confirm scenario completion
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -382,8 +382,8 @@ scenario-auditor health
 
 ---
 
-### 2025-10-11 15:33: Routine Validation and Documentation Update (Ecosystem Manager)
-**Issue**: Ecosystem manager requested validation pass with documentation updates
+### 2025-10-11 15:33: Routine Validation and Documentation Update (Swarm Manager)
+**Issue**: Swarm Manager requested validation pass with documentation updates
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -425,8 +425,8 @@ curl -X POST http://localhost:18507/api/v1/standards/check/scenario-auditor
 
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
-### 2025-10-05 20:13: Production Stability Verification (Ecosystem Manager)
-**Issue**: Ecosystem manager requested validation pass with focus on stability and code quality
+### 2025-10-05 20:13: Production Stability Verification (Swarm Manager)
+**Issue**: Swarm Manager requested validation pass with focus on stability and code quality
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -480,8 +480,8 @@ scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 
 **Production Impact**: ✅ **VALIDATED + STABLE** - No changes needed, code quality verified
 
-### 2025-10-05 20:06: Final Production Validation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested final validation and tidying pass
+### 2025-10-05 20:06: Final Production Validation (Swarm Manager)
+**Issue**: Swarm Manager requested final validation and tidying pass
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -527,8 +527,8 @@ scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
-### 2025-10-05 19:58: Production Readiness Validation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested validation and tidying pass
+### 2025-10-05 19:58: Production Readiness Validation (Swarm Manager)
+**Issue**: Swarm Manager requested validation and tidying pass
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -572,8 +572,8 @@ scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
-### 2025-10-05 19:49: Documentation Tidying and Final Validation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested final tidying and validation pass
+### 2025-10-05 19:49: Documentation Tidying and Final Validation (Swarm Manager)
+**Issue**: Swarm Manager requested final tidying and validation pass
 
 **Actions Performed**:
 - ✅ **Documentation Cleanup**: Removed obsolete documentation files
@@ -613,8 +613,8 @@ make test
 
 **Production Impact**: ✅ **TIDIED** - Cleaner documentation structure, no functional changes
 
-### 2025-10-05 19:34: Production Readiness Final Confirmation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested final validation pass and production readiness confirmation
+### 2025-10-05 19:34: Production Readiness Final Confirmation (Swarm Manager)
+**Issue**: Swarm Manager requested final validation pass and production readiness confirmation
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -659,8 +659,8 @@ scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
-### 2025-10-05 19:28: Final Tidying and Production Validation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested final tidying pass and production readiness confirmation
+### 2025-10-05 19:28: Final Tidying and Production Validation (Swarm Manager)
+**Issue**: Swarm Manager requested final tidying pass and production readiness confirmation
 
 **Validation Performed**:
 - ✅ **Service Health**: Clean restart confirmed both API and UI healthy
@@ -704,8 +704,8 @@ scenario-auditor rules | jq '{total: .categories | to_entries | map(.value | len
 
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
-### 2025-10-05 19:15: Final Production Validation (Ecosystem Manager)
-**Issue**: Ecosystem manager requested final tidying pass and production readiness confirmation
+### 2025-10-05 19:15: Final Production Validation (Swarm Manager)
+**Issue**: Swarm Manager requested final tidying pass and production readiness confirmation
 
 **Validation Performed**:
 - ✅ **All Test Suites**: 6/6 test phases passing (100% pass rate)
@@ -748,7 +748,7 @@ scenario-auditor health
 **Production Impact**: ✅ **VALIDATED** - No changes needed, scenario fully operational
 
 ### 2025-10-05 19:04: Production Readiness Re-Validation
-**Issue**: Ecosystem manager validation pass to confirm production readiness
+**Issue**: Swarm Manager validation pass to confirm production readiness
 
 **Validation Performed**:
 - ✅ **All Test Suites**: 6/6 test phases passing (100% pass rate)
@@ -1034,8 +1034,8 @@ curl http://localhost:36224/health | jq '{status, readiness}'         # healthy,
 
 **Production Impact**: ✅ **IMPROVEMENT** - Test infrastructure more reliable, no production functionality affected
 
-### 2025-10-05 15:28: Ecosystem Manager Re-Validation - Production Ready Confirmed
-**Analysis**: Complete ecosystem manager validation confirms scenario-auditor is production-ready with all systems operational
+### 2025-10-05 15:28: Swarm Manager Re-Validation - Production Ready Confirmed
+**Analysis**: Complete Swarm Manager validation confirms scenario-auditor is production-ready with all systems operational
 
 **Validation Performed**:
 - ✅ **All Test Suites Passing**: Structure, dependencies, unit (75.4% rules coverage), integration, business
@@ -1143,7 +1143,7 @@ scenario-auditor scan scenario-auditor
 
 **Production Impact**: ✅ **MAJOR IMPROVEMENT** - Rule validation system now accurately reflects implementation quality
 
-### 2025-10-05 14:30: Ecosystem Manager Validation Pass - Production Ready Confirmed
+### 2025-10-05 14:30: Swarm Manager Validation Pass - Production Ready Confirmed
 **Analysis**: Complete validation pass confirms scenario-auditor remains production-ready with all systems operational
 
 **Validation Performed**:
@@ -1168,7 +1168,7 @@ scenario-auditor scan scenario-auditor
 3. **Known Issue**: API process occasionally requires restart after initial launch (non-blocking, documented in PROBLEMS.md)
 
 ### 2025-10-05: Comprehensive Validation and Production Readiness Confirmation
-**Analysis**: Full ecosystem manager validation confirms scenario-auditor is production-ready with all systems operational
+**Analysis**: Full Swarm Manager validation confirms scenario-auditor is production-ready with all systems operational
 
 **Validation Performed**:
 - ✅ **All Test Phases Passing**: structure, dependencies, unit (75.4% rules coverage), integration tests
@@ -1314,7 +1314,7 @@ scenario-auditor standards scan scenario-auditor --wait
 **Issue**: CLI unable to connect to API due to conflicting `API_PORT` environment variable from other scenarios
 
 **Root Cause**:
-- Generic `API_PORT` environment variable set globally (e.g., 17364 from ecosystem-manager)
+- Generic `API_PORT` environment variable set globally (e.g., 17364 from swarm-manager)
 - CLI prioritized generic `API_PORT` over scenario-specific port
 - No auto-detection of actual running process port
 - CLI reported "API is not running" even when scenario-auditor was active on port 18507

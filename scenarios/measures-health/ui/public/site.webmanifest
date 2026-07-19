@@ -1,7 +1,7 @@
 {
   "name": "Measures Health",
   "short_name": "measures-health",
-  "description": "Validates and grades scenario adoption of the Measures federated metrics layer; hosts the central measures index and the single registered search-hub measures provider; feeds the Ecosystem Manager maturity ladder.",
+  "description": "Validates and grades scenario adoption of the Measures federated metrics layer; hosts the central measures index and the single registered search-hub measures provider; feeds the Swarm Manager maturity ladder.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

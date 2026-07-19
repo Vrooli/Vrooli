@@ -345,13 +345,13 @@
             "expect_within_top_k": 5
           },
           {
-            "id": "ecosystem-manager-depends",
-            "query": "what does ecosystem-manager depend on",
+            "id": "swarm-manager-depends",
+            "query": "what does swarm-manager depend on",
             "tags": [
               "weak-real"
             ],
             "expect_ids": [
-              "ecosystem-manager"
+              "swarm-manager"
             ],
             "expect_within_top_k": 5
           },

@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/floorengagement"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/privilegebroker"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -33,6 +34,12 @@ var (
 type globalOptions = rootcli.GlobalOptions
 
 func main() {
+	// This internal-only service entry point is reached by the root-owned
+	// systemd unit installed by `sudo vrooli setup`. It is intentionally
+	// handled before normal CLI initialization and accepts no general command.
+	if len(os.Args) > 1 && os.Args[1] == "__privilege-broker" {
+		os.Exit(privilegebroker.RunServiceCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 	installEngagementResolver(os.Stderr)
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }

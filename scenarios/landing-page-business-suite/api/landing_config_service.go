@@ -87,7 +87,7 @@ var (
 						},
 						{
 							"title": "Agent loops on deck",
-							"description": "Next up: ecosystem-manager + PRD control tower so agents can improve flows and enforce requirements.",
+							"description": "Next up: swarm-manager + PRD control tower so agents can improve flows and enforce requirements.",
 							"icon": "target"
 						}
 					]
@@ -187,7 +187,7 @@ var (
 						},
 						{
 							"question": "What is coming next?",
-							"answer": "UX metrics layer (friction, duration, spatial paths) and agent loops that fix flows via ecosystem-manager + PRD control tower."
+							"answer": "UX metrics layer (friction, duration, spatial paths) and agent loops that fix flows via swarm-manager + PRD control tower."
 						},
 						{
 							"question": "Do I have to talk to sales?",

@@ -1783,9 +1783,9 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeProtoJSON(w, http.StatusOK, &apipb.GetRunResponse{
-		Run: protoconv.RunToProto(run),
-	})
+	pbRun := protoconv.RunToProto(run)
+	h.attachObservedReceipts(r.Context(), id.String(), pbRun.Result)
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRunResponse{Run: pbRun})
 }
 
 // ListRuns returns all runs, with optional filtering.
@@ -1793,7 +1793,7 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 //   - status: Filter by run status (e.g., "running", "pending", "complete")
 //   - taskId: Filter by task ID
 //   - profileId: Filter by agent profile ID
-//   - tagPrefix: Filter by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+//   - tagPrefix: Filter by tag prefix (e.g., "ecosystem-" to get all swarm-manager runs)
 //   - investigates_run_id: Filter investigation runs linked to a source run ID
 //   - applies_investigation_run_id: Filter apply runs linked to an investigation run ID
 func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {

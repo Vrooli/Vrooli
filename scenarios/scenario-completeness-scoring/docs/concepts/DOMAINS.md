@@ -83,7 +83,7 @@ exit criterion); only health plus real product domains remain.
   set), classification bands, recommendation/action-plan generation,
   snapshot persistence, trend/fleet read models, and the assembled response.
 - Does not own: raw artifact decoding (signals), digest/verdict logic
-  (freshness), live maturity state (ecosystem-manager computes its own rungs
+  (freshness), live maturity state (swarm-manager computes its own rungs
   in-process on live findings; this domain labels its rung "as of digest
   td:…").
 - API: `api/handlers/scoring/`, `api/handlers/measures/`; CLI:

@@ -51,13 +51,13 @@ scenario-dependency-analyzer --version
 scenario-dependency-analyzer status
 
 # Analyze a scenario's dependencies
-scenario-dependency-analyzer analyze ecosystem-manager
+scenario-dependency-analyzer analyze swarm-manager
 
 # Scan and detect dependencies from code
-scenario-dependency-analyzer scan ecosystem-manager
+scenario-dependency-analyzer scan swarm-manager
 
 # Export recursive dependency DAG
-scenario-dependency-analyzer dag export ecosystem-manager --recursive
+scenario-dependency-analyzer dag export swarm-manager --recursive
 
 # Generate dependency graph
 scenario-dependency-analyzer graph combined --format json
@@ -66,16 +66,16 @@ scenario-dependency-analyzer graph combined --format json
 scenario-dependency-analyzer graph actual --json
 
 # Report declared-vs-actual drift
-scenario-dependency-analyzer drift ecosystem-manager --json
+scenario-dependency-analyzer drift swarm-manager --json
 
 # Validate dependency health through the Test Genie producer contract
-scenario-dependency-analyzer health ecosystem-manager --json
+scenario-dependency-analyzer health swarm-manager --json
 
 # Search approved dependency governance memory
 scenario-dependency-analyzer deps approved search "React graph library" --json
 
 # Check deployment readiness
-scenario-dependency-analyzer deployment ecosystem-manager
+scenario-dependency-analyzer deployment swarm-manager
 ```
 
 ---
@@ -103,7 +103,7 @@ scenario-dependency-analyzer analyze <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # Analyze a single scenario
-scenario-dependency-analyzer analyze ecosystem-manager
+scenario-dependency-analyzer analyze swarm-manager
 
 # Analyze with transitive dependencies
 scenario-dependency-analyzer analyze api-manager --transitive
@@ -117,7 +117,7 @@ scenario-dependency-analyzer analyze chart-generator --verbose
 
 **Output:**
 ```
-🔍 Analyzing dependencies for: ecosystem-manager
+🔍 Analyzing dependencies for: swarm-manager
 ✅ Analysis complete
 
 📊 Dependency Summary:
@@ -149,7 +149,7 @@ scenario-dependency-analyzer scan <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # Scan without applying changes
-scenario-dependency-analyzer scan ecosystem-manager
+scenario-dependency-analyzer scan swarm-manager
 
 # Scan and apply all detected dependencies
 scenario-dependency-analyzer scan api-tools --apply
@@ -163,12 +163,12 @@ scenario-dependency-analyzer scan my-scenario --json
 
 **Output:**
 ```
-🛰️  Scanning scenario: ecosystem-manager
+🛰️  Scanning scenario: swarm-manager
 ✅ Scan complete
   Applied changes: true
   Resources added: 2
   Scenarios added: 1
-  Tip: run 'git diff scenarios/ecosystem-manager/.vrooli/service.json' to review
+  Tip: run 'git diff scenarios/swarm-manager/.vrooli/service.json' to review
 ```
 
 ---
@@ -197,7 +197,7 @@ scenario-dependency-analyzer dag export <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # Export full recursive DAG
-scenario-dependency-analyzer dag export ecosystem-manager
+scenario-dependency-analyzer dag export swarm-manager
 
 # Export only top-level dependencies
 scenario-dependency-analyzer dag export api-manager --no-recursive
@@ -211,7 +211,7 @@ scenario-dependency-analyzer dag export chart-gen --json
 
 **Output:**
 ```
-📊 Exporting DAG for: ecosystem-manager (recursive=true)
+📊 Exporting DAG for: swarm-manager (recursive=true)
 ✅ DAG exported
 
 Dependency Tree:
@@ -263,7 +263,7 @@ scenario-dependency-analyzer graph scenario --format mermaid
 # Save JSON to file
 scenario-dependency-analyzer graph --type combined --output graph.json
 
-# Rank scenario centrality for ecosystem-manager scheduling inputs
+# Rank scenario centrality for swarm-manager scheduling inputs
 scenario-dependency-analyzer graph centrality
 
 # Read one scenario's centrality as JSON
@@ -276,8 +276,8 @@ digraph Dependencies {
   rankdir=LR;
   node [shape=box];
   postgres [label="postgres"];
-  ecosystem-manager [label="ecosystem-manager"];
-  ecosystem-manager -> postgres [label="requires"];
+  swarm-manager [label="swarm-manager"];
+  swarm-manager -> postgres [label="requires"];
 }
 ```
 
@@ -293,7 +293,7 @@ dot -Tsvg deps.dot | open -f -a Safari
 **Centrality output:**
 `graph centrality` reports each scenario's direct and transitive reverse
 dependency counts, required-edge weighted score, and distance to the nearest
-core seed. Ecosystem Manager consumes this as one input to derived scenario
+core seed. Swarm Manager consumes this as one input to derived scenario
 importance.
 
 **Actual graph output:**
@@ -394,7 +394,7 @@ scenario-dependency-analyzer impact <dependency> [OPTIONS]
 scenario-dependency-analyzer impact postgres
 
 # Analyze scenario dependency impact
-scenario-dependency-analyzer impact ecosystem-manager --json
+scenario-dependency-analyzer impact swarm-manager --json
 ```
 
 **Output:**
@@ -405,7 +405,7 @@ scenario-dependency-analyzer impact ecosystem-manager --json
 Removing postgres would break 12 scenarios and affect 25 indirect dependents.
 
 Direct Dependents:
-  - ecosystem-manager (REQUIRED)
+  - swarm-manager (REQUIRED)
     Purpose: Store dependency metadata and analysis results
   - api-manager (REQUIRED)
     Purpose: Main data storage for API configurations
@@ -452,7 +452,7 @@ scenario-dependency-analyzer propose \
 scenario-dependency-analyzer propose \
   --name "task-scheduler" \
   --requirements "cron,database" \
-  --similar "ecosystem-manager,system-monitor"
+  --similar "swarm-manager,system-monitor"
 
 # Get JSON output
 scenario-dependency-analyzer propose \
@@ -473,7 +473,7 @@ Resources:
   - redis
 
 Related Scenarios:
-  - ecosystem-manager
+  - swarm-manager
   - api-manager
 ```
 
@@ -499,7 +499,7 @@ scenario-dependency-analyzer optimize [scenario] [OPTIONS]
 **Examples:**
 ```bash
 # Get optimization recommendations
-scenario-dependency-analyzer optimize ecosystem-manager
+scenario-dependency-analyzer optimize swarm-manager
 
 # Optimize all scenarios
 scenario-dependency-analyzer optimize all --type resource
@@ -513,9 +513,9 @@ scenario-dependency-analyzer optimize chart-gen --json
 
 **Output:**
 ```
-🔧 Getting optimization recommendations for: ecosystem-manager
+🔧 Getting optimization recommendations for: swarm-manager
 
-Scenario: ecosystem-manager
+Scenario: swarm-manager
   Recommendations: 3
   High priority: 1
     - [resource_swap] Consider lightweight AI alternative
@@ -549,7 +549,7 @@ scenario-dependency-analyzer list <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # List all dependencies
-scenario-dependency-analyzer list ecosystem-manager
+scenario-dependency-analyzer list swarm-manager
 
 # List only resources
 scenario-dependency-analyzer list api-manager --type resources
@@ -560,8 +560,8 @@ scenario-dependency-analyzer list chart-gen --json
 
 **Output:**
 ```
-📋 Fetching dependencies for: ecosystem-manager
-✅ Dependencies for ecosystem-manager:
+📋 Fetching dependencies for: swarm-manager
+✅ Dependencies for swarm-manager:
 
 resource:
   - postgres (required)
@@ -594,7 +594,7 @@ scenario-dependency-analyzer deployment <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # Check deployment readiness
-scenario-dependency-analyzer deployment ecosystem-manager
+scenario-dependency-analyzer deployment swarm-manager
 
 # Get JSON report
 scenario-dependency-analyzer deployment api-tools --json
@@ -602,8 +602,8 @@ scenario-dependency-analyzer deployment api-tools --json
 
 **Output:**
 ```
-🛰️  Loading deployment report for: ecosystem-manager
-Scenario: ecosystem-manager
+🛰️  Loading deployment report for: swarm-manager
+Scenario: swarm-manager
 Generated: 2025-11-22T17:30:00Z
 
 Tier readiness:
@@ -619,7 +619,7 @@ Bundle dependencies:
   - scenario :: data-tools (tiers: desktop, server, saas, mobile)
 
 Bundle files:
-  - binary: api/ecosystem-manager-api (present)
+  - binary: api/swarm-manager-api (present)
   - config: .vrooli/service.json (present)
   - schema: initialization/postgres/schema.sql (present)
 ```
@@ -650,15 +650,15 @@ scenario-dependency-analyzer health <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # Human-readable dependency health summary
-scenario-dependency-analyzer health ecosystem-manager
+scenario-dependency-analyzer health swarm-manager
 
 # Get machine-readable producer output
-scenario-dependency-analyzer health ecosystem-manager --json
+scenario-dependency-analyzer health swarm-manager --json
 ```
 
 **Output:**
 ```
-Scenario: ecosystem-manager
+Scenario: swarm-manager
 Passed: false
 Findings: 0
 Degraded integrations: 0
@@ -1017,8 +1017,8 @@ Use in Markdown:
 ````markdown
 ```mermaid
 graph TD
-  ecosystem-manager[ecosystem-manager] --> postgres[postgres]
-  ecosystem-manager[ecosystem-manager] --> ollama[ollama]
+  swarm-manager[swarm-manager] --> postgres[postgres]
+  swarm-manager[swarm-manager] --> ollama[ollama]
 ```
 ````
 

@@ -7,9 +7,9 @@
 
 ## 🎯 Overview
 
-Purpose: The fast, cached, focused scenario status layer for the Vrooli fleet. Answers "what is the current state of scenario X and what should I focus on next?" in under one second, from one command, with honest staleness labels. Reads only cached on-disk artifacts (test phase results, run index, requirements registry, service manifest, UI sources) — it never runs tests and never blocks on other services. Complements test-genie (the slow, fresh, deep validation layer that produces the artifacts) and ecosystem-manager (the live control loop that computes maturity on live findings). All three share the same maturity vocabulary and gate predicates via packages/maturity-go, and the same digest/freshness verdict logic via packages/freshness-go, so their answers agree by construction.
+Purpose: The fast, cached, focused scenario status layer for the Vrooli fleet. Answers "what is the current state of scenario X and what should I focus on next?" in under one second, from one command, with honest staleness labels. Reads only cached on-disk artifacts (test phase results, run index, requirements registry, service manifest, UI sources) — it never runs tests and never blocks on other services. Complements test-genie (the slow, fresh, deep validation layer that produces the artifacts) and swarm-manager (the live control loop that computes maturity on live findings). All three share the same maturity vocabulary and gate predicates via packages/maturity-go, and the same digest/freshness verdict logic via packages/freshness-go, so their answers agree by construction.
 
-Target users: AI agents working on scenarios (session-start orientation), ecosystem-manager (planned metric source for importance-aware scheduling), test-genie (report supplement block shells this CLI), swarm-manager (scenario catalog completeness enrichment), and human operators (CLI + thin status dashboard UI).
+Target users: AI agents working on scenarios (session-start orientation), swarm-manager (planned metric source for importance-aware scheduling), test-genie (report supplement block shells this CLI), swarm-manager (scenario catalog completeness enrichment), and human operators (CLI + thin status dashboard UI).
 
 Deployment surfaces: Connect-RPC API + CLI (programmatic-first; the CLI core path works with zero services running) + thin React status dashboard. Internal tooling tier — local stack only.
 
@@ -21,7 +21,7 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Score Read Path | `scenario-completeness-scoring score get <scenario> [--json]` returns in <1s warm with zero network calls on the core path, computed purely from cached filesystem artifacts of the target scenario.
-- [ ] OT-P0-002 | Maturity Headline | Output leads with the maturity rung R0–R4 computed via the shared maturity-go ladder gate predicates over per-dimension error/open counts decoded from cached phase-results findings, labeled "as of digest td:…" — never presented as ecosystem-manager's live state.
+- [ ] OT-P0-002 | Maturity Headline | Output leads with the maturity rung R0–R4 computed via the shared maturity-go ladder gate predicates over per-dimension error/open counts decoded from cached phase-results findings, labeled "as of digest td:…" — never presented as swarm-manager's live state.
 - [ ] OT-P0-003 | Composite Score | 0–100 composite with classification band and per-dimension breakdown (quality / coverage / quantity / UI signal groups), each line showing observed counts, thresholds, and awarded points.
 - [ ] OT-P0-004 | Recommendations | Prioritized recommendations with estimated point impact plus a phased action plan ("do X, worth ~Y points") surfaced in every score response.
 - [ ] OT-P0-005 | Staleness Honesty | A freshness block computed via freshness-go (current tree digest vs digests stamped on recorded runs in coverage/runs.index.json) showing per-phase fresh/stale/unknown and a copy-pastable suggested refresh command; never-tested scenarios degrade to "unknown", not fake-fresh.
@@ -44,7 +44,7 @@ Preferred storage: SQLite is owned by the scoring domain for digest-deduplicated
 
 Integration strategy: Shared pure-logic packages (maturity-go, freshness-go) — shared code, not shared services. Optional network enrichment (dep-analyzer, swarm-manager) is best-effort with hard budgets. The old REST/gorilla-mux API and legacy JSON field names are NOT preserved (greenfield rule; consumers re-point to the new proto contract).
 
-Non-goals: No lifecycle event ledger, no bespoke search-hub provider registration beyond measures federation, no scenario-qa findings bridge, no per-scenario freshness phase configuration (anti-gaming operator decision), no service calls from ecosystem-manager's control loop into this scenario, and no legacy bulk-JSON compatibility shim. Digest scope is scenario-dir-only in v1 (documented limitation: edits to shared packages/* do not stale-ify dependent scenarios).
+Non-goals: No lifecycle event ledger, no bespoke search-hub provider registration beyond measures federation, no scenario-qa findings bridge, no per-scenario freshness phase configuration (anti-gaming operator decision), no service calls from swarm-manager's control loop into this scenario, and no legacy bulk-JSON compatibility shim. Digest scope is scenario-dir-only in v1 (documented limitation: edits to shared packages/* do not stale-ify dependent scenarios).
 
 ## 🤝 Dependencies & Launch Plan
 
@@ -54,7 +54,7 @@ Scenario dependencies: Optional/best-effort only — scenario-dependency-analyze
 
 Operational risks: (1) Stale cached artifacts misread as current state — mitigated by the digest label and per-phase verdicts being the headline, not a footnote. (2) Phase-results schema drift — the decoder is written against sampled live files with an EM-format fallback; malformed input trips the collector circuit breaker rather than crashing. (3) Scoring a scenario that has never been tested — produces unknown verdicts and a degraded-but-honest output with clear "no recorded runs" messaging.
 
-Launch sequencing: This scenario ships standalone first with the full P0 core path (score read, maturity headline, composite, recommendations, staleness, resilient collection). test-genie report supplement integration and ecosystem-manager importance scheduling integrate against the stable proto contract afterwards. P1 dashboard UI and importance enrichment follow core path stabilization. P2 bulk view and what-if analysis are queued for post-stabilization.
+Launch sequencing: This scenario ships standalone first with the full P0 core path (score read, maturity headline, composite, recommendations, staleness, resilient collection). test-genie report supplement integration and swarm-manager importance scheduling integrate against the stable proto contract afterwards. P1 dashboard UI and importance enrichment follow core path stabilization. P2 bulk view and what-if analysis are queued for post-stabilization.
 
 ## 🎨 UX & Branding
 

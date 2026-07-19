@@ -116,7 +116,7 @@
           },
           {
             "title": "AI automation (coming soon)",
-            "description": "Coming soon: AI that learns your habits from the timeline and builds workflows automatically. Plus agent loops via ecosystem-manager + PRD control tower.",
+            "description": "Coming soon: AI that learns your habits from the timeline and builds workflows automatically. Plus agent loops via swarm-manager + PRD control tower.",
             "icon": "cpu"
           }
         ]

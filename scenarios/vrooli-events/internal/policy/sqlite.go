@@ -40,10 +40,15 @@ CREATE INDEX IF NOT EXISTS idx_policy_rules_target ON policy_rules(target_scenar
 
 CREATE TABLE IF NOT EXISTS receipt_projection_rules (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+	policy_id TEXT NOT NULL DEFAULT '',
   source_scenario TEXT NOT NULL,
   target_scenario TEXT NOT NULL,
   operation_pattern TEXT NOT NULL,
+	protocol TEXT NOT NULL DEFAULT 'connect',
+	event_type TEXT NOT NULL DEFAULT 'vrooli.events.receipt.v1',
+	response_type TEXT NOT NULL DEFAULT '',
   response_fields_json TEXT NOT NULL DEFAULT '[]',
+	read_principals_json TEXT NOT NULL DEFAULT '[]',
   redact_fields_json TEXT NOT NULL DEFAULT '[]',
   max_bytes INTEGER NOT NULL DEFAULT 65536,
   sample_per_ten_k INTEGER NOT NULL DEFAULT 10000,
@@ -88,6 +93,26 @@ type SQLiteStore struct {
 func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
 	if _, err := db.Exec(policySchema); err != nil {
 		return nil, fmt.Errorf("apply policy schema: %w", err)
+	}
+	// Existing greenfield databases may have been created during an earlier
+	// development build. Make the hard-cut policy columns durable without a
+	// compatibility read path; duplicate-column errors are expected on new DBs.
+	for _, statement := range []string{
+		`ALTER TABLE receipt_projection_rules ADD COLUMN policy_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE receipt_projection_rules ADD COLUMN protocol TEXT NOT NULL DEFAULT 'connect'`,
+		`ALTER TABLE receipt_projection_rules ADD COLUMN event_type TEXT NOT NULL DEFAULT 'vrooli.events.receipt.v1'`,
+		`ALTER TABLE receipt_projection_rules ADD COLUMN response_type TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE receipt_projection_rules ADD COLUMN read_principals_json TEXT NOT NULL DEFAULT '[]'`,
+	} {
+		if _, err := db.Exec(statement); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return nil, fmt.Errorf("migrate receipt capture policy: %w", err)
+		}
+	}
+	// Vrooli Events has no supported legacy consumers. Rules without a stable
+	// capture-policy identity are from the removed receipt-projection contract
+	// and must never be surfaced or matched after the hard cut.
+	if _, err := db.Exec(`DELETE FROM receipt_projection_rules WHERE policy_id = ''`); err != nil {
+		return nil, fmt.Errorf("purge legacy receipt projection rules: %w", err)
 	}
 	return &SQLiteStore{db: db}, nil
 }
@@ -202,9 +227,13 @@ func (s *SQLiteStore) CreateReceiptProjection(ctx context.Context, r ReceiptProj
 	if err != nil {
 		return 0, fmt.Errorf("marshal redact fields: %w", err)
 	}
+	principals, err := json.Marshal(r.ReadPrincipals)
+	if err != nil {
+		return 0, fmt.Errorf("marshal read principals: %w", err)
+	}
 	res, err := s.db.ExecContext(ctx, `INSERT INTO receipt_projection_rules
-		(source_scenario, target_scenario, operation_pattern, response_fields_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, r.SourceScenario, r.TargetScenario, r.OperationPattern, string(fields), string(redactions), r.MaxBytes, r.SamplePerTenK, r.RetentionDays, r.Priority, sqlutil.BoolToInt(r.Enabled))
+		(policy_id, source_scenario, target_scenario, operation_pattern, protocol, event_type, response_type, response_fields_json, read_principals_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, r.PolicyID, r.SourceScenario, r.TargetScenario, r.OperationPattern, r.Protocol, r.EventType, r.ResponseType, string(fields), string(principals), string(redactions), r.MaxBytes, r.SamplePerTenK, r.RetentionDays, r.Priority, sqlutil.BoolToInt(r.Enabled))
 	if err != nil {
 		return 0, fmt.Errorf("insert receipt projection rule: %w", err)
 	}
@@ -259,7 +288,11 @@ func (s *SQLiteStore) UpdateReceiptProjection(ctx context.Context, r ReceiptProj
 	if err != nil {
 		return fmt.Errorf("marshal redact fields: %w", err)
 	}
-	_, err = s.db.ExecContext(ctx, `UPDATE receipt_projection_rules SET source_scenario=?, target_scenario=?, operation_pattern=?, response_fields_json=?, redact_fields_json=?, max_bytes=?, sample_per_ten_k=?, retention_days=?, priority=?, enabled=?, updated_at=strftime('%Y-%m-%dT%H:%M:%f','now') WHERE id=?`, r.SourceScenario, r.TargetScenario, r.OperationPattern, string(fields), string(redactions), r.MaxBytes, r.SamplePerTenK, r.RetentionDays, r.Priority, sqlutil.BoolToInt(r.Enabled), r.ID)
+	principals, err := json.Marshal(r.ReadPrincipals)
+	if err != nil {
+		return fmt.Errorf("marshal read principals: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE receipt_projection_rules SET policy_id=?, source_scenario=?, target_scenario=?, operation_pattern=?, protocol=?, event_type=?, response_type=?, response_fields_json=?, read_principals_json=?, redact_fields_json=?, max_bytes=?, sample_per_ten_k=?, retention_days=?, priority=?, enabled=?, updated_at=strftime('%Y-%m-%dT%H:%M:%f','now') WHERE id=?`, r.PolicyID, r.SourceScenario, r.TargetScenario, r.OperationPattern, r.Protocol, r.EventType, r.ResponseType, string(fields), string(principals), string(redactions), r.MaxBytes, r.SamplePerTenK, r.RetentionDays, r.Priority, sqlutil.BoolToInt(r.Enabled), r.ID)
 	if err != nil {
 		return fmt.Errorf("update receipt projection rule: %w", err)
 	}
@@ -288,19 +321,22 @@ func (s *SQLiteStore) MatchReceiptProjection(ctx context.Context, source, target
 	return nil, nil
 }
 
-const receiptProjectionSelect = `SELECT id, source_scenario, target_scenario, operation_pattern, response_fields_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled, created_at, updated_at FROM receipt_projection_rules`
+const receiptProjectionSelect = `SELECT id, policy_id, source_scenario, target_scenario, operation_pattern, protocol, event_type, response_type, response_fields_json, read_principals_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled, created_at, updated_at FROM receipt_projection_rules`
 
 type receiptProjectionScanner interface{ Scan(...any) error }
 
 func scanReceiptProjection(row receiptProjectionScanner) (ReceiptProjectionRule, error) {
 	var r ReceiptProjectionRule
-	var responseFields, redactFields, createdAt, updatedAt string
+	var responseFields, readPrincipals, redactFields, createdAt, updatedAt string
 	var enabled int
-	if err := row.Scan(&r.ID, &r.SourceScenario, &r.TargetScenario, &r.OperationPattern, &responseFields, &redactFields, &r.MaxBytes, &r.SamplePerTenK, &r.RetentionDays, &r.Priority, &enabled, &createdAt, &updatedAt); err != nil {
+	if err := row.Scan(&r.ID, &r.PolicyID, &r.SourceScenario, &r.TargetScenario, &r.OperationPattern, &r.Protocol, &r.EventType, &r.ResponseType, &responseFields, &readPrincipals, &redactFields, &r.MaxBytes, &r.SamplePerTenK, &r.RetentionDays, &r.Priority, &enabled, &createdAt, &updatedAt); err != nil {
 		return r, err
 	}
 	if err := json.Unmarshal([]byte(responseFields), &r.ResponseFields); err != nil {
 		return r, fmt.Errorf("decode response fields: %w", err)
+	}
+	if err := json.Unmarshal([]byte(readPrincipals), &r.ReadPrincipals); err != nil {
+		return r, fmt.Errorf("decode read principals: %w", err)
 	}
 	if err := json.Unmarshal([]byte(redactFields), &r.RedactFields); err != nil {
 		return r, fmt.Errorf("decode redact fields: %w", err)

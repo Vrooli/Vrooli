@@ -15,7 +15,7 @@ hard-budgeted and omitted on miss:
 
 - **Maturity rung** R0–R4 via the shared `packages/maturity-go` ladder
   gates, labeled **"as of digest td:…"** — never presented as
-  ecosystem-manager's live state.
+  swarm-manager's live state.
 - **0–100 composite** with classification and a per-group breakdown
   (quality / coverage / quantity / UI), each line showing observed
   counts, thresholds, and awarded points.
@@ -46,7 +46,7 @@ hard-budgeted and omitted on miss:
 
 It is the fast **cached** layer of the scenario-status stack: test-genie
 is the slow fresh deep layer that *produces* the artifacts this scenario
-reads; ecosystem-manager computes the same rung predicates in-process on
+reads; swarm-manager computes the same rung predicates in-process on
 live findings. All three share maturity-go/freshness-go, so their answers
 agree by construction.
 

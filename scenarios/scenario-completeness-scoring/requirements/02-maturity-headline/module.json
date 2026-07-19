@@ -1,5 +1,5 @@
 {
-  "description": "Output leads with the maturity rung R0–R4 computed via the shared maturity-go ladder gate predicates over per-dimension error/open counts decoded from cached phase-results findings, labeled \"as of digest td:…\" — never presented as ecosystem-manager's live state.",
+  "description": "Output leads with the maturity rung R0–R4 computed via the shared maturity-go ladder gate predicates over per-dimension error/open counts decoded from cached phase-results findings, labeled \"as of digest td:…\" — never presented as swarm-manager's live state.",
   "module_id": "MOD-P0-002",
   "prd_ref": "OT-P0-002",
   "priority": "P0",
@@ -9,7 +9,7 @@
       "dependencies": [
         "REQ-P0-001"
       ],
-      "description": "Every score response must lead with the maturity rung label (R0–R4) computed by invoking the shared maturity-go ladder gate predicates. The rung must be derived from per-dimension error and open counts decoded from cached phase-results findings (proto ArchitectureFinding decode with EM-format fallback). The headline must be labeled 'as of digest td:…' using the digest stamped on the recorded runs, and must never be presented as ecosystem-manager's live state. No local copy of the maturity ladder logic is permitted — only packages/maturity-go must be used.",
+      "description": "Every score response must lead with the maturity rung label (R0–R4) computed by invoking the shared maturity-go ladder gate predicates. The rung must be derived from per-dimension error and open counts decoded from cached phase-results findings (proto ArchitectureFinding decode with EM-format fallback). The headline must be labeled 'as of digest td:…' using the digest stamped on the recorded runs, and must never be presented as swarm-manager's live state. No local copy of the maturity ladder logic is permitted — only packages/maturity-go must be used.",
       "id": "REQ-P0-002",
       "prd_ref": "OT-P0-002",
       "status": "draft",

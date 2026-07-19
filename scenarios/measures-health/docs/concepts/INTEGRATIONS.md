@@ -37,7 +37,6 @@ Declared in `.vrooli/service.json`. Both are optional (`required: false`,
 |---|---|---|---|
 | search-hub | optional (try_start) | The `index` domain self-registers its single `measures-health.measures` provider from `.vrooli/search.json` so search-hub routes analytical questions to the central index. | `search-hub providers register` (idempotent upsert via `searchregister-go`); the provider serves the shared `search-hub.v1.control.SearchControlService`. Degraded: registration retries then gives up; validation + query RPCs serve normally. |
 | test-genie | consumer | test-genie's `measures` phase shells `measures-health validate scenario <name> --json` and maps findings into `FINDING_SOURCE_MEASURES`. | Public CLI surface (`validate scenario --json`); no runtime coupling — test-genie calls measures-health, not the reverse. |
-| ecosystem-manager | consumer | EM ingests the `FINDING_SOURCE_MEASURES` findings into its soft `measures` ladder dimension (R4). | Indirect, via the test-genie producer → EM findings pipeline. |
 | target scenarios (any) | read-only subject | `validation` reads each target's `cli/manifest.json` + `packages/proto/schemas/<s>/v1/domain/*.proto`; the `index` execution-proxy POSTs to a target's measures serve endpoint resolved via api-core discovery. | Read-only filesystem + (probe/execute) the target's own measures endpoint. Never client-computes URLs. |
 
 ## Third-Party Services

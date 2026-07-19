@@ -243,7 +243,7 @@ Note: Claude Code often uses one turn for tool use and another for tool results.
 |----------|--------------|
 | workspace-sandbox | Required - provides isolation |
 | agent-inbox | Consumer - uses for agent chat |
-| ecosystem-manager | Consumer - uses for scenario generation |
+| swarm-manager | Consumer - uses for scenario generation |
 
 ## Development
 

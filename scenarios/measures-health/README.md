@@ -1,6 +1,6 @@
 # Measures Health
 
-Validates and grades scenario adoption of the Measures federated metrics layer; hosts the central measures index and the single registered search-hub measures provider; feeds the Ecosystem Manager maturity ladder.
+Validates and grades scenario adoption of the Measures federated metrics layer; hosts the central measures index and the single registered search-hub measures provider; feeds the Swarm Manager maturity ladder.
 
 This scenario was generated from the `react-vite` template and packages
 the standard full-stack Vrooli scenario shape:

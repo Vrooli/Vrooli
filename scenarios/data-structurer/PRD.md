@@ -920,7 +920,7 @@ tests:
 
 ### Improver Session Results
 **Date**: 2025-10-12
-**Focus**: Additional validation and code tidying per ecosystem-manager task
+**Focus**: Additional validation and code tidying per swarm-manager task
 
 **Actions Taken**:
 1. ✅ Comprehensive audit review - analyzed all 341 standards violations

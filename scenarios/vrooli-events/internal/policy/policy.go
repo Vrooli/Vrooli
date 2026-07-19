@@ -63,10 +63,15 @@ type Rule struct {
 // for whether anything is emitted or retained.
 type ReceiptProjectionRule struct {
 	ID               int64     `json:"id"`
+	PolicyID         string    `json:"policy_id"`
 	SourceScenario   string    `json:"source_scenario"`
 	TargetScenario   string    `json:"target_scenario"`
 	OperationPattern string    `json:"operation_pattern"`
+	Protocol         string    `json:"protocol"`
+	EventType        string    `json:"event_type"`
+	ResponseType     string    `json:"response_type"`
 	ResponseFields   []string  `json:"response_fields"`
+	ReadPrincipals   []string  `json:"read_principals"`
 	RedactFields     []string  `json:"redact_fields,omitempty"`
 	MaxBytes         int       `json:"max_bytes"`
 	SamplePerTenK    int       `json:"sample_per_ten_k"`

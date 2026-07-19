@@ -39,7 +39,7 @@ the build still completed and `degraded_sources` reported it.
 Centrality re-sourced from the unified store discriminates with real variance,
 e.g. `agent-manager`: direct reverse-deps 4, transitive 6, required-weighted 14,
 core-seed distance 0, dependents `{app-issue-tracker,
-development-toolchain-validator, ecosystem-manager, knowledge-observatory, …}`.
+development-toolchain-validator, swarm-manager, knowledge-observatory, …}`.
 
 ## Sizing decision (gate output)
 The **monolithic full-fleet rebuild is expensive** (> 5 min cold), dominated by

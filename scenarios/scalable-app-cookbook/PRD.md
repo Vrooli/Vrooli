@@ -304,7 +304,7 @@ custom_commands:
 ### Cross-Scenario Interactions
 ```yaml
 provides_to:
-  - scenario: ecosystem-manager
+  - scenario: swarm-manager
     capability: Architecture pattern templates for generated scenarios
     interface: API
     
@@ -522,7 +522,7 @@ discovery:
 
 ### Related PRDs
 - algorithm-library PRD (sibling reference scenario)
-- ecosystem-manager README (major downstream consumer)
+- swarm-manager README (major downstream consumer)
 
 ### External Resources
 - [Scalable Web Architecture Patterns](https://highscalability.com/)

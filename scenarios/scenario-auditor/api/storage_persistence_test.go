@@ -36,7 +36,7 @@ func TestProtectedScenariosStorePersistsToConfigClass(t *testing.T) {
 	store := &ProtectedScenariosStore{protectedSet: make(map[string]bool)}
 	store.enablePersistence()
 
-	if err := store.AddProtectedScenario("ecosystem-manager"); err != nil {
+	if err := store.AddProtectedScenario("swarm-manager"); err != nil {
 		t.Fatalf("AddProtectedScenario: %v", err)
 	}
 	if filepath.Base(store.filePath) != "protected-scenarios.json" {

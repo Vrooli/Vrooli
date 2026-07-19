@@ -8,7 +8,7 @@ import { useTranslation } from "../i18n";
  * Fleet page — the measures-specific drill-down surface. The cross-scenario
  * coverage table plus a per-scenario domain breakdown answer "which scenarios
  * expose measures, at what tier/coverage". Per-scenario maturity rung is
- * automatic via the ecosystem-manager decision trace; this view is the
+ * automatic via the swarm-manager decision trace; this view is the
  * measures detail behind it.
  */
 export function FleetPage() {
