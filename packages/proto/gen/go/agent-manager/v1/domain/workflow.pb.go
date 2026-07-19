@@ -474,8 +474,11 @@ type WorkflowExecution struct {
 	EndedAt           *timestamppb.Timestamp  `protobuf:"bytes,17,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
 	ParentAttemptId   string                  `protobuf:"bytes,18,opt,name=parent_attempt_id,json=parentAttemptId,proto3" json:"parent_attempt_id,omitempty"`
 	Depth             int32                   `protobuf:"varint,19,opt,name=depth,proto3" json:"depth,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Platform-owned receipt evidence aggregated over child runs. It remains
+	// separate from workflow output and preserves each receipt's run/node/attempt.
+	Observations  *ReceiptObservations `protobuf:"bytes,20,opt,name=observations,proto3" json:"observations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkflowExecution) Reset() {
@@ -639,6 +642,13 @@ func (x *WorkflowExecution) GetDepth() int32 {
 		return x.Depth
 	}
 	return 0
+}
+
+func (x *WorkflowExecution) GetObservations() *ReceiptObservations {
+	if x != nil {
+		return x.Observations
+	}
+	return nil
 }
 
 // WorkflowNodeAttempt is the durable, per-node execution identity. Prompt
@@ -965,7 +975,7 @@ var File_agent_manager_v1_domain_workflow_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\n" +
-	"&agent-manager/v1/domain/workflow.proto\x12\x10agent_manager.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc6\x03\n" +
+	"&agent-manager/v1/domain/workflow.proto\x12\x10agent_manager.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!agent-manager/v1/domain/run.proto\"\xc6\x03\n" +
 	"\x10WorkflowRevision\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x10\n" +
@@ -1002,7 +1012,7 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\bcost_usd\x18\x03 \x01(\x01R\acostUsd\x12#\n" +
 	"\rnode_attempts\x18\x04 \x01(\x05R\fnodeAttempts\x12\x1a\n" +
 	"\bchildren\x18\x05 \x01(\x05R\bchildren\x12\x18\n" +
-	"\aretries\x18\x06 \x01(\x05R\aretries\"\xf6\a\n" +
+	"\aretries\x18\x06 \x01(\x05R\aretries\"\xc1\b\n" +
 	"\x11WorkflowExecution\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12!\n" +
@@ -1025,7 +1035,8 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x125\n" +
 	"\bended_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x12*\n" +
 	"\x11parent_attempt_id\x18\x12 \x01(\tR\x0fparentAttemptId\x12\x14\n" +
-	"\x05depth\x18\x13 \x01(\x05R\x05depth\x1aA\n" +
+	"\x05depth\x18\x13 \x01(\x05R\x05depth\x12I\n" +
+	"\fobservations\x18\x14 \x01(\v2%.agent_manager.v1.ReceiptObservationsR\fobservations\x1aA\n" +
 	"\x13EdgeTraversalsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xc4\x06\n" +
@@ -1109,6 +1120,7 @@ var file_agent_manager_v1_domain_workflow_proto_goTypes = []any{
 	(*structpb.Struct)(nil),        // 9: google.protobuf.Struct
 	(*timestamppb.Timestamp)(nil),  // 10: google.protobuf.Timestamp
 	(*structpb.Value)(nil),         // 11: google.protobuf.Value
+	(*ReceiptObservations)(nil),    // 12: agent_manager.v1.ReceiptObservations
 }
 var file_agent_manager_v1_domain_workflow_proto_depIdxs = []int32{
 	9,  // 0: agent_manager.v1.WorkflowRevision.definition:type_name -> google.protobuf.Struct
@@ -1123,15 +1135,16 @@ var file_agent_manager_v1_domain_workflow_proto_depIdxs = []int32{
 	10, // 9: agent_manager.v1.WorkflowExecution.created_at:type_name -> google.protobuf.Timestamp
 	10, // 10: agent_manager.v1.WorkflowExecution.updated_at:type_name -> google.protobuf.Timestamp
 	10, // 11: agent_manager.v1.WorkflowExecution.ended_at:type_name -> google.protobuf.Timestamp
-	10, // 12: agent_manager.v1.WorkflowNodeAttempt.created_at:type_name -> google.protobuf.Timestamp
-	10, // 13: agent_manager.v1.WorkflowNodeAttempt.updated_at:type_name -> google.protobuf.Timestamp
-	10, // 14: agent_manager.v1.WorkflowNodeAttempt.completed_at:type_name -> google.protobuf.Timestamp
-	10, // 15: agent_manager.v1.WorkflowJournalEntry.created_at:type_name -> google.protobuf.Timestamp
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	12, // 12: agent_manager.v1.WorkflowExecution.observations:type_name -> agent_manager.v1.ReceiptObservations
+	10, // 13: agent_manager.v1.WorkflowNodeAttempt.created_at:type_name -> google.protobuf.Timestamp
+	10, // 14: agent_manager.v1.WorkflowNodeAttempt.updated_at:type_name -> google.protobuf.Timestamp
+	10, // 15: agent_manager.v1.WorkflowNodeAttempt.completed_at:type_name -> google.protobuf.Timestamp
+	10, // 16: agent_manager.v1.WorkflowJournalEntry.created_at:type_name -> google.protobuf.Timestamp
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_workflow_proto_init() }
@@ -1139,6 +1152,7 @@ func file_agent_manager_v1_domain_workflow_proto_init() {
 	if File_agent_manager_v1_domain_workflow_proto != nil {
 		return
 	}
+	file_agent_manager_v1_domain_run_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "cli",
-  "input_digest": "sha256:b5e396628a6790f43315cff2e111e295f7c3b12f683eaeec2a579caad180eed5",
+  "input_digest": "sha256:8475e1194502ab9e38667e2d44ae5b090e9aa3aec8f147811b6e38f4690a797d",
   "input_files": [
     "schemas/cli/v1/auth.proto",
     "schemas/cli/v1/common.proto",

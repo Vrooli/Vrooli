@@ -49,7 +49,6 @@ The platform favors boring, observable components so future agents can safely ex
 
 ## 🤝 Dependencies & Launch Plan
 - Requires local Postgres, Qdrant, and Redis resources plus optional Ollama for embedding refreshes; all orchestrated through the scenario lifecycle manager (make start/test/logs/stop).
-- Depends on research-assistant scenario for continuous intake plus ecosystem-manager for publishing catalog metadata to other apps.
 - Launch gating: seed baseline API catalog, verify semantic search accuracy, and enable monitoring hooks before exposing REST endpoints to dependent scenarios.
 - Operational readiness: integrate with system-monitor alerts and ensure CLI + API auth policies align with deployment tier expectations.
 

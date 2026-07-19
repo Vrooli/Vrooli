@@ -540,7 +540,7 @@
       "path": "/vrooli.development_toolchain_validator.v1.report.ReportService/GetSkillFitness",
       "method": "POST",
       "summary": "Cross-golden trust/cost/convergence aggregate for one skill",
-      "description": "Folds every validation record for a skill across all goldens into run counts by verdict, pass rate, token/cost/duration totals, convergence ratio, latest verdict, staleness, and a derived fitness verdict (UNKNOWN/GREEN/YELLOW/RED). Consumed by ecosystem-manager's selection controller.",
+      "description": "Folds every validation record for a skill across all goldens into run counts by verdict, pass rate, token/cost/duration totals, convergence ratio, latest verdict, staleness, and a derived fitness verdict (UNKNOWN/GREEN/YELLOW/RED). Consumed by swarm-manager's selection controller.",
       "category": "report",
       "request": {
         "type": "object",

@@ -213,7 +213,7 @@ func TestScenarioPortAtPathPassesPhysicalScenarioDirectory(t *testing.T) {
 func TestListScenariosDecodesTypedFields(t *testing.T) {
 	runner := &stubRunner{
 		responses: []stubResponse{
-			{output: []byte(`{"success":true,"summary":{"total_scenarios":1,"running":1,"available":0},"scenarios":[{"name":"ecosystem-manager","description":"Control plane","version":"1.0.0","status":"running","path":"/s/em"}]}`)},
+			{output: []byte(`{"success":true,"summary":{"total_scenarios":1,"running":1,"available":0},"scenarios":[{"name":"swarm-manager","description":"Control plane","version":"1.0.0","status":"running","path":"/s/em"}]}`)},
 		},
 	}
 	client := New(WithRunner(runner))

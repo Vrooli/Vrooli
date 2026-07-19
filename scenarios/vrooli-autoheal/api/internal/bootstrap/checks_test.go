@@ -47,7 +47,6 @@ func TestRegisterDefaultChecks(t *testing.T) {
 		"resource-whisper",
 		// Scenario checks (critical)
 		"scenario-app-monitor",
-		"scenario-ecosystem-manager",
 		// Scenario checks (non-critical)
 		"scenario-template-manager",
 		"scenario-browser-automation-studio",

@@ -22,95 +22,19 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// SubscriptionRequest defines filters for an SSE event subscription.
-//
-// All pattern fields support glob matching. Empty/unset fields match everything.
-//
-// @usage SSE subscription establishment
-type SubscriptionRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Event type glob pattern (e.g., "agent-manager.run.*").
-	EventTypePattern string `protobuf:"bytes,1,opt,name=event_type_pattern,json=eventTypePattern,proto3" json:"event_type_pattern,omitempty"`
-	// Source scenario glob pattern (optional, matches all if unset).
-	SourceScenarioPattern *string `protobuf:"bytes,2,opt,name=source_scenario_pattern,json=sourceScenarioPattern,proto3,oneof" json:"source_scenario_pattern,omitempty"`
-	// Target scenario glob pattern (optional, matches all if unset).
-	TargetScenarioPattern *string `protobuf:"bytes,3,opt,name=target_scenario_pattern,json=targetScenarioPattern,proto3,oneof" json:"target_scenario_pattern,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
-}
-
-func (x *SubscriptionRequest) Reset() {
-	*x = SubscriptionRequest{}
-	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SubscriptionRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SubscriptionRequest) ProtoMessage() {}
-
-func (x *SubscriptionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SubscriptionRequest.ProtoReflect.Descriptor instead.
-func (*SubscriptionRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_sse_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *SubscriptionRequest) GetEventTypePattern() string {
-	if x != nil {
-		return x.EventTypePattern
-	}
-	return ""
-}
-
-func (x *SubscriptionRequest) GetSourceScenarioPattern() string {
-	if x != nil && x.SourceScenarioPattern != nil {
-		return *x.SourceScenarioPattern
-	}
-	return ""
-}
-
-func (x *SubscriptionRequest) GetTargetScenarioPattern() string {
-	if x != nil && x.TargetScenarioPattern != nil {
-		return *x.TargetScenarioPattern
-	}
-	return ""
-}
-
-// EventNotification wraps an event envelope for SSE delivery.
-//
-// Adds stream_sequence for Last-Event-ID resume support. The sequence is
-// monotonically increasing per subscription, enabling gap detection and
-// reconnection without data loss.
-//
-// @usage SSE event delivery
+// EventNotification is the SSE transport wrapper; the envelope itself remains
+// the sole event contract.
 type EventNotification struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Monotonically increasing sequence number per subscription.
-	// Used as Last-Event-ID for SSE reconnection and resume.
-	StreamSequence int64 `protobuf:"varint,1,opt,name=stream_sequence,json=streamSequence,proto3" json:"stream_sequence,omitempty"`
-	// The event being delivered.
-	Envelope      *EventEnvelope `protobuf:"bytes,2,opt,name=envelope,proto3" json:"envelope,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	StreamSequence int64                  `protobuf:"varint,1,opt,name=stream_sequence,json=streamSequence,proto3" json:"stream_sequence,omitempty"`
+	Envelope       *EventEnvelope         `protobuf:"bytes,2,opt,name=envelope,proto3" json:"envelope,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *EventNotification) Reset() {
 	*x = EventNotification{}
-	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[1]
+	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -122,7 +46,7 @@ func (x *EventNotification) String() string {
 func (*EventNotification) ProtoMessage() {}
 
 func (x *EventNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[1]
+	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -135,7 +59,7 @@ func (x *EventNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventNotification.ProtoReflect.Descriptor instead.
 func (*EventNotification) Descriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_sse_proto_rawDescGZIP(), []int{1}
+	return file_vrooli_events_v1_domain_sse_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *EventNotification) GetStreamSequence() int64 {
@@ -152,32 +76,19 @@ func (x *EventNotification) GetEnvelope() *EventEnvelope {
 	return nil
 }
 
-// PolicySnapshot delivers a full policy state to subscribers.
-//
-// Pushed via SSE whenever policy rules change. Clients compare version
-// numbers and discard snapshots with version <= their cached version.
-//
-// @usage SSE policy cache invalidation
+// PolicySnapshot atomically replaces the API Core capture allow-list.
 type PolicySnapshot struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Monotonically increasing version, set by server on policy change.
-	// Clients discard snapshots where version <= cached version.
-	Version int64 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
-	// When this snapshot was generated.
-	GeneratedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
-	// All active access rules.
-	AccessRules []*AccessRule `protobuf:"bytes,3,rep,name=access_rules,json=accessRules,proto3" json:"access_rules,omitempty"`
-	// All active rate limits.
-	RateLimits []*RateLimit `protobuf:"bytes,4,rep,name=rate_limits,json=rateLimits,proto3" json:"rate_limits,omitempty"`
-	// All active circuit breakers.
-	CircuitBreakers []*CircuitBreaker `protobuf:"bytes,5,rep,name=circuit_breakers,json=circuitBreakers,proto3" json:"circuit_breakers,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                  protoimpl.MessageState  `protogen:"open.v1"`
+	Version                string                  `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	GeneratedAt            *timestamppb.Timestamp  `protobuf:"bytes,2,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	ReceiptCapturePolicies []*ReceiptCapturePolicy `protobuf:"bytes,3,rep,name=receipt_capture_policies,json=receiptCapturePolicies,proto3" json:"receipt_capture_policies,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *PolicySnapshot) Reset() {
 	*x = PolicySnapshot{}
-	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[2]
+	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -189,7 +100,7 @@ func (x *PolicySnapshot) String() string {
 func (*PolicySnapshot) ProtoMessage() {}
 
 func (x *PolicySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[2]
+	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -202,14 +113,14 @@ func (x *PolicySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicySnapshot.ProtoReflect.Descriptor instead.
 func (*PolicySnapshot) Descriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_sse_proto_rawDescGZIP(), []int{2}
+	return file_vrooli_events_v1_domain_sse_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *PolicySnapshot) GetVersion() int64 {
+func (x *PolicySnapshot) GetVersion() string {
 	if x != nil {
 		return x.Version
 	}
-	return 0
+	return ""
 }
 
 func (x *PolicySnapshot) GetGeneratedAt() *timestamppb.Timestamp {
@@ -219,47 +130,24 @@ func (x *PolicySnapshot) GetGeneratedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *PolicySnapshot) GetAccessRules() []*AccessRule {
+func (x *PolicySnapshot) GetReceiptCapturePolicies() []*ReceiptCapturePolicy {
 	if x != nil {
-		return x.AccessRules
+		return x.ReceiptCapturePolicies
 	}
 	return nil
 }
 
-func (x *PolicySnapshot) GetRateLimits() []*RateLimit {
-	if x != nil {
-		return x.RateLimits
-	}
-	return nil
-}
-
-func (x *PolicySnapshot) GetCircuitBreakers() []*CircuitBreaker {
-	if x != nil {
-		return x.CircuitBreakers
-	}
-	return nil
-}
-
-// HeartbeatMessage keeps the SSE connection alive and reports backpressure.
-//
-// Sent every 30 seconds. If events were dropped due to channel backpressure,
-// dropped_count is non-zero and the client should re-fetch missed events.
-//
-// @usage SSE keepalive, backpressure notification
 type HeartbeatMessage struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Server timestamp for the heartbeat.
-	Timestamp *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	// Number of events dropped since the last heartbeat due to backpressure.
-	// Zero means no drops occurred.
-	DroppedCount  int64 `protobuf:"varint,2,opt,name=dropped_count,json=droppedCount,proto3" json:"dropped_count,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	DroppedCount  int64                  `protobuf:"varint,2,opt,name=dropped_count,json=droppedCount,proto3" json:"dropped_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *HeartbeatMessage) Reset() {
 	*x = HeartbeatMessage{}
-	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[3]
+	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -271,7 +159,7 @@ func (x *HeartbeatMessage) String() string {
 func (*HeartbeatMessage) ProtoMessage() {}
 
 func (x *HeartbeatMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[3]
+	mi := &file_vrooli_events_v1_domain_sse_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -284,7 +172,7 @@ func (x *HeartbeatMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatMessage.ProtoReflect.Descriptor instead.
 func (*HeartbeatMessage) Descriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_sse_proto_rawDescGZIP(), []int{3}
+	return file_vrooli_events_v1_domain_sse_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *HeartbeatMessage) GetTimestamp() *timestamppb.Timestamp {
@@ -305,23 +193,14 @@ var File_vrooli_events_v1_domain_sse_proto protoreflect.FileDescriptor
 
 const file_vrooli_events_v1_domain_sse_proto_rawDesc = "" +
 	"\n" +
-	"!vrooli-events/v1/domain/sse.proto\x12\x10vrooli_events.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a$vrooli-events/v1/domain/policy.proto\"\xf5\x01\n" +
-	"\x13SubscriptionRequest\x12,\n" +
-	"\x12event_type_pattern\x18\x01 \x01(\tR\x10eventTypePattern\x12;\n" +
-	"\x17source_scenario_pattern\x18\x02 \x01(\tH\x00R\x15sourceScenarioPattern\x88\x01\x01\x12;\n" +
-	"\x17target_scenario_pattern\x18\x03 \x01(\tH\x01R\x15targetScenarioPattern\x88\x01\x01B\x1a\n" +
-	"\x18_source_scenario_patternB\x1a\n" +
-	"\x18_target_scenario_pattern\"y\n" +
+	"!vrooli-events/v1/domain/sse.proto\x12\x17vrooli.events.v1.domain\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a$vrooli-events/v1/domain/policy.proto\"\x80\x01\n" +
 	"\x11EventNotification\x12'\n" +
-	"\x0fstream_sequence\x18\x01 \x01(\x03R\x0estreamSequence\x12;\n" +
-	"\benvelope\x18\x02 \x01(\v2\x1f.vrooli_events.v1.EventEnvelopeR\benvelope\"\xb5\x02\n" +
+	"\x0fstream_sequence\x18\x01 \x01(\x03R\x0estreamSequence\x12B\n" +
+	"\benvelope\x18\x02 \x01(\v2&.vrooli.events.v1.domain.EventEnvelopeR\benvelope\"\xd2\x01\n" +
 	"\x0ePolicySnapshot\x12\x18\n" +
-	"\aversion\x18\x01 \x01(\x03R\aversion\x12=\n" +
-	"\fgenerated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vgeneratedAt\x12?\n" +
-	"\faccess_rules\x18\x03 \x03(\v2\x1c.vrooli_events.v1.AccessRuleR\vaccessRules\x12<\n" +
-	"\vrate_limits\x18\x04 \x03(\v2\x1b.vrooli_events.v1.RateLimitR\n" +
-	"rateLimits\x12K\n" +
-	"\x10circuit_breakers\x18\x05 \x03(\v2 .vrooli_events.v1.CircuitBreakerR\x0fcircuitBreakers\"q\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\x12=\n" +
+	"\fgenerated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vgeneratedAt\x12g\n" +
+	"\x18receipt_capture_policies\x18\x03 \x03(\v2-.vrooli.events.v1.domain.ReceiptCapturePolicyR\x16receiptCapturePolicies\"q\n" +
 	"\x10HeartbeatMessage\x128\n" +
 	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12#\n" +
 	"\rdropped_count\x18\x02 \x01(\x03R\fdroppedCountBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3"
@@ -338,30 +217,25 @@ func file_vrooli_events_v1_domain_sse_proto_rawDescGZIP() []byte {
 	return file_vrooli_events_v1_domain_sse_proto_rawDescData
 }
 
-var file_vrooli_events_v1_domain_sse_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_vrooli_events_v1_domain_sse_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_vrooli_events_v1_domain_sse_proto_goTypes = []any{
-	(*SubscriptionRequest)(nil),   // 0: vrooli_events.v1.SubscriptionRequest
-	(*EventNotification)(nil),     // 1: vrooli_events.v1.EventNotification
-	(*PolicySnapshot)(nil),        // 2: vrooli_events.v1.PolicySnapshot
-	(*HeartbeatMessage)(nil),      // 3: vrooli_events.v1.HeartbeatMessage
-	(*EventEnvelope)(nil),         // 4: vrooli_events.v1.EventEnvelope
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
-	(*AccessRule)(nil),            // 6: vrooli_events.v1.AccessRule
-	(*RateLimit)(nil),             // 7: vrooli_events.v1.RateLimit
-	(*CircuitBreaker)(nil),        // 8: vrooli_events.v1.CircuitBreaker
+	(*EventNotification)(nil),     // 0: vrooli.events.v1.domain.EventNotification
+	(*PolicySnapshot)(nil),        // 1: vrooli.events.v1.domain.PolicySnapshot
+	(*HeartbeatMessage)(nil),      // 2: vrooli.events.v1.domain.HeartbeatMessage
+	(*EventEnvelope)(nil),         // 3: vrooli.events.v1.domain.EventEnvelope
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*ReceiptCapturePolicy)(nil),  // 5: vrooli.events.v1.domain.ReceiptCapturePolicy
 }
 var file_vrooli_events_v1_domain_sse_proto_depIdxs = []int32{
-	4, // 0: vrooli_events.v1.EventNotification.envelope:type_name -> vrooli_events.v1.EventEnvelope
-	5, // 1: vrooli_events.v1.PolicySnapshot.generated_at:type_name -> google.protobuf.Timestamp
-	6, // 2: vrooli_events.v1.PolicySnapshot.access_rules:type_name -> vrooli_events.v1.AccessRule
-	7, // 3: vrooli_events.v1.PolicySnapshot.rate_limits:type_name -> vrooli_events.v1.RateLimit
-	8, // 4: vrooli_events.v1.PolicySnapshot.circuit_breakers:type_name -> vrooli_events.v1.CircuitBreaker
-	5, // 5: vrooli_events.v1.HeartbeatMessage.timestamp:type_name -> google.protobuf.Timestamp
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	3, // 0: vrooli.events.v1.domain.EventNotification.envelope:type_name -> vrooli.events.v1.domain.EventEnvelope
+	4, // 1: vrooli.events.v1.domain.PolicySnapshot.generated_at:type_name -> google.protobuf.Timestamp
+	5, // 2: vrooli.events.v1.domain.PolicySnapshot.receipt_capture_policies:type_name -> vrooli.events.v1.domain.ReceiptCapturePolicy
+	4, // 3: vrooli.events.v1.domain.HeartbeatMessage.timestamp:type_name -> google.protobuf.Timestamp
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_events_v1_domain_sse_proto_init() }
@@ -371,14 +245,13 @@ func file_vrooli_events_v1_domain_sse_proto_init() {
 	}
 	file_vrooli_events_v1_domain_envelope_proto_init()
 	file_vrooli_events_v1_domain_policy_proto_init()
-	file_vrooli_events_v1_domain_sse_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_events_v1_domain_sse_proto_rawDesc), len(file_vrooli_events_v1_domain_sse_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -311,7 +311,7 @@ export enum FindingSource {
    * SECURITY: test-genie `security` phase — delegates to the
    * security-health scenario (secrets, Go SAST, Go vuln-DB, JS deps) and
    * emits normalized findings whose critical/high → ERROR gates the
-   * ecosystem-manager R1 ("Safe") ladder rung.
+   * swarm-manager R1 ("Safe") ladder rung.
    *
    * @generated from enum value: FINDING_SOURCE_SECURITY = 9;
    */
@@ -322,7 +322,7 @@ export enum FindingSource {
    * measures-health scenario (measure coverage of stateful domains +
    * behavioral adoption probe) and emits normalized findings whose
    * uncovered-stateful-domain / hollow-declaration → ERROR feeds the
-   * ecosystem-manager soft `measures` ladder dimension (R4).
+   * swarm-manager soft `measures` ladder dimension (R4).
    *
    * @generated from enum value: FINDING_SOURCE_MEASURES = 10;
    */
@@ -334,7 +334,7 @@ export enum FindingSource {
    * emits typed drift findings (starter-template registries, orphaned
    * refs, unvalidated P0 requirements, dangling validation refs).
    * Advisory in v1: severities capped at ERROR, never BLOCKER. Feeds the
-   * ecosystem-manager `business` ladder dimension.
+   * swarm-manager `business` ladder dimension.
    *
    * @generated from enum value: FINDING_SOURCE_BUSINESS = 11;
    */
@@ -344,7 +344,7 @@ export enum FindingSource {
    * PROTO: test-genie `proto` phase — delegates to the proto-health
    * scenario (domain organization, generated-artifact sync, transport
    * world, and proto-surface facts) and emits normalized findings. Feeds
-   * the ecosystem-manager soft `proto-health` R2 ladder dimension.
+   * the swarm-manager soft `proto-health` R2 ladder dimension.
    *
    * @generated from enum value: FINDING_SOURCE_PROTO = 12;
    */
@@ -354,7 +354,7 @@ export enum FindingSource {
    * DEPENDENCY: test-genie `dependencies` phase — delegates to the
    * scenario-dependency-analyzer actual graph drift check and emits
    * declared-vs-actual scenario dependency findings. Feeds the
-   * ecosystem-manager soft `dependency-accuracy` R2 ladder dimension.
+   * swarm-manager soft `dependency-accuracy` R2 ladder dimension.
    *
    * @generated from enum value: FINDING_SOURCE_DEPENDENCY = 13;
    */
@@ -365,7 +365,7 @@ export enum FindingSource {
    * scenario (schema layout, migration hygiene, persistence-seam adoption,
    * and test-isolation safety) and emits normalized findings. Its L2
    * isolation verdict is a fail-closed precondition for the destructive
-   * `playbooks` phase; feeds the ecosystem-manager `storage` ladder
+   * `playbooks` phase; feeds the swarm-manager `storage` ladder
    * dimension.
    *
    * @generated from enum value: FINDING_SOURCE_STORAGE = 14;
@@ -378,7 +378,7 @@ export enum FindingSource {
    * findings (display-name, color-system, typography, logo, favicon, WCAG-AA
    * contrast, applied brand markers) climbing a branding maturity ladder.
    * Deterministic rules offer PreviewFix/ApplyFix auto-fixes. Feeds the
-   * ecosystem-manager `branding` ladder dimension.
+   * swarm-manager `branding` ladder dimension.
    *
    * @generated from enum value: FINDING_SOURCE_BRANDING = 15;
    */

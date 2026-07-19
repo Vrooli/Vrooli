@@ -55,7 +55,7 @@ type ReportServiceClient interface {
 	GetCoverage(context.Context, *connect.Request[report.GetCoverageRequest]) (*connect.Response[report.GetCoverageResponse], error)
 	// GetSkillFitness aggregates every validation record for one skill across all
 	// goldens into a single trust/cost/convergence fitness view. Consumed by
-	// ecosystem-manager's selection controller (DTV-as-gate-and-prior). DTV owns
+	// swarm-manager's selection controller (DTV-as-gate-and-prior). DTV owns
 	// the records, so the cross-golden fold lives here rather than client-side.
 	GetSkillFitness(context.Context, *connect.Request[report.GetSkillFitnessRequest]) (*connect.Response[report.GetSkillFitnessResponse], error)
 }
@@ -138,7 +138,7 @@ type ReportServiceHandler interface {
 	GetCoverage(context.Context, *connect.Request[report.GetCoverageRequest]) (*connect.Response[report.GetCoverageResponse], error)
 	// GetSkillFitness aggregates every validation record for one skill across all
 	// goldens into a single trust/cost/convergence fitness view. Consumed by
-	// ecosystem-manager's selection controller (DTV-as-gate-and-prior). DTV owns
+	// swarm-manager's selection controller (DTV-as-gate-and-prior). DTV owns
 	// the records, so the cross-golden fold lives here rather than client-side.
 	GetSkillFitness(context.Context, *connect.Request[report.GetSkillFitnessRequest]) (*connect.Response[report.GetSkillFitnessResponse], error)
 }

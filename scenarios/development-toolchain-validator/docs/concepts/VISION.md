@@ -104,7 +104,7 @@ prompt-manager (skill source)              templates/scenarios/* (golden source)
 ### Dependency Direction
 
 - **DTV depends on**: prompt-manager (read skill catalog), agent-manager (execute sandboxed run + return diff), `templates/scenarios/*` (regenerate goldens), and the scenario CLIs being validated.
-- **Nothing in the broader ecosystem depends on DTV.** It is a verification layer; prompt-manager, agent-manager, and ecosystem-manager all function without it.
+- **Nothing in the broader ecosystem depends on DTV.** It is a verification layer; prompt-manager, agent-manager, and swarm-manager all function without it.
 
 ## What Success Looks Like
 

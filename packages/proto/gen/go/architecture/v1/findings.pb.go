@@ -52,36 +52,36 @@ const (
 	// SECURITY: test-genie `security` phase — delegates to the
 	// security-health scenario (secrets, Go SAST, Go vuln-DB, JS deps) and
 	// emits normalized findings whose critical/high → ERROR gates the
-	// ecosystem-manager R1 ("Safe") ladder rung.
+	// swarm-manager R1 ("Safe") ladder rung.
 	FindingSource_FINDING_SOURCE_SECURITY FindingSource = 9
 	// MEASURES: test-genie `measures` phase — delegates to the
 	// measures-health scenario (measure coverage of stateful domains +
 	// behavioral adoption probe) and emits normalized findings whose
 	// uncovered-stateful-domain / hollow-declaration → ERROR feeds the
-	// ecosystem-manager soft `measures` ladder dimension (R4).
+	// swarm-manager soft `measures` ladder dimension (R4).
 	FindingSource_FINDING_SOURCE_MEASURES FindingSource = 10
 	// BUSINESS: test-genie `business` phase — validates the scenario's
 	// requirements registry (requirements/*.json + PRD.md linkage) and
 	// emits typed drift findings (starter-template registries, orphaned
 	// refs, unvalidated P0 requirements, dangling validation refs).
 	// Advisory in v1: severities capped at ERROR, never BLOCKER. Feeds the
-	// ecosystem-manager `business` ladder dimension.
+	// swarm-manager `business` ladder dimension.
 	FindingSource_FINDING_SOURCE_BUSINESS FindingSource = 11
 	// PROTO: test-genie `proto` phase — delegates to the proto-health
 	// scenario (domain organization, generated-artifact sync, transport
 	// world, and proto-surface facts) and emits normalized findings. Feeds
-	// the ecosystem-manager soft `proto-health` R2 ladder dimension.
+	// the swarm-manager soft `proto-health` R2 ladder dimension.
 	FindingSource_FINDING_SOURCE_PROTO FindingSource = 12
 	// DEPENDENCY: test-genie `dependencies` phase — delegates to the
 	// scenario-dependency-analyzer actual graph drift check and emits
 	// declared-vs-actual scenario dependency findings. Feeds the
-	// ecosystem-manager soft `dependency-accuracy` R2 ladder dimension.
+	// swarm-manager soft `dependency-accuracy` R2 ladder dimension.
 	FindingSource_FINDING_SOURCE_DEPENDENCY FindingSource = 13
 	// STORAGE: test-genie `storage` phase — delegates to the storage-health
 	// scenario (schema layout, migration hygiene, persistence-seam adoption,
 	// and test-isolation safety) and emits normalized findings. Its L2
 	// isolation verdict is a fail-closed precondition for the destructive
-	// `playbooks` phase; feeds the ecosystem-manager `storage` ladder
+	// `playbooks` phase; feeds the swarm-manager `storage` ladder
 	// dimension.
 	FindingSource_FINDING_SOURCE_STORAGE FindingSource = 14
 	// BRANDING: test-genie `branding` phase — delegates to the brand-manager
@@ -89,7 +89,7 @@ const (
 	// findings (display-name, color-system, typography, logo, favicon, WCAG-AA
 	// contrast, applied brand markers) climbing a branding maturity ladder.
 	// Deterministic rules offer PreviewFix/ApplyFix auto-fixes. Feeds the
-	// ecosystem-manager `branding` ladder dimension.
+	// swarm-manager `branding` ladder dimension.
 	FindingSource_FINDING_SOURCE_BRANDING FindingSource = 15
 	// WORKFLOW: test-genie `workflow` phase — delegates BAS workflow catalog,
 	// safety, maturity, deterministic fixes, and execution evidence to the

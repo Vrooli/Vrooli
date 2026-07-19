@@ -3,7 +3,7 @@
 ## 🎯 Overview
 
 - **Purpose**: Code Facts provides target-aware, reusable code evidence for Vrooli scenarios and bounded generic code roots. It resolves targets, brokers language graph providers, enriches scenario-aware surface facts when available, and returns selective fact families that downstream validators can trust without parsing source code themselves.
-- **Primary users/verticals**: Vrooli validation scenarios (`proto-health`, future `test-genie`, `cli-health`, `ui-health`, `ecosystem-manager`), migration agents, scenario maintainers, and operators investigating evidence behind health findings.
+- **Primary users/verticals**: Vrooli validation scenarios (`proto-health`, future `test-genie`, `cli-health`, `ui-health`, `swarm-manager`), migration agents, scenario maintainers, and operators investigating evidence behind health findings.
 - **Deployment surfaces**: Connect-RPC API and Go CLI are the primary programmatic surfaces. The React UI is an operator workbench for target inspection, fact-family filtering, warnings, evidence, and cache diagnostics.
 - **Value promise**: Replace duplicated grep/source-scanning logic across health and validation scenarios with one deterministic evidence substrate. Language parsing stays in `go-code-graph` and `typescript-code-graph`; Code Facts owns target resolution, brokering, scenario enrichment, proof synthesis, and cache semantics.
 

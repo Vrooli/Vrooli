@@ -4,7 +4,7 @@ Persistent file visit tracking with staleness detection for systematic code anal
 
 ## 🎯 Purpose & Vision
 
-A systematic file visit tracking tool that enables agent loops to maintain perfect memory across conversations. Designed specifically for ecosystem-manager phases (Progress, UX, Refactor, Test) to ensure comprehensive coverage without redundant work. Stores phase-specific metadata for seamless handoff between analysis modes, ensuring no file is left behind during systematic multi-file workflows.
+A systematic file visit tracking tool that enables agent loops to maintain perfect memory across conversations. Designed specifically for swarm-manager phases (Progress, UX, Refactor, Test) to ensure comprehensive coverage without redundant work. Stores phase-specific metadata for seamless handoff between analysis modes, ensuring no file is left behind during systematic multi-file workflows.
 
 ## 🏗️ Architecture
 
@@ -310,7 +310,7 @@ visited-tracker campaign reset \
 
 ### Programmatic Usage
 
-Other scenarios and ecosystem-manager phases integrate with visited-tracker for systematic file analysis:
+Other scenarios and swarm-manager phases integrate with visited-tracker for systematic file analysis:
 - **UX Phase**: Track UI file improvements with notes on component-level work
 - **Refactor Phase**: Monitor code quality improvements across API and UI
 - **Test Phase**: Ensure comprehensive test coverage across codebase

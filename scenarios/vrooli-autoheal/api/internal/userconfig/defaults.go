@@ -1,5 +1,7 @@
 package userconfig
 
+import "github.com/vrooli/api-core/coreset"
+
 // Default values for configuration
 const (
 	DefaultVersion = "1.0"
@@ -63,11 +65,10 @@ func DefaultConfig() *Config {
 // DefaultMonitoring returns the default monitoring configuration
 // This defines which scenarios and resources are monitored by default
 func DefaultMonitoring() MonitoringConfig {
-	return MonitoringConfig{
+	monitoring := MonitoringConfig{
 		Scenarios: map[string]MonitoredScenario{
 			// Critical scenarios - will report StatusCritical when stopped
-			"app-monitor":       {Critical: true},
-			"ecosystem-manager": {Critical: true},
+			"app-monitor": {Critical: true},
 			// system-monitor provides the pressure evidence consumed by the
 			// runtime recovery controller; its liveness is therefore explicit.
 			"system-monitor":   {Critical: true},
@@ -87,6 +88,21 @@ func DefaultMonitoring() MonitoringConfig {
 			"searxng",
 			"whisper",
 		},
+	}
+	ensureMandatoryCoreScenarios(&monitoring)
+	return monitoring
+}
+
+// ensureMandatoryCoreScenarios keeps the platform's shared core-set healthy
+// without requiring every consumer scenario to declare the same dependency.
+// Core members are always critical; optional operator monitoring remains
+// additive around this mandatory floor.
+func ensureMandatoryCoreScenarios(monitoring *MonitoringConfig) {
+	if monitoring.Scenarios == nil {
+		monitoring.Scenarios = make(map[string]MonitoredScenario)
+	}
+	for _, name := range coreset.CoreSeedScenarios() {
+		monitoring.Scenarios[name] = MonitoredScenario{Critical: true}
 	}
 }
 
@@ -306,6 +322,9 @@ func boolPtr(v bool) *bool {
 // GetCheckDefaults returns the default configuration for a check
 // If the check isn't in KnownCheckDefaults, returns generic defaults
 func GetCheckDefaults(checkID string) CheckDefaults {
+	if isMandatoryCoreScenarioCheck(checkID) {
+		return CheckDefaults{Enabled: true, AutoHeal: true, AutoHealOn: "critical", IntervalSeconds: 60}
+	}
 	if defaults, ok := KnownCheckDefaults[checkID]; ok {
 		return defaults
 	}
@@ -316,4 +335,12 @@ func GetCheckDefaults(checkID string) CheckDefaults {
 		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	}
+}
+
+func isMandatoryCoreScenarioCheck(checkID string) bool {
+	const prefix = "scenario-"
+	if len(checkID) <= len(prefix) || checkID[:len(prefix)] != prefix {
+		return false
+	}
+	return coreset.IsCoreSeed(checkID[len(prefix):])
 }

@@ -2911,7 +2911,7 @@ The scenario is **production-ready for all P0/P1 capabilities**. The issues are:
 - Approach: Convert 5 BAS playbooks to nodes/edges format
 - Effort: 3-4 hours estimated (significant time investment)
 - Impact: Auto-sync would show 64% (aligned with functional reality)
-- When: If auto-sync metrics become blocking for ecosystem manager
+- When: If auto-sync metrics become blocking for Swarm Manager
 - Note: Would not fix PRD linkage violations (different issue)
 
 **Option C: Fix PRD Linkage** (Requires PRD edit permission)
@@ -3054,7 +3054,7 @@ The metrics issues (completeness score 0/100, standards violations, auto-sync 21
 
 ### Alternative Path (If Metrics Become Blocking)
 
-If ecosystem-manager requires higher completeness scores or standards compliance:
+If swarm-manager requires higher completeness scores or standards compliance:
 1. **Convert BAS workflows** to nodes/edges format (3-4 hours) → Auto-sync would show 64%, +20pts estimated
 2. **Restructure PRD** to match requirement groupings (1-2 hours, requires permission) → 0 CRITICAL violations
 3. **Combined effort**: 4-6 hours to achieve ~60-70/100 completeness score
@@ -3275,7 +3275,7 @@ The scenario is **production-ready for P0/P1** capabilities. The metrics discrep
 - Effort: 3-4 hours estimated
 - Impact: Auto-sync would show 64% (aligned with functional reality)
 - Reference: `scenarios/browser-automation-studio/bas/`
-- When: If auto-sync metrics become blocking for ecosystem manager
+- When: If auto-sync metrics become blocking for Swarm Manager
 
 **Option C: Implement P2 Requirements** (Future expansion)
 - Requirements: VT-REQ-011 through VT-REQ-014 (Advanced analytics, git integration, etc.)
@@ -4055,7 +4055,7 @@ Removed unsupported BATS test refs from requirement validation and kept only rec
 
 **Root Cause Identified**:
 - Global environment variable `API_PORT=17364` is interfering with BATS test execution
-- The variable is set by ecosystem-manager (PID 2475606) which is running on port 17364
+- The variable is set by swarm-manager (PID 2475606) which is running on port 17364
 - visited-tracker runs on port 17694 (allocated via `.vrooli/service.json`)
 - BATS test setup() was using fallback logic `${API_PORT:-}` which preserved the global value
 
@@ -4381,7 +4381,7 @@ Systematically reviewed 15 files using visited-tracker to ensure thorough covera
 
 ## Iteration 14 (2025-11-26)
 
-**Author**: ecosystem-manager (polish phase, iteration 2 of 5 max)
+**Author**: swarm-manager (polish phase, iteration 2 of 5 max)
 
 **Phase**: Polish - Cohesion & Consistency
 
@@ -4442,7 +4442,7 @@ Systematically reviewed 15 files using visited-tracker to ensure thorough covera
 
 ## Iteration 15 (2025-11-26)
 
-**Author**: ecosystem-manager (polish phase, iteration 3 of 5 max)
+**Author**: swarm-manager (polish phase, iteration 3 of 5 max)
 
 **Phase**: Polish - Final Review & Refinement
 
@@ -4505,7 +4505,7 @@ Systematically reviewed 15 files using visited-tracker to ensure thorough covera
 
 ---
 
-### 2025-11-26 - Iteration 16 (Polish Phase 4/5) - Documentation Accuracy - Claude Code (ecosystem-manager)
+### 2025-11-26 - Iteration 16 (Polish Phase 4/5) - Documentation Accuracy - Claude Code (swarm-manager)
 
 **Phase**: Polish (Phase 7/7, Iteration 4/5)
 
@@ -4731,7 +4731,7 @@ Systematically reviewed 15 files using visited-tracker to ensure thorough covera
 
 ## 2025-11-26 | Claude (scenario-improver) | Phase 7 Iteration 8 | Polish - FINAL STOP (No Changes)
 
-**Focus**: Iteration 8 of max 5 - final verification and handoff to ecosystem-manager
+**Focus**: Iteration 8 of max 5 - final verification and handoff to swarm-manager
 
 **Verification Results**:
 - ✅ **Unit tests**: 186 tests passing (112 Go + 74 Node.js, 65.4% Go coverage)
@@ -4802,7 +4802,7 @@ Systematically reviewed 15 files using visited-tracker to ensure thorough covera
 
 ## 2025-11-26 | Claude (scenario-improver) | Phase 7 Iteration 8 | Polish - MAX ITERATIONS EXCEEDED (No Changes)
 
-**Focus**: Iteration 8 of max 5 - final verification and handoff to ecosystem-manager
+**Focus**: Iteration 8 of max 5 - final verification and handoff to swarm-manager
 
 **Verification Results**:
 - ✅ **Dependencies**: 5/5 checks passing (2s runtime)

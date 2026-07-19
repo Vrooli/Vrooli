@@ -6,6 +6,7 @@ import "agent-manager/v1/domain/profile.proto";
 import "agent-manager/v1/domain/types.proto";
 import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
@@ -271,6 +272,36 @@ message RunResult {
   int32 exit_code = 5;
   string terminal_reason = 6;
   StructuredResult structured = 7;
+  ReceiptObservations observations = 8;
+}
+
+enum ReceiptObservationState {
+  RECEIPT_OBSERVATION_STATE_UNSPECIFIED = 0;
+  RECEIPT_OBSERVATION_STATE_AVAILABLE = 1;
+  RECEIPT_OBSERVATION_STATE_UNOBSERVED = 2;
+  RECEIPT_OBSERVATION_STATE_DEGRADED = 3;
+  RECEIPT_OBSERVATION_STATE_UNAVAILABLE = 4;
+}
+
+// ReceiptObservations are platform-owned observations, never agent output.
+message ReceiptObservations {
+  ReceiptObservationState state = 1;
+  repeated ObservedReceipt receipts = 2;
+  string detail = 3;
+}
+
+message ObservedReceipt {
+  string event_id = 1;
+  string target_scenario = 2;
+  string operation = 3;
+  string agent_run_id = 4;
+  string workflow_execution_id = 5;
+  string workflow_node_id = 6;
+  uint32 attempt = 7;
+  bool attribution_verified = 8;
+  string outcome = 9;
+  uint32 status_code = 10;
+  google.protobuf.Struct projection = 11;
 }
 
 // AwaitHandle identifies the externally-owned async work a parked run is

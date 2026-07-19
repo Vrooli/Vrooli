@@ -28,7 +28,6 @@
     structure that skills expect)
   - Skill authors (use results to verify their skill no-ops on a pristine
     scenario, as a coherence check)
-  - Ecosystem-manager (validates the development helper tools it relies on
     still produce sensible output)
 - **Deployment surfaces**: Connect-RPC API, React UI, CLI
 - **Value promise**:

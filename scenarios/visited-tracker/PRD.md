@@ -7,7 +7,7 @@
 
 ## 🎯 Overview
 - **Purpose**: Persistent file visit tracking with staleness detection for systematic code analysis across large codebases, enabling agent loops to maintain perfect memory across conversations
-- **Primary users/verticals**: Agent loops in ecosystem-manager (Progress, UX, Refactor, Test phases), maintenance scenarios, code quality automation, Claude Code agents performing systematic multi-file work across conversations
+- **Primary users/verticals**: Agent loops in swarm-manager (Progress, UX, Refactor, Test phases), maintenance scenarios, code quality automation, Claude Code agents performing systematic multi-file work across conversations
 - **Deployment surfaces**: CLI (programmatic integration for agent loops), API (web interface and external integrations), UI (manual campaign management)
 - **Value promise**: Enables agent loops to maintain perfect memory across conversations, ensuring comprehensive coverage without redundant work, with phase-specific metadata storage for handoff between analysis modes (UX → Refactor → Test) and staleness scoring to prioritize neglected files
 

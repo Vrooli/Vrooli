@@ -137,12 +137,8 @@ func (s *Server) setupRoutes() {
 	// Refactor recommendations endpoint - combines visited-tracker + file metrics
 	s.router.HandleFunc("/api/v1/agent/refactor-recommendations", s.handleRefactorRecommendations).Methods("GET", "OPTIONS")
 
-	// Tidiness score endpoint - provides aggregate tidiness metrics for ecosystem-manager
-	// Supports two URL patterns for compatibility:
-	// - /api/v1/scenarios/{scenario}/tidiness (preferred, RESTful)
-	// - /api/v1/scan/{scenario} (legacy, for ecosystem-manager compatibility)
+	// Tidiness score endpoint provides aggregate tidiness metrics to consumers.
 	s.router.HandleFunc("/api/v1/scenarios/{scenario}/tidiness", s.handleGetTidinessScore).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/scan/{scenario}", s.handleGetTidinessScore).Methods("GET", "OPTIONS")
 
 	// Auto-campaign endpoints (OT-P1-001, OT-P1-002)
 	s.router.HandleFunc("/api/v1/campaigns", s.handleCreateCampaign).Methods("POST", "OPTIONS")

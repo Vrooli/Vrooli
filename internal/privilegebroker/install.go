@@ -1,0 +1,192 @@
+package privilegebroker
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"os/exec"
+	"os/user"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+)
+
+const (
+	DefaultSocketPath = "/run/vrooli/privilege-broker.sock"
+	defaultAuditPath  = "/var/log/vrooli/privilege-broker.jsonl"
+	serviceName       = "vrooli-privilege-broker.service"
+	servicePath       = "/etc/systemd/system/" + serviceName
+	installedBinary   = "/usr/local/lib/vrooli/vrooli-privilege-broker"
+)
+
+type SetupStatus struct {
+	Available  bool   `json:"available"`
+	Supported  bool   `json:"supported"`
+	SocketPath string `json:"socket_path"`
+	Reason     string `json:"reason,omitempty"`
+	Recovery   string `json:"recovery,omitempty"`
+}
+
+type Installer struct {
+	Executable string
+	Run        func(context.Context, string, ...string) ([]byte, error)
+	Copy       func(string, string) error
+}
+
+func DefaultInstaller(executable string) Installer {
+	return Installer{Executable: executable, Run: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	}, Copy: copyRootOwned}
+}
+
+func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
+	if runtime.GOOS != "linux" {
+		return SetupStatus{Supported: false, SocketPath: DefaultSocketPath, Reason: "privilege broker is currently supported only on Linux with systemd", Recovery: "Use a supported Linux host, then re-run sudo vrooli setup."}, nil
+	}
+	if os.Geteuid() != 0 {
+		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: "setup was not elevated", Recovery: "Re-run sudo vrooli setup to install the privilege broker."}, nil
+	}
+	uid, gid, err := invokingIdentity()
+	if err != nil {
+		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: err.Error(), Recovery: "Re-run sudo vrooli setup from the owner account that will run Vrooli."}, nil
+	}
+	if strings.TrimSpace(i.Executable) == "" {
+		return SetupStatus{}, fmt.Errorf("resolve broker executable: empty path")
+	}
+	if i.Copy == nil {
+		i.Copy = copyRootOwned
+	}
+	if err := i.Copy(i.Executable, installedBinary); err != nil {
+		return SetupStatus{}, fmt.Errorf("install broker executable: %w", err)
+	}
+	if err := os.WriteFile(servicePath, []byte(systemdUnit(installedBinary, uid, gid)), 0o644); err != nil {
+		return SetupStatus{}, fmt.Errorf("write broker systemd unit: %w", err)
+	}
+	if err := os.Chown(servicePath, 0, 0); err != nil {
+		return SetupStatus{}, fmt.Errorf("own broker unit: %w", err)
+	}
+	if i.Run == nil {
+		i.Run = DefaultInstaller(i.Executable).Run
+	}
+	for _, args := range brokerServiceCommands() {
+		if out, err := i.Run(ctx, "systemctl", args...); err != nil {
+			return SetupStatus{}, fmt.Errorf("systemctl %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		}
+	}
+	return SetupStatus{Available: true, Supported: true, SocketPath: DefaultSocketPath}, nil
+}
+
+// brokerServiceCommands deliberately restarts the broker after an install or
+// upgrade. `systemctl enable --now` only starts an inactive service; it leaves
+// an already-running process on its old binary and old unit sandbox settings.
+func brokerServiceCommands() [][]string {
+	return [][]string{{"daemon-reload"}, {"enable", serviceName}, {"restart", serviceName}, {"is-active", "--quiet", serviceName}}
+}
+
+func Inspect() SetupStatus {
+	if runtime.GOOS != "linux" {
+		return SetupStatus{Supported: false, SocketPath: DefaultSocketPath, Reason: "privilege broker is currently supported only on Linux with systemd"}
+	}
+	conn, err := net.Dial("unix", DefaultSocketPath)
+	if err != nil {
+		return SetupStatus{Supported: true, SocketPath: DefaultSocketPath, Reason: "broker socket is unavailable", Recovery: "Re-run sudo vrooli setup to install or repair the privilege broker."}
+	}
+	_ = conn.Close()
+	return SetupStatus{Available: true, Supported: true, SocketPath: DefaultSocketPath}
+}
+
+func systemdUnit(executable string, uid, gid int) string {
+	return fmt.Sprintf(`[Unit]
+Description=Vrooli setup-managed privilege broker
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=%s __privilege-broker serve --socket %s --allowed-uid %d --socket-gid %d --audit-path %s
+Restart=on-failure
+RestartSec=2s
+RuntimeDirectory=vrooli
+RuntimeDirectoryMode=0755
+LogsDirectory=vrooli
+LogsDirectoryMode=0750
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+# UFW creates this lock even for read-only status requests, and writes its
+# managed rules below /etc/ufw. These are the only UFW paths made writable.
+ReadWritePaths=/run/vrooli /run/ufw.lock /etc/ufw /var/log/vrooli
+
+[Install]
+WantedBy=multi-user.target
+`, strconv.Quote(executable), DefaultSocketPath, uid, gid, defaultAuditPath)
+}
+
+func invokingIdentity() (int, int, error) {
+	uidText := strings.TrimSpace(os.Getenv("SUDO_UID"))
+	if uidText == "" {
+		return 0, 0, fmt.Errorf("elevated setup needs SUDO_UID to identify the authorized broker caller")
+	}
+	uid, err := strconv.Atoi(uidText)
+	if err != nil || uid < 1 {
+		return 0, 0, fmt.Errorf("invalid SUDO_UID")
+	}
+	u, err := user.LookupId(uidText)
+	if err != nil {
+		return 0, 0, fmt.Errorf("lookup invoking user: %w", err)
+	}
+	gid, err := strconv.Atoi(u.Gid)
+	if err != nil {
+		return 0, 0, fmt.Errorf("parse invoking user gid: %w", err)
+	}
+	return uid, gid, nil
+}
+
+func copyRootOwned(source, destination string) error {
+	return copyAtomically(source, destination, os.Chown)
+}
+
+// copyAtomically replaces destination with a fully-written sibling inode. A
+// running systemd service may still execute the old inode, while future starts
+// resolve destination to the new binary; opening destination with O_TRUNC would
+// instead fail with ETXTBSY and leave setup unable to repair the broker.
+func copyAtomically(source, destination string, chown func(string, int, int) error) error {
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return err
+	}
+	output, err := os.CreateTemp(filepath.Dir(destination), "."+filepath.Base(destination)+".tmp-")
+	if err != nil {
+		return err
+	}
+	temporary := output.Name()
+	defer func() { _ = os.Remove(temporary) }()
+	if err := output.Chmod(0o755); err != nil {
+		_ = output.Close()
+		return err
+	}
+	_, copyErr := io.Copy(output, input)
+	syncErr := output.Sync()
+	closeErr := output.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	if syncErr != nil {
+		return syncErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if err := chown(temporary, 0, 0); err != nil {
+		return err
+	}
+	return os.Rename(temporary, destination)
+}

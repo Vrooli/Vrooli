@@ -176,7 +176,7 @@ func (s *service) GetCoverage(ctx context.Context, goldenSlug string) (Coverage,
 // GetSkillFitness folds every validation record for one skill, across all
 // goldens, into a single trust/cost/convergence view. DTV owns the records, so
 // this cross-golden aggregation lives here rather than being re-implemented by
-// each consumer (ecosystem-manager's selection controller is the first).
+// each consumer (swarm-manager's selection controller is the first).
 func (s *service) GetSkillFitness(ctx context.Context, skillID string) (SkillFitness, error) {
 	skillID = strings.TrimSpace(skillID)
 	if skillID == "" {

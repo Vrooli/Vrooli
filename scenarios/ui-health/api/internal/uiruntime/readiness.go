@@ -16,6 +16,7 @@ type readinessProfile struct {
 			ID        string `json:"id"`
 			Required  bool   `json:"required"`
 			Lifecycle struct {
+				Kind   string   `json:"kind"`
 				States []string `json:"states"`
 			} `json:"lifecycle"`
 		} `json:"regions"`
@@ -25,6 +26,7 @@ type readinessProfile struct {
 type requiredSurface struct {
 	id       string
 	required bool
+	kind     string
 	states   map[string]bool
 }
 
@@ -52,7 +54,7 @@ func (p *readinessProfile) requiredSurfacesForRoute(route string) []requiredSurf
 			for _, state := range region.Lifecycle.States {
 				states[state] = true
 			}
-			out = append(out, requiredSurface{id: region.ID, required: region.Required, states: states})
+			out = append(out, requiredSurface{id: region.ID, required: region.Required, kind: region.Lifecycle.Kind, states: states})
 		}
 	}
 	return out
@@ -127,6 +129,10 @@ func readinessSurfaceFindings(layoutJSON string, expected []requiredSurface, url
 				findings = append(findings, manifestvalidation.Finding{Severity: manifestvalidation.SeverityError, Code: "runtime_required_surface_invalid_state", Location: location, Message: fmt.Sprintf("required experience surface %q reported undeclared state %q", want.id, got.state)})
 			}
 		}
+		if want.required && !isTerminalSurfaceState(want, got.state) {
+			requiredFailure = true
+			findings = append(findings, manifestvalidation.Finding{Severity: manifestvalidation.SeverityError, Code: "runtime_required_surface_unsettled", Location: location, Message: fmt.Sprintf("required experience surface %q remained in non-terminal state %q", want.id, got.state), Suggestion: "Wait for ready, empty, partial, or error before treating an async page as functionally settled."})
+		}
 		if got.state == "error" {
 			if want.required {
 				requiredFailure = true
@@ -142,4 +148,11 @@ func readinessSurfaceFindings(layoutJSON string, expected []requiredSurface, url
 		findings = append(findings, manifestvalidation.Finding{Severity: manifestvalidation.SeverityInfo, Code: "runtime_page_partial", Location: location, Message: "page aggregation is partial because an optional experience surface reported error", Suggestion: "Verify the primary task remains usable and expose partial-state guidance to the user."})
 	}
 	return findings
+}
+
+func isTerminalSurfaceState(surface requiredSurface, state string) bool {
+	if surface.kind == "static" {
+		return state == "static"
+	}
+	return state == "ready" || state == "empty" || state == "partial" || state == "error"
 }

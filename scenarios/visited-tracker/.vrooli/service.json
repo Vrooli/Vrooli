@@ -4,12 +4,11 @@
   "service": {
     "name": "visited-tracker",
     "displayName": "Visited Tracker",
-    "description": "Agent loop memory primitive enabling perfect cross-conversation file tracking for ecosystem-manager phases (Progress, UX, Refactor, Test)",
+    "description": "Agent loop memory primitive enabling cross-conversation file tracking for scenario development and maintenance workflows",
     "version": "1.0.0",
     "tags": [
       "agent-loop-memory",
       "phase-integration",
-      "ecosystem-manager",
       "file-tracking",
       "visit-tracking",
       "staleness-detection",

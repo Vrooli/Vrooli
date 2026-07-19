@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package vrooli_events.v1;
+package vrooli.events.v1.domain;
 
 import "google/protobuf/timestamp.proto";
 import "vrooli-events/v1/domain/envelope.proto";
@@ -8,93 +8,21 @@ import "vrooli-events/v1/domain/policy.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domain";
 
-// =============================================================================
-// SSE MESSAGES
-// =============================================================================
-//
-// @layer 1
-// @domain vrooli-events
-// @imports envelope.proto, policy.proto
-// @stability stable
-//
-// SSE protocol messages for real-time event subscriptions, policy snapshot
-// pushes, and connection keepalive. These define the wire format for the
-// vrooli-events SSE transport layer.
-//
-// USAGE CONTEXTS:
-//   - SSE Server: Serialize outbound messages to subscribers
-//   - SSE Client: Deserialize inbound event stream
-//   - Policy Cache: Receive full policy snapshots for local evaluation
-//
-// =============================================================================
-
-// SubscriptionRequest defines filters for an SSE event subscription.
-//
-// All pattern fields support glob matching. Empty/unset fields match everything.
-//
-// @usage SSE subscription establishment
-message SubscriptionRequest {
-  // Event type glob pattern (e.g., "agent-manager.run.*").
-  string event_type_pattern = 1;
-
-  // Source scenario glob pattern (optional, matches all if unset).
-  optional string source_scenario_pattern = 2;
-
-  // Target scenario glob pattern (optional, matches all if unset).
-  optional string target_scenario_pattern = 3;
-}
-
-// EventNotification wraps an event envelope for SSE delivery.
-//
-// Adds stream_sequence for Last-Event-ID resume support. The sequence is
-// monotonically increasing per subscription, enabling gap detection and
-// reconnection without data loss.
-//
-// @usage SSE event delivery
+// EventNotification is the SSE transport wrapper; the envelope itself remains
+// the sole event contract.
 message EventNotification {
-  // Monotonically increasing sequence number per subscription.
-  // Used as Last-Event-ID for SSE reconnection and resume.
   int64 stream_sequence = 1;
-
-  // The event being delivered.
   EventEnvelope envelope = 2;
 }
 
-// PolicySnapshot delivers a full policy state to subscribers.
-//
-// Pushed via SSE whenever policy rules change. Clients compare version
-// numbers and discard snapshots with version <= their cached version.
-//
-// @usage SSE policy cache invalidation
+// PolicySnapshot atomically replaces the API Core capture allow-list.
 message PolicySnapshot {
-  // Monotonically increasing version, set by server on policy change.
-  // Clients discard snapshots where version <= cached version.
-  int64 version = 1;
-
-  // When this snapshot was generated.
+  string version = 1;
   google.protobuf.Timestamp generated_at = 2;
-
-  // All active access rules.
-  repeated AccessRule access_rules = 3;
-
-  // All active rate limits.
-  repeated RateLimit rate_limits = 4;
-
-  // All active circuit breakers.
-  repeated CircuitBreaker circuit_breakers = 5;
+  repeated ReceiptCapturePolicy receipt_capture_policies = 3;
 }
 
-// HeartbeatMessage keeps the SSE connection alive and reports backpressure.
-//
-// Sent every 30 seconds. If events were dropped due to channel backpressure,
-// dropped_count is non-zero and the client should re-fetch missed events.
-//
-// @usage SSE keepalive, backpressure notification
 message HeartbeatMessage {
-  // Server timestamp for the heartbeat.
   google.protobuf.Timestamp timestamp = 1;
-
-  // Number of events dropped since the last heartbeat due to backpressure.
-  // Zero means no drops occurred.
   int64 dropped_count = 2;
 }

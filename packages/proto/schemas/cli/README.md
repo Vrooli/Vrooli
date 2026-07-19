@@ -3,7 +3,7 @@
 Platform-level (non-scenario) wire contracts for the **root `vrooli` CLI's
 `--json` output**. These are the single source of truth for the shape of
 `vrooli <command> --json`, consumed across languages via generated code (Go for
-the CLI itself and the ecosystem-manager API, TypeScript for the operator UI,
+the CLI itself and the swarm-manager API, TypeScript for the operator UI,
 Python and others on demand).
 
 This package is modeled on the fleet-shared packages (`common/`, `measures/`,

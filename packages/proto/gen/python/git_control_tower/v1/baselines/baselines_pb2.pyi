@@ -323,7 +323,7 @@ class GetDiffResultResponse(_message.Message):
     def __init__(self, status: _Optional[str] = ..., diff: _Optional[_Union[DiffResult, _Mapping]] = ..., error: _Optional[str] = ..., recommended_next_check_seconds: _Optional[int] = ..., run_id: _Optional[str] = ...) -> None: ...
 
 class DiffResult(_message.Message):
-    __slots__ = ("baseline", "current_git", "staleness", "verdict", "dirty_warning", "phases", "evidence")
+    __slots__ = ("baseline", "current_git", "staleness", "verdict", "dirty_warning", "phases", "evidence", "comparison")
     BASELINE_FIELD_NUMBER: _ClassVar[int]
     CURRENT_GIT_FIELD_NUMBER: _ClassVar[int]
     STALENESS_FIELD_NUMBER: _ClassVar[int]
@@ -331,6 +331,7 @@ class DiffResult(_message.Message):
     DIRTY_WARNING_FIELD_NUMBER: _ClassVar[int]
     PHASES_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    COMPARISON_FIELD_NUMBER: _ClassVar[int]
     baseline: BaselineManifest
     current_git: GitState
     staleness: Staleness
@@ -338,7 +339,8 @@ class DiffResult(_message.Message):
     dirty_warning: str
     phases: _containers.RepeatedCompositeFieldContainer[_runs_pb2.PhaseDiff]
     evidence: EvidenceComparison
-    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., current_git: _Optional[_Union[GitState, _Mapping]] = ..., staleness: _Optional[_Union[Staleness, _Mapping]] = ..., verdict: _Optional[str] = ..., dirty_warning: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[_runs_pb2.PhaseDiff, _Mapping]]] = ..., evidence: _Optional[_Union[EvidenceComparison, _Mapping]] = ...) -> None: ...
+    comparison: _runs_pb2.CompareRunsResponse
+    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., current_git: _Optional[_Union[GitState, _Mapping]] = ..., staleness: _Optional[_Union[Staleness, _Mapping]] = ..., verdict: _Optional[str] = ..., dirty_warning: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[_runs_pb2.PhaseDiff, _Mapping]]] = ..., evidence: _Optional[_Union[EvidenceComparison, _Mapping]] = ..., comparison: _Optional[_Union[_runs_pb2.CompareRunsResponse, _Mapping]] = ...) -> None: ...
 
 class RunBusyInfo(_message.Message):
     __slots__ = ("scenario", "run_id", "preset")

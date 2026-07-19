@@ -636,8 +636,11 @@ type StartRunRequest struct {
 	// enables all-pages visual capture + video + full diagnostics for
 	// git-control-tower baseline snapshots.
 	CaptureProfile string `protobuf:"bytes,14,opt,name=capture_profile,json=captureProfile,proto3" json:"capture_profile,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Gate-quality runs require clean, digest-stamped source evidence. Exploratory
+	// callers leave this false and receive an explicit volatile provenance later.
+	RequireGateQuality bool `protobuf:"varint,15,opt,name=require_gate_quality,json=requireGateQuality,proto3" json:"require_gate_quality,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *StartRunRequest) Reset() {
@@ -759,6 +762,13 @@ func (x *StartRunRequest) GetCaptureProfile() string {
 		return x.CaptureProfile
 	}
 	return ""
+}
+
+func (x *StartRunRequest) GetRequireGateQuality() bool {
+	if x != nil {
+		return x.RequireGateQuality
+	}
+	return false
 }
 
 type StartRunResponse struct {
@@ -2092,8 +2102,13 @@ type RunPhaseDescriptor struct {
 	Aliases              []string                    `protobuf:"bytes,15,rep,name=aliases,proto3" json:"aliases,omitempty"`
 	Supersedes           []string                    `protobuf:"bytes,16,rep,name=supersedes,proto3" json:"supersedes,omitempty"`
 	Applicability        *PhaseApplicabilityDecision `protobuf:"bytes,17,opt,name=applicability,proto3" json:"applicability,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Fingerprint of the validation semantics only. Presentation metadata is
+	// deliberately excluded so copy changes do not invalidate evidence.
+	ComparisonFingerprint string `protobuf:"bytes,18,opt,name=comparison_fingerprint,json=comparisonFingerprint,proto3" json:"comparison_fingerprint,omitempty"`
+	// compatible | changed-unreviewed | invalidated | superseded.
+	ComparisonMode string `protobuf:"bytes,19,opt,name=comparison_mode,json=comparisonMode,proto3" json:"comparison_mode,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RunPhaseDescriptor) Reset() {
@@ -2245,6 +2260,20 @@ func (x *RunPhaseDescriptor) GetApplicability() *PhaseApplicabilityDecision {
 	return nil
 }
 
+func (x *RunPhaseDescriptor) GetComparisonFingerprint() string {
+	if x != nil {
+		return x.ComparisonFingerprint
+	}
+	return ""
+}
+
+func (x *RunPhaseDescriptor) GetComparisonMode() string {
+	if x != nil {
+		return x.ComparisonMode
+	}
+	return ""
+}
+
 // RunDescriptorSnapshot is the complete descriptor catalog frozen at run
 // planning time. digest is sha256 over the canonical snapshot payload.
 type RunDescriptorSnapshot struct {
@@ -2338,8 +2367,15 @@ type RunInfo struct {
 	DescriptorSnapshotSchemaVersion int32                  `protobuf:"varint,18,opt,name=descriptor_snapshot_schema_version,json=descriptorSnapshotSchemaVersion,proto3" json:"descriptor_snapshot_schema_version,omitempty"`
 	DescriptorSnapshotDigest        string                 `protobuf:"bytes,19,opt,name=descriptor_snapshot_digest,json=descriptorSnapshotDigest,proto3" json:"descriptor_snapshot_digest,omitempty"`
 	DescriptorSnapshot              *RunDescriptorSnapshot `protobuf:"bytes,20,opt,name=descriptor_snapshot,json=descriptorSnapshot,proto3" json:"descriptor_snapshot,omitempty"`
-	unknownFields                   protoimpl.UnknownFields
-	sizeCache                       protoimpl.SizeCache
+	// Configuration fingerprint is the immutable execution-plan component that
+	// complements tree_digest, phase_set_digest, and descriptor_snapshot_digest.
+	// Empty only for runs that predate canonical terminal projections.
+	ExecutionConfigurationFingerprint string `protobuf:"bytes,21,opt,name=execution_configuration_fingerprint,json=executionConfigurationFingerprint,proto3" json:"execution_configuration_fingerprint,omitempty"`
+	// gate_quality is true only for a clean, digest-stamped execution. A volatile
+	// exploratory run remains inspectable but cannot stand in for gate evidence.
+	GateQuality   bool `protobuf:"varint,22,opt,name=gate_quality,json=gateQuality,proto3" json:"gate_quality,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunInfo) Reset() {
@@ -2510,6 +2546,20 @@ func (x *RunInfo) GetDescriptorSnapshot() *RunDescriptorSnapshot {
 		return x.DescriptorSnapshot
 	}
 	return nil
+}
+
+func (x *RunInfo) GetExecutionConfigurationFingerprint() string {
+	if x != nil {
+		return x.ExecutionConfigurationFingerprint
+	}
+	return ""
+}
+
+func (x *RunInfo) GetGateQuality() bool {
+	if x != nil {
+		return x.GateQuality
+	}
+	return false
 }
 
 type ListRunsRequest struct {
@@ -3168,6 +3218,101 @@ func (x *PhaseComparisonReason) GetDetail() string {
 	return ""
 }
 
+// ComparisonDiagnostic preserves a machine-readable measurement or contract
+// cause. readiness fields are provider-owned and remain available to the UI
+// and CLI instead of being collapsed into a generic not-comparable verdict.
+type ComparisonDiagnostic struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Side            string                 `protobuf:"bytes,1,opt,name=side,proto3" json:"side,omitempty"` // baseline | current | comparison
+	Code            string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	Detail          string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	Classification  string                 `protobuf:"bytes,4,opt,name=classification,proto3" json:"classification,omitempty"`
+	LifecycleAction string                 `protobuf:"bytes,5,opt,name=lifecycle_action,json=lifecycleAction,proto3" json:"lifecycle_action,omitempty"`
+	Remediation     string                 `protobuf:"bytes,6,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	Observations    []string               `protobuf:"bytes,7,rep,name=observations,proto3" json:"observations,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ComparisonDiagnostic) Reset() {
+	*x = ComparisonDiagnostic{}
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ComparisonDiagnostic) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ComparisonDiagnostic) ProtoMessage() {}
+
+func (x *ComparisonDiagnostic) ProtoReflect() protoreflect.Message {
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ComparisonDiagnostic.ProtoReflect.Descriptor instead.
+func (*ComparisonDiagnostic) Descriptor() ([]byte, []int) {
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *ComparisonDiagnostic) GetSide() string {
+	if x != nil {
+		return x.Side
+	}
+	return ""
+}
+
+func (x *ComparisonDiagnostic) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *ComparisonDiagnostic) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *ComparisonDiagnostic) GetClassification() string {
+	if x != nil {
+		return x.Classification
+	}
+	return ""
+}
+
+func (x *ComparisonDiagnostic) GetLifecycleAction() string {
+	if x != nil {
+		return x.LifecycleAction
+	}
+	return ""
+}
+
+func (x *ComparisonDiagnostic) GetRemediation() string {
+	if x != nil {
+		return x.Remediation
+	}
+	return ""
+}
+
+func (x *ComparisonDiagnostic) GetObservations() []string {
+	if x != nil {
+		return x.Observations
+	}
+	return nil
+}
+
 // PhaseDiff classifies the difference for a single phase between run A and B.
 type PhaseDiff struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
@@ -3183,13 +3328,20 @@ type PhaseDiff struct {
 	DescriptorA         *RunPhaseDescriptor      `protobuf:"bytes,9,opt,name=descriptor_a,json=descriptorA,proto3" json:"descriptor_a,omitempty"`
 	DescriptorB         *RunPhaseDescriptor      `protobuf:"bytes,10,opt,name=descriptor_b,json=descriptorB,proto3" json:"descriptor_b,omitempty"`
 	Reasons             []*PhaseComparisonReason `protobuf:"bytes,11,rep,name=reasons,proto3" json:"reasons,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Independent comparison dimensions. New consumers must use these rather
+	// than verdict, which is retained only for legacy readers.
+	Behavior      string                  `protobuf:"bytes,12,opt,name=behavior,proto3" json:"behavior,omitempty"`           // clean | regression | new-failure | preexisting | cleared | unknown
+	Coverage      string                  `protobuf:"bytes,13,opt,name=coverage,proto3" json:"coverage,omitempty"`           // measured | current-only | baseline-missing | current-missing | unmeasured
+	Compatibility string                  `protobuf:"bytes,14,opt,name=compatibility,proto3" json:"compatibility,omitempty"` // compatible | changed-unreviewed | invalidated | superseded | legacy
+	Provenance    string                  `protobuf:"bytes,15,opt,name=provenance,proto3" json:"provenance,omitempty"`       // verified | volatile | mismatched | legacy
+	Diagnostics   []*ComparisonDiagnostic `protobuf:"bytes,16,rep,name=diagnostics,proto3" json:"diagnostics,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PhaseDiff) Reset() {
 	*x = PhaseDiff{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[34]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3201,7 +3353,7 @@ func (x *PhaseDiff) String() string {
 func (*PhaseDiff) ProtoMessage() {}
 
 func (x *PhaseDiff) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[34]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3214,7 +3366,7 @@ func (x *PhaseDiff) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhaseDiff.ProtoReflect.Descriptor instead.
 func (*PhaseDiff) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{34}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *PhaseDiff) GetPhase() string {
@@ -3294,19 +3446,60 @@ func (x *PhaseDiff) GetReasons() []*PhaseComparisonReason {
 	return nil
 }
 
+func (x *PhaseDiff) GetBehavior() string {
+	if x != nil {
+		return x.Behavior
+	}
+	return ""
+}
+
+func (x *PhaseDiff) GetCoverage() string {
+	if x != nil {
+		return x.Coverage
+	}
+	return ""
+}
+
+func (x *PhaseDiff) GetCompatibility() string {
+	if x != nil {
+		return x.Compatibility
+	}
+	return ""
+}
+
+func (x *PhaseDiff) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
+	}
+	return ""
+}
+
+func (x *PhaseDiff) GetDiagnostics() []*ComparisonDiagnostic {
+	if x != nil {
+		return x.Diagnostics
+	}
+	return nil
+}
+
 type CompareRunsResponse struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Phases []*PhaseDiff           `protobuf:"bytes,1,rep,name=phases,proto3" json:"phases,omitempty"`
 	// verdict is the worst per-phase verdict (regression > not-comparable >
 	// new-failure > clean), driving the CLI exit code.
-	Verdict       string `protobuf:"bytes,2,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	Verdict       string                  `protobuf:"bytes,2,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	SchemaVersion int32                   `protobuf:"varint,3,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	Behavior      string                  `protobuf:"bytes,4,opt,name=behavior,proto3" json:"behavior,omitempty"`
+	Coverage      string                  `protobuf:"bytes,5,opt,name=coverage,proto3" json:"coverage,omitempty"`
+	Compatibility string                  `protobuf:"bytes,6,opt,name=compatibility,proto3" json:"compatibility,omitempty"`
+	Provenance    string                  `protobuf:"bytes,7,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	Diagnostics   []*ComparisonDiagnostic `protobuf:"bytes,8,rep,name=diagnostics,proto3" json:"diagnostics,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CompareRunsResponse) Reset() {
 	*x = CompareRunsResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[35]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3318,7 +3511,7 @@ func (x *CompareRunsResponse) String() string {
 func (*CompareRunsResponse) ProtoMessage() {}
 
 func (x *CompareRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[35]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3331,7 +3524,7 @@ func (x *CompareRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareRunsResponse.ProtoReflect.Descriptor instead.
 func (*CompareRunsResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{35}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *CompareRunsResponse) GetPhases() []*PhaseDiff {
@@ -3346,6 +3539,48 @@ func (x *CompareRunsResponse) GetVerdict() string {
 		return x.Verdict
 	}
 	return ""
+}
+
+func (x *CompareRunsResponse) GetSchemaVersion() int32 {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return 0
+}
+
+func (x *CompareRunsResponse) GetBehavior() string {
+	if x != nil {
+		return x.Behavior
+	}
+	return ""
+}
+
+func (x *CompareRunsResponse) GetCoverage() string {
+	if x != nil {
+		return x.Coverage
+	}
+	return ""
+}
+
+func (x *CompareRunsResponse) GetCompatibility() string {
+	if x != nil {
+		return x.Compatibility
+	}
+	return ""
+}
+
+func (x *CompareRunsResponse) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
+	}
+	return ""
+}
+
+func (x *CompareRunsResponse) GetDiagnostics() []*ComparisonDiagnostic {
+	if x != nil {
+		return x.Diagnostics
+	}
+	return nil
 }
 
 type FindRunRequest struct {
@@ -3366,13 +3601,15 @@ type FindRunRequest struct {
 	// Empty means "do not constrain"; baseline reuse should set this so stale
 	// completed runs from before catalog evolution cannot silently stand in.
 	PhaseSetDigest string `protobuf:"bytes,8,opt,name=phase_set_digest,json=phaseSetDigest,proto3" json:"phase_set_digest,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// require_gate_quality excludes clean but exploratory/shared-worktree runs.
+	RequireGateQuality bool `protobuf:"varint,9,opt,name=require_gate_quality,json=requireGateQuality,proto3" json:"require_gate_quality,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *FindRunRequest) Reset() {
 	*x = FindRunRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[36]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3384,7 +3621,7 @@ func (x *FindRunRequest) String() string {
 func (*FindRunRequest) ProtoMessage() {}
 
 func (x *FindRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[36]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3397,7 +3634,7 @@ func (x *FindRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindRunRequest.ProtoReflect.Descriptor instead.
 func (*FindRunRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{36}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *FindRunRequest) GetScenario() string {
@@ -3456,6 +3693,13 @@ func (x *FindRunRequest) GetPhaseSetDigest() string {
 	return ""
 }
 
+func (x *FindRunRequest) GetRequireGateQuality() bool {
+	if x != nil {
+		return x.RequireGateQuality
+	}
+	return false
+}
+
 type FindRunResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Found         bool                   `protobuf:"varint,1,opt,name=found,proto3" json:"found,omitempty"`
@@ -3466,7 +3710,7 @@ type FindRunResponse struct {
 
 func (x *FindRunResponse) Reset() {
 	*x = FindRunResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[37]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3478,7 +3722,7 @@ func (x *FindRunResponse) String() string {
 func (*FindRunResponse) ProtoMessage() {}
 
 func (x *FindRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[37]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3491,7 +3735,7 @@ func (x *FindRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindRunResponse.ProtoReflect.Descriptor instead.
 func (*FindRunResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{37}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *FindRunResponse) GetFound() bool {
@@ -3519,7 +3763,7 @@ type GetPhaseArtifactRequest struct {
 
 func (x *GetPhaseArtifactRequest) Reset() {
 	*x = GetPhaseArtifactRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[38]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3531,7 +3775,7 @@ func (x *GetPhaseArtifactRequest) String() string {
 func (*GetPhaseArtifactRequest) ProtoMessage() {}
 
 func (x *GetPhaseArtifactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[38]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3544,7 +3788,7 @@ func (x *GetPhaseArtifactRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPhaseArtifactRequest.ProtoReflect.Descriptor instead.
 func (*GetPhaseArtifactRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{38}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *GetPhaseArtifactRequest) GetScenario() string {
@@ -3578,7 +3822,7 @@ type GetPhaseArtifactResponse struct {
 
 func (x *GetPhaseArtifactResponse) Reset() {
 	*x = GetPhaseArtifactResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[39]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3590,7 +3834,7 @@ func (x *GetPhaseArtifactResponse) String() string {
 func (*GetPhaseArtifactResponse) ProtoMessage() {}
 
 func (x *GetPhaseArtifactResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[39]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3603,7 +3847,7 @@ func (x *GetPhaseArtifactResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPhaseArtifactResponse.ProtoReflect.Descriptor instead.
 func (*GetPhaseArtifactResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{39}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *GetPhaseArtifactResponse) GetContent() string {
@@ -3630,7 +3874,7 @@ type ArtifactRelationship struct {
 
 func (x *ArtifactRelationship) Reset() {
 	*x = ArtifactRelationship{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[40]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3642,7 +3886,7 @@ func (x *ArtifactRelationship) String() string {
 func (*ArtifactRelationship) ProtoMessage() {}
 
 func (x *ArtifactRelationship) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[40]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3655,7 +3899,7 @@ func (x *ArtifactRelationship) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArtifactRelationship.ProtoReflect.Descriptor instead.
 func (*ArtifactRelationship) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{40}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ArtifactRelationship) GetType() string {
@@ -3685,7 +3929,7 @@ type ArtifactComparison struct {
 
 func (x *ArtifactComparison) Reset() {
 	*x = ArtifactComparison{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[41]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3697,7 +3941,7 @@ func (x *ArtifactComparison) String() string {
 func (*ArtifactComparison) ProtoMessage() {}
 
 func (x *ArtifactComparison) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[41]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3710,7 +3954,7 @@ func (x *ArtifactComparison) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArtifactComparison.ProtoReflect.Descriptor instead.
 func (*ArtifactComparison) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{41}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ArtifactComparison) GetSemantics() string {
@@ -3758,7 +4002,7 @@ type ArtifactRef struct {
 
 func (x *ArtifactRef) Reset() {
 	*x = ArtifactRef{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[42]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3770,7 +4014,7 @@ func (x *ArtifactRef) String() string {
 func (*ArtifactRef) ProtoMessage() {}
 
 func (x *ArtifactRef) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[42]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3783,7 +4027,7 @@ func (x *ArtifactRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArtifactRef.ProtoReflect.Descriptor instead.
 func (*ArtifactRef) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{42}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ArtifactRef) GetId() string {
@@ -3891,7 +4135,7 @@ type ListRunArtifactsRequest struct {
 
 func (x *ListRunArtifactsRequest) Reset() {
 	*x = ListRunArtifactsRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[43]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3903,7 +4147,7 @@ func (x *ListRunArtifactsRequest) String() string {
 func (*ListRunArtifactsRequest) ProtoMessage() {}
 
 func (x *ListRunArtifactsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[43]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3916,7 +4160,7 @@ func (x *ListRunArtifactsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunArtifactsRequest.ProtoReflect.Descriptor instead.
 func (*ListRunArtifactsRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{43}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *ListRunArtifactsRequest) GetScenario() string {
@@ -3960,7 +4204,7 @@ type ListRunArtifactsResponse struct {
 
 func (x *ListRunArtifactsResponse) Reset() {
 	*x = ListRunArtifactsResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[44]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3972,7 +4216,7 @@ func (x *ListRunArtifactsResponse) String() string {
 func (*ListRunArtifactsResponse) ProtoMessage() {}
 
 func (x *ListRunArtifactsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[44]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3985,7 +4229,7 @@ func (x *ListRunArtifactsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunArtifactsResponse.ProtoReflect.Descriptor instead.
 func (*ListRunArtifactsResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{44}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ListRunArtifactsResponse) GetSchemaVersion() int32 {
@@ -4034,7 +4278,7 @@ type GetRunArtifactRequest struct {
 
 func (x *GetRunArtifactRequest) Reset() {
 	*x = GetRunArtifactRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[45]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4046,7 +4290,7 @@ func (x *GetRunArtifactRequest) String() string {
 func (*GetRunArtifactRequest) ProtoMessage() {}
 
 func (x *GetRunArtifactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[45]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4059,7 +4303,7 @@ func (x *GetRunArtifactRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunArtifactRequest.ProtoReflect.Descriptor instead.
 func (*GetRunArtifactRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{45}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *GetRunArtifactRequest) GetScenario() string {
@@ -4093,7 +4337,7 @@ type GetRunArtifactResponse struct {
 
 func (x *GetRunArtifactResponse) Reset() {
 	*x = GetRunArtifactResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[46]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4105,7 +4349,7 @@ func (x *GetRunArtifactResponse) String() string {
 func (*GetRunArtifactResponse) ProtoMessage() {}
 
 func (x *GetRunArtifactResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[46]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4118,7 +4362,7 @@ func (x *GetRunArtifactResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunArtifactResponse.ProtoReflect.Descriptor instead.
 func (*GetRunArtifactResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{46}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *GetRunArtifactResponse) GetArtifact() *ArtifactRef {
@@ -4146,7 +4390,7 @@ type GetRunFindingsRequest struct {
 
 func (x *GetRunFindingsRequest) Reset() {
 	*x = GetRunFindingsRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[47]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4158,7 +4402,7 @@ func (x *GetRunFindingsRequest) String() string {
 func (*GetRunFindingsRequest) ProtoMessage() {}
 
 func (x *GetRunFindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[47]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4171,7 +4415,7 @@ func (x *GetRunFindingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunFindingsRequest.ProtoReflect.Descriptor instead.
 func (*GetRunFindingsRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{47}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *GetRunFindingsRequest) GetScenario() string {
@@ -4206,7 +4450,7 @@ type RunFindingsPhase struct {
 
 func (x *RunFindingsPhase) Reset() {
 	*x = RunFindingsPhase{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[48]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4218,7 +4462,7 @@ func (x *RunFindingsPhase) String() string {
 func (*RunFindingsPhase) ProtoMessage() {}
 
 func (x *RunFindingsPhase) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[48]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4231,7 +4475,7 @@ func (x *RunFindingsPhase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunFindingsPhase.ProtoReflect.Descriptor instead.
 func (*RunFindingsPhase) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{48}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *RunFindingsPhase) GetName() string {
@@ -4293,7 +4537,7 @@ type GetRunFindingsResponse struct {
 
 func (x *GetRunFindingsResponse) Reset() {
 	*x = GetRunFindingsResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[49]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4305,7 +4549,7 @@ func (x *GetRunFindingsResponse) String() string {
 func (*GetRunFindingsResponse) ProtoMessage() {}
 
 func (x *GetRunFindingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[49]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4318,7 +4562,7 @@ func (x *GetRunFindingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunFindingsResponse.ProtoReflect.Descriptor instead.
 func (*GetRunFindingsResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{49}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GetRunFindingsResponse) GetScenario() string {
@@ -4369,7 +4613,7 @@ type RunVideo struct {
 
 func (x *RunVideo) Reset() {
 	*x = RunVideo{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[50]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4381,7 +4625,7 @@ func (x *RunVideo) String() string {
 func (*RunVideo) ProtoMessage() {}
 
 func (x *RunVideo) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[50]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4394,7 +4638,7 @@ func (x *RunVideo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunVideo.ProtoReflect.Descriptor instead.
 func (*RunVideo) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{50}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *RunVideo) GetWorkflow() string {
@@ -4428,7 +4672,7 @@ type ListRunVideosRequest struct {
 
 func (x *ListRunVideosRequest) Reset() {
 	*x = ListRunVideosRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[51]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4440,7 +4684,7 @@ func (x *ListRunVideosRequest) String() string {
 func (*ListRunVideosRequest) ProtoMessage() {}
 
 func (x *ListRunVideosRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[51]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4453,7 +4697,7 @@ func (x *ListRunVideosRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunVideosRequest.ProtoReflect.Descriptor instead.
 func (*ListRunVideosRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{51}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ListRunVideosRequest) GetScenario() string {
@@ -4479,7 +4723,7 @@ type ListRunVideosResponse struct {
 
 func (x *ListRunVideosResponse) Reset() {
 	*x = ListRunVideosResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[52]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4491,7 +4735,7 @@ func (x *ListRunVideosResponse) String() string {
 func (*ListRunVideosResponse) ProtoMessage() {}
 
 func (x *ListRunVideosResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[52]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4504,7 +4748,7 @@ func (x *ListRunVideosResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunVideosResponse.ProtoReflect.Descriptor instead.
 func (*ListRunVideosResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{52}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *ListRunVideosResponse) GetVideos() []*RunVideo {
@@ -4535,7 +4779,7 @@ type RunVisual struct {
 
 func (x *RunVisual) Reset() {
 	*x = RunVisual{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[53]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4547,7 +4791,7 @@ func (x *RunVisual) String() string {
 func (*RunVisual) ProtoMessage() {}
 
 func (x *RunVisual) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[53]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4560,7 +4804,7 @@ func (x *RunVisual) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunVisual.ProtoReflect.Descriptor instead.
 func (*RunVisual) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{53}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *RunVisual) GetPage() string {
@@ -4608,7 +4852,7 @@ type ListRunVisualsRequest struct {
 
 func (x *ListRunVisualsRequest) Reset() {
 	*x = ListRunVisualsRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[54]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4620,7 +4864,7 @@ func (x *ListRunVisualsRequest) String() string {
 func (*ListRunVisualsRequest) ProtoMessage() {}
 
 func (x *ListRunVisualsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[54]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4633,7 +4877,7 @@ func (x *ListRunVisualsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunVisualsRequest.ProtoReflect.Descriptor instead.
 func (*ListRunVisualsRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{54}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ListRunVisualsRequest) GetScenario() string {
@@ -4659,7 +4903,7 @@ type ListRunVisualsResponse struct {
 
 func (x *ListRunVisualsResponse) Reset() {
 	*x = ListRunVisualsResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[55]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4671,7 +4915,7 @@ func (x *ListRunVisualsResponse) String() string {
 func (*ListRunVisualsResponse) ProtoMessage() {}
 
 func (x *ListRunVisualsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[55]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4684,7 +4928,7 @@ func (x *ListRunVisualsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunVisualsResponse.ProtoReflect.Descriptor instead.
 func (*ListRunVisualsResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{55}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ListRunVisualsResponse) GetVisuals() []*RunVisual {
@@ -4705,7 +4949,7 @@ type CompareRunVisualsRequest struct {
 
 func (x *CompareRunVisualsRequest) Reset() {
 	*x = CompareRunVisualsRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[56]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4717,7 +4961,7 @@ func (x *CompareRunVisualsRequest) String() string {
 func (*CompareRunVisualsRequest) ProtoMessage() {}
 
 func (x *CompareRunVisualsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[56]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4730,7 +4974,7 @@ func (x *CompareRunVisualsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareRunVisualsRequest.ProtoReflect.Descriptor instead.
 func (*CompareRunVisualsRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{56}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *CompareRunVisualsRequest) GetScenario() string {
@@ -4775,7 +5019,7 @@ type VisualDelta struct {
 
 func (x *VisualDelta) Reset() {
 	*x = VisualDelta{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[57]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4787,7 +5031,7 @@ func (x *VisualDelta) String() string {
 func (*VisualDelta) ProtoMessage() {}
 
 func (x *VisualDelta) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[57]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4800,7 +5044,7 @@ func (x *VisualDelta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VisualDelta.ProtoReflect.Descriptor instead.
 func (*VisualDelta) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{57}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *VisualDelta) GetPage() string {
@@ -4854,7 +5098,7 @@ type CompareRunVisualsResponse struct {
 
 func (x *CompareRunVisualsResponse) Reset() {
 	*x = CompareRunVisualsResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[58]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4866,7 +5110,7 @@ func (x *CompareRunVisualsResponse) String() string {
 func (*CompareRunVisualsResponse) ProtoMessage() {}
 
 func (x *CompareRunVisualsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[58]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4879,7 +5123,7 @@ func (x *CompareRunVisualsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareRunVisualsResponse.ProtoReflect.Descriptor instead.
 func (*CompareRunVisualsResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{58}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *CompareRunVisualsResponse) GetDeltas() []*VisualDelta {
@@ -4901,7 +5145,7 @@ type CheckFreshnessRequest struct {
 
 func (x *CheckFreshnessRequest) Reset() {
 	*x = CheckFreshnessRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[59]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4913,7 +5157,7 @@ func (x *CheckFreshnessRequest) String() string {
 func (*CheckFreshnessRequest) ProtoMessage() {}
 
 func (x *CheckFreshnessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[59]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4926,7 +5170,7 @@ func (x *CheckFreshnessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckFreshnessRequest.ProtoReflect.Descriptor instead.
 func (*CheckFreshnessRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{59}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *CheckFreshnessRequest) GetScenario() string {
@@ -4961,7 +5205,7 @@ type PhaseFreshness struct {
 
 func (x *PhaseFreshness) Reset() {
 	*x = PhaseFreshness{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[60]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4973,7 +5217,7 @@ func (x *PhaseFreshness) String() string {
 func (*PhaseFreshness) ProtoMessage() {}
 
 func (x *PhaseFreshness) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[60]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4986,7 +5230,7 @@ func (x *PhaseFreshness) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhaseFreshness.ProtoReflect.Descriptor instead.
 func (*PhaseFreshness) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{60}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *PhaseFreshness) GetPhase() string {
@@ -5033,7 +5277,7 @@ type CheckFreshnessResponse struct {
 
 func (x *CheckFreshnessResponse) Reset() {
 	*x = CheckFreshnessResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[61]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5045,7 +5289,7 @@ func (x *CheckFreshnessResponse) String() string {
 func (*CheckFreshnessResponse) ProtoMessage() {}
 
 func (x *CheckFreshnessResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[61]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5058,7 +5302,7 @@ func (x *CheckFreshnessResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckFreshnessResponse.ProtoReflect.Descriptor instead.
 func (*CheckFreshnessResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{61}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *CheckFreshnessResponse) GetScenario() string {
@@ -5109,7 +5353,7 @@ type GetSelfHealthRequest struct {
 
 func (x *GetSelfHealthRequest) Reset() {
 	*x = GetSelfHealthRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[62]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5121,7 +5365,7 @@ func (x *GetSelfHealthRequest) String() string {
 func (*GetSelfHealthRequest) ProtoMessage() {}
 
 func (x *GetSelfHealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[62]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5134,7 +5378,7 @@ func (x *GetSelfHealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSelfHealthRequest.ProtoReflect.Descriptor instead.
 func (*GetSelfHealthRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{62}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *GetSelfHealthRequest) GetWindowDays() int32 {
@@ -5167,7 +5411,7 @@ type GetSelfHealthResponse struct {
 
 func (x *GetSelfHealthResponse) Reset() {
 	*x = GetSelfHealthResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[63]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5179,7 +5423,7 @@ func (x *GetSelfHealthResponse) String() string {
 func (*GetSelfHealthResponse) ProtoMessage() {}
 
 func (x *GetSelfHealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[63]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5192,7 +5436,7 @@ func (x *GetSelfHealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSelfHealthResponse.ProtoReflect.Descriptor instead.
 func (*GetSelfHealthResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{63}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *GetSelfHealthResponse) GetSelfHealth() *SelfHealth {
@@ -5218,7 +5462,7 @@ type GetFleetHealthRequest struct {
 
 func (x *GetFleetHealthRequest) Reset() {
 	*x = GetFleetHealthRequest{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[64]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5230,7 +5474,7 @@ func (x *GetFleetHealthRequest) String() string {
 func (*GetFleetHealthRequest) ProtoMessage() {}
 
 func (x *GetFleetHealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[64]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5243,7 +5487,7 @@ func (x *GetFleetHealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFleetHealthRequest.ProtoReflect.Descriptor instead.
 func (*GetFleetHealthRequest) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{64}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *GetFleetHealthRequest) GetWindowDays() int32 {
@@ -5269,7 +5513,7 @@ type GetFleetHealthResponse struct {
 
 func (x *GetFleetHealthResponse) Reset() {
 	*x = GetFleetHealthResponse{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[65]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5281,7 +5525,7 @@ func (x *GetFleetHealthResponse) String() string {
 func (*GetFleetHealthResponse) ProtoMessage() {}
 
 func (x *GetFleetHealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[65]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5294,7 +5538,7 @@ func (x *GetFleetHealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFleetHealthResponse.ProtoReflect.Descriptor instead.
 func (*GetFleetHealthResponse) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{65}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *GetFleetHealthResponse) GetFleetHealth() *FleetHealth {
@@ -5325,7 +5569,7 @@ type FleetHealth struct {
 
 func (x *FleetHealth) Reset() {
 	*x = FleetHealth{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[66]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5337,7 +5581,7 @@ func (x *FleetHealth) String() string {
 func (*FleetHealth) ProtoMessage() {}
 
 func (x *FleetHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[66]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5350,7 +5594,7 @@ func (x *FleetHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FleetHealth.ProtoReflect.Descriptor instead.
 func (*FleetHealth) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{66}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *FleetHealth) GetWindowDays() int32 {
@@ -5436,7 +5680,7 @@ type FleetScenarioHealth struct {
 
 func (x *FleetScenarioHealth) Reset() {
 	*x = FleetScenarioHealth{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[67]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5448,7 +5692,7 @@ func (x *FleetScenarioHealth) String() string {
 func (*FleetScenarioHealth) ProtoMessage() {}
 
 func (x *FleetScenarioHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[67]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5461,7 +5705,7 @@ func (x *FleetScenarioHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FleetScenarioHealth.ProtoReflect.Descriptor instead.
 func (*FleetScenarioHealth) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{67}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *FleetScenarioHealth) GetScenario() string {
@@ -5545,7 +5789,7 @@ type FleetFindingSource struct {
 
 func (x *FleetFindingSource) Reset() {
 	*x = FleetFindingSource{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[68]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5557,7 +5801,7 @@ func (x *FleetFindingSource) String() string {
 func (*FleetFindingSource) ProtoMessage() {}
 
 func (x *FleetFindingSource) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[68]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5570,7 +5814,7 @@ func (x *FleetFindingSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FleetFindingSource.ProtoReflect.Descriptor instead.
 func (*FleetFindingSource) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{68}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *FleetFindingSource) GetSource() string {
@@ -5607,7 +5851,7 @@ type SelfHealth struct {
 
 func (x *SelfHealth) Reset() {
 	*x = SelfHealth{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[69]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5619,7 +5863,7 @@ func (x *SelfHealth) String() string {
 func (*SelfHealth) ProtoMessage() {}
 
 func (x *SelfHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[69]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5632,7 +5876,7 @@ func (x *SelfHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelfHealth.ProtoReflect.Descriptor instead.
 func (*SelfHealth) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{69}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *SelfHealth) GetCatalog() *CatalogSummary {
@@ -5685,7 +5929,7 @@ type SelfHealthTrendPoint struct {
 
 func (x *SelfHealthTrendPoint) Reset() {
 	*x = SelfHealthTrendPoint{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[70]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5697,7 +5941,7 @@ func (x *SelfHealthTrendPoint) String() string {
 func (*SelfHealthTrendPoint) ProtoMessage() {}
 
 func (x *SelfHealthTrendPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[70]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5710,7 +5954,7 @@ func (x *SelfHealthTrendPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelfHealthTrendPoint.ProtoReflect.Descriptor instead.
 func (*SelfHealthTrendPoint) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{70}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *SelfHealthTrendPoint) GetCapturedAt() string {
@@ -5764,7 +6008,7 @@ type TrendDelta struct {
 
 func (x *TrendDelta) Reset() {
 	*x = TrendDelta{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[71]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5776,7 +6020,7 @@ func (x *TrendDelta) String() string {
 func (*TrendDelta) ProtoMessage() {}
 
 func (x *TrendDelta) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[71]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5789,7 +6033,7 @@ func (x *TrendDelta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrendDelta.ProtoReflect.Descriptor instead.
 func (*TrendDelta) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{71}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *TrendDelta) GetPreviousCapturedAt() string {
@@ -5840,7 +6084,7 @@ type CatalogSummary struct {
 
 func (x *CatalogSummary) Reset() {
 	*x = CatalogSummary{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[72]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5852,7 +6096,7 @@ func (x *CatalogSummary) String() string {
 func (*CatalogSummary) ProtoMessage() {}
 
 func (x *CatalogSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[72]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5865,7 +6109,7 @@ func (x *CatalogSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CatalogSummary.ProtoReflect.Descriptor instead.
 func (*CatalogSummary) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{72}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *CatalogSummary) GetTotalPhases() int32 {
@@ -5911,7 +6155,7 @@ type CatalogPhase struct {
 
 func (x *CatalogPhase) Reset() {
 	*x = CatalogPhase{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[73]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5923,7 +6167,7 @@ func (x *CatalogPhase) String() string {
 func (*CatalogPhase) ProtoMessage() {}
 
 func (x *CatalogPhase) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[73]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5936,7 +6180,7 @@ func (x *CatalogPhase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CatalogPhase.ProtoReflect.Descriptor instead.
 func (*CatalogPhase) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{73}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *CatalogPhase) GetName() string {
@@ -6017,7 +6261,7 @@ type ProviderConformance struct {
 
 func (x *ProviderConformance) Reset() {
 	*x = ProviderConformance{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[74]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6029,7 +6273,7 @@ func (x *ProviderConformance) String() string {
 func (*ProviderConformance) ProtoMessage() {}
 
 func (x *ProviderConformance) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[74]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6042,7 +6286,7 @@ func (x *ProviderConformance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderConformance.ProtoReflect.Descriptor instead.
 func (*ProviderConformance) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{74}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *ProviderConformance) GetProvider() string {
@@ -6163,7 +6407,7 @@ type AutofixCoverage struct {
 
 func (x *AutofixCoverage) Reset() {
 	*x = AutofixCoverage{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[75]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6175,7 +6419,7 @@ func (x *AutofixCoverage) String() string {
 func (*AutofixCoverage) ProtoMessage() {}
 
 func (x *AutofixCoverage) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[75]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6188,7 +6432,7 @@ func (x *AutofixCoverage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutofixCoverage.ProtoReflect.Descriptor instead.
 func (*AutofixCoverage) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{75}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *AutofixCoverage) GetTotal() int32 {
@@ -6270,7 +6514,7 @@ type ReliabilityLedger struct {
 
 func (x *ReliabilityLedger) Reset() {
 	*x = ReliabilityLedger{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[76]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6282,7 +6526,7 @@ func (x *ReliabilityLedger) String() string {
 func (*ReliabilityLedger) ProtoMessage() {}
 
 func (x *ReliabilityLedger) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[76]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6295,7 +6539,7 @@ func (x *ReliabilityLedger) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReliabilityLedger.ProtoReflect.Descriptor instead.
 func (*ReliabilityLedger) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{76}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *ReliabilityLedger) GetWindowDays() int32 {
@@ -6365,7 +6609,7 @@ type RunOutcomeCount struct {
 
 func (x *RunOutcomeCount) Reset() {
 	*x = RunOutcomeCount{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[77]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6377,7 +6621,7 @@ func (x *RunOutcomeCount) String() string {
 func (*RunOutcomeCount) ProtoMessage() {}
 
 func (x *RunOutcomeCount) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[77]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6390,7 +6634,7 @@ func (x *RunOutcomeCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunOutcomeCount.ProtoReflect.Descriptor instead.
 func (*RunOutcomeCount) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{77}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *RunOutcomeCount) GetOutcome() string {
@@ -6418,7 +6662,7 @@ type LabeledCount struct {
 
 func (x *LabeledCount) Reset() {
 	*x = LabeledCount{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[78]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6430,7 +6674,7 @@ func (x *LabeledCount) String() string {
 func (*LabeledCount) ProtoMessage() {}
 
 func (x *LabeledCount) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[78]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6443,7 +6687,7 @@ func (x *LabeledCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LabeledCount.ProtoReflect.Descriptor instead.
 func (*LabeledCount) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{78}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *LabeledCount) GetLabel() string {
@@ -6475,7 +6719,7 @@ type DurationStats struct {
 
 func (x *DurationStats) Reset() {
 	*x = DurationStats{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[79]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6487,7 +6731,7 @@ func (x *DurationStats) String() string {
 func (*DurationStats) ProtoMessage() {}
 
 func (x *DurationStats) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[79]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6500,7 +6744,7 @@ func (x *DurationStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DurationStats.ProtoReflect.Descriptor instead.
 func (*DurationStats) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{79}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *DurationStats) GetSamples() int32 {
@@ -6558,7 +6802,7 @@ type ScenarioFailureRate struct {
 
 func (x *ScenarioFailureRate) Reset() {
 	*x = ScenarioFailureRate{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[80]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6570,7 +6814,7 @@ func (x *ScenarioFailureRate) String() string {
 func (*ScenarioFailureRate) ProtoMessage() {}
 
 func (x *ScenarioFailureRate) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[80]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6583,7 +6827,7 @@ func (x *ScenarioFailureRate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioFailureRate.ProtoReflect.Descriptor instead.
 func (*ScenarioFailureRate) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{80}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *ScenarioFailureRate) GetScenario() string {
@@ -6638,7 +6882,7 @@ type PhaseReliability struct {
 
 func (x *PhaseReliability) Reset() {
 	*x = PhaseReliability{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[81]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6650,7 +6894,7 @@ func (x *PhaseReliability) String() string {
 func (*PhaseReliability) ProtoMessage() {}
 
 func (x *PhaseReliability) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[81]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6663,7 +6907,7 @@ func (x *PhaseReliability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhaseReliability.ProtoReflect.Descriptor instead.
 func (*PhaseReliability) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{81}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *PhaseReliability) GetPhase() string {
@@ -6790,7 +7034,7 @@ type ProviderReliability struct {
 
 func (x *ProviderReliability) Reset() {
 	*x = ProviderReliability{}
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[82]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6802,7 +7046,7 @@ func (x *ProviderReliability) String() string {
 func (*ProviderReliability) ProtoMessage() {}
 
 func (x *ProviderReliability) ProtoReflect() protoreflect.Message {
-	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[82]
+	mi := &file_test_genie_v1_runs_runs_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6815,7 +7059,7 @@ func (x *ProviderReliability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderReliability.ProtoReflect.Descriptor instead.
 func (*ProviderReliability) Descriptor() ([]byte, []int) {
-	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{82}
+	return file_test_genie_v1_runs_runs_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *ProviderReliability) GetProvider() string {
@@ -6942,7 +7186,7 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x1bterminal_findings_summaries\x18\x12 \x03(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x19terminalFindingsSummaries\x12)\n" +
 	"\x10degraded_reasons\x18\x13 \x03(\tR\x0fdegradedReasons\x12S\n" +
 	"\x16terminal_presentations\x18\x14 \x03(\v2\x1c.common.v1.PhasePresentationR\x15terminalPresentations\x128\n" +
-	"\bstanding\x18\x15 \x01(\v2\x1c.common.v1.OperationStandingR\bstanding\"\xe3\x03\n" +
+	"\bstanding\x18\x15 \x01(\v2\x1c.common.v1.OperationStandingR\bstanding\"\x95\x04\n" +
 	"\x0fStartRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06preset\x18\x02 \x01(\tR\x06preset\x12\x16\n" +
@@ -6957,7 +7201,8 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x11logical_repo_root\x18\v \x01(\tR\x0flogicalRepoRoot\x129\n" +
 	"\x19logical_scenario_rel_path\x18\f \x01(\tR\x16logicalScenarioRelPath\x12(\n" +
 	"\x10suite_request_id\x18\r \x01(\tR\x0esuiteRequestId\x12'\n" +
-	"\x0fcapture_profile\x18\x0e \x01(\tR\x0ecaptureProfileJ\x04\b\t\x10\n" +
+	"\x0fcapture_profile\x18\x0e \x01(\tR\x0ecaptureProfile\x120\n" +
+	"\x14require_gate_quality\x18\x0f \x01(\bR\x12requireGateQualityJ\x04\b\t\x10\n" +
 	"R\x0fbrowserless_url\"\xb8\x01\n" +
 	"\x10StartRunResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
@@ -7071,7 +7316,7 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12!\n" +
 	"\freason_codes\x18\x02 \x03(\tR\vreasonCodes\x12\x18\n" +
 	"\areasons\x18\x03 \x03(\tR\areasons\x12\x18\n" +
-	"\aplanned\x18\x04 \x01(\bR\aplanned\"\xc0\x05\n" +
+	"\aplanned\x18\x04 \x01(\bR\aplanned\"\xa0\x06\n" +
 	"\x12RunPhaseDescriptor\x12\x14\n" +
 	"\x05phase\x18\x01 \x01(\tR\x05phase\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
@@ -7096,11 +7341,13 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\n" +
 	"supersedes\x18\x10 \x03(\tR\n" +
 	"supersedes\x12[\n" +
-	"\rapplicability\x18\x11 \x01(\v25.vrooli.test_genie.v1.runs.PhaseApplicabilityDecisionR\rapplicability\"\x9d\x01\n" +
+	"\rapplicability\x18\x11 \x01(\v25.vrooli.test_genie.v1.runs.PhaseApplicabilityDecisionR\rapplicability\x125\n" +
+	"\x16comparison_fingerprint\x18\x12 \x01(\tR\x15comparisonFingerprint\x12'\n" +
+	"\x0fcomparison_mode\x18\x13 \x01(\tR\x0ecomparisonMode\"\x9d\x01\n" +
 	"\x15RunDescriptorSnapshot\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\x05R\rschemaVersion\x12\x16\n" +
 	"\x06digest\x18\x02 \x01(\tR\x06digest\x12E\n" +
-	"\x06phases\x18\x03 \x03(\v2-.vrooli.test_genie.v1.runs.RunPhaseDescriptorR\x06phases\"\xfc\x06\n" +
+	"\x06phases\x18\x03 \x03(\v2-.vrooli.test_genie.v1.runs.RunPhaseDescriptorR\x06phases\"\xef\a\n" +
 	"\aRunInfo\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1d\n" +
@@ -7125,7 +7372,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x10phase_set_digest\x18\x11 \x01(\tR\x0ephaseSetDigest\x12K\n" +
 	"\"descriptor_snapshot_schema_version\x18\x12 \x01(\x05R\x1fdescriptorSnapshotSchemaVersion\x12<\n" +
 	"\x1adescriptor_snapshot_digest\x18\x13 \x01(\tR\x18descriptorSnapshotDigest\x12a\n" +
-	"\x13descriptor_snapshot\x18\x14 \x01(\v20.vrooli.test_genie.v1.runs.RunDescriptorSnapshotR\x12descriptorSnapshot\"[\n" +
+	"\x13descriptor_snapshot\x18\x14 \x01(\v20.vrooli.test_genie.v1.runs.RunDescriptorSnapshotR\x12descriptorSnapshot\x12N\n" +
+	"#execution_configuration_fingerprint\x18\x15 \x01(\tR!executionConfigurationFingerprint\x12!\n" +
+	"\fgate_quality\x18\x16 \x01(\bR\vgateQuality\"[\n" +
 	"\x0fListRunsRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
@@ -7165,7 +7414,15 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x05phase\x18\x04 \x01(\tR\x05phase\"y\n" +
 	"\x15PhaseComparisonReason\x12H\n" +
 	"\x04code\x18\x01 \x01(\x0e24.vrooli.test_genie.v1.runs.PhaseComparisonReasonCodeR\x04code\x12\x16\n" +
-	"\x06detail\x18\x02 \x01(\tR\x06detail\"\x84\x04\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail\"\xef\x01\n" +
+	"\x14ComparisonDiagnostic\x12\x12\n" +
+	"\x04side\x18\x01 \x01(\tR\x04side\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x16\n" +
+	"\x06detail\x18\x03 \x01(\tR\x06detail\x12&\n" +
+	"\x0eclassification\x18\x04 \x01(\tR\x0eclassification\x12)\n" +
+	"\x10lifecycle_action\x18\x05 \x01(\tR\x0flifecycleAction\x12 \n" +
+	"\vremediation\x18\x06 \x01(\tR\vremediation\x12\"\n" +
+	"\fobservations\x18\a \x03(\tR\fobservations\"\xd5\x05\n" +
 	"\tPhaseDiff\x12\x14\n" +
 	"\x05phase\x18\x01 \x01(\tR\x05phase\x12\x19\n" +
 	"\bstatus_a\x18\x02 \x01(\tR\astatusA\x12\x19\n" +
@@ -7178,10 +7435,25 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\fdescriptor_a\x18\t \x01(\v2-.vrooli.test_genie.v1.runs.RunPhaseDescriptorR\vdescriptorA\x12P\n" +
 	"\fdescriptor_b\x18\n" +
 	" \x01(\v2-.vrooli.test_genie.v1.runs.RunPhaseDescriptorR\vdescriptorB\x12J\n" +
-	"\areasons\x18\v \x03(\v20.vrooli.test_genie.v1.runs.PhaseComparisonReasonR\areasons\"m\n" +
+	"\areasons\x18\v \x03(\v20.vrooli.test_genie.v1.runs.PhaseComparisonReasonR\areasons\x12\x1a\n" +
+	"\bbehavior\x18\f \x01(\tR\bbehavior\x12\x1a\n" +
+	"\bcoverage\x18\r \x01(\tR\bcoverage\x12$\n" +
+	"\rcompatibility\x18\x0e \x01(\tR\rcompatibility\x12\x1e\n" +
+	"\n" +
+	"provenance\x18\x0f \x01(\tR\n" +
+	"provenance\x12Q\n" +
+	"\vdiagnostics\x18\x10 \x03(\v2/.vrooli.test_genie.v1.runs.ComparisonDiagnosticR\vdiagnostics\"\xe5\x02\n" +
 	"\x13CompareRunsResponse\x12<\n" +
 	"\x06phases\x18\x01 \x03(\v2$.vrooli.test_genie.v1.runs.PhaseDiffR\x06phases\x12\x18\n" +
-	"\averdict\x18\x02 \x01(\tR\averdict\"\x8e\x02\n" +
+	"\averdict\x18\x02 \x01(\tR\averdict\x12%\n" +
+	"\x0eschema_version\x18\x03 \x01(\x05R\rschemaVersion\x12\x1a\n" +
+	"\bbehavior\x18\x04 \x01(\tR\bbehavior\x12\x1a\n" +
+	"\bcoverage\x18\x05 \x01(\tR\bcoverage\x12$\n" +
+	"\rcompatibility\x18\x06 \x01(\tR\rcompatibility\x12\x1e\n" +
+	"\n" +
+	"provenance\x18\a \x01(\tR\n" +
+	"provenance\x12Q\n" +
+	"\vdiagnostics\x18\b \x03(\v2/.vrooli.test_genie.v1.runs.ComparisonDiagnosticR\vdiagnostics\"\xc0\x02\n" +
 	"\x0eFindRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x17\n" +
 	"\agit_sha\x18\x02 \x01(\tR\x06gitSha\x12\x1f\n" +
@@ -7191,7 +7463,8 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x0fcapture_profile\x18\x05 \x01(\tR\x0ecaptureProfile\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x12#\n" +
 	"\rrequire_clean\x18\a \x01(\bR\frequireClean\x12(\n" +
-	"\x10phase_set_digest\x18\b \x01(\tR\x0ephaseSetDigest\"]\n" +
+	"\x10phase_set_digest\x18\b \x01(\tR\x0ephaseSetDigest\x120\n" +
+	"\x14require_gate_quality\x18\t \x01(\bR\x12requireGateQuality\"]\n" +
 	"\x0fFindRunResponse\x12\x14\n" +
 	"\x05found\x18\x01 \x01(\bR\x05found\x124\n" +
 	"\x03run\x18\x02 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x03run\"b\n" +
@@ -7539,7 +7812,7 @@ func file_test_genie_v1_runs_runs_proto_rawDescGZIP() []byte {
 }
 
 var file_test_genie_v1_runs_runs_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_test_genie_v1_runs_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 85)
+var file_test_genie_v1_runs_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 86)
 var file_test_genie_v1_runs_runs_proto_goTypes = []any{
 	(PhaseComparisonReasonCode)(0),     // 0: vrooli.test_genie.v1.runs.PhaseComparisonReasonCode
 	(ArtifactAccessCapability)(0),      // 1: vrooli.test_genie.v1.runs.ArtifactAccessCapability
@@ -7578,75 +7851,76 @@ var file_test_genie_v1_runs_runs_proto_goTypes = []any{
 	(*UnpinRunResponse)(nil),           // 34: vrooli.test_genie.v1.runs.UnpinRunResponse
 	(*CompareRunsRequest)(nil),         // 35: vrooli.test_genie.v1.runs.CompareRunsRequest
 	(*PhaseComparisonReason)(nil),      // 36: vrooli.test_genie.v1.runs.PhaseComparisonReason
-	(*PhaseDiff)(nil),                  // 37: vrooli.test_genie.v1.runs.PhaseDiff
-	(*CompareRunsResponse)(nil),        // 38: vrooli.test_genie.v1.runs.CompareRunsResponse
-	(*FindRunRequest)(nil),             // 39: vrooli.test_genie.v1.runs.FindRunRequest
-	(*FindRunResponse)(nil),            // 40: vrooli.test_genie.v1.runs.FindRunResponse
-	(*GetPhaseArtifactRequest)(nil),    // 41: vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
-	(*GetPhaseArtifactResponse)(nil),   // 42: vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
-	(*ArtifactRelationship)(nil),       // 43: vrooli.test_genie.v1.runs.ArtifactRelationship
-	(*ArtifactComparison)(nil),         // 44: vrooli.test_genie.v1.runs.ArtifactComparison
-	(*ArtifactRef)(nil),                // 45: vrooli.test_genie.v1.runs.ArtifactRef
-	(*ListRunArtifactsRequest)(nil),    // 46: vrooli.test_genie.v1.runs.ListRunArtifactsRequest
-	(*ListRunArtifactsResponse)(nil),   // 47: vrooli.test_genie.v1.runs.ListRunArtifactsResponse
-	(*GetRunArtifactRequest)(nil),      // 48: vrooli.test_genie.v1.runs.GetRunArtifactRequest
-	(*GetRunArtifactResponse)(nil),     // 49: vrooli.test_genie.v1.runs.GetRunArtifactResponse
-	(*GetRunFindingsRequest)(nil),      // 50: vrooli.test_genie.v1.runs.GetRunFindingsRequest
-	(*RunFindingsPhase)(nil),           // 51: vrooli.test_genie.v1.runs.RunFindingsPhase
-	(*GetRunFindingsResponse)(nil),     // 52: vrooli.test_genie.v1.runs.GetRunFindingsResponse
-	(*RunVideo)(nil),                   // 53: vrooli.test_genie.v1.runs.RunVideo
-	(*ListRunVideosRequest)(nil),       // 54: vrooli.test_genie.v1.runs.ListRunVideosRequest
-	(*ListRunVideosResponse)(nil),      // 55: vrooli.test_genie.v1.runs.ListRunVideosResponse
-	(*RunVisual)(nil),                  // 56: vrooli.test_genie.v1.runs.RunVisual
-	(*ListRunVisualsRequest)(nil),      // 57: vrooli.test_genie.v1.runs.ListRunVisualsRequest
-	(*ListRunVisualsResponse)(nil),     // 58: vrooli.test_genie.v1.runs.ListRunVisualsResponse
-	(*CompareRunVisualsRequest)(nil),   // 59: vrooli.test_genie.v1.runs.CompareRunVisualsRequest
-	(*VisualDelta)(nil),                // 60: vrooli.test_genie.v1.runs.VisualDelta
-	(*CompareRunVisualsResponse)(nil),  // 61: vrooli.test_genie.v1.runs.CompareRunVisualsResponse
-	(*CheckFreshnessRequest)(nil),      // 62: vrooli.test_genie.v1.runs.CheckFreshnessRequest
-	(*PhaseFreshness)(nil),             // 63: vrooli.test_genie.v1.runs.PhaseFreshness
-	(*CheckFreshnessResponse)(nil),     // 64: vrooli.test_genie.v1.runs.CheckFreshnessResponse
-	(*GetSelfHealthRequest)(nil),       // 65: vrooli.test_genie.v1.runs.GetSelfHealthRequest
-	(*GetSelfHealthResponse)(nil),      // 66: vrooli.test_genie.v1.runs.GetSelfHealthResponse
-	(*GetFleetHealthRequest)(nil),      // 67: vrooli.test_genie.v1.runs.GetFleetHealthRequest
-	(*GetFleetHealthResponse)(nil),     // 68: vrooli.test_genie.v1.runs.GetFleetHealthResponse
-	(*FleetHealth)(nil),                // 69: vrooli.test_genie.v1.runs.FleetHealth
-	(*FleetScenarioHealth)(nil),        // 70: vrooli.test_genie.v1.runs.FleetScenarioHealth
-	(*FleetFindingSource)(nil),         // 71: vrooli.test_genie.v1.runs.FleetFindingSource
-	(*SelfHealth)(nil),                 // 72: vrooli.test_genie.v1.runs.SelfHealth
-	(*SelfHealthTrendPoint)(nil),       // 73: vrooli.test_genie.v1.runs.SelfHealthTrendPoint
-	(*TrendDelta)(nil),                 // 74: vrooli.test_genie.v1.runs.TrendDelta
-	(*CatalogSummary)(nil),             // 75: vrooli.test_genie.v1.runs.CatalogSummary
-	(*CatalogPhase)(nil),               // 76: vrooli.test_genie.v1.runs.CatalogPhase
-	(*ProviderConformance)(nil),        // 77: vrooli.test_genie.v1.runs.ProviderConformance
-	(*AutofixCoverage)(nil),            // 78: vrooli.test_genie.v1.runs.AutofixCoverage
-	(*ReliabilityLedger)(nil),          // 79: vrooli.test_genie.v1.runs.ReliabilityLedger
-	(*RunOutcomeCount)(nil),            // 80: vrooli.test_genie.v1.runs.RunOutcomeCount
-	(*LabeledCount)(nil),               // 81: vrooli.test_genie.v1.runs.LabeledCount
-	(*DurationStats)(nil),              // 82: vrooli.test_genie.v1.runs.DurationStats
-	(*ScenarioFailureRate)(nil),        // 83: vrooli.test_genie.v1.runs.ScenarioFailureRate
-	(*PhaseReliability)(nil),           // 84: vrooli.test_genie.v1.runs.PhaseReliability
-	(*ProviderReliability)(nil),        // 85: vrooli.test_genie.v1.runs.ProviderReliability
-	nil,                                // 86: vrooli.test_genie.v1.runs.ArtifactComparison.MetadataEntry
-	nil,                                // 87: vrooli.test_genie.v1.runs.ArtifactRef.MetadataEntry
-	(*v1.PhasePresentation)(nil),       // 88: common.v1.PhasePresentation
-	(*v1.OperationStanding)(nil),       // 89: common.v1.OperationStanding
+	(*ComparisonDiagnostic)(nil),       // 37: vrooli.test_genie.v1.runs.ComparisonDiagnostic
+	(*PhaseDiff)(nil),                  // 38: vrooli.test_genie.v1.runs.PhaseDiff
+	(*CompareRunsResponse)(nil),        // 39: vrooli.test_genie.v1.runs.CompareRunsResponse
+	(*FindRunRequest)(nil),             // 40: vrooli.test_genie.v1.runs.FindRunRequest
+	(*FindRunResponse)(nil),            // 41: vrooli.test_genie.v1.runs.FindRunResponse
+	(*GetPhaseArtifactRequest)(nil),    // 42: vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
+	(*GetPhaseArtifactResponse)(nil),   // 43: vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
+	(*ArtifactRelationship)(nil),       // 44: vrooli.test_genie.v1.runs.ArtifactRelationship
+	(*ArtifactComparison)(nil),         // 45: vrooli.test_genie.v1.runs.ArtifactComparison
+	(*ArtifactRef)(nil),                // 46: vrooli.test_genie.v1.runs.ArtifactRef
+	(*ListRunArtifactsRequest)(nil),    // 47: vrooli.test_genie.v1.runs.ListRunArtifactsRequest
+	(*ListRunArtifactsResponse)(nil),   // 48: vrooli.test_genie.v1.runs.ListRunArtifactsResponse
+	(*GetRunArtifactRequest)(nil),      // 49: vrooli.test_genie.v1.runs.GetRunArtifactRequest
+	(*GetRunArtifactResponse)(nil),     // 50: vrooli.test_genie.v1.runs.GetRunArtifactResponse
+	(*GetRunFindingsRequest)(nil),      // 51: vrooli.test_genie.v1.runs.GetRunFindingsRequest
+	(*RunFindingsPhase)(nil),           // 52: vrooli.test_genie.v1.runs.RunFindingsPhase
+	(*GetRunFindingsResponse)(nil),     // 53: vrooli.test_genie.v1.runs.GetRunFindingsResponse
+	(*RunVideo)(nil),                   // 54: vrooli.test_genie.v1.runs.RunVideo
+	(*ListRunVideosRequest)(nil),       // 55: vrooli.test_genie.v1.runs.ListRunVideosRequest
+	(*ListRunVideosResponse)(nil),      // 56: vrooli.test_genie.v1.runs.ListRunVideosResponse
+	(*RunVisual)(nil),                  // 57: vrooli.test_genie.v1.runs.RunVisual
+	(*ListRunVisualsRequest)(nil),      // 58: vrooli.test_genie.v1.runs.ListRunVisualsRequest
+	(*ListRunVisualsResponse)(nil),     // 59: vrooli.test_genie.v1.runs.ListRunVisualsResponse
+	(*CompareRunVisualsRequest)(nil),   // 60: vrooli.test_genie.v1.runs.CompareRunVisualsRequest
+	(*VisualDelta)(nil),                // 61: vrooli.test_genie.v1.runs.VisualDelta
+	(*CompareRunVisualsResponse)(nil),  // 62: vrooli.test_genie.v1.runs.CompareRunVisualsResponse
+	(*CheckFreshnessRequest)(nil),      // 63: vrooli.test_genie.v1.runs.CheckFreshnessRequest
+	(*PhaseFreshness)(nil),             // 64: vrooli.test_genie.v1.runs.PhaseFreshness
+	(*CheckFreshnessResponse)(nil),     // 65: vrooli.test_genie.v1.runs.CheckFreshnessResponse
+	(*GetSelfHealthRequest)(nil),       // 66: vrooli.test_genie.v1.runs.GetSelfHealthRequest
+	(*GetSelfHealthResponse)(nil),      // 67: vrooli.test_genie.v1.runs.GetSelfHealthResponse
+	(*GetFleetHealthRequest)(nil),      // 68: vrooli.test_genie.v1.runs.GetFleetHealthRequest
+	(*GetFleetHealthResponse)(nil),     // 69: vrooli.test_genie.v1.runs.GetFleetHealthResponse
+	(*FleetHealth)(nil),                // 70: vrooli.test_genie.v1.runs.FleetHealth
+	(*FleetScenarioHealth)(nil),        // 71: vrooli.test_genie.v1.runs.FleetScenarioHealth
+	(*FleetFindingSource)(nil),         // 72: vrooli.test_genie.v1.runs.FleetFindingSource
+	(*SelfHealth)(nil),                 // 73: vrooli.test_genie.v1.runs.SelfHealth
+	(*SelfHealthTrendPoint)(nil),       // 74: vrooli.test_genie.v1.runs.SelfHealthTrendPoint
+	(*TrendDelta)(nil),                 // 75: vrooli.test_genie.v1.runs.TrendDelta
+	(*CatalogSummary)(nil),             // 76: vrooli.test_genie.v1.runs.CatalogSummary
+	(*CatalogPhase)(nil),               // 77: vrooli.test_genie.v1.runs.CatalogPhase
+	(*ProviderConformance)(nil),        // 78: vrooli.test_genie.v1.runs.ProviderConformance
+	(*AutofixCoverage)(nil),            // 79: vrooli.test_genie.v1.runs.AutofixCoverage
+	(*ReliabilityLedger)(nil),          // 80: vrooli.test_genie.v1.runs.ReliabilityLedger
+	(*RunOutcomeCount)(nil),            // 81: vrooli.test_genie.v1.runs.RunOutcomeCount
+	(*LabeledCount)(nil),               // 82: vrooli.test_genie.v1.runs.LabeledCount
+	(*DurationStats)(nil),              // 83: vrooli.test_genie.v1.runs.DurationStats
+	(*ScenarioFailureRate)(nil),        // 84: vrooli.test_genie.v1.runs.ScenarioFailureRate
+	(*PhaseReliability)(nil),           // 85: vrooli.test_genie.v1.runs.PhaseReliability
+	(*ProviderReliability)(nil),        // 86: vrooli.test_genie.v1.runs.ProviderReliability
+	nil,                                // 87: vrooli.test_genie.v1.runs.ArtifactComparison.MetadataEntry
+	nil,                                // 88: vrooli.test_genie.v1.runs.ArtifactRef.MetadataEntry
+	(*v1.PhasePresentation)(nil),       // 89: common.v1.PhasePresentation
+	(*v1.OperationStanding)(nil),       // 90: common.v1.OperationStanding
 }
 var file_test_genie_v1_runs_runs_proto_depIdxs = []int32{
 	18, // 0: vrooli.test_genie.v1.runs.RunEvent.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
 	16, // 1: vrooli.test_genie.v1.runs.RunEvent.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	88, // 2: vrooli.test_genie.v1.runs.RunEvent.phase_presentation:type_name -> common.v1.PhasePresentation
+	89, // 2: vrooli.test_genie.v1.runs.RunEvent.phase_presentation:type_name -> common.v1.PhasePresentation
 	18, // 3: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_standings:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
 	16, // 4: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_findings_summaries:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	88, // 5: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_presentations:type_name -> common.v1.PhasePresentation
-	89, // 6: vrooli.test_genie.v1.runs.RunLiveStatus.standing:type_name -> common.v1.OperationStanding
+	89, // 5: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_presentations:type_name -> common.v1.PhasePresentation
+	90, // 6: vrooli.test_genie.v1.runs.RunLiveStatus.standing:type_name -> common.v1.OperationStanding
 	4,  // 7: vrooli.test_genie.v1.runs.WaitRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
 	24, // 8: vrooli.test_genie.v1.runs.WaitRunResponse.terminal_run:type_name -> vrooli.test_genie.v1.runs.RunInfo
 	4,  // 9: vrooli.test_genie.v1.runs.AbortRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
 	17, // 10: vrooli.test_genie.v1.runs.PhaseMaturityStanding.capabilities:type_name -> vrooli.test_genie.v1.runs.PhaseCapabilityStanding
 	18, // 11: vrooli.test_genie.v1.runs.PhaseInfo.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
 	16, // 12: vrooli.test_genie.v1.runs.PhaseInfo.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	88, // 13: vrooli.test_genie.v1.runs.PhaseInfo.phase_presentation:type_name -> common.v1.PhasePresentation
+	89, // 13: vrooli.test_genie.v1.runs.PhaseInfo.phase_presentation:type_name -> common.v1.PhasePresentation
 	20, // 14: vrooli.test_genie.v1.runs.RunPhaseDescriptor.policy:type_name -> vrooli.test_genie.v1.runs.PhaseDescriptorPolicy
 	21, // 15: vrooli.test_genie.v1.runs.RunPhaseDescriptor.applicability:type_name -> vrooli.test_genie.v1.runs.PhaseApplicabilityDecision
 	22, // 16: vrooli.test_genie.v1.runs.RunDescriptorSnapshot.phases:type_name -> vrooli.test_genie.v1.runs.RunPhaseDescriptor
@@ -7662,92 +7936,94 @@ var file_test_genie_v1_runs_runs_proto_depIdxs = []int32{
 	22, // 26: vrooli.test_genie.v1.runs.PhaseDiff.descriptor_a:type_name -> vrooli.test_genie.v1.runs.RunPhaseDescriptor
 	22, // 27: vrooli.test_genie.v1.runs.PhaseDiff.descriptor_b:type_name -> vrooli.test_genie.v1.runs.RunPhaseDescriptor
 	36, // 28: vrooli.test_genie.v1.runs.PhaseDiff.reasons:type_name -> vrooli.test_genie.v1.runs.PhaseComparisonReason
-	37, // 29: vrooli.test_genie.v1.runs.CompareRunsResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
-	24, // 30: vrooli.test_genie.v1.runs.FindRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	86, // 31: vrooli.test_genie.v1.runs.ArtifactComparison.metadata:type_name -> vrooli.test_genie.v1.runs.ArtifactComparison.MetadataEntry
-	1,  // 32: vrooli.test_genie.v1.runs.ArtifactRef.access_capability:type_name -> vrooli.test_genie.v1.runs.ArtifactAccessCapability
-	87, // 33: vrooli.test_genie.v1.runs.ArtifactRef.metadata:type_name -> vrooli.test_genie.v1.runs.ArtifactRef.MetadataEntry
-	43, // 34: vrooli.test_genie.v1.runs.ArtifactRef.relationships:type_name -> vrooli.test_genie.v1.runs.ArtifactRelationship
-	44, // 35: vrooli.test_genie.v1.runs.ArtifactRef.comparison:type_name -> vrooli.test_genie.v1.runs.ArtifactComparison
-	2,  // 36: vrooli.test_genie.v1.runs.ArtifactRef.provenance:type_name -> vrooli.test_genie.v1.runs.ArtifactProvenance
-	45, // 37: vrooli.test_genie.v1.runs.ListRunArtifactsResponse.artifacts:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
-	45, // 38: vrooli.test_genie.v1.runs.GetRunArtifactResponse.artifact:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
-	18, // 39: vrooli.test_genie.v1.runs.RunFindingsPhase.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
-	16, // 40: vrooli.test_genie.v1.runs.RunFindingsPhase.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	88, // 41: vrooli.test_genie.v1.runs.RunFindingsPhase.phase_presentation:type_name -> common.v1.PhasePresentation
-	51, // 42: vrooli.test_genie.v1.runs.GetRunFindingsResponse.phases:type_name -> vrooli.test_genie.v1.runs.RunFindingsPhase
-	53, // 43: vrooli.test_genie.v1.runs.ListRunVideosResponse.videos:type_name -> vrooli.test_genie.v1.runs.RunVideo
-	56, // 44: vrooli.test_genie.v1.runs.ListRunVisualsResponse.visuals:type_name -> vrooli.test_genie.v1.runs.RunVisual
-	60, // 45: vrooli.test_genie.v1.runs.CompareRunVisualsResponse.deltas:type_name -> vrooli.test_genie.v1.runs.VisualDelta
-	63, // 46: vrooli.test_genie.v1.runs.CheckFreshnessResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseFreshness
-	72, // 47: vrooli.test_genie.v1.runs.GetSelfHealthResponse.self_health:type_name -> vrooli.test_genie.v1.runs.SelfHealth
-	69, // 48: vrooli.test_genie.v1.runs.GetFleetHealthResponse.fleet_health:type_name -> vrooli.test_genie.v1.runs.FleetHealth
-	70, // 49: vrooli.test_genie.v1.runs.FleetHealth.scenarios:type_name -> vrooli.test_genie.v1.runs.FleetScenarioHealth
-	71, // 50: vrooli.test_genie.v1.runs.FleetHealth.top_finding_sources:type_name -> vrooli.test_genie.v1.runs.FleetFindingSource
-	75, // 51: vrooli.test_genie.v1.runs.SelfHealth.catalog:type_name -> vrooli.test_genie.v1.runs.CatalogSummary
-	77, // 52: vrooli.test_genie.v1.runs.SelfHealth.conformance:type_name -> vrooli.test_genie.v1.runs.ProviderConformance
-	79, // 53: vrooli.test_genie.v1.runs.SelfHealth.ledger:type_name -> vrooli.test_genie.v1.runs.ReliabilityLedger
-	73, // 54: vrooli.test_genie.v1.runs.SelfHealth.trend_series:type_name -> vrooli.test_genie.v1.runs.SelfHealthTrendPoint
-	76, // 55: vrooli.test_genie.v1.runs.CatalogSummary.phases:type_name -> vrooli.test_genie.v1.runs.CatalogPhase
-	78, // 56: vrooli.test_genie.v1.runs.ProviderConformance.autofix:type_name -> vrooli.test_genie.v1.runs.AutofixCoverage
-	80, // 57: vrooli.test_genie.v1.runs.ReliabilityLedger.run_outcomes:type_name -> vrooli.test_genie.v1.runs.RunOutcomeCount
-	84, // 58: vrooli.test_genie.v1.runs.ReliabilityLedger.phases:type_name -> vrooli.test_genie.v1.runs.PhaseReliability
-	85, // 59: vrooli.test_genie.v1.runs.ReliabilityLedger.providers:type_name -> vrooli.test_genie.v1.runs.ProviderReliability
-	74, // 60: vrooli.test_genie.v1.runs.ReliabilityLedger.trend:type_name -> vrooli.test_genie.v1.runs.TrendDelta
-	81, // 61: vrooli.test_genie.v1.runs.PhaseReliability.skip_reasons:type_name -> vrooli.test_genie.v1.runs.LabeledCount
-	81, // 62: vrooli.test_genie.v1.runs.PhaseReliability.classifications:type_name -> vrooli.test_genie.v1.runs.LabeledCount
-	82, // 63: vrooli.test_genie.v1.runs.PhaseReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
-	83, // 64: vrooli.test_genie.v1.runs.PhaseReliability.worst_scenarios:type_name -> vrooli.test_genie.v1.runs.ScenarioFailureRate
-	82, // 65: vrooli.test_genie.v1.runs.ProviderReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
-	25, // 66: vrooli.test_genie.v1.runs.RunsService.ListRuns:input_type -> vrooli.test_genie.v1.runs.ListRunsRequest
-	27, // 67: vrooli.test_genie.v1.runs.RunsService.GetRun:input_type -> vrooli.test_genie.v1.runs.GetRunRequest
-	29, // 68: vrooli.test_genie.v1.runs.RunsService.DeleteRun:input_type -> vrooli.test_genie.v1.runs.DeleteRunRequest
-	31, // 69: vrooli.test_genie.v1.runs.RunsService.PinRun:input_type -> vrooli.test_genie.v1.runs.PinRunRequest
-	33, // 70: vrooli.test_genie.v1.runs.RunsService.UnpinRun:input_type -> vrooli.test_genie.v1.runs.UnpinRunRequest
-	35, // 71: vrooli.test_genie.v1.runs.RunsService.CompareRuns:input_type -> vrooli.test_genie.v1.runs.CompareRunsRequest
-	41, // 72: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:input_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
-	46, // 73: vrooli.test_genie.v1.runs.RunsService.ListRunArtifacts:input_type -> vrooli.test_genie.v1.runs.ListRunArtifactsRequest
-	48, // 74: vrooli.test_genie.v1.runs.RunsService.GetRunArtifact:input_type -> vrooli.test_genie.v1.runs.GetRunArtifactRequest
-	50, // 75: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:input_type -> vrooli.test_genie.v1.runs.GetRunFindingsRequest
-	54, // 76: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:input_type -> vrooli.test_genie.v1.runs.ListRunVideosRequest
-	57, // 77: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:input_type -> vrooli.test_genie.v1.runs.ListRunVisualsRequest
-	59, // 78: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:input_type -> vrooli.test_genie.v1.runs.CompareRunVisualsRequest
-	39, // 79: vrooli.test_genie.v1.runs.RunsService.FindRun:input_type -> vrooli.test_genie.v1.runs.FindRunRequest
-	62, // 80: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:input_type -> vrooli.test_genie.v1.runs.CheckFreshnessRequest
-	65, // 81: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:input_type -> vrooli.test_genie.v1.runs.GetSelfHealthRequest
-	67, // 82: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:input_type -> vrooli.test_genie.v1.runs.GetFleetHealthRequest
-	5,  // 83: vrooli.test_genie.v1.runs.RunsService.StartRun:input_type -> vrooli.test_genie.v1.runs.StartRunRequest
-	8,  // 84: vrooli.test_genie.v1.runs.RunsService.FollowRun:input_type -> vrooli.test_genie.v1.runs.FollowRunRequest
-	9,  // 85: vrooli.test_genie.v1.runs.RunsService.WaitRun:input_type -> vrooli.test_genie.v1.runs.WaitRunRequest
-	11, // 86: vrooli.test_genie.v1.runs.RunsService.AbortRun:input_type -> vrooli.test_genie.v1.runs.AbortRunRequest
-	13, // 87: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:input_type -> vrooli.test_genie.v1.runs.GetRunStatusRequest
-	26, // 88: vrooli.test_genie.v1.runs.RunsService.ListRuns:output_type -> vrooli.test_genie.v1.runs.ListRunsResponse
-	28, // 89: vrooli.test_genie.v1.runs.RunsService.GetRun:output_type -> vrooli.test_genie.v1.runs.GetRunResponse
-	30, // 90: vrooli.test_genie.v1.runs.RunsService.DeleteRun:output_type -> vrooli.test_genie.v1.runs.DeleteRunResponse
-	32, // 91: vrooli.test_genie.v1.runs.RunsService.PinRun:output_type -> vrooli.test_genie.v1.runs.PinRunResponse
-	34, // 92: vrooli.test_genie.v1.runs.RunsService.UnpinRun:output_type -> vrooli.test_genie.v1.runs.UnpinRunResponse
-	38, // 93: vrooli.test_genie.v1.runs.RunsService.CompareRuns:output_type -> vrooli.test_genie.v1.runs.CompareRunsResponse
-	42, // 94: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:output_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
-	47, // 95: vrooli.test_genie.v1.runs.RunsService.ListRunArtifacts:output_type -> vrooli.test_genie.v1.runs.ListRunArtifactsResponse
-	49, // 96: vrooli.test_genie.v1.runs.RunsService.GetRunArtifact:output_type -> vrooli.test_genie.v1.runs.GetRunArtifactResponse
-	52, // 97: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:output_type -> vrooli.test_genie.v1.runs.GetRunFindingsResponse
-	55, // 98: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:output_type -> vrooli.test_genie.v1.runs.ListRunVideosResponse
-	58, // 99: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:output_type -> vrooli.test_genie.v1.runs.ListRunVisualsResponse
-	61, // 100: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:output_type -> vrooli.test_genie.v1.runs.CompareRunVisualsResponse
-	40, // 101: vrooli.test_genie.v1.runs.RunsService.FindRun:output_type -> vrooli.test_genie.v1.runs.FindRunResponse
-	64, // 102: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:output_type -> vrooli.test_genie.v1.runs.CheckFreshnessResponse
-	66, // 103: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:output_type -> vrooli.test_genie.v1.runs.GetSelfHealthResponse
-	68, // 104: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:output_type -> vrooli.test_genie.v1.runs.GetFleetHealthResponse
-	6,  // 105: vrooli.test_genie.v1.runs.RunsService.StartRun:output_type -> vrooli.test_genie.v1.runs.StartRunResponse
-	3,  // 106: vrooli.test_genie.v1.runs.RunsService.FollowRun:output_type -> vrooli.test_genie.v1.runs.RunEvent
-	10, // 107: vrooli.test_genie.v1.runs.RunsService.WaitRun:output_type -> vrooli.test_genie.v1.runs.WaitRunResponse
-	12, // 108: vrooli.test_genie.v1.runs.RunsService.AbortRun:output_type -> vrooli.test_genie.v1.runs.AbortRunResponse
-	4,  // 109: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:output_type -> vrooli.test_genie.v1.runs.RunLiveStatus
-	88, // [88:110] is the sub-list for method output_type
-	66, // [66:88] is the sub-list for method input_type
-	66, // [66:66] is the sub-list for extension type_name
-	66, // [66:66] is the sub-list for extension extendee
-	0,  // [0:66] is the sub-list for field type_name
+	37, // 29: vrooli.test_genie.v1.runs.PhaseDiff.diagnostics:type_name -> vrooli.test_genie.v1.runs.ComparisonDiagnostic
+	38, // 30: vrooli.test_genie.v1.runs.CompareRunsResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
+	37, // 31: vrooli.test_genie.v1.runs.CompareRunsResponse.diagnostics:type_name -> vrooli.test_genie.v1.runs.ComparisonDiagnostic
+	24, // 32: vrooli.test_genie.v1.runs.FindRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	87, // 33: vrooli.test_genie.v1.runs.ArtifactComparison.metadata:type_name -> vrooli.test_genie.v1.runs.ArtifactComparison.MetadataEntry
+	1,  // 34: vrooli.test_genie.v1.runs.ArtifactRef.access_capability:type_name -> vrooli.test_genie.v1.runs.ArtifactAccessCapability
+	88, // 35: vrooli.test_genie.v1.runs.ArtifactRef.metadata:type_name -> vrooli.test_genie.v1.runs.ArtifactRef.MetadataEntry
+	44, // 36: vrooli.test_genie.v1.runs.ArtifactRef.relationships:type_name -> vrooli.test_genie.v1.runs.ArtifactRelationship
+	45, // 37: vrooli.test_genie.v1.runs.ArtifactRef.comparison:type_name -> vrooli.test_genie.v1.runs.ArtifactComparison
+	2,  // 38: vrooli.test_genie.v1.runs.ArtifactRef.provenance:type_name -> vrooli.test_genie.v1.runs.ArtifactProvenance
+	46, // 39: vrooli.test_genie.v1.runs.ListRunArtifactsResponse.artifacts:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
+	46, // 40: vrooli.test_genie.v1.runs.GetRunArtifactResponse.artifact:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
+	18, // 41: vrooli.test_genie.v1.runs.RunFindingsPhase.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
+	16, // 42: vrooli.test_genie.v1.runs.RunFindingsPhase.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
+	89, // 43: vrooli.test_genie.v1.runs.RunFindingsPhase.phase_presentation:type_name -> common.v1.PhasePresentation
+	52, // 44: vrooli.test_genie.v1.runs.GetRunFindingsResponse.phases:type_name -> vrooli.test_genie.v1.runs.RunFindingsPhase
+	54, // 45: vrooli.test_genie.v1.runs.ListRunVideosResponse.videos:type_name -> vrooli.test_genie.v1.runs.RunVideo
+	57, // 46: vrooli.test_genie.v1.runs.ListRunVisualsResponse.visuals:type_name -> vrooli.test_genie.v1.runs.RunVisual
+	61, // 47: vrooli.test_genie.v1.runs.CompareRunVisualsResponse.deltas:type_name -> vrooli.test_genie.v1.runs.VisualDelta
+	64, // 48: vrooli.test_genie.v1.runs.CheckFreshnessResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseFreshness
+	73, // 49: vrooli.test_genie.v1.runs.GetSelfHealthResponse.self_health:type_name -> vrooli.test_genie.v1.runs.SelfHealth
+	70, // 50: vrooli.test_genie.v1.runs.GetFleetHealthResponse.fleet_health:type_name -> vrooli.test_genie.v1.runs.FleetHealth
+	71, // 51: vrooli.test_genie.v1.runs.FleetHealth.scenarios:type_name -> vrooli.test_genie.v1.runs.FleetScenarioHealth
+	72, // 52: vrooli.test_genie.v1.runs.FleetHealth.top_finding_sources:type_name -> vrooli.test_genie.v1.runs.FleetFindingSource
+	76, // 53: vrooli.test_genie.v1.runs.SelfHealth.catalog:type_name -> vrooli.test_genie.v1.runs.CatalogSummary
+	78, // 54: vrooli.test_genie.v1.runs.SelfHealth.conformance:type_name -> vrooli.test_genie.v1.runs.ProviderConformance
+	80, // 55: vrooli.test_genie.v1.runs.SelfHealth.ledger:type_name -> vrooli.test_genie.v1.runs.ReliabilityLedger
+	74, // 56: vrooli.test_genie.v1.runs.SelfHealth.trend_series:type_name -> vrooli.test_genie.v1.runs.SelfHealthTrendPoint
+	77, // 57: vrooli.test_genie.v1.runs.CatalogSummary.phases:type_name -> vrooli.test_genie.v1.runs.CatalogPhase
+	79, // 58: vrooli.test_genie.v1.runs.ProviderConformance.autofix:type_name -> vrooli.test_genie.v1.runs.AutofixCoverage
+	81, // 59: vrooli.test_genie.v1.runs.ReliabilityLedger.run_outcomes:type_name -> vrooli.test_genie.v1.runs.RunOutcomeCount
+	85, // 60: vrooli.test_genie.v1.runs.ReliabilityLedger.phases:type_name -> vrooli.test_genie.v1.runs.PhaseReliability
+	86, // 61: vrooli.test_genie.v1.runs.ReliabilityLedger.providers:type_name -> vrooli.test_genie.v1.runs.ProviderReliability
+	75, // 62: vrooli.test_genie.v1.runs.ReliabilityLedger.trend:type_name -> vrooli.test_genie.v1.runs.TrendDelta
+	82, // 63: vrooli.test_genie.v1.runs.PhaseReliability.skip_reasons:type_name -> vrooli.test_genie.v1.runs.LabeledCount
+	82, // 64: vrooli.test_genie.v1.runs.PhaseReliability.classifications:type_name -> vrooli.test_genie.v1.runs.LabeledCount
+	83, // 65: vrooli.test_genie.v1.runs.PhaseReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
+	84, // 66: vrooli.test_genie.v1.runs.PhaseReliability.worst_scenarios:type_name -> vrooli.test_genie.v1.runs.ScenarioFailureRate
+	83, // 67: vrooli.test_genie.v1.runs.ProviderReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
+	25, // 68: vrooli.test_genie.v1.runs.RunsService.ListRuns:input_type -> vrooli.test_genie.v1.runs.ListRunsRequest
+	27, // 69: vrooli.test_genie.v1.runs.RunsService.GetRun:input_type -> vrooli.test_genie.v1.runs.GetRunRequest
+	29, // 70: vrooli.test_genie.v1.runs.RunsService.DeleteRun:input_type -> vrooli.test_genie.v1.runs.DeleteRunRequest
+	31, // 71: vrooli.test_genie.v1.runs.RunsService.PinRun:input_type -> vrooli.test_genie.v1.runs.PinRunRequest
+	33, // 72: vrooli.test_genie.v1.runs.RunsService.UnpinRun:input_type -> vrooli.test_genie.v1.runs.UnpinRunRequest
+	35, // 73: vrooli.test_genie.v1.runs.RunsService.CompareRuns:input_type -> vrooli.test_genie.v1.runs.CompareRunsRequest
+	42, // 74: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:input_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
+	47, // 75: vrooli.test_genie.v1.runs.RunsService.ListRunArtifacts:input_type -> vrooli.test_genie.v1.runs.ListRunArtifactsRequest
+	49, // 76: vrooli.test_genie.v1.runs.RunsService.GetRunArtifact:input_type -> vrooli.test_genie.v1.runs.GetRunArtifactRequest
+	51, // 77: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:input_type -> vrooli.test_genie.v1.runs.GetRunFindingsRequest
+	55, // 78: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:input_type -> vrooli.test_genie.v1.runs.ListRunVideosRequest
+	58, // 79: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:input_type -> vrooli.test_genie.v1.runs.ListRunVisualsRequest
+	60, // 80: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:input_type -> vrooli.test_genie.v1.runs.CompareRunVisualsRequest
+	40, // 81: vrooli.test_genie.v1.runs.RunsService.FindRun:input_type -> vrooli.test_genie.v1.runs.FindRunRequest
+	63, // 82: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:input_type -> vrooli.test_genie.v1.runs.CheckFreshnessRequest
+	66, // 83: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:input_type -> vrooli.test_genie.v1.runs.GetSelfHealthRequest
+	68, // 84: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:input_type -> vrooli.test_genie.v1.runs.GetFleetHealthRequest
+	5,  // 85: vrooli.test_genie.v1.runs.RunsService.StartRun:input_type -> vrooli.test_genie.v1.runs.StartRunRequest
+	8,  // 86: vrooli.test_genie.v1.runs.RunsService.FollowRun:input_type -> vrooli.test_genie.v1.runs.FollowRunRequest
+	9,  // 87: vrooli.test_genie.v1.runs.RunsService.WaitRun:input_type -> vrooli.test_genie.v1.runs.WaitRunRequest
+	11, // 88: vrooli.test_genie.v1.runs.RunsService.AbortRun:input_type -> vrooli.test_genie.v1.runs.AbortRunRequest
+	13, // 89: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:input_type -> vrooli.test_genie.v1.runs.GetRunStatusRequest
+	26, // 90: vrooli.test_genie.v1.runs.RunsService.ListRuns:output_type -> vrooli.test_genie.v1.runs.ListRunsResponse
+	28, // 91: vrooli.test_genie.v1.runs.RunsService.GetRun:output_type -> vrooli.test_genie.v1.runs.GetRunResponse
+	30, // 92: vrooli.test_genie.v1.runs.RunsService.DeleteRun:output_type -> vrooli.test_genie.v1.runs.DeleteRunResponse
+	32, // 93: vrooli.test_genie.v1.runs.RunsService.PinRun:output_type -> vrooli.test_genie.v1.runs.PinRunResponse
+	34, // 94: vrooli.test_genie.v1.runs.RunsService.UnpinRun:output_type -> vrooli.test_genie.v1.runs.UnpinRunResponse
+	39, // 95: vrooli.test_genie.v1.runs.RunsService.CompareRuns:output_type -> vrooli.test_genie.v1.runs.CompareRunsResponse
+	43, // 96: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:output_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
+	48, // 97: vrooli.test_genie.v1.runs.RunsService.ListRunArtifacts:output_type -> vrooli.test_genie.v1.runs.ListRunArtifactsResponse
+	50, // 98: vrooli.test_genie.v1.runs.RunsService.GetRunArtifact:output_type -> vrooli.test_genie.v1.runs.GetRunArtifactResponse
+	53, // 99: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:output_type -> vrooli.test_genie.v1.runs.GetRunFindingsResponse
+	56, // 100: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:output_type -> vrooli.test_genie.v1.runs.ListRunVideosResponse
+	59, // 101: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:output_type -> vrooli.test_genie.v1.runs.ListRunVisualsResponse
+	62, // 102: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:output_type -> vrooli.test_genie.v1.runs.CompareRunVisualsResponse
+	41, // 103: vrooli.test_genie.v1.runs.RunsService.FindRun:output_type -> vrooli.test_genie.v1.runs.FindRunResponse
+	65, // 104: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:output_type -> vrooli.test_genie.v1.runs.CheckFreshnessResponse
+	67, // 105: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:output_type -> vrooli.test_genie.v1.runs.GetSelfHealthResponse
+	69, // 106: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:output_type -> vrooli.test_genie.v1.runs.GetFleetHealthResponse
+	6,  // 107: vrooli.test_genie.v1.runs.RunsService.StartRun:output_type -> vrooli.test_genie.v1.runs.StartRunResponse
+	3,  // 108: vrooli.test_genie.v1.runs.RunsService.FollowRun:output_type -> vrooli.test_genie.v1.runs.RunEvent
+	10, // 109: vrooli.test_genie.v1.runs.RunsService.WaitRun:output_type -> vrooli.test_genie.v1.runs.WaitRunResponse
+	12, // 110: vrooli.test_genie.v1.runs.RunsService.AbortRun:output_type -> vrooli.test_genie.v1.runs.AbortRunResponse
+	4,  // 111: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:output_type -> vrooli.test_genie.v1.runs.RunLiveStatus
+	90, // [90:112] is the sub-list for method output_type
+	68, // [68:90] is the sub-list for method input_type
+	68, // [68:68] is the sub-list for extension type_name
+	68, // [68:68] is the sub-list for extension extendee
+	0,  // [0:68] is the sub-list for field type_name
 }
 
 func init() { file_test_genie_v1_runs_runs_proto_init() }
@@ -7761,7 +8037,7 @@ func file_test_genie_v1_runs_runs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_test_genie_v1_runs_runs_proto_rawDesc), len(file_test_genie_v1_runs_runs_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   85,
+			NumMessages:   86,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

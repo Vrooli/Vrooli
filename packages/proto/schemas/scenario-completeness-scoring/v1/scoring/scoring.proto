@@ -25,7 +25,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-com
 //
 // Honesty contract: every number is labeled with the tree digest it was
 // computed against (`freshness.current_digest`), and the rung is "as of
-// digest td:..." — never ecosystem-manager's live state. Collector failures
+// digest td:..." — never swarm-manager's live state. Collector failures
 // degrade (see `degradations`); they never fail the RPC.
 //
 // Consumed by:

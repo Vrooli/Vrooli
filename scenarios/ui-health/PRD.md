@@ -5,11 +5,11 @@ Purpose: `ui-health` is the **single UI-validation authority** for the Vrooli mo
 
 `ui-health` is **no longer "pure."** To run real browsers and read framework facts, it takes `browser-automation-studio` (BAS) and `code-facts` as scenario dependencies and can bring the target UI up itself for runtime checks. A `--static-only` mode runs only the no-browser groups for callers that want a fast static check (e.g. `app-monitor`'s diagnostics aggregator).
 
-Target users: Vrooli agents (test-genie phase orchestrator, ecosystem-manager auto-steer loop, agent-inbox unified retrieval, skill-authoring); Vrooli humans authoring scenarios; `app-monitor` as an API-to-API consumer of the interop report.
+Target users: Vrooli agents (test-genie phase orchestrator, swarm-manager auto-steer loop, agent-inbox unified retrieval, skill-authoring); Vrooli humans authoring scenarios; `app-monitor` as an API-to-API consumer of the interop report.
 
 Deployment surfaces: Tier 1 local stack only for v1. Headless API and CLI consumed by other scenarios; React UI available for human inspection. No cloud or multi-tenant deployment in scope for v1.
 
-Value proposition: One report, one owner, one steer skill for all UI validation — instead of partially-overlapping implementations scattered across scenarios with no shared severity, no auto-fix, and no runtime coverage. Catches manifest drift, interop violations, missing standards, stale bundles, and render-time failures before they ship; offers safe mechanical fixes for the deterministic subset; degrades gracefully (static checks always run; the runtime subset is skipped, never failed, when BAS or a UI is unavailable); and gives the ecosystem-manager a single dimension-tagged UI skill to select.
+Value proposition: One report, one owner, one steer skill for all UI validation — instead of partially-overlapping implementations scattered across scenarios with no shared severity, no auto-fix, and no runtime coverage. Catches manifest drift, interop violations, missing standards, stale bundles, and render-time failures before they ship; offers safe mechanical fixes for the deterministic subset; degrades gracefully (static checks always run; the runtime subset is skipped, never failed, when BAS or a UI is unavailable); and gives the swarm-manager a single dimension-tagged UI skill to select.
 
 ## 🎯 Operational Targets
 

@@ -2,6 +2,7 @@ import datetime
 
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from agent_manager.v1.domain import run_pb2 as _run_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -105,7 +106,7 @@ class WorkflowBudgetUsage(_message.Message):
     def __init__(self, turns: _Optional[int] = ..., tokens: _Optional[int] = ..., cost_usd: _Optional[float] = ..., node_attempts: _Optional[int] = ..., children: _Optional[int] = ..., retries: _Optional[int] = ...) -> None: ...
 
 class WorkflowExecution(_message.Message):
-    __slots__ = ("id", "owner", "workflow_key", "definition_digest", "status", "current_node_id", "input", "output", "terminal_reason", "budget_usage", "edge_traversals", "version", "idempotency_key", "parent_execution_id", "created_at", "updated_at", "ended_at", "parent_attempt_id", "depth")
+    __slots__ = ("id", "owner", "workflow_key", "definition_digest", "status", "current_node_id", "input", "output", "terminal_reason", "budget_usage", "edge_traversals", "version", "idempotency_key", "parent_execution_id", "created_at", "updated_at", "ended_at", "parent_attempt_id", "depth", "observations")
     class EdgeTraversalsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -132,6 +133,7 @@ class WorkflowExecution(_message.Message):
     ENDED_AT_FIELD_NUMBER: _ClassVar[int]
     PARENT_ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
     DEPTH_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
     id: str
     owner: str
     workflow_key: str
@@ -151,7 +153,8 @@ class WorkflowExecution(_message.Message):
     ended_at: _timestamp_pb2.Timestamp
     parent_attempt_id: str
     depth: int
-    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., status: _Optional[_Union[WorkflowExecutionStatus, str]] = ..., current_node_id: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., output: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., terminal_reason: _Optional[_Union[WorkflowTerminalReason, _Mapping]] = ..., budget_usage: _Optional[_Union[WorkflowBudgetUsage, _Mapping]] = ..., edge_traversals: _Optional[_Mapping[str, int]] = ..., version: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., parent_execution_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parent_attempt_id: _Optional[str] = ..., depth: _Optional[int] = ...) -> None: ...
+    observations: _run_pb2.ReceiptObservations
+    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., status: _Optional[_Union[WorkflowExecutionStatus, str]] = ..., current_node_id: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., output: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., terminal_reason: _Optional[_Union[WorkflowTerminalReason, _Mapping]] = ..., budget_usage: _Optional[_Union[WorkflowBudgetUsage, _Mapping]] = ..., edge_traversals: _Optional[_Mapping[str, int]] = ..., version: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., parent_execution_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parent_attempt_id: _Optional[str] = ..., depth: _Optional[int] = ..., observations: _Optional[_Union[_run_pb2.ReceiptObservations, _Mapping]] = ...) -> None: ...
 
 class WorkflowNodeAttempt(_message.Message):
     __slots__ = ("id", "execution_id", "node_id", "ordinal", "strategy", "status", "idempotency_key", "run_id", "conversation_id", "source_attempt_id", "error_code", "version", "created_at", "updated_at", "completed_at", "child_execution_id", "profile_identity", "input_snapshot_digest", "input_snapshot_size_bytes", "raw_output", "validation_error")

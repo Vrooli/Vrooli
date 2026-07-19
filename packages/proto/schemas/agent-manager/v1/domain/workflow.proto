@@ -4,6 +4,7 @@ package agent_manager.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "agent-manager/v1/domain/run.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
 
@@ -84,6 +85,9 @@ message WorkflowExecution {
   google.protobuf.Timestamp ended_at = 17;
   string parent_attempt_id = 18;
   int32 depth = 19;
+  // Platform-owned receipt evidence aggregated over child runs. It remains
+  // separate from workflow output and preserves each receipt's run/node/attempt.
+  ReceiptObservations observations = 20;
 }
 
 // WorkflowNodeAttempt is the durable, per-node execution identity. Prompt

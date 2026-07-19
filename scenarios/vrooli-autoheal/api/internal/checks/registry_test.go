@@ -854,6 +854,32 @@ func TestRunAutoHeal_ScenarioSharedPackageDriftPrefersSetupRestart(t *testing.T)
 	}
 }
 
+func TestRunAutoHeal_StoppedScenarioPrefersSafeStart(t *testing.T) {
+	reg := newTestRegistry()
+
+	healable := &mockHealableCheck{
+		id:     "scenario-vrooli-events",
+		result: Result{CheckID: "scenario-vrooli-events", Status: StatusCritical},
+		actions: []RecoveryAction{
+			{ID: "start", Available: true},
+			{ID: "restart", Available: true, Dangerous: true},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(healable)
+	reg.SetConfigProvider(&mockConfigProvider{autoHealChecks: map[string]bool{"scenario-vrooli-events": true}})
+
+	reg.RunAutoHeal(context.Background(), []Result{{
+		CheckID: "scenario-vrooli-events",
+		Status:  StatusCritical,
+		Details: map[string]interface{}{"scenarioStatus": "stopped"},
+	}})
+
+	if len(healable.executedActions) != 1 || healable.executedActions[0] != "start" {
+		t.Fatalf("expected stopped scenario to select safe start, got %v", healable.executedActions)
+	}
+}
+
 // TestRunAutoHeal_ScenarioGoDriftPrefersRecoverGo verifies that when a Go
 // module drift signature is detected, the targeted recover-go action wins
 // over a plain restart.

@@ -143,7 +143,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        reportconnect.ReportServiceGetSkillFitnessProcedure,
 		Method:      "POST",
 		Summary:     "Cross-golden trust/cost/convergence aggregate for one skill",
-		Description: "Folds every validation record for a skill across all goldens into run counts by verdict, pass rate, token/cost/duration totals, convergence ratio, latest verdict, staleness, and a derived fitness verdict (UNKNOWN/GREEN/YELLOW/RED). Consumed by ecosystem-manager's selection controller.",
+		Description: "Folds every validation record for a skill across all goldens into run counts by verdict, pass rate, token/cost/duration totals, convergence ratio, latest verdict, staleness, and a derived fitness verdict (UNKNOWN/GREEN/YELLOW/RED).",
 		Category:    "report",
 		Request: &module.Schema{
 			Type:       "object",

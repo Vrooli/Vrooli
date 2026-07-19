@@ -3,7 +3,6 @@
 ## 🎯 Overview
 Purpose: Unit Health is Vrooli's test-execution and test-maturity authority. It discovers scenario test surfaces through Code Facts, plans canonical test commands per workspace, executes them under bounded safety limits, parses coverage, evaluates test architecture and test quality, diagnoses flake/runtime risk, and reports an agent-readable local maturity assessment so Test Genie can delegate one coherent `unit` phase instead of embedding language-specific test runners and a separate coverage parser internally.
 
-Primary users/verticals: Vrooli agents, Test Genie, Ecosystem Manager maturity flows, scenario maintainers, and operators inspecting fleet test health. The primary vertical is Vrooli's engineering-quality loop.
 
 Deployment surfaces: Go API, Go CLI, React/Vite UI, and Test Genie provider integration. The API and CLI are the canonical programmatic surfaces; the UI is an operator inspection console.
 

@@ -4,7 +4,7 @@
 
 Target resolution, surface inventory, parse-unit discovery, analyzer brokering, generic fact normalization, cache persistence, proto adoption proof, and REST endpoint proof are implemented. `cli_proofs` and `ui_widget_proofs` still return typed `unsupported` evidence until later phases.
 
-Future consumers should treat these families as explicit non-goals for the current Code Facts launch. `test-genie`, `cli-health`, `ui-health`, and `ecosystem-manager` can adopt the existing target/surface/import/reference/call/proto/endpoint facts now, but command-level and widget-level proof semantics still need their own product requirements and fixtures.
+Future consumers should treat these families as explicit non-goals for the current Code Facts launch. `test-genie`, `cli-health`, `ui-health`, and `swarm-manager` can adopt the existing target/surface/import/reference/call/proto/endpoint facts now, but command-level and widget-level proof semantics still need their own product requirements and fixtures.
 
 ## Full Scaffold Health
 
@@ -31,4 +31,4 @@ Phase 13 intentionally did not migrate additional consumers. Follow-up candidate
 - `architecture-cartographer`: reuse Code Facts target discovery and provider brokering rather than duplicating graph-provider routing.
 - `test-genie`: use Code Facts for declared endpoint, CLI, and UI implementation evidence once command/widget proof families are designed.
 - `cli-health` and `ui-health`: consume Code Facts for discoverability and generated-client usage proof.
-- `ecosystem-manager`: consume Code Facts surface and capability inventory for higher-level ecosystem planning.
+- `swarm-manager`: consume Code Facts surface and capability inventory for higher-level ecosystem planning.

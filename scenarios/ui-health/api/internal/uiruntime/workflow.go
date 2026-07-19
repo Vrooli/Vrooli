@@ -135,13 +135,13 @@ func edge(source, target string) map[string]any {
 // not reliably return a value).
 func injectionScript(scenarioURL string, signals []string, expected []requiredSurface) string {
 	urlJSON, _ := json.Marshal(scenarioURL)
-	type expectedSurface struct { ID string `json:"id"`; States []string `json:"states"` }
+	type expectedSurface struct { ID string `json:"id"`; Kind string `json:"kind"`; States []string `json:"states"` }
 	items := make([]expectedSurface, 0, len(expected))
 	for _, surface := range expected {
 		if !surface.required || strings.TrimSpace(surface.id) == "" { continue }
 		states := make([]string, 0, len(surface.states))
 		for state := range surface.states { if state != "loading" { states = append(states, state) } }
-		items = append(items, expectedSurface{ID: surface.id, States: states})
+		items = append(items, expectedSurface{ID: surface.id, Kind: surface.kind, States: states})
 	}
 	expectedJSON, _ := json.Marshal(items)
 	return fmt.Sprintf(injectionTemplate, string(urlJSON), framePropertyPredicate(signals), string(expectedJSON))
@@ -245,6 +245,8 @@ const injectionTemplate = `(() => {
       if (!matched) { doc.documentElement.removeAttribute('data-smoke-experience-settled'); return; }
       var state = matched.getAttribute('data-experience-state') || '';
       if (expected.states.length && expected.states.indexOf(state) === -1) { doc.documentElement.removeAttribute('data-smoke-experience-settled'); return; }
+      if (expected.kind === 'async' && (state === 'loading' || state === 'static' || !state)) { doc.documentElement.removeAttribute('data-smoke-experience-settled'); return; }
+      if (expected.kind === 'static' && state !== 'static') { doc.documentElement.removeAttribute('data-smoke-experience-settled'); return; }
     }
     doc.documentElement.setAttribute('data-smoke-experience-settled', '1');
   }

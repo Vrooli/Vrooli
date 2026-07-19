@@ -237,6 +237,9 @@ message StartRunRequest {
   // enables all-pages visual capture + video + full diagnostics for
   // git-control-tower baseline snapshots.
   string capture_profile = 14;
+  // Gate-quality runs require clean, digest-stamped source evidence. Exploratory
+  // callers leave this false and receive an explicit volatile provenance later.
+  bool require_gate_quality = 15;
 }
 
 message StartRunResponse {
@@ -432,6 +435,11 @@ message RunPhaseDescriptor {
   repeated string aliases = 15;
   repeated string supersedes = 16;
   PhaseApplicabilityDecision applicability = 17;
+  // Fingerprint of the validation semantics only. Presentation metadata is
+  // deliberately excluded so copy changes do not invalidate evidence.
+  string comparison_fingerprint = 18;
+  // compatible | changed-unreviewed | invalidated | superseded.
+  string comparison_mode = 19;
 }
 
 // RunDescriptorSnapshot is the complete descriptor catalog frozen at run
@@ -472,6 +480,13 @@ message RunInfo {
   int32 descriptor_snapshot_schema_version = 18;
   string descriptor_snapshot_digest = 19;
   RunDescriptorSnapshot descriptor_snapshot = 20;
+  // Configuration fingerprint is the immutable execution-plan component that
+  // complements tree_digest, phase_set_digest, and descriptor_snapshot_digest.
+  // Empty only for runs that predate canonical terminal projections.
+  string execution_configuration_fingerprint = 21;
+  // gate_quality is true only for a clean, digest-stamped execution. A volatile
+  // exploratory run remains inspectable but cannot stand in for gate evidence.
+  bool gate_quality = 22;
 }
 
 message ListRunsRequest {
@@ -550,6 +565,19 @@ message PhaseComparisonReason {
   string detail = 2;
 }
 
+// ComparisonDiagnostic preserves a machine-readable measurement or contract
+// cause. readiness fields are provider-owned and remain available to the UI
+// and CLI instead of being collapsed into a generic not-comparable verdict.
+message ComparisonDiagnostic {
+  string side = 1; // baseline | current | comparison
+  string code = 2;
+  string detail = 3;
+  string classification = 4;
+  string lifecycle_action = 5;
+  string remediation = 6;
+  repeated string observations = 7;
+}
+
 // PhaseDiff classifies the difference for a single phase between run A and B.
 message PhaseDiff {
   string phase = 1;
@@ -564,6 +592,13 @@ message PhaseDiff {
   RunPhaseDescriptor descriptor_a = 9;
   RunPhaseDescriptor descriptor_b = 10;
   repeated PhaseComparisonReason reasons = 11;
+  // Independent comparison dimensions. New consumers must use these rather
+  // than verdict, which is retained only for legacy readers.
+  string behavior = 12; // clean | regression | new-failure | preexisting | cleared | unknown
+  string coverage = 13; // measured | current-only | baseline-missing | current-missing | unmeasured
+  string compatibility = 14; // compatible | changed-unreviewed | invalidated | superseded | legacy
+  string provenance = 15; // verified | volatile | mismatched | legacy
+  repeated ComparisonDiagnostic diagnostics = 16;
 }
 
 message CompareRunsResponse {
@@ -571,6 +606,12 @@ message CompareRunsResponse {
   // verdict is the worst per-phase verdict (regression > not-comparable >
   // new-failure > clean), driving the CLI exit code.
   string verdict = 2;
+  int32 schema_version = 3;
+  string behavior = 4;
+  string coverage = 5;
+  string compatibility = 6;
+  string provenance = 7;
+  repeated ComparisonDiagnostic diagnostics = 8;
 }
 
 message FindRunRequest {
@@ -590,6 +631,8 @@ message FindRunRequest {
   // Empty means "do not constrain"; baseline reuse should set this so stale
   // completed runs from before catalog evolution cannot silently stand in.
   string phase_set_digest = 8;
+  // require_gate_quality excludes clean but exploratory/shared-worktree runs.
+  bool require_gate_quality = 9;
 }
 
 message FindRunResponse {

@@ -1,69 +1,80 @@
-from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+from vrooli_events.v1.domain import envelope_pb2 as _envelope_pb2
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from collections.abc import Mapping as _Mapping
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class Effect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    EFFECT_UNSPECIFIED: _ClassVar[Effect]
-    EFFECT_ALLOW: _ClassVar[Effect]
-    EFFECT_DENY: _ClassVar[Effect]
+class ReceiptCapturePolicy(_message.Message):
+    __slots__ = ("policy_id", "enabled", "selector", "response_type", "response_projection_paths", "retention_days", "access", "version")
+    POLICY_ID_FIELD_NUMBER: _ClassVar[int]
+    ENABLED_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    RESPONSE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    RESPONSE_PROJECTION_PATHS_FIELD_NUMBER: _ClassVar[int]
+    RETENTION_DAYS_FIELD_NUMBER: _ClassVar[int]
+    ACCESS_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    policy_id: str
+    enabled: bool
+    selector: ReceiptOperationSelector
+    response_type: str
+    response_projection_paths: _containers.RepeatedScalarFieldContainer[str]
+    retention_days: int
+    access: ReceiptAccessPolicy
+    version: str
+    def __init__(self, policy_id: _Optional[str] = ..., enabled: _Optional[bool] = ..., selector: _Optional[_Union[ReceiptOperationSelector, _Mapping]] = ..., response_type: _Optional[str] = ..., response_projection_paths: _Optional[_Iterable[str]] = ..., retention_days: _Optional[int] = ..., access: _Optional[_Union[ReceiptAccessPolicy, _Mapping]] = ..., version: _Optional[str] = ...) -> None: ...
 
-class CircuitBreakerState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    CIRCUIT_BREAKER_STATE_UNSPECIFIED: _ClassVar[CircuitBreakerState]
-    CIRCUIT_BREAKER_STATE_CLOSED: _ClassVar[CircuitBreakerState]
-    CIRCUIT_BREAKER_STATE_OPEN: _ClassVar[CircuitBreakerState]
-    CIRCUIT_BREAKER_STATE_HALF_OPEN: _ClassVar[CircuitBreakerState]
-EFFECT_UNSPECIFIED: Effect
-EFFECT_ALLOW: Effect
-EFFECT_DENY: Effect
-CIRCUIT_BREAKER_STATE_UNSPECIFIED: CircuitBreakerState
-CIRCUIT_BREAKER_STATE_CLOSED: CircuitBreakerState
-CIRCUIT_BREAKER_STATE_OPEN: CircuitBreakerState
-CIRCUIT_BREAKER_STATE_HALF_OPEN: CircuitBreakerState
+class ReceiptOperationSelector(_message.Message):
+    __slots__ = ("target_scenario", "operation", "protocol", "event_type")
+    TARGET_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    PROTOCOL_FIELD_NUMBER: _ClassVar[int]
+    EVENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    target_scenario: str
+    operation: str
+    protocol: str
+    event_type: str
+    def __init__(self, target_scenario: _Optional[str] = ..., operation: _Optional[str] = ..., protocol: _Optional[str] = ..., event_type: _Optional[str] = ...) -> None: ...
 
-class PolicyMatcher(_message.Message):
-    __slots__ = ("source_pattern", "target_pattern", "action_pattern")
-    SOURCE_PATTERN_FIELD_NUMBER: _ClassVar[int]
-    TARGET_PATTERN_FIELD_NUMBER: _ClassVar[int]
-    ACTION_PATTERN_FIELD_NUMBER: _ClassVar[int]
-    source_pattern: str
-    target_pattern: str
-    action_pattern: str
-    def __init__(self, source_pattern: _Optional[str] = ..., target_pattern: _Optional[str] = ..., action_pattern: _Optional[str] = ...) -> None: ...
+class ReceiptAccessPolicy(_message.Message):
+    __slots__ = ("read_principals",)
+    READ_PRINCIPALS_FIELD_NUMBER: _ClassVar[int]
+    read_principals: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, read_principals: _Optional[_Iterable[str]] = ...) -> None: ...
 
-class AccessRule(_message.Message):
-    __slots__ = ("matcher", "effect", "specificity_score")
-    MATCHER_FIELD_NUMBER: _ClassVar[int]
-    EFFECT_FIELD_NUMBER: _ClassVar[int]
-    SPECIFICITY_SCORE_FIELD_NUMBER: _ClassVar[int]
-    matcher: PolicyMatcher
-    effect: Effect
-    specificity_score: int
-    def __init__(self, matcher: _Optional[_Union[PolicyMatcher, _Mapping]] = ..., effect: _Optional[_Union[Effect, str]] = ..., specificity_score: _Optional[int] = ...) -> None: ...
+class ReceiptQueryFilter(_message.Message):
+    __slots__ = ("event_type", "target_scenario", "operation", "agent_run_id", "task_id", "workflow_execution_id", "workflow_node_id", "attempt", "verified_only", "page_token", "page_size")
+    EVENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    AGENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPT_FIELD_NUMBER: _ClassVar[int]
+    VERIFIED_ONLY_FIELD_NUMBER: _ClassVar[int]
+    PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    event_type: str
+    target_scenario: str
+    operation: str
+    agent_run_id: str
+    task_id: str
+    workflow_execution_id: str
+    workflow_node_id: str
+    attempt: int
+    verified_only: bool
+    page_token: str
+    page_size: int
+    def __init__(self, event_type: _Optional[str] = ..., target_scenario: _Optional[str] = ..., operation: _Optional[str] = ..., agent_run_id: _Optional[str] = ..., task_id: _Optional[str] = ..., workflow_execution_id: _Optional[str] = ..., workflow_node_id: _Optional[str] = ..., attempt: _Optional[int] = ..., verified_only: _Optional[bool] = ..., page_token: _Optional[str] = ..., page_size: _Optional[int] = ...) -> None: ...
 
-class RateLimit(_message.Message):
-    __slots__ = ("matcher", "capacity", "refill_rate")
-    MATCHER_FIELD_NUMBER: _ClassVar[int]
-    CAPACITY_FIELD_NUMBER: _ClassVar[int]
-    REFILL_RATE_FIELD_NUMBER: _ClassVar[int]
-    matcher: PolicyMatcher
-    capacity: int
-    refill_rate: float
-    def __init__(self, matcher: _Optional[_Union[PolicyMatcher, _Mapping]] = ..., capacity: _Optional[int] = ..., refill_rate: _Optional[float] = ...) -> None: ...
-
-class CircuitBreaker(_message.Message):
-    __slots__ = ("matcher", "failure_threshold", "cooldown_seconds", "state")
-    MATCHER_FIELD_NUMBER: _ClassVar[int]
-    FAILURE_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
-    COOLDOWN_SECONDS_FIELD_NUMBER: _ClassVar[int]
-    STATE_FIELD_NUMBER: _ClassVar[int]
-    matcher: PolicyMatcher
-    failure_threshold: int
-    cooldown_seconds: int
-    state: CircuitBreakerState
-    def __init__(self, matcher: _Optional[_Union[PolicyMatcher, _Mapping]] = ..., failure_threshold: _Optional[int] = ..., cooldown_seconds: _Optional[int] = ..., state: _Optional[_Union[CircuitBreakerState, str]] = ...) -> None: ...
+class ReceiptQueryResult(_message.Message):
+    __slots__ = ("events", "next_page_token")
+    EVENTS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    events: _containers.RepeatedCompositeFieldContainer[_envelope_pb2.EventEnvelope]
+    next_page_token: str
+    def __init__(self, events: _Optional[_Iterable[_Union[_envelope_pb2.EventEnvelope, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...

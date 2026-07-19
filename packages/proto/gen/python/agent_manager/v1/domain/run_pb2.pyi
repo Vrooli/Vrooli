@@ -4,6 +4,7 @@ from agent_manager.v1.domain import profile_pb2 as _profile_pb2
 from agent_manager.v1.domain import types_pb2 as _types_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf import duration_pb2 as _duration_pb2
+from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -29,6 +30,14 @@ class StructuredResultStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCTURED_RESULT_STATUS_INVALID: _ClassVar[StructuredResultStatus]
     STRUCTURED_RESULT_STATUS_AMBIGUOUS: _ClassVar[StructuredResultStatus]
     STRUCTURED_RESULT_STATUS_ABSTAINED: _ClassVar[StructuredResultStatus]
+
+class ReceiptObservationState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RECEIPT_OBSERVATION_STATE_UNSPECIFIED: _ClassVar[ReceiptObservationState]
+    RECEIPT_OBSERVATION_STATE_AVAILABLE: _ClassVar[ReceiptObservationState]
+    RECEIPT_OBSERVATION_STATE_UNOBSERVED: _ClassVar[ReceiptObservationState]
+    RECEIPT_OBSERVATION_STATE_DEGRADED: _ClassVar[ReceiptObservationState]
+    RECEIPT_OBSERVATION_STATE_UNAVAILABLE: _ClassVar[ReceiptObservationState]
 FINAL_OUTPUT_SELECTION_STATUS_UNSPECIFIED: FinalOutputSelectionStatus
 FINAL_OUTPUT_SELECTION_STATUS_SELECTED: FinalOutputSelectionStatus
 FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS: FinalOutputSelectionStatus
@@ -39,6 +48,11 @@ STRUCTURED_RESULT_STATUS_UNAVAILABLE: StructuredResultStatus
 STRUCTURED_RESULT_STATUS_INVALID: StructuredResultStatus
 STRUCTURED_RESULT_STATUS_AMBIGUOUS: StructuredResultStatus
 STRUCTURED_RESULT_STATUS_ABSTAINED: StructuredResultStatus
+RECEIPT_OBSERVATION_STATE_UNSPECIFIED: ReceiptObservationState
+RECEIPT_OBSERVATION_STATE_AVAILABLE: ReceiptObservationState
+RECEIPT_OBSERVATION_STATE_UNOBSERVED: ReceiptObservationState
+RECEIPT_OBSERVATION_STATE_DEGRADED: ReceiptObservationState
+RECEIPT_OBSERVATION_STATE_UNAVAILABLE: ReceiptObservationState
 
 class Run(_message.Message):
     __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "session_id", "created_at", "updated_at", "actions", "prompt_preview", "requested_model", "actual_model", "finalization_status", "finalization_error", "finalized_at", "await_handle", "execution_mode", "web_console_session_id", "web_console_session_url", "result")
@@ -213,7 +227,7 @@ class StructuredResult(_message.Message):
     def __init__(self, status: _Optional[_Union[StructuredResultStatus, str]] = ..., spec_kind: _Optional[_Union[_profile_pb2.ResultSpecKind, str]] = ..., schema_digest: _Optional[str] = ..., value: _Optional[bytes] = ..., method: _Optional[str] = ..., source_candidate_id: _Optional[str] = ..., extractor: _Optional[_Union[StructuredExtractionProvenance, _Mapping]] = ..., diagnostics: _Optional[_Iterable[_Union[StructuredDiagnostic, _Mapping]]] = ...) -> None: ...
 
 class RunResult(_message.Message):
-    __slots__ = ("final_output", "selection", "candidates", "success", "exit_code", "terminal_reason", "structured")
+    __slots__ = ("final_output", "selection", "candidates", "success", "exit_code", "terminal_reason", "structured", "observations")
     FINAL_OUTPUT_FIELD_NUMBER: _ClassVar[int]
     SELECTION_FIELD_NUMBER: _ClassVar[int]
     CANDIDATES_FIELD_NUMBER: _ClassVar[int]
@@ -221,6 +235,7 @@ class RunResult(_message.Message):
     EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_REASON_FIELD_NUMBER: _ClassVar[int]
     STRUCTURED_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
     final_output: str
     selection: FinalOutputSelection
     candidates: _containers.RepeatedCompositeFieldContainer[FinalOutputCandidate]
@@ -228,7 +243,44 @@ class RunResult(_message.Message):
     exit_code: int
     terminal_reason: str
     structured: StructuredResult
-    def __init__(self, final_output: _Optional[str] = ..., selection: _Optional[_Union[FinalOutputSelection, _Mapping]] = ..., candidates: _Optional[_Iterable[_Union[FinalOutputCandidate, _Mapping]]] = ..., success: _Optional[bool] = ..., exit_code: _Optional[int] = ..., terminal_reason: _Optional[str] = ..., structured: _Optional[_Union[StructuredResult, _Mapping]] = ...) -> None: ...
+    observations: ReceiptObservations
+    def __init__(self, final_output: _Optional[str] = ..., selection: _Optional[_Union[FinalOutputSelection, _Mapping]] = ..., candidates: _Optional[_Iterable[_Union[FinalOutputCandidate, _Mapping]]] = ..., success: _Optional[bool] = ..., exit_code: _Optional[int] = ..., terminal_reason: _Optional[str] = ..., structured: _Optional[_Union[StructuredResult, _Mapping]] = ..., observations: _Optional[_Union[ReceiptObservations, _Mapping]] = ...) -> None: ...
+
+class ReceiptObservations(_message.Message):
+    __slots__ = ("state", "receipts", "detail")
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    RECEIPTS_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    state: ReceiptObservationState
+    receipts: _containers.RepeatedCompositeFieldContainer[ObservedReceipt]
+    detail: str
+    def __init__(self, state: _Optional[_Union[ReceiptObservationState, str]] = ..., receipts: _Optional[_Iterable[_Union[ObservedReceipt, _Mapping]]] = ..., detail: _Optional[str] = ...) -> None: ...
+
+class ObservedReceipt(_message.Message):
+    __slots__ = ("event_id", "target_scenario", "operation", "agent_run_id", "workflow_execution_id", "workflow_node_id", "attempt", "attribution_verified", "outcome", "status_code", "projection")
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    AGENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPT_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTION_VERIFIED_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    STATUS_CODE_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_FIELD_NUMBER: _ClassVar[int]
+    event_id: str
+    target_scenario: str
+    operation: str
+    agent_run_id: str
+    workflow_execution_id: str
+    workflow_node_id: str
+    attempt: int
+    attribution_verified: bool
+    outcome: str
+    status_code: int
+    projection: _struct_pb2.Struct
+    def __init__(self, event_id: _Optional[str] = ..., target_scenario: _Optional[str] = ..., operation: _Optional[str] = ..., agent_run_id: _Optional[str] = ..., workflow_execution_id: _Optional[str] = ..., workflow_node_id: _Optional[str] = ..., attempt: _Optional[int] = ..., attribution_verified: _Optional[bool] = ..., outcome: _Optional[str] = ..., status_code: _Optional[int] = ..., projection: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class AwaitHandle(_message.Message):
     __slots__ = ("producer", "key", "deadline", "registered_at")

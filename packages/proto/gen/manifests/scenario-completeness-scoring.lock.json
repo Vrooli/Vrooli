@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-completeness-scoring",
-  "input_digest": "sha256:d2e04d1ca3e879649eeb9f772022e39b1e711ae99355060743d91cc941a22a6a",
+  "input_digest": "sha256:26830d189ee2436e793c12b823e014dd4ac2d78f7ca8cba0beaf7102e99690a1",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/scenario-completeness-scoring/v1/domain/scoring.proto",

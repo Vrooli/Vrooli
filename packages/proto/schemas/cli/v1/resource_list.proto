@@ -15,7 +15,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1
 // Canonical wire shape of `vrooli resource list --json`. This is a
 // platform-level (non-scenario) contract: the root vrooli CLI marshals it with
 // protojson (UseProtoNames=true, EmitUnpopulated=true), and every consumer —
-// the ecosystem-manager API (Go), the operator UI (TypeScript), and any future
+// the swarm-manager API (Go), the operator UI (TypeScript), and any future
 // language — decodes the generated type instead of re-deriving the shape. A
 // field change here is a compile/build error on every consumer at once, instead
 // of a silently empty result.

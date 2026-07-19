@@ -31,6 +31,12 @@ func TestDefaultConfig(t *testing.T) {
 	if !cfg.Monitoring.IsScenarioCritical("system-monitor") {
 		t.Fatalf("system-monitor should be monitored as a critical scenario by default")
 	}
+	if !cfg.Monitoring.IsScenarioCritical("vrooli-events") {
+		t.Fatalf("vrooli-events should be monitored as a mandatory critical core scenario")
+	}
+	if _, monitored := cfg.Monitoring.Scenarios["swarm-manager"]; monitored {
+		t.Fatal("swarm-manager must not be monitored by default after retirement")
+	}
 }
 
 func TestGetCheckDefaults(t *testing.T) {
@@ -45,6 +51,7 @@ func TestGetCheckDefaults(t *testing.T) {
 		{"resource-postgres", true, true, "critical"},
 		{"infra-display", true, true, "critical"},
 		{"os-watchdog", true, true, "critical"},
+		{"scenario-vrooli-events", true, true, "critical"},
 		{"unknown-check", true, false, "critical"}, // Generic defaults
 	}
 
@@ -61,6 +68,30 @@ func TestGetCheckDefaults(t *testing.T) {
 				t.Errorf("check %s: expected autoHealOn=%q, got %q", tc.checkID, tc.expectedPolicy, defaults.AutoHealOn)
 			}
 		})
+	}
+}
+
+func TestManagerLoadReconcilesMandatoryCoreScenarioAndAutoHeal(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "schema.json")
+	if err := os.WriteFile(configPath, []byte(`{
+		"version":"1.0",
+		"checks":{"scenario-vrooli-events":{"enabled":false,"autoHeal":false}},
+		"monitoring":{"scenarios":{"vrooli-events":{"critical":false}}}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mgr := NewManager(configPath, schemaPath)
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	monitoring := mgr.GetMonitoring()
+	if !monitoring.IsScenarioCritical("vrooli-events") {
+		t.Fatal("mandatory core scenario was not reconciled as critical")
+	}
+	if !mgr.IsCheckEnabled("scenario-vrooli-events") || !mgr.IsAutoHealEnabled("scenario-vrooli-events") {
+		t.Fatal("mandatory core scenario coverage must remain enabled and auto-healable")
 	}
 }
 

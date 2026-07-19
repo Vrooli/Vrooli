@@ -239,6 +239,9 @@ message DiffResult {
   string dirty_warning = 6;
   repeated vrooli.test_genie.v1.runs.PhaseDiff phases = 7;
   EvidenceComparison evidence = 8;
+  // Test Genie owns this versioned comparison envelope. verdict is GCT's gate
+  // projection for older clients; new clients render the independent axes.
+  vrooli.test_genie.v1.runs.CompareRunsResponse comparison = 9;
 }
 
 message RunBusyInfo {

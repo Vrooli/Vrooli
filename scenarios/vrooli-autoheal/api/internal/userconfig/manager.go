@@ -176,6 +176,14 @@ func (m *Manager) GetCheck(checkID string) CheckConfig {
 			}
 		}
 	}
+	// Core runtime scenarios are the platform recovery floor. Their health
+	// coverage cannot be disabled by stale or hand-edited user config; user
+	// configuration remains additive for all non-core checks.
+	if isMandatoryCoreScenarioCheck(checkID) {
+		result.Enabled = true
+		result.AutoHeal = true
+		result.Settings.AutoHealOn = "critical"
+	}
 
 	return result
 }
@@ -636,6 +644,7 @@ func (m *Manager) mergeMonitoringConfig(file MonitoringConfig) MonitoringConfig 
 			}
 		}
 	}
+	ensureMandatoryCoreScenarios(&merged)
 
 	return merged
 }

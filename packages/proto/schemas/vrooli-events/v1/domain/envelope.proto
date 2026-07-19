@@ -1,63 +1,57 @@
 syntax = "proto3";
 
-package vrooli_events.v1;
+package vrooli.events.v1.domain;
 
 import "google/protobuf/any.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domain";
 
-// =============================================================================
-// EVENT ENVELOPE
-// =============================================================================
-//
-// @layer 0
-// @domain vrooli-events
-// @imports none (external only: google.protobuf)
-// @stability stable
-//
-// EventEnvelope is the canonical envelope for all inter-scenario communication
-// in the Vrooli ecosystem. Every event published to the central event bus is
-// wrapped in this message.
-//
-// USAGE CONTEXTS:
-//   - Event Bus: Publish/subscribe between scenarios
-//   - SSE Streaming: Real-time event delivery to subscribers
-//   - Event Store: Persistent event history
-//
-// =============================================================================
-
-// EventEnvelope wraps every event on the vrooli-events bus.
-//
-// The event_type field uses a structured format:
-//   {scenario}.{domain}.{action}.{version}
-// Examples: "agent-manager.run.completed.v1", "lpbs.download.created.v1"
-//
-// @usage Event bus publish/subscribe, SSE streaming
+// Canonical, typed audit observation contract. Event-specific facts are packed
+// in data; routing, attribution and correlation are never hidden in metadata.
 message EventEnvelope {
-  // Unique identifier for this event.
-  // @format uuid
   string event_id = 1;
+  string event_type = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+  EventSource source = 4;
+  EventTarget target = 5;
+  EventCorrelation correlation = 6;
+  EventAttribution attribution = 7;
+  google.protobuf.Any data = 8;
+}
 
-  // Scenario that produced this event.
-  string source_scenario = 2;
+message EventSource {
+  string scenario = 1;
+  string actor_kind = 2;
+}
 
-  // Scenario this event is addressed to (empty for broadcast).
-  string target_scenario = 3;
+message EventTarget {
+  string scenario = 1;
+  string operation = 2;
+  string protocol = 3;
+}
 
-  // Structured event type: {scenario}.{domain}.{action}.{version}.
-  string event_type = 4;
+message EventCorrelation {
+  string request_id = 1;
+  string agent_run_id = 2;
+  string task_id = 3;
+  string workflow_execution_id = 4;
+  string workflow_node_id = 5;
+  uint32 attempt = 6;
+}
 
-  // When the event was created.
-  google.protobuf.Timestamp timestamp = 5;
+message EventAttribution {
+  string subject_kind = 1;
+  string subject_id = 2;
+  bool verified = 3;
+}
 
-  // Correlation ID for tracing related events across scenarios.
-  // @format uuid
-  string correlation_id = 6;
-
-  // Type-specific event payload.
-  google.protobuf.Any payload = 7;
-
-  // Arbitrary key-value metadata for routing, filtering, or debugging.
-  map<string, string> metadata = 8;
+message ReceiptData {
+  string outcome = 1;
+  uint32 status_code = 2;
+  uint64 duration_ms = 3;
+  string policy_version = 4;
+  string idempotency_key = 5;
+  google.protobuf.Struct projection = 6;
 }

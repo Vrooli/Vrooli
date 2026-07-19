@@ -40,7 +40,7 @@ func requireBuf(t *testing.T) {
 // The test asserts each one returns `passed: true`. After the manifest-as-SSOT
 // CLI consolidation, every proto-first scenario (including the once-drifted
 // react-component-library and the three formerly code-registered holdouts —
-// web-console, audio-tools, ecosystem-manager) has its proto surface fully
+// web-console, audio-tools, swarm-manager) has its proto surface fully
 // bound-or-omitted in cli/manifest.json, so the list now spans a representative
 // cross-section of the migrated fleet. (browser-automation-studio and
 // git-control-tower remain excluded: they are not gen-endpoints proto-first
@@ -54,7 +54,7 @@ var adoptingScenarios = []string{
 	"react-component-library",
 	"web-console",
 	"audio-tools",
-	"ecosystem-manager",
+	"swarm-manager",
 }
 
 // TestIntegration_CLIHealthReachesVerifiedL4 proves the full maturity loop for

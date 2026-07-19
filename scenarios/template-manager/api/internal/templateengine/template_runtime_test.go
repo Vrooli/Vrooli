@@ -271,7 +271,7 @@ func TestValidateGeneratedExperienceFoundationRequiresValidReactViteIndex(t *tes
 	if err := os.MkdirAll(filepath.Join(destination, "experience", "pages"), 0o755); err != nil {
 		t.Fatalf("mkdir page foundation: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(destination, "experience", "pages", "notes.json"), []byte(`{"regions":[{"id":"notes","component":{"library":{"component":"experience-surface"}}}]}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(destination, "experience", "pages", "notes.json"), []byte(`{"regions":[{"id":"notes","component":{"library":{"component":"experience-surface"}},"lifecycle":{"kind":"async"}}],"bindings":{"regions":{"notes":{"testid":"notes-surface"}}}}`), 0o644); err != nil {
 		t.Fatalf("write notes foundation: %v", err)
 	}
 	if issues := validateGeneratedExperienceFoundation(destination, "react-vite"); len(issues) != 0 {

@@ -1682,14 +1682,17 @@ func (x *GetDiffResultResponse) GetRunId() string {
 }
 
 type DiffResult struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Baseline      *BaselineManifest      `protobuf:"bytes,1,opt,name=baseline,proto3" json:"baseline,omitempty"`
-	CurrentGit    *GitState              `protobuf:"bytes,2,opt,name=current_git,json=currentGit,proto3" json:"current_git,omitempty"`
-	Staleness     *Staleness             `protobuf:"bytes,3,opt,name=staleness,proto3" json:"staleness,omitempty"`
-	Verdict       string                 `protobuf:"bytes,5,opt,name=verdict,proto3" json:"verdict,omitempty"`
-	DirtyWarning  string                 `protobuf:"bytes,6,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
-	Phases        []*runs.PhaseDiff      `protobuf:"bytes,7,rep,name=phases,proto3" json:"phases,omitempty"`
-	Evidence      *EvidenceComparison    `protobuf:"bytes,8,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Baseline     *BaselineManifest      `protobuf:"bytes,1,opt,name=baseline,proto3" json:"baseline,omitempty"`
+	CurrentGit   *GitState              `protobuf:"bytes,2,opt,name=current_git,json=currentGit,proto3" json:"current_git,omitempty"`
+	Staleness    *Staleness             `protobuf:"bytes,3,opt,name=staleness,proto3" json:"staleness,omitempty"`
+	Verdict      string                 `protobuf:"bytes,5,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	DirtyWarning string                 `protobuf:"bytes,6,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
+	Phases       []*runs.PhaseDiff      `protobuf:"bytes,7,rep,name=phases,proto3" json:"phases,omitempty"`
+	Evidence     *EvidenceComparison    `protobuf:"bytes,8,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	// Test Genie owns this versioned comparison envelope. verdict is GCT's gate
+	// projection for older clients; new clients render the independent axes.
+	Comparison    *runs.CompareRunsResponse `protobuf:"bytes,9,opt,name=comparison,proto3" json:"comparison,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1769,6 +1772,13 @@ func (x *DiffResult) GetPhases() []*runs.PhaseDiff {
 func (x *DiffResult) GetEvidence() *EvidenceComparison {
 	if x != nil {
 		return x.Evidence
+	}
+	return nil
+}
+
+func (x *DiffResult) GetComparison() *runs.CompareRunsResponse {
+	if x != nil {
+		return x.Comparison
 	}
 	return nil
 }
@@ -4966,7 +4976,7 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x04diff\x18\x02 \x01(\v21.vrooli.git_control_tower.v1.baselines.DiffResultR\x04diff\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12C\n" +
 	"\x1erecommended_next_check_seconds\x18\x04 \x01(\x05R\x1brecommendedNextCheckSeconds\x12\x15\n" +
-	"\x06run_id\x18\x05 \x01(\tR\x05runId\"\xdd\x03\n" +
+	"\x06run_id\x18\x05 \x01(\tR\x05runId\"\xad\x04\n" +
 	"\n" +
 	"DiffResult\x12S\n" +
 	"\bbaseline\x18\x01 \x01(\v27.vrooli.git_control_tower.v1.baselines.BaselineManifestR\bbaseline\x12P\n" +
@@ -4976,7 +4986,10 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\averdict\x18\x05 \x01(\tR\averdict\x12#\n" +
 	"\rdirty_warning\x18\x06 \x01(\tR\fdirtyWarning\x12<\n" +
 	"\x06phases\x18\a \x03(\v2$.vrooli.test_genie.v1.runs.PhaseDiffR\x06phases\x12U\n" +
-	"\bevidence\x18\b \x01(\v29.vrooli.git_control_tower.v1.baselines.EvidenceComparisonR\bevidenceJ\x04\b\x04\x10\x05\"X\n" +
+	"\bevidence\x18\b \x01(\v29.vrooli.git_control_tower.v1.baselines.EvidenceComparisonR\bevidence\x12N\n" +
+	"\n" +
+	"comparison\x18\t \x01(\v2..vrooli.test_genie.v1.runs.CompareRunsResponseR\n" +
+	"comparisonJ\x04\b\x04\x10\x05\"X\n" +
 	"\vRunBusyInfo\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x16\n" +
@@ -5342,7 +5355,8 @@ var file_git_control_tower_v1_baselines_baselines_proto_goTypes = []any{
 	(*DeletePathSnapshotResponse)(nil),      // 63: vrooli.git_control_tower.v1.baselines.DeletePathSnapshotResponse
 	(*runs.ArtifactRef)(nil),                // 64: vrooli.test_genie.v1.runs.ArtifactRef
 	(*runs.PhaseDiff)(nil),                  // 65: vrooli.test_genie.v1.runs.PhaseDiff
-	(*v1.OperationStanding)(nil),            // 66: common.v1.OperationStanding
+	(*runs.CompareRunsResponse)(nil),        // 66: vrooli.test_genie.v1.runs.CompareRunsResponse
+	(*v1.OperationStanding)(nil),            // 67: common.v1.OperationStanding
 }
 var file_git_control_tower_v1_baselines_baselines_proto_depIdxs = []int32{
 	0,  // 0: vrooli.git_control_tower.v1.baselines.BaselineManifest.git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
@@ -5361,81 +5375,82 @@ var file_git_control_tower_v1_baselines_baselines_proto_depIdxs = []int32{
 	4,  // 13: vrooli.git_control_tower.v1.baselines.DiffResult.staleness:type_name -> vrooli.git_control_tower.v1.baselines.Staleness
 	65, // 14: vrooli.git_control_tower.v1.baselines.DiffResult.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
 	7,  // 15: vrooli.git_control_tower.v1.baselines.DiffResult.evidence:type_name -> vrooli.git_control_tower.v1.baselines.EvidenceComparison
-	25, // 16: vrooli.git_control_tower.v1.baselines.BaselineCollection.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionMember
-	26, // 17: vrooli.git_control_tower.v1.baselines.BaselineCollection.coverage:type_name -> vrooli.git_control_tower.v1.baselines.CollectionCoverage
-	45, // 18: vrooli.git_control_tower.v1.baselines.BaselineCollection.path_snapshots:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotReference
-	24, // 19: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest.targets:type_name -> vrooli.git_control_tower.v1.baselines.CollectionTarget
-	27, // 20: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	27, // 21: vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	66, // 22: vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse.standing:type_name -> common.v1.OperationStanding
-	27, // 23: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	66, // 24: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse.standing:type_name -> common.v1.OperationStanding
-	24, // 25: vrooli.git_control_tower.v1.baselines.ExtendCollectionRequest.targets:type_name -> vrooli.git_control_tower.v1.baselines.CollectionTarget
-	27, // 26: vrooli.git_control_tower.v1.baselines.ExtendCollectionResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	27, // 27: vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	36, // 28: vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
-	27, // 29: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	36, // 30: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
-	66, // 31: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.standing:type_name -> common.v1.OperationStanding
-	27, // 32: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	36, // 33: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
-	66, // 34: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.standing:type_name -> common.v1.OperationStanding
-	46, // 35: vrooli.git_control_tower.v1.baselines.PathSnapshot.entries:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
-	48, // 36: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.top_contributors:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotContributor
-	49, // 37: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.issues:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotIssue
-	50, // 38: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.recommendations:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotRecommendation
-	51, // 39: vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotResponse.estimate:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate
-	51, // 40: vrooli.git_control_tower.v1.baselines.PathSnapshotPolicyViolation.estimate:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate
-	46, // 41: vrooli.git_control_tower.v1.baselines.SourceDelta.before:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
-	46, // 42: vrooli.git_control_tower.v1.baselines.SourceDelta.after:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
-	47, // 43: vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse.snapshot:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshot
-	47, // 44: vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse.snapshot:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshot
-	55, // 45: vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse.deltas:type_name -> vrooli.git_control_tower.v1.baselines.SourceDelta
-	8,  // 46: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:input_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
-	10, // 47: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest
-	12, // 48: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:input_type -> vrooli.git_control_tower.v1.baselines.GetBaselineRequest
-	14, // 49: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:input_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
-	16, // 50: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartDiffRequest
-	18, // 51: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:input_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultRequest
-	22, // 52: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
-	28, // 53: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionCapture:input_type -> vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest
-	30, // 54: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetCollectionStatusRequest
-	32, // 55: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionCapture:input_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureRequest
-	34, // 56: vrooli.git_control_tower.v1.baselines.BaselinesService.ExtendCollection:input_type -> vrooli.git_control_tower.v1.baselines.ExtendCollectionRequest
-	37, // 57: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartCollectionDiffRequest
-	39, // 58: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiffStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusRequest
-	41, // 59: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionDiff:input_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionDiffRequest
-	43, // 60: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteCollection:input_type -> vrooli.git_control_tower.v1.baselines.DeleteCollectionRequest
-	52, // 61: vrooli.git_control_tower.v1.baselines.BaselinesService.EstimatePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotRequest
-	56, // 62: vrooli.git_control_tower.v1.baselines.BaselinesService.CapturePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.CapturePathSnapshotRequest
-	58, // 63: vrooli.git_control_tower.v1.baselines.BaselinesService.GetPathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.GetPathSnapshotRequest
-	60, // 64: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffPathSnapshots:input_type -> vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsRequest
-	62, // 65: vrooli.git_control_tower.v1.baselines.BaselinesService.DeletePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.DeletePathSnapshotRequest
-	9,  // 66: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:output_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
-	11, // 67: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse
-	13, // 68: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:output_type -> vrooli.git_control_tower.v1.baselines.GetBaselineResponse
-	15, // 69: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:output_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
-	17, // 70: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartDiffResponse
-	19, // 71: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:output_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
-	23, // 72: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
-	29, // 73: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionCapture:output_type -> vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse
-	31, // 74: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse
-	33, // 75: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionCapture:output_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse
-	35, // 76: vrooli.git_control_tower.v1.baselines.BaselinesService.ExtendCollection:output_type -> vrooli.git_control_tower.v1.baselines.ExtendCollectionResponse
-	38, // 77: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse
-	40, // 78: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiffStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse
-	42, // 79: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionDiff:output_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse
-	44, // 80: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteCollection:output_type -> vrooli.git_control_tower.v1.baselines.DeleteCollectionResponse
-	53, // 81: vrooli.git_control_tower.v1.baselines.BaselinesService.EstimatePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotResponse
-	57, // 82: vrooli.git_control_tower.v1.baselines.BaselinesService.CapturePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse
-	59, // 83: vrooli.git_control_tower.v1.baselines.BaselinesService.GetPathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse
-	61, // 84: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffPathSnapshots:output_type -> vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse
-	63, // 85: vrooli.git_control_tower.v1.baselines.BaselinesService.DeletePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.DeletePathSnapshotResponse
-	66, // [66:86] is the sub-list for method output_type
-	46, // [46:66] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	66, // 16: vrooli.git_control_tower.v1.baselines.DiffResult.comparison:type_name -> vrooli.test_genie.v1.runs.CompareRunsResponse
+	25, // 17: vrooli.git_control_tower.v1.baselines.BaselineCollection.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionMember
+	26, // 18: vrooli.git_control_tower.v1.baselines.BaselineCollection.coverage:type_name -> vrooli.git_control_tower.v1.baselines.CollectionCoverage
+	45, // 19: vrooli.git_control_tower.v1.baselines.BaselineCollection.path_snapshots:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotReference
+	24, // 20: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest.targets:type_name -> vrooli.git_control_tower.v1.baselines.CollectionTarget
+	27, // 21: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	27, // 22: vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	67, // 23: vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse.standing:type_name -> common.v1.OperationStanding
+	27, // 24: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	67, // 25: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse.standing:type_name -> common.v1.OperationStanding
+	24, // 26: vrooli.git_control_tower.v1.baselines.ExtendCollectionRequest.targets:type_name -> vrooli.git_control_tower.v1.baselines.CollectionTarget
+	27, // 27: vrooli.git_control_tower.v1.baselines.ExtendCollectionResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	27, // 28: vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	36, // 29: vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
+	27, // 30: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	36, // 31: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
+	67, // 32: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.standing:type_name -> common.v1.OperationStanding
+	27, // 33: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	36, // 34: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
+	67, // 35: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.standing:type_name -> common.v1.OperationStanding
+	46, // 36: vrooli.git_control_tower.v1.baselines.PathSnapshot.entries:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
+	48, // 37: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.top_contributors:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotContributor
+	49, // 38: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.issues:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotIssue
+	50, // 39: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.recommendations:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotRecommendation
+	51, // 40: vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotResponse.estimate:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate
+	51, // 41: vrooli.git_control_tower.v1.baselines.PathSnapshotPolicyViolation.estimate:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate
+	46, // 42: vrooli.git_control_tower.v1.baselines.SourceDelta.before:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
+	46, // 43: vrooli.git_control_tower.v1.baselines.SourceDelta.after:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
+	47, // 44: vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse.snapshot:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshot
+	47, // 45: vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse.snapshot:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshot
+	55, // 46: vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse.deltas:type_name -> vrooli.git_control_tower.v1.baselines.SourceDelta
+	8,  // 47: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:input_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
+	10, // 48: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest
+	12, // 49: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:input_type -> vrooli.git_control_tower.v1.baselines.GetBaselineRequest
+	14, // 50: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:input_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
+	16, // 51: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartDiffRequest
+	18, // 52: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:input_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultRequest
+	22, // 53: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
+	28, // 54: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionCapture:input_type -> vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest
+	30, // 55: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetCollectionStatusRequest
+	32, // 56: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionCapture:input_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureRequest
+	34, // 57: vrooli.git_control_tower.v1.baselines.BaselinesService.ExtendCollection:input_type -> vrooli.git_control_tower.v1.baselines.ExtendCollectionRequest
+	37, // 58: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartCollectionDiffRequest
+	39, // 59: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiffStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusRequest
+	41, // 60: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionDiff:input_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionDiffRequest
+	43, // 61: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteCollection:input_type -> vrooli.git_control_tower.v1.baselines.DeleteCollectionRequest
+	52, // 62: vrooli.git_control_tower.v1.baselines.BaselinesService.EstimatePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotRequest
+	56, // 63: vrooli.git_control_tower.v1.baselines.BaselinesService.CapturePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.CapturePathSnapshotRequest
+	58, // 64: vrooli.git_control_tower.v1.baselines.BaselinesService.GetPathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.GetPathSnapshotRequest
+	60, // 65: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffPathSnapshots:input_type -> vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsRequest
+	62, // 66: vrooli.git_control_tower.v1.baselines.BaselinesService.DeletePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.DeletePathSnapshotRequest
+	9,  // 67: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:output_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
+	11, // 68: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse
+	13, // 69: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:output_type -> vrooli.git_control_tower.v1.baselines.GetBaselineResponse
+	15, // 70: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:output_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
+	17, // 71: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartDiffResponse
+	19, // 72: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:output_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
+	23, // 73: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
+	29, // 74: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionCapture:output_type -> vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse
+	31, // 75: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse
+	33, // 76: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionCapture:output_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse
+	35, // 77: vrooli.git_control_tower.v1.baselines.BaselinesService.ExtendCollection:output_type -> vrooli.git_control_tower.v1.baselines.ExtendCollectionResponse
+	38, // 78: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse
+	40, // 79: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiffStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse
+	42, // 80: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionDiff:output_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse
+	44, // 81: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteCollection:output_type -> vrooli.git_control_tower.v1.baselines.DeleteCollectionResponse
+	53, // 82: vrooli.git_control_tower.v1.baselines.BaselinesService.EstimatePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotResponse
+	57, // 83: vrooli.git_control_tower.v1.baselines.BaselinesService.CapturePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse
+	59, // 84: vrooli.git_control_tower.v1.baselines.BaselinesService.GetPathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse
+	61, // 85: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffPathSnapshots:output_type -> vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse
+	63, // 86: vrooli.git_control_tower.v1.baselines.BaselinesService.DeletePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.DeletePathSnapshotResponse
+	67, // [67:87] is the sub-list for method output_type
+	47, // [47:67] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_git_control_tower_v1_baselines_baselines_proto_init() }

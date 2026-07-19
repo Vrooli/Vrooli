@@ -21,147 +21,37 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Effect controls whether a matching AccessRule allows or denies traffic.
-//
-// @usage AccessRule.effect
-type Effect int32
-
-const (
-	Effect_EFFECT_UNSPECIFIED Effect = 0
-	Effect_EFFECT_ALLOW       Effect = 1
-	Effect_EFFECT_DENY        Effect = 2
-)
-
-// Enum value maps for Effect.
-var (
-	Effect_name = map[int32]string{
-		0: "EFFECT_UNSPECIFIED",
-		1: "EFFECT_ALLOW",
-		2: "EFFECT_DENY",
-	}
-	Effect_value = map[string]int32{
-		"EFFECT_UNSPECIFIED": 0,
-		"EFFECT_ALLOW":       1,
-		"EFFECT_DENY":        2,
-	}
-)
-
-func (x Effect) Enum() *Effect {
-	p := new(Effect)
-	*p = x
-	return p
+// ReceiptCapturePolicy is the sole registry for automatic capture. A missing
+// matching policy means no receipt; projection paths are explicit descriptor
+// paths and are never inferred from a response body.
+type ReceiptCapturePolicy struct {
+	state                   protoimpl.MessageState    `protogen:"open.v1"`
+	PolicyId                string                    `protobuf:"bytes,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
+	Enabled                 bool                      `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Selector                *ReceiptOperationSelector `protobuf:"bytes,3,opt,name=selector,proto3" json:"selector,omitempty"`
+	ResponseType            string                    `protobuf:"bytes,4,opt,name=response_type,json=responseType,proto3" json:"response_type,omitempty"`
+	ResponseProjectionPaths []string                  `protobuf:"bytes,5,rep,name=response_projection_paths,json=responseProjectionPaths,proto3" json:"response_projection_paths,omitempty"`
+	RetentionDays           uint32                    `protobuf:"varint,6,opt,name=retention_days,json=retentionDays,proto3" json:"retention_days,omitempty"`
+	Access                  *ReceiptAccessPolicy      `protobuf:"bytes,7,opt,name=access,proto3" json:"access,omitempty"`
+	Version                 string                    `protobuf:"bytes,8,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
-func (x Effect) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Effect) Descriptor() protoreflect.EnumDescriptor {
-	return file_vrooli_events_v1_domain_policy_proto_enumTypes[0].Descriptor()
-}
-
-func (Effect) Type() protoreflect.EnumType {
-	return &file_vrooli_events_v1_domain_policy_proto_enumTypes[0]
-}
-
-func (x Effect) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Effect.Descriptor instead.
-func (Effect) EnumDescriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{0}
-}
-
-// CircuitBreakerState represents the current state of a circuit breaker.
-//
-// State machine: CLOSED -> OPEN -> HALF_OPEN -> CLOSED (or back to OPEN).
-//
-// @usage CircuitBreaker.state
-type CircuitBreakerState int32
-
-const (
-	CircuitBreakerState_CIRCUIT_BREAKER_STATE_UNSPECIFIED CircuitBreakerState = 0
-	CircuitBreakerState_CIRCUIT_BREAKER_STATE_CLOSED      CircuitBreakerState = 1
-	CircuitBreakerState_CIRCUIT_BREAKER_STATE_OPEN        CircuitBreakerState = 2
-	CircuitBreakerState_CIRCUIT_BREAKER_STATE_HALF_OPEN   CircuitBreakerState = 3
-)
-
-// Enum value maps for CircuitBreakerState.
-var (
-	CircuitBreakerState_name = map[int32]string{
-		0: "CIRCUIT_BREAKER_STATE_UNSPECIFIED",
-		1: "CIRCUIT_BREAKER_STATE_CLOSED",
-		2: "CIRCUIT_BREAKER_STATE_OPEN",
-		3: "CIRCUIT_BREAKER_STATE_HALF_OPEN",
-	}
-	CircuitBreakerState_value = map[string]int32{
-		"CIRCUIT_BREAKER_STATE_UNSPECIFIED": 0,
-		"CIRCUIT_BREAKER_STATE_CLOSED":      1,
-		"CIRCUIT_BREAKER_STATE_OPEN":        2,
-		"CIRCUIT_BREAKER_STATE_HALF_OPEN":   3,
-	}
-)
-
-func (x CircuitBreakerState) Enum() *CircuitBreakerState {
-	p := new(CircuitBreakerState)
-	*p = x
-	return p
-}
-
-func (x CircuitBreakerState) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (CircuitBreakerState) Descriptor() protoreflect.EnumDescriptor {
-	return file_vrooli_events_v1_domain_policy_proto_enumTypes[1].Descriptor()
-}
-
-func (CircuitBreakerState) Type() protoreflect.EnumType {
-	return &file_vrooli_events_v1_domain_policy_proto_enumTypes[1]
-}
-
-func (x CircuitBreakerState) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use CircuitBreakerState.Descriptor instead.
-func (CircuitBreakerState) EnumDescriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{1}
-}
-
-// PolicyMatcher defines the pattern fields shared by all policy rule types.
-//
-// Patterns support glob matching (e.g., "agent-manager.*", "*").
-// An empty pattern matches everything.
-//
-// @usage AccessRule.matcher, RateLimit.matcher, CircuitBreaker.matcher
-type PolicyMatcher struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Source scenario pattern (glob).
-	SourcePattern string `protobuf:"bytes,1,opt,name=source_pattern,json=sourcePattern,proto3" json:"source_pattern,omitempty"`
-	// Target scenario pattern (glob).
-	TargetPattern string `protobuf:"bytes,2,opt,name=target_pattern,json=targetPattern,proto3" json:"target_pattern,omitempty"`
-	// Action/event-type pattern (glob).
-	ActionPattern string `protobuf:"bytes,3,opt,name=action_pattern,json=actionPattern,proto3" json:"action_pattern,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PolicyMatcher) Reset() {
-	*x = PolicyMatcher{}
+func (x *ReceiptCapturePolicy) Reset() {
+	*x = ReceiptCapturePolicy{}
 	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PolicyMatcher) String() string {
+func (x *ReceiptCapturePolicy) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PolicyMatcher) ProtoMessage() {}
+func (*ReceiptCapturePolicy) ProtoMessage() {}
 
-func (x *PolicyMatcher) ProtoReflect() protoreflect.Message {
+func (x *ReceiptCapturePolicy) ProtoReflect() protoreflect.Message {
 	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -173,133 +63,156 @@ func (x *PolicyMatcher) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PolicyMatcher.ProtoReflect.Descriptor instead.
-func (*PolicyMatcher) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReceiptCapturePolicy.ProtoReflect.Descriptor instead.
+func (*ReceiptCapturePolicy) Descriptor() ([]byte, []int) {
 	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *PolicyMatcher) GetSourcePattern() string {
+func (x *ReceiptCapturePolicy) GetPolicyId() string {
 	if x != nil {
-		return x.SourcePattern
+		return x.PolicyId
 	}
 	return ""
 }
 
-func (x *PolicyMatcher) GetTargetPattern() string {
+func (x *ReceiptCapturePolicy) GetEnabled() bool {
 	if x != nil {
-		return x.TargetPattern
+		return x.Enabled
 	}
-	return ""
+	return false
 }
 
-func (x *PolicyMatcher) GetActionPattern() string {
+func (x *ReceiptCapturePolicy) GetSelector() *ReceiptOperationSelector {
 	if x != nil {
-		return x.ActionPattern
-	}
-	return ""
-}
-
-// AccessRule grants or denies event traffic matching a pattern.
-//
-// Most-specific-wins resolution: specificity_score is pre-computed at rule
-// creation using segment-count scoring (exact=3, prefix=2, wildcard=1, max 9).
-//
-// @usage Policy engine evaluation, PolicySnapshot.access_rules
-type AccessRule struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Pattern this rule matches against.
-	Matcher *PolicyMatcher `protobuf:"bytes,1,opt,name=matcher,proto3" json:"matcher,omitempty"`
-	// Whether matching traffic is allowed or denied.
-	Effect Effect `protobuf:"varint,2,opt,name=effect,proto3,enum=vrooli_events.v1.Effect" json:"effect,omitempty"`
-	// Pre-computed specificity score for most-specific-wins resolution.
-	// Higher score = more specific rule takes precedence.
-	SpecificityScore int32 `protobuf:"varint,3,opt,name=specificity_score,json=specificityScore,proto3" json:"specificity_score,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *AccessRule) Reset() {
-	*x = AccessRule{}
-	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AccessRule) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AccessRule) ProtoMessage() {}
-
-func (x *AccessRule) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AccessRule.ProtoReflect.Descriptor instead.
-func (*AccessRule) Descriptor() ([]byte, []int) {
-	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *AccessRule) GetMatcher() *PolicyMatcher {
-	if x != nil {
-		return x.Matcher
+		return x.Selector
 	}
 	return nil
 }
 
-func (x *AccessRule) GetEffect() Effect {
+func (x *ReceiptCapturePolicy) GetResponseType() string {
 	if x != nil {
-		return x.Effect
+		return x.ResponseType
 	}
-	return Effect_EFFECT_UNSPECIFIED
+	return ""
 }
 
-func (x *AccessRule) GetSpecificityScore() int32 {
+func (x *ReceiptCapturePolicy) GetResponseProjectionPaths() []string {
 	if x != nil {
-		return x.SpecificityScore
+		return x.ResponseProjectionPaths
+	}
+	return nil
+}
+
+func (x *ReceiptCapturePolicy) GetRetentionDays() uint32 {
+	if x != nil {
+		return x.RetentionDays
 	}
 	return 0
 }
 
-// RateLimit enforces token-bucket rate limiting on matching event traffic.
-//
-// capacity is the bucket size (burst limit), refill_rate is tokens per second.
-//
-// @usage Policy engine evaluation, PolicySnapshot.rate_limits
-type RateLimit struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Pattern this rule matches against.
-	Matcher *PolicyMatcher `protobuf:"bytes,1,opt,name=matcher,proto3" json:"matcher,omitempty"`
-	// Maximum tokens in the bucket (burst capacity).
-	Capacity int64 `protobuf:"varint,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	// Tokens added per second.
-	RefillRate    float64 `protobuf:"fixed64,3,opt,name=refill_rate,json=refillRate,proto3" json:"refill_rate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+func (x *ReceiptCapturePolicy) GetAccess() *ReceiptAccessPolicy {
+	if x != nil {
+		return x.Access
+	}
+	return nil
 }
 
-func (x *RateLimit) Reset() {
-	*x = RateLimit{}
+func (x *ReceiptCapturePolicy) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+type ReceiptOperationSelector struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TargetScenario string                 `protobuf:"bytes,1,opt,name=target_scenario,json=targetScenario,proto3" json:"target_scenario,omitempty"`
+	Operation      string                 `protobuf:"bytes,2,opt,name=operation,proto3" json:"operation,omitempty"`
+	Protocol       string                 `protobuf:"bytes,3,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	EventType      string                 `protobuf:"bytes,4,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ReceiptOperationSelector) Reset() {
+	*x = ReceiptOperationSelector{}
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReceiptOperationSelector) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReceiptOperationSelector) ProtoMessage() {}
+
+func (x *ReceiptOperationSelector) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReceiptOperationSelector.ProtoReflect.Descriptor instead.
+func (*ReceiptOperationSelector) Descriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ReceiptOperationSelector) GetTargetScenario() string {
+	if x != nil {
+		return x.TargetScenario
+	}
+	return ""
+}
+
+func (x *ReceiptOperationSelector) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *ReceiptOperationSelector) GetProtocol() string {
+	if x != nil {
+		return x.Protocol
+	}
+	return ""
+}
+
+func (x *ReceiptOperationSelector) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+type ReceiptAccessPolicy struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ReadPrincipals []string               `protobuf:"bytes,1,rep,name=read_principals,json=readPrincipals,proto3" json:"read_principals,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ReceiptAccessPolicy) Reset() {
+	*x = ReceiptAccessPolicy{}
 	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RateLimit) String() string {
+func (x *ReceiptAccessPolicy) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RateLimit) ProtoMessage() {}
+func (*ReceiptAccessPolicy) ProtoMessage() {}
 
-func (x *RateLimit) ProtoReflect() protoreflect.Message {
+func (x *ReceiptAccessPolicy) ProtoReflect() protoreflect.Message {
 	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -311,67 +224,49 @@ func (x *RateLimit) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RateLimit.ProtoReflect.Descriptor instead.
-func (*RateLimit) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReceiptAccessPolicy.ProtoReflect.Descriptor instead.
+func (*ReceiptAccessPolicy) Descriptor() ([]byte, []int) {
 	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *RateLimit) GetMatcher() *PolicyMatcher {
+func (x *ReceiptAccessPolicy) GetReadPrincipals() []string {
 	if x != nil {
-		return x.Matcher
+		return x.ReadPrincipals
 	}
 	return nil
 }
 
-func (x *RateLimit) GetCapacity() int64 {
-	if x != nil {
-		return x.Capacity
-	}
-	return 0
+type ReceiptQueryFilter struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	EventType           string                 `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	TargetScenario      string                 `protobuf:"bytes,2,opt,name=target_scenario,json=targetScenario,proto3" json:"target_scenario,omitempty"`
+	Operation           string                 `protobuf:"bytes,3,opt,name=operation,proto3" json:"operation,omitempty"`
+	AgentRunId          string                 `protobuf:"bytes,4,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
+	TaskId              string                 `protobuf:"bytes,5,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	WorkflowExecutionId string                 `protobuf:"bytes,6,opt,name=workflow_execution_id,json=workflowExecutionId,proto3" json:"workflow_execution_id,omitempty"`
+	WorkflowNodeId      string                 `protobuf:"bytes,7,opt,name=workflow_node_id,json=workflowNodeId,proto3" json:"workflow_node_id,omitempty"`
+	Attempt             uint32                 `protobuf:"varint,8,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	VerifiedOnly        bool                   `protobuf:"varint,9,opt,name=verified_only,json=verifiedOnly,proto3" json:"verified_only,omitempty"`
+	PageToken           string                 `protobuf:"bytes,10,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	PageSize            uint32                 `protobuf:"varint,11,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
-func (x *RateLimit) GetRefillRate() float64 {
-	if x != nil {
-		return x.RefillRate
-	}
-	return 0
-}
-
-// CircuitBreaker protects downstream scenarios from cascading failures.
-//
-// Transitions CLOSED -> OPEN after failure_threshold consecutive failures,
-// then OPEN -> HALF_OPEN after cooldown_seconds, then either back to CLOSED
-// (on success) or OPEN (on failure).
-//
-// @usage Policy engine evaluation, PolicySnapshot.circuit_breakers
-type CircuitBreaker struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Pattern this rule matches against.
-	Matcher *PolicyMatcher `protobuf:"bytes,1,opt,name=matcher,proto3" json:"matcher,omitempty"`
-	// Number of consecutive failures before opening the circuit.
-	FailureThreshold int32 `protobuf:"varint,2,opt,name=failure_threshold,json=failureThreshold,proto3" json:"failure_threshold,omitempty"`
-	// Seconds to wait in OPEN state before transitioning to HALF_OPEN.
-	CooldownSeconds int64 `protobuf:"varint,3,opt,name=cooldown_seconds,json=cooldownSeconds,proto3" json:"cooldown_seconds,omitempty"`
-	// Current circuit breaker state.
-	State         CircuitBreakerState `protobuf:"varint,4,opt,name=state,proto3,enum=vrooli_events.v1.CircuitBreakerState" json:"state,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CircuitBreaker) Reset() {
-	*x = CircuitBreaker{}
+func (x *ReceiptQueryFilter) Reset() {
+	*x = ReceiptQueryFilter{}
 	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CircuitBreaker) String() string {
+func (x *ReceiptQueryFilter) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CircuitBreaker) ProtoMessage() {}
+func (*ReceiptQueryFilter) ProtoMessage() {}
 
-func (x *CircuitBreaker) ProtoReflect() protoreflect.Message {
+func (x *ReceiptQueryFilter) ProtoReflect() protoreflect.Message {
 	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -383,72 +278,181 @@ func (x *CircuitBreaker) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CircuitBreaker.ProtoReflect.Descriptor instead.
-func (*CircuitBreaker) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReceiptQueryFilter.ProtoReflect.Descriptor instead.
+func (*ReceiptQueryFilter) Descriptor() ([]byte, []int) {
 	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *CircuitBreaker) GetMatcher() *PolicyMatcher {
+func (x *ReceiptQueryFilter) GetEventType() string {
 	if x != nil {
-		return x.Matcher
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetTargetScenario() string {
+	if x != nil {
+		return x.TargetScenario
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetAgentRunId() string {
+	if x != nil {
+		return x.AgentRunId
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetWorkflowExecutionId() string {
+	if x != nil {
+		return x.WorkflowExecutionId
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetWorkflowNodeId() string {
+	if x != nil {
+		return x.WorkflowNodeId
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetAttempt() uint32 {
+	if x != nil {
+		return x.Attempt
+	}
+	return 0
+}
+
+func (x *ReceiptQueryFilter) GetVerifiedOnly() bool {
+	if x != nil {
+		return x.VerifiedOnly
+	}
+	return false
+}
+
+func (x *ReceiptQueryFilter) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ReceiptQueryFilter) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ReceiptQueryResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Events        []*EventEnvelope       `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReceiptQueryResult) Reset() {
+	*x = ReceiptQueryResult{}
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReceiptQueryResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReceiptQueryResult) ProtoMessage() {}
+
+func (x *ReceiptQueryResult) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_events_v1_domain_policy_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReceiptQueryResult.ProtoReflect.Descriptor instead.
+func (*ReceiptQueryResult) Descriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_policy_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ReceiptQueryResult) GetEvents() []*EventEnvelope {
+	if x != nil {
+		return x.Events
 	}
 	return nil
 }
 
-func (x *CircuitBreaker) GetFailureThreshold() int32 {
+func (x *ReceiptQueryResult) GetNextPageToken() string {
 	if x != nil {
-		return x.FailureThreshold
+		return x.NextPageToken
 	}
-	return 0
-}
-
-func (x *CircuitBreaker) GetCooldownSeconds() int64 {
-	if x != nil {
-		return x.CooldownSeconds
-	}
-	return 0
-}
-
-func (x *CircuitBreaker) GetState() CircuitBreakerState {
-	if x != nil {
-		return x.State
-	}
-	return CircuitBreakerState_CIRCUIT_BREAKER_STATE_UNSPECIFIED
+	return ""
 }
 
 var File_vrooli_events_v1_domain_policy_proto protoreflect.FileDescriptor
 
 const file_vrooli_events_v1_domain_policy_proto_rawDesc = "" +
 	"\n" +
-	"$vrooli-events/v1/domain/policy.proto\x12\x10vrooli_events.v1\"\x84\x01\n" +
-	"\rPolicyMatcher\x12%\n" +
-	"\x0esource_pattern\x18\x01 \x01(\tR\rsourcePattern\x12%\n" +
-	"\x0etarget_pattern\x18\x02 \x01(\tR\rtargetPattern\x12%\n" +
-	"\x0eaction_pattern\x18\x03 \x01(\tR\ractionPattern\"\xa6\x01\n" +
+	"$vrooli-events/v1/domain/policy.proto\x12\x17vrooli.events.v1.domain\x1a&vrooli-events/v1/domain/envelope.proto\"\x84\x03\n" +
+	"\x14ReceiptCapturePolicy\x12\x1b\n" +
+	"\tpolicy_id\x18\x01 \x01(\tR\bpolicyId\x12\x18\n" +
+	"\aenabled\x18\x02 \x01(\bR\aenabled\x12M\n" +
+	"\bselector\x18\x03 \x01(\v21.vrooli.events.v1.domain.ReceiptOperationSelectorR\bselector\x12#\n" +
+	"\rresponse_type\x18\x04 \x01(\tR\fresponseType\x12:\n" +
+	"\x19response_projection_paths\x18\x05 \x03(\tR\x17responseProjectionPaths\x12%\n" +
+	"\x0eretention_days\x18\x06 \x01(\rR\rretentionDays\x12D\n" +
+	"\x06access\x18\a \x01(\v2,.vrooli.events.v1.domain.ReceiptAccessPolicyR\x06access\x12\x18\n" +
+	"\aversion\x18\b \x01(\tR\aversion\"\x9c\x01\n" +
+	"\x18ReceiptOperationSelector\x12'\n" +
+	"\x0ftarget_scenario\x18\x01 \x01(\tR\x0etargetScenario\x12\x1c\n" +
+	"\toperation\x18\x02 \x01(\tR\toperation\x12\x1a\n" +
+	"\bprotocol\x18\x03 \x01(\tR\bprotocol\x12\x1d\n" +
 	"\n" +
-	"AccessRule\x129\n" +
-	"\amatcher\x18\x01 \x01(\v2\x1f.vrooli_events.v1.PolicyMatcherR\amatcher\x120\n" +
-	"\x06effect\x18\x02 \x01(\x0e2\x18.vrooli_events.v1.EffectR\x06effect\x12+\n" +
-	"\x11specificity_score\x18\x03 \x01(\x05R\x10specificityScore\"\x83\x01\n" +
-	"\tRateLimit\x129\n" +
-	"\amatcher\x18\x01 \x01(\v2\x1f.vrooli_events.v1.PolicyMatcherR\amatcher\x12\x1a\n" +
-	"\bcapacity\x18\x02 \x01(\x03R\bcapacity\x12\x1f\n" +
-	"\vrefill_rate\x18\x03 \x01(\x01R\n" +
-	"refillRate\"\xe0\x01\n" +
-	"\x0eCircuitBreaker\x129\n" +
-	"\amatcher\x18\x01 \x01(\v2\x1f.vrooli_events.v1.PolicyMatcherR\amatcher\x12+\n" +
-	"\x11failure_threshold\x18\x02 \x01(\x05R\x10failureThreshold\x12)\n" +
-	"\x10cooldown_seconds\x18\x03 \x01(\x03R\x0fcooldownSeconds\x12;\n" +
-	"\x05state\x18\x04 \x01(\x0e2%.vrooli_events.v1.CircuitBreakerStateR\x05state*C\n" +
-	"\x06Effect\x12\x16\n" +
-	"\x12EFFECT_UNSPECIFIED\x10\x00\x12\x10\n" +
-	"\fEFFECT_ALLOW\x10\x01\x12\x0f\n" +
-	"\vEFFECT_DENY\x10\x02*\xa3\x01\n" +
-	"\x13CircuitBreakerState\x12%\n" +
-	"!CIRCUIT_BREAKER_STATE_UNSPECIFIED\x10\x00\x12 \n" +
-	"\x1cCIRCUIT_BREAKER_STATE_CLOSED\x10\x01\x12\x1e\n" +
-	"\x1aCIRCUIT_BREAKER_STATE_OPEN\x10\x02\x12#\n" +
-	"\x1fCIRCUIT_BREAKER_STATE_HALF_OPEN\x10\x03BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3"
+	"event_type\x18\x04 \x01(\tR\teventType\">\n" +
+	"\x13ReceiptAccessPolicy\x12'\n" +
+	"\x0fread_principals\x18\x01 \x03(\tR\x0ereadPrincipals\"\x8e\x03\n" +
+	"\x12ReceiptQueryFilter\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x01 \x01(\tR\teventType\x12'\n" +
+	"\x0ftarget_scenario\x18\x02 \x01(\tR\x0etargetScenario\x12\x1c\n" +
+	"\toperation\x18\x03 \x01(\tR\toperation\x12 \n" +
+	"\fagent_run_id\x18\x04 \x01(\tR\n" +
+	"agentRunId\x12\x17\n" +
+	"\atask_id\x18\x05 \x01(\tR\x06taskId\x122\n" +
+	"\x15workflow_execution_id\x18\x06 \x01(\tR\x13workflowExecutionId\x12(\n" +
+	"\x10workflow_node_id\x18\a \x01(\tR\x0eworkflowNodeId\x12\x18\n" +
+	"\aattempt\x18\b \x01(\rR\aattempt\x12#\n" +
+	"\rverified_only\x18\t \x01(\bR\fverifiedOnly\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\n" +
+	" \x01(\tR\tpageToken\x12\x1b\n" +
+	"\tpage_size\x18\v \x01(\rR\bpageSize\"|\n" +
+	"\x12ReceiptQueryResult\x12>\n" +
+	"\x06events\x18\x01 \x03(\v2&.vrooli.events.v1.domain.EventEnvelopeR\x06events\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageTokenBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3"
 
 var (
 	file_vrooli_events_v1_domain_policy_proto_rawDescOnce sync.Once
@@ -462,27 +466,24 @@ func file_vrooli_events_v1_domain_policy_proto_rawDescGZIP() []byte {
 	return file_vrooli_events_v1_domain_policy_proto_rawDescData
 }
 
-var file_vrooli_events_v1_domain_policy_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_vrooli_events_v1_domain_policy_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_vrooli_events_v1_domain_policy_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_vrooli_events_v1_domain_policy_proto_goTypes = []any{
-	(Effect)(0),              // 0: vrooli_events.v1.Effect
-	(CircuitBreakerState)(0), // 1: vrooli_events.v1.CircuitBreakerState
-	(*PolicyMatcher)(nil),    // 2: vrooli_events.v1.PolicyMatcher
-	(*AccessRule)(nil),       // 3: vrooli_events.v1.AccessRule
-	(*RateLimit)(nil),        // 4: vrooli_events.v1.RateLimit
-	(*CircuitBreaker)(nil),   // 5: vrooli_events.v1.CircuitBreaker
+	(*ReceiptCapturePolicy)(nil),     // 0: vrooli.events.v1.domain.ReceiptCapturePolicy
+	(*ReceiptOperationSelector)(nil), // 1: vrooli.events.v1.domain.ReceiptOperationSelector
+	(*ReceiptAccessPolicy)(nil),      // 2: vrooli.events.v1.domain.ReceiptAccessPolicy
+	(*ReceiptQueryFilter)(nil),       // 3: vrooli.events.v1.domain.ReceiptQueryFilter
+	(*ReceiptQueryResult)(nil),       // 4: vrooli.events.v1.domain.ReceiptQueryResult
+	(*EventEnvelope)(nil),            // 5: vrooli.events.v1.domain.EventEnvelope
 }
 var file_vrooli_events_v1_domain_policy_proto_depIdxs = []int32{
-	2, // 0: vrooli_events.v1.AccessRule.matcher:type_name -> vrooli_events.v1.PolicyMatcher
-	0, // 1: vrooli_events.v1.AccessRule.effect:type_name -> vrooli_events.v1.Effect
-	2, // 2: vrooli_events.v1.RateLimit.matcher:type_name -> vrooli_events.v1.PolicyMatcher
-	2, // 3: vrooli_events.v1.CircuitBreaker.matcher:type_name -> vrooli_events.v1.PolicyMatcher
-	1, // 4: vrooli_events.v1.CircuitBreaker.state:type_name -> vrooli_events.v1.CircuitBreakerState
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	1, // 0: vrooli.events.v1.domain.ReceiptCapturePolicy.selector:type_name -> vrooli.events.v1.domain.ReceiptOperationSelector
+	2, // 1: vrooli.events.v1.domain.ReceiptCapturePolicy.access:type_name -> vrooli.events.v1.domain.ReceiptAccessPolicy
+	5, // 2: vrooli.events.v1.domain.ReceiptQueryResult.events:type_name -> vrooli.events.v1.domain.EventEnvelope
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_events_v1_domain_policy_proto_init() }
@@ -490,19 +491,19 @@ func file_vrooli_events_v1_domain_policy_proto_init() {
 	if File_vrooli_events_v1_domain_policy_proto != nil {
 		return
 	}
+	file_vrooli_events_v1_domain_envelope_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_events_v1_domain_policy_proto_rawDesc), len(file_vrooli_events_v1_domain_policy_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   4,
+			NumEnums:      0,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_vrooli_events_v1_domain_policy_proto_goTypes,
 		DependencyIndexes: file_vrooli_events_v1_domain_policy_proto_depIdxs,
-		EnumInfos:         file_vrooli_events_v1_domain_policy_proto_enumTypes,
 		MessageInfos:      file_vrooli_events_v1_domain_policy_proto_msgTypes,
 	}.Build()
 	File_vrooli_events_v1_domain_policy_proto = out.File

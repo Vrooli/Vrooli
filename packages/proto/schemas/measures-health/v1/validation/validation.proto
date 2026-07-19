@@ -22,7 +22,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/measures-hea
 // Severity normalization is the load-bearing producer contract, identical in
 // shape to security-health so test-genie maps it the same way: an uncovered
 // stateful domain or a hollow declaration -> ERROR (this is what feeds the
-// ecosystem-manager soft `measures` ladder dimension); a stale waiver ->
+// swarm-manager soft `measures` ladder dimension); a stale waiver ->
 // WARNING; not-expected / probe context -> INFO. `passed` is true iff no
 // Finding has SEVERITY_ERROR.
 //

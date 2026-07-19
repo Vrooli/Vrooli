@@ -97,8 +97,8 @@ func validateGeneratedExperienceFoundation(destination, templateName string) []t
 		}
 		return r
 	}, string(notesRaw))
-	if err != nil || !strings.Contains(compactNotes, `"id":"notes"`) || !strings.Contains(compactNotes, `"component":"experience-surface"`) {
-		return []templatecontracts.TemplateValidationIssue{{Template: templateName, Path: "experience/pages/notes.json", Message: "generated notes example must declare its semantic experience region"}}
+	if err != nil || !strings.Contains(compactNotes, `"id":"notes"`) || !strings.Contains(compactNotes, `"component":"experience-surface"`) || !strings.Contains(compactNotes, `"kind":"async"`) || !strings.Contains(compactNotes, `"testid":"notes-surface"`) {
+		return []templatecontracts.TemplateValidationIssue{{Template: templateName, Path: "experience/pages/notes.json", Message: "generated notes example must declare a bound async semantic experience region"}}
 	}
 	return nil
 }

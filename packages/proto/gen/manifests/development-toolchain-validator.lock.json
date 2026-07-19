@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "development-toolchain-validator",
-  "input_digest": "sha256:755a27b77466a3b6078c564ccaeb94ed7d3639663ab6480600428f86d63dfbde",
+  "input_digest": "sha256:5e3b521b256b7c48371bd47aec8d8255870864859e0e29192933568b16adc1bd",
   "input_files": [
     "schemas/development-toolchain-validator/v1/errors/errors.proto",
     "schemas/development-toolchain-validator/v1/golden/golden.proto",
@@ -31,7 +31,7 @@
     "gen/go/development-toolchain-validator/v1/manifest/manifest.pb.go": "sha256:5499462e27b0e63de020269d65f898b2bc256c5b8990c57f371f1bdd59d982b6",
     "gen/go/development-toolchain-validator/v1/manifest/manifest_v1connect/manifest.connect.go": "sha256:4ea00e0dcc91a1befa4ee7264f37ddf41fc35928ef419cc0f2c1c0261dee9699",
     "gen/go/development-toolchain-validator/v1/report/report.pb.go": "sha256:90f31be0eebdad27688898a687cf655ca53f8a0a4449e8e2d16b6ee1e98c424b",
-    "gen/go/development-toolchain-validator/v1/report/report_v1connect/report.connect.go": "sha256:5ef15509c2767828a2baafd33a3100e2ef70f9e6a5b28eddee61abfa6552421c",
+    "gen/go/development-toolchain-validator/v1/report/report_v1connect/report.connect.go": "sha256:c5a9463319659496abacfa14826b27c2eee8bb41052f26a7b65a6bbd7216f71e",
     "gen/go/development-toolchain-validator/v1/skill_catalog/skill_catalog.pb.go": "sha256:bdde582f1a7d7d30f2717eebd9c8cd8d904ca4ef56cf6e8f80854ef723c6a606",
     "gen/go/development-toolchain-validator/v1/skill_catalog/skill_catalog_v1connect/skill_catalog.connect.go": "sha256:9ceb9892c0b353497215402787bf7912260d507d15d980663cef0fda95edb25c",
     "gen/go/development-toolchain-validator/v1/staleness/staleness.pb.go": "sha256:7fba19df512d57837857e815019e7288d62dba748d3cdbbf4e1f09b794797b7f",
@@ -73,7 +73,7 @@
     "gen/typescript/development-toolchain-validator/v1/golden/golden_pb.ts": "sha256:ce23bfb958dd289a669aa99b574e10b257e6221720017155eb5e6e80df11a8f0",
     "gen/typescript/development-toolchain-validator/v1/health/health_pb.ts": "sha256:8b99435eb388664a62c0c7d2d25a7d794035aaa2f515279a12cbc739de691256",
     "gen/typescript/development-toolchain-validator/v1/manifest/manifest_pb.ts": "sha256:b22c185c200694149685fe023da6943231e83ace35ebf42e9b857068f88563ff",
-    "gen/typescript/development-toolchain-validator/v1/report/report_pb.ts": "sha256:215cc20713ab218f039a94a980ef61f082418d72fd0af98a04578ff7ed1152c0",
+    "gen/typescript/development-toolchain-validator/v1/report/report_pb.ts": "sha256:963b6b6ca4374f161825c90eba56f9bbbf5f0e0fe61e903e291dda2c66e39c10",
     "gen/typescript/development-toolchain-validator/v1/skill_catalog/skill_catalog_pb.ts": "sha256:3ead3ad24389d1613d2ef482bb34289ea3f1db19736b16a625744fea239046f4",
     "gen/typescript/development-toolchain-validator/v1/staleness/staleness_pb.ts": "sha256:8fd72386e597a5a3afe0196bacc185e4db278a2b9af7eb731c6bb988869d25c2",
     "gen/typescript/development-toolchain-validator/v1/validation_record/validation_record_pb.ts": "sha256:532a9d29ecd605f62e2a911b3261fce8a11aac076120e7b58e4381b65a08deb8",

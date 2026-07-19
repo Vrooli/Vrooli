@@ -163,7 +163,7 @@ export function CreateCampaignDialog({
             </div>
             <Input
               id="fromAgent"
-              placeholder="e.g., ux-agent, manual, ecosystem-manager"
+              placeholder="e.g., ux-agent, manual, swarm-manager"
               value={fromAgent}
               onChange={(e) => setFromAgent(e.target.value)}
               disabled={isLoading}

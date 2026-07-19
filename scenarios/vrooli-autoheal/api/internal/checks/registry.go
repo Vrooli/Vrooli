@@ -1021,6 +1021,20 @@ func selectAutoHealAction(result Result, actions []RecoveryAction) *RecoveryActi
 		}
 	}
 
+	// A stopped scenario has a safe, idempotent recovery path. Prefer it over
+	// restart: restart is intentionally subject to the runtime recovery
+	// ownership gate, while starting a process that is already known to be down
+	// cannot race a running-process recovery controller.
+	if strings.HasPrefix(checkID, "scenario-") && result.Details != nil {
+		if status, ok := result.Details["scenarioStatus"].(string); ok && strings.EqualFold(status, "stopped") {
+			for _, action := range actions {
+				if action.Available && action.ID == "start" {
+					return &action
+				}
+			}
+		}
+	}
+
 	// Controlled dangerous action policy for scenarios:
 	// allow "restart" auto-execution for scenario checks only.
 	if strings.HasPrefix(checkID, "scenario-") {

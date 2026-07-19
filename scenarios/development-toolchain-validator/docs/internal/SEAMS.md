@@ -184,7 +184,7 @@ Additional seams added for DTV P0:
   `report skill-fitness <skill_id>`). The pure fold
   `aggregateSkillFitness(skillID, records, staleByTuple)` in
   `internal/report/service.go` is unit-testable without the service.
-  Consumed by ecosystem-manager's selection controller as its DTV
+  Consumed by swarm-manager's selection controller as its DTV
   gate-and-prior source; DTV owns the records, so the aggregation lives
   here (one server-side fold) rather than being re-implemented per
   consumer.

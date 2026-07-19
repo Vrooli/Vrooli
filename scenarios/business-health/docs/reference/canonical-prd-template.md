@@ -80,4 +80,4 @@ If more context is vital (references, inspiration links, etc.), append `## 📎 
 ## Reference Implementations
 - Template emitted by `templates/scenarios/react-vite/PRD.md`
 - Enforced by PRD Control Tower validators (Go + UI) and scenario-auditor `prd-structure` rule
-- Referenced by `scenarios/ecosystem-manager/prompts/templates/scenario-generator.md`
+- Referenced by `scenarios/swarm-manager/prompts/templates/scenario-generator.md`
