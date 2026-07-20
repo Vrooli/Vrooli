@@ -448,3 +448,93 @@ func TestService_Create_CycleChecker_RejectsCycle(t *testing.T) {
 		t.Fatalf("expected cycle error, got %v", err)
 	}
 }
+
+func TestService_ResetArtifacts_PlanUnbindRevertsReadyOnly(t *testing.T) {
+	env := newServiceTestEnv(t)
+	item := sampleItem("reset-lifecycle")
+	item.Status = StatusReady
+	item.PlanRef = &PlanRef{Provider: "plan-manager", PlanID: "p1", Slug: "p1", Role: PlanRefRoleExecutionSpec}
+	if err := env.svc.Create(item, CreationContext{Source: SourceHumanHTTP}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	result, err := env.svc.ResetArtifacts(context.Background(), KindExecute, item.Name, []ResetArtifactScope{ResetScopePlanUnbind})
+	if err != nil {
+		t.Fatalf("ResetArtifacts: %v", err)
+	}
+	if !result.StatusReverted || result.Item.Status != StatusBacklog || result.Item.PlanRef != nil {
+		t.Fatalf("reset result = %#v, want backlog status and no plan ref", result)
+	}
+}
+
+func TestService_ResetArtifacts_RemovesOnlySelectedArtifactScope(t *testing.T) {
+	cases := []struct {
+		name    string
+		scope   ResetArtifactScope
+		removed []string
+	}{
+		{name: "clarifications", scope: ResetScopeClarifications, removed: []string{"clarifications"}},
+		{name: "review", scope: ResetScopeReview, removed: []string{"review"}},
+		{name: "handoff and executions", scope: ResetScopeHandoffExecutions, removed: []string{"handoff", "executions"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newServiceTestEnv(t)
+			item := sampleItem("scoped-reset")
+			if err := env.svc.Create(item, CreationContext{Source: SourceHumanHTTP}); err != nil {
+				t.Fatalf("create: %v", err)
+			}
+			itemDir := env.store.ItemDir(item.Kind, item.Name)
+			for _, dir := range []string{"clarifications", "review", "handoff", "executions", "untouched"} {
+				if err := os.MkdirAll(filepath.Join(itemDir, dir), 0o755); err != nil {
+					t.Fatalf("create %s: %v", dir, err)
+				}
+			}
+			if _, err := env.svc.ResetArtifacts(context.Background(), item.Kind, item.Name, []ResetArtifactScope{tc.scope}); err != nil {
+				t.Fatalf("ResetArtifacts: %v", err)
+			}
+			for _, dir := range tc.removed {
+				if _, err := os.Stat(filepath.Join(itemDir, dir)); !os.IsNotExist(err) {
+					t.Fatalf("%s exists after %s reset: %v", dir, tc.scope, err)
+				}
+			}
+			if _, err := os.Stat(filepath.Join(itemDir, "untouched")); err != nil {
+				t.Fatalf("unrelated artifact removed by %s reset: %v", tc.scope, err)
+			}
+		})
+	}
+}
+
+func TestService_RecreateItem_RetargetsDependentsAndArchivesSource(t *testing.T) {
+	env := newServiceTestEnv(t)
+	source := sampleItem("stale-source")
+	source.Initiative = ""
+	if err := env.svc.Create(source, CreationContext{Source: SourceHumanHTTP}); err != nil {
+		t.Fatalf("create source: %v", err)
+	}
+	if stored, err := env.store.LoadItem(KindExecute, source.Name); err != nil || stored.Initiative != "" {
+		t.Fatalf("source initiative = %q, %v; want empty", stored.Initiative, err)
+	}
+	dependent := sampleItem("dependent")
+	dependent.DependsOn = []string{"execute/stale-source"}
+	if err := env.svc.Create(dependent, CreationContext{Source: SourceHumanHTTP}); err != nil {
+		t.Fatalf("create dependent: %v", err)
+	}
+	clone, err := env.svc.RecreateItem(context.Background(), KindExecute, source.Name)
+	if err != nil {
+		t.Fatalf("RecreateItem: %v", err)
+	}
+	if clone.SpawnedFrom != "execute/stale-source" || clone.Status != StatusBacklog {
+		t.Fatalf("clone = %#v, want backlog clone with lineage", clone)
+	}
+	archived, err := env.store.LoadItem(KindExecute, source.Name)
+	if err != nil || archived.ArchivedAt == nil {
+		t.Fatalf("source after recreation = %#v, %v; want archived", archived, err)
+	}
+	updatedDependent, err := env.store.LoadItem(KindExecute, dependent.Name)
+	if err != nil {
+		t.Fatalf("load dependent: %v", err)
+	}
+	if len(updatedDependent.DependsOn) != 1 || updatedDependent.DependsOn[0] != "execute/"+clone.Name {
+		t.Fatalf("dependent deps = %v, want clone ref", updatedDependent.DependsOn)
+	}
+}

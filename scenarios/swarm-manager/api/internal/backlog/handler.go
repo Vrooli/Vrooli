@@ -117,7 +117,14 @@ type Handler struct {
 	planAuthorWorkflow    agentmanager.WorkflowInvoker
 	planRepair            *planrepair.Service
 	transitionRegistry    transitions.Registry
+	lifecycleService      *Service
 }
+
+// SetLifecycleService installs the single lifecycle implementation used by
+// direct danger actions. Proposal application receives the same service from
+// the server wiring, so neither entrypoint can drift in guard or rollback
+// behavior.
+func (h *Handler) SetLifecycleService(service *Service) { h.lifecycleService = service }
 
 // SetPlanRepair installs the declared workflow adapter and its durable Swarm
 // authority ledger. The handler retains domain binding; it never owns runs.
@@ -449,6 +456,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/reset", h.WorkshopReset).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/re-workshop", h.ReWorkshop).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/recreate", h.Recreate).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/reset-artifacts", h.ResetArtifacts).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/pending-advance", h.WorkshopCancelPendingAdvance).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification", h.CreateClarification).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}", h.GetClarification).Methods("GET")

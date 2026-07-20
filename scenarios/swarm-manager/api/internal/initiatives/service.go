@@ -1,6 +1,7 @@
 package initiatives
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -52,6 +53,13 @@ type Service struct {
 	backlogLoader   BacklogLoader
 	eventDispatcher dispatch.Invalidator
 	eventLogger     EventLogger
+	activityChecker ActivityChecker
+}
+
+// ActivityChecker guards destructive lifecycle actions against active agents
+// working on an initiative member.
+type ActivityChecker interface {
+	HasActiveAgent(ctx context.Context, ownerKind, ownerName string) bool
 }
 
 // NewService creates a Service with the given store and backlog loader.
@@ -71,6 +79,9 @@ func (s *Service) SetEventDispatcher(d dispatch.Invalidator) {
 func (s *Service) SetEventLogger(l EventLogger) {
 	s.eventLogger = l
 }
+
+// SetActivityChecker wires the shared agent-activity guard.
+func (s *Service) SetActivityChecker(checker ActivityChecker) { s.activityChecker = checker }
 
 // SetAIIndexer wires an optional AI search indexer that receives fire-and-forget
 // notifications from the underlying Store after every Save/Delete.

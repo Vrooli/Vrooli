@@ -125,7 +125,12 @@ func (s *FileStore) ListSessions(filters ListFilters) ([]Session, error) {
 			if errors.Is(err, ErrNotFound) {
 				continue
 			}
-			return nil, err
+			// A persisted legacy/corrupt session must not make the session index
+			// (or callers such as proposal gates) unavailable. Mutating that
+			// record still goes through LoadSession and remains deliberately
+			// rejected until it is migrated or repaired.
+			slog.Warn("agent sessions: skipping unreadable session during list", "session_id", entry.Name(), "error", err)
+			continue
 		}
 		if !matchesListFilters(session, filters) {
 			continue

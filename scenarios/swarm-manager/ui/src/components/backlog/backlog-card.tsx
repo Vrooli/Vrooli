@@ -159,6 +159,7 @@ function BacklogCardImpl({
             <span className="truncate text-[11px] uppercase tracking-wider text-slate-400">
               {formatBacklogStatus(item.status)}
             </span>
+			{item.stale && <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">Stale</span>}
           </div>
           <span className="shrink-0 rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-300">
             P{item.priority}

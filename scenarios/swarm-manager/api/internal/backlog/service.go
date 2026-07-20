@@ -176,13 +176,14 @@ func (f CycleCheckerFunc) CheckCycles(item BacklogItem) error { return f(item) }
 // graph invalidation) is consistent regardless of who initiated the
 // mutation.
 type Service struct {
-	store        CreationStore
-	assigner     ItemAttacher
-	events       CreationEventEmitter
-	artifacts    sessionArtifactRecorder
-	workshop     WorkshopTrigger
-	invalidator  GraphInvalidator
-	cycleChecker CycleChecker
+	store           CreationStore
+	assigner        ItemAttacher
+	events          CreationEventEmitter
+	artifacts       sessionArtifactRecorder
+	workshop        WorkshopTrigger
+	invalidator     GraphInvalidator
+	cycleChecker    CycleChecker
+	activityChecker ActivityChecker
 }
 
 // PendingBacklogFile is an evidence or support file that should be persisted
@@ -198,13 +199,14 @@ type PendingBacklogFile struct {
 // rest are optional and degrade gracefully (nil emitter = no event,
 // nil workshop = no auto-spawn, etc.).
 type ServiceConfig struct {
-	Store        CreationStore
-	Assigner     ItemAttacher
-	Events       CreationEventEmitter
-	Artifacts    sessionArtifactRecorder
-	Workshop     WorkshopTrigger
-	Invalidator  GraphInvalidator
-	CycleChecker CycleChecker
+	Store           CreationStore
+	Assigner        ItemAttacher
+	Events          CreationEventEmitter
+	Artifacts       sessionArtifactRecorder
+	Workshop        WorkshopTrigger
+	Invalidator     GraphInvalidator
+	CycleChecker    CycleChecker
+	ActivityChecker ActivityChecker
 }
 
 // NewService constructs a Service. Returns an error if Store is nil
@@ -214,15 +216,28 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		return nil, errors.New("backlog.NewService: Store is required")
 	}
 	return &Service{
-		store:        cfg.Store,
-		assigner:     cfg.Assigner,
-		events:       cfg.Events,
-		artifacts:    cfg.Artifacts,
-		workshop:     cfg.Workshop,
-		invalidator:  cfg.Invalidator,
-		cycleChecker: cfg.CycleChecker,
+		store:           cfg.Store,
+		assigner:        cfg.Assigner,
+		events:          cfg.Events,
+		artifacts:       cfg.Artifacts,
+		workshop:        cfg.Workshop,
+		invalidator:     cfg.Invalidator,
+		cycleChecker:    cfg.CycleChecker,
+		activityChecker: cfg.ActivityChecker,
 	}, nil
 }
+
+// ActivityChecker protects destructive lifecycle operations from racing an
+// active agent. It is intentionally the same narrow contract used by the
+// HTTP handlers so the guard cannot diverge by entrypoint.
+type ActivityChecker interface {
+	HasActiveAgent(ctx context.Context, ownerKind, ownerName string) bool
+}
+
+// SetActivityChecker wires the runtime checker after Service construction.
+// It keeps the constructor compatible with lightweight test and proposal
+// fixtures while allowing the server wiring to supply the live checker.
+func (s *Service) SetActivityChecker(checker ActivityChecker) { s.activityChecker = checker }
 
 // Create persists `item` and runs the side-effect set appropriate for
 // `cc.Source`. Errors map to:

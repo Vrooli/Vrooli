@@ -42,7 +42,7 @@ export type BacklogKind = "idea" | "research" | "fix" | "execute" | "chore";
 /**
  * A backlog item represents a unit of work for the swarm.
  */
-export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny" | "creates" | "createdBy"> & {
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny" | "creates" | "createdBy" | "stale"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
   /** ISO timestamp when the item was archived, or undefined if not archived. */
@@ -63,6 +63,8 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   createdBy?: AgentSessionAttribution;
   /** Canonical plan-manager plan backing this work item. */
   planRef?: PlanRef;
+  /** Read-time lifecycle signal; never persisted in an item spec. */
+  stale?: boolean;
 };
 
 /**

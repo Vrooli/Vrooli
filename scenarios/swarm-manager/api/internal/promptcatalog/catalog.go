@@ -307,7 +307,7 @@ var staticEntries = []Entry{
 		SourceType: SourceSkill,
 		Trigger:    "A session is launched against an initiative or an initiative-owned backlog item",
 		SkillID:    "swarm-manager-proposals",
-		Purpose:    "Produce an operator-reviewed mutation-list proposal from hydrated entity context.",
+		Purpose:    "Produce an operator-reviewed mutation-list proposal from hydrated entity context, including recreate_item, reset_artifacts, and recreate_initiative lifecycle operations when stale work needs controlled renewal.",
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
 			"swarm-manager-initiative-context",

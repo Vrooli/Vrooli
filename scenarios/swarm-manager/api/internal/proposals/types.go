@@ -79,6 +79,19 @@ const (
 	// Wire shape: { sources: ["kind/a","kind/b",...], item: ItemSpec }.
 	// Target is unused; the merged item's ref is Item.Ref().
 	OpMergeItems Op = "merge_items"
+
+	// OpRecreateItem archives a stale item and creates a lineage-preserving
+	// replacement. The replacement is deliberately service-owned so direct
+	// operator actions and approved proposals share the same rollback path.
+	OpRecreateItem Op = "recreate_item"
+
+	// OpResetArtifacts removes only the selected derived artifacts from an
+	// item. It never deletes the canonical item specification.
+	OpResetArtifacts Op = "reset_artifacts"
+
+	// OpRecreateInitiative archives an initiative and creates a fresh active
+	// successor while moving its member items to that successor.
+	OpRecreateInitiative Op = "recreate_initiative"
 )
 
 // AllOps returns the canonical list of supported ops. Used for validation
@@ -96,6 +109,9 @@ func AllOps() []Op {
 		OpInterruptInProgress,
 		OpSplitItem,
 		OpMergeItems,
+		OpRecreateItem,
+		OpResetArtifacts,
+		OpRecreateInitiative,
 	}
 }
 
@@ -147,6 +163,31 @@ type Mutation struct {
 	// collapsed into a single merged item. The merged item itself is
 	// described by Item (reusing the OpAddItem field).
 	Sources []string `json:"sources,omitempty"`
+
+	// OpResetArtifacts payload: the independently-removable artifact scopes.
+	ResetScope []ResetArtifactScope `json:"reset_scope,omitempty"`
+}
+
+// ResetArtifactScope identifies a derived-artifact group that may be removed
+// without deleting the backlog item's canonical specification.
+type ResetArtifactScope string
+
+const (
+	ResetScopeWorkshop          ResetArtifactScope = "workshop"
+	ResetScopeClarifications    ResetArtifactScope = "clarifications"
+	ResetScopeReview            ResetArtifactScope = "review"
+	ResetScopeHandoffExecutions ResetArtifactScope = "handoff_executions"
+	ResetScopePlanUnbind        ResetArtifactScope = "plan_unbind"
+)
+
+func AllResetArtifactScopes() []ResetArtifactScope {
+	return []ResetArtifactScope{
+		ResetScopeWorkshop,
+		ResetScopeClarifications,
+		ResetScopeReview,
+		ResetScopeHandoffExecutions,
+		ResetScopePlanUnbind,
+	}
 }
 
 // ItemSpec describes a new item to create. Fields mirror BacklogItem with
@@ -165,6 +206,7 @@ type ItemSpec struct {
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 	Note            string   `json:"note,omitempty"`
+	SpawnedFrom     string   `json:"spawned_from,omitempty"`
 }
 
 // ItemPatch is the set of fields an OpUpdateItem may change. Each pointer is

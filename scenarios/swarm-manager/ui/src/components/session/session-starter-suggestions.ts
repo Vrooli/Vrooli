@@ -113,6 +113,16 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           contextText: (title) => `Assess "${title}" and recommend its next registered transition.`,
           requirements: [{ kind: "context", type: "initiative" }],
         },
+        {
+          id: "operations-triage-staleness",
+          icon: GitPullRequestArrow,
+          text: "Triage the attached items for staleness.",
+          detail: "Attach a few items or initiatives; you control token spend. The agent proposes changes and never applies them.",
+          requirements: [
+            { kind: "context", type: "backlog_item", optional: true },
+            { kind: "context", type: "initiative", optional: true },
+          ],
+        },
       ];
     case "operating_mode_authoring":
       return [];
@@ -179,6 +189,8 @@ export interface AttachStarterSuggestion {
   specific: boolean;
   /** Starts a proposal-targeted session instead of a generic conversation. */
   proposalFlavor?: "mutation_list";
+  detail?: string;
+  group?: "Shape" | "Discover" | "Reconcile" | "Lifecycle";
 }
 
 const ATTACH_TITLE_MAX = 70;
@@ -223,18 +235,27 @@ export function attachStarterSuggestions(
   const entityLabel = title;
   const proposalActions: AttachStarterSuggestion[] = option.type === "initiative"
     ? [
-      { id: "proposal-split", prefix: "Split oversized items in" },
-      { id: "proposal-merge", prefix: "Merge tightly coupled items in" },
-      { id: "proposal-identify-missing", prefix: "Identify missing work for" },
-      { id: "proposal-reconcile", prefix: "Reconcile this initiative with code drift:" },
-      { id: "proposal-reframe", prefix: "Reframe the scope and outcomes for" },
-    ].map(({ id, prefix }) => ({ id, icon: GitPullRequestArrow, text: `${prefix} "${entityLabel}".`, specific: true, proposalFlavor: "mutation_list" }))
+      { id: "proposal-split", prefix: "Split oversized items in", group: "Shape", detail: "Propose smaller, independently reviewable work." },
+      { id: "proposal-merge", prefix: "Merge tightly coupled items in", group: "Shape", detail: "Propose a safer combined work item where boundaries are artificial." },
+      { id: "proposal-identify-missing", prefix: "Identify missing work for", group: "Discover", detail: "Find necessary work that the current initiative does not cover." },
+      { id: "proposal-reconcile", prefix: "Reconcile this initiative with code drift:", group: "Reconcile", detail: "Compare recorded intent with the repository and propose corrections." },
+      { id: "proposal-reframe", prefix: "Reframe the scope and outcomes for", group: "Shape", detail: "Propose a clearer goal, boundaries, and success criteria." },
+    ].map(({ id, prefix, group, detail }) => ({ id, icon: GitPullRequestArrow, text: `${prefix} "${entityLabel}".`, group: group as AttachStarterSuggestion["group"], detail, specific: true, proposalFlavor: "mutation_list" }))
     : [
-      { id: "proposal-split", prefix: "Split" },
-      { id: "proposal-merge", prefix: "Find merge candidates for" },
-      { id: "proposal-identify-followups", prefix: "Identify follow-up work for" },
-      { id: "proposal-reframe-item", prefix: "Reframe the scope for" },
-      { id: "proposal-reconcile-item", prefix: "Reconcile this item with related work:" },
-    ].map(({ id, prefix }) => ({ id, icon: GitPullRequestArrow, text: `${prefix} "${entityLabel}".`, specific: true, proposalFlavor: "mutation_list" }));
+      { id: "proposal-split", prefix: "Split", group: "Shape", detail: "Propose smaller, independently reviewable follow-up items." },
+      { id: "proposal-merge", prefix: "Find merge candidates for", group: "Shape", detail: "Find overlapping work that should be represented once." },
+      { id: "proposal-identify-followups", prefix: "Identify follow-up work for", group: "Discover", detail: "Discover missing work needed to complete this item safely." },
+      { id: "proposal-reframe-item", prefix: "Reframe the scope for", group: "Shape", detail: "Propose a clearer outcome and boundary for this item." },
+      { id: "proposal-reconcile-item", prefix: "Reconcile this item with related work:", group: "Reconcile", detail: "Compare this record with related work and repository evidence." },
+    ].map(({ id, prefix, group, detail }) => ({ id, icon: GitPullRequestArrow, text: `${prefix} "${entityLabel}".`, group: group as AttachStarterSuggestion["group"], detail, specific: true, proposalFlavor: "mutation_list" }));
+  proposalActions.push({
+    id: "proposal-triage-staleness",
+    icon: GitPullRequestArrow,
+    text: `Triage "${entityLabel}" for staleness. Return keep (explain only), refresh (update_item with reset_artifacts or recreate_item), or supersede (archive_item with a note). Propose mutations only; never apply them.`,
+    detail: "Lifecycle · attach only a few entities per session to control token spend.",
+    group: "Lifecycle",
+    specific: true,
+    proposalFlavor: "mutation_list",
+  });
   return [...proposalActions, ...generic];
 }

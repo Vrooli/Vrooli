@@ -260,6 +260,7 @@ export function BacklogDetailsPanel({
             <p className="text-sm text-slate-300" title={new Date(item.updated).toLocaleString()}>
               {formatRelativeTime(item.updated)}
             </p>
+			{item.stale && <p className="text-xs font-medium text-amber-300">Stale — refresh or triage before execution.</p>}
           </div>
         </div>
       </div>

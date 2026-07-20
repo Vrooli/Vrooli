@@ -57,6 +57,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Delete).Methods("DELETE")
 	r.HandleFunc("/api/v1/initiatives/{name}/archive-item", h.Archive).Methods("PATCH")
 	r.HandleFunc("/api/v1/initiatives/{name}/archive-item", h.Unarchive).Methods("DELETE")
+	r.HandleFunc("/api/v1/initiatives/{name}/recreate", h.Recreate).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/items", h.AddItems).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/items", h.RemoveItems).Methods("DELETE")
 }

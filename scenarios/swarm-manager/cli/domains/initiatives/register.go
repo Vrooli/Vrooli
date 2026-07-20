@@ -18,6 +18,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("create", "Create initiative (--data JSON) [--json]", deps.InitiativesCreate),
 			support.APICommand("update", "Update initiative (--name NAME --data JSON) [--json]", deps.InitiativesUpdate),
 			support.APICommand("delete", "Delete initiative (--name NAME)", deps.InitiativesDelete),
+			support.APICommand("recreate", "Archive and clone an initiative with lineage (--name NAME) [--json]", deps.InitiativesRecreate),
 			support.APICommand("add-items", "Add items to initiative (--name NAME --items kind/name,...) [--json]", deps.InitiativesAddItems),
 			support.APICommand("remove-items", "Remove items from initiative (--name NAME --items kind/name,...) [--json]", deps.InitiativesRemove),
 			support.APICommand("files", "List files in an initiative (--name NAME) [--json]", deps.InitiativesFiles),

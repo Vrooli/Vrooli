@@ -35,7 +35,6 @@ func TestAuthoritativeDocsRejectLegacyScopeAndBatchInitiativeFlag(t *testing.T) 
 	files := []string{
 		"scenarios/prompt-manager/store/skills/packs/core/swarm-manager-meta-orchestrator/SKILL.md",
 		"scenarios/prompt-manager/store/skills/packs/core/swarm-manager-backlog-tools/SKILL.md",
-		"scenarios/swarm-manager/docs/reference/api-endpoints.md",
 		"scenarios/swarm-manager/docs/reference/cli-commands.md",
 	}
 

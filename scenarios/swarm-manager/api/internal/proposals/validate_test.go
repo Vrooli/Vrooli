@@ -25,7 +25,8 @@ func baseState(t *testing.T) CurrentState {
 	}
 }
 
-func intPtr(i int) *int { return &i }
+func intPtr(i int) *int          { return &i }
+func stringPtr(s string) *string { return &s }
 
 func TestValidate_RequiresMutationListForm(t *testing.T) {
 	p := Proposal{Form: FormFullGraph}
@@ -62,6 +63,39 @@ func TestValidate_RejectsUnknownOp(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unknown mutation op") {
 		t.Fatalf("expected unknown-op message, got %v", err)
+	}
+}
+
+func TestValidate_LifecycleOperations(t *testing.T) {
+	p := Proposal{Form: FormMutationList, Mutations: []Mutation{
+		{ID: "recreate", Op: OpRecreateItem, Target: "execute/foo"},
+		{ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: []ResetArtifactScope{ResetScopeWorkshop, ResetScopePlanUnbind}},
+		{ID: "recreate-initiative", Op: OpRecreateInitiative, Target: "ui-rewrite"},
+	}}
+	if err := Validate(p, baseState(t)); err != nil {
+		t.Fatalf("Validate lifecycle operations: %v", err)
+	}
+}
+
+func TestValidate_ResetArtifactsRejectsEmptyAndUnknownScope(t *testing.T) {
+	for _, scopes := range [][]ResetArtifactScope{nil, {"unknown"}} {
+		p := Proposal{Form: FormMutationList, Mutations: []Mutation{{ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: scopes}}}
+		if err := Validate(p, baseState(t)); err == nil {
+			t.Fatalf("Validate(%v) succeeded, want reset scope error", scopes)
+		}
+	}
+}
+
+func TestValidate_StandaloneScopeRestrictsGraphOperations(t *testing.T) {
+	state := baseState(t)
+	state.Standalone = true
+	allowed := Proposal{Form: FormMutationList, Mutations: []Mutation{{ID: "update", Op: OpUpdateItem, Target: "execute/foo", Patch: &ItemPatch{Title: stringPtr("renewed")}}, {ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: []ResetArtifactScope{ResetScopeWorkshop}}}}
+	if err := Validate(allowed, state); err != nil {
+		t.Fatalf("Validate standalone allowed operations: %v", err)
+	}
+	rejected := Proposal{Form: FormMutationList, Mutations: []Mutation{{ID: "edge", Op: OpAddEdge, From: "execute/foo", To: "execute/bar"}}}
+	if err := Validate(rejected, state); err == nil || !errors.Is(err, ErrStandaloneOperation) {
+		t.Fatalf("Validate standalone graph operation = %v, want typed rejection", err)
 	}
 }
 

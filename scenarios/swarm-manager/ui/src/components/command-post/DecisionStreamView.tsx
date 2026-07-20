@@ -41,6 +41,8 @@ export interface DecisionStreamViewProps {
   onSnoozeItem: (key: string) => void;
   /** Navigate to a backlog item's detail page. */
   onOpenItem?: (kind: string, name: string) => void;
+  onQueueComplete?: () => void;
+  finalActionLabel?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,6 +56,8 @@ export function DecisionStreamView({
   onOpenSidebar,
   onSnoozeItem,
   onOpenItem,
+  onQueueComplete,
+  finalActionLabel,
 }: DecisionStreamViewProps) {
   // Navigator state
   const [navigatorOpen, setNavigatorOpen] = useState(false);
@@ -94,7 +98,7 @@ export function DecisionStreamView({
     localAnswers,
     skippedIds,
     onComplete: finishDecisionStream,
-  } = useDecisionStreamLogic({ questions, onComplete, onBack, onSnoozeItem, navigatorOpenRef, toggleNavigator });
+  } = useDecisionStreamLogic({ questions, onComplete, onBack, onSnoozeItem, navigatorOpenRef, toggleNavigator, onQueueComplete });
 
   // Clarification
   const clarificationStore = useClarificationStore();
@@ -549,7 +553,7 @@ export function DecisionStreamView({
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                {isLast ? "Done" : "Next"}
+                {isLast ? (finalActionLabel ?? "Done") : "Next"}
                 <ChevronRight className="h-4 w-4" />
               </>
             )}

@@ -27,3 +27,7 @@ var ErrDuplicateItem = errors.New("item already exists")
 // are the user's sole authority, reachable only through the review-decide
 // endpoint.
 var ErrTerminalStatusWrite = errors.New("terminal status transitions require review-decide")
+
+// ErrStandaloneOperation signals an operation which needs initiative graph
+// context but was proposed for an unattached backlog item.
+var ErrStandaloneOperation = errors.New("operation is not allowed for a standalone backlog item")

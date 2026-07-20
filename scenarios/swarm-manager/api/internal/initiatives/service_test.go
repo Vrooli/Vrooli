@@ -1,6 +1,7 @@
 package initiatives
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -20,27 +21,6 @@ func slicePtr(values []string) *[]string {
 func intPtr(value int) *int {
 	return &value
 }
-
-type initiativeEventCall struct {
-	name string
-	from string
-	to   string
-}
-
-type initiativeEventLogger struct {
-	modeChanges []initiativeEventCall
-}
-
-func (l *initiativeEventLogger) EmitInitiativeCreated(name string)                 {}
-func (l *initiativeEventLogger) EmitInitiativeItemAdded(name, item string)         {}
-func (l *initiativeEventLogger) EmitInitiativeItemRemoved(name, item string)       {}
-func (l *initiativeEventLogger) EmitInitiativeStatusChanged(name, from, to string) {}
-func (l *initiativeEventLogger) EmitInitiativeModeChanged(name, from, to string) {
-	l.modeChanges = append(l.modeChanges, initiativeEventCall{name: name, from: from, to: to})
-}
-func (l *initiativeEventLogger) EmitInitiativeArchived(name, previousStatus, archivedAt string) {}
-func (l *initiativeEventLogger) EmitInitiativeUnarchived(name, archivedAt string)               {}
-func (l *initiativeEventLogger) EmitInitiativeViewed(name string)                               {}
 
 // mockBacklogLoader is a test double implementing BacklogLoader. It tracks
 // cascade writes so tests can assert that initiative service operations
@@ -568,5 +548,35 @@ func TestService_ComputeRollup_ItemDeletedFromDisk(t *testing.T) {
 	// Deleted item should be counted as pending (graceful degradation).
 	if rollup.Pending != 1 {
 		t.Errorf("expected pending 1 (deleted item counted as pending), got %d", rollup.Pending)
+	}
+}
+
+func TestService_RecreateInitiative_MovesMembersAndPreservesLineage(t *testing.T) {
+	loaderItems := map[string]backlog.BacklogItem{
+		"execute/first":  {Kind: backlog.KindExecute, Name: "first", Initiative: "stale-init", Status: backlog.StatusBacklog},
+		"execute/second": {Kind: backlog.KindExecute, Name: "second", Initiative: "stale-init", Status: backlog.StatusReady},
+	}
+	svc := newTestService(t, loaderItems)
+	if _, err := svc.Create(CreateRequest{Name: "stale-init", Title: "Stale initiative", Items: []string{"execute/first", "execute/second"}}); err != nil {
+		t.Fatalf("create source: %v", err)
+	}
+	if err := svc.RecreateInitiative(context.Background(), "stale-init"); err != nil {
+		t.Fatalf("RecreateInitiative: %v", err)
+	}
+	source, err := svc.store.Load("stale-init")
+	if err != nil || source.ArchivedAt == nil {
+		t.Fatalf("source after recreate = %#v, %v; want archived", source, err)
+	}
+	clone, err := svc.store.Load("stale-init-recreated")
+	if err != nil {
+		t.Fatalf("load clone: %v", err)
+	}
+	if clone.Status != InitiativeStatusActive || clone.SpawnedFrom != "stale-init" {
+		t.Fatalf("clone = %#v, want active lineage-preserving successor", clone)
+	}
+	for ref, item := range loaderItems {
+		if item.Initiative != clone.Name {
+			t.Errorf("%s initiative = %q, want %q", ref, item.Initiative, clone.Name)
+		}
 	}
 }

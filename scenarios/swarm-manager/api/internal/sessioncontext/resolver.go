@@ -225,7 +225,10 @@ func (r *Resolver) resolveBacklogItem(ref string, limits agentsessions.ContextLi
 	if len(parts) != 2 {
 		return agentsessions.ContextItem{}, fmt.Errorf("%w: backlog item ref must be kind/name", agentsessions.ErrValidation)
 	}
-	path := filepath.Join(r.scenarioRoot, "backlog", parts[0], parts[1], "spec.json")
+	// Backlog FileStore stores kind directories directly under the runtime data
+	// root (for example, <data>/fix/item/spec.json); unlike source assets there
+	// is no intermediate "backlog" directory.
+	path := filepath.Join(r.scenarioRoot, parts[0], parts[1], "spec.json")
 	return r.resolveJSONFile(agentsessions.ContextRef{Type: agentsessions.ContextBacklogItem, Ref: ref}, path, "backlog item", "backlog-item/"+ref, limits)
 }
 

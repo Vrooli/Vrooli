@@ -35,6 +35,6 @@ describe("ProposalSessionsPanel", () => {
 
     expect(screen.getByText("New proposal session")).toBeInTheDocument();
     expect(screen.getByText("Proposal sessions use managed Swarm Operations and always produce a reviewable mutation list.")).toBeInTheDocument();
-    expect(screen.getAllByTestId(selectors.agentSessions.entityAttachSuggestion)).toHaveLength(5);
+    expect(screen.getAllByTestId(selectors.agentSessions.entityAttachSuggestion)).toHaveLength(6);
   });
 });

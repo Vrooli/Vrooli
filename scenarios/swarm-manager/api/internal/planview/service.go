@@ -97,7 +97,7 @@ func (s *Service) Build(ctx context.Context, params Params) (Board, error) {
 		}
 		items = filterItemsToScope(items, inScope)
 		execs = filterExecsToScope(execs, inScope)
-		gateList = filterGatesToScope(gateList, inScope)
+		gateList = filterGatesToScope(gateList, inScope, inits)
 	}
 
 	proj := newProjection(items, gateList, inits)
@@ -181,12 +181,25 @@ func filterExecsToScope(execs []execution.Record, inScope map[string]bool) []exe
 // filterGatesToScope keeps backlog/execution gates whose owning item is in
 // scope. Classify gates (capture-owned, not item-closure work) are dropped when
 // the board is goal-scoped.
-func filterGatesToScope(gateList []gates.Gate, inScope map[string]bool) []gates.Gate {
+func filterGatesToScope(gateList []gates.Gate, inScope map[string]bool, inits []initiatives.Initiative) []gates.Gate {
+	initiativesInScope := make(map[string]bool, len(inits))
+	for _, init := range inits {
+		for _, ref := range init.Items {
+			if inScope[ref] {
+				initiativesInScope[init.Name] = true
+				break
+			}
+		}
+	}
 	out := make([]gates.Gate, 0, len(gateList))
 	for _, g := range gateList {
 		switch g.OwnerType {
 		case "backlog", "execution":
 			if inScope[g.OwnerKind+"/"+g.OwnerName] {
+				out = append(out, g)
+			}
+		case "initiative":
+			if initiativesInScope[g.OwnerName] {
 				out = append(out, g)
 			}
 		}
@@ -229,12 +242,13 @@ type projection struct {
 	depthMap   map[string]int
 	unblocking map[string]int
 
-	decideByKey   map[string]gates.Gate
-	reviewByKey   map[string]gates.Gate
-	workshopByKey map[string]gates.Gate
-	execReview    []gates.Gate
-	classify      []gates.Gate
-	etaInput      eta.GoalClosureInput
+	decideByKey         map[string]gates.Gate
+	reviewByKey         map[string]gates.Gate
+	workshopByKey       map[string]gates.Gate
+	execReview          []gates.Gate
+	classify            []gates.Gate
+	initiativeProposals []gates.Gate
+	etaInput            eta.GoalClosureInput
 }
 
 func newProjection(items []backlog.BacklogItem, gateList []gates.Gate, inits []initiatives.Initiative) *projection {
@@ -293,6 +307,10 @@ func newProjection(items []backlog.BacklogItem, gateList []gates.Gate, inits []i
 			p.decideByKey[g.OwnerKind+"/"+g.OwnerName] = g
 		case g.Kind == gates.KindReview && g.OwnerType == "backlog":
 			p.reviewByKey[g.OwnerKind+"/"+g.OwnerName] = g
+		case g.Kind == gates.KindProposal && g.OwnerType == "backlog":
+			p.decideByKey[g.OwnerKind+"/"+g.OwnerName] = g
+		case g.Kind == gates.KindProposal && g.OwnerType == "initiative":
+			p.initiativeProposals = append(p.initiativeProposals, g)
 		case g.Kind == gates.KindReview && g.OwnerType == "execution":
 			p.execReview = append(p.execReview, g)
 		case g.Kind == gates.KindWorkshop && g.OwnerType == "backlog":
@@ -420,6 +438,9 @@ func (p *projection) gateCard(g gates.Gate, action string) Card {
 		}
 	case "capture":
 		card.ID = "capture/" + g.OwnerName
+	case "initiative":
+		card.ID = "initiative/" + g.OwnerName
+		card.Initiative = g.OwnerName
 	}
 	return card
 }
@@ -462,6 +483,9 @@ func (p *projection) buildNext() Column {
 	}
 	for _, g := range p.classify {
 		gateCards = append(gateCards, p.gateCard(g, ActionClassify))
+	}
+	for _, g := range p.initiativeProposals {
+		gateCards = append(gateCards, p.gateCard(g, ActionDecide))
 	}
 	sortGateCards(gateCards)
 

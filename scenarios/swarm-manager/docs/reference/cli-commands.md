@@ -227,6 +227,22 @@ Response shape (`--json`):
 
 Only direct upstream and downstream are returned — the endpoint is a one-hop neighborhood view, not a transitive traversal. Use it in place of the global `overview` command when the question is scoped to one initiative.
 
+## Lifecycle controls
+
+```bash
+swarm-manager backlog recreate --kind execute --name stale-plan
+swarm-manager backlog reset-artifacts --kind execute --name stale-plan --scope workshop,plan_unbind
+swarm-manager initiatives recreate --name release-governance
+```
+
+`backlog recreate` preserves history by archiving the source and creating a
+fresh backlog clone with `spawned_from` lineage. `reset-artifacts` keeps the
+item specification and removes only the selected derived artifact scopes:
+`workshop`, `clarifications`, `review`, `handoff_executions`, and
+`plan_unbind`. `initiatives recreate` creates an active lineage-preserving
+successor and moves its member items. All three actions refuse to run when an
+affected item has an active agent.
+
 
 ## Cascade semantics
 
@@ -238,6 +254,8 @@ The API maintains referential integrity automatically when items or initiatives 
 | `backlog update --data '{"initiative":"X"}'` | Detaches from the old initiative's `items[]`, attaches to `X.items[]`. Rejects if `X` does not exist. |
 | `backlog create --initiative X` | Validates `X` exists; adds the new ref to `X.items[]`. |
 | `initiatives delete --name I` | Orphans every member item (clears their `initiative` field; items persist); scrubs `I` from every other initiative's `depends_on`. Atomic. |
+| `backlog recreate --kind K --name N` | Creates a fresh clone, retargets inbound dependencies and initiative membership, then archives `K/N`; clone records `spawned_from`. |
+| `initiatives recreate --name I` | Creates an active successor, moves each member item, then archives `I`; successor records `spawned_from`. |
 | `initiatives add-items --items kind/name,...` | Rejects items that already belong to a different initiative; attaches orphans. To move an item, use `backlog update` instead. |
 | `initiatives remove-items --items kind/name,...` | Removes from `items[]` and clears each item's `initiative` field if it matches. |
 

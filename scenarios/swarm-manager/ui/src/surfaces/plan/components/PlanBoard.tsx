@@ -70,7 +70,7 @@ function NextHeaderActions({ groups, goal }: { groups: import("../types").PlanCa
     .filter((c) => c.itemKind && c.itemName)
     .map((c) => ({ kind: c.itemKind as BacklogKind, name: c.itemName, title: c.title }));
   const decideCount = (groups.find((g) => g.id === "gates")?.cards ?? [])
-    .filter((c) => c.gate?.kind === "decide")
+    .filter((c) => c.gate?.kind === "decide" || c.gate?.kind === "proposal")
     .reduce((sum, c) => sum + (c.gate?.count ?? 0), 0);
   // When the board is goal-scoped, the ready group already holds only the
   // goal's ready closure, so this bulk run IS "run all ready in goal".
@@ -97,7 +97,7 @@ function NextHeaderActions({ groups, goal }: { groups: import("../types").PlanCa
           type="button"
           onClick={() => actions.openDecisions()}
           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-amber-400 transition-colors hover:bg-slate-800"
-          title={`Answer all ${decideCount} pending questions`}
+          title={`Review all ${decideCount} pending decisions and proposals`}
           data-testid="plan-next-answer-all"
         >
           <MessageCircleQuestion className="h-3.5 w-3.5" aria-hidden />

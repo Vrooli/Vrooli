@@ -43,6 +43,45 @@ func newProposalStateBuilder(m *graph.Materializer, initStore *initiatives.Store
 	}
 }
 
+const standaloneProposalScopePrefix = "standalone:"
+
+// newSessionProposalStateBuilder extends initiative graph state with a tiny,
+// deterministic state for an unattached backlog item. The sentinel is internal
+// to this composition layer; agents still address the real `kind/name` ref.
+func newSessionProposalStateBuilder(m *graph.Materializer, initStore *initiatives.Store, backlogStore backlog.Store) proposals.StateBuilder {
+	initiativeBuilder := newProposalStateBuilder(m, initStore, backlogStore)
+	return func(scope string) (proposals.CurrentState, error) {
+		if !strings.HasPrefix(scope, standaloneProposalScopePrefix) {
+			return initiativeBuilder(scope)
+		}
+		ref := strings.TrimPrefix(scope, standaloneProposalScopePrefix)
+		parts := strings.SplitN(ref, "/", 2)
+		if len(parts) != 2 || strings.TrimSpace(parts[1]) == "" {
+			return proposals.CurrentState{}, fmt.Errorf("invalid standalone proposal target %q", ref)
+		}
+		kind, err := backlog.ParseBacklogKind(parts[0])
+		if err != nil {
+			return proposals.CurrentState{}, err
+		}
+		item, err := backlogStore.LoadItem(kind, parts[1])
+		if err != nil {
+			return proposals.CurrentState{}, fmt.Errorf("load standalone backlog proposal target: %w", err)
+		}
+		known, err := knownInitiativeNames(initStore)
+		if err != nil {
+			return proposals.CurrentState{}, err
+		}
+		state := proposals.CurrentState{InitiativeName: scope, Standalone: true, Nodes: map[string]proposals.GraphNode{ref: {ID: ref, Kind: string(item.Kind), Name: item.Name, Title: item.Title, Description: item.Description, Priority: item.Priority, Effort: item.Effort, Tags: append([]string(nil), item.Tags...)}}, KnownInitiatives: make(map[string]struct{}, len(known)), InProgressRefs: make(map[string]struct{})}
+		for _, name := range known {
+			state.KnownInitiatives[name] = struct{}{}
+		}
+		if item.Status == backlog.StatusInProgress {
+			state.InProgressRefs[ref] = struct{}{}
+		}
+		return state, nil
+	}
+}
+
 func knownInitiativeNames(store *initiatives.Store) ([]string, error) {
 	all, err := store.LoadAll()
 	if err != nil {
@@ -79,6 +118,7 @@ func newExecutionCancellerAdapter(svc *execution.Service) *executionCancellerAda
 	}
 	return &executionCancellerAdapter{svc: svc}
 }
+
 func (a *executionCancellerAdapter) CancelForBacklog(ctx context.Context, kind, name string) error {
 	if a == nil || a.svc == nil {
 		return errProposalExecutionUnavailable
@@ -95,6 +135,7 @@ func (a *executionCancellerAdapter) CancelForBacklog(ctx context.Context, kind, 
 	}
 	return nil
 }
+
 func isCancelableStatus(s execution.Status) bool {
 	switch s {
 	case execution.StatusPending, execution.StatusStarting, execution.StatusRunning, execution.StatusNeedsReview, execution.StatusValidating, execution.StatusNeedsFixup:
@@ -107,7 +148,7 @@ func (s *Server) buildProposalApplier(materializer *graph.Materializer) (*propos
 	if s.backlogHandler == nil || s.initiativeService == nil {
 		return nil, fmt.Errorf("backlog and initiative services are required")
 	}
-	cfg := backlog.ServiceConfig{Store: s.backlogHandler.Store(), Assigner: s.initiativeService, Invalidator: materializer}
+	cfg := backlog.ServiceConfig{Store: s.backlogHandler.Store(), Assigner: s.initiativeService, Invalidator: materializer, ActivityChecker: s.agentActivitySvc}
 	if s.emitter != nil {
 		cfg.Events = s.emitter
 	}
@@ -115,7 +156,8 @@ func (s *Server) buildProposalApplier(materializer *graph.Materializer) (*propos
 	if err != nil {
 		return nil, fmt.Errorf("build backlog.Service for proposals: %w", err)
 	}
-	return proposals.NewApplier(proposals.Config{Store: s.backlogHandler.Store(), Assigner: s.initiativeService, Creator: creator, Canceller: newExecutionCancellerAdapter(s.executionSvc), Invalidator: materializer, Events: &proposalEventEmitter{eventlog: s.emitter}})
+	s.initiativeService.SetActivityChecker(s.agentActivitySvc)
+	return proposals.NewApplier(proposals.Config{Store: s.backlogHandler.Store(), Assigner: s.initiativeService, Creator: creator, ItemLifecycle: creator, InitiativeLifecycle: s.initiativeService, Canceller: newExecutionCancellerAdapter(s.executionSvc), Invalidator: materializer, Events: &proposalEventEmitter{eventlog: s.emitter}})
 }
 
 type proposalEventEmitter struct{ eventlog *eventlog.Emitter }
@@ -132,6 +174,7 @@ func (e *proposalEventEmitter) EmitProposalMutationApplied(source proposals.Sour
 	}
 	slog.Info("proposals: mutation applied (no eventlog wired)", "initiative", source.InitiativeName, "session", source.SessionID, "mutation_id", m.ID, "op", m.Op, "target", target)
 }
+
 func proposalEventTarget(m proposals.Mutation) string {
 	switch m.Op {
 	case proposals.OpAddItem, proposals.OpMergeItems:

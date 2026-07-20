@@ -1,6 +1,7 @@
 package agentsessions
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -91,6 +92,34 @@ func TestFileStoreListFiltersAndLimit(t *testing.T) {
 	}
 	if len(limited) != 1 || limited[0].ID != second.ID {
 		t.Fatalf("limited sessions = %+v", limited)
+	}
+}
+
+func TestFileStoreListSkipsLegacyInvalidSession(t *testing.T) {
+	store := NewFileStore(t.TempDir())
+	valid := validStoredSession("sess_valid")
+	if err := store.CreateSession(valid); err != nil {
+		t.Fatal(err)
+	}
+	legacy := validStoredSession("sess_legacy")
+	legacy.Kind = "operating_mode_authoring"
+	data, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(store.sessionDir(legacy.ID), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(store.sessionDir(legacy.ID), sessionFileName), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	sessions, err := store.ListSessions(ListFilters{})
+	if err != nil {
+		t.Fatalf("ListSessions() error = %v", err)
+	}
+	if len(sessions) != 1 || sessions[0].ID != valid.ID {
+		t.Fatalf("sessions = %+v, want only valid session", sessions)
 	}
 }
 

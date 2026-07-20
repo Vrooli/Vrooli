@@ -31,6 +31,7 @@ type BacklogItem struct {
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 	Creates         []string `json:"creates,omitempty"`
+	SpawnedFrom     string   `json:"spawned_from,omitempty"`
 }
 
 type BacklogItemResponse struct {
@@ -487,6 +488,7 @@ type Initiative struct {
 	AcceptanceCriteria []string `json:"acceptance_criteria,omitempty"`
 	Created            string   `json:"created"`
 	Updated            string   `json:"updated"`
+	SpawnedFrom        string   `json:"spawned_from,omitempty"`
 }
 
 // InitiativeRollup provides aggregated status counts for initiative items.

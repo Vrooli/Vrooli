@@ -11,6 +11,7 @@ import {
   captureDetailPath,
   executionDetailPath,
   graphPath,
+  initiativeDetailPath,
 } from "../../../app/routes/route-paths";
 import { ActionMenu, type ActionMenuItem } from "../../../components/ui/action-menu";
 import { SetAsGoalDialog } from "../../../components/goals/SetAsGoalDialog";
@@ -44,6 +45,8 @@ export function PlanCardMenu({ card }: PlanCardMenuProps) {
         navigate(executionDetailPath(card.executionId));
       } else if (card.id.startsWith("capture/")) {
         navigate(captureDetailPath(card.id.slice("capture/".length)));
+      } else if (card.id.startsWith("initiative/")) {
+        navigate(initiativeDetailPath(card.id.slice("initiative/".length)));
       } else if (itemKey) {
         navigate(backlogDetailPath(card.itemKind, card.itemName));
       }
@@ -52,9 +55,11 @@ export function PlanCardMenu({ card }: PlanCardMenuProps) {
 
   // Gate-specific primary action.
   if (card.cardType === "gate" && card.gate) {
-    if (card.gate.kind === "decide" && itemKey) {
+    if ((card.gate.kind === "decide" || card.gate.kind === "proposal") && itemKey) {
       items.push({
-        label: `Answer ${card.gate.count} question${card.gate.count === 1 ? "" : "s"}`,
+        label: card.gate.kind === "proposal"
+          ? `Review ${card.gate.count} proposal${card.gate.count === 1 ? "" : "s"}`
+          : `Answer ${card.gate.count} question${card.gate.count === 1 ? "" : "s"}`,
         testId: "plan-card-menu-answer",
         onSelect: () => actions.openDecisions(itemKey),
       });

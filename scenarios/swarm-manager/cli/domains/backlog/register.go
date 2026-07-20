@@ -20,6 +20,8 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("dismiss", "Dismiss a suggested auto-filer item (--kind KIND --name NAME [--reason MSG])", deps.BacklogDismiss),
 			support.APICommand("workshop-reset", "Reset all workshop data for a backlog item (--kind KIND --name NAME)", deps.BacklogWorkshopReset),
 			support.APICommand("re-workshop", "Reset and re-queue the workshop for a stale plan (--kind KIND --name NAME)", deps.BacklogReWorkshop),
+			support.APICommand("recreate", "Archive and clone a backlog item with lineage (--kind KIND --name NAME) [--json]", deps.BacklogRecreate),
+			support.APICommand("reset-artifacts", "Remove selected derived item artifacts (--kind KIND --name NAME --scope SCOPE,... ) [--json]", deps.BacklogResetArtifacts),
 			support.APICommand("files", "List backlog item files (--kind KIND --name NAME)", deps.BacklogFiles),
 			support.APICommand("file-get", "Get a file from a backlog item (--kind KIND --name NAME --path PATH)", deps.BacklogFileGet),
 			support.APICommand("file-upload", "Upload a file to a backlog item (--kind KIND --name NAME --path PATH --file FILE|--content CONTENT)", deps.BacklogFileUpload),

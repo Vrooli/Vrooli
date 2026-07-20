@@ -35,7 +35,7 @@ export type InitiativeOperatingMode = string;
 /**
  * A named grouping of related backlog items.
  */
-export type Initiative = Omit<ProtoMessage<ProtoInitiative>, "createdBy"> & {
+export type Initiative = Omit<ProtoMessage<ProtoInitiative>, "createdBy" | "spawnedFrom"> & {
   /** ISO timestamp when the initiative was archived, or undefined if not archived. */
   archivedAt?: string;
   /**
@@ -49,6 +49,8 @@ export type Initiative = Omit<ProtoMessage<ProtoInitiative>, "createdBy"> & {
   createdBy?: AgentSessionAttribution;
   /** Canonical plan-manager plan backing this initiative or operating mode. */
   planRef?: PlanRef;
+  /** Archive-and-clone lineage, omitted for original initiatives. */
+  spawnedFrom?: string;
 };
 
 /**

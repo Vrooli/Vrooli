@@ -60,6 +60,8 @@ export function gateActionLabel(gate: PlanGateData): string {
   switch (gate.kind) {
     case "decide":
       return gate.count === 1 ? "Answer 1 question" : `Answer ${gate.count} questions`;
+    case "proposal":
+      return gate.count === 1 ? "Review 1 proposal" : `Review ${gate.count} proposals`;
     case "review":
       return "Review";
     case "classify":

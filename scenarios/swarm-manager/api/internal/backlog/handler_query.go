@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/depgraph"
@@ -51,6 +52,16 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		items = filtered
 	}
 	items = filterByPlanRef(items, r)
+	if raw := strings.TrimSpace(r.URL.Query().Get("stale")); raw != "" {
+		want := raw == "1" || strings.EqualFold(raw, "true") || strings.EqualFold(raw, "yes")
+		filtered := items[:0]
+		for _, item := range items {
+			if IsStale(item, h.repoRoot, time.Now().UTC()) == want {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
 
 	// Sort by priority (ascending) then by updated (descending)
 	sort.Slice(items, func(i, j int) bool {
@@ -62,7 +73,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	protoItems := make([]*domainpb.BacklogItem, 0, len(items))
 	for _, item := range items {
-		protoItems = append(protoItems, backlogToProto(item))
+		proto := backlogToProto(item)
+		proto.Stale = IsStale(item, h.repoRoot, time.Now().UTC())
+		protoItems = append(protoItems, proto)
 	}
 
 	// Compute per-item blocking info from the full item set.
@@ -132,7 +145,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+	proto := backlogToProto(item)
+	proto.Stale = IsStale(item, h.repoRoot, time.Now().UTC())
+	resp := &apipb.BacklogItemResponse{Item: proto}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] get", apierr.Internal("failed to encode response"))
 	}

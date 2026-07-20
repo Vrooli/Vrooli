@@ -30,6 +30,9 @@ const (
 	// KindWorkshop — a queueable item whose plan maturity is not yet
 	// execution-ready (agent-actionable, not a human gate).
 	KindWorkshop Kind = "workshop"
+	// KindProposal — one or more agent mutation proposals await an explicit
+	// operator decision for the owning entity.
+	KindProposal Kind = "proposal"
 )
 
 // Gate is one enumerated decision point.

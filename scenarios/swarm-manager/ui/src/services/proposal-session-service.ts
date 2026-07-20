@@ -47,7 +47,7 @@ export interface CreateProposalSessionArgs {
 }
 
 export interface IProposalSessionService {
-  list(target: { type: ProposalSessionTargetType; ref: string }): Promise<ProposalSession[]>;
+  list(target?: { type: ProposalSessionTargetType; ref: string }): Promise<ProposalSession[]>;
   create(args: CreateProposalSessionArgs): Promise<ProposalSession>;
   decide(sessionId: string, proposalId: string, acceptedMutationIds: string[], note?: string): Promise<ProposalSession>;
   revise(sessionId: string, proposalId: string, note?: string): Promise<ProposalSession>;
@@ -55,8 +55,8 @@ export interface IProposalSessionService {
 
 export function createProposalSessionService(apiClient: IApiClient = defaultApiClient): IProposalSessionService {
   return {
-    async list(target) {
-      const data = await apiClient.get<{ sessions?: ProposalSession[] }>(`${API_ENDPOINTS.proposalSessions}${buildQueryString({ target_type: target.type, target_ref: target.ref })}`);
+	async list(target) {
+	  const data = await apiClient.get<{ sessions?: ProposalSession[] }>(`${API_ENDPOINTS.proposalSessions}${buildQueryString(target ? { target_type: target.type, target_ref: target.ref } : {})}`);
       return data.sessions ?? [];
     },
     create(args) {

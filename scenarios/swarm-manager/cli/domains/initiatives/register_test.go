@@ -16,7 +16,7 @@ func TestRegister(t *testing.T) {
 		t.Error("group Description is empty")
 	}
 
-	want := []string{"list", "get", "context", "candidates", "create", "update", "delete", "add-items", "remove-items", "files", "file-get", "file-upload", "file-op", "search-ai", "feedback-list", "feedback-get", "feedback-submit", "feedback-continue", "feedback-decide", "feedback-cancel", "feedback-delete", "feedback-lock", "review-list", "review-get", "review-trigger", "review-decide", "review-decisions", "graph-show"}
+	want := []string{"list", "get", "context", "candidates", "create", "update", "delete", "recreate", "add-items", "remove-items", "files", "file-get", "file-upload", "file-op", "search-ai", "feedback-list", "feedback-get", "feedback-submit", "feedback-continue", "feedback-decide", "feedback-cancel", "feedback-delete", "feedback-lock", "review-list", "review-get", "review-trigger", "review-decide", "review-decisions", "graph-show"}
 	wantSet := make(map[string]bool, len(want))
 	for _, n := range want {
 		wantSet[n] = true

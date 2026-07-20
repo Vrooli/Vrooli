@@ -425,6 +425,12 @@ func (s *Server) registerInitiativeRoutes(dataRoot string, backlogHandler *backl
 	initStore := initiatives.NewStore(dataRoot)
 	s.initStore = initStore
 	initService := initiatives.NewService(initStore, backlogHandler.Store())
+	initService.SetActivityChecker(s.agentActivitySvc)
+	lifecycleService, err := backlog.NewService(backlog.ServiceConfig{Store: backlogHandler.Store(), Assigner: initService, Events: s.emitter, ActivityChecker: s.agentActivitySvc})
+	if err != nil {
+		panic(err)
+	}
+	backlogHandler.SetLifecycleService(lifecycleService)
 	initHandler := initiatives.NewHandler(initService)
 	initHandler.SetAgentSessionArtifactRecorder(s.agentSessionSvc)
 	initHandler.RegisterRoutes(s.router)
@@ -868,7 +874,10 @@ func (s *Server) registerAgentSessionRoutes(scenarioRoot string) {
 	if err != nil {
 		panic(err)
 	}
-	svc.SetContextResolver(sessioncontext.NewResolver(scenarioRoot, filepath.Dir(scenarioRoot), sessionStore))
+	// Session context resolves backlog and initiative records from the same
+	// storage data root as their HTTP handlers. scenarioRoot is source/config
+	// state and does not contain live backlog specs in a managed runtime.
+	svc.SetContextResolver(sessioncontext.NewResolver(s.dataRoot, filepath.Dir(scenarioRoot), sessionStore))
 	s.agentSessionSvc = svc
 	s.agentSessionStore = sessionStore
 	agentsessions.NewHandler(svc).RegisterRoutes(s.router)

@@ -33,6 +33,10 @@ type CurrentState struct {
 	// InProgressRefs is the subset of Nodes whose items are currently
 	// StatusInProgress — gates OpInterruptInProgress to realistic targets.
 	InProgressRefs map[string]struct{}
+
+	// Standalone marks a state built for an unattached backlog item. Only the
+	// explicitly safe item-local operations may be proposed in this scope.
+	Standalone bool
 }
 
 // HasNode reports whether a ref is a member of the initiative's current graph.
@@ -107,12 +111,24 @@ func Validate(p Proposal, state CurrentState) error {
 		if err := validateMutation(m, i, state, newItems); err != nil {
 			problems = append(problems, fmt.Errorf("%s: %w", prefix, err))
 		}
+		if state.Standalone && !isStandaloneAllowedOp(m.Op) {
+			problems = append(problems, fmt.Errorf("%s: %w: %q", prefix, ErrStandaloneOperation, m.Op))
+		}
 	}
 
 	if len(problems) == 0 {
 		return nil
 	}
 	return errors.Join(append([]error{ErrInvalidProposal}, problems...)...)
+}
+
+func isStandaloneAllowedOp(op Op) bool {
+	switch op {
+	case OpUpdateItem, OpChangeStatus, OpChangePriority, OpArchiveItem, OpRecreateItem, OpResetArtifacts:
+		return true
+	default:
+		return false
+	}
 }
 
 func isKnownOp(op Op) bool {
@@ -151,8 +167,47 @@ func validateMutation(m Mutation, idx int, state CurrentState, newItems map[stri
 		return validateSplitItem(m, idx, state, newItems)
 	case OpMergeItems:
 		return validateMergeItems(m, idx, state, newItems)
+	case OpRecreateItem:
+		return validateTargetExists(m, state, newItems)
+	case OpResetArtifacts:
+		if err := validateTargetExists(m, state, newItems); err != nil {
+			return err
+		}
+		return validateResetArtifactScopes(m.ResetScope)
+	case OpRecreateInitiative:
+		if strings.TrimSpace(m.Target) == "" {
+			return fmt.Errorf("op %s requires initiative target", m.Op)
+		}
+		if strings.Contains(m.Target, "/") {
+			return fmt.Errorf("op %s target must be an initiative name", m.Op)
+		}
+		if state.InitiativeName != m.Target {
+			return fmt.Errorf("op %s target %q does not match proposal initiative %q", m.Op, m.Target, state.InitiativeName)
+		}
+		return nil
 	}
 	return fmt.Errorf("%w: %s", ErrUnknownOp, m.Op)
+}
+
+func validateResetArtifactScopes(scopes []ResetArtifactScope) error {
+	if len(scopes) == 0 {
+		return fmt.Errorf("op %s requires a non-empty reset_scope", OpResetArtifacts)
+	}
+	known := make(map[ResetArtifactScope]struct{}, len(AllResetArtifactScopes()))
+	for _, scope := range AllResetArtifactScopes() {
+		known[scope] = struct{}{}
+	}
+	seen := make(map[ResetArtifactScope]struct{}, len(scopes))
+	for _, scope := range scopes {
+		if _, ok := known[scope]; !ok {
+			return fmt.Errorf("unknown reset scope %q", scope)
+		}
+		if _, duplicate := seen[scope]; duplicate {
+			return fmt.Errorf("duplicate reset scope %q", scope)
+		}
+		seen[scope] = struct{}{}
+	}
+	return nil
 }
 
 func validateAddItem(m Mutation, idx int, state CurrentState, newItems map[string]int) error {

@@ -295,3 +295,31 @@ func (a *App) cmdInitiativesDelete(args []string) error {
 	fmt.Printf("  Initiative %q deleted.\n", name)
 	return nil
 }
+
+func (a *App) cmdInitiativesRecreate(args []string) error {
+	fs := flag.NewFlagSet("initiatives recreate", flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Initiative name")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: initiatives recreate --name NAME [--json]\n\n%s", err)
+	}
+	name := strings.TrimSpace(*nameFlag)
+	body, err := a.core.Request("POST", "/initiatives/"+name+"/recreate", nil, nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	response, err := decodeResponse[InitiativeResponse](body)
+	if err != nil {
+		return err
+	}
+	printSection("Result")
+	fmt.Printf("  Recreated %s as %s\n", name, response.Initiative.Name)
+	fmt.Printf("  Lineage: %s\n", response.Initiative.SpawnedFrom)
+	return nil
+}

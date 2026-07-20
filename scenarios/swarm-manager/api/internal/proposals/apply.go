@@ -76,32 +76,48 @@ type ItemCreator interface {
 	Create(item backlog.BacklogItem, cc backlog.CreationContext) error
 }
 
+// ItemLifecycle owns destructive item transitions so proposal approval and
+// direct operator actions share guards and compensating rollback.
+type ItemLifecycle interface {
+	RecreateItem(ctx context.Context, kind backlog.BacklogKind, name string) (backlog.BacklogItem, error)
+	ResetArtifacts(ctx context.Context, kind backlog.BacklogKind, name string, scopes []backlog.ResetArtifactScope) (backlog.ResetArtifactsResult, error)
+}
+
+// InitiativeLifecycle owns lineage-preserving initiative recreation.
+type InitiativeLifecycle interface {
+	RecreateInitiative(ctx context.Context, name string) error
+}
+
 // Applier executes accepted mutations against the underlying services.
 //
 // Correct use: normalize → validate → filter to accepted IDs → Apply. The
 // Applier re-validates defensively, so a malformed mutation surfaces as an
 // Outcome error rather than a partial mutation.
 type Applier struct {
-	store        BacklogStore
-	assigner     InitiativeAssigner
-	creator      ItemCreator
-	cancel       ExecutionCanceller
-	invalidator  GraphInvalidator
-	events       EventEmitter
-	clock        func() time.Time
-	defaultOwner string
+	store               BacklogStore
+	assigner            InitiativeAssigner
+	creator             ItemCreator
+	itemLifecycle       ItemLifecycle
+	initiativeLifecycle InitiativeLifecycle
+	cancel              ExecutionCanceller
+	invalidator         GraphInvalidator
+	events              EventEmitter
+	clock               func() time.Time
+	defaultOwner        string
 }
 
 // Config bundles Applier dependencies.
 type Config struct {
-	Store        BacklogStore
-	Assigner     InitiativeAssigner
-	Creator      ItemCreator
-	Canceller    ExecutionCanceller
-	Invalidator  GraphInvalidator
-	Events       EventEmitter
-	Clock        func() time.Time // optional; defaults to time.Now
-	DefaultOwner string           // falls back to "proposal" if empty
+	Store               BacklogStore
+	Assigner            InitiativeAssigner
+	Creator             ItemCreator
+	ItemLifecycle       ItemLifecycle
+	InitiativeLifecycle InitiativeLifecycle
+	Canceller           ExecutionCanceller
+	Invalidator         GraphInvalidator
+	Events              EventEmitter
+	Clock               func() time.Time // optional; defaults to time.Now
+	DefaultOwner        string           // falls back to "proposal" if empty
 }
 
 // NewApplier constructs an Applier. Store, Assigner, and Creator are
@@ -125,14 +141,16 @@ func NewApplier(cfg Config) (*Applier, error) {
 		owner = DefaultApplierOwner
 	}
 	return &Applier{
-		store:        cfg.Store,
-		assigner:     cfg.Assigner,
-		creator:      cfg.Creator,
-		cancel:       cfg.Canceller,
-		invalidator:  cfg.Invalidator,
-		events:       cfg.Events,
-		clock:        clk,
-		defaultOwner: owner,
+		store:               cfg.Store,
+		assigner:            cfg.Assigner,
+		creator:             cfg.Creator,
+		itemLifecycle:       cfg.ItemLifecycle,
+		initiativeLifecycle: cfg.InitiativeLifecycle,
+		cancel:              cfg.Canceller,
+		invalidator:         cfg.Invalidator,
+		events:              cfg.Events,
+		clock:               clk,
+		defaultOwner:        owner,
 	}, nil
 }
 
@@ -295,6 +313,8 @@ func applyTarget(m Mutation) string {
 			return m.Item.Ref()
 		}
 		return ""
+	case OpRecreateInitiative:
+		return m.Target
 	}
 	return m.Target
 }
@@ -360,6 +380,12 @@ func (a *Applier) applyOne(ctx context.Context, m Mutation, current CurrentState
 			return fmt.Errorf("merge_items: missing merged item spec")
 		}
 		return a.applyMergeItems(ctx, m.Sources, *m.Item, current, source)
+	case OpRecreateItem:
+		return a.applyRecreateItem(ctx, m.Target)
+	case OpResetArtifacts:
+		return a.applyResetArtifacts(ctx, m.Target, m.ResetScope)
+	case OpRecreateInitiative:
+		return a.applyRecreateInitiative(ctx, m.Target)
 	default:
 		// Defence against a new op added to types.go without a
 		// handler here: every recognized op in AllOps must map to a

@@ -292,6 +292,33 @@ All list endpoints support `?archived=` query parameter:
 - `true` — only archived items
 - `all` — include everything
 
+Backlog list also accepts `?stale=true` (or `false`). Every backlog list and
+detail response includes a computed `stale` boolean. It is not stored in the
+item spec: it reflects a 14-day update-age threshold and invalid/missing
+acceptance-glob paths at read time.
+
+## Backlog Lifecycle Controls
+
+`POST /api/v1/backlog/{kind}/{name}/recreate`
+
+Creates a fresh `backlog` clone, records `spawned_from` as the source ref,
+retargets inbound dependencies and initiative membership, then archives the
+source. The operation refuses to run while an agent is active on the item and
+uses compensating rollback if a later write fails.
+
+`POST /api/v1/backlog/{kind}/{name}/reset-artifacts`
+
+Removes only the requested derived artifact groups. The body requires a
+non-empty `scope` list containing one or more of `workshop`,
+`clarifications`, `review`, `handoff_executions`, or `plan_unbind`.
+
+```json
+{ "scope": ["workshop", "plan_unbind"] }
+```
+
+The item specification is retained. Resetting workshop data moves a `ready`
+item back to `backlog`; `plan_unbind` clears only `plan_ref`.
+
 ## Initiatives Create
 
 `POST /api/v1/initiatives`
@@ -335,6 +362,14 @@ Archive sets `archived_at` on an initiative. Initiatives retain their status whe
 
 `DELETE /api/v1/initiatives/{name}/archive-item`
 
+## Initiative Lifecycle Control
+
+`POST /api/v1/initiatives/{name}/recreate`
+
+Creates an active successor with `spawned_from` set to the archived source,
+moves every member item to that successor, and archives the source initiative.
+The operation is rejected while an agent is active on any member item.
+
 ## Session Mutation Proposals
 
 Proposal sessions accept an agent-emitted envelope and apply only the selected
@@ -373,6 +408,15 @@ synthesis (server diffs and emits the equivalent mutation_list).
 | `interrupt_in_progress` | `target` | Cancels the active execution; must be a separate mutation, not implicit. |
 | `split_item` | `target`, `into: [ItemSpec]` (≥2) | Atomic: creates children, archives source. **Dependents are not auto-retargeted** — emit explicit `add_edge`/`remove_edge` mutations alongside the split if you need to repoint dependents. |
 | `merge_items` | `sources: [ref]` (≥2), `item: ItemSpec` | Atomic: creates the merged item, retargets external edges (to/from sources) onto the merged item, drops intra-source edges, archives sources. Validation rejects if any source is `in_progress` — emit `interrupt_in_progress` as a prior mutation if interruption is intended. The merged item enters as `backlog`. |
+| `recreate_item` | `target` | Archives the source and creates a fresh lineage-preserving backlog clone; inbound dependencies and initiative membership move to the clone. |
+| `reset_artifacts` | `target`, non-empty `reset_scope` | Removes only the selected derived artifact groups: `workshop`, `clarifications`, `review`, `handoff_executions`, or `plan_unbind`. |
+| `recreate_initiative` | initiative-name `target` | Archives the source initiative and creates a fresh active successor; member items move to it and the successor records lineage. |
+
+The **Triage the attached items for staleness** session starter is proposal-only:
+attach a small number of items or initiatives, then have the agent return one
+verdict per entity. A keep verdict explains its reasoning without a mutation;
+a refresh or supersede verdict uses the typed operations above. Nothing changes
+until an operator decides the resulting proposal.
 
 ### `merge_items` wire shape
 

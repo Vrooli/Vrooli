@@ -56,6 +56,7 @@ export interface UseDecisionStreamLogicArgs {
   onSnoozeItem: (key: string) => void;
   navigatorOpenRef?: React.RefObject<boolean>;
   toggleNavigator?: () => void;
+  onQueueComplete?: () => void;
 }
 
 export function useDecisionStreamLogic({
@@ -65,6 +66,7 @@ export function useDecisionStreamLogic({
   onSnoozeItem,
   navigatorOpenRef,
   toggleNavigator,
+  onQueueComplete,
 }: UseDecisionStreamLogicArgs) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [localAnswers, setLocalAnswers] = useState<Map<string, QuestionAnswer>>(() => new Map());
@@ -293,14 +295,19 @@ export function useDecisionStreamLogic({
       }
     }
 
-    setCompletionResults({
+    const results = {
       answeredCount: Math.max(answeredCount, validLocalAnswerCount),
       skippedCount: skippedIds.size,
       snoozedCount: snoozedItemKeys.size,
       unlockedItems,
-    });
+    };
+    if (onQueueComplete) {
+      onQueueComplete();
+      return;
+    }
+    setCompletionResults(results);
     setPhase("complete");
-  }, [answeredQuestionKeys, localAnswers, questions, skippedIds, snoozedItemKeys, deletedIds]);
+  }, [answeredQuestionKeys, localAnswers, questions, skippedIds, snoozedItemKeys, deletedIds, onQueueComplete]);
 
   // ---------------------------------------------------------------------------
   // Navigation

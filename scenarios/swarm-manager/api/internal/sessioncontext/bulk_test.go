@@ -25,7 +25,7 @@ func TestResolveBulkVerdicts(t *testing.T) {
 	writeJSONFile(t, filepath.Join(root, "initiatives", "ship-cockpit", "initiative.json"),
 		`{"name":"ship-cockpit","title":"Ship the cockpit","status":"active"}`)
 	// Real backlog item.
-	writeJSONFile(t, filepath.Join(root, "backlog", "execute", "wire-snapshot", "spec.json"),
+	writeJSONFile(t, filepath.Join(root, "execute", "wire-snapshot", "spec.json"),
 		`{"name":"wire-snapshot","title":"Wire the snapshot","status":"queued"}`)
 
 	r := NewResolver(root, filepath.Dir(root), nil)

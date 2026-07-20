@@ -33,6 +33,7 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 		gates.WorkshopSource{Store: store},
 		reviewSource,
 		gates.ClassifySource{Captures: planCaptureAdapter{inner: graph.NewCaptureAdapter(scenarioRoot)}},
+		gates.ProposalSource{Store: s.agentSessionStore},
 	)
 
 	cfg := planview.Config{

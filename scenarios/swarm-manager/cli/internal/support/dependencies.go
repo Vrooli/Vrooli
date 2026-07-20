@@ -18,6 +18,8 @@ type Dependencies struct {
 	BacklogDismiss          CommandFunc
 	BacklogWorkshopReset    CommandFunc
 	BacklogReWorkshop       CommandFunc
+	BacklogRecreate         CommandFunc
+	BacklogResetArtifacts   CommandFunc
 	BacklogFiles            CommandFunc
 	BacklogFileGet          CommandFunc
 	BacklogFileUpload       CommandFunc
@@ -82,6 +84,7 @@ type Dependencies struct {
 	InitiativesCreate       CommandFunc
 	InitiativesUpdate       CommandFunc
 	InitiativesDelete       CommandFunc
+	InitiativesRecreate     CommandFunc
 	InitiativesAddItems     CommandFunc
 	InitiativesRemove       CommandFunc
 	InitiativesFiles        CommandFunc

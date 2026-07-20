@@ -13,11 +13,12 @@ export type PlanCardAction =
   | "workshop"
   | "finalize"
   | "decide"
+  | "proposal"
   | "review"
   | "classify"
   | "none";
 
-export type PlanGateKind = "decide" | "review" | "classify" | "workshop";
+export type PlanGateKind = "decide" | "proposal" | "review" | "classify" | "workshop";
 
 export type PlanBlockerKind = "none" | "gate" | "items" | "cycle";
 
@@ -29,7 +30,7 @@ export const CYCLE_WAVE = -1;
 export interface PlanGateData {
   id: string;
   kind: PlanGateKind;
-  ownerType: "backlog" | "execution" | "capture";
+  ownerType: "backlog" | "execution" | "capture" | "initiative";
   ownerKind: string;
   ownerName: string;
   ownerTitle: string;

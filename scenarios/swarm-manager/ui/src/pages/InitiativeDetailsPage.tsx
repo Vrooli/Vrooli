@@ -47,6 +47,7 @@ import { selectors } from "../consts/selectors";
 import { RollupProgressBar, rollupTotal as computeRollupTotal } from "../components/ui/rollup-progress-bar";
 import type { BacklogFile, BacklogKind, BacklogStatus, InitiativeStatus, InitiativeWithRollup } from "../types";
 import { useBacklogStore } from "../stores";
+import { useOperationsStore } from "../stores/operations-store";
 import { useInitiativeStore } from "../stores/initiative-store";
 import type { FileActionType } from "../components/backlog/backlog-file-browser";
 import { getStatusColorClasses } from "../surfaces/graph/lib/status-colors";
@@ -230,6 +231,7 @@ export function InitiativeDetailsPage() {
 
   const backlogItems = useBacklogStore((s) => s.items);
   const [searchParams, setSearchParams] = useSearchParams();
+	const [recreateOpen, setRecreateOpen] = useState(false);
 
   const {
     data,
@@ -250,6 +252,15 @@ export function InitiativeDetailsPage() {
 
   const initiative = data?.initiative;
   const rollup = data?.rollup;
+	const initiativeHasActiveAgent = useOperationsStore((state) => {
+		if (!initiative) return false;
+		const members = new Set(initiative.items ?? []);
+		return (state.view?.activities ?? []).some((activity) =>
+			activity.ownerType === "backlog"
+			&& members.has(`${activity.ownerKind ?? ""}/${activity.ownerName}`)
+			&& ["pending", "starting", "running", "needs_review"].includes(activity.status),
+		);
+	});
   const attachToSession = useAttachToSessionAction(data ? initiativeOption(data) : null);
 
   // Pull all initiatives for upstream/downstream chip rendering.
@@ -303,6 +314,18 @@ export function InitiativeDetailsPage() {
       void queryClient.invalidateQueries({ queryKey: ["initiatives"] });
     },
   });
+
+	const recreateMutation = useMutation({
+		mutationFn: async () => {
+			if (!name) throw new Error("Initiative name is required");
+			return defaultApiClient.post<unknown>(API_ENDPOINTS.initiativeRecreate(name), {});
+		},
+		onSuccess: () => {
+			setRecreateOpen(false);
+			void queryClient.invalidateQueries({ queryKey: ["initiative", name] });
+			void queryClient.invalidateQueries({ queryKey: ["initiatives"] });
+		},
+	});
 
   const closeDetail = useAppBack();
   const { requestDelete, dialogProps: deleteDialogProps } = useDeleteConfirm("initiative");
@@ -435,6 +458,12 @@ export function InitiativeDetailsPage() {
 
   const menuActions: ActionMenuItem[] = initiative ? [
     attachToSession.actionItem,
+		{
+			label: "Recreate",
+			icon: <Archive />,
+			disabled: recreateMutation.isPending || initiativeHasActiveAgent,
+			onSelect: () => setRecreateOpen(true),
+		},
     isArchived
       ? {
           label: "Unarchive",
@@ -943,6 +972,17 @@ export function InitiativeDetailsPage() {
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog {...deleteDialogProps} />
+		<ConfirmDialog
+			isOpen={recreateOpen}
+			onClose={() => setRecreateOpen(false)}
+			onConfirm={() => recreateMutation.mutate()}
+			title="Recreate initiative"
+			description={initiativeHasActiveAgent ? "An agent is active on a member item. Recreate is unavailable until it finishes." : "Archives this initiative and creates a fresh active successor. Member items move to the successor; history is kept."}
+			confirmationText={initiative?.name}
+			confirmLabel="Recreate initiative"
+			isLoading={recreateMutation.isPending}
+			errorMessage={recreateMutation.error instanceof Error ? recreateMutation.error.message : undefined}
+		/>
     </DetailPageLayout>
   );
 }

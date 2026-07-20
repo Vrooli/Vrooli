@@ -61,6 +61,15 @@ func normalizeMutationList(p Proposal) Proposal {
 			}
 			m.Sources = cleaned
 		}
+		if len(m.ResetScope) > 0 {
+			cleaned := make([]ResetArtifactScope, 0, len(m.ResetScope))
+			for _, scope := range m.ResetScope {
+				if trimmed := strings.TrimSpace(string(scope)); trimmed != "" {
+					cleaned = append(cleaned, ResetArtifactScope(strings.ToLower(trimmed)))
+				}
+			}
+			m.ResetScope = cleaned
+		}
 		if strings.TrimSpace(m.ID) == "" {
 			m.ID = fmt.Sprintf("m%d", i+1)
 		}

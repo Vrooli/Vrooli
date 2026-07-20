@@ -26,6 +26,7 @@ type Initiative struct {
 	PlanRef            *PlanRef             `json:"plan_ref,omitempty"`
 	Note               string               `json:"note,omitempty"`
 	ArchivedAt         *string              `json:"archived_at,omitempty"`
+	SpawnedFrom        string               `json:"spawned_from,omitempty"`
 }
 
 // PlanRef links an initiative to a canonical plan-manager plan.

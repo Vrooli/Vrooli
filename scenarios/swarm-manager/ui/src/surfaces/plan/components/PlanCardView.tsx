@@ -11,6 +11,7 @@ import {
   backlogDetailPath,
   captureDetailPath,
   executionDetailPath,
+  initiativeDetailPath,
 } from "../../../app/routes/route-paths";
 import { BoardCard, type BoardCardTone } from "../../../components/cards/BoardCard";
 import { cn } from "../../../lib/utils";
@@ -22,6 +23,7 @@ import { usePlanCardActions } from "./plan-card-actions-context";
 
 const GATE_TONE: Record<string, BoardCardTone> = {
   decide: "attention",
+  proposal: "attention",
   review: "attention",
   classify: "attention",
   workshop: "neutral",
@@ -79,9 +81,9 @@ export function PlanCardView({ card, showWave = false, dimmed = false, highlight
   const actions = usePlanCardActions();
 
   const handleOpen = useCallback(() => {
-    // Decide gates open the decision drawer scoped to the item; other
+    // Decision and proposal gates open the decision drawer scoped to the item; other
     // cards navigate to their owning detail surface.
-    if (card.cardType === "gate" && card.gate?.kind === "decide" && actions && card.itemKind && card.itemName) {
+    if (card.cardType === "gate" && (card.gate?.kind === "decide" || card.gate?.kind === "proposal") && actions && card.itemKind && card.itemName) {
       actions.openDecisions(`${card.itemKind}/${card.itemName}`);
       return;
     }
@@ -91,6 +93,10 @@ export function PlanCardView({ card, showWave = false, dimmed = false, highlight
     }
     if (card.id.startsWith("capture/")) {
       navigate(captureDetailPath(card.id.slice("capture/".length)));
+      return;
+    }
+    if (card.id.startsWith("initiative/")) {
+      navigate(initiativeDetailPath(card.id.slice("initiative/".length)));
       return;
     }
     if (card.itemKind && card.itemName) {

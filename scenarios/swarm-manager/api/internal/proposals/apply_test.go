@@ -143,6 +143,31 @@ func newApplyEnv(t *testing.T) *applyEnv {
 	}
 }
 
+func TestApply_DeniedMutationLeavesItemDirectoryByteIdentical(t *testing.T) {
+	env := newApplyEnv(t)
+	path := filepath.Join(env.backlog.ItemDir(backlog.KindExecute, "foo"), "spec.json")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := env.currentState()
+	proposal := Proposal{Form: FormMutationList, Mutations: []Mutation{{ID: "deny", Op: OpChangePriority, Target: "execute/foo", Priority: intPtr(1)}}}
+	result, err := env.applier.Apply(context.Background(), proposal, state, []string{}, Source{InitiativeName: "ui-rewrite"})
+	if err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if result.Applied != 0 || result.Skipped != 1 {
+		t.Fatalf("unexpected outcome: %+v", result)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatal("denied proposal changed the canonical item spec")
+	}
+}
+
 func seedItem(t *testing.T, store *backlog.FileStore, kind, name, title string) {
 	t.Helper()
 	if err := os.MkdirAll(store.ItemDir(backlog.BacklogKind(kind), name), 0o755); err != nil {

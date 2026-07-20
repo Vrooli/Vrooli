@@ -44,7 +44,7 @@ func (s *Server) registerOperationsRoutes() {
 	handler := operations.NewHandler(aggregator)
 	handler.SetBriefingBuilder(briefingBuilder)
 	handler.RegisterRoutes(s.router)
-	contextResolver := sessioncontext.NewResolver(s.scenarioRoot, filepath.Dir(s.scenarioRoot), s.agentSessionStore, briefingBuilder)
+	contextResolver := sessioncontext.NewResolver(s.dataRoot, filepath.Dir(s.scenarioRoot), s.agentSessionStore, briefingBuilder)
 	// Wire the cached, ranked initiative snapshot into the session context so
 	// the swarm_operations startup brief carries deterministic rankings. The
 	// snapshot reuses the overview service; when it is absent (test wiring),
