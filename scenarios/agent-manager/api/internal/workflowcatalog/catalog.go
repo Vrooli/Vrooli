@@ -186,6 +186,7 @@ func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiag
 	} else if !withinSafetyLimits(d.Budgets) {
 		add("budget_ceiling", "budgets", "workflow budgets exceed an Agent Manager operator safety ceiling")
 	}
+	validateTriggerPolicy(d.Trigger, add)
 
 	nodes := make(map[string]*domain.WorkflowNode, len(d.Nodes))
 	for i := range d.Nodes {
@@ -253,6 +254,34 @@ func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiag
 		}
 	}
 	return out
+}
+
+func validateTriggerPolicy(policy domain.WorkflowTriggerPolicy, add func(string, string, string)) {
+	seen := map[domain.WorkflowInitiator]bool{}
+	for index, initiator := range policy.Initiators {
+		path := fmt.Sprintf("trigger.initiators[%d]", index)
+		switch initiator {
+		case domain.WorkflowInitiatorHuman, domain.WorkflowInitiatorProgrammatic, domain.WorkflowInitiatorAgent:
+		default:
+			add("trigger_initiator", path, "must be human, programmatic, or agent")
+		}
+		if seen[initiator] {
+			add("trigger_initiator", path, "must not repeat an initiator")
+		}
+		seen[initiator] = true
+	}
+	switch policy.SelfTrigger.Mode {
+	case "", domain.WorkflowSelfTriggerDeny:
+		if policy.SelfTrigger.MaxDepth != 0 {
+			add("trigger_self", "trigger.selfTrigger.maxDepth", "maxDepth is allowed only when selfTrigger.mode is allow")
+		}
+	case domain.WorkflowSelfTriggerAllow:
+		if policy.SelfTrigger.MaxDepth < 1 {
+			add("trigger_self", "trigger.selfTrigger.maxDepth", "must be at least 1 when selfTrigger.mode is allow")
+		}
+	default:
+		add("trigger_self", "trigger.selfTrigger.mode", "must be deny or allow")
+	}
 }
 
 func validateParallelBranches(nodes map[string]*domain.WorkflowNode, adj map[string][]domain.WorkflowEdge, add func(string, string, string)) {
@@ -334,7 +363,8 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn 
 		if lookup != nil && n.Run.RoleRef != "" && !lookup.RoleExists(n.Run.RoleRef) {
 			add("role_missing", path+".run.roleRef", "portable role does not exist")
 		}
-		validatePromptSource(n.Run.PromptTemplate, n.Run.PromptRef, n.Run.Bindings, path+".run", add, warn)
+		validatePromptSource(n.Run.PromptTemplate, n.Run.PromptRef, n.Run.PromptProvenance, n.Run.Bindings, path+".run", add, warn)
+		validateScopePathTemplate(n.Run.ScopePathTemplate, n.Run.Bindings, path+".run.scopePathTemplate", add)
 		validateResultSpec(&n.Run.ResultSpec, path+".run.resultSpec", add)
 		validateAgentNodeLimits(n.Run.MaxTurns, n.Run.TimeoutSeconds, path+".run", add)
 		bindings = n.Run.Bindings
@@ -346,7 +376,7 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn 
 		if n.Continue.ConversationFromNode == "" {
 			add("continuation", path+".continue.conversationFromNode", "explicit prior run node is required")
 		}
-		validatePromptSource(n.Continue.PromptTemplate, n.Continue.PromptRef, n.Continue.Bindings, path+".continue", add, warn)
+		validatePromptSource(n.Continue.PromptTemplate, n.Continue.PromptRef, n.Continue.PromptProvenance, n.Continue.Bindings, path+".continue", add, warn)
 		validateResultSpec(&n.Continue.ResultSpec, path+".continue.resultSpec", add)
 		validateAgentNodeLimits(n.Continue.MaxTurns, n.Continue.TimeoutSeconds, path+".continue", add)
 		bindings = n.Continue.Bindings
@@ -393,6 +423,31 @@ func validateNode(n *domain.WorkflowNode, path string, lookup Lookup, add, warn 
 		add("node_kind", path+".kind", "unsupported node kind")
 	}
 	validateBindings(bindings, path, add)
+}
+
+// validateScopePathTemplate uses the same constrained template dialect as a
+// prompt, but accepts only bindings that this run node has declared. Scope
+// rendering happens before task creation, so unresolved fields must be caught
+// while reconciling the declaration.
+func validateScopePathTemplate(source string, bindings []domain.WorkflowInputBinding, path string, add func(string, string, string)) {
+	if strings.TrimSpace(source) == "" {
+		return
+	}
+	tmpl, err := workflowexpr.ParsePrompt(source)
+	if err != nil {
+		add("scope_path_template", path, err.Error())
+		return
+	}
+	declared := make(map[string]bool, len(bindings))
+	for _, b := range bindings {
+		declared[b.Name] = true
+	}
+	refs := templateFieldRefs(tmpl.Tree)
+	for ref := range refs {
+		if !declared[ref] {
+			add("scope_path_unbound", path, fmt.Sprintf("scope path references {{.%s}} but no binding declares it", ref))
+		}
+	}
 }
 
 func validateAgentNodeLimits(maxTurns, timeoutSeconds int, path string, add func(string, string, string)) {
@@ -480,7 +535,7 @@ func validateBindings(bindings []domain.WorkflowInputBinding, path string, add f
 // pure `workflow validate` lint path, which does not reach prompt-manager), it is
 // accepted structurally but its placeholders cannot be cross-checked until it
 // resolves.
-func validatePromptSource(promptTemplate string, ref *domain.WorkflowPromptRef, bindings []domain.WorkflowInputBinding, path string, add, warn func(string, string, string)) {
+func validatePromptSource(promptTemplate string, ref *domain.WorkflowPromptRef, provenance *domain.WorkflowPromptSource, bindings []domain.WorkflowInputBinding, path string, add, warn func(string, string, string)) {
 	hasTemplate := strings.TrimSpace(promptTemplate) != ""
 	hasRef := ref != nil
 	switch {
@@ -493,6 +548,9 @@ func validatePromptSource(promptTemplate string, ref *domain.WorkflowPromptRef, 
 			add("prompt_ref", path+".promptRef.skillId", "promptRef requires a skillId")
 		}
 	default:
+		if provenance == nil {
+			warn("inline_prompt", path+".promptTemplate", "inline promptTemplate is supported but promptRef is required for the mature workflow rung")
+		}
 		validatePromptTemplate(promptTemplate, bindings, path+".promptTemplate", add, warn)
 	}
 }

@@ -38,6 +38,7 @@ const (
 	CodeWorkflowInvalid         = "agent_conformance.workflow_invalid"
 	CodeWorkflowOrphan          = "agent_conformance.workflow_orphan"
 	CodeWorkflowOwnership       = "agent_conformance.workflow_ownership_mismatch"
+	CodeWorkflowInlinePrompt    = "agent_conformance.workflow_inline_prompt"
 	CodeDeclarationLegacyLayout = "agent_conformance.declaration_legacy_layout"
 	CodeDeclarationLegacyBlock  = "agent_conformance.declaration_legacy_block"
 )
@@ -298,6 +299,12 @@ func validateDeclaredWorkflow(report *Report, scenario string, roles map[string]
 		report.add(CodeWorkflowOwnership, "Agent workflow is owned by another scenario", path, "Use owner "+scenario+" and a key prefixed by "+scenario+"/.")
 	}
 	for _, node := range parsed.Definition.Nodes {
+		if node.Run != nil && strings.TrimSpace(node.Run.PromptTemplate) != "" && node.Run.PromptRef == nil && node.Run.PromptProvenance == nil {
+			report.add(CodeWorkflowInlinePrompt, "Workflow prompt must use promptRef at the mature rung", path, "Move the run prompt into a prompt-manager skill and declare promptRef.")
+		}
+		if node.Continue != nil && strings.TrimSpace(node.Continue.PromptTemplate) != "" && node.Continue.PromptRef == nil && node.Continue.PromptProvenance == nil {
+			report.add(CodeWorkflowInlinePrompt, "Workflow prompt must use promptRef at the mature rung", path, "Move the continuation prompt into a prompt-manager skill and declare promptRef.")
+		}
 		if node.Run != nil && node.Run.RoleRef != "" && !roles[node.Run.RoleRef] {
 			report.add(CodeRoleUnresolved, "Agent workflow roleRef is unresolved", path, "Choose a role declared by Agent Manager's role-policy catalog.")
 		}

@@ -64,10 +64,10 @@ func TestSingleNodeSugarCanonicalizesToExplicitDigest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(sugar.Diagnostics) != 0 {
+	if domain.HasBlockingDiagnostic(sugar.Diagnostics) {
 		t.Fatalf("sugar diagnostics: %+v", sugar.Diagnostics)
 	}
-	if len(explicit.Diagnostics) != 0 {
+	if domain.HasBlockingDiagnostic(explicit.Diagnostics) {
 		t.Fatalf("explicit diagnostics: %+v", explicit.Diagnostics)
 	}
 	if sugar.Digest == "" {
@@ -87,7 +87,7 @@ func TestSingleNodeSugarRoundTripsThroughParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse sugar: %v", err)
 	}
-	if len(parsed.Diagnostics) != 0 {
+	if domain.HasBlockingDiagnostic(parsed.Diagnostics) {
 		t.Fatalf("parse diagnostics: %+v", parsed.Diagnostics)
 	}
 	if parsed.Definition.EntryNode != "work" || len(parsed.Definition.Nodes) != 2 || len(parsed.Definition.Edges) != 1 {
@@ -112,6 +112,64 @@ func TestValidateAcceptsPromptRefAlternative(t *testing.T) {
 	}
 }
 
+func TestValidateTriggerPolicy(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy domain.WorkflowTriggerPolicy
+		want   string
+	}{
+		{name: "defaults", policy: domain.WorkflowTriggerPolicy{}},
+		{name: "allow depth", policy: domain.WorkflowTriggerPolicy{Initiators: []domain.WorkflowInitiator{domain.WorkflowInitiatorAgent}, SelfTrigger: domain.WorkflowSelfTriggerPolicy{Mode: domain.WorkflowSelfTriggerAllow, MaxDepth: 2}}},
+		{name: "unknown initiator", policy: domain.WorkflowTriggerPolicy{Initiators: []domain.WorkflowInitiator{"robot"}}, want: "trigger_initiator"},
+		{name: "deny cannot specify depth", policy: domain.WorkflowTriggerPolicy{SelfTrigger: domain.WorkflowSelfTriggerPolicy{Mode: domain.WorkflowSelfTriggerDeny, MaxDepth: 1}}, want: "trigger_self"},
+		{name: "allow requires positive depth", policy: domain.WorkflowTriggerPolicy{SelfTrigger: domain.WorkflowSelfTriggerPolicy{Mode: domain.WorkflowSelfTriggerAllow}}, want: "trigger_self"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := validDefinition()
+			d.Trigger = tt.policy
+			result, err := Validate(d, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.want == "" && domain.HasBlockingDiagnostic(result.Diagnostics) {
+				t.Fatalf("valid trigger rejected: %+v", result.Diagnostics)
+			}
+			if tt.want != "" && !hasCode(result.Diagnostics, tt.want) {
+				t.Fatalf("missing %s diagnostic: %+v", tt.want, result.Diagnostics)
+			}
+		})
+	}
+}
+
+func TestValidateScopePathTemplate(t *testing.T) {
+	tests := []struct {
+		name  string
+		scope string
+		want  string
+	}{
+		{name: "declared binding", scope: "scenarios/{{.input.scenario}}"},
+		{name: "unknown binding", scope: "scenarios/{{.missing}}", want: "scope_path_unbound"},
+		{name: "malformed template", scope: "scenarios/{{.input", want: "scope_path_template"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := validDefinition()
+			d.Nodes[0].Run.ScopePathTemplate = tt.scope
+			result, err := Validate(d, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.want == "" && domain.HasBlockingDiagnostic(result.Diagnostics) {
+				t.Fatalf("valid scope template rejected: %+v", result.Diagnostics)
+			}
+			if tt.want != "" && !hasCode(result.Diagnostics, tt.want) {
+				t.Fatalf("missing %s diagnostic: %+v", tt.want, result.Diagnostics)
+			}
+		})
+	}
+}
+
 func TestValidateRejectsBothPromptTemplateAndRef(t *testing.T) {
 	d := validDefinition()
 	d.Nodes[0].Run.PromptRef = &domain.WorkflowPromptRef{SkillID: "example-skill"}
@@ -121,6 +179,30 @@ func TestValidateRejectsBothPromptTemplateAndRef(t *testing.T) {
 	}
 	if !hasCode(result.Diagnostics, "prompt") {
 		t.Fatalf("expected mutual-exclusion diagnostic: %+v", result.Diagnostics)
+	}
+}
+
+func TestValidateWarnsForInlinePromptWithoutBlockingReconcile(t *testing.T) {
+	result, err := Validate(validDefinition(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if domain.HasBlockingDiagnostic(result.Diagnostics) || result.Digest == "" {
+		t.Fatalf("inline prompt must remain reconcilable: %+v", result.Diagnostics)
+	}
+	if !hasCode(result.Diagnostics, "inline_prompt") {
+		t.Fatalf("expected inline prompt maturity warning: %+v", result.Diagnostics)
+	}
+
+	d := validDefinition()
+	d.Nodes[0].Run.PromptTemplate = "resolved prompt"
+	d.Nodes[0].Run.PromptProvenance = &domain.WorkflowPromptSource{SkillID: "workflow-skill", ContentHash: "sha256:pin"}
+	result, err = Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasCode(result.Diagnostics, "inline_prompt") {
+		t.Fatalf("resolved promptRef was treated as inline: %+v", result.Diagnostics)
 	}
 }
 
@@ -161,7 +243,7 @@ func TestValidateCanonicalDigestIsStable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(first.Diagnostics) != 0 {
+	if domain.HasBlockingDiagnostic(first.Diagnostics) {
 		t.Fatalf("diagnostics: %+v", first.Diagnostics)
 	}
 	if first.Digest == "" || first.Digest != second.Digest || string(first.Canonical) != string(second.Canonical) {
@@ -238,7 +320,7 @@ func TestValidateMixedProfilesAndForwardContinuation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Diagnostics) != 0 {
+	if domain.HasBlockingDiagnostic(result.Diagnostics) {
 		t.Fatalf("mixed-profile workflow with explicit forward continuation rejected: %+v", result.Diagnostics)
 	}
 }

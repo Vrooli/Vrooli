@@ -71,6 +71,26 @@ func TestEngineContinueUsesNamedPriorRun(t *testing.T) { // [REQ:REQ-P2-001]
 	}
 }
 
+func TestEngineRendersRunScopePathFromDeclaredBinding(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{
+		RoleRef: "code.default", PromptTemplate: "work", ScopePathTemplate: "scenarios/{{.scope_scenario}}",
+		Bindings: []domain.WorkflowInputBinding{{Name: "scope_scenario", Source: domain.WorkflowBindingInput, Selector: "$.targetScenario", Limit: 1, MaxBytes: 255, RenderAs: "text", MissingPolicy: "error"}},
+	}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+	definition.EntryNode = "run"
+	definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
+	engine, _, children := testEngine(t, definition)
+	execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{"targetScenario":"demo"}`), "scoped-run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 1 || children.requests[0].scopePath != "scenarios/demo" {
+		t.Fatalf("scope path = %+v, want scenarios/demo", children.requests)
+	}
+}
+
 func TestRecoveryReusesPersistedDispatchIntentExactlyOnce(t *testing.T) { // [REQ:REQ-P2-001]
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work"}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
@@ -1277,12 +1297,13 @@ func (f fakeCatalog) GetByDigest(context.Context, string) (*domain.WorkflowRevis
 
 type (
 	childCall struct {
-		runID    uuid.UUID
-		source   *uuid.UUID
-		prompt   string
-		profile  string
-		maxTurns int
-		timeout  time.Duration
+		runID     uuid.UUID
+		source    *uuid.UUID
+		prompt    string
+		profile   string
+		scopePath string
+		maxTurns  int
+		timeout   time.Duration
 	}
 	fakeChildren struct {
 		requests []childCall
@@ -1326,7 +1347,7 @@ func (f *fakeChildren) launch(req ChildRequest) (ChildState, error) {
 	if !ok {
 		id = uuid.New()
 		f.byKey[req.IdempotencyKey] = id
-		f.requests = append(f.requests, childCall{runID: id, source: req.SourceRunID, prompt: req.Prompt, profile: req.ProfileKey, maxTurns: req.MaxTurns, timeout: req.Timeout})
+		f.requests = append(f.requests, childCall{runID: id, source: req.SourceRunID, prompt: req.Prompt, profile: req.ProfileKey, scopePath: req.ScopePath, maxTurns: req.MaxTurns, timeout: req.Timeout})
 	}
 	state := f.states[id]
 	state.RunID = id

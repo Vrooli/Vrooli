@@ -44,18 +44,73 @@ const (
 // WorkflowDefinition is scenario-authored desired state. It contains no
 // runtime ids, activation fields, implicit profile, or mutable variable map.
 type WorkflowDefinition struct {
-	SchemaVersion string            `json:"schemaVersion"`
-	Owner         string            `json:"owner"`
-	Key           string            `json:"key"`
-	Version       string            `json:"version"`
-	Description   string            `json:"description,omitempty"`
-	InputSchema   json.RawMessage   `json:"inputSchema"`
-	OutputSchema  json.RawMessage   `json:"outputSchema"`
-	EntryNode     string            `json:"entryNode"`
-	Nodes         []WorkflowNode    `json:"nodes"`
-	Edges         []WorkflowEdge    `json:"edges"`
-	Budgets       WorkflowBudgets   `json:"budgets"`
-	Metadata      map[string]string `json:"metadata,omitempty"`
+	SchemaVersion string          `json:"schemaVersion"`
+	Owner         string          `json:"owner"`
+	Key           string          `json:"key"`
+	Version       string          `json:"version"`
+	Description   string          `json:"description,omitempty"`
+	InputSchema   json.RawMessage `json:"inputSchema"`
+	OutputSchema  json.RawMessage `json:"outputSchema"`
+	EntryNode     string          `json:"entryNode"`
+	Nodes         []WorkflowNode  `json:"nodes"`
+	Edges         []WorkflowEdge  `json:"edges"`
+	Budgets       WorkflowBudgets `json:"budgets"`
+	// Trigger controls who may start this workflow and whether a workflow may
+	// start another execution of itself. Its zero value is safe: all initiator
+	// classes are allowed, while self-triggering is denied.
+	Trigger  WorkflowTriggerPolicy `json:"trigger,omitempty"`
+	Metadata map[string]string     `json:"metadata,omitempty"`
+}
+
+// WorkflowInitiator is the server-classified source of a workflow start.
+// A missing identity token is programmatic by design; the policy is an
+// accountability control, not a sandbox boundary.
+type WorkflowInitiator string
+
+const (
+	WorkflowInitiatorHuman        WorkflowInitiator = "human"
+	WorkflowInitiatorProgrammatic WorkflowInitiator = "programmatic"
+	WorkflowInitiatorAgent        WorkflowInitiator = "agent"
+)
+
+// WorkflowSelfTriggerMode controls recursive starts of the same workflow.
+type WorkflowSelfTriggerMode string
+
+const (
+	WorkflowSelfTriggerDeny  WorkflowSelfTriggerMode = "deny"
+	WorkflowSelfTriggerAllow WorkflowSelfTriggerMode = "allow"
+)
+
+// WorkflowTriggerPolicy is authored in an agent-workflow/v1 declaration.
+// An empty Initiators list means all initiators. An empty SelfTrigger mode
+// means deny. maxDepth is required only when mode is allow.
+type WorkflowTriggerPolicy struct {
+	Initiators  []WorkflowInitiator       `json:"initiators,omitempty"`
+	SelfTrigger WorkflowSelfTriggerPolicy `json:"selfTrigger,omitempty"`
+}
+
+type WorkflowSelfTriggerPolicy struct {
+	Mode     WorkflowSelfTriggerMode `json:"mode,omitempty"`
+	MaxDepth int                     `json:"maxDepth,omitempty"`
+}
+
+func (p WorkflowTriggerPolicy) Allows(initiator WorkflowInitiator) bool {
+	if len(p.Initiators) == 0 {
+		return true
+	}
+	for _, allowed := range p.Initiators {
+		if allowed == initiator {
+			return true
+		}
+	}
+	return false
+}
+
+func (p WorkflowTriggerPolicy) SelfTriggerMode() WorkflowSelfTriggerMode {
+	if p.SelfTrigger.Mode == "" {
+		return WorkflowSelfTriggerDeny
+	}
+	return p.SelfTrigger.Mode
 }
 
 type WorkflowNode struct {
@@ -71,17 +126,21 @@ type WorkflowNode struct {
 }
 
 type WorkflowRunNode struct {
-	ProfileKey       string                 `json:"profileKey,omitempty"`
-	RoleRef          string                 `json:"roleRef,omitempty"`
-	Tag              string                 `json:"tag,omitempty"`
-	Force            bool                   `json:"force,omitempty"`
-	PromptTemplate   string                 `json:"promptTemplate,omitempty"`
-	PromptRef        *WorkflowPromptRef     `json:"promptRef,omitempty"`
-	PromptProvenance *WorkflowPromptSource  `json:"promptProvenance,omitempty"`
-	ResultSpec       *ResultSpec            `json:"resultSpec,omitempty"`
-	Bindings         []WorkflowInputBinding `json:"bindings,omitempty"`
-	MaxTurns         int                    `json:"maxTurns,omitempty"`
-	TimeoutSeconds   int                    `json:"timeoutSeconds,omitempty"`
+	ProfileKey string `json:"profileKey,omitempty"`
+	RoleRef    string `json:"roleRef,omitempty"`
+	// ScopePathTemplate renders from this node's declared bindings and limits
+	// the task workspace for a fresh run. An empty value retains the workflow
+	// default scope (the project root).
+	ScopePathTemplate string                 `json:"scopePathTemplate,omitempty"`
+	Tag               string                 `json:"tag,omitempty"`
+	Force             bool                   `json:"force,omitempty"`
+	PromptTemplate    string                 `json:"promptTemplate,omitempty"`
+	PromptRef         *WorkflowPromptRef     `json:"promptRef,omitempty"`
+	PromptProvenance  *WorkflowPromptSource  `json:"promptProvenance,omitempty"`
+	ResultSpec        *ResultSpec            `json:"resultSpec,omitempty"`
+	Bindings          []WorkflowInputBinding `json:"bindings,omitempty"`
+	MaxTurns          int                    `json:"maxTurns,omitempty"`
+	TimeoutSeconds    int                    `json:"timeoutSeconds,omitempty"`
 }
 
 type WorkflowContinueNode struct {

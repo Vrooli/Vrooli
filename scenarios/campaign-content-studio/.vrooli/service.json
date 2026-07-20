@@ -230,12 +230,6 @@
         "required": true,
         "purpose": "File storage for documents and generated assets"
       },
-      "comfyui": {
-        "type": "comfyui",
-        "enabled": true,
-        "required": false,
-        "purpose": "Image generation for blog posts and social media content"
-      },
       "unstructured-io": {
         "type": "unstructured-io",
         "enabled": true,

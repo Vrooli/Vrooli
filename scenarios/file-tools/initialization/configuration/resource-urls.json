@@ -25,18 +25,6 @@
     {% endif %
     }
     
-    {% if "comfyui" in resources.required %
-    }
-    "comfyui": {
-      "base_url": "http://localhost:8188",
-      "health_endpoint": "/",
-      "api_endpoint": "/api",
-      "upload_endpoint": "/upload",
-      "timeout_seconds": 120
-    },
-    {% endif %
-    }
-    
     {% if "unstructured-io" in resources.required %
     }
     "unstructured_io": {

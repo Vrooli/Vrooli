@@ -474,6 +474,10 @@ type StartWorkflowExecutionRequest struct {
 	DefinitionDigest string          `json:"definitionDigest,omitempty"`
 	Input            json.RawMessage `json:"input"`
 	IdempotencyKey   string          `json:"idempotencyKey"`
+	// Initiator and IdentityToken are server-boundary facts supplied by the
+	// handler. StartWorkflowExecution remains the only policy authority.
+	Initiator     domain.WorkflowInitiator `json:"-"`
+	IdentityToken string                   `json:"-"`
 }
 
 type ListWorkflowExecutionsRequest struct {

@@ -280,10 +280,6 @@
   ],
   "dependencies": {
     "resources": {
-      "comfyui": {
-        "required": false,
-        "notes": "Optional plug-in backend for AI ops, accepted only when already installed. Never required: every AI op ships at least one standalone (non-ComfyUI) backend per the headless tenet (docs/internal/DECISIONS.md). AI model download/runtime is managed internally by the model registry, not as a Vrooli resource."
-      },
       "openrouter": {
         "type": "openrouter",
         "required": false,

@@ -199,6 +199,59 @@ source and, because workflow activation is an atomic batch, withholds the whole
 batch: reconcile never registers a partially-resolved revision. `promptProvenance`
 is engine-populated — authors do not write it.
 
+## Workflow trigger policy
+
+Each workflow may define a `trigger` block. Agent Manager enforces this policy
+only when it starts an execution. Intermediary scenarios forward caller identity
+but do not implement a second policy check.
+
+```json
+"trigger": {
+  "initiators": ["human", "programmatic", "agent"],
+  "selfTrigger": { "mode": "allow", "maxDepth": 2 }
+}
+```
+
+`initiators` is optional. Its default allows `human`, `programmatic`, and
+`agent`. `selfTrigger` defaults to `{ "mode": "deny" }`. Set `mode` to
+`allow` only with a positive `maxDepth`; the depth counts existing executions
+of the same workflow in the verified caller chain. `maxDepth` is not valid for
+`deny`.
+
+Agent Manager classifies a valid identity token as `agent`. A request without a
+token is `programmatic`. A trusted UI or CLI session may mark a request
+`human`. Missing or unverifiable identity fails open as programmatic and emits
+an audit entry. The policy provides accountability. It does not prevent an
+agent from clearing its environment; hard isolation needs sandbox network
+controls.
+
+## Workflow run scope
+
+A `run` node can set `scopePathTemplate`. It renders from that node's declared
+bindings before Agent Manager creates the task workspace. Use it when workflow
+input identifies the scenario that an agent may change.
+
+```json
+{
+  "scopePathTemplate": "scenarios/{{.scope_scenario}}",
+  "bindings": [
+    { "name": "scope_scenario", "source": "workflow_input", "selector": "$.targetScenario", "renderAs": "text" }
+  ]
+}
+```
+
+The template can use only declared binding names. An undeclared or malformed
+reference fails declaration reconciliation. The rendered path still receives
+normal task scope validation, including rejection of path traversal.
+
+## Prompt maturity gradient
+
+An inline `promptTemplate` remains valid and produces an `inline_prompt`
+reconcile warning. It is the on-ramp. A mature workflow uses `promptRef` for
+every workflow prompt so prompt-manager can expose the prompt to operator
+editing, discovery, and meta-optimization scrutiny. The warning does not block
+reconcile.
+
 ## Journal helpers for edge conditions (`latest`, `count`)
 
 Branch routing lives on edge `condition` strings (CEL). Two helpers over the

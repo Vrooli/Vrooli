@@ -20,7 +20,6 @@
   "features": {
     "ai_processing": {{ "true" if "ollama" in resources.required else "false" }},
     "speech_recognition": {{ "true" if "whisper" in resources.required else "false" }},
-    "image_generation": {{ "true" if "comfyui" in resources.required else "false" }},
     "document_processing": {{ "true" if "unstructured-io" in resources.required else "false" }},
     "workflow_automation": {{ "true" if "n8n" in resources.required else "false" }},
     "screen_automation": {{ "true" if "agent-s2" in resources.required else "false" }},

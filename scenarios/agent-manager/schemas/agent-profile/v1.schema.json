@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-profile/v1",
+  "title": "Agent profile declaration",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "const": "agent-profile/v1" },
+    "allowedTools": {
+      "type": "array",
+      "items": { "enum": ["read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"] }
+    },
+    "deniedTools": {
+      "type": "array",
+      "items": { "enum": ["read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"] }
+    },
+    "toolRestrictionPolicy": { "enum": ["enforced", "advisory"] }
+  }
+}

@@ -376,7 +376,7 @@ func (s *service) StartValidationTicket(ctx context.Context, request ValidationT
 	if phaseID == "" && strings.TrimSpace(validationPlan.BaselineSet.Name) != "" {
 		boundary = fullBaselineSetBoundary(boundary, validationPlan.BaselineSet.ScenarioTargets)
 	}
-	if strings.TrimSpace(validationPlan.BaselineSet.Name) != "" {
+	if strings.TrimSpace(validationPlan.BaselineSet.Name) != "" && phaseID != "" {
 		if outside := scenariosOutsideBaselineInventory(boundary, refs, validationPlan.BaselineSet.ScenarioTargets); len(outside) > 0 {
 			return ValidationOperation{}, false, fmt.Errorf("validation scope requests scenario(s) outside captured baseline inventory: %s", strings.Join(outside, ", "))
 		}
@@ -630,7 +630,11 @@ func (s *service) SyncValidation(ctx context.Context, operationID string) (Valid
 				continue
 			}
 			child.Status, child.TerminalAt, child.ExternalID, child.Detail = ChildTerminal, s.now(), run.RunID, run.Detail
-			if testRunPassed(run.Status) {
+			// A Test Genie run attached to a baseline validation is evidence, not a
+			// green-suite gate. Its paired collection diff classifies whether a
+			// failure is new, pre-existing, or clean. Rejecting a terminal failed
+			// run here would make a valid before/after comparison impossible.
+			if testRunEvidenceAvailable(run.Status) {
 				child.Verdict = VerdictPass
 			} else {
 				child.Verdict = VerdictFail
@@ -722,6 +726,10 @@ func testRunTerminal(status string) bool {
 
 func testRunPassed(status string) bool {
 	return strings.EqualFold(strings.TrimSpace(status), "passed") || strings.EqualFold(strings.TrimSpace(status), "complete") || strings.EqualFold(strings.TrimSpace(status), "completed")
+}
+
+func testRunEvidenceAvailable(status string) bool {
+	return testRunPassed(status) || strings.EqualFold(strings.TrimSpace(status), "failed")
 }
 
 // RecoverPending reattaches every queued/running record after process restart.

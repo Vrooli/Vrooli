@@ -29,6 +29,7 @@ type (
 		IdempotencyKey string
 		ProfileKey     string
 		RoleRef        string
+		ScopePath      string
 		Tag            string
 		Force          bool
 		Prompt         string
@@ -972,6 +973,17 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 	if node.Run != nil {
 		request.ProfileKey = node.Run.ProfileKey
 		request.RoleRef = node.Run.RoleRef
+		if node.Run.ScopePathTemplate != "" {
+			values := map[string]any{}
+			if err := json.Unmarshal(a.InputSnapshot, &values); err != nil {
+				return ChildRequest{}, fmt.Errorf("decode workflow input snapshot for scope path: %w", err)
+			}
+			scopePath, err := RenderPrompt(node.Run.ScopePathTemplate, values)
+			if err != nil {
+				return ChildRequest{}, fmt.Errorf("render workflow scope path: %w", err)
+			}
+			request.ScopePath = strings.TrimSpace(scopePath)
+		}
 		request.Tag = node.Run.Tag
 		request.Force = node.Run.Force
 		request.MaxTurns = node.Run.MaxTurns

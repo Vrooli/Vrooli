@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -34,7 +35,11 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 		return workflowruntime.ChildState{}, err
 	}
 	if task == nil {
-		task = &domain.Task{ID: taskID, Title: fmt.Sprintf("Workflow %s node %s", req.ExecutionID, req.NodeID), Description: "Agent Manager workflow node attempt", ScopePath: ".", ProjectRoot: l.o.config.DefaultProjectRoot, Status: domain.TaskStatusQueued, CreatedBy: "workflow-runtime"}
+		scopePath := req.ScopePath
+		if scopePath == "" {
+			scopePath = "."
+		}
+		task = &domain.Task{ID: taskID, Title: fmt.Sprintf("Workflow %s node %s", req.ExecutionID, req.NodeID), Description: "Agent Manager workflow node attempt", ScopePath: scopePath, ProjectRoot: l.o.config.DefaultProjectRoot, Status: domain.TaskStatusQueued, CreatedBy: "workflow-runtime"}
 		if _, err := l.o.CreateTask(ctx, task); err != nil {
 			if existing, getErr := l.o.tasks.Get(ctx, taskID); getErr != nil || existing == nil {
 				return workflowruntime.ChildState{}, err
@@ -200,11 +205,124 @@ func (o *Orchestrator) StartWorkflowExecution(ctx context.Context, req StartWork
 	if owner != "" && revision.Owner != owner {
 		return nil, domain.NewValidationError("owner", "does not own selected workflow revision")
 	}
+	if err := o.enforceWorkflowTrigger(ctx, revision, req); err != nil {
+		return nil, err
+	}
 	execution, err := o.workflowEngine.Start(ctx, revision, req.Input, strings.TrimSpace(req.IdempotencyKey))
 	if err != nil {
 		return nil, err
 	}
 	return o.driveWorkflowExecution(ctx, execution.ID)
+}
+
+// TriggerPolicyError is a typed denial that explains the classified initiator,
+// configured policy, and resolved workflow caller chain. It is intentionally
+// returned before Engine.Start so a denied request creates no execution.
+type TriggerPolicyError struct {
+	WorkflowKey string
+	Initiator   domain.WorkflowInitiator
+	Decision    string
+	Evidence    []string
+}
+
+func (e *TriggerPolicyError) Error() string {
+	return fmt.Sprintf("workflow trigger policy denied %s for %s (%s; chain=%s)", e.Initiator, e.WorkflowKey, e.Decision, strings.Join(e.Evidence, " -> "))
+}
+
+func (o *Orchestrator) enforceWorkflowTrigger(ctx context.Context, revision *domain.WorkflowRevision, req StartWorkflowExecutionRequest) error {
+	initiator := req.Initiator
+	if initiator == "" {
+		initiator = domain.WorkflowInitiatorProgrammatic
+	}
+	policy := revision.Definition.Trigger
+	evidence := []string{"initiator=" + string(initiator)}
+	var verified *IdentityVerifyResult
+	if initiator == domain.WorkflowInitiatorAgent {
+		var err error
+		verified, err = o.VerifyIdentityToken(ctx, strings.TrimSpace(req.IdentityToken))
+		if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
+			// A missing or unverifiable token cannot prove an agent origin. Keep the
+			// documented fail-open behavior, but make it visible to operators.
+			evidence = append(evidence, "identity=unverified")
+			initiator = domain.WorkflowInitiatorProgrammatic
+		}
+	}
+	if !policy.Allows(initiator) {
+		return o.denyWorkflowTrigger(revision.Key, initiator, "initiator_not_allowed", evidence)
+	}
+	if initiator != domain.WorkflowInitiatorAgent {
+		decision := "non_agent"
+		if verified == nil && len(evidence) > 1 {
+			decision = "identity_unverified"
+		}
+		o.auditWorkflowTrigger(revision.Key, initiator, "allow", decision, evidence)
+		return nil
+	}
+	evidence = append(evidence, "run="+verified.Claims.RunID.String())
+	callerID, err := o.workflowExecutions.ExecutionIDForRun(ctx, verified.Claims.RunID)
+	if err != nil {
+		return fmt.Errorf("resolve workflow caller identity: %w", err)
+	}
+	if callerID == uuid.Nil {
+		o.auditWorkflowTrigger(revision.Key, initiator, "allow", "run_not_in_workflow", evidence)
+		return nil
+	}
+	chain, err := o.workflowCallerChain(ctx, callerID)
+	if err != nil {
+		return err
+	}
+	count := 0
+	for _, item := range chain {
+		evidence = append(evidence, item.WorkflowKey+"/"+item.ID.String())
+		if item.WorkflowKey == revision.Key {
+			count++
+		}
+	}
+	if count == 0 {
+		o.auditWorkflowTrigger(revision.Key, initiator, "allow", "different_workflow", evidence)
+		return nil
+	}
+	if policy.SelfTriggerMode() == domain.WorkflowSelfTriggerDeny {
+		return o.denyWorkflowTrigger(revision.Key, initiator, "self_trigger_denied", evidence)
+	}
+	if count >= policy.SelfTrigger.MaxDepth {
+		return o.denyWorkflowTrigger(revision.Key, initiator, "self_trigger_depth_reached", evidence)
+	}
+	o.auditWorkflowTrigger(revision.Key, initiator, "allow", "self_trigger_within_depth", evidence)
+	return nil
+}
+
+func (o *Orchestrator) workflowCallerChain(ctx context.Context, id uuid.UUID) ([]*domain.WorkflowExecution, error) {
+	chain := make([]*domain.WorkflowExecution, 0, 4)
+	seen := map[uuid.UUID]bool{}
+	for id != uuid.Nil {
+		if seen[id] {
+			return nil, fmt.Errorf("workflow caller chain contains cycle at %s", id)
+		}
+		seen[id] = true
+		execution, err := o.workflowExecutions.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if execution == nil {
+			return nil, fmt.Errorf("workflow caller execution %s is unavailable", id)
+		}
+		chain = append(chain, execution)
+		if execution.ParentExecutionID == nil {
+			break
+		}
+		id = *execution.ParentExecutionID
+	}
+	return chain, nil
+}
+
+func (o *Orchestrator) denyWorkflowTrigger(workflowKey string, initiator domain.WorkflowInitiator, decision string, evidence []string) error {
+	o.auditWorkflowTrigger(workflowKey, initiator, "deny", decision, evidence)
+	return &TriggerPolicyError{WorkflowKey: workflowKey, Initiator: initiator, Decision: decision, Evidence: evidence}
+}
+
+func (o *Orchestrator) auditWorkflowTrigger(workflowKey string, initiator domain.WorkflowInitiator, outcome, decision string, evidence []string) {
+	slog.Info("workflow trigger policy decision", "workflow_key", workflowKey, "initiator", initiator, "outcome", outcome, "decision", decision, "evidence", evidence)
 }
 
 func (o *Orchestrator) GetWorkflowExecution(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {

@@ -65,6 +65,27 @@ func TestAssessPlanQualityRequiresCurrentCollectionBaseline(t *testing.T) {
 	require.True(t, report.ExecutionReady(), "legacy is an explicit adoption path, not an omitted-baseline bypass")
 }
 
+// A resource-only boundary has no scenario path to derive automatically. A
+// declared focused behavioral consumer is therefore valid baseline coverage and
+// must not be replaced by an unrelated comprehensive scenario inventory.
+func TestCurrentBaselineSetAllowsDeclaredFocusedConsumerForResourceBoundary(t *testing.T) {
+	plan := executionGradePlan()
+	plan.ChangeBoundary = ChangeBoundary{AcceptanceAllow: []string{"resources/searxng/**"}}
+	plan.RegressionAnchor = RegressionAnchor{Strategy: AnchorStrategyChangeBoundary, BaselineName: "resource-before"}
+	plan.BaselineSet = BaselineSetIntent{
+		Name: "resource-before", ScenarioTargets: []string{"web-search"}, RepoPaths: []string{"resources/searxng/**"},
+		CapturePolicy: BaselineCapturePolicyExecutionStart, Compatibility: BaselineSetCompatibilityCurrent,
+	}
+	if !CurrentBaselineSetValid(plan) {
+		t.Fatalf("focused consumer baseline set was rejected: %+v", plan.BaselineSet)
+	}
+	for _, finding := range AssessPlanQuality(plan, "").Findings {
+		if finding.Code == "plan_baseline_set_no_scenarios" || finding.Code == "plan_invalid_baseline_set" {
+			t.Fatalf("resource consumer plan has invalid baseline finding: %+v", finding)
+		}
+	}
+}
+
 func TestAssessPlanQualityFailsIncompletePhase(t *testing.T) {
 	plan := executionGradePlan()
 	plan.Phases[0] = Phase{ID: "phase-1", Order: 1, Title: "Thin"}

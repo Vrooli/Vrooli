@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
@@ -103,7 +104,14 @@ func (h *Handler) StartWorkflowExecution(w http.ResponseWriter, r *http.Request)
 		writeSimpleError(w, r, "input", "invalid workflow input")
 		return
 	}
-	execution, err := h.svc.StartWorkflowExecution(r.Context(), orchestration.StartWorkflowExecutionRequest{Owner: req.Owner, WorkflowKey: req.WorkflowKey, DefinitionDigest: req.DefinitionDigest, Input: input, IdempotencyKey: req.IdempotencyKey})
+	initiator := domain.WorkflowInitiatorProgrammatic
+	if r.Header.Get("X-Vrooli-Workflow-Initiator") == string(domain.WorkflowInitiatorHuman) {
+		initiator = domain.WorkflowInitiatorHuman
+	}
+	if r.Header.Get(cliutil.HeaderAgentIdentityToken) != "" {
+		initiator = domain.WorkflowInitiatorAgent
+	}
+	execution, err := h.svc.StartWorkflowExecution(r.Context(), orchestration.StartWorkflowExecutionRequest{Owner: req.Owner, WorkflowKey: req.WorkflowKey, DefinitionDigest: req.DefinitionDigest, Input: input, IdempotencyKey: req.IdempotencyKey, Initiator: initiator, IdentityToken: r.Header.Get(cliutil.HeaderAgentIdentityToken)})
 	if err != nil {
 		writeError(w, r, err)
 		return

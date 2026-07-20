@@ -45,13 +45,6 @@
         "health_endpoint": "/api/tags"
       }
     },
-    "generation": {
-      "comfyui": {
-        "base_url": "http://localhost:${RESOURCE_PORTS[comfyui]}",
-        "api_prefix": "/api",
-        "health_endpoint": "/system_stats"
-      }
-    },
     "processing": {
       "unstructured_io": {
         "base_url": "http://localhost:${RESOURCE_PORTS[unstructured-io]}",

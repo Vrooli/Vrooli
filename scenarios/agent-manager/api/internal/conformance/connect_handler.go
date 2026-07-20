@@ -109,6 +109,8 @@ func maturityFor(finding Finding) (string, commonv1.CleanRequirement) {
 		return "L3", commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED
 	case CodePermissionPosture:
 		return "L4", commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED
+	case CodeWorkflowInlinePrompt:
+		return "L4", commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED
 	default:
 		return "L3", commonv1.CleanRequirement_CLEAN_REQUIREMENT_ADVISORY
 	}
@@ -120,6 +122,8 @@ func globalImpactFor(finding Finding) commonv1.GlobalImpact {
 		return commonv1.GlobalImpact_GLOBAL_IMPACT_CAPABILITY_GAP
 	case CodePermissionPosture:
 		return commonv1.GlobalImpact_GLOBAL_IMPACT_SAFETY_BLOCKER
+	case CodeWorkflowInlinePrompt:
+		return commonv1.GlobalImpact_GLOBAL_IMPACT_EVOLVABILITY_GAP
 	case CodeProfileInvalid, CodeProfileOrphan, CodeProfileOwnership, CodeProfileLegacy, CodeRoleUnresolved:
 		return commonv1.GlobalImpact_GLOBAL_IMPACT_EVOLVABILITY_GAP
 	default:

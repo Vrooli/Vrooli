@@ -116,7 +116,7 @@ func newRelayOrchestrator(t *testing.T, launcher *fakeRunLauncher) (*Orchestrato
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	repos := database.NewRepositories(db, log)
-	o := attachRelayEngine(New(nil, nil, repos.Runs, WithWorkflowExecutionRepository(repos.WorkflowExecutions), WithWorkflowRepository(repos.Workflows)), repos, launcher)
+	o := attachRelayEngine(New(repos.Profiles, repos.Tasks, repos.Runs, WithWorkflowExecutionRepository(repos.WorkflowExecutions), WithWorkflowRepository(repos.Workflows)), repos, launcher)
 	return o, repos
 }
 

@@ -13,12 +13,6 @@
       "max_audio_duration_seconds": 300
     },
     
-    "image_generation": {
-      "enabled": {{ "true" if "comfyui" in resources.required else "false" }},
-      "supported_formats": {{ '["png", "jpg", "jpeg"]' if "comfyui" in resources.required else "[]" }},
-      "max_resolution": {{ '"1024x1024"' if "comfyui" in resources.required else 'null' }}
-    },
-    
     "document_processing": {
       "enabled": {{ "true" if "unstructured-io" in resources.required else "false" }},
       "supported_formats": {{ '["pdf", "docx", "txt", "html"]' if "unstructured-io" in resources.required else "[]" }},

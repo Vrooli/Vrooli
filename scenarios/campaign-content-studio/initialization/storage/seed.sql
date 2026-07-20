@@ -9,7 +9,7 @@ INSERT INTO campaign_content_studio.app_metadata (
     '1.0.0',
     '{
         "features": ["campaigns", "documents", "ai_generation", "semantic_search"],
-        "resources": ["postgresql", "qdrant", "minio", "ollama", "comfyui", "unstructured-io", "n8n"],
+        "resources": ["postgresql", "qdrant", "minio", "ollama", "unstructured-io", "n8n"],
         "business_model": {
             "type": "content_management_saas",
             "target_market": "content_creators_and_agencies",
@@ -79,7 +79,6 @@ INSERT INTO campaign_content_studio.app_config (config_key, config_value, config
     ('feature_document_processing', 'true'::jsonb, 'feature_flag', 'Enable document upload and text extraction'),
     ('feature_semantic_search', 'true'::jsonb, 'feature_flag', 'Enable vector-based document search'),
     ('feature_ai_content_generation', 'true'::jsonb, 'feature_flag', 'Enable AI-powered content generation'),
-    ('feature_image_generation', 'true'::jsonb, 'feature_flag', 'Enable AI image generation via ComfyUI'),
     ('feature_content_templates', 'true'::jsonb, 'feature_flag', 'Enable structured content templates'),
     
     -- Application settings

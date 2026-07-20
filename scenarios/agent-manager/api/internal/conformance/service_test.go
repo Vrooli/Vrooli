@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -25,7 +26,7 @@ func validWorkflowJSON(owner, key string) string {
 	return `{"schemaVersion":"agent-workflow/v1","owner":"` + owner + `","key":"` + key + `","version":"1.0.0",` +
 		`"inputSchema":{"type":"object","additionalProperties":false},"outputSchema":{"type":"object","additionalProperties":false},` +
 		`"entryNode":"start","nodes":[` +
-		`{"id":"start","kind":"run","run":{"roleRef":"code.default","promptTemplate":"Do {{.topic}}","bindings":[{"name":"topic","source":"workflow_input","selector":"$.topic","limit":1,"maxBytes":4096,"renderAs":"json","missingPolicy":"error"}]}},` +
+		`{"id":"start","kind":"run","run":{"roleRef":"code.default","promptRef":{"skillId":"fixture-skill"}}},` +
 		`{"id":"done","kind":"end","end":{"status":"succeeded"}}],` +
 		`"edges":[{"from":"start","to":"done"}],` +
 		`"budgets":{"wallTimeSeconds":60,"maxTurns":4,"maxTokens":1000,"maxCostUsd":1,"maxNodeAttempts":3,"maxChildren":2,"maxConcurrency":2,"maxRecursion":2,"maxRetries":2,"maxWaitSeconds":30}}`
@@ -77,6 +78,23 @@ func TestValidateAcceptsUnifiedProfileAndWorkflowDeclarations(t *testing.T) {
 	}
 	if len(report.Findings) != 0 {
 		t.Fatalf("findings = %#v, want clean unified declarations", report.Findings)
+	}
+}
+
+func TestValidateInlineWorkflowPromptBlocksMatureRung(t *testing.T) {
+	repo := t.TempDir()
+	copyRoleCatalog(t, repo)
+	root := filepath.Join(repo, "scenarios", "consumer")
+	writeFile(t, filepath.Join(root, ".vrooli", "service.json"),
+		`{"dependencies":{"scenarios":{"agent-manager":{"enabled":true,"config":{"declarations":{"reconcile":true,"sources":[".vrooli/agent-manager/flow.json"]}}}}}}`)
+	inline := strings.Replace(validWorkflowJSON("consumer", "consumer/flow"), `"promptRef":{"skillId":"fixture-skill"}`, `"promptTemplate":"Do work"`, 1)
+	writeFile(t, filepath.Join(root, ".vrooli", "agent-manager", "flow.json"), inline)
+	report, err := (Service{RepoRoot: repo}).Validate("consumer", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasFinding(report.Findings, CodeWorkflowInlinePrompt) {
+		t.Fatalf("expected promptRef maturity finding, got %#v", report.Findings)
 	}
 }
 
