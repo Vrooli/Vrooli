@@ -73,7 +73,7 @@ Quality Health audits the target scenario's discovered surfaces and reports find
 - Go module and golangci-lint configuration
 - Makefile quality gates
 
-The phase maps Quality Health findings into Test Genie's `standards` finding channel so ecosystem-manager and maturity guidance can treat static-quality failures as standards work.
+The phase maps Quality Health findings into Test Genie's `standards` finding channel so swarm-manager and maturity guidance can treat static-quality failures as standards work.
 
 ## Execution
 

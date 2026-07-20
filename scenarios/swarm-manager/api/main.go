@@ -779,7 +779,6 @@ func (s *Server) registerIntegrationStatusRoutes() {
 		"prompt-manager":    "new prompt-dependent workflow starts are blocked; pinned executions remain explainable",
 		"test-genie":        "validation-dependent completion is parked with missing-evidence attention",
 		"git-control-tower": "regression-gated completion is parked with missing-evidence attention",
-		"ecosystem-manager": "scenario-management actions are unavailable; unrelated planning remains usable",
 	}
 	checkers := make(map[string]integrationstatus.Checker, len(degraded))
 	for scenario, behavior := range degraded {

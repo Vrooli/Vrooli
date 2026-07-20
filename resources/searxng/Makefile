@@ -1,4 +1,4 @@
-.PHONY: help fmt fmt-go lint lint-go type type-go test test-go check check-go
+.PHONY: help fmt fmt-go lint lint-go type type-go test test-go test-integration check check-go
 
 .DEFAULT_GOAL := help
 
@@ -10,6 +10,7 @@ help: ## Show the supported resource quality entrypoints
 	@printf "  make lint                       Lint Go code\n"
 	@printf "  make type                       Compile-check Go packages without running tests\n"
 	@printf "  make test                       Run Go tests\n"
+	@printf "  make test-integration           Run Docker-backed manifest integration tests\n"
 	@printf "  make check                      Run lint, type, and test quality gates\n"
 
 fmt: fmt-go ## Format Go code
@@ -50,6 +51,9 @@ test-go: ## Run Go tests
 	@if [ -d "$(CLI_DIR)" ]; then \
 		cd "$(CLI_DIR)" && go test ./...; \
 	fi
+
+test-integration: ## Run Docker-backed manifest integration tests
+	@cd "$(CLI_DIR)" && go test -tags integration -run TestManifestImageBootsWithSeparateConfigAndCacheMounts -count=1 ./...
 
 check: check-go ## Run Go quality gates
 

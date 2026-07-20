@@ -165,6 +165,15 @@ behavioral coverage must be complete before it is treated as a usable oracle.
 Selected source paths are captured as **informational source evidence** only;
 their changes never substitute for a Test Genie regression verdict.
 
+Baseline capture is not a whole-worktree cleanliness check. Git Control Tower
+stores a durable before behavior result, while Test Genie fingerprints the
+declared scenario inputs and validation configuration only to decide whether a
+later current result may be reused. A mismatch causes a current rerun; it never
+invalidates the saved before result. If relevant inputs change during a single
+current attempt, that attempt is retried or remains pending with a retry reason.
+Unrelated concurrent edits are ignored. Plan Manager must describe these states
+as cache reuse, cache miss/rerun, or retry—not as an untrustworthy baseline.
+
 Immediately before rendering its producer-owned capture command, Plan Manager
 asks Git Control Tower for the authoritative source estimate. An individual
 scenario glob is accepted when that measured estimate is safe; broad

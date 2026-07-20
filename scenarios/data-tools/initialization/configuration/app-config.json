@@ -27,7 +27,6 @@
     "web_automation": false,
     "vector_search": {{ "true" if "qdrant" in resources.required else "false" }},
     "file_storage": {{ "true" if "minio" in resources.required else "false" }},
-    "analytics": {{ "true" if "questdb" in resources.required else "false" }},
     "search": {{ "true" if "searxng" in resources.required else "false" }},
     "professional_ui": {{ "true" if testing.requires_ui else "false" }},
     "real_time_dashboard": {{ "true" if "node-red" in resources.required else "false" }}

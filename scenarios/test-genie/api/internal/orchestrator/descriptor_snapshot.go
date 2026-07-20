@@ -65,7 +65,7 @@ func phaseDescriptorSnapshot(def phases.Definition, descriptor providerdescripto
 	}
 	findingSource := strings.TrimSpace(descriptor.FindingSource)
 
-	return sharedruns.PhaseDescriptorSnapshot{
+	entry := sharedruns.PhaseDescriptorSnapshot{
 		Phase:         def.Name.String(),
 		DisplayName:   displayName,
 		Description:   strings.TrimSpace(descriptor.Description),
@@ -83,13 +83,23 @@ func phaseDescriptorSnapshot(def phases.Definition, descriptor providerdescripto
 			ResultGating:      string(policy.ResultGating),
 			Unavailable:       string(policy.Unavailable),
 		},
-		DocsPath:             strings.TrimSpace(descriptor.Docs.Path),
-		MaturityReference:    maturityReference(descriptor),
-		ApplicabilityDefault: strings.TrimSpace(descriptor.Applicability.Default),
-		EvidenceKinds:        cloneStrings(descriptor.EvidenceKinds),
-		Aliases:              cloneStrings(descriptor.Aliases),
-		Supersedes:           cloneStrings(descriptor.Supersedes),
+		DocsPath:               strings.TrimSpace(descriptor.Docs.Path),
+		MaturityReference:      maturityReference(descriptor),
+		ApplicabilityDefault:   strings.TrimSpace(descriptor.Applicability.Default),
+		EvidenceKinds:          cloneStrings(descriptor.EvidenceKinds),
+		Aliases:                cloneStrings(descriptor.Aliases),
+		Supersedes:             cloneStrings(descriptor.Supersedes),
+		ComparisonMode:         strings.TrimSpace(descriptor.Comparison.Mode),
+		ValidationContract:     strings.TrimSpace(descriptor.Validation.Contract),
+		ValidationDeliveryMode: strings.TrimSpace(descriptor.Validation.DeliveryMode),
+		ValidationExecution:    descriptor.Validation.Execution,
+		ValidationRunService:   strings.TrimSpace(descriptor.Validation.RunService),
 	}
+	fingerprint, err := sharedruns.PhaseComparisonFingerprint(entry)
+	if err == nil {
+		entry.ComparisonFingerprint = fingerprint
+	}
+	return entry
 }
 
 func maturityReference(descriptor providerdescriptor.Descriptor) string {

@@ -2,15 +2,27 @@
   "libraryId": "react-component-library:Card",
   "displayName": "Card",
   "description": "Compact token-bound card primitives for repeated records, focused tools, and modal content.",
-  "tags": ["surface", "layout"],
+  "tags": [
+    "surface",
+    "layout"
+  ],
   "slot": "ui-primitive",
   "category": "surfaces",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native"
+    },
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "compatible"
+    },
+    {
+      "styleId": "vrooli-conversion-landing",
+      "affinity": "compatible"
+    }
   ],
   "latest": "1.1.0",
-  "draft": "",
+  "draft": "0.1.0-draft.1",
   "deprecatedVersions": []
 }

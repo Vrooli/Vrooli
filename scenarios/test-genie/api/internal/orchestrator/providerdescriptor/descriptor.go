@@ -43,6 +43,7 @@ type Descriptor struct {
 	EvidenceKinds        []string         `json:"evidenceKinds,omitempty"`
 	Aliases              []string         `json:"aliases,omitempty"`
 	Supersedes           []string         `json:"supersedes,omitempty"`
+	Comparison           Comparison       `json:"comparison,omitempty"`
 	Validation           Validation       `json:"validation"`
 	Applicability        Applicability    `json:"applicability"`
 	Policy               Policy           `json:"policy"`
@@ -72,17 +73,17 @@ func (d *Descriptor) UnmarshalJSON(raw []byte) error {
 }
 
 type Validation struct {
-	Contract         string `json:"contract"`
+	Contract string `json:"contract"`
 	// DeliveryMode defaults to inline so existing descriptors remain source and
 	// behavior compatible. Durable providers must declare execution and the
 	// generic durable-run service explicitly.
-	DeliveryMode     string `json:"deliveryMode,omitempty"`
-	Execution        bool   `json:"execution,omitempty"`
-	RunService       string `json:"runService,omitempty"`
+	DeliveryMode string `json:"deliveryMode,omitempty"`
+	Execution    bool   `json:"execution,omitempty"`
+	RunService   string `json:"runService,omitempty"`
 	// IncludeExecution is the retired inline delivery flag. It is retained only
 	// while existing inline provider descriptors migrate to the explicit
 	// execution field; durable descriptors must not use it.
-	IncludeExecution bool   `json:"includeExecution,omitempty"`
+	IncludeExecution bool `json:"includeExecution,omitempty"`
 }
 
 type Applicability struct {
@@ -129,6 +130,13 @@ type Policy struct {
 	phasepolicy.Policy
 }
 
+// Comparison is the provider's explicit declaration for a same-key oracle
+// revision. The default is changed-unreviewed: a changed validator must be
+// reviewed instead of silently being treated as behavior evidence.
+type Comparison struct {
+	Mode string `json:"mode,omitempty"`
+}
+
 type Runnability struct {
 	NeedsUI                   bool     `json:"needsUI,omitempty"`
 	NeedsAPI                  bool     `json:"needsAPI,omitempty"`
@@ -151,6 +159,10 @@ type Diagnostic struct {
 type LoadOptions struct {
 	RepoRoot string
 	Paths    []string
+	// SkillIDs optionally supplies the active Prompt Manager catalog. Repository
+	// loads derive it from Prompt Manager's pack order; callers that validate an
+	// isolated descriptor can supply the same catalog explicitly.
+	SkillIDs map[string]struct{}
 }
 
 type LoadResult struct {
@@ -174,6 +186,21 @@ func (r LoadResult) Err() error {
 }
 
 func Load(opts LoadOptions) LoadResult {
+	skillIDs := opts.SkillIDs
+	if skillIDs == nil && strings.TrimSpace(opts.RepoRoot) != "" {
+		var err error
+		skillIDs, err = loadPromptManagerSkillIDs(opts.RepoRoot)
+		if err != nil {
+			catalogDir := filepath.Join(opts.RepoRoot, "scenarios", "prompt-manager")
+			if _, statErr := os.Stat(catalogDir); statErr == nil {
+				return LoadResult{Diagnostics: []Diagnostic{{Code: "skill_catalog_unavailable", Message: err.Error()}}}
+			}
+			// Isolated orchestrator fixtures intentionally contain only the
+			// descriptors under test. Production repositories always include
+			// Prompt Manager and therefore always validate skill references.
+			skillIDs = nil
+		}
+	}
 	paths := append([]string(nil), opts.Paths...)
 	var diagnostics []Diagnostic
 	if len(paths) == 0 {
@@ -193,7 +220,7 @@ func Load(opts LoadOptions) LoadResult {
 	seen := map[string]string{}
 	descriptors := make([]Descriptor, 0, len(paths))
 	for _, path := range paths {
-		descriptor, ds := loadOne(path)
+		descriptor, ds := loadOne(path, skillIDs)
 		diagnostics = append(diagnostics, ds...)
 		if len(ds) > 0 {
 			continue
@@ -246,7 +273,7 @@ func validateLineage(descriptors []Descriptor) []Diagnostic {
 	return diagnostics
 }
 
-func loadOne(path string) (Descriptor, []Diagnostic) {
+func loadOne(path string, skillIDs map[string]struct{}) (Descriptor, []Diagnostic) {
 	var diagnostics []Diagnostic
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -275,7 +302,78 @@ func loadOne(path string) (Descriptor, []Diagnostic) {
 		return Descriptor{}, []Diagnostic{{Path: path, Code: "invalid_maturity", Message: err.Error()}}
 	}
 	descriptor.MaturitySpec = spec
+	if skillIDs != nil {
+		if diagnostics := validateRecommendedSkillIDs(path, spec, skillIDs); len(diagnostics) > 0 {
+			return Descriptor{}, diagnostics
+		}
+	}
 	return descriptor, nil
+}
+
+type promptManagerPackOrder struct {
+	ActivePacks []string `json:"activePacks"`
+}
+
+type promptManagerSkill struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+}
+
+func loadPromptManagerSkillIDs(repoRoot string) (map[string]struct{}, error) {
+	path := filepath.Join(repoRoot, "scenarios", "prompt-manager", "store", "skills", "_pack-order.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read prompt-manager skill catalog: %w", err)
+	}
+	var order promptManagerPackOrder
+	if err := json.Unmarshal(raw, &order); err != nil {
+		return nil, fmt.Errorf("parse prompt-manager skill catalog: %w", err)
+	}
+	ids := make(map[string]struct{})
+	for _, pack := range order.ActivePacks {
+		entries, err := os.ReadDir(filepath.Join(filepath.Dir(path), "packs", pack))
+		if err != nil {
+			return nil, fmt.Errorf("read prompt-manager skill pack %q: %w", pack, err)
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			skillPath := filepath.Join(filepath.Dir(path), "packs", pack, entry.Name(), "skill.json")
+			skillRaw, err := os.ReadFile(skillPath)
+			if err != nil {
+				continue
+			}
+			var skill promptManagerSkill
+			if err := json.Unmarshal(skillRaw, &skill); err != nil || strings.TrimSpace(skill.ID) == "" {
+				continue
+			}
+			if _, seen := ids[skill.ID]; !seen {
+				ids[skill.ID] = struct{}{}
+			}
+		}
+	}
+	return ids, nil
+}
+
+func validateRecommendedSkillIDs(path string, spec *assessment.Spec, skillIDs map[string]struct{}) []Diagnostic {
+	if spec == nil {
+		return nil
+	}
+	var diagnostics []Diagnostic
+	for code, mapping := range spec.Findings {
+		for _, id := range mapping.RecommendedSkillIDs {
+			id = strings.TrimSpace(id)
+			if id == "" {
+				diagnostics = append(diagnostics, Diagnostic{Path: path, Code: "invalid_recommended_skill", Message: fmt.Sprintf("maturity.findings.%s has an empty recommended_skill_ids entry", code)})
+				continue
+			}
+			if _, ok := skillIDs[id]; !ok {
+				diagnostics = append(diagnostics, Diagnostic{Path: path, Code: "unknown_recommended_skill", Message: fmt.Sprintf("maturity.findings.%s references unknown active prompt-manager skill %q", code, id)})
+			}
+		}
+	}
+	return diagnostics
 }
 
 func scenarioFromPath(path string) string {
@@ -378,6 +476,10 @@ func normalizeValidationDefaults(validation *Validation) {
 }
 
 func normalizeOrchestrationDefaults(d *Descriptor) {
+	d.Comparison.Mode = strings.TrimSpace(d.Comparison.Mode)
+	if d.Comparison.Mode == "" {
+		d.Comparison.Mode = "changed-unreviewed"
+	}
 	if strings.TrimSpace(d.FreshnessRequirement) == "" {
 		d.FreshnessRequirement = "never"
 	}
@@ -428,6 +530,9 @@ func validateOrchestration(d *Descriptor) []Diagnostic {
 	}
 	if !oneOf(d.RuntimeClass, "static", "execution", "lifecycle") {
 		add("invalid_runtime_class", "runtimeClass must be static, execution, or lifecycle")
+	}
+	if !oneOf(d.Comparison.Mode, "compatible", "changed-unreviewed", "invalidated", "superseded") {
+		add("invalid_comparison_mode", "comparison.mode must be compatible, changed-unreviewed, invalidated, or superseded")
 	}
 	seenDims := map[string]struct{}{}
 	for _, raw := range d.Dimensions {

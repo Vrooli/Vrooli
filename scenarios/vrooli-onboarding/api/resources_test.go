@@ -50,7 +50,6 @@ var (
 	testResPostgres = map[string]string{"name": "postgres", "status": "running", "installed": "true"}
 	testResRedis    = map[string]string{"name": "redis", "status": "running", "installed": "true"}
 	testResOllama   = map[string]string{"name": "ollama", "status": "installed", "installed": "true"}
-	testResPostgis  = map[string]string{"name": "postgis", "status": "running", "installed": "true"}
 	testResJudge0   = map[string]string{"name": "judge0", "status": "running", "installed": "true"}
 	testResStopped  = map[string]string{"name": "redis", "status": "stopped", "installed": "true"}
 	testResMystery  = map[string]string{"name": "mystery", "status": "stopped", "installed": "false"}
@@ -453,7 +452,6 @@ func TestCategorizeSpecificResources(t *testing.T) {
 		want     string
 	}{
 		{"vault", "security"},
-		{"postgis", "database"},
 		{"qdrant", "database"},
 		{"judge0", "devops"},
 		{"n8n", "devops"},

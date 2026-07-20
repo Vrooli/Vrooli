@@ -90,7 +90,7 @@ include_execution=true
 and maps the result:
 
 - **Coverage-category findings** are emitted into the `FINDING_SOURCE_COVERAGE`
-  channel so they continue to feed the ecosystem-manager `coverage` dimension
+  channel so they continue to feed the swarm-manager `coverage` dimension
   (the retired `coverage` phase's responsibility now lives here).
 - **Test execution, architecture, quality, and diagnostics findings** surface as
   observations; the `unit` phase maps to the `tests` dimension.

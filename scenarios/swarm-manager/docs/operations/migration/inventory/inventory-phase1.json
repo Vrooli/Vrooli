@@ -1046,8 +1046,8 @@
           "sha256": "accec756d5eb4e5b38e8be03828fae0cb51f0b05be8cdbb5298592abbaa72838",
           "status": "backlog",
           "refs": [
-            "depends_on:fix/qa-ecosystem-manager-standards-structure-focus-20260516",
-            "depends_on:fix/qa-ecosystem-manager-tests-playbooks-business-20260516",
+            "depends_on:fix/qa-swarm-manager-standards-structure-focus-20260516",
+            "depends_on:fix/qa-swarm-manager-tests-playbooks-business-20260516",
             "initiative:decision-visual-grounding-propagation"
           ]
         },
@@ -1058,8 +1058,8 @@
           "sha256": "3ee7a09ede85a86d3714764acf876ab63a823f66b93bd7b17dc58878171d8981",
           "status": "backlog",
           "refs": [
-            "depends_on:fix/qa-ecosystem-manager-standards-structure-focus-20260516",
-            "depends_on:fix/qa-ecosystem-manager-tests-playbooks-business-20260516",
+            "depends_on:fix/qa-swarm-manager-standards-structure-focus-20260516",
+            "depends_on:fix/qa-swarm-manager-tests-playbooks-business-20260516",
             "initiative:decision-visual-grounding-propagation"
           ]
         },
@@ -1409,8 +1409,8 @@
           "status": "backlog",
           "refs": [
             "depends_on:execute/ecosystem-git-control-tower-integration",
-            "depends_on:fix/qa-ecosystem-manager-standards-structure-focus-20260516",
-            "depends_on:fix/qa-ecosystem-manager-tests-playbooks-business-20260516",
+            "depends_on:fix/qa-swarm-manager-standards-structure-focus-20260516",
+            "depends_on:fix/qa-swarm-manager-tests-playbooks-business-20260516",
             "initiative:ecosystem-intelligence-loop"
           ]
         },
@@ -1421,8 +1421,8 @@
           "sha256": "2324ae6a3c19c66e96deaa2e2fece8a5b79dc880a1021142039946899bfb9275",
           "status": "backlog",
           "refs": [
-            "depends_on:fix/qa-ecosystem-manager-standards-structure-focus-20260516",
-            "depends_on:fix/qa-ecosystem-manager-tests-playbooks-business-20260516",
+            "depends_on:fix/qa-swarm-manager-standards-structure-focus-20260516",
+            "depends_on:fix/qa-swarm-manager-tests-playbooks-business-20260516",
             "depends_on:research/ecosystem-loop-health-snapshot-contract",
             "initiative:ecosystem-intelligence-loop"
           ]
@@ -1434,8 +1434,8 @@
           "sha256": "b5dd644b6a47457deca2f17dba23778119d1f1d3e55630154babba37577c135d",
           "status": "backlog",
           "refs": [
-            "depends_on:fix/qa-ecosystem-manager-standards-structure-focus-20260516",
-            "depends_on:fix/qa-ecosystem-manager-tests-playbooks-business-20260516",
+            "depends_on:fix/qa-swarm-manager-standards-structure-focus-20260516",
+            "depends_on:fix/qa-swarm-manager-tests-playbooks-business-20260516",
             "initiative:ecosystem-intelligence-loop"
           ]
         },
@@ -4165,8 +4165,8 @@
           ]
         },
         {
-          "identity": "fix/fix-ecosystem-manager-dependencies-steer-skill-20260612",
-          "rel_path": "fix/fix-ecosystem-manager-dependencies-steer-skill-20260612/spec.json",
+          "identity": "fix/fix-swarm-manager-dependencies-steer-skill-20260612",
+          "rel_path": "fix/fix-swarm-manager-dependencies-steer-skill-20260612/spec.json",
           "size": 1921,
           "sha256": "aff9503f2e72480e66f83baad146646d6382016705d8bbf67f66b543f84d2ffc",
           "status": "backlog"
@@ -4544,20 +4544,20 @@
           "status": "backlog"
         },
         {
-          "identity": "fix/qa-ecosystem-manager-standards-structure-focus-20260516",
-          "rel_path": "fix/qa-ecosystem-manager-standards-structure-focus-20260516/spec.json",
+          "identity": "fix/qa-swarm-manager-standards-structure-focus-20260516",
+          "rel_path": "fix/qa-swarm-manager-standards-structure-focus-20260516/spec.json",
           "size": 1302,
           "sha256": "02c6ece38182bb31583002cf9d10158499b1f40a5a2807e246db6d69b1836ffe",
           "status": "backlog"
         },
         {
-          "identity": "fix/qa-ecosystem-manager-tests-playbooks-business-20260516",
-          "rel_path": "fix/qa-ecosystem-manager-tests-playbooks-business-20260516/spec.json",
+          "identity": "fix/qa-swarm-manager-tests-playbooks-business-20260516",
+          "rel_path": "fix/qa-swarm-manager-tests-playbooks-business-20260516/spec.json",
           "size": 1794,
           "sha256": "ee186fad079857445208aa7ce34debe895344da49411428527fdcc418a88ba54",
           "status": "backlog",
           "refs": [
-            "depends_on:fix/qa-ecosystem-manager-standards-structure-focus-20260516"
+            "depends_on:fix/qa-swarm-manager-standards-structure-focus-20260516"
           ]
         },
         {
@@ -6049,8 +6049,8 @@
             "depends_on:fix/qa-agent-manager-standards-focus-visible-20260516",
             "depends_on:fix/qa-agent-manager-tests-lint-20260516",
             "depends_on:fix/qa-agent-manager-visual-baseline-20260516",
-            "depends_on:fix/qa-ecosystem-manager-standards-structure-focus-20260516",
-            "depends_on:fix/qa-ecosystem-manager-tests-playbooks-business-20260516",
+            "depends_on:fix/qa-swarm-manager-standards-structure-focus-20260516",
+            "depends_on:fix/qa-swarm-manager-tests-playbooks-business-20260516",
             "initiative:ecosystem-intelligence-loop"
           ]
         },
@@ -6063,8 +6063,8 @@
           "refs": [
             "depends_on:execute/qa-git-control-tower-code-quality-20260408",
             "depends_on:execute/qa-swarm-manager-code-quality-20260408",
-            "depends_on:fix/qa-ecosystem-manager-standards-structure-focus-20260516",
-            "depends_on:fix/qa-ecosystem-manager-tests-playbooks-business-20260516",
+            "depends_on:fix/qa-swarm-manager-standards-structure-focus-20260516",
+            "depends_on:fix/qa-swarm-manager-tests-playbooks-business-20260516",
             "depends_on:fix/qa-git-control-tower-tests-playbook-schema-20260515",
             "depends_on:fix/qa-swarm-manager-standards-20260408",
             "depends_on:fix/qa-swarm-manager-tests-20260408",
@@ -8484,7 +8484,7 @@
         },
         {
           "identity": "rec-0f2296ac01aa9ace",
-          "rel_path": "records/ecosystem-manager/execute/rec-0f2296ac01aa9ace.json",
+          "rel_path": "records/swarm-manager/execute/rec-0f2296ac01aa9ace.json",
           "size": 1990,
           "sha256": "49c222927cde02831cf88ae7753f3f5f4d19e2256a06cbd13b8275311f4f44f5",
           "status": "shipped"
@@ -8498,7 +8498,7 @@
         },
         {
           "identity": "rec-0f64eedd3c97d240",
-          "rel_path": "records/ecosystem-manager/execute/rec-0f64eedd3c97d240.json",
+          "rel_path": "records/swarm-manager/execute/rec-0f64eedd3c97d240.json",
           "size": 3888,
           "sha256": "8596f954e0f164b26678108d17c76f9c7759a803b18dc4a489df037dacafc61e",
           "status": "shipped"
@@ -8960,7 +8960,7 @@
         },
         {
           "identity": "rec-199589fb75036caf",
-          "rel_path": "records/ecosystem-manager/execute/rec-199589fb75036caf.json",
+          "rel_path": "records/swarm-manager/execute/rec-199589fb75036caf.json",
           "size": 2406,
           "sha256": "43ddd7f2ef17655710af8082fdc5cc31a54b5ebf275fde18492d02f561a96d8f",
           "status": "shipped"
@@ -9511,7 +9511,7 @@
         },
         {
           "identity": "rec-26f26a40411b3704",
-          "rel_path": "records/ecosystem-manager/execute/rec-26f26a40411b3704.json",
+          "rel_path": "records/swarm-manager/execute/rec-26f26a40411b3704.json",
           "size": 1909,
           "sha256": "f508a1e4c1e6bc4ed8b6dcdd8e6ccc77b720c215423024cf245354c9243c4a01",
           "status": "shipped"
@@ -10447,7 +10447,7 @@
         },
         {
           "identity": "rec-3c5651295c4da768",
-          "rel_path": "records/ecosystem-manager/fix/rec-3c5651295c4da768.json",
+          "rel_path": "records/swarm-manager/fix/rec-3c5651295c4da768.json",
           "size": 1287,
           "sha256": "e119ececf6896f1c30fe9e22828ae35515229adaea2f40831fd43d8480989fbe",
           "status": "partial"
@@ -10632,7 +10632,7 @@
         },
         {
           "identity": "rec-3f68822c8ef29ee5",
-          "rel_path": "records/ecosystem-manager/execute/rec-3f68822c8ef29ee5.json",
+          "rel_path": "records/swarm-manager/execute/rec-3f68822c8ef29ee5.json",
           "size": 1684,
           "sha256": "13b506a9502ddd8f17d88ccb611286ed5bd798f6db40e5127d910d1ee69ce6b5",
           "status": "shipped"
@@ -10674,7 +10674,7 @@
         },
         {
           "identity": "rec-40bbb8dd27d0a26b",
-          "rel_path": "records/ecosystem-manager/execute/rec-40bbb8dd27d0a26b.json",
+          "rel_path": "records/swarm-manager/execute/rec-40bbb8dd27d0a26b.json",
           "size": 1312,
           "sha256": "8364f11f7c6da5b7c4a1ce0316dc30b629011ea87ab1842525306748ceff8ca8",
           "status": "shipped"
@@ -11055,7 +11055,7 @@
         },
         {
           "identity": "rec-49d7b082b4a1a5ea",
-          "rel_path": "records/ecosystem-manager/fix/rec-49d7b082b4a1a5ea.json",
+          "rel_path": "records/swarm-manager/fix/rec-49d7b082b4a1a5ea.json",
           "size": 1400,
           "sha256": "f1b033f813fbc16c697db1b1091622273415ba19e806c3b49e076f8772d6a1c0",
           "status": "partial"
@@ -11097,7 +11097,7 @@
         },
         {
           "identity": "rec-4aa3d9f58b618bbd",
-          "rel_path": "records/ecosystem-manager/execute/rec-4aa3d9f58b618bbd.json",
+          "rel_path": "records/swarm-manager/execute/rec-4aa3d9f58b618bbd.json",
           "size": 1383,
           "sha256": "17d86ae0be2cb15d768e2b8b10283939d3ec8c39fe7f78704e88e118d69dbba1",
           "status": "shipped"
@@ -11783,7 +11783,7 @@
         },
         {
           "identity": "rec-593a5d76ddab9555",
-          "rel_path": "records/ecosystem-manager/fix/rec-593a5d76ddab9555.json",
+          "rel_path": "records/swarm-manager/fix/rec-593a5d76ddab9555.json",
           "size": 2954,
           "sha256": "d1753b0eb55a90a59d4095f97d56a0073da630033685c8aa5e4c0c40f92a6a83",
           "status": "shipped"
@@ -11860,7 +11860,7 @@
         },
         {
           "identity": "rec-5ae0d185ef56ed38",
-          "rel_path": "records/ecosystem-manager/execute/rec-5ae0d185ef56ed38.json",
+          "rel_path": "records/swarm-manager/execute/rec-5ae0d185ef56ed38.json",
           "size": 1504,
           "sha256": "587a4a696047158b1ead0aca48b30f568cc873dc5b82dd05e50651112d57af14",
           "status": "shipped"
@@ -12122,7 +12122,7 @@
         },
         {
           "identity": "rec-617ce241d5a8854c",
-          "rel_path": "records/ecosystem-manager/execute/rec-617ce241d5a8854c.json",
+          "rel_path": "records/swarm-manager/execute/rec-617ce241d5a8854c.json",
           "size": 1912,
           "sha256": "7f63ac7e359d434688e7f17f4d660597b905325ad5b13d580f9994ec23deee42",
           "status": "shipped"
@@ -12787,7 +12787,7 @@
         },
         {
           "identity": "rec-72126e43ee31163f",
-          "rel_path": "records/ecosystem-manager/execute/rec-72126e43ee31163f.json",
+          "rel_path": "records/swarm-manager/execute/rec-72126e43ee31163f.json",
           "size": 2485,
           "sha256": "fb649ec90bac75957c867c68fa5bdcbf9490cdaccfd512f30f1caa14162ef38f",
           "status": "partial"
@@ -12808,14 +12808,14 @@
         },
         {
           "identity": "rec-7236c6a3d5d886b8",
-          "rel_path": "records/ecosystem-manager/execute/rec-7236c6a3d5d886b8.json",
+          "rel_path": "records/swarm-manager/execute/rec-7236c6a3d5d886b8.json",
           "size": 1875,
           "sha256": "816f03eac795950e865c8ecc2c12b98785dc958e0225185f6d67549bc1367637",
           "status": "shipped"
         },
         {
           "identity": "rec-728522dea043dd67",
-          "rel_path": "records/ecosystem-manager/execute/rec-728522dea043dd67.json",
+          "rel_path": "records/swarm-manager/execute/rec-728522dea043dd67.json",
           "size": 1528,
           "sha256": "ee90199c3bef9f565dfe7d520b1ef7bf9a042dc4cb2aab757591f365ac78bfaf",
           "status": "shipped"
@@ -12920,7 +12920,7 @@
         },
         {
           "identity": "rec-75cf09919183400a",
-          "rel_path": "records/ecosystem-manager/execute/rec-75cf09919183400a.json",
+          "rel_path": "records/swarm-manager/execute/rec-75cf09919183400a.json",
           "size": 1537,
           "sha256": "c43d65416337fb06abb5b535f4a83663bdf81e246e6062a5616387cc5f026484",
           "status": "partial"
@@ -13168,7 +13168,7 @@
         },
         {
           "identity": "rec-7a783ea7c0a16094",
-          "rel_path": "records/ecosystem-manager/fix/rec-7a783ea7c0a16094.json",
+          "rel_path": "records/swarm-manager/fix/rec-7a783ea7c0a16094.json",
           "size": 2178,
           "sha256": "fc750d7a8fcd5922d1c8a180a1aa01e3417fe8e95f857deba07dd72c49376f23",
           "status": "shipped"
@@ -13546,7 +13546,7 @@
         },
         {
           "identity": "rec-84436b4900116a38",
-          "rel_path": "records/ecosystem-manager/fix/rec-84436b4900116a38.json",
+          "rel_path": "records/swarm-manager/fix/rec-84436b4900116a38.json",
           "size": 2603,
           "sha256": "d3bc0f1f02311e2dee76755442529e8eca2919b5ea0a39a752b9af1b5ca192c5",
           "status": "shipped"
@@ -13721,7 +13721,7 @@
         },
         {
           "identity": "rec-882d52789cc30580",
-          "rel_path": "records/ecosystem-manager/execute/rec-882d52789cc30580.json",
+          "rel_path": "records/swarm-manager/execute/rec-882d52789cc30580.json",
           "size": 2167,
           "sha256": "6af2027cd928def9e0410e6d69588c7587fa83821557fbe59b380c13668f6494",
           "status": "partial"
@@ -13840,7 +13840,7 @@
         },
         {
           "identity": "rec-8a289000555c9306",
-          "rel_path": "records/ecosystem-manager/fix/rec-8a289000555c9306.json",
+          "rel_path": "records/swarm-manager/fix/rec-8a289000555c9306.json",
           "size": 2916,
           "sha256": "8a15d8ab7aea3234bfa2c15d08651c7a8351ab18418e125a6a6a5a54aac7852b",
           "status": "partial"
@@ -13903,7 +13903,7 @@
         },
         {
           "identity": "rec-8bb83e1cfa1087a8",
-          "rel_path": "records/ecosystem-manager/execute/rec-8bb83e1cfa1087a8.json",
+          "rel_path": "records/swarm-manager/execute/rec-8bb83e1cfa1087a8.json",
           "size": 1490,
           "sha256": "fa7eff044c51983821a9f60e677bee13e5099bc0d8241fa475d5d01c4a24903a",
           "status": "partial"
@@ -13994,7 +13994,7 @@
         },
         {
           "identity": "rec-8d0786dedad05bcf",
-          "rel_path": "records/ecosystem-manager/execute/rec-8d0786dedad05bcf.json",
+          "rel_path": "records/swarm-manager/execute/rec-8d0786dedad05bcf.json",
           "size": 1066,
           "sha256": "079ab0dfb099fa71acee0f639be7ef08082c92008ddc2d5c1a8ed761bb308daa",
           "status": "shipped"
@@ -14036,7 +14036,7 @@
         },
         {
           "identity": "rec-8f18e3524a944147",
-          "rel_path": "records/ecosystem-manager/execute/rec-8f18e3524a944147.json",
+          "rel_path": "records/swarm-manager/execute/rec-8f18e3524a944147.json",
           "size": 1537,
           "sha256": "982d2d588955e32d8d9274b5be9288f621c65d2d85c598d973e0ea0cf7a4be33",
           "status": "shipped"
@@ -14196,7 +14196,7 @@
         },
         {
           "identity": "rec-927c2457b9533655",
-          "rel_path": "records/ecosystem-manager/execute/rec-927c2457b9533655.json",
+          "rel_path": "records/swarm-manager/execute/rec-927c2457b9533655.json",
           "size": 2836,
           "sha256": "f34578b6661092cbd3252ee9283433d099940e6e5c52da074c4c7a75980f0401",
           "status": "shipped"
@@ -14465,7 +14465,7 @@
         },
         {
           "identity": "rec-974fd83755bcf202",
-          "rel_path": "records/ecosystem-manager/execute/rec-974fd83755bcf202.json",
+          "rel_path": "records/swarm-manager/execute/rec-974fd83755bcf202.json",
           "size": 2330,
           "sha256": "fc1dfbc10ad269a853139dbb2a18534c39fedd80dc443423df3e56250ec548c2",
           "status": "shipped"
@@ -14538,7 +14538,7 @@
         },
         {
           "identity": "rec-97fa6c606b05018b",
-          "rel_path": "records/ecosystem-manager/fix/rec-97fa6c606b05018b.json",
+          "rel_path": "records/swarm-manager/fix/rec-97fa6c606b05018b.json",
           "size": 2395,
           "sha256": "90ac54c6e184403713c053eb07686f89e3c58f2b5145d793c5c38e340b51b1b7",
           "status": "partial"
@@ -14608,7 +14608,7 @@
         },
         {
           "identity": "rec-991ae215f6e80739",
-          "rel_path": "records/ecosystem-manager/execute/rec-991ae215f6e80739.json",
+          "rel_path": "records/swarm-manager/execute/rec-991ae215f6e80739.json",
           "size": 1884,
           "sha256": "28df4f3ccd4eff68366d0b0045e5a67aef2efbf9a5b7f858a91f9ac5a05bd63d",
           "status": "shipped"
@@ -14790,7 +14790,7 @@
         },
         {
           "identity": "rec-9d22534b5ff6ebe8",
-          "rel_path": "records/ecosystem-manager/fix/rec-9d22534b5ff6ebe8.json",
+          "rel_path": "records/swarm-manager/fix/rec-9d22534b5ff6ebe8.json",
           "size": 2764,
           "sha256": "7cfc321d4b1985f1cac529caac79dad169a57027fa45a6bd3663fe7b24749787",
           "status": "shipped"
@@ -15035,7 +15035,7 @@
         },
         {
           "identity": "rec-a22aef747f3dec0b",
-          "rel_path": "records/ecosystem-manager/execute/rec-a22aef747f3dec0b.json",
+          "rel_path": "records/swarm-manager/execute/rec-a22aef747f3dec0b.json",
           "size": 2035,
           "sha256": "8e280066d0b3cb63504d7c376b0f057f1d8a3aa398d34553400c76aac00941bf",
           "status": "shipped"
@@ -15640,7 +15640,7 @@
         },
         {
           "identity": "rec-b158ca52e8b5068f",
-          "rel_path": "records/ecosystem-manager/execute/rec-b158ca52e8b5068f.json",
+          "rel_path": "records/swarm-manager/execute/rec-b158ca52e8b5068f.json",
           "size": 2334,
           "sha256": "3d23edcea536ddb512fabf91cee7d589bebd710275b5fbe7d4eeeb77da58ec8d",
           "status": "partial"
@@ -15661,7 +15661,7 @@
         },
         {
           "identity": "rec-b1fde5a6aab928e9",
-          "rel_path": "records/ecosystem-manager/execute/rec-b1fde5a6aab928e9.json",
+          "rel_path": "records/swarm-manager/execute/rec-b1fde5a6aab928e9.json",
           "size": 1244,
           "sha256": "b9e351320a185a674bc99389f933944486dda0b985c9c9be92a426335bd42562",
           "status": "shipped"
@@ -16409,7 +16409,7 @@
         },
         {
           "identity": "rec-c42d4ca6afa071c3",
-          "rel_path": "records/ecosystem-manager/fix/rec-c42d4ca6afa071c3.json",
+          "rel_path": "records/swarm-manager/fix/rec-c42d4ca6afa071c3.json",
           "size": 1690,
           "sha256": "34aaa44c6880ad2ccd6bdcbfcd5929e35ab13770145a0eda7a5a28d7f86f9f48",
           "status": "shipped"
@@ -17018,7 +17018,7 @@
         },
         {
           "identity": "rec-d19a78fc67df2a62",
-          "rel_path": "records/ecosystem-manager/execute/rec-d19a78fc67df2a62.json",
+          "rel_path": "records/swarm-manager/execute/rec-d19a78fc67df2a62.json",
           "size": 2073,
           "sha256": "81533e79f389dab079ac1f65cfb3599cfe18a7c2f3b78c9627a8a408579488df",
           "status": "shipped"
@@ -17074,7 +17074,7 @@
         },
         {
           "identity": "rec-d2fa5def86a7310a",
-          "rel_path": "records/ecosystem-manager/fix/rec-d2fa5def86a7310a.json",
+          "rel_path": "records/swarm-manager/fix/rec-d2fa5def86a7310a.json",
           "size": 1731,
           "sha256": "f978c9bea460377a69ef109c45705fd32f7b93f62aa033824d0b279bf82af064",
           "status": "partial"
@@ -17109,7 +17109,7 @@
         },
         {
           "identity": "rec-d3b654ef11512f65",
-          "rel_path": "records/ecosystem-manager/fix/rec-d3b654ef11512f65.json",
+          "rel_path": "records/swarm-manager/fix/rec-d3b654ef11512f65.json",
           "size": 1798,
           "sha256": "5750cdc29076ad5b293c184040e9823b45a4d81378ad78c28692aae4ab5f5545",
           "status": "shipped"
@@ -17221,7 +17221,7 @@
         },
         {
           "identity": "rec-d5c22eed9a326fc2",
-          "rel_path": "records/ecosystem-manager/execute/rec-d5c22eed9a326fc2.json",
+          "rel_path": "records/swarm-manager/execute/rec-d5c22eed9a326fc2.json",
           "size": 2997,
           "sha256": "008e85a7f48161eacfc2efd01062987c427f6d60aad95f338e5b8df4b6e86403",
           "status": "shipped"
@@ -17753,7 +17753,7 @@
         },
         {
           "identity": "rec-e06f5ef35418e66f",
-          "rel_path": "records/ecosystem-manager/execute/rec-e06f5ef35418e66f.json",
+          "rel_path": "records/swarm-manager/execute/rec-e06f5ef35418e66f.json",
           "size": 269,
           "sha256": "22ca3023444197810864da2e7451a211e00f662cd44c61a85decb0211cfbe9ad",
           "status": "shipped"
@@ -17879,7 +17879,7 @@
         },
         {
           "identity": "rec-e3c9bf2369ba5fa0",
-          "rel_path": "records/ecosystem-manager/execute/rec-e3c9bf2369ba5fa0.json",
+          "rel_path": "records/swarm-manager/execute/rec-e3c9bf2369ba5fa0.json",
           "size": 2123,
           "sha256": "49f95cc4a91b4c3faa650528f2011ac4ea0fb47eda24f871e4e1ea2b558d93c0",
           "status": "shipped"
@@ -17984,7 +17984,7 @@
         },
         {
           "identity": "rec-e58f0c6bd278f340",
-          "rel_path": "records/ecosystem-manager/execute/rec-e58f0c6bd278f340.json",
+          "rel_path": "records/swarm-manager/execute/rec-e58f0c6bd278f340.json",
           "size": 272,
           "sha256": "f105acc28df4d6eb14c95dc7b507c8b71a943e996a53d0731b4e365378252376",
           "status": "shipped"
@@ -18145,7 +18145,7 @@
         },
         {
           "identity": "rec-e96c1d0f01e90b0b",
-          "rel_path": "records/ecosystem-manager/research/rec-e96c1d0f01e90b0b.json",
+          "rel_path": "records/swarm-manager/research/rec-e96c1d0f01e90b0b.json",
           "size": 2935,
           "sha256": "a42e78a8117a0d696ce24266eccb229161df4d8f261aed4ee84bdc864b644902",
           "status": "shipped"
@@ -18194,7 +18194,7 @@
         },
         {
           "identity": "rec-ea020f3644330a61",
-          "rel_path": "records/ecosystem-manager/execute/rec-ea020f3644330a61.json",
+          "rel_path": "records/swarm-manager/execute/rec-ea020f3644330a61.json",
           "size": 1061,
           "sha256": "aee0b8e8dbdfd22bd65f4e485a78f98d9caadcea08198bb99ff55f1c85d6cdc3",
           "status": "shipped"
@@ -18932,7 +18932,7 @@
         },
         {
           "identity": "rec-fa8b7d5e383bd313",
-          "rel_path": "records/ecosystem-manager/research/rec-fa8b7d5e383bd313.json",
+          "rel_path": "records/swarm-manager/research/rec-fa8b7d5e383bd313.json",
           "size": 1190,
           "sha256": "5737e65955bd8c0ca81f8db48f9e8668d35820211705d4d895e8dcaf8ef68a95",
           "status": "partial"

@@ -11,6 +11,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -176,6 +177,13 @@ type SuiteExecutionRequest struct {
 	// scenario should be treated as living for repo-relative validation.
 	LogicalRepoRoot        string `json:"logicalRepoRoot,omitempty"`
 	LogicalScenarioRelPath string `json:"logicalScenarioRelPath,omitempty"`
+	// Admission identity is resolved before a request can coalesce and checked
+	// again immediately before execution persists run evidence.
+	AdmissionTreeDigest          string `json:"admissionTreeDigest,omitempty"`
+	AdmissionPhaseSetDigest      string `json:"admissionPhaseSetDigest,omitempty"`
+	AdmissionDescriptorDigest    string `json:"admissionDescriptorDigest,omitempty"`
+	AdmissionConfigurationDigest string `json:"admissionConfigurationDigest,omitempty"`
+	RequireGateQuality           bool   `json:"requireGateQuality,omitempty"`
 }
 
 // SuiteExecutionResult captures the outcome of a run.
@@ -195,21 +203,28 @@ type SuiteExecutionResult struct {
 	// backward compatibility and is true for both PASS and PARTIAL (only FAIL is
 	// a non-zero exit), so a self-test that skips an unrunnable phase is honestly
 	// reported without failing CI.
-	Verdict                  string                      `json:"verdict,omitempty"`
-	PresetUsed               string                      `json:"preset,omitempty"`
-	RequestedPreset          string                      `json:"requestedPreset,omitempty"`
-	RequestedPhases          []string                    `json:"requestedPhases,omitempty"`
-	RequestedSkipPhases      []string                    `json:"requestedSkipPhases,omitempty"`
-	PlannedPhases            []string                    `json:"plannedPhases,omitempty"`
-	PhaseSetDigest           string                      `json:"phaseSetDigest,omitempty"`
-	DescriptorSnapshotDigest string                      `json:"descriptorSnapshotDigest,omitempty"`
-	ConfigurationFingerprint string                      `json:"configurationFingerprint,omitempty"`
-	FailFast                 bool                        `json:"failFast"`
-	Phases                   []PhaseExecutionResult      `json:"phases"`
-	PhaseSummary             PhaseSummary                `json:"phaseSummary"`
-	ProviderReadiness        []providerreadiness.Outcome `json:"providerReadiness,omitempty"`
-	Warnings                 []string                    `json:"warnings,omitempty"`
-	WarningSummary           WarningSummary              `json:"warningSummary"`
+	Verdict                  string   `json:"verdict,omitempty"`
+	PresetUsed               string   `json:"preset,omitempty"`
+	RequestedPreset          string   `json:"requestedPreset,omitempty"`
+	RequestedPhases          []string `json:"requestedPhases,omitempty"`
+	RequestedSkipPhases      []string `json:"requestedSkipPhases,omitempty"`
+	PlannedPhases            []string `json:"plannedPhases,omitempty"`
+	PhaseSetDigest           string   `json:"phaseSetDigest,omitempty"`
+	DescriptorSnapshotDigest string   `json:"descriptorSnapshotDigest,omitempty"`
+	ConfigurationFingerprint string   `json:"configurationFingerprint,omitempty"`
+	// SourceFingerprint identifies the declared relevant source scope at run
+	// admission. It is deliberately separate from Git dirtiness: ordinary
+	// concurrent edits outside the scope cannot invalidate this evidence.
+	SourceFingerprint string                      `json:"sourceFingerprint,omitempty"`
+	SourceScope       string                      `json:"sourceScope,omitempty"`
+	SourceStable      bool                        `json:"sourceStable"`
+	GateQuality       bool                        `json:"gateQuality,omitempty"`
+	FailFast          bool                        `json:"failFast"`
+	Phases            []PhaseExecutionResult      `json:"phases"`
+	PhaseSummary      PhaseSummary                `json:"phaseSummary"`
+	ProviderReadiness []providerreadiness.Outcome `json:"providerReadiness,omitempty"`
+	Warnings          []string                    `json:"warnings,omitempty"`
+	WarningSummary    WarningSummary              `json:"warningSummary"`
 	// CampaignNudge is present only when the audit finding load exceeded the
 	// single-pass threshold, steering the agent to open a tracked
 	// improvement campaign. Nil otherwise.
@@ -285,6 +300,7 @@ type ExecutionEvent struct {
 	// for native phases / providers with no ladder.
 	PhasePresentation *commonv1.PhasePresentation  `json:"-"`
 	FindingsSummary   *runspb.PhaseFindingsSummary `json:"-"`
+	Assessment        *commonv1.MaturityAssessment `json:"-"`
 
 	// For observation events
 	Message string `json:"message,omitempty"`
@@ -651,6 +667,17 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	if err != nil {
 		return nil, fmt.Errorf("build run descriptor snapshot: %w", err)
 	}
+	phaseSetDigest := phases.PhaseSetDigest(plannedPhases)
+	configurationDigest := ExecutionConfigurationFingerprint(req, descriptorSnapshot.Digest)
+	if req.AdmissionTreeDigest != "" && req.AdmissionTreeDigest != digest {
+		return nil, fmt.Errorf("source tree changed after admission; retry to measure the current source identity")
+	}
+	if req.AdmissionPhaseSetDigest != "" && req.AdmissionPhaseSetDigest != phaseSetDigest || req.AdmissionDescriptorDigest != "" && req.AdmissionDescriptorDigest != descriptorSnapshot.Digest || req.AdmissionConfigurationDigest != "" && req.AdmissionConfigurationDigest != configurationDigest {
+		return nil, fmt.Errorf("execution plan changed after admission; retry to measure the current validation contract")
+	}
+	if req.RequireGateQuality && (digest == "" || digestErr != nil || gitCtx.Dirty || !isLinkedWorktree(planCtx.env.ScenarioDir)) {
+		return nil, fmt.Errorf("gate-quality execution requires an isolated linked Git worktree with a clean, digest-stamped source tree")
+	}
 	if err := sharedruns.WriteDescriptorSnapshot(planCtx.env.ScenarioDir, runID, descriptorSnapshot); err != nil {
 		return nil, fmt.Errorf("persist run descriptor snapshot: %w", err)
 	}
@@ -668,7 +695,7 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		Preset:                          strings.TrimSpace(req.Preset),
 		CaptureProfile:                  strings.TrimSpace(req.CaptureProfile),
 		PlannedPhases:                   plannedPhases,
-		PhaseSetDigest:                  phases.PhaseSetDigest(plannedPhases),
+		PhaseSetDigest:                  phaseSetDigest,
 		DescriptorSnapshotSchemaVersion: descriptorSnapshot.SchemaVersion,
 		DescriptorSnapshotDigest:        descriptorSnapshot.Digest,
 	}); err != nil {
@@ -691,13 +718,30 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 			RequestedPhases:          normalizePhaseList(req.Phases),
 			RequestedSkipPhases:      normalizePhaseList(req.Skip),
 			PlannedPhases:            plannedPhases,
-			PhaseSetDigest:           phases.PhaseSetDigest(plannedPhases),
+			PhaseSetDigest:           phaseSetDigest,
 			DescriptorSnapshotDigest: descriptorSnapshot.Digest,
-			ConfigurationFingerprint: ExecutionConfigurationFingerprint(req, descriptorSnapshot.Digest),
+			ConfigurationFingerprint: configurationDigest,
+			SourceFingerprint:        digest,
+			SourceScope:              "scenario:" + scenario,
+			SourceStable:             true,
+			GateQuality:              req.RequireGateQuality,
 			FailFast:                 req.FailFast,
 			Warnings:                 buildPlanWarnings(planCtx.plan),
 		},
 	}, nil
+}
+
+// isLinkedWorktree requires a separate Git worktree rather than merely a
+// clean main checkout. The .git entry at the repository root is a file for a
+// linked worktree and a directory for the shared primary checkout.
+func isLinkedWorktree(scenarioDir string) bool {
+	command := exec.Command("git", "-C", scenarioDir, "rev-parse", "--show-toplevel")
+	root, err := command.Output()
+	if err != nil {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(strings.TrimSpace(string(root)), ".git"))
+	return err == nil && !info.IsDir()
 }
 
 // ExecutionConfigurationFingerprint captures the execution knobs that can
@@ -739,6 +783,17 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	resultViews := buildPhaseResultViews(prepared.runLogDir, phaseResults)
 	result.PhaseSummary = summarizePhaseViews(resultViews)
 	result.WarningSummary = buildWarningSummaryFromViews(prepared.env.RunID, resultViews)
+	// A run may spend long enough executing that another agent changes relevant
+	// inputs. That does not invalidate any stored baseline; it simply means this
+	// particular current attempt must not enter the reusable-result cache.
+	// Keep the terminal result for diagnosis and make the retry reason explicit.
+	if after, err := treedigest.Compute(prepared.env.ScenarioDir); err != nil {
+		result.SourceStable = false
+		result.Warnings = append(result.Warnings, "could not recheck source fingerprint after execution: "+err.Error())
+	} else if after != result.SourceFingerprint {
+		result.SourceStable = false
+		result.Warnings = append(result.Warnings, "relevant source inputs changed during this test attempt; rerun to measure the current inputs")
+	}
 
 	// Persist the combined findings artifact BEFORE the nudge so the nudge can
 	// point at a file that already exists on disk (the on-ramp the assessment
@@ -873,6 +928,7 @@ func CompactTerminalSnapshot(result *SuiteExecutionResult) *SuiteExecutionResult
 			FindingSource:      phase.FindingSource,
 			PhasePresentation:  phase.PhasePresentation,
 			FindingsSummary:    phase.FindingsSummary,
+			Assessment:         phase.Assessment,
 		})
 	}
 	compact.Warnings = nil
@@ -970,6 +1026,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 				Error:             phaseResult.Error,
 				PhasePresentation: phaseResult.PhasePresentation,
 				FindingsSummary:   phaseResult.FindingsSummary,
+				Assessment:        phaseResult.Assessment,
 			})
 		}
 
@@ -1343,6 +1400,7 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		Remediation:       remediation,
 		Observations:      report.Observations,
 		Findings:          report.Findings,
+		Assessment:        report.Assessment,
 		Metrics:           report.Metrics,
 		PhasePresentation: report.PhasePresentation,
 		FindingsSummary:   report.FindingsSummary,
@@ -1427,6 +1485,7 @@ type findingsArtifactPhase struct {
 	Status        string                                `json:"status"`
 	FindingSource string                                `json:"findingSource,omitempty"`
 	Findings      []*architecturev1.ArchitectureFinding `json:"findings"`
+	Assessment    *commonv1.MaturityAssessment          `json:"assessment,omitempty"`
 	// PhasePresentation + FindingsSummary carry the per-phase standing (Phase
 	// Capability Contract) so `test-genie runs findings <run-id>` renders the same
 	// standing on demand. Additive and omitempty — architecture-cartographer's
@@ -1454,6 +1513,7 @@ func (o *SuiteOrchestrator) writeFindingsArtifact(scenarioDir, scenario, runID, 
 			Status:            res.Status,
 			FindingSource:     res.FindingSource,
 			Findings:          res.Findings,
+			Assessment:        res.Assessment,
 			PhasePresentation: res.PhasePresentation,
 			FindingsSummary:   res.FindingsSummary,
 		})
@@ -1526,6 +1586,7 @@ type phaseResultView struct {
 	Observations      []phases.Observation
 	FindingSource     string
 	Findings          []*architecturev1.ArchitectureFinding
+	Assessment        *commonv1.MaturityAssessment
 	PhasePresentation *commonv1.PhasePresentation
 	FindingsSummary   *runspb.PhaseFindingsSummary
 }
@@ -1550,6 +1611,7 @@ func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []p
 			Observations:      result.Observations,
 			FindingSource:     result.FindingSource,
 			Findings:          findings,
+			Assessment:        result.Assessment,
 			PhasePresentation: result.PhasePresentation,
 			FindingsSummary:   result.FindingsSummary,
 		})

@@ -318,7 +318,7 @@ For **development tooling** scenarios (like scenario-to-extension):
 - **Technical debt**: Quarterly assessment
 
 ### Escalation Criteria
-Escalate to ecosystem-manager if:
+Escalate to swarm-manager if:
 - Security vulnerabilities appear
 - Standards violations grow >150
 - High-severity violations increase

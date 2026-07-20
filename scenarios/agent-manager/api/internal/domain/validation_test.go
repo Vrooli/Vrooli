@@ -72,8 +72,8 @@ func TestAgentProfile_Validate(t *testing.T) {
 			profile: &AgentProfile{
 				Name: "test",
 
-				AllowedTools: []string{"Read", "Write"},
-				DeniedTools:  []string{"Write", "Bash"}, RoleRef: "code.default",
+				AllowedTools: []string{"read", "write"},
+				DeniedTools:  []string{"write", "shell"}, RoleRef: "code.default",
 			},
 			wantErr: true,
 			errMsg:  "Tools",
@@ -116,6 +116,19 @@ func TestAgentProfile_Validate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAgentProfileValidateCanonicalTools(t *testing.T) {
+	profile := &AgentProfile{Name: "canon", RoleRef: "code.default", AllowedTools: []string{"read", "web_search"}, DeniedTools: []string{"shell"}}
+	if err := profile.Validate(); err != nil {
+		t.Fatalf("canonical tools rejected: %v", err)
+	}
+
+	profile.AllowedTools = []string{"analyze_code"}
+	err := profile.Validate()
+	if err == nil || !containsSubstring(err.Error(), `unknown canonical tool "analyze_code"`) || !containsSubstring(err.Error(), "nearest match") {
+		t.Fatalf("unknown canonical tool error = %v", err)
 	}
 }
 

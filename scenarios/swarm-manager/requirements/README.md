@@ -29,7 +29,7 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P0 | OT-P0-007 | Scenario deletion with safeguards | 1 |
 | P0 | OT-P0-008 | Tabbed navigation UI | 1 |
 | P0 | OT-P0-009 | agent-manager integration | 2 |
-| P0 | OT-P0-010 | ecosystem-manager integration | 1 |
+| P0 | OT-P0-010 | swarm-manager integration | 1 |
 | P0 | OT-P0-011 | Data-defined operating-mode execution | 11 |
 | P1 | OT-P1-001 | Execution control policy | 1 |
 | P1 | OT-P1-002 | Execution operations page | 2 |

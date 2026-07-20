@@ -31,13 +31,13 @@ const (
 func (s Status) Active() bool { return s == StatusQueued || s == StatusRunning || s == StatusParked }
 
 type Workflow struct {
-	ID, AssetID, SourceScenario, TargetScenario, SourcePath, RequestedVersion string
-	AgentManagerTaskID, AgentManagerRunID, IdempotencyKey                     string
-	Kind                                                                      Kind
-	Status                                                                    Status
-	LastEventSequence                                                         int64
-	Summary, Error                                                            string
-	CreatedAt, UpdatedAt, CompletedAt                                         time.Time
+	ID, AssetID, SourceScenario, TargetScenario, SourcePath, RequestedVersion      string
+	AgentManagerTaskID, AgentManagerRunID, AgentManagerExecutionID, IdempotencyKey string
+	Kind                                                                           Kind
+	Status                                                                         Status
+	LastEventSequence                                                              int64
+	Summary, Error                                                                 string
+	CreatedAt, UpdatedAt, CompletedAt                                              time.Time
 }
 
 type StartInput struct {
@@ -68,9 +68,9 @@ type PromotionReadinessReader interface {
 }
 
 type DispatchResult struct {
-	TaskID, RunID string
-	Status        Status
-	QueueDepth    int
+	ExecutionID    string
+	Status         Status
+	Summary, Error string
 }
 
 type RunSnapshot struct {
@@ -80,8 +80,8 @@ type RunSnapshot struct {
 }
 
 type Dispatcher interface {
-	Dispatch(context.Context, StartInput) (DispatchResult, error)
-	Snapshot(context.Context, string, int64) (RunSnapshot, error)
+	Start(context.Context, StartInput) (DispatchResult, error)
+	Wait(context.Context, string) (DispatchResult, error)
 	Stop(context.Context, string) (RunSnapshot, error)
 }
 

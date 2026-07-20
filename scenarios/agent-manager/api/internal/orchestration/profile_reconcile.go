@@ -76,6 +76,7 @@ func (o *Orchestrator) reconcileProfileSource(ctx context.Context, scenario, sce
 		item.Message = err.Error()
 		return item
 	}
+	item.Diagnostics = profileRestrictionDiagnostics(profile)
 	item.ProfileKey = profile.ProfileKey
 
 	if err := enforceProfileOwnership(scenario, profile.ProfileKey); err != nil {
@@ -161,6 +162,18 @@ func (o *Orchestrator) reconcileProfileSource(ctx context.Context, scenario, sce
 	}
 	item.Status = ProfileReconcileStatusUpdated
 	return item
+}
+
+func profileRestrictionDiagnostics(profile *domain.AgentProfile) []domain.WorkflowDiagnostic {
+	if profile == nil || !profile.SkipPermissionPrompt || len(profile.AllowedTools) == 0 {
+		return nil
+	}
+	return []domain.WorkflowDiagnostic{{
+		Code:     "tool_restriction_skip_permissions",
+		Path:     "skipPermissionPrompt",
+		Message:  "skipPermissionPrompt:true contradicts allowedTools because Claude Code bypasses its permission allowlist",
+		Severity: domain.DiagnosticSeverityWarning,
+	}}
 }
 
 func resolveProfileSourcePath(scenarioRoot, source string) (string, error) {

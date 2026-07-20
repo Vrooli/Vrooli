@@ -69,7 +69,7 @@ func TestGlossarySearchNoMatch(t *testing.T) {
 // TestSetupOrder verifies GET /api/v1/setup-order returns dependency-sorted resources.
 // [REQ:REQ-P2-001] - Setup Order Algorithm
 func TestSetupOrder(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres, testResPostgis, testResRedis})
+	srv := newTestServer(t, []map[string]string{testResPostgres, testResRedis, testResJudge0})
 
 	w := doGet(t, srv, "/api/v1/setup-order")
 	requireStatus(t, w, http.StatusOK)
@@ -82,20 +82,23 @@ func TestSetupOrder(t *testing.T) {
 		t.Fatalf("expected 3 ordered resources, got %v", resp["setup_order"])
 	}
 
-	// postgres should come before postgis (postgis depends on postgres)
-	var postgresOrder, postgisOrder float64
+	// postgres and redis should come before judge0 (which depends on both).
+	var postgresOrder, redisOrder, judge0Order float64
 	for _, item := range order {
 		entry := item.(map[string]any)
 		if entry["name"] == "postgres" {
 			postgresOrder = entry["order"].(float64)
 		}
-		if entry["name"] == "postgis" {
-			postgisOrder = entry["order"].(float64)
+		if entry["name"] == "redis" {
+			redisOrder = entry["order"].(float64)
+		}
+		if entry["name"] == "judge0" {
+			judge0Order = entry["order"].(float64)
 		}
 	}
 
-	if postgresOrder >= postgisOrder {
-		t.Errorf("postgres (order=%v) should come before postgis (order=%v)", postgresOrder, postgisOrder)
+	if postgresOrder >= judge0Order || redisOrder >= judge0Order {
+		t.Errorf("postgres (order=%v) and redis (order=%v) should come before judge0 (order=%v)", postgresOrder, redisOrder, judge0Order)
 	}
 }
 

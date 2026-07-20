@@ -23,7 +23,7 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P0 | system-monitor-must-have-real-time-cpu-memory-disk-network-gpu-monitoring | Real-time CPU, memory, disk, network,... | 1 |
 | P0 | system-monitor-must-have-threshold-based-anomaly-detection-with-configurable-triggers | Threshold-based anomaly detection wit... | 1 |
 | P0 | system-monitor-must-have-automated-investigation-of-system-anomalies-via-agent-manager | Automated investigation of system ano... | 1 |
-| P0 | system-monitor-must-have-time-series-data-storage-in-questdb-configured-api-defaults-to-in-memory-with-postgresql-fallback | Time-series data storage in QuestDB (... | 1 |
+| P0 | system-monitor-must-have-persistent-time-series-data-storage | Persistent time-series data storage (... | 1 |
 | P0 | system-monitor-must-have-configurable-warningcritical-thresholds-via-api-settings-endpoints | Configurable warning/critical thresho... | 1 |
 | P0 | system-monitor-must-have-report-generation-dailyweekly-via-api-endpoint | Report generation (daily/weekly via A... | 1 |
 | P0 | system-monitor-must-have-dark-cyberpunk-monitoring-dashboard-matrix-themed-react-ui | Dark cyberpunk monitoring dashboard (... | 1 |

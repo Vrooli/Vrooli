@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"agent-manager/internal/domain"
 	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
@@ -238,6 +239,30 @@ func TestReconcileScenarioDeclarationsForbiddenRuntimeField(t *testing.T) {
 	}
 	if res.ProfilesFailed != 1 || !strings.Contains(res.ProfileResults[0].Message, "runtime field") {
 		t.Fatalf("expected forbidden-field failure, got %+v", res.ProfileResults)
+	}
+}
+
+func TestReconcileScenarioDeclarationsCanonicalToolDiagnostics(t *testing.T) {
+	o := newDeclarationOrchestrator(t)
+	ctx := context.Background()
+	bad := strings.Replace(fixtureProfile, `"createdBy": "fixture-scn"`, `"allowedTools":["analyze_code"],"createdBy": "fixture-scn"`, 1)
+	root, servicePath := writeScenarioFixture(t, map[string]string{
+		".vrooli/service.json":               declarationManifest(".vrooli/agent-manager/default.json"),
+		".vrooli/agent-manager/default.json": bad,
+	})
+	result, err := o.reconcileScenarioDeclarationsAt(ctx, "fixture-scn", root, servicePath, false, false)
+	if err != nil || result.ProfilesFailed != 1 || !strings.Contains(result.ProfileResults[0].Message, "analyze_code") || !strings.Contains(result.ProfileResults[0].Message, "nearest match") {
+		t.Fatalf("canonical tool diagnostic: result=%+v err=%v", result, err)
+	}
+
+	warning := strings.Replace(fixtureProfile, `"createdBy": "fixture-scn"`, `"allowedTools":["read"],"skipPermissionPrompt":true,"createdBy": "fixture-scn"`, 1)
+	root, servicePath = writeScenarioFixture(t, map[string]string{
+		".vrooli/service.json":               declarationManifest(".vrooli/agent-manager/default.json"),
+		".vrooli/agent-manager/default.json": warning,
+	})
+	result, err = o.reconcileScenarioDeclarationsAt(ctx, "fixture-scn", root, servicePath, false, false)
+	if err != nil || result.ProfilesCreated != 1 || len(result.ProfileResults[0].Diagnostics) != 1 || result.ProfileResults[0].Diagnostics[0].Severity != domain.DiagnosticSeverityWarning {
+		t.Fatalf("skip permission warning: result=%+v err=%v", result, err)
 	}
 }
 

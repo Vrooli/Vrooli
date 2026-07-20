@@ -2,6 +2,7 @@ package runs
 
 import (
 	"context"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -30,6 +31,7 @@ type rpcFakeExecutor struct {
 }
 
 func newRPCFake(scenarioDir string) *rpcFakeExecutor {
+	_ = os.MkdirAll(scenarioDir, 0o755)
 	return &rpcFakeExecutor{
 		scenarioDir: scenarioDir,
 		release:     make(chan struct{}),

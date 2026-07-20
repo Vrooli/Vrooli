@@ -61,3 +61,20 @@ func TestDescriptorSnapshotRejectsFutureSchema(t *testing.T) {
 		t.Fatalf("future schema error = %v", err)
 	}
 }
+
+func TestPhaseComparisonFingerprintIncludesValidationContract(t *testing.T) {
+	base := PhaseDescriptorSnapshot{Phase: "unit", ValidationContract: "scenario-validation/v1", ValidationDeliveryMode: "inline"}
+	changed := base
+	changed.ValidationDeliveryMode = "durable-run"
+	a, err := PhaseComparisonFingerprint(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := PhaseComparisonFingerprint(changed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a == b {
+		t.Fatal("validation delivery change must invalidate the semantic comparison fingerprint")
+	}
+}

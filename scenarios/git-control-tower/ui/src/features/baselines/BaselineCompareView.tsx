@@ -24,6 +24,10 @@ export function BaselineCompareView({ scenario, baseline, repoId, agentManagerAv
   const compare = useCompareOnDemand(scenario, { baselineName: baseline.name, branch: baseline.branch, repoId });
   const [showClean, setShowClean] = useState(false);
   const evidence = compare.diff?.evidence;
+  // The generated local proto package is refreshed at scenario build time. Keep
+  // this structural read tolerant of a running UI that has not yet reloaded its
+  // file-linked generated package after an API deployment.
+  const envelope = (compare.diff as (typeof compare.diff & { comparison?: { behavior: string; coverage: string; compatibility: string; provenance: string } }) | undefined)?.comparison;
   const phases = compare.diff?.phases ?? [];
   const summary = summarizePhaseDiffs(phases);
   const attention = phases.filter(phaseDiffNeedsAttention);
@@ -51,6 +55,7 @@ export function BaselineCompareView({ scenario, baseline, repoId, agentManagerAv
             <Identity label="Current SHA" value={compare.diff.currentGit?.sha || "unavailable"} />
           </dl>
           <div className="flex flex-wrap gap-2 text-[11px]"><Count label="Regressions" value={summary.regressions} tone="red" /><Count label="New failures" value={summary.newFailures} tone="amber" /><Count label="Preexisting" value={summary.preexisting} /><Count label="Cleared" value={summary.cleared} tone="green" /><Count label="Advisory" value={advisory} tone="blue" /><Count label="Not comparable" value={summary.notComparable} tone="amber" /></div>
+		  {envelope && <div className="grid gap-2 text-[11px] sm:grid-cols-2 xl:grid-cols-4"><Dimension label="Behavior" value={envelope.behavior} /><Dimension label="Coverage" value={envelope.coverage} /><Dimension label="Validation contract" value={envelope.compatibility} /><Dimension label="Provenance" value={envelope.provenance} /></div>}
           <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">{compare.diff.staleness?.likelyStale && <span className="text-amber-400">Baseline likely stale · {compare.diff.staleness.commitsSince} commits / {compare.diff.staleness.filesChanged} files</span>}{compare.diff.currentGit?.dirty && <span className="text-amber-400">Current tree is dirty</span>}{catalogChanged ? <span className="text-blue-300">Catalog changed: {summary.catalogAdded} new / {summary.catalogRetired} retired</span> : <span>Catalog shape unchanged</span>}</div>
         </section>
         {compare.diff.dirtyWarning && <div className="rounded-lg border border-amber-900/40 bg-amber-950/30 p-3 text-xs text-amber-300">{compare.diff.dirtyWarning}</div>}
@@ -72,4 +77,8 @@ function Identity({ label, value }: { label: string; value: string }) {
 function Count({ label, value, tone = "slate" }: { label: string; value: number; tone?: "slate" | "red" | "amber" | "green" | "blue" }) {
   const tones = { slate: "border-slate-700 text-slate-300", red: "border-red-900/60 text-red-300", amber: "border-amber-900/60 text-amber-300", green: "border-emerald-900/60 text-emerald-300", blue: "border-blue-900/60 text-blue-300" };
   return <span className={`rounded border px-2 py-1 ${tones[tone]}`}>{label}: {value}</span>;
+}
+
+function Dimension({ label, value }: { label: string; value: string }) {
+  return <div className="rounded border border-slate-800 bg-slate-950/30 px-2 py-1"><span className="text-slate-500">{label}: </span><span className="text-slate-200">{value || "legacy/unknown"}</span></div>;
 }

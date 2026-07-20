@@ -12,7 +12,10 @@ import (
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
-const DescriptorSnapshotSchemaVersion = 1
+// DescriptorSnapshotSchemaVersion 2 adds the comparison contract. Version 1
+// snapshots remain readable as explicitly legacy evidence; they do not acquire
+// invented comparison semantics on read.
+const DescriptorSnapshotSchemaVersion = 2
 
 var (
 	ErrDescriptorSnapshotNotFound           = errors.New("run descriptor snapshot not found")
@@ -45,23 +48,34 @@ type ApplicabilityDecisionSnapshot struct {
 // PhaseDescriptorSnapshot is the historical presentation and policy contract
 // for one immutable phase key.
 type PhaseDescriptorSnapshot struct {
-	Phase                string                        `json:"phase"`
-	DisplayName          string                        `json:"display_name,omitempty"`
-	Description          string                        `json:"description,omitempty"`
-	Provider             string                        `json:"provider,omitempty"`
-	OrderHint            int                           `json:"order_hint,omitempty"`
-	PhaseClass           string                        `json:"phase_class,omitempty"`
-	RuntimeClass         string                        `json:"runtime_class,omitempty"`
-	Dimensions           []string                      `json:"dimensions,omitempty"`
-	FindingSource        string                        `json:"finding_source,omitempty"`
-	Policy               DescriptorPolicySnapshot      `json:"policy"`
-	DocsPath             string                        `json:"docs_path,omitempty"`
-	MaturityReference    string                        `json:"maturity_reference,omitempty"`
-	ApplicabilityDefault string                        `json:"applicability_default,omitempty"`
-	EvidenceKinds        []string                      `json:"evidence_kinds,omitempty"`
-	Aliases              []string                      `json:"aliases,omitempty"`
-	Supersedes           []string                      `json:"supersedes,omitempty"`
-	Applicability        ApplicabilityDecisionSnapshot `json:"applicability"`
+	Phase                string                   `json:"phase"`
+	DisplayName          string                   `json:"display_name,omitempty"`
+	Description          string                   `json:"description,omitempty"`
+	Provider             string                   `json:"provider,omitempty"`
+	OrderHint            int                      `json:"order_hint,omitempty"`
+	PhaseClass           string                   `json:"phase_class,omitempty"`
+	RuntimeClass         string                   `json:"runtime_class,omitempty"`
+	Dimensions           []string                 `json:"dimensions,omitempty"`
+	FindingSource        string                   `json:"finding_source,omitempty"`
+	Policy               DescriptorPolicySnapshot `json:"policy"`
+	DocsPath             string                   `json:"docs_path,omitempty"`
+	MaturityReference    string                   `json:"maturity_reference,omitempty"`
+	ApplicabilityDefault string                   `json:"applicability_default,omitempty"`
+	EvidenceKinds        []string                 `json:"evidence_kinds,omitempty"`
+	Aliases              []string                 `json:"aliases,omitempty"`
+	Supersedes           []string                 `json:"supersedes,omitempty"`
+	// ComparisonFingerprint is derived only from validation semantics and
+	// execution policy, never from presentation metadata. It lets comparison
+	// distinguish an oracle change from a change in observed behavior.
+	ComparisonFingerprint string `json:"comparison_fingerprint,omitempty"`
+	// ComparisonMode declares how a changed fingerprint is handled:
+	// compatible | changed-unreviewed | invalidated | superseded.
+	ComparisonMode         string                        `json:"comparison_mode,omitempty"`
+	ValidationContract     string                        `json:"validation_contract,omitempty"`
+	ValidationDeliveryMode string                        `json:"validation_delivery_mode,omitempty"`
+	ValidationExecution    bool                          `json:"validation_execution,omitempty"`
+	ValidationRunService   string                        `json:"validation_run_service,omitempty"`
+	Applicability          ApplicabilityDecisionSnapshot `json:"applicability"`
 }
 
 // DescriptorSnapshot is written once before execution. Digest covers the
@@ -73,6 +87,18 @@ type DescriptorSnapshot struct {
 }
 
 func NewDescriptorSnapshot(phases []PhaseDescriptorSnapshot) (DescriptorSnapshot, error) {
+	for i := range phases {
+		if phases[i].ComparisonFingerprint == "" {
+			fingerprint, err := PhaseComparisonFingerprint(phases[i])
+			if err != nil {
+				return DescriptorSnapshot{}, err
+			}
+			phases[i].ComparisonFingerprint = fingerprint
+		}
+		if phases[i].ComparisonMode == "" {
+			phases[i].ComparisonMode = "changed-unreviewed"
+		}
+	}
 	snapshot := DescriptorSnapshot{
 		SchemaVersion: DescriptorSnapshotSchemaVersion,
 		Phases:        append([]PhaseDescriptorSnapshot(nil), phases...),
@@ -118,7 +144,7 @@ func ReadDescriptorSnapshot(scenarioDir, runID string) (DescriptorSnapshot, erro
 	if err := json.Unmarshal(data, &snapshot); err != nil {
 		return DescriptorSnapshot{}, fmt.Errorf("%w: decode: %v", ErrInvalidDescriptorSnapshot, err)
 	}
-	if snapshot.SchemaVersion != DescriptorSnapshotSchemaVersion {
+	if snapshot.SchemaVersion != 1 && snapshot.SchemaVersion != DescriptorSnapshotSchemaVersion {
 		return DescriptorSnapshot{}, fmt.Errorf("%w: got %d", ErrUnsupportedDescriptorSnapshotVersion, snapshot.SchemaVersion)
 	}
 	if len(snapshot.Phases) == 0 {
@@ -132,6 +158,39 @@ func ReadDescriptorSnapshot(scenarioDir, runID string) (DescriptorSnapshot, erro
 		return DescriptorSnapshot{}, fmt.Errorf("%w: digest mismatch", ErrInvalidDescriptorSnapshot)
 	}
 	return snapshot, nil
+}
+
+// PhaseComparisonFingerprint is the stable, descriptor-owned identity of a
+// phase's oracle. Display copy, docs, aliases, ordering, and maturity labels
+// intentionally do not participate, because changing them must not invalidate
+// behavioral comparison.
+func PhaseComparisonFingerprint(phase PhaseDescriptorSnapshot) (string, error) {
+	payload := struct {
+		Phase                  string                   `json:"phase"`
+		Provider               string                   `json:"provider"`
+		Policy                 DescriptorPolicySnapshot `json:"policy"`
+		ApplicabilityDefault   string                   `json:"applicability_default"`
+		EvidenceKinds          []string                 `json:"evidence_kinds"`
+		PhaseClass             string                   `json:"phase_class"`
+		RuntimeClass           string                   `json:"runtime_class"`
+		ValidationContract     string                   `json:"validation_contract"`
+		ValidationDeliveryMode string                   `json:"validation_delivery_mode"`
+		ValidationExecution    bool                     `json:"validation_execution"`
+		ValidationRunService   string                   `json:"validation_run_service"`
+	}{
+		Phase: phase.Phase, Provider: phase.Provider, Policy: phase.Policy,
+		ApplicabilityDefault: phase.ApplicabilityDefault,
+		EvidenceKinds:        append([]string(nil), phase.EvidenceKinds...),
+		PhaseClass:           phase.PhaseClass, RuntimeClass: phase.RuntimeClass,
+		ValidationContract: phase.ValidationContract, ValidationDeliveryMode: phase.ValidationDeliveryMode,
+		ValidationExecution: phase.ValidationExecution, ValidationRunService: phase.ValidationRunService,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("marshal phase comparison fingerprint: %w", err)
+	}
+	sum := sha256.Sum256(data)
+	return "pcf:sha256:" + hex.EncodeToString(sum[:]), nil
 }
 
 func descriptorSnapshotDigest(snapshot DescriptorSnapshot) (string, error) {

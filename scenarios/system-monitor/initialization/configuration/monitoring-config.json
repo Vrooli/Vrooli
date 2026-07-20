@@ -120,14 +120,6 @@
             "connection_pool_size": 10,
             "query_timeout_ms": 30000
         },
-        "questdb": {
-            "enabled": true,
-            "host": "localhost",
-            "ilp_port": 9009,
-            "http_port": 9000,
-            "retention_policy": "30d",
-            "batch_size": 1000
-        },
         "redis": {
             "enabled": true,
             "host": "localhost",
@@ -218,13 +210,6 @@
         }
     },
     "integrations": {
-        "node_red": {
-            "enabled": false,
-            "flows": [
-                "anomaly-detector",
-                "metric-collector"
-            ]
-        },
         "ollama": {
             "enabled": true,
             "base_url": "http://localhost:11434",

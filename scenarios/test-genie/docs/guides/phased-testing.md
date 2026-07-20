@@ -37,6 +37,24 @@ test-genie provider-contract scan --json
 
 The phase inspection and plan surfaces expose provider, descriptor path, docs path, policy, runnability, applicability reasons, freshness requirement, profile membership, phase/runtime class, dimensions, and finding source.
 
+## Comparison contracts and provenance
+
+Every run freezes a descriptor snapshot. Each phase carries a semantic
+comparison fingerprint and a `comparison.mode`: `compatible`,
+`changed-unreviewed` (the default), `invalidated`, or `superseded`. Display
+copy and ordering do not affect this fingerprint; validation policy, provider,
+applicability, and evidence semantics do. Therefore a same-key validator edit
+cannot silently turn a pass-to-fail result into a regression: it is reported as
+an explicit contract change until the provider declares compatibility.
+
+`runs compare` returns behavior, coverage, compatibility, and provenance for
+each phase and for the aggregate. Provider outages, skipped phases,
+inapplicability, missing artifacts, and legacy snapshots are coverage or
+provenance facts with structured diagnostics—not clean behavior. Gate-quality
+run starts compute a source tree plus frozen plan identity before coalescing and
+recheck it at execution start; a changed source or plan is refused instead of
+being attributed to the earlier request.
+
 ## Running Tests with Test Genie
 
 ### Using Test Presets

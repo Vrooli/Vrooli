@@ -9,7 +9,6 @@ Set these in `.env` or export them before starting the scenario.
 | `API_PORT` | `8080` | API server port |
 | `UI_PORT` | `3003` | UI dashboard port |
 | `DATABASE_URL` | `postgres://vrooli@localhost:5433/...` | PostgreSQL connection string |
-| `QUESTDB_URL` | `http://localhost:9009` | QuestDB HTTP endpoint |
 | `REDIS_URL` | `redis://localhost:6380` | Redis connection string |
 | `ENABLE_CLAUDE_INVESTIGATIONS` | `true` | Enable AI-driven investigations via agent-manager |
 | `CPU_WARNING_THRESHOLD` | `70` | CPU usage warning threshold (%) |
@@ -86,7 +85,7 @@ The API defaults to **in-memory storage** for simplicity. Data is lost on restar
 
 To use PostgreSQL, set `DATABASE_URL` to a valid connection string. The schema is defined in `initialization/postgres/schema.sql`.
 
-QuestDB can be configured via `QUESTDB_URL` for time-series metrics, but the API currently falls back to in-memory storage regardless.
+Persistent time-series storage is not configured yet; the API currently uses in-memory storage.
 
 ## Metrics Retention & Compaction
 

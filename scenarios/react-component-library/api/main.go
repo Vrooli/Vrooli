@@ -148,6 +148,9 @@ func main() {
 	if err := adoptionsInternal.EnsureSchemaMigrations(context.Background(), db); err != nil {
 		log.Fatalf("adoption schema migration failed: %v", err)
 	}
+	if err := workflowsInternal.EnsureSchemaMigrations(context.Background(), db); err != nil {
+		log.Fatalf("assisted workflow schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}

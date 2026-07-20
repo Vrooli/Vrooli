@@ -1,10 +1,8 @@
 package agentmanager
 
 import (
-	"context"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,10 +21,6 @@ type Handler struct {
 	service Service
 }
 
-type observedReceiptsReader interface {
-	GetObservedReceipts(context.Context, string, int) (ObservedReceiptsResponse, error)
-}
-
 // NewHandler creates a new status handler.
 func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
@@ -36,44 +30,7 @@ func NewHandler(service Service) *Handler {
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-manager/status", h.Status).Methods("GET")
 	r.HandleFunc("/api/v1/agent-manager/runs/{runID}", h.GetRun).Methods("GET")
-	r.HandleFunc("/api/v1/agent-manager/runs/{runID}/observed-receipts", h.GetObservedReceipts).Methods("GET")
 	r.HandleFunc("/api/v1/agent-manager/runs/{runID}/stop", h.StopRun).Methods("POST")
-}
-
-// GetObservedReceipts proxies the authoritative Agent Manager observation
-// surface. It deliberately returns an empty list for available-but-unobserved
-// runs and a degraded error only when the source cannot be queried.
-func (h *Handler) GetObservedReceipts(w http.ResponseWriter, r *http.Request) {
-	reader, ok := h.service.(observedReceiptsReader)
-	if !ok || h.service == nil || !h.service.IsEnabled() {
-		apierr.MapError(w, "[agent-manager] observed receipts", apierr.Unavailable("agent-manager observations are unavailable"))
-		return
-	}
-	runID := strings.TrimSpace(mux.Vars(r)["runID"])
-	if runID == "" {
-		apierr.MapError(w, "[agent-manager] observed receipts", apierr.BadRequest("run_id is required"))
-		return
-	}
-	limit := 100
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		if parsed, err := strconv.Atoi(raw); err != nil || parsed < 1 || parsed > 100 {
-			apierr.MapError(w, "[agent-manager] observed receipts", apierr.BadRequest("limit must be between 1 and 100"))
-			return
-		} else {
-			limit = parsed
-		}
-	}
-	result, err := reader.GetObservedReceipts(r.Context(), runID, limit)
-	if err != nil {
-		apierr.MapError(w, "[agent-manager] observed receipts", apierr.Unavailable("agent-manager receipt observations are degraded"))
-		return
-	}
-	if result.Observations == nil {
-		result.Observations = []ObservedReceipt{}
-	}
-	if err := httputil.JSONWithStatus(w, http.StatusOK, result); err != nil {
-		apierr.MapError(w, "[agent-manager] observed receipts", apierr.Internal("failed to encode observations"))
-	}
 }
 
 // Status returns agent-manager availability.

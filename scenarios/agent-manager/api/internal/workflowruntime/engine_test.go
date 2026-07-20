@@ -218,15 +218,13 @@ func TestInvalidStructuredResultDoesNotScheduleRepairWithoutBudget(t *testing.T)
 	for _, tc := range []struct {
 		name            string
 		maxNodeAttempts int
-		maxChildren     int
 	}{
-		{name: "node_attempt_capacity", maxNodeAttempts: 1, maxChildren: 2},
-		{name: "child_capacity", maxNodeAttempts: 2, maxChildren: 1},
+		{name: "node_attempt_capacity", maxNodeAttempts: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			definition := baseDefinition()
 			definition.Budgets.MaxNodeAttempts = tc.maxNodeAttempts
-			definition.Budgets.MaxChildren = tc.maxChildren
+			definition.Budgets.MaxChildren = 1
 			definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work", ResultSpec: &domain.ResultSpec{Version: "result-spec/v1", Kind: domain.ResultSpecKindJSONSchema, ExtractionMode: domain.StructuredExtractionDeterministic, Schema: json.RawMessage(`{"type":"object","required":["answer"]}`)}}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
 			definition.EntryNode = "run"
 			definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
@@ -247,6 +245,31 @@ func TestInvalidStructuredResultDoesNotScheduleRepairWithoutBudget(t *testing.T)
 				t.Fatalf("attempts=%+v children=%+v", attempts, children.requests)
 			}
 		})
+	}
+}
+
+func TestInvalidStructuredResultRepairsWithinSingleChildBudget(t *testing.T) {
+	definition := baseDefinition()
+	definition.Budgets.MaxNodeAttempts = 2
+	definition.Budgets.MaxChildren = 1
+	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work", ResultSpec: &domain.ResultSpec{Version: "result-spec/v1", Kind: domain.ResultSpecKindJSONSchema, ExtractionMode: domain.StructuredExtractionDeterministic, Schema: json.RawMessage(`{"type":"object","required":["answer"]}`)}}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+	definition.EntryNode = "run"
+	definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
+	engine, _, children := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "structured-repair-single-child")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	state := children.states[children.requests[0].runID]
+	state.Terminal = true
+	state.Result = &domain.RunResult{FinalOutput: `{"wrong":true}`, Structured: &domain.StructuredResult{Status: domain.StructuredResultInvalid, Diagnostics: []domain.StructuredDiagnostic{{Code: "schema_mismatch"}}}}
+	children.states[children.requests[0].runID] = state
+	repairPending := mustAdvance(t, engine, execution.ID)
+	if repairPending.Status != domain.WorkflowExecutionRunning || repairPending.BudgetUsage.NodeAttempts != 2 || repairPending.BudgetUsage.Children != 1 {
+		t.Fatalf("repairPending=%+v", repairPending)
+	}
+	mustAdvance(t, engine, execution.ID)
+	if len(children.requests) != 2 || children.requests[1].source == nil || *children.requests[1].source != children.requests[0].runID {
+		t.Fatalf("repair continuation=%+v", children.requests)
 	}
 }
 

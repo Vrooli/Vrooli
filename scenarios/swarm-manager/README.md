@@ -90,7 +90,7 @@ Backlog items are stored as git-tracked folders by kind:
 ideas/
 ├── my-scenario-idea/
 │   ├── spec.json        # Required metadata incl. plan_ref for the canonical plan-manager plan
-│   ├── handoff/         # Generated at idea execution time for ecosystem-manager handoff
+│   ├── handoff/         # Generated at idea execution time for swarm-manager handoff
 │   │   ├── brief.md
 │   │   ├── manifest.json
 │   │   └── source-index.json
@@ -117,7 +117,7 @@ execute/
 
 ### Required Scenarios
 - **agent-manager** - Spawning agents for automated work
-- **ecosystem-manager** - Scenario initialization and improvement
+- **swarm-manager** - Scenario initialization and improvement
 - **prompt-manager** - Prompt skill resolution, preview, simulate, and versioning
 
 ### Optional Scenarios (P1)
@@ -206,8 +206,8 @@ CLI usage guardrail:
 ## Integration Points
 
 - All agent work via `agent-manager` API (never direct agent calls)
-- Idea processing bridges into `ecosystem-manager` through a generated `handoff/` package plus task `notes` and `origin` metadata
-- All scenario operations via `ecosystem-manager` API
+- Idea processing bridges into `swarm-manager` through a generated `handoff/` package plus task `notes` and `origin` metadata
+- All scenario operations via `swarm-manager` API
 - Prompt catalog inventory from swarm-manager, with skill rendering via `prompt-manager` API
 - Execution run orchestration via `agent-manager` APIs
 

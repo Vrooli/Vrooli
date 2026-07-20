@@ -38,6 +38,9 @@ export function EntityList({
 export function PhaseDiffCard({ diff }: { diff: PhaseDiff }) {
   const descriptor = diff.descriptorB ?? diff.descriptorA;
   const title = descriptor?.displayName || diff.phase;
+  // The file-linked generated package can lag a deployed API. Keep this read
+  // additive so old UIs still render the rest of the comparison safely.
+  const enriched = diff as PhaseDiff & { behavior?: string; coverage?: string; compatibility?: string; provenance?: string; diagnostics?: Array<{ side?: string; code?: string; detail?: string; remediation?: string }> };
   const [expanded, setExpanded] = useState(diff.verdict !== "clean");
   return (
     <section className="rounded-lg border border-slate-800 bg-slate-900/40">
@@ -58,7 +61,14 @@ export function PhaseDiffCard({ diff }: { diff: PhaseDiff }) {
         <EntityList title="New failures" items={diff.newFailures} tone="new" />
         <EntityList title="Preexisting" items={diff.preexistingFailures} tone="preexisting" />
         <EntityList title="Cleared" items={diff.clearedFailures} tone="cleared" />
+        <div className="flex flex-wrap gap-1 text-[11px] text-slate-400">
+          <span>Behavior: {enriched.behavior || "unknown"}</span><span>·</span>
+          <span>Coverage: {enriched.coverage || "legacy"}</span><span>·</span>
+          <span>Contract: {enriched.compatibility || "legacy"}</span><span>·</span>
+          <span>Provenance: {enriched.provenance || "legacy"}</span>
+        </div>
         {diff.reasons.map((reason, index) => <p key={`${reason.code}-${index}`} className="text-xs text-amber-400">{reason.detail || "Comparison metadata unavailable"}</p>)}
+        {enriched.diagnostics?.map((diagnostic, index) => <div key={`${diagnostic.side}-${diagnostic.code}-${index}`} className="rounded border border-amber-900/40 bg-amber-950/20 px-2 py-1 text-xs text-amber-200"><span className="font-mono">{diagnostic.side || "comparison"}/{diagnostic.code || "diagnostic"}</span>{diagnostic.detail ? ` — ${diagnostic.detail}` : ""}{diagnostic.remediation ? <p className="mt-1 text-amber-300">Recovery: {diagnostic.remediation}</p> : null}</div>)}
       </div>}
     </section>
   );

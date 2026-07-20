@@ -11,7 +11,7 @@ Required reading:
 
 ### **1. The rungs**
 
-The ecosystem-manager controller works the **lowest unsatisfied** rung each loop. Low rungs are hard gates (you must clear them first); high rungs are soft (amplified, but a re-opened lower gate still pulls you back). Gates are "satisfied for now" and re-checked every loop, so the ladder oscillates naturally.
+Test Genie assessments and the shared maturity ladder identify the **lowest unsatisfied** rung. Low rungs are hard gates (you must clear them first); high rungs are soft (amplified, but a re-opened lower gate still pulls you back). Gates are "satisfied for now" and re-checked whenever fresh evidence is collected.
 
 | Rung | Satisfied when | Typical change size |
 |---|---|---|

@@ -32,12 +32,3 @@ func TestBaselineManifestV2SingleRunInvariant(t *testing.T) { // [REQ:GCT-BASELI
 		t.Fatalf("wrong profile error = %v", err)
 	}
 }
-
-func TestWorseVerdictPreservesComparisonSeverity(t *testing.T) {
-	if got := WorseVerdict(VerdictNewFailure, VerdictRegression); got != VerdictRegression {
-		t.Fatalf("got %q", got)
-	}
-	if got := WorseVerdict(VerdictChanged, VerdictClean); got != VerdictChanged {
-		t.Fatalf("advisory changed should outrank clean, got %q", got)
-	}
-}

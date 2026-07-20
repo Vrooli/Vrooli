@@ -65,7 +65,7 @@ cover scanner-infrastructure and response-header posture.
 
 ## The canonical fix
 
-- **Scanner secret/SAST/vulnerability findings** → remediate the specific finding: rotate/remove the leaked credential, fix the SAST defect, or upgrade the vulnerable dependency past the fixed version. These hard-gate the ecosystem-manager `security` dimension (R1 "Safe").
+- **Scanner secret/SAST/vulnerability findings** → remediate the specific finding: rotate/remove the leaked credential, fix the SAST defect, or upgrade the vulnerable dependency past the fixed version. These hard-gate the swarm-manager `security` dimension (R1 "Safe").
 - **`security-health.security-headers-missing`** → auto-fixable (`fixer_status: implemented`): centralize baseline security headers in one API-router middleware. Run `security-health fix preview|apply <scenario>`.
 - **`security-health.insecure-cors`** → manual: replace credentialed wildcard CORS with a scenario-specific origin + credential policy; a generic rewrite would be unsafe.
 - **`security-health.security-headers-legacy-xss`** → auto-fixable: drop the legacy `X-XSS-Protection` header.
@@ -104,7 +104,7 @@ strings through the same `normalizeFindingSeverity` table every producer uses:
 | `SEVERITY_WARNING` (moderate/medium) | WARNING | no |
 | `SEVERITY_INFO` (low/info/degraded) | INFO | no |
 
-Only ERROR findings fail the phase. They flow into the ecosystem-manager
+Only ERROR findings fail the phase. They flow into the swarm-manager
 `security` dimension, which hard-gates the **R1 ("Safe")** ladder rung — so a
 leaked credential or a reachable CVE holds a scenario at R1 until it is
 resolved.

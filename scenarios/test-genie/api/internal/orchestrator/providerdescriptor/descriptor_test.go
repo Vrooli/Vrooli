@@ -131,6 +131,22 @@ func TestLoadRejectsDescriptorErrors(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsUnknownRecommendedSkill(t *testing.T) {
+	path := writeDescriptor(t, "search-hub", validDescriptor("search-hub", "search"))
+	result := Load(LoadOptions{Paths: []string{path}, SkillIDs: map[string]struct{}{"ecosystem-fit": {}}})
+	if !hasDiagnostic(result.Diagnostics, "unknown_recommended_skill") {
+		t.Fatalf("diagnostics = %#v, want unknown_recommended_skill", result.Diagnostics)
+	}
+}
+
+func TestLoadAcceptsKnownRecommendedSkill(t *testing.T) {
+	path := writeDescriptor(t, "search-hub", validDescriptor("search-hub", "search"))
+	result := Load(LoadOptions{Paths: []string{path}, SkillIDs: map[string]struct{}{"search": {}}})
+	if err := result.Err(); err != nil {
+		t.Fatalf("Load returned diagnostics: %v", err)
+	}
+}
+
 func TestLoadRejectsDuplicatePhase(t *testing.T) {
 	first := writeDescriptor(t, "search-hub", validDescriptor("search-hub", "search"))
 	second := writeDescriptor(t, "other-health", validDescriptor("other-health", "search"))

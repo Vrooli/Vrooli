@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -22,6 +23,8 @@ func (a *App) cmdRunner(args []string) error {
 		return a.runnerList(args[1:])
 	case "probe":
 		return a.runnerProbe(args[1:])
+	case "tools":
+		return a.runnerTools(args[1:])
 	case "help", "-h", "--help":
 		return a.runnerHelp()
 	default:
@@ -35,6 +38,7 @@ func (a *App) runnerHelp() error {
 Subcommands:
   list              List all runners and their status
   probe <type>      Probe a specific runner to verify it can respond
+  tools             List canonical tools and each runner's enforcement mapping
 
 Runner Types:
   claude-code       Claude Code runner
@@ -47,6 +51,59 @@ Options:
 Examples:
   agent-manager runner list
   agent-manager runner probe claude-code`)
+	return nil
+}
+
+func (a *App) runnerTools(args []string) error {
+	fs := flag.NewFlagSet("runner tools", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, runners, err := a.services.Runners.GetStatus()
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || runners == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	tools := make(map[string]struct{})
+	for _, runner := range runners {
+		if runner.Capabilities == nil {
+			continue
+		}
+		for tool := range runner.Capabilities.ToolRestrictionMappings {
+			tools[tool] = struct{}{}
+		}
+	}
+	names := make([]string, 0, len(tools))
+	for tool := range tools {
+		names = append(names, tool)
+	}
+	sort.Strings(names)
+	if len(names) == 0 {
+		return fmt.Errorf("no runner reported canonical tool mappings")
+	}
+	fmt.Printf("%-12s", "CANONICAL")
+	for _, runner := range runners {
+		fmt.Printf("  %-22s", formatEnumValue(runner.RunnerType, "RUNNER_TYPE_", "-"))
+	}
+	fmt.Println()
+	for _, tool := range names {
+		fmt.Printf("%-12s", tool)
+		for _, runner := range runners {
+			value := "unsupported"
+			if runner.Capabilities != nil && runner.Capabilities.SupportsToolRestriction {
+				value = runner.Capabilities.ToolRestrictionMappings[tool]
+				if value == "" {
+					value = "unmapped"
+				}
+			}
+			fmt.Printf("  %-22s", value)
+		}
+		fmt.Println()
+	}
 	return nil
 }
 

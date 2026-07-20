@@ -15,7 +15,6 @@
     "07-scenario-deletion-with-safeguards/module.json",
     "08-tabbed-navigation-ui/module.json",
     "09-agent-manager-integration/module.json",
-    "10-ecosystem-manager-integration/module.json",
     "11-recommendation-engine/module.json",
     "12-recommendation-management-page/module.json",
     "13-insights-engine/module.json",
@@ -82,12 +81,6 @@
       "path": "09-agent-manager-integration",
       "priority": "P0",
       "title": "agent-manager integration"
-    },
-    {
-      "id": "MOD-P0-010",
-      "path": "10-ecosystem-manager-integration",
-      "priority": "P0",
-      "title": "ecosystem-manager integration"
     },
     {
       "id": "MOD-P1-011",

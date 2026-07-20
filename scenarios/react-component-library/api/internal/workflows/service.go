@@ -30,6 +30,7 @@ func NewService(repo Repository, dispatcher Dispatcher, readiness ...PromotionRe
 	}
 	return s
 }
+
 func (s *service) PromotionReadiness(ctx context.Context, in PromotionReadinessInput) (PromotionReadiness, error) {
 	if s.readiness == nil {
 		return PromotionReadiness{}, fmt.Errorf("promotion readiness reader not configured")
@@ -60,20 +61,37 @@ func (s *service) Start(ctx context.Context, in StartInput) (Workflow, int, erro
 	if err != nil {
 		return Workflow{}, 0, err
 	}
-	dispatch, err := s.dispatcher.Dispatch(ctx, in)
+	dispatch, err := s.dispatcher.Start(ctx, in)
 	if err != nil {
 		w.Status = StatusUnavailable
 		w.Error = err.Error()
 		w, _ = s.repo.Update(ctx, w)
 		return w, 0, nil
 	}
-	w.AgentManagerTaskID, w.AgentManagerRunID, w.Status = dispatch.TaskID, dispatch.RunID, dispatch.Status
+	w.AgentManagerExecutionID, w.Status, w.Summary, w.Error = dispatch.ExecutionID, dispatch.Status, dispatch.Summary, dispatch.Error
 	if w.Status == "" {
 		w.Status = StatusQueued
 	}
 	w, err = s.repo.Update(ctx, w)
-	return w, dispatch.QueueDepth, err
+	if err != nil {
+		return w, 0, err
+	}
+	// Persist the execution identity before entering the server-owned wait so
+	// a caller disconnect cannot orphan the RCL record from its workflow.
+	completed, err := s.dispatcher.Wait(ctx, w.AgentManagerExecutionID)
+	if err != nil {
+		w.Status, w.Error = StatusUnavailable, err.Error()
+		w, _ = s.repo.Update(ctx, w)
+		return w, 0, nil
+	}
+	w.Status, w.Summary, w.Error = completed.Status, completed.Summary, completed.Error
+	if w.Status == "" {
+		w.Status = StatusQueued
+	}
+	w, err = s.repo.Update(ctx, w)
+	return w, 0, err
 }
+
 func (s *service) List(ctx context.Context, asset, target string, active bool, limit int) ([]Workflow, error) {
 	return s.repo.List(ctx, asset, target, active, limit)
 }
@@ -83,30 +101,20 @@ func (s *service) Refresh(ctx context.Context, id string) (Workflow, error) {
 	if err != nil {
 		return Workflow{}, err
 	}
-	if w.AgentManagerRunID == "" || !w.Status.Active() {
-		return w, nil
-	}
-	snap, err := s.dispatcher.Snapshot(ctx, w.AgentManagerRunID, w.LastEventSequence)
-	if err != nil {
-		w.Status = StatusUnavailable
-		w.Error = err.Error()
-	} else {
-		w.Status = snap.Status
-		w.Summary = snap.Summary
-		w.Error = snap.Error
-		w.LastEventSequence = snap.LastEventSequence
-	}
-	return s.repo.Update(ctx, w)
+	// Execution waits are server-owned and completed during Dispatch. Refresh
+	// reads RCL's durable projection; it must not become a consumer poller.
+	return w, nil
 }
+
 func (s *service) Stop(ctx context.Context, id string) (Workflow, error) {
 	w, err := s.repo.Get(ctx, id)
 	if err != nil {
 		return Workflow{}, err
 	}
-	if !w.Status.Active() || w.AgentManagerRunID == "" {
+	if !w.Status.Active() || w.AgentManagerExecutionID == "" {
 		return w, nil
 	}
-	snap, err := s.dispatcher.Stop(ctx, w.AgentManagerRunID)
+	snap, err := s.dispatcher.Stop(ctx, w.AgentManagerExecutionID)
 	if err != nil {
 		return Workflow{}, err
 	}
@@ -119,6 +127,7 @@ func (s *service) Stop(ctx context.Context, id string) (Workflow, error) {
 	w.LastEventSequence = snap.LastEventSequence
 	return s.repo.Update(ctx, w)
 }
+
 func (s *service) Retry(ctx context.Context, id, key string) (Workflow, int, error) {
 	w, err := s.repo.Get(ctx, id)
 	if err != nil {

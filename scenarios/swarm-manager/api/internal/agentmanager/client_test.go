@@ -167,36 +167,6 @@ func TestHTTPClient_GetRun(t *testing.T) {
 	})
 }
 
-func TestHTTPClient_GetObservedReceipts(t *testing.T) {
-	client := NewHTTPClientWithResolver(
-		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-		&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/runs/run-1/observed-receipts" {
-				t.Fatalf("path = %q", req.URL.Path)
-			}
-			if req.URL.Query().Get("limit") != "100" {
-				t.Fatalf("limit = %q, want default 100", req.URL.Query().Get("limit"))
-			}
-			return makeResponse(http.StatusOK, `{"status":"available","observations":[{"eventId":"receipt-1","correlationId":"run-1"}]}`), nil
-		}},
-	)
-
-	result, err := client.GetObservedReceipts(context.Background(), "run-1", 0)
-	if err != nil {
-		t.Fatalf("GetObservedReceipts: %v", err)
-	}
-	if result.Status != "available" || len(result.Observations) != 1 || result.Observations[0].EventID != "receipt-1" {
-		t.Fatalf("unexpected result: %#v", result)
-	}
-}
-
-func TestHTTPClient_GetObservedReceipts_EmptyID(t *testing.T) {
-	client := NewHTTPClientWithResolver(func(_ context.Context) (string, error) { return "http://localhost:12345", nil }, &mockHTTPDoer{})
-	if _, err := client.GetObservedReceipts(context.Background(), " ", 1); !errors.Is(err, ErrRequestFailed) {
-		t.Fatalf("expected ErrRequestFailed, got %v", err)
-	}
-}
-
 func TestAgentServiceGetRunMessagesPagesAndPreservesEventIdentity(t *testing.T) {
 	var requests int
 	client := NewHTTPClientWithResolver(

@@ -196,7 +196,6 @@ measures/v1/`) was never generated in this working tree, so `cli-health/api` (wh
 imports `measures-go` transitively via `internal/aisearch/discovery.go →
 internal/measurescan`) could not build at all. Generated the measures gen with
 `buf generate` to unblock verification; reverted the unrelated tree-wide gen churn
-(audio-tools/BAS/data-backup-manager/DTV/ecosystem-manager/flow-verifier — 55 files)
 back to HEAD so the Phase 4 footprint stays scoped. **The measures gen is left
 untracked for the measures-plan owner to commit; filed as a bug.**
 

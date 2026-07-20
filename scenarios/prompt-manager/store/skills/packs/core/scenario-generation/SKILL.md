@@ -122,9 +122,8 @@ maintenance is ordinary swarm-managed work: Test Genie supplies structured
 evidence and descriptor-presented skill recommendations; swarm-manager applies
 its configured policy, creates or executes bounded work, then remeasures.
 
-Do not create an ecosystem-manager task or rely on an ecosystem-manager
-steering profile. The plan and swarm-manager execution history are the durable
-handoff.
+Do not create a second task queue or rely on a separate steering profile. The
+plan and swarm-manager execution history are the durable handoff.
 
 ## Anti-Patterns
 

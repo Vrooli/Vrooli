@@ -31,7 +31,6 @@ var allowedAgentManagerImporters = map[string]string{
 	"agentmanager":     "the client package itself",
 	"backlog":          "typed workflow invocation and terminal-result application; no raw runs",
 	"captures":         "typed capture-classification workflow invocation and terminal-result application; no raw runs",
-	"evidence":         "agent-manager-backed evidence collection (run transcripts as evidence sources)",
 	"execution":        "typed workflow snapshots, authorization, and exact-once terminal application; no raw runs",
 	"initiativereview": "run management for review rounds (RunInspector wiring) — never launch",
 	"planrepair":       "typed plan-repair workflow invocation and terminal-result application; no raw runs",

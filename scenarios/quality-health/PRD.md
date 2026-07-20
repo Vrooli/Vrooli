@@ -3,7 +3,6 @@
 ## 🎯 Overview
 Purpose: Quality Health is Vrooli's static-quality authority. It discovers scenario surfaces through Code Facts, evaluates language/framework quality contracts, runs bounded lint/type command checks, reports agent-readable findings, and offers safe config autofix previews so Test Genie can delegate one coherent `quality` phase instead of embedding lint/type policy internally.
 
-Primary users/verticals: Vrooli agents, Test Genie, Ecosystem Manager maturity flows, scenario maintainers, and operators inspecting fleet quality. The primary vertical is Vrooli's engineering-quality loop.
 
 Deployment surfaces: Go API, Go CLI, React/Vite UI, and Test Genie provider integration. The API and CLI are the canonical programmatic surfaces; the UI is an operator inspection console.
 

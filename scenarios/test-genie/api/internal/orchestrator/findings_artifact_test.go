@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -120,6 +121,7 @@ func TestFindingsArtifactCarriesStandingAndStaysIngestible(t *testing.T) {
 			Findings: []*architecturev1.ArchitectureFinding{
 				{Scenario: "cli-health", Source: architecturev1.FindingSource_FINDING_SOURCE_CLI, Code: "arch.primitive_unverified", Locations: []string{"cli/manifest.json"}},
 			},
+			Assessment: &commonv1.MaturityAssessment{RecommendedSkillIds: []string{"scientific-debugging", "unit-testing-architecture-steer"}},
 			PhasePresentation: &commonv1.PhasePresentation{
 				Provider:             "cli-health",
 				Phase:                "contracts",
@@ -157,6 +159,9 @@ func TestFindingsArtifactCarriesStandingAndStaysIngestible(t *testing.T) {
 	}
 	if art.Phases[0].FindingsSummary.GetTotal() != 1 {
 		t.Fatalf("findings summary not round-tripped: %+v", art.Phases[0].FindingsSummary)
+	}
+	if got, want := art.Phases[0].Assessment.GetRecommendedSkillIds(), []string{"scientific-debugging", "unit-testing-architecture-steer"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("recommended skills not round-tripped: got %#v want %#v", got, want)
 	}
 
 	// (b) Backward-compat: the cartographer ingest contract (phases[].findings)

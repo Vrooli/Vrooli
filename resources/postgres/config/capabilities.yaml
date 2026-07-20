@@ -181,7 +181,6 @@ spec:
       - pgcrypto
       - hstore
       - ltree
-      - postgis
     management_features:
       - connection_pooling
       - replication

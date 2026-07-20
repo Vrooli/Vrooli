@@ -72,7 +72,7 @@ type BaselineEngagementRunner interface {
 }
 
 // GCTBaselineEngagementRunner shells the git-control-tower CLI's `baseline`
-// verbs. It mirrors ecosystem-manager's GCTBaselineRunner: a project-root working
+// verbs. It mirrors swarm-manager's GCTBaselineRunner: a project-root working
 // dir, a PATH-resolved binary (overridable via $SWARM_MANAGER_GCT_BIN), and a
 // per-call timeout.
 type GCTBaselineEngagementRunner struct {

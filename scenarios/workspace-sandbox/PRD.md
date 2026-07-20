@@ -84,7 +84,7 @@ Required resources:
 
 Scenario dependencies:
 - None required (standalone capability)
-- Can integrate with: ecosystem-manager, agent-inbox, test-genie
+- Can integrate with: swarm-manager, agent-inbox, test-genie
 
 Operational risks:
 - Mount leaks if cleanup fails

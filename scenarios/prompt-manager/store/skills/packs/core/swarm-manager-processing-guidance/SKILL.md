@@ -54,7 +54,7 @@ For `process-idea` runs, swarm-manager may generate `{{ITEM_FOLDER}}/handoff/` j
 
 - Treat the rendered plan as the execution contract. Use `handoff/brief.md` as supporting context; it preserves the finalized backlog decisions and provenance for the Swarm workflow.
 - Treat `handoff/manifest.json` and `handoff/source-index.json` as machine-readable provenance, execution boundaries, and source pointers.
-- Execute the next bounded plan slice through the declared swarm-manager workflow. Do not create a separate ecosystem-manager task or translate the handoff into a second queue.
+- Execute the next bounded plan slice through the declared swarm-manager workflow. Do not translate the handoff into a second queue.
 - Do not handcraft a replacement summary from memory. Preserve the generated context and record the true frontier in the swarm-manager execution handoff.
 
 ### 3. Leave Clear Evidence

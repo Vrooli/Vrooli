@@ -66,7 +66,7 @@ The `business` line in the scorecard shows the current rung, the single highest-
 
 ## Findings
 
-Every run emits typed `ArchitectureFinding`s alongside the human-readable observations, feeding the ecosystem-manager `business` dimension. Structural requirement-registry findings use `FINDING_SOURCE_BUSINESS`; intent-ladder findings use `FINDING_SOURCE_ARCHITECTURE` so their `afid` is stable across cartographer/test-genie producers. Findings appear in the suite `--json` output per phase; severities are capped at ERROR in v1 (never BLOCKER), and findings never change the phase's pass/fail.
+Every run emits typed `ArchitectureFinding`s alongside the human-readable observations, feeding the swarm-manager `business` dimension. Structural requirement-registry findings use `FINDING_SOURCE_BUSINESS`; intent-ladder findings use `FINDING_SOURCE_ARCHITECTURE` so their `afid` is stable across cartographer/test-genie producers. Findings appear in the suite `--json` output per phase; severities are capped at ERROR in v1 (never BLOCKER), and findings never change the phase's pass/fail.
 
 | Code | Severity | Meaning |
 |------|----------|---------|

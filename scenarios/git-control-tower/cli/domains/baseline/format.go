@@ -256,6 +256,14 @@ func printDiff(resp *baselinesv1.DiffResult) {
 	b := resp.GetBaseline()
 	fmt.Printf("Baseline: %s   captured %s\n", b.GetName(), b.GetCreatedAt())
 	fmt.Printf("Behavioral verdict: %s %s\n", verdictMark(resp.GetVerdict()), resp.GetVerdict())
+	if comparison := resp.GetComparison(); comparison != nil {
+		fmt.Printf("Comparison: behavior=%s coverage=%s contract=%s provenance=%s\n", comparison.GetBehavior(), comparison.GetCoverage(), comparison.GetCompatibility(), comparison.GetProvenance())
+		for _, diagnostic := range comparison.GetDiagnostics() {
+			fmt.Printf("  measurement: %s/%s — %s", diagnostic.GetSide(), diagnostic.GetCode(), diagnostic.GetDetail())
+			if diagnostic.GetRemediation() != "" { fmt.Printf(" (recovery: %s)", diagnostic.GetRemediation()) }
+			fmt.Println()
+		}
+	}
 	var stalenessLine string
 	if cg := resp.GetCurrentGit(); cg != nil {
 		sha := cg.GetSha()

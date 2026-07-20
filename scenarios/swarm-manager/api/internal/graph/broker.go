@@ -9,7 +9,7 @@ import (
 )
 
 // Broker manages WebSocket client connections and broadcasts graph events.
-// Adapted from ecosystem-manager's websocket.Manager pattern.
+// Adapted from swarm-manager's websocket.Manager pattern.
 type Broker struct {
 	clients   map[*websocket.Conn]bool
 	mu        sync.RWMutex

@@ -497,6 +497,20 @@ func TestAdmissionKeyCoalescingIdentity(t *testing.T) {
 	}
 }
 
+func TestAdmissionKeyDistinguishesImmutableExecutionIdentity(t *testing.T) {
+	base := orchestrator.SuiteExecutionRequest{ScenarioName: "demo", Preset: "comprehensive", AdmissionTreeDigest: "td:a", AdmissionPhaseSetDigest: "ps:a", AdmissionDescriptorDigest: "ds:a", AdmissionConfigurationDigest: "cfg:a"}
+	changedTree := base
+	changedTree.AdmissionTreeDigest = "td:b"
+	changedPlan := base
+	changedPlan.AdmissionDescriptorDigest = "ds:b"
+	if admissionKey(base) == admissionKey(changedTree) {
+		t.Fatal("different source trees must not coalesce")
+	}
+	if admissionKey(base) == admissionKey(changedPlan) {
+		t.Fatal("different validation plans must not coalesce")
+	}
+}
+
 // waitForStatus polls a run's in-memory status until it equals want or the
 // deadline elapses. Used where promotion happens on a background goroutine.
 func waitForStatus(t *testing.T, m *Manager, scenario, runID, want string) {

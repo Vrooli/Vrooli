@@ -6,12 +6,8 @@
   "roleRef": "code.smart",
   "maxTurns": 50,
   "timeout": "600s",
-  "allowedTools": [
-    "read_file",
-    "write_file",
-    "execute_command"
-  ],
-  "skipPermissionPrompt": true,
+  "allowedTools": ["read", "write", "shell"],
+  "skipPermissionPrompt": false,
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_PROTECTED"
   },

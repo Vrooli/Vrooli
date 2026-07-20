@@ -243,9 +243,10 @@ func AggregateCollectionDiff(collection CollectionManifest, members []Collection
 				result.Verdict = CollectionDiffNotComparable
 			}
 		case "ready":
-			if member.Verdict == VerdictRegression || member.Verdict == VerdictNewFailure {
+			decision := GateDecisionForLegacyVerdict(member.Verdict)
+			if decision.LegacyVerdict == VerdictRegression {
 				result.Verdict = CollectionDiffRegression
-			} else if member.Verdict == VerdictNotComparable && result.Verdict != CollectionDiffRegression && result.Verdict != CollectionDiffNotReady {
+			} else if decision.Blocking && result.Verdict != CollectionDiffRegression && result.Verdict != CollectionDiffNotReady {
 				result.Verdict = CollectionDiffNotComparable
 			}
 		}

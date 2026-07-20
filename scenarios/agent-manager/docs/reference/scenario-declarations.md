@@ -27,6 +27,24 @@ definition and is unchanged.
 
 ## Service manifest block
 
+## Canonical tool restrictions
+
+Profiles use the runner-neutral canonical tools `read`, `write`, `edit`,
+`glob`, `grep`, `shell`, `web_search`, and `web_fetch`; native runner names
+are never valid declarations. Reconcile rejects an unknown token with its
+nearest canonical suggestion. The editor schema is
+[CODE: scenarios/agent-manager/schemas/agent-profile/v1.schema.json].
+
+An allowlist is enforced by default. If role routing selects a runner that
+cannot enforce it, launch fails closed. Set
+`"toolRestrictionPolicy": "advisory"` only when the caller deliberately
+accepts that the runner cannot apply the restriction. Do not combine an
+allowlist with `skipPermissionPrompt: true`: reconcile surfaces a warning,
+and such profiles are not suitable for an enforceable restriction.
+
+Use `agent-manager runner tools` to inspect the codec-sourced native mappings
+and enforcement status on the running service.
+
 A scenario declares its sources under
 `dependencies.scenarios.agent-manager.config.declarations`:
 

@@ -153,18 +153,6 @@
     {% endif %
     }
     
-    {% if "questdb" in resources.required %
-    }
-    "questdb": {
-      "http_url": "http://localhost:9010",
-      "influx_url": "http://localhost:9011",
-      "health_endpoint": "/",
-      "query_endpoint": "/exec",
-      "timeout_seconds": 30
-    },
-    {% endif %
-    }
-    
     {% if "vault" in resources.required %
     }
     "vault": {

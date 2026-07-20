@@ -37,8 +37,8 @@ func (r *sqliteRepository) Create(ctx context.Context, w Workflow) (Workflow, er
 	if w.UpdatedAt.IsZero() {
 		w.UpdatedAt = w.CreatedAt
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO assisted_workflows (id,kind,asset_id,source_scenario,target_scenario,source_path,requested_version,agent_manager_task_id,agent_manager_run_id,idempotency_key,status,last_event_sequence,summary,error,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		w.ID, w.Kind, w.AssetID, w.SourceScenario, w.TargetScenario, w.SourcePath, w.RequestedVersion, w.AgentManagerTaskID, w.AgentManagerRunID, w.IdempotencyKey, w.Status, w.LastEventSequence, w.Summary, w.Error, stamp(w.CreatedAt), stamp(w.UpdatedAt), stamp(w.CompletedAt))
+	_, err := r.db.ExecContext(ctx, `INSERT INTO assisted_workflows (id,kind,asset_id,source_scenario,target_scenario,source_path,requested_version,agent_manager_task_id,agent_manager_run_id,agent_manager_execution_id,idempotency_key,status,last_event_sequence,summary,error,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		w.ID, w.Kind, w.AssetID, w.SourceScenario, w.TargetScenario, w.SourcePath, w.RequestedVersion, w.AgentManagerTaskID, w.AgentManagerRunID, w.AgentManagerExecutionID, w.IdempotencyKey, w.Status, w.LastEventSequence, w.Summary, w.Error, stamp(w.CreatedAt), stamp(w.UpdatedAt), stamp(w.CompletedAt))
 	if err != nil {
 		return Workflow{}, fmt.Errorf("create workflow: %w", err)
 	}
@@ -46,7 +46,7 @@ func (r *sqliteRepository) Create(ctx context.Context, w Workflow) (Workflow, er
 }
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (Workflow, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT id,kind,asset_id,source_scenario,target_scenario,source_path,requested_version,agent_manager_task_id,agent_manager_run_id,idempotency_key,status,last_event_sequence,summary,error,created_at,updated_at,completed_at FROM assisted_workflows WHERE id=?`, id)
+	row := r.db.QueryRowContext(ctx, `SELECT id,kind,asset_id,source_scenario,target_scenario,source_path,requested_version,agent_manager_task_id,agent_manager_run_id,agent_manager_execution_id,idempotency_key,status,last_event_sequence,summary,error,created_at,updated_at,completed_at FROM assisted_workflows WHERE id=?`, id)
 	w, err := scan(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Workflow{}, ErrNotFound
@@ -58,7 +58,7 @@ func (r *sqliteRepository) Get(ctx context.Context, id string) (Workflow, error)
 }
 
 func (r *sqliteRepository) FindActiveByIdempotency(ctx context.Context, key string) (Workflow, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT id,kind,asset_id,source_scenario,target_scenario,source_path,requested_version,agent_manager_task_id,agent_manager_run_id,idempotency_key,status,last_event_sequence,summary,error,created_at,updated_at,completed_at FROM assisted_workflows WHERE idempotency_key=? AND status IN ('queued','running','parked')`, key)
+	row := r.db.QueryRowContext(ctx, `SELECT id,kind,asset_id,source_scenario,target_scenario,source_path,requested_version,agent_manager_task_id,agent_manager_run_id,agent_manager_execution_id,idempotency_key,status,last_event_sequence,summary,error,created_at,updated_at,completed_at FROM assisted_workflows WHERE idempotency_key=? AND status IN ('queued','running','parked')`, key)
 	w, err := scan(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Workflow{}, ErrNotFound
@@ -81,7 +81,7 @@ func (r *sqliteRepository) List(ctx context.Context, assetID, target string, act
 		clauses = append(clauses, "status IN ('queued','running','parked')")
 	}
 	args = append(args, limit)
-	rows, err := r.db.QueryContext(ctx, `SELECT id,kind,asset_id,source_scenario,target_scenario,source_path,requested_version,agent_manager_task_id,agent_manager_run_id,idempotency_key,status,last_event_sequence,summary,error,created_at,updated_at,completed_at FROM assisted_workflows WHERE `+strings.Join(clauses, " AND ")+` ORDER BY updated_at DESC LIMIT ?`, args...)
+	rows, err := r.db.QueryContext(ctx, `SELECT id,kind,asset_id,source_scenario,target_scenario,source_path,requested_version,agent_manager_task_id,agent_manager_run_id,agent_manager_execution_id,idempotency_key,status,last_event_sequence,summary,error,created_at,updated_at,completed_at FROM assisted_workflows WHERE `+strings.Join(clauses, " AND ")+` ORDER BY updated_at DESC LIMIT ?`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list workflows: %w", err)
 	}
@@ -102,7 +102,7 @@ func (r *sqliteRepository) Update(ctx context.Context, w Workflow) (Workflow, er
 	if !w.Status.Active() && w.CompletedAt.IsZero() {
 		w.CompletedAt = w.UpdatedAt
 	}
-	res, err := r.db.ExecContext(ctx, `UPDATE assisted_workflows SET agent_manager_task_id=?,agent_manager_run_id=?,status=?,last_event_sequence=?,summary=?,error=?,updated_at=?,completed_at=? WHERE id=?`, w.AgentManagerTaskID, w.AgentManagerRunID, w.Status, w.LastEventSequence, w.Summary, w.Error, stamp(w.UpdatedAt), stamp(w.CompletedAt), w.ID)
+	res, err := r.db.ExecContext(ctx, `UPDATE assisted_workflows SET agent_manager_task_id=?,agent_manager_run_id=?,agent_manager_execution_id=?,status=?,last_event_sequence=?,summary=?,error=?,updated_at=?,completed_at=? WHERE id=?`, w.AgentManagerTaskID, w.AgentManagerRunID, w.AgentManagerExecutionID, w.Status, w.LastEventSequence, w.Summary, w.Error, stamp(w.UpdatedAt), stamp(w.CompletedAt), w.ID)
 	if err != nil {
 		return Workflow{}, fmt.Errorf("update workflow: %w", err)
 	}
@@ -117,7 +117,7 @@ type scanner interface{ Scan(...any) error }
 
 func scan(s scanner) (w Workflow, err error) {
 	var created, updated, completed string
-	err = s.Scan(&w.ID, &w.Kind, &w.AssetID, &w.SourceScenario, &w.TargetScenario, &w.SourcePath, &w.RequestedVersion, &w.AgentManagerTaskID, &w.AgentManagerRunID, &w.IdempotencyKey, &w.Status, &w.LastEventSequence, &w.Summary, &w.Error, &created, &updated, &completed)
+	err = s.Scan(&w.ID, &w.Kind, &w.AssetID, &w.SourceScenario, &w.TargetScenario, &w.SourcePath, &w.RequestedVersion, &w.AgentManagerTaskID, &w.AgentManagerRunID, &w.AgentManagerExecutionID, &w.IdempotencyKey, &w.Status, &w.LastEventSequence, &w.Summary, &w.Error, &created, &updated, &completed)
 	if err != nil {
 		return
 	}
@@ -128,6 +128,7 @@ func scan(s scanner) (w Workflow, err error) {
 	}
 	return
 }
+
 func stamp(t time.Time) string {
 	if t.IsZero() {
 		return ""

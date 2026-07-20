@@ -142,6 +142,10 @@ func (s Summary) String() string {
 type Result struct {
 	shared.RunResult[Summary]
 	Findings []*architecturev1.ArchitectureFinding
+	// Assessment is the provider-owned shared maturity response. Test Genie
+	// transports it unchanged so descriptor-owned recommendations remain
+	// available to evidence consumers alongside normalized findings.
+	Assessment *commonv1.MaturityAssessment
 	// Metrics is the provider's reported execution metrics (timing, stages,
 	// resources, host environment), present only when the provider has adopted
 	// the metrics contract. nil for un-migrated providers.
@@ -296,6 +300,7 @@ func translate(provider Provider, fallbackScenario string, resp *scenariovalidat
 			Observations: observations,
 		},
 		Findings:        findings,
+		Assessment:      resp.GetAssessment(),
 		Metrics:         resp.GetMetrics(),
 		Presentation:    resp.GetAssessment().GetPresentation(),
 		FindingsSummary: buildFindingsSummary(summary),

@@ -192,7 +192,7 @@ endpoints:
 published_events:
   - name: extension.build.completed
     payload: { build_id: string, scenario_name: string, success: boolean }
-    subscribers: [ecosystem-manager, notification-hub]
+    subscribers: [swarm-manager, notification-hub]
     
   - name: extension.deployed
     payload: { build_id: string, deployment_url: string, store_urls: string[] }

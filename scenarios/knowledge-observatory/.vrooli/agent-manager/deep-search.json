@@ -6,12 +6,8 @@
   "roleRef": "code.cheap",
   "maxTurns": 10,
   "timeout": "60s",
-  "allowedTools": [
-    "Read",
-    "Glob",
-    "Grep"
-  ],
-  "skipPermissionPrompt": true,
+  "allowedTools": ["read", "glob", "grep"],
+  "skipPermissionPrompt": false,
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_OFF"
   },

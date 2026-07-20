@@ -20,7 +20,8 @@ func terminalResult() ExecResult {
 		Success: true, CompletedAt: time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC),
 		TreeDigest: "td:tree", PhaseSetDigest: "ps:catalog", CaptureProfile: CaptureProfile,
 		DescriptorSnapshotDigest: "ds:catalog", DescriptorSnapshotSchemaVersion: 1,
-		Phases: []PhaseStatus{{Name: "unit", Status: "passed"}},
+		GateQuality: true,
+		Phases:      []PhaseStatus{{Name: "unit", Status: "passed"}},
 	}
 }
 
@@ -93,6 +94,30 @@ func TestServiceCapturePersistsOneRichRunAnchor(t *testing.T) { // [REQ:GCT-BASE
 	}
 }
 
+// [REQ:GCT-SHARED-WORKSPACE-BASELINE-P0] A dirty primary worktree is normal
+// evidence when the declared scenario scope remained stable. It must produce a
+// durable before result rather than the historical volatile-baseline failure.
+func TestServiceCaptureAcceptsStableSharedScopedEvidence(t *testing.T) {
+	result := terminalResult()
+	result.GateQuality = false
+	result.GitDirty = true
+	result.EvidenceTier = "shared-scoped"
+	result.SourceScope = "scenario:foo"
+	result.SourceStable = true
+	svc, _ := newTestService(t, &fakeExecutor{result: result}, &fakeRuns{}, git.State{Branch: "agi", Sha: "abc", Dirty: true, DirtySummary: "other-agent files"})
+
+	captured, err := svc.Create(context.Background(), CreateRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Name: "before"})
+	if err != nil {
+		t.Fatalf("shared-scoped capture rejected: %v", err)
+	}
+	if got := captured.Manifest.Run.EvidenceTier; got != "shared-scoped" {
+		t.Fatalf("evidence tier = %q", got)
+	}
+	if strings.Contains(strings.ToLower(captured.DirtyWarning), "untrustworthy") {
+		t.Fatalf("dirty workspace warning used invalid baseline language: %q", captured.DirtyWarning)
+	}
+}
+
 func TestServiceCaptureFailureDoesNotPublishEmptyBaseline(t *testing.T) {
 	exec := &fakeExecutor{err: errors.New("aborted")}
 	svc, _ := newTestService(t, exec, &fakeRuns{}, git.State{Branch: "agi", Sha: "abc"})
@@ -105,19 +130,19 @@ func TestServiceCaptureFailureDoesNotPublishEmptyBaseline(t *testing.T) {
 	}
 }
 
-func TestServiceCaptureRejectsSelfIncomparableBaselineEvidence(t *testing.T) {
+func TestServiceCaptureRetainsBeforeResultWithIncompletePhaseCoverage(t *testing.T) {
 	exec := &fakeExecutor{result: terminalResult()}
 	runs := &fakeRuns{compare: CompareResult{Verdict: string(VerdictNotComparable), Phases: []*runspb.PhaseDiff{{Phase: "architecture", Verdict: string(VerdictNotComparable)}}}}
 	svc, _ := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
-	_, err := svc.Create(context.Background(), CreateRequest{RepoID: 1, Scenario: "foo", Name: "unusable"})
-	if err == nil || !strings.Contains(err.Error(), "architecture") {
-		t.Fatalf("capture error = %v", err)
+	captured, err := svc.Create(context.Background(), CreateRequest{RepoID: 1, Scenario: "foo", Name: "unusable"})
+	if err != nil {
+		t.Fatalf("capture rejected incomplete coverage: %v", err)
 	}
-	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "unusable"); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("unusable capture published a manifest: %v", err)
+	if captured.Manifest.RunID() == "" {
+		t.Fatal("capture did not retain a baseline run")
 	}
-	if len(runs.pins) != 0 {
-		t.Fatalf("unusable capture pinned run: %+v", runs.pins)
+	if len(runs.pins) != 1 {
+		t.Fatalf("capture did not pin the retained before result: %+v", runs.pins)
 	}
 }
 

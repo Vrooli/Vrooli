@@ -48,8 +48,8 @@
       "prd_ref": "OT-P1-002",
       "category": "integration",
       "criticality": "P1",
-      "description": "ecosystem-manager maps FINDING_SOURCE_PROTO and the proto test-genie phase to an R2 proto-health maturity dimension.",
-      "tags": ["ecosystem-manager", "maturity", "r2"],
+      "description": "swarm-manager maps FINDING_SOURCE_PROTO and the proto test-genie phase to an R2 proto-health maturity dimension.",
+      "tags": ["swarm-manager", "maturity", "r2"],
       "validation": [
         {
           "type": "unit",

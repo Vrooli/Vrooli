@@ -8,7 +8,7 @@ All five clusters were applied because this is a new scenario.
 
 **Interface-enabler + meta self-improvement.** Performance Health is not a
 standalone end-user product; it is the engineering-quality capability that gives
-the rest of Vrooli (Test Genie, the Ecosystem Manager, agents) deterministic
+the rest of Vrooli (Test Genie, the Swarm Manager, agents) deterministic
 performance judgment. Its dominant role is interface-enabler (a clean
 programmatic surface other scenarios call); its secondary, defining role is
 meta self-improvement (it advances Vrooli's testing/optimization meta-capability).
@@ -41,7 +41,7 @@ Concrete seams that let *future* scenarios/loops reuse this instead of re-implem
 
 1. **Trend store as a data surface.** Per-run measurements + `common.v1.ExecutionMetrics`
    envelopes persisted in SQLite, additive and queryable — a durable optimization
-   input for the Ecosystem Manager / meta-optimization, not a throwaway.
+   input for the Swarm Manager / meta-optimization, not a throwaway.
 2. **`ScenarioValidationService` implementation.** The same sibling contract
    (unit-health, quality-health, structure-health, …) so Test Genie — and any
    future orchestrator — delegates perf judgment through one stable RPC.

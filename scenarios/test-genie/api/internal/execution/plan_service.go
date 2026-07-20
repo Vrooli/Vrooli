@@ -56,11 +56,14 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 	}
 
 	preview := &ExecutionPlanPreview{
-		ScenarioName:        basePlan.ScenarioName,
-		PresetUsed:          basePlan.PresetUsed,
-		Warnings:            append([]string(nil), basePlan.Warnings...),
-		Phases:              make([]PlannedPhase, 0, len(basePlan.Phases)),
-		NotApplicablePhases: make([]PlannedPhase, 0, len(basePlan.NotApplicablePhases)),
+		ScenarioName:             basePlan.ScenarioName,
+		PresetUsed:               basePlan.PresetUsed,
+		Warnings:                 append([]string(nil), basePlan.Warnings...),
+		PhaseSetDigest:           basePlan.PhaseSetDigest,
+		DescriptorSnapshotDigest: basePlan.DescriptorSnapshotDigest,
+		ConfigurationFingerprint: basePlan.ConfigurationFingerprint,
+		Phases:                   make([]PlannedPhase, 0, len(basePlan.Phases)),
+		NotApplicablePhases:      make([]PlannedPhase, 0, len(basePlan.NotApplicablePhases)),
 	}
 
 	phaseNames := make([]string, 0, len(basePlan.Phases))

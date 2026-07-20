@@ -81,14 +81,17 @@ type ProfilePlan struct {
 
 // ExecutionPlanPreview is the scenario-aware preflight response for CLI/UI surfaces.
 type ExecutionPlanPreview struct {
-	ScenarioName        string               `json:"scenarioName"`
-	PresetUsed          string               `json:"presetUsed,omitempty"`
-	Profile             *ProfilePlan         `json:"profile,omitempty"`
-	Phases              []PlannedPhase       `json:"phases"`
-	OmittedPhases       []PlannedPhase       `json:"omittedPhases,omitempty"`
-	NotApplicablePhases []PlannedPhase       `json:"notApplicablePhases,omitempty"`
-	Summary             ExecutionPlanSummary `json:"summary"`
-	Warnings            []string             `json:"warnings,omitempty"`
+	ScenarioName             string               `json:"scenarioName"`
+	PresetUsed               string               `json:"presetUsed,omitempty"`
+	Profile                  *ProfilePlan         `json:"profile,omitempty"`
+	Phases                   []PlannedPhase       `json:"phases"`
+	OmittedPhases            []PlannedPhase       `json:"omittedPhases,omitempty"`
+	NotApplicablePhases      []PlannedPhase       `json:"notApplicablePhases,omitempty"`
+	Summary                  ExecutionPlanSummary `json:"summary"`
+	Warnings                 []string             `json:"warnings,omitempty"`
+	PhaseSetDigest           string               `json:"phaseSetDigest,omitempty"`
+	DescriptorSnapshotDigest string               `json:"descriptorSnapshotDigest,omitempty"`
+	ConfigurationFingerprint string               `json:"configurationFingerprint,omitempty"`
 }
 
 // PhaseDurationSample is a flattened historical duration observation for one phase.

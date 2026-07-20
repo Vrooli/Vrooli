@@ -48,6 +48,7 @@ func (e *recordingExecutor) AwaitResult(_ context.Context, _, runID string) (bl.
 		RunID: runID, Success: true, CompletedAt: time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC),
 		TreeDigest: "td:tree", PhaseSetDigest: "ps:set", CaptureProfile: bl.CaptureProfile,
 		DescriptorSnapshotDigest: "ds:catalog", DescriptorSnapshotSchemaVersion: 1,
+		GateQuality: true, EvidenceTier: "strict", SourceScope: "scenario:foo", SourceStable: true,
 		Phases: []bl.PhaseStatus{{Name: "unit", Status: "passed"}},
 	}, nil
 }
@@ -56,7 +57,7 @@ func (e *recordingExecutor) RunStatus(_ context.Context, _, _ string) (bl.RunSta
 	return bl.RunStatusInfo{Status: "passed", Terminal: true, Success: true}, nil
 }
 
-func (e *recordingExecutor) FindReusableRun(_ context.Context, _, _ string) (bl.ReusableRun, bool, error) {
+func (e *recordingExecutor) FindReusableRun(_ context.Context, _ string) (bl.ReusableRun, bool, error) {
 	return bl.ReusableRun{}, false, nil
 }
 
@@ -82,7 +83,11 @@ func (r *recordingRuns) UnpinRun(_ context.Context, _, _, _ string) error {
 }
 
 func (r *recordingRuns) CompareRuns(_ context.Context, _, _, _, _ string) (bl.CompareResult, error) {
-	return r.compare, nil
+	result := r.compare
+	if result.Comparison == nil {
+		result.Comparison = &runspb.CompareRunsResponse{SchemaVersion: 2, Verdict: result.Verdict, Phases: result.Phases, Behavior: result.Verdict, Coverage: "measured", Compatibility: "compatible", Provenance: "verified"}
+	}
+	return result, nil
 }
 
 func (r *recordingRuns) ListRunArtifacts(_ context.Context, _, runID string) (bl.ArtifactCatalog, error) {
@@ -351,11 +356,14 @@ func TestDiffWirePreservesTestGeniePhaseAndArtifacts(t *testing.T) { // [REQ:GCT
 		Reasons:     []*runspb.PhaseComparisonReason{{Code: runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_NEW_PHASE}},
 	}
 	exec := &recordingExecutor{}
-	runs := &recordingRuns{compare: bl.CompareResult{Verdict: "not-comparable", Phases: []*runspb.PhaseDiff{phase}}}
+	// Baseline capture validates its own anchor first; that self-comparison is
+	// healthy. The subsequent current-run comparison carries the future phase.
+	runs := &recordingRuns{compare: bl.CompareResult{Verdict: "clean", Phases: []*runspb.PhaseDiff{{Phase: "unit", Verdict: "clean"}}}}
 	srv, svc := newServerDeps(t, exec, runs)
 	if _, err := svc.Create(context.Background(), bl.CreateRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Name: "before", Branch: "agi"}); err != nil {
 		t.Fatal(err)
 	}
+	runs.compare = bl.CompareResult{Verdict: "not-comparable", Phases: []*runspb.PhaseDiff{phase}}
 	done := make(chan error, 1)
 	srv.finalizeDiffFn = func(ctx context.Context, pending bl.PendingDiff) {
 		_, err := svc.FinalizeDiff(context.WithoutCancel(ctx), pending)

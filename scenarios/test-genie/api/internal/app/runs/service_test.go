@@ -10,7 +10,10 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/freshness-go/treedigest"
+	"test-genie/internal/execution"
 	"test-genie/internal/executionevidence"
+	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
@@ -18,6 +21,14 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
+
+type fixedExecutionPlanner struct {
+	preview *execution.ExecutionPlanPreview
+}
+
+func (p fixedExecutionPlanner) Preview(context.Context, orchestrator.SuiteExecutionRequest) (*execution.ExecutionPlanPreview, error) {
+	return p.preview, nil
+}
 
 func newTestService(t *testing.T) (*Service, string) {
 	t.Helper()
@@ -31,9 +42,29 @@ func newTestService(t *testing.T) (*Service, string) {
 }
 
 func seedRecord(t *testing.T, root string, rec sharedruns.RunRecord) {
+	seedRunRecord(t, root, rec, true)
+}
+
+func seedLegacyRecord(t *testing.T, root string, rec sharedruns.RunRecord) {
+	seedRunRecord(t, root, rec, false)
+}
+
+// seedRunRecord makes ordinary fixtures canonical terminal runs. Tests that
+// exercise historical degradation opt out explicitly instead of accidentally
+// relying on an incomplete snapshot.
+func seedRunRecord(t *testing.T, root string, rec sharedruns.RunRecord, terminalSnapshot bool) {
 	t.Helper()
-	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Append(rec); err != nil {
+	if rec.TreeDigest == "" {
+		rec.TreeDigest = "td:test"
+	}
+	index := sharedruns.NewIndex(filepath.Join(root, "demo"))
+	if err := index.Append(rec); err != nil {
 		t.Fatalf("seed %s: %v", rec.RunID, err)
+	}
+	if terminalSnapshot && (rec.Status == sharedruns.StatusPassed || rec.Status == sharedruns.StatusFailed || rec.Status == sharedruns.StatusAborted) {
+		if err := index.Finalize(rec.RunID, &orchestrator.SuiteExecutionResult{GateQuality: true}, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+			t.Fatalf("finalize fixture %s: %v", rec.RunID, err)
+		}
 	}
 }
 
@@ -294,10 +325,9 @@ func inapplicablePhase(phase, displayName string) sharedruns.PhaseDescriptorSnap
 
 // A conditional phase that is not applicable in BOTH runs is a matched state
 // with no regression signal: it stays visible in the phase table (with
-// INAPPLICABLE reasons) but must not worsen the run-level verdict. Before this
-// contract, any scenario with a conditional phase (ai-conformance, search, …)
-// could never compare better than not-comparable.
-func TestCompareRunsSymmetricInapplicableDoesNotPoisonOverallVerdict(t *testing.T) {
+// Symmetric inapplicability is an honest coverage gap, not a hidden clean
+// result. Comparable phases still retain their independent behavior outcome.
+func TestCompareRunsSymmetricInapplicableIsExplicitlyUnmeasured(t *testing.T) {
 	svc, root := newTestService(t)
 	seedRecord(t, root, sharedruns.RunRecord{
 		RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusFailed,
@@ -328,19 +358,21 @@ func TestCompareRunsSymmetricInapplicableDoesNotPoisonOverallVerdict(t *testing.
 	for _, diff := range resp.Msg.GetPhases() {
 		byPhase[diff.GetPhase()] = diff
 	}
-	// The inapplicable phase remains visible with its reason but is a neutral
-	// matched state, not a comparability failure.
+	// The inapplicable phase remains visible with its reason and explicit
+	// unmeasured coverage; it is never silently promoted to clean.
 	assertComparisonReason(t, byPhase["ai-conformance"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_INAPPLICABLE)
-	if got := byPhase["ai-conformance"].GetVerdict(); got != verdictClean {
-		t.Errorf("ai-conformance phase verdict: want %s, got %s", verdictClean, got)
+	if got := byPhase["ai-conformance"].GetCoverage(); got != "unmeasured" {
+		t.Errorf("ai-conformance coverage: want unmeasured, got %s", got)
 	}
-	// The overall verdict rolls up from the comparable phases only.
-	if got := resp.Msg.GetVerdict(); got != verdictPreexisting {
-		t.Errorf("overall verdict: want %s, got %s", verdictPreexisting, got)
+	if got := resp.Msg.GetBehavior(); got != "preexisting" {
+		t.Errorf("overall behavior: want preexisting, got %s", got)
+	}
+	if got := resp.Msg.GetVerdict(); got != verdictNotComparable {
+		t.Errorf("legacy verdict: want %s, got %s", verdictNotComparable, got)
 	}
 }
 
-func TestCompareRunsSymmetricBestEffortProviderUnavailableIsNeutral(t *testing.T) {
+func TestCompareRunsSymmetricBestEffortProviderUnavailableIsUnmeasured(t *testing.T) {
 	svc, root := newTestService(t)
 	for _, runID := range []string{"base", "cur"} {
 		seedRecord(t, root, sharedruns.RunRecord{RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, Phases: []sharedruns.PhaseRecord{{Name: "architecture", Status: "provider_unavailable"}}})
@@ -352,13 +384,76 @@ func TestCompareRunsSymmetricBestEffortProviderUnavailableIsNeutral(t *testing.T
 	if err != nil {
 		t.Fatalf("CompareRuns: %v", err)
 	}
-	if got := resp.Msg.GetVerdict(); got != verdictClean {
-		t.Fatalf("overall verdict: want %s, got %s", verdictClean, got)
+	if got := resp.Msg.GetVerdict(); got != verdictNotComparable {
+		t.Fatalf("legacy verdict: want %s, got %s", verdictNotComparable, got)
 	}
-	if got := resp.Msg.GetPhases()[0].GetVerdict(); got != verdictClean {
-		t.Fatalf("phase verdict: want %s, got %s", verdictClean, got)
+	if got := resp.Msg.GetPhases()[0].GetCoverage(); got != "unmeasured" {
+		t.Fatalf("phase coverage: want unmeasured, got %s", got)
 	}
 	assertComparisonReason(t, resp.Msg.GetPhases()[0], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE)
+}
+
+func TestCompareRunsSameKeyContractChangeRequiresExplicitCompatibility(t *testing.T) {
+	svc, root := newTestService(t)
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "passed"}}})
+	base := capturedPhase("unit", "Unit")
+	base.Provider = "unit-health-v1"
+	seedDescriptorSnapshot(t, root, "base", base)
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusFailed, Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "failed"}}})
+	changed := capturedPhase("unit", "Unit")
+	changed.Provider = "unit-health-v2"
+	seedDescriptorSnapshot(t, root, "cur", changed)
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	phase := resp.Msg.GetPhases()[0]
+	if phase.GetCompatibility() != "changed-unreviewed" || phase.GetBehavior() != "unknown" || phase.GetVerdict() != verdictNotComparable {
+		t.Fatalf("unreviewed contract change = %+v", phase)
+	}
+
+	changed.ComparisonMode = "compatible"
+	seedDescriptorSnapshot(t, root, "cur", changed)
+	resp, err = svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	phase = resp.Msg.GetPhases()[0]
+	if phase.GetCompatibility() != "compatible" || phase.GetBehavior() != "regression" || phase.GetVerdict() != verdictRegression {
+		t.Fatalf("compatible contract change = %+v", phase)
+	}
+}
+
+func TestCompareRunsUnknownPhaseStatusCannotLookClean(t *testing.T) {
+	svc, root := newTestService(t)
+	for _, runID := range []string{"base", "cur"} {
+		seedRecord(t, root, sharedruns.RunRecord{RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "future_terminal_state"}}})
+		seedDescriptorSnapshot(t, root, runID, capturedPhase("unit", "Unit"))
+	}
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	phase := resp.Msg.GetPhases()[0]
+	if phase.GetBehavior() != "unknown" || phase.GetVerdict() != verdictNotComparable {
+		t.Fatalf("unknown terminal status = %+v", phase)
+	}
+}
+
+func TestComparisonProvenanceRequiresGateQualityTerminalEvidence(t *testing.T) {
+	verified := runProjection{record: sharedruns.RunRecord{TreeDigest: "td:verified"}, result: &orchestrator.SuiteExecutionResult{GateQuality: true}}
+	if got := comparisonProvenance(verified, verified); got != "strict" {
+		t.Fatalf("gate-quality provenance = %q", got)
+	}
+	volatile := verified
+	volatile.result = &orchestrator.SuiteExecutionResult{}
+	if got := comparisonProvenance(verified, volatile); got != "volatile" {
+		t.Fatalf("exploratory provenance = %q", got)
+	}
+	if got := comparisonProvenance(verified, runProjection{record: sharedruns.RunRecord{TreeDigest: "td:legacy"}}); got != "legacy" {
+		t.Fatalf("snapshotless provenance = %q", got)
+	}
 }
 
 // Asymmetric applicability (applicable in one run, not applicable in the
@@ -733,5 +828,61 @@ func TestFindRunRequiresCurrentComprehensivePhaseSetDigest(t *testing.T) {
 	}
 	if got := resp.Msg.GetRun().GetPhaseSetDigest(); got != currentDigest {
 		t.Fatalf("RunInfo phase_set_digest = %q, want %q", got, currentDigest)
+	}
+}
+
+func TestFindRunGateQualityRejectsCleanButUnprovenHistory(t *testing.T) {
+	svc, root := newTestService(t)
+	seedLegacyRecord(t, root, sharedruns.RunRecord{RunID: "clean-history", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline"})
+	resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{Scenario: "demo", GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline", RequireClean: true, RequireGateQuality: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Msg.GetFound() {
+		t.Fatalf("gate-quality reuse accepted historical run: %+v", resp.Msg.GetRun())
+	}
+}
+
+// [REQ:TG-SHARED-WORKSPACE-CACHE-P0] Reuse keys are the declared scenario
+// scope plus validation configuration, not the whole repository's dirty bit.
+func TestFindRunMatchesCurrentScopedSourceAndConfiguration(t *testing.T) {
+	svc, root := newTestService(t)
+	scenarioDir := filepath.Join(root, "demo")
+	if err := os.WriteFile(filepath.Join(scenarioDir, "relevant.txt"), []byte("before"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := treedigest.Compute(scenarioDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	planned := phases.DefaultPresets()[phases.PresetComprehensive.String()]
+	phaseDigest := phases.PhaseSetDigest(planned)
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "matching", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, TreeDigest: digest, Preset: "comprehensive", CaptureProfile: "baseline", PlannedPhases: planned, PhaseSetDigest: phaseDigest})
+	index := sharedruns.NewIndex(scenarioDir)
+	if err := index.Finalize("matching", &orchestrator.SuiteExecutionResult{SourceFingerprint: digest, SourceScope: "scenario:demo", SourceStable: true, ConfigurationFingerprint: "cfg:one"}, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	svc.planner = fixedExecutionPlanner{preview: &execution.ExecutionPlanPreview{ScenarioName: "demo", PhaseSetDigest: phaseDigest, ConfigurationFingerprint: "cfg:one"}}
+	find := func() *runspb.FindRunResponse {
+		resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{Scenario: "demo", Preset: "comprehensive", CaptureProfile: "baseline", MatchCurrentSource: true}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp.Msg
+	}
+	if got := find(); !got.GetFound() || got.GetRun().GetRunId() != "matching" {
+		t.Fatalf("matching shared scope was not reused: %+v", got)
+	}
+	if err := os.WriteFile(filepath.Join(root, "unrelated.txt"), []byte("other agent"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := find(); !got.GetFound() {
+		t.Fatalf("unrelated workspace edit invalidated cache: %+v", got)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "relevant.txt"), []byte("after"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := find(); got.GetFound() {
+		t.Fatalf("relevant source edit incorrectly reused %q", got.GetRun().GetRunId())
 	}
 }

@@ -1,0 +1,64 @@
+{
+  "description": "The API defaults to its in-memory repository (api/internal/repository/memory/). A durable time-series backend has not been selected or implemented.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "Operational Targets > P0 > OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "System must persist metrics through a selected durable backend, ensuring no data loss",
+      "id": "REQ-P0-004",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "status": "in-progress",
+      "title": "Time-Series Data Storage",
+      "validation": [
+        {
+          "notes": "Test storage interfaces",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify fallback mechanism",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate data persistence",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test failover",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Handle 1000+ writes/second",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No data loss during 24h operation",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Persistent time-series data storage (not yet implemented)"
+}

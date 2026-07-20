@@ -6,14 +6,7 @@
   "roleRef": "code.smart",
   "maxTurns": 900,
   "timeout": "5400s",
-  "allowedTools": [
-    "Read",
-    "Write",
-    "Edit",
-    "Glob",
-    "Grep",
-    "Bash"
-  ],
+  "allowedTools": ["read", "write", "edit", "glob", "grep", "shell"],
   "skipPermissionPrompt": false,
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_PROTECTED"

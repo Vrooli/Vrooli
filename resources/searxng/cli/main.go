@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 
+	"resource-searxng/cli/internal/config"
 	resourceenv "resource-searxng/cli/internal/env"
 	"resource-searxng/cli/internal/health"
 )
@@ -54,6 +56,13 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	commands := append(app.StandardLifecycleCommands(), cliapp.CommandGroup{
+		Title: "Configuration",
+		Commands: []cliapp.Command{
+			{Name: "config-show", Description: "Show the owned SearXNG configuration (secrets redacted)", Run: func(args []string) error { return runConfigShow(args, os.Stdout) }},
+			{Name: "config-validate", Description: "Validate the current SearXNG configuration", Run: func(args []string) error { return runConfigValidate(args, os.Stdout) }},
+			{Name: "config-apply", Description: "Create or safely migrate the SearXNG configuration", Run: func(args []string) error { return runConfigApply(args, os.Stdout) }},
+		},
+	}, cliapp.CommandGroup{
 		Title: "Diagnostics",
 		Commands: []cliapp.Command{
 			{
@@ -67,6 +76,84 @@ func newApp() (*cliapp.ResourceApp, error) {
 	})
 	app.SetCommands(commands)
 	return app, nil
+}
+
+func configFlags(name string, args []string, stdout io.Writer) (*flag.FlagSet, *string, error) {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(stdout)
+	dir := fs.String("config-dir", "", "Configuration directory (default: $RESOURCE_CONFIG_DIR)")
+	if err := fs.Parse(args); err != nil {
+		return nil, nil, err
+	}
+	return fs, dir, nil
+}
+
+func runConfigShow(args []string, stdout io.Writer) error {
+	_, dirFlag, err := configFlags("config-show", args, stdout)
+	if err != nil {
+		return err
+	}
+	dir, err := config.ConfigDir(*dirFlag)
+	if err != nil {
+		return err
+	}
+	document, _, err := config.Load(dir)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(stdout).Encode(config.RedactedSummary(document))
+}
+
+func runConfigValidate(args []string, stdout io.Writer) error {
+	_, dirFlag, err := configFlags("config-validate", args, stdout)
+	if err != nil {
+		return err
+	}
+	dir, err := config.ConfigDir(*dirFlag)
+	if err != nil {
+		return err
+	}
+	document, _, err := config.Load(dir)
+	if err != nil {
+		return err
+	}
+	if err := config.Validate(document); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(stdout, "SearXNG configuration is valid.")
+	return err
+}
+
+func runConfigApply(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("config-apply", flag.ContinueOnError)
+	fs.SetOutput(stdout)
+	dirFlag := fs.String("config-dir", "", "Configuration directory (default: $RESOURCE_CONFIG_DIR)")
+	baseURL := fs.String("base-url", resourceenv.ResolveBaseURL(""), "SearXNG public base URL")
+	instanceName := fs.String("instance-name", "Vrooli SearXNG", "SearXNG instance name")
+	secretFile := fs.String("secret-file", "", "Read a session secret from this file when no existing secret is present")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	dir, err := config.ConfigDir(*dirFlag)
+	if err != nil {
+		return err
+	}
+	secret := ""
+	if strings.TrimSpace(*secretFile) != "" {
+		data, err := os.ReadFile(*secretFile)
+		if err != nil {
+			return fmt.Errorf("read secret file: %w", err)
+		}
+		secret = strings.TrimSpace(string(data))
+		if secret == "" {
+			return fmt.Errorf("secret file is empty")
+		}
+	}
+	report, err := config.Apply(dir, *baseURL, *instanceName, secret)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(stdout).Encode(report)
 }
 
 // runEngineHealth surfaces the signal the container healthcheck cannot see:

@@ -19,6 +19,8 @@ import (
 type fakeDispatcher struct {
 	dispatchResult DispatchResult
 	dispatchErr    error
+	waitResult     DispatchResult
+	waitErr        error
 	snapshot       RunSnapshot
 	snapshotErr    error
 	stopped        RunSnapshot
@@ -56,8 +58,15 @@ func TestPromotionReadinessRequiresParityExamplesAndCleanOriginReplacement(t *te
 	require.Contains(t, blocked.Blockers, "origin scenario has no recorded replacement adoption at selected version")
 }
 
-func (f *fakeDispatcher) Dispatch(_ context.Context, in StartInput) (DispatchResult, error) {
+func (f *fakeDispatcher) Start(_ context.Context, in StartInput) (DispatchResult, error) {
 	f.dispatches = append(f.dispatches, in)
+	return f.dispatchResult, f.dispatchErr
+}
+
+func (f *fakeDispatcher) Wait(_ context.Context, _ string) (DispatchResult, error) {
+	if f.waitErr != nil || f.waitResult.ExecutionID != "" || f.waitResult.Status != "" {
+		return f.waitResult, f.waitErr
+	}
 	return f.dispatchResult, f.dispatchErr
 }
 
@@ -86,15 +95,14 @@ func extractInput(key string) StartInput {
 }
 
 func TestServiceStartPersistsDispatcherIdentityAndDeduplicatesActiveWork(t *testing.T) {
-	dispatcher := &fakeDispatcher{dispatchResult: DispatchResult{TaskID: "task-1", RunID: "run-1", Status: StatusRunning, QueueDepth: 3}}
+	dispatcher := &fakeDispatcher{dispatchResult: DispatchResult{ExecutionID: "execution-1", Status: StatusRunning}}
 	svc, _, clk := newWorkflowService(t, dispatcher)
 
 	first, depth, err := svc.Start(context.Background(), extractInput("extract:sample:card"))
 	require.NoError(t, err)
-	require.Equal(t, 3, depth)
+	require.Zero(t, depth)
 	require.Equal(t, StatusRunning, first.Status)
-	require.Equal(t, "task-1", first.AgentManagerTaskID)
-	require.Equal(t, "run-1", first.AgentManagerRunID)
+	require.Equal(t, "execution-1", first.AgentManagerExecutionID)
 	require.Equal(t, clk.Now(), first.CreatedAt)
 
 	duplicate, duplicateDepth, err := svc.Start(context.Background(), extractInput("extract:sample:card"))
@@ -120,8 +128,22 @@ func TestServiceStartRecordsUnavailableDispatcherWithoutPretendingSuccess(t *tes
 	require.Equal(t, StatusUnavailable, persisted.Status)
 }
 
+func TestServiceStartKeepsExecutionReferenceWhenWaitDisconnects(t *testing.T) {
+	dispatcher := &fakeDispatcher{dispatchResult: DispatchResult{ExecutionID: "execution-1", Status: StatusRunning}, waitErr: errors.New("wait disconnected")}
+	svc, repo, _ := newWorkflowService(t, dispatcher)
+
+	w, _, err := svc.Start(context.Background(), extractInput("extract:wait-disconnected"))
+	require.NoError(t, err)
+	require.Equal(t, "execution-1", w.AgentManagerExecutionID)
+	require.Equal(t, StatusUnavailable, w.Status)
+	require.ErrorContains(t, errors.New(w.Error), "wait disconnected")
+	persisted, err := repo.Get(context.Background(), w.ID)
+	require.NoError(t, err)
+	require.Equal(t, "execution-1", persisted.AgentManagerExecutionID)
+}
+
 func TestServiceRefreshStopAndRetryUseDurableWorkflowState(t *testing.T) {
-	dispatcher := &fakeDispatcher{dispatchResult: DispatchResult{TaskID: "task-1", RunID: "run-1", Status: StatusRunning}}
+	dispatcher := &fakeDispatcher{dispatchResult: DispatchResult{ExecutionID: "execution-1", Status: StatusRunning}}
 	svc, _, clk := newWorkflowService(t, dispatcher)
 
 	w, _, err := svc.Start(context.Background(), extractInput("extract:refresh"))
@@ -131,9 +153,8 @@ func TestServiceRefreshStopAndRetryUseDurableWorkflowState(t *testing.T) {
 	dispatcher.snapshot = RunSnapshot{Status: StatusParked, Summary: "needs review", LastEventSequence: 4}
 	w, err = svc.Refresh(context.Background(), w.ID)
 	require.NoError(t, err)
-	require.Equal(t, StatusParked, w.Status)
-	require.Equal(t, int64(4), w.LastEventSequence)
-	require.Equal(t, []string{"run-1"}, dispatcher.refreshRuns)
+	require.Equal(t, StatusRunning, w.Status)
+	require.Empty(t, dispatcher.refreshRuns)
 
 	clk.Advance(time.Minute)
 	dispatcher.stopped = RunSnapshot{Status: StatusStopped, Summary: "stopped by user", LastEventSequence: 5}
@@ -142,14 +163,14 @@ func TestServiceRefreshStopAndRetryUseDurableWorkflowState(t *testing.T) {
 	require.Equal(t, StatusStopped, w.Status)
 	require.Equal(t, int64(5), w.LastEventSequence)
 	require.NotZero(t, w.CompletedAt)
-	require.Equal(t, []string{"run-1"}, dispatcher.stoppedRuns)
+	require.Equal(t, []string{"execution-1"}, dispatcher.stoppedRuns)
 
-	dispatcher.dispatchResult = DispatchResult{TaskID: "task-2", RunID: "run-2", Status: StatusQueued, QueueDepth: 1}
+	dispatcher.dispatchResult = DispatchResult{ExecutionID: "execution-2", Status: StatusQueued}
 	retry, depth, err := svc.Retry(context.Background(), w.ID, "extract:refresh:retry")
 	require.NoError(t, err)
-	require.Equal(t, 1, depth)
+	require.Zero(t, depth)
 	require.NotEqual(t, w.ID, retry.ID)
-	require.Equal(t, "run-2", retry.AgentManagerRunID)
+	require.Equal(t, "execution-2", retry.AgentManagerExecutionID)
 	require.Equal(t, StatusQueued, retry.Status)
 }
 
@@ -162,4 +183,20 @@ func TestServiceRejectsIncompleteOrUnspecifiedWorkflowRequests(t *testing.T) {
 	require.ErrorContains(t, err, "source_scenario and source_path")
 	_, _, err = svc.Start(context.Background(), StartInput{Kind: KindAdopt, AssetID: "asset", IdempotencyKey: "bad"})
 	require.ErrorContains(t, err, "asset_id and target_scenario")
+}
+
+func TestEnsureSchemaMigrationsPreservesExistingAssistedWorkflowRows(t *testing.T) {
+	database := db.NewSQLite(t)
+	_, err := database.ExecContext(context.Background(), `CREATE TABLE assisted_workflows (id TEXT PRIMARY KEY, status TEXT NOT NULL)`)
+	require.NoError(t, err)
+	_, err = database.ExecContext(context.Background(), `INSERT INTO assisted_workflows (id, status) VALUES ('legacy', 'succeeded')`)
+	require.NoError(t, err)
+
+	require.NoError(t, EnsureSchemaMigrations(context.Background(), database))
+	require.NoError(t, EnsureSchemaMigrations(context.Background(), database), "migration must be boot-idempotent")
+	var executionID string
+	var status string
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT agent_manager_execution_id, status FROM assisted_workflows WHERE id='legacy'`).Scan(&executionID, &status))
+	require.Empty(t, executionID)
+	require.Equal(t, "succeeded", status)
 }

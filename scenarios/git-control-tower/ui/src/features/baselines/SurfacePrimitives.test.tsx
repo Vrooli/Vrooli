@@ -179,10 +179,17 @@ describe("PhaseDiffCard", () => {
       clearedFailures: [],
       descriptorB: { displayName: "Future Provider", provider: "future-health" },
       reasons: [{ code: 1, detail: "New catalog entry" }],
+      behavior: "unknown",
+      coverage: "unmeasured",
+      compatibility: "changed-unreviewed",
+      provenance: "volatile",
+      diagnostics: [{ side: "current", code: "provider_unavailable", detail: "Provider did not start", remediation: "Start the provider and rerun." }],
     } as unknown as PhaseDiff;
     render(<PhaseDiffCard diff={diff} />);
     expect(screen.getByText("Future Provider")).toBeInTheDocument();
     expect(screen.getByText(/future-phase/)).toBeInTheDocument();
     expect(screen.getByText("New catalog entry")).toBeInTheDocument();
+    expect(screen.getByText(/Coverage: unmeasured/)).toBeInTheDocument();
+    expect(screen.getByText(/Start the provider and rerun/)).toBeInTheDocument();
   });
 });

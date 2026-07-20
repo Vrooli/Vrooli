@@ -15,7 +15,8 @@ is deleted.
 Test Genie remains authoritative for:
 
 - the dynamic phase catalog and captured phase descriptors;
-- comparison verdicts and typed comparison reasons;
+- behavioral, coverage, contract-compatibility, and provenance comparison axes,
+  plus typed diagnostics and provider remediation;
 - typed run evidence and opaque artifact IDs;
 - artifact access and historical degradation diagnostics.
 
@@ -29,19 +30,30 @@ a routing key.
 `baseline snapshot` starts one comprehensive run with the `baseline` capture
 profile. Finalization persists the V2 manifest and pin idempotently, so client
 disconnects and restart recovery cannot create duplicate pins. A ready baseline
-means that immutable terminal run evidence was pinned and persisted; it does
-not mean that every suite phase passed. A terminal failed run can therefore be
-valid baseline evidence, while a pending, missing, or unpinned run cannot.
+means that a stable before-result was pinned and persisted; it does not mean
+that every suite phase passed. A terminal failed run can therefore be valid
+baseline evidence. A dirty shared workspace is normal: its run receives
+`shared-scoped` provenance when the declared scenario inputs and validation
+configuration were fingerprinted and stayed stable for that attempt. `strict`
+provenance remains the optional clean linked-worktree tier. Only missing scope
+identity or a relevant edit *during the attempt* is degraded; neither ordinary
+file changes nor unrelated concurrent edits make a baseline untrustworthy. A
+phase that was unavailable at capture is retained as incomplete coverage: it
+makes that phase's later comparison not-comparable until it can be measured,
+but never discards the before-result for the other measured phases.
 
 `baseline diff` compares the anchored run with one resolved current run. The
 result contains Test Genie's dynamic phase diffs plus typed evidence catalogs.
-The comparison exposes independent `behavioral_verdict`, `blocking_reasons`,
-`advisory_warnings`, `evidence_status`, and staleness metadata. Missing core run
-identity or Test Genie semantic incompatibility remains fail-closed and
-not-comparable. Git SHA/file drift and auxiliary catalog or visual enrichment
-failures are advisory: they preserve a clean, preexisting, or regression
-behavioral verdict while marking evidence incomplete. Different Git SHAs alone
-never make compatible runs incomparable.
+The comparison envelope has four independent axes: `behavior` (regression,
+new failure, preexisting, cleared, clean, or unknown), `coverage` (measured or
+why it was not measured), `compatibility` (including a same-key
+`changed-unreviewed` validator), and `provenance` (strict, shared-scoped,
+volatile, mismatched, or legacy). A required gate uses one named policy over those axes:
+observed regressions/new failures fail; incomplete required coverage,
+unreviewed contracts, and non-verified provenance return a distinct
+not-comparable result. Provider-down, skipped, missing-artifact, and legacy
+cases retain machine-readable diagnostics and remediation. Different Git SHAs
+alone never make compatible, verified runs incomparable.
 
 The CLI commands are:
 
@@ -103,7 +115,9 @@ Collection membership is append-only. Before editing a newly discovered
 scenario, use `collection extend` to capture its before-state and then use the
 printed collection wait command. Existing members cannot be removed, replaced,
 or re-anchored. An already edited scenario cannot obtain a trustworthy before
-baseline and must follow an explicit degraded/repair workflow instead.
+baseline for that earlier state and must follow an explicit degraded/repair
+workflow instead. This is about the missing *before behavior*, not ordinary
+workspace dirtiness.
 
 Collections may carry separately captured path snapshots. Before capture, use
 the Git-aware estimate: by default it selects tracked files plus non-ignored

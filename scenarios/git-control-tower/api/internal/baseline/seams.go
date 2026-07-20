@@ -43,23 +43,31 @@ type PhaseStatus struct {
 
 // ExecResult is the canonical terminal identity returned by Test Genie.
 type ExecResult struct {
-	RunID                           string
-	Success                         bool
-	CompletedAt                     time.Time
-	TreeDigest                      string
-	PhaseSetDigest                  string
-	CaptureProfile                  string
-	DescriptorSnapshotDigest        string
-	DescriptorSnapshotSchemaVersion int
-	Phases                          []PhaseStatus
+	RunID                             string
+	Success                           bool
+	CompletedAt                       time.Time
+	TreeDigest                        string
+	PhaseSetDigest                    string
+	CaptureProfile                    string
+	DescriptorSnapshotDigest          string
+	DescriptorSnapshotSchemaVersion   int
+	GitSha                            string
+	GitDirty                          bool
+	ExecutionConfigurationFingerprint string
+	GateQuality                       bool
+	EvidenceTier                      string
+	SourceScope                       string
+	SourceStable                      bool
+	Phases                            []PhaseStatus
 }
 
 // CompareResult carries Test Genie's PhaseDiff messages unchanged. Keeping the
 // owning proto at this seam prevents GCT from losing future descriptor fields,
 // reason codes, or unknown phases while forwarding comparison evidence.
 type CompareResult struct {
-	Verdict string
-	Phases  []*runspb.PhaseDiff
+	Comparison *runspb.CompareRunsResponse
+	Verdict    string
+	Phases     []*runspb.PhaseDiff
 }
 
 type (
@@ -115,7 +123,7 @@ type Executor interface {
 	StartRun(ctx context.Context, scenario string) (RunHandle, error)
 	AwaitResult(ctx context.Context, scenario, runID string) (ExecResult, error)
 	RunStatus(ctx context.Context, scenario, runID string) (RunStatusInfo, error)
-	FindReusableRun(ctx context.Context, scenario, gitSha string) (ReusableRun, bool, error)
+	FindReusableRun(ctx context.Context, scenario string) (ReusableRun, bool, error)
 }
 
 type RunsClient interface {

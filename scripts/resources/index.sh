@@ -30,13 +30,13 @@ fi
 declare -A AVAILABLE_RESOURCES=(
     ["ai"]="ollama whisper unstructured-io"
     ["automation"]="comfyui"
-    ["storage"]="minio vault qdrant questdb postgres redis"
+    ["storage"]="minio vault qdrant postgres redis"
     ["agents"]="claude-code"
     ["search"]="searxng"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama whisper unstructured-io comfyui minio vault qdrant questdb postgres redis claude-code searxng"
+ALL_RESOURCES="ollama whisper unstructured-io comfyui minio vault qdrant postgres redis claude-code searxng"
 
 #######################################
 # Parse command line arguments
@@ -503,7 +503,6 @@ resources::get_health_endpoint() {
         "unstructured-io") echo "/healthcheck" ;;
         "qdrant") echo "/" ;;  # Qdrant root endpoint returns version info
         "vault") echo "/v1/sys/health" ;;  # HashiCorp Vault health endpoint
-        "questdb") echo "/status" ;;  # QuestDB status endpoint
         "postgres") echo "/health" ;;  # PostgreSQL health endpoint (custom endpoint)
         *) echo "" ;;  # Return empty for unknown resources
     esac

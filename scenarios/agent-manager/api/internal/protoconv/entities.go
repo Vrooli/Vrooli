@@ -23,31 +23,32 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		return nil
 	}
 	return &pb.AgentProfile{
-		Id:                   UUIDToString(p.ID),
-		Name:                 p.Name,
-		ProfileKey:           p.ProfileKey,
-		Description:          p.Description,
-		RoleRef:              p.RoleRef,
-		MaxTurns:             int32(p.MaxTurns),
-		Timeout:              DurationToProto(p.Timeout),
-		AllowedTools:         p.AllowedTools,
-		DeniedTools:          p.DeniedTools,
-		SkipPermissionPrompt: p.SkipPermissionPrompt,
-		Features:             FeatureFlagsToProto(p.Features),
-		ExtraFlags:           RunnerExtraFlagsToProto(p.ExtraFlags),
-		NetworkAccess:        NetworkAccessToProto(p.NetworkAccess),
-		OwnerScenario:        p.OwnerScenario,
-		SourcePath:           p.SourcePath,
-		SourceHash:           p.SourceHash,
-		LastAppliedHash:      p.LastAppliedHash,
-		SourceUpdatedAt:      TimestampToProto(p.SourceUpdatedAt),
-		LocalOverride:        p.LocalOverride,
-		SandboxConfig:        SandboxConfigToProto(p.SandboxConfig),
-		AllowedPaths:         p.AllowedPaths,
-		DeniedPaths:          p.DeniedPaths,
-		CreatedBy:            p.CreatedBy,
-		CreatedAt:            TimestampToProto(p.CreatedAt),
-		UpdatedAt:            TimestampToProto(p.UpdatedAt),
+		Id:                    UUIDToString(p.ID),
+		Name:                  p.Name,
+		ProfileKey:            p.ProfileKey,
+		Description:           p.Description,
+		RoleRef:               p.RoleRef,
+		MaxTurns:              int32(p.MaxTurns),
+		Timeout:               DurationToProto(p.Timeout),
+		AllowedTools:          p.AllowedTools,
+		DeniedTools:           p.DeniedTools,
+		ToolRestrictionPolicy: string(p.ToolRestrictionPolicy.Effective()),
+		SkipPermissionPrompt:  p.SkipPermissionPrompt,
+		Features:              FeatureFlagsToProto(p.Features),
+		ExtraFlags:            RunnerExtraFlagsToProto(p.ExtraFlags),
+		NetworkAccess:         NetworkAccessToProto(p.NetworkAccess),
+		OwnerScenario:         p.OwnerScenario,
+		SourcePath:            p.SourcePath,
+		SourceHash:            p.SourceHash,
+		LastAppliedHash:       p.LastAppliedHash,
+		SourceUpdatedAt:       TimestampToProto(p.SourceUpdatedAt),
+		LocalOverride:         p.LocalOverride,
+		SandboxConfig:         SandboxConfigToProto(p.SandboxConfig),
+		AllowedPaths:          p.AllowedPaths,
+		DeniedPaths:           p.DeniedPaths,
+		CreatedBy:             p.CreatedBy,
+		CreatedAt:             TimestampToProto(p.CreatedAt),
+		UpdatedAt:             TimestampToProto(p.UpdatedAt),
 	}
 }
 
@@ -57,31 +58,32 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		return nil
 	}
 	return &domain.AgentProfile{
-		ID:                   UUIDFromString(p.Id),
-		Name:                 p.Name,
-		ProfileKey:           p.ProfileKey,
-		Description:          p.Description,
-		RoleRef:              p.RoleRef,
-		MaxTurns:             int(p.MaxTurns),
-		Timeout:              DurationFromProto(p.Timeout),
-		AllowedTools:         p.AllowedTools,
-		DeniedTools:          p.DeniedTools,
-		SkipPermissionPrompt: p.SkipPermissionPrompt,
-		Features:             FeatureFlagsFromProto(p.Features),
-		ExtraFlags:           RunnerExtraFlagsFromProto(p.ExtraFlags),
-		NetworkAccess:        NetworkAccessFromProto(p.NetworkAccess),
-		OwnerScenario:        p.OwnerScenario,
-		SourcePath:           p.SourcePath,
-		SourceHash:           p.SourceHash,
-		LastAppliedHash:      p.LastAppliedHash,
-		SourceUpdatedAt:      TimestampFromProto(p.SourceUpdatedAt),
-		LocalOverride:        p.LocalOverride,
-		SandboxConfig:        SandboxConfigFromProto(p.SandboxConfig),
-		AllowedPaths:         p.AllowedPaths,
-		DeniedPaths:          p.DeniedPaths,
-		CreatedBy:            p.CreatedBy,
-		CreatedAt:            TimestampFromProto(p.CreatedAt),
-		UpdatedAt:            TimestampFromProto(p.UpdatedAt),
+		ID:                    UUIDFromString(p.Id),
+		Name:                  p.Name,
+		ProfileKey:            p.ProfileKey,
+		Description:           p.Description,
+		RoleRef:               p.RoleRef,
+		MaxTurns:              int(p.MaxTurns),
+		Timeout:               DurationFromProto(p.Timeout),
+		AllowedTools:          p.AllowedTools,
+		DeniedTools:           p.DeniedTools,
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicy(p.ToolRestrictionPolicy),
+		SkipPermissionPrompt:  p.SkipPermissionPrompt,
+		Features:              FeatureFlagsFromProto(p.Features),
+		ExtraFlags:            RunnerExtraFlagsFromProto(p.ExtraFlags),
+		NetworkAccess:         NetworkAccessFromProto(p.NetworkAccess),
+		OwnerScenario:         p.OwnerScenario,
+		SourcePath:            p.SourcePath,
+		SourceHash:            p.SourceHash,
+		LastAppliedHash:       p.LastAppliedHash,
+		SourceUpdatedAt:       TimestampFromProto(p.SourceUpdatedAt),
+		LocalOverride:         p.LocalOverride,
+		SandboxConfig:         SandboxConfigFromProto(p.SandboxConfig),
+		AllowedPaths:          p.AllowedPaths,
+		DeniedPaths:           p.DeniedPaths,
+		CreatedBy:             p.CreatedBy,
+		CreatedAt:             TimestampFromProto(p.CreatedAt),
+		UpdatedAt:             TimestampFromProto(p.UpdatedAt),
 	}
 }
 
@@ -472,22 +474,23 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 		return nil
 	}
 	return &pb.RunConfig{
-		RunnerType:           RunnerTypeToProto(c.RunnerType),
-		Model:                c.Model,
-		RoleRef:              c.RoleRef,
-		MaxTurns:             int32(c.MaxTurns),
-		Timeout:              DurationToProto(c.Timeout),
-		AllowedTools:         c.AllowedTools,
-		DeniedTools:          c.DeniedTools,
-		SkipPermissionPrompt: c.SkipPermissionPrompt,
-		Features:             FeatureFlagsToProto(c.Features),
-		ExtraFlags:           RunnerExtraFlagsToProto(c.ExtraFlags),
-		NetworkAccess:        NetworkAccessToProto(c.NetworkAccess),
-		PolicySnapshot:       ExecutionPolicySnapshotToProto(c.PolicySnapshot),
-		ResultSpec:           ResultSpecToProto(c.ResultSpec),
-		SandboxConfig:        SandboxConfigToProto(c.SandboxConfig),
-		AllowedPaths:         c.AllowedPaths,
-		DeniedPaths:          c.DeniedPaths,
+		RunnerType:            RunnerTypeToProto(c.RunnerType),
+		Model:                 c.Model,
+		RoleRef:               c.RoleRef,
+		MaxTurns:              int32(c.MaxTurns),
+		Timeout:               DurationToProto(c.Timeout),
+		AllowedTools:          c.AllowedTools,
+		DeniedTools:           c.DeniedTools,
+		ToolRestrictionPolicy: string(c.ToolRestrictionPolicy.Effective()),
+		SkipPermissionPrompt:  c.SkipPermissionPrompt,
+		Features:              FeatureFlagsToProto(c.Features),
+		ExtraFlags:            RunnerExtraFlagsToProto(c.ExtraFlags),
+		NetworkAccess:         NetworkAccessToProto(c.NetworkAccess),
+		PolicySnapshot:        ExecutionPolicySnapshotToProto(c.PolicySnapshot),
+		ResultSpec:            ResultSpecToProto(c.ResultSpec),
+		SandboxConfig:         SandboxConfigToProto(c.SandboxConfig),
+		AllowedPaths:          c.AllowedPaths,
+		DeniedPaths:           c.DeniedPaths,
 	}
 }
 
@@ -497,22 +500,23 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 		return nil
 	}
 	return &domain.RunConfig{
-		RunnerType:           RunnerTypeFromProto(c.RunnerType),
-		Model:                c.Model,
-		RoleRef:              c.RoleRef,
-		MaxTurns:             int(c.MaxTurns),
-		Timeout:              DurationFromProto(c.Timeout),
-		AllowedTools:         c.AllowedTools,
-		DeniedTools:          c.DeniedTools,
-		SkipPermissionPrompt: c.SkipPermissionPrompt,
-		Features:             FeatureFlagsFromProto(c.Features),
-		ExtraFlags:           RunnerExtraFlagsFromProto(c.ExtraFlags),
-		NetworkAccess:        NetworkAccessFromProto(c.NetworkAccess),
-		PolicySnapshot:       ExecutionPolicySnapshotFromProto(c.PolicySnapshot),
-		ResultSpec:           ResultSpecFromProto(c.ResultSpec),
-		SandboxConfig:        SandboxConfigFromProto(c.SandboxConfig),
-		AllowedPaths:         c.AllowedPaths,
-		DeniedPaths:          c.DeniedPaths,
+		RunnerType:            RunnerTypeFromProto(c.RunnerType),
+		Model:                 c.Model,
+		RoleRef:               c.RoleRef,
+		MaxTurns:              int(c.MaxTurns),
+		Timeout:               DurationFromProto(c.Timeout),
+		AllowedTools:          c.AllowedTools,
+		DeniedTools:           c.DeniedTools,
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicy(c.ToolRestrictionPolicy),
+		SkipPermissionPrompt:  c.SkipPermissionPrompt,
+		Features:              FeatureFlagsFromProto(c.Features),
+		ExtraFlags:            RunnerExtraFlagsFromProto(c.ExtraFlags),
+		NetworkAccess:         NetworkAccessFromProto(c.NetworkAccess),
+		PolicySnapshot:        ExecutionPolicySnapshotFromProto(c.PolicySnapshot),
+		ResultSpec:            ResultSpecFromProto(c.ResultSpec),
+		SandboxConfig:         SandboxConfigFromProto(c.SandboxConfig),
+		AllowedPaths:          c.AllowedPaths,
+		DeniedPaths:           c.DeniedPaths,
 	}
 }
 
@@ -1377,14 +1381,16 @@ func OrchestratorRunnerStatusToProto(r *OrchestratorRunnerStatus) *pb.RunnerStat
 		Message:     r.Message,
 		InstallHint: "",
 		Capabilities: &pb.RunnerCapabilities{
-			SupportsStreaming:    r.Capabilities.SupportsStreaming,
-			SupportsMessages:     r.Capabilities.SupportsMessages,
-			SupportsToolEvents:   r.Capabilities.SupportsToolEvents,
-			SupportsCostTracking: r.Capabilities.SupportsCostTracking,
-			SupportsCancellation: r.Capabilities.SupportsCancellation,
-			MaxTurns:             int32(r.Capabilities.MaxTurns),
-			SupportedFeatures:    r.Capabilities.SupportedFeatures,
-			AllowedExtraFlags:    r.Capabilities.AllowedExtraFlags,
+			SupportsStreaming:       r.Capabilities.SupportsStreaming,
+			SupportsMessages:        r.Capabilities.SupportsMessages,
+			SupportsToolEvents:      r.Capabilities.SupportsToolEvents,
+			SupportsCostTracking:    r.Capabilities.SupportsCostTracking,
+			SupportsCancellation:    r.Capabilities.SupportsCancellation,
+			MaxTurns:                int32(r.Capabilities.MaxTurns),
+			SupportedFeatures:       r.Capabilities.SupportedFeatures,
+			AllowedExtraFlags:       r.Capabilities.AllowedExtraFlags,
+			SupportsToolRestriction: r.Capabilities.SupportsToolRestriction,
+			ToolRestrictionMappings: r.Capabilities.ToolRestrictionMappings,
 		},
 		SupportedModels: r.Capabilities.SupportedModels,
 	}
@@ -1409,13 +1415,15 @@ type OrchestratorRunnerStatus struct {
 
 // RunnerCapabilities mirrors runner.Capabilities for import avoidance.
 type RunnerCapabilities struct {
-	SupportsMessages     bool
-	SupportsToolEvents   bool
-	SupportsCostTracking bool
-	SupportsStreaming    bool
-	SupportsCancellation bool
-	MaxTurns             int
-	SupportedModels      []string
-	SupportedFeatures    []string
-	AllowedExtraFlags    []string
+	SupportsMessages        bool
+	SupportsToolEvents      bool
+	SupportsCostTracking    bool
+	SupportsStreaming       bool
+	SupportsCancellation    bool
+	MaxTurns                int
+	SupportedModels         []string
+	SupportedFeatures       []string
+	AllowedExtraFlags       []string
+	SupportsToolRestriction bool
+	ToolRestrictionMappings map[string]string
 }

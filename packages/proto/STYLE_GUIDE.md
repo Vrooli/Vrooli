@@ -173,7 +173,7 @@ option go_package = "github.com/matthalloran/Vrooli/packages/proto/gen/go/proto-
 //
 // USAGE CONTEXTS:
 //   - test-genie: runs this validator as the proto phase.
-//   - ecosystem-manager: consumes proto findings as an R2 maturity signal.
+//   - swarm-manager: consumes proto findings as an R2 maturity signal.
 //
 // =============================================================================
 ```

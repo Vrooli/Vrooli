@@ -429,16 +429,17 @@ func TestAgentProfileRoundTrip(t *testing.T) {
 		ProfileKey:  "test-profile-key",
 		Description: "A test profile",
 
-		MaxTurns:             100,
-		Timeout:              10 * time.Minute,
-		AllowedTools:         []string{"read", "write"},
-		DeniedTools:          []string{"bash"},
-		SkipPermissionPrompt: true,
-		AllowedPaths:         []string{"/src"},
-		DeniedPaths:          []string{"/secrets"},
-		CreatedBy:            "test-user",
-		CreatedAt:            time.Now().Truncate(time.Second),
-		UpdatedAt:            time.Now().Truncate(time.Second), RoleRef: "code.default",
+		MaxTurns:              100,
+		Timeout:               10 * time.Minute,
+		AllowedTools:          []string{"read", "write"},
+		DeniedTools:           []string{"bash"},
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicyAdvisory,
+		SkipPermissionPrompt:  true,
+		AllowedPaths:          []string{"/src"},
+		DeniedPaths:           []string{"/secrets"},
+		CreatedBy:             "test-user",
+		CreatedAt:             time.Now().Truncate(time.Second),
+		UpdatedAt:             time.Now().Truncate(time.Second), RoleRef: "code.default",
 	}
 
 	proto := AgentProfileToProto(original)
@@ -449,6 +450,9 @@ func TestAgentProfileRoundTrip(t *testing.T) {
 	}
 	if result.Name != original.Name {
 		t.Errorf("Name: expected %v, got %v", original.Name, result.Name)
+	}
+	if result.ToolRestrictionPolicy != domain.ToolRestrictionPolicyAdvisory {
+		t.Errorf("ToolRestrictionPolicy = %q", result.ToolRestrictionPolicy)
 	}
 	if result.ProfileKey != original.ProfileKey {
 		t.Errorf("ProfileKey: expected %v, got %v", original.ProfileKey, result.ProfileKey)

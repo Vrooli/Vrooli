@@ -686,7 +686,10 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		active.Status = domain.WorkflowAttemptFailed
 		active.ErrorCode = "structured_result_invalid"
 		active.ValidationError = validationError
-		if schemaRepairCount(attempts, node.ID) < schemaRepairLimit(node) && x.BudgetUsage.NodeAttempts < r.Definition.Budgets.MaxNodeAttempts && x.BudgetUsage.Children < r.Definition.Budgets.MaxChildren {
+		// A repair is a continuation of the existing child session, not a new
+		// child. It is bounded by the explicit node-attempt budget but must not
+		// be denied merely because the original run consumed MaxChildren.
+		if schemaRepairCount(attempts, node.ID) < schemaRepairLimit(node) && x.BudgetUsage.NodeAttempts < r.Definition.Budgets.MaxNodeAttempts {
 			repair := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: domain.WorkflowAttemptContinue, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: fmt.Sprintf("workflow/%s/node/%s/attempt/%d/schema-repair", x.ID, node.ID, ordinal), InputSnapshot: append(json.RawMessage(nil), active.InputSnapshot...), PromptSnapshot: schemaRepairPrompt(validationError), SourceAttemptID: &active.ID, Version: 1, CreatedAt: now, UpdatedAt: now}
 			x.Status, x.UpdatedAt = domain.WorkflowExecutionRunning, now
 			x.BudgetUsage.NodeAttempts++

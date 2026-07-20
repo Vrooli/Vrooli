@@ -130,7 +130,7 @@ unavailable and what path is affected.
 | **Prompt Manager** | Prompt/skill content referenced and pinned by workflow revisions; session guidance. | New workflow reconciliation or prompt-dependent starts fail closed; existing pinned revisions remain explainable. |
 | **Test Genie** | Scenario test execution and structured test evidence. | Validation-dependent completion cannot be asserted; work routes to an explicit blocked/attention state rather than pretending success. |
 | **Git Control Tower** | Baselines, regression comparison, and readiness evidence. | Regression-gated completion cannot be asserted; preserve the missing-evidence reason. |
-| **Ecosystem Manager** | Historical optional scenario-lifecycle integration. | It is not a prerequisite for active workflow selection; scenario specification work uses the declared transition, scenario templates, and Test Genie evidence. |
+| **Swarm Manager** | Historical optional scenario-lifecycle integration. | It is not a prerequisite for active workflow selection; scenario specification work uses the declared transition, scenario templates, and Test Genie evidence. |
 | **Knowledge Observatory / Search Hub** | Retrieval, documentation, and historical learning context. | Discovery is degraded; it must not silently become a requirement for normal work mutation. |
 | **Audio Tools** | Optional speech input/output for interactive sessions and capture. | Hide or disable audio affordances; text intake and sessions remain usable. |
 

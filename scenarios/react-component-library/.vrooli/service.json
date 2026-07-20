@@ -172,7 +172,8 @@
             "reconcile": true,
             "profileMode": "update_if_unmodified",
             "sources": [
-              ".vrooli/agent-manager/catalog-maintainer.json"
+              ".vrooli/agent-manager/catalog-maintainer.json",
+              ".vrooli/agent-manager/catalog-assist.json"
             ]
           }
         }

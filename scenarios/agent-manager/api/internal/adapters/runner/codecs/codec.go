@@ -16,6 +16,7 @@ package codecs
 
 import (
 	"context"
+	"fmt"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
@@ -23,6 +24,27 @@ import (
 
 	"github.com/google/uuid"
 )
+
+func translateCanonicalTools(translations map[domain.CanonicalTool]string, tools []string) ([]string, error) {
+	translated := make([]string, 0, len(tools))
+	for _, raw := range tools {
+		tool := domain.CanonicalTool(raw)
+		native, ok := translations[tool]
+		if !ok || native == "" {
+			return nil, fmt.Errorf("runner codec has no native mapping for canonical tool %q", raw)
+		}
+		translated = append(translated, native)
+	}
+	return translated, nil
+}
+
+func canonicalToolMappings(translations map[domain.CanonicalTool]string) map[string]string {
+	result := make(map[string]string, len(translations))
+	for tool, native := range translations {
+		result[string(tool)] = native
+	}
+	return result
+}
 
 // Codec is the runner-specific seam.
 //

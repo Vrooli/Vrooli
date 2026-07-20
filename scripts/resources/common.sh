@@ -68,7 +68,6 @@ declare -A RESOURCE_TYPES=(
     ["minio"]="service"
     ["vault"]="service"
     ["qdrant"]="service"
-    ["questdb"]="service"
     ["postgres"]="service"
     ["redis"]="service"
     ["searxng"]="service"

@@ -18,6 +18,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/freshness-go/treedigest"
 	"test-genie/internal/execution"
 	"test-genie/internal/executionevidence"
 	"test-genie/internal/orchestrator"
@@ -311,6 +312,25 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 		phaseSetDigest = phases.PhaseSetDigest(phases.DefaultPresets()[phases.PresetComprehensive.String()])
 	}
 	requireClean := req.Msg.GetRequireClean()
+	requireGateQuality := req.Msg.GetRequireGateQuality()
+	matchCurrentSource := req.Msg.GetMatchCurrentSource()
+	currentConfiguration := ""
+	if matchCurrentSource {
+		if treeDigest, err = treedigest.Compute(dir); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("compute current source fingerprint: %w", err))
+		}
+		if s.planner == nil {
+			return connect.NewResponse(&runspb.FindRunResponse{Found: false}), nil
+		}
+		preview, err := s.planner.Preview(ctx, orchestrator.SuiteExecutionRequest{
+			ScenarioName: req.Msg.GetScenario(), Preset: preset, CaptureProfile: captureProfile,
+		})
+		if err != nil || preview == nil {
+			return connect.NewResponse(&runspb.FindRunResponse{Found: false}), nil
+		}
+		currentConfiguration = preview.ConfigurationFingerprint
+		phaseSetDigest = preview.PhaseSetDigest
+	}
 
 	// List() returns newest-first, so the first match is the newest.
 	for _, r := range records {
@@ -335,11 +355,18 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 		if phaseSetDigest != "" && r.PhaseSetDigest != phaseSetDigest {
 			continue
 		}
+		projection, projectionErr := loadRunProjection(sharedruns.NewIndex(dir), r.RunID)
+		if requireGateQuality && (projectionErr != nil || !toTerminalRunInfo(projection.record, projection.result, projection.descriptors).GetGateQuality()) {
+			continue
+		}
+		if matchCurrentSource && (projectionErr != nil || projection.result == nil || !projection.result.SourceStable || projection.result.ConfigurationFingerprint != currentConfiguration) {
+			continue
+		}
 		active, err := sharedruns.NewPinLeaseStore(dir).ActiveForRun(r.RunID, time.Now())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read run leases: %w", err))
 		}
-		return connect.NewResponse(&runspb.FindRunResponse{Found: true, Run: withLeasePins(toRunInfo(r), active)}), nil
+		return connect.NewResponse(&runspb.FindRunResponse{Found: true, Run: withLeasePins(toTerminalRunInfo(projection.record, projection.result, projection.descriptors), active)}), nil
 	}
 	return connect.NewResponse(&runspb.FindRunResponse{Found: false}), nil
 }

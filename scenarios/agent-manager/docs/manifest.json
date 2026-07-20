@@ -33,7 +33,8 @@
       "title": "Reference",
       "documents": [
         {"path": "reference/configuration.md", "docType": "configuration", "title": "Configuration", "description": "Role catalogs, permission catalogs, profiles, reconciliation, and operator workflows", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
-        {"path": "reference/operational-stats.md", "docType": "operational-stats", "title": "Operational Stats", "description": "API and CLI operational stats reference", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
+        {"path": "reference/operational-stats.md", "docType": "operational-stats", "title": "Operational Stats", "description": "API and CLI operational stats reference", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "reference/scenario-declarations.md", "docType": "scenario-declarations", "title": "Scenario Declarations", "description": "Profile and workflow declaration format, canonical tool restrictions, and reconciliation", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
       ]
     },
     {

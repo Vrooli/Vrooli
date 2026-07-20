@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/providerreadiness"
 	sharedruns "test-genie/internal/shared/runs"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -109,16 +110,55 @@ func toTerminalRunInfo(r sharedruns.RunRecord, result *orchestrator.SuiteExecuti
 			Trace:   r.Diagnostics.Trace,
 			Dom:     r.Diagnostics.DOM,
 		},
-		Pins:                            nil,
-		TreeDigest:                      r.TreeDigest,
-		Preset:                          r.Preset,
-		CaptureProfile:                  r.CaptureProfile,
-		PlannedPhases:                   append([]string(nil), r.PlannedPhases...),
-		PhaseSetDigest:                  r.PhaseSetDigest,
-		DescriptorSnapshotSchemaVersion: int32(descriptorSchemaVersion),
-		DescriptorSnapshotDigest:        descriptorDigest,
-		DescriptorSnapshot:              toDescriptorSnapshot(descriptors),
+		Pins:                              nil,
+		TreeDigest:                        r.TreeDigest,
+		Preset:                            r.Preset,
+		CaptureProfile:                    r.CaptureProfile,
+		PlannedPhases:                     append([]string(nil), r.PlannedPhases...),
+		PhaseSetDigest:                    r.PhaseSetDigest,
+		DescriptorSnapshotSchemaVersion:   int32(descriptorSchemaVersion),
+		DescriptorSnapshotDigest:          descriptorDigest,
+		DescriptorSnapshot:                toDescriptorSnapshot(descriptors),
+		ExecutionConfigurationFingerprint: executionConfigurationFingerprint(result),
+		GateQuality:                       result != nil && result.GateQuality,
+		EvidenceTier:                      evidenceTier(r, result),
+		SourceScope:                       sourceScope(r, result),
+		SourceStable:                      sourceStable(result),
 	}
+}
+
+func executionConfigurationFingerprint(result *orchestrator.SuiteExecutionResult) string {
+	if result == nil {
+		return ""
+	}
+	return result.ConfigurationFingerprint
+}
+
+func evidenceTier(record sharedruns.RunRecord, result *orchestrator.SuiteExecutionResult) string {
+	if result == nil || record.TreeDigest == "" || (result.ConfigurationFingerprint == "" && !result.GateQuality) || !sourceStable(result) {
+		return "degraded"
+	}
+	if result.GateQuality {
+		return "strict"
+	}
+	return "shared-scoped"
+}
+
+// sourceStable keeps canonical pre-scoped terminal snapshots readable. Those
+// historical strict runs had no explicit boolean, while new runs always stamp
+// SourceFingerprint and can therefore represent an explicit false.
+func sourceStable(result *orchestrator.SuiteExecutionResult) bool {
+	return result != nil && (result.SourceStable || (result.GateQuality && result.SourceFingerprint == ""))
+}
+
+func sourceScope(record sharedruns.RunRecord, result *orchestrator.SuiteExecutionResult) string {
+	if result != nil && result.SourceScope != "" {
+		return result.SourceScope
+	}
+	if record.Scenario != "" {
+		return "scenario:" + record.Scenario
+	}
+	return ""
 }
 
 func toDescriptorSnapshot(snapshot *sharedruns.DescriptorSnapshot) *runspb.RunDescriptorSnapshot {
@@ -161,12 +201,14 @@ func toPhaseDescriptor(descriptor *sharedruns.PhaseDescriptorSnapshot) *runspb.R
 			ProviderLifecycle: descriptor.Policy.ProviderLifecycle, Freshness: descriptor.Policy.Freshness,
 			ResultGating: descriptor.Policy.ResultGating, Unavailable: descriptor.Policy.Unavailable,
 		},
-		DocsPath:             descriptor.DocsPath,
-		MaturityReference:    descriptor.MaturityReference,
-		ApplicabilityDefault: descriptor.ApplicabilityDefault,
-		EvidenceKinds:        append([]string(nil), descriptor.EvidenceKinds...),
-		Aliases:              append([]string(nil), descriptor.Aliases...),
-		Supersedes:           append([]string(nil), descriptor.Supersedes...),
+		DocsPath:              descriptor.DocsPath,
+		MaturityReference:     descriptor.MaturityReference,
+		ApplicabilityDefault:  descriptor.ApplicabilityDefault,
+		EvidenceKinds:         append([]string(nil), descriptor.EvidenceKinds...),
+		Aliases:               append([]string(nil), descriptor.Aliases...),
+		Supersedes:            append([]string(nil), descriptor.Supersedes...),
+		ComparisonFingerprint: descriptor.ComparisonFingerprint,
+		ComparisonMode:        descriptor.ComparisonMode,
 		Applicability: &runspb.PhaseApplicabilityDecision{
 			Status: descriptor.Applicability.Status, ReasonCodes: reasonCodes,
 			Reasons: reasons, Planned: descriptor.Applicability.Planned,
@@ -304,7 +346,7 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 	appendRecordOrder(a.record)
 
 	out := make([]*runspb.PhaseDiff, 0, len(order))
-	worst := verdictClean
+	response := &runspb.CompareRunsResponse{SchemaVersion: 2, Behavior: "unknown", Coverage: "measured", Compatibility: "compatible", Provenance: "verified"}
 	for _, name := range order {
 		if phaseFilter != "" && name != phaseFilter {
 			continue
@@ -320,47 +362,208 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 			DescriptorA: toPhaseDescriptor(descriptorA),
 			DescriptorB: toPhaseDescriptor(descriptorB),
 		}
-		reasons, forceNotComparable := phaseComparisonReasons(
+		reasons, _ := phaseComparisonReasons(
 			a, b, recordA, okA, recordB, okB, descriptorA, hasDescriptorA, descriptorB, hasDescriptorB,
 		)
 		diff.Reasons = reasons
-		neutralAbsence := symmetricNeutralAbsence(recordA, okA, recordB, okB, descriptorA, descriptorB)
-
-		switch {
-		case neutralAbsence:
-			// Both runs deliberately lack evidence for the same optional surface.
-			// Keep the reason visible, but do not report a comparability failure.
-			diff.Verdict = verdictClean
-		case forceNotComparable:
-			diff.Verdict = verdictNotComparable
-		case !okB:
-			// Phase only present in baseline; nothing to judge in current run.
-			diff.Verdict = verdictNotComparable
-		case isFailed(sb) && okA && !isFailed(sa) && sa != "":
-			diff.Verdict = verdictRegression
-			diff.Regressions = []string{name}
-		case isFailed(sb) && !okA:
-			diff.Verdict = verdictNewFailure
-			diff.NewFailures = []string{name}
-		case isFailed(sb) && isFailed(sa):
-			diff.Verdict = verdictPreexisting
-			diff.PreexistingFailures = []string{name}
-		case !isFailed(sb) && isFailed(sa):
-			diff.Verdict = verdictClean
-			diff.ClearedFailures = []string{name}
-		default:
-			diff.Verdict = verdictClean
-		}
-
-		// Symmetric optional absence is a matched state carrying no regression
-		// signal. Asymmetric absence still worsens: the tested surface changed.
-		if !neutralAbsence {
-			worst = worsen(worst, diff.Verdict)
-		}
+		classifyPhaseComparison(diff, a, b, recordA, okA, recordB, okB, descriptorA, hasDescriptorA, descriptorB, hasDescriptorB)
+		response.Behavior = aggregateBehavior(response.Behavior, diff.Behavior)
+		response.Coverage = aggregateDimension(response.Coverage, diff.Coverage, "measured")
+		response.Compatibility = aggregateDimension(response.Compatibility, diff.Compatibility, "compatible")
+		response.Provenance = aggregateDimension(response.Provenance, diff.Provenance, "verified")
+		response.Diagnostics = append(response.Diagnostics, diff.Diagnostics...)
 		out = append(out, diff)
 	}
+	response.Phases = out
+	response.Verdict = legacyVerdict(response)
+	return response
+}
 
-	return &runspb.CompareRunsResponse{Phases: out, Verdict: worst}
+// classifyPhaseComparison keeps behavior, whether it was measured, validator
+// compatibility, and source quality independent. A consumer may gate any of
+// these dimensions, but no dimension is allowed to masquerade as another.
+func classifyPhaseComparison(diff *runspb.PhaseDiff, a, b runProjection, recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA *sharedruns.PhaseDescriptorSnapshot, hasDescriptorA bool, descriptorB *sharedruns.PhaseDescriptorSnapshot, hasDescriptorB bool) {
+	diff.Behavior, diff.Coverage, diff.Compatibility, diff.Provenance = "unknown", "measured", "compatible", comparisonProvenance(a, b)
+	add := func(side, code, detail string) {
+		diff.Diagnostics = append(diff.Diagnostics, &runspb.ComparisonDiagnostic{Side: side, Code: code, Detail: detail})
+	}
+	if a.descriptorErr != nil || b.descriptorErr != nil {
+		diff.Compatibility = "legacy"
+		add("comparison", "legacy_descriptor_metadata", "one or both runs lack a compatible descriptor snapshot")
+	}
+	if !hasDescriptorA || !hasDescriptorB {
+		if hasDescriptorB {
+			diff.Compatibility = "new"
+			add("comparison", "new_phase", "phase exists only in the current catalog")
+		} else {
+			diff.Compatibility = "retired"
+			add("comparison", "retired_phase", "phase exists only in the baseline catalog")
+		}
+	} else if descriptorA.ComparisonFingerprint == "" || descriptorB.ComparisonFingerprint == "" {
+		diff.Compatibility = "legacy"
+		add("comparison", "missing_comparison_fingerprint", "captured descriptor predates semantic comparison fingerprints")
+	} else if descriptorA.ComparisonFingerprint != descriptorB.ComparisonFingerprint {
+		diff.Compatibility = descriptorB.ComparisonMode
+		if diff.Compatibility == "" {
+			diff.Compatibility = "changed-unreviewed"
+		}
+		add("comparison", "validator_contract_changed", "same phase key has a different validation semantic fingerprint")
+	}
+	if descriptorInapplicable(descriptorA) || descriptorInapplicable(descriptorB) {
+		diff.Coverage = "unmeasured"
+		add("comparison", "inapplicable", "phase did not apply to one or both captured targets")
+	}
+	inapplicable := descriptorInapplicable(descriptorA) || descriptorInapplicable(descriptorB)
+	if !okA && !inapplicable {
+		if hasDescriptorB && !hasDescriptorA {
+			diff.Coverage = "current-only"
+		} else {
+			diff.Coverage = "baseline-missing"
+		}
+		add("baseline", "phase_record_missing", "baseline has no phase result")
+	}
+	if !okB && !inapplicable {
+		diff.Coverage = "current-missing"
+		add("current", "phase_record_missing", "current run has no phase result")
+	}
+	if okA {
+		appendCoverageDiagnostic(diff, "baseline", recordA)
+		appendReadinessDiagnostic(diff, "baseline", a.result, diff.Phase)
+	}
+	if okB {
+		appendCoverageDiagnostic(diff, "current", recordB)
+		appendReadinessDiagnostic(diff, "current", b.result, diff.Phase)
+	}
+	if diff.Coverage == "measured" && (isUnmeasuredStatus(recordA.Status) || isUnmeasuredStatus(recordB.Status)) {
+		diff.Coverage = "unmeasured"
+	}
+	if (diff.Coverage != "measured" && diff.Coverage != "current-only") || (diff.Compatibility != "compatible" && diff.Compatibility != "new") {
+		diff.Verdict = verdictNotComparable
+		return
+	}
+	if (okA && !isMeasuredTerminalStatus(recordA.Status)) || (okB && !isMeasuredTerminalStatus(recordB.Status)) {
+		diff.Behavior, diff.Verdict = "unknown", verdictNotComparable
+		add("comparison", "unknown_phase_status", "one or both phase results use an unrecognized terminal status")
+		return
+	}
+	switch {
+	case isFailed(recordB.Status) && okA && !isFailed(recordA.Status) && recordA.Status != "":
+		diff.Behavior, diff.Verdict, diff.Regressions = "regression", verdictRegression, []string{diff.Phase}
+	case isFailed(recordB.Status) && !okA:
+		diff.Behavior, diff.Verdict, diff.NewFailures = "new-failure", verdictNewFailure, []string{diff.Phase}
+	case isFailed(recordB.Status) && isFailed(recordA.Status):
+		diff.Behavior, diff.Verdict, diff.PreexistingFailures = "preexisting", verdictPreexisting, []string{diff.Phase}
+	case !isFailed(recordB.Status) && isFailed(recordA.Status):
+		diff.Behavior, diff.Verdict, diff.ClearedFailures = "cleared", verdictClean, []string{diff.Phase}
+	default:
+		diff.Behavior, diff.Verdict = "clean", verdictClean
+	}
+}
+
+func appendReadinessDiagnostic(diff *runspb.PhaseDiff, side string, result *orchestrator.SuiteExecutionResult, phase string) {
+	if result == nil {
+		return
+	}
+	for _, outcome := range result.ProviderReadiness {
+		if outcome.Phase != phase || outcome.Ready {
+			continue
+		}
+		lifecycle := ""
+		if outcome.Started {
+			lifecycle = "started"
+		}
+		if outcome.Restarted {
+			lifecycle = "restarted"
+		}
+		observations := []string{outcome.ErrorString()}
+		diff.Diagnostics = append(diff.Diagnostics, &runspb.ComparisonDiagnostic{
+			Side: side, Code: "provider_readiness", Detail: outcome.Message,
+			Classification: string(outcome.Status), LifecycleAction: lifecycle,
+			Remediation: providerreadiness.Remediation(outcome), Observations: observations,
+		})
+	}
+}
+
+func isUnmeasuredStatus(status string) bool {
+	return status == "provider_unavailable" || status == "skipped" || status == "not_executable" || status == "not_run" || status == "missing"
+}
+
+// isMeasuredTerminalStatus is deliberately narrow. New phase result states
+// must be classified explicitly before they can be trusted as behavioral
+// evidence; treating an unfamiliar state as a pass would hide regressions.
+func isMeasuredTerminalStatus(status string) bool {
+	return status == "passed" || status == "failed"
+}
+
+func appendCoverageDiagnostic(diff *runspb.PhaseDiff, side string, record sharedruns.PhaseRecord) {
+	if !isUnmeasuredStatus(record.Status) {
+		return
+	}
+	code, detail := "phase_not_measured", side+" phase did not execute"
+	if record.Status == "provider_unavailable" {
+		code, detail = "provider_unavailable", side+" provider was unavailable"
+	}
+	if record.Status == "missing" && record.ArtifactBacked {
+		code, detail = "missing_artifact", side+" phase artifact is missing"
+	}
+	diff.Diagnostics = append(diff.Diagnostics, &runspb.ComparisonDiagnostic{Side: side, Code: code, Detail: detail, Remediation: "restore the provider or evidence, then rerun this phase"})
+}
+
+func comparisonProvenance(a, b runProjection) string {
+	tier := "strict"
+	for _, projection := range []runProjection{a, b} {
+		if projection.result == nil {
+			return "legacy"
+		}
+		if !sourceStable(projection.result) {
+			return "volatile"
+		}
+		record := projection.record
+		if record.TreeDigest == "" || (projection.result.ConfigurationFingerprint == "" && !projection.result.GateQuality) {
+			return "legacy"
+		}
+		if !projection.result.GateQuality {
+			tier = "shared-scoped"
+		}
+	}
+	return tier
+}
+
+func aggregateBehavior(current, next string) string {
+	rank := map[string]int{"unknown": 0, "clean": 1, "cleared": 2, "preexisting": 3, "new-failure": 4, "regression": 5}
+	if rank[next] > rank[current] {
+		return next
+	}
+	return current
+}
+
+func aggregateDimension(current, next, healthy string) string {
+	if current == healthy {
+		return next
+	}
+	if next == healthy {
+		return current
+	}
+	if current == next {
+		return current
+	}
+	return "mixed"
+}
+
+func legacyVerdict(response *runspb.CompareRunsResponse) string {
+	switch response.Behavior {
+	case "regression":
+		return verdictRegression
+	case "new-failure":
+		return verdictNewFailure
+	}
+	if response.Coverage != "measured" || response.Compatibility != "compatible" || (response.Provenance != "strict" && response.Provenance != "shared-scoped") {
+		return verdictNotComparable
+	}
+	if response.Behavior == "preexisting" {
+		return verdictPreexisting
+	}
+	return verdictClean
 }
 
 func symmetricNeutralAbsence(recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
@@ -458,23 +661,4 @@ func appendExecutionComparisonReason(reasons *[]*runspb.PhaseComparisonReason, f
 
 func descriptorSnapshotIncompatible(err error) bool {
 	return errors.Is(err, sharedruns.ErrUnsupportedDescriptorSnapshotVersion) || errors.Is(err, sharedruns.ErrInvalidDescriptorSnapshot)
-}
-
-// worsen returns the more severe of two verdicts for the overall summary.
-// Severity (high→low): regression > not-comparable > new-failure > preexisting > clean.
-func worsen(current, next string) string {
-	return maxRank(current, next, map[string]int{
-		verdictClean:         0,
-		verdictPreexisting:   1,
-		verdictNewFailure:    2,
-		verdictNotComparable: 3,
-		verdictRegression:    4,
-	})
-}
-
-func maxRank(a, b string, rank map[string]int) string {
-	if rank[b] > rank[a] {
-		return b
-	}
-	return a
 }

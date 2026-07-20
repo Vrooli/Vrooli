@@ -56,6 +56,9 @@ type Codex struct {
 	ollama         *ollamaLister
 }
 
+// Codex exposes no per-launch native tool allowlist.
+var codexToolTranslations = map[domain.CanonicalTool]string{}
+
 // CodexOption configures a Codex codec.
 type CodexOption func(*Codex)
 
@@ -118,8 +121,10 @@ func (c *Codex) Capabilities() runner.Capabilities {
 		SupportsCostTracking:     true,
 		SupportsStreaming:        true, // codec only supports JSON-stream path
 		SupportsCancellation:     true,
-		SupportsContinuation:     true, // `codex exec resume <thread_id>`
-		SupportsImageAttachments: true, // `codex exec -i/--image <FILE>`
+		SupportsContinuation:     true,  // `codex exec resume <thread_id>`
+		SupportsImageAttachments: true,  // `codex exec -i/--image <FILE>`
+		SupportsToolRestriction:  false, // Codex has no per-launch allowlist for its native tools.
+		ToolRestrictionMappings:  canonicalToolMappings(codexToolTranslations),
 		MaxTurns:                 0,
 		SupportedModels:          c.ollama.list(),
 		SupportsRunnerDefault:    true,

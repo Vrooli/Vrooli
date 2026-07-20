@@ -164,7 +164,7 @@ func legacyBaselineAdoptionStep(executionID string) GuidedStep {
 	return GuidedStep{
 		StepKind: "baseline_adoption_required", Title: "Historical Baseline Adoption Required",
 		Summary:      "This historical plan has no trustworthy collection baseline yet.",
-		Instructions: []string{"Choose recapture only when the current worktree is a trustworthy before-state. Otherwise record a degraded path and use partial handoff; normal completion remains disabled."},
+		Instructions: []string{"Choose recapture only when the current state still represents the missing before behavior. Ordinary workspace dirtiness is not a reason to degrade: scoped baseline capture remains valid. Otherwise record a degraded path and use partial handoff; normal completion remains disabled."},
 		NextActions: []NextAction{
 			{ID: "baseline-adopt-recapture", Kind: NextActionRecommended, Label: "Adopt a recaptured collection baseline", Reason: "Creates a producer ticket only; Git Control Tower still owns capture and native wait.", Argv: []string{"exec", "baseline-adopt", executionID, "--mode", "recapture", "--name", "<collection-name>", "--members", "<scenario,...>", "--reason", "<why this is a trustworthy before-state>"}},
 			{ID: "baseline-adopt-degraded", Kind: NextActionRecovery, Label: "Record degraded legacy execution", Reason: "Use when a valid before-state cannot be recreated; normal completion is intentionally unavailable.", Argv: []string{"exec", "baseline-adopt", executionID, "--mode", "degraded", "--reason", "<why no trustworthy before-state exists>"}},

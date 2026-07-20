@@ -9,7 +9,7 @@
     "01-real-time-cpu-memory-disk-network-gpu-mo/module.json",
     "02-threshold-based-anomaly-detection-with-c/module.json",
     "03-automated-investigation-of-system-anomal/module.json",
-    "04-time-series-data-storage-in-questdb/module.json",
+    "04-persistent-time-series-data-storage/module.json",
     "05-configurable-warning-critical-thresholds/module.json",
     "06-report-generation/module.json",
     "07-dark-cyberpunk-monitoring-dashboard/module.json",
@@ -46,9 +46,9 @@
     },
     {
       "id": "MOD-P0-004",
-      "path": "04-time-series-data-storage-in-questdb",
+      "path": "04-persistent-time-series-data-storage",
       "priority": "P0",
-      "title": "Time-series data storage in QuestDB (configured; API defaults to in-memory with PostgreSQL fallback)"
+      "title": "Persistent time-series data storage (not yet implemented)"
     },
     {
       "id": "MOD-P0-005",

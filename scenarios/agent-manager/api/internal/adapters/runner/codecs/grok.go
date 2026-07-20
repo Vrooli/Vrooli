@@ -57,6 +57,9 @@ type Grok struct {
 	baseCodec
 }
 
+// Grok's global approve configuration cannot provide a per-launch allowlist.
+var grokToolTranslations = map[domain.CanonicalTool]string{}
+
 // grokBase is the identity shared by NewGrok and NewGrokForTest.
 func grokBase() baseCodec {
 	return baseCodec{
@@ -105,7 +108,9 @@ func (c *Grok) Capabilities() runner.Capabilities {
 		SupportsCancellation:     true,  // process-kill cancellation like peers
 		SupportsContinuation:     true,  // `grok --resume <session-id>` (trace-proven)
 		SupportsImageAttachments: false, // no headless image-attachment flag
-		MaxTurns:                 0,     // unlimited (configurable via --max-turns)
+		SupportsToolRestriction:  false, // Per-run allowlists conflict with Grok's global approve configuration.
+		ToolRestrictionMappings:  canonicalToolMappings(grokToolTranslations),
+		MaxTurns:                 0, // unlimited (configurable via --max-turns)
 		SupportsRunnerDefault:    true,
 		SupportedFeatures:        []string{},
 		AllowedExtraFlags:        []string{"--effort", "--reasoning-effort"},

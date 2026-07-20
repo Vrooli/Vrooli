@@ -315,7 +315,7 @@ Create this as `docs/internal/EXTRACTION-SOURCES.md` in the target scenario.
 | Independent adoption items, each reviewable alone | `item-level` |
 | Target/source changes are coupled and likely to shift | `holistic-loop` |
 | Stable multi-phase implementation should be drained sequentially with handoffs | `phased-plan-drain` |
-| Full greenfield scenario development beyond extraction setup | Use existing scenario-generation/ecosystem-manager flow until a dedicated full-scenario operating mode exists |
+| Full greenfield scenario development beyond extraction setup | Use the `scenario-generation` skill and a Swarm Manager phased-plan-drain workflow |
 
 ---
 

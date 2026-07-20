@@ -85,13 +85,6 @@
       "max_results": 100
     },
     
-    "time_series_analytics": {
-      "enabled": {{ "true" if "questdb" in resources.required else "false" }},
-      "real_time_ingestion": true,
-      "historical_analysis": true,
-      "performance_monitoring": true
-    },
-    
     "caching": {
       "enabled": {{ "true" if "redis" in resources.required else "false" }},
       "session_storage": true,

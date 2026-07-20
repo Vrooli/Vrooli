@@ -1,6 +1,6 @@
 # Tidiness Phase
 
-The `tidiness` phase delegates maintainability checks to the **tidiness-manager** scenario and maps the returned findings into Test Genie findings. It is a **finding producer** (source=`tidiness`): its output feeds the ecosystem-manager `tidiness` dimension.
+The `tidiness` phase delegates maintainability checks to the **tidiness-manager** scenario and maps the returned findings into Test Genie findings. It is a **finding producer** (source=`tidiness`): its output feeds the swarm-manager `tidiness` dimension.
 
 Static-quality contracts, lint policy, type policy, and config strictness are owned by the `quality` phase through **quality-health**.
 
@@ -23,7 +23,7 @@ tidiness-manager reports a monotone ladder per capability (each rung implies the
 
 ## What each finding means
 
-Every tidiness finding is `WARNING`/advisory — none fail the phase; they surface honest maintainability debt fed to the ecosystem-manager `tidiness` dimension. Each caps its capability at L2 (below the clean top rung).
+Every tidiness finding is `WARNING`/advisory — none fail the phase; they surface honest maintainability debt fed to the swarm-manager `tidiness` dimension. Each caps its capability at L2 (below the clean top rung).
 
 | Code | Capability | Caps at | Severity | Fails phase? |
 |---|---|---|---|---|

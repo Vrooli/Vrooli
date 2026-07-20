@@ -47,13 +47,13 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 	repo := &fakeScenarioRepo{
 		listSummaries: []ScenarioSummary{
 			{
-				ScenarioName: "ecosystem-manager",
+				ScenarioName: "swarm-manager",
 			},
 		},
 	}
 	lister := &fakeScenarioLister{
 		items: []ScenarioMetadata{
-			{Name: "ecosystem-manager", Description: "Ops hub", Status: "running"},
+			{Name: "swarm-manager", Description: "Ops hub", Status: "running"},
 			{Name: "test-genie", Description: "AI testing", Status: "stopped"},
 		},
 	}
@@ -68,7 +68,7 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 	}
 
 	first := results[0]
-	if first.ScenarioName != "ecosystem-manager" || first.ScenarioDescription != "Ops hub" {
+	if first.ScenarioName != "swarm-manager" || first.ScenarioDescription != "Ops hub" {
 		t.Fatalf("expected metadata to hydrate tracked scenario: %#v", first)
 	}
 
@@ -83,7 +83,7 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 
 func TestScenarioDirectoryServiceListSummariesFallsBackOnListerError(t *testing.T) {
 	repo := &fakeScenarioRepo{
-		listSummaries: []ScenarioSummary{{ScenarioName: "ecosystem-manager"}},
+		listSummaries: []ScenarioSummary{{ScenarioName: "swarm-manager"}},
 	}
 	lister := &fakeScenarioLister{err: errors.New("boom")}
 
@@ -92,7 +92,7 @@ func TestScenarioDirectoryServiceListSummariesFallsBackOnListerError(t *testing.
 	if err != nil {
 		t.Fatalf("expected fallback list, got error: %v", err)
 	}
-	if len(results) != 1 || results[0].ScenarioName != "ecosystem-manager" {
+	if len(results) != 1 || results[0].ScenarioName != "swarm-manager" {
 		t.Fatalf("unexpected fallback results: %#v", results)
 	}
 }

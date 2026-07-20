@@ -2,7 +2,10 @@ module resource-searxng/cli
 
 go 1.25.0
 
-require github.com/vrooli/cli-core v0.0.0
+require (
+	github.com/vrooli/cli-core v0.0.0
+	gopkg.in/yaml.v3 v3.0.1
+)
 
 require (
 	connectrpc.com/connect v1.19.2 // indirect

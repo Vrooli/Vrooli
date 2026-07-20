@@ -3,11 +3,13 @@ package runs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/freshness-go/treedigest"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/runmanager"
@@ -47,10 +49,8 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 			ScenarioPath:           strings.TrimSpace(req.Msg.GetScenarioPath()),
 			LogicalRepoRoot:        strings.TrimSpace(req.Msg.GetLogicalRepoRoot()),
 			LogicalScenarioRelPath: strings.TrimSpace(req.Msg.GetLogicalScenarioRelPath()),
+			RequireGateQuality:     req.Msg.GetRequireGateQuality(),
 		},
-	}
-	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
-		return connect.NewResponse(&runspb.StartRunResponse{RunId: runID, Scenario: scenario, Coalesced: true}), nil
 	}
 	caller := strings.TrimSpace(req.Header().Get("X-Vrooli-Caller"))
 	releasePreview, err := s.runManager.TryAcquirePreviewFor(caller)
@@ -61,6 +61,12 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 	etaTotal, etaKnown, err := s.previewPlan(ctx, input.Request)
 	if err != nil {
 		return nil, err
+	}
+	if err := s.attachAdmissionIdentity(&input.Request); err != nil {
+		return nil, err
+	}
+	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
+		return connect.NewResponse(&runspb.StartRunResponse{RunId: runID, Scenario: scenario, Coalesced: true}), nil
 	}
 
 	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, EstimatedTotalSeconds: etaTotal})
@@ -82,6 +88,33 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 		EtaKnown:              etaKnown,
 		Coalesced:             res.Coalesced,
 	}), nil
+}
+
+func (s *Service) attachAdmissionIdentity(req *orchestrator.SuiteExecutionRequest) error {
+	if req == nil {
+		return errors.New("run request is required")
+	}
+	dir, err := s.scenarioDir(req.ScenarioName)
+	if err != nil {
+		return err
+	}
+	digest, err := treedigest.Compute(dir)
+	if err != nil {
+		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("compute source identity: %w", err))
+	}
+	if s.planner == nil {
+		req.AdmissionTreeDigest = digest
+		return nil
+	}
+	preview, err := s.planner.Preview(context.Background(), *req)
+	if err != nil || preview == nil {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("resolve execution identity"))
+	}
+	req.AdmissionTreeDigest = digest
+	req.AdmissionPhaseSetDigest = preview.PhaseSetDigest
+	req.AdmissionDescriptorDigest = preview.DescriptorSnapshotDigest
+	req.AdmissionConfigurationDigest = preview.ConfigurationFingerprint
+	return nil
 }
 
 func saturationError(err error) *connect.Error {

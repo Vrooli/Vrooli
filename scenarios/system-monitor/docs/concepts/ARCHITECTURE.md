@@ -23,7 +23,7 @@ System Monitor provides real-time server monitoring with threshold-based anomaly
 +---------+--------+--------+--------+---+----------------+
           |        |        |        |   |
           v        v        v        v   v
-      Postgres  QuestDB  Redis  Ollama  agent-manager
+      Postgres  Redis  Ollama  agent-manager
 ```
 
 ## Layer Architecture
@@ -108,7 +108,7 @@ Threshold Evaluation (warning/critical levels)
 
 ## Key Design Decisions
 
-- **In-memory default**: Keeps startup simple; PostgreSQL/QuestDB configured but optional
+- **In-memory default**: Keeps startup simple; persistent metric history remains future work
 - **HTTP polling over WebSocket**: Simpler architecture, slightly higher latency (UI polls at 5s/60s/4s intervals)
 - **Connect-first API contract**: Proto schemas and generated clients are the durable interface. REST remains only for explicit exceptions: ops probes, raw logs/forensics, third-party/webhook shapes, protocol-specific tool surfaces, and multipart/blob traffic.
 - **Go CLI, manifest as SSOT**: The CLI command surface is declared in `cli/manifest.json`; commands use generated Connect clients and keep bindings aligned with proto descriptors.

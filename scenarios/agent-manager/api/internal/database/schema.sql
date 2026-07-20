@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     timeout_ms INTEGER,
     allowed_tools TEXT DEFAULT '[]',
     denied_tools TEXT DEFAULT '[]',
+    tool_restriction_policy TEXT NOT NULL DEFAULT 'enforced',
     skip_permission_prompt INTEGER DEFAULT 0,
     features TEXT DEFAULT '{}',
     extra_flags TEXT DEFAULT '{}',

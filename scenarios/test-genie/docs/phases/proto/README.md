@@ -85,7 +85,7 @@ normalizes the emitted severity string:
 | `SEVERITY_WARNING` | WARNING | no |
 | `SEVERITY_INFO` | INFO | no |
 
-Only ERROR findings fail the phase. They flow into the ecosystem-manager
+Only ERROR findings fail the phase. They flow into the swarm-manager
 `proto-health` dimension, which is a soft R2 ladder input for evolvable
 architecture and contract health.
 

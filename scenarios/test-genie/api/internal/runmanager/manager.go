@@ -387,6 +387,11 @@ func admissionKey(req orchestrator.SuiteExecutionRequest) string {
 		"scenarioPath=" + strings.TrimSpace(req.ScenarioPath),
 		"logicalRepoRoot=" + strings.TrimSpace(req.LogicalRepoRoot),
 		"logicalScenarioRelPath=" + strings.TrimSpace(req.LogicalScenarioRelPath),
+		"tree=" + strings.TrimSpace(req.AdmissionTreeDigest),
+		"phaseSet=" + strings.TrimSpace(req.AdmissionPhaseSetDigest),
+		"descriptor=" + strings.TrimSpace(req.AdmissionDescriptorDigest),
+		"config=" + strings.TrimSpace(req.AdmissionConfigurationDigest),
+		fmt.Sprintf("gateQuality=%t", req.RequireGateQuality),
 	}
 	return strings.Join(parts, "\x1f")
 }

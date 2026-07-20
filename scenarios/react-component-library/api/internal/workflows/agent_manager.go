@@ -7,111 +7,107 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
-const ProfileKey = "react-component-library/catalog-maintainer"
+const (
+	ProfileKey  = "react-component-library/catalog-maintainer"
+	WorkflowKey = "react-component-library/catalog-assist"
+)
 
-// AgentManagerDispatcher resolves Agent Manager on each operation through the
-// lifecycle discovery seam. It talks in generated protobuf messages over the
-// published HTTP surface, never shells out from a handler.
+// AgentManagerDispatcher only starts and waits on RCL's declared workflow.
+// RCL supplies typed input and consumes its typed result; it never creates
+// Agent Manager tasks/runs or composes a consumer-owned prompt.
 type AgentManagerDispatcher struct {
 	Resolver *discovery.Resolver
 	Client   *http.Client
 }
 
 func NewAgentManagerDispatcher() *AgentManagerDispatcher {
-	return &AgentManagerDispatcher{Resolver: discovery.NewResolver(discovery.ResolverConfig{}), Client: &http.Client{Timeout: 20 * time.Second}}
+	return &AgentManagerDispatcher{Resolver: discovery.NewResolver(discovery.ResolverConfig{}), Client: &http.Client{}}
 }
 
-func (d *AgentManagerDispatcher) Dispatch(ctx context.Context, in StartInput) (DispatchResult, error) {
+func (d *AgentManagerDispatcher) Start(ctx context.Context, in StartInput) (DispatchResult, error) {
 	base, err := d.baseURL(ctx)
 	if err != nil {
 		return DispatchResult{}, err
 	}
-	task := &apipb.CreateTaskRequest{Task: &domainpb.Task{
-		Title:       workflowTitle(in),
-		Description: workflowPrompt(in),
-		ScopePath:   workflowScope(in),
-		ProjectRoot: workflowScope(in),
-		CreatedBy:   "react-component-library",
-	}}
-	var taskResp apipb.CreateTaskResponse
-	if err := d.post(ctx, base, "/api/v1/tasks", task, &taskResp); err != nil {
+	input, err := structpb.NewValue(map[string]any{
+		"kind": string(in.Kind), "assetId": in.AssetID, "sourceScenario": in.SourceScenario,
+		"sourcePath": in.SourcePath, "targetScenario": in.TargetScenario, "requestedVersion": in.RequestedVersion,
+		"confirmOverwrite": in.ConfirmOverwrite, "overrideValidation": in.OverrideValidation,
+	})
+	if err != nil {
+		return DispatchResult{}, fmt.Errorf("encode catalog workflow input: %w", err)
+	}
+	var started apipb.WorkflowExecutionResponse
+	if err := d.post(ctx, base, "/api/v1/workflow-executions", &apipb.StartWorkflowExecutionRequest{Owner: "react-component-library", WorkflowKey: WorkflowKey, Input: input, IdempotencyKey: in.IdempotencyKey}, &started); err != nil {
 		return DispatchResult{}, err
 	}
-	if taskResp.Task == nil || taskResp.Task.Id == "" {
-		return DispatchResult{}, fmt.Errorf("agent-manager task response missing id")
+	if started.Execution == nil || started.Execution.Id == "" {
+		return DispatchResult{}, fmt.Errorf("agent-manager workflow response missing execution id")
 	}
-	mode := domainpb.RunMode_RUN_MODE_IN_PLACE
-	run := &apipb.CreateRunRequest{
-		TaskId:         taskResp.Task.Id,
-		RunMode:        &mode,
-		IdempotencyKey: &in.IdempotencyKey,
-		ProfileRef:     &apipb.ProfileRef{ProfileKey: ProfileKey},
-		Tag:            ptr("rcl/" + string(in.Kind) + "/" + in.IdempotencyKey),
-	}
-	var runResp apipb.CreateRunResponse
-	if err := d.post(ctx, base, "/api/v1/runs", run, &runResp); err != nil {
-		return DispatchResult{}, err
-	}
-	if runResp.Run == nil || runResp.Run.Id == "" {
-		return DispatchResult{}, fmt.Errorf("agent-manager run response missing id")
-	}
-	return DispatchResult{TaskID: taskResp.Task.Id, RunID: runResp.Run.Id, Status: statusFromAgent(runResp.Run.Status.String()), QueueDepth: int(runResp.QueueDepth)}, nil
+	return DispatchResult{ExecutionID: started.Execution.Id, Status: statusFromWorkflow(started.Execution.Status)}, nil
 }
 
-func (d *AgentManagerDispatcher) Snapshot(ctx context.Context, runID string, after int64) (RunSnapshot, error) {
+func (d *AgentManagerDispatcher) Wait(ctx context.Context, executionID string) (DispatchResult, error) {
 	base, err := d.baseURL(ctx)
 	if err != nil {
-		return RunSnapshot{}, err
+		return DispatchResult{ExecutionID: executionID}, err
 	}
-	var run apipb.GetRunResponse
-	if err := d.get(ctx, base, "/api/v1/runs/"+runID, &run); err != nil {
-		return RunSnapshot{}, err
+	var waited apipb.WaitWorkflowExecutionResponse
+	if err := d.post(ctx, base, "/api/v1/workflow-executions/"+executionID+"/wait", &apipb.WaitWorkflowExecutionRequest{ExecutionId: executionID}, &waited); err != nil {
+		return DispatchResult{ExecutionID: executionID}, err
 	}
-	if run.Run == nil {
-		return RunSnapshot{}, fmt.Errorf("agent-manager run response missing run")
+	if waited.Execution == nil {
+		return DispatchResult{ExecutionID: executionID}, fmt.Errorf("agent-manager wait response missing execution")
 	}
-	snap := RunSnapshot{Status: statusFromAgent(run.Run.Status.String()), Error: run.Run.ErrorMsg}
-	if run.Run.Summary != nil {
-		snap.Summary = run.Run.Summary.Description
-	}
-	var events apipb.GetRunEventsResponse
-	if err := d.get(ctx, base, fmt.Sprintf("/api/v1/runs/%s/events?after_sequence=%d", runID, after), &events); err == nil {
-		for _, event := range events.Events {
-			if event.Sequence > snap.LastEventSequence {
-				snap.LastEventSequence = event.Sequence
-			}
+	result := DispatchResult{ExecutionID: executionID, Status: statusFromWorkflow(waited.Execution.Status)}
+	if !waited.TimedOut && waited.Execution.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
+		var output apipb.WorkflowExecutionResponse
+		if err := d.get(ctx, base, "/api/v1/workflow-executions/"+executionID+"/result?explicitly_authorized=true", &output); err != nil {
+			return result, err
 		}
+		result.Summary = workflowSummary(output.Execution)
 	}
-	return snap, nil
+	if result.Status == StatusFailed {
+		result.Error = waited.Execution.TerminalReason.String()
+	}
+	return result, nil
 }
 
-func (d *AgentManagerDispatcher) Stop(ctx context.Context, runID string) (RunSnapshot, error) {
+func (d *AgentManagerDispatcher) Stop(ctx context.Context, executionID string) (RunSnapshot, error) {
 	base, err := d.baseURL(ctx)
 	if err != nil {
 		return RunSnapshot{}, err
 	}
-	var out apipb.StopRunResponse
-	if err := d.post(ctx, base, "/api/v1/runs/"+runID+"/stop", &apipb.StopRunRequest{RunId: runID}, &out); err != nil {
+	var out apipb.WorkflowExecutionOperationResponse
+	if err := d.post(ctx, base, "/api/v1/workflow-executions/"+executionID+"/cancel", &apipb.WorkflowExecutionOperationRequest{ExecutionId: executionID, IdempotencyKey: "rcl-cancel/" + executionID, Reason: "cancelled from react-component-library"}, &out); err != nil {
 		return RunSnapshot{}, err
 	}
-	snapshot := RunSnapshot{Status: StatusStopped}
-	if out.Run != nil {
-		snapshot.Status = statusFromAgent(out.Run.Status.String())
-		snapshot.Error = out.Run.ErrorMsg
-		if out.Run.Summary != nil {
-			snapshot.Summary = out.Run.Summary.Description
-		}
+	if out.Execution == nil {
+		return RunSnapshot{}, fmt.Errorf("agent-manager cancel response missing execution")
 	}
-	return snapshot, nil
+	return RunSnapshot{Status: statusFromWorkflow(out.Execution.Status), Error: out.Execution.TerminalReason.String()}, nil
+}
+
+func workflowSummary(execution *domainpb.WorkflowExecution) string {
+	if execution == nil || execution.Output == nil {
+		return ""
+	}
+	output, ok := execution.Output.AsInterface().(map[string]any)
+	if !ok {
+		return ""
+	}
+	result, _ := output["result"].(map[string]any)
+	summary, _ := result["summary"].(string)
+	return summary
 }
 
 func (d *AgentManagerDispatcher) baseURL(ctx context.Context) (string, error) {
@@ -124,6 +120,7 @@ func (d *AgentManagerDispatcher) baseURL(ctx context.Context) (string, error) {
 	}
 	return strings.TrimRight(base, "/"), nil
 }
+
 func (d *AgentManagerDispatcher) post(ctx context.Context, base, path string, in, out proto.Message) error {
 	return d.request(ctx, http.MethodPost, base, path, in, out)
 }
@@ -134,7 +131,7 @@ func (d *AgentManagerDispatcher) get(ctx context.Context, base, path string, out
 
 func (d *AgentManagerDispatcher) request(ctx context.Context, method, base, path string, in, out proto.Message) error {
 	if d.Client == nil {
-		d.Client = &http.Client{Timeout: 20 * time.Second}
+		d.Client = &http.Client{}
 	}
 	var body io.Reader
 	if in != nil {
@@ -156,9 +153,9 @@ func (d *AgentManagerDispatcher) request(ctx context.Context, method, base, path
 		return fmt.Errorf("agent-manager request: %w", err)
 	}
 	defer response.Body.Close()
-	raw, readErr := io.ReadAll(response.Body)
-	if readErr != nil {
-		return fmt.Errorf("read agent-manager response: %w", readErr)
+	raw, err := io.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("read agent-manager response: %w", err)
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return fmt.Errorf("agent-manager status %d: %s", response.StatusCode, string(raw))
@@ -168,35 +165,16 @@ func (d *AgentManagerDispatcher) request(ctx context.Context, method, base, path
 	}
 	return nil
 }
-func workflowTitle(in StartInput) string { return "RCL " + string(in.Kind) + " workflow" }
 
-func workflowScope(in StartInput) string {
-	if in.Kind == KindExtract {
-		return "scenarios/" + in.SourceScenario
-	}
-	return "scenarios/" + in.TargetScenario
-}
-
-func workflowPrompt(in StartInput) string {
-	if in.Kind == KindExtract {
-		return fmt.Sprintf("Inspect only %s in scenario %s. Preserve behavior exactly. Use the React Component Library direct ingest API for the requested source; do not write files directly, do not acknowledge behavior loss, and report any parity failure for human review.", in.SourcePath, in.SourceScenario)
-	}
-	return fmt.Sprintf("Adopt asset %s version %s into scenario %s only through the React Component Library direct apply or reapply API. Preserve validation and overwrite controls; do not infer confirmation or claim success unless RCL returns an authoritative adoption result.", in.AssetID, in.RequestedVersion, in.TargetScenario)
-}
-
-func ptr(s string) *string { return &s }
-
-func statusFromAgent(s string) Status {
-	switch {
-	case strings.Contains(s, "QUEUED"):
+func statusFromWorkflow(s domainpb.WorkflowExecutionStatus) Status {
+	switch s {
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING:
 		return StatusQueued
-	case strings.Contains(s, "RUNNING"):
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING, domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_WAITING:
 		return StatusRunning
-	case strings.Contains(s, "PARKED"):
-		return StatusParked
-	case strings.Contains(s, "SUCCEEDED"), strings.Contains(s, "COMPLETED"):
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED:
 		return StatusSucceeded
-	case strings.Contains(s, "STOPPED"), strings.Contains(s, "CANCELLED"):
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED, domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLING:
 		return StatusStopped
 	default:
 		return StatusFailed

@@ -2,7 +2,7 @@
 
 The single reference for **what counts as a real improvement vs. metric-gaming**. Every steer skill (`refactor`, `test`, `security`, `polish`, `documentation-health`, `progress`, `performance`, `ux`) points here. Read it before you touch a test, a known-issue ledger, a lint/type config, or an auditor rule.
 
-A real improvement closes a gap in the scenario's actual behavior, safety, or completeness. Gaming makes the *measurement* look better without changing the underlying reality — and the ecosystem-manager controller now **detects it, refuses to reward it, and flags the iteration** (see "How the controller responds" below). Don't make the move it's built to catch.
+A real improvement closes a gap in the scenario's actual behavior, safety, or completeness. Gaming makes the *measurement* look better without changing the underlying reality — evidence review must reject it rather than reward it. Don't make the move it is designed to catch.
 
 ---
 
@@ -51,10 +51,10 @@ Superficial changes that move a metric without moving reality are the thing to a
 
 ### **3. How the controller responds (so you know it's watching)**
 
-The ecosystem-manager closed-loop controller fetches each iteration's code diff and runs an anti-gaming classifier over it. When it detects test-weakening, ledger-deletion, or suppression:
+When an evidence-review workflow detects test-weakening, ledger-deletion, or suppression:
 
-- the iteration earns **zero closed-finding credit** (the reduction-per-token bandit gets no reward for the cheap move — so it never learns to prefer it),
-- the iteration is **flagged in the decision trace** (`gaming_cause`, shown in the panel), and the regression veto is recorded.
+- the iteration earns **zero closed-finding credit**,
+- the iteration is **flagged for review**, and the regression veto is recorded.
 
 Ambiguous cases (e.g. assertions removed from a test with no `[REQ:]` tag) are **flagged for review**, not auto-penalized. There is no auto-revert — a human / Git Control Tower handles the cleanup. The point isn't punishment; it's that gaming is a dead end. Spend the iteration on the real fix.
 

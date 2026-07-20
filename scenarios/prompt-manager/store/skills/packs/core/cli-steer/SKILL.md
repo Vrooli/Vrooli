@@ -554,7 +554,7 @@ Conventions:
 - Use `connect.NewResponse` with the same response message type as a real call.
 - Run the same validation path as a real request.
 
-Reference implementation: `path:scenarios/ecosystem-manager/api/pkg/handlers/tasks.go` (`CreateTaskHandler`, `UpdateTaskHandler`, `DeleteTaskHandler`) for the REST-handler shape; the equivalent for Connect handlers is the same `isDryRun` check before mutation.
+For REST handlers, apply the same `isDryRun` check before mutation and return a realistic typed response.
 
 For REST-exception endpoints, the same contract applies: short-circuit with a realistic JSON body that includes `"dry_run": true` and `http.StatusOK`.
 

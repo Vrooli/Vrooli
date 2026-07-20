@@ -20,7 +20,7 @@
 ### Corrected Status Summary (18 modules)
 
 - **10 implemented**: MOD-P0-001 (metrics), MOD-P0-002 (anomaly detection), MOD-P0-003 (investigations), MOD-P0-005 (thresholds), MOD-P0-006 (reports), MOD-P0-007 (dashboard), MOD-P0-010 (infrastructure), MOD-P1-012 (webhooks), MOD-P1-013 (cooldown), MOD-P1-014 (agent config)
-- **4 in-progress**: MOD-P0-004 (QuestDB — defaults to in-memory), MOD-P0-008 (scripts — API placeholders), MOD-P0-009 (process mgmt — kill endpoint missing), MOD-P1-016 (alert routing — email not implemented)
+- **4 in-progress**: MOD-P0-004 (persistent metrics storage — defaults to in-memory), MOD-P0-008 (scripts — API placeholders), MOD-P0-009 (process mgmt — kill endpoint missing), MOD-P1-016 (alert routing — email not implemented)
 - **4 pending**: MOD-P1-011 (trends), MOD-P1-015 (custom metrics), MOD-P1-017 (predictions), MOD-P1-018 (correlations)
 
 ---

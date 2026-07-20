@@ -160,7 +160,6 @@ See [docs/PROGRESS.md](docs/PROGRESS.md) for detailed completion metrics.
 
 ## 🤝 Contributing
 
-Scenario improvements follow the [Ecosystem Manager](../ecosystem-manager/) workflow:
 1. Agents detect gaps via `scenario status` and `scenario-auditor`
 2. Improvements tracked in `requirements/index.json` with `[REQ:ID]` tags
 3. Tests validate operational targets → automatically update PRD checkboxes

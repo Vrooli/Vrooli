@@ -17,6 +17,8 @@ func TestCapabilitiesConformance(t *testing.T) {
 		messages, toolEvents, cost, streaming, cancel, continuation, image bool
 		maxTurns                                                           int
 		supportsRunnerDefault                                              bool
+		supportsToolRestriction                                            bool
+		mappingCount                                                       int
 		dynamicModelPrefixes                                               []string
 	}
 	// The uniform boolean contract: every coding agent supports all six.
@@ -37,6 +39,8 @@ func TestCapabilitiesConformance(t *testing.T) {
 			want: func() want {
 				w := uniform
 				w.supportsRunnerDefault = true
+				w.supportsToolRestriction = true
+				w.mappingCount = len(CanonicalToolNamesForTest())
 				return w
 			}(),
 		},
@@ -92,6 +96,12 @@ func TestCapabilitiesConformance(t *testing.T) {
 			if caps.SupportsRunnerDefault != tc.want.supportsRunnerDefault {
 				t.Errorf("SupportsRunnerDefault = %v, want %v", caps.SupportsRunnerDefault, tc.want.supportsRunnerDefault)
 			}
+			if caps.SupportsToolRestriction != tc.want.supportsToolRestriction {
+				t.Errorf("SupportsToolRestriction = %v, want %v", caps.SupportsToolRestriction, tc.want.supportsToolRestriction)
+			}
+			if len(caps.ToolRestrictionMappings) != tc.want.mappingCount {
+				t.Errorf("ToolRestrictionMappings = %v, want %d entries", caps.ToolRestrictionMappings, tc.want.mappingCount)
+			}
 			if !slices.Equal(caps.DynamicModelPrefixes, tc.want.dynamicModelPrefixes) {
 				t.Errorf("DynamicModelPrefixes = %v, want %v", caps.DynamicModelPrefixes, tc.want.dynamicModelPrefixes)
 			}
@@ -100,6 +110,10 @@ func TestCapabilitiesConformance(t *testing.T) {
 			}
 		})
 	}
+}
+
+func CanonicalToolNamesForTest() []string {
+	return []string{"read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"}
 }
 
 func checkBool(t *testing.T, field string, got, want bool) {

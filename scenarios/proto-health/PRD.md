@@ -8,7 +8,7 @@
 ## 🎯 Overview
 
 - **Purpose**: `proto-health` makes Vrooli's Protocol Buffer contracts drift-proof by validating one scenario at a time and publishing a structured proto-surface fact that downstream quality tools can consume.
-- **Primary users/verticals**: Agents building scenarios, test-genie, ecosystem-manager, and later scenario-dependency-analyzer / tech-tree-designer.
+- **Primary users/verticals**: Agents building scenarios, test-genie, swarm-manager, and later scenario-dependency-analyzer / tech-tree-designer.
 - **Deployment surfaces**: Connect API, CLI commands, direct UI, test-genie phase integration, maturity ladder signal.
 - **Value promise**: Agents stop guessing which proto files are authoritative, which transport world a scenario uses, and whether committed generated artifacts reflect schema source.
 
@@ -25,7 +25,7 @@
 ### 🟠 P1 – Should have post-launch
 
 - [ ] OT-P1-001 | Test-genie proto phase | test-genie runs a non-blocking `proto` phase, maps findings to `FINDING_SOURCE_PROTO`, and preserves stable finding IDs.
-- [ ] OT-P1-002 | Ecosystem-manager maturity signal | ecosystem-manager consumes proto findings as an R2 `proto-health` soft-boost dimension.
+- [ ] OT-P1-002 | swarm-manager maturity signal | swarm-manager consumes proto findings as an R2 `proto-health` soft-boost dimension.
 - [ ] OT-P1-003 | Direct UI | The UI lists fleet proto-health status and per-scenario findings/surface facts with loading, error, and empty states.
 - [ ] OT-P1-004 | Proto contract audit skill | `proto-contract-audit` steer skill loads through prompt-manager and routes deep API/interoperability decisions to the existing sibling skills.
 - [ ] OT-P1-005 | CI gen-sync gate | CI runs `cd packages/proto && make verify-committed-gen` so committed generated artifacts cannot drift from schema sources.
@@ -41,7 +41,7 @@
 
 - Preferred stacks / frameworks: Go API and CLI, Connect-RPC, React/Vite UI, committed `packages/proto` generated artifacts, SQLite only for local scenario state if needed.
 - Data + storage expectations: v1 is primarily read-only over repo files and descriptor artifacts; persisted state is not required for validation or surface facts.
-- Integration strategy: read the committed fleet descriptor (`packages/proto/gen/descriptor/image.binpb`), shell/consume `buf` for checks it already owns, expose facts through Connect + CLI, then let test-genie and ecosystem-manager consume findings.
+- Integration strategy: read the committed fleet descriptor (`packages/proto/gen/descriptor/image.binpb`), shell/consume `buf` for checks it already owns, expose facts through Connect + CLI, then let test-genie and swarm-manager consume findings.
 - Non-goals / guardrails: no cross-scenario graph computation, no declared-vs-actual dependency drift analysis, no fleet-aware dead-proto detection, no `@layer` enforcement, no hand-editing generated code, no search-hub provider in v1.
 
 ## Ecosystem Fit
@@ -56,7 +56,7 @@
 ## 🤝 Dependencies & Launch Plan
 
 - Required resources: local filesystem, `buf`, Go toolchain, existing `packages/proto` generation pipeline.
-- Scenario dependencies: test-genie and ecosystem-manager for P1 integration; prompt-manager for the audit skill; downstream dependency-analyzer consumes the fact RPC later.
+- Scenario dependencies: test-genie and swarm-manager for P1 integration; prompt-manager for the audit skill; downstream dependency-analyzer consumes the fact RPC later.
 - Operational risks: existing fleet annotations are legacy-heavy, `gen/descriptor/image.binpb` may lack source info, and generated artifact drift is already possible until CI is wired.
 - Launch sequencing: define style guide and docs, scaffold scenario, implement descriptor reader seam, implement validation findings, implement surface fact RPC, add CLI/UI, wire quality loop, self-validate on representative scenarios.
 

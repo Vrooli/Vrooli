@@ -31,7 +31,7 @@ Real-time server monitoring with threshold-based anomaly detection, AI-driven in
 └──────┬──────┬────────┬──────┬────────┬──────────────────────────┘
        │      │        │      │        │
        ▼      ▼        ▼      ▼        ▼
-   Postgres  QuestDB  Redis  Ollama  agent-manager
+   Postgres  Redis  Ollama  agent-manager
 ```
 
 ## Dependencies
@@ -40,7 +40,6 @@ Real-time server monitoring with threshold-based anomaly detection, AI-driven in
 | Resource | Purpose | Config |
 |----------|---------|--------|
 | PostgreSQL | Metrics, thresholds, investigations, reports, system health (6 tables) | `initialization/postgres/schema.sql` |
-| QuestDB | Time-series metrics storage (configured; API defaults to in-memory) | `initialization/questdb/server.conf` |
 | Redis | Real-time alerts queue, metrics caching, session data | `initialization/redis/redis.conf` |
 | Ollama | AI analysis model (llama3.2:3b) | Pulled during setup |
 
@@ -48,9 +47,6 @@ Real-time server monitoring with threshold-based anomaly detection, AI-driven in
 | Scenario | Purpose |
 |----------|---------|
 | agent-manager | Orchestrates AI-driven investigations |
-
-### Historical Prototypes
-- `initialization/node-red/` contains speculative Node-RED flow prototypes from earlier planning. They are not wired into the current Go API or scenario lifecycle and should be treated as blueprint material, not active runtime dependencies.
 
 ## Components
 
@@ -152,7 +148,6 @@ make check     # Full quality gates (fmt + lint + test)
 | `API_PORT` | 8080 | API server port |
 | `UI_PORT` | 3003 | UI dashboard port |
 | `DATABASE_URL` | postgres://vrooli@localhost:5433/... | PostgreSQL connection |
-| `QUESTDB_URL` | http://localhost:9009 | QuestDB HTTP endpoint |
 | `REDIS_URL` | redis://localhost:6380 | Redis connection |
 | `ENABLE_CLAUDE_INVESTIGATIONS` | true | Enable AI investigations |
 | `CPU_WARNING_THRESHOLD` | 70 | CPU warning % |
@@ -175,7 +170,7 @@ Other scenarios can leverage system-monitor for:
 - **No Authentication**: API endpoints have no auth middleware
 - **CLI JSON Parsing**: Uses regex (grep/cut) instead of jq; fragile
 - **CLI report bug**: Calls `/api/reports/generate` (missing `/v1/` prefix) — will 404
-- **Storage Default**: API defaults to in-memory; PostgreSQL/QuestDB configured but fallback
+- **Storage Default**: API defaults to in-memory; persistent metric history is not yet implemented
 - **Missing API endpoint**: UI references `POST /processes/{pid}/kill`, but no process-kill route exists in the API router — process kill silently fails
 - **Disk remediation boundary**: Disk detail is read-only; broad cleanup routes through cleanup-manager preview/apply rather than system-monitor deletion paths
 - **Script API placeholders**: Script list/get/execute endpoints return empty/404; scripts run via investigation agent, not API

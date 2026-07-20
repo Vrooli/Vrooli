@@ -606,7 +606,7 @@ docker_resource::get_stats() {
 #######################################
 # Show standardized connection info for a resource
 # Args: $1 - resource_name, $2 - primary_url, $@ - additional info lines
-# Example: docker_resource::show_connection_info "QuestDB" "http://localhost:9000" "PostgreSQL: localhost:8812" "InfluxDB: localhost:9009"
+# Example: docker_resource::show_connection_info "Example service" "http://localhost:9000" "PostgreSQL: localhost:8812" "Metrics: localhost:9009"
 #######################################
 docker_resource::show_connection_info() {
     local resource_name="$1"

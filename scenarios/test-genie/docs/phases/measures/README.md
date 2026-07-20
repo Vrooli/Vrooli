@@ -134,7 +134,7 @@ strings through the same `normalizeFindingSeverity` table every producer uses:
 | `SEVERITY_WARNING` (stale waiver / fallback tier) | WARNING | no |
 | `SEVERITY_INFO` (partial tier / not-expected context) | INFO | no |
 
-Only ERROR findings fail the phase. They flow into the ecosystem-manager
+Only ERROR findings fail the phase. They flow into the swarm-manager
 `measures` dimension, which is a **soft** rung (R4) — a scenario stays
 runnable and safe without measures, but cannot reach top maturity while a
 stateful domain is left uncovered and unwaived.

@@ -17,13 +17,12 @@
 - [ ] OT-P0-001 | Backlog file structure | Git-tracked folder-per-item in scenarios/swarm-manager/{ideas,research,fix,execute}/
 - [ ] OT-P0-002 | Backlog CRUD | Create, read, update, delete backlog items via API and CLI
 - [ ] OT-P0-003 | Backlog details page | File tree view, drag-and-drop upload, preview for markdown/code/images
-- [ ] OT-P0-004 | Backlog queue for processing | Queue idea backlog items for initialization/implementation via ecosystem-manager
+- [ ] OT-P0-004 | Backlog queue for processing | Queue idea backlog items for Swarm Manager planning and implementation workflows
 - [ ] OT-P0-005 | Scenario catalog with priority | List all scenarios with priority ranking, search, and filter
 - [ ] OT-P0-006 | Scenario metadata management | Greenfield/brownfield toggle
 - [ ] OT-P0-007 | Scenario deletion with safeguards | Strong confirmation dialog + archive-to-backlog option
 - [ ] OT-P0-008 | Tabbed navigation UI | Header tabs (desktop) / bottom-nav (mobile) with five tabs: Backlog, Scenarios, Execution, Prompts, Settings
 - [ ] OT-P0-009 | agent-manager integration | Spawn agents for all automated work through agent-manager
-- [ ] OT-P0-010 | ecosystem-manager integration | Initialize and improve scenarios from backlog ideas via ecosystem-manager
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Execution control policy | Manual/scheduled/yolo defaults with configurable delay
@@ -48,14 +47,14 @@
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (api-core/server with gorilla/mux), React UI (Vite, TypeScript, React Query, Zustand), Go CLI (cli-core with urfave/cli)
 - Data + storage expectations: Filesystem only (git-tracked backlog folders, `.vrooli/settings.json`, `.vrooli/queue.json`)
-- Integration strategy: All agent work via agent-manager, scenario ops via ecosystem-manager and Vrooli CLI, prompt resolution via prompt-manager
+- Integration strategy: All agent work via agent-manager; Swarm Manager owns backlog-to-plan-to-execution orchestration; prompt resolution flows through prompt-manager and validation through test-genie.
 - Non-goals / guardrails: No kanban/Trello UI, no direct agent spawning, no embedded scenario implementation code, no complex workflow builders, no multi-user auth
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: None (filesystem-only persistence)
-- Scenario dependencies (required): agent-manager, ecosystem-manager, prompt-manager
+- Scenario dependencies (required): agent-manager, prompt-manager
 - Scenario dependencies (optional P1): knowledge-observatory, visited-tracker, scenario-completeness-scoring, app-issue-tracker, test-genie
-- Operational risks: Tight coupling with ecosystem-manager and agent-manager API stability; filesystem integrity for settings/queue/execution policy
+- Operational risks: Agent-manager API stability; filesystem integrity for settings, queue, and execution policy
 - Launch sequencing: P0 core CRUD and UI → P0 integrations → P1 execution control policy → P1 integrations → P2 analytics
 
 ## 🎨 UX & Branding

@@ -68,7 +68,7 @@ spec:
   scenarios:
     primary:
       - resource-experimenter
-      - ecosystem-manager
+      - swarm-manager
     secondary:
       - research-assistant
       - document-manager

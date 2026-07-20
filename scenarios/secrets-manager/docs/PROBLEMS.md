@@ -312,7 +312,6 @@ Dark chrome theme looks good but hasn't been tested with accessibility tools. Co
 ### Cross-Scenario Dependencies
 - **deployment-manager**: Waiting for SEC-DEP-003 handshake API
 - **scenario-to-desktop/mobile/cloud**: Waiting for SEC-DEP-004 SDK helpers
-- **ecosystem-manager**: Depends on secrets-manager for pre-launch checks
 
 ### Technical Decisions Pending
 1. Should tier strategies be mutable or version-controlled?

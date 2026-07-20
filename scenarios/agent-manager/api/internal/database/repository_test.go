@@ -129,14 +129,15 @@ func TestProfileCRUD(t *testing.T) {
 		ProfileKey:  "test-profile",
 		Description: "A test profile",
 
-		MaxTurns:             100,
-		Timeout:              30 * time.Minute,
-		AllowedTools:         []string{"read", "write"},
-		DeniedTools:          []string{"bash"},
-		SkipPermissionPrompt: true,
-		AllowedPaths:         []string{"/home/user"},
-		DeniedPaths:          []string{"/etc"},
-		CreatedBy:            "test-user", RoleRef:
+		MaxTurns:              100,
+		Timeout:               30 * time.Minute,
+		AllowedTools:          []string{"read", "write"},
+		DeniedTools:           []string{"bash"},
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicyAdvisory,
+		SkipPermissionPrompt:  true,
+		AllowedPaths:          []string{"/home/user"},
+		DeniedPaths:           []string{"/etc"},
+		CreatedBy:             "test-user", RoleRef:
 
 		// Create
 		"code.default",
@@ -162,6 +163,9 @@ func TestProfileCRUD(t *testing.T) {
 	}
 	if len(got.AllowedTools) != 2 {
 		t.Errorf("expected 2 allowed tools, got %d", len(got.AllowedTools))
+	}
+	if got.ToolRestrictionPolicy != domain.ToolRestrictionPolicyAdvisory {
+		t.Errorf("tool restriction policy = %q", got.ToolRestrictionPolicy)
 	}
 
 	// Get by name

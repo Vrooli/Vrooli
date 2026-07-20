@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"git-control-tower/internal/git"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 // PinOwner returns the canonical test-genie pin owner for a baseline. Deleting
@@ -236,10 +237,11 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 	return out, nil
 }
 
-// validateBaselineEvidence rejects a terminal run that cannot compare even to
-// itself. A baseline with skipped required execution, missing artifacts, or an
-// asymmetric descriptor snapshot is not a valid measurement anchor; accepting
-// it merely defers failure until a later plan diff.
+// validateBaselineEvidence verifies that Test Genie can read the terminal
+// evidence. It intentionally does not reject a before-result just because one
+// phase was unavailable or incomparable: that condition belongs to the later
+// comparison's coverage axis. Retaining the baseline lets a later rerun measure
+// that phase without losing the durable before behavior for every other phase.
 func (s *Service) validateBaselineEvidence(ctx context.Context, scenario, runID string) error {
 	if s.runs == nil {
 		return fmt.Errorf("validate baseline evidence: Test Genie runs client is unavailable")
@@ -248,19 +250,8 @@ func (s *Service) validateBaselineEvidence(ctx context.Context, scenario, runID 
 	if err != nil {
 		return fmt.Errorf("validate baseline evidence for run %s: %w", runID, err)
 	}
-	if comparison.Verdict != string(VerdictNotComparable) {
-		return nil
-	}
-	problematic := make([]string, 0)
-	for _, phase := range comparison.Phases {
-		if phase.GetVerdict() == string(VerdictNotComparable) {
-			problematic = append(problematic, phase.GetPhase())
-		}
-	}
-	if len(problematic) == 0 {
-		return fmt.Errorf("baseline run %s is not comparable to itself", runID)
-	}
-	return fmt.Errorf("baseline run %s has unusable required evidence in phase(s): %s", runID, strings.Join(problematic, ", "))
+	_ = comparison
+	return nil
 }
 
 func (s *Service) saveSnapshotIntent(_ context.Context, pending PendingCapture, status, errMsg string) error {
@@ -337,6 +328,16 @@ func (s *Service) attachRun(ctx context.Context, manifest *BaselineManifest, req
 	if res.RunID == "" {
 		return fmt.Errorf("test-genie returned no run id")
 	}
+	// V2 Test Genie evidence did not serialize scoped provenance. It remains a
+	// readable baseline format; when it has a content digest, project it into
+	// the normal shared-scoped tier rather than manufacturing the old
+	// dirty-workspace rejection. New Test Genie writers always set these fields.
+	if res.EvidenceTier == "" && res.TreeDigest != "" {
+		res.EvidenceTier, res.SourceScope, res.SourceStable = "shared-scoped", "scenario:"+req.Scenario, true
+	}
+	if !res.SourceStable || (res.EvidenceTier != "strict" && res.EvidenceTier != "shared-scoped") {
+		return fmt.Errorf("run %s did not retain stable scoped source evidence; rerun to capture the current declared inputs", res.RunID)
+	}
 	if err := s.runs.PinRun(ctx, req.Scenario, res.RunID, PinOwner(req.Name), "baseline:"+req.Name); err != nil {
 		return fmt.Errorf("pin run %s: %w", res.RunID, err)
 	}
@@ -357,14 +358,17 @@ func (s *Service) attachRun(ctx context.Context, manifest *BaselineManifest, req
 		DescriptorSnapshotRef:           "test-genie-run:" + res.RunID + "#descriptor-snapshot",
 		DescriptorSnapshotDigest:        res.DescriptorSnapshotDigest,
 		DescriptorSnapshotSchemaVersion: res.DescriptorSnapshotSchemaVersion,
+		EvidenceTier:                    res.EvidenceTier,
+		SourceScope:                     res.SourceScope,
+		SourceStable:                    res.SourceStable,
 	}
 	return nil
 }
 
-// dirtyCaptureWarning is the standard warning when a baseline is captured
-// against a dirty working tree.
+// dirtyCaptureWarning is advisory only: dirtiness outside the declared source
+// scope does not make a baseline invalid.
 func dirtyCaptureWarning(summary string) string {
-	return fmt.Sprintf("baseline captured against dirty tree (%s) — comparisons may be muddled by uncommitted changes", summary)
+	return fmt.Sprintf("baseline captured in a shared dirty workspace (%s); scoped provenance records the tested inputs", summary)
 }
 
 // Get returns a single baseline manifest.
@@ -621,6 +625,7 @@ type DiffResult struct {
 	CurrentGit   git.State
 	Staleness    Staleness
 	Phases       []*PhaseDiff
+	Comparison   *runspb.CompareRunsResponse
 	Evidence     EvidenceComparison
 	Verdict      Verdict
 	DirtyWarning string // non-empty when the current tree is dirty (verdicts are most suspect then)
@@ -748,16 +753,14 @@ func (s *Service) saveDiffIntent(_ context.Context, pending PendingDiff, status,
 }
 
 // resolveCurrentRun decides the comprehensive run a diff compares against:
-//   - clean tree + a completed comprehensive+baseline run at exactly cur.Sha
-//     within the reuse TTL → reuse it (no suite re-run);
+//   - a completed comprehensive+baseline run whose declared source scope and
+//     validation configuration still match → reuse it (no suite re-run);
 //   - otherwise StartRun (which itself coalesces onto an in-flight run of the
 //     scenario, or starts a fresh one, under the one-run-per-scenario guard).
 func (s *Service) resolveCurrentRun(ctx context.Context, scenario string, cur git.State) (runID string, coalesced, reused bool, sha string, handle RunHandle, err error) {
-	if !cur.Dirty && cur.Sha != "" {
-		if rr, found, ferr := s.exec.FindReusableRun(ctx, scenario, cur.Sha); ferr == nil && found {
-			if s.reuseTTL <= 0 || s.now().UTC().Sub(rr.CompletedAt) <= s.reuseTTL {
-				return rr.RunID, false, true, shortSha(cur.Sha), RunHandle{RunID: rr.RunID}, nil
-			}
+	if rr, found, ferr := s.exec.FindReusableRun(ctx, scenario); ferr == nil && found {
+		if s.reuseTTL <= 0 || s.now().UTC().Sub(rr.CompletedAt) <= s.reuseTTL {
+			return rr.RunID, false, true, "scoped", RunHandle{RunID: rr.RunID}, nil
 		}
 	}
 	h, serr := s.exec.StartRun(ctx, scenario)
@@ -775,11 +778,14 @@ func (s *Service) resolveCurrentRun(ctx context.Context, scenario string, cur gi
 // on a server-owned context so a disconnected client never abandons the result.
 // Multiple baseline names sharing one current run each persist their own result.
 func (s *Service) FinalizeDiff(ctx context.Context, pending PendingDiff) (CachedDiff, error) {
-	_, awaitErr := s.exec.AwaitResult(ctx, pending.Scenario, pending.CurRunID)
+	currentRun, awaitErr := s.exec.AwaitResult(ctx, pending.Scenario, pending.CurRunID)
 	if errors.Is(awaitErr, context.DeadlineExceeded) || errors.Is(awaitErr, context.Canceled) {
 		// Queue/execution ownership lives with Test Genie. A transport/server-tail
 		// attachment ending cannot publish a terminal not-comparable verdict.
 		return CachedDiff{Status: "in_progress", RunID: pending.CurRunID}, awaitErr
+	}
+	if awaitErr == nil && (!currentRun.SourceStable || (currentRun.EvidenceTier != "strict" && currentRun.EvidenceTier != "shared-scoped")) {
+		awaitErr = fmt.Errorf("relevant source inputs changed during this current test attempt; rerun the current evidence")
 	}
 	diff := s.computeDiff(ctx, pending.Manifest, pending.CurrentGit, pending.Staleness, pending.BaseRunID, pending.CurRunID, awaitErr)
 	cd := CachedDiff{Status: "ready", Result: &diff, RunID: pending.CurRunID, ComputedAt: s.now().UTC()}
@@ -889,8 +895,13 @@ func (s *Service) computeDiff(ctx context.Context, manifest BaselineManifest, cu
 			res.Verdict = VerdictNotComparable
 			res.Evidence.BlockingReasons = append(res.Evidence.BlockingReasons, "compare failed: "+cmpErr.Error())
 		} else {
-			res.Phases = append(res.Phases, cmp.Phases...)
-			res.Verdict = Verdict(cmp.Verdict)
+			comparison := cmp.Comparison
+			if comparison == nil {
+				comparison = &runspb.CompareRunsResponse{Verdict: cmp.Verdict, Phases: cmp.Phases, SchemaVersion: 1, Behavior: "unknown", Coverage: "legacy", Compatibility: "legacy", Provenance: "legacy"}
+			}
+			res.Comparison = comparison
+			res.Phases = append(res.Phases, comparison.GetPhases()...)
+			res.Verdict = GateDecisionForComparison(comparison).LegacyVerdict
 		}
 		res.Evidence.BaseCatalog = s.loadArtifactCatalog(ctx, manifest.Scenario, baseRunID, "baseline", &res)
 		res.Evidence.CurrentCatalog = s.loadArtifactCatalog(ctx, manifest.Scenario, curRunID, "current", &res)
@@ -901,7 +912,7 @@ func (s *Service) computeDiff(ctx context.Context, manifest BaselineManifest, cu
 		}
 	}
 	if len(res.Evidence.BlockingReasons) > 0 {
-		res.Verdict = WorseVerdict(res.Verdict, VerdictNotComparable)
+		res.Verdict = VerdictNotComparable
 	}
 	res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, res.Evidence.BlockingReasons...)
 	res.Evidence.DegradedReasons = append(res.Evidence.DegradedReasons, res.Evidence.AdvisoryWarnings...)

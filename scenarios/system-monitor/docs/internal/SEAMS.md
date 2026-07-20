@@ -66,4 +66,4 @@
 
 - Refactored from monolithic main.go to modular internal/ packages.
 - Original plan was Go CLI; actual implementation is Bash CLI with curl.
-- QuestDB was chosen over InfluxDB for performance; actual usage defaults to in-memory.
+- Persistent time-series storage remains unimplemented; actual usage defaults to in-memory.

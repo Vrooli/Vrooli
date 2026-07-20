@@ -14,7 +14,7 @@
 |----------|--------------|-------|
 | `test-genie` | Partial overlap | Has containment package with Docker/bubblewrap providers for **process isolation**, but not file-system overlay sandboxing with diff/approval workflow |
 | `agent-inbox` | Potential consumer | Could use workspace-sandbox for safe agent task execution |
-| `ecosystem-manager` | Potential consumer | Could orchestrate sandboxed scenario runs |
+| `swarm-manager` | Potential consumer | Could orchestrate sandboxed scenario runs |
 
 ### Key Differentiation from test-genie
 

@@ -221,7 +221,7 @@ For `proto-health`, real domain implementation should follow this order:
    facts.
 4. Implement `validation` as checks over that model.
 5. Add CLI commands and the UI inspection surface.
-6. Wire test-genie, ecosystem-manager, and the audit skill only after
+6. Wire test-genie, swarm-manager, and the audit skill only after
    the local API/CLI contract is stable.
 
 For a normal proto-backed domain:

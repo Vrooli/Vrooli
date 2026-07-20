@@ -21,9 +21,8 @@ type Skill struct {
 	Entry        string   `json:"entry"`
 	TargetToolID *string  `json:"targetToolId,omitempty"`
 	DefaultScope string   `json:"defaultScope,omitempty"` // Default scope skill to include
-	// TargetDimensions are the controller improvement dimensions this skill
-	// closes (ecosystem-manager's selection vocabulary). Empty for non-steer
-	// skills; ecosystem-manager validates entries against its dimension SSOT.
+	// TargetDimensions are optional maturity dimensions this skill helps address.
+	// Finding-to-skill recommendations remain descriptor-owned by Test Genie.
 	TargetDimensions []string       `json:"targetDimensions,omitempty"`
 	Requires         *SkillRequires `json:"requires,omitempty"`
 	// ProgrammaticHome is a record-of-fact pointer (format "engine:identifier",

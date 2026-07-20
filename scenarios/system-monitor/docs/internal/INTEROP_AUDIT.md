@@ -229,7 +229,7 @@ live smoke confirmed `GET /api/v1/metrics/current` returns `404`, while
 ### Documented (no code change)
 
 #### F5: Resource URLs use hardcoded localhost defaults (LOW)
-- `api/internal/config/config.go:141-146` — resource URLs (Postgres, Redis, QuestDB) default to `localhost:<port>`.
+- `api/internal/config/config.go:141-146` — resource URLs (Postgres and Redis) default to `localhost:<port>`.
 - These are **resources** (not scenarios), so discovery doesn't apply. Defaults are correct for local dev; production overrides via env vars.
 
 #### F6: Health endpoint self-reference uses hardcoded localhost (LOW)

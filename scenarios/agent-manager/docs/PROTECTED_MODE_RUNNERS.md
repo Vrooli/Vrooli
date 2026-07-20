@@ -1,5 +1,14 @@
 # Protected-Mode Runners — Capability Matrix
 
+## Tool restriction enforcement
+
+`allowedTools` is a canonical profile capability allowlist, not a runner CLI
+passthrough. Claude Code enforces it per launch and maps the canonical names to
+its native tool vocabulary. Codex, OpenCode, and Grok currently report no
+per-launch allowlist enforcement; a restricted profile therefore fails closed
+unless its declaration explicitly selects advisory policy. The live codec
+registry is authoritative: inspect it with `agent-manager runner tools`.
+
 > **Status (2026-04-27, Slices 1 + 4 complete):** every coding-agent
 > runner — `claude_code`, `codex`, and `opencode` — routes **every
 > launch path** (streaming Execute, durable-transcript Execute, durable-

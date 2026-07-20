@@ -348,12 +348,13 @@ const (
 
 // ProfileReconcileResult reports one profile source outcome.
 type ProfileReconcileResult struct {
-	ProfileKey string                 `json:"profileKey,omitempty"`
-	SourcePath string                 `json:"sourcePath,omitempty"`
-	SourceHash string                 `json:"sourceHash,omitempty"`
-	ProfileID  string                 `json:"profileId,omitempty"`
-	Status     ProfileReconcileStatus `json:"status"`
-	Message    string                 `json:"message,omitempty"`
+	ProfileKey  string                      `json:"profileKey,omitempty"`
+	SourcePath  string                      `json:"sourcePath,omitempty"`
+	SourceHash  string                      `json:"sourceHash,omitempty"`
+	ProfileID   string                      `json:"profileId,omitempty"`
+	Status      ProfileReconcileStatus      `json:"status"`
+	Message     string                      `json:"message,omitempty"`
+	Diagnostics []domain.WorkflowDiagnostic `json:"diagnostics,omitempty"`
 }
 
 // ReconcileScenarioProfilesResult captures a scenario-level reconciliation report.
@@ -1669,6 +1670,10 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
 	}
+	if o.toolRestrictionIsAdvisory(resolvedConfig) && o.events != nil {
+		_ = o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "warn",
+			fmt.Sprintf("runner %q cannot enforce allowedTools; advisory policy accepted the launch", resolvedConfig.RunnerType)))
+	}
 
 	// Mark idempotency as complete
 	o.markIdempotencyComplete(ctx, req.IdempotencyKey, run.ID, "Run")
@@ -1931,7 +1936,16 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		return nil, nil, domain.NewValidationErrorWithHint("roleRef", "field is required",
 			"Select a portable role from the active role-policy catalog")
 	}
+	if err := domain.ValidateCanonicalToolList("allowedTools", cfg.AllowedTools); err != nil {
+		return nil, nil, err
+	}
+	if err := domain.ValidateCanonicalToolList("deniedTools", cfg.DeniedTools); err != nil {
+		return nil, nil, err
+	}
 	if err := o.resolveExecutionPolicy(ctx, cfg); err != nil {
+		return nil, nil, err
+	}
+	if err := o.validateToolRestriction(cfg); err != nil {
 		return nil, nil, err
 	}
 
@@ -1945,6 +1959,32 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	}
 
 	return cfg, profile, nil
+}
+
+// validateToolRestriction makes an allowlist fail closed once policy routing
+// has selected the actual runner. Advisory is explicit and intentionally does
+// not pretend that an unsupported runner enforces the declaration.
+func (o *Orchestrator) validateToolRestriction(cfg *domain.RunConfig) error {
+	if len(cfg.AllowedTools) == 0 || o.runners == nil {
+		return nil
+	}
+	selected, err := o.runners.Get(cfg.RunnerType)
+	if err != nil {
+		return err
+	}
+	if selected.Capabilities().SupportsToolRestriction || cfg.ToolRestrictionPolicy.Effective() == domain.ToolRestrictionPolicyAdvisory {
+		return nil
+	}
+	return domain.NewValidationErrorWithCode("toolRestrictionPolicy",
+		fmt.Sprintf("runner %q cannot enforce allowedTools", cfg.RunnerType), domain.ErrCodePolicyRunner)
+}
+
+func (o *Orchestrator) toolRestrictionIsAdvisory(cfg *domain.RunConfig) bool {
+	if cfg == nil || len(cfg.AllowedTools) == 0 || cfg.ToolRestrictionPolicy.Effective() != domain.ToolRestrictionPolicyAdvisory || o.runners == nil {
+		return false
+	}
+	selected, err := o.runners.Get(cfg.RunnerType)
+	return err == nil && selected != nil && !selected.Capabilities().SupportsToolRestriction
 }
 
 // resolveExecutionPolicy converts the final profile-plus-override selection

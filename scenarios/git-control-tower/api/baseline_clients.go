@@ -81,6 +81,9 @@ func (e baselineExecutor) StartRun(ctx context.Context, scenario string) (baseli
 		Scenario:       scenario,
 		Preset:         "comprehensive",
 		CaptureProfile: "baseline",
+		// Ordinary baseline capture deliberately uses shared-scoped provenance.
+		// Strict linked-worktree evidence remains available to callers that ask
+		// for it, but is never a prerequisite for retaining before behavior.
 	}))
 	if err != nil {
 		if busy := asRunBusy(err); busy != nil {
@@ -118,22 +121,20 @@ func (e baselineExecutor) RunStatus(ctx context.Context, scenario, runID string)
 	}, nil
 }
 
-// FindReusableRun asks test-genie for the newest completed clean-tree
-// comprehensive+baseline run at exactly gitSha. A match means the working tree
-// has not changed since that run, so the diff can reuse it instead of starting a
-// fresh suite.
-func (e baselineExecutor) FindReusableRun(ctx context.Context, scenario, gitSha string) (baseline.ReusableRun, bool, error) {
+// FindReusableRun lets Test Genie compute the current declared scope and
+// validation-contract fingerprints beside the run index. This avoids using the
+// whole Git worktree (or a commit SHA) as a cache key in shared workspaces.
+func (e baselineExecutor) FindReusableRun(ctx context.Context, scenario string) (baseline.ReusableRun, bool, error) {
 	cl, err := e.runs.client(ctx)
 	if err != nil {
 		return baseline.ReusableRun{}, false, err
 	}
 	resp, err := cl.FindRun(ctx, connect.NewRequest(&runspb.FindRunRequest{
-		Scenario:       scenario,
-		GitSha:         gitSha,
-		Preset:         "comprehensive",
-		CaptureProfile: "baseline",
-		Status:         "passed",
-		RequireClean:   true,
+		Scenario:           scenario,
+		Preset:             "comprehensive",
+		CaptureProfile:     "baseline",
+		Status:             "passed",
+		MatchCurrentSource: true,
 	}))
 	if err != nil {
 		return baseline.ReusableRun{}, false, err
@@ -170,14 +171,21 @@ func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID strin
 	}
 	completedAt, _ := time.Parse(time.RFC3339, info.GetCompletedAt())
 	out := baseline.ExecResult{
-		RunID:                           info.GetRunId(),
-		Success:                         info.GetStatus() == "passed",
-		CompletedAt:                     completedAt,
-		TreeDigest:                      info.GetTreeDigest(),
-		PhaseSetDigest:                  info.GetPhaseSetDigest(),
-		CaptureProfile:                  info.GetCaptureProfile(),
-		DescriptorSnapshotDigest:        info.GetDescriptorSnapshotDigest(),
-		DescriptorSnapshotSchemaVersion: int(info.GetDescriptorSnapshotSchemaVersion()),
+		RunID:                             info.GetRunId(),
+		Success:                           info.GetStatus() == "passed",
+		CompletedAt:                       completedAt,
+		TreeDigest:                        info.GetTreeDigest(),
+		PhaseSetDigest:                    info.GetPhaseSetDigest(),
+		CaptureProfile:                    info.GetCaptureProfile(),
+		DescriptorSnapshotDigest:          info.GetDescriptorSnapshotDigest(),
+		DescriptorSnapshotSchemaVersion:   int(info.GetDescriptorSnapshotSchemaVersion()),
+		GitSha:                            info.GetGitSha(),
+		GitDirty:                          info.GetGitDirty(),
+		ExecutionConfigurationFingerprint: info.GetExecutionConfigurationFingerprint(),
+		GateQuality:                       info.GetGateQuality(),
+		EvidenceTier:                      info.GetEvidenceTier(),
+		SourceScope:                       info.GetSourceScope(),
+		SourceStable:                      info.GetSourceStable(),
 	}
 	for _, p := range info.GetPhases() {
 		out.Phases = append(out.Phases, baseline.PhaseStatus{Name: p.GetName(), Status: p.GetStatus()})
@@ -243,7 +251,7 @@ func (c baselineRunsClient) CompareRuns(ctx context.Context, scenario, runIDA, r
 	if err != nil {
 		return baseline.CompareResult{}, err
 	}
-	out := baseline.CompareResult{Verdict: resp.Msg.GetVerdict(), Phases: append([]*runspb.PhaseDiff(nil), resp.Msg.GetPhases()...)}
+	out := baseline.CompareResult{Comparison: resp.Msg, Verdict: resp.Msg.GetVerdict(), Phases: append([]*runspb.PhaseDiff(nil), resp.Msg.GetPhases()...)}
 	return out, nil
 }
 

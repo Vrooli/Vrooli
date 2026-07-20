@@ -14,8 +14,9 @@ type Metadata struct {
 	Icon         string   `json:"icon,omitempty"`
 	TargetToolID *string  `json:"targetToolId"`
 	DefaultScope string   `json:"defaultScope,omitempty"` // Default scope skill to include with this skill
-	// TargetDimensions are the controller improvement dimensions this skill
-	// closes (ecosystem-manager's selection vocabulary). Empty for non-steer skills.
+	// TargetDimensions are optional maturity dimensions this skill helps address.
+	// Test Genie descriptors own finding-to-skill recommendations; this metadata
+	// remains descriptive and is not a routing authority.
 	TargetDimensions []string `json:"targetDimensions,omitempty"`
 	// ProgrammaticHome records (as a fact) the programmatic engine that has
 	// taken over this skill's detection, format "engine:identifier". Nil while
@@ -60,7 +61,7 @@ type Response struct {
 	Variables           []Variable `json:"variables,omitempty"`
 }
 
-// SyncResponse is returned by the sync endpoint for consumers like ecosystem-manager.
+// SyncResponse is returned by the sync endpoint for catalog consumers.
 type SyncResponse struct {
 	Skills      []Response `json:"skills"`
 	LastUpdated string     `json:"lastUpdated"`

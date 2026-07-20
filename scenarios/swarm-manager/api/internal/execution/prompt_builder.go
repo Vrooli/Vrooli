@@ -79,7 +79,7 @@ func buildExecutionPrompt(p executionPromptParams) string {
 		b.WriteString(fmt.Sprintf("Source index path: %s\n", p.IdeaHandoff.SourceIndexPath))
 		b.WriteString("Treat the rendered plan as the execution contract and use brief.md only as supporting context.\n")
 		b.WriteString("Record the true frontier and provenance in the swarm-manager execution handoff so later work can trace back to this item.\n")
-		b.WriteString("Execute the next bounded plan slice through the declared swarm-manager workflow; do not create an ecosystem-manager task.\n")
+		b.WriteString("Execute the next bounded plan slice through the declared swarm-manager workflow; do not create a second queue.\n")
 		b.WriteString("</idea-handoff>\n")
 
 		if strings.TrimSpace(p.IdeaHandoff.BriefMarkdown) != "" {

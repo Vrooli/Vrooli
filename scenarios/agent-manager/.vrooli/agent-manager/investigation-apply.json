@@ -6,20 +6,8 @@
   "roleRef": "code.smart",
   "maxTurns": 100,
   "timeout": "900s",
-  "allowedTools": [
-    "read_file",
-    "list_files",
-    "glob",
-    "grep",
-    "analyze_code",
-    "execute_command",
-    "web_search",
-    "edit_file",
-    "write_file",
-    "create_file",
-    "delete_file"
-  ],
-  "skipPermissionPrompt": true,
+  "allowedTools": ["read", "glob", "grep", "shell", "web_search", "edit", "write"],
+  "skipPermissionPrompt": false,
   "sandboxConfig": {
     "manualReview": true
   },

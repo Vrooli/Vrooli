@@ -79,95 +79,98 @@ var _ repository.ProfileRepository = (*profileRepository)(nil)
 
 // profileRow is the database row representation for agent_profiles.
 type profileRow struct {
-	ID                   uuid.UUID                `db:"id"`
-	Name                 string                   `db:"name"`
-	ProfileKey           string                   `db:"profile_key"`
-	Description          string                   `db:"description"`
-	RoleRef              string                   `db:"role_ref"`
-	MaxTurns             int                      `db:"max_turns"`
-	TimeoutMs            int64                    `db:"timeout_ms"`
-	AllowedTools         StringSlice              `db:"allowed_tools"`
-	DeniedTools          StringSlice              `db:"denied_tools"`
-	SkipPermissionPrompt bool                     `db:"skip_permission_prompt"`
-	Features             NullableFeatureFlags     `db:"features"`
-	ExtraFlags           NullableRunnerExtraFlags `db:"extra_flags"`
-	NetworkAccess        string                   `db:"network_access"`
-	SandboxConfig        NullableSandboxConfig    `db:"sandbox_config"`
-	AllowedPaths         StringSlice              `db:"allowed_paths"`
-	DeniedPaths          StringSlice              `db:"denied_paths"`
-	CreatedBy            string                   `db:"created_by"`
-	OwnerScenario        string                   `db:"owner_scenario"`
-	SourcePath           string                   `db:"source_path"`
-	SourceHash           string                   `db:"source_hash"`
-	LastAppliedHash      string                   `db:"last_applied_hash"`
-	SourceUpdatedAt      SQLiteTime               `db:"source_updated_at"`
-	LocalOverride        bool                     `db:"local_override"`
-	CreatedAt            SQLiteTime               `db:"created_at"`
-	UpdatedAt            SQLiteTime               `db:"updated_at"`
+	ID                    uuid.UUID                `db:"id"`
+	Name                  string                   `db:"name"`
+	ProfileKey            string                   `db:"profile_key"`
+	Description           string                   `db:"description"`
+	RoleRef               string                   `db:"role_ref"`
+	MaxTurns              int                      `db:"max_turns"`
+	TimeoutMs             int64                    `db:"timeout_ms"`
+	AllowedTools          StringSlice              `db:"allowed_tools"`
+	DeniedTools           StringSlice              `db:"denied_tools"`
+	ToolRestrictionPolicy string                   `db:"tool_restriction_policy"`
+	SkipPermissionPrompt  bool                     `db:"skip_permission_prompt"`
+	Features              NullableFeatureFlags     `db:"features"`
+	ExtraFlags            NullableRunnerExtraFlags `db:"extra_flags"`
+	NetworkAccess         string                   `db:"network_access"`
+	SandboxConfig         NullableSandboxConfig    `db:"sandbox_config"`
+	AllowedPaths          StringSlice              `db:"allowed_paths"`
+	DeniedPaths           StringSlice              `db:"denied_paths"`
+	CreatedBy             string                   `db:"created_by"`
+	OwnerScenario         string                   `db:"owner_scenario"`
+	SourcePath            string                   `db:"source_path"`
+	SourceHash            string                   `db:"source_hash"`
+	LastAppliedHash       string                   `db:"last_applied_hash"`
+	SourceUpdatedAt       SQLiteTime               `db:"source_updated_at"`
+	LocalOverride         bool                     `db:"local_override"`
+	CreatedAt             SQLiteTime               `db:"created_at"`
+	UpdatedAt             SQLiteTime               `db:"updated_at"`
 }
 
 func (r *profileRow) toDomain() *domain.AgentProfile {
 	return &domain.AgentProfile{
-		ID:                   r.ID,
-		Name:                 r.Name,
-		ProfileKey:           r.ProfileKey,
-		Description:          r.Description,
-		RoleRef:              r.RoleRef,
-		MaxTurns:             r.MaxTurns,
-		Timeout:              time.Duration(r.TimeoutMs) * time.Millisecond,
-		AllowedTools:         r.AllowedTools,
-		DeniedTools:          r.DeniedTools,
-		SkipPermissionPrompt: r.SkipPermissionPrompt,
-		Features:             r.Features.V,
-		ExtraFlags:           r.ExtraFlags.V,
-		NetworkAccess:        domain.NetworkAccess(r.NetworkAccess),
-		SandboxConfig:        r.SandboxConfig.V,
-		AllowedPaths:         r.AllowedPaths,
-		DeniedPaths:          r.DeniedPaths,
-		CreatedBy:            r.CreatedBy,
-		OwnerScenario:        r.OwnerScenario,
-		SourcePath:           r.SourcePath,
-		SourceHash:           r.SourceHash,
-		LastAppliedHash:      r.LastAppliedHash,
-		SourceUpdatedAt:      r.SourceUpdatedAt.Time(),
-		LocalOverride:        r.LocalOverride,
-		CreatedAt:            r.CreatedAt.Time(),
-		UpdatedAt:            r.UpdatedAt.Time(),
+		ID:                    r.ID,
+		Name:                  r.Name,
+		ProfileKey:            r.ProfileKey,
+		Description:           r.Description,
+		RoleRef:               r.RoleRef,
+		MaxTurns:              r.MaxTurns,
+		Timeout:               time.Duration(r.TimeoutMs) * time.Millisecond,
+		AllowedTools:          r.AllowedTools,
+		DeniedTools:           r.DeniedTools,
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicy(r.ToolRestrictionPolicy).Effective(),
+		SkipPermissionPrompt:  r.SkipPermissionPrompt,
+		Features:              r.Features.V,
+		ExtraFlags:            r.ExtraFlags.V,
+		NetworkAccess:         domain.NetworkAccess(r.NetworkAccess),
+		SandboxConfig:         r.SandboxConfig.V,
+		AllowedPaths:          r.AllowedPaths,
+		DeniedPaths:           r.DeniedPaths,
+		CreatedBy:             r.CreatedBy,
+		OwnerScenario:         r.OwnerScenario,
+		SourcePath:            r.SourcePath,
+		SourceHash:            r.SourceHash,
+		LastAppliedHash:       r.LastAppliedHash,
+		SourceUpdatedAt:       r.SourceUpdatedAt.Time(),
+		LocalOverride:         r.LocalOverride,
+		CreatedAt:             r.CreatedAt.Time(),
+		UpdatedAt:             r.UpdatedAt.Time(),
 	}
 }
 
 func profileFromDomain(p *domain.AgentProfile) *profileRow {
 	return &profileRow{
-		ID:                   p.ID,
-		Name:                 p.Name,
-		ProfileKey:           p.ProfileKey,
-		Description:          p.Description,
-		RoleRef:              p.RoleRef,
-		MaxTurns:             p.MaxTurns,
-		TimeoutMs:            int64(p.Timeout / time.Millisecond),
-		AllowedTools:         p.AllowedTools,
-		DeniedTools:          p.DeniedTools,
-		SkipPermissionPrompt: p.SkipPermissionPrompt,
-		Features:             NullableFeatureFlags{V: p.Features},
-		ExtraFlags:           NullableRunnerExtraFlags{V: p.ExtraFlags},
-		NetworkAccess:        string(p.NetworkAccess),
-		SandboxConfig:        NullableSandboxConfig{V: p.SandboxConfig},
-		AllowedPaths:         p.AllowedPaths,
-		DeniedPaths:          p.DeniedPaths,
-		CreatedBy:            p.CreatedBy,
-		OwnerScenario:        p.OwnerScenario,
-		SourcePath:           p.SourcePath,
-		SourceHash:           p.SourceHash,
-		LastAppliedHash:      p.LastAppliedHash,
-		SourceUpdatedAt:      SQLiteTime(p.SourceUpdatedAt),
-		LocalOverride:        p.LocalOverride,
-		CreatedAt:            SQLiteTime(p.CreatedAt),
-		UpdatedAt:            SQLiteTime(p.UpdatedAt),
+		ID:                    p.ID,
+		Name:                  p.Name,
+		ProfileKey:            p.ProfileKey,
+		Description:           p.Description,
+		RoleRef:               p.RoleRef,
+		MaxTurns:              p.MaxTurns,
+		TimeoutMs:             int64(p.Timeout / time.Millisecond),
+		AllowedTools:          p.AllowedTools,
+		DeniedTools:           p.DeniedTools,
+		ToolRestrictionPolicy: string(p.ToolRestrictionPolicy.Effective()),
+		SkipPermissionPrompt:  p.SkipPermissionPrompt,
+		Features:              NullableFeatureFlags{V: p.Features},
+		ExtraFlags:            NullableRunnerExtraFlags{V: p.ExtraFlags},
+		NetworkAccess:         string(p.NetworkAccess),
+		SandboxConfig:         NullableSandboxConfig{V: p.SandboxConfig},
+		AllowedPaths:          p.AllowedPaths,
+		DeniedPaths:           p.DeniedPaths,
+		CreatedBy:             p.CreatedBy,
+		OwnerScenario:         p.OwnerScenario,
+		SourcePath:            p.SourcePath,
+		SourceHash:            p.SourceHash,
+		LastAppliedHash:       p.LastAppliedHash,
+		SourceUpdatedAt:       SQLiteTime(p.SourceUpdatedAt),
+		LocalOverride:         p.LocalOverride,
+		CreatedAt:             SQLiteTime(p.CreatedAt),
+		UpdatedAt:             SQLiteTime(p.UpdatedAt),
 	}
 }
 
 const profileColumns = `id, name, profile_key, description, role_ref, max_turns, timeout_ms,
-	allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
+	allowed_tools, denied_tools, tool_restriction_policy, skip_permission_prompt, features, extra_flags,
 	network_access, sandbox_config, allowed_paths, denied_paths, created_by, owner_scenario, source_path,
 	source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at`
 
@@ -181,11 +184,11 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 
 	row := profileFromDomain(profile)
 	query := `INSERT INTO agent_profiles (id, name, profile_key, description, role_ref, max_turns, timeout_ms,
-		allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
+		allowed_tools, denied_tools, tool_restriction_policy, skip_permission_prompt, features, extra_flags,
 		network_access, sandbox_config, allowed_paths, denied_paths, created_by, owner_scenario, source_path,
 		source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at)
 		VALUES (:id, :name, :profile_key, :description, :role_ref, :max_turns, :timeout_ms,
-		:allowed_tools, :denied_tools, :skip_permission_prompt, :features, :extra_flags,
+		:allowed_tools, :denied_tools, :tool_restriction_policy, :skip_permission_prompt, :features, :extra_flags,
 		:network_access, :sandbox_config, :allowed_paths, :denied_paths, :created_by, :owner_scenario, :source_path,
 		:source_hash, :last_applied_hash, :source_updated_at, :local_override, :created_at, :updated_at)`
 
@@ -256,7 +259,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 
 	query := `UPDATE agent_profiles SET name = :name, profile_key = :profile_key, description = :description,
 		role_ref = :role_ref, max_turns = :max_turns, timeout_ms = :timeout_ms,
-		allowed_tools = :allowed_tools, denied_tools = :denied_tools,
+		allowed_tools = :allowed_tools, denied_tools = :denied_tools, tool_restriction_policy = :tool_restriction_policy,
 		skip_permission_prompt = :skip_permission_prompt, features = :features, extra_flags = :extra_flags,
 		network_access = :network_access,
 		sandbox_config = :sandbox_config, allowed_paths = :allowed_paths, denied_paths = :denied_paths,

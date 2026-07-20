@@ -195,6 +195,9 @@ type RunReport struct {
 	// tracker ingests and reconciles by stable ID. Pointers (not values)
 	// because proto messages embed a no-copy MessageState.
 	Findings []*architecturev1.ArchitectureFinding
+	// Assessment preserves the provider-owned maturity contract, including
+	// descriptor-owned recommended skill IDs, for phase evidence consumers.
+	Assessment *commonv1.MaturityAssessment
 	// Metrics carries the delegated provider's execution metrics when present.
 	// nil for non-delegated phases and for providers that have not adopted the
 	// metrics contract.
@@ -357,6 +360,8 @@ type ExecutionResult struct {
 	// can ingest it. Enum fields marshal as their proto integer values —
 	// a stable seam since both sides share this contract.
 	Findings []*architecturev1.ArchitectureFinding `json:"findings,omitempty"`
+	// Assessment is the unchanged provider maturity response for this phase.
+	Assessment *commonv1.MaturityAssessment `json:"assessment,omitempty"`
 	// Metrics is the delegated provider's reported execution metrics (timing,
 	// stages, resources, host environment), persisted only into immutable
 	// per-run phase evidence. Compact SQLite history records presence, never the

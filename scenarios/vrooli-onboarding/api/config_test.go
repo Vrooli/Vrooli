@@ -122,13 +122,13 @@ func TestConfigValidate(t *testing.T) {
 	}
 }
 
-// TestConfigValidateWithDependencyWarnings verifies dependency warnings (postgis without postgres).
+// TestConfigValidateWithDependencyWarnings verifies dependency warnings (judge0 without redis).
 // [REQ:REQ-P0-005] - Config Validation
 func TestConfigValidateWithDependencyWarnings(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgis, testResPostgres})
+	srv := newTestServer(t, []map[string]string{testResJudge0, testResPostgres})
 
 	w := doPost(t, srv, "/api/v1/config/validate",
-		`{"resources": {"postgis": {"enabled": true, "name": "postgis"}}}`)
+		`{"resources": {"judge0": {"enabled": true, "name": "judge0"}}}`)
 	requireStatus(t, w, http.StatusOK)
 
 	var resp map[string]any
@@ -150,14 +150,14 @@ func TestConfigValidateWithDependencyWarnings(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if result["resource"] == "postgis" {
+		if result["resource"] == "judge0" {
 			if warnings, ok := result["warnings"].([]any); ok && len(warnings) > 0 {
 				foundWarning = true
 			}
 		}
 	}
 	if !foundWarning {
-		t.Error("expected dependency warning for postgis without postgres enabled")
+		t.Error("expected dependency warning for judge0 without redis enabled")
 	}
 }
 
@@ -323,11 +323,11 @@ func TestConfigGenerateEmptyBody(t *testing.T) {
 // TestConfigValidateDisabledResourceSkipsDepsCheck verifies disabled resources don't trigger dependency warnings.
 // [REQ:REQ-P0-005] - Config Validation
 func TestConfigValidateDisabledResourceSkipsDepsCheck(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres, testResPostgis})
+	srv := newTestServer(t, []map[string]string{testResPostgres, testResJudge0})
 
-	// postgis is disabled, so its dependency on postgres should NOT generate a warning
+	// judge0 is disabled, so its dependencies should NOT generate warnings.
 	w := doPost(t, srv, "/api/v1/config/validate",
-		`{"resources": {"postgis": {"enabled": false, "name": "postgis"}}}`)
+		`{"resources": {"judge0": {"enabled": false, "name": "judge0"}}}`)
 	requireStatus(t, w, http.StatusOK)
 
 	var resp map[string]any
@@ -361,10 +361,10 @@ func TestConfigValidateDisabledResourceSkipsDepsCheck(t *testing.T) {
 // TestConfigValidateEnabledWithAllDeps verifies no warnings when all deps are satisfied.
 // [REQ:REQ-P0-005] - Config Validation
 func TestConfigValidateEnabledWithAllDeps(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres, testResPostgis})
+	srv := newTestServer(t, []map[string]string{testResPostgres, testResRedis, testResJudge0})
 
 	w := doPost(t, srv, "/api/v1/config/validate",
-		`{"resources": {"postgis": {"enabled": true, "name": "postgis"}, "postgres": {"enabled": true, "name": "postgres"}}}`)
+		`{"resources": {"judge0": {"enabled": true, "name": "judge0"}, "postgres": {"enabled": true, "name": "postgres"}, "redis": {"enabled": true, "name": "redis"}}}`)
 	requireStatus(t, w, http.StatusOK)
 
 	var resp map[string]any
@@ -375,13 +375,13 @@ func TestConfigValidateEnabledWithAllDeps(t *testing.T) {
 		t.Error("expected valid=true when all deps are satisfied")
 	}
 
-	// postgis should have no warnings since postgres is enabled
+	// judge0 should have no warnings when all dependencies are enabled.
 	results := resp["results"].([]any)
 	for _, r := range results {
 		result := r.(map[string]any)
-		if result["resource"] == "postgis" {
+		if result["resource"] == "judge0" {
 			if warnings, ok := result["warnings"].([]any); ok && len(warnings) > 0 {
-				t.Errorf("postgis should have no warnings when postgres is enabled, got %v", warnings)
+				t.Errorf("judge0 should have no warnings when all dependencies are enabled, got %v", warnings)
 			}
 		}
 	}

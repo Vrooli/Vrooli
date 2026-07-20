@@ -20,6 +20,7 @@ package domain
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -202,7 +203,17 @@ func (p *AgentProfile) Validate() error {
 		return NewValidationError("timeout", "cannot be negative")
 	}
 
-	// AllowedTools and DeniedTools should not overlap
+	if err := validateCanonicalTools("allowedTools", p.AllowedTools); err != nil {
+		return err
+	}
+	if err := validateCanonicalTools("deniedTools", p.DeniedTools); err != nil {
+		return err
+	}
+	if !p.ToolRestrictionPolicy.IsValid() {
+		return NewValidationErrorWithHint("toolRestrictionPolicy", "invalid tool restriction policy", "valid values: enforced, advisory")
+	}
+
+	// AllowedTools and DeniedTools should not overlap.
 	if hasStringOverlap(p.AllowedTools, p.DeniedTools) {
 		return NewValidationError("allowedTools/deniedTools",
 			"same tool cannot be both allowed and denied")
@@ -228,6 +239,66 @@ func (p *AgentProfile) Validate() error {
 	}
 
 	return nil
+}
+
+func validateCanonicalTools(field string, tools []string) error {
+	for _, tool := range tools {
+		name := strings.TrimSpace(tool)
+		if CanonicalTool(name).IsValid() {
+			continue
+		}
+		return NewValidationErrorWithHint(field, fmt.Sprintf("unknown canonical tool %q", tool),
+			"Use a canonical tool name; nearest match: "+nearestCanonicalTool(name))
+	}
+	return nil
+}
+
+// ValidateCanonicalToolList validates a resolved run's allowlist without
+// requiring profile-only fields such as name and roleRef.
+func ValidateCanonicalToolList(field string, tools []string) error {
+	return validateCanonicalTools(field, tools)
+}
+
+func nearestCanonicalTool(name string) string {
+	candidates := CanonicalTools()
+	sort.Slice(candidates, func(i, j int) bool {
+		left, right := levenshteinDistance(name, string(candidates[i])), levenshteinDistance(name, string(candidates[j]))
+		if left == right {
+			return candidates[i] < candidates[j]
+		}
+		return left < right
+	})
+	return string(candidates[0])
+}
+
+func levenshteinDistance(left, right string) int {
+	previous := make([]int, len(right)+1)
+	for j := range previous {
+		previous[j] = j
+	}
+	for i, leftRune := range left {
+		current := make([]int, len(right)+1)
+		current[0] = i + 1
+		for j, rightRune := range right {
+			cost := 0
+			if leftRune != rightRune {
+				cost = 1
+			}
+			current[j+1] = minInt(current[j]+1, previous[j+1]+1, previous[j]+cost)
+		}
+		previous = current
+	}
+	return previous[len(right)]
+}
+
+func minInt(values ...int) int {
+	min := values[0]
+	for _, value := range values[1:] {
+		if value < min {
+			min = value
+		}
+	}
+	return min
 }
 
 func validateSandboxConfig(cfg *SandboxConfig) error {

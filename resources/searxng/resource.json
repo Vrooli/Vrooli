@@ -2,7 +2,7 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "searxng",
   "display_name": "SearXNG",
-  "description": "Managed SearXNG metasearch service with native docker lifecycle and shell-retained search/configuration workflows.",
+  "description": "Managed SearXNG metasearch service: one Docker container with Go-native lifecycle, configuration, and diagnostics.",
   "cli": {
     "enabled": true,
     "command": "resource-searxng",
@@ -22,12 +22,12 @@
       {
         "os": ["linux", "darwin"],
         "kind": "command",
-        "run": "bash ./cli/install.sh"
+        "run": "go run ../../packages/cli-core/cmd/cli-installer --module ./cli --name resource-searxng --manifest ./resource.json --context-root . --freshness-input cli/** --freshness-input docs/** --freshness-input README.md --freshness-input resource.json"
       },
       {
         "os": ["windows"],
         "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+        "run": "go run ../../packages/cli-core/cmd/cli-installer --module ./cli --name resource-searxng --manifest ./resource.json --context-root . --freshness-input cli/** --freshness-input docs/** --freshness-input README.md --freshness-input resource.json"
       }
     ],
     "invoke": {
@@ -45,15 +45,15 @@
   "platforms": {
     "linux": "supported",
     "macos": "supported",
-    "windows": "partial"
+    "windows": "supported"
   },
   "hostTools": [
     {
-      "name": "yq",
-      "required": false,
-      "reason": "Validate and inspect SearXNG YAML configuration from retained shell workflows",
-      "when": ["setup", "develop"],
-      "notes": "Configuration checks degrade gracefully when yq is unavailable"
+      "name": "docker",
+      "required": true,
+      "reason": "SearXNG is intentionally a single-container Docker resource.",
+      "when": ["setup", "develop", "runtime"],
+      "notes": "Docker must be available before lifecycle commands run."
     }
   ],
   "dependencies": [],
@@ -75,8 +75,7 @@
     "image": "ghcr.io/searxng/searxng:2026.6.8-f3fab143b",
     "container_name": "searxng",
     "env": {
-      "SEARXNG_BASE_URL": "http://localhost:8280",
-      "SEARXNG_SECRET": "vrooli-searxng-dev-secret"
+      "SEARXNG_BASE_URL": "http://localhost:8280"
     },
     "volumes": [
       {
@@ -97,8 +96,7 @@
       "SEARXNG_PORT": "http"
     },
     "from_runtime_env": [
-      "SEARXNG_BASE_URL",
-      "SEARXNG_SECRET"
+      "SEARXNG_BASE_URL"
     ],
     "derived": {
       "SEARXNG_URL": {
@@ -124,7 +122,7 @@
   },
   "capabilities": {
     "supports_logs": true,
-    "supports_content_ops": true
+    "supports_content_ops": false
   },
   "template_version": "2"
 }

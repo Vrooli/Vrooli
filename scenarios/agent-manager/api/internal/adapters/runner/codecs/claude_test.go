@@ -85,6 +85,23 @@ func TestClaude_BuildArgs_EnableBrowser(t *testing.T) {
 	}
 }
 
+func TestClaudeBuildArgsTranslatesCanonicalAllowedTools(t *testing.T) {
+	c := NewClaudeForTest()
+	args := c.BuildArgs(c.NewState(), runner.ExecuteRequest{RunID: uuid.New(), ResolvedConfig: &domain.RunConfig{
+		RunnerType:   domain.RunnerTypeClaudeCode,
+		AllowedTools: []string{"read", "shell", "web_search"},
+	}})
+	for index, arg := range args {
+		if arg == "--allowedTools" {
+			if index+1 >= len(args) || args[index+1] != "Read,Bash,WebSearch" {
+				t.Fatalf("translated allowed tools = %v", args)
+			}
+			return
+		}
+	}
+	t.Fatalf("--allowedTools absent from %v", args)
+}
+
 func TestClaude_BuildArgs_ExtraFlags(t *testing.T) {
 	c := NewClaudeForTest()
 	tests := []struct {
@@ -202,6 +219,17 @@ func TestClaude_BuildContinueArgs(t *testing.T) {
 	if !hasResume || !sessionMatch {
 		t.Errorf("expected --resume sess-xyz in %v", args)
 	}
+}
+
+func TestClaudeBuildContinueArgsKeepsCanonicalToolRestriction(t *testing.T) {
+	c := NewClaudeForTest()
+	args := c.BuildContinueArgs(c.NewState(), runner.ContinueRequest{RunID: uuid.New(), SessionID: "sess-xyz", ResolvedConfig: &domain.RunConfig{AllowedTools: []string{"read", "shell"}}})
+	for index, arg := range args {
+		if arg == "--allowedTools" && index+1 < len(args) && args[index+1] == "Read,Bash" {
+			return
+		}
+	}
+	t.Fatalf("continuation omitted translated restriction: %v", args)
 }
 
 func TestClaude_BuildEnv_AgentTag(t *testing.T) {

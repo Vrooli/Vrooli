@@ -65,7 +65,7 @@ Track development progress, decisions, and significant changes.
 
 ### Focus: Replay Safety and Temporal Correctness
 
-Following the ecosystem-manager phases for "Idempotency & Replay Safety Hardening" and "Temporal Flow Audit", this session focused on:
+Following the swarm-manager phases for "Idempotency & Replay Safety Hardening" and "Temporal Flow Audit", this session focused on:
 1. Making operations safe under repeated execution
 2. Adding optimistic concurrency control
 3. Preventing race conditions in scope overlap checking
@@ -222,7 +222,7 @@ Without idempotency, these cause duplicate resources, conflicting state, and har
 
 ### Focus: Evolution Resilience and Tunable Levers
 
-Following the ecosystem-manager architectural guidelines for "Change Axis & Evolution Resilience" and "Control Surface & Tunable Levers", this session focused on:
+Following the swarm-manager architectural guidelines for "Change Axis & Evolution Resilience" and "Control Surface & Tunable Levers", this session focused on:
 1. Identifying primary axes of change
 2. Localizing change along clear extension points
 3. Extracting hardcoded values into configurable levers
@@ -317,7 +317,7 @@ All existing tests pass. Changes are backwards-compatible.
 
 ### Focus: Cognitive Load Reduction & Decision Boundary Extraction
 
-Following the ecosystem-manager architectural guidelines, this session focused on making the codebase easier to understand, reason about, and safely modify.
+Following the swarm-manager architectural guidelines, this session focused on making the codebase easier to understand, reason about, and safely modify.
 
 ### Key Changes
 
@@ -710,7 +710,7 @@ All endpoints now working:
 
 ### Focus: Making Intent Explicit and Hardening Hidden Assumptions
 
-Following the ecosystem-manager phases for Intent Clarification and Assumption Mapping & Hardening, this session focused on:
+Following the swarm-manager phases for Intent Clarification and Assumption Mapping & Hardening, this session focused on:
 1. Clarifying naming to communicate intent
 2. Adding documentation that explains the "why"
 3. Discovering and guarding implicit assumptions

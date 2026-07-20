@@ -6,12 +6,7 @@
   "roleRef": "code.smart",
   "maxTurns": 40,
   "timeout": "900s",
-  "allowedTools": [
-    "Read",
-    "Glob",
-    "Grep",
-    "Bash"
-  ],
+  "allowedTools": ["read", "glob", "grep", "shell"],
   "skipPermissionPrompt": false,
   "createdBy": "react-component-library"
 }

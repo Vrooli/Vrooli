@@ -156,6 +156,7 @@ func diffResultToProto(res bl.DiffResult) *baselinesv1.DiffResult {
 		Verdict:      string(res.Verdict),
 		DirtyWarning: res.DirtyWarning,
 		Evidence:     evidenceToProto(res.Evidence),
+		Comparison:   res.Comparison,
 	}
 	out.Phases = append(out.Phases, res.Phases...)
 	return out

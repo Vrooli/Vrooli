@@ -9,7 +9,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "api",
-      "description": "Implement API endpoint for queueing backlog items for processing via ecosystem-manager integration",
+      "description": "Implement API endpoint for queueing backlog items for Swarm Manager planning and execution workflows",
       "validation": [
         {
           "type": "test",

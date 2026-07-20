@@ -31,23 +31,6 @@ const (
 	VerdictNotComparable Verdict = "not-comparable"
 )
 
-var verdictRank = map[Verdict]int{
-	VerdictClean:         0,
-	VerdictChanged:       1,
-	VerdictPreexisting:   2,
-	VerdictNewFailure:    3,
-	VerdictNotComparable: 4,
-	VerdictRegression:    5,
-}
-
-// WorseVerdict returns the higher-severity verdict.
-func WorseVerdict(a, b Verdict) Verdict {
-	if verdictRank[b] > verdictRank[a] {
-		return b
-	}
-	return a
-}
-
 // RunAnchor is the single immutable Test Genie run referenced by a baseline.
 // DescriptorSnapshotRef is deliberately opaque to GCT: it identifies the
 // snapshot inside the owning run and is never a filesystem path.
@@ -60,6 +43,9 @@ type RunAnchor struct {
 	DescriptorSnapshotRef           string    `json:"descriptor_snapshot_ref,omitempty"`
 	DescriptorSnapshotDigest        string    `json:"descriptor_snapshot_digest,omitempty"`
 	DescriptorSnapshotSchemaVersion int       `json:"descriptor_snapshot_schema_version,omitempty"`
+	EvidenceTier                    string    `json:"evidence_tier,omitempty"`
+	SourceScope                     string    `json:"source_scope,omitempty"`
+	SourceStable                    bool      `json:"source_stable"`
 }
 
 // MigrationInfo preserves honest diagnostics for a V1 manifest whose run can
@@ -91,7 +77,8 @@ type BaselineManifest struct {
 // RunID returns the baseline's sole Test Genie run identity.
 func (m BaselineManifest) RunID() string { return m.Run.RunID }
 
-// Validate enforces the V2 single-run invariant before persistence.
+// Validate enforces the single-run invariant before persistence. The scoped
+// fields are additive: historical V2 manifests remain readable.
 func (m BaselineManifest) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return fmt.Errorf("baseline name is required")

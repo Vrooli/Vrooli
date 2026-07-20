@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS assisted_workflows (
   requested_version TEXT NOT NULL DEFAULT '',
   agent_manager_task_id TEXT NOT NULL DEFAULT '',
   agent_manager_run_id TEXT NOT NULL DEFAULT '',
+  agent_manager_execution_id TEXT NOT NULL DEFAULT '',
   idempotency_key TEXT NOT NULL,
   status TEXT NOT NULL,
   last_event_sequence INTEGER NOT NULL DEFAULT 0,

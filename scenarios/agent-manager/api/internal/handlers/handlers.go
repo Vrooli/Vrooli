@@ -946,12 +946,13 @@ func reconcileScenarioProfilesToProto(result *orchestration.ReconcileScenarioPro
 	items := make([]*apipb.ProfileReconcileResult, 0, len(result.Results))
 	for _, item := range result.Results {
 		items = append(items, &apipb.ProfileReconcileResult{
-			ProfileKey: item.ProfileKey,
-			SourcePath: item.SourcePath,
-			SourceHash: item.SourceHash,
-			ProfileId:  item.ProfileID,
-			Status:     profileReconcileStatusToProto(item.Status),
-			Message:    item.Message,
+			ProfileKey:  item.ProfileKey,
+			SourcePath:  item.SourcePath,
+			SourceHash:  item.SourceHash,
+			ProfileId:   item.ProfileID,
+			Status:      profileReconcileStatusToProto(item.Status),
+			Message:     item.Message,
+			Diagnostics: workflowDiagnosticsToProto(item.Diagnostics),
 		})
 	}
 	return &apipb.ReconcileScenarioProfilesResponse{
@@ -2830,13 +2831,15 @@ func (h *Handler) GetRunnerStatus(w http.ResponseWriter, r *http.Request) {
 			Available: s.Available,
 			Message:   s.Message,
 			Capabilities: protoconv.RunnerCapabilities{
-				SupportsMessages:     s.Capabilities.SupportsMessages,
-				SupportsToolEvents:   s.Capabilities.SupportsToolEvents,
-				SupportsCostTracking: s.Capabilities.SupportsCostTracking,
-				SupportsStreaming:    s.Capabilities.SupportsStreaming,
-				SupportsCancellation: s.Capabilities.SupportsCancellation,
-				MaxTurns:             s.Capabilities.MaxTurns,
-				SupportedModels:      s.Capabilities.SupportedModels,
+				SupportsMessages:        s.Capabilities.SupportsMessages,
+				SupportsToolEvents:      s.Capabilities.SupportsToolEvents,
+				SupportsCostTracking:    s.Capabilities.SupportsCostTracking,
+				SupportsStreaming:       s.Capabilities.SupportsStreaming,
+				SupportsCancellation:    s.Capabilities.SupportsCancellation,
+				MaxTurns:                s.Capabilities.MaxTurns,
+				SupportedModels:         s.Capabilities.SupportedModels,
+				SupportsToolRestriction: s.Capabilities.SupportsToolRestriction,
+				ToolRestrictionMappings: s.Capabilities.ToolRestrictionMappings,
 			},
 		}
 	}

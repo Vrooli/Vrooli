@@ -60,6 +60,9 @@ type OpenCode struct {
 	ollama *ollamaLister
 }
 
+// OpenCode exposes no per-launch native tool allowlist.
+var openCodeToolTranslations = map[domain.CanonicalTool]string{}
+
 // opencodeBase is the identity shared by NewOpenCode and NewOpenCodeForTest.
 func opencodeBase() baseCodec {
 	return baseCodec{
@@ -112,8 +115,10 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 		SupportsCostTracking:     true, // step_finish tokens + cost parsed in handleStepFinish
 		SupportsStreaming:        true, // JSON event stream via `run --format json`
 		SupportsCancellation:     true,
-		SupportsContinuation:     true, // `--session <id>`
-		SupportsImageAttachments: true, // `opencode run -f/--file <FILE>`
+		SupportsContinuation:     true,  // `--session <id>`
+		SupportsImageAttachments: true,  // `opencode run -f/--file <FILE>`
+		SupportsToolRestriction:  false, // OpenCode has no per-launch allowlist for its native tools.
+		ToolRestrictionMappings:  canonicalToolMappings(openCodeToolTranslations),
 		MaxTurns:                 0,
 		SupportedModels:          c.ollama.list(),
 		SupportsRunnerDefault:    true,

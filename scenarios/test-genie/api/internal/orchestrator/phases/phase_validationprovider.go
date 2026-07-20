@@ -191,6 +191,7 @@ func defaultDelegatedClient(ctx context.Context, env workspace.Environment, _ io
 func runValidationProviderPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer, provider validationprovider.Provider, client DelegatedClient) RunReport {
 	var summary validationprovider.Summary
 	var findings []*architecturev1.ArchitectureFinding
+	var maturityAssessment *commonv1.MaturityAssessment
 	var execMetrics *commonv1.ExecutionMetrics
 	var presentation *commonv1.PhasePresentation
 	var findingsSummary *runspb.PhaseFindingsSummary
@@ -199,6 +200,7 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 			result := client(ctx, env, logWriter, provider)
 			if result != nil {
 				findings = result.Findings
+				maturityAssessment = result.Assessment
 				execMetrics = result.Metrics
 				presentation = result.Presentation
 				findingsSummary = result.FindingsSummary
@@ -229,6 +231,7 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 	)
 
 	report.Findings = findings
+	report.Assessment = maturityAssessment
 	report.Metrics = execMetrics
 	report.PhasePresentation = presentation
 	report.FindingsSummary = findingsSummary

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -22,6 +23,33 @@ import (
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
+
+func TestIsLinkedWorktreeDistinguishesPrimaryAndStrictWorktree(t *testing.T) {
+	primary := t.TempDir()
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", primary}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	runGit("init")
+	runGit("config", "user.email", "tests@example.invalid")
+	runGit("config", "user.name", "Test")
+	if err := os.WriteFile(filepath.Join(primary, "tracked.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit("add", "tracked.txt")
+	runGit("commit", "-m", "fixture")
+	linked := filepath.Join(t.TempDir(), "linked")
+	runGit("worktree", "add", linked)
+	if isLinkedWorktree(primary) {
+		t.Fatal("primary checkout must not satisfy strict linked-worktree provenance")
+	}
+	if !isLinkedWorktree(linked) {
+		t.Fatal("linked worktree must satisfy strict provenance precondition")
+	}
+}
 
 type stubRequirementsSyncer struct {
 	calls         int

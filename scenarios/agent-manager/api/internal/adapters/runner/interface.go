@@ -109,6 +109,14 @@ type Capabilities struct {
 	// SupportsImageAttachments indicates the runner can accept image file attachments.
 	SupportsImageAttachments bool
 
+	// SupportsToolRestriction reports whether this runner can enforce the
+	// canonical AllowedTools restriction for an individual launch.
+	SupportsToolRestriction bool
+
+	// ToolRestrictionMappings maps canonical profile tools to native runner
+	// names. An empty map is the explicit unsupported stance.
+	ToolRestrictionMappings map[string]string
+
 	// MaxTurns is the maximum number of turns this runner supports (0 = unlimited).
 	MaxTurns int
 

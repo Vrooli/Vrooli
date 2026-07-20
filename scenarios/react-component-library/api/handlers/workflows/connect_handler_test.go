@@ -12,7 +12,7 @@ func TestWorkflowProtoMappingPreservesControlState(t *testing.T) {
 	now := time.Date(2026, time.July, 15, 0, 0, 0, 0, time.UTC)
 	got := toProto(internal.Workflow{
 		ID: "wf-1", Kind: internal.KindAdopt, Status: internal.StatusRunning,
-		AssetID: "asset-1", TargetScenario: "target", AgentManagerRunID: "run-1",
+		AssetID: "asset-1", TargetScenario: "target", AgentManagerRunID: "run-1", AgentManagerExecutionID: "execution-1",
 		CreatedAt: now, UpdatedAt: now,
 	})
 	if got.Id != "wf-1" || got.Kind != workflowspb.WorkflowKind_WORKFLOW_KIND_ADOPT || got.Status != workflowspb.WorkflowStatus_WORKFLOW_STATUS_RUNNING {
@@ -20,6 +20,9 @@ func TestWorkflowProtoMappingPreservesControlState(t *testing.T) {
 	}
 	if !got.CanStop || got.CanRetry {
 		t.Fatalf("running workflow controls = stop:%v retry:%v, want true/false", got.CanStop, got.CanRetry)
+	}
+	if got.AgentManagerExecutionId != "execution-1" {
+		t.Fatalf("execution reference=%q, want execution-1", got.AgentManagerExecutionId)
 	}
 
 	terminal := toProto(internal.Workflow{Status: internal.StatusFailed})

@@ -1,6 +1,6 @@
 # swarm-manager Interoperability Audit
 
-> Current State (2026-03-28): Active runtime interop is graph-first backlog/scenarios/settings/execution/prompts with agent-manager and optional ecosystem-manager. Any recommendation-endpoint references are historical context.
+> Current State (2026-03-28): Active runtime interop is graph-first backlog/scenarios/settings/execution/prompts with agent-manager and optional swarm-manager. Any recommendation-endpoint references are historical context.
 
 ## Last Updated
 2026-05-06
@@ -9,7 +9,7 @@
 | Dependency | Declared | Used in Code | Required/Optional | Status |
 |---|---|---|---|---|
 | agent-manager | Yes (`service.json`) | `internal/agentmanager/client.go` | Required | Proto-based, discovery per-request, 20s timeout |
-| ecosystem-manager | Yes (`service.json`) | `internal/ecosystem/client.go` | Required | JSON-based (no ecosystem-manager protos), discovery per-request, 20s timeout |
+| swarm-manager | Yes (`service.json`) | `internal/ecosystem/client.go` | Required | JSON-based (no swarm-manager protos), discovery per-request, 20s timeout |
 | knowledge-observatory | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 | visited-tracker | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 | scenario-completeness-scoring | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
@@ -44,7 +44,7 @@
 
 ## Discovery/Lifecycle Findings
 1. `agentmanager/client.go`: Uses `discovery.ResolveScenarioURLDefault(ctx, "agent-manager")` via `baseURLResolver` — resolved per-request, not cached at startup.
-2. `ecosystem/client.go`: Uses `discovery.ResolveScenarioURLDefault(ctx, "ecosystem-manager")` — resolved per-request.
+2. `ecosystem/client.go`: Uses `discovery.ResolveScenarioURLDefault(ctx, "swarm-manager")` — resolved per-request.
 3. No hardcoded `localhost:port` in production integration paths.
 4. Both clients use `http.NewRequestWithContext` for context propagation with 20s timeouts.
 5. Dependency parity: all declared `required` dependencies in `service.json` have corresponding adapter code.
@@ -109,7 +109,7 @@
 1. **String-to-enum migration**: `scenario.proto`, `backlog.proto`, and `execution.proto` encode lifecycle states as strings with `in:` constraints; full proto enums would be safer but require a deprecation/migration plan.
 2. **Agent-manager `UseProtoNames: false`**: The agent-manager client uses `lowerCamelCase` JSON field names (not proto snake_case) because agent-manager expects camelCase. This is intentional but should be documented/tested to prevent accidental changes.
 3. **File content endpoints**: File read/write endpoints intentionally use raw/streamed responses rather than proto wrappers.
-4. **Ecosystem-manager JSON payloads**: `ecosystem/client.go` uses `encoding/json` with a hand-written `Task` struct because no ecosystem-manager proto schemas exist yet. When ecosystem-manager protos are created, this client should migrate to protojson.
+4. **swarm-manager JSON payloads**: `ecosystem/client.go` uses `encoding/json` with a hand-written `Task` struct because no swarm-manager proto schemas exist yet. When swarm-manager protos are created, this client should migrate to protojson.
 5. **Go inter-scenario retry policy**: Neither `agentmanager` nor `ecosystem` clients implement retry/backoff (single attempt, then error). For required dependencies this fail-fast behavior is acceptable, but bounded retry on transient/transport errors would improve resilience.
 
 ## Proper/Complete Gates

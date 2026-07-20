@@ -35,8 +35,9 @@ type AgentProfile struct {
 	Timeout  time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
 
 	// Tool permissions
-	AllowedTools []string `json:"allowedTools,omitempty" db:"allowed_tools"`
-	DeniedTools  []string `json:"deniedTools,omitempty" db:"denied_tools"`
+	AllowedTools          []string              `json:"allowedTools,omitempty" db:"allowed_tools"`
+	DeniedTools           []string              `json:"deniedTools,omitempty" db:"denied_tools"`
+	ToolRestrictionPolicy ToolRestrictionPolicy `json:"toolRestrictionPolicy,omitempty" db:"tool_restriction_policy"`
 
 	// Execution flags
 	SkipPermissionPrompt bool `json:"skipPermissionPrompt,omitempty" db:"skip_permission_prompt"`
@@ -67,6 +68,60 @@ type AgentProfile struct {
 	LocalOverride   bool      `json:"localOverride,omitempty" db:"local_override"`
 	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt       time.Time `json:"updatedAt" db:"updated_at"`
+}
+
+// CanonicalTool is the runner-neutral vocabulary used by profile tool
+// restrictions. Codecs translate these coarse capabilities to their native
+// command names at launch time.
+type CanonicalTool string
+
+const (
+	CanonicalToolRead      CanonicalTool = "read"
+	CanonicalToolWrite     CanonicalTool = "write"
+	CanonicalToolEdit      CanonicalTool = "edit"
+	CanonicalToolGlob      CanonicalTool = "glob"
+	CanonicalToolGrep      CanonicalTool = "grep"
+	CanonicalToolShell     CanonicalTool = "shell"
+	CanonicalToolWebSearch CanonicalTool = "web_search"
+	CanonicalToolWebFetch  CanonicalTool = "web_fetch"
+)
+
+// CanonicalTools returns the complete, stable profile tool vocabulary.
+func CanonicalTools() []CanonicalTool {
+	return []CanonicalTool{
+		CanonicalToolRead, CanonicalToolWrite, CanonicalToolEdit, CanonicalToolGlob,
+		CanonicalToolGrep, CanonicalToolShell, CanonicalToolWebSearch, CanonicalToolWebFetch,
+	}
+}
+
+// ToolRestrictionPolicy determines what happens when the selected runner
+// cannot enforce a non-empty allowedTools restriction.
+type ToolRestrictionPolicy string
+
+const (
+	ToolRestrictionPolicyEnforced ToolRestrictionPolicy = "enforced"
+	ToolRestrictionPolicyAdvisory ToolRestrictionPolicy = "advisory"
+)
+
+func (p ToolRestrictionPolicy) IsValid() bool {
+	return p == "" || p == ToolRestrictionPolicyEnforced || p == ToolRestrictionPolicyAdvisory
+}
+
+func (p ToolRestrictionPolicy) Effective() ToolRestrictionPolicy {
+	if p == "" {
+		return ToolRestrictionPolicyEnforced
+	}
+	return p
+}
+
+// IsValid reports whether the tool belongs to the canonical profile vocabulary.
+func (t CanonicalTool) IsValid() bool {
+	for _, valid := range CanonicalTools() {
+		if t == valid {
+			return true
+		}
+	}
+	return false
 }
 
 // RunnerType identifies which agent runner to use.
@@ -1080,8 +1135,9 @@ type RunConfig struct {
 	ResultSpec *ResultSpec `json:"resultSpec,omitempty"`
 
 	// Tool permissions
-	AllowedTools []string `json:"allowedTools,omitempty"`
-	DeniedTools  []string `json:"deniedTools,omitempty"`
+	AllowedTools          []string              `json:"allowedTools,omitempty"`
+	DeniedTools           []string              `json:"deniedTools,omitempty"`
+	ToolRestrictionPolicy ToolRestrictionPolicy `json:"toolRestrictionPolicy,omitempty"`
 
 	// Execution flags
 	SkipPermissionPrompt bool `json:"skipPermissionPrompt,omitempty"`
@@ -1119,6 +1175,7 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	c.Timeout = profile.Timeout
 	c.AllowedTools = profile.AllowedTools
 	c.DeniedTools = profile.DeniedTools
+	c.ToolRestrictionPolicy = profile.ToolRestrictionPolicy.Effective()
 	c.SkipPermissionPrompt = profile.SkipPermissionPrompt
 	c.Features = profile.Features
 	if len(profile.ExtraFlags) > 0 {
@@ -1149,11 +1206,12 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 // of its own.
 func DefaultRunConfig() *RunConfig {
 	return &RunConfig{
-		RunnerType:    RunnerTypeClaudeCode,
-		MaxTurns:      30,
-		Timeout:       60 * time.Minute,
-		NetworkAccess: NetworkAccessLocalhost,
-		SandboxConfig: DefaultSandboxConfig(),
+		RunnerType:            RunnerTypeClaudeCode,
+		MaxTurns:              30,
+		Timeout:               60 * time.Minute,
+		NetworkAccess:         NetworkAccessLocalhost,
+		ToolRestrictionPolicy: ToolRestrictionPolicyEnforced,
+		SandboxConfig:         DefaultSandboxConfig(),
 	}
 }
 

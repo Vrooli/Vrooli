@@ -53,6 +53,12 @@ type Claude struct {
 	baseCodec
 }
 
+var claudeToolTranslations = map[domain.CanonicalTool]string{
+	domain.CanonicalToolRead: "Read", domain.CanonicalToolWrite: "Write", domain.CanonicalToolEdit: "Edit",
+	domain.CanonicalToolGlob: "Glob", domain.CanonicalToolGrep: "Grep", domain.CanonicalToolShell: "Bash",
+	domain.CanonicalToolWebSearch: "WebSearch", domain.CanonicalToolWebFetch: "WebFetch",
+}
+
 // claudeBase is the identity shared by NewClaude and NewClaudeForTest.
 func claudeBase() baseCodec {
 	return baseCodec{
@@ -99,6 +105,8 @@ func (c *Claude) Capabilities() runner.Capabilities {
 		SupportsCancellation:     true,
 		SupportsContinuation:     true, // Claude Code supports --resume
 		SupportsImageAttachments: true,
+		SupportsToolRestriction:  true,
+		ToolRestrictionMappings:  canonicalToolMappings(claudeToolTranslations),
 		MaxTurns:                 0, // unlimited
 		SupportsRunnerDefault:    true,
 		SupportedFeatures:        []string{"EnableBrowser"},
@@ -156,7 +164,11 @@ func (c *Claude) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 	}
 
 	if len(cfg.AllowedTools) > 0 {
-		args = append(args, "--allowedTools", strings.Join(cfg.AllowedTools, ","))
+		tools, err := translateCanonicalTools(claudeToolTranslations, cfg.AllowedTools)
+		if err != nil {
+			panic(err)
+		}
+		args = append(args, "--allowedTools", strings.Join(tools, ","))
 	}
 
 	if req.SystemPrompt != "" {
@@ -178,14 +190,24 @@ func (c *Claude) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 // BuildContinueArgs satisfies [Codec]. Claude has no per-run state to
 // stash; the state argument is unused.
 func (c *Claude) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
-	return []string{
+	args := []string{
 		"--print",
 		"--output-format", "stream-json",
 		"--verbose",
 		"--resume", req.SessionID,
-		"--dangerously-skip-permissions",
-		"-",
 	}
+	cfg := req.GetConfig()
+	if cfg.SkipPermissionPrompt {
+		args = append(args, "--dangerously-skip-permissions")
+	}
+	if len(cfg.AllowedTools) > 0 {
+		tools, err := translateCanonicalTools(claudeToolTranslations, cfg.AllowedTools)
+		if err != nil {
+			panic(err)
+		}
+		args = append(args, "--allowedTools", strings.Join(tools, ","))
+	}
+	return append(args, "-")
 }
 
 // =============================================================================

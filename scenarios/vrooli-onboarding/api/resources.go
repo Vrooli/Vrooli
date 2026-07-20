@@ -31,8 +31,8 @@ type Resource struct {
 // categoryMap maps resource names to human-friendly categories.
 var categoryMap = map[string]string{
 	// Databases & storage
-	"postgres": "database", "postgis": "database", "redis": "database",
-	"qdrant": "database", "neo4j": "database", "sqlite": "database",
+	"postgres": "database", "redis": "database",
+	"qdrant": "database", "sqlite": "database",
 	"minio": "storage",
 	// AI / ML
 	"ollama": "ai", "claude-code": "ai", "autogpt": "ai", "autogen-studio": "ai",
@@ -47,7 +47,7 @@ var categoryMap = map[string]string{
 	// Engineering / simulation
 	"freecad": "engineering", "blender": "engineering", "kicad": "engineering",
 	"gazebo": "engineering", "elmer-fem": "engineering", "su2": "engineering",
-	"godot": "engineering", "sagemath": "engineering", "simpy": "engineering",
+	"godot": "engineering", "simpy": "engineering",
 	// DevOps / infrastructure
 	"earthly": "devops", "k6": "devops", "judge0": "devops",
 	"n8n": "devops", "kafka": "devops",
@@ -70,7 +70,7 @@ var categoryMap = map[string]string{
 	// Agriculture
 	"farmos": "agriculture",
 	// Networking
-	"cloudflare-ai-gateway": "networking", "mcrcon": "networking",
+	"mcrcon": "networking",
 }
 
 func categorize(name string) string {

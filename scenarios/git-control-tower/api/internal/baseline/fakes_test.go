@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"git-control-tower/internal/git"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 // fakeExecutor returns a canned ExecResult and records how many comprehensive
@@ -38,6 +39,22 @@ func (f *fakeExecutor) AwaitResult(_ context.Context, _, runID string) (ExecResu
 	}
 	r := f.result
 	r.RunID = runID
+	if r.TreeDigest == "" {
+		r.TreeDigest = "td:fixture"
+	}
+	if r.TreeDigest != "" && !r.GitDirty {
+		r.GateQuality = true
+	}
+	if r.TreeDigest != "" && r.SourceScope == "" {
+		r.SourceScope, r.SourceStable = "scenario:test", true
+	}
+	if r.EvidenceTier == "" && r.SourceStable {
+		if r.GateQuality {
+			r.EvidenceTier = "strict"
+		} else {
+			r.EvidenceTier = "shared-scoped"
+		}
+	}
 	return r, nil
 }
 
@@ -48,7 +65,7 @@ func (f *fakeExecutor) RunStatus(_ context.Context, _, _ string) (RunStatusInfo,
 	return RunStatusInfo{Status: "passed", Terminal: true, Success: true}, nil
 }
 
-func (f *fakeExecutor) FindReusableRun(_ context.Context, _, _ string) (ReusableRun, bool, error) {
+func (f *fakeExecutor) FindReusableRun(_ context.Context, _ string) (ReusableRun, bool, error) {
 	if f.findErr != nil {
 		return ReusableRun{}, false, f.findErr
 	}
@@ -95,7 +112,11 @@ func (f *fakeRuns) UnpinRun(_ context.Context, scenario, runID, by string) error
 }
 
 func (f *fakeRuns) CompareRuns(_ context.Context, _, _, _, _ string) (CompareResult, error) {
-	return f.compare, f.compareErr
+	result := f.compare
+	if result.Comparison == nil {
+		result.Comparison = &runspb.CompareRunsResponse{SchemaVersion: 2, Verdict: result.Verdict, Phases: result.Phases, Behavior: result.Verdict, Coverage: "measured", Compatibility: "compatible", Provenance: "verified"}
+	}
+	return result, f.compareErr
 }
 
 func (f *fakeRuns) ListRunArtifacts(_ context.Context, _, runID string) (ArtifactCatalog, error) {
