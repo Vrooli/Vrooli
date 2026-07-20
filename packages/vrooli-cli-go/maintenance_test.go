@@ -33,20 +33,20 @@ func TestOrphansDecodesProcesses(t *testing.T) {
 func TestDiagnosePortBuildsArgvAndDecodes(t *testing.T) {
 	runner := &stubRunner{
 		responses: []stubResponse{
-			{output: []byte(`{"success":true,"diagnostic":{"port":16542,"scenario":"ecosystem-manager","in_use":true,"host_orphan_count":0}}`)},
+			{output: []byte(`{"success":true,"diagnostic":{"port":16542,"scenario":"swarm-manager","in_use":true,"host_orphan_count":0}}`)},
 		},
 	}
 	client := New(WithRunner(runner))
 
-	resp, err := client.DiagnosePort(context.Background(), 16542, "ecosystem-manager")
+	resp, err := client.DiagnosePort(context.Background(), 16542, "swarm-manager")
 	if err != nil {
 		t.Fatalf("DiagnosePort returned error: %v", err)
 	}
 	diag := resp.GetDiagnostic()
-	if diag.GetPort() != 16542 || diag.GetScenario() != "ecosystem-manager" || !diag.GetInUse() {
+	if diag.GetPort() != 16542 || diag.GetScenario() != "swarm-manager" || !diag.GetInUse() {
 		t.Fatalf("diagnostic not decoded: %+v", diag)
 	}
-	if want := []string{"--no-stale-check", "diagnose-port", "16542", "ecosystem-manager", "--json"}; !reflect.DeepEqual(runner.calls[0].args, want) {
+	if want := []string{"--no-stale-check", "diagnose-port", "16542", "swarm-manager", "--json"}; !reflect.DeepEqual(runner.calls[0].args, want) {
 		t.Fatalf("argv = %v, want %v", runner.calls[0].args, want)
 	}
 }

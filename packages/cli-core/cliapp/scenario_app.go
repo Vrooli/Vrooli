@@ -39,37 +39,38 @@ func defaultIfEmpty(value, fallback string) string {
 // scenarios don't have to repeat config loading, API client setup, stale
 // checking, and configure command plumbing.
 type ScenarioOptions struct {
-	Name               string
-	Version            string
-	Description        string
-	DefaultAPIBase     string
-	APIPrefix          string
-	HealthPath         string
-	LegacyHealthPaths  []string
-	APIEnvVars         []string
-	APIPortEnvVars     []string
-	APIPortDetector    func() string
-	ConfigDirEnvVars   []string
-	SourceRootEnvVars  []string
-	ColorEnabled       *bool
-	OnColor            func(enabled bool)
-	Commands           []CommandGroup
-	SubcommandGroups   []SubcommandGroup
-	TokenKeys          []string
-	APIBaseKeys        []string
-	TokenEnvVars       []string
-	Preflight          func(cmd Command, global GlobalOptions, app *ScenarioApp) error
-	UnknownCommandHint func(args []string) string
-	BuildFingerprint   string
-	BuildTimestamp     string
-	BuildSourceRoot    string
-	SourceContextPath  string
-	ManifestSourcePath string
-	FreshnessInputs    []string
-	HTTPClientOptions  cliutil.HTTPClientOptions
-	HTTPTimeoutEnvVars []string
-	DefaultHTTPTimeout time.Duration
-	AllowAnonymous     bool
+	Name                  string
+	Version               string
+	Description           string
+	DefaultAPIBase        string
+	APIPrefix             string
+	HealthPath            string
+	LegacyHealthPaths     []string
+	APIEnvVars            []string
+	APIPortEnvVars        []string
+	APIPortDetector       func() string
+	RuntimeStatusDetector func() string
+	ConfigDirEnvVars      []string
+	SourceRootEnvVars     []string
+	ColorEnabled          *bool
+	OnColor               func(enabled bool)
+	Commands              []CommandGroup
+	SubcommandGroups      []SubcommandGroup
+	TokenKeys             []string
+	APIBaseKeys           []string
+	TokenEnvVars          []string
+	Preflight             func(cmd Command, global GlobalOptions, app *ScenarioApp) error
+	UnknownCommandHint    func(args []string) string
+	BuildFingerprint      string
+	BuildTimestamp        string
+	BuildSourceRoot       string
+	SourceContextPath     string
+	ManifestSourcePath    string
+	FreshnessInputs       []string
+	HTTPClientOptions     cliutil.HTTPClientOptions
+	HTTPTimeoutEnvVars    []string
+	DefaultHTTPTimeout    time.Duration
+	AllowAnonymous        bool
 	// HealthFetcher, when non-nil, replaces the built-in REST health probe
 	// used by the standard `status` command and `ensureAPIReachable`
 	// preflight. It must return a JSON body matching the legacy health
@@ -214,34 +215,35 @@ func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) 
 	})
 
 	app, err := NewScenarioApp(ScenarioOptions{
-		Name:               opts.Name,
-		Version:            opts.Version,
-		Description:        opts.Description,
-		DefaultAPIBase:     opts.DefaultAPIBase,
-		APIPrefix:          opts.APIPrefix,
-		HealthPath:         opts.HealthPath,
-		LegacyHealthPaths:  opts.LegacyHealthPaths,
-		APIEnvVars:         env.APIEnvVars,
-		APIPortEnvVars:     env.APIPortEnvVars,
-		APIPortDetector:    cliutil.DetectPortFromVrooli(opts.Name, "API_PORT"),
-		ConfigDirEnvVars:   env.ConfigDirEnvVars,
-		SourceRootEnvVars:  env.SourceRootEnvVars,
-		ColorEnabled:       opts.ColorEnabled,
-		OnColor:            opts.OnColor,
-		TokenEnvVars:       env.TokenEnvVars,
-		Preflight:          opts.Preflight,
-		UnknownCommandHint: opts.UnknownCommandHint,
-		BuildFingerprint:   opts.BuildFingerprint,
-		BuildTimestamp:     opts.BuildTimestamp,
-		BuildSourceRoot:    opts.BuildSourceRoot,
-		SourceContextPath:  "..",
-		ManifestSourcePath: defaultIfEmpty(opts.ManifestSourcePath, ".vrooli/service.json"),
-		FreshnessInputs:    resolveFreshnessInputs(opts.FreshnessInputs, []string{"cli/**", ".vrooli/service.json", "../../packages/cli-core"}),
-		HTTPClientOptions:  opts.HTTPClientOptions,
-		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
-		DefaultHTTPTimeout: opts.DefaultHTTPTimeout,
-		AllowAnonymous:     opts.AllowAnonymous,
-		HealthFetcher:      opts.HealthFetcher,
+		Name:                  opts.Name,
+		Version:               opts.Version,
+		Description:           opts.Description,
+		DefaultAPIBase:        opts.DefaultAPIBase,
+		APIPrefix:             opts.APIPrefix,
+		HealthPath:            opts.HealthPath,
+		LegacyHealthPaths:     opts.LegacyHealthPaths,
+		APIEnvVars:            env.APIEnvVars,
+		APIPortEnvVars:        env.APIPortEnvVars,
+		APIPortDetector:       cliutil.DetectPortFromVrooli(opts.Name, "API_PORT"),
+		RuntimeStatusDetector: cliutil.DetectScenarioRuntimeStatus(opts.Name),
+		ConfigDirEnvVars:      env.ConfigDirEnvVars,
+		SourceRootEnvVars:     env.SourceRootEnvVars,
+		ColorEnabled:          opts.ColorEnabled,
+		OnColor:               opts.OnColor,
+		TokenEnvVars:          env.TokenEnvVars,
+		Preflight:             opts.Preflight,
+		UnknownCommandHint:    opts.UnknownCommandHint,
+		BuildFingerprint:      opts.BuildFingerprint,
+		BuildTimestamp:        opts.BuildTimestamp,
+		BuildSourceRoot:       opts.BuildSourceRoot,
+		SourceContextPath:     "..",
+		ManifestSourcePath:    defaultIfEmpty(opts.ManifestSourcePath, ".vrooli/service.json"),
+		FreshnessInputs:       resolveFreshnessInputs(opts.FreshnessInputs, []string{"cli/**", ".vrooli/service.json", "../../packages/cli-core"}),
+		HTTPClientOptions:     opts.HTTPClientOptions,
+		HTTPTimeoutEnvVars:    env.HTTPTimeoutEnvVars,
+		DefaultHTTPTimeout:    opts.DefaultHTTPTimeout,
+		AllowAnonymous:        opts.AllowAnonymous,
+		HealthFetcher:         opts.HealthFetcher,
 	})
 	if err != nil {
 		return nil, err
@@ -285,6 +287,11 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 
 	preflight := func(cmd Command, global GlobalOptions) error {
 		a.warnIfRunningScenarioLocalBinary()
+		if global.DryRun {
+			if err := cmd.globalDryRunError(); err != nil {
+				return err
+			}
+		}
 		// All ScenarioApp transports (JSON REST, Connect, and multipart upload)
 		// reuse HTTPClient.ApplyRequestHeaders. Set this before reachability
 		// checks so the actual command invocation has one stable observation id.
@@ -565,6 +572,7 @@ type apiRecoveryContext struct {
 	DetectedAPIBase   string
 	Cause             string
 	MissingAPIBase    bool
+	RuntimeStatus     string
 }
 
 func (a *ScenarioApp) ensureAPIReachable(cmd Command, autoStart bool) error {
@@ -635,6 +643,9 @@ func (a *ScenarioApp) detectedAPIBase() string {
 }
 
 func (a *ScenarioApp) apiRecoveryError(commandName string, ctx apiRecoveryContext) error {
+	if ctx.DetectedAPIBase == "" && a.options.RuntimeStatusDetector != nil {
+		ctx.RuntimeStatus = strings.TrimSpace(a.options.RuntimeStatusDetector())
+	}
 	report := NewAPIRecoveryReport(APIRecoveryReportOptions{
 		AppName:           a.options.Name,
 		CommandName:       commandName,
@@ -643,6 +654,7 @@ func (a *ScenarioApp) apiRecoveryError(commandName string, ctx apiRecoveryContex
 		DetectedAPIBase:   ctx.DetectedAPIBase,
 		Cause:             ctx.Cause,
 		MissingAPIBase:    ctx.MissingAPIBase,
+		RuntimeStatus:     ctx.RuntimeStatus,
 	})
 	rendered, err := RenderOperationalReportString(report)
 	if err != nil {

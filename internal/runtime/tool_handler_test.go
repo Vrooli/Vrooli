@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
+	"io/fs"
 	"os"
 	"strings"
 	"testing"
@@ -9,6 +11,7 @@ import (
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/tools"
 )
 
 const fetchTestTool = "vrooli-runtime-fetch-test-tool"
@@ -75,6 +78,96 @@ func withUserBin(t *testing.T) string {
 	userLocalBinDir = func() (string, error) { return dir, nil }
 	t.Cleanup(func() { userLocalBinDir = prev })
 	return dir
+}
+
+func withoutCommandOnPath(t *testing.T) {
+	t.Helper()
+	previous := hostreqkit.LookPathFn
+	hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
+	t.Cleanup(func() { hostreqkit.LookPathFn = previous })
+}
+
+func bufManifest(t *testing.T) hostreqkit.ToolManifest {
+	t.Helper()
+	data, err := fs.ReadFile(tools.Manifests, "buf/tool.json")
+	if err != nil {
+		t.Fatalf("read buf manifest: %v", err)
+	}
+	var manifest hostreqkit.ToolManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("parse buf manifest: %v", err)
+	}
+	return manifest
+}
+
+func TestBufManifestUsesVerifiedGenericReleaseTargets(t *testing.T) {
+	manifest := bufManifest(t)
+	if manifest.Handler != "" {
+		t.Fatalf("buf handler = %q; generic runtime handler must own release installation", manifest.Handler)
+	}
+	if manifest.Source == nil || manifest.Source.Type != "release" {
+		t.Fatalf("buf source = %#v; want verified release source", manifest.Source)
+	}
+	for target, wantURLFragment := range map[string]string{
+		"linux/amd64":  "buf-Linux-x86_64",
+		"linux/arm64":  "buf-Linux-aarch64",
+		"darwin/amd64": "buf-Darwin-x86_64",
+		"darwin/arm64": "buf-Darwin-arm64",
+	} {
+		spec, ok := manifest.Source.Targets[target]
+		if !ok {
+			t.Errorf("missing required Buf release target %q", target)
+			continue
+		}
+		if !strings.Contains(spec.URL, wantURLFragment) || len(spec.SHA256) != 64 {
+			t.Errorf("target %s = %#v; want release URL and SHA-256", target, spec)
+		}
+	}
+	if _, ok := manifest.Source.Targets["darwin/386"]; ok {
+		t.Fatal("unsupported Darwin architecture must not silently select a release")
+	}
+}
+
+func TestBufGenericInstallerUsesInvokingUserBinAndConverges(t *testing.T) {
+	withFacts(t, hostreqspec.CapabilityFacts{Arch: "arm64"})
+	withArch(t, "arm64")
+	binDir := withUserBin(t)
+	withoutCommandOnPath(t)
+	manifest := bufManifest(t)
+	h := toolHandler{manifest: manifest}
+	host := hostreqkit.Host{OS: "darwin", PackageManager: "brew"}
+	status := h.Inspect(host, resolved("buf"))
+	if !status.InstallSupported || !notesContain(status.Notes, "~/.vrooli/bin") {
+		t.Fatalf("Buf status = %#v; expected user-local generic install", status)
+	}
+	prevFetch := fetchBinaryFn
+	fetchBinaryFn = func(_ context.Context, spec binaryfetch.Target, dest string, _ binaryfetch.ProgressFunc) (string, error) {
+		if spec.SHA256 == "" || dest != binDir {
+			t.Fatalf("fetch spec/destination = %#v, %q", spec, dest)
+		}
+		path := dest + "/" + spec.Name
+		return path, writeFile(path, []byte("buf"))
+	}
+	t.Cleanup(func() { fetchBinaryFn = prevFetch })
+	applied, err := h.Apply(host, status, hostreqkit.EnsureOptions{})
+	if err != nil || applied.ExecutionState != hostreqkit.ExecutionInstalled {
+		t.Fatalf("first apply = %#v, %v", applied, err)
+	}
+	repeated, err := h.Apply(host, h.Inspect(host, resolved("buf")), hostreqkit.EnsureOptions{})
+	if err != nil || repeated.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
+		t.Fatalf("repeat apply = %#v, %v; want convergence", repeated, err)
+	}
+}
+
+func TestBufGenericInstallerRejectsUndeclaredArchitecture(t *testing.T) {
+	withFacts(t, hostreqspec.CapabilityFacts{Arch: "386"})
+	withArch(t, "386")
+	withUserBin(t)
+	withoutCommandOnPath(t)
+	status := toolHandler{manifest: bufManifest(t)}.Inspect(hostreqkit.Host{OS: "darwin", PackageManager: "brew"}, resolved("buf"))
+	if status.ExecutionState != hostreqkit.ExecutionUnsupported || status.InstallSupported {
+		t.Fatalf("status = %#v; undeclared Darwin architecture must be unsupported", status)
+	}
 }
 
 func TestInspectFetch_GPURequiredSkippedOnCPUHost(t *testing.T) {

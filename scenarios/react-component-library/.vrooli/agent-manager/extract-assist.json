@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "react-component-library",
+  "key": "react-component-library/extract-assist",
+  "version": "1.0.0",
+  "description": "Refactor and extract one scenario asset into the RCL catalog through the authoritative CLI.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "kind": {"type": "string", "enum": ["extract"]},
+      "assetId": {"type": "string", "maxLength": 256},
+      "sourceScenario": {"type": "string", "minLength": 1, "maxLength": 255},
+      "sourcePath": {"type": "string", "minLength": 1, "maxLength": 4096},
+      "requestedVersion": {"type": "string", "maxLength": 128}
+    },
+    "required": ["kind", "sourceScenario", "sourcePath"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {"result": {"type": "object", "properties": {
+      "summary": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "outcome": {"type": "string", "enum": ["completed", "blocked", "failed", "needs_review"]},
+      "evidence": {"type": "array", "items": {"type": "string", "maxLength": 2048}, "maxItems": 20}
+    }, "required": ["summary", "outcome", "evidence"], "additionalProperties": false}},
+    "required": ["result"], "additionalProperties": false
+  },
+  "trigger": {"selfTrigger": {"mode": "deny"}},
+  "nodes": [{"id": "extract", "kind": "run", "run": {
+          "profileKey": "react-component-library/extract-assist",
+
+          "scopePathTemplate": "scenarios/{{.scope_scenario}}",
+    "tag": "react-component-library-extract-assist",
+    "force": true,
+    "promptRef": {"skillId": "rcl-extract-assist"},
+    "resultSpec": {"version": "result-spec/v1", "kind": "json_schema", "extractionMode": "deterministic_only", "schema": {"type": "object", "properties": {
+      "summary": {"type": "string", "minLength": 1, "maxLength": 8192}, "outcome": {"type": "string", "enum": ["completed", "blocked", "failed", "needs_review"]}, "evidence": {"type": "array", "items": {"type": "string", "maxLength": 2048}, "maxItems": 20}
+    }, "required": ["summary", "outcome", "evidence"], "additionalProperties": false}},
+    "bindings": [
+      {"name": "operation", "source": "workflow_input", "selector": "$", "limit": 1, "maxBytes": 16384, "renderAs": "json_pretty", "missingPolicy": "error"},
+      {"name": "scope_scenario", "source": "workflow_input", "selector": "$.sourceScenario", "limit": 1, "maxBytes": 255, "renderAs": "text", "missingPolicy": "error"}
+    ],
+    "maxTurns": 100, "timeoutSeconds": 3600
+  }}],
+  "budgets": {"wallTimeSeconds": 5400, "maxTurns": 100, "maxTokens": 1000000, "maxCostUsd": 50, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 3600},
+  "metadata": {"feature": "assisted-catalog-workflows", "owner": "react-component-library"}
+}

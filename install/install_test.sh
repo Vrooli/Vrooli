@@ -11,6 +11,10 @@ mkdir -p "${RELEASE}" "${TOOLS}"
 cp "${ROOT}/packages/cli-core/install/platform.sh" "${RELEASE}/vrooli-install-lib.sh"
 cat > "${RELEASE}/vrooli_linux_amd64" <<'FIXTURE_BINARY'
 #!/bin/sh
+if [ "${1:-}" = setup ]; then
+    printf '%s\n' "$0 $*" > "${VROOLI_SETUP_RECORD:?VROOLI_SETUP_RECORD is required for setup fixture}"
+    exit 0
+fi
 printf '%s\n' 'vrooli fixture is runnable'
 FIXTURE_BINARY
 chmod 0755 "${RELEASE}/vrooli_linux_amd64"
@@ -46,6 +50,22 @@ test "$("${INSTALL_DIR}/vrooli")" = 'vrooli fixture is runnable'
 test "$(cat "${INSTALL_DIR}/vrooli.fp")" = 'fixture-fingerprint'
 test -f "${TMP}/home/.vrooli/src/${SOURCE_DIGEST}/Vrooli/go.mod"
 test "$(cat "${TMP}/home/.vrooli/source-root")" = "${TMP}/home/.vrooli/src/${SOURCE_DIGEST}/Vrooli"
+
+# A child process cannot update its parent's PATH. When setup is requested in
+# the same installer process, it must therefore invoke the newly installed
+# binary by its absolute path rather than relying on command discovery.
+RUN_SETUP_DIR="${TMP}/run-setup-installed"
+RUN_SETUP_RECORD="${TMP}/run-setup.record"
+env \
+    PATH="${TOOLS}" \
+    HOME="${TMP}/run-setup-home" \
+    VROOLI_RELEASE_BASE_URL="file://${RELEASE}" \
+    VROOLI_RELEASE_PUBLIC_KEY_FILE="${TMP}/public.pem" \
+    VROOLI_INSTALL_DIR="${RUN_SETUP_DIR}" \
+    VROOLI_RUN_SETUP=1 \
+    VROOLI_SETUP_RECORD="${RUN_SETUP_RECORD}" \
+    /bin/sh "${ROOT}/install/install.sh"
+test "$(cat "${RUN_SETUP_RECORD}")" = "${RUN_SETUP_DIR}/vrooli setup"
 
 # The binary freshness fingerprint deliberately covers only inputs that affect
 # the vrooli binary. A release can therefore update other authenticated source

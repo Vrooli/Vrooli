@@ -57,6 +57,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/provenance"
 )
 
 // Config controls HTTP server behavior and lifecycle.
@@ -153,6 +156,18 @@ func Run(cfg Config) error {
 	if cfg.Handler == nil {
 		return errors.New("server.Config.Handler is required (or provide StartServer/ShutdownServer for custom servers)")
 	}
+	// Standard clients used while handling this request inherit verified identity
+	// forwarding through api-core. Field scenarios do not attach workflow tokens
+	// themselves.
+	provenance.InstallDefaultForwardingTransport()
+	// One platform-owned receipt boundary for every standard server. It is
+	// best-effort and self-disables until lifecycle provides scenario identity.
+	cfg.Handler = eventbus.AutomaticRuntime(cfg.Handler)
+	// Every standard API server recognizes a verified Agent Manager caller. The
+	// middleware is passive without the identity header, so scenarios inherit
+	// request-context capture without custom server wiring. Verification failure
+	// remains an explicit context state rather than a request failure.
+	cfg.Handler = provenance.Middleware(provenance.CLIUtilVerifier{})(cfg.Handler)
 
 	return runStandardServer(cfg)
 }

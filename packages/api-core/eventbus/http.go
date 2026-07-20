@@ -3,6 +3,7 @@ package eventbus
 import (
 	"bytes"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/provenance"
@@ -17,7 +18,7 @@ func VerifiedCorrelation(r *http.Request) Correlation {
 	if !p.IsVerifiedAgent() {
 		return Correlation{}
 	}
-	return Correlation{RequestID: p.Invocation.InvocationID, RunID: p.RunID, TaskID: p.TaskID, WorkflowExecutionID: p.WorkflowExecutionID, WorkflowNodeID: p.WorkflowNodeID, Attempt: p.Attempt}
+	return Correlation{RunID: p.RunID, TaskID: p.TaskID, WorkflowExecutionID: p.WorkflowExecutionID, WorkflowNodeID: p.WorkflowNodeID, Attempt: p.Attempt}
 }
 
 // VerifiedIdentityToken returns the inbound opaque token only when the server
@@ -58,10 +59,10 @@ type MiddlewareConfig struct {
 func Middleware(cfg MiddlewareConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Platform receipts are audit evidence, not anonymous telemetry. A
-			// request without verified Agent Manager provenance must not create an
-			// unverified receipt that could later be mistaken for agent work.
-			if !provenance.FromContext(r.Context()).IsVerifiedAgent() {
+			// Agent provenance is optional.  A supplied token that did not verify
+			// must not silently become an anonymous receipt, however: that would
+			// let a caller evade attribution by corrupting its credential.
+			if hasSuppliedUnverifiedIdentity(r) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -103,6 +104,13 @@ func Middleware(cfg MiddlewareConfig) func(http.Handler) http.Handler {
 				ActorKind: actorKind(r), IdentityToken: VerifiedIdentityToken(r)})
 		})
 	}
+}
+
+func hasSuppliedUnverifiedIdentity(r *http.Request) bool {
+	if r == nil || strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) == "" {
+		return false
+	}
+	return !provenance.FromContext(r.Context()).IsVerifiedAgent()
 }
 
 func actorKind(r *http.Request) string {

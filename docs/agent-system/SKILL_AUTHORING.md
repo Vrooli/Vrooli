@@ -308,7 +308,7 @@ To publish a skill:
 
 ### `targetDimensions` (steer skills)
 
-A **steer skill** — one Ecosystem Manager's closed-loop controller may select to
+A **steer skill** — one Swarm Manager's closed-loop controller may select to
 improve a target — additionally declares `targetDimensions` in `skill.json`: the
 improvement dimensions it closes. This is the declared half of the controller's
 skill → dimension capability map; the controller buckets open `test-genie`
@@ -326,7 +326,7 @@ cover the heaviest open cluster.
 
 The dimension vocabulary's single source of truth is
 `packages/maturity-go/dimensions/dimensions.json` (consumed by Ecosystem
-Manager and described in `scenarios/ecosystem-manager/docs/concepts/DIMENSIONS.md`).
+Manager and described in `scenarios/swarm-manager/docs/concepts/DIMENSIONS.md`).
 Every value must be a member of that vocabulary; EM excludes and warns on
 undeclared/out-of-vocabulary dimensions. Non-steer skills omit the field.
 

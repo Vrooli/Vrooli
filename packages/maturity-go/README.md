@@ -2,9 +2,9 @@
 
 Shared single source of truth for **scenario maturity**: the canonical
 improvement-dimension vocabulary and the R0–R4 maturity-ladder gate
-predicates. Extracted verbatim from ecosystem-manager's `pkg/dimensions` and
+predicates. Extracted verbatim from swarm-manager's `pkg/dimensions` and
 `pkg/ladder` by the scenario-status-layer plan so both the live control loop
-(ecosystem-manager) and cached status readers (scenario-completeness-scoring)
+(swarm-manager) and cached status readers (scenario-completeness-scoring)
 compute rungs with the same predicates.
 
 This is a **pure-logic library**: no service calls, no filesystem state, ever.
@@ -177,13 +177,13 @@ clean := ladder.AllHold(sig, ladder.DefaultThresholds(), topRung)
 
 ## Consumers
 
-- `scenarios/ecosystem-manager/api` — autosteer rung selection/termination,
+- `scenarios/swarm-manager/api` — autosteer rung selection/termination,
   findings dimension mapping, effectiveness ledger, skillmap (live findings).
 - `scenarios/scenario-completeness-scoring` — rung headline + per-dimension
   breakdown computed from cached test-genie artifacts (planned by the
   scenario-status-layer plan).
 
-Consumers may legitimately disagree per snapshot: ecosystem-manager computes
+Consumers may legitimately disagree per snapshot: swarm-manager computes
 rungs on live findings; cached readers must label theirs "as of digest td:…".
 
 ## Adoption

@@ -102,7 +102,8 @@ Guidance:
 - `cli/` is the executable entrypoint
 - per-resource Go code lives under `cli/internal/...`, not shell libraries, in the target architecture
 - shared logic should live in common resource control-plane packages rather than copied across resources
-- shell files may remain as transitional adapters while migration is underway, but they are not the design center
+- mature resources do not require shell files; any retained shell adapter is
+  bounded migration debt with a documented replacement and removal criterion
 
 ## Shell Compatibility
 
@@ -113,6 +114,10 @@ They should be treated as:
 - migration debt
 - compatibility shims
 - non-authoritative implementation detail
+
+They are not an acceptable mature-resource dependency because Bash is not a
+native Windows runtime. Lifecycle, configuration, diagnostics, and tests must
+converge on the manifest and Go-native control plane.
 
 They should not be copied into new resources or new templates.
 

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "react-component-library-extract-assist",
+  "profileKey": "react-component-library/extract-assist",
+  "description": "Write-capable RCL extraction assistant. It may refactor source scenario code before the RCL CLI performs catalog ingest.",
+  "roleRef": "code.smart",
+  "maxTurns": 100,
+  "timeout": "3600s",
+  "allowedTools": ["read", "glob", "grep", "shell", "edit", "write"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {"manualReview": true},
+  "createdBy": "react-component-library"
+}

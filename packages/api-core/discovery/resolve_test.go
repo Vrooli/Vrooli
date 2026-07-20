@@ -92,6 +92,21 @@ func TestResolveScenarioPortNotRunning(t *testing.T) {
 	}
 }
 
+func TestResolveScenarioPortNoRuntimePortsIsNotRunning(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(ResolverConfig{
+		CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			return []byte("Runtime error: no running runtime ports found for scenario \"my-scenario\""), errors.New("exit status 1")
+		},
+	})
+
+	_, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT")
+	if !IsScenarioNotRunning(err) {
+		t.Fatalf("expected no-runtime-ports output to classify as stopped, got %v", err)
+	}
+}
+
 func TestResolveScenarioPortVrooliMissing(t *testing.T) {
 	t.Parallel()
 

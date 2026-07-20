@@ -170,11 +170,13 @@
         "config": {
           "declarations": {
             "reconcile": true,
-            "profileMode": "update_if_unmodified",
-            "sources": [
-              ".vrooli/agent-manager/catalog-maintainer.json",
-              ".vrooli/agent-manager/catalog-assist.json"
-            ]
+      "profileMode": "update_if_unmodified",
+      "sources": [
+        ".vrooli/agent-manager/extract-assist-profile.json",
+        ".vrooli/agent-manager/adopt-assist-profile.json",
+        ".vrooli/agent-manager/extract-assist.json",
+        ".vrooli/agent-manager/adopt-assist.json"
+      ]
           }
         }
       }

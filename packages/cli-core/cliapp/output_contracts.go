@@ -50,6 +50,7 @@ type APIRecoveryReportOptions struct {
 	DetectedAPIBase   string
 	Cause             string
 	MissingAPIBase    bool
+	RuntimeStatus     string
 }
 
 func RenderOperationalReport(w io.Writer, report OperationalReport) error {
@@ -126,9 +127,19 @@ func RenderOperationalReportString(report OperationalReport) (string, error) {
 func NewAPIRecoveryReport(opts APIRecoveryReportOptions) OperationalReport {
 	appName := strings.TrimSpace(opts.AppName)
 	commandName := strings.TrimSpace(opts.CommandName)
+	noRuntimeDetected := strings.TrimSpace(opts.DetectedAPIBase) == ""
+	stoppedBeforeBaseResolution := opts.MissingAPIBase && noRuntimeDetected
+	confirmedStopped := strings.EqualFold(strings.TrimSpace(opts.RuntimeStatus), "stopped")
 
 	report := OperationalReport{}
 	switch {
+	case confirmedStopped:
+		// When no API port exists, "API base is empty" is merely an internal
+		// consequence of the scenario being stopped. Lead with the operator's
+		// actionable condition instead of sending them toward configuration.
+		report.Status = append(report.Status, fmt.Sprintf("%s is stopped, so its local API is unavailable.", appName))
+	case stoppedBeforeBaseResolution:
+		report.Status = append(report.Status, fmt.Sprintf("No local %s API was detected.", appName))
 	case opts.MissingAPIBase:
 		report.Status = append(report.Status, fmt.Sprintf("Unable to resolve the %s API base.", appName))
 	default:
@@ -137,7 +148,7 @@ func NewAPIRecoveryReport(opts APIRecoveryReportOptions) OperationalReport {
 	if resolved := strings.TrimSpace(opts.ResolvedAPIBase); resolved != "" {
 		report.Status = append(report.Status, fmt.Sprintf("Resolved API base: %s", resolved))
 	}
-	if cause := strings.TrimSpace(opts.Cause); cause != "" {
+	if cause := strings.TrimSpace(opts.Cause); cause != "" && !stoppedBeforeBaseResolution {
 		report.Status = append(report.Status, fmt.Sprintf("Last error: %s", cause))
 	}
 
@@ -145,7 +156,11 @@ func NewAPIRecoveryReport(opts APIRecoveryReportOptions) OperationalReport {
 	if detected := strings.TrimSpace(opts.DetectedAPIBase); detected != "" {
 		runtimeItems = append(runtimeItems, fmt.Sprintf("Detected running API base: %s", detected))
 	} else {
-		runtimeItems = append(runtimeItems, fmt.Sprintf("No running API port was detected for %s. The scenario may be stopped.", appName))
+		if confirmedStopped {
+			runtimeItems = append(runtimeItems, "Scenario lifecycle status: stopped.")
+		} else {
+			runtimeItems = append(runtimeItems, fmt.Sprintf("No running API port was detected for %s. Start the scenario, then retry the command.", appName))
+		}
 	}
 	report.Triage = append(report.Triage, TriageGroup{
 		Heading: "Runtime",
@@ -164,6 +179,15 @@ func NewAPIRecoveryReport(opts APIRecoveryReportOptions) OperationalReport {
 			Heading: "Configuration",
 			Items:   configItems,
 		})
+	}
+
+	if stoppedBeforeBaseResolution || confirmedStopped {
+		report.NextSteps = append(report.NextSteps, fmt.Sprintf("vrooli scenario start %s", appName))
+		if commandName != "" {
+			report.NextSteps = append(report.NextSteps, fmt.Sprintf("%s --auto-start %s", appName, commandName))
+		}
+		report.NextSteps = append(report.NextSteps, fmt.Sprintf("vrooli scenario status %s", appName))
+		return report
 	}
 
 	if commandName != "" {

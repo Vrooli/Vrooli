@@ -259,9 +259,9 @@ func TestNewAPIRecoveryReportForMissingAPIBase(t *testing.T) {
 		t.Fatalf("RenderOperationalReportString: %v", err)
 	}
 	for _, needle := range []string{
-		"Status:\n  Unable to resolve the demo API base.\n  Last error: api base URL is empty\n",
-		"Triage:\n  Runtime:\n    No running API port was detected for demo. The scenario may be stopped.\n",
-		"Next Steps:\n  demo --auto-start status\n  vrooli scenario status demo\n  vrooli scenario start demo\n",
+		"Status:\n  No local demo API was detected.\n",
+		"Triage:\n  Runtime:\n    No running API port was detected for demo. Start the scenario, then retry the command.\n",
+		"Next Steps:\n  vrooli scenario start demo\n  demo --auto-start status\n  vrooli scenario status demo\n",
 	} {
 		if !strings.Contains(rendered, needle) {
 			t.Fatalf("output missing %q in %q", needle, rendered)

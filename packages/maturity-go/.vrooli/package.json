@@ -4,7 +4,7 @@
   "package": {
     "name": "maturity-go",
     "display_name": "github.com/vrooli/maturity-go",
-    "description": "Scenario maturity SSOT: the canonical improvement-dimension vocabulary and the R0-R4 maturity-ladder gate predicates, shared by ecosystem-manager (live findings) and scenario-completeness-scoring (cached artifacts).",
+    "description": "Scenario maturity SSOT: the canonical improvement-dimension vocabulary and R0-R4 maturity-ladder gate predicates, shared by Test Genie and scenario-completeness-scoring.",
     "kind": "go_runtime",
     "language": "go",
     "module_identifiers": ["github.com/vrooli/maturity-go"],

@@ -285,11 +285,9 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 
 	testresource.WritePortRegistryState(t, root, PortRegistry{
 		ResourcePorts: map[string]int{
-			"comfyui":         8188,
 			"minio":           9000,
 			"redis":           6380,
 			"qdrant":          6333,
-			"questdb":         9009,
 			"ollama":          11434,
 			"vault":           8200,
 			"searxng":         8280,
@@ -347,21 +345,6 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 			},
 		},
 	})
-	writeEnvManifestFixture(t, root, "comfyui", manifestpkg.ResourceManifest{
-		Name:            "comfyui",
-		Driver:          "docker-service",
-		PortabilityTier: "partial",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8188, Host: 8188}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "zhangp365/comfyui:latest"},
-		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
-			Static:    map[string]string{"COMFYUI_HOST": "localhost"},
-			FromPorts: map[string]string{"COMFYUI_PORT": "http"},
-			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
-				"COMFYUI_URL":      {Template: "http://${COMFYUI_HOST}:${COMFYUI_PORT}"},
-				"COMFYUI_BASE_URL": {Template: "${COMFYUI_URL}"},
-			},
-		},
-	})
 	writeEnvManifestFixture(t, root, "minio", manifestpkg.ResourceManifest{
 		Name:            "minio",
 		Driver:          "docker-service",
@@ -405,8 +388,8 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 			},
 		},
 	})
-	writeEnvManifestFixture(t, root, "questdb", manifestpkg.ResourceManifest{
-		Name:            "questdb",
+	writeEnvManifestFixture(t, root, "timeseries-fixture", manifestpkg.ResourceManifest{
+		Name:            "timeseries-fixture",
 		Driver:          "docker-service",
 		PortabilityTier: "full",
 		Ports: []manifestpkg.ResourcePort{
@@ -415,28 +398,28 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 			{Name: "influxdb-line", Container: 9009, Host: 9011},
 		},
 		Runtime: manifestpkg.ResourceRuntime{
-			Image: "questdb/questdb:8.1.2",
+			Image: "example/timeseries:latest",
 			Env: map[string]string{
-				"QDB_PG_USER":     "admin",
-				"QDB_PG_PASSWORD": "quest",
+				"TIMESERIES_PG_USER":     "admin",
+				"TIMESERIES_PG_PASSWORD": "password",
 			},
 		},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static: map[string]string{
-				"QUESTDB_HOST":        "localhost",
-				"QUESTDB_PG_USER":     "admin",
-				"QUESTDB_PG_PASSWORD": "quest",
+				"TIMESERIES_HOST":        "localhost",
+				"TIMESERIES_PG_USER":     "admin",
+				"TIMESERIES_PG_PASSWORD": "password",
 			},
 			FromPorts: map[string]string{
-				"QUESTDB_PORT":      "http",
-				"QUESTDB_HTTP_PORT": "http",
-				"QUESTDB_PG_PORT":   "postgresql",
-				"QUESTDB_ILP_PORT":  "influxdb-line",
+				"TIMESERIES_PORT":      "http",
+				"TIMESERIES_HTTP_PORT": "http",
+				"TIMESERIES_PG_PORT":   "postgresql",
+				"TIMESERIES_ILP_PORT":  "influxdb-line",
 			},
 			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
-				"QUESTDB_URL":      {Template: "http://${QUESTDB_HOST}:${QUESTDB_HTTP_PORT}"},
-				"QUESTDB_BASE_URL": {Template: "${QUESTDB_URL}"},
-				"QUESTDB_PG_URL":   {Template: "postgresql://${QUESTDB_PG_USER}:${QUESTDB_PG_PASSWORD}@${QUESTDB_HOST}:${QUESTDB_PG_PORT}/qdb"},
+				"TIMESERIES_URL":      {Template: "http://${TIMESERIES_HOST}:${TIMESERIES_HTTP_PORT}"},
+				"TIMESERIES_BASE_URL": {Template: "${TIMESERIES_URL}"},
+				"TIMESERIES_PG_URL":   {Template: "postgresql://${TIMESERIES_PG_USER}:${TIMESERIES_PG_PASSWORD}@${TIMESERIES_HOST}:${TIMESERIES_PG_PORT}/timeseries"},
 			},
 		},
 	})
@@ -492,13 +475,6 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	if got := ollamaEnv["OLLAMA_URL"]; got != "http://localhost:11434" {
 		t.Fatalf("OLLAMA_URL = %q", got)
 	}
-	comfyuiEnv, err := LoadResourceEnvironment(root, home, "comfyui")
-	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(comfyui): %v", err)
-	}
-	if got := comfyuiEnv["COMFYUI_BASE_URL"]; got != "http://localhost:8188" {
-		t.Fatalf("COMFYUI_BASE_URL = %q", got)
-	}
 	minioEnv, err := LoadResourceEnvironment(root, home, "minio")
 	if err != nil {
 		t.Fatalf("LoadResourceEnvironment(minio): %v", err)
@@ -512,16 +488,6 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	}
 	if got := vaultEnv["VAULT_ADDR"]; got != "http://localhost:8200" {
 		t.Fatalf("VAULT_ADDR = %q", got)
-	}
-	questdbEnv, err := LoadResourceEnvironment(root, home, "questdb")
-	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(questdb): %v", err)
-	}
-	if got := questdbEnv["QUESTDB_URL"]; got != "http://localhost:9009" {
-		t.Fatalf("QUESTDB_URL = %q", got)
-	}
-	if got := questdbEnv["QUESTDB_PG_URL"]; got != "postgresql://admin:quest@localhost:8812/qdb" {
-		t.Fatalf("QUESTDB_PG_URL = %q", got)
 	}
 	searxngEnv, err := LoadResourceEnvironment(root, home, "searxng")
 	if err != nil {
@@ -830,37 +796,6 @@ func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *tes
 	_, err = LoadResourceEnvironment(root, home, "postgres")
 	if err == nil {
 		t.Fatal("expected invalid encrypted secrets to fail closed")
-	}
-}
-
-func TestActualDockerServiceResourceManifestsResolveNativeExports(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatalf("resolve repo root: %v", err)
-	}
-	skipIfRepoSecretsRequireMigrationOrKey(t, root)
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Fatalf("resolve home: %v", err)
-	}
-
-	comfyuiEnv, err := LoadResourceEnvironment(root, home, "comfyui")
-	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(comfyui): %v", err)
-	}
-	if got := comfyuiEnv["COMFYUI_URL"]; got != "http://localhost:8188" {
-		t.Fatalf("COMFYUI_URL = %q", got)
-	}
-
-	questdbEnv, err := LoadResourceEnvironment(root, home, "questdb")
-	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(questdb): %v", err)
-	}
-	if got := questdbEnv["QUESTDB_URL"]; got != "http://localhost:9009" {
-		t.Fatalf("QUESTDB_URL = %q", got)
-	}
-	if got := questdbEnv["QUESTDB_PG_URL"]; got != "postgresql://admin:quest@localhost:8812/qdb" {
-		t.Fatalf("QUESTDB_PG_URL = %q", got)
 	}
 }
 

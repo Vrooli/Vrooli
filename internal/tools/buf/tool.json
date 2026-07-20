@@ -4,13 +4,36 @@
   "description": "Protobuf tooling for linting, breaking change detection, and code generation",
   "commands": ["buf"],
   "versionArgs": ["--version"],
-  "handler": "buf",
   "version": "1.37.0",
   "packages": {
-    "brew": "bufbuild/buf/buf",
     "winget": "Bufbuild.Buf"
   },
   "platforms": ["linux", "macos", "windows"],
-  "installHint": "Installed via the GitHub release binary (https://github.com/bufbuild/buf/releases) on Linux/macOS, or `winget install Bufbuild.Buf` on Windows. The handler downloads buf-<Linux|Darwin>-<x86_64|arm64> directly — no shell script required.",
+  "installHint": "Installed from Buf's checksum-verified GitHub release into ~/.vrooli/bin on Linux/macOS (no sudo). Windows uses the declared winget fallback.",
+  "source": {
+    "type": "release",
+    "targets": {
+      "linux/amd64": {
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.37.0/buf-Linux-x86_64",
+        "sha256": "a38a2539e5a883e6206fa322beae7bd7c112544839fe8fce20fb4baaf5ffb379",
+        "mode": "0755"
+      },
+      "linux/arm64": {
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.37.0/buf-Linux-aarch64",
+        "sha256": "eca781467da0e1f7c2caca55e78811357882b352b6f43735c296eb09a96ca9ff",
+        "mode": "0755"
+      },
+      "darwin/amd64": {
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.37.0/buf-Darwin-x86_64",
+        "sha256": "7ef9b2dd3c3b2c2d4afeaf124693b407c4852b7c0d4e38e1396ebd4c64cef160",
+        "mode": "0755"
+      },
+      "darwin/arm64": {
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.37.0/buf-Darwin-arm64",
+        "sha256": "ae10bf9068b4de5b77e48638410672dbd7e2c533bf7ab20f7472d3b255a33f18",
+        "mode": "0755"
+      }
+    }
+  },
   "notes": "Pinned to 1.37.0 alongside packages/proto codegen. Bump in lockstep with the proto-codegen byte-stability gate (`make check`)."
 }

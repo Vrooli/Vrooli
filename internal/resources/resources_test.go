@@ -978,32 +978,26 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"postgres":              "docker-service",
-		"redis":                 "docker-service",
-		"qdrant":                "docker-service",
-		"vault":                 "docker-service",
-		"minio":                 "docker-service",
-		"neo4j":                 "docker-service",
-		"questdb":               "docker-service",
-		"searxng":               "docker-service",
-		"comfyui":               "docker-service",
-		"home-assistant":        "compose-service",
-		"kokoro":                "compose-service",
-		"mail-in-a-box":         "compose-service",
-		"sagemath":              "docker-service",
-		"whisper":               "compose-service",
-		"claude-code":           "external-cli",
-		"codex":                 "external-cli",
-		"k6":                    "external-cli",
-		"opencode":              "external-cli",
-		"ollama":                "docker-service",
-		"judge0":                "compose-service",
-		"postgis":               "compose-service",
-		"unstructured-io":       "docker-service",
-		"gemini":                "cloud-api",
-		"openrouter":            "cloud-api",
-		"twilio":                "cloud-api",
-		"cloudflare-ai-gateway": "cloud-api",
+		"postgres":        "docker-service",
+		"redis":           "docker-service",
+		"qdrant":          "docker-service",
+		"vault":           "docker-service",
+		"minio":           "docker-service",
+		"searxng":         "docker-service",
+		"home-assistant":  "compose-service",
+		"kokoro":          "compose-service",
+		"mail-in-a-box":   "compose-service",
+		"whisper":         "compose-service",
+		"claude-code":     "external-cli",
+		"codex":           "external-cli",
+		"k6":              "external-cli",
+		"opencode":        "external-cli",
+		"ollama":          "docker-service",
+		"judge0":          "compose-service",
+		"unstructured-io": "docker-service",
+		"gemini":          "cloud-api",
+		"openrouter":      "cloud-api",
+		"twilio":          "cloud-api",
 	}
 	seen := make(map[string]Resource)
 	for _, item := range items {
@@ -1032,7 +1026,7 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "vault", "minio", "neo4j", "questdb", "searxng", "comfyui", "home-assistant", "kokoro", "mail-in-a-box", "sagemath", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "judge0", "postgis", "unstructured-io", "gemini", "openrouter", "twilio", "cloudflare-ai-gateway"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "vault", "minio", "searxng", "home-assistant", "kokoro", "mail-in-a-box", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "judge0", "unstructured-io", "gemini", "openrouter", "twilio"} {
 		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
 		if err != nil {
 			t.Fatalf("loadResourceManifest(%s): %v", name, err)
@@ -1098,7 +1092,6 @@ func TestProjectMigratedResourcesUseNativeDrivers(t *testing.T) {
 	expected := map[string]string{
 		"kokoro":        "compose-service",
 		"mail-in-a-box": "compose-service",
-		"sagemath":      "docker-service",
 		"whisper":       "compose-service",
 	}
 

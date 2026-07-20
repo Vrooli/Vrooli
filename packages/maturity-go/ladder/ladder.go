@@ -1,4 +1,5 @@
-// Package ladder is the maturity-ladder SSOT for the ecosystem-manager
+// Package ladder is the shared maturity-ladder SSOT for Test Genie and its
+// consumers.
 // closed-loop controller. It defines the canonical rung ladder a scenario climbs
 // toward production-readiness and the coarse, deterministic gate predicates that
 // decide which rung the controller should work this iteration.

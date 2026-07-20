@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/ports"
+	"github.com/vrooli/vrooli/internal/privilegebroker"
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -52,6 +53,9 @@ type Options struct {
 	Yes             string
 	Verbose         bool
 	IncludeOptional bool
+	// ResultPath writes the versioned terminal result to a separate JSON file.
+	// It never changes human setup output streams.
+	ResultPath string
 	// Subcommand selects an alternate setup mode. Empty string runs the
 	// default apply flow. Recognized values: "status", "explain".
 	Subcommand string
@@ -95,6 +99,8 @@ type setupDeps struct {
 	onboardingPortCommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
 	openOnboardingURL           func(url string) error
 	resourceController          func(root, home string) resourceRunner
+	installPrivilegeBroker      func(context.Context, string) (privilegebroker.SetupStatus, error)
+	inspectPrivilegeBroker      func() privilegebroker.SetupStatus
 }
 
 type setupService struct {
@@ -132,6 +138,10 @@ func defaultSetupDeps() setupDeps {
 		resourceController: func(root, home string) resourceRunner {
 			return resources.NewController(root, home)
 		},
+		installPrivilegeBroker: func(ctx context.Context, executable string) (privilegebroker.SetupStatus, error) {
+			return privilegebroker.DefaultInstaller(executable).Install(ctx)
+		},
+		inspectPrivilegeBroker: privilegebroker.Inspect,
 	}
 }
 
@@ -143,7 +153,14 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 	return newSetupService(defaultSetupDeps()).RunSetupWithOptions(root, home, opts, stdout, stderr)
 }
 
-func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
+func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) (err error) {
+	stage := "validation"
+	var terminalReport vrooliruntime.Report
+	defer func() {
+		if writeErr := writeSetupResult(opts.ResultPath, setupTerminalResult(stage, terminalReport, err)); writeErr != nil && err == nil {
+			err = writeErr
+		}
+	}()
 	switch opts.Subcommand {
 	case "status":
 		return s.runSetupStatus(root, home, opts, stdout)
@@ -155,11 +172,13 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		return err
 	}
 
+	stage = "project"
 	if _, err := s.deps.loadProject(root); err != nil {
 		return err
 	}
 
 	if !opts.DryRun {
+		stage = "filesystem"
 		if err := ensureProjectFilesystem(root, home); err != nil {
 			return err
 		}
@@ -171,6 +190,7 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 			fmt.Fprintf(stdout, "Reclaimed ownership of %d root-owned entries under ~/.vrooli.\n", reowned)
 		}
 	}
+	stage = "resolution"
 	requirements, err := s.deps.resolveHostRequirements(root, home, hostreq.ResolveOptions{
 		Environment: opts.Environment,
 		When:        "setup",
@@ -192,12 +212,15 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		Stderr:          stderr,
 	}
 	if !opts.DryRun {
+		stage = "bootstrap"
 		if err := s.deps.ensureBootstrapTools(home, ensureOptions); err != nil {
 			return err
 		}
 	}
 
+	stage = "requirements"
 	report, ensureErr := s.deps.ensureRequirements(ensureOptions, requirements)
+	terminalReport = report
 	renderSetupRequirementResult(stdout, opts, report)
 	if ensureErr != nil && !opts.DryRun {
 		return ensureErr
@@ -206,15 +229,29 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Dry-run mode skips git configuration, resource installation, and setup completion markers")
 		return nil
 	}
+	stage = "privilege-broker"
+	executable, executableErr := s.deps.osExecutable()
+	if executableErr != nil {
+		return fmt.Errorf("resolve executable for privilege broker: %w", executableErr)
+	}
+	brokerStatus, brokerErr := s.deps.installPrivilegeBroker(context.Background(), executable)
+	if brokerErr != nil {
+		return brokerErr
+	}
+	renderPrivilegeBrokerStatus(stdout, brokerStatus)
+	stage = "git"
 	if err := configureGit(root); err != nil {
 		return err
 	}
+	stage = "resources"
 	if err := s.maybeInstallResources(root, home, opts, stdout, stderr); err != nil {
 		return err
 	}
+	stage = "cli"
 	if err := s.deps.syncResourceSchema(root); err != nil {
 		return err
 	}
+	stage = "finalize"
 	cliManager, err := s.deps.newCLIInstallManager(root, home)
 	if err != nil {
 		return err
@@ -1145,7 +1182,23 @@ func (s *setupService) runSetupStatus(root, home string, opts Options, stdout io
 		mode = renderModeVerbose
 	}
 	renderSetupRequirementOverview(stdout, report, false, mode)
+	renderPrivilegeBrokerStatus(stdout, s.deps.inspectPrivilegeBroker())
 	return nil
+}
+
+func renderPrivilegeBrokerStatus(stdout io.Writer, status privilegebroker.SetupStatus) {
+	if status.Available {
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Privilege broker: available (%s)\n", status.SocketPath)
+		return
+	}
+	if status.Supported {
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Privilege broker: unavailable — %s\n", status.Reason)
+	} else {
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Privilege broker: unsupported — %s\n", status.Reason)
+	}
+	if status.Recovery != "" {
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Privilege broker recovery: %s\n", status.Recovery)
+	}
 }
 
 // runSetupExplain prints the full per-item block for one requirement.

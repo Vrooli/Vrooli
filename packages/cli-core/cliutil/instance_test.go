@@ -74,8 +74,8 @@ func TestShadowedScenariosParsing(t *testing.T) {
 	if !IsShadowed("swarm-manager") || !IsShadowed("swarm-manager@shadow") {
 		t.Error("IsShadowed should match bare and suffixed names")
 	}
-	if IsShadowed("ecosystem-manager") {
-		t.Error("ecosystem-manager should not be shadowed")
+	if IsShadowed("swarm-manager") {
+		t.Error("swarm-manager should not be shadowed")
 	}
 }
 
@@ -88,15 +88,15 @@ func TestResolveVariantPrecedence(t *testing.T) {
 		t.Errorf("ambient agent-manager = %q, want shadow", got)
 	}
 	// Unnamed scenario stays live.
-	if got := ResolveVariant("ecosystem-manager"); got != DefaultVariant {
-		t.Errorf("ecosystem-manager = %q, want live", got)
+	if got := ResolveVariant("swarm-manager"); got != DefaultVariant {
+		t.Errorf("swarm-manager = %q, want live", got)
 	}
 	// Explicit @suffix beats ambient (even back to live).
 	if got := ResolveVariant("agent-manager@live"); got != DefaultVariant {
 		t.Errorf("agent-manager@live = %q, want live (suffix wins)", got)
 	}
-	if got := ResolveVariant("ecosystem-manager@shadow"); got != ShadowVariant {
-		t.Errorf("ecosystem-manager@shadow = %q, want shadow (suffix wins)", got)
+	if got := ResolveVariant("swarm-manager@shadow"); got != ShadowVariant {
+		t.Errorf("swarm-manager@shadow = %q, want shadow (suffix wins)", got)
 	}
 
 	// Override beats ambient. --instance live on an ambiently-shadowed scenario
@@ -106,9 +106,9 @@ func TestResolveVariantPrecedence(t *testing.T) {
 		t.Errorf("override live on agent-manager = %q, want live", got)
 	}
 	// Override shadow on an unshadowed scenario.
-	SetInstanceOverride("ecosystem-manager", "shadow")
-	if got := ResolveVariant("ecosystem-manager"); got != ShadowVariant {
-		t.Errorf("override shadow on ecosystem-manager = %q, want shadow", got)
+	SetInstanceOverride("swarm-manager", "shadow")
+	if got := ResolveVariant("swarm-manager"); got != ShadowVariant {
+		t.Errorf("override shadow on swarm-manager = %q, want shadow", got)
 	}
 	// Clearing the override restores ambient behavior.
 	SetInstanceOverride("agent-manager", "")
@@ -124,8 +124,8 @@ func TestResolveShadowTargetAndNonLive(t *testing.T) {
 	if got := ResolveShadowTarget("agent-manager"); got != "agent-manager@shadow" {
 		t.Errorf("ResolveShadowTarget(agent-manager) = %q, want agent-manager@shadow", got)
 	}
-	if got := ResolveShadowTarget("ecosystem-manager"); got != "ecosystem-manager" {
-		t.Errorf("ResolveShadowTarget(ecosystem-manager) = %q, want bare", got)
+	if got := ResolveShadowTarget("swarm-manager"); got != "swarm-manager" {
+		t.Errorf("ResolveShadowTarget(swarm-manager) = %q, want bare", got)
 	}
 	if !IsNonLiveTarget("agent-manager@shadow") {
 		t.Error("agent-manager@shadow should be non-live")

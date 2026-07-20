@@ -31,7 +31,6 @@ import (
 	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
 	workspacesandboxuserns "github.com/vrooli/vrooli/internal/safeguards/workspace-sandbox-userns"
 	"github.com/vrooli/vrooli/internal/tools"
-	"github.com/vrooli/vrooli/internal/tools/buf"
 	"github.com/vrooli/vrooli/internal/tools/cloudflared"
 	"github.com/vrooli/vrooli/internal/tools/docker"
 	kdumptools "github.com/vrooli/vrooli/internal/tools/kdump-tools"
@@ -50,7 +49,6 @@ import (
 // under internal/tools/. The invariant is enforced by
 // TestToolManifestsReferenceRegisteredHandlers.
 var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Handler{
-	"buf":                   buf.NewHandler,
 	"cloudflared":           cloudflared.NewHandler,
 	"docker":                docker.NewHandler,
 	"kdump_tools":           kdumptools.NewHandler,

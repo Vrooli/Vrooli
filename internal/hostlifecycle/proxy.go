@@ -6,16 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
-	"os/exec"
-	"regexp"
 	"strings"
-	"time"
 
 	"github.com/vrooli/vrooli/internal/lifecycle"
 )
 
-var portPattern = regexp.MustCompile(`\b(\d{2,5})\b`)
+// HostLifecycleBaseEnv is the workspace-sandbox API base made available to a
+// Vrooli-aware process. It is a bootstrap transport for the narrow host
+// lifecycle proxy, not a target scenario endpoint: target ports continue to
+// be resolved by the host-side Vrooli CLI and its runtime registry.
+const HostLifecycleBaseEnv = "VROOLI_HOST_LIFECYCLE_BASE"
 
 type ScenarioRequest struct {
 	Action     string `json:"action"`
@@ -41,7 +43,7 @@ func InSandbox() bool {
 }
 
 func RunScenario(ctx context.Context, req ScenarioRequest) (ScenarioResponse, error) {
-	port, err := workspaceSandboxPort(ctx)
+	baseURL, err := workspaceSandboxBaseURL()
 	if err != nil {
 		return ScenarioResponse{}, err
 	}
@@ -49,8 +51,8 @@ func RunScenario(ctx context.Context, req ScenarioRequest) (ScenarioResponse, er
 	if err != nil {
 		return ScenarioResponse{}, err
 	}
-	url := fmt.Sprintf("http://localhost:%s/api/v1/host/vrooli/scenario", port)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	endpoint := baseURL + "/api/v1/host/vrooli/scenario"
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return ScenarioResponse{}, err
 	}
@@ -87,40 +89,17 @@ func StartOptionsRequest(action, name string, opts lifecycle.StartOptions) Scena
 	}
 }
 
-func workspaceSandboxPort(ctx context.Context) (string, error) {
-	for _, port := range []string{strings.TrimSpace(os.Getenv("WORKSPACE_SANDBOX_API_PORT")), "15120"} {
-		if port == "" {
-			continue
-		}
-		if workspaceSandboxHealthy(ctx, port) {
-			return port, nil
-		}
+func workspaceSandboxBaseURL() (string, error) {
+	raw := strings.TrimSpace(os.Getenv(HostLifecycleBaseEnv))
+	if raw == "" {
+		return "", fmt.Errorf("sandbox host lifecycle transport is unavailable: %s is not set", HostLifecycleBaseEnv)
 	}
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "vrooli", "--no-stale-check", "scenario", "port", "workspace-sandbox", "API_PORT")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("resolve workspace-sandbox API port: %w: %s", err, strings.TrimSpace(string(output)))
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf("sandbox host lifecycle transport is invalid: %s=%q", HostLifecycleBaseEnv, raw)
 	}
-	match := portPattern.FindStringSubmatch(string(output))
-	if len(match) < 2 {
-		return "", fmt.Errorf("resolve workspace-sandbox API port: no port in output %q", strings.TrimSpace(string(output)))
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("sandbox host lifecycle transport must use http or https: %s=%q", HostLifecycleBaseEnv, raw)
 	}
-	return match[1], nil
-}
-
-func workspaceSandboxHealthy(ctx context.Context, port string) bool {
-	ctx, cancel := context.WithTimeout(ctx, 750*time.Millisecond)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:"+port+"/health", nil)
-	if err != nil {
-		return false
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode >= 200 && resp.StatusCode < 300
+	return strings.TrimRight(raw, "/"), nil
 }

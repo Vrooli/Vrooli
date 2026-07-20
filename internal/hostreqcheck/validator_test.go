@@ -73,7 +73,7 @@ func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "landing-page-business-suite", ".vrooli", "service.json"), "stripe")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "scenario-to-desktop", ".vrooli", "service.json"), "Xvfb")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "scenario-to-desktop", ".vrooli", "service.json"), "websockify")
-	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "ecosystem-manager", ".vrooli", "service.json"), "bats")
+	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "swarm-manager", ".vrooli", "service.json"), "bats")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "palette-gen", ".vrooli", "service.json"), "bats")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "scenario-completeness-scoring", ".vrooli", "service.json"), "bats")
 	assertManifestContainsTool(t, filepath.Join(root, "resources", "whisper", "resource.json"), "ffmpeg")

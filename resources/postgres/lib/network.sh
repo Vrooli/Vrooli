@@ -43,7 +43,6 @@ postgres::network::create() {
 postgres::network::discover_resource_networks() {
     local discovered_networks=()
     local resource_networks=(
-        "comfyui-network"
         "searxng-network"
         "minio-network"
         "qdrant-network"

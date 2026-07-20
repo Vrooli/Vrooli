@@ -32,22 +32,22 @@ import (
 // (e.g. git-control-tower declares all its scenario deps required=false) can
 // only ever ADD members, never drop one.
 //
-// The set is 9 — grown from a historical 7 — because Baseline Modes itself
-// makes the last two reflexive: data-backup-manager is the promote/shadow data
-// substrate, and scenario-dependency-analyzer is the decision tree's own
-// core-set source. If either breaks, the safety mechanism breaks.
+// Vrooli Events belongs here because its shared receipt/policy substrate is
+// consumed across scenarios and must be available to preserve the platform's
+// attributable event trail. It is core, but not trusted-base: Baseline Modes
+// can still validate a shadow Vrooli Events instance.
 //
 // Kept private and exposed only through accessors that return copies, so a
 // consumer can never mutate the shared authority.
 var coreSeedScenarios = []string{
 	"agent-manager",
 	"data-backup-manager",
-	"ecosystem-manager",
 	"git-control-tower",
 	"prompt-manager",
 	"scenario-dependency-analyzer",
 	"swarm-manager",
 	"test-genie",
+	"vrooli-events",
 	"workspace-sandbox",
 }
 
@@ -66,7 +66,7 @@ var coreSeedScenarios = []string{
 //     pre-promote snapshots and performs restores that promote/abandon rely on.
 //
 // The rest of the seed (the executor pair agent-manager/workspace-sandbox, the
-// orchestrators ecosystem-manager/swarm-manager, prompt-manager, and the
+// orchestrators swarm-manager/swarm-manager, prompt-manager, and the
 // analyzer) are reflexive but DO get shadow mode — they are exactly the kernel
 // scenarios Baseline Modes is built to make shadow-safe. Self-promote of those
 // is handled by P6's drain + self-identity guard + external one-shot, not by

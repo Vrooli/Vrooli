@@ -38,6 +38,13 @@ type Command struct {
 	// cli-health classifies command architecture maturity from, mirrored at
 	// runtime from the manifest's architecture block (see LoadFromManifest).
 	Architecture CommandArchitecture
+	// DryRun declares how this command honors the global --dry-run signal.
+	// The zero value is deliberately unsupported: commands must opt in only
+	// after their no-write behavior is covered by a conformance test.
+	DryRun DryRunPolicy
+	// DryRunAlternative names a command-local preview when global --dry-run is
+	// unsupported (for example, "plans reconcile --dry-run").
+	DryRunAlternative string
 	// primitiveEvidence is the cli-core primitive class that ACTUALLY built the
 	// handler, stamped by construction by the primitive builders (see
 	// PrimitiveHandler / LoadFromManifestPrimitives / WithPrimitive). An empty
@@ -49,6 +56,31 @@ type Command struct {
 	// declaration that matches the observed evidence as verified rather than
 	// self-certified. Read it via PrimitiveEvidence(); see ClassifyPrimitiveEvidence.
 	primitiveEvidence PrimitiveClass
+}
+
+// DryRunPolicy describes the signal a command actually honors. Only
+// DryRunHeader supports cli-core's global --dry-run flag; request-field and
+// command-local policies are recorded so preflight can point at the right
+// alternative without pretending the global header is universally safe.
+type DryRunPolicy string
+
+const (
+	DryRunUnsupported  DryRunPolicy = ""
+	DryRunHeader       DryRunPolicy = "header"
+	DryRunRequestField DryRunPolicy = "request_field"
+	DryRunCommandLocal DryRunPolicy = "command_local"
+)
+
+func (c Command) globalDryRunError() error {
+	if c.DryRun == DryRunHeader {
+		return nil
+	}
+	command := strings.TrimSpace(c.Name)
+	message := fmt.Sprintf("command %q does not support global --dry-run", command)
+	if alternative := strings.TrimSpace(c.DryRunAlternative); alternative != "" {
+		message += "; use '" + alternative + "' instead"
+	}
+	return errors.New(message)
 }
 
 // PrimitiveEvidence returns the cli-core primitive class the command's handler
@@ -336,6 +368,13 @@ func (a *App) printCommandHelp(prefix string, cmd Command) {
 	if helpText := strings.TrimSpace(cmd.HelpText); helpText != "" {
 		fmt.Printf("\n%s\n", helpText)
 	}
+	if cmd.DryRun == DryRunHeader {
+		fmt.Println("\nGlobal --dry-run: supported (canonical X-Dry-Run header).")
+	} else if alternative := strings.TrimSpace(cmd.DryRunAlternative); alternative != "" {
+		fmt.Printf("\nGlobal --dry-run: unsupported; preview with '%s'.\n", alternative)
+	} else {
+		fmt.Println("\nGlobal --dry-run: unsupported.")
+	}
 }
 
 // SetStaleChecker overrides the stale checker (useful in tests).
@@ -352,7 +391,7 @@ func (a *App) PrintHelp() {
 	fmt.Println("  --api-base <url>   Override API base URL (default: auto-detected)")
 	fmt.Println("  --instance <name>  Target a scenario variant (e.g. shadow); default: live")
 	fmt.Println("  --auto-start       Auto-start the scenario if not running")
-	fmt.Println("  --dry-run          Validate without executing mutations")
+	fmt.Println("  --dry-run          Request dry-run only for commands that explicitly declare global support")
 	fmt.Println("  --no-color         Disable ANSI color output (or set NO_COLOR)")
 	fmt.Println("  --color            Force-enable ANSI color output")
 	fmt.Println()

@@ -66,6 +66,10 @@ type OperationContext interface {
 	// some command variants.
 	FlagDeclared(name string) bool
 
+	// FlagProvided reports whether the caller explicitly supplied the flag.
+	// Unlike Flag, it distinguishes omission from an intentional empty value.
+	FlagProvided(name string) bool
+
 	// Core returns the underlying ScenarioApp for handlers that need direct
 	// API access beyond Call[Req,Resp].
 	Core() *ScenarioApp
@@ -253,6 +257,17 @@ func (r *runContext) FlagDeclared(name string) bool {
 		}
 	}
 	return false
+}
+
+func (r *runContext) FlagProvided(name string) bool {
+	r.requireFlag(name)
+	if _, ok := r.flagValues[name]; ok {
+		return true
+	}
+	if len(r.flagLists[name]) > 0 {
+		return true
+	}
+	return r.flagSet[name]
 }
 
 func (r *runContext) Stdout() io.Writer {

@@ -55,7 +55,7 @@ func TestLooksLikeVrooliProcessSkipsSystemDaemons(t *testing.T) {
 			name: "postgres worker with vrooli in command",
 			entry: processTableEntry{
 				PID:        900,
-				Command:    "postgres: vrooli vrooli_ecosystem_manager 172.18.0.1(39256) idle",
+				Command:    "postgres: vrooli vrooli_swarm_manager 172.18.0.1(39256) idle",
 				Executable: "/usr/lib/postgresql/15/bin/postgres",
 				Cwd:        "/var/lib/postgresql/15/main",
 			},

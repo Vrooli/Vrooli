@@ -61,7 +61,7 @@ func TestScenarioStatusesDecodesListForm(t *testing.T) {
 		"success": true,
 		"summary": {"total_scenarios": 2, "running": 1, "stopped": 1},
 		"scenarios": [
-			{"name": "ecosystem-manager", "status": "running", "processes": 2}
+			{"name": "swarm-manager", "status": "running", "processes": 2}
 		],
 		"discovery_failures": []
 	}`)}}}
@@ -74,7 +74,7 @@ func TestScenarioStatusesDecodesListForm(t *testing.T) {
 	if resp.GetSummary().GetTotalScenarios() != 2 || resp.GetSummary().GetRunning() != 1 {
 		t.Errorf("summary not decoded: %+v", resp.GetSummary())
 	}
-	if len(resp.GetScenarios()) != 1 || resp.GetScenarios()[0].GetName() != "ecosystem-manager" {
+	if len(resp.GetScenarios()) != 1 || resp.GetScenarios()[0].GetName() != "swarm-manager" {
 		t.Errorf("scenarios not decoded: %+v", resp.GetScenarios())
 	}
 }
@@ -82,20 +82,20 @@ func TestScenarioStatusesDecodesListForm(t *testing.T) {
 func TestScenarioStatusSinglePassesName(t *testing.T) {
 	runner := &stubRunner{responses: []stubResponse{{output: []byte(`{
 		"success": true,
-		"scenario": {"name": "ecosystem-manager", "status": "running"},
-		"info": {"name": "ecosystem-manager"},
+		"scenario": {"name": "swarm-manager", "status": "running"},
+		"info": {"name": "swarm-manager"},
 		"runtime": {"status": "running", "processes": 2}
 	}`)}}}
 	client := New(WithRunner(runner))
 
-	resp, err := client.ScenarioStatus(context.Background(), "ecosystem-manager")
+	resp, err := client.ScenarioStatus(context.Background(), "swarm-manager")
 	if err != nil {
 		t.Fatalf("ScenarioStatus: %v", err)
 	}
-	if resp.GetScenario().GetName() != "ecosystem-manager" || resp.GetRuntime().GetProcesses() != 2 {
+	if resp.GetScenario().GetName() != "swarm-manager" || resp.GetRuntime().GetProcesses() != 2 {
 		t.Errorf("unexpected response: %+v", resp)
 	}
-	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check scenario status ecosystem-manager --json" {
+	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check scenario status swarm-manager --json" {
 		t.Errorf("unexpected args: %v", args)
 	}
 }

@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	ProfileKey  = "react-component-library/catalog-maintainer"
-	WorkflowKey = "react-component-library/catalog-assist"
+	ExtractWorkflowKey = "react-component-library/extract-assist"
+	AdoptWorkflowKey   = "react-component-library/adopt-assist"
 )
 
 // AgentManagerDispatcher only starts and waits on RCL's declared workflow.
@@ -38,22 +38,56 @@ func (d *AgentManagerDispatcher) Start(ctx context.Context, in StartInput) (Disp
 	if err != nil {
 		return DispatchResult{}, err
 	}
-	input, err := structpb.NewValue(map[string]any{
-		"kind": string(in.Kind), "assetId": in.AssetID, "sourceScenario": in.SourceScenario,
-		"sourcePath": in.SourcePath, "targetScenario": in.TargetScenario, "requestedVersion": in.RequestedVersion,
-		"confirmOverwrite": in.ConfirmOverwrite, "overrideValidation": in.OverrideValidation,
-	})
+	input, err := structpb.NewValue(workflowInput(in))
 	if err != nil {
 		return DispatchResult{}, fmt.Errorf("encode catalog workflow input: %w", err)
 	}
+	workflowKey, err := workflowKeyForKind(in.Kind)
+	if err != nil {
+		return DispatchResult{}, err
+	}
 	var started apipb.WorkflowExecutionResponse
-	if err := d.post(ctx, base, "/api/v1/workflow-executions", &apipb.StartWorkflowExecutionRequest{Owner: "react-component-library", WorkflowKey: WorkflowKey, Input: input, IdempotencyKey: in.IdempotencyKey}, &started); err != nil {
+	if err := d.post(ctx, base, "/api/v1/workflow-executions", &apipb.StartWorkflowExecutionRequest{Owner: "react-component-library", WorkflowKey: workflowKey, Input: input, IdempotencyKey: in.IdempotencyKey}, &started); err != nil {
 		return DispatchResult{}, err
 	}
 	if started.Execution == nil || started.Execution.Id == "" {
 		return DispatchResult{}, fmt.Errorf("agent-manager workflow response missing execution id")
 	}
 	return DispatchResult{ExecutionID: started.Execution.Id, Status: statusFromWorkflow(started.Execution.Status)}, nil
+}
+
+// workflowInput is intentionally kind-specific. The two declared workflows
+// have strict schemas, so forwarding fields from the other operation would
+// turn an otherwise valid extract or adopt request into an additional-property
+// schema failure before Agent Manager can dispatch it.
+func workflowInput(in StartInput) map[string]any {
+	input := map[string]any{"kind": string(in.Kind)}
+	switch in.Kind {
+	case KindExtract:
+		input["assetId"] = in.AssetID
+		input["sourceScenario"] = in.SourceScenario
+		input["sourcePath"] = in.SourcePath
+		input["requestedVersion"] = in.RequestedVersion
+	case KindAdopt:
+		input["assetId"] = in.AssetID
+		input["targetScenario"] = in.TargetScenario
+		input["sourcePath"] = in.SourcePath
+		input["requestedVersion"] = in.RequestedVersion
+		input["confirmOverwrite"] = in.ConfirmOverwrite
+		input["overrideValidation"] = in.OverrideValidation
+	}
+	return input
+}
+
+func workflowKeyForKind(kind Kind) (string, error) {
+	switch kind {
+	case KindExtract:
+		return ExtractWorkflowKey, nil
+	case KindAdopt:
+		return AdoptWorkflowKey, nil
+	default:
+		return "", fmt.Errorf("unsupported RCL workflow kind %q", kind)
+	}
 }
 
 func (d *AgentManagerDispatcher) Wait(ctx context.Context, executionID string) (DispatchResult, error) {

@@ -83,7 +83,7 @@ func TestScenarioAppPreflightValidatesAPIBase(t *testing.T) {
 	}
 }
 
-func TestScenarioAppPreflightFailsWhenAPIBaseMissing(t *testing.T) {
+func TestScenarioAppGlobalDryRunRefusesUndeclaredCommandBeforeTransport(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
 
@@ -91,6 +91,71 @@ func TestScenarioAppPreflightFailsWhenAPIBaseMissing(t *testing.T) {
 		Name:             "demo",
 		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
 		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	ran := false
+	app.SetCommands([]CommandGroup{{Title: "Test", Commands: []Command{{
+		Name: "mutate",
+		Run:  func([]string) error { ran = true; return nil },
+	}}}})
+
+	err = app.CLI.Run([]string{"--dry-run", "mutate"})
+	if err == nil || !strings.Contains(err.Error(), "does not support global --dry-run") {
+		t.Fatalf("unsupported dry-run error = %v", err)
+	}
+	if ran {
+		t.Fatal("undeclared dry-run command reached its handler")
+	}
+}
+
+func TestScenarioAppGlobalDryRunSetsHeaderForDeclaredCommand(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	var gotHeader string
+	app.SetCommands([]CommandGroup{{Title: "Test", Commands: []Command{{
+		Name:   "previewable",
+		DryRun: DryRunHeader,
+		Run: func([]string) error {
+			req, reqErr := http.NewRequest(http.MethodPost, "http://example.invalid/mutate", nil)
+			if reqErr != nil {
+				return reqErr
+			}
+			app.HTTPClient.ApplyRequestHeaders(req)
+			gotHeader = req.Header.Get("X-Dry-Run")
+			return nil
+		},
+	}}}})
+
+	if err := app.CLI.Run([]string{"--dry-run", "previewable"}); err != nil {
+		t.Fatalf("declared dry-run command failed: %v", err)
+	}
+	if gotHeader != "true" {
+		t.Fatalf("X-Dry-Run header = %q, want true", gotHeader)
+	}
+}
+
+func TestScenarioAppPreflightFailsWhenAPIBaseMissing(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:                  "demo",
+		ConfigDirEnvVars:      []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:        true,
+		RuntimeStatusDetector: func() string { return "stopped" },
 	})
 	if err != nil {
 		t.Fatalf("NewScenarioApp: %v", err)
@@ -104,9 +169,9 @@ func TestScenarioAppPreflightFailsWhenAPIBaseMissing(t *testing.T) {
 		t.Fatalf("expected preflight error for missing API base")
 	}
 	for _, needle := range []string{
-		"Status:\n  Unable to resolve the demo API base.",
-		"Triage:\n  Runtime:\n    No running API port was detected for demo. The scenario may be stopped.",
-		"Next Steps:\n  demo --auto-start run\n  vrooli scenario status demo\n  vrooli scenario start demo",
+		"Status:\n  demo is stopped, so its local API is unavailable.",
+		"Triage:\n  Runtime:\n    Scenario lifecycle status: stopped.",
+		"Next Steps:\n  vrooli scenario start demo\n  demo --auto-start run\n  vrooli scenario status demo",
 	} {
 		if !strings.Contains(err.Error(), needle) {
 			t.Fatalf("error missing %q in %q", needle, err.Error())

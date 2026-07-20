@@ -76,7 +76,6 @@ spec:
     optimal_combinations:
       - [minio, postgres, n8n]              # Complete data management stack
       - [minio, unstructured-io, qdrant]    # Document processing pipeline
-      - [minio, comfyui, whisper]          # Media processing and storage
       - [minio, vault, agent-s2]           # Secure automated file management
   
   # Business intelligence
@@ -138,7 +137,7 @@ spec:
       - document-repositories
       - backup-solutions
     integration_targets:
-      preferred: [postgres, n8n, unstructured-io, comfyui]
+      preferred: [postgres, n8n, unstructured-io]
       compatible: [whisper, vault, agent-s2, qdrant]
       avoid: [computation-tasks, database-operations]
     workflow_templates:

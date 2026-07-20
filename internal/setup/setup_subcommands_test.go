@@ -7,6 +7,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/privilegebroker"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -58,6 +59,9 @@ func TestRunSetupStatusPrintsGroupedAndDoesNotMutate(t *testing.T) {
 		t.Fatal("ensureRequirements must not run during `setup status`")
 		return vrooliruntime.Report{}, nil
 	}
+	svc.deps.inspectPrivilegeBroker = func() privilegebroker.SetupStatus {
+		return privilegebroker.SetupStatus{Supported: true, Reason: "setup was not elevated", Recovery: "Re-run sudo vrooli setup"}
+	}
 
 	stdout := &strings.Builder{}
 	if err := svc.RunSetupWithOptions(root, home, Options{Subcommand: "status"}, stdout, io.Discard); err != nil {
@@ -72,6 +76,7 @@ func TestRunSetupStatusPrintsGroupedAndDoesNotMutate(t *testing.T) {
 		"Host requirements status",
 		"Already present (2): mcelog, rasdaemon",
 		"Run 'vrooli setup explain <name>'",
+		"Privilege broker: unavailable — setup was not elevated",
 	} {
 		if !strings.Contains(out, expected) {
 			t.Fatalf("status output missing %q:\n%s", expected, out)

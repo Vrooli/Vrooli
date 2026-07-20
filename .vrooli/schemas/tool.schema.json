@@ -46,7 +46,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "Per-package-manager package name overrides (e.g. apt, brew, winget, dnf, pacman, apk)"
+      "description": "Per-package-manager package name overrides (e.g. apt, brew, winget, dnf, pacman, apk). When source is url/release, the matching verified target is preferred and this package is the fallback when no target exists for the host OS/architecture."
     },
     "installHint": {
       "type": "string",
@@ -74,7 +74,7 @@
     },
     "source": {
       "type": "object",
-      "description": "How the generic handler installs this tool. Absent or type=package uses the OS package manager (defaultPackage/packages). type=url|release fetches a verified binary into the user-local ~/.vrooli/bin (no sudo).",
+      "description": "Verified fetch targets for the generic handler. Absent or type=package uses the OS package manager (defaultPackage/packages). type=url|release prefers a matching verified binary target installed into user-local ~/.vrooli/bin (no sudo), then falls back to an explicitly declared host package when that target is absent.",
       "required": [
         "type"
       ],
@@ -90,7 +90,7 @@
         },
         "targets": {
           "type": "object",
-          "description": "Per os/arch fetch specs, keyed \"<os>/<arch>\" (Go GOOS/GOARCH, e.g. linux/amd64, darwin/arm64). A host with no matching target is cleanly unsupported.",
+          "description": "Per os/arch fetch specs, keyed \"<os>/<arch>\" (Go GOOS/GOARCH, e.g. linux/amd64, darwin/arm64). A host with no matching target falls back to its declared package, when present, and is otherwise cleanly unsupported.",
           "minProperties": 1,
           "propertyNames": {
             "pattern": "^[a-z0-9]+/[a-z0-9]+$"

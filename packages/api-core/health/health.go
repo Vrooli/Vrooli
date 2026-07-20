@@ -421,17 +421,10 @@ func (c *dbChecker) Check(ctx context.Context) CheckResult {
 		}
 	}
 
-	// Query the current database name for visibility
-	var dbName string
-	if row := c.db.QueryRowContext(ctx, "SELECT current_database()"); row != nil {
-		_ = row.Scan(&dbName) // Ignore error - database name is optional info
-	}
-
 	return CheckResult{
 		Name:      c.name,
 		Connected: true,
 		Latency:   latency,
-		Database:  dbName,
 	}
 }
 

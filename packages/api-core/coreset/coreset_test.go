@@ -14,12 +14,12 @@ func TestCoreSeedScenariosShape(t *testing.T) {
 	want := map[string]bool{
 		"agent-manager":                true,
 		"data-backup-manager":          true,
-		"ecosystem-manager":            true,
 		"git-control-tower":            true,
 		"prompt-manager":               true,
 		"scenario-dependency-analyzer": true,
 		"swarm-manager":                true,
 		"test-genie":                   true,
+		"vrooli-events":                true,
 		"workspace-sandbox":            true,
 	}
 	for _, name := range seed {

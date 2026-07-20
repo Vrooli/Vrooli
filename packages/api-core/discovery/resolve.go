@@ -205,7 +205,7 @@ func (r *Resolver) lookupPort(ctx context.Context, reportSlug, target, portKey s
 			}
 		}
 		lower := strings.ToLower(text)
-		if strings.Contains(lower, "not running") || strings.Contains(lower, "not started") {
+		if strings.Contains(lower, "not running") || strings.Contains(lower, "not started") || strings.Contains(lower, "no running runtime ports") || strings.Contains(lower, "no runtime ports found") {
 			return 0, &Error{
 				Kind:     ErrScenarioNotRunning,
 				Scenario: reportSlug,
