@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Grid2X2, List, Network, Search } from "lucide-react";
 import { type FormEvent, useDeferredValue, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { listCatalogAssets, type CatalogAsset } from "../../api/components";
 import { selectors } from "../../consts/selectors";
@@ -107,9 +107,10 @@ function CatalogActions() {
 export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props) {
   const { t } = useTranslation();
   const { id: selectedID } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<KindTab>("components");
   const [presentation, setPresentation] = useState<Presentation>("tree");
-  const [match, setMatch] = useState("");
+  const [match, setMatch] = useState(() => searchParams.get("q") ?? "");
   const deferredMatch = useDeferredValue(match);
   const query = useQuery({
     queryKey: ["catalog", tab, deferredMatch],

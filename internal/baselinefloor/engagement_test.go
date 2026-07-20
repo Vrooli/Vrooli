@@ -136,10 +136,10 @@ func TestStore_TouchRenewsLease(t *testing.T) {
 
 func TestStore_SetTTL(t *testing.T) {
 	store := NewStore(t.TempDir())
-	if err := store.WriteManifest(sampleManifest("ecosystem-manager", "p6", time.Now().UTC())); err != nil {
+	if err := store.WriteManifest(sampleManifest("swarm-manager", "p6", time.Now().UTC())); err != nil {
 		t.Fatal(err)
 	}
-	got, err := store.SetTTL("ecosystem-manager", "p6", 6*time.Hour)
+	got, err := store.SetTTL("swarm-manager", "p6", 6*time.Hour)
 	if err != nil {
 		t.Fatalf("SetTTL: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestStore_SetTTL(t *testing.T) {
 		t.Errorf("TTL = %v, want 6h", got.TTL.AsDuration())
 	}
 	// Negative clears the TTL (orchestrator heartbeat mode).
-	cleared, err := store.SetTTL("ecosystem-manager", "p6", -1)
+	cleared, err := store.SetTTL("swarm-manager", "p6", -1)
 	if err != nil {
 		t.Fatal(err)
 	}

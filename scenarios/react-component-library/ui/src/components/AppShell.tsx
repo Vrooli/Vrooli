@@ -11,7 +11,7 @@
  * no card wrapping page-level content.
  */
 import { type ReactNode, useCallback, useRef, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { SidebarShell } from "../../../library/components/SidebarShell/versions/1.1.0/SidebarShell";
 import { WorkspaceHeader } from "../../../library/components/WorkspaceHeader/versions/1.0.0/WorkspaceHeader";
@@ -23,6 +23,9 @@ import { Link } from "react-router-dom";
 import { SidebarContent } from "./Sidebar";
 import { ShellNavigationContext } from "./ShellNavigationContext";
 import { CatalogBrowser } from "../features/catalog/CatalogBrowser";
+import { CreateComponentDialog } from "../features/components/CreateComponentDialog";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 const SIDEBAR_STORAGE = "react-component-library.sidebar.width.v1";
 
@@ -33,11 +36,14 @@ interface Props {
 export function AppShell({ children }: Props) {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const shellRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [search, setSearch] = useState("");
 
   const { size: sidebarWidth, resizeHandleProps } = useResizablePanel({
     containerRef: shellRef,
@@ -59,8 +65,8 @@ export function AppShell({ children }: Props) {
   }, [isMobile, openDrawer]);
 
   const isComponentDetail = /^\/assets\/[^/]+/.test(location.pathname);
-  const pageTitle = isComponentDetail ? t("catalog.title", { defaultValue: "Component Library" }) : location.pathname === "/settings" ? t("settings.title", { defaultValue: "Settings" }) : t("catalog.title", { defaultValue: "Library workspace" });
-  const pageDescription = isComponentDetail ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" }) : location.pathname === "/settings" ? t("settings.subtitle", { defaultValue: "Theme and locale preferences persist locally in your browser." }) : t("catalog.subtitle", { defaultValue: "Find reusable components and non-renderable hooks." });
+  const pageTitle = isComponentDetail ? t("catalog.title", { defaultValue: "Component Library" }) : location.pathname === "/settings" ? t("settings.title", { defaultValue: "Settings" }) : location.pathname === "/catalog" ? t("catalog.title", { defaultValue: "Library workspace" }) : t("app.brand", { defaultValue: "Component Library" });
+  const pageDescription = isComponentDetail ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" }) : location.pathname === "/settings" ? t("settings.subtitle", { defaultValue: "Theme and locale preferences persist locally in your browser." }) : location.pathname === "/catalog" ? t("catalog.subtitle", { defaultValue: "Find reusable components and non-renderable hooks." }) : t("dashboard.subtitle", { defaultValue: "A clear view of your library's adoption and maintenance health." });
 
   return (
     <ShellNavigationContext.Provider value={{ sidebarCollapsed, openSidebar }}>
@@ -99,6 +105,7 @@ export function AppShell({ children }: Props) {
           title={pageTitle}
           description={pageDescription}
           leading={sidebarCollapsed ? <button type="button" onClick={openSidebar} aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })} data-testid="workspace-header-open-sidebar" className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><Menu aria-hidden className="h-5 w-5" /></button> : undefined}
+          actions={location.pathname !== "/settings" ? <><form onSubmit={(event) => { event.preventDefault(); navigate(`/catalog${search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ""}`); }} className="hidden sm:block"><Input aria-label={t("catalog.search", { defaultValue: "Search catalog" })} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("catalog.search", { defaultValue: "Search" })} className="h-9 w-44" /></form><span className="hidden text-xs text-app-muted-foreground md:inline">{t("dashboard.synced", { defaultValue: "Synced" })}</span><Button size="sm" onClick={() => setShowCreate(true)}>{t("dashboard.create", { defaultValue: "Create" })}</Button></> : undefined}
         />}
         <main
           data-testid="app-main"
@@ -111,6 +118,7 @@ export function AppShell({ children }: Props) {
           {children ?? <Outlet />}
         </main>
       </div>
+      {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
     </div>
     </ShellNavigationContext.Provider>
   );

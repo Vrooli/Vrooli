@@ -10,6 +10,7 @@
  */
 import { type Theme } from "../components/theme/theme-context";
 import { useTheme } from "../components/theme/useTheme";
+import { Select } from "../components/ui/select";
 import {
   SUPPORTED_LOCALES,
   getCurrentLocale,
@@ -23,11 +24,17 @@ export function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const locale = getCurrentLocale();
 
-  return (
-    <div data-testid="settings-page" className="flex max-w-3xl flex-col gap-6">
-      <Section title={t("settings.appearance", { defaultValue: "Appearance" })}>
+  return <div data-testid="settings-page" className="grid max-w-5xl gap-6 md:grid-cols-[12rem_minmax(0,1fr)]">
+    <nav aria-label={t("settings.preferences", { defaultValue: "Preferences" })} className="rounded-panel border border-app-border bg-app-surface p-2">
+      <p className="px-2 py-2 text-sm font-semibold">{t("settings.preferences", { defaultValue: "Preferences" })}</p>
+      <a href="#appearance" className="block rounded-control px-2 py-2 text-sm hover:bg-app-surface-muted">{t("settings.appearance", { defaultValue: "Appearance" })}</a>
+      <a href="#language" className="block rounded-control px-2 py-2 text-sm hover:bg-app-surface-muted">{t("settings.language", { defaultValue: "Language" })}</a>
+      <span className="block cursor-not-allowed rounded-control px-2 py-2 text-sm text-app-muted-foreground" aria-disabled="true">{t("settings.workspaceFuture", { defaultValue: "Workspace (future)" })}</span>
+    </nav>
+    <div className="flex flex-col gap-6">
+      <Section id="appearance" title={t("settings.appearance", { defaultValue: "Appearance" })}>
         <Field label={t("settings.theme", { defaultValue: "Theme" })}>
-          <Segmented
+          <AppearanceCards
             testid="settings-theme"
             value={theme}
             options={[
@@ -38,28 +45,28 @@ export function SettingsPage() {
             onChange={(v) => setTheme(v as Theme)}
           />
         </Field>
+        <p className="text-xs text-app-muted-foreground">{t("settings.densityFuture", { defaultValue: "Density will appear here when it is a real preference." })}</p>
       </Section>
 
-      <Section title={t("settings.language", { defaultValue: "Language" })}>
+      <Section id="language" title={t("settings.language", { defaultValue: "Language" })}>
         <Field label={t("locale.switcherLabel", { defaultValue: "Language" })}>
-          <Segmented
-            testid="settings-locale"
+          <Select
+            data-testid="settings-locale"
             value={locale}
-            options={SUPPORTED_LOCALES.map((code) => ({
-              value: code,
-              label: getLocaleConfig(code).nativeLabel,
-            }))}
-            onChange={(v) => void setLocale(v as (typeof SUPPORTED_LOCALES)[number])}
+            options={SUPPORTED_LOCALES.map((code) => ({ value: code, label: getLocaleConfig(code).nativeLabel }))}
+            onChange={(event) => void setLocale(event.target.value as (typeof SUPPORTED_LOCALES)[number])}
+            className="w-auto min-w-40"
           />
         </Field>
       </Section>
+      <p className="text-sm text-app-muted-foreground">{t("settings.savedBrowser", { defaultValue: "Saved automatically in this browser." })}</p>
     </div>
-  );
+  </div>;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-panel border border-app-border bg-app-surface p-4">
+    <section id={id} className="rounded-panel border border-app-border bg-app-surface p-4">
       <h2 className="text-sm font-semibold text-app-foreground">{title}</h2>
       <div className="mt-3 flex flex-col gap-3">{children}</div>
     </section>
@@ -75,7 +82,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Segmented({
+function AppearanceCards({
   testid,
   value,
   options,
@@ -90,7 +97,7 @@ function Segmented({
     <div
       data-testid={testid}
       role="radiogroup"
-      className="inline-flex overflow-hidden rounded-control border border-app-border"
+      className="grid w-full gap-2 sm:grid-cols-3"
     >
       {options.map((o) => {
         const active = o.value === value;
@@ -103,13 +110,13 @@ function Segmented({
             data-testid={`${testid}-${o.value}`}
             onClick={() => onChange(o.value)}
             className={[
-              "h-9 px-3 text-xs",
+              "min-h-24 rounded-panel border p-3 text-left text-sm",
               active
-                ? "bg-app-primary text-app-primary-foreground"
-                : "bg-app-surface text-app-foreground hover:bg-app-surface-muted",
+                ? "border-app-primary bg-app-surface-muted text-app-foreground ring-1 ring-app-primary"
+                : "border-app-border bg-app-surface text-app-foreground hover:bg-app-surface-muted",
             ].join(" ")}
           >
-            {o.label}
+            <span className="block font-medium">{o.label}</span>
           </button>
         );
       })}

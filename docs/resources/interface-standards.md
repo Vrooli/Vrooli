@@ -40,8 +40,13 @@ vrooli resource restart <name>
 - keep compatibility shims isolated and documented as transitional when they still exist
 - keep resource-specific wrappers subordinate to the canonical `vrooli resource ...` surface
 - keep resource-local entrypoints thin when shared control-plane packages can own the behavior
+- keep source-build tooling separate from deployed artifact delivery; an
+  end-user resource path must not depend on Go or Bash
+- expose target limitations, host requirements, and fallbacks before scenario
+  deployment/runtime attempts the resource
 
 ## Related
 
 - [architecture.md](architecture.md)
+- [deployment-contract.md](deployment-contract.md)
 - [storage.md](storage.md)

@@ -62,7 +62,10 @@ type Initiative struct {
 	// Verified provenance for the actor/session that created this initiative.
 	CreatedBy *AgentSessionAttribution `protobuf:"bytes,14,opt,name=created_by,json=createdBy,proto3,oneof" json:"created_by,omitempty"`
 	// Canonical plan-manager plan backing this initiative or operating mode.
-	PlanRef       *PlanRef `protobuf:"bytes,15,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
+	PlanRef *PlanRef `protobuf:"bytes,15,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
+	// Source initiative name when this initiative was recreated. This preserves
+	// lifecycle lineage without changing the source's archived history.
+	SpawnedFrom   string `protobuf:"bytes,16,opt,name=spawned_from,json=spawnedFrom,proto3" json:"spawned_from,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -202,6 +205,13 @@ func (x *Initiative) GetPlanRef() *PlanRef {
 	return nil
 }
 
+func (x *Initiative) GetSpawnedFrom() string {
+	if x != nil {
+		return x.SpawnedFrom
+	}
+	return ""
+}
+
 // InitiativeRollup provides aggregated status counts for initiative items.
 type InitiativeRollup struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -297,7 +307,7 @@ var File_swarm_manager_v1_domain_initiative_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\xcc\x05\n" +
+	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\xef\x05\n" +
 	"\n" +
 	"Initiative\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
@@ -319,7 +329,8 @@ const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"\x13acceptance_criteria\x18\r \x03(\tR\x12acceptanceCriteria\x12M\n" +
 	"\n" +
 	"created_by\x18\x0e \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x02R\tcreatedBy\x88\x01\x01\x129\n" +
-	"\bplan_ref\x18\x0f \x01(\v2\x19.swarm_manager.v1.PlanRefH\x03R\aplanRef\x88\x01\x01B\a\n" +
+	"\bplan_ref\x18\x0f \x01(\v2\x19.swarm_manager.v1.PlanRefH\x03R\aplanRef\x88\x01\x01\x12!\n" +
+	"\fspawned_from\x18\x10 \x01(\tR\vspawnedFromB\a\n" +
 	"\x05_noteB\x0e\n" +
 	"\f_archived_atB\r\n" +
 	"\v_created_byB\v\n" +

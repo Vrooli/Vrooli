@@ -1,8 +1,8 @@
 /**
  * App tests — composition smoke + route resolution.
  *
- * Asserts: (1) the operational shell mounts around the catalog workspace,
- * (2) only the catalog, asset detail, and settings routes resolve,
+ * Asserts: (1) the operational shell mounts around the dashboard,
+ * (2) dashboard, catalog, asset detail, and settings routes resolve,
  * (3) navigating between routes does not remount the shell.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -50,11 +50,11 @@ describe("App composition", () => {
     await waitFor(() => {
       expect(screen.getByTestId("app-shell")).toBeInTheDocument();
     });
-    expect(screen.getAllByTestId("catalog-browser")).not.toHaveLength(0);
+    expect(screen.getByTestId("dashboard-page")).toBeInTheDocument();
   });
 
-  it("renders the catalog workspace at /", async () => {
-    renderWithProviders(<App />, { routerEntries: ["/"] });
+  it("renders the catalog workspace at /catalog", async () => {
+    renderWithProviders(<App />, { routerEntries: ["/catalog"] });
     await waitFor(() => {
       expect(screen.getAllByTestId("catalog-browser")).toHaveLength(2);
     });

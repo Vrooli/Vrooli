@@ -7,6 +7,7 @@
  */
 export const appRoutes = {
   catalog: "/",
+  assetCatalog: "/catalog",
   asset: "/assets/:id",
   settings: "/settings",
 } as const;

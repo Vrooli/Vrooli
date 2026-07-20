@@ -7,6 +7,7 @@ import { useHostShortcutRelay } from "./hooks/useHostShortcutRelay";
 import { useTranslation } from "./i18n";
 import { CatalogBrowser } from "./features/catalog/CatalogBrowser";
 import { appRoutes } from "./routes";
+import { DashboardPage } from "./pages/DashboardPage";
 
 const ComponentDetailPage = lazy(() =>
   import("./pages/ComponentDetailPage").then((m) => ({ default: m.ComponentDetailPage })),
@@ -47,7 +48,8 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route path={appRoutes.catalog} element={<Page><CatalogBrowser surfaceId="catalog-results" /></Page>} />
+        <Route path={appRoutes.catalog} element={<Page><DashboardPage /></Page>} />
+        <Route path={appRoutes.assetCatalog} element={<Page><CatalogBrowser surfaceId="catalog-results" /></Page>} />
         <Route path={appRoutes.asset} element={<Page><ComponentDetailPage /></Page>} />
         <Route path={appRoutes.settings} element={<Page><SettingsPage /></Page>} />
         <Route path="*" element={<Page><NotFoundPage /></Page>} />

@@ -11,6 +11,8 @@ Resource CLI behavior is manifest-driven. Implemented resources declare their CL
 - [configuration.md](configuration.md) for current configuration and dependency guidance
 - [storage.md](storage.md) for target resource runtime storage policy
 - [architecture.md](architecture.md) for target native-Go resource implementation structure
+- [deployment-contract.md](deployment-contract.md) for target artifact delivery, deployment profiles, desktop readiness, and scenario bundle decisions
+- [maturity-migration.md](maturity-migration.md) for assessing, ranking, and migrating resources to the target architecture
 - [interface-standards.md](interface-standards.md) for resource-surface expectations
 - [integration-cookbook.md](integration-cookbook.md) for practical integration guidance
 - [resource-blueprints.md](resource-blueprints.md) for blueprint-backed future capability records
@@ -74,6 +76,11 @@ Canonical resource templates emit the same shared CLI manifest shape used by sce
 - explicit freshness inputs
 
 Most generated resource CLIs remain thin control-plane delegates, not scenario-style API clients. The explicit exception is the `native-cli` archetype for repo-owned Go resource binaries with richer operator surfaces.
+
+For source checkouts, the shared Go installer may build a resource CLI. For a
+desktop or release deployment, the target architecture instead packages a
+prebuilt, verified platform artifact; end-user machines must not need Go or
+Bash to start a mature resource. See [deployment-contract.md](deployment-contract.md).
 
 Archive and schema workflows:
 

@@ -12,7 +12,7 @@ import (
 
 // TestWriteListJSONContract pins the `vrooli resource list --json` wire shape so
 // a change to the vrooli.cli.v1 proto (or the producer mapping) is caught here
-// rather than silently breaking out-of-process consumers (ecosystem-manager, UI).
+// rather than silently breaking out-of-process consumers (swarm-manager, UI).
 func TestWriteListJSONContract(t *testing.T) {
 	items := []resources.Resource{
 		// A fully-populated resource.
