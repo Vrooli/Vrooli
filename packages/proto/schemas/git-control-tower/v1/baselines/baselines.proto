@@ -70,6 +70,13 @@ message RunAnchor {
   string descriptor_snapshot_ref = 6;
   string descriptor_snapshot_digest = 7;
   int32 descriptor_snapshot_schema_version = 8;
+  // strict | shared-scoped | degraded. Provenance is independent from the
+  // baseline's behavioral before-result.
+  string evidence_tier = 9;
+  // Declared source boundary covered by tree_digest.
+  string source_scope = 10;
+  // Whether declared inputs stayed unchanged during the captured attempt.
+  bool source_stable = 11;
 }
 
 message MigrationInfo {

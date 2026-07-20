@@ -617,13 +617,14 @@ func (x *ReconcileScenarioProfilesRequest) GetDryRun() bool {
 
 // ProfileReconcileResult reports the outcome for one source profile.
 type ProfileReconcileResult struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProfileKey    string                 `protobuf:"bytes,1,opt,name=profile_key,json=profileKey,proto3" json:"profile_key,omitempty"`
-	SourcePath    string                 `protobuf:"bytes,2,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
-	SourceHash    string                 `protobuf:"bytes,3,opt,name=source_hash,json=sourceHash,proto3" json:"source_hash,omitempty"`
-	ProfileId     string                 `protobuf:"bytes,4,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
-	Status        ProfileReconcileStatus `protobuf:"varint,5,opt,name=status,proto3,enum=agent_manager.v1.ProfileReconcileStatus" json:"status,omitempty"`
-	Message       string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	ProfileKey    string                       `protobuf:"bytes,1,opt,name=profile_key,json=profileKey,proto3" json:"profile_key,omitempty"`
+	SourcePath    string                       `protobuf:"bytes,2,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
+	SourceHash    string                       `protobuf:"bytes,3,opt,name=source_hash,json=sourceHash,proto3" json:"source_hash,omitempty"`
+	ProfileId     string                       `protobuf:"bytes,4,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Status        ProfileReconcileStatus       `protobuf:"varint,5,opt,name=status,proto3,enum=agent_manager.v1.ProfileReconcileStatus" json:"status,omitempty"`
+	Message       string                       `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	Diagnostics   []*domain.WorkflowDiagnostic `protobuf:"bytes,7,rep,name=diagnostics,proto3" json:"diagnostics,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -698,6 +699,13 @@ func (x *ProfileReconcileResult) GetMessage() string {
 		return x.Message
 	}
 	return ""
+}
+
+func (x *ProfileReconcileResult) GetDiagnostics() []*domain.WorkflowDiagnostic {
+	if x != nil {
+		return x.Diagnostics
+	}
+	return nil
 }
 
 // ReconcileScenarioProfilesResponse returns the full scenario reconciliation report.
@@ -8835,7 +8843,7 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	" ReconcileScenarioProfilesRequest\x12&\n" +
 	"\bscenario\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\bscenario\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\xf6\x01\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\xbe\x02\n" +
 	"\x16ProfileReconcileResult\x12\x1f\n" +
 	"\vprofile_key\x18\x01 \x01(\tR\n" +
 	"profileKey\x12\x1f\n" +
@@ -8846,7 +8854,8 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\n" +
 	"profile_id\x18\x04 \x01(\tR\tprofileId\x12@\n" +
 	"\x06status\x18\x05 \x01(\x0e2(.agent_manager.v1.ProfileReconcileStatusR\x06status\x12\x18\n" +
-	"\amessage\x18\x06 \x01(\tR\amessage\"\xc0\x02\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\x12F\n" +
+	"\vdiagnostics\x18\a \x03(\v2$.agent_manager.v1.WorkflowDiagnosticR\vdiagnostics\"\xc0\x02\n" +
 	"!ReconcileScenarioProfilesResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12B\n" +
 	"\aresults\x18\x02 \x03(\v2(.agent_manager.v1.ProfileReconcileResultR\aresults\x12\x18\n" +
@@ -9734,8 +9743,8 @@ var file_agent_manager_v1_api_service_proto_goTypes = []any{
 	nil,                                             // 147: agent_manager.v1.CreateRunRequest.EnvironmentEntry
 	(v1.HealthStatus)(0),                            // 148: common.v1.HealthStatus
 	(*domain.AgentProfile)(nil),                     // 149: agent_manager.v1.AgentProfile
-	(*structpb.Struct)(nil),                         // 150: google.protobuf.Struct
-	(*domain.WorkflowDiagnostic)(nil),               // 151: agent_manager.v1.WorkflowDiagnostic
+	(*domain.WorkflowDiagnostic)(nil),               // 150: agent_manager.v1.WorkflowDiagnostic
+	(*structpb.Struct)(nil),                         // 151: google.protobuf.Struct
 	(*domain.WorkflowRevision)(nil),                 // 152: agent_manager.v1.WorkflowRevision
 	(*structpb.Value)(nil),                          // 153: google.protobuf.Value
 	(*domain.WorkflowExecution)(nil),                // 154: agent_manager.v1.WorkflowExecution
@@ -9770,250 +9779,251 @@ var file_agent_manager_v1_api_service_proto_depIdxs = []int32{
 	149, // 5: agent_manager.v1.EnsureProfileRequest.defaults:type_name -> agent_manager.v1.AgentProfile
 	149, // 6: agent_manager.v1.EnsureProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
 	0,   // 7: agent_manager.v1.ProfileReconcileResult.status:type_name -> agent_manager.v1.ProfileReconcileStatus
-	10,  // 8: agent_manager.v1.ReconcileScenarioProfilesResponse.results:type_name -> agent_manager.v1.ProfileReconcileResult
-	150, // 9: agent_manager.v1.ValidateWorkflowRequest.definition:type_name -> google.protobuf.Struct
-	150, // 10: agent_manager.v1.ValidateWorkflowResponse.definition:type_name -> google.protobuf.Struct
-	151, // 11: agent_manager.v1.ValidateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
-	1,   // 12: agent_manager.v1.WorkflowReconcileResult.status:type_name -> agent_manager.v1.WorkflowReconcileStatus
-	151, // 13: agent_manager.v1.WorkflowReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
-	15,  // 14: agent_manager.v1.ReconcileScenarioWorkflowsResponse.results:type_name -> agent_manager.v1.WorkflowReconcileResult
-	10,  // 15: agent_manager.v1.ReconcileScenarioDeclarationsResponse.profile_results:type_name -> agent_manager.v1.ProfileReconcileResult
-	15,  // 16: agent_manager.v1.ReconcileScenarioDeclarationsResponse.workflow_results:type_name -> agent_manager.v1.WorkflowReconcileResult
-	152, // 17: agent_manager.v1.ListWorkflowRevisionsResponse.revisions:type_name -> agent_manager.v1.WorkflowRevision
-	152, // 18: agent_manager.v1.GetWorkflowRevisionResponse.revision:type_name -> agent_manager.v1.WorkflowRevision
-	153, // 19: agent_manager.v1.StartWorkflowExecutionRequest.input:type_name -> google.protobuf.Value
-	154, // 20: agent_manager.v1.WorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	154, // 21: agent_manager.v1.WaitWorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	155, // 22: agent_manager.v1.ListWorkflowExecutionsRequest.status:type_name -> agent_manager.v1.WorkflowExecutionStatus
-	154, // 23: agent_manager.v1.ListWorkflowExecutionsResponse.executions:type_name -> agent_manager.v1.WorkflowExecution
-	154, // 24: agent_manager.v1.GetWorkflowExecutionTraceResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	156, // 25: agent_manager.v1.GetWorkflowExecutionTraceResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
-	157, // 26: agent_manager.v1.GetWorkflowExecutionTraceResponse.journal:type_name -> agent_manager.v1.WorkflowJournalEntry
-	156, // 27: agent_manager.v1.ListWorkflowExecutionRunsResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
-	153, // 28: agent_manager.v1.SignalWorkflowExecutionRequest.payload:type_name -> google.protobuf.Value
-	154, // 29: agent_manager.v1.WorkflowExecutionOperationResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
-	153, // 30: agent_manager.v1.SimulateWorkflowRequest.input:type_name -> google.protobuf.Value
-	39,  // 31: agent_manager.v1.SimulateWorkflowResponse.nodes:type_name -> agent_manager.v1.WorkflowNodePlan
-	151, // 32: agent_manager.v1.SimulateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
-	149, // 33: agent_manager.v1.GetProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
-	149, // 34: agent_manager.v1.ListProfilesResponse.profiles:type_name -> agent_manager.v1.AgentProfile
-	149, // 35: agent_manager.v1.UpdateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
-	149, // 36: agent_manager.v1.UpdateProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
-	158, // 37: agent_manager.v1.CreateTaskRequest.task:type_name -> agent_manager.v1.Task
-	158, // 38: agent_manager.v1.CreateTaskResponse.task:type_name -> agent_manager.v1.Task
-	158, // 39: agent_manager.v1.GetTaskResponse.task:type_name -> agent_manager.v1.Task
-	159, // 40: agent_manager.v1.ListTasksRequest.status:type_name -> agent_manager.v1.TaskStatus
-	158, // 41: agent_manager.v1.ListTasksResponse.tasks:type_name -> agent_manager.v1.Task
-	158, // 42: agent_manager.v1.UpdateTaskRequest.task:type_name -> agent_manager.v1.Task
-	158, // 43: agent_manager.v1.UpdateTaskResponse.task:type_name -> agent_manager.v1.Task
-	149, // 44: agent_manager.v1.ProfileRef.defaults:type_name -> agent_manager.v1.AgentProfile
-	160, // 45: agent_manager.v1.CreateRunRequest.run_mode:type_name -> agent_manager.v1.RunMode
-	161, // 46: agent_manager.v1.CreateRunRequest.inline_config:type_name -> agent_manager.v1.RunConfigOverrides
-	61,  // 47: agent_manager.v1.CreateRunRequest.profile_ref:type_name -> agent_manager.v1.ProfileRef
-	147, // 48: agent_manager.v1.CreateRunRequest.environment:type_name -> agent_manager.v1.CreateRunRequest.EnvironmentEntry
-	162, // 49: agent_manager.v1.CreateRunRequest.execution_mode:type_name -> agent_manager.v1.ExecutionMode
-	163, // 50: agent_manager.v1.CreateRunResponse.run:type_name -> agent_manager.v1.Run
-	163, // 51: agent_manager.v1.GetRunResponse.run:type_name -> agent_manager.v1.Run
-	163, // 52: agent_manager.v1.GetRunByTagResponse.run:type_name -> agent_manager.v1.Run
-	164, // 53: agent_manager.v1.ListRunsRequest.status:type_name -> agent_manager.v1.RunStatus
-	163, // 54: agent_manager.v1.ListRunsResponse.runs:type_name -> agent_manager.v1.Run
-	163, // 55: agent_manager.v1.StopRunResponse.run:type_name -> agent_manager.v1.Run
-	163, // 56: agent_manager.v1.StopRunByTagResponse.run:type_name -> agent_manager.v1.Run
-	165, // 57: agent_manager.v1.StopAllRunsResponse.result:type_name -> agent_manager.v1.StopAllResult
-	80,  // 58: agent_manager.v1.QuiesceScenarioResponse.result:type_name -> agent_manager.v1.QuiesceResult
-	81,  // 59: agent_manager.v1.QuiesceResult.in_flight:type_name -> agent_manager.v1.QuiesceRunRef
-	81,  // 60: agent_manager.v1.QuiesceResult.cancelled:type_name -> agent_manager.v1.QuiesceRunRef
-	163, // 61: agent_manager.v1.RecoverRunResponse.run:type_name -> agent_manager.v1.Run
-	166, // 62: agent_manager.v1.GetRunEventsRequest.event_types:type_name -> agent_manager.v1.RunEventType
-	167, // 63: agent_manager.v1.GetRunEventsResponse.events:type_name -> agent_manager.v1.RunEvent
-	168, // 64: agent_manager.v1.GetRunDiffResponse.diff:type_name -> agent_manager.v1.RunDiff
-	169, // 65: agent_manager.v1.ApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
-	169, // 66: agent_manager.v1.PartialApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
-	170, // 67: agent_manager.v1.GetRunnerStatusResponse.runners:type_name -> agent_manager.v1.RunnerStatus
-	171, // 68: agent_manager.v1.ProbeRunnerRequest.runner_type:type_name -> agent_manager.v1.RunnerType
-	172, // 69: agent_manager.v1.ProbeRunnerResponse.result:type_name -> agent_manager.v1.ProbeResult
-	173, // 70: agent_manager.v1.RolePolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
-	98,  // 71: agent_manager.v1.RolePolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
-	99,  // 72: agent_manager.v1.RolePolicyStatus.requirement:type_name -> agent_manager.v1.RolePolicyRequirement
-	173, // 73: agent_manager.v1.RolePolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
-	100, // 74: agent_manager.v1.RolePolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.RolePolicyReloadAttempt
-	171, // 75: agent_manager.v1.RolePolicyCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
-	103, // 76: agent_manager.v1.RolePolicyDefinition.candidates:type_name -> agent_manager.v1.RolePolicyCandidate
-	102, // 77: agent_manager.v1.RolePolicyCatalog.metadata:type_name -> agent_manager.v1.RolePolicyCatalogMetadata
-	104, // 78: agent_manager.v1.RolePolicyCatalog.roles:type_name -> agent_manager.v1.RolePolicyDefinition
-	101, // 79: agent_manager.v1.GetRolePolicyStatusResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
-	101, // 80: agent_manager.v1.GetRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
-	105, // 81: agent_manager.v1.GetRolePolicyCatalogResponse.catalog:type_name -> agent_manager.v1.RolePolicyCatalog
-	98,  // 82: agent_manager.v1.ValidateRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
-	101, // 83: agent_manager.v1.ReloadRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
-	98,  // 84: agent_manager.v1.ReloadRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
-	174, // 85: agent_manager.v1.ExplainRolePolicyResponse.snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
-	173, // 86: agent_manager.v1.PermissionPolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
-	116, // 87: agent_manager.v1.PermissionPolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
-	117, // 88: agent_manager.v1.PermissionPolicyStatus.requirement:type_name -> agent_manager.v1.PermissionPolicyRequirement
-	173, // 89: agent_manager.v1.PermissionPolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
-	118, // 90: agent_manager.v1.PermissionPolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.PermissionPolicyReloadAttempt
-	121, // 91: agent_manager.v1.PermissionPolicyRule.matcher:type_name -> agent_manager.v1.PermissionPolicyMatcher
-	120, // 92: agent_manager.v1.PermissionPolicyCatalog.metadata:type_name -> agent_manager.v1.PermissionPolicyCatalogMetadata
-	122, // 93: agent_manager.v1.PermissionPolicyCatalog.rules:type_name -> agent_manager.v1.PermissionPolicyRule
-	171, // 94: agent_manager.v1.PermissionPolicyResourceResult.runner_type:type_name -> agent_manager.v1.RunnerType
-	124, // 95: agent_manager.v1.PermissionPolicyResourceResult.enforcement:type_name -> agent_manager.v1.PermissionPolicyEnforcement
-	121, // 96: agent_manager.v1.PermissionPolicyResourceResult.unsupported_matchers:type_name -> agent_manager.v1.PermissionPolicyMatcher
-	125, // 97: agent_manager.v1.PermissionPolicyPlan.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
-	173, // 98: agent_manager.v1.PermissionPolicyReconcileResult.started_at:type_name -> google.protobuf.Timestamp
-	173, // 99: agent_manager.v1.PermissionPolicyReconcileResult.finished_at:type_name -> google.protobuf.Timestamp
-	125, // 100: agent_manager.v1.PermissionPolicyReconcileResult.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
-	119, // 101: agent_manager.v1.GetPermissionPolicyStatusResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	127, // 102: agent_manager.v1.GetPermissionPolicyStatusResponse.last_reconcile:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
-	119, // 103: agent_manager.v1.GetPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	123, // 104: agent_manager.v1.GetPermissionPolicyCatalogResponse.catalog:type_name -> agent_manager.v1.PermissionPolicyCatalog
-	116, // 105: agent_manager.v1.ValidatePermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
-	119, // 106: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	116, // 107: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
-	126, // 108: agent_manager.v1.PlanPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
-	127, // 109: agent_manager.v1.ReconcilePermissionPolicyResponse.result:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
-	119, // 110: agent_manager.v1.DoctorPermissionPolicyResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
-	126, // 111: agent_manager.v1.DoctorPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
-	2,   // 112: agent_manager.v1.PurgeDataRequest.targets:type_name -> agent_manager.v1.PurgeTarget
-	143, // 113: agent_manager.v1.PurgeDataResponse.matched:type_name -> agent_manager.v1.PurgeCounts
-	143, // 114: agent_manager.v1.PurgeDataResponse.deleted:type_name -> agent_manager.v1.PurgeCounts
-	175, // 115: agent_manager.v1.HealthResponse.DependenciesEntry.value:type_name -> common.v1.JsonValue
-	175, // 116: agent_manager.v1.HealthResponse.MetricsEntry.value:type_name -> common.v1.JsonValue
-	3,   // 117: agent_manager.v1.AgentManagerService.Health:input_type -> agent_manager.v1.HealthRequest
-	5,   // 118: agent_manager.v1.AgentManagerService.CreateProfile:input_type -> agent_manager.v1.CreateProfileRequest
-	7,   // 119: agent_manager.v1.AgentManagerService.EnsureProfile:input_type -> agent_manager.v1.EnsureProfileRequest
-	9,   // 120: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:input_type -> agent_manager.v1.ReconcileScenarioProfilesRequest
-	12,  // 121: agent_manager.v1.AgentManagerService.ValidateWorkflow:input_type -> agent_manager.v1.ValidateWorkflowRequest
-	14,  // 122: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
-	14,  // 123: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
-	17,  // 124: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
-	17,  // 125: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
-	19,  // 126: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:input_type -> agent_manager.v1.ListWorkflowRevisionsRequest
-	21,  // 127: agent_manager.v1.AgentManagerService.GetWorkflowRevision:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
-	14,  // 128: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
-	21,  // 129: agent_manager.v1.AgentManagerService.ExplainWorkflow:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
-	23,  // 130: agent_manager.v1.AgentManagerService.StartWorkflowExecution:input_type -> agent_manager.v1.StartWorkflowExecutionRequest
-	29,  // 131: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:input_type -> agent_manager.v1.ListWorkflowExecutionsRequest
-	24,  // 132: agent_manager.v1.AgentManagerService.GetWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
-	25,  // 133: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:input_type -> agent_manager.v1.GetWorkflowExecutionResultRequest
-	24,  // 134: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
-	27,  // 135: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:input_type -> agent_manager.v1.WaitWorkflowExecutionRequest
-	31,  // 136: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:input_type -> agent_manager.v1.GetWorkflowExecutionTraceRequest
-	33,  // 137: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:input_type -> agent_manager.v1.ListWorkflowExecutionRunsRequest
-	35,  // 138: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:input_type -> agent_manager.v1.SignalWorkflowExecutionRequest
-	36,  // 139: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
-	36,  // 140: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
-	36,  // 141: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
-	38,  // 142: agent_manager.v1.AgentManagerService.SimulateWorkflow:input_type -> agent_manager.v1.SimulateWorkflowRequest
-	41,  // 143: agent_manager.v1.AgentManagerService.GetProfile:input_type -> agent_manager.v1.GetProfileRequest
-	43,  // 144: agent_manager.v1.AgentManagerService.ListProfiles:input_type -> agent_manager.v1.ListProfilesRequest
-	45,  // 145: agent_manager.v1.AgentManagerService.UpdateProfile:input_type -> agent_manager.v1.UpdateProfileRequest
-	47,  // 146: agent_manager.v1.AgentManagerService.DeleteProfile:input_type -> agent_manager.v1.DeleteProfileRequest
-	49,  // 147: agent_manager.v1.AgentManagerService.CreateTask:input_type -> agent_manager.v1.CreateTaskRequest
-	51,  // 148: agent_manager.v1.AgentManagerService.GetTask:input_type -> agent_manager.v1.GetTaskRequest
-	53,  // 149: agent_manager.v1.AgentManagerService.ListTasks:input_type -> agent_manager.v1.ListTasksRequest
-	55,  // 150: agent_manager.v1.AgentManagerService.UpdateTask:input_type -> agent_manager.v1.UpdateTaskRequest
-	57,  // 151: agent_manager.v1.AgentManagerService.DeleteTask:input_type -> agent_manager.v1.DeleteTaskRequest
-	59,  // 152: agent_manager.v1.AgentManagerService.CancelTask:input_type -> agent_manager.v1.CancelTaskRequest
-	62,  // 153: agent_manager.v1.AgentManagerService.CreateRun:input_type -> agent_manager.v1.CreateRunRequest
-	66,  // 154: agent_manager.v1.AgentManagerService.GetRun:input_type -> agent_manager.v1.GetRunRequest
-	68,  // 155: agent_manager.v1.AgentManagerService.GetRunByTag:input_type -> agent_manager.v1.GetRunByTagRequest
-	70,  // 156: agent_manager.v1.AgentManagerService.ListRuns:input_type -> agent_manager.v1.ListRunsRequest
-	63,  // 157: agent_manager.v1.AgentManagerService.DeleteRun:input_type -> agent_manager.v1.DeleteRunRequest
-	72,  // 158: agent_manager.v1.AgentManagerService.StopRun:input_type -> agent_manager.v1.StopRunRequest
-	74,  // 159: agent_manager.v1.AgentManagerService.StopRunByTag:input_type -> agent_manager.v1.StopRunByTagRequest
-	76,  // 160: agent_manager.v1.AgentManagerService.StopAllRuns:input_type -> agent_manager.v1.StopAllRunsRequest
-	78,  // 161: agent_manager.v1.AgentManagerService.QuiesceScenario:input_type -> agent_manager.v1.QuiesceScenarioRequest
-	82,  // 162: agent_manager.v1.AgentManagerService.RecoverRun:input_type -> agent_manager.v1.RecoverRunRequest
-	84,  // 163: agent_manager.v1.AgentManagerService.GetRunEvents:input_type -> agent_manager.v1.GetRunEventsRequest
-	86,  // 164: agent_manager.v1.AgentManagerService.GetRunDiff:input_type -> agent_manager.v1.GetRunDiffRequest
-	88,  // 165: agent_manager.v1.AgentManagerService.ApproveRun:input_type -> agent_manager.v1.ApproveRunRequest
-	90,  // 166: agent_manager.v1.AgentManagerService.RejectRun:input_type -> agent_manager.v1.RejectRunRequest
-	94,  // 167: agent_manager.v1.AgentManagerService.GetRunnerStatus:input_type -> agent_manager.v1.GetRunnerStatusRequest
-	96,  // 168: agent_manager.v1.AgentManagerService.ProbeRunner:input_type -> agent_manager.v1.ProbeRunnerRequest
-	106, // 169: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:input_type -> agent_manager.v1.GetRolePolicyStatusRequest
-	108, // 170: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:input_type -> agent_manager.v1.GetRolePolicyCatalogRequest
-	110, // 171: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:input_type -> agent_manager.v1.ValidateRolePolicyCatalogRequest
-	112, // 172: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:input_type -> agent_manager.v1.ReloadRolePolicyCatalogRequest
-	114, // 173: agent_manager.v1.AgentManagerService.ExplainRolePolicy:input_type -> agent_manager.v1.ExplainRolePolicyRequest
-	128, // 174: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:input_type -> agent_manager.v1.GetPermissionPolicyStatusRequest
-	130, // 175: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:input_type -> agent_manager.v1.GetPermissionPolicyCatalogRequest
-	132, // 176: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:input_type -> agent_manager.v1.ValidatePermissionPolicyCatalogRequest
-	134, // 177: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:input_type -> agent_manager.v1.ReloadPermissionPolicyCatalogRequest
-	136, // 178: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:input_type -> agent_manager.v1.PlanPermissionPolicyRequest
-	138, // 179: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:input_type -> agent_manager.v1.ReconcilePermissionPolicyRequest
-	140, // 180: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:input_type -> agent_manager.v1.DoctorPermissionPolicyRequest
-	142, // 181: agent_manager.v1.AgentManagerService.PurgeData:input_type -> agent_manager.v1.PurgeDataRequest
-	4,   // 182: agent_manager.v1.AgentManagerService.Health:output_type -> agent_manager.v1.HealthResponse
-	6,   // 183: agent_manager.v1.AgentManagerService.CreateProfile:output_type -> agent_manager.v1.CreateProfileResponse
-	8,   // 184: agent_manager.v1.AgentManagerService.EnsureProfile:output_type -> agent_manager.v1.EnsureProfileResponse
-	11,  // 185: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:output_type -> agent_manager.v1.ReconcileScenarioProfilesResponse
-	13,  // 186: agent_manager.v1.AgentManagerService.ValidateWorkflow:output_type -> agent_manager.v1.ValidateWorkflowResponse
-	16,  // 187: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
-	16,  // 188: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
-	18,  // 189: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
-	18,  // 190: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
-	20,  // 191: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:output_type -> agent_manager.v1.ListWorkflowRevisionsResponse
-	22,  // 192: agent_manager.v1.AgentManagerService.GetWorkflowRevision:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
-	16,  // 193: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
-	22,  // 194: agent_manager.v1.AgentManagerService.ExplainWorkflow:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
-	26,  // 195: agent_manager.v1.AgentManagerService.StartWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	30,  // 196: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:output_type -> agent_manager.v1.ListWorkflowExecutionsResponse
-	26,  // 197: agent_manager.v1.AgentManagerService.GetWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	26,  // 198: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	26,  // 199: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
-	28,  // 200: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:output_type -> agent_manager.v1.WaitWorkflowExecutionResponse
-	32,  // 201: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:output_type -> agent_manager.v1.GetWorkflowExecutionTraceResponse
-	34,  // 202: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:output_type -> agent_manager.v1.ListWorkflowExecutionRunsResponse
-	37,  // 203: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	37,  // 204: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	37,  // 205: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	37,  // 206: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
-	40,  // 207: agent_manager.v1.AgentManagerService.SimulateWorkflow:output_type -> agent_manager.v1.SimulateWorkflowResponse
-	42,  // 208: agent_manager.v1.AgentManagerService.GetProfile:output_type -> agent_manager.v1.GetProfileResponse
-	44,  // 209: agent_manager.v1.AgentManagerService.ListProfiles:output_type -> agent_manager.v1.ListProfilesResponse
-	46,  // 210: agent_manager.v1.AgentManagerService.UpdateProfile:output_type -> agent_manager.v1.UpdateProfileResponse
-	48,  // 211: agent_manager.v1.AgentManagerService.DeleteProfile:output_type -> agent_manager.v1.DeleteProfileResponse
-	50,  // 212: agent_manager.v1.AgentManagerService.CreateTask:output_type -> agent_manager.v1.CreateTaskResponse
-	52,  // 213: agent_manager.v1.AgentManagerService.GetTask:output_type -> agent_manager.v1.GetTaskResponse
-	54,  // 214: agent_manager.v1.AgentManagerService.ListTasks:output_type -> agent_manager.v1.ListTasksResponse
-	56,  // 215: agent_manager.v1.AgentManagerService.UpdateTask:output_type -> agent_manager.v1.UpdateTaskResponse
-	58,  // 216: agent_manager.v1.AgentManagerService.DeleteTask:output_type -> agent_manager.v1.DeleteTaskResponse
-	60,  // 217: agent_manager.v1.AgentManagerService.CancelTask:output_type -> agent_manager.v1.CancelTaskResponse
-	65,  // 218: agent_manager.v1.AgentManagerService.CreateRun:output_type -> agent_manager.v1.CreateRunResponse
-	67,  // 219: agent_manager.v1.AgentManagerService.GetRun:output_type -> agent_manager.v1.GetRunResponse
-	69,  // 220: agent_manager.v1.AgentManagerService.GetRunByTag:output_type -> agent_manager.v1.GetRunByTagResponse
-	71,  // 221: agent_manager.v1.AgentManagerService.ListRuns:output_type -> agent_manager.v1.ListRunsResponse
-	64,  // 222: agent_manager.v1.AgentManagerService.DeleteRun:output_type -> agent_manager.v1.DeleteRunResponse
-	73,  // 223: agent_manager.v1.AgentManagerService.StopRun:output_type -> agent_manager.v1.StopRunResponse
-	75,  // 224: agent_manager.v1.AgentManagerService.StopRunByTag:output_type -> agent_manager.v1.StopRunByTagResponse
-	77,  // 225: agent_manager.v1.AgentManagerService.StopAllRuns:output_type -> agent_manager.v1.StopAllRunsResponse
-	79,  // 226: agent_manager.v1.AgentManagerService.QuiesceScenario:output_type -> agent_manager.v1.QuiesceScenarioResponse
-	83,  // 227: agent_manager.v1.AgentManagerService.RecoverRun:output_type -> agent_manager.v1.RecoverRunResponse
-	85,  // 228: agent_manager.v1.AgentManagerService.GetRunEvents:output_type -> agent_manager.v1.GetRunEventsResponse
-	87,  // 229: agent_manager.v1.AgentManagerService.GetRunDiff:output_type -> agent_manager.v1.GetRunDiffResponse
-	89,  // 230: agent_manager.v1.AgentManagerService.ApproveRun:output_type -> agent_manager.v1.ApproveRunResponse
-	91,  // 231: agent_manager.v1.AgentManagerService.RejectRun:output_type -> agent_manager.v1.RejectRunResponse
-	95,  // 232: agent_manager.v1.AgentManagerService.GetRunnerStatus:output_type -> agent_manager.v1.GetRunnerStatusResponse
-	97,  // 233: agent_manager.v1.AgentManagerService.ProbeRunner:output_type -> agent_manager.v1.ProbeRunnerResponse
-	107, // 234: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:output_type -> agent_manager.v1.GetRolePolicyStatusResponse
-	109, // 235: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:output_type -> agent_manager.v1.GetRolePolicyCatalogResponse
-	111, // 236: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:output_type -> agent_manager.v1.ValidateRolePolicyCatalogResponse
-	113, // 237: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:output_type -> agent_manager.v1.ReloadRolePolicyCatalogResponse
-	115, // 238: agent_manager.v1.AgentManagerService.ExplainRolePolicy:output_type -> agent_manager.v1.ExplainRolePolicyResponse
-	129, // 239: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:output_type -> agent_manager.v1.GetPermissionPolicyStatusResponse
-	131, // 240: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:output_type -> agent_manager.v1.GetPermissionPolicyCatalogResponse
-	133, // 241: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:output_type -> agent_manager.v1.ValidatePermissionPolicyCatalogResponse
-	135, // 242: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:output_type -> agent_manager.v1.ReloadPermissionPolicyCatalogResponse
-	137, // 243: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:output_type -> agent_manager.v1.PlanPermissionPolicyResponse
-	139, // 244: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:output_type -> agent_manager.v1.ReconcilePermissionPolicyResponse
-	141, // 245: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:output_type -> agent_manager.v1.DoctorPermissionPolicyResponse
-	144, // 246: agent_manager.v1.AgentManagerService.PurgeData:output_type -> agent_manager.v1.PurgeDataResponse
-	182, // [182:247] is the sub-list for method output_type
-	117, // [117:182] is the sub-list for method input_type
-	117, // [117:117] is the sub-list for extension type_name
-	117, // [117:117] is the sub-list for extension extendee
-	0,   // [0:117] is the sub-list for field type_name
+	150, // 8: agent_manager.v1.ProfileReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	10,  // 9: agent_manager.v1.ReconcileScenarioProfilesResponse.results:type_name -> agent_manager.v1.ProfileReconcileResult
+	151, // 10: agent_manager.v1.ValidateWorkflowRequest.definition:type_name -> google.protobuf.Struct
+	151, // 11: agent_manager.v1.ValidateWorkflowResponse.definition:type_name -> google.protobuf.Struct
+	150, // 12: agent_manager.v1.ValidateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	1,   // 13: agent_manager.v1.WorkflowReconcileResult.status:type_name -> agent_manager.v1.WorkflowReconcileStatus
+	150, // 14: agent_manager.v1.WorkflowReconcileResult.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	15,  // 15: agent_manager.v1.ReconcileScenarioWorkflowsResponse.results:type_name -> agent_manager.v1.WorkflowReconcileResult
+	10,  // 16: agent_manager.v1.ReconcileScenarioDeclarationsResponse.profile_results:type_name -> agent_manager.v1.ProfileReconcileResult
+	15,  // 17: agent_manager.v1.ReconcileScenarioDeclarationsResponse.workflow_results:type_name -> agent_manager.v1.WorkflowReconcileResult
+	152, // 18: agent_manager.v1.ListWorkflowRevisionsResponse.revisions:type_name -> agent_manager.v1.WorkflowRevision
+	152, // 19: agent_manager.v1.GetWorkflowRevisionResponse.revision:type_name -> agent_manager.v1.WorkflowRevision
+	153, // 20: agent_manager.v1.StartWorkflowExecutionRequest.input:type_name -> google.protobuf.Value
+	154, // 21: agent_manager.v1.WorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	154, // 22: agent_manager.v1.WaitWorkflowExecutionResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	155, // 23: agent_manager.v1.ListWorkflowExecutionsRequest.status:type_name -> agent_manager.v1.WorkflowExecutionStatus
+	154, // 24: agent_manager.v1.ListWorkflowExecutionsResponse.executions:type_name -> agent_manager.v1.WorkflowExecution
+	154, // 25: agent_manager.v1.GetWorkflowExecutionTraceResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	156, // 26: agent_manager.v1.GetWorkflowExecutionTraceResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
+	157, // 27: agent_manager.v1.GetWorkflowExecutionTraceResponse.journal:type_name -> agent_manager.v1.WorkflowJournalEntry
+	156, // 28: agent_manager.v1.ListWorkflowExecutionRunsResponse.attempts:type_name -> agent_manager.v1.WorkflowNodeAttempt
+	153, // 29: agent_manager.v1.SignalWorkflowExecutionRequest.payload:type_name -> google.protobuf.Value
+	154, // 30: agent_manager.v1.WorkflowExecutionOperationResponse.execution:type_name -> agent_manager.v1.WorkflowExecution
+	153, // 31: agent_manager.v1.SimulateWorkflowRequest.input:type_name -> google.protobuf.Value
+	39,  // 32: agent_manager.v1.SimulateWorkflowResponse.nodes:type_name -> agent_manager.v1.WorkflowNodePlan
+	150, // 33: agent_manager.v1.SimulateWorkflowResponse.diagnostics:type_name -> agent_manager.v1.WorkflowDiagnostic
+	149, // 34: agent_manager.v1.GetProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
+	149, // 35: agent_manager.v1.ListProfilesResponse.profiles:type_name -> agent_manager.v1.AgentProfile
+	149, // 36: agent_manager.v1.UpdateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
+	149, // 37: agent_manager.v1.UpdateProfileResponse.profile:type_name -> agent_manager.v1.AgentProfile
+	158, // 38: agent_manager.v1.CreateTaskRequest.task:type_name -> agent_manager.v1.Task
+	158, // 39: agent_manager.v1.CreateTaskResponse.task:type_name -> agent_manager.v1.Task
+	158, // 40: agent_manager.v1.GetTaskResponse.task:type_name -> agent_manager.v1.Task
+	159, // 41: agent_manager.v1.ListTasksRequest.status:type_name -> agent_manager.v1.TaskStatus
+	158, // 42: agent_manager.v1.ListTasksResponse.tasks:type_name -> agent_manager.v1.Task
+	158, // 43: agent_manager.v1.UpdateTaskRequest.task:type_name -> agent_manager.v1.Task
+	158, // 44: agent_manager.v1.UpdateTaskResponse.task:type_name -> agent_manager.v1.Task
+	149, // 45: agent_manager.v1.ProfileRef.defaults:type_name -> agent_manager.v1.AgentProfile
+	160, // 46: agent_manager.v1.CreateRunRequest.run_mode:type_name -> agent_manager.v1.RunMode
+	161, // 47: agent_manager.v1.CreateRunRequest.inline_config:type_name -> agent_manager.v1.RunConfigOverrides
+	61,  // 48: agent_manager.v1.CreateRunRequest.profile_ref:type_name -> agent_manager.v1.ProfileRef
+	147, // 49: agent_manager.v1.CreateRunRequest.environment:type_name -> agent_manager.v1.CreateRunRequest.EnvironmentEntry
+	162, // 50: agent_manager.v1.CreateRunRequest.execution_mode:type_name -> agent_manager.v1.ExecutionMode
+	163, // 51: agent_manager.v1.CreateRunResponse.run:type_name -> agent_manager.v1.Run
+	163, // 52: agent_manager.v1.GetRunResponse.run:type_name -> agent_manager.v1.Run
+	163, // 53: agent_manager.v1.GetRunByTagResponse.run:type_name -> agent_manager.v1.Run
+	164, // 54: agent_manager.v1.ListRunsRequest.status:type_name -> agent_manager.v1.RunStatus
+	163, // 55: agent_manager.v1.ListRunsResponse.runs:type_name -> agent_manager.v1.Run
+	163, // 56: agent_manager.v1.StopRunResponse.run:type_name -> agent_manager.v1.Run
+	163, // 57: agent_manager.v1.StopRunByTagResponse.run:type_name -> agent_manager.v1.Run
+	165, // 58: agent_manager.v1.StopAllRunsResponse.result:type_name -> agent_manager.v1.StopAllResult
+	80,  // 59: agent_manager.v1.QuiesceScenarioResponse.result:type_name -> agent_manager.v1.QuiesceResult
+	81,  // 60: agent_manager.v1.QuiesceResult.in_flight:type_name -> agent_manager.v1.QuiesceRunRef
+	81,  // 61: agent_manager.v1.QuiesceResult.cancelled:type_name -> agent_manager.v1.QuiesceRunRef
+	163, // 62: agent_manager.v1.RecoverRunResponse.run:type_name -> agent_manager.v1.Run
+	166, // 63: agent_manager.v1.GetRunEventsRequest.event_types:type_name -> agent_manager.v1.RunEventType
+	167, // 64: agent_manager.v1.GetRunEventsResponse.events:type_name -> agent_manager.v1.RunEvent
+	168, // 65: agent_manager.v1.GetRunDiffResponse.diff:type_name -> agent_manager.v1.RunDiff
+	169, // 66: agent_manager.v1.ApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
+	169, // 67: agent_manager.v1.PartialApproveRunResponse.result:type_name -> agent_manager.v1.ApproveResult
+	170, // 68: agent_manager.v1.GetRunnerStatusResponse.runners:type_name -> agent_manager.v1.RunnerStatus
+	171, // 69: agent_manager.v1.ProbeRunnerRequest.runner_type:type_name -> agent_manager.v1.RunnerType
+	172, // 70: agent_manager.v1.ProbeRunnerResponse.result:type_name -> agent_manager.v1.ProbeResult
+	173, // 71: agent_manager.v1.RolePolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
+	98,  // 72: agent_manager.v1.RolePolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
+	99,  // 73: agent_manager.v1.RolePolicyStatus.requirement:type_name -> agent_manager.v1.RolePolicyRequirement
+	173, // 74: agent_manager.v1.RolePolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
+	100, // 75: agent_manager.v1.RolePolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.RolePolicyReloadAttempt
+	171, // 76: agent_manager.v1.RolePolicyCandidate.runner_type:type_name -> agent_manager.v1.RunnerType
+	103, // 77: agent_manager.v1.RolePolicyDefinition.candidates:type_name -> agent_manager.v1.RolePolicyCandidate
+	102, // 78: agent_manager.v1.RolePolicyCatalog.metadata:type_name -> agent_manager.v1.RolePolicyCatalogMetadata
+	104, // 79: agent_manager.v1.RolePolicyCatalog.roles:type_name -> agent_manager.v1.RolePolicyDefinition
+	101, // 80: agent_manager.v1.GetRolePolicyStatusResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
+	101, // 81: agent_manager.v1.GetRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
+	105, // 82: agent_manager.v1.GetRolePolicyCatalogResponse.catalog:type_name -> agent_manager.v1.RolePolicyCatalog
+	98,  // 83: agent_manager.v1.ValidateRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
+	101, // 84: agent_manager.v1.ReloadRolePolicyCatalogResponse.status:type_name -> agent_manager.v1.RolePolicyStatus
+	98,  // 85: agent_manager.v1.ReloadRolePolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.RolePolicyDiagnostic
+	174, // 86: agent_manager.v1.ExplainRolePolicyResponse.snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
+	173, // 87: agent_manager.v1.PermissionPolicyReloadAttempt.attempted_at:type_name -> google.protobuf.Timestamp
+	116, // 88: agent_manager.v1.PermissionPolicyReloadAttempt.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
+	117, // 89: agent_manager.v1.PermissionPolicyStatus.requirement:type_name -> agent_manager.v1.PermissionPolicyRequirement
+	173, // 90: agent_manager.v1.PermissionPolicyStatus.activated_at:type_name -> google.protobuf.Timestamp
+	118, // 91: agent_manager.v1.PermissionPolicyStatus.last_reload_attempt:type_name -> agent_manager.v1.PermissionPolicyReloadAttempt
+	121, // 92: agent_manager.v1.PermissionPolicyRule.matcher:type_name -> agent_manager.v1.PermissionPolicyMatcher
+	120, // 93: agent_manager.v1.PermissionPolicyCatalog.metadata:type_name -> agent_manager.v1.PermissionPolicyCatalogMetadata
+	122, // 94: agent_manager.v1.PermissionPolicyCatalog.rules:type_name -> agent_manager.v1.PermissionPolicyRule
+	171, // 95: agent_manager.v1.PermissionPolicyResourceResult.runner_type:type_name -> agent_manager.v1.RunnerType
+	124, // 96: agent_manager.v1.PermissionPolicyResourceResult.enforcement:type_name -> agent_manager.v1.PermissionPolicyEnforcement
+	121, // 97: agent_manager.v1.PermissionPolicyResourceResult.unsupported_matchers:type_name -> agent_manager.v1.PermissionPolicyMatcher
+	125, // 98: agent_manager.v1.PermissionPolicyPlan.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
+	173, // 99: agent_manager.v1.PermissionPolicyReconcileResult.started_at:type_name -> google.protobuf.Timestamp
+	173, // 100: agent_manager.v1.PermissionPolicyReconcileResult.finished_at:type_name -> google.protobuf.Timestamp
+	125, // 101: agent_manager.v1.PermissionPolicyReconcileResult.resources:type_name -> agent_manager.v1.PermissionPolicyResourceResult
+	119, // 102: agent_manager.v1.GetPermissionPolicyStatusResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	127, // 103: agent_manager.v1.GetPermissionPolicyStatusResponse.last_reconcile:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
+	119, // 104: agent_manager.v1.GetPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	123, // 105: agent_manager.v1.GetPermissionPolicyCatalogResponse.catalog:type_name -> agent_manager.v1.PermissionPolicyCatalog
+	116, // 106: agent_manager.v1.ValidatePermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
+	119, // 107: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	116, // 108: agent_manager.v1.ReloadPermissionPolicyCatalogResponse.diagnostic:type_name -> agent_manager.v1.PermissionPolicyDiagnostic
+	126, // 109: agent_manager.v1.PlanPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
+	127, // 110: agent_manager.v1.ReconcilePermissionPolicyResponse.result:type_name -> agent_manager.v1.PermissionPolicyReconcileResult
+	119, // 111: agent_manager.v1.DoctorPermissionPolicyResponse.status:type_name -> agent_manager.v1.PermissionPolicyStatus
+	126, // 112: agent_manager.v1.DoctorPermissionPolicyResponse.plan:type_name -> agent_manager.v1.PermissionPolicyPlan
+	2,   // 113: agent_manager.v1.PurgeDataRequest.targets:type_name -> agent_manager.v1.PurgeTarget
+	143, // 114: agent_manager.v1.PurgeDataResponse.matched:type_name -> agent_manager.v1.PurgeCounts
+	143, // 115: agent_manager.v1.PurgeDataResponse.deleted:type_name -> agent_manager.v1.PurgeCounts
+	175, // 116: agent_manager.v1.HealthResponse.DependenciesEntry.value:type_name -> common.v1.JsonValue
+	175, // 117: agent_manager.v1.HealthResponse.MetricsEntry.value:type_name -> common.v1.JsonValue
+	3,   // 118: agent_manager.v1.AgentManagerService.Health:input_type -> agent_manager.v1.HealthRequest
+	5,   // 119: agent_manager.v1.AgentManagerService.CreateProfile:input_type -> agent_manager.v1.CreateProfileRequest
+	7,   // 120: agent_manager.v1.AgentManagerService.EnsureProfile:input_type -> agent_manager.v1.EnsureProfileRequest
+	9,   // 121: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:input_type -> agent_manager.v1.ReconcileScenarioProfilesRequest
+	12,  // 122: agent_manager.v1.AgentManagerService.ValidateWorkflow:input_type -> agent_manager.v1.ValidateWorkflowRequest
+	14,  // 123: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
+	14,  // 124: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
+	17,  // 125: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
+	17,  // 126: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:input_type -> agent_manager.v1.ReconcileScenarioDeclarationsRequest
+	19,  // 127: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:input_type -> agent_manager.v1.ListWorkflowRevisionsRequest
+	21,  // 128: agent_manager.v1.AgentManagerService.GetWorkflowRevision:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
+	14,  // 129: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:input_type -> agent_manager.v1.ReconcileScenarioWorkflowsRequest
+	21,  // 130: agent_manager.v1.AgentManagerService.ExplainWorkflow:input_type -> agent_manager.v1.GetWorkflowRevisionRequest
+	23,  // 131: agent_manager.v1.AgentManagerService.StartWorkflowExecution:input_type -> agent_manager.v1.StartWorkflowExecutionRequest
+	29,  // 132: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:input_type -> agent_manager.v1.ListWorkflowExecutionsRequest
+	24,  // 133: agent_manager.v1.AgentManagerService.GetWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
+	25,  // 134: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:input_type -> agent_manager.v1.GetWorkflowExecutionResultRequest
+	24,  // 135: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:input_type -> agent_manager.v1.GetWorkflowExecutionRequest
+	27,  // 136: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:input_type -> agent_manager.v1.WaitWorkflowExecutionRequest
+	31,  // 137: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:input_type -> agent_manager.v1.GetWorkflowExecutionTraceRequest
+	33,  // 138: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:input_type -> agent_manager.v1.ListWorkflowExecutionRunsRequest
+	35,  // 139: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:input_type -> agent_manager.v1.SignalWorkflowExecutionRequest
+	36,  // 140: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
+	36,  // 141: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
+	36,  // 142: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:input_type -> agent_manager.v1.WorkflowExecutionOperationRequest
+	38,  // 143: agent_manager.v1.AgentManagerService.SimulateWorkflow:input_type -> agent_manager.v1.SimulateWorkflowRequest
+	41,  // 144: agent_manager.v1.AgentManagerService.GetProfile:input_type -> agent_manager.v1.GetProfileRequest
+	43,  // 145: agent_manager.v1.AgentManagerService.ListProfiles:input_type -> agent_manager.v1.ListProfilesRequest
+	45,  // 146: agent_manager.v1.AgentManagerService.UpdateProfile:input_type -> agent_manager.v1.UpdateProfileRequest
+	47,  // 147: agent_manager.v1.AgentManagerService.DeleteProfile:input_type -> agent_manager.v1.DeleteProfileRequest
+	49,  // 148: agent_manager.v1.AgentManagerService.CreateTask:input_type -> agent_manager.v1.CreateTaskRequest
+	51,  // 149: agent_manager.v1.AgentManagerService.GetTask:input_type -> agent_manager.v1.GetTaskRequest
+	53,  // 150: agent_manager.v1.AgentManagerService.ListTasks:input_type -> agent_manager.v1.ListTasksRequest
+	55,  // 151: agent_manager.v1.AgentManagerService.UpdateTask:input_type -> agent_manager.v1.UpdateTaskRequest
+	57,  // 152: agent_manager.v1.AgentManagerService.DeleteTask:input_type -> agent_manager.v1.DeleteTaskRequest
+	59,  // 153: agent_manager.v1.AgentManagerService.CancelTask:input_type -> agent_manager.v1.CancelTaskRequest
+	62,  // 154: agent_manager.v1.AgentManagerService.CreateRun:input_type -> agent_manager.v1.CreateRunRequest
+	66,  // 155: agent_manager.v1.AgentManagerService.GetRun:input_type -> agent_manager.v1.GetRunRequest
+	68,  // 156: agent_manager.v1.AgentManagerService.GetRunByTag:input_type -> agent_manager.v1.GetRunByTagRequest
+	70,  // 157: agent_manager.v1.AgentManagerService.ListRuns:input_type -> agent_manager.v1.ListRunsRequest
+	63,  // 158: agent_manager.v1.AgentManagerService.DeleteRun:input_type -> agent_manager.v1.DeleteRunRequest
+	72,  // 159: agent_manager.v1.AgentManagerService.StopRun:input_type -> agent_manager.v1.StopRunRequest
+	74,  // 160: agent_manager.v1.AgentManagerService.StopRunByTag:input_type -> agent_manager.v1.StopRunByTagRequest
+	76,  // 161: agent_manager.v1.AgentManagerService.StopAllRuns:input_type -> agent_manager.v1.StopAllRunsRequest
+	78,  // 162: agent_manager.v1.AgentManagerService.QuiesceScenario:input_type -> agent_manager.v1.QuiesceScenarioRequest
+	82,  // 163: agent_manager.v1.AgentManagerService.RecoverRun:input_type -> agent_manager.v1.RecoverRunRequest
+	84,  // 164: agent_manager.v1.AgentManagerService.GetRunEvents:input_type -> agent_manager.v1.GetRunEventsRequest
+	86,  // 165: agent_manager.v1.AgentManagerService.GetRunDiff:input_type -> agent_manager.v1.GetRunDiffRequest
+	88,  // 166: agent_manager.v1.AgentManagerService.ApproveRun:input_type -> agent_manager.v1.ApproveRunRequest
+	90,  // 167: agent_manager.v1.AgentManagerService.RejectRun:input_type -> agent_manager.v1.RejectRunRequest
+	94,  // 168: agent_manager.v1.AgentManagerService.GetRunnerStatus:input_type -> agent_manager.v1.GetRunnerStatusRequest
+	96,  // 169: agent_manager.v1.AgentManagerService.ProbeRunner:input_type -> agent_manager.v1.ProbeRunnerRequest
+	106, // 170: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:input_type -> agent_manager.v1.GetRolePolicyStatusRequest
+	108, // 171: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:input_type -> agent_manager.v1.GetRolePolicyCatalogRequest
+	110, // 172: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:input_type -> agent_manager.v1.ValidateRolePolicyCatalogRequest
+	112, // 173: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:input_type -> agent_manager.v1.ReloadRolePolicyCatalogRequest
+	114, // 174: agent_manager.v1.AgentManagerService.ExplainRolePolicy:input_type -> agent_manager.v1.ExplainRolePolicyRequest
+	128, // 175: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:input_type -> agent_manager.v1.GetPermissionPolicyStatusRequest
+	130, // 176: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:input_type -> agent_manager.v1.GetPermissionPolicyCatalogRequest
+	132, // 177: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:input_type -> agent_manager.v1.ValidatePermissionPolicyCatalogRequest
+	134, // 178: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:input_type -> agent_manager.v1.ReloadPermissionPolicyCatalogRequest
+	136, // 179: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:input_type -> agent_manager.v1.PlanPermissionPolicyRequest
+	138, // 180: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:input_type -> agent_manager.v1.ReconcilePermissionPolicyRequest
+	140, // 181: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:input_type -> agent_manager.v1.DoctorPermissionPolicyRequest
+	142, // 182: agent_manager.v1.AgentManagerService.PurgeData:input_type -> agent_manager.v1.PurgeDataRequest
+	4,   // 183: agent_manager.v1.AgentManagerService.Health:output_type -> agent_manager.v1.HealthResponse
+	6,   // 184: agent_manager.v1.AgentManagerService.CreateProfile:output_type -> agent_manager.v1.CreateProfileResponse
+	8,   // 185: agent_manager.v1.AgentManagerService.EnsureProfile:output_type -> agent_manager.v1.EnsureProfileResponse
+	11,  // 186: agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles:output_type -> agent_manager.v1.ReconcileScenarioProfilesResponse
+	13,  // 187: agent_manager.v1.AgentManagerService.ValidateWorkflow:output_type -> agent_manager.v1.ValidateWorkflowResponse
+	16,  // 188: agent_manager.v1.AgentManagerService.ReconcileScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
+	16,  // 189: agent_manager.v1.AgentManagerService.PlanScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
+	18,  // 190: agent_manager.v1.AgentManagerService.ReconcileScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
+	18,  // 191: agent_manager.v1.AgentManagerService.PlanScenarioDeclarations:output_type -> agent_manager.v1.ReconcileScenarioDeclarationsResponse
+	20,  // 192: agent_manager.v1.AgentManagerService.ListWorkflowRevisions:output_type -> agent_manager.v1.ListWorkflowRevisionsResponse
+	22,  // 193: agent_manager.v1.AgentManagerService.GetWorkflowRevision:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
+	16,  // 194: agent_manager.v1.AgentManagerService.ReloadScenarioWorkflows:output_type -> agent_manager.v1.ReconcileScenarioWorkflowsResponse
+	22,  // 195: agent_manager.v1.AgentManagerService.ExplainWorkflow:output_type -> agent_manager.v1.GetWorkflowRevisionResponse
+	26,  // 196: agent_manager.v1.AgentManagerService.StartWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	30,  // 197: agent_manager.v1.AgentManagerService.ListWorkflowExecutions:output_type -> agent_manager.v1.ListWorkflowExecutionsResponse
+	26,  // 198: agent_manager.v1.AgentManagerService.GetWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	26,  // 199: agent_manager.v1.AgentManagerService.GetWorkflowExecutionResult:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	26,  // 200: agent_manager.v1.AgentManagerService.AdvanceWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionResponse
+	28,  // 201: agent_manager.v1.AgentManagerService.WaitWorkflowExecution:output_type -> agent_manager.v1.WaitWorkflowExecutionResponse
+	32,  // 202: agent_manager.v1.AgentManagerService.GetWorkflowExecutionTrace:output_type -> agent_manager.v1.GetWorkflowExecutionTraceResponse
+	34,  // 203: agent_manager.v1.AgentManagerService.ListWorkflowExecutionRuns:output_type -> agent_manager.v1.ListWorkflowExecutionRunsResponse
+	37,  // 204: agent_manager.v1.AgentManagerService.SignalWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	37,  // 205: agent_manager.v1.AgentManagerService.CancelWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	37,  // 206: agent_manager.v1.AgentManagerService.RetryWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	37,  // 207: agent_manager.v1.AgentManagerService.ResumeWorkflowExecution:output_type -> agent_manager.v1.WorkflowExecutionOperationResponse
+	40,  // 208: agent_manager.v1.AgentManagerService.SimulateWorkflow:output_type -> agent_manager.v1.SimulateWorkflowResponse
+	42,  // 209: agent_manager.v1.AgentManagerService.GetProfile:output_type -> agent_manager.v1.GetProfileResponse
+	44,  // 210: agent_manager.v1.AgentManagerService.ListProfiles:output_type -> agent_manager.v1.ListProfilesResponse
+	46,  // 211: agent_manager.v1.AgentManagerService.UpdateProfile:output_type -> agent_manager.v1.UpdateProfileResponse
+	48,  // 212: agent_manager.v1.AgentManagerService.DeleteProfile:output_type -> agent_manager.v1.DeleteProfileResponse
+	50,  // 213: agent_manager.v1.AgentManagerService.CreateTask:output_type -> agent_manager.v1.CreateTaskResponse
+	52,  // 214: agent_manager.v1.AgentManagerService.GetTask:output_type -> agent_manager.v1.GetTaskResponse
+	54,  // 215: agent_manager.v1.AgentManagerService.ListTasks:output_type -> agent_manager.v1.ListTasksResponse
+	56,  // 216: agent_manager.v1.AgentManagerService.UpdateTask:output_type -> agent_manager.v1.UpdateTaskResponse
+	58,  // 217: agent_manager.v1.AgentManagerService.DeleteTask:output_type -> agent_manager.v1.DeleteTaskResponse
+	60,  // 218: agent_manager.v1.AgentManagerService.CancelTask:output_type -> agent_manager.v1.CancelTaskResponse
+	65,  // 219: agent_manager.v1.AgentManagerService.CreateRun:output_type -> agent_manager.v1.CreateRunResponse
+	67,  // 220: agent_manager.v1.AgentManagerService.GetRun:output_type -> agent_manager.v1.GetRunResponse
+	69,  // 221: agent_manager.v1.AgentManagerService.GetRunByTag:output_type -> agent_manager.v1.GetRunByTagResponse
+	71,  // 222: agent_manager.v1.AgentManagerService.ListRuns:output_type -> agent_manager.v1.ListRunsResponse
+	64,  // 223: agent_manager.v1.AgentManagerService.DeleteRun:output_type -> agent_manager.v1.DeleteRunResponse
+	73,  // 224: agent_manager.v1.AgentManagerService.StopRun:output_type -> agent_manager.v1.StopRunResponse
+	75,  // 225: agent_manager.v1.AgentManagerService.StopRunByTag:output_type -> agent_manager.v1.StopRunByTagResponse
+	77,  // 226: agent_manager.v1.AgentManagerService.StopAllRuns:output_type -> agent_manager.v1.StopAllRunsResponse
+	79,  // 227: agent_manager.v1.AgentManagerService.QuiesceScenario:output_type -> agent_manager.v1.QuiesceScenarioResponse
+	83,  // 228: agent_manager.v1.AgentManagerService.RecoverRun:output_type -> agent_manager.v1.RecoverRunResponse
+	85,  // 229: agent_manager.v1.AgentManagerService.GetRunEvents:output_type -> agent_manager.v1.GetRunEventsResponse
+	87,  // 230: agent_manager.v1.AgentManagerService.GetRunDiff:output_type -> agent_manager.v1.GetRunDiffResponse
+	89,  // 231: agent_manager.v1.AgentManagerService.ApproveRun:output_type -> agent_manager.v1.ApproveRunResponse
+	91,  // 232: agent_manager.v1.AgentManagerService.RejectRun:output_type -> agent_manager.v1.RejectRunResponse
+	95,  // 233: agent_manager.v1.AgentManagerService.GetRunnerStatus:output_type -> agent_manager.v1.GetRunnerStatusResponse
+	97,  // 234: agent_manager.v1.AgentManagerService.ProbeRunner:output_type -> agent_manager.v1.ProbeRunnerResponse
+	107, // 235: agent_manager.v1.AgentManagerService.GetRolePolicyStatus:output_type -> agent_manager.v1.GetRolePolicyStatusResponse
+	109, // 236: agent_manager.v1.AgentManagerService.GetRolePolicyCatalog:output_type -> agent_manager.v1.GetRolePolicyCatalogResponse
+	111, // 237: agent_manager.v1.AgentManagerService.ValidateRolePolicyCatalog:output_type -> agent_manager.v1.ValidateRolePolicyCatalogResponse
+	113, // 238: agent_manager.v1.AgentManagerService.ReloadRolePolicyCatalog:output_type -> agent_manager.v1.ReloadRolePolicyCatalogResponse
+	115, // 239: agent_manager.v1.AgentManagerService.ExplainRolePolicy:output_type -> agent_manager.v1.ExplainRolePolicyResponse
+	129, // 240: agent_manager.v1.AgentManagerService.GetPermissionPolicyStatus:output_type -> agent_manager.v1.GetPermissionPolicyStatusResponse
+	131, // 241: agent_manager.v1.AgentManagerService.GetPermissionPolicyCatalog:output_type -> agent_manager.v1.GetPermissionPolicyCatalogResponse
+	133, // 242: agent_manager.v1.AgentManagerService.ValidatePermissionPolicyCatalog:output_type -> agent_manager.v1.ValidatePermissionPolicyCatalogResponse
+	135, // 243: agent_manager.v1.AgentManagerService.ReloadPermissionPolicyCatalog:output_type -> agent_manager.v1.ReloadPermissionPolicyCatalogResponse
+	137, // 244: agent_manager.v1.AgentManagerService.PlanPermissionPolicy:output_type -> agent_manager.v1.PlanPermissionPolicyResponse
+	139, // 245: agent_manager.v1.AgentManagerService.ReconcilePermissionPolicy:output_type -> agent_manager.v1.ReconcilePermissionPolicyResponse
+	141, // 246: agent_manager.v1.AgentManagerService.DoctorPermissionPolicy:output_type -> agent_manager.v1.DoctorPermissionPolicyResponse
+	144, // 247: agent_manager.v1.AgentManagerService.PurgeData:output_type -> agent_manager.v1.PurgeDataResponse
+	183, // [183:248] is the sub-list for method output_type
+	118, // [118:183] is the sub-list for method input_type
+	118, // [118:118] is the sub-list for extension type_name
+	118, // [118:118] is the sub-list for extension extendee
+	0,   // [0:118] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_api_service_proto_init() }

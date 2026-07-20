@@ -156,8 +156,11 @@ type Workflow struct {
 	CompletedAt        *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	CanStop            bool                   `protobuf:"varint,18,opt,name=can_stop,json=canStop,proto3" json:"can_stop,omitempty"`
 	CanRetry           bool                   `protobuf:"varint,19,opt,name=can_retry,json=canRetry,proto3" json:"can_retry,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Declared Agent Manager workflow execution identity. New records use this
+	// instead of the legacy task/run identifiers above.
+	AgentManagerExecutionId string `protobuf:"bytes,20,opt,name=agent_manager_execution_id,json=agentManagerExecutionId,proto3" json:"agent_manager_execution_id,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Workflow) Reset() {
@@ -321,6 +324,13 @@ func (x *Workflow) GetCanRetry() bool {
 		return x.CanRetry
 	}
 	return false
+}
+
+func (x *Workflow) GetAgentManagerExecutionId() string {
+	if x != nil {
+		return x.AgentManagerExecutionId
+	}
+	return ""
 }
 
 type StartWorkflowRequest struct {
@@ -1235,7 +1245,7 @@ var File_react_component_library_v1_workflows_workflows_proto protoreflect.FileD
 
 const file_react_component_library_v1_workflows_workflows_proto_rawDesc = "" +
 	"\n" +
-	"4react-component-library/v1/workflows/workflows.proto\x12+vrooli.react_component_library.v1.workflows\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd3\x06\n" +
+	"4react-component-library/v1/workflows/workflows.proto\x12+vrooli.react_component_library.v1.workflows\x1a\x1fgoogle/protobuf/timestamp.proto\"\x90\a\n" +
 	"\bWorkflow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12M\n" +
 	"\x04kind\x18\x02 \x01(\x0e29.vrooli.react_component_library.v1.workflows.WorkflowKindR\x04kind\x12\x19\n" +
@@ -1259,7 +1269,8 @@ const file_react_component_library_v1_workflows_workflows_proto_rawDesc = "" +
 	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12=\n" +
 	"\fcompleted_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12\x19\n" +
 	"\bcan_stop\x18\x12 \x01(\bR\acanStop\x12\x1b\n" +
-	"\tcan_retry\x18\x13 \x01(\bR\bcanRetry\"\xa7\x03\n" +
+	"\tcan_retry\x18\x13 \x01(\bR\bcanRetry\x12;\n" +
+	"\x1aagent_manager_execution_id\x18\x14 \x01(\tR\x17agentManagerExecutionId\"\xa7\x03\n" +
 	"\x14StartWorkflowRequest\x12M\n" +
 	"\x04kind\x18\x01 \x01(\x0e29.vrooli.react_component_library.v1.workflows.WorkflowKindR\x04kind\x12\x19\n" +
 	"\basset_id\x18\x02 \x01(\tR\aassetId\x12'\n" +

@@ -39,7 +39,7 @@ WORKFLOW_STATUS_STOPPED: WorkflowStatus
 WORKFLOW_STATUS_UNAVAILABLE: WorkflowStatus
 
 class Workflow(_message.Message):
-    __slots__ = ("id", "kind", "asset_id", "source_scenario", "target_scenario", "source_path", "requested_version", "agent_manager_task_id", "agent_manager_run_id", "idempotency_key", "status", "last_event_sequence", "summary", "error", "created_at", "updated_at", "completed_at", "can_stop", "can_retry")
+    __slots__ = ("id", "kind", "asset_id", "source_scenario", "target_scenario", "source_path", "requested_version", "agent_manager_task_id", "agent_manager_run_id", "idempotency_key", "status", "last_event_sequence", "summary", "error", "created_at", "updated_at", "completed_at", "can_stop", "can_retry", "agent_manager_execution_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]
@@ -59,6 +59,7 @@ class Workflow(_message.Message):
     COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
     CAN_STOP_FIELD_NUMBER: _ClassVar[int]
     CAN_RETRY_FIELD_NUMBER: _ClassVar[int]
+    AGENT_MANAGER_EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     kind: WorkflowKind
     asset_id: str
@@ -78,7 +79,8 @@ class Workflow(_message.Message):
     completed_at: _timestamp_pb2.Timestamp
     can_stop: bool
     can_retry: bool
-    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[WorkflowKind, str]] = ..., asset_id: _Optional[str] = ..., source_scenario: _Optional[str] = ..., target_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., requested_version: _Optional[str] = ..., agent_manager_task_id: _Optional[str] = ..., agent_manager_run_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., status: _Optional[_Union[WorkflowStatus, str]] = ..., last_event_sequence: _Optional[int] = ..., summary: _Optional[str] = ..., error: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., can_stop: _Optional[bool] = ..., can_retry: _Optional[bool] = ...) -> None: ...
+    agent_manager_execution_id: str
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[WorkflowKind, str]] = ..., asset_id: _Optional[str] = ..., source_scenario: _Optional[str] = ..., target_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., requested_version: _Optional[str] = ..., agent_manager_task_id: _Optional[str] = ..., agent_manager_run_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., status: _Optional[_Union[WorkflowStatus, str]] = ..., last_event_sequence: _Optional[int] = ..., summary: _Optional[str] = ..., error: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., can_stop: _Optional[bool] = ..., can_retry: _Optional[bool] = ..., agent_manager_execution_id: _Optional[str] = ...) -> None: ...
 
 class StartWorkflowRequest(_message.Message):
     __slots__ = ("kind", "asset_id", "source_scenario", "target_scenario", "source_path", "requested_version", "idempotency_key", "confirm_overwrite", "override_validation")

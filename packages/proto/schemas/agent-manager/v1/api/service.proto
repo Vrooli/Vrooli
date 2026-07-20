@@ -585,6 +585,7 @@ message ProfileReconcileResult {
   string profile_id = 4;
   ProfileReconcileStatus status = 5;
   string message = 6;
+  repeated WorkflowDiagnostic diagnostics = 7;
 }
 
 // ReconcileScenarioProfilesResponse returns the full scenario reconciliation report.

@@ -66,6 +66,9 @@ message Workflow {
   google.protobuf.Timestamp completed_at = 17;
   bool can_stop = 18;
   bool can_retry = 19;
+  // Declared Agent Manager workflow execution identity. New records use this
+  // instead of the legacy task/run identifiers above.
+  string agent_manager_execution_id = 20;
 }
 
 message StartWorkflowRequest {

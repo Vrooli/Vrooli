@@ -170,10 +170,13 @@ type AgentProfile struct {
 	Timeout *durationpb.Duration `protobuf:"bytes,7,opt,name=timeout,proto3" json:"timeout,omitempty"`
 	// Tools the agent is allowed to use.
 	// Empty means use runner defaults.
-	// Examples: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
+	// Canonical values: read, write, edit, glob, grep, shell, web_search, web_fetch.
 	AllowedTools []string `protobuf:"bytes,8,rep,name=allowed_tools,json=allowedTools,proto3" json:"allowed_tools,omitempty"`
 	// Tools explicitly denied even if in allowed_tools.
 	DeniedTools []string `protobuf:"bytes,9,rep,name=denied_tools,json=deniedTools,proto3" json:"denied_tools,omitempty"`
+	// Whether a runner that cannot enforce allowed_tools must refuse launch
+	// (enforced, the default) or may proceed with an advisory warning.
+	ToolRestrictionPolicy string `protobuf:"bytes,34,opt,name=tool_restriction_policy,json=toolRestrictionPolicy,proto3" json:"tool_restriction_policy,omitempty"`
 	// Skip permission prompts during execution.
 	// WARNING: Enables autonomous execution without user confirmation.
 	SkipPermissionPrompt bool `protobuf:"varint,10,opt,name=skip_permission_prompt,json=skipPermissionPrompt,proto3" json:"skip_permission_prompt,omitempty"`
@@ -304,6 +307,13 @@ func (x *AgentProfile) GetDeniedTools() []string {
 		return x.DeniedTools
 	}
 	return nil
+}
+
+func (x *AgentProfile) GetToolRestrictionPolicy() string {
+	if x != nil {
+		return x.ToolRestrictionPolicy
+	}
+	return ""
 }
 
 func (x *AgentProfile) GetSkipPermissionPrompt() bool {
@@ -540,7 +550,8 @@ type RunConfig struct {
 	// Tools the agent is allowed to use.
 	AllowedTools []string `protobuf:"bytes,5,rep,name=allowed_tools,json=allowedTools,proto3" json:"allowed_tools,omitempty"`
 	// Tools explicitly denied.
-	DeniedTools []string `protobuf:"bytes,6,rep,name=denied_tools,json=deniedTools,proto3" json:"denied_tools,omitempty"`
+	DeniedTools           []string `protobuf:"bytes,6,rep,name=denied_tools,json=deniedTools,proto3" json:"denied_tools,omitempty"`
+	ToolRestrictionPolicy string   `protobuf:"bytes,23,opt,name=tool_restriction_policy,json=toolRestrictionPolicy,proto3" json:"tool_restriction_policy,omitempty"`
 	// Skip permission prompts.
 	SkipPermissionPrompt bool `protobuf:"varint,7,opt,name=skip_permission_prompt,json=skipPermissionPrompt,proto3" json:"skip_permission_prompt,omitempty"`
 	// Feature flags (typed, discoverable capabilities).
@@ -647,6 +658,13 @@ func (x *RunConfig) GetDeniedTools() []string {
 		return x.DeniedTools
 	}
 	return nil
+}
+
+func (x *RunConfig) GetToolRestrictionPolicy() string {
+	if x != nil {
+		return x.ToolRestrictionPolicy
+	}
+	return ""
 }
 
 func (x *RunConfig) GetSkipPermissionPrompt() bool {
@@ -1468,7 +1486,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\v\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\v\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -1483,7 +1501,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x00R\bmaxTurns\x123\n" +
 	"\atimeout\x18\a \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
 	"\rallowed_tools\x18\b \x03(\tR\fallowedTools\x12!\n" +
-	"\fdenied_tools\x18\t \x03(\tR\vdeniedTools\x124\n" +
+	"\fdenied_tools\x18\t \x03(\tR\vdeniedTools\x126\n" +
+	"\x17tool_restriction_policy\x18\" \x01(\tR\x15toolRestrictionPolicy\x124\n" +
 	"\x16skip_permission_prompt\x18\n" +
 	" \x01(\bR\x14skipPermissionPrompt\x12:\n" +
 	"\bfeatures\x18\x17 \x01(\v2\x1e.agent_manager.v1.FeatureFlagsR\bfeatures\x12O\n" +
@@ -1521,7 +1540,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0fextraction_mode\x18\x06 \x01(\x0e2*.agent_manager.v1.StructuredExtractionModeR\x0eextractionMode\x12'\n" +
 	"\x0fextraction_role\x18\a \x01(\tR\x0eextractionRole\x129\n" +
 	"\x16schema_repair_attempts\x18\b \x01(\x05H\x00R\x14schemaRepairAttempts\x88\x01\x01B\x19\n" +
-	"\x17_schema_repair_attempts\"\x94\b\n" +
+	"\x17_schema_repair_attempts\"\xcc\b\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
@@ -1532,7 +1551,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\tmax_turns\x18\x03 \x01(\x05R\bmaxTurns\x123\n" +
 	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
-	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x124\n" +
+	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x126\n" +
+	"\x17tool_restriction_policy\x18\x17 \x01(\tR\x15toolRestrictionPolicy\x124\n" +
 	"\x16skip_permission_prompt\x18\a \x01(\bR\x14skipPermissionPrompt\x12:\n" +
 	"\bfeatures\x18\x10 \x01(\v2\x1e.agent_manager.v1.FeatureFlagsR\bfeatures\x12L\n" +
 	"\vextra_flags\x18\x11 \x03(\v2+.agent_manager.v1.RunConfig.ExtraFlagsEntryR\n" +

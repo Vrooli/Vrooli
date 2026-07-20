@@ -636,8 +636,9 @@ type StartRunRequest struct {
 	// enables all-pages visual capture + video + full diagnostics for
 	// git-control-tower baseline snapshots.
 	CaptureProfile string `protobuf:"bytes,14,opt,name=capture_profile,json=captureProfile,proto3" json:"capture_profile,omitempty"`
-	// Gate-quality runs require clean, digest-stamped source evidence. Exploratory
-	// callers leave this false and receive an explicit volatile provenance later.
+	// Gate-quality runs require clean, digest-stamped source evidence. Ordinary
+	// callers leave this false and receive shared-scoped provenance when their
+	// declared inputs remain stable.
 	RequireGateQuality bool `protobuf:"varint,15,opt,name=require_gate_quality,json=requireGateQuality,proto3" json:"require_gate_quality,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
@@ -2371,9 +2372,19 @@ type RunInfo struct {
 	// complements tree_digest, phase_set_digest, and descriptor_snapshot_digest.
 	// Empty only for runs that predate canonical terminal projections.
 	ExecutionConfigurationFingerprint string `protobuf:"bytes,21,opt,name=execution_configuration_fingerprint,json=executionConfigurationFingerprint,proto3" json:"execution_configuration_fingerprint,omitempty"`
-	// gate_quality is true only for a clean, digest-stamped execution. A volatile
-	// exploratory run remains inspectable but cannot stand in for gate evidence.
-	GateQuality   bool `protobuf:"varint,22,opt,name=gate_quality,json=gateQuality,proto3" json:"gate_quality,omitempty"`
+	// gate_quality is true only for the optional strict, clean linked-worktree
+	// provenance tier. It is not a baseline-validity flag.
+	GateQuality bool `protobuf:"varint,22,opt,name=gate_quality,json=gateQuality,proto3" json:"gate_quality,omitempty"`
+	// strict | shared-scoped | degraded. This is provenance, independent from
+	// whether the terminal behavior result can be compared.
+	EvidenceTier string `protobuf:"bytes,23,opt,name=evidence_tier,json=evidenceTier,proto3" json:"evidence_tier,omitempty"`
+	// Declared source boundary covered by tree_digest. Current implementations
+	// use scenario:<slug>; the string is deliberately additive for future
+	// collection/dependency-closure scopes.
+	SourceScope string `protobuf:"bytes,24,opt,name=source_scope,json=sourceScope,proto3" json:"source_scope,omitempty"`
+	// False means relevant inputs changed while this attempt was executing; the
+	// result is retained for diagnosis but is ineligible for cache reuse.
+	SourceStable  bool `protobuf:"varint,25,opt,name=source_stable,json=sourceStable,proto3" json:"source_stable,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2558,6 +2569,27 @@ func (x *RunInfo) GetExecutionConfigurationFingerprint() string {
 func (x *RunInfo) GetGateQuality() bool {
 	if x != nil {
 		return x.GateQuality
+	}
+	return false
+}
+
+func (x *RunInfo) GetEvidenceTier() string {
+	if x != nil {
+		return x.EvidenceTier
+	}
+	return ""
+}
+
+func (x *RunInfo) GetSourceScope() string {
+	if x != nil {
+		return x.SourceScope
+	}
+	return ""
+}
+
+func (x *RunInfo) GetSourceStable() bool {
+	if x != nil {
+		return x.SourceStable
 	}
 	return false
 }
@@ -3603,6 +3635,10 @@ type FindRunRequest struct {
 	PhaseSetDigest string `protobuf:"bytes,8,opt,name=phase_set_digest,json=phaseSetDigest,proto3" json:"phase_set_digest,omitempty"`
 	// require_gate_quality excludes clean but exploratory/shared-worktree runs.
 	RequireGateQuality bool `protobuf:"varint,9,opt,name=require_gate_quality,json=requireGateQuality,proto3" json:"require_gate_quality,omitempty"`
+	// match_current_source asks Test Genie to compute the current declared scope
+	// and validation-plan fingerprints server-side, then return only a stable
+	// matching result. This is the shared-workspace cache-reuse primitive.
+	MatchCurrentSource bool `protobuf:"varint,10,opt,name=match_current_source,json=matchCurrentSource,proto3" json:"match_current_source,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -3696,6 +3732,13 @@ func (x *FindRunRequest) GetPhaseSetDigest() string {
 func (x *FindRunRequest) GetRequireGateQuality() bool {
 	if x != nil {
 		return x.RequireGateQuality
+	}
+	return false
+}
+
+func (x *FindRunRequest) GetMatchCurrentSource() bool {
+	if x != nil {
+		return x.MatchCurrentSource
 	}
 	return false
 }
@@ -7347,7 +7390,7 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x15RunDescriptorSnapshot\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\x05R\rschemaVersion\x12\x16\n" +
 	"\x06digest\x18\x02 \x01(\tR\x06digest\x12E\n" +
-	"\x06phases\x18\x03 \x03(\v2-.vrooli.test_genie.v1.runs.RunPhaseDescriptorR\x06phases\"\xef\a\n" +
+	"\x06phases\x18\x03 \x03(\v2-.vrooli.test_genie.v1.runs.RunPhaseDescriptorR\x06phases\"\xdc\b\n" +
 	"\aRunInfo\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1d\n" +
@@ -7374,7 +7417,10 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x1adescriptor_snapshot_digest\x18\x13 \x01(\tR\x18descriptorSnapshotDigest\x12a\n" +
 	"\x13descriptor_snapshot\x18\x14 \x01(\v20.vrooli.test_genie.v1.runs.RunDescriptorSnapshotR\x12descriptorSnapshot\x12N\n" +
 	"#execution_configuration_fingerprint\x18\x15 \x01(\tR!executionConfigurationFingerprint\x12!\n" +
-	"\fgate_quality\x18\x16 \x01(\bR\vgateQuality\"[\n" +
+	"\fgate_quality\x18\x16 \x01(\bR\vgateQuality\x12#\n" +
+	"\revidence_tier\x18\x17 \x01(\tR\fevidenceTier\x12!\n" +
+	"\fsource_scope\x18\x18 \x01(\tR\vsourceScope\x12#\n" +
+	"\rsource_stable\x18\x19 \x01(\bR\fsourceStable\"[\n" +
 	"\x0fListRunsRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
@@ -7453,7 +7499,7 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18\a \x01(\tR\n" +
 	"provenance\x12Q\n" +
-	"\vdiagnostics\x18\b \x03(\v2/.vrooli.test_genie.v1.runs.ComparisonDiagnosticR\vdiagnostics\"\xc0\x02\n" +
+	"\vdiagnostics\x18\b \x03(\v2/.vrooli.test_genie.v1.runs.ComparisonDiagnosticR\vdiagnostics\"\xf2\x02\n" +
 	"\x0eFindRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x17\n" +
 	"\agit_sha\x18\x02 \x01(\tR\x06gitSha\x12\x1f\n" +
@@ -7464,7 +7510,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x12#\n" +
 	"\rrequire_clean\x18\a \x01(\bR\frequireClean\x12(\n" +
 	"\x10phase_set_digest\x18\b \x01(\tR\x0ephaseSetDigest\x120\n" +
-	"\x14require_gate_quality\x18\t \x01(\bR\x12requireGateQuality\"]\n" +
+	"\x14require_gate_quality\x18\t \x01(\bR\x12requireGateQuality\x120\n" +
+	"\x14match_current_source\x18\n" +
+	" \x01(\bR\x12matchCurrentSource\"]\n" +
 	"\x0fFindRunResponse\x12\x14\n" +
 	"\x05found\x18\x01 \x01(\bR\x05found\x124\n" +
 	"\x03run\x18\x02 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x03run\"b\n" +

@@ -140,20 +140,22 @@ class ReconcileScenarioProfilesRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class ProfileReconcileResult(_message.Message):
-    __slots__ = ("profile_key", "source_path", "source_hash", "profile_id", "status", "message")
+    __slots__ = ("profile_key", "source_path", "source_hash", "profile_id", "status", "message", "diagnostics")
     PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
     profile_key: str
     source_path: str
     source_hash: str
     profile_id: str
     status: ProfileReconcileStatus
     message: str
-    def __init__(self, profile_key: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., profile_id: _Optional[str] = ..., status: _Optional[_Union[ProfileReconcileStatus, str]] = ..., message: _Optional[str] = ...) -> None: ...
+    diagnostics: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowDiagnostic]
+    def __init__(self, profile_key: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., profile_id: _Optional[str] = ..., status: _Optional[_Union[ProfileReconcileStatus, str]] = ..., message: _Optional[str] = ..., diagnostics: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowDiagnostic, _Mapping]]] = ...) -> None: ...
 
 class ReconcileScenarioProfilesResponse(_message.Message):
     __slots__ = ("scenario", "results", "created", "updated", "unchanged", "skipped", "conflicted", "failed", "dry_run")

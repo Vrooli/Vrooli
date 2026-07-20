@@ -237,8 +237,9 @@ message StartRunRequest {
   // enables all-pages visual capture + video + full diagnostics for
   // git-control-tower baseline snapshots.
   string capture_profile = 14;
-  // Gate-quality runs require clean, digest-stamped source evidence. Exploratory
-  // callers leave this false and receive an explicit volatile provenance later.
+  // Gate-quality runs require clean, digest-stamped source evidence. Ordinary
+  // callers leave this false and receive shared-scoped provenance when their
+  // declared inputs remain stable.
   bool require_gate_quality = 15;
 }
 
@@ -484,9 +485,19 @@ message RunInfo {
   // complements tree_digest, phase_set_digest, and descriptor_snapshot_digest.
   // Empty only for runs that predate canonical terminal projections.
   string execution_configuration_fingerprint = 21;
-  // gate_quality is true only for a clean, digest-stamped execution. A volatile
-  // exploratory run remains inspectable but cannot stand in for gate evidence.
+  // gate_quality is true only for the optional strict, clean linked-worktree
+  // provenance tier. It is not a baseline-validity flag.
   bool gate_quality = 22;
+  // strict | shared-scoped | degraded. This is provenance, independent from
+  // whether the terminal behavior result can be compared.
+  string evidence_tier = 23;
+  // Declared source boundary covered by tree_digest. Current implementations
+  // use scenario:<slug>; the string is deliberately additive for future
+  // collection/dependency-closure scopes.
+  string source_scope = 24;
+  // False means relevant inputs changed while this attempt was executing; the
+  // result is retained for diagnosis but is ineligible for cache reuse.
+  bool source_stable = 25;
 }
 
 message ListRunsRequest {
@@ -633,6 +644,10 @@ message FindRunRequest {
   string phase_set_digest = 8;
   // require_gate_quality excludes clean but exploratory/shared-worktree runs.
   bool require_gate_quality = 9;
+  // match_current_source asks Test Genie to compute the current declared scope
+  // and validation-plan fingerprints server-side, then return only a stable
+  // matching result. This is the shared-workspace cache-reuse primitive.
+  bool match_current_source = 10;
 }
 
 message FindRunResponse {

@@ -31,7 +31,7 @@ class GitState(_message.Message):
     def __init__(self, sha: _Optional[str] = ..., branch: _Optional[str] = ..., detached: _Optional[bool] = ..., dirty: _Optional[bool] = ..., dirty_summary: _Optional[str] = ..., commit_message: _Optional[str] = ..., commit_author: _Optional[str] = ..., commit_date: _Optional[str] = ..., sandboxed: _Optional[bool] = ...) -> None: ...
 
 class RunAnchor(_message.Message):
-    __slots__ = ("run_id", "captured_at", "capture_profile", "tree_digest", "phase_set_digest", "descriptor_snapshot_ref", "descriptor_snapshot_digest", "descriptor_snapshot_schema_version")
+    __slots__ = ("run_id", "captured_at", "capture_profile", "tree_digest", "phase_set_digest", "descriptor_snapshot_ref", "descriptor_snapshot_digest", "descriptor_snapshot_schema_version", "evidence_tier", "source_scope", "source_stable")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
     CAPTURE_PROFILE_FIELD_NUMBER: _ClassVar[int]
@@ -40,6 +40,9 @@ class RunAnchor(_message.Message):
     DESCRIPTOR_SNAPSHOT_REF_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTOR_SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTOR_SNAPSHOT_SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_TIER_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_SCOPE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_STABLE_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     captured_at: str
     capture_profile: str
@@ -48,7 +51,10 @@ class RunAnchor(_message.Message):
     descriptor_snapshot_ref: str
     descriptor_snapshot_digest: str
     descriptor_snapshot_schema_version: int
-    def __init__(self, run_id: _Optional[str] = ..., captured_at: _Optional[str] = ..., capture_profile: _Optional[str] = ..., tree_digest: _Optional[str] = ..., phase_set_digest: _Optional[str] = ..., descriptor_snapshot_ref: _Optional[str] = ..., descriptor_snapshot_digest: _Optional[str] = ..., descriptor_snapshot_schema_version: _Optional[int] = ...) -> None: ...
+    evidence_tier: str
+    source_scope: str
+    source_stable: bool
+    def __init__(self, run_id: _Optional[str] = ..., captured_at: _Optional[str] = ..., capture_profile: _Optional[str] = ..., tree_digest: _Optional[str] = ..., phase_set_digest: _Optional[str] = ..., descriptor_snapshot_ref: _Optional[str] = ..., descriptor_snapshot_digest: _Optional[str] = ..., descriptor_snapshot_schema_version: _Optional[int] = ..., evidence_tier: _Optional[str] = ..., source_scope: _Optional[str] = ..., source_stable: _Optional[bool] = ...) -> None: ...
 
 class MigrationInfo(_message.Message):
     __slots__ = ("from_schema_version", "migrated_at", "degraded_reasons")

@@ -78,11 +78,15 @@ message AgentProfile {
 
   // Tools the agent is allowed to use.
   // Empty means use runner defaults.
-  // Examples: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
+  // Canonical values: read, write, edit, glob, grep, shell, web_search, web_fetch.
   repeated string allowed_tools = 8;
 
   // Tools explicitly denied even if in allowed_tools.
   repeated string denied_tools = 9;
+
+  // Whether a runner that cannot enforce allowed_tools must refuse launch
+  // (enforced, the default) or may proceed with an advisory warning.
+  string tool_restriction_policy = 34;
 
   // Skip permission prompts during execution.
   // WARNING: Enables autonomous execution without user confirmation.
@@ -216,6 +220,8 @@ message RunConfig {
 
   // Tools explicitly denied.
   repeated string denied_tools = 6;
+
+  string tool_restriction_policy = 23;
 
   // Skip permission prompts.
   bool skip_permission_prompt = 7;

@@ -142,8 +142,15 @@ type RunAnchor struct {
 	DescriptorSnapshotRef           string `protobuf:"bytes,6,opt,name=descriptor_snapshot_ref,json=descriptorSnapshotRef,proto3" json:"descriptor_snapshot_ref,omitempty"`
 	DescriptorSnapshotDigest        string `protobuf:"bytes,7,opt,name=descriptor_snapshot_digest,json=descriptorSnapshotDigest,proto3" json:"descriptor_snapshot_digest,omitempty"`
 	DescriptorSnapshotSchemaVersion int32  `protobuf:"varint,8,opt,name=descriptor_snapshot_schema_version,json=descriptorSnapshotSchemaVersion,proto3" json:"descriptor_snapshot_schema_version,omitempty"`
-	unknownFields                   protoimpl.UnknownFields
-	sizeCache                       protoimpl.SizeCache
+	// strict | shared-scoped | degraded. Provenance is independent from the
+	// baseline's behavioral before-result.
+	EvidenceTier string `protobuf:"bytes,9,opt,name=evidence_tier,json=evidenceTier,proto3" json:"evidence_tier,omitempty"`
+	// Declared source boundary covered by tree_digest.
+	SourceScope string `protobuf:"bytes,10,opt,name=source_scope,json=sourceScope,proto3" json:"source_scope,omitempty"`
+	// Whether declared inputs stayed unchanged during the captured attempt.
+	SourceStable  bool `protobuf:"varint,11,opt,name=source_stable,json=sourceStable,proto3" json:"source_stable,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunAnchor) Reset() {
@@ -230,6 +237,27 @@ func (x *RunAnchor) GetDescriptorSnapshotSchemaVersion() int32 {
 		return x.DescriptorSnapshotSchemaVersion
 	}
 	return 0
+}
+
+func (x *RunAnchor) GetEvidenceTier() string {
+	if x != nil {
+		return x.EvidenceTier
+	}
+	return ""
+}
+
+func (x *RunAnchor) GetSourceScope() string {
+	if x != nil {
+		return x.SourceScope
+	}
+	return ""
+}
+
+func (x *RunAnchor) GetSourceStable() bool {
+	if x != nil {
+		return x.SourceStable
+	}
+	return false
 }
 
 type MigrationInfo struct {
@@ -4838,7 +4866,7 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\rcommit_author\x18\a \x01(\tR\fcommitAuthor\x12\x1f\n" +
 	"\vcommit_date\x18\b \x01(\tR\n" +
 	"commitDate\x12\x1c\n" +
-	"\tsandboxed\x18\t \x01(\bR\tsandboxed\"\xfa\x02\n" +
+	"\tsandboxed\x18\t \x01(\bR\tsandboxed\"\xe7\x03\n" +
 	"\tRunAnchor\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1f\n" +
 	"\vcaptured_at\x18\x02 \x01(\tR\n" +
@@ -4849,7 +4877,11 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x10phase_set_digest\x18\x05 \x01(\tR\x0ephaseSetDigest\x126\n" +
 	"\x17descriptor_snapshot_ref\x18\x06 \x01(\tR\x15descriptorSnapshotRef\x12<\n" +
 	"\x1adescriptor_snapshot_digest\x18\a \x01(\tR\x18descriptorSnapshotDigest\x12K\n" +
-	"\"descriptor_snapshot_schema_version\x18\b \x01(\x05R\x1fdescriptorSnapshotSchemaVersion\"\x8b\x01\n" +
+	"\"descriptor_snapshot_schema_version\x18\b \x01(\x05R\x1fdescriptorSnapshotSchemaVersion\x12#\n" +
+	"\revidence_tier\x18\t \x01(\tR\fevidenceTier\x12!\n" +
+	"\fsource_scope\x18\n" +
+	" \x01(\tR\vsourceScope\x12#\n" +
+	"\rsource_stable\x18\v \x01(\bR\fsourceStable\"\x8b\x01\n" +
 	"\rMigrationInfo\x12.\n" +
 	"\x13from_schema_version\x18\x01 \x01(\x05R\x11fromSchemaVersion\x12\x1f\n" +
 	"\vmigrated_at\x18\x02 \x01(\tR\n" +

@@ -459,7 +459,7 @@ class RunDescriptorSnapshot(_message.Message):
     def __init__(self, schema_version: _Optional[int] = ..., digest: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[RunPhaseDescriptor, _Mapping]]] = ...) -> None: ...
 
 class RunInfo(_message.Message):
-    __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins", "tree_digest", "preset", "capture_profile", "planned_phases", "phase_set_digest", "descriptor_snapshot_schema_version", "descriptor_snapshot_digest", "descriptor_snapshot", "execution_configuration_fingerprint", "gate_quality")
+    __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins", "tree_digest", "preset", "capture_profile", "planned_phases", "phase_set_digest", "descriptor_snapshot_schema_version", "descriptor_snapshot_digest", "descriptor_snapshot", "execution_configuration_fingerprint", "gate_quality", "evidence_tier", "source_scope", "source_stable")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -482,6 +482,9 @@ class RunInfo(_message.Message):
     DESCRIPTOR_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_CONFIGURATION_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     GATE_QUALITY_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_TIER_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_SCOPE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_STABLE_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     started_at: str
@@ -504,7 +507,10 @@ class RunInfo(_message.Message):
     descriptor_snapshot: RunDescriptorSnapshot
     execution_configuration_fingerprint: str
     gate_quality: bool
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., status: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseInfo, _Mapping]]] = ..., git_sha: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_dirty: _Optional[bool] = ..., git_dirty_summary: _Optional[str] = ..., diagnostics: _Optional[_Union[DiagnosticsInfo, _Mapping]] = ..., pins: _Optional[_Iterable[_Union[PinInfo, _Mapping]]] = ..., tree_digest: _Optional[str] = ..., preset: _Optional[str] = ..., capture_profile: _Optional[str] = ..., planned_phases: _Optional[_Iterable[str]] = ..., phase_set_digest: _Optional[str] = ..., descriptor_snapshot_schema_version: _Optional[int] = ..., descriptor_snapshot_digest: _Optional[str] = ..., descriptor_snapshot: _Optional[_Union[RunDescriptorSnapshot, _Mapping]] = ..., execution_configuration_fingerprint: _Optional[str] = ..., gate_quality: _Optional[bool] = ...) -> None: ...
+    evidence_tier: str
+    source_scope: str
+    source_stable: bool
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., status: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseInfo, _Mapping]]] = ..., git_sha: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_dirty: _Optional[bool] = ..., git_dirty_summary: _Optional[str] = ..., diagnostics: _Optional[_Union[DiagnosticsInfo, _Mapping]] = ..., pins: _Optional[_Iterable[_Union[PinInfo, _Mapping]]] = ..., tree_digest: _Optional[str] = ..., preset: _Optional[str] = ..., capture_profile: _Optional[str] = ..., planned_phases: _Optional[_Iterable[str]] = ..., phase_set_digest: _Optional[str] = ..., descriptor_snapshot_schema_version: _Optional[int] = ..., descriptor_snapshot_digest: _Optional[str] = ..., descriptor_snapshot: _Optional[_Union[RunDescriptorSnapshot, _Mapping]] = ..., execution_configuration_fingerprint: _Optional[str] = ..., gate_quality: _Optional[bool] = ..., evidence_tier: _Optional[str] = ..., source_scope: _Optional[str] = ..., source_stable: _Optional[bool] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
     __slots__ = ("scenario", "status", "limit")
@@ -685,7 +691,7 @@ class CompareRunsResponse(_message.Message):
     def __init__(self, phases: _Optional[_Iterable[_Union[PhaseDiff, _Mapping]]] = ..., verdict: _Optional[str] = ..., schema_version: _Optional[int] = ..., behavior: _Optional[str] = ..., coverage: _Optional[str] = ..., compatibility: _Optional[str] = ..., provenance: _Optional[str] = ..., diagnostics: _Optional[_Iterable[_Union[ComparisonDiagnostic, _Mapping]]] = ...) -> None: ...
 
 class FindRunRequest(_message.Message):
-    __slots__ = ("scenario", "git_sha", "tree_digest", "preset", "capture_profile", "status", "require_clean", "phase_set_digest", "require_gate_quality")
+    __slots__ = ("scenario", "git_sha", "tree_digest", "preset", "capture_profile", "status", "require_clean", "phase_set_digest", "require_gate_quality", "match_current_source")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     GIT_SHA_FIELD_NUMBER: _ClassVar[int]
     TREE_DIGEST_FIELD_NUMBER: _ClassVar[int]
@@ -695,6 +701,7 @@ class FindRunRequest(_message.Message):
     REQUIRE_CLEAN_FIELD_NUMBER: _ClassVar[int]
     PHASE_SET_DIGEST_FIELD_NUMBER: _ClassVar[int]
     REQUIRE_GATE_QUALITY_FIELD_NUMBER: _ClassVar[int]
+    MATCH_CURRENT_SOURCE_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     git_sha: str
     tree_digest: str
@@ -704,7 +711,8 @@ class FindRunRequest(_message.Message):
     require_clean: bool
     phase_set_digest: str
     require_gate_quality: bool
-    def __init__(self, scenario: _Optional[str] = ..., git_sha: _Optional[str] = ..., tree_digest: _Optional[str] = ..., preset: _Optional[str] = ..., capture_profile: _Optional[str] = ..., status: _Optional[str] = ..., require_clean: _Optional[bool] = ..., phase_set_digest: _Optional[str] = ..., require_gate_quality: _Optional[bool] = ...) -> None: ...
+    match_current_source: bool
+    def __init__(self, scenario: _Optional[str] = ..., git_sha: _Optional[str] = ..., tree_digest: _Optional[str] = ..., preset: _Optional[str] = ..., capture_profile: _Optional[str] = ..., status: _Optional[str] = ..., require_clean: _Optional[bool] = ..., phase_set_digest: _Optional[str] = ..., require_gate_quality: _Optional[bool] = ..., match_current_source: _Optional[bool] = ...) -> None: ...
 
 class FindRunResponse(_message.Message):
     __slots__ = ("found", "run")

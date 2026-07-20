@@ -572,6 +572,12 @@ message RunnerCapabilities {
 
   // Extra CLI flags this runner allows (e.g., "--verbose").
   repeated string allowed_extra_flags = 9;
+
+  // Whether this runner can enforce a per-launch canonical allowed_tools list.
+  bool supports_tool_restriction = 10;
+
+  // Canonical tool name to runner-native name. Empty when unsupported.
+  map<string, string> tool_restriction_mappings = 11;
 }
 
 // =============================================================================

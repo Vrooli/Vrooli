@@ -2194,8 +2194,12 @@ type RunnerCapabilities struct {
 	SupportedFeatures []string `protobuf:"bytes,8,rep,name=supported_features,json=supportedFeatures,proto3" json:"supported_features,omitempty"`
 	// Extra CLI flags this runner allows (e.g., "--verbose").
 	AllowedExtraFlags []string `protobuf:"bytes,9,rep,name=allowed_extra_flags,json=allowedExtraFlags,proto3" json:"allowed_extra_flags,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Whether this runner can enforce a per-launch canonical allowed_tools list.
+	SupportsToolRestriction bool `protobuf:"varint,10,opt,name=supports_tool_restriction,json=supportsToolRestriction,proto3" json:"supports_tool_restriction,omitempty"`
+	// Canonical tool name to runner-native name. Empty when unsupported.
+	ToolRestrictionMappings map[string]string `protobuf:"bytes,11,rep,name=tool_restriction_mappings,json=toolRestrictionMappings,proto3" json:"tool_restriction_mappings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *RunnerCapabilities) Reset() {
@@ -2287,6 +2291,20 @@ func (x *RunnerCapabilities) GetSupportedFeatures() []string {
 func (x *RunnerCapabilities) GetAllowedExtraFlags() []string {
 	if x != nil {
 		return x.AllowedExtraFlags
+	}
+	return nil
+}
+
+func (x *RunnerCapabilities) GetSupportsToolRestriction() bool {
+	if x != nil {
+		return x.SupportsToolRestriction
+	}
+	return false
+}
+
+func (x *RunnerCapabilities) GetToolRestrictionMappings() map[string]string {
+	if x != nil {
+		return x.ToolRestrictionMappings
 	}
 	return nil
 }
@@ -3735,7 +3753,7 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12!\n" +
 	"\finstall_hint\x18\x04 \x01(\tR\vinstallHint\x12)\n" +
 	"\x10supported_models\x18\x05 \x03(\tR\x0fsupportedModels\x12H\n" +
-	"\fcapabilities\x18\x06 \x01(\v2$.agent_manager.v1.RunnerCapabilitiesR\fcapabilities\"\xbe\x03\n" +
+	"\fcapabilities\x18\x06 \x01(\v2$.agent_manager.v1.RunnerCapabilitiesR\fcapabilities\"\xc5\x05\n" +
 	"\x12RunnerCapabilities\x12-\n" +
 	"\x12supports_streaming\x18\x01 \x01(\bR\x11supportsStreaming\x12+\n" +
 	"\x11supports_messages\x18\x02 \x01(\bR\x10supportsMessages\x120\n" +
@@ -3745,7 +3763,13 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\tmax_turns\x18\x06 \x01(\x05R\bmaxTurns\x123\n" +
 	"\x15supports_continuation\x18\a \x01(\bR\x14supportsContinuation\x12-\n" +
 	"\x12supported_features\x18\b \x03(\tR\x11supportedFeatures\x12.\n" +
-	"\x13allowed_extra_flags\x18\t \x03(\tR\x11allowedExtraFlags\"\xde\x01\n" +
+	"\x13allowed_extra_flags\x18\t \x03(\tR\x11allowedExtraFlags\x12:\n" +
+	"\x19supports_tool_restriction\x18\n" +
+	" \x01(\bR\x17supportsToolRestriction\x12}\n" +
+	"\x19tool_restriction_mappings\x18\v \x03(\v2A.agent_manager.v1.RunnerCapabilities.ToolRestrictionMappingsEntryR\x17toolRestrictionMappings\x1aJ\n" +
+	"\x1cToolRestrictionMappingsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xde\x01\n" +
 	"\vProbeResult\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1d\n" +
 	"\n" +
@@ -3865,7 +3889,7 @@ func file_agent_manager_v1_domain_run_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_domain_run_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_agent_manager_v1_domain_run_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_agent_manager_v1_domain_run_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_agent_manager_v1_domain_run_proto_goTypes = []any{
 	(FinalOutputSelectionStatus)(0),        // 0: agent_manager.v1.FinalOutputSelectionStatus
 	(StructuredResultStatus)(0),            // 1: agent_manager.v1.StructuredResultStatus
@@ -3904,45 +3928,46 @@ var file_agent_manager_v1_domain_run_proto_goTypes = []any{
 	(*WakeRunRequest)(nil),                 // 34: agent_manager.v1.WakeRunRequest
 	(*WakeRunResponse)(nil),                // 35: agent_manager.v1.WakeRunResponse
 	nil,                                    // 36: agent_manager.v1.RunCheckpoint.MetadataEntry
-	nil,                                    // 37: agent_manager.v1.ProbeResult.DetailsEntry
-	(RunMode)(0),                           // 38: agent_manager.v1.RunMode
-	(RunStatus)(0),                         // 39: agent_manager.v1.RunStatus
-	(*timestamppb.Timestamp)(nil),          // 40: google.protobuf.Timestamp
-	(RunPhase)(0),                          // 41: agent_manager.v1.RunPhase
-	(ApprovalState)(0),                     // 42: agent_manager.v1.ApprovalState
-	(*RunConfig)(nil),                      // 43: agent_manager.v1.RunConfig
-	(RunFinalizationStatus)(0),             // 44: agent_manager.v1.RunFinalizationStatus
-	(ExecutionMode)(0),                     // 45: agent_manager.v1.ExecutionMode
-	(*ExecutionPolicySnapshot)(nil),        // 46: agent_manager.v1.ExecutionPolicySnapshot
-	(ResultSpecKind)(0),                    // 47: agent_manager.v1.ResultSpecKind
-	(*structpb.Struct)(nil),                // 48: google.protobuf.Struct
-	(*durationpb.Duration)(nil),            // 49: google.protobuf.Duration
-	(IdempotencyStatus)(0),                 // 50: agent_manager.v1.IdempotencyStatus
-	(RunnerType)(0),                        // 51: agent_manager.v1.RunnerType
+	nil,                                    // 37: agent_manager.v1.RunnerCapabilities.ToolRestrictionMappingsEntry
+	nil,                                    // 38: agent_manager.v1.ProbeResult.DetailsEntry
+	(RunMode)(0),                           // 39: agent_manager.v1.RunMode
+	(RunStatus)(0),                         // 40: agent_manager.v1.RunStatus
+	(*timestamppb.Timestamp)(nil),          // 41: google.protobuf.Timestamp
+	(RunPhase)(0),                          // 42: agent_manager.v1.RunPhase
+	(ApprovalState)(0),                     // 43: agent_manager.v1.ApprovalState
+	(*RunConfig)(nil),                      // 44: agent_manager.v1.RunConfig
+	(RunFinalizationStatus)(0),             // 45: agent_manager.v1.RunFinalizationStatus
+	(ExecutionMode)(0),                     // 46: agent_manager.v1.ExecutionMode
+	(*ExecutionPolicySnapshot)(nil),        // 47: agent_manager.v1.ExecutionPolicySnapshot
+	(ResultSpecKind)(0),                    // 48: agent_manager.v1.ResultSpecKind
+	(*structpb.Struct)(nil),                // 49: google.protobuf.Struct
+	(*durationpb.Duration)(nil),            // 50: google.protobuf.Duration
+	(IdempotencyStatus)(0),                 // 51: agent_manager.v1.IdempotencyStatus
+	(RunnerType)(0),                        // 52: agent_manager.v1.RunnerType
 }
 var file_agent_manager_v1_domain_run_proto_depIdxs = []int32{
-	38, // 0: agent_manager.v1.Run.run_mode:type_name -> agent_manager.v1.RunMode
-	39, // 1: agent_manager.v1.Run.status:type_name -> agent_manager.v1.RunStatus
-	40, // 2: agent_manager.v1.Run.started_at:type_name -> google.protobuf.Timestamp
-	40, // 3: agent_manager.v1.Run.ended_at:type_name -> google.protobuf.Timestamp
-	41, // 4: agent_manager.v1.Run.phase:type_name -> agent_manager.v1.RunPhase
-	40, // 5: agent_manager.v1.Run.last_heartbeat:type_name -> google.protobuf.Timestamp
+	39, // 0: agent_manager.v1.Run.run_mode:type_name -> agent_manager.v1.RunMode
+	40, // 1: agent_manager.v1.Run.status:type_name -> agent_manager.v1.RunStatus
+	41, // 2: agent_manager.v1.Run.started_at:type_name -> google.protobuf.Timestamp
+	41, // 3: agent_manager.v1.Run.ended_at:type_name -> google.protobuf.Timestamp
+	42, // 4: agent_manager.v1.Run.phase:type_name -> agent_manager.v1.RunPhase
+	41, // 5: agent_manager.v1.Run.last_heartbeat:type_name -> google.protobuf.Timestamp
 	14, // 6: agent_manager.v1.Run.summary:type_name -> agent_manager.v1.RunSummary
-	42, // 7: agent_manager.v1.Run.approval_state:type_name -> agent_manager.v1.ApprovalState
-	40, // 8: agent_manager.v1.Run.approved_at:type_name -> google.protobuf.Timestamp
-	43, // 9: agent_manager.v1.Run.resolved_config:type_name -> agent_manager.v1.RunConfig
-	40, // 10: agent_manager.v1.Run.created_at:type_name -> google.protobuf.Timestamp
-	40, // 11: agent_manager.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
+	43, // 7: agent_manager.v1.Run.approval_state:type_name -> agent_manager.v1.ApprovalState
+	41, // 8: agent_manager.v1.Run.approved_at:type_name -> google.protobuf.Timestamp
+	44, // 9: agent_manager.v1.Run.resolved_config:type_name -> agent_manager.v1.RunConfig
+	41, // 10: agent_manager.v1.Run.created_at:type_name -> google.protobuf.Timestamp
+	41, // 11: agent_manager.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
 	13, // 12: agent_manager.v1.Run.actions:type_name -> agent_manager.v1.RunActions
-	44, // 13: agent_manager.v1.Run.finalization_status:type_name -> agent_manager.v1.RunFinalizationStatus
-	40, // 14: agent_manager.v1.Run.finalized_at:type_name -> google.protobuf.Timestamp
+	45, // 13: agent_manager.v1.Run.finalization_status:type_name -> agent_manager.v1.RunFinalizationStatus
+	41, // 14: agent_manager.v1.Run.finalized_at:type_name -> google.protobuf.Timestamp
 	12, // 15: agent_manager.v1.Run.await_handle:type_name -> agent_manager.v1.AwaitHandle
-	45, // 16: agent_manager.v1.Run.execution_mode:type_name -> agent_manager.v1.ExecutionMode
+	46, // 16: agent_manager.v1.Run.execution_mode:type_name -> agent_manager.v1.ExecutionMode
 	9,  // 17: agent_manager.v1.Run.result:type_name -> agent_manager.v1.RunResult
 	0,  // 18: agent_manager.v1.FinalOutputSelection.status:type_name -> agent_manager.v1.FinalOutputSelectionStatus
-	46, // 19: agent_manager.v1.StructuredExtractionProvenance.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
+	47, // 19: agent_manager.v1.StructuredExtractionProvenance.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
 	1,  // 20: agent_manager.v1.StructuredResult.status:type_name -> agent_manager.v1.StructuredResultStatus
-	47, // 21: agent_manager.v1.StructuredResult.spec_kind:type_name -> agent_manager.v1.ResultSpecKind
+	48, // 21: agent_manager.v1.StructuredResult.spec_kind:type_name -> agent_manager.v1.ResultSpecKind
 	7,  // 22: agent_manager.v1.StructuredResult.extractor:type_name -> agent_manager.v1.StructuredExtractionProvenance
 	6,  // 23: agent_manager.v1.StructuredResult.diagnostics:type_name -> agent_manager.v1.StructuredDiagnostic
 	5,  // 24: agent_manager.v1.RunResult.selection:type_name -> agent_manager.v1.FinalOutputSelection
@@ -3951,34 +3976,35 @@ var file_agent_manager_v1_domain_run_proto_depIdxs = []int32{
 	10, // 27: agent_manager.v1.RunResult.observations:type_name -> agent_manager.v1.ReceiptObservations
 	2,  // 28: agent_manager.v1.ReceiptObservations.state:type_name -> agent_manager.v1.ReceiptObservationState
 	11, // 29: agent_manager.v1.ReceiptObservations.receipts:type_name -> agent_manager.v1.ObservedReceipt
-	48, // 30: agent_manager.v1.ObservedReceipt.projection:type_name -> google.protobuf.Struct
-	40, // 31: agent_manager.v1.AwaitHandle.deadline:type_name -> google.protobuf.Timestamp
-	40, // 32: agent_manager.v1.AwaitHandle.registered_at:type_name -> google.protobuf.Timestamp
-	41, // 33: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
-	40, // 34: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
-	40, // 35: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
+	49, // 30: agent_manager.v1.ObservedReceipt.projection:type_name -> google.protobuf.Struct
+	41, // 31: agent_manager.v1.AwaitHandle.deadline:type_name -> google.protobuf.Timestamp
+	41, // 32: agent_manager.v1.AwaitHandle.registered_at:type_name -> google.protobuf.Timestamp
+	42, // 33: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
+	41, // 34: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
+	41, // 35: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
 	36, // 36: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
-	41, // 37: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
-	49, // 38: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
-	49, // 39: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
-	40, // 40: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
-	50, // 41: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
-	40, // 42: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
-	40, // 43: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
-	51, // 44: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
+	42, // 37: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
+	50, // 38: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
+	50, // 39: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
+	41, // 40: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
+	51, // 41: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
+	41, // 42: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
+	41, // 43: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
+	52, // 44: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
 	19, // 45: agent_manager.v1.RunnerStatus.capabilities:type_name -> agent_manager.v1.RunnerCapabilities
-	37, // 46: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
-	22, // 47: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
-	25, // 48: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
-	40, // 49: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
-	3,  // 50: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
-	3,  // 51: agent_manager.v1.ParkRunResponse.run:type_name -> agent_manager.v1.Run
-	3,  // 52: agent_manager.v1.WakeRunResponse.run:type_name -> agent_manager.v1.Run
-	53, // [53:53] is the sub-list for method output_type
-	53, // [53:53] is the sub-list for method input_type
-	53, // [53:53] is the sub-list for extension type_name
-	53, // [53:53] is the sub-list for extension extendee
-	0,  // [0:53] is the sub-list for field type_name
+	37, // 46: agent_manager.v1.RunnerCapabilities.tool_restriction_mappings:type_name -> agent_manager.v1.RunnerCapabilities.ToolRestrictionMappingsEntry
+	38, // 47: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
+	22, // 48: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
+	25, // 49: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
+	41, // 50: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
+	3,  // 51: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
+	3,  // 52: agent_manager.v1.ParkRunResponse.run:type_name -> agent_manager.v1.Run
+	3,  // 53: agent_manager.v1.WakeRunResponse.run:type_name -> agent_manager.v1.Run
+	54, // [54:54] is the sub-list for method output_type
+	54, // [54:54] is the sub-list for method input_type
+	54, // [54:54] is the sub-list for extension type_name
+	54, // [54:54] is the sub-list for extension extendee
+	0,  // [0:54] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_run_proto_init() }
@@ -3999,7 +4025,7 @@ func file_agent_manager_v1_domain_run_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_run_proto_rawDesc), len(file_agent_manager_v1_domain_run_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   35,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
