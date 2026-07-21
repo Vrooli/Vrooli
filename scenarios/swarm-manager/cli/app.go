@@ -80,6 +80,8 @@ func (a *App) dependencies() support.Dependencies {
 		EvidenceEntity:              a.cmdEvidenceEntity,
 		EvidenceReconcile:           a.cmdEvidenceReconcile,
 		EvidenceVerify:              a.cmdEvidenceVerify,
+		RelatedBacklog:              a.cmdRelatedBacklog,
+		RelatedInitiative:           a.cmdRelatedInitiative,
 		BacklogSearchAI:             a.cmdAISearchSearch("backlog"),
 		InitiativesSearchAI:         a.cmdAISearchSearch("initiative"),
 		BacklogList:                 a.cmdBacklogList,

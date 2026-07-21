@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "name": "backlog-related-work-tab",
+    "description": "Open a seeded backlog item Related tab and verify the three fixed related-work groups render.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[]"
+    },
+    "execution_mode": "read_only"
+  },
+  "settings": {
+    "viewport_width": 1600,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "open-related-tab",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "url": "/backlog/execute/swarm-manager-receipt-evidence-migration?tab=related"
+        },
+        "metadata": { "label": "Open the seeded backlog Related tab" }
+      }
+    },
+    {
+      "id": "wait-related-tab",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/related.tab", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 },
+        "metadata": { "label": "Related tab renders" }
+      }
+    },
+    {
+      "id": "wait-linked",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/related.groupLinked", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 10000 },
+        "metadata": { "label": "Linked group renders" }
+      }
+    },
+    {
+      "id": "wait-scope",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/related.groupSameScope", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 10000 },
+        "metadata": { "label": "Same scope group renders" }
+      }
+    },
+    {
+      "id": "wait-similar",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/related.groupSimilar", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 10000 },
+        "metadata": { "label": "Similar group renders" }
+      }
+    }
+  ],
+  "edges": [
+    { "from": "open-related-tab", "to": "wait-related-tab" },
+    { "from": "wait-related-tab", "to": "wait-linked" },
+    { "from": "wait-linked", "to": "wait-scope" },
+    { "from": "wait-scope", "to": "wait-similar" }
+  ]
+}

@@ -6,7 +6,7 @@ import { CheckCircle2, AlertTriangle, Star } from "lucide-react";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { OTHER_KEY, filterAgentOther } from "../../lib/workshop-files";
-import { renderInlineMarkdown, renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import type { PendingQuestion, ReviewStatus } from "../../types";
 
 /** Local answer state for a single question. */
@@ -40,10 +40,7 @@ function MarkdownBlock({ content, className }: MarkdownBlockProps) {
   if (!content?.trim()) return null;
 
   return (
-    <div
-      className={cn("prose-sm-slate break-words [overflow-wrap:anywhere]", className)}
-      dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
-    />
+    <MarkdownRenderer content={content} className={cn("prose-sm-slate break-words [overflow-wrap:anywhere]", className)} />
   );
 }
 
@@ -56,10 +53,7 @@ function InlineMarkdown({ content, className }: InlineMarkdownProps) {
   if (!content?.trim()) return null;
 
   return (
-    <div
-      className={cn("min-w-0 break-words [overflow-wrap:anywhere]", className)}
-      dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(content) }}
-    />
+    <MarkdownRenderer content={content} className={cn("min-w-0 break-words [overflow-wrap:anywhere]", className)} />
   );
 }
 

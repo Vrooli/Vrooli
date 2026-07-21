@@ -37,9 +37,9 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
 
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | undefined>();
   const [pendingBulkTargets, setPendingBulkTargets] = useState<RunBacklogTarget[] | null>(null);
-  const [decisionScope, setDecisionScope] = useState<string | null>(null);
-
   const drawerOpen = searchParams.get("drawer") === "decisions";
+  const decisionScope = searchParams.get("decisionScope");
+  const decisionQuestionId = searchParams.get("decisionQuestion");
 
   const itemActions = useCommandPostItemActions({
     onSelectBacklog: (kind, name) => navigate(backlogDetailPath(kind, name)),
@@ -59,7 +59,11 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         if (open) next.set("drawer", "decisions");
-        else next.delete("drawer");
+        else {
+          next.delete("drawer");
+          next.delete("decisionScope");
+          next.delete("decisionQuestion");
+        }
         return next;
       }, { replace: true });
     },
@@ -68,14 +72,18 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
 
   const openDecisions = useCallback(
     (scopeItemKey?: string) => {
-      setDecisionScope(scopeItemKey ?? null);
-      setDrawerParam(true);
-    },
-    [setDrawerParam],
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("drawer", "decisions");
+        if (scopeItemKey) next.set("decisionScope", scopeItemKey);
+        else next.delete("decisionScope");
+        next.delete("decisionQuestion");
+        return next;
+      }, { replace: true });
+    }, [setSearchParams],
   );
 
   const closeDecisions = useCallback(() => {
-    setDecisionScope(null);
     setDrawerParam(false);
   }, [setDrawerParam]);
 
@@ -113,6 +121,13 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
         isOpen={drawerOpen}
         onClose={closeDecisions}
         scopeItemKey={decisionScope}
+        currentQuestionId={decisionQuestionId}
+        onCurrentQuestionChange={(questionId) => setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          if (questionId) next.set("decisionQuestion", questionId);
+          else next.delete("decisionQuestion");
+          return next;
+        }, { replace: true })}
         onCompleted={onBoardRefresh}
       />
 
@@ -152,6 +167,5 @@ export function PlanBoardActions({ children, onBoardRefresh }: PlanBoardActionsP
     </PlanCardActionsContext.Provider>
   );
 }
-
 
 

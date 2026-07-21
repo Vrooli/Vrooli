@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -135,7 +135,7 @@ function ActivityItem({ activity, agentManagerUiUrl }: { activity: AgentActivity
       {expanded && (
         <div className="space-y-1 border-t border-slate-700/30 px-2 py-1.5 text-xs text-slate-400">
           {activity.failureReason && (
-            <div className="prose-sm-slate rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200" dangerouslySetInnerHTML={{ __html: renderMarkdown(activity.failureReason) }} />
+            <MarkdownRenderer content={activity.failureReason} className="prose-sm-slate rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200" />
           )}
           {duration !== undefined && <p>Duration: {formatDuration(duration)}</p>}
           {activity.startedAt && <p>Started: {formatRelativeTime(activity.startedAt)}</p>}
@@ -351,7 +351,7 @@ function ExecutionTimelineItem({
         <div className="space-y-2 border-t border-slate-700/40 px-3 py-2">
           {/* Failure reason */}
           {exec.failureReason && (
-            <div className="prose-sm-slate rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200" dangerouslySetInnerHTML={{ __html: renderMarkdown(exec.failureReason) }} />
+            <MarkdownRenderer content={exec.failureReason} className="prose-sm-slate rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200" />
           )}
 
           {/* Post-run status */}

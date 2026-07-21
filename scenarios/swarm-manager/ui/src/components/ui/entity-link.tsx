@@ -8,10 +8,10 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils";
-import { backlogDetailPath, executionDetailPath, initiativeDetailPath, scenarioDetailPath } from "../../app/routes/route-paths";
+import { backlogDetailPath, executionDetailPath, initiativeDetailPath, recordDetailPath, scenarioDetailPath } from "../../app/routes/route-paths";
 
 /** Entity types that EntityLink supports navigating to. */
-export type LinkableEntityType = "backlog" | "initiative" | "scenario" | "execution";
+export type LinkableEntityType = "backlog" | "initiative" | "scenario" | "execution" | "record";
 
 export interface EntityLinkProps {
   entityType: LinkableEntityType;
@@ -23,6 +23,8 @@ export interface EntityLinkProps {
   name?: string;
   /** Execution ID (required when entityType is "execution"). */
   executionId?: string;
+  /** Record ID (required when entityType is "record"). */
+  recordId?: string;
   /** Optional tab to open in the detail panel. */
   tab?: string;
   /** Override the default color scheme. */
@@ -39,6 +41,7 @@ const ENTITY_COLORS: Record<LinkableEntityType, string> = {
   initiative: "bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 hover:text-sky-300",
   scenario: "bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 hover:text-violet-300",
   execution: "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 hover:text-amber-300",
+  record: "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300",
 };
 
 export function EntityLink({
@@ -47,6 +50,7 @@ export function EntityLink({
   kind,
   name,
   executionId,
+  recordId,
   tab,
   className,
   "data-testid": testId,
@@ -67,8 +71,11 @@ export function EntityLink({
       case "execution":
         if (executionId) navigate(executionDetailPath(executionId, tab ? { tab } : undefined));
         break;
+      case "record":
+        if (recordId) navigate(recordDetailPath(recordId, tab ? { tab } : undefined));
+        break;
     }
-  }, [entityType, kind, name, executionId, tab, navigate]);
+  }, [entityType, kind, name, executionId, recordId, tab, navigate]);
 
   return (
     <button

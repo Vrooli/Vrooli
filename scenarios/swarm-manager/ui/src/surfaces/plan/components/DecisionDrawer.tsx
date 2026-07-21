@@ -13,9 +13,9 @@ import { buildActiveBacklogKeys, useBacklogStore } from "../../../stores/backlog
 import { useSnoozeStore, useSnoozedKeys } from "../../../stores/snooze-store";
 import type { BacklogKind } from "../../../types";
 
-export interface DecisionDrawerProps { isOpen: boolean; onClose: () => void; scopeItemKey: string | null; onCompleted: () => void; }
+export interface DecisionDrawerProps { isOpen: boolean; onClose: () => void; scopeItemKey: string | null; currentQuestionId: string | null; onCurrentQuestionChange: (id: string | null) => void; onCompleted: () => void; }
 
-export function DecisionDrawer({ isOpen, onClose, scopeItemKey, onCompleted }: DecisionDrawerProps) {
+export function DecisionDrawer({ isOpen, onClose, scopeItemKey, currentQuestionId, onCurrentQuestionChange, onCompleted }: DecisionDrawerProps) {
   const navigate = useNavigate();
   const snoozedKeys = useSnoozedKeys();
   const snooze = useSnoozeStore((s) => s.snooze);
@@ -42,7 +42,7 @@ export function DecisionDrawer({ isOpen, onClose, scopeItemKey, onCompleted }: D
     {showProposals && proposalQuery.isLoading ? <p className="py-8 text-center text-sm text-slate-500">Loading proposals…</p>
       : showProposals && proposals.length > 0 ? <ProposalDecisionStreamView proposals={proposals} onBack={() => setFlowStage("questions")} onComplete={complete} onSnooze={(id) => snooze(`proposal:${id}`, Date.now() + 3_600_000)} />
       : questions.length === 0 && scopeItemKey ? <p className="py-8 text-center text-sm text-slate-500" data-testid="plan-decision-drawer-empty">{summaryQuery.isLoading ? "Loading questions…" : "No pending questions."}</p>
-        : questions.length > 0 ? <DecisionStreamView questions={questions} onComplete={complete} onBack={onClose} onSnoozeItem={(key) => snooze(key, Date.now() + 3_600_000)} onOpenItem={(kind, name) => navigate(backlogDetailPath(kind as BacklogKind, name))} onQueueComplete={hasProposalStage ? () => setFlowStage("proposals") : undefined} finalActionLabel={hasProposalStage ? "Next" : undefined} />
+        : questions.length > 0 ? <DecisionStreamView questions={questions} onComplete={complete} onSnoozeItem={(key) => snooze(key, Date.now() + 3_600_000)} onOpenItem={(kind, name) => navigate(backlogDetailPath(kind as BacklogKind, name))} currentQuestionId={currentQuestionId} onCurrentQuestionChange={onCurrentQuestionChange} onQueueComplete={hasProposalStage ? () => setFlowStage("proposals") : undefined} finalActionLabel={hasProposalStage ? "Next" : undefined} />
           : <p className="py-4 text-center text-sm text-slate-500">No pending decisions.</p>}
   </Drawer>;
 }

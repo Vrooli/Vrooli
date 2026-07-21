@@ -11,7 +11,7 @@ import {
   RotateCcw,
   XCircle,
 } from "lucide-react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import { Button } from "../ui/button";
 import { EntityLink } from "../ui/entity-link";
 import { IdentityBadge } from "../ui/identity-badge";
@@ -130,7 +130,7 @@ export function ExecutionOverviewTab({
           {execution.failureReason && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
               <p className="text-xs text-red-400 font-medium uppercase tracking-wider mb-1">Failure Reason</p>
-              <div className="prose-sm-slate text-sm text-red-200" dangerouslySetInnerHTML={{ __html: renderMarkdown(execution.failureReason) }} />
+              <MarkdownRenderer content={execution.failureReason} className="prose-sm-slate text-sm text-red-200" />
             </div>
           )}
 

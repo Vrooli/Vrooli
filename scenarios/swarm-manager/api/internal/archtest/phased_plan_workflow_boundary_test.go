@@ -35,8 +35,8 @@ func TestPlanExecutionStartsOnlyThroughPhasedPlanWorkflow(t *testing.T) {
 	if body == "" {
 		t.Fatal("startPlanOperationLocked not found")
 	}
-	if !strings.Contains(body, ".StartWorkflow(") || !strings.Contains(body, `WorkflowKey: "swarm-manager/phased-plan-drain"`) {
-		t.Fatal("plan execution no longer starts the declared phased-plan workflow through the generic seam")
+	if !strings.Contains(body, `resolveWorkflow("plan.execute")`) || !strings.Contains(body, ".StartWorkflow(") || !strings.Contains(body, "WorkflowKey: workflow.Key") {
+		t.Fatal("plan execution no longer resolves and starts the declared phased-plan workflow through the generic seam")
 	}
 	for _, forbidden := range []string{".StartOperation(", ".CreateRun(", ".ContinueRun(", "SpawnBacklog(", "SpawnResearch("} {
 		if strings.Contains(body, forbidden) {

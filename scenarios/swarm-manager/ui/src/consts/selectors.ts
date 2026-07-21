@@ -212,6 +212,8 @@ export const literalSelectors = {
     tabFiles: "backlog-details-tab-files",
     tabOutput: "backlog-details-tab-output",
     tabActivity: "backlog-details-tab-activity",
+    tabRelated: "backlog-details-tab-related",
+    relatedContent: "backlog-details-related-content",
     outputTab: "backlog-details-output-tab",
     activityTab: "backlog-details-activity-tab",
     promptPanel: "backlog-details-prompt-panel",
@@ -402,8 +404,16 @@ export const literalSelectors = {
     tabFiles: "initiative-details-tab-files",
     tabFeedback: "initiative-details-tab-feedback",
     tabReview: "initiative-details-tab-review",
+    tabRelated: "initiative-details-tab-related",
+    relatedContent: "initiative-details-related-content",
     addFeedbackButtonDesktop: "initiative-details-add-feedback-desktop",
     conceptExplainerDialog: "concept-explainer-dialog",
+  },
+  related: {
+    tab: "related-tab",
+    groupLinked: "related-group-linked",
+    groupSameScope: "related-group-same_scope",
+    groupSimilar: "related-group-similar",
   },
   // Initiative review surface — trigger + decide.
   initiativeReview: {
@@ -644,6 +654,13 @@ export const dynamicSelectorDefinitions = {
       params: { name: { type: "string" } },
     }),
   },
+  related: {
+    rowByEntity: defineDynamicSelector({
+      description: "Related-work result row by entity kind and key",
+      testIdPattern: "related-row-${entity}-${id}",
+      params: { entity: { type: "enum", values: ["backlog", "initiative", "record"] }, id: { type: "string" } },
+    }),
+  },
 } as const;
 
 // =============================================================================
@@ -668,6 +685,10 @@ export const dynamicSelectors = {
     actionRestart: (params: { name: string }) =>
       formatTemplate("scenario-action-restart-${name}", params, "scenarios.actionRestart"),
   },
+  related: {
+    rowByEntity: (params: { entity: string; id: string }) =>
+      formatTemplate("related-row-${entity}-${id}", params, "related.rowByEntity"),
+  },
 } as const;
 
 // =============================================================================
@@ -691,6 +712,10 @@ export const selectors = {
   scenarios: {
     ...literalSelectors.scenarios,
     ...dynamicSelectors.scenarios,
+  },
+  related: {
+    ...literalSelectors.related,
+    ...dynamicSelectors.related,
   },
 } as const;
 

@@ -9,21 +9,14 @@
  * collapsible context panel, and maximized vertical content space.
  */
 import { useState, useCallback, useRef } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Loader2, SkipForward, ArrowLeft, Moon, CheckCircle2, Info, Trash2, Menu } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, SkipForward, Moon, CheckCircle2, Trash2, Menu } from "lucide-react";
 import { cn } from "../../lib";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import { selectors } from "../../consts/selectors";
-import {
-  BACKLOG_KIND_ICONS,
-  BACKLOG_KIND_LABELS,
-  BACKLOG_STATUS_CHIP_COLORS,
-  formatBacklogStatus,
-} from "../../types";
+import { BACKLOG_KIND_ICONS, BACKLOG_KIND_LABELS } from "../../types";
 import type { CrossItemQuestion } from "../../lib/command-post-utils";
 import { WorkshopQuestionView, ReviewQuestionView } from "../backlog/question-renderers";
 import { ClarifyButton } from "../backlog/clarify-button";
-import { ScenarioBadge } from "../backlog/scenario-badge";
-import { TagList } from "../ui/tag-list";
 import { useDecisionStreamLogic } from "../../hooks/useDecisionStreamLogic";
 import { useClarificationStore } from "../../stores/clarification-store";
 import { ScenarioNavigatorPopover } from "./ScenarioNavigatorPopover";
@@ -36,13 +29,16 @@ export type { DecisionStreamResults };
 export interface DecisionStreamViewProps {
   questions: CrossItemQuestion[];
   onComplete: (results: DecisionStreamResults) => void;
-  onBack: () => void;
+  /** Legacy keyboard-dismiss callback; the header deliberately has no back control. */
+  onBack?: () => void;
   onOpenSidebar?: () => void;
   onSnoozeItem: (key: string) => void;
   /** Navigate to a backlog item's detail page. */
   onOpenItem?: (kind: string, name: string) => void;
   onQueueComplete?: () => void;
   finalActionLabel?: string;
+  currentQuestionId?: string | null;
+  onCurrentQuestionChange?: (id: string | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,6 +54,8 @@ export function DecisionStreamView({
   onOpenItem,
   onQueueComplete,
   finalActionLabel,
+  currentQuestionId,
+  onCurrentQuestionChange,
 }: DecisionStreamViewProps) {
   // Navigator state
   const [navigatorOpen, setNavigatorOpen] = useState(false);
@@ -75,16 +73,11 @@ export function DecisionStreamView({
     completionResults,
     current,
     answer,
-    parentItem,
     total,
     safeIndex,
     savingId,
     saveError,
     deletingId,
-    contextExpanded,
-    setContextExpanded,
-    descExpanded,
-    setDescExpanded,
     containerRef,
     updateAnswer,
     advance,
@@ -98,7 +91,7 @@ export function DecisionStreamView({
     localAnswers,
     skippedIds,
     onComplete: finishDecisionStream,
-  } = useDecisionStreamLogic({ questions, onComplete, onBack, onSnoozeItem, navigatorOpenRef, toggleNavigator, onQueueComplete });
+  } = useDecisionStreamLogic({ questions, onComplete, onBack: onBack ?? (() => undefined), onSnoozeItem, navigatorOpenRef, toggleNavigator, onQueueComplete, currentQuestionId, onCurrentQuestionChange });
 
   // Clarification
   const clarificationStore = useClarificationStore();
@@ -214,14 +207,6 @@ export function DecisionStreamView({
       <div className="flex h-full flex-col items-center justify-center gap-4">
         <CheckCircle2 className="h-10 w-10 text-emerald-400" />
         <p className="text-sm text-slate-300">No pending questions</p>
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex min-h-[44px] items-center gap-1 rounded-lg border border-slate-600 px-4 py-2.5 text-sm text-slate-400 transition-colors hover:border-slate-500 hover:text-slate-200 active:bg-slate-800"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Command Post
-        </button>
       </div>
     );
   }
@@ -232,12 +217,10 @@ export function DecisionStreamView({
   const isFirst = safeIndex === 0;
   const isLast = safeIndex === total - 1;
   const KindIcon = BACKLOG_KIND_ICONS[current.parentKind];
-  const description = parentItem?.description ?? "";
-  const descOverflows = description.length > 200 || description.includes("\n");
 
   return (
     <div ref={containerRef} className="flex h-full flex-col" data-testid={selectors.commandPost.decisionStream.container}>
-      {/* Unified header — back, kind icon + title, counter + context toggle */}
+      {/* Header keeps the decision identity visible and navigates to its full detail page. */}
       <div
         className="relative z-[70] flex shrink-0 items-center gap-2 border-b border-slate-700/50 bg-slate-950 px-3"
         data-testid={selectors.commandPost.decisionStream.header}
@@ -253,25 +236,15 @@ export function DecisionStreamView({
             <Menu className="h-4 w-4" />
           </button>
         )}
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex min-h-[44px] shrink-0 items-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 active:bg-slate-700"
-          aria-label="Back to Command Post"
-          data-testid={selectors.commandPost.decisionStream.backButton}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-
         {/* Kind icon + title (center, truncated) */}
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
           <KindIcon className="h-4 w-4 shrink-0 text-slate-500" aria-label={BACKLOG_KIND_LABELS[current.parentKind]} />
-          <span className="truncate text-sm font-medium text-slate-200">
+          <button type="button" onClick={() => onOpenItem?.(current.parentKind, current.parentName)} className="truncate text-left text-sm font-medium text-cyan-300 hover:text-cyan-200 hover:underline" data-testid={selectors.commandPost.decisionStream.openItemLink}>
             {current.parentTitle}
-          </span>
+          </button>
         </div>
 
-        {/* Counter + navigator + context toggle */}
+        {/* Counter + navigator */}
         <div className="relative flex shrink-0 items-center gap-1">
           <button
             type="button"
@@ -297,112 +270,9 @@ export function DecisionStreamView({
             onJumpTo={jumpToParent}
             onSnoozeParent={snoozeSpecificParent}
           />
-          <button
-            type="button"
-            onClick={() => setContextExpanded((prev) => !prev)}
-            className="flex min-h-[44px] items-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 active:bg-slate-700"
-            aria-label={contextExpanded ? "Hide item details" : "Show item details"}
-            data-testid={selectors.commandPost.decisionStream.contextToggle}
-          >
-            <ChevronDown className={cn("h-4 w-4 transition-transform", contextExpanded && "rotate-180")} />
-          </button>
         </div>
       </div>
 
-      {/* Expandable item context panel */}
-      {contextExpanded && (
-        <div
-          className="shrink-0 max-h-[40vh] overflow-y-auto border-b border-slate-700/50 bg-slate-900 px-3 py-2.5"
-          data-testid={selectors.commandPost.decisionStream.contextPanel}
-        >
-          <div className="mx-auto max-w-2xl space-y-2">
-            {parentItem ? (
-              <>
-                {/* Status + kind + priority row */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", BACKLOG_STATUS_CHIP_COLORS[parentItem.status])}>
-                    {formatBacklogStatus(parentItem.status)}
-                  </span>
-                  <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
-                    {BACKLOG_KIND_LABELS[parentItem.kind]}
-                  </span>
-                  {parentItem.priority != null && (
-                    <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
-                      P{parentItem.priority}
-                    </span>
-                  )}
-                  {parentItem.effort && (
-                    <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
-                      {parentItem.effort}
-                    </span>
-                  )}
-                </div>
-
-                {/* Description */}
-                {description && (
-                  <div>
-                    <p className={cn("text-xs leading-relaxed text-slate-300", !descExpanded && "line-clamp-4")}>
-                      {description}
-                    </p>
-                    {descOverflows && (
-                      <button
-                        type="button"
-                        onClick={() => setDescExpanded((prev) => !prev)}
-                        className="mt-0.5 text-[10px] font-medium text-blue-400 hover:text-blue-300"
-                      >
-                        {descExpanded ? "Show less" : "Show more\u2026"}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Initiative */}
-                {parentItem.initiative && (
-                  <div className="flex items-center gap-1.5">
-                    <Info className="h-3 w-3 shrink-0 text-slate-500" />
-                    <span className="text-[10px] text-slate-500">Initiative:</span>
-                    <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-medium text-sky-400">
-                      {parentItem.initiative}
-                    </span>
-                  </div>
-                )}
-
-                {/* Scenario */}
-                {parentItem.acceptanceAllow && parentItem.acceptanceAllow.length > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <Info className="h-3 w-3 shrink-0 text-slate-500" />
-                    <span className="text-[10px] text-slate-500">Scenario:</span>
-                    <ScenarioBadge acceptanceAllow={parentItem.acceptanceAllow} />
-                  </div>
-                )}
-
-                {/* Tags */}
-                {parentItem.tags && parentItem.tags.length > 0 && (
-                  <TagList tags={parentItem.tags} maxTags={5} />
-                )}
-              </>
-            ) : (
-              <p className="text-xs text-slate-500">Item details not available</p>
-            )}
-
-            {/* Slug + open link */}
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-mono text-slate-600">{current.parentKind}/{current.parentName}</p>
-              {onOpenItem && (
-                <button
-                  type="button"
-                  onClick={() => onOpenItem(current.parentKind, current.parentName)}
-                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-cyan-400 transition-colors hover:bg-slate-800 hover:text-cyan-300"
-                  data-testid={selectors.commandPost.decisionStream.openItemLink}
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  Open item
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Question content */}
       <div
@@ -476,10 +346,7 @@ export function DecisionStreamView({
           {current.question.context_note && (
             <div className="mt-2 rounded border border-cyan-500/15 bg-cyan-500/5 px-2 py-1">
               <span className="text-[9px] font-medium text-cyan-400">Clarification note</span>
-              <div
-                className="prose-sm-slate mt-1 break-words text-xs text-slate-400 [overflow-wrap:anywhere]"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(current.question.context_note) }}
-              />
+              <MarkdownRenderer content={current.question.context_note} className="prose-sm-slate mt-1 break-words text-xs text-slate-400 [overflow-wrap:anywhere]" />
             </div>
           )}
 

@@ -149,6 +149,8 @@ type Dependencies struct {
 	EvidenceEntity        CommandFunc
 	EvidenceReconcile     CommandFunc
 	EvidenceVerify        CommandFunc
+	RelatedBacklog        CommandFunc
+	RelatedInitiative     CommandFunc
 }
 
 func APICommand(name, description string, run CommandFunc) cliapp.Command {

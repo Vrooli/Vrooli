@@ -7,14 +7,16 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, Clock, MessageCircleQuestion, Play, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown, Clock, CornerDownLeft, MessageCircleQuestion, Play, X } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { OpsBulkActions } from "../../../components/operations/OpsBulkActions";
 import type { RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
 import { Button } from "../../../components/ui/button";
 import { Popover } from "../../../components/ui/popover";
 import { cn } from "../../../lib/utils";
-import { detailPathFromNodeId, graphPath } from "../../../app/routes/route-paths";
+import { backlogDetailPath, detailPathFromNodeId, graphPath } from "../../../app/routes/route-paths";
+import { StatusChip } from "../../../components/ui/status-chip";
+import { getStatusColorClasses } from "../../graph/lib/status-colors";
 import { useAttachToSessionAction } from "../../../components/session/context/useAttachToSessionAction";
 import { planDependencyCyclesOption, planEtaOption } from "../../../components/session/context/session-context-refs";
 import { useOperationsPolling } from "../../../hooks/useOperationsPolling";
@@ -114,7 +116,7 @@ const ETA_CONFIDENCE_TONE: Record<string, string> = {
   low: "text-slate-400",
 };
 
-function CycleWarning({ cycles }: { cycles: string[] }) {
+function CycleWarning({ cycles, cardsByEntity }: { cycles: string[]; cardsByEntity: Map<string, PlanCardData> }) {
   const navigate = useNavigate();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -124,6 +126,12 @@ function CycleWarning({ cycles }: { cycles: string[] }) {
   const inspectEntity = (entity: string) => {
     const nodeId = cycleEntityToNodeId(entity);
     navigate(graphPath({ lens: "focus", focus: nodeId, select: nodeId }));
+    setOpen(false);
+  };
+  const openItem = (entity: string) => {
+    const card = cardsByEntity.get(entity);
+    if (card?.itemKind && card.itemName) navigate(backlogDetailPath(card.itemKind as BacklogKind, card.itemName));
+    else inspectEntity(entity);
     setOpen(false);
   };
 
@@ -165,32 +173,28 @@ function CycleWarning({ cycles }: { cycles: string[] }) {
           <div className="space-y-2">
             {cycles.map((cycle, index) => {
               const entities = cycle.split(/\s*->\s*/).filter(Boolean);
+              const chain = entities.length > 1 && entities[0] === entities[entities.length - 1] ? entities.slice(0, -1) : entities;
               const first = entities[0] ?? cycle;
-              const second = entities[1] ?? first;
               return (
                 <div key={`${cycle}-${index}`} className="rounded border border-slate-800 bg-slate-950/70 p-2">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {entities.map((entity, entityIndex) => (
+                    {chain.map((entity, entityIndex) => {
+                      const card = cardsByEntity.get(entity);
+                      const colors = card ? getStatusColorClasses(card.status) : { background: "bg-slate-700/50", border: "border-slate-600", text: "text-slate-300" };
+                      return (
                       <span key={`${entity}-${entityIndex}`} className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => inspectEntity(entity)}
-                          className="rounded px-1 py-0.5 text-cyan-300 hover:bg-slate-800"
-                        >
-                          {entity}
-                        </button>
-                        {entityIndex < entities.length - 1 && <span className="text-slate-600">{"->"}</span>}
+                        <StatusChip label={card?.title ?? entity} colors={colors} onClick={() => openItem(entity)} />
+                        {entityIndex < chain.length - 1 && <ArrowRight className="h-3 w-3 text-slate-500" aria-hidden />}
                       </span>
-                    ))}
+                      );
+                    })}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => inspectEntity(first)}
-                    className="mt-2 text-left text-rose-200 underline decoration-rose-400/40 underline-offset-2 hover:text-rose-100"
-                    data-testid="plan-cycle-resolve"
-                  >
-                    Inspect dependency edge {first} {"->"} {second}
-                  </button>
+                  <p className="mt-2 flex items-center gap-1 text-slate-400"><CornerDownLeft className="h-3 w-3" /> Loops back to {cardsByEntity.get(first)?.title ?? first}.</p>
+                  <p className="mt-1 text-slate-400">Remove one of these dependencies to break the loop.</p>
+                  <div className="mt-2 flex gap-2">
+                    <button type="button" onClick={() => openItem(first)} className="rounded bg-cyan-500/20 px-2 py-1 text-cyan-200 hover:bg-cyan-500/30" data-testid="plan-cycle-resolve">Open backlog item</button>
+                    <button type="button" onClick={() => inspectEntity(first)} className="rounded px-2 py-1 text-slate-300 hover:bg-slate-800">View in graph</button>
+                  </div>
                 </div>
               );
             })}
@@ -507,6 +511,12 @@ export function PlanBoard() {
   if (!board) return null;
 
   const cycles = board.meta.cycles;
+  const cycleCardsByEntity = new Map<string, PlanCardData>();
+  for (const group of [...next.groups, ...later.groups, ...board.done.groups]) {
+    for (const card of group.cards) {
+      if (card.itemKind && card.itemName) cycleCardsByEntity.set(`${card.itemKind}/${card.itemName}`, card);
+    }
+  }
   const hiddenSnoozed = next.hiddenCount + later.hiddenCount;
 
   return (
@@ -514,7 +524,7 @@ export function PlanBoard() {
     <div className="flex h-full min-h-0 flex-col" data-testid="plan-board">
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <GoalPicker goal={urlState.goal} onSelect={urlState.setGoal} />
-        <CycleWarning cycles={cycles} />
+        <CycleWarning cycles={cycles} cardsByEntity={cycleCardsByEntity} />
         {hiddenSnoozed > 0 && (
           <span
             className="text-xs text-slate-600"

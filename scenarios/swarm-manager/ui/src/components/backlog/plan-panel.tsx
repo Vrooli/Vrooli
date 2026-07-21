@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, ExternalLink, FileText, List, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { defaultQueryOptions } from "../../lib";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import { extractHeadings } from "../../lib/heading-utils";
 import { backlogService } from "../../services";
 import type { BacklogKind } from "../../types";
@@ -176,7 +176,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
       )}
 
       <div className="flex-1 overflow-y-auto">
-        <div className="px-4 py-4" dangerouslySetInnerHTML={{ __html: renderMarkdown(markdown) }} />
+        <MarkdownRenderer content={markdown} className="px-4 py-4" />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import type { Ref } from "react";
 import { Code, Eye, List } from "lucide-react";
 import Editor from "@monaco-editor/react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import { Button } from "../ui/button";
 import { InlineLoadingIndicator } from "../ui/loading-states";
 import { selectors } from "../../consts/selectors";
@@ -204,10 +204,7 @@ export function PromptEditor({
                           Simulation: {lastSimulationPayload.kind}/{lastSimulationPayload.mode}
                         </p>
                       ) : null}
-                      <div
-                        className="prose prose-invert max-w-none prose-headings:mb-2 prose-headings:mt-4 prose-p:my-2 prose-pre:bg-slate-900 prose-code:text-cyan-300"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(markdownPreviewSource) }}
-                      />
+                      <MarkdownRenderer content={markdownPreviewSource} className="prose prose-invert max-w-none prose-headings:mb-2 prose-headings:mt-4 prose-p:my-2 prose-pre:bg-slate-900 prose-code:text-cyan-300" />
                     </div>
                   )}
                 </div>

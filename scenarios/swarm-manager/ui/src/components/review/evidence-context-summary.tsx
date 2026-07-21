@@ -5,7 +5,7 @@
  */
 
 import { AlertTriangle, Check, FileText, Image, Terminal, Diff, Video, HelpCircle } from "lucide-react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import { selectors } from "../../consts/selectors";
 import type { ReviewRound, EvidenceItem } from "../../services/review-service";
 
@@ -51,7 +51,7 @@ export function EvidenceContextSummary({ rounds, selectable, selectedIds, onTogg
       </div>
 
       {latest.agent_assessment && (
-        <div className="prose-sm-slate text-[11px] leading-relaxed text-slate-400" dangerouslySetInnerHTML={{ __html: renderMarkdown(latest.agent_assessment) }} />
+        <MarkdownRenderer content={latest.agent_assessment} className="prose-sm-slate text-[11px] leading-relaxed text-slate-400" />
       )}
 
       {latest.evidence.length > 0 && (

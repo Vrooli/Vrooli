@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import {
   Clock3,
   ChevronDown,
@@ -178,7 +178,7 @@ function RoundSection({
         </span>
         {/* Collapsed assessment preview */}
         {round.agent_assessment && !expanded && (
-          <span className="flex-1 truncate text-xs text-slate-400 italic" dangerouslySetInnerHTML={{ __html: renderMarkdown(round.agent_assessment) }} />
+          <MarkdownRenderer content={round.agent_assessment} className="flex-1 truncate text-xs text-slate-400 italic" />
         )}
       </button>
 
@@ -195,10 +195,7 @@ function RoundSection({
                 />
                 <span className="text-xs font-medium text-red-200">Review Failure</span>
               </div>
-              <div
-                className="mt-2 prose-sm-slate text-sm leading-relaxed text-red-100"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(round.failure_reason) }}
-              />
+              <MarkdownRenderer content={round.failure_reason} className="mt-2 prose-sm-slate text-sm leading-relaxed text-red-100" />
             </div>
           )}
 
@@ -217,12 +214,12 @@ function RoundSection({
                 <span className="text-xs font-medium text-slate-300">Agent Assessment</span>
               </div>
               {round.agent_assessment && (
-                <div className="prose-sm-slate text-sm leading-relaxed text-slate-300" dangerouslySetInnerHTML={{ __html: renderMarkdown(round.agent_assessment) }} />
+                <MarkdownRenderer content={round.agent_assessment} className="prose-sm-slate text-sm leading-relaxed text-slate-300" />
               )}
               {round.notes && round.notes.length > 0 && (
                 <ul className="space-y-1 pl-4 list-disc">
                   {round.notes.map((note, i) => (
-                    <li key={i} className="text-xs text-slate-400" dangerouslySetInnerHTML={{ __html: renderMarkdown(note) }} />
+                    <li key={i} className="text-xs text-slate-400"><MarkdownRenderer content={note} /></li>
                   ))}
                 </ul>
               )}

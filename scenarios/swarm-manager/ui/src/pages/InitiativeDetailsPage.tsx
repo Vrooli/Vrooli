@@ -32,6 +32,7 @@ import { InitiativeDependencyGraph } from "../components/initiative/InitiativeDe
 import { ProposalSessionsPanel } from "../components/session/ProposalSessionsPanel";
 import { proposalSessionService } from "../services/proposal-session-service";
 import { InitiativeReviewPanel } from "../components/initiative/initiative-review-panel";
+import { RelatedTab } from "../components/related/RelatedTab";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createInitiativeFileServiceAdapter } from "../services/initiative-file-service-adapter";
 import { useUrlState } from "../hooks/use-url-state";
@@ -59,7 +60,7 @@ import { useAppBack } from "../app/routes/useAppBack";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { initiativeOption } from "../components/session/context/session-context-refs";
 
-type InitiativeTab = "info" | "proposals" | "review" | "files";
+type InitiativeTab = "info" | "proposals" | "review" | "files" | "related";
 type ItemsView = "list" | "graph";
 
 interface ResolvedInitiativeItem {
@@ -374,7 +375,7 @@ export function InitiativeDetailsPage() {
 
   // --- Tab state ---
   const [activeTab, setActiveTab] = useUrlState<InitiativeTab>("tab", "info", {
-    validate: (v): v is InitiativeTab => ["info", "proposals", "review", "files"].includes(v),
+    validate: (v): v is InitiativeTab => ["info", "proposals", "review", "files", "related"].includes(v),
   });
 
 
@@ -646,6 +647,10 @@ export function InitiativeDetailsPage() {
           <TabsTrigger value="files" className="gap-2" data-testid={selectors.initiativeDetails.tabFiles}>
             <Files className="h-4 w-4" />
             Files
+          </TabsTrigger>
+          <TabsTrigger value="related" className="gap-2" data-testid={selectors.initiativeDetails.tabRelated}>
+            <Network className="h-4 w-4" />
+            Related
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -959,6 +964,7 @@ export function InitiativeDetailsPage() {
         )}
 
         {activeTab === "proposals" && <ProposalSessionsPanel target={{ type: "initiative", ref: initiative.name, name: initiative.title || initiative.name }} />}
+        {activeTab === "related" && <RelatedTab target={{ kind: "initiative", name: initiative.name }} enabled />}
 
         {activeTab === "review" && (
           <InitiativeReviewPanel

@@ -1,8 +1,7 @@
-import type { MouseEvent } from "react";
 import { useMemo } from "react";
 import { Loader2, Volume2, VolumeX } from "lucide-react";
 import { detailPathFromNodeId } from "../../app/routes/route-paths";
-import { renderMarkdown, type InlineReferenceLink } from "../../lib/render-markdown";
+import { MarkdownRenderer, type InlineTokenResolution } from "../markdown/MarkdownRenderer";
 import { cn } from "../../lib/utils";
 import type { ChatAccent, ChatMessageRenderSlot, ChatMessageView } from "./chat-types";
 
@@ -18,6 +17,10 @@ const REFERENCE_MARKERS: Record<string, string> = {
   session: "session",
   scenario: "scenario",
 };
+
+interface InlineReferenceLink extends InlineTokenResolution {
+  token: string;
+}
 
 /** Build the navigable-reference list from a message's resolved context. Each
  * entry pairs the `type:name` token with its detail path; only entries whose
@@ -77,13 +80,9 @@ export function ChatMessageBubble({
 
   const references = useMemo(() => referencesFromContext(message.context), [message.context]);
 
-  const handleContentClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (!onReferenceNavigate) return;
-    const anchor = (event.target as HTMLElement).closest?.("a[data-entity-ref]");
-    const href = anchor?.getAttribute("href");
-    if (!href) return;
-    event.preventDefault();
-    onReferenceNavigate(href);
+  const resolveInlineToken = (text: string): InlineTokenResolution | null => {
+    const reference = references.find((candidate) => candidate.token === text);
+    return reference ? { ...reference, kind: "entity" } : null;
   };
 
   return (
@@ -101,10 +100,15 @@ export function ChatMessageBubble({
             {getMessageMeta(message)}
           </div>
         )}
-        <div
+        <MarkdownRenderer
+          content={message.content}
           className="prose-sm-slate break-words"
-          onClick={handleContentClick}
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content, references) }}
+          resolveInlineToken={resolveInlineToken}
+          onLinkClick={(href, event) => {
+            if (!references.some((reference) => reference.href === href) || !onReferenceNavigate) return;
+            event.preventDefault();
+            onReferenceNavigate(href);
+          }}
         />
         {renderAttachmentPreview?.(message)}
         {isAssistant && speak && !speak.unavailable && message.content.trim() && (

@@ -79,7 +79,11 @@ export function executionDetailPath(executionId: string, query?: QueryParams): s
 }
 
 export function initiativeDetailPath(name: string, query?: QueryParams): string {
-  return appendQuery(`/initiatives/${enc(name)}`, query);
+	return appendQuery(`/initiatives/${enc(name)}`, query);
+}
+
+export function recordDetailPath(id: string, query?: QueryParams): string {
+	return appendQuery(`/records/${enc(id)}`, query);
 }
 
 export function goalDetailPath(name: string, query?: QueryParams): string {

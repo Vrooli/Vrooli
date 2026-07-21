@@ -48,6 +48,18 @@ func newTestServer(t *testing.T) *Server {
 			t.Fatalf("link operating-mode data into test root: %v", err)
 		}
 	}
+	// Transition declarations are production-owned scenario configuration. The
+	// integration server must load them too; otherwise workflow-backed routes
+	// fail with "transition ... is not registered" before exercising their
+	// actual behavior.
+	if realTransitions, err := filepath.Abs("../.vrooli/swarm-transitions"); err == nil {
+		if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(realTransitions, filepath.Join(root, ".vrooli", "swarm-transitions")); err != nil {
+			t.Fatalf("link transition declarations into test root: %v", err)
+		}
+	}
 	t.Setenv("SCENARIO_ROOT", root)
 	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "storage"))
 	t.Setenv("AGENT_MANAGER_ENABLED", "false")

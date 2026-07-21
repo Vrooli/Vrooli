@@ -82,6 +82,23 @@ type AISearchResponse struct {
 	LatencyMs int64            `json:"latencyMs"`
 }
 
+// SimilarTarget identifies an indexed entity whose composed text is used as a
+// semantic query. It intentionally does not expose Qdrant point retrieval:
+// re-embedding keeps the VectorStore seam unchanged.
+type SimilarTarget struct {
+	Entity      EntityType
+	BacklogKind backlog.BacklogKind
+	Name        string
+}
+
+// SimilarResponse is deliberately separate from Search so callers can tell a
+// semantic outage from an ordinary zero-result search. Similar never uses the
+// text-search fallback because that would make its scores misleading.
+type SimilarResponse struct {
+	Results  []AISearchResult
+	Degraded bool
+}
+
 // AvailabilityStatus reports whether AI search is currently usable. Exposed by
 // GET /api/v1/search/ai/status.
 type AvailabilityStatus struct {
@@ -236,6 +253,7 @@ type RecordPayload struct {
 	Commit       string   `json:"commit,omitempty"`
 	FilesChanged []string `json:"files_changed,omitempty"`
 	Stub         bool     `json:"stub"`
+	Title        string   `json:"title,omitempty"`
 	PayloadHash  string   `json:"payload_hash,omitempty"`
 }
 

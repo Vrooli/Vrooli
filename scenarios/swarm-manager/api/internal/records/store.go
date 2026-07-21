@@ -31,6 +31,7 @@ type ListFilter struct {
 	Scenario     string
 	Kind         RecordKind
 	BacklogRef   string
+	InitiativeID string
 	IncludeStubs bool
 	Limit        int
 	Offset       int
@@ -257,6 +258,9 @@ func (f ListFilter) matches(r Record) bool {
 		return false
 	}
 	if f.BacklogRef != "" && r.BacklogRef != f.BacklogRef {
+		return false
+	}
+	if f.InitiativeID != "" && r.InitiativeID != f.InitiativeID {
 		return false
 	}
 	if r.Stub && !f.IncludeStubs {

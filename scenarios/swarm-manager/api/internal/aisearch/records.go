@@ -49,6 +49,7 @@ func buildRecordPayload(r records.Record, payloadHash string) map[string]interfa
 		"commit":        r.Commit,
 		"files_changed": files,
 		"stub":          r.Stub,
+		"title":         r.Trigger,
 	}
 	if payloadHash != "" {
 		out["payload_hash"] = payloadHash

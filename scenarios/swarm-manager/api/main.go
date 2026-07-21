@@ -55,6 +55,7 @@ import (
 	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/queue"
 	"swarm-manager/internal/records"
+	"swarm-manager/internal/related"
 	"swarm-manager/internal/review"
 	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/scenarios"
@@ -365,6 +366,9 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 	handler.RegisterRoutes(s.router)
 	s.aiSearchSvc = svc
 	s.aiSearchReconciler = reconciler
+	// Related work has deterministic providers even while semantic search is
+	// unavailable; the adapter reports that third group as degraded.
+	related.RegisterRoutes(s.router, related.NewEngine(backlogHandler.Store(), s.initStore, s.recordsStore, related.NewAISearchSimilarity(svc)))
 }
 
 // registerDiscoveryRoutes mounts the Connect-RPC DiscoveryService. The

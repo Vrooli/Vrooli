@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import {
   ArrowRightLeft,
   ArrowUpRight,
@@ -63,10 +63,10 @@ export function BacklogDetailsPanel({
     <DetailSection title="Overview" icon={BACKLOG_KIND_ICONS[item.kind]} hideDivider>
       <div className="space-y-3">
         <div className="relative">
-          <div
+          <MarkdownRenderer
             className={`prose-sm-slate text-sm leading-relaxed text-slate-300 ${descExpanded ? "" : "line-clamp-3"}`}
             data-testid={selectors.backlogDetails.description}
-            dangerouslySetInnerHTML={{ __html: item.description ? renderMarkdown(item.description) : "No description provided" }}
+            content={item.description || "No description provided"}
           />
           {(descOverflows || descExpanded) && (
             <button

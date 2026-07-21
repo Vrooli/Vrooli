@@ -137,8 +137,8 @@ body {
   }
 }
 
-/* ── Prose: lightweight markdown rendering styles ───────────────────
-   Used by renderMarkdown() output in dangerouslySetInnerHTML contexts.
+/* ── Prose: shared markdown rendering styles ────────────────────────
+   Used by the adopted React Component Library MarkdownRenderer.
    Inherits the parent's font-size and color so callers can control
    appearance via normal Tailwind utilities on the wrapper element. */
 .prose-sm-slate h1,

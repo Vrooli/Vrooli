@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import { AlertTriangle, Check, ChevronDown, ChevronUp, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib";
@@ -66,11 +66,11 @@ export function ReviewStatusBadge({ result, onOpenSandbox, onTriggerReview }: Re
             <div key={dim.name} className="flex items-center gap-2 text-xs" data-testid={`review-dim-${dim.name}`}>
               <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", REVIEW_DIMENSION_COLORS[dim.status] ?? "bg-slate-500")} />
               <span className="text-slate-300">{dim.name}</span>
-              {dim.details && <span className="prose-sm-slate text-slate-500" dangerouslySetInnerHTML={{ __html: "&mdash; " + renderMarkdown(dim.details) }} />}
+              {dim.details && <MarkdownRenderer content={`— ${dim.details}`} className="prose-sm-slate text-slate-500" />}
             </div>
           ))}
           {result.summary && (
-            <div className="prose-sm-slate mt-1 text-[11px] leading-relaxed text-slate-400" dangerouslySetInnerHTML={{ __html: renderMarkdown(result.summary) }} />
+            <MarkdownRenderer content={result.summary} className="prose-sm-slate mt-1 text-[11px] leading-relaxed text-slate-400" />
           )}
         </div>
       )}

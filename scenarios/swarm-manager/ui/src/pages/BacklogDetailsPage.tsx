@@ -7,7 +7,7 @@
 
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Activity, Archive, ArchiveRestore, CheckSquare, CircleHelp, ClipboardList, Files, GitPullRequestArrow, RefreshCw, RotateCcw, Sparkles } from "lucide-react";
+import { Activity, Archive, ArchiveRestore, CheckSquare, CircleHelp, ClipboardList, Files, GitPullRequestArrow, Network, RefreshCw, RotateCcw, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
@@ -22,6 +22,7 @@ import { buildBacklogActionMenuItems } from "../components/backlog/backlog-actio
 import type { ActionMenuItem } from "../components/ui/action-menu";
 import { OutputTab } from "../components/backlog/output-tab";
 import { ActivityTab } from "../components/backlog/activity-tab";
+import { RelatedTab } from "../components/related/RelatedTab";
 import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-panel";
 import { BacklogDialogs } from "../components/backlog/backlog-dialogs";
 import { HeaderPrimaryAction } from "../components/backlog/header-primary-action";
@@ -76,7 +77,7 @@ const LIFECYCLE_RESET_SCOPES: Array<[string, string]> = [
   ["handoff_executions", "Handoff data and executions"],
   ["plan_unbind", "Plan binding"],
 ];
-type DetailsTab = "info" | "prompt" | "proposals" | "files" | "output" | "activity";
+type DetailsTab = "info" | "prompt" | "proposals" | "files" | "output" | "activity" | "related";
 
 export function BacklogDetailsPage() {
   // --- Navigation / selection ---
@@ -135,7 +136,7 @@ export function BacklogDetailsPage() {
 
   // --- Local UI state (URL-synced or needs render) ---
   const [activeTab, setActiveTab] = useUrlState<DetailsTab>("tab", "info", {
-    validate: (v): v is DetailsTab => ["info", "prompt", "proposals", "files", "output", "activity"].includes(v),
+    validate: (v): v is DetailsTab => ["info", "prompt", "proposals", "files", "output", "activity", "related"].includes(v),
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
   const [workshopAutoAdvance, setWorkshopAutoAdvance] = useState<WorkshopAutoAdvance | null>(null);
@@ -593,6 +594,10 @@ export function BacklogDetailsPage() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="related" className="gap-2" data-testid={selectors.backlogDetails.tabRelated}>
+            <Network className="h-4 w-4" />
+            Related
+          </TabsTrigger>
         </TabsList>
       </Tabs>
     </div>
@@ -697,6 +702,7 @@ export function BacklogDetailsPage() {
                   />
                 </div>
               )}
+              {activeTab === "related" && backlogKind && name && <RelatedTab target={{ kind: "backlog", backlogKind, name }} enabled />}
               {activeTab === "activity" && (
                 <div className="flex-1 space-y-0 overflow-y-auto pb-4 lg:pt-3">
                   <ActivityTab

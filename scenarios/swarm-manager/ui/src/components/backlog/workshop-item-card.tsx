@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronRight, MessageCircleMore, Trash2 } from "lucide-react";
 import { cn } from "../../lib";
 import { OTHER_KEY, filterAgentOther } from "../../lib/workshop-files";
-import { renderInlineMarkdown, renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import { ClarifyButton } from "./clarify-button";
 import { useClarificationStore } from "../../stores/clarification-store";
 import type { BacklogKind, WorkshopItem } from "../../types/domain";
@@ -32,10 +32,7 @@ function MarkdownPreview({
   if (!content?.trim()) return null;
 
   return (
-    <div
-      className={cn("prose-sm-slate break-words [overflow-wrap:anywhere]", className)}
-      dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
-    />
+    <MarkdownRenderer content={content} className={cn("prose-sm-slate break-words [overflow-wrap:anywhere]", className)} />
   );
 }
 
@@ -130,12 +127,12 @@ export function WorkshopItemCard({
           </button>
           <span className="mt-0.5 rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">Info</span>
           <div className="min-w-0 flex-1">
-            <div
+            <MarkdownRenderer
               className={cn(
                 "break-words text-sm font-medium text-slate-300 [overflow-wrap:anywhere]",
                 !expanded && "line-clamp-2",
               )}
-              dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(title) }}
+              content={title}
             />
           </div>
           {onDelete && !disabled && (
@@ -256,17 +253,17 @@ export function WorkshopItemCard({
           </div>
         </div>
         <div className="mt-2 min-w-0">
-          <div
+          <MarkdownRenderer
             className={cn(
               "break-words text-base font-medium leading-snug text-slate-100 [overflow-wrap:anywhere]",
               !expanded && "line-clamp-3",
             )}
-            dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(title) }}
+            content={title}
           />
           {summaryLabel && (
-            <div
+            <MarkdownRenderer
               className="mt-1 line-clamp-1 break-words text-xs text-slate-400 [overflow-wrap:anywhere]"
-              dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(summaryLabel) }}
+              content={summaryLabel}
             />
           )}
         </div>
@@ -308,9 +305,9 @@ export function WorkshopItemCard({
                       {opt.key}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div
+                      <MarkdownRenderer
                         className="break-words text-sm text-slate-200 [overflow-wrap:anywhere]"
-                        dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(opt.label) }}
+                        content={opt.label}
                       />
                     </div>
                     {opt.recommended && (

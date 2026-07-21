@@ -1,10 +1,9 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { useBacklogStore } from "../stores/backlog-store";
 import { backlogService } from "../services/backlog-service";
 import { OTHER_KEY, parseWorkshopRound, buildWorkshopRoundContent } from "../lib/workshop-files";
 import type { QuestionAnswer } from "../components/backlog/question-renderers";
 import type { CrossItemQuestion } from "../lib/command-post-utils";
-import type { BacklogItem, BacklogKind } from "../types";
+import type { BacklogKind } from "../types";
 import type { WorkshopAutoAdvance } from "../services/backlog/types";
 import {
   decisionParentKey,
@@ -57,6 +56,8 @@ export interface UseDecisionStreamLogicArgs {
   navigatorOpenRef?: React.RefObject<boolean>;
   toggleNavigator?: () => void;
   onQueueComplete?: () => void;
+  currentQuestionId?: string | null;
+  onCurrentQuestionChange?: (id: string | null) => void;
 }
 
 export function useDecisionStreamLogic({
@@ -67,6 +68,8 @@ export function useDecisionStreamLogic({
   navigatorOpenRef,
   toggleNavigator,
   onQueueComplete,
+  currentQuestionId,
+  onCurrentQuestionChange,
 }: UseDecisionStreamLogicArgs) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [localAnswers, setLocalAnswers] = useState<Map<string, QuestionAnswer>>(() => new Map());
@@ -79,13 +82,7 @@ export function useDecisionStreamLogic({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [phase, setPhase] = useState<"answering" | "completing" | "complete">("answering");
   const [completionResults, setCompletionResults] = useState<DecisionStreamResults | null>(null);
-  const [contextExpanded, setContextExpanded] = useState(false);
-  const [descExpanded, setDescExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const prevParentRef = useRef("");
-
-  const backlogItems = useBacklogStore((s) => s.items);
-
   const activeQuestions = getUnresolvedDecisionQuestions({
     questions,
     answeredKeys: answeredQuestionKeys,
@@ -93,19 +90,10 @@ export function useDecisionStreamLogic({
     snoozedParentKeys: snoozedItemKeys,
   });
   const total = activeQuestions.length;
-  const safeIndex = normalizeDecisionIndex(currentIndex, total);
+  const requestedIndex = currentQuestionId ? activeQuestions.findIndex((question) => question.question.id === currentQuestionId) : -1;
+  const safeIndex = normalizeDecisionIndex(requestedIndex >= 0 ? requestedIndex : currentIndex, total);
   const current = activeQuestions[safeIndex] as CrossItemQuestion | undefined;
   const answer = current ? localAnswers.get(current.question.id) : undefined;
-
-  const storeItem = current
-    ? backlogItems.find((i) => i.kind === current.parentKind && i.name === current.parentName)
-    : undefined;
-
-  const [fetchedItems, setFetchedItems] = useState<Map<string, BacklogItem>>(() => new Map());
-  const fetchingRef = useRef(new Set());
-
-  const parentItemKey = current ? `${current.parentKind}/${current.parentName}` : "";
-  const parentItem = storeItem ?? fetchedItems.get(parentItemKey);
 
   useEffect(() => {
     const normalized = normalizeDecisionIndex(currentIndex, total);
@@ -113,32 +101,9 @@ export function useDecisionStreamLogic({
   }, [currentIndex, total]);
 
   useEffect(() => {
-    if (!current || storeItem || fetchedItems.has(parentItemKey) || fetchingRef.current.has(parentItemKey)) return;
-    fetchingRef.current.add(parentItemKey);
-    void backlogService.get(current.parentKind, current.parentName)
-      .then((item) => {
-        setFetchedItems((prev) => {
-          const next = new Map(prev);
-          next.set(parentItemKey, item);
-          return next;
-        });
-      })
-      .catch(() => {
-        // Item may be deleted — leave as unavailable
-      })
-      .finally(() => {
-        fetchingRef.current.delete(parentItemKey);
-      });
-  }, [current, storeItem, parentItemKey, fetchedItems]);
-
-  useEffect(() => {
-    const parentKey = current ? `${current.parentKind}/${current.parentName}` : "";
-    if (parentKey !== prevParentRef.current) {
-      setContextExpanded(false);
-      setDescExpanded(false);
-      prevParentRef.current = parentKey;
-    }
-  }, [current]);
+    if (current && current.question.id !== currentQuestionId) onCurrentQuestionChange?.(current.question.id);
+    if (!current && currentQuestionId) onCurrentQuestionChange?.(null);
+  }, [current, currentQuestionId, onCurrentQuestionChange]);
 
   // ---------------------------------------------------------------------------
   // Answer management
@@ -462,18 +427,9 @@ export function useDecisionStreamLogic({
           e.preventDefault();
           snoozeParent();
           break;
-        case "i":
-        case "I":
-          e.preventDefault();
-          setContextExpanded((prev) => !prev);
-          break;
         case "Escape":
           e.preventDefault();
-          if (contextExpanded) {
-            setContextExpanded(false);
-          } else {
-            onBack();
-          }
+          onBack();
           break;
         default: {
           const num = parseInt(e.key, 10);
@@ -499,23 +455,18 @@ export function useDecisionStreamLogic({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [phase, current, advance, goBack, snoozeParent, onBack, updateAnswer, contextExpanded, navigatorOpenRef, toggleNavigator, parentGroups, jumpToParent]);
+  }, [phase, current, advance, goBack, snoozeParent, onBack, updateAnswer, navigatorOpenRef, toggleNavigator, parentGroups, jumpToParent]);
 
   return {
     phase,
     completionResults,
     current,
     answer,
-    parentItem,
     total,
     safeIndex,
     savingId,
     saveError,
     deletingId,
-    contextExpanded,
-    setContextExpanded,
-    descExpanded,
-    setDescExpanded,
     containerRef,
     updateAnswer,
     advance,

@@ -491,6 +491,6 @@ describe("PlanBoard", () => {
     await user.click(await screen.findByTestId(selectors.plan.cycleWarning));
 
     expect(await screen.findByTestId("plan-cycle-popover")).toHaveTextContent("fix/a");
-    expect(screen.getByTestId("plan-cycle-resolve")).toHaveTextContent("Inspect dependency edge fix/a -> fix/b");
+    expect(screen.getByTestId("plan-cycle-resolve")).toHaveTextContent("Open backlog item");
   });
 });

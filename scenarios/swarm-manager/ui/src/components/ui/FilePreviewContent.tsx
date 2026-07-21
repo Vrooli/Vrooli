@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useResolvedTheme } from "../../lib";
 import { getMonacoLanguage } from "../../lib/file-type-utils";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
 import { ErrorState } from "./error-state";
 
 const DEFAULT_EDITOR_OPTIONS = {
@@ -163,13 +163,13 @@ export function FilePreviewContent({
       )}
 
       {!isImage && !isLoading && !error && showRenderedMarkdown && (
-        <div
+        <MarkdownRenderer
           className={cn(
             "h-full overflow-auto p-4 prose max-w-none",
             isLight ? "prose-slate" : "prose-invert",
           )}
           data-testid="file-preview-markdown"
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(draftContent) }}
+          content={draftContent}
         />
       )}
 

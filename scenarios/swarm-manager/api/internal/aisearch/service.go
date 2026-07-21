@@ -128,6 +128,58 @@ func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchRes
 	}, nil
 }
 
+// SimilarTo re-embeds the target's canonical indexed text and searches every
+// collection, including archived work. It returns Degraded rather than using
+// Search's text fallback when Ollama or Qdrant is unavailable.
+func (s *Service) SimilarTo(ctx context.Context, target SimilarTarget, limit int) (*SimilarResponse, error) {
+	if target.Entity != EntityBacklog && target.Entity != EntityInitiative {
+		return nil, fmt.Errorf("similar target entity must be backlog or initiative")
+	}
+	if s.embedder == nil || s.backlogStore == nil || s.initiativeStore == nil {
+		return &SimilarResponse{Results: []AISearchResult{}, Degraded: true}, nil
+	}
+	var text, self string
+	if target.Entity == EntityBacklog {
+		item, err := s.backlogReader.LoadItem(target.BacklogKind, target.Name)
+		if err != nil {
+			return nil, err
+		}
+		text, self = composeBacklogText(item), backlogPointID(target.BacklogKind, target.Name)
+	} else {
+		init, err := s.initiativeReader.Get(target.Name)
+		if err != nil {
+			return nil, err
+		}
+		text, self = composeInitiativeText(*init), initiativePointID(target.Name)
+	}
+	vector, err := s.embedder.Embed(ctx, text)
+	if err != nil {
+		return &SimilarResponse{Results: []AISearchResult{}, Degraded: true}, nil
+	}
+	results, err := s.searchStores(ctx, EntityBoth, vector, normalizeLimit(limit), s.threshold)
+	if err != nil {
+		return &SimilarResponse{Results: []AISearchResult{}, Degraded: true}, nil
+	}
+	filtered := make([]AISearchResult, 0, len(results))
+	for _, result := range results {
+		if result.ID == self {
+			continue
+		}
+		if target.Entity == EntityBacklog && result.Entity == EntityBacklog && result.ID == target.Name {
+			continue
+		}
+		if target.Entity == EntityInitiative && result.Entity == EntityInitiative && result.ID == target.Name {
+			continue
+		}
+		filtered = append(filtered, result)
+	}
+	sortByScoreDesc(filtered)
+	if limit > 0 && len(filtered) > normalizeLimit(limit) {
+		filtered = filtered[:normalizeLimit(limit)]
+	}
+	return &SimilarResponse{Results: filtered}, nil
+}
+
 // normalizeLimit clamps a requested result limit into the supported range,
 // applying the default of 20 when unset and capping at 100.
 func normalizeLimit(limit int) int {

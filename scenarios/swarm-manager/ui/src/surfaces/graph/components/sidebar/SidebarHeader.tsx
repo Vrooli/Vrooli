@@ -57,13 +57,13 @@ export function SidebarHeader({
         <span className="text-sm font-semibold text-slate-200">Swarm Manager</span>
       </div>
 
-      {/* Right: decisions inbox (mobile) + Settings + Collapse/Close */}
+      {/* Right: decisions inbox + Settings + Collapse/Close */}
       <div className="flex items-center gap-1">
         {onOpenCommandPost && (
           <button
             type="button"
             onClick={onOpenCommandPost}
-            className="flex items-center gap-1 rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 md:hidden"
+            className="flex items-center gap-1 rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
             aria-label="Open decisions"
             data-testid="sidebar-decisions-button"
           >
