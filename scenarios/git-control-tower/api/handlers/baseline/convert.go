@@ -48,6 +48,9 @@ func manifestToProto(m bl.BaselineManifest) *baselinesv1.BaselineManifest {
 			DescriptorSnapshotRef:           m.Run.DescriptorSnapshotRef,
 			DescriptorSnapshotDigest:        m.Run.DescriptorSnapshotDigest,
 			DescriptorSnapshotSchemaVersion: int32(m.Run.DescriptorSnapshotSchemaVersion),
+			EvidenceTier:                    m.Run.EvidenceTier,
+			SourceScope:                     m.Run.SourceScope,
+			SourceStable:                    m.Run.SourceStable,
 		},
 		SchemaVersion: int32(m.SchemaVersion),
 	}

@@ -16,6 +16,12 @@ type BundleabilityChecker interface {
 	CheckBundleability(scenarioName string) (*generation.BundleabilityResult, error)
 }
 
+// TargetBundleabilityChecker is implemented by analyzers that can evaluate
+// every requested desktop OS instead of silently using the packager host.
+type TargetBundleabilityChecker interface {
+	CheckBundleabilityForPlatforms(scenarioName string, platforms []string, arch string) (*generation.BundleabilityResult, error)
+}
+
 // PreflightStage implements the preflight validation stage of the pipeline.
 type PreflightStage struct {
 	service              preflight.Service
@@ -138,12 +144,20 @@ func (s *PreflightStage) checkBundleability(input *StageInput, result *StageResu
 		return false
 	}
 
-	bundleability, err := s.bundleabilityChecker.CheckBundleability(input.Config.ScenarioName)
+	var bundleability *generation.BundleabilityResult
+	var err error
+	if targetChecker, ok := s.bundleabilityChecker.(TargetBundleabilityChecker); ok {
+		bundleability, err = targetChecker.CheckBundleabilityForPlatforms(input.Config.ScenarioName, input.Config.Platforms, "")
+	} else {
+		bundleability, err = s.bundleabilityChecker.CheckBundleability(input.Config.ScenarioName)
+	}
 	switch {
 	case err != nil:
-		result.Logs = append(result.Logs,
-			fmt.Sprintf("Warning: bundleability check failed: %v", err))
-		// Continue anyway - the check is best-effort
+		// Resolution is already a required earlier stage. Keep this independent
+		// analyzer as defense in depth, but never downgrade an admission error to
+		// a warning after a bundle has been created.
+		failStage(result, s.timeProvider, errors.ErrScenarioUnbundleable(input.Config.ScenarioName, "deployment-resolution", err.Error(), nil))
+		return true
 	case !bundleability.Bundleable:
 		failStage(result, s.timeProvider, errors.ErrScenarioUnbundleable(
 			input.Config.ScenarioName,

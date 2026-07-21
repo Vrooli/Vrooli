@@ -25,20 +25,13 @@ declare -g -A RESOURCE_PORTS=(
     ["pybullet"]="11460"       # PyBullet physics simulation engine for robotics and ML
     ["ros2"]="11501"           # ROS2 Robot Operating System middleware for distributed robotics
     
-    # Automation Services (56xx range)
-    ["comfyui"]="8188"         # AI-powered image generation workflows
-    
     # Storage Services (9xxx range + vector databases)
     ["minio"]="9000"           # Object storage (S3 compatible)
     ["vault"]="8200"           # HashiCorp Vault secret management
     ["step-ca"]="9010"         # Private certificate authority with ACME support
     ["qdrant"]="6333"          # Vector database for AI embeddings
-    ["questdb"]="9009"         # Time-series database for analytics
     ["postgres"]="5433"        # PostgreSQL instances (5433-5499 range for client instances)
-    ["postgis"]="5434"         # PostGIS spatial database extension for PostgreSQL
     ["redis"]="6380"           # Redis in-memory data store (6380 to avoid conflict with internal Redis on 6379)
-    ["neo4j"]="7474"           # Neo4j graph database (HTTP)
-    ["neo4j-bolt"]="7687"      # Neo4j Bolt protocol
     # Note: sqlite is serverless and doesn't use a port
     
     # Agent Services (41xx range - safely above Vrooli range)
@@ -58,8 +51,6 @@ declare -g -A RESOURCE_PORTS=(
     # Execution Services (23xx range)
     ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)
     ["llamaindex"]="8091"      # RAG and document processing
-    ["sagemath"]="8888"        # Open-source mathematics software system (Jupyter interface)
-    ["sagemath-api"]="8889"    # SageMath REST API endpoint
     ["haystack"]="8075"        # End-to-end framework for question answering and search
     ["keycloak"]="8070"        # Enterprise identity and access management
     ["mifos"]="8030"           # Mifos X digital finance platform (Apache Fineract)

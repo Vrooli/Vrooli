@@ -75,7 +75,7 @@ func (s *BundleStage) Name() string {
 
 // Dependencies returns stages that must complete before this one.
 func (s *BundleStage) Dependencies() []string {
-	return nil // Bundle is the first stage
+	return []string{StageResolveDeployment}
 }
 
 // CanSkip returns whether this stage can be skipped.
@@ -144,6 +144,12 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
 		return result
 	}
+	resourceArtifacts, err := stageBundledResourceArtifacts(packageResult.BundleDir, input.Config.ResourceArtifactRoot, input.ResourceDeploymentPlan)
+	if err != nil {
+		failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
+		return result
+	}
+	packageResult.CopiedArtifacts = append(packageResult.CopiedArtifacts, resourceArtifacts...)
 
 	// Update input for next stage
 	input.BundleResult = packageResult

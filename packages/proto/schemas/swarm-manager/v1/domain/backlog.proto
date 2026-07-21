@@ -153,6 +153,10 @@ message BacklogItem {
 
   // Stable programmatic finding ID that produced this item, when auto-filed.
   optional string finding_ref = 26;
+
+  // Deterministic operator signal. It is computed on read from item age,
+  // plan/acceptance validity, and is never persisted in spec.json.
+  bool stale = 27;
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.

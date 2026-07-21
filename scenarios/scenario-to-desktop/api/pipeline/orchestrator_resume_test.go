@@ -6,6 +6,19 @@ import (
 	"time"
 )
 
+func waitForPipelineTerminal(t *testing.T, orchestrator *DefaultOrchestrator, pipelineID string) *Status {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if status, ok := orchestrator.GetStatus(pipelineID); ok && (status.Status == StatusCompleted || status.Status == StatusFailed || status.Status == StatusCancelled) {
+			return status
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("pipeline %s did not reach a terminal state", pipelineID)
+	return nil
+}
+
 // Stop-after-stage tests
 
 func TestStopAfterStage(t *testing.T) {
@@ -28,13 +41,7 @@ func TestStopAfterStage(t *testing.T) {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	// Wait for completion
-	time.Sleep(200 * time.Millisecond)
-
-	final, ok := orchestrator.GetStatus(status.PipelineID)
-	if !ok {
-		t.Fatalf("expected to retrieve pipeline status")
-	}
+	final := waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	// Pipeline should be completed (stopped after stage)
 	if final.Status != StatusCompleted {
@@ -85,13 +92,7 @@ func TestStopAfterStageSkipped(t *testing.T) {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	// Wait for completion
-	time.Sleep(200 * time.Millisecond)
-
-	final, ok := orchestrator.GetStatus(status.PipelineID)
-	if !ok {
-		t.Fatalf("expected to retrieve pipeline status")
-	}
+	final := waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	// Pipeline should be completed even though preflight was skipped
 	if final.Status != StatusCompleted {

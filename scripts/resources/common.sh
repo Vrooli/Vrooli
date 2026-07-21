@@ -63,7 +63,6 @@ declare -A RESOURCE_TYPES=(
     ["ollama"]="service"
     ["whisper"]="service"
     ["unstructured-io"]="service"
-    ["comfyui"]="service"
     ["node-red"]="service"
     ["minio"]="service"
     ["vault"]="service"
@@ -301,9 +300,6 @@ resources::get_health_endpoint() {
         "node-red")
             echo "/flows"
             ;;
-        "comfyui")
-            echo "/system_stats"
-            ;;
         "whisper")
             echo "/health"
             ;;
@@ -429,13 +425,6 @@ resources::validate_service_identity() {
                 return 0
             fi
             ;;
-        "comfyui")
-            # Check ComfyUI system stats
-            if curl -s "$base_url/system_stats" 2>/dev/null | grep -q "system\|python_version"; then
-                echo "✅ Validated as ComfyUI"
-                return 0
-            fi
-            ;;
         "qdrant")
             # Check Qdrant API
             if curl -s "$base_url/collections" 2>/dev/null | grep -q "collections\|result"; then
@@ -524,7 +513,6 @@ resources::validate_port() {
         local category=""
         case "$resource" in
             ollama|whisper) category="AI" ;;
-            comfyui) category="automation" ;;
             minio) category="storage" ;;
             claude-code) category="agents" ;;
         esac

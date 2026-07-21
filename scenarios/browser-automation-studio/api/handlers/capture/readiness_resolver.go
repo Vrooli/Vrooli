@@ -41,7 +41,7 @@ func (r *experienceReadinessResolver) ResolveReadinessWaits(ctx context.Context,
 	}
 	resolution := ReadinessResolution{ProfileVersion: resp.Msg.GetProfileVersion(), Route: route}
 	for _, page := range profile.Pages {
-		if !containsRoute(page.Routes, route) {
+		if !containsRoute(append(append([]string(nil), page.Routes...), page.RuntimeRoutes...), route) {
 			continue
 		}
 		resolution.RouteMatched = true
@@ -66,8 +66,9 @@ func (r *experienceReadinessResolver) ResolveReadinessWaits(ctx context.Context,
 
 type readinessProfile struct {
 	Pages []struct {
-		Routes  []string `json:"routes"`
-		Regions []struct {
+		Routes        []string `json:"routes"`
+		RuntimeRoutes []string `json:"runtimeRoutes"`
+		Regions       []struct {
 			ID       string `json:"id"`
 			Required bool   `json:"required"`
 			Binding  struct {

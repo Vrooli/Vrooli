@@ -351,7 +351,7 @@ func testGenieLifecycle(st runmanager.LiveStatus) string {
 	if st.Status == "queued" || !st.Active {
 		return "queued"
 	}
-	if st.ActivePhase == "" {
+	if st.ActivePhase == "" || strings.HasPrefix(st.ActivePhase, "preparing:") {
 		return "preparing"
 	}
 	return "executing"

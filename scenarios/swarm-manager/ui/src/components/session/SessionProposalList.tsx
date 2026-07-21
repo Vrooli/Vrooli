@@ -11,13 +11,14 @@ interface SessionProposalListProps {
   variant?: "panel" | "plain";
 }
 
-const statusClasses: Record<AgentSessionProposal["status"], string> = {
+const statusClasses: Record<string, string> = {
   draft: "bg-slate-800 text-slate-300",
   ready: "bg-violet-500/15 text-violet-200",
   applied: "bg-emerald-500/15 text-emerald-200",
   rejected: "bg-slate-800 text-slate-400",
   superseded: "bg-slate-800 text-slate-400",
   failed: "bg-red-500/15 text-red-200",
+  needs_revision: "bg-amber-500/15 text-amber-200",
 };
 
 export function SessionProposalList({ proposals, isMutating, onApply, variant = "panel" }: SessionProposalListProps) {
@@ -37,7 +38,7 @@ export function SessionProposalList({ proposals, isMutating, onApply, variant = 
                   <p className="truncate text-xs font-medium text-slate-100">{formatDisplayText(proposal.kind)}</p>
                   <p className="mt-1 line-clamp-4 text-[11px] leading-5 text-slate-400">{proposal.summary}</p>
                 </div>
-                <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px]", statusClasses[proposal.status])}>
+                <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px]", statusClasses[proposal.status] ?? "bg-slate-800 text-slate-300")}>
                   {formatDisplayText(proposal.status)}
                 </span>
               </div>

@@ -2,11 +2,19 @@
 
 ## Recommended: Bundled Offline Mode (Default)
 
-**Bundled mode is the strongly recommended and default option.** It creates complete offline desktop applications that include all services, resources, and the runtime supervisor - no server connection required.
+**Bundled mode is the strongly recommended and default option for scenarios
+whose dependency plan is bundle-ready.** It packages the scenario services and
+runtime supervisor for offline use. It resolves every required resource from
+its `resource.json` target profile and stages declared bundled artifacts only
+from a signed release directory (`resource_artifact_root`); it never builds a
+resource on the end-user target. A conditional/degraded requirement is shown
+before runtime, while an unsupported route is a blocking error.
 
 ### What bundled mode provides
-- Complete offline operation - no internet or server required after installation
-- Runtime supervisor that manages all bundled services (API, databases, etc.)
+- Complete offline operation when every required capability has an offline
+  bundle route; cloud/remote resources remain network-dependent by design
+- Runtime supervisor that manages bundled scenario services plus a verified
+  `resource-deployment-plan.json` describing selected resource artifacts
 - Automatic service health monitoring and restart capabilities
 - Secret management and secure configuration
 - Dynamic port allocation to avoid conflicts
@@ -49,6 +57,9 @@ Thin client mode is available for scenarios where you want a lightweight desktop
 - `cloud-api` mode remains a stub for future SaaS deployments
 - Alternative frameworks (Tauri/Neutralino) are placeholders; Electron is the maintained path
 - Auto-updates, signing, and app-store submissions remain optional/manual
+- Resource artifact execution is limited to the declared bundled modes. Docker,
+  compose, and native-host-tool resources remain explicit host prerequisites
+  until their runtime adapter is selected by a resource profile.
 
 ## Related docs
 - Bundled desktop tutorial: `../../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md`
@@ -56,3 +67,4 @@ Thin client mode is available for scenarios where you want a lightweight desktop
 - Choosing deployment modes: `docs/concepts/deployment-modes.md`
 - Build/troubleshoot: `docs/guides/build-and-packaging.md`, `docs/guides/debugging-windows.md`, `docs/guides/wine-installation.md`
 - Bundled runtime logging: `docs/guides/logging-bundled-desktop.md`
+- Resource target/deployment contract: [../../../docs/resources/deployment-contract.md](../../../docs/resources/deployment-contract.md)

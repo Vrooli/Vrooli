@@ -18,6 +18,7 @@
         "location": "sibling"
       }
     },
+    "distribution": { "kind": "prebuilt_artifact", "artifact_name": "resource-ollama_${os}_${arch}" },
     "install": [
       {
         "os": ["linux", "darwin"],
@@ -40,6 +41,7 @@
   },
   "template": "docker-service",
   "driver": "docker-service",
+  "deployment": { "profiles": { "desktop": { "linux": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-engine"], "limitations": ["Docker images, storage, and networking remain host-managed."], "evidence": ["manifest-validation", "docker-preflight"] }, "macos": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "docker-preflight"] }, "windows": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "docker-preflight"] } } } },
   "companions": [
     {
       "name": "capacity-sync",

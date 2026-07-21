@@ -18,6 +18,7 @@
         "location": "sibling"
       }
     },
+    "distribution": { "kind": "prebuilt_artifact", "artifact_name": "resource-claude-code_${os}_${arch}" },
     "install": [
       {
         "os": [
@@ -52,6 +53,7 @@
   },
   "template": "external-cli",
   "driver": "external-cli",
+  "deployment": { "profiles": { "desktop": { "linux": { "support": "conditional", "mode": "native-host-tool", "architectures": ["amd64", "arm64"], "requires": ["claude"], "limitations": ["The upstream executable, licensing, authentication, and version policy are host-managed."], "evidence": ["manifest-validation", "host-tool-preflight"] }, "macos": { "support": "conditional", "mode": "native-host-tool", "architectures": ["amd64", "arm64"], "requires": ["claude"], "limitations": ["The upstream executable, licensing, authentication, and version policy are host-managed."], "evidence": ["manifest-validation", "host-tool-preflight"] }, "windows": { "support": "conditional", "mode": "native-host-tool", "architectures": ["amd64", "arm64"], "requires": ["claude"], "limitations": ["The upstream executable, licensing, authentication, and version policy are host-managed."], "evidence": ["manifest-validation", "host-tool-preflight"] } } } },
   "binary": "claude",
   "version_args": [
     "--version"

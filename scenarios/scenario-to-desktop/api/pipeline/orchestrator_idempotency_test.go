@@ -211,12 +211,18 @@ func TestIdempotencyKeyWithCompletedPipeline(t *testing.T) {
 		IdempotencyKey: idempotencyKey,
 	}
 
-	// Start first pipeline and wait for completion
+	// Start first pipeline and wait for its persisted terminal state. A fixed
+	// sleep is scheduler-dependent and made this contract test flaky under load.
 	status1, _ := orchestrator.RunPipeline(ctx, config)
-	time.Sleep(200 * time.Millisecond)
-
-	// Verify it completed
-	final1, _ := orchestrator.GetStatus(status1.PipelineID)
+	deadline := time.Now().Add(2 * time.Second)
+	var final1 *Status
+	for time.Now().Before(deadline) {
+		final1, _ = orchestrator.GetStatus(status1.PipelineID)
+		if final1 != nil && final1.Status == StatusCompleted {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	if final1.Status != StatusCompleted {
 		t.Fatalf("expected first pipeline to complete, got %s", final1.Status)
 	}

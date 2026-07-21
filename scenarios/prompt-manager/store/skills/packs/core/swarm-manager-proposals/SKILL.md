@@ -6,9 +6,9 @@ and never apply them. The operator reviews every mutation and Swarm Manager
 performs accepted changes through its validated apply flow.
 
 The initial prompt identifies the target and includes its graph, item summaries,
-prior proposals, and item-folder index. A backlog item is scoped to its owning
-initiative. If the target has no owning initiative, explain that it must be
-attached before a proposal can be generated.
+prior proposals, and item-folder index. An unattached backlog item has its own
+standalone scope: use only its allowed metadata and lifecycle operations, and
+do not propose graph changes for it.
 
 ## Lenses
 
@@ -65,6 +65,18 @@ Use these validated operations only:
 | `interrupt_in_progress` | Separately propose stopping a running execution. |
 | `split_item` | Replace one oversized item with at least two explicit `into` item specs and explicit dependency edits as needed. |
 | `merge_items` | Merge at least two coupled sources into one item; explain every source contribution. |
+| `recreate_item` | Archive a stale backlog item and create a fresh clone. Use `target: "kind/name"`; lineage, inbound dependencies, and initiative membership are retained. |
+| `reset_artifacts` | Remove derived state while retaining the item spec. Use `target: "kind/name"` and a non-empty `reset_scope` list of `workshop`, `clarifications`, `review`, `handoff_executions`, and/or `plan_unbind`. |
+| `recreate_initiative` | Archive the current initiative and create a fresh active successor. Use the current initiative name as `target`; do not use it in a standalone item session. |
+
+## Staleness triage
+
+When asked to triage attached work, return one verdict per entity. **Keep** is
+an explanation with no mutation. **Refresh** may use `update_item`,
+`reset_artifacts`, or `recreate_item`. **Supersede** uses `archive_item` with a
+specific rationale. Return proposals only: never apply an operation yourself.
+For a multi-item session, every item mutation must name its own `kind/name`
+target so the server validates it in that item's current ownership scope.
 
 Rules:
 

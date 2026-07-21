@@ -152,6 +152,8 @@ export function StudioPage() {
       testId={selectors.pages.studio}
       title={t(strings.experience.studio.title)}
       description={t(strings.experience.studio.description)}
+      experienceSurface="studio-spec"
+      experienceState={specLoading ? "loading" : specError ? "error" : rows.length === 0 ? "empty" : isSaving ? "partial" : "ready"}
     >
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         <form

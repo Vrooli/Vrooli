@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "page": {
     "id": "studio",
     "title": "Studio",
@@ -22,6 +22,7 @@
     { "id": "validation-error", "description": "Contract findings from live validation, placed field-level with a form-level summary." },
     { "id": "request-error", "description": "Save failed; user input preserved, retry available." }
   ],
+  "regions": [{"id":"studio-spec","purpose":"Render the Studio's loading, ready, empty, partial, or failed specification editing surface.","component":{"library":{"component":"experience-surface","version":"1.0.0"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
   "elements": [
     { "id": "spec-form", "role": "form", "name": "Spec editor" },
     { "id": "wireframe-preview", "role": "region", "name": "Wireframe preview", "description": "Deterministic render of the spec being edited, claims annotated in place." },
@@ -112,6 +113,7 @@
     }
   ],
   "bindings": {
+    "regions": {"studio-spec":{"selector":"[data-experience-surface=\"studio-spec\"]"}},
     "elements": {
       "spec-form": { "testid": "studio-spec-form" },
       "wireframe-preview": { "testid": "studio-wireframe" },

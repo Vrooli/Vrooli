@@ -62,6 +62,17 @@ func TestHistoricalStandingWireDataDoesNotDecodeAsPresentation(t *testing.T) {
 	}
 }
 
+func TestPreparationStageKeepsPreparingLifecycle(t *testing.T) {
+	got := testGenieLifecycle(runmanager.LiveStatus{
+		Status:      sharedruns.StatusInProgress,
+		Active:      true,
+		ActivePhase: "preparing:provider_readiness",
+	})
+	if got != "preparing" {
+		t.Fatalf("lifecycle = %q, want preparing", got)
+	}
+}
+
 func TestCanonicalPresentationUsesItsOwnWireField(t *testing.T) {
 	presentation := &commonv1.PhasePresentation{ContractVersion: "v1", Provider: "ui-health", Phase: "ui-health", CurrentLevel: "L2"}
 	current := &runspb.RunEvent{PhasePresentation: presentation}

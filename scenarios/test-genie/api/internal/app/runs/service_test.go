@@ -367,8 +367,8 @@ func TestCompareRunsSymmetricInapplicableIsExplicitlyUnmeasured(t *testing.T) {
 	if got := resp.Msg.GetBehavior(); got != "preexisting" {
 		t.Errorf("overall behavior: want preexisting, got %s", got)
 	}
-	if got := resp.Msg.GetVerdict(); got != verdictNotComparable {
-		t.Errorf("legacy verdict: want %s, got %s", verdictNotComparable, got)
+	if got := resp.Msg.GetVerdict(); got != verdictPreexisting {
+		t.Errorf("legacy verdict: want %s, got %s", verdictPreexisting, got)
 	}
 }
 
@@ -879,6 +879,11 @@ func TestFindRunMatchesCurrentScopedSourceAndConfiguration(t *testing.T) {
 	if got := find(); !got.GetFound() {
 		t.Fatalf("unrelated workspace edit invalidated cache: %+v", got)
 	}
+	svc.planner = fixedExecutionPlanner{preview: &execution.ExecutionPlanPreview{ScenarioName: "demo", PhaseSetDigest: phaseDigest, ConfigurationFingerprint: "cfg:changed"}}
+	if got := find(); got.GetFound() {
+		t.Fatalf("validation configuration change incorrectly reused %q", got.GetRun().GetRunId())
+	}
+	svc.planner = fixedExecutionPlanner{preview: &execution.ExecutionPlanPreview{ScenarioName: "demo", PhaseSetDigest: phaseDigest, ConfigurationFingerprint: "cfg:one"}}
 	if err := os.WriteFile(filepath.Join(scenarioDir, "relevant.txt"), []byte("after"), 0o644); err != nil {
 		t.Fatal(err)
 	}

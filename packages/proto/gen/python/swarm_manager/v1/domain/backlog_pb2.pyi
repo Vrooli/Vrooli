@@ -10,7 +10,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class BacklogItem(_message.Message):
-    __slots__ = ("name", "title", "description", "status", "priority", "tags", "created", "updated", "kind", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "archived_at", "suggested_skills", "creates", "created_by", "queue_position", "plan_ref", "finding_ref")
+    __slots__ = ("name", "title", "description", "status", "priority", "tags", "created", "updated", "kind", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "archived_at", "suggested_skills", "creates", "created_by", "queue_position", "plan_ref", "finding_ref", "stale")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -34,6 +34,7 @@ class BacklogItem(_message.Message):
     QUEUE_POSITION_FIELD_NUMBER: _ClassVar[int]
     PLAN_REF_FIELD_NUMBER: _ClassVar[int]
     FINDING_REF_FIELD_NUMBER: _ClassVar[int]
+    STALE_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -57,7 +58,8 @@ class BacklogItem(_message.Message):
     queue_position: int
     plan_ref: _plan_ref_pb2.PlanRef
     finding_ref: str
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., archived_at: _Optional[str] = ..., suggested_skills: _Optional[_Iterable[str]] = ..., creates: _Optional[_Iterable[str]] = ..., created_by: _Optional[_Union[_agent_session_pb2.AgentSessionAttribution, _Mapping]] = ..., queue_position: _Optional[int] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., finding_ref: _Optional[str] = ...) -> None: ...
+    stale: bool
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., archived_at: _Optional[str] = ..., suggested_skills: _Optional[_Iterable[str]] = ..., creates: _Optional[_Iterable[str]] = ..., created_by: _Optional[_Union[_agent_session_pb2.AgentSessionAttribution, _Mapping]] = ..., queue_position: _Optional[int] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., finding_ref: _Optional[str] = ..., stale: _Optional[bool] = ...) -> None: ...
 
 class BacklogFile(_message.Message):
     __slots__ = ("name", "path", "type", "size", "children")

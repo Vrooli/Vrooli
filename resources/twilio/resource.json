@@ -18,6 +18,10 @@
         "location": "sibling"
       }
     },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-twilio_${os}_${arch}"
+    },
     "install": [
       {
         "os": ["linux", "darwin"],
@@ -40,6 +44,7 @@
   },
   "template": "cloud-api",
   "driver": "cloud-api",
+  "deployment": { "profiles": { "desktop": { "linux": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "Twilio credentials"], "limitations": ["Requires a Twilio account and network access."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] }, "macos": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "Twilio credentials"], "limitations": ["Requires a Twilio account and network access."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] }, "windows": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "Twilio credentials"], "limitations": ["Requires a Twilio account and network access."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] } } } },
   "endpoint": "https://api.twilio.com/2010-04-01/Accounts.json",
   "credentials": {
     "env": [

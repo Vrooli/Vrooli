@@ -100,6 +100,8 @@ export function FleetPage() {
       testId={selectors.pages.fleet}
       title={t(strings.experience.fleet.title)}
       description={t(strings.experience.fleet.description)}
+      experienceSurface="fleet-results"
+      experienceState={isLoading ? "loading" : isError ? "error" : rows.length === 0 ? "empty" : stale ? "partial" : "ready"}
     >
       <div
         data-testid={selectors.experience.fleet.depthSummary}

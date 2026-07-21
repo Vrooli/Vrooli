@@ -95,6 +95,10 @@ message Initiative {
 
   // Canonical plan-manager plan backing this initiative or operating mode.
   optional PlanRef plan_ref = 15;
+
+  // Source initiative name when this initiative was recreated. This preserves
+  // lifecycle lineage without changing the source's archived history.
+  string spawned_from = 16;
 }
 
 // InitiativeRollup provides aggregated status counts for initiative items.

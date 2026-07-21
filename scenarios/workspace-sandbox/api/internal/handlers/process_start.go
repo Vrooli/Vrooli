@@ -211,7 +211,8 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	// process (for /processes) and echoed in the response so the launch's
 	// provenance is truth, not inference.
 	containmentInfo, _ := driver.GetContainmentInfo(r.Context(), h.Starter)
-	effectiveContainment := driver.EffectiveContainment(level, backendID, containmentInfo)
+	effectiveContainment := driver.AdjustForLaunch(
+		driver.EffectiveContainment(level, backendID, containmentInfo), cfg.AllowNetwork)
 
 	var stdoutPath, stderrPath string
 	if pendingPair != nil {

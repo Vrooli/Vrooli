@@ -409,11 +409,16 @@ type AgentSessionProposal struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique proposal identifier.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Proposal kind.
-	// @constraint one of: backlog_batch_import, operating_mode_draft, operating_mode_implementation_plan
+	// Proposal kind, owned and validated by the Swarm Manager service.
+	//
+	// This response field is intentionally open: a newer server may return a
+	// proposal kind that an older UI does not yet render specially. Clients must
+	// display that proposal generically rather than reject the whole session
+	// response. The service remains the single authority for kinds it persists
+	// and for their apply semantics.
 	Kind string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
-	// Proposal lifecycle.
-	// @constraint one of: draft, ready, applied, rejected, superseded, failed
+	// Proposal lifecycle. As with kind, clients must tolerate future statuses
+	// and use a neutral presentation when one is unknown.
 	Status string `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
 	// Human-readable proposal summary.
 	Summary string `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
@@ -903,12 +908,11 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAtB\x0f\n" +
 	"\r_content_typeB\r\n" +
-	"\v_size_bytes\"\xef\x03\n" +
+	"\v_size_bytes\"\xee\x02\n" +
 	"\x14AgentSessionProposal\x12\x17\n" +
-	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12i\n" +
-	"\x04kind\x18\x02 \x01(\tBU\xbaHRrPR\x14backlog_batch_importR\x14operating_mode_draftR\"operating_mode_implementation_planR\x04kind\x12R\n" +
-	"\x06status\x18\x03 \x01(\tB:\xbaH7r5R\x05draftR\x05readyR\aappliedR\brejectedR\n" +
-	"supersededR\x06failedR\x06status\x12!\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1b\n" +
+	"\x04kind\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04kind\x12\x1f\n" +
+	"\x06status\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06status\x12!\n" +
 	"\asummary\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\asummary\x12*\n" +
 	"\fpayload_json\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vpayloadJson\x12&\n" +
 	"\n" +

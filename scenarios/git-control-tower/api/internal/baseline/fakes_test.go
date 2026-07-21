@@ -12,10 +12,12 @@ import (
 // capture run and a diff's current run differ; AwaitResult replays the canned
 // result (or err) for that runID.
 type fakeExecutor struct {
-	result   ExecResult
-	err      error // AwaitResult error (the run failed)
-	startErr error // StartRun error (could not start the run)
-	calls    int
+	result       ExecResult
+	awaitResults []ExecResult
+	err          error // AwaitResult error (the run failed)
+	startErr     error // StartRun error (could not start the run)
+	calls        int
+	awaitCalls   int
 	// reusable / reusableHit / findErr script FindReusableRun (clean-tree reuse).
 	reusable    ReusableRun
 	reusableHit bool
@@ -38,6 +40,14 @@ func (f *fakeExecutor) AwaitResult(_ context.Context, _, runID string) (ExecResu
 		return ExecResult{}, f.err
 	}
 	r := f.result
+	if len(f.awaitResults) > 0 {
+		index := f.awaitCalls
+		if index >= len(f.awaitResults) {
+			index = len(f.awaitResults) - 1
+		}
+		r = f.awaitResults[index]
+		f.awaitCalls++
+	}
 	r.RunID = runID
 	if r.TreeDigest == "" {
 		r.TreeDigest = "td:fixture"

@@ -87,7 +87,10 @@ type BacklogItem struct {
 	// Canonical plan-manager plan backing this work item.
 	PlanRef *PlanRef `protobuf:"bytes,25,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
 	// Stable programmatic finding ID that produced this item, when auto-filed.
-	FindingRef    *string `protobuf:"bytes,26,opt,name=finding_ref,json=findingRef,proto3,oneof" json:"finding_ref,omitempty"`
+	FindingRef *string `protobuf:"bytes,26,opt,name=finding_ref,json=findingRef,proto3,oneof" json:"finding_ref,omitempty"`
+	// Deterministic operator signal. It is computed on read from item age,
+	// plan/acceptance validity, and is never persisted in spec.json.
+	Stale         bool `protobuf:"varint,27,opt,name=stale,proto3" json:"stale,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,6 +284,13 @@ func (x *BacklogItem) GetFindingRef() string {
 		return *x.FindingRef
 	}
 	return ""
+}
+
+func (x *BacklogItem) GetStale() bool {
+	if x != nil {
+		return x.Stale
+	}
+	return false
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
@@ -641,7 +651,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\xc5\t\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\x1a&swarm-manager/v1/domain/plan_ref.proto\"\xdb\t\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -672,7 +682,8 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\x0equeue_position\x18\x18 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x06R\rqueuePosition\x88\x01\x01\x129\n" +
 	"\bplan_ref\x18\x19 \x01(\v2\x19.swarm_manager.v1.PlanRefH\aR\aplanRef\x88\x01\x01\x12$\n" +
 	"\vfinding_ref\x18\x1a \x01(\tH\bR\n" +
-	"findingRef\x88\x01\x01B\r\n" +
+	"findingRef\x88\x01\x01\x12\x14\n" +
+	"\x05stale\x18\x1b \x01(\bR\x05staleB\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +

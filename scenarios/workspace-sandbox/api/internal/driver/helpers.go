@@ -25,6 +25,11 @@ import (
 // Overlayfs Mount Helpers (shared template for the two overlayfs drivers)
 // =============================================================================
 
+// ShadowedViewMarker is the tripwire file written into the merged dir
+// before the overlay is mounted. The mount hides it; seeing it means the
+// observer is on an unmounted or shadowed view of the merged dir.
+const ShadowedViewMarker = ".vrooli-shadowed-view-do-not-use"
+
 // mountProjectOverlay mounts the per-sandbox project overlay rooted at
 // sandboxDir (under config.BaseDir). The lower layer is `scopePath`.
 // Failure is fatal and triggers cleanup of sandboxDir.
@@ -51,6 +56,22 @@ func mountProjectOverlay(ctx context.Context, m fsmount.Mounter, backend fsmount
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			os.RemoveAll(sandboxDir)
 			return nil, fmt.Errorf("create overlay dir %s: %w", dir, err)
+		}
+	}
+	// Tripwire: stamp the merged dir BEFORE mounting. The overlay mount
+	// hides this file, so any process that can see it is looking at an
+	// unmounted or shadowed view of the merged dir (e.g. through the home
+	// overlay's lower layer, which does not surface submounts) — a loud
+	// signal instead of a silently empty workspace.
+	marker := filepath.Join(paths.MergedDir, ShadowedViewMarker)
+	if _, statErr := os.Stat(marker); os.IsNotExist(statErr) {
+		if err := os.WriteFile(
+			marker,
+			[]byte("This directory is NOT the sandbox workspace. If you can read this file,\nyou are on an unmounted or overlay-shadowed view of the merged dir.\nThe real workspace is the overlay mounted on top of this directory.\n"),
+			0o444,
+		); err != nil {
+			os.RemoveAll(sandboxDir)
+			return nil, fmt.Errorf("write shadowed-view marker: %w", err)
 		}
 	}
 	if err := m.Mount(ctx, fsmount.MountOpts{

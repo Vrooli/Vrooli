@@ -72,6 +72,12 @@ type BwrapConfig struct {
 	ReadOnlyBinds  map[string]string
 	ReadWriteBinds map[string]string
 
+	// MaskPaths lists absolute in-namespace paths hidden from the workload
+	// by mounting an empty tmpfs over them, emitted after every other bind
+	// so deny beats allow. Populated by ApplyIsolationProfile from the
+	// active profile's maskPaths (placeholders expanded).
+	MaskPaths []string
+
 	WorkingDir string
 
 	// HostHome is the host-side $HOME, used to bind the per-sandbox
@@ -181,6 +187,7 @@ type IsolationProfile struct {
 	ReadWriteBinds map[string]string // host path -> sandbox path
 	Environment    map[string]string // env var -> value (supports $VAR expansion)
 	Hostname       string
+	MaskPaths      []string // host paths to hide via tmpfs over-bind ($HOME etc. placeholders)
 }
 
 // ApplyIsolationProfile composes the isolation profile into cfg. This is
@@ -246,6 +253,27 @@ func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) error {
 		if expanded, ok := expandBindSource(src, home, user, vrooliRoot); ok {
 			cfg.ReadWriteBinds[expanded] = expandBindDest(dst, expanded)
 		}
+	}
+
+	// Mask paths expand like bind sources but are NOT stat-gated: masking
+	// an absent path just creates an empty dir in the namespace, and the
+	// deny list must stay deterministic regardless of host state.
+	for _, mask := range profile.MaskPaths {
+		// A placeholder whose value is unset would expand into a bogus
+		// root-anchored path; drop the entry instead.
+		if (strings.Contains(mask, "$HOME") && home == "") ||
+			(strings.Contains(mask, "$USER") && user == "") ||
+			(strings.Contains(mask, "$VROOLI_ROOT") && vrooliRoot == "") {
+			continue
+		}
+		m := mask
+		m = strings.ReplaceAll(m, "$HOME", home)
+		m = strings.ReplaceAll(m, "$USER", user)
+		m = strings.ReplaceAll(m, "$VROOLI_ROOT", vrooliRoot)
+		if strings.Contains(m, "$") || !filepath.IsAbs(m) {
+			continue
+		}
+		cfg.MaskPaths = append(cfg.MaskPaths, filepath.Clean(m))
 	}
 
 	if cfg.Env == nil {

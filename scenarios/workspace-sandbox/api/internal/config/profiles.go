@@ -46,6 +46,13 @@ type IsolationProfile struct {
 	// Hostname to set inside the sandbox.
 	Hostname string `json:"hostname"`
 
+	// MaskPaths lists host paths hidden from the workload by mounting an
+	// empty tmpfs over them (after all other binds, so deny beats allow).
+	// Use $HOME, $USER, $VROOLI_ROOT as placeholders. Intended for host
+	// state the home overlay would otherwise expose but no workload needs
+	// — e.g. unrelated repository checkouts under $HOME.
+	MaskPaths []string `json:"maskPaths,omitempty"`
+
 	// HomeOverlayRequirement declares how strongly this profile depends
 	// on the per-sandbox host-$HOME overlay being present:
 	//
@@ -168,7 +175,8 @@ func DefaultProfiles() []IsolationProfile {
 				"SSL_CERT_DIR":  "/etc/ssl/certs",
 				"SHELL":         "/bin/sh",
 			},
-			Hostname: "sandbox",
+			Hostname:  "sandbox",
+			MaskPaths: []string{"$HOME/.codex-worktrees"},
 		},
 		{
 			ID:            "vrooli-aware",
@@ -224,6 +232,10 @@ func DefaultProfiles() []IsolationProfile {
 				"VROOLI_ENV":    "$VROOLI_ENV",
 			},
 			Hostname: "sandbox",
+			// Other repository checkouts under $HOME are never a workload's
+			// business; the home overlay would otherwise expose them
+			// read-visible (2026-07-20 escaped-agent incident).
+			MaskPaths: []string{"$HOME/.codex-worktrees"},
 		},
 	}
 }

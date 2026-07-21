@@ -7,12 +7,16 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
 	sharedpath "scenario-to-desktop-api/shared/path"
 	"scenario-to-desktop-api/shared/validation"
 	"scenario-to-desktop-api/storagepaths"
+
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 // DefaultOrchestrator implements the Orchestrator interface.
@@ -120,6 +124,7 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 			}
 		}
 		o.stages = []Stage{
+			NewResolveDeploymentStage(WithResolveDeploymentScenarioRoot(o.scenarioRoot)),
 			NewBundleStage(WithScenarioRoot(o.scenarioRoot)),
 			NewPreflightStage(WithBundleabilityChecker(analyzer)),
 			NewGenerateStage(WithGenerateScenarioRoot(o.scenarioRoot)),
@@ -188,10 +193,20 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 		}
 	}
 
-	// Apply defaults
+	// Normalize CLI-facing platform aliases once. All later stages receive a
+	// concrete OS/architecture matrix and cannot accidentally select every arch.
 	if len(config.Platforms) == 0 {
 		config.Platforms = []string{currentPlatform()}
 	}
+	normalizedPlatforms := make([]string, 0, len(config.Platforms))
+	for _, value := range config.Platforms {
+		platform, err := normalizeDesktopPlatform(value)
+		if err != nil {
+			return nil, err
+		}
+		normalizedPlatforms = append(normalizedPlatforms, platform.String())
+	}
+	config.Platforms = normalizedPlatforms
 
 	// Generate pipeline ID
 	pipelineID := o.idGenerator.Generate()
@@ -234,6 +249,14 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 
 	// Return immediately with pipeline ID
 	return status, nil
+}
+
+func normalizeDesktopPlatform(value string) (resourcedeployment.Platform, error) {
+	value = strings.TrimSpace(value)
+	if !strings.ContainsAny(value, "-_/") {
+		return resourcedeployment.CanonicalPlatform(value, runtime.GOARCH)
+	}
+	return resourcedeployment.ParsePlatform(value)
 }
 
 // RunPipelineBlocking runs a pipeline and blocks until completion or timeout.
@@ -444,6 +467,9 @@ func applyConfigStringFields(dst, src *Config) {
 	if src.BundleManifestPath != "" {
 		dst.BundleManifestPath = src.BundleManifestPath
 	}
+	if src.ResourceArtifactRoot != "" {
+		dst.ResourceArtifactRoot = src.ResourceArtifactRoot
+	}
 	if src.DeploymentMode != "" {
 		dst.DeploymentMode = src.DeploymentMode
 	}
@@ -552,6 +578,7 @@ func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID str
 		TemplateType:            parentStatus.Config.TemplateType,
 		ProxyURL:                parentStatus.Config.ProxyURL,
 		BundleManifestPath:      parentStatus.Config.BundleManifestPath,
+		ResourceArtifactRoot:    parentStatus.Config.ResourceArtifactRoot,
 		Sign:                    parentStatus.Config.Sign,
 		DeployConfig:            parentStatus.Config.DeployConfig,
 		Version:                 parentStatus.Config.Version,

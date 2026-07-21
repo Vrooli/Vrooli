@@ -335,12 +335,32 @@ func collectArtifacts(input *StageInput) map[string]string {
 	return GetReadyArtifacts(input.BuildResult.PlatformResults)
 }
 
-// filterStages returns only the stages that match the requested stage names.
-// The returned stages preserve the original pipeline order, not the order of the requested list.
+// filterStages returns requested stages plus their transitive dependencies. A
+// caller cannot ask for bundle alone and bypass mandatory deployment admission.
+// The returned stages preserve pipeline order, not request order.
 func (o *DefaultOrchestrator) filterStages(requested []string) []Stage {
+	byName := make(map[string]Stage, len(o.stages))
+	for _, stage := range o.stages {
+		byName[stage.Name()] = stage
+	}
 	requestedSet := make(map[string]bool, len(requested))
 	for _, name := range requested {
 		requestedSet[name] = true
+	}
+	for changed := true; changed; {
+		changed = false
+		for name := range requestedSet {
+			stage := byName[name]
+			if stage == nil {
+				continue
+			}
+			for _, dependency := range stage.Dependencies() {
+				if !requestedSet[dependency] {
+					requestedSet[dependency] = true
+					changed = true
+				}
+			}
+		}
 	}
 
 	filtered := make([]Stage, 0, len(requested))

@@ -393,7 +393,59 @@ func TestBuildBwrapArgs_Golden(t *testing.T) {
 				"--dir", "/h",
 				"--dir", "/h/u",
 				"--bind", "/sb/home-merged", "/h/u",
+				// Merged dir re-bound at its own host path AFTER the home
+				// overlay bind so a leaked host-side merged path resolves to
+				// the real workspace, not the home overlay's empty shadow.
+				"--dir", "/sb",
+				"--dir", "/sb/merged",
+				"--bind", "/sb/merged", "/sb/merged",
 				"--ro-bind", "/sb/lower", "/workspace-readonly",
+				"--proc", "/proc",
+				"--dev", "/dev",
+				"--tmpfs", "/tmp",
+				"--chdir", "/workspace",
+				"--",
+			},
+		},
+		{
+			// Mask paths are emitted as trailing tmpfs over-binds; entries
+			// that would cover the workspace, merged dir, or lower layer are
+			// skipped, and the list is sorted for argv determinism.
+			name: "with-mask-paths",
+			s: &types.Sandbox{
+				ID:            id,
+				MergedDir:     "/sb/merged",
+				LowerDir:      "/sb/lower",
+				HomeMergedDir: "/sb/home-merged",
+			},
+			cfg: BwrapConfig{
+				Hostname: "sandbox",
+				HostHome: "/h/u",
+				MaskPaths: []string{
+					"/h/u/other-checkouts",
+					"/h/u/.codex-worktrees",
+					"/workspace",           // would cover workspace → skipped
+					"/sb/merged/sub",       // under merged dir → skipped
+					"/workspace-readonly",  // lower layer → skipped
+					"relative/not-allowed", // not absolute → skipped
+				},
+			},
+			want: []string{
+				"--unshare-user", "--unshare-ipc", "--unshare-uts", "--unshare-cgroup",
+				"--unshare-pid",
+				"--unshare-net",
+				"--die-with-parent",
+				"--hostname", "sandbox",
+				"--bind", "/sb/merged", "/workspace",
+				"--dir", "/h",
+				"--dir", "/h/u",
+				"--bind", "/sb/home-merged", "/h/u",
+				"--dir", "/sb",
+				"--dir", "/sb/merged",
+				"--bind", "/sb/merged", "/sb/merged",
+				"--ro-bind", "/sb/lower", "/workspace-readonly",
+				"--tmpfs", "/h/u/.codex-worktrees",
+				"--tmpfs", "/h/u/other-checkouts",
 				"--proc", "/proc",
 				"--dev", "/dev",
 				"--tmpfs", "/tmp",
@@ -519,6 +571,43 @@ func TestApplyIsolationProfile_AppliesNetworkAndHostname(t *testing.T) {
 	}
 	if cfg.Hostname != "custom" {
 		t.Errorf("expected Hostname=custom, got %q", cfg.Hostname)
+	}
+}
+
+func TestApplyIsolationProfile_MaskPathsExpandWithoutStat(t *testing.T) {
+	cfg := DefaultBwrapConfig()
+	cfg.HostHome = "/h/u"
+	p := &IsolationProfile{
+		MaskPaths: []string{
+			"$HOME/.codex-worktrees",                  // expands; must survive even if absent on host
+			"$UNKNOWN_PLACEHOLDER/x",                  // unresolvable → dropped
+			"relative/path",                           // not absolute → dropped
+			"/abs/other-checkouts/../other-checkouts", // cleaned
+		},
+	}
+	if err := ApplyIsolationProfile(&cfg, p); err != nil {
+		t.Fatalf("ApplyIsolationProfile: %v", err)
+	}
+	want := []string{"/h/u/.codex-worktrees", "/abs/other-checkouts"}
+	if len(cfg.MaskPaths) != len(want) {
+		t.Fatalf("MaskPaths = %v; want %v", cfg.MaskPaths, want)
+	}
+	for i := range want {
+		if cfg.MaskPaths[i] != want[i] {
+			t.Errorf("MaskPaths[%d] = %q; want %q", i, cfg.MaskPaths[i], want[i])
+		}
+	}
+
+	// Empty $HOME must drop $HOME-based masks rather than emit a bogus
+	// root-anchored path.
+	cfgNoHome := DefaultBwrapConfig()
+	cfgNoHome.HostHome = ""
+	t.Setenv("HOME", "")
+	if err := ApplyIsolationProfile(&cfgNoHome, &IsolationProfile{MaskPaths: []string{"$HOME/.codex-worktrees"}}); err != nil {
+		t.Fatalf("ApplyIsolationProfile: %v", err)
+	}
+	if len(cfgNoHome.MaskPaths) != 0 {
+		t.Errorf("empty $HOME: MaskPaths = %v; want empty", cfgNoHome.MaskPaths)
 	}
 }
 

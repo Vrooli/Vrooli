@@ -1134,6 +1134,55 @@ func TestTranslateCommandToNamespace(t *testing.T) {
 	}
 }
 
+// TestTranslateCommandToNamespace_HostMergedWinsOverHome is the regression
+// pin for the empty-workspace defect (sandbox cc371116, 2026-07-20): the
+// host merged dir lives under $HOME, so the $HOME-unchanged rule used to
+// swallow it — codex received `-C <hostMerged>` untranslated and chdir'd
+// into the home-overlay-shadowed empty view of the merged dir. The
+// hostMerged→workspacePath rewrite must win over the $HOME passthrough.
+func TestTranslateCommandToNamespace_HostMergedWinsOverHome(t *testing.T) {
+	const home = "/home/alice"
+	hostMerged := home + "/.local/share/workspace-sandbox/abc/merged"
+	layout := NamespaceLayout{
+		HostHome:         home,
+		HomeOverlayState: HomeOverlayPresent,
+		HostMerged:       hostMerged,
+		WorkspacePath:    "/workspace",
+		PathIllusion:     true,
+	}
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"exact merged dir", hostMerged, "/workspace"},
+		{"subpath of merged dir", hostMerged + "/scenarios/react-component-library", "/workspace/scenarios/react-component-library"},
+		{"sibling under $HOME still passes through", home + "/.local/bin/codex", home + "/.local/bin/codex"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := translateCommandToNamespace(c.in, layout)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != c.want {
+				t.Errorf("got %q; want %q", got, c.want)
+			}
+		})
+	}
+	// Identity layout (workspacePath == hostMerged): rewrite is a no-op.
+	identity := layout
+	identity.PathIllusion = false
+	identity.WorkspacePath = hostMerged
+	got, err := translateCommandToNamespace(hostMerged+"/ui", identity)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := hostMerged + "/ui"; got != want {
+		t.Errorf("identity layout: got %q; want %q", got, want)
+	}
+}
+
 // TestTranslateCommandToNamespace_IdentityLayoutKeepsHostPaths pins that
 // under an identity layout (pathIllusion=false — copy driver / macOS) a
 // host-absolute binary path with no system-bind mapping is left intact

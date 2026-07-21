@@ -170,13 +170,13 @@
         "config": {
           "declarations": {
             "reconcile": true,
-      "profileMode": "update_if_unmodified",
-      "sources": [
-        ".vrooli/agent-manager/extract-assist-profile.json",
-        ".vrooli/agent-manager/adopt-assist-profile.json",
-        ".vrooli/agent-manager/extract-assist.json",
-        ".vrooli/agent-manager/adopt-assist.json"
-      ]
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/extract-assist-profile.json",
+              ".vrooli/agent-manager/adopt-assist-profile.json",
+              ".vrooli/agent-manager/extract-assist.json",
+              ".vrooli/agent-manager/adopt-assist.json"
+            ]
           }
         }
       }
@@ -208,23 +208,6 @@
       "manifest": {},
       "build_metadata": {}
     },
-    "install": [
-      {
-        "os": [
-          "linux",
-          "darwin"
-        ],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": [
-          "windows"
-        ],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
     "invoke": {
       "kind": "installed_command",
       "command": "react-component-library"

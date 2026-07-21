@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "page": {
     "id": "scenario-explorer",
     "title": "Scenario Explorer",
@@ -15,12 +15,13 @@
     { "statement": "Every claim shows its enforcement tier honestly wherever it appears." }
   ],
   "states": [
-    { "id": "default", "description": "Scenario has a spec; grid, gaps, and claims render." },
+    { "id": "default", "description": "Scenario has a spec; grid, gaps, and claims render.", "setup": { "route": "/scenarios/experience-manager" } },
     { "id": "loading" },
     { "id": "empty", "description": "Scenario has no experience/ folder; the explorer routes the author to the Studio instead of dead-ending." },
     { "id": "partial", "description": "Some spec files are unreadable/invalid; readable pages render, broken ones are named with their parse error." },
     { "id": "request-error" }
   ],
+  "regions": [{"id":"scenario-spec","purpose":"Render the selected scenario's loading, ready, empty, partial, or failed specification surface.","component":{"library":{"component":"experience-surface","version":"1.0.0"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
   "elements": [
     { "id": "depth-grid", "role": "table", "name": "Pages by state", "description": "Rows = pages, columns = states, cells = claim coverage; L0–L4 badge per row." },
     { "id": "gap-panel", "role": "region", "name": "Coverage gaps", "description": "Routes without specs and declared-state gaps vs the DESIGN.md state contract." },
@@ -91,6 +92,7 @@
     }
   ],
   "bindings": {
+    "regions": {"scenario-spec":{"selector":"[data-experience-surface=\"scenario-spec\"]"}},
     "elements": {
       "depth-grid": { "testid": "explorer-depth-grid" },
       "gap-panel": { "testid": "explorer-gap-panel" },

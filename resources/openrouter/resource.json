@@ -18,6 +18,10 @@
         "location": "sibling"
       }
     },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-openrouter_${os}_${arch}"
+    },
     "install": [
       {
         "os": ["linux", "darwin"],
@@ -40,6 +44,7 @@
   },
   "template": "cloud-api",
   "driver": "cloud-api",
+  "deployment": { "profiles": { "desktop": { "linux": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "OPENROUTER_API_KEY"], "limitations": ["Requires an OpenRouter account and network access."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] }, "macos": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "OPENROUTER_API_KEY"], "limitations": ["Requires an OpenRouter account and network access."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] }, "windows": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "OPENROUTER_API_KEY"], "limitations": ["Requires an OpenRouter account and network access."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] } } } },
   "endpoint": "https://openrouter.ai/api/v1/models",
   "credentials": {
     "env": [

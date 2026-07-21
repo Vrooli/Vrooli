@@ -3,6 +3,8 @@ package driver
 import (
 	"reflect"
 	"testing"
+
+	"workspace-sandbox/internal/types"
 )
 
 // TestDeriveWorkspaceLayout pins the single derivation that every
@@ -168,5 +170,39 @@ func TestContainmentLevelString(t *testing.T) {
 		if got := level.String(); got != want {
 			t.Errorf("ContainmentLevel(%d).String() = %q, want %q", level, got, want)
 		}
+	}
+}
+
+// TestAdjustForLaunch pins that per-launch provenance drops network-deny
+// when the launch allows network (bwrap omits --unshare-net), and leaves
+// the report untouched otherwise.
+func TestAdjustForLaunch(t *testing.T) {
+	full := []string{
+		EnforcementFilesystemWriteContainment,
+		EnforcementNetworkDeny,
+		EnforcementPIDNamespace,
+		EnforcementPathIllusion,
+	}
+	mk := func() *types.SandboxContainment {
+		return &types.SandboxContainment{Level: "required", Backend: "bwrap", Enforcements: append([]string{}, full...)}
+	}
+
+	got := AdjustForLaunch(mk(), true)
+	for _, e := range got.Enforcements {
+		if e == EnforcementNetworkDeny {
+			t.Errorf("network-allowed launch still claims %q: %v", EnforcementNetworkDeny, got.Enforcements)
+		}
+	}
+	if len(got.Enforcements) != len(full)-1 {
+		t.Errorf("expected %d enforcements after drop, got %v", len(full)-1, got.Enforcements)
+	}
+
+	kept := AdjustForLaunch(mk(), false)
+	if len(kept.Enforcements) != len(full) {
+		t.Errorf("network-denied launch must keep full list, got %v", kept.Enforcements)
+	}
+
+	if AdjustForLaunch(nil, true) != nil {
+		t.Error("nil containment must stay nil")
 	}
 }

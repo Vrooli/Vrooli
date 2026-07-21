@@ -58,6 +58,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/migrations"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
 )
@@ -164,6 +165,11 @@ type Manifest = manifest.Manifest
 func NewSupervisor(opts Options) (*Supervisor, error) {
 	if opts.Manifest == nil {
 		return nil, errors.New("manifest is required")
+	}
+	if opts.BundlePath != "" {
+		if _, err := resourceplan.Load(opts.BundlePath); err != nil {
+			return nil, fmt.Errorf("validate resolved resource deployment plan: %w", err)
+		}
 	}
 
 	appData := opts.AppDataDir
@@ -491,4 +497,3 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 	}
 	return nil
 }
-

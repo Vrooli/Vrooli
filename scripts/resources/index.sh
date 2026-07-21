@@ -29,14 +29,13 @@ fi
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
     ["ai"]="ollama whisper unstructured-io"
-    ["automation"]="comfyui"
     ["storage"]="minio vault qdrant postgres redis"
     ["agents"]="claude-code"
     ["search"]="searxng"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama whisper unstructured-io comfyui minio vault qdrant postgres redis claude-code searxng"
+ALL_RESOURCES="ollama whisper unstructured-io minio vault qdrant postgres redis claude-code searxng"
 
 #######################################
 # Parse command line arguments
@@ -494,7 +493,6 @@ resources::get_health_endpoint() {
     local resource="$1"
     case "$resource" in
         "ollama") echo "/api/tags" ;;
-        "comfyui") echo "/" ;;  # ComfyUI root endpoint works better than system_stats
         "whisper") echo "/docs" ;;  # Whisper has docs endpoint, not health
         "node-red") echo "/flows" ;;
         "minio") echo "/minio/health/live" ;;  # MinIO health endpoint
@@ -600,29 +598,6 @@ resources::discover_running() {
                 
                 # Check model integrity for AI resources
             case "$resource" in
-                "comfyui")
-                    # Check if ComfyUI models are valid
-                    if resources::script_exists "$resource"; then
-                        local script_path
-                        script_path=$(resources::get_script_path "$resource")
-                        local model_status valid_models invalid_models
-                        model_status=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep -cE "✅|❌|⚠️")
-                        valid_models=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep -c "✅")
-                        invalid_models=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep -c "❌")
-                        
-                        if [[ $model_status -gt 0 ]]; then
-                            if [[ $invalid_models -gt 0 ]]; then
-                                log::warn "   Model check: ⚠️  $invalid_models corrupted models detected"
-                                log::info "   Run: $script_path --action download-models"
-                            elif [[ $valid_models -eq 0 ]]; then
-                                log::warn "   Model check: ⚠️  No models installed"
-                                log::info "   Run: $script_path --action download-models"
-                            else
-                                log::info "   Model check: ✅ $valid_models models valid"
-                            fi
-                        fi
-                    fi
-                    ;;
                 "ollama")
                     # Check if Ollama has models
                     local model_count

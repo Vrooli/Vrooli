@@ -118,6 +118,29 @@ func TestServiceCaptureAcceptsStableSharedScopedEvidence(t *testing.T) {
 	}
 }
 
+func TestServiceCaptureRetriesOnlyRacedAttempt(t *testing.T) {
+	raced := terminalResult()
+	raced.GateQuality = false
+	raced.EvidenceTier = "degraded"
+	raced.SourceScope = "scenario:foo"
+	raced.SourceStable = false
+	stable := terminalResult()
+	stable.GateQuality = false
+	stable.EvidenceTier = "shared-scoped"
+	stable.SourceScope = "scenario:foo"
+	stable.SourceStable = true
+	exec := &fakeExecutor{awaitResults: []ExecResult{raced, stable}}
+	svc, _ := newTestService(t, exec, &fakeRuns{}, git.State{Branch: "agi", Sha: "abc", Dirty: true})
+
+	captured, err := svc.Create(context.Background(), CreateRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Name: "retry"})
+	if err != nil {
+		t.Fatalf("capture did not retry raced attempt: %v", err)
+	}
+	if exec.calls != 2 || exec.awaitCalls != 2 || captured.Manifest.RunID() != "run-2" {
+		t.Fatalf("retry evidence calls=%d awaits=%d manifest=%+v", exec.calls, exec.awaitCalls, captured.Manifest.Run)
+	}
+}
+
 func TestServiceCaptureFailureDoesNotPublishEmptyBaseline(t *testing.T) {
 	exec := &fakeExecutor{err: errors.New("aborted")}
 	svc, _ := newTestService(t, exec, &fakeRuns{}, git.State{Branch: "agi", Sha: "abc"})
@@ -657,7 +680,10 @@ func TestServiceDeletePreservesManifestWhenUnpinFails(t *testing.T) { // [REQ:GC
 	}
 }
 
-func TestServiceReusesFreshCleanRunForDiff(t *testing.T) {
+// [REQ:GCT-SHARED-WORKSPACE-CACHE-P0] A dirty repository does not bypass the
+// scoped cache decision. Test Genie has already matched declared inputs; GCT
+// must reuse that result even while unrelated agents edit elsewhere.
+func TestServiceReusesFreshScopedRunForDirtyWorkspaceDiff(t *testing.T) {
 	now := time.Now().UTC()
 	exec := &fakeExecutor{result: terminalResult(), reusable: ReusableRun{RunID: "reused", CompletedAt: now}, reusableHit: true}
 	runs := &fakeRuns{
@@ -665,7 +691,7 @@ func TestServiceReusesFreshCleanRunForDiff(t *testing.T) {
 		catalogs: map[string]ArtifactCatalog{"run-1": {SchemaVersion: 1}, "reused": {SchemaVersion: 1}},
 	}
 	svc, _ := newTestServiceWith(t, Deps{
-		Exec: exec, Runs: runs, CaptureGit: fixedGit(git.State{Branch: "agi", Sha: "abc"}), Now: func() time.Time { return now }, ReuseTTL: time.Hour,
+		Exec: exec, Runs: runs, CaptureGit: fixedGit(git.State{Branch: "agi", Sha: "abc", Dirty: true, DirtySummary: "other-agent change"}), Now: func() time.Time { return now }, ReuseTTL: time.Hour,
 	})
 	seedBaseline(t, svc, "reuse")
 	out, err := svc.StartDiff(context.Background(), StartDiffRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "reuse"})

@@ -2,10 +2,22 @@ package reconcile
 
 // Snapshot is the normalized BAS accessibility snapshot contract.
 type Snapshot struct {
-	Contract      string `json:"contract"`
-	URL           string `json:"url"`
-	ScreenshotRef string `json:"-"`
-	Root          AXNode `json:"root"`
+	Contract      string        `json:"contract"`
+	URL           string        `json:"url"`
+	ScreenshotRef string        `json:"-"`
+	Timing        CaptureTiming `json:"-"`
+	Root          AXNode        `json:"root"`
+}
+
+// CaptureTiming is the timing reported by Browser Automation Studio for one
+// target capture. It deliberately excludes artifact data so historical timing
+// records remain small and queryable.
+type CaptureTiming struct {
+	TotalMilliseconds         int64
+	NavigationMilliseconds    int64
+	ReadinessWaitMilliseconds int64
+	Strategy                  string
+	Outcome                   string
 }
 
 // AXNode is the subset of bas-accessibility-snapshot/v1 used by structure

@@ -9,12 +9,13 @@ import (
 
 // Stage names as constants for consistency.
 const (
-	StageBundle    = "bundle"
-	StagePreflight = "preflight"
-	StageGenerate  = "generate"
-	StageBuild     = "build"
-	StageSmokeTest = "smoketest"
-	StageDeploy    = "deploy"
+	StageResolveDeployment = "resolve-deployment"
+	StageBundle            = "bundle"
+	StagePreflight         = "preflight"
+	StageGenerate          = "generate"
+	StageBuild             = "build"
+	StageSmokeTest         = "smoketest"
+	StageDeploy            = "deploy"
 )
 
 // Pipeline status values.
@@ -171,6 +172,11 @@ type Config struct {
 
 	// BundleManifestPath overrides the default manifest path.
 	BundleManifestPath string `json:"bundle_manifest_path,omitempty"`
+
+	// ResourceArtifactRoot is a verified Vrooli release directory containing
+	// resource artifacts plus SHA256SUMS. Bundled resource modes refuse to
+	// package from source when this is absent.
+	ResourceArtifactRoot string `json:"resource_artifact_root,omitempty"`
 
 	// Clean forces a clean build (removes existing desktop output).
 	Clean bool `json:"clean,omitempty"`
@@ -477,7 +483,7 @@ func (c *Config) takeVersionRollback() *versionRollback {
 // IsValidStageName checks if a stage name is valid.
 func IsValidStageName(name string) bool {
 	switch name {
-	case StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy:
+	case StageResolveDeployment, StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy:
 		return true
 	default:
 		return false
@@ -584,7 +590,7 @@ func (s *Status) GetNextResumeStage() string {
 	}
 
 	// Define stage order
-	stageOrder := []string{StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy}
+	stageOrder := []string{StageResolveDeployment, StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy}
 
 	// Find the stopped stage and return the next one
 	for i, stage := range stageOrder {

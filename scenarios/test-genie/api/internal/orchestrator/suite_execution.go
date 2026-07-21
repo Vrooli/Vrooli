@@ -433,17 +433,30 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 // (the blocking path); a non-nil emit streams phase events. The per-phase
 // runners already no-op when emit is nil, so there is one code path regardless.
 func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionRequest, emit ExecutionEventCallback) (*SuiteExecutionResult, error) {
+	prepareStarted := time.Now()
+	emitPreparationProgress(emit, "planning", "starting")
 	prepared, err := o.prepareExecution(req)
 	if err != nil {
 		return nil, err
 	}
+	emitPreparationProgress(emit, "planning", fmt.Sprintf("completed in %s", time.Since(prepareStarted).Round(time.Millisecond)))
+	log.Printf("test-genie preflight planning for %s completed in %s", prepared.env.ScenarioName, time.Since(prepareStarted).Round(time.Millisecond))
+
+	readinessStarted := time.Now()
+	emitPreparationProgress(emit, "provider_readiness", "starting")
 	readiness := o.checkProviderReadiness(ctx, prepared.env, prepared.plan.Selected, nil)
 	prepared.result.ProviderReadiness = readiness.Outcomes
+	emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf("completed in %s", time.Since(readinessStarted).Round(time.Millisecond)))
+	log.Printf("test-genie preflight provider readiness for %s completed in %s", prepared.env.ScenarioName, time.Since(readinessStarted).Round(time.Millisecond))
 
+	runtimeStarted := time.Now()
+	emitPreparationProgress(emit, "target_runtime", "starting")
 	env, runCtx, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, readiness.Active, req, nil)
 	if err != nil {
 		return nil, err
 	}
+	emitPreparationProgress(emit, "target_runtime", fmt.Sprintf("completed in %s", time.Since(runtimeStarted).Round(time.Millisecond)))
+	log.Printf("test-genie preflight target runtime for %s completed in %s", prepared.env.ScenarioName, time.Since(runtimeStarted).Round(time.Millisecond))
 	prepared.env = env
 	defer func() {
 		if runtimeManager != nil {
@@ -466,6 +479,21 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	)
 
 	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, emit), nil
+}
+
+// emitPreparationProgress exposes work that precedes the first test phase.
+// The run manager keeps this stage in its live snapshot, so callers can
+// distinguish legitimate preflight from a run with no recent progress.
+func emitPreparationProgress(emit ExecutionEventCallback, stage, message string) {
+	if emit == nil {
+		return
+	}
+	emit(ExecutionEvent{
+		Type:      EventProgress,
+		Timestamp: time.Now(),
+		Phase:     "preparing:" + stage,
+		Message:   message,
+	})
 }
 
 func (o *SuiteOrchestrator) prepareTargetRuntime(
@@ -657,8 +685,12 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	// captured at run START (not finalize) so they identify the byte-state
 	// the phases actually executed against; both are best-effort and never
 	// block the run.
+	gitContextStarted := time.Now()
 	gitCtx := treedigest.CollectGitContext(planCtx.env.ScenarioDir)
+	log.Printf("test-genie preflight git context for %s completed in %s", scenario, time.Since(gitContextStarted).Round(time.Millisecond))
+	digestStarted := time.Now()
 	digest, digestErr := treedigest.Compute(planCtx.env.ScenarioDir)
+	log.Printf("test-genie preflight source digest for %s completed in %s", scenario, time.Since(digestStarted).Round(time.Millisecond))
 	if digestErr != nil {
 		log.Printf("tree digest unavailable for run %s: %v", runID, digestErr)
 	}

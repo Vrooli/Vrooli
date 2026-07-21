@@ -155,28 +155,18 @@ message AgentSessionProposal {
   // Unique proposal identifier.
   string id = 1 [(buf.validate.field).string.min_len = 1];
 
-  // Proposal kind.
-  // @constraint one of: backlog_batch_import, operating_mode_draft, operating_mode_implementation_plan
-  string kind = 2 [(buf.validate.field).string = {
-    in: [
-      "backlog_batch_import",
-      "operating_mode_draft",
-      "operating_mode_implementation_plan"
-    ]
-  }];
+  // Proposal kind, owned and validated by the Swarm Manager service.
+  //
+  // This response field is intentionally open: a newer server may return a
+  // proposal kind that an older UI does not yet render specially. Clients must
+  // display that proposal generically rather than reject the whole session
+  // response. The service remains the single authority for kinds it persists
+  // and for their apply semantics.
+  string kind = 2 [(buf.validate.field).string.min_len = 1];
 
-  // Proposal lifecycle.
-  // @constraint one of: draft, ready, applied, rejected, superseded, failed
-  string status = 3 [(buf.validate.field).string = {
-    in: [
-      "draft",
-      "ready",
-      "applied",
-      "rejected",
-      "superseded",
-      "failed"
-    ]
-  }];
+  // Proposal lifecycle. As with kind, clients must tolerate future statuses
+  // and use a neutral presentation when one is unknown.
+  string status = 3 [(buf.validate.field).string.min_len = 1];
 
   // Human-readable proposal summary.
   string summary = 4 [(buf.validate.field).string.min_len = 1];

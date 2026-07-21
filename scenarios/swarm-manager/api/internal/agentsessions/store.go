@@ -26,6 +26,70 @@ const (
 	proposalsDirName   = "proposals"
 )
 
+const legacySourceMigrationMarker = ".legacy-source-migration-v1"
+
+// MigrateLegacySourceData copies pre-storage-migration session data out of the
+// scenario source tree before a data-root-backed store is opened. It never
+// deletes or overwrites source data: removal is a separate, verified cleanup
+// step. A marker makes successful migrations idempotent.
+func MigrateLegacySourceData(scenarioRoot, dataRoot string) error {
+	legacyRoot := filepath.Join(scenarioRoot, "agent-sessions")
+	targetRoot := filepath.Join(dataRoot, "agent-sessions")
+	if filepath.Clean(legacyRoot) == filepath.Clean(targetRoot) {
+		return nil
+	}
+	if _, err := os.Stat(legacyRoot); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("inspect legacy agent sessions: %w", err)
+	}
+	marker := filepath.Join(targetRoot, legacySourceMigrationMarker)
+	if _, err := os.Stat(marker); err == nil {
+		return nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("inspect session migration marker: %w", err)
+	}
+	if entries, err := os.ReadDir(targetRoot); err == nil && len(entries) > 0 {
+		return fmt.Errorf("refusing to merge legacy sessions into non-empty data root %q", targetRoot)
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("inspect session data root: %w", err)
+	}
+	if err := copyDirectory(legacyRoot, targetRoot); err != nil {
+		return fmt.Errorf("copy legacy agent sessions: %w", err)
+	}
+	if err := os.WriteFile(marker, []byte("legacy source sessions copied; source retained for verified cleanup\n"), 0o600); err != nil {
+		return fmt.Errorf("write session migration marker: %w", err)
+	}
+	return nil
+}
+
+func copyDirectory(source, target string) error {
+	return filepath.WalkDir(source, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(source, path)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("unsafe legacy session path %q", path)
+		}
+		destination := filepath.Join(target, rel)
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("legacy session data contains symlink %q", path)
+		}
+		if entry.IsDir() {
+			return os.MkdirAll(destination, 0o750)
+		}
+		if !entry.Type().IsRegular() {
+			return fmt.Errorf("legacy session data contains non-regular file %q", path)
+		}
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(destination, contents, 0o600)
+	})
+}
+
 type Store interface {
 	CreateSession(session Session) error
 	SaveSession(session Session) error

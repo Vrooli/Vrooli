@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"scenario-to-desktop-api/shared/path"
+
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 // ServiceJSONPortDef represents a port definition from service.json.
@@ -172,6 +175,21 @@ type BundleabilityResult struct {
 	UnbundleableResource string
 	Alternatives         []string      // Available swap alternatives for the unbundleable resource
 	Warnings             []SwapWarning // Warnings about resources that require swaps
+	Decisions            []ResourceDeploymentDecision
+}
+
+// ResourceDeploymentDecision is the operator-facing result of resolving one
+// required resource against a requested desktop target.
+type ResourceDeploymentDecision struct {
+	Resource    string   `json:"resource"`
+	Platform    string   `json:"platform"`
+	Status      string   `json:"status"` // ready, warning, error
+	Support     string   `json:"support"`
+	Mode        string   `json:"mode"`
+	Requires    []string `json:"requires,omitempty"`
+	Limitations []string `json:"limitations,omitempty"`
+	Evidence    []string `json:"evidence,omitempty"`
+	Reason      string   `json:"reason,omitempty"`
 }
 
 // SwapWarning indicates a resource requires a swap for desktop bundling.
@@ -192,6 +210,14 @@ type SwapWarning struct {
 // If a resource is not supported but has alternatives/swaps declared, the method
 // returns a warning but allows the build to proceed.
 func (a *DefaultAnalyzer) CheckBundleability(scenarioName string) (*BundleabilityResult, error) {
+	return a.CheckBundleabilityForPlatforms(scenarioName, []string{runtime.GOOS}, runtime.GOARCH)
+}
+
+// CheckBundleabilityForPlatforms resolves every required resource from its own
+// resource.json deployment profile. A conditional/degraded route remains
+// packageable but is surfaced as a warning; an unsupported or absent route
+// rejects the bundle before runtime execution.
+func (a *DefaultAnalyzer) CheckBundleabilityForPlatforms(scenarioName string, platforms []string, arch string) (*BundleabilityResult, error) {
 	metadata, err := a.AnalyzeScenario(scenarioName)
 	if err != nil {
 		return nil, err
@@ -201,64 +227,102 @@ func (a *DefaultAnalyzer) CheckBundleability(scenarioName string) (*Bundleabilit
 		Bundleable:        true,
 		RequiredResources: metadata.RequiredResources,
 		Warnings:          []SwapWarning{},
+		Decisions:         []ResourceDeploymentDecision{},
 	}
 
-	// Read full service.json with deployment metadata
+	// Scenario metadata remains the authority for whether a fallback is allowed;
+	// resource metadata is the authority for whether the normal route exists.
 	fullServiceJSON, err := a.readFullServiceJSON(metadata.ScenarioPath)
 	if err != nil {
-		// Fall back to the old approach if we can't read deployment metadata
-		return a.checkBundleabilityFallback(result)
+		return nil, err
 	}
 
-	// Check each required resource
 	for _, resourceName := range metadata.RequiredResources {
-		// Look for deployment metadata for this resource
-		deployDep, hasDeploymentMetadata := fullServiceJSON.Deployment.Dependencies.Resources[resourceName]
-
-		if hasDeploymentMetadata {
-			// Check tier-2-desktop support
-			desktopSupport, hasTierSupport := deployDep.PlatformSupport["tier-2-desktop"]
-
-			if hasTierSupport && !desktopSupport.Supported {
-				// Resource explicitly not supported for desktop
-				alternatives := a.getAlternatives(deployDep, desktopSupport)
-
-				if len(alternatives) == 0 {
-					// No swap available - fail
-					result.Bundleable = false
-					result.UnbundleableResource = resourceName
-					result.UnbundleableReason = desktopSupport.Reason
-					if result.UnbundleableReason == "" {
-						result.UnbundleableReason = fmt.Sprintf(
-							"Resource '%s' is not supported for desktop bundling", resourceName)
-					}
-					return result, nil
+		manifestPath := filepath.Join(a.vrooliRoot, "resources", resourceName, "resource.json")
+		resourceManifest, loadErr := loadResourceDeployment(manifestPath)
+		if loadErr != nil {
+			return nil, fmt.Errorf("load deployment contract for resource %q: %w", resourceName, loadErr)
+		}
+		for _, platform := range platforms {
+			resolvedPlatform, resolveErr := resourcedeployment.ParsePlatform(platform)
+			if resolveErr != nil {
+				effectiveArch := arch
+				if effectiveArch == "" {
+					effectiveArch = runtime.GOARCH
 				}
-
-				// Has swap declared - warn but allow
-				result.Warnings = append(result.Warnings, SwapWarning{
-					Resource:     resourceName,
-					Alternatives: alternatives,
-					Message: fmt.Sprintf(
-						"Scenario requires '%s' which is not supported for desktop bundling. "+
-							"A swap to '%s' is declared. "+
-							"NOTE: Dependency swaps require supporting code in the scenario's API. "+
-							"If smoke test fails at runtime_readyz, verify the scenario implements the swapped backend.",
-						resourceName, strings.Join(alternatives, " or ")),
-				})
+				resolvedPlatform, resolveErr = resourcedeployment.CanonicalPlatform(platform, effectiveArch)
 			}
-		} else if FallbackUnbundleableResources[resourceName] {
-			// No deployment metadata - use fallback detection
-			result.Bundleable = false
-			result.UnbundleableResource = resourceName
-			result.UnbundleableReason = fmt.Sprintf(
-				"Scenario requires '%s' which cannot be bundled into a desktop application. "+
-					"No tier-2-desktop platform support is declared in the scenario's service.json.",
-				resourceName)
-			return result, nil
+			if resolveErr != nil {
+				return nil, resolveErr
+			}
+			target, found := resourceManifest.ResolveTarget("desktop", resolvedPlatform)
+			if !found {
+				return a.rejectOrFallback(result, fullServiceJSON, resourceName, resolvedPlatform.String(), "no desktop deployment profile covers this OS/architecture")
+			}
+			decision := ResourceDeploymentDecision{Resource: resourceName, Platform: resolvedPlatform.String(), Support: target.Support, Mode: target.Mode, Requires: target.Requires, Limitations: target.Limitations, Evidence: target.Evidence, Reason: target.Reason}
+			switch target.Support {
+			case "supported":
+				decision.Status = "ready"
+			case "conditional", "degraded":
+				decision.Status = "warning"
+				result.Warnings = append(result.Warnings, SwapWarning{Resource: resourceName, Message: deploymentWarning(resourceName, resolvedPlatform.String(), target)})
+			case "unsupported":
+				decision.Status = "error"
+				result.Decisions = append(result.Decisions, decision)
+				return a.rejectOrFallback(result, fullServiceJSON, resourceName, resolvedPlatform.String(), target.Reason)
+			default:
+				return nil, fmt.Errorf("resource %q returned invalid deployment support %q", resourceName, target.Support)
+			}
+			result.Decisions = append(result.Decisions, decision)
 		}
 	}
 
+	return result, nil
+}
+
+func deploymentWarning(resource, platform string, target resourcedeployment.Target) string {
+	parts := []string{fmt.Sprintf("%s on %s uses %s (%s)", resource, platform, target.Mode, target.Support)}
+	if len(target.Requires) > 0 {
+		parts = append(parts, "requires "+strings.Join(target.Requires, ", "))
+	}
+	if len(target.Limitations) > 0 {
+		parts = append(parts, strings.Join(target.Limitations, " "))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func loadResourceDeployment(manifestPath string) (resourcedeployment.Deployment, error) {
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return resourcedeployment.Deployment{}, err
+	}
+	var resource struct {
+		Deployment resourcedeployment.Deployment `json:"deployment"`
+	}
+	if err := json.Unmarshal(data, &resource); err != nil {
+		return resourcedeployment.Deployment{}, err
+	}
+	return resource.Deployment, nil
+}
+
+func (a *DefaultAnalyzer) rejectOrFallback(result *BundleabilityResult, service *FullServiceJSON, resource, platform, reason string) (*BundleabilityResult, error) {
+	dep, declared := service.Deployment.Dependencies.Resources[resource]
+	var alternatives []string
+	if declared {
+		if support, ok := dep.PlatformSupport["tier-2-desktop"]; ok {
+			alternatives = a.getAlternatives(dep, support)
+		}
+	}
+	if len(alternatives) > 0 {
+		result.Warnings = append(result.Warnings, SwapWarning{Resource: resource, Alternatives: alternatives, Message: fmt.Sprintf("%s on %s has no valid bundled route: %s. Scenario permits fallback to %s.", resource, platform, reason, strings.Join(alternatives, " or "))})
+		return result, nil
+	}
+	result.Bundleable = false
+	result.UnbundleableResource = resource
+	result.UnbundleableReason = reason
+	if strings.TrimSpace(reason) == "" {
+		result.UnbundleableReason = fmt.Sprintf("resource %q has no valid desktop deployment route for %s", resource, platform)
+	}
 	return result, nil
 }
 

@@ -91,6 +91,26 @@ func EffectiveContainment(level ContainmentLevel, backendID string, info *Contai
 	}
 }
 
+// AdjustForLaunch drops enforcements the launch configuration disables from
+// a per-launch containment report. bwrap's network-deny comes from
+// --unshare-net, which BuildBwrapArgs omits when the launch allows network
+// — leaving the claim in place would over-state what this launch enforced.
+// Sandbox-level (predicted) reports keep the full backend capability list;
+// only per-launch provenance is adjusted. Mutates and returns cont.
+func AdjustForLaunch(cont *types.SandboxContainment, allowNetwork bool) *types.SandboxContainment {
+	if cont == nil || !allowNetwork {
+		return cont
+	}
+	kept := make([]string, 0, len(cont.Enforcements))
+	for _, e := range cont.Enforcements {
+		if e != EnforcementNetworkDeny {
+			kept = append(kept, e)
+		}
+	}
+	cont.Enforcements = kept
+	return cont
+}
+
 // DeriveWorkspaceLayout computes the negotiated workspace contract for a
 // sandbox: the agent-visible workspace path, the path-illusion flag, and
 // the effective containment. It is the ONE server-side derivation the

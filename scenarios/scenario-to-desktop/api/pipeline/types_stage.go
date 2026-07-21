@@ -19,6 +19,10 @@ type StageInput struct {
 	// ScenarioPath is the path to the scenario directory.
 	ScenarioPath string `json:"scenario_path,omitempty"`
 
+	// ResourceDeploymentPlan is the immutable target/resource selection made
+	// before packaging. Bundle staging and the runtime consume this exact plan.
+	ResourceDeploymentPlan *ResourceDeploymentPlan `json:"resource_deployment_plan,omitempty"`
+
 	// DesktopPath is the path to the generated desktop wrapper.
 	DesktopPath string `json:"desktop_path,omitempty"`
 

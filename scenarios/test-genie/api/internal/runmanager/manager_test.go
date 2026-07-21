@@ -175,6 +175,59 @@ func TestStartedRunSurvivesWaiterCancellation(t *testing.T) {
 	}
 }
 
+// TestPreparationProgressIsVisibleBeforeTheFirstPhase guards the lifecycle
+// gap where a legitimate long preflight looked indistinguishable from a stuck
+// run because activePhase was only set by phase_start events.
+func TestPreparationProgressIsVisibleBeforeTheFirstPhase(t *testing.T) {
+	exec := newFakeExecutor("")
+	exec.events = []orchestrator.ExecutionEvent{{
+		Type:      orchestrator.EventProgress,
+		Phase:     "preparing:target_runtime",
+		Message:   "starting",
+		Timestamp: time.Now(),
+	}}
+	exec.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: true, Verdict: "PASS", CompletedAt: time.Now().UTC()}
+	m := New(exec, "")
+
+	runID := startRun(t, m, StartOptions{Input: startInput("demo")})
+	<-exec.started
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	replay, events, err := m.Follow(ctx, "demo", runID)
+	if err != nil {
+		t.Fatalf("follow: %v", err)
+	}
+	allEvents := append([]Event(nil), replay...)
+	for {
+		for len(allEvents) > 0 {
+			event := allEvents[0]
+			allEvents = allEvents[1:]
+			if event.Kind != EventPhaseProgress || event.Phase != "preparing:target_runtime" {
+				continue
+			}
+			st, err := m.Status("demo", runID)
+			if err != nil {
+				t.Fatalf("status: %v", err)
+			}
+			if st.ActivePhase != "preparing:target_runtime" {
+				t.Fatalf("active phase = %q, want preparation stage", st.ActivePhase)
+			}
+			if st.LastProgressAt.Before(st.StartedAt) {
+				t.Fatalf("last progress %s precedes start %s", st.LastProgressAt, st.StartedAt)
+			}
+			close(exec.release)
+			return
+		}
+		select {
+		case event := <-events:
+			allEvents = append(allEvents, event)
+		case <-ctx.Done():
+			t.Fatal("did not receive preparation progress")
+		}
+	}
+}
+
 // TestMultipleFollowersSeeFullSequence verifies two followers of one run both
 // receive the complete canonical event sequence.
 func TestMultipleFollowersSeeFullSequence(t *testing.T) {

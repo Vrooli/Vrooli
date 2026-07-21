@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,10 +23,15 @@ type fakeCapturer struct {
 	snapshotsByState map[string]Snapshot
 	err              error
 	targets          *[]CaptureTarget
+	mu               *sync.Mutex
 }
 
 func (f fakeCapturer) CaptureAccessibility(_ context.Context, target CaptureTarget) (Snapshot, error) {
 	if f.targets != nil {
+		if f.mu != nil {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+		}
 		*f.targets = append(*f.targets, target)
 	}
 	snapshot := f.snapshot
@@ -36,6 +42,29 @@ func (f fakeCapturer) CaptureAccessibility(_ context.Context, target CaptureTarg
 		snapshot.Root.Bounds = &Bounds{Width: float64(target.ViewportWidth), Height: float64(target.ViewportHeight)}
 	}
 	return snapshot, f.err
+}
+
+type concurrentCapturer struct {
+	snapshot Snapshot
+	mu       sync.Mutex
+	inFlight int
+	max      int
+}
+
+func (c *concurrentCapturer) CaptureAccessibility(_ context.Context, target CaptureTarget) (Snapshot, error) {
+	c.mu.Lock()
+	c.inFlight++
+	if c.inFlight > c.max {
+		c.max = c.inFlight
+	}
+	c.mu.Unlock()
+	time.Sleep(30 * time.Millisecond)
+	c.mu.Lock()
+	c.inFlight--
+	c.mu.Unlock()
+	snapshot := c.snapshot
+	snapshot.Root.Bounds = &Bounds{Width: float64(target.ViewportWidth), Height: float64(target.ViewportHeight)}
+	return snapshot, nil
 }
 
 func TestDraftCalibrationEmitsExpectedMatrixFailuresOnly(t *testing.T) { // [REQ:EXPERIEN-P0-003]
@@ -146,6 +175,43 @@ func TestActivePagePersistsViewportMatrixEvidence(t *testing.T) { // [REQ:EXPERI
 	}
 	if !got["desktop"] || !got["mobile"] {
 		t.Fatalf("viewport rows = %+v, want desktop and mobile", got)
+	}
+}
+
+func TestActivePagePersistsPerTargetCaptureTimings(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	db := testdb.NewSQLite(t)
+	if err := apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatalf("EnsureSchemas: %v", err)
+	}
+	repo := NewSQLiteRepository(db)
+	snapshot := passingSnapshot()
+	snapshot.Timing = CaptureTiming{TotalMilliseconds: 210, NavigationMilliseconds: 60, ReadinessWaitMilliseconds: 150, Strategy: "declared-surface", Outcome: "ready"}
+	findings := Check{Capturer: fakeCapturer{snapshot: snapshot}, Repository: repo}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected green reconciliation, got %+v", findings)
+	}
+	timings, err := repo.(CaptureTimingRepository).ListCaptureTimings(context.Background(), CaptureTimingFilter{Scenario: "demo", PageID: "home"})
+	if err != nil {
+		t.Fatalf("ListCaptureTimings: %v", err)
+	}
+	if len(timings) != 2 || timings[0].TotalMilliseconds != 210 || timings[0].Strategy != "declared-surface" || timings[0].Outcome != "ready" {
+		t.Fatalf("unexpected capture timing history: %+v", timings)
+	}
+}
+
+func TestActivePageBoundsCaptureConcurrencyToConfiguredWorkers(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	capturer := &concurrentCapturer{snapshot: passingSnapshot()}
+	findings := Check{Capturer: capturer, CaptureConcurrency: 2}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected green reconciliation, got %+v", findings)
+	}
+	capturer.mu.Lock()
+	max := capturer.max
+	capturer.mu.Unlock()
+	if max != 2 {
+		t.Fatalf("maximum simultaneous captures = %d, want 2", max)
 	}
 }
 
@@ -633,7 +699,7 @@ func TestCaptureUnavailableIsSkippedInfo(t *testing.T) {
 	}
 }
 
-func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
+func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 	screenshotPath := filepath.Join(t.TempDir(), "capture.png")
 	if err := os.WriteFile(screenshotPath, []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
 		t.Fatalf("WriteFile screenshot: %v", err)
@@ -655,8 +721,8 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Fatalf("Decode request: %v", err)
 		}
-		if got := req.URL; got != "http://localhost:21233/" {
-			t.Fatalf("captured url = %q, want UI URL", got)
+		if got := req.URL; got != "scenario=web-console,path=/" {
+			t.Fatalf("captured url = %q, want scenario target", got)
 		}
 		if !req.InlineAccessibility {
 			t.Fatal("inlineAccessibility = false, want true")
@@ -664,11 +730,11 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 		if req.Dimensions.Width != 390 || req.Dimensions.Height != 844 {
 			t.Fatalf("dimensions = %dx%d, want 390x844", req.Dimensions.Width, req.Dimensions.Height)
 		}
-		if got := req.WaitFor.TimeoutMs; got != 3000 {
-			t.Fatalf("waitFor.timeoutMs = %d, want 3000", got)
+		if got := req.WaitFor.TimeoutMs; got != 0 {
+			t.Fatalf("waitFor.timeoutMs = %d, want no explicit wait", got)
 		}
-		if req.InteractionFlowJSON == "" || !strings.Contains(req.InteractionFlowJSON, `"duration_ms":3000`) {
-			t.Fatalf("interactionFlowJson = %q, want settle wait flow", req.InteractionFlowJSON)
+		if req.InteractionFlowJSON != "" {
+			t.Fatalf("interactionFlowJson = %q, want semantic readiness", req.InteractionFlowJSON)
 		}
 		snapshot, err := json.Marshal(passingSnapshot())
 		if err != nil {
@@ -676,6 +742,13 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"accessibility_json": string(snapshot),
+			"readiness": map[string]any{
+				"durationMs":              210,
+				"navigationDurationMs":    60,
+				"readinessWaitDurationMs": 150,
+				"selectedStrategy":        "declared-surface",
+				"outcome":                 "ready",
+			},
 			"artifacts": []map[string]any{{
 				"type":       "CAPTURE_TYPE_SCREENSHOT",
 				"path":       screenshotPath,
@@ -710,6 +783,9 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 	}
 	if !strings.HasPrefix(snapshot.ScreenshotRef, "data:image/png;base64,") {
 		t.Fatalf("ScreenshotRef = %q, want png data URL", snapshot.ScreenshotRef)
+	}
+	if snapshot.Timing.TotalMilliseconds != 210 || snapshot.Timing.ReadinessWaitMilliseconds != 150 || snapshot.Timing.Strategy != "declared-surface" {
+		t.Fatalf("Timing = %+v, want BAS readiness diagnostics", snapshot.Timing)
 	}
 }
 

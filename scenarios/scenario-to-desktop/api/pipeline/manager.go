@@ -457,6 +457,7 @@ func (m *Manager) buildConfig(scenarioName string, userConfig *Config) *Config {
 		config.WebhookURL = userConfig.WebhookURL
 		config.ProxyURL = userConfig.ProxyURL
 		config.BundleManifestPath = userConfig.BundleManifestPath
+		config.ResourceArtifactRoot = userConfig.ResourceArtifactRoot
 		config.Clean = userConfig.Clean
 		config.Sign = userConfig.Sign
 		config.Publish = userConfig.Publish

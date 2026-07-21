@@ -70,8 +70,8 @@ func TestBundleStage(t *testing.T) {
 	t.Run("Dependencies", func(t *testing.T) {
 		stage := NewBundleStage()
 		deps := stage.Dependencies()
-		if len(deps) != 0 {
-			t.Errorf("expected no dependencies, got %v", deps)
+		if len(deps) != 1 || deps[0] != StageResolveDeployment {
+			t.Errorf("expected dependency [%s], got %v", StageResolveDeployment, deps)
 		}
 	})
 

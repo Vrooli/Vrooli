@@ -179,7 +179,8 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	// Effective containment: the backend that actually ran this launch plus
 	// the enforcements it provides on this host.
 	containmentInfo, _ := driver.GetContainmentInfo(r.Context(), h.Starter)
-	effective := driver.EffectiveContainment(level, result.Backend, containmentInfo)
+	effective := driver.AdjustForLaunch(
+		driver.EffectiveContainment(level, result.Backend, containmentInfo), cfg.AllowNetwork)
 
 	if h.ProcessTracker != nil && result.PID > 0 {
 		proc, err := h.ProcessTracker.Track(id, result.PID, req.Command, req.SessionID)

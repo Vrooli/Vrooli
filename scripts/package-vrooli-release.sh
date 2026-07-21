@@ -40,6 +40,10 @@ fi
 rm -rf "${OUT}"
 mkdir -p "${OUT}"
 go run "${ROOT}/cmd/vrooli-dist" --root "${ROOT}" --all --out-dir "${OUT}" --version "${VERSION}"
+# Resource artifacts are built here, once, for every manifest that declares a
+# prebuilt distribution. They are included in SHA256SUMS and the release
+# signature below; deployed desktops never run a resource source build.
+"${ROOT}/scripts/package-resource-artifacts.sh" --out "${OUT}"
 cp "${ROOT}/packages/cli-core/install/platform.sh" "${OUT}/vrooli-install-lib.sh"
 cp "${ROOT}/packages/cli-core/install/Platform.ps1" "${OUT}/vrooli-install-lib.ps1"
 cp "${ROOT}/install/install.sh" "${OUT}/install.sh"

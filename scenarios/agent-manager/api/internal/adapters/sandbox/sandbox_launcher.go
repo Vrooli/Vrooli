@@ -201,6 +201,11 @@ func (e *ErrCommandHomeOverlayUnavailable) Code() string { return "SANDBOX_HOME_
 //
 // Rules:
 //
+//   - hostMerged (or a subpath) → workspacePath-mapped. Checked BEFORE the
+//     $HOME branch: the merged dir lives under $HOME, and the home overlay
+//     bound at $HOME shadows the merged mountpoint (overlayfs does not
+//     surface submounts of a lower layer), so passing it through unchanged
+//     lands the process in an empty directory.
 //   - $HOME/X with state==Present → unchanged
 //   - $HOME/X with state!=Present → ErrCommandHomeOverlayUnavailable
 //   - /usr/bin/X, /bin/X, /usr/local/bin/X → unchanged (system bind)
@@ -222,6 +227,11 @@ func translateCommandToNamespace(command string, layout NamespaceLayout) (string
 	}
 	if !strings.HasPrefix(command, "/") {
 		return command, nil
+	}
+	if layout.HostMerged != "" &&
+		(command == layout.HostMerged ||
+			strings.HasPrefix(command, strings.TrimSuffix(layout.HostMerged, "/")+"/")) {
+		return translateHostPathToNamespace(command, layout.HostMerged, layout.WorkspacePath), nil
 	}
 	if layout.HostHome != "" {
 		homeAbs := strings.TrimRight(layout.HostHome, "/") + "/"

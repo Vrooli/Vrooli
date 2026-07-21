@@ -48,18 +48,10 @@ export type AgentSessionContextType =
   | "plan_eta"
   | "goal";
 
-export type AgentSessionProposalKind =
-  | "backlog_batch_import"
-  | "operating_mode_draft"
-  | "operating_mode_implementation_plan";
-
-export type AgentSessionProposalStatus =
-  | "draft"
-  | "ready"
-  | "applied"
-  | "rejected"
-  | "superseded"
-  | "failed";
+// Proposal kinds and statuses are service-owned, forward-compatible strings.
+// A newer server must not make an older UI reject the entire sessions response.
+export type AgentSessionProposalKind = string;
+export type AgentSessionProposalStatus = string;
 
 export type AgentSessionArtifactType =
   | "backlog_item"

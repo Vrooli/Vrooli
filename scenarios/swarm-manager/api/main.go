@@ -258,7 +258,7 @@ func (s *Server) setupRoutes() {
 	s.registerIntegrationStatusRoutes()
 	s.registerAgentActivityRoutes(scenarioRoot) // Must be before backlog/execution (they depend on agent activity)
 	s.registerScenarioRoutes(scenariosDir)
-	s.registerAgentSessionRoutes(scenarioRoot)
+	s.registerAgentSessionRoutes(s.dataRoot, scenarioRoot)
 	s.router.Use(identity.SessionMiddleware(s.agentSessionSvc))
 
 	// --- Core domain ---
@@ -862,8 +862,11 @@ func (s *Server) registerAgentManagerRoutes() {
 	agentManagerHandler.RegisterRoutes(s.router)
 }
 
-func (s *Server) registerAgentSessionRoutes(scenarioRoot string) {
-	sessionStore := agentsessions.NewFileStore(scenarioRoot)
+func (s *Server) registerAgentSessionRoutes(dataRoot, scenarioRoot string) {
+	if err := agentsessions.MigrateLegacySourceData(scenarioRoot, dataRoot); err != nil {
+		panic(fmt.Sprintf("migrate legacy agent session data: %v", err))
+	}
+	sessionStore := agentsessions.NewFileStore(dataRoot)
 	svc, err := agentsessions.NewService(agentsessions.ServiceConfig{
 		Store:       sessionStore,
 		Spawner:     s.requireTrackedAgentService(),

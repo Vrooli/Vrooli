@@ -53,6 +53,8 @@ export function EvidencePage() {
       testId={selectors.pages.evidence}
       title={t(strings.experience.evidence.title)}
       description={t(strings.experience.evidence.description)}
+      experienceSurface="capture-evidence"
+      experienceState={isLoading ? "loading" : isError ? "error" : rows.length === 0 ? "empty" : stale ? "partial" : "ready"}
     >
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <div className="min-w-0 rounded-panel border border-app-border bg-app-surface p-4">

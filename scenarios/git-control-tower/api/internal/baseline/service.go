@@ -120,9 +120,9 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 	if err != nil {
 		return CreateResult{}, err
 	}
-	terminal, err := s.exec.AwaitResult(ctx, req.Scenario, h.RunID)
+	terminal, _, err := s.awaitStableCapture(ctx, req.Scenario, h, nil)
 	if err != nil {
-		return CreateResult{}, fmt.Errorf("comprehensive run failed: %w", err)
+		return CreateResult{}, err
 	}
 	if err := s.validateBaselineEvidence(ctx, req.Scenario, terminal.RunID); err != nil {
 		return CreateResult{}, err
@@ -191,7 +191,13 @@ func (s *Service) StartCapture(ctx context.Context, req CreateRequest) (PendingC
 // Genie waits may be long-lived, and must not prevent an unrelated terminal
 // capture from being committed.
 func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (CreateResult, error) {
-	res, err := s.exec.AwaitResult(ctx, pending.Req.Scenario, pending.Run.RunID)
+	res, _, err := s.awaitStableCapture(ctx, pending.Req.Scenario, pending.Run, func(retry RunHandle) error {
+		// Persist the replacement run before waiting on it. If this process is
+		// interrupted mid-retry, normal recovery resumes the new server-owned run
+		// instead of treating the raced attempt as a terminal baseline result.
+		pending.Run = retry
+		return s.saveSnapshotIntent(ctx, pending, "pending", "retrying after relevant source inputs changed during the prior attempt")
+	})
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 			// This attachment ended; the Test Genie run remains server-owned.
@@ -235,6 +241,46 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 	out := CreateResult{Manifest: manifest, DirtyWarning: pending.DirtyWarning}
 	_ = s.saveSnapshotIntent(ctx, pending, "ready", "")
 	return out, nil
+}
+
+// awaitStableCapture owns one bounded retry for a raced source snapshot. A
+// relevant edit invalidates only the current attempt; it never invalidates an
+// already-stored baseline before-result.
+func (s *Service) awaitStableCapture(ctx context.Context, scenario string, handle RunHandle, onRetry func(RunHandle) error) (ExecResult, RunHandle, error) {
+	current := handle
+	for attempt := 0; attempt < 2; attempt++ {
+		res, err := s.exec.AwaitResult(ctx, scenario, current.RunID)
+		if err != nil {
+			return ExecResult{}, current, fmt.Errorf("comprehensive run failed: %w", err)
+		}
+		if isStableScopedEvidence(res) {
+			return res, current, nil
+		}
+		if attempt == 1 {
+			return ExecResult{}, current, fmt.Errorf("relevant source inputs changed during two capture attempts; rerun to capture the current declared inputs")
+		}
+		started, err := s.startCaptureRun(ctx, scenario)
+		if err != nil {
+			return ExecResult{}, current, fmt.Errorf("retry comprehensive run after relevant source edit: %w", err)
+		}
+		if onRetry != nil {
+			if err := onRetry(started); err != nil {
+				return ExecResult{}, current, fmt.Errorf("persist capture retry intent: %w", err)
+			}
+		}
+		current = started
+	}
+	return ExecResult{}, current, fmt.Errorf("capture retry state exhausted")
+}
+
+func isStableScopedEvidence(res ExecResult) bool {
+	// Historical Test Genie terminal records predate explicit tier/stability
+	// fields. A digest-stamped legacy record is readable; new raced attempts are
+	// unambiguous because they carry the explicit degraded tier.
+	if res.EvidenceTier == "" && res.TreeDigest != "" {
+		return true
+	}
+	return res.SourceStable && (res.EvidenceTier == "strict" || res.EvidenceTier == "shared-scoped")
 }
 
 // validateBaselineEvidence verifies that Test Genie can read the terminal

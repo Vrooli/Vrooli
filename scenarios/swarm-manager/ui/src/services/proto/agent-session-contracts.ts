@@ -65,19 +65,6 @@ const contextTypes = new Set<string>([
   "operations_briefing",
   "startup_brief",
 ]);
-const proposalKinds = new Set<string>([
-  "backlog_batch_import",
-  "operating_mode_draft",
-  "operating_mode_implementation_plan",
-]);
-const proposalStatuses = new Set<string>([
-  "draft",
-  "ready",
-  "applied",
-  "rejected",
-  "superseded",
-  "failed",
-]);
 const artifactTypes = new Set<string>([
   "backlog_item",
   "initiative",
@@ -221,12 +208,8 @@ export function mapProtoAgentSessionAttachment(attachment: AgentSessionAttachmen
 export function mapProtoAgentSessionProposal(proposal: AgentSessionProposal): AgentSessionProposalDomain {
   return {
     id: proposal.id ?? "",
-    kind: proposalKinds.has(proposal.kind)
-      ? (proposal.kind as AgentSessionProposalDomain["kind"])
-      : "backlog_batch_import",
-    status: proposalStatuses.has(proposal.status)
-      ? (proposal.status as AgentSessionProposalDomain["status"])
-      : "draft",
+    kind: proposal.kind ?? "unknown",
+    status: proposal.status ?? "unknown",
     summary: proposal.summary ?? "",
     payloadJson: proposal.payloadJson ?? "",
     createdAt: proposal.createdAt ?? "",

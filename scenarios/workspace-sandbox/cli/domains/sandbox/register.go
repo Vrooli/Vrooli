@@ -31,40 +31,40 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 	}
 }
 
-func runCreate(deps support.Dependencies, args []string) error {
-	var scope, project, owner string
-	var reservedPaths []string
-	var jsonOut bool
+// repeatableFlag collects every occurrence of a repeatable string flag.
+type repeatableFlag []string
 
-	for _, arg := range args {
-		switch {
-		case strings.HasPrefix(arg, "--scope="):
-			scope = strings.TrimPrefix(arg, "--scope=")
-		case strings.HasPrefix(arg, "-s="):
-			scope = strings.TrimPrefix(arg, "-s=")
-		case strings.HasPrefix(arg, "--reserve="):
-			reservedPaths = append(reservedPaths, strings.TrimPrefix(arg, "--reserve="))
-		case strings.HasPrefix(arg, "--reserved="):
-			reservedPaths = append(reservedPaths, strings.TrimPrefix(arg, "--reserved="))
-		case strings.HasPrefix(arg, "-r="):
-			reservedPaths = append(reservedPaths, strings.TrimPrefix(arg, "-r="))
-		case strings.HasPrefix(arg, "--reserved-paths="):
-			for _, path := range strings.Split(strings.TrimPrefix(arg, "--reserved-paths="), ",") {
-				path = strings.TrimSpace(path)
-				if path != "" {
-					reservedPaths = append(reservedPaths, path)
-				}
-			}
-		case strings.HasPrefix(arg, "--project="):
-			project = strings.TrimPrefix(arg, "--project=")
-		case strings.HasPrefix(arg, "-p="):
-			project = strings.TrimPrefix(arg, "-p=")
-		case strings.HasPrefix(arg, "--owner="):
-			owner = strings.TrimPrefix(arg, "--owner=")
-		case strings.HasPrefix(arg, "-o="):
-			owner = strings.TrimPrefix(arg, "-o=")
-		case arg == "--json":
-			jsonOut = true
+func (r *repeatableFlag) String() string { return strings.Join(*r, ",") }
+
+func (r *repeatableFlag) Set(v string) error {
+	if v != "" {
+		*r = append(*r, v)
+	}
+	return nil
+}
+
+func runCreate(deps support.Dependencies, args []string) error {
+	fs := flag.NewFlagSet("sandbox create", flag.ContinueOnError)
+	var scope, project, owner, reservedCSV string
+	var reserved repeatableFlag
+	fs.StringVar(&scope, "scope", "", "Scope path to mount (defaults to --project)")
+	fs.StringVar(&scope, "s", "", "Alias for --scope")
+	fs.StringVar(&project, "project", "", "Project root")
+	fs.StringVar(&project, "p", "", "Alias for --project")
+	fs.StringVar(&owner, "owner", "", "Owner identifier")
+	fs.StringVar(&owner, "o", "", "Alias for --owner")
+	fs.Var(&reserved, "reserve", "Reserved path (repeatable)")
+	fs.Var(&reserved, "reserved", "Alias for --reserve")
+	fs.Var(&reserved, "r", "Alias for --reserve")
+	fs.StringVar(&reservedCSV, "reserved-paths", "", "Comma-separated reserved paths")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	reservedPaths := []string(reserved)
+	for _, path := range strings.Split(reservedCSV, ",") {
+		if path = strings.TrimSpace(path); path != "" {
+			reservedPaths = append(reservedPaths, path)
 		}
 	}
 
@@ -121,7 +121,7 @@ func runCreate(deps support.Dependencies, args []string) error {
 		report.Changes = append(report.Changes, "Workspace: "+sandbox.MergedDir)
 	}
 
-	if jsonOut {
+	if *jsonOut {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderMutationReport(os.Stdout, report)

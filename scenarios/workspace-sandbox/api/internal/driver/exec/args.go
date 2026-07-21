@@ -93,6 +93,18 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	if s.HomeMergedDir != "" && cfg.HostHome != "" && filepath.IsAbs(cfg.HostHome) {
 		addDirHierarchy(&args, cfg.HostHome)
 		args = append(args, "--bind", s.HomeMergedDir, filepath.Clean(cfg.HostHome))
+
+		// Re-bind the merged dir at its own host path, AFTER the home
+		// overlay bind so it mounts over it. The merged dir usually lives
+		// under $HOME, and overlayfs does not surface submounts of a lower
+		// layer — without this bind a leaked host-side merged path resolves
+		// through the home overlay to the EMPTY underlying directory
+		// instead of failing loudly (root cause of the 2026-07-20
+		// empty-workspace incident, sandbox cc371116).
+		if filepath.IsAbs(s.MergedDir) {
+			addDirHierarchy(&args, s.MergedDir)
+			args = append(args, "--bind", s.MergedDir, filepath.Clean(s.MergedDir))
+		}
 	}
 
 	// Optional: mirror the workspace at the project's host path so prompts
@@ -115,6 +127,27 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 		args = append(args, "--bind", src, cfg.ReadWriteBinds[src])
 	}
 
+	// Mask paths: empty tmpfs over-binds emitted after every other bind so
+	// deny beats allow. Hides host state the home overlay would otherwise
+	// expose (e.g. unrelated checkouts under $HOME). Sorted for a
+	// deterministic argv contract. A mask that would cover the workspace,
+	// the merged dir, or the lower layer is skipped — masks restrict what a
+	// workload can see beyond its workspace, never the workspace itself.
+	masks := append([]string{}, cfg.MaskPaths...)
+	sort.Strings(masks)
+	for _, mask := range masks {
+		if mask == "" || !filepath.IsAbs(mask) {
+			continue
+		}
+		mask = filepath.Clean(mask)
+		if pathsOverlap(mask, driver.NamespaceWorkspacePath) ||
+			pathsOverlap(mask, s.MergedDir) ||
+			pathsOverlap(mask, "/workspace-readonly") {
+			continue
+		}
+		args = append(args, "--tmpfs", mask)
+	}
+
 	args = append(args, "--proc", "/proc")
 	args = append(args, "--dev", "/dev")
 	args = append(args, "--tmpfs", "/tmp")
@@ -128,6 +161,22 @@ func BuildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	// Separator between bwrap args and command.
 	args = append(args, "--")
 	return args
+}
+
+// pathsOverlap reports whether a and b are equal or one is an ancestor
+// directory of the other. Used to refuse masks that would shadow any part
+// of the workspace — in either direction: a mask over the workspace root
+// hides it entirely, and a mask inside it would hide part of one alias of
+// the overlay while other aliases (e.g. /workspace vs the host merged
+// path) still show it, which is worse than not masking.
+func pathsOverlap(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	a, b = filepath.Clean(a), filepath.Clean(b)
+	return a == b ||
+		strings.HasPrefix(b, a+string(filepath.Separator)) ||
+		strings.HasPrefix(a, b+string(filepath.Separator))
 }
 
 // sortedKeys returns the keys of m in lexicographic order. Used to make

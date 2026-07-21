@@ -49,10 +49,91 @@ var ErrCaptureUnavailable = errors.New("accessibility capture unavailable")
 
 // Check runs structure reconciliation as a checks.Check.
 type Check struct {
-	Capturer        Capturer
-	Repository      EvidenceRepository
-	Now             func() time.Time
-	CaptureProfiles []CaptureProfile
+	Capturer           Capturer
+	Repository         EvidenceRepository
+	Now                func() time.Time
+	CaptureProfiles    []CaptureProfile
+	CaptureConcurrency int
+}
+
+type captureResult struct {
+	target   CaptureTarget
+	snapshot Snapshot
+	err      error
+}
+
+func (c Check) captureAll(ctx context.Context, capturer Capturer, targets []CaptureTarget) []captureResult {
+	results := make([]captureResult, len(targets))
+	workers := c.CaptureConcurrency
+	if workers <= 0 {
+		workers = 2
+	}
+	if workers > len(targets) {
+		workers = len(targets)
+	}
+	if workers == 0 {
+		return results
+	}
+	jobs := make(chan int)
+	done := make(chan struct{})
+	for worker := 0; worker < workers; worker++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			for index := range jobs {
+				snapshot, err := capturer.CaptureAccessibility(ctx, targets[index])
+				results[index] = captureResult{target: targets[index], snapshot: snapshot, err: err}
+			}
+		}()
+	}
+	for index := range targets {
+		jobs <- index
+	}
+	close(jobs)
+	for worker := 0; worker < workers; worker++ {
+		<-done
+	}
+	return results
+}
+
+func captureTargetKey(target CaptureTarget) string {
+	return strings.Join([]string{target.DocumentKind, target.PageID, target.ComponentID, target.Route, target.ExampleName, target.StateID, target.ViewportID}, "\x00")
+}
+
+func (c Check) captureMatrix(ctx context.Context, capturer Capturer, targets []CaptureTarget) map[string]captureResult {
+	results := make(map[string]captureResult, len(targets))
+	for _, result := range c.captureAll(ctx, capturer, targets) {
+		results[captureTargetKey(result.target)] = result
+		c.persistCaptureTiming(ctx, result.target, result.snapshot)
+	}
+	return results
+}
+
+func (c Check) persistCaptureTiming(ctx context.Context, target CaptureTarget, snapshot Snapshot) {
+	repository, ok := c.Repository.(CaptureTimingRepository)
+	if !ok || snapshot.Timing.TotalMilliseconds <= 0 {
+		return
+	}
+	now := c.Now
+	if now == nil {
+		now = time.Now
+	}
+	_ = repository.SaveCaptureTiming(ctx, CaptureTargetTiming{
+		Scenario:                  target.Scenario,
+		DocumentKind:              target.DocumentKind,
+		PageID:                    target.PageID,
+		ComponentID:               target.ComponentID,
+		Route:                     target.Route,
+		StateID:                   target.StateID,
+		ViewportID:                target.ViewportID,
+		ViewportWidth:             target.ViewportWidth,
+		ViewportHeight:            target.ViewportHeight,
+		TotalMilliseconds:         snapshot.Timing.TotalMilliseconds,
+		NavigationMilliseconds:    snapshot.Timing.NavigationMilliseconds,
+		ReadinessWaitMilliseconds: snapshot.Timing.ReadinessWaitMilliseconds,
+		Strategy:                  snapshot.Timing.Strategy,
+		Outcome:                   snapshot.Timing.Outcome,
+		CapturedAt:                now().UTC().Format(evidenceTimeFormat),
+	})
 }
 
 // Capturer returns one single-location accessibility snapshot for a page route.
@@ -104,12 +185,21 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		if status != "active" || !hasMachineClaim(page) {
 			continue
 		}
+		targetsByProfile := make(map[string][]CaptureTarget, len(profiles))
+		var matrixTargets []CaptureTarget
 		for _, profile := range profiles {
 			targets := captureTargetsForProfile(report.Scenario, page, profile)
+			targetsByProfile[profile.ID] = targets
+			matrixTargets = append(matrixTargets, targets...)
+		}
+		captures := c.captureMatrix(ctx, capturer, matrixTargets)
+		for _, profile := range profiles {
+			targets := targetsByProfile[profile.ID]
 			snapshots := map[string]Snapshot{}
 			fingerprints := map[string]string{}
 			for _, target := range targets {
-				snapshot, err := capturer.CaptureAccessibility(ctx, target)
+				captured := captures[captureTargetKey(target)]
+				snapshot, err := captured.snapshot, captured.err
 				if err != nil || snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
 					findings = append(findings, spec.Finding{
 						Code:       spec.CodeCaptureUnavailable,
@@ -149,12 +239,21 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		if !hasMachineClaim(page) {
 			continue
 		}
+		targetsByProfile := make(map[string][]CaptureTarget, len(profiles))
+		var matrixTargets []CaptureTarget
 		for _, profile := range profiles {
 			targets := captureTargetsForComponentProfile(report.Scenario, component, profile)
+			targetsByProfile[profile.ID] = targets
+			matrixTargets = append(matrixTargets, targets...)
+		}
+		captures := c.captureMatrix(ctx, capturer, matrixTargets)
+		for _, profile := range profiles {
+			targets := targetsByProfile[profile.ID]
 			snapshots := map[string]Snapshot{}
 			fingerprints := map[string]string{}
 			for _, target := range targets {
-				snapshot, err := capturer.CaptureAccessibility(ctx, target)
+				captured := captures[captureTargetKey(target)]
+				snapshot, err := captured.snapshot, captured.err
 				if err != nil || snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
 					findings = append(findings, spec.Finding{
 						Code:       spec.CodeCaptureUnavailable,
@@ -1219,10 +1318,10 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 	if err != nil || strings.TrimSpace(baseURL) == "" {
 		return Snapshot{}, ErrCaptureUnavailable
 	}
-	targetURL, err := c.resolveTarget(ctx, target)
-	if err != nil || strings.TrimSpace(targetURL) == "" {
-		return Snapshot{}, ErrCaptureUnavailable
-	}
+	// Preserve the scenario identity instead of pre-resolving localhost. BAS
+	// uses this shorthand to obtain the Experience Manager-owned readiness
+	// profile and wait for a terminal ExperienceSurface state.
+	targetURL := "scenario=" + target.Scenario + ",path=" + firstRoute([]string{target.Route})
 
 	type waitForPayload struct {
 		TimeoutMs int `json:"timeout_ms"`
@@ -1247,10 +1346,10 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 	if target.ViewportWidth > 0 && target.ViewportHeight > 0 {
 		payload.Dimensions = dimensionsPayload{Width: target.ViewportWidth, Height: target.ViewportHeight}
 	}
-	if target.SettleMs > 0 {
-		payload.WaitFor = &waitForPayload{TimeoutMs: target.SettleMs}
-		payload.InteractionFlowJSON = settleInteractionFlow(target.SettleMs)
-	}
+	// No explicit caller wait: BAS first applies declared semantic readiness
+	// and falls back to its compatibility settle delay only when no profile is
+	// available. SettleMs remains part of CaptureTarget for legacy callers and
+	// state metadata, but it must not mask a declared readiness surface.
 
 	encoded, err := json.Marshal(payload)
 	if err != nil {
@@ -1287,6 +1386,17 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 			SizeBytes int64             `json:"size_bytes"`
 			Metadata  map[string]string `json:"metadata"`
 		} `json:"artifacts"`
+		Readiness struct {
+			DurationMS                   int64  `json:"duration_ms"`
+			DurationMSCamel              int64  `json:"durationMs"`
+			NavigationDurationMS         int64  `json:"navigation_duration_ms"`
+			NavigationDurationMSCamel    int64  `json:"navigationDurationMs"`
+			ReadinessWaitDurationMS      int64  `json:"readiness_wait_duration_ms"`
+			ReadinessWaitDurationMSCamel int64  `json:"readinessWaitDurationMs"`
+			SelectedStrategy             string `json:"selected_strategy"`
+			SelectedStrategyCamel        string `json:"selectedStrategy"`
+			Outcome                      string `json:"outcome"`
+		} `json:"readiness"`
 	}
 	if err := json.Unmarshal(body, &decoded); err != nil {
 		return Snapshot{}, ErrCaptureUnavailable
@@ -1302,7 +1412,23 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 		return Snapshot{}, fmt.Errorf("%w: decode accessibility snapshot: %v", ErrCaptureUnavailable, err)
 	}
 	snapshot.ScreenshotRef = screenshotRefFromArtifacts(decoded.Artifacts)
+	snapshot.Timing = CaptureTiming{
+		TotalMilliseconds:         firstNonZero(decoded.Readiness.DurationMS, decoded.Readiness.DurationMSCamel),
+		NavigationMilliseconds:    firstNonZero(decoded.Readiness.NavigationDurationMS, decoded.Readiness.NavigationDurationMSCamel),
+		ReadinessWaitMilliseconds: firstNonZero(decoded.Readiness.ReadinessWaitDurationMS, decoded.Readiness.ReadinessWaitDurationMSCamel),
+		Strategy:                  firstNonEmpty(decoded.Readiness.SelectedStrategy, decoded.Readiness.SelectedStrategyCamel),
+		Outcome:                   decoded.Readiness.Outcome,
+	}
 	return snapshot, nil
+}
+
+func firstNonZero(values ...int64) int64 {
+	for _, value := range values {
+		if value != 0 {
+			return value
+		}
+	}
+	return 0
 }
 
 func screenshotRefFromArtifacts(artifacts []struct {

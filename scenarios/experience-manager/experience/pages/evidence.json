@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "page": {
     "id": "evidence",
     "title": "Evidence",
@@ -21,6 +21,7 @@
     { "id": "stale", "description": "Evidence predates the current spec revision; verdicts shown but visibly outdated." },
     { "id": "request-error" }
   ],
+  "regions": [{"id":"capture-evidence","purpose":"Render the selected capture evidence loading, ready, empty, partial, or failed surface.","component":{"library":{"component":"experience-surface","version":"1.0.0"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
   "elements": [
     { "id": "capture-image", "role": "image", "name": "Page capture", "description": "The BAS screenshot for the selected page/state." },
     { "id": "tree-panel", "role": "region", "name": "Accessibility tree", "description": "The captured a11y tree, focusable per node." },
@@ -88,6 +89,7 @@
     }
   ],
   "bindings": {
+    "regions": {"capture-evidence":{"selector":"[data-experience-surface=\"capture-evidence\"]"}},
     "elements": {
       "capture-image": { "testid": "evidence-capture" },
       "tree-panel": { "testid": "evidence-tree" },

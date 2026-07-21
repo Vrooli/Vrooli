@@ -367,10 +367,15 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 		)
 		diff.Reasons = reasons
 		classifyPhaseComparison(diff, a, b, recordA, okA, recordB, okB, descriptorA, hasDescriptorA, descriptorB, hasDescriptorB)
-		response.Behavior = aggregateBehavior(response.Behavior, diff.Behavior)
-		response.Coverage = aggregateDimension(response.Coverage, diff.Coverage, "measured")
-		response.Compatibility = aggregateDimension(response.Compatibility, diff.Compatibility, "compatible")
-		response.Provenance = aggregateDimension(response.Provenance, diff.Provenance, "verified")
+		// A phase that was deliberately inapplicable on both sides is visible in
+		// the phase detail but contributes no behavioral measurement. It must not
+		// turn an otherwise comparable baseline into an unusable comparison.
+		if !symmetricNeutralAbsence(recordA, okA, recordB, okB, descriptorA, descriptorB) {
+			response.Behavior = aggregateBehavior(response.Behavior, diff.Behavior)
+			response.Coverage = aggregateDimension(response.Coverage, diff.Coverage, "measured")
+			response.Compatibility = aggregateDimension(response.Compatibility, diff.Compatibility, "compatible")
+			response.Provenance = aggregateDimension(response.Provenance, diff.Provenance, "verified")
+		}
 		response.Diagnostics = append(response.Diagnostics, diff.Diagnostics...)
 		out = append(out, diff)
 	}

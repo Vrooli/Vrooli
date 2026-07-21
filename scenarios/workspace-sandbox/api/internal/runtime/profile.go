@@ -124,6 +124,7 @@ func ConvertProfileToDriver(p *config.IsolationProfile) *driverexec.IsolationPro
 		ReadWriteBinds: p.ReadWriteBinds,
 		Environment:    p.Environment,
 		Hostname:       p.Hostname,
+		MaskPaths:      p.MaskPaths,
 	}
 }
 

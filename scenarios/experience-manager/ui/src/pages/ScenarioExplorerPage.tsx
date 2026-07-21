@@ -78,6 +78,8 @@ export function ScenarioExplorerPage() {
       testId={selectors.pages.explorer}
       title={t(strings.experience.explorer.title)}
       description={t(strings.experience.explorer.description)}
+      experienceSurface="scenario-spec"
+      experienceState={isLoading ? "loading" : isError ? "error" : rows.length === 0 ? "empty" : stale ? "partial" : "ready"}
     >
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <DataTable
