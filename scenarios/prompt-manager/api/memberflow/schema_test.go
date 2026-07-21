@@ -14,7 +14,7 @@ func TestTopicsValidate_ValidCanonical(t *testing.T) {
 	// example exercises the full schema.
 	raw := `{
 		"intake": [
-			{"prefix": "research-inbox/*", "taxonomy": "marketing-research", "classifier_skill": "marketing-signal-classifier", "source_team": null}
+			{"prefix": "research-inbox/*", "taxonomy": "marketing-research", "classifier_skill": "signal-classifier", "source_team": null}
 		],
 		"required_read": [
 			{"prefix": "campaign-draft/*", "source_team": "marketing-crew", "comment": "needed to cite latest draft on every publish proposal"}
@@ -125,7 +125,7 @@ func TestIntakeValidation(t *testing.T) {
 		},
 		{
 			name:  "valid wildcard with taxonomy",
-			entry: IntakeEntry{Prefix: "research-inbox/*", Taxonomy: "marketing-research", ClassifierSkill: "marketing-signal-classifier"},
+			entry: IntakeEntry{Prefix: "research-inbox/*", Taxonomy: "marketing-research", ClassifierSkill: "signal-classifier"},
 		},
 		{
 			name:  "valid exact prefix without classifier",
@@ -532,7 +532,7 @@ func TestIntakeRoundTrip_SourceTeamWildcard(t *testing.T) {
 func TestRoundTripJSON(t *testing.T) {
 	original := Topics{
 		Intake: []IntakeEntry{
-			{Prefix: "research-inbox/*", Taxonomy: "marketing-research", ClassifierSkill: "marketing-signal-classifier", SourceTeam: nil},
+			{Prefix: "research-inbox/*", Taxonomy: "marketing-research", ClassifierSkill: "signal-classifier", SourceTeam: nil},
 		},
 		RequiredRead: []RequiredReadEntry{
 			{Prefix: "campaign-draft/*", SourceTeam: ptr("marketing-crew"), Comment: "needed for publish-proposal"},
@@ -567,7 +567,7 @@ func TestRoundTripJSON(t *testing.T) {
 	if len(roundTrip.Intake) != 1 || roundTrip.Intake[0].Taxonomy != "marketing-research" {
 		t.Errorf("intake round-trip lost data: %+v", roundTrip.Intake)
 	}
-	if roundTrip.Intake[0].ClassifierSkill != "marketing-signal-classifier" {
+	if roundTrip.Intake[0].ClassifierSkill != "signal-classifier" {
 		t.Errorf("classifier_skill round-trip lost data: %+v", roundTrip.Intake[0])
 	}
 	if len(roundTrip.RequiredRead) != 2 {

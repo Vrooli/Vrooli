@@ -8,13 +8,25 @@ Required reading:
 
 ---
 
-### 1. When to use this skill
+### 1. Category Scope
+
+In scope:
+- Authoring guidance unique to Steer skills (the `{{TARGET}}` rule, the steer opening template).
+
+Out of scope:
+- Universal authoring quality bars (`docs/agent-system/SKILL_AUTHORING.md`).
+- Per-category specifics for non-Steer categories (their own `skill-authoring-<category>` skills).
+- The promotion ladder and the layering rule (`docs/agent-system/PROMOTION_LADDER.md`, `docs/agent-system/LAYERS.md`).
+
+---
+
+### 2. When to use this skill
 
 Use when authoring or updating a **Steer** skill (`modes[0] = "steer"`) — i.e., a skill that steers how some `path:scenarios/<scenario>/` is built or improved. For other categories use `skill-authoring-{platform,search,tools,practice,meta}`.
 
 ---
 
-### 2. Steer skills must target a specific scenario
+### 3. Steer skills must target a specific scenario
 
 **Steer skills are always focused on a single scenario via the `{{TARGET}}` placeholder.** This is a hard requirement for all steer-mode skills.
 
@@ -34,7 +46,7 @@ The `{{TARGET}}` placeholder gets substituted with the actual scenario name when
 
 ---
 
-### 3. Steer-specific opening template
+### 4. Steer-specific opening template
 
 ```markdown
 ## Steer focus: <Skill Name>
@@ -48,7 +60,7 @@ The first sentence answers: "If I only read this sentence, what would I prioriti
 
 ---
 
-### 4. Steer-specific output expectations
+### 5. Steer-specific output expectations
 
 When authoring or updating a Steer skill, you may:
 
@@ -68,20 +80,8 @@ You **must NOT:**
 
 ---
 
-### 5. Maturity-source requirement for audit-shaped steer skills
+### 6. Maturity-source requirement for audit-shaped steer skills
 
-Audit-shaped steer skills (those that examine an existing scenario and produce findings against a defined target state — architecture, temporal flow, API, CLI, interop, storage, testing-seams, etc.) **must** follow the destination-over-direction pattern. `docs/agent-system/SKILL_AUTHORING.md` §"Destination over direction: maturity sources for audit-shaped skills" owns the four mandatory ingredients, the canonical exemplars, the provider-backed rules, and the greenfield exemption — apply that section directly; restate none of it in the authored skill.
-
----
-
-### 6. Boundaries
-
-In scope:
-- Authoring guidance unique to Steer skills (the `{{TARGET}}` rule, the steer opening template).
-
-Out of scope:
-- Universal authoring quality bars (`docs/agent-system/SKILL_AUTHORING.md`).
-- Per-category specifics for non-Steer categories (their own `skill-authoring-<category>` skills).
-- The promotion ladder and the layering rule (`docs/agent-system/PROMOTION_LADDER.md`, `docs/agent-system/LAYERS.md`).
+Audit-shaped steer skills — as defined in `docs/agent-system/SKILL_AUTHORING.md` §"Destination over direction: maturity sources for audit-shaped skills" — **must** follow the destination-over-direction pattern. That section owns the four mandatory ingredients, the canonical exemplars, the provider-backed rules, and the greenfield exemption; apply it directly and restate none of it in the authored skill.
 
 No known operational edge cases for standard usage.

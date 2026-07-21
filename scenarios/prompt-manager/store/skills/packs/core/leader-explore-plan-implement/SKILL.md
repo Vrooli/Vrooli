@@ -1,280 +1,55 @@
 ## Practice focus: Leader Explore-Plan-Implement Pipeline
 
-Orchestrate the **full lifecycle of delegated technical work**: explore the problem space, author an implementation plan, then coordinate implementation across team members. This pipeline composes leaf skills (`systematic-exploration`, `implementation-plan-authoring`) into a leader workflow with explicit phase gates, coordination protocols, and convergence patterns.
+Orchestrate the full lifecycle of delegated technical work: explore the problem space, author an implementation plan, then coordinate implementation across team members. This is a three-phase gated pipeline over two leaf skills.
 
 Required reading:
-- `prompt-manager skill read systematic-exploration`
-- `prompt-manager skill read implementation-plan-authoring`
-
-Optional reading:
-- `docs/agent-system/SKILL_AUTHORING.md`
+- `prompt-manager skill read team-coordination-leader-led` — the shared gated-pipeline contract (phase shape, gate/rework semantics, delegation template, convergence checklists, shared anti-patterns). This skill adds only what is specific to explore-plan-implement.
+- `prompt-manager skill read systematic-exploration` — the Explore-phase leaf.
+- `prompt-manager skill read implementation-plan-authoring` — the Plan-phase leaf.
 
 ---
 
-### **1. When to Use This Pipeline**
+### 1. Phase-to-leaf mapping
 
-#### **Pipeline Entry Decision Table**
+| Phase | Leaf skill / activity | Artifact |
+|---|---|---|
+| Explore | `systematic-exploration` | Exploration findings report |
+| Plan | `implementation-plan-authoring` | Finalized Plan Manager plan id/slug + rendered review |
+| Implement | Coordinate and delegate against the plan | Implemented code, tests, docs per plan |
+
+Run the phases per the shared contract's phase shape. Enter at any phase whose inputs already exist (see the entry table).
+
+### 2. Pipeline entry decision table
 
 | You have... | Area understood? | Plan exists? | Entry point |
 |---|---|---|---|
-| New work request, unfamiliar area | No | No | **Phase 1: Explore** |
-| New work request, familiar area | Yes | No | **Phase 2: Plan** |
-| Existing plan from prior session | Yes | Yes | **Phase 3: Implement** |
-| Bug with known cause | Yes | N/A | Do not use this pipeline — use `scientific-debugging` |
-| Creative exploration request | N/A | N/A | Do not use this pipeline — use `explore` steer skill |
-| Single-agent work, no delegation needed | N/A | N/A | Do not use this pipeline — use leaf skills directly |
+| New work request, unfamiliar area | No | No | Phase 1: Explore |
+| New work request, familiar area | Yes | No | Phase 2: Plan |
+| Existing plan from prior session | Yes | Yes | Phase 3: Implement |
+| Bug with known cause | Yes | N/A | Not this pipeline — use `scientific-debugging` |
+| Creative exploration request | N/A | N/A | Not this pipeline — use the `explore` steer skill |
+| Single-agent work, no delegation | N/A | N/A | Not this pipeline — use the leaf skills directly |
 
-#### **When NOT to use this pipeline**
+### 3. Gate criteria
 
-- **Single-agent work** — If you are the only worker, use `systematic-exploration` or `implementation-plan-authoring` directly without the pipeline coordination overhead.
-- **Debugging** — Use `scientific-debugging` (different methodology, different artifacts).
-- **Creative exploration** — Use the `explore` steer skill (different intent: divergent thinking vs. convergent investigation).
-- **Operations or deployment** — Different coordination patterns apply.
-- **Strategic prioritization** — This pipeline is about *how to execute*; strategic decisions about *what to execute* happen before the pipeline is invoked.
+**Gate 1 (Explore → Plan):** findings report exists and answers the investigation question; key components, patterns, and constraints are documented; another agent could plan from the findings alone; no critical unknowns remain (or each is labeled with its risk).
 
----
+**Gate 2 (Plan → Implement):** Plan Manager validation passes; the plan respects every constraint from exploration; acceptance criteria are objective (pass/fail, not narrative); phases are ordered with explicit dependencies; another agent could implement from the plan alone.
 
-### **2. The Process**
+**Plan readiness** (from `implementation-plan-authoring`): a finalized Plan Manager plan with a stable id/slug; explicit scope, non-goals, constraints, compatibility posture; relevant skills/docs accepted as `relevant_context` (or a recorded no-context rationale); code references accepted (or an explicit `NO_CODE_REFS` rationale); phases with ordered steps, validation, acceptance criteria, and implementation context.
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│             LEADER EXPLORE-PLAN-IMPLEMENT PIPELINE                       │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│   ┌──────────────┐  GATE 1  ┌──────────┐  GATE 2  ┌───────────────┐   │
-│   │   EXPLORE    │ ───────▶ │   PLAN   │ ───────▶ │  IMPLEMENT    │   │
-│   │              │          │          │          │               │   │
-│   │ (systematic- │          │(impl-plan│          │ (coordinate   │   │
-│   │  exploration)│          │-authoring│          │  & delegate)  │   │
-│   └──────────────┘          └──────────┘          └───────┬───────┘   │
-│         │                        │                        │           │
-│         │  REWORK ◀──────────────┘                        │           │
-│         │  (plan reveals exploration gaps)                 │           │
-│         │                                                 │           │
-│         │  REWORK ◀───────────────────────────────────────┘           │
-│         │  (implementation reveals wrong assumptions)                  │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+### 4. Rework triggers
 
----
-
-### **Phase 1: Explore**
-
-Invoke the `systematic-exploration` methodology to build understanding of the problem space.
-
-**Entry criteria:** A work request or priority exists that requires understanding before planning.
-
-**Leader actions:**
-1. Read the exploration skill: `prompt-manager skill read systematic-exploration`
-2. Define the investigation question based on the work request
-3. Decide: perform exploration personally or delegate to a team member
-   - Delegate when the area is large or the leader's time is better spent on other coordination
-   - Perform personally when the area is small or the leader needs firsthand understanding for planning
-4. If delegating: send assignment using the delegation template below
-5. Review the findings report when complete
-
-**Delegation message template:**
-```
-I need you to explore [area] using the systematic-exploration methodology.
-
-Investigation question: [question]
-Entry points: [files/endpoints/commands]
-Boundaries: [in-scope / out-of-scope]
-Depth budget: [how deep to go]
-
-Deliver: Findings report answering the investigation question.
-Read the skill first: prompt-manager skill read systematic-exploration
-```
-
-**Artifacts:** Exploration findings report.
-
----
-
-### **Gate 1: Exploration → Planning**
-
-Before proceeding to Plan, verify:
-- [ ] Findings report exists and answers the investigation question
-- [ ] Key components, patterns, and constraints are documented
-- [ ] Another agent could plan implementation from the findings alone
-- [ ] No critical unknowns remain (or unknowns are explicitly labeled with risk)
-
-**If gate fails:** Return to Explore with a refined scope targeting the specific gap.
-
----
-
-### **Phase 2: Plan**
-
-Invoke the `implementation-plan-authoring` methodology to design the approach.
-
-**Entry criteria:** Gate 1 is satisfied (exploration findings exist and are sufficient).
-
-**Leader actions:**
-1. Read the planning skill: `prompt-manager skill read implementation-plan-authoring`
-2. Decide: author the plan personally or delegate to a team member
-   - Delegate when the leader has strong findings and clear requirements to hand off
-   - Author personally when the leader needs to make architectural decisions during planning
-3. If delegating: send assignment using the delegation template below
-4. Review the finalized Plan Manager plan using `plan-manager author preview`, `plan-manager author validate`, or `plan-manager plans render`
-5. Verify the plan respects all constraints discovered during exploration
-
-**Delegation message template:**
-```
-I need you to author an implementation plan using the implementation-plan-authoring methodology.
-
-Context: [findings report location or summary]
-Requirements: [work request details]
-Constraints discovered: [from exploration findings]
-Hard rules: [if any, e.g., greenfield only]
-
-Deliver: Author the plan with Plan Manager (`plan-manager --auto-start author start --title "[topic]"`, then follow `plan-manager author continue <session>`), finalize it, and return the plan id/slug plus the rendered review command.
-Read the skill first: prompt-manager skill read implementation-plan-authoring
-```
-
-**Plan readiness criteria** (from `implementation-plan-authoring`):
-- A finalized Plan Manager plan exists and has a stable id/slug
-- Scope, non-goals, constraints, and compatibility posture are explicit
-- Relevant skills/docs are accepted as Plan Manager `relevant_context`, or no-context rationale is recorded
-- Code references are accepted or an explicit `NO_CODE_REFS` rationale is recorded
-- Phases include ordered steps, validation, acceptance criteria, and implementation context
-- Plan Manager validation passes and the rendered preview is coherent
-
-**Artifacts:** Finalized Plan Manager implementation plan id/slug and rendered review artifact.
-
----
-
-### **Gate 2: Planning → Implementation**
-
-Before proceeding to Implement, verify:
-- [ ] Plan Manager validation passes
-- [ ] Plan respects constraints from exploration findings
-- [ ] Acceptance criteria are objective (pass/fail, not narrative)
-- [ ] Phases are ordered with explicit dependencies
-- [ ] Another agent could implement from the plan alone
-
-**If gate fails:** Update the plan. If the plan reveals exploration gaps, return to Explore.
-
----
-
-### **Phase 3: Implement**
-
-Coordinate implementation across team members using the validated plan.
-
-**Entry criteria:** Gate 2 is satisfied (validated implementation plan exists).
-
-**Leader actions:**
-1. **Break the plan into assignable work items** — One per team member or one per plan phase if sequential
-2. **Assign work** using delegation messages with full context
-3. **Track progress** — Establish check-in cadence; monitor via team messaging
-4. **Review completed work** against plan acceptance criteria
-5. **Integrate results** — When all phases complete, verify end-to-end Definition of Done
-
-**Delegation message template:**
-```
-I need you to implement [phase N] from the plan at [plan-file-path].
-
-Your scope: [specific deliverables from this phase]
-Acceptance criteria: [from plan]
-Constraints: [from plan]
-Dependencies: [what must be done before/after your work]
-Required reading: prompt-manager skill read [relevant-skills]
-
-Report back when complete or if you are blocked.
-```
-
-**Coordination protocol** (current capabilities):
-- Use `team message-send` for assignments and status checks (point-to-point)
-- For multi-member assignments, send individual messages to each assignee
-- Use `team org-list` to verify team structure before assigning
-- Establish check-in cadence in the initial delegation message (e.g., "message me after each file is complete")
-- Track assignments in the team shared doc or as plan file annotations
-
-**Completion criteria:**
-- [ ] All plan phases are implemented
-- [ ] All acceptance criteria from the plan pass
-- [ ] Tests pass (as specified in the plan's Testing Plan section)
-- [ ] Documentation is updated (as specified in the plan)
-- [ ] Definition of Done is satisfied
-
-**Artifacts:** Implemented code, tests, documentation per plan.
-
----
-
-### **3. Rework Triggers**
-
-Rework is cheaper than implementing a wrong plan. When signals appear, return to the appropriate phase.
-
-| Signal | During Phase | Action |
+| Signal | During phase | Action |
 |---|---|---|
-| "I don't understand how X works" | Plan | Return to **Explore**, scope X specifically |
-| "The plan assumes X but code does Y" | Implement | Return to **Plan**, update assumptions |
-| "I found a constraint not in the plan" | Implement | Return to **Explore + Plan** if systemic; update plan only if localized |
-| "Requirements conflict with code reality" | Plan or Implement | **Escalate** to work requester |
-| "Tests reveal unexpected behavior" | Implement | Return to **Explore** if behavior is not understood; fix plan if understood |
+| "I don't understand how X works" | Plan | Return to Explore, scope X specifically |
+| "The plan assumes X but code does Y" | Implement | Return to Plan, update assumptions |
+| "I found a constraint not in the plan" | Implement | Return to Explore+Plan if systemic; update the plan if localized |
+| "Requirements conflict with code reality" | Plan or Implement | Escalate to the work requester |
+| "Tests reveal unexpected behavior" | Implement | Return to Explore if the behavior is not understood; fix the plan if it is |
 
----
+### 5. Boundaries and output
 
-### **4. Convergence Patterns**
+Covers leader-coordinated technical work flowing through exploration, planning, and implementation. Does not cover: single-agent work (use leaf skills directly), debugging (`scientific-debugging`), creative exploration (`explore`), operations/deployment, or strategic prioritization (decided upstream).
 
-#### **Delegation Sufficiency Checklist**
-
-Before delegating any phase to a team member, verify:
-- [ ] Team member has access to all required context (findings, plan, skills)
-- [ ] Acceptance criteria are explicit and objective
-- [ ] Plan Manager setup context and references are included
-- [ ] Expected deliverable format is specified
-- [ ] Check-in cadence is established
-- [ ] Blocking dependencies are identified
-
-#### **Pipeline Completion Checklist**
-
-Before declaring the pipeline complete:
-- [ ] Findings report exists (from Explore or pre-existing)
-- [ ] Finalized Plan Manager implementation plan exists (from Plan or pre-existing)
-- [ ] All plan phases are implemented
-- [ ] Definition of Done criteria pass
-- [ ] Rework loops (if any) are documented for future reference
-
----
-
-### **5. Anti-Patterns**
-
-| Anti-Pattern | Why It Fails | Better Approach |
-|--------------|--------------|-----------------|
-| **Skipping exploration** | Plan is built on wrong assumptions; rework during Implement | Invest in Explore phase — it saves rework later |
-| **Exploring without a question** | Exploration wanders, never converges | State the investigation question upfront in the exploration brief |
-| **Planning without exploration findings** | Plan is disconnected from code reality | Feed findings into planning; verify constraints match |
-| **Delegating without context** | Agent wastes time re-discovering what the leader already knows | Include findings, plan reference, and skill reading in every delegation |
-| **No phase gates** | Bad assumptions propagate unchecked through the pipeline | Use Gate 1 and Gate 2 checklists before proceeding |
-| **Rework avoidance** | Sunk-cost thinking keeps a bad plan alive | Rework is cheaper than implementing a wrong plan |
-| **Leader implements instead of delegates** | Defeats the pipeline purpose; leader becomes bottleneck | Leaders coordinate; team members implement |
-| **Skipping check-ins during Implement** | Blocked agents sit idle; work diverges from plan | Establish cadence upfront; check in at each phase boundary |
-
----
-
-### **6. Boundaries**
-
-This pipeline covers **leader-coordinated technical work** that flows through exploration, planning, and implementation.
-
-**Does NOT cover:**
-- **Single-agent work** — Use leaf skills directly without pipeline overhead
-- **Debugging workflows** — Use `scientific-debugging` (different methodology)
-- **Creative exploration** — Use the `explore` steer skill (different intent)
-- **Operations and deployment** — Different coordination patterns
-- **Strategic planning** — Director-level strategy decides *what* to do; this pipeline decides *how* to execute
-
----
-
-### **7. Output Expectations**
-
-When applying this pipeline, you **must** produce:
-1. **From Explore phase:** Findings report (or verify an existing one is sufficient)
-2. **From Plan phase:** Finalized Plan Manager implementation plan id/slug with rendered review output
-3. **From Implement phase:** Completed deliverables matching plan acceptance criteria
-
-You **should** also:
-- Document which phases were used (full pipeline or partial entry)
-- Record any rework loops and what triggered them (this improves future exploration quality)
-- Update the plan file with implementation notes for future reference
-
-**Quality bar:** The pipeline should reduce total rework by front-loading understanding. If you find yourself in multiple Implement-to-Explore rework loops, the exploration phase was insufficient.
+You must produce the three phase artifacts in the mapping table (or verify a pre-existing one at partial entry). Record which phases ran and any rework loops — repeated Implement→Explore loops mean the Explore phase was insufficient, which is the signal to front-load more understanding next time.

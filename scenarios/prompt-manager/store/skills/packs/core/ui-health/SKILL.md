@@ -59,7 +59,7 @@ The manual lenses below are how you reason about and fix each finding the provid
 **In scope:**
 - UI manifest contract (template/overlay/slot alignment) and its drift.
 - Deployment-context interop: iframe-bridge dep/init/guard/appId, vite relative base, proxy-aware router basename, single API-base resolution, no hardcoded localhost, shortcut relay, iframe-safe scroll/viewport, spatial navigation.
-- Project-UI standards: i18n locale parity, design-token usage (no raw hex), accessibility test harness, favicon/webmanifest/viewport, tsconfig strict + react-stability ESLint.
+- Project-UI standards: i18n locale parity, design-token usage (no raw hex), accessibility test harness, favicon/webmanifest/viewport, tsconfig strict + stability ESLint.
 - Crash-prevention stability: hook discipline, defensive data access, error-boundary placement, runtime validation at boundaries.
 - Coherence: scope-driven state architecture, the sharing decision tree, styling/theming organization.
 - Live runtime render correctness (handshake, console errors, asset/proxy load) via the provider's runtime group.

@@ -110,7 +110,7 @@ self-declare topics). A leaf inherits its folder's and the root's skills via
 ancestors, deduped). So matching a leaf yields *leaf + folder + root* skills.
 
 - **Root** holds the always-relevant development practices
-  (`documentation-health`, `test`, `intent-clarification`).
+  (`documentation-health`, `test`, `domain-clarity`).
 - **Folders** (only `Architecture & code structure` today) hold cross-cutting
   skills shared by their leaves and add one level of depth.
 - **Leaves** hold the skills specific to one kind of work.

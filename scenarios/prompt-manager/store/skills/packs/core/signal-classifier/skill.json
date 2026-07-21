@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "signal-classifier",
+  "name": "Signal Classifier",
+  "description": "Classify a raw intake item against a caller-supplied taxonomy: assign the type slot, score evidence_strength, set honesty_flags, and recommend a default method. Parameterized over marketing, monetization, and market-validation taxonomies. Pure judgment - no inboxes, destinations, or team coupling.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill",
+    "classifier",
+    "signal",
+    "triage",
+    "marketing",
+    "monetization"
+  ],
+  "icon": "search",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-05-01T00:00:00Z",
+  "updatedAt": "2026-07-21T00:00:00Z"
+}

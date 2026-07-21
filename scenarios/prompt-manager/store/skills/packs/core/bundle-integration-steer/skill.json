@@ -3,6 +3,17 @@
   "schemaVersion": 1,
   "id": "bundle-integration-steer",
   "name": "Bundle Integration Steer",
+  "description": "Integrates a scenario into the Vrooli Business Suite bundle so it enforces subscription gating, credit-based metering, and authenticated downloads consistently with every other bundled app, managed through the Landing Page Business Suite (LPBS).",
+  "tags": [
+    "bundle",
+    "lpbs",
+    "subscription",
+    "metering",
+    "entitlements",
+    "monetization",
+    "steer",
+    "architecture"
+  ],
   "modes": [
     "steer",
     "architecture"

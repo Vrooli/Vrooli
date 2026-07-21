@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "skill-improvement-suggestions",
   "name": "Skill Improvement Suggestions",
-  "description": "Analyze a skill and propose improvements to its tools, wording, or structure",
+  "description": "Audit a skill on two axes — execution efficiency (E1-E9) and conditioning quality (C1-C5, per SKILL_AUTHORING.md) — and produce prioritized improvement suggestions plus a Prose Retirement Map.",
   "modes": [
     "meta"
   ],

@@ -22,7 +22,7 @@ Early-stage market research has diminishing returns. Per-heartbeat: 1-2 highest-
 
 ## Useful Skills
 - `prompt-manager skill read benchmark-staleness-sweep` — start of every heartbeat.
-- `prompt-manager skill read market-validation-triage` — judgment-only triage loaded on demand from the generated Inbox Flow section.
+- `prompt-manager skill read signal-classifier` — judgment-only triage loaded on demand from the generated Inbox Flow section.
 - `prompt-manager skill read pricing-comp-capture` — pricing-dimension method (current most-used).
 - `prompt-manager skill read systematic-exploration` — proactive scans when queue is empty and a benchmark gap is known.
 

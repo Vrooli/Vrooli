@@ -32,7 +32,7 @@ const intake: TopicIntakeEntry[] = [
   {
     prefix: 'research-inbox/*',
     taxonomy: 'marketing-research',
-    classifier_skill: 'marketing-signal-classifier',
+    classifier_skill: 'signal-classifier',
     source_team: null,
   },
 ]

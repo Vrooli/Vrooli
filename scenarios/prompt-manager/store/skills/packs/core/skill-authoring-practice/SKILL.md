@@ -9,14 +9,7 @@ Required reading:
 
 ### **1. What Practice Skills Are**
 
-Practice skills encode **how to approach a class of problems systematically**. They differ from other categories:
-
-| Category | Focus | Scope | Example |
-|----------|-------|-------|---------|
-| Steer | What to build | Single scenario (`{{TARGET}}`) | "React components render all states" |
-| Search | Where to find info | Repo-wide (no `{{TARGET}}`) | "Trace auth flow through codebase" |
-| Tools | How to use X | Specific tool | "Use scenario-to-desktop CLI correctly" |
-| **Practice** | How to think | **Any codebase** | "Debug using hypothesis-driven analysis" |
+Practice skills encode **how to approach a class of problems systematically**. The six skill categories and how they differ are the SSOT in `docs/agent-system/PRIMITIVES.md` §"Skill" (the category taxonomy table) — read it there, do not restate it. The practice-specific contrast: where Steer optimizes what to build in one scenario, Platform shared-package evolution, Search where to find information, Tools how to use one tool, and Meta skill-system governance, Practice optimizes **how to think** — a repeatable methodology that applies to any codebase with no `{{TARGET}}`.
 
 **Key characteristics:**
 - **Methodology-focused** — defines a repeatable process, not a destination

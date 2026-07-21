@@ -474,16 +474,15 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 
 | Skill | Focus | When to Use Together |
 |-------|-------|---------------------|
-| react-coherence | General React architecture | R3F coherence extends React coherence patterns to 3D |
-| react-stability | Crash prevention | Stability patterns apply equally to R3F components |
+| ui-health | React coherence & stability | R3F extends React coherence and crash-prevention patterns (state architecture, error boundaries, defensive access) to 3D |
 | performance | General optimization | After R3F-specific fixes, apply general perf patterns |
 
 Optional reading:
-- `prompt-manager skill read react-coherence react-stability performance`
+- `prompt-manager skill read ui-health performance`
 
 **Recommended sequence for R3F work:**
 1. **r3f-coherence** (audit) → find re-render bugs and animation issues
-2. **react-stability** → ensure error boundaries and defensive patterns
+2. **ui-health** → ensure error boundaries and defensive patterns
 3. **performance** → bundle size, code splitting for 3D assets
 
 ---

@@ -22,10 +22,10 @@ The team uses `knowledge.jsonl` (managed via `prompt-manager team knowledge-*` C
 
 | Topic prefix | Owner | Purpose |
 |---|---|---|
-| `opportunity-inbox/<signal-type>/<slug>` | any (operator, vision-walk, peer agents) | Untriaged opportunity intake. Signal types and dispatch live in `docs/monetization/taxonomies/monetization-opportunity/README.md`; the `opportunity-scout` member drains it (classifier: `monetization-signal-classifier`). The inbox view is the unrouted set. |
+| `opportunity-inbox/<signal-type>/<slug>` | any (operator, vision-walk, peer agents) | Untriaged opportunity intake. Signal types and dispatch live in `docs/monetization/taxonomies/monetization-opportunity/README.md`; the `opportunity-scout` member drains it (classifier: `signal-classifier`). The inbox view is the unrouted set. |
 | `monetization/opportunity/<slug>` | opportunity-scout | The opportunity pool — SKU-shaped bets with required front-matter (`kind`, `catalog.proposed_sku`, `catalog.parent_bundle`, `revisit_trigger`, `acquisition_hypothesis`, `retention_hypothesis`, `capability_reuse`, `tam`, `effort`, `status`). Maintained by `opportunity-pool-hygiene`. |
 | `monetization/market-scan/<slug>` | market-validator | Single-snapshot market facts — competitor pricing/packaging, benchmarks, comp captures. Required front-matter: `comp`, `dimension`, `date_observed`, `applicability`, `affects_*`. Maintained by `benchmark-staleness-sweep` and `pricing-comp-capture`. |
-| `validation-inbox/<request-type>/<slug>` | any (operator, vision-walk, opportunity-scout conversion, catalog-strategist, financial-tracker, staleness sweep) | Untriaged validation requests. Request types and dispatch live in `docs/monetization/taxonomies/monetization-validation/README.md`; the `market-validator` member drains it (classifier: `market-validation-triage`). The inbox view is the unrouted set. |
+| `validation-inbox/<request-type>/<slug>` | any (operator, vision-walk, opportunity-scout conversion, catalog-strategist, financial-tracker, staleness sweep) | Untriaged validation requests. Request types and dispatch live in `docs/monetization/taxonomies/monetization-validation/README.md`; the `market-validator` member drains it (classifier: `signal-classifier`). The inbox view is the unrouted set. |
 | `topic[old]:vision-walk/alpha/<topic>` (legacy) | vision-walk fallback | Generic alpha when no typed topic fits. Prefer the typed `opportunity-inbox/*` or `validation-inbox/*` forms. |
 
 Other shared surfaces remain file-based because they are audit-grade or financial primitives:

@@ -3,6 +3,15 @@
   "schemaVersion": 1,
   "id": "api-steer",
   "name": "API Steer",
+  "description": "Steers a scenario's API toward stable, proto-first, Connect-RPC contracts as the canonical entrypoint into its core logic, consumed by every UI, CLI, and other scenario through generated typed clients.",
+  "tags": [
+    "api",
+    "proto",
+    "connect-rpc",
+    "contracts",
+    "steer",
+    "architecture"
+  ],
   "modes": [
     "steer",
     "architecture"

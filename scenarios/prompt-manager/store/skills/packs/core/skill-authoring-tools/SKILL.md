@@ -80,20 +80,14 @@ Keep this section separate from the primary workflow so the core path stays conc
 Promotion rule:
 - If an item in this section is frequent/repetitive, prefer improving CLI output contracts or adding tool capabilities rather than expanding prose further.
 - If one Vrooli-controlled CLI command owns a deterministic operation, prefer exposing it as an Action and referencing that Action instead of documenting command prose inline.
-- Before concluding "no CLI exists for this operation," run `cli-health search "<operation>"`. It indexes every scenario's `cli/manifest.json` plus a `--help` fallback, so a hit is the canonical sign that the deterministic surface already exists somewhere. Treat a no-hit result as evidence that the operation belongs in prose (or is a real `cli-backlog` candidate), not a default assumption.
+- Before concluding no CLI exists for an operation, apply `docs/agent-system/PROMOTION_LADDER.md` §"Conversion procedure" step 2 (`cli-health search "<operation>"` finds an existing owner). Whether a no-hit operation stays in prose or becomes a promotion candidate is decided by the three-part test in `docs/agent-system/PROMOTION_LADDER.md` §"When to attempt CLI/Action conversion", not by a default assumption.
 - If multiple entries share the same root cause, add a short promotion note (what should move to CLI/tooling, or why it should remain manual).
 - Keep this as guidance, not a rigid section template.
 - Apply the canonical lifecycle from `docs/agent-system/PROMOTION_LADDER.md`.
 
 ---
 
-### **7. Registration Notes**
-
-Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "tools"` and a description that names the tool and the primary value it provides.
-
----
-
-### **8. Output Expectations**
+### **7. Output Expectations**
 
 You may update:
 - Tools skills to improve clarity, safety, or troubleshooting coverage
@@ -107,3 +101,5 @@ You must:
 - Keep long-tail failures centralized under `Troubleshooting & Edge Cases` when applicable
 - For recurring troubleshooting patterns, include at least one CLI/tool promotion consideration or a brief rationale for not promoting yet
 - For deterministic one-command operations, include an Action promotion consideration or a brief rationale for keeping the operation in prose
+
+Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "tools"` and a description that names the tool and the primary value it provides.

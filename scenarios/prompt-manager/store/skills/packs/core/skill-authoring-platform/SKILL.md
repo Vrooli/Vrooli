@@ -103,7 +103,16 @@ When Platform skills touch CLI behavior (directly or via shared libraries), appl
 
 ---
 
-### 8. Registration Notes
+### 8. Output Expectations
+
+You may update:
+- Platform skills to improve clarity, compatibility guidance, or verification coverage
+- `skill.json` entries for Platform skills
+
+You must:
+- Use `{{PACKAGE}}`/`{{PACKAGE_PATH}}` (and optional `{{AREA}}`) — never `{{TARGET}}`, which is reserved for scenario-focused Steer skills
+- State the compatibility envelope (template in §7) and the compat-set verification commands that prove a change is safe for downstream consumers
+- Prefer human-first CLI output patterns and avoid parser-dependent workflows by default
 
 Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "platform"` and a description that names the shared package surface and the safety posture (compatibility-first, brownfield-safe).
 

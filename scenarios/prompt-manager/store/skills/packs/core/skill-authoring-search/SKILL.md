@@ -97,13 +97,7 @@ If output is not JSON, specify the exact headings and required fields.
 
 ---
 
-### **7. Registration Notes**
-
-Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "search"` and a description that reflects the search intent and output contract.
-
----
-
-### **8. Output Expectations**
+### **7. Output Expectations**
 
 You may update:
 - Search skills to improve clarity, accuracy, or output contracts
@@ -113,3 +107,5 @@ You must:
 - Keep search skills evidence-driven and non-speculative
 - Define a clear output contract and stop conditions
 - Avoid prescribing implementation or code changes
+
+Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "search"` and a description that reflects the search intent and output contract.

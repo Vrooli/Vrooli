@@ -5,7 +5,7 @@ Adopt **multi-language support** for `scenarios/{{TARGET}}/ui/` by wiring `i18ne
 Your goal is to ship a second (or Nth) locale without breaking tests, without scattering inline strings, and without committing to translation infrastructure beyond what the demand justifies.
 
 Required reading:
-- `prompt-manager skill read react-coherence react-stability vrooli-ui-interop`
+- `prompt-manager skill read ui-health`
 - `prompt-manager skill read visited-tracker-tools`
 
 ---

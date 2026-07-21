@@ -10,6 +10,7 @@
   "tags": [
     "skill"
   ],
+  "icon": "check-circle",
   "status": "active",
   "entry": "SKILL.md",
   "revision": 45,

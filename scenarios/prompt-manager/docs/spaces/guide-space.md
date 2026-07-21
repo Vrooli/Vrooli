@@ -33,7 +33,7 @@ deliberately out of the local-coding-readiness scope.
 | G1 | Explore / understand a codebase | `explore` + the Answer projection | COVERED | — | Answer providers reduce the read cost. |
 | G2 | Audit architecture / alignment | `screaming-architecture-audit`, `architecture-scope`, `boundary-of-responsibility-enforcement` | COVERED | — | |
 | G3 | Find seams / testability | `seam-discovery-and-enforcement` | COVERED | — | |
-| G4 | Clarify intent / decisions / invariants | `intent-clarification`, `decision-boundary-extraction`, `invariant-discovery-and-enforcement`, `concept-vocabulary-unification` | COVERED | — | |
+| G4 | Clarify intent / decisions / invariants | `domain-clarity`, `decision-boundary-extraction`, `invariant-discovery-and-enforcement` | COVERED | — | |
 | **Plan** | | | | | |
 | G5 | Author an implementation plan | `implementation-plan-authoring` | COVERED | — | |
 | G6 | Brainstorm / workshop an idea | `idea-workshop` | COVERED | — | |

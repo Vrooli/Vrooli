@@ -3,13 +3,14 @@
   "schemaVersion": 1,
   "id": "skill-authoring",
   "name": "Steer Skill Authoring",
-  "description": "Authoring guide for Steer skills that drive scenario development loops. Covers convergence patterns, audit sections, and memory continuity.",
+  "description": "Authoring guide for Steer skills: the {{TARGET}} placeholder rule, the steer opening template, and the maturity-source requirement for audit-shaped steer skills.",
   "modes": [
     "meta",
     "steer"
   ],
   "tags": [
-    "skill"
+    "skill",
+    "authoring"
   ],
   "icon": "fileedit",
   "status": "active",

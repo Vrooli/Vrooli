@@ -27,17 +27,34 @@ type Client interface {
 // content plus the metadata that pins which skill revision produced it, so a
 // promptRef resolution can be recorded in a digest-deterministic way.
 type SkillSourceSnapshot struct {
-	SkillID     string
-	Revision    int
-	VariantID   string
-	Content     string
-	ContentHash string
+	SkillID      string
+	Revision     int
+	VariantID    string
+	ExperimentID string
+	Content      string
+	ContentHash  string
 }
 
 // SourceClient exposes immutable source metadata for consumers that must pin
-// prompt interpretation into a durable revision.
+// prompt interpretation into a durable revision. A non-empty experimentID arms
+// the read against that experiment; an empty experimentID pins the read so a
+// running experiment never silently varies the resolved prompt.
 type SourceClient interface {
-	ReadSkillSource(ctx context.Context, skillID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error)
+	ReadSkillSource(ctx context.Context, skillID, experimentID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error)
+}
+
+// ExperimentOutcome is the attribution payload posted back to prompt-manager
+// when a served variant reaches a run outcome.
+type ExperimentOutcome struct {
+	VariantID string          `json:"variantId"`
+	Source    string          `json:"source"`
+	Data      json.RawMessage `json:"data,omitempty"`
+}
+
+// OutcomeClient reports experiment outcomes to prompt-manager, attributing a
+// served variant to its run result.
+type OutcomeClient interface {
+	RecordExperimentOutcome(ctx context.Context, experimentID string, outcome ExperimentOutcome) error
 }
 
 // PromptSkill represents prompt-manager skill metadata and optional content.
@@ -127,10 +144,13 @@ func NewHTTPClientWithResolver(resolver BaseURLResolver, httpClient HTTPDoer) *H
 
 // readRequest is the request body for the skill read endpoint.
 type readRequest struct {
-	Identifiers []string          `json:"identifiers"`
-	Variables   map[string]string `json:"variables,omitempty"`
-	Output      string            `json:"output"`
-	WithScope   bool              `json:"withScope,omitempty"`
+	Identifiers   []string          `json:"identifiers"`
+	Variables     map[string]string `json:"variables,omitempty"`
+	Output        string            `json:"output"`
+	WithScope     bool              `json:"withScope,omitempty"`
+	ExperimentID  string            `json:"experimentId,omitempty"`
+	VariantPolicy string            `json:"variantPolicy,omitempty"`
+	Source        string            `json:"source,omitempty"`
 }
 
 // readResponse is the response from the skill read endpoint.
@@ -138,6 +158,7 @@ type readResponse struct {
 	Combined          string `json:"combined"`
 	CombinedHash      string `json:"combinedHash,omitempty"`
 	SelectedVariantID string `json:"selectedVariantId,omitempty"`
+	ExperimentID      string `json:"experimentId,omitempty"`
 	Skills            []struct {
 		ID          string `json:"id"`
 		Revision    int    `json:"revision,omitempty"`
@@ -192,7 +213,7 @@ func (c *HTTPClient) ReadSkill(ctx context.Context, skillID string, variables ma
 
 // ReadSkillSource resolves a skill and returns its content alongside the
 // immutable revision metadata used to pin a promptRef into a workflow revision.
-func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error) {
+func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID, experimentID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error) {
 	baseURL, err := c.baseURLResolver(ctx)
 	if err != nil {
 		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: resolve URL: %w", err)
@@ -202,6 +223,13 @@ func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID string, variab
 		Variables:   variables,
 		Output:      "both",
 		WithScope:   withScope,
+	}
+	// An empty experimentID pins the read so a running experiment never silently
+	// arms this resolution; a non-empty one deliberately selects that experiment.
+	if experimentID == "" {
+		reqBody.VariantPolicy = "pinned"
+	} else {
+		reqBody.ExperimentID = experimentID
 	}
 	body, err := json.Marshal(reqBody)
 	if err != nil {
@@ -234,12 +262,45 @@ func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID string, variab
 		variant = "control"
 	}
 	return SkillSourceSnapshot{
-		SkillID:     skill.ID,
-		Revision:    skill.Revision,
-		VariantID:   variant,
-		Content:     readResp.Combined,
-		ContentHash: readResp.CombinedHash,
+		SkillID:      skill.ID,
+		Revision:     skill.Revision,
+		VariantID:    variant,
+		ExperimentID: strings.TrimSpace(readResp.ExperimentID),
+		Content:      readResp.Combined,
+		ContentHash:  readResp.CombinedHash,
 	}, nil
+}
+
+// RecordExperimentOutcome posts an outcome to a running experiment, attributing
+// a served variant to its run result.
+func (c *HTTPClient) RecordExperimentOutcome(ctx context.Context, experimentID string, outcome ExperimentOutcome) error {
+	if strings.TrimSpace(experimentID) == "" {
+		return fmt.Errorf("promptmanager: experimentID is required")
+	}
+	baseURL, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return fmt.Errorf("promptmanager: resolve URL: %w", err)
+	}
+	body, err := json.Marshal(outcome)
+	if err != nil {
+		return fmt.Errorf("promptmanager: marshal outcome: %w", err)
+	}
+	endpoint := baseURL + "/api/v1/experiments/" + url.PathEscape(experimentID) + "/outcomes"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("promptmanager: create outcome request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("promptmanager: outcome request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("promptmanager: outcome status %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
 }
 
 // ListSkills fetches prompt-manager skill metadata with optional tag filtering.

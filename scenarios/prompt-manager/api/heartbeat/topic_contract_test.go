@@ -17,7 +17,7 @@ func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {
 				Intake: []memberflow.IntakeEntry{{
 					Prefix:          "research-inbox/*",
 					Taxonomy:        "marketing-research",
-					ClassifierSkill: "marketing-signal-classifier",
+					ClassifierSkill: "signal-classifier",
 				}},
 				RequiredRead: []memberflow.RequiredReadEntry{{Prefix: "audience-scan/*"}},
 				EvidenceConsumed: []memberflow.EvidenceConsumedEntry{{
@@ -45,7 +45,7 @@ func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {
 
 	for _, want := range []string{
 		"# Topic Contract",
-		"- `research-inbox/*` - taxonomy `marketing-research`, classifier `marketing-signal-classifier`",
+		"- `research-inbox/*` - taxonomy `marketing-research`, classifier `signal-classifier`",
 		"- `audience-scan/*`",
 		"- `challenge-report/*` - for `audience-update`, `capability-gap`",
 		"- `marketing-craft-observation/*` - general evidence",

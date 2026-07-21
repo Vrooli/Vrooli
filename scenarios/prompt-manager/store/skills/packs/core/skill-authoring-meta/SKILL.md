@@ -28,6 +28,8 @@ A meta skill is one governance surface with explicit ownership: name the surface
 
 ---
 
-### **3. Output Expectations**
+### 3. Output Expectations
 
 You may update meta skills and their `skill.json` entries. You must keep governance rules conflict-free across meta skills, cite canon instead of restating it, and preserve explicit boundaries and ownership.
+
+Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "meta"`.

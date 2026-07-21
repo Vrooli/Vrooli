@@ -46,7 +46,7 @@ func TestLoadAll_ValidMixedTopics(t *testing.T) {
 	store := makeStore(t, map[string]map[string]string{
 		"marketing-crew": {
 			"researcher": `{
-				"intake": [{"prefix": "research-inbox/*", "taxonomy": "marketing-research", "classifier_skill": "marketing-signal-classifier"}],
+				"intake": [{"prefix": "research-inbox/*", "taxonomy": "marketing-research", "classifier_skill": "signal-classifier"}],
 				"output": [{"prefix": "audience-scan/*", "destination_kind": "knowledge", "schema": "audience-scan"}],
 				"raises_capability_gaps": true
 			}`,
@@ -55,7 +55,7 @@ func TestLoadAll_ValidMixedTopics(t *testing.T) {
 		},
 		"monetization": {
 			"opportunity-router": `{
-				"intake": [{"prefix": "monetization-inbox/*", "taxonomy": "monetization-opportunity", "classifier_skill": "monetization-signal-classifier"}]
+				"intake": [{"prefix": "monetization-inbox/*", "taxonomy": "monetization-opportunity", "classifier_skill": "signal-classifier"}]
 			}`,
 		},
 	})
@@ -208,7 +208,7 @@ func TestWriteMember_RoundTrip(t *testing.T) {
 	}
 	original := Topics{
 		Intake: []IntakeEntry{
-			{Prefix: "research-inbox/*", Taxonomy: "marketing-research", ClassifierSkill: "marketing-signal-classifier"},
+			{Prefix: "research-inbox/*", Taxonomy: "marketing-research", ClassifierSkill: "signal-classifier"},
 		},
 		Output: []OutputEntry{
 			{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge, Schema: "audience-scan"},

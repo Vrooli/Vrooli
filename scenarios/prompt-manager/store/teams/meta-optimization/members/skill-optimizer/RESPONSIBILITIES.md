@@ -44,7 +44,13 @@ When a `skill-improvement` fix is contestable (two plausible rewrites) or target
 4. Read evidence with `prompt-manager experiment report <eid>` (per-arm serves, outcomes, success rate, mean tokens).
 5. `prompt-manager experiment conclude <eid> <winner-variant-id>` promotes the winner's content onto the skill. This is a gated write; the gate is below.
 
-**Conclusion gate (public/private score split).** Author variants with any public signal (lint, structure checks, judgment). Conclude only on signals the variant author does not control: attributed run outcomes, divergence-probe results, or held-out trial verdicts. Never conclude on `skill rate` self-reports alone. Do not conclude with fewer than 10 attributed outcomes per arm, without a recorded `challenge-report` from the meta-contrarian, or at materially unequal token cost between arms (an arm that wins while spending more tokens is a different tradeoff — name it in the decision). A suspiciously large metric jump triggers a transcript audit before conclusion.
+**Conclusion gate (public/private score split).** This is the single source of truth for the gate; the meta-optimization operating model and the meta-contrarian cite it rather than restate it. Author variants with any public signal (lint, structure checks, judgment); conclude only on the private signals the variant author does not control. The gate, in full:
+
+1. Conclude only on non-authored signals: attributed run outcomes, divergence-probe results, or held-out trial verdicts. Never conclude on `skill rate` self-reports alone.
+2. Require at least 10 attributed outcomes per arm.
+3. Require a recorded `challenge-report` from the meta-contrarian before `experiment conclude`.
+4. Do not conclude at materially unequal token cost between arms — an arm that wins while spending more tokens is a different tradeoff; name it in the decision.
+5. A suspiciously large metric jump triggers a transcript audit before conclusion.
 
 Ledger: record hypothesis → arm rationale → report snapshots → challenge → conclusion evidence in `topic:skill-experiment/<skill-id>/<experiment-id>`.
 

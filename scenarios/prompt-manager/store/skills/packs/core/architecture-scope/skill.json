@@ -4,6 +4,11 @@
   "id": "architecture-scope",
   "name": "Architecture Scope",
   "description": "Reducing technical debt without changing functionality",
+  "tags": [
+    "scope",
+    "architecture",
+    "constraints"
+  ],
   "modes": [
     "scope"
   ],

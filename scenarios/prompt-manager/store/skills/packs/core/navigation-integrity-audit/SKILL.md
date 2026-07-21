@@ -6,7 +6,7 @@ Required reading (verification substrate — set the stage before this skill app
 - `prompt-manager skill read temporal-flow-audit` — the exemplar audit-shaped skill with the same maturity-ladder pattern; navigation mirrors its shape.
 - `prompt-manager skill read experience-architecture-audit` — parent UX audit; structural navigation problems (the wrong places, the wrong groupings) belong there, not here.
 - `prompt-manager skill read screaming-architecture-audit` — when navigation logic is buried outside the domain that owns the destination.
-- `prompt-manager skill read vrooli-ui-interop` §4.6 — owns gamepad / spatial-nav. This skill declares `reachable_via` in spec; vrooli-ui-interop owns the runtime mechanics.
+- `prompt-manager skill read ui-health` §4.4 — owns gamepad / spatial-nav. This skill declares `reachable_via` in spec; ui-health owns the runtime mechanics.
 - `prompt-manager skill read knowledge-observatory-tools` — read and update scenario documentation through the canonical docs CLI.
 
 Required reading (programmatic enforcement substrate):
@@ -24,7 +24,7 @@ Read first when present:
 
 ### 1. Scope Boundaries
 
-This skill owns the **verifiable contract** layer of navigation. Structural problems (wrong groupings, missing feature surfaces, broken information architecture) belong to `experience-architecture-audit`; gamepad/spatial mechanics belong to `vrooli-ui-interop`.
+This skill owns the **verifiable contract** layer of navigation. Structural problems (wrong groupings, missing feature surfaces, broken information architecture) belong to `experience-architecture-audit`; gamepad/spatial mechanics belong to `ui-health` (§4.4).
 
 **In scope:**
 - declaring/maintaining `ui/flow/navigation.json` (routes, containers, affordances, presentations, overlays, return paths, shortcuts, reachability invariants, deep-link policy)
@@ -36,7 +36,7 @@ This skill owns the **verifiable contract** layer of navigation. Structural prob
 
 **Out of scope (hand off):**
 - the structural question of "are these the right places, grouped the right way?" → `experience-architecture-audit`
-- gamepad reachability, focus rings, spatial-nav focus groups → `vrooli-ui-interop` §4.6 (declare `reachable_via: ["gamepad"]` in spec; mechanics live there)
+- gamepad reachability, focus rings, spatial-nav focus groups → `ui-health` §4.4 (declare `reachable_via: ["gamepad"]` in spec; mechanics live there)
 - temporal/lifecycle behavior inside a page (loading, retries, polling) → `temporal-flow-audit`
 - folder/file shape under `ui/src/` → `screaming-architecture-audit`
 - comment discipline, function shape inside route components → `cognitive-load-reduction`
@@ -79,7 +79,7 @@ Every navigation finding belongs to one of the existing audit docs. Never create
 | Back/close behavior doesn't match declared `return_paths` rule | Fix in code or update spec to match honest behavior | Navigation (this skill) |
 | Routes live in different domain than the feature that owns them | `ARCHITECTURE.md` | `screaming-architecture-audit` (hand off) |
 | Information architecture itself is wrong (right routes, wrong groupings) | `EXPERIENCE-AUDIT.md` structural section | `experience-architecture-audit` (hand off) |
-| Gamepad/spatial-nav focus-group or focus-ring issue | `EXPERIENCE-AUDIT.md` Navigation section, cross-reference `vrooli-ui-interop` §4.6 | `vrooli-ui-interop` (hand off) |
+| Gamepad/spatial-nav focus-group or focus-ring issue | `EXPERIENCE-AUDIT.md` Navigation section, cross-reference `ui-health` §4.4 | `ui-health` (hand off) |
 | Auth/role context model itself is wrong (not just spec wording) | `INVARIANTS.md` | Domain owner / `invariant-discovery-and-enforcement` |
 | Recurring manual finding that could be a declarative schema field or checker rule | Open a flow-verifier backlog entry | Flow-verifier (capability promotion) |
 
@@ -114,7 +114,7 @@ The spec owns:
 - **reachability_invariants** — policy assertions: under a given context, certain routes must (or must not) be reachable from a start route, within a viewport-keyed click budget (`max_clicks: { "desktop": 1, "mobile": 2 }`).
 - **deep_link_policy** — direct-entry resolution rules (auth-required → redirect to login with preserved target; admin-only → redirect non-admins; etc.).
 
-The spec does **not** own: animation/transition/CSS, real auth machinery, gamepad runtime mechanics. Container declarations include `reachable_via: ["mouse", "keyboard", "gamepad"]` per presentation; gamepad behavior is implemented in `vrooli-ui-interop` substrate.
+The spec does **not** own: animation/transition/CSS, real auth machinery, gamepad runtime mechanics. Container declarations include `reachable_via: ["mouse", "keyboard", "gamepad"]` per presentation; gamepad behavior is implemented in `ui-health` substrate.
 
 Canonical reference fixture: `scenarios/flow-verifier/api/internal/flows/schemas/examples/navigation-full.json` (embedded). It exercises every schema field — read it before authoring a new spec.
 

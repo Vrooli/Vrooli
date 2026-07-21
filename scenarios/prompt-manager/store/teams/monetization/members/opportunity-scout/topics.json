@@ -3,7 +3,7 @@
     {
       "prefix": "opportunity-inbox/*",
       "taxonomy": "monetization-opportunity",
-      "classifier_skill": "monetization-signal-classifier"
+      "classifier_skill": "signal-classifier"
     }
   ],
   "required_read": [

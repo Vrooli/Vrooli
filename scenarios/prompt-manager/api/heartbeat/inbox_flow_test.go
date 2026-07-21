@@ -42,7 +42,7 @@ func TestRenderInboxFlow_SingleIntake_AllSectionsPresent(t *testing.T) {
 			Intake: []memberflow.IntakeEntry{{
 				Prefix:          "research-inbox/*",
 				Taxonomy:        "marketing-research",
-				ClassifierSkill: "marketing-signal-classifier",
+				ClassifierSkill: "signal-classifier",
 			}},
 			Output: []memberflow.OutputEntry{
 				{Prefix: "audience-scan/*", DestinationKind: memberflow.DestinationKnowledge, Schema: "audience-scan"},
@@ -64,7 +64,7 @@ func TestRenderInboxFlow_SingleIntake_AllSectionsPresent(t *testing.T) {
 		"## Inbox: `research-inbox/*`",
 		"`marketing-crew`",
 		"`marketing-research`",
-		"`marketing-signal-classifier`",
+		"`signal-classifier`",
 		"prompt-manager team knowledge-list marketing-crew --topic-prefix=research-inbox/",
 		"## Drain procedure (universal)",
 		"prompt-manager team knowledge-delete marketing-crew",
@@ -98,8 +98,8 @@ func TestRenderInboxFlow_TwoIntakes_CrossTeam(t *testing.T) {
 	in := mkInputs("monetization", "market-validator",
 		memberflow.Topics{
 			Intake: []memberflow.IntakeEntry{
-				{Prefix: "validation-inbox/*", Taxonomy: "monetization-validation", ClassifierSkill: "market-validation-triage"},
-				{Prefix: "monetization-benchmark-adjacent-record/*", Taxonomy: "monetization-validation", ClassifierSkill: "market-validation-triage", SourceTeam: ptr("marketing-crew")},
+				{Prefix: "validation-inbox/*", Taxonomy: "monetization-validation", ClassifierSkill: "signal-classifier"},
+				{Prefix: "monetization-benchmark-adjacent-record/*", Taxonomy: "monetization-validation", ClassifierSkill: "signal-classifier", SourceTeam: ptr("marketing-crew")},
 			},
 			Output: []memberflow.OutputEntry{
 				{Prefix: "monetization-benchmark-record/*", DestinationKind: memberflow.DestinationKnowledge, Schema: "market-scan"},

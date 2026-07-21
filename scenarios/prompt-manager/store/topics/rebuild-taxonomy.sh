@@ -38,16 +38,16 @@ echo "==> Creating root + folders + leaves (parent before child)…"
 # Root development practices — always in view for any dev task.
 pm topic create --id development --name "Development" \
   --description "General software development on a Vrooli scenario: building, maintaining, refactoring, and shipping code. Root practices every task should keep in view." \
-  --skills "documentation-health,test,intent-clarification"
+  --skills "documentation-health,test,domain-clarity"
 
 # Architecture & code structure (folder — its own pack plus the three leaves below).
 pm topic create --id architecture --name "Architecture & code structure" --parent development \
   --description "Architecture and code structure: where responsibilities live, the seams between components, the invariants the code relies on, and the vocabulary that names them." \
-  --skills "seam-discovery-and-enforcement,boundary-of-responsibility-enforcement,invariant-discovery-and-enforcement,screaming-architecture-audit,concept-vocabulary-unification"
+  --skills "seam-discovery-and-enforcement,boundary-of-responsibility-enforcement,invariant-discovery-and-enforcement,screaming-architecture-audit,domain-clarity"
 
 pm topic create --id building-features --name "Building features" --parent architecture \
   --description "Building a new feature or capability: extracting decision boundaries, designing error semantics and recovery paths, and compressing the domain model." \
-  --skills "decision-boundary-extraction,error-semantics-recovery-path-design,domain-compression"
+  --skills "decision-boundary-extraction,error-semantics-recovery-path-design,domain-clarity"
 
 pm topic create --id refactoring-cleanup --name "Refactoring & cleanup" --parent architecture \
   --description "Refactoring and cleaning up existing code: restructuring, removing dead code and duplication, unifying utilities, and reducing cognitive load." \
@@ -71,8 +71,8 @@ pm topic create --id reliability-resilience --name "Reliability & resilience" --
   --skills "failure-topography-and-graceful-degradation,idempotency-replay-safety-hardening,progress-continuity-interruption-resilience,change-axis-and-evolution-resilience-audit,temporal-flow-audit"
 
 pm topic create --id frontend-ui --name "Frontend / UI" --parent development \
-  --description "Frontend and UI work: React coherence and stability, Vrooli UI interop, UX and experience architecture, navigation integrity, design-system migration, and internationalization." \
-  --skills "react-coherence,react-stability,vrooli-ui-interop,ux,experience-architecture-audit,navigation-integrity-audit,ui-design-system-migration,ui-i18n-adoption"
+  --description "Frontend and UI work: UI health (coherence, stability, and interop), UX and experience architecture, navigation integrity, design-system migration, and internationalization." \
+  --skills "ui-health,ux,experience-architecture-audit,navigation-integrity-audit,ui-design-system-migration,ui-i18n-adoption"
 
 pm topic create --id configuration-observability --name "Configuration & observability" --parent development \
   --description "Configuration and observability: designing tunable control surfaces and levers, and the signal and feedback surfaces that make behavior visible and steerable." \

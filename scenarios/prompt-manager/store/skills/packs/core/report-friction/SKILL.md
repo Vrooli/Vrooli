@@ -2,7 +2,7 @@
 
 Universal writer skill any agent on any team may invoke when they observe friction — something that was missing, broken, confusing, slow, undocumented, or harder than it should have been. The skill writes a structured entry to `team:meta-optimization`'s `topic:friction-inbox/<scope>/<slug>` topic; the `literal:meta-optimization/friction-curator` member drains the inbox, classifies the scope, and routes to the appropriate scoped friction topic owned by an existing meta-optimization sub-member.
 
-This skill is **destination-coupled by design** — writer skills always are. The portability rule (`non_portable_classifier`) applies to classifier skills, not to writers. Friction reporting is a one-way producer pattern.
+This skill is **destination-coupled by design** — writer skills always are. The portability rule (`prose_topic_leak`) applies to classifier skills, not to writers. Friction reporting is a one-way producer pattern.
 
 This is the sister to `report-bug`. The two together form the universal observation flow: bugs go to scenario-qa, friction to meta-optimization. Use the right one — see § "When NOT to use" below.
 

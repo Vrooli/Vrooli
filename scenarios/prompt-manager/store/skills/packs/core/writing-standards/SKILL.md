@@ -40,10 +40,9 @@ holds the placement map only; each owning skill carries the applied detail.
 
 For any agent-facing procedural text without a named owner above:
 
-- One instruction per sentence; active voice; imperative mood.
-- One meaning per term, used consistently; define non-obvious terms at first
-  use.
-- Concrete commands, paths, and values — never categories.
+- Follow the STE-100 procedural-prose rules in
+  `docs/agent-system/SKILL_AUTHORING.md` §"Universal quality bars" — cite
+  them, do not restate them.
 - Replace decision-hiding words with the specific behavior meant. The
   canonical word list lives in `docs/agent-system/SKILL_AUTHORING.md`
   §"Universal quality bars" — cite it, do not copy it.

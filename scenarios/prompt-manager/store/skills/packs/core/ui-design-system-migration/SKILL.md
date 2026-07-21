@@ -6,7 +6,7 @@ Your goal is to reduce style coupling, preserve behavior, and converge on a UI w
 
 Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
-- `prompt-manager skill read react-coherence react-stability experience-architecture-audit`
+- `prompt-manager skill read ui-health experience-architecture-audit`
 - `prompt-manager skill read visited-tracker-tools`
 
 ---

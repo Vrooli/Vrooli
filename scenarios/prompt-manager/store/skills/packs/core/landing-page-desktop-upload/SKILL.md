@@ -3,7 +3,7 @@
 Drive an end-to-end LPBS desktop release through `deployment-manager`. DM owns the release pipeline: cloud-health gate, LPBS readiness gate, release-id allocation, build/sign/package, publish to LPBS, and post-release verification. This skill is a thin operator wrapper around `deployment-manager releases start`.
 
 Required reading:
-- `prompt-manager skill read deployment-manager`
+- `deployment-manager --help` — the release-pipeline CLI this skill wraps (cloud-health gate, LPBS readiness, release-id allocation, build/sign/package, publish, verify)
 - `prompt-manager skill read landing-page-deploy-setup` — for setup-time gates A–G (LPBS storage, app registration, remote profile)
 
 ---

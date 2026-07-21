@@ -1,0 +1,26 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "domain-clarity",
+  "name": "Domain Clarity",
+  "description": "Make the domain model small, consistently named, and explicit about intent. Three lenses: concept compression, vocabulary unification, intent documentation. Hands structural findings to screaming-architecture-audit and local code-craft to cognitive-load-reduction.",
+  "modes": [
+    "steer",
+    "abstraction",
+    "naming",
+    "documentation"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "minimize2",
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "architecture-scope",
+  "targetDimensions": [
+    "docs"
+  ],
+  "revision": 1,
+  "createdAt": "2026-07-21T00:00:00Z",
+  "updatedAt": "2026-07-21T00:00:00Z"
+}

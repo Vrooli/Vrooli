@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "benchmark-staleness-sweep",
   "name": "Benchmark Staleness Sweep",
-  "description": "Periodic sweep of monetization market-scan entries: detect stale captures by dimension-aware thresholds and auto-populate validation-inbox entries so market-validation-triage can re-fetch and supersede. Does not itself fetch sources or write decisions.",
+  "description": "Periodic sweep of monetization market-scan entries: detect stale captures by dimension-aware thresholds and auto-populate validation-inbox entries so signal-classifier can re-fetch and supersede. Does not itself fetch sources or write decisions.",
   "modes": [
     "tools"
   ],

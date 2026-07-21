@@ -10,7 +10,7 @@ Required reading (architectural context — set the stage before this skill appl
 - `prompt-manager skill read knowledge-observatory-tools` — read and update scenario documentation through the canonical docs CLI.
 
 Required reading (programmatic enforcement substrate):
-- `prompt-manager skill read tidiness-manager` (or `tidiness-manager --help`) — the scenario that runs light + smart scans and is the primary destination as this skill becomes more programmatic over time.
+- `prompt-manager skill read tidiness` (or `tidiness-manager --help`) — the scenario that runs light + smart scans and is the primary destination as this skill becomes more programmatic over time.
 
 Read first when present:
 - `scenarios/{{TARGET}}/docs/concepts/ARCHITECTURE.md` — surfaces, domain map, intended structure, any scenario-local vocabulary discipline.

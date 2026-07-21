@@ -4,6 +4,11 @@
   "id": "platform-scope",
   "name": "Platform Scope",
   "description": "Session constraints for shared packages/platform code: compatibility-first, brownfield-safe, no breaking changes by default.",
+  "tags": [
+    "scope",
+    "platform",
+    "constraints"
+  ],
   "modes": [
     "scope"
   ],

@@ -12,6 +12,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/workflowruntime"
@@ -624,6 +625,87 @@ func (o *Orchestrator) nudgeWorkflowForRun(runID uuid.UUID) {
 		return
 	}
 	o.workflowNudger.Enqueue(executionID)
+}
+
+// attributeExperimentForRun posts an experiment outcome to prompt-manager when a
+// just-terminal workflow run executed a node whose prompt was resolved from an
+// armed experiment. It joins the run to its node provenance
+// (run → attempt → node → pinned WorkflowPromptSource) and, when that provenance
+// carries an experiment + variant, reports the run's status and tokens as an
+// outcome. Attribution is best-effort: any miss or failure is logged and
+// swallowed so it never affects run or workflow progress.
+func (o *Orchestrator) attributeExperimentForRun(ctx context.Context, runID uuid.UUID) {
+	outcomeClient, ok := o.promptClient.(promptmanager.OutcomeClient)
+	if !ok || outcomeClient == nil || o.workflowExecutions == nil || o.workflows == nil {
+		return
+	}
+	executionID, err := o.workflowExecutions.ExecutionIDForRun(ctx, runID)
+	if err != nil || executionID == uuid.Nil {
+		return
+	}
+	execution, err := o.workflowExecutions.Get(ctx, executionID)
+	if err != nil || execution == nil {
+		return
+	}
+	attempts, err := o.workflowExecutions.ListAttempts(ctx, executionID)
+	if err != nil {
+		return
+	}
+	var nodeID string
+	for i := len(attempts) - 1; i >= 0; i-- {
+		if attempts[i].RunID != nil && *attempts[i].RunID == runID {
+			nodeID = attempts[i].NodeID
+			break
+		}
+	}
+	if nodeID == "" {
+		return
+	}
+	revision, err := o.workflows.GetByDigest(ctx, execution.DefinitionDigest)
+	if err != nil || revision == nil {
+		return
+	}
+	var provenance *domain.WorkflowPromptSource
+	for _, node := range revision.Definition.Nodes {
+		if node.ID != nodeID {
+			continue
+		}
+		if node.Run != nil {
+			provenance = node.Run.PromptProvenance
+		}
+		if provenance == nil && node.Continue != nil {
+			provenance = node.Continue.PromptProvenance
+		}
+		break
+	}
+	if provenance == nil || provenance.ExperimentID == "" || provenance.VariantID == "" {
+		return
+	}
+	run, err := o.GetRun(ctx, runID)
+	if err != nil || run == nil {
+		return
+	}
+	tokens := 0
+	if run.Summary != nil {
+		tokens = run.Summary.TokensUsed
+	}
+	data, err := json.Marshal(map[string]any{
+		"runId":      runID.String(),
+		"status":     string(run.Status),
+		"tokensUsed": tokens,
+	})
+	if err != nil {
+		return
+	}
+	if err := outcomeClient.RecordExperimentOutcome(ctx, provenance.ExperimentID, promptmanager.ExperimentOutcome{
+		VariantID: provenance.VariantID,
+		Source:    "agent-manager",
+		Data:      data,
+	}); err != nil {
+		obs.Component("experiment-attribution").Warn("record experiment outcome failed",
+			obs.KeyRunID, runID.String(),
+			obs.KeyError, err.Error())
+	}
 }
 
 func (o *Orchestrator) driveWorkflowExecutionLoop(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {

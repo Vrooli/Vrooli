@@ -10,7 +10,7 @@
     "boundary-of-responsibility-enforcement",
     "invariant-discovery-and-enforcement",
     "screaming-architecture-audit",
-    "concept-vocabulary-unification"
+    "domain-clarity"
   ],
   "status": "active",
   "revision": 1,

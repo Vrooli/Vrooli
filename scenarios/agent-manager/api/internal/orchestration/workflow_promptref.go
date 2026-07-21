@@ -67,7 +67,7 @@ func resolvePromptRef(ctx context.Context, source promptmanager.SourceClient, tm
 	if strings.TrimSpace(*tmpl) != "" {
 		return fmt.Errorf("promptRef and promptTemplate are mutually exclusive")
 	}
-	snap, err := source.ReadSkillSource(ctx, ref.SkillID, ref.Variables, ref.WithScope)
+	snap, err := source.ReadSkillSource(ctx, ref.SkillID, ref.ExperimentID, ref.Variables, ref.WithScope)
 	if err != nil {
 		return err
 	}
@@ -76,12 +76,13 @@ func resolvePromptRef(ctx context.Context, source promptmanager.SourceClient, tm
 	}
 	*tmpl = snap.Content
 	*provPtr = &domain.WorkflowPromptSource{
-		SkillID:     snap.SkillID,
-		Revision:    snap.Revision,
-		VariantID:   snap.VariantID,
-		ContentHash: snap.ContentHash,
-		Variables:   clonePromptVariables(ref.Variables),
-		WithScope:   ref.WithScope,
+		SkillID:      snap.SkillID,
+		Revision:     snap.Revision,
+		VariantID:    snap.VariantID,
+		ExperimentID: snap.ExperimentID,
+		ContentHash:  snap.ContentHash,
+		Variables:    clonePromptVariables(ref.Variables),
+		WithScope:    ref.WithScope,
 	}
 	*refPtr = nil
 	return nil
@@ -117,7 +118,7 @@ func workflowPromptStale(ctx context.Context, source promptmanager.SourceClient,
 		if provenance == nil {
 			continue
 		}
-		snapshot, err := source.ReadSkillSource(ctx, provenance.SkillID, provenance.Variables, provenance.WithScope)
+		snapshot, err := source.ReadSkillSource(ctx, provenance.SkillID, provenance.ExperimentID, provenance.Variables, provenance.WithScope)
 		if err != nil {
 			return false, fmt.Errorf("read current prompt source %q: %w", provenance.SkillID, err)
 		}

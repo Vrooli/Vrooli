@@ -3,12 +3,12 @@
     {
       "prefix": "validation-inbox/*",
       "taxonomy": "monetization-validation",
-      "classifier_skill": "market-validation-triage"
+      "classifier_skill": "signal-classifier"
     },
     {
       "prefix": "monetization-benchmark-adjacent-record/*",
       "taxonomy": "monetization-validation",
-      "classifier_skill": "market-validation-triage",
+      "classifier_skill": "signal-classifier",
       "source_team": "marketing-crew"
     }
   ],

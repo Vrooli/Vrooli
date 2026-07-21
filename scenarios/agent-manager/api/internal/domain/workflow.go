@@ -163,6 +163,10 @@ type WorkflowPromptRef struct {
 	SkillID   string            `json:"skillId"`
 	Variables map[string]string `json:"variables,omitempty"`
 	WithScope bool              `json:"withScope,omitempty"`
+	// ExperimentID deliberately arms this node against a running experiment. When
+	// empty (the default), resolution is pinned/deterministic — a running
+	// experiment never silently varies the node's prompt across reconciles.
+	ExperimentID string `json:"experimentId,omitempty"`
 }
 
 // WorkflowPromptSource is the digest-pinned provenance of a promptRef that has
@@ -175,6 +179,9 @@ type WorkflowPromptSource struct {
 	Revision    int    `json:"revision,omitempty"`
 	VariantID   string `json:"variantId,omitempty"`
 	ContentHash string `json:"contentHash"`
+	// ExperimentID records the armed experiment when the read was
+	// experiment-selected, enabling outcome attribution at run finalization.
+	ExperimentID string `json:"experimentId,omitempty"`
 	// Variables and WithScope preserve the exact prompt-manager read contract so
 	// staleness checks compare the pinned rendered prompt with like-for-like
 	// current source content.

@@ -169,7 +169,7 @@ Prose retirement:
 
 **When to suggest:** an existing tool works but is awkward for common cases (E2, E6–E8).
 
-**The generality test:** would this improvement help in multiple scenarios? Multiple skill types? Multiple use cases beyond the immediate one? If YES to 2+, it's a good suggestion. If only 1, it's too situational.
+**The generality test:** a tool improvement is a good suggestion when it satisfies at least two of these three criteria — it applies in multiple scenarios, it applies to multiple skill types, it applies to multiple use cases beyond the immediate one. If it satisfies only one, it is too situational.
 
 | Tool | ❌ Bad | Why Bad | ✅ Good | Why Good |
 |------|--------|---------|---------|----------|

@@ -19,7 +19,7 @@ Breadth comes before deep evaluation, but every pool entry must be plausible and
 - Do not silently rewrite revisit triggers; flag for repair via the hygiene skill output.
 
 ## Useful Skills
-- `prompt-manager skill read monetization-signal-classifier` — judgment-only classifier loaded on demand from the generated Inbox Flow section.
+- `prompt-manager skill read signal-classifier` — judgment-only classifier loaded on demand from the generated Inbox Flow section.
 - `prompt-manager skill read opportunity-pool-hygiene` — periodic sweep; required when pool >15 entries OR ≥14 days since last sweep.
 - `prompt-manager skill read systematic-exploration` — proactive baseline scans when inbox is empty.
 

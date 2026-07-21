@@ -3171,6 +3171,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	// Completion-driven advance: a workflow continue-node run just reached
 	// terminal (the parked path returned above, keeping its attempt open).
 	o.nudgeWorkflowForRun(run.ID)
+	o.attributeExperimentForRun(ctx, run.ID)
 }
 
 func (o *Orchestrator) checkpointContinuationTurn(ctx context.Context, run *domain.Run, result *runner.ExecuteResult, timedOut bool) {
@@ -3278,6 +3279,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	// run keeps its attempt open — the wake leg nudges when it later completes).
 	if !executor.parked {
 		o.nudgeWorkflowForRun(run.ID)
+		o.attributeExperimentForRun(ctx, run.ID)
 	}
 }
 
@@ -3556,6 +3558,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	// restart between run-terminal and the original nudge.
 	if !executor.parked {
 		o.nudgeWorkflowForRun(run.ID)
+		o.attributeExperimentForRun(ctx, run.ID)
 	}
 }
 

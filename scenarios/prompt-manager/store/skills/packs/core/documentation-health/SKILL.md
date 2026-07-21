@@ -303,7 +303,7 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 | Skill | Focus | When to Use Together |
 |-------|-------|---------------------|
 | screaming-architecture-audit | Mental model alignment | Documentation-health provides the docs that screaming-architecture reads first |
-| react-coherence | Code organization | Coherence patterns should be documented; docs should reference coherence decisions |
+| ui-health | Code organization | Coherence patterns should be documented; docs should reference coherence decisions |
 | refactor | Code cleanup | After refactoring, update DOC: references and [CODE: ...] links |
 | code-cleanup | Dead code removal | Remove documentation for deleted code |
 
