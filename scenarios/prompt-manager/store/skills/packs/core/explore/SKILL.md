@@ -6,7 +6,7 @@ Do **not** break functionality or regress tests; all changes must remain isolate
 Focus on generating **novel ideas, alternative approaches, and fresh perspectives**, guided by the principles below.
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ### **1. Explore New Possibilities**
 
@@ -24,7 +24,7 @@ Required reading:
 * For **UI exploration**, consider using BAS AI navigation to let a vision model explore the interface based on natural language prompts. This can surface unexpected UX issues or edge cases. See **browser-automation-studio** skill section on AI Navigation.
 
 Optional reading:
-- `prompt-manager skills read browser-automation-studio`
+- `prompt-manager skill read browser-automation-studio`
 
 Exploration should be **curiosity-driven**, not tied to immediate completeness gains.
 

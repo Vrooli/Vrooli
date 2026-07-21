@@ -288,7 +288,7 @@ Recommended architecture additions:
 
 ---
 
-### 12. Output Expectations
+### **12. Output Expectations**
 
 By the end of this loop, the scenario API should:
 - expose every proto-owned operation as a Connect-RPC method via `Module.Endpoints`

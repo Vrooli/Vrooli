@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"prompt-manager/store"
 	"time"
+
+	"prompt-manager/store"
 
 	"github.com/gorilla/mux"
 )
@@ -374,6 +375,43 @@ func (h *ExperimentHandlers) ListOutcomes(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// GetExperimentReport handles GET /experiments/{eid}/report
+func (h *ExperimentHandlers) GetExperimentReport(w http.ResponseWriter, r *http.Request) {
+	eid := mux.Vars(r)["eid"]
+
+	exp, err := h.experiments.Get(r.Context(), eid)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	serves, err := h.experiments.ListServes(r.Context(), eid)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	outcomes, err := h.experiments.ListOutcomes(r.Context(), eid)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	report := buildExperimentReport(exp, serves, outcomes)
+	for i, arm := range report.Arms {
+		name := arm.VariantID
+		if arm.VariantID == store.ControlVariantID {
+			name = "control (original)"
+		} else if v, err := h.variants.Get(r.Context(), exp.SkillID, arm.VariantID); err == nil {
+			name = v.Name
+		}
+		report.Arms[i].VariantName = name
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(report)
 }
 
 // experimentToResponse converts a store experiment to API response.

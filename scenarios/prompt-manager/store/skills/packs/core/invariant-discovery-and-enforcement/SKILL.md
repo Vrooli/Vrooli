@@ -370,7 +370,7 @@ Do not create one-off `INVARIANT_AUDIT.md` reports, parallel `ASSUMPTIONS.md` fi
 
 ---
 
-### 13. Output Expectations
+### **13. Output Expectations**
 
 By the end of this loop, the scenario should:
 - have a verified `INVARIANTS.md` where every Tier-2 entry is code-anchored and test-enforced (≥ L3)

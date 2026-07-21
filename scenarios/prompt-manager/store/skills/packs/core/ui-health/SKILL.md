@@ -163,7 +163,7 @@ Ship the harness: an axe-based dep (`axe-core`/`jest-axe`/`vitest-axe`) **and** 
 
 ---
 
-### 5. Output Expectations
+### **5. Output Expectations**
 
 Re-run §0 until the report is clean (or only report-only/known findings remain, recorded). Then:
 - Record durable UI model changes in `scenarios/{{TARGET}}/docs/concepts/ARCHITECTURE.md` (surfaces, slots adopted, theme/i18n decisions).

@@ -162,7 +162,14 @@ type ReadRequest struct {
 	Variables    map[string]string `json:"variables,omitempty"`    // Values for {{VAR}} substitution
 	WithScope    bool              `json:"withScope,omitempty"`    // Include default scope from first skill
 	Scope        string            `json:"scope,omitempty"`        // Explicit scope skill to include
-	ExperimentID string            `json:"experimentId,omitempty"` // Optional: select variant by experiment weights
+	ExperimentID string            `json:"experimentId,omitempty"` // Optional: select variant by an explicit experiment
+	// VariantPolicy opts out of blind serving. When "pinned" (or "control"), a
+	// running experiment for the skill is NOT sampled automatically — callers that
+	// require deterministic content (e.g. workflow reconcile) set this so a running
+	// experiment never silently arms them. Ignored when ExperimentID is explicit.
+	VariantPolicy string `json:"variantPolicy,omitempty"`
+	// Source identifies the caller for serve-event attribution (e.g. "agent-manager").
+	Source string `json:"source,omitempty"`
 }
 
 // ReadIssue captures missing identifiers.
@@ -198,5 +205,6 @@ type ReadResponse struct {
 	Resolve           string          `json:"resolve"`
 	Output            string          `json:"output,omitempty"`
 	ScopeSkill        *Response       `json:"scopeSkill,omitempty"`        // Included scope skill (if requested)
-	SelectedVariantID string          `json:"selectedVariantId,omitempty"` // Set when experimentId selects a variant
+	SelectedVariantID string          `json:"selectedVariantId,omitempty"` // Set when a variant is selected
+	ExperimentID      string          `json:"experimentId,omitempty"`      // Set when an experiment selected the variant (enables outcome attribution)
 }

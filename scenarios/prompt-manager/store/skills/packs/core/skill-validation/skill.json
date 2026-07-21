@@ -3,8 +3,12 @@
   "schemaVersion": 1,
   "id": "skill-validation",
   "name": "Skill Validation",
+  "description": "Validation suite for skills: contract extraction, consistency and executability checks, divergence probe, severity-classified findings with expansion patches.",
   "modes": [
     "meta"
+  ],
+  "tags": [
+    "skill"
   ],
   "status": "active",
   "entry": "SKILL.md",

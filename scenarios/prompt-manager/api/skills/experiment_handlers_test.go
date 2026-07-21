@@ -7,8 +7,9 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"prompt-manager/store"
 	"testing"
+
+	"prompt-manager/store"
 
 	"github.com/gorilla/mux"
 )
@@ -17,6 +18,7 @@ import (
 type mockExperimentStore struct {
 	experiments map[string]*store.Experiment
 	outcomes    map[string][]store.ExperimentOutcome
+	serves      []store.ExperimentServe
 }
 
 func newMockExperimentStore() *mockExperimentStore {
@@ -89,6 +91,40 @@ func (m *mockExperimentStore) RecordOutcome(_ context.Context, id string, outcom
 	}
 	m.outcomes[id] = append(m.outcomes[id], outcome)
 	return nil
+}
+
+func (m *mockExperimentStore) RecordServe(_ context.Context, serve store.ExperimentServe) error {
+	if _, ok := m.experiments[serve.ExperimentID]; !ok {
+		return errors.New("experiment not found")
+	}
+	m.serves = append(m.serves, serve)
+	return nil
+}
+
+func (m *mockExperimentStore) ListServes(_ context.Context, id string) ([]store.ExperimentServe, error) {
+	if _, ok := m.experiments[id]; !ok {
+		return nil, errors.New("experiment not found")
+	}
+	var result []store.ExperimentServe
+	for _, s := range m.serves {
+		if s.ExperimentID == id {
+			result = append(result, s)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockExperimentStore) CountServesByVariant(_ context.Context, id string) (map[string]int, error) {
+	if _, ok := m.experiments[id]; !ok {
+		return nil, errors.New("experiment not found")
+	}
+	counts := make(map[string]int)
+	for _, s := range m.serves {
+		if s.ExperimentID == id {
+			counts[s.VariantID]++
+		}
+	}
+	return counts, nil
 }
 
 func (m *mockExperimentStore) ListOutcomes(_ context.Context, id string) ([]store.ExperimentOutcome, error) {

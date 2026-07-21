@@ -63,6 +63,31 @@ type RecordOutcomeRequest struct {
 	Data          json.RawMessage `json:"data"`
 }
 
+// ExperimentReportResponse is the API response for an experiment report:
+// per-arm serve/outcome aggregation for observing a running experiment.
+type ExperimentReportResponse struct {
+	ExperimentID  string                `json:"experimentId"`
+	SkillID       string                `json:"skillId"`
+	Name          string                `json:"name"`
+	Status        string                `json:"status"`
+	TotalServes   int                   `json:"totalServes"`
+	TotalOutcomes int                   `json:"totalOutcomes"`
+	Arms          []ExperimentArmReport `json:"arms"`
+	ZeroDataArms  []string              `json:"zeroDataArms,omitempty"`
+}
+
+// ExperimentArmReport aggregates serve and outcome data for a single arm.
+type ExperimentArmReport struct {
+	VariantID      string         `json:"variantId"`
+	VariantName    string         `json:"variantName,omitempty"`
+	Weight         float64        `json:"weight,omitempty"`
+	Serves         int            `json:"serves"`
+	Outcomes       int            `json:"outcomes"`
+	StatusCounts   map[string]int `json:"statusCounts,omitempty"`
+	SuccessRate    *float64       `json:"successRate,omitempty"`
+	MeanTokensUsed *float64       `json:"meanTokensUsed,omitempty"`
+}
+
 // ExperimentOutcomeResponse is the API response for an outcome.
 type ExperimentOutcomeResponse struct {
 	VariantID     string          `json:"variantId"`

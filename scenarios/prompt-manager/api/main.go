@@ -491,6 +491,7 @@ func main() {
 	v1.HandleFunc("/experiments/{eid}/conclude", experimentHandlers.ConcludeExperiment).Methods("POST")
 	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.RecordOutcome).Methods("POST")
 	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.ListOutcomes).Methods("GET")
+	v1.HandleFunc("/experiments/{eid}/report", experimentHandlers.GetExperimentReport).Methods("GET")
 
 	// Graph routes
 	v1.HandleFunc("/graph", graphHandlers.GetGraph).Methods("GET")

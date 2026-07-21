@@ -8,7 +8,7 @@ Do **not** change the intended behavior, regress tests, or weaken safety guarant
 Focus on producing a **cleaner, clearer, easier-to-extend codebase**, guided by the following principles:
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ### **1. Preserve Behavior & Intent**
 

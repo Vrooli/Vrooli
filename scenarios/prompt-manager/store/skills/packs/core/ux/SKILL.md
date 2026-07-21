@@ -6,7 +6,7 @@ Prioritize **user experience quality** across all interfaces in this scenario.
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
+- `prompt-manager skill read visited-tracker-tools knowledge-observatory-tools`
 
 Focus on producing a **professional, polished, friction-free user experience**, guided by the following principles:
 
@@ -25,7 +25,7 @@ Focus on producing a **professional, polished, friction-free user experience**, 
   * See **e2e-testing** skill for selector registry standards and workflow authoring patterns
 
 Optional reading:
-- `prompt-manager skills read browser-automation-studio e2e-testing`
+- `prompt-manager skill read browser-automation-studio e2e-testing`
 
 ### **2. Layout & Information Hierarchy**
 

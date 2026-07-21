@@ -1,0 +1,17 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "divergence-probe-executor",
+  "name": "divergence-probe-executor",
+  "description": "Divergence-probe runner: independently execute a skill against a target scenario and emit a structured decision list.",
+  "tags": [
+    "divergence-probe",
+    "dtv",
+    "meta"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-07-21T13:41:25Z",
+  "updatedAt": "2026-07-21T13:41:25Z"
+}

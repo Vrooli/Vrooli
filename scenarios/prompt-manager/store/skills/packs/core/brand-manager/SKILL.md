@@ -188,7 +188,7 @@ This means you never start from zero — Brand Manager bootstraps from whatever 
 
 ---
 
-### 9. Output Expectations
+### **9. Output Expectations**
 
 | Command | Expected Result |
 |---------|----------------|

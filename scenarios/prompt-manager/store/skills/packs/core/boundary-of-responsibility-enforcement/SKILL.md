@@ -164,7 +164,7 @@ Challenge yourself before a move:
 
 ---
 
-### 8. Output Expectations
+### **8. Output Expectations**
 
 By the end of this loop, the scenario should:
 - have a `Zone Map` in `scenarios/{{TARGET}}/docs/concepts/ARCHITECTURE.md` listing every directory under `api/` with its zone assignment

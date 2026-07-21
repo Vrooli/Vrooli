@@ -218,7 +218,7 @@ If you discover an area that needs substantial redesign, record the candidate in
 
 ---
 
-### 8. Output Expectations
+### **8. Output Expectations**
 
 By the end of this loop, the scenario should:
 - have advanced one level on the §2 ladder for at least one surface (`api/`, `ui/`, or `cli/`)

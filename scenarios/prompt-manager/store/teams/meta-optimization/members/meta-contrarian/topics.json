@@ -5,6 +5,9 @@
     },
     {
       "prefix": "challenge-resolution-record/<decision-id>"
+    },
+    {
+      "prefix": "skill-experiment/<skill-id>/<experiment-id>"
     }
   ],
   "output": [

@@ -7,7 +7,7 @@ Prioritize **improving the security posture** of this scenario across its UI, AP
 Do **not** break functionality, regress tests, or weaken existing protections. All changes must maintain or improve overall completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
+- `prompt-manager skill read visited-tracker-tools knowledge-observatory-tools`
 
 Run Security Health before manual judgment. The provider's default human output is the single source of truth for current local maturity, next level, blockers, global impact grouping, and recommended skill IDs:
 

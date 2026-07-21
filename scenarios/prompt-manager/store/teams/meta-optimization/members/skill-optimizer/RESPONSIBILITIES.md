@@ -34,6 +34,20 @@ This split is why `programmaticHome` is a separate record-of-fact field and **no
 
 Every conversion, Action, or improvement proposal includes the current baseline, expected delta, and measurement plan. A proposal without a baseline is not ready for the operator.
 
+## Skill Experiments (measured improvement)
+
+When a `skill-improvement` fix is contestable (two plausible rewrites) or targets a high-usage skill, do not edit in place — run an experiment:
+
+1. `prompt-manager skill add-variant <skill-id> <variant-id>` — the variant is the hypothesis; record the rationale in the ledger topic.
+2. `prompt-manager experiment create --skill <skill-id> --arm control:0.5 --arm <variant-id>:0.5`, then `prompt-manager experiment start <eid>`.
+3. Serving and attribution are automatic: a running experiment arms organic `skill read` traffic (blind serving; serves append to the experiment's `serve.jsonl`). Agent-manager workflow prompt refs stay pinned unless the workflow deliberately sets `experimentId`; attributed run outcomes (`runId`, `status`, `tokensUsed`) post back automatically at run-terminal points.
+4. Read evidence with `prompt-manager experiment report <eid>` (per-arm serves, outcomes, success rate, mean tokens).
+5. `prompt-manager experiment conclude <eid> <winner-variant-id>` promotes the winner's content onto the skill. This is a gated write; the gate is below.
+
+**Conclusion gate (public/private score split).** Author variants with any public signal (lint, structure checks, judgment). Conclude only on signals the variant author does not control: attributed run outcomes, divergence-probe results, or held-out trial verdicts. Never conclude on `skill rate` self-reports alone. Do not conclude with fewer than 10 attributed outcomes per arm, without a recorded `challenge-report` from the meta-contrarian, or at materially unequal token cost between arms (an arm that wins while spending more tokens is a different tradeoff — name it in the decision). A suspiciously large metric jump triggers a transcript audit before conclusion.
+
+Ledger: record hypothesis → arm rationale → report snapshots → challenge → conclusion evidence in `topic:skill-experiment/<skill-id>/<experiment-id>`.
+
 ## Action Judgment
 
 Use `prompt-manager discover "<operation>" --type all` before proposing new executable guidance. Prefer improving or referencing an existing exact Action. Use `prompt-manager action show <id>` to inspect the contract, `prompt-manager action validate <id>` for contract/runtime eligibility, and `prompt-manager action run <id> --dry-run` only when execution is appropriate.

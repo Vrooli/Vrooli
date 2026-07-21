@@ -10,7 +10,7 @@ Your goals are to:
 Do **not** break functionality, regress tests, or introduce new features unrelated to failure handling. All changes must maintain or improve overall completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ---
 

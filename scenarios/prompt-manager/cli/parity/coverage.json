@@ -38,6 +38,7 @@
   "POST /experiments/{eid}/conclude": {"status": "covered", "cli": "experiment conclude <eid>"},
   "POST /experiments/{eid}/outcomes": {"status": "covered", "cli": "experiment outcomes <eid> (record mode)"},
   "GET /experiments/{eid}/outcomes": {"status": "covered", "cli": "experiment outcomes <eid> (list mode)"},
+  "GET /experiments/{eid}/report": {"status": "covered", "cli": "experiment report <eid>"},
 
   "GET /graph": {"status": "covered", "cli": "graph show"},
   "POST /graph/regenerate": {"status": "covered", "cli": "graph regenerate"},

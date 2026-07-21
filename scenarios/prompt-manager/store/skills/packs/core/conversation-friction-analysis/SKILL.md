@@ -204,7 +204,7 @@ Rule:
 
 ---
 
-### 8. Output Expectations
+### **8. Output Expectations**
 
 Produce this report:
 

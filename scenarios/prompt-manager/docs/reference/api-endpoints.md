@@ -347,28 +347,43 @@ List raw outcomes for an experiment.
 
 **Response:** `ExperimentOutcomeResponse[]`
 
+### GET /api/v1/experiments/{eid}/report
+
+Aggregated per-arm report for an experiment: serve counts, outcome counts, outcome status breakdown, success rate (successful outcomes / outcomes with a known status), and mean tokens used. Outcomes whose `data` blob carries no parseable `status` are bucketed as `unknown` and excluded from the success-rate denominator. Arms with zero serves and zero outcomes are listed in `zeroDataArms`.
+
+**Response:** `ExperimentReportResponse`
+
 ### Variant-Aware Read (extension to POST /api/v1/skills/read)
 
-When `experimentId` is included in a read request, the first resolved skill's content may be replaced by a variant selected via weighted random sampling.
+Reads participate in experiments two ways:
 
-**Additional request field:**
+- **Explicit arming:** include `experimentId` in the request. The experiment must be `running` and target the resolved skill; the first resolved skill's content may be replaced by a variant selected via weighted random sampling.
+- **Blind serving (default):** with no `experimentId`, a read still samples an arm automatically when a running experiment exists for the resolved skill. Opt out per read with `variantPolicy`.
+
+**Additional request fields:**
 ```json
 {
+  "experimentId": "exp-concise-test",
+  "variantPolicy": "pinned",
+  "source": "agent-manager"
+}
+```
+
+- `variantPolicy: "pinned"` or `"control"` — serve the original SKILL.md and skip experiment sampling (agent-manager sends `pinned` for workflow prompt refs that are not deliberately armed, preserving workflow determinism)
+- `source` — free-form caller label recorded with the serve
+
+**Additional response fields:**
+```json
+{
+  "selectedVariantId": "concise-v1",
   "experimentId": "exp-concise-test"
 }
 ```
 
-**Additional response field:**
-```json
-{
-  "selectedVariantId": "concise-v1"
-}
-```
-
 **Notes:**
-- Experiment must be `running` and target the resolved skill
 - `control` means the original SKILL.md was used (no content replacement)
 - Variable substitution is applied to variant content as normal
+- Every sampled serve is appended to the experiment's `serve.jsonl` (beside `outcomes.jsonl` in the experiment's runtime data directory); `GET /api/v1/experiments/{eid}/report` aggregates serves and outcomes per arm
 
 ---
 

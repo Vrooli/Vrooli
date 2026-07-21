@@ -97,7 +97,7 @@ For each proposed improvement:
 
 ---
 
-### 4. Output Expectations
+### **4. Output Expectations**
 
 **Must produce:**
 - A written audit artifact at `docs/internal/platform/{{PACKAGE}}/consumption-audit.md` using the template below

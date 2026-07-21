@@ -240,7 +240,7 @@ do not strip nuance from it to satisfy the style rules.
 
 ---
 
-### 6. Output Expectations
+### **6. Output Expectations**
 
 **Must produce:**
 - A finalized Plan Manager plan id/slug, or a clear explanation of why the

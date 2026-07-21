@@ -1,6 +1,6 @@
 ## Meta focus: Search Skill Authoring
 
-Guide for creating **Search** skills (where `modes[0] = "Search"`). Search skills focus on discovery, mapping, and evidence gathering, not implementation.
+Guide for creating **search** skills (the authored skill declares `modes[0] = "search"`). Search skills focus on discovery, mapping, and evidence gathering, not implementation.
 
 Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
@@ -99,9 +99,7 @@ If output is not JSON, specify the exact headings and required fields.
 
 ### **7. Registration Notes**
 
-Follow `docs/agent-system/SKILL_AUTHORING.md` and ensure:
-- `modes[0]` is **Search**
-- The description reflects the search intent and output contract
+Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "search"` and a description that reflects the search intent and output contract.
 
 ---
 
@@ -109,7 +107,7 @@ Follow `docs/agent-system/SKILL_AUTHORING.md` and ensure:
 
 You may update:
 - Search skills to improve clarity, accuracy, or output contracts
-- `metadata.json` entries for Search skills
+- `skill.json` entries for Search skills
 
 You must:
 - Keep search skills evidence-driven and non-speculative

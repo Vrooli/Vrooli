@@ -112,7 +112,7 @@ Keep this section short. If the same failure recurs across scenarios, prefer imp
 
 ---
 
-### 6. Output Expectations
+### **6. Output Expectations**
 
 You may update scenario tool configuration, package scripts, Makefiles, strictness-preserving source code, quality-policy tests, and durable scenario docs.
 

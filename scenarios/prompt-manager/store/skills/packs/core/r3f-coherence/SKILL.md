@@ -7,7 +7,7 @@ Your goal is to ensure 3D codebases achieve **60fps rendering without React re-r
 Do **not** break existing functionality, regress visual fidelity, or introduce new features. All changes must maintain or improve performance and structural consistency.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 
@@ -479,7 +479,7 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 | performance | General optimization | After R3F-specific fixes, apply general perf patterns |
 
 Optional reading:
-- `prompt-manager skills read react-coherence react-stability performance`
+- `prompt-manager skill read react-coherence react-stability performance`
 
 **Recommended sequence for R3F work:**
 1. **r3f-coherence** (audit) → find re-render bugs and animation issues

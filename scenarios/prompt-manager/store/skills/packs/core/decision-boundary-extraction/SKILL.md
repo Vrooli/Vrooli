@@ -8,7 +8,7 @@ Do **not** break functionality, regress tests, or change business rules except t
 
 Required reading:
 - `docs/scenario-qa/methods/audit/decision-boundary-extraction.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 * * *
 
@@ -98,7 +98,7 @@ Do not weaken existing tests to make refactors pass; instead, align tests with c
 
 * * *
 
-### **6\. Output Expectations**
+### **6. Output Expectations**
 
 You may update:
 

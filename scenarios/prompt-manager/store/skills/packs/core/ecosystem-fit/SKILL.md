@@ -106,7 +106,7 @@ Never block fit analysis on `tech-tree-designer`. It is a power-up, not a prereq
 
 ---
 
-### 5. Output Expectations
+### **5. Output Expectations**
 
 When this skill is applied during planning, you **must** produce:
 - A one-line **role** classification and the **interface(s)** the scenario serves/enables.

@@ -12,7 +12,7 @@ Required reading:
 
 - `docs/agent-system/REFERENCE_PATTERN_FITNESS.md` — strategic-canon home: when this lens applies, when it backfires, what the meta-contrarian challenges, the four sub-lenses, the worked example.
 - `docs/agent-system/REFERENCE_SCENARIOS.md` — registry of templates and references; confirm `{{TARGET}}` is registered before running this lens.
-- `prompt-manager skills read knowledge-observatory-tools` — typed knowledge integration; findings land under `template-fitness-audit/<artifact-slug>/<YYYY-MM-DD>`.
+- `prompt-manager skill read knowledge-observatory-tools` — typed knowledge integration; findings land under `template-fitness-audit/<artifact-slug>/<YYYY-MM-DD>`.
 - The single-instance lens(es) appropriate to `{{TARGET}}` — the auditor selects from `path:docs/scenario-qa/methods/audit/`. For CRUD-template audits: `screaming-architecture-audit`, `decision-boundary-extraction`, `utils-unification` are typical prerequisites.
 
 ---

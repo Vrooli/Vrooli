@@ -228,7 +228,7 @@ When updating:
 
 ---
 
-### 9. Output Expectations
+### **9. Output Expectations**
 
 By the end of this loop, the scenario should:
 - have a clearer inventory of URL surfaces in `EXPERIENCE-AUDIT.md`

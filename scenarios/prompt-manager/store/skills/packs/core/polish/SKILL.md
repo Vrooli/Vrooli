@@ -9,7 +9,7 @@ Avoid large structural refactors or new feature work — focus on **refinement, 
 The goal of this phase is to make the scenario feel **reliable, intentional, and “done”**.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 

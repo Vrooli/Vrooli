@@ -141,7 +141,7 @@ Repeated troubleshooting should become Tidiness Manager CLI output or a prompt-m
 
 ---
 
-### 6. Output Expectations
+### **6. Output Expectations**
 
 You may update scenario implementation files, focused tests, issue statuses, campaign state, and durable scenario docs.
 

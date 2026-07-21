@@ -9,7 +9,7 @@ Your goal is to ensure documentation remains accurate, discoverable, and tightly
 Do **not** change core business logic or introduce new features. All changes focus on documentation structure, references, and validation infrastructure.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 

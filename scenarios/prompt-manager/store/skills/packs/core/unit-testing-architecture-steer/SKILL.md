@@ -248,7 +248,7 @@ A non-empty result on L3/L4 commands is a concrete drift item — record it in `
 
 ---
 
-### 11. Output Expectations
+### **11. Output Expectations**
 
 Write findings into the durable docs; do not create a standalone audit report.
 

@@ -117,7 +117,7 @@ If still failing, escalate. **Do not** manually mark the release published — t
 
 ---
 
-### 7. Output Expectations
+### **7. Output Expectations**
 
 After `releases start`, surface:
 - `release_id`

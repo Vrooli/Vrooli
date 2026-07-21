@@ -101,6 +101,16 @@ type ExperimentStore interface {
 	// RecordOutcome appends an opaque outcome to the experiment's JSONL log
 	RecordOutcome(ctx context.Context, experimentID string, outcome ExperimentOutcome) error
 
+	// RecordServe appends a serve event (a variant selection) to the experiment's
+	// serve JSONL log, so served variants can later be attributed to outcomes
+	RecordServe(ctx context.Context, serve ExperimentServe) error
+
+	// ListServes returns all raw serve events for an experiment
+	ListServes(ctx context.Context, experimentID string) ([]ExperimentServe, error)
+
+	// CountServesByVariant returns serve counts grouped by variant ID
+	CountServesByVariant(ctx context.Context, experimentID string) (map[string]int, error)
+
 	// ListOutcomes returns all raw outcomes for an experiment
 	ListOutcomes(ctx context.Context, experimentID string) ([]ExperimentOutcome, error)
 

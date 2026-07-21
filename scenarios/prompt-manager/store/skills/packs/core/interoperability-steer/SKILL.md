@@ -526,7 +526,7 @@ At session end, update:
 
 ---
 
-### 19. Output Expectations
+### **19. Output Expectations**
 
 You may update in `scenarios/{{TARGET}}/`:
 - proto schemas and generated-type consumers.

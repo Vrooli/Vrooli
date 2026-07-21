@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -237,6 +239,151 @@ func TestExperimentStore_CountOutcomesEmpty(t *testing.T) {
 	}
 	if len(counts) != 0 {
 		t.Errorf("expected empty counts, got %v", counts)
+	}
+}
+
+func TestExperimentStore_RecordAndListServes(t *testing.T) {
+	storeDir := t.TempDir()
+	es := NewFileExperimentStore(storeDir)
+	ctx := context.Background()
+
+	if err := es.Create(ctx, &Experiment{ID: "exp-1", SkillID: "s1", Name: "E1"}); err != nil {
+		t.Fatal(err)
+	}
+
+	serves := []ExperimentServe{
+		{ExperimentID: "exp-1", SkillID: "s1", VariantID: "control", Source: "agent-manager", ServedAt: "2026-04-06T14:00:00Z"},
+		{ExperimentID: "exp-1", SkillID: "s1", VariantID: "concise-v1", Source: "agent-manager"},
+		{ExperimentID: "exp-1", SkillID: "s1", VariantID: "control", Source: "agent-manager", ServedAt: "2026-04-06T14:02:00Z"},
+	}
+	for _, sv := range serves {
+		if err := es.RecordServe(ctx, sv); err != nil {
+			t.Fatalf("record serve: %v", err)
+		}
+	}
+
+	got, err := es.ListServes(ctx, "exp-1")
+	if err != nil {
+		t.Fatalf("list serves: %v", err)
+	}
+	if len(got) != 3 {
+		t.Errorf("expected 3 serves, got %d", len(got))
+	}
+	if got[0].VariantID != "control" {
+		t.Errorf("expected first serve variant %q, got %q", "control", got[0].VariantID)
+	}
+	if got[1].ServedAt == "" {
+		t.Error("expected RecordServe to backfill servedAt")
+	}
+}
+
+func TestExperimentStore_ListServesSkipsMalformed(t *testing.T) {
+	storeDir := t.TempDir()
+	es := NewFileExperimentStore(storeDir)
+	ctx := context.Background()
+
+	if err := es.Create(ctx, &Experiment{ID: "exp-1", SkillID: "s1", Name: "E1"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := es.RecordServe(ctx, ExperimentServe{ExperimentID: "exp-1", SkillID: "s1", VariantID: "control"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Corrupt the log with a malformed line and a blank line
+	path := filepath.Join(storeDir, "experiments", "exp-1", "serve.jsonl")
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString("{not-json\n\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := es.RecordServe(ctx, ExperimentServe{ExperimentID: "exp-1", SkillID: "s1", VariantID: "v1"}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := es.ListServes(ctx, "exp-1")
+	if err != nil {
+		t.Fatalf("list serves: %v", err)
+	}
+	if len(got) != 2 {
+		t.Errorf("expected 2 serves (malformed skipped), got %d", len(got))
+	}
+
+	counts, err := es.CountServesByVariant(ctx, "exp-1")
+	if err != nil {
+		t.Fatalf("count serves: %v", err)
+	}
+	if counts["control"] != 1 || counts["v1"] != 1 {
+		t.Errorf("unexpected counts: %v", counts)
+	}
+}
+
+func TestExperimentStore_CountServesByVariant(t *testing.T) {
+	storeDir := t.TempDir()
+	es := NewFileExperimentStore(storeDir)
+	ctx := context.Background()
+
+	if err := es.Create(ctx, &Experiment{ID: "exp-1", SkillID: "s1", Name: "E1"}); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, vid := range []string{"control", "v1", "control", "v1", "v1"} {
+		if err := es.RecordServe(ctx, ExperimentServe{ExperimentID: "exp-1", SkillID: "s1", VariantID: vid}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	counts, err := es.CountServesByVariant(ctx, "exp-1")
+	if err != nil {
+		t.Fatalf("count serves: %v", err)
+	}
+	if counts["control"] != 2 {
+		t.Errorf("expected control=2, got %d", counts["control"])
+	}
+	if counts["v1"] != 3 {
+		t.Errorf("expected v1=3, got %d", counts["v1"])
+	}
+}
+
+func TestExperimentStore_ListServesEmpty(t *testing.T) {
+	storeDir := t.TempDir()
+	es := NewFileExperimentStore(storeDir)
+	ctx := context.Background()
+
+	if err := es.Create(ctx, &Experiment{ID: "exp-1", SkillID: "s1", Name: "E1"}); err != nil {
+		t.Fatal(err)
+	}
+
+	serves, err := es.ListServes(ctx, "exp-1")
+	if err != nil {
+		t.Fatalf("list serves: %v", err)
+	}
+	if len(serves) != 0 {
+		t.Errorf("expected 0 serves, got %d", len(serves))
+	}
+
+	counts, err := es.CountServesByVariant(ctx, "exp-1")
+	if err != nil {
+		t.Fatalf("count serves: %v", err)
+	}
+	if len(counts) != 0 {
+		t.Errorf("expected empty counts, got %v", counts)
+	}
+}
+
+func TestExperimentStore_ListServesNotFound(t *testing.T) {
+	storeDir := t.TempDir()
+	es := NewFileExperimentStore(storeDir)
+	ctx := context.Background()
+
+	if _, err := es.ListServes(ctx, "nonexistent"); err == nil {
+		t.Error("expected error listing serves for nonexistent experiment")
 	}
 }
 

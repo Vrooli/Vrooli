@@ -1,6 +1,7 @@
 package skills
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -84,25 +85,48 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Variant-aware selection: if experimentId is provided, override the first
-	// skill's content with the selected variant's content.
-	if req.ExperimentID != "" && len(responses) > 0 {
-		selectedVariantID, variantContent, err := h.selectVariant(r, req.ExperimentID, responses[0].ID)
+	// Variant-aware selection: an explicit experimentId selects a variant for the
+	// first skill; absent that, a running experiment for the skill is sampled
+	// automatically (blind serving) unless the caller pinned the read. Blind
+	// serving is best-effort — a lookup/selection failure must never break an
+	// organic read — while an explicit experiment surfaces its error.
+	if len(responses) > 0 {
+		exp, err := h.resolveExperiment(r.Context(), req, responses[0].ID)
 		if err != nil {
 			http.Error(w, "Experiment error: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		if variantContent != nil {
-			// Apply variable substitution to variant content
-			content := *variantContent
-			if len(req.Variables) > 0 {
-				content = SubstituteVariables(content, req.Variables)
+		if exp != nil {
+			selectedVariantID, variantContent, selErr := h.selectVariant(r.Context(), exp)
+			switch {
+			case selErr != nil && req.ExperimentID != "":
+				http.Error(w, "Experiment error: "+selErr.Error(), http.StatusBadRequest)
+				return
+			case selErr != nil:
+				// Blind serving: swallow and serve the original content.
+			default:
+				if variantContent != nil {
+					// Apply variable substitution to variant content
+					content := *variantContent
+					if len(req.Variables) > 0 {
+						content = SubstituteVariables(content, req.Variables)
+					}
+					responses[0].Content = content
+					responses[0].Variables = ExtractVariables(*variantContent)
+					responses[0].ContentHash = contentSHA256(*variantContent)
+				}
+				resp.SelectedVariantID = selectedVariantID
+				resp.ExperimentID = exp.ID
+				// Record the serve event so the served variant can be attributed
+				// to an outcome later (best-effort; never breaks the read).
+				_ = h.experimentStore.RecordServe(r.Context(), store.ExperimentServe{
+					ExperimentID: exp.ID,
+					SkillID:      exp.SkillID,
+					VariantID:    selectedVariantID,
+					Source:       req.Source,
+				})
 			}
-			responses[0].Content = content
-			responses[0].Variables = ExtractVariables(*variantContent)
-			responses[0].ContentHash = contentSHA256(*variantContent)
 		}
-		resp.SelectedVariantID = selectedVariantID
 	}
 
 	if !allowMissing && (len(resp.Missing) > 0 || len(resp.Ambiguous) > 0) {
@@ -343,28 +367,67 @@ func contentSHA256(content string) string {
 	return fmt.Sprintf("sha256:%x", digest[:])
 }
 
-// selectVariant picks a variant based on experiment weights.
-// Returns the selected variant ID and the variant content (nil if control).
-func (h *Handlers) selectVariant(r *http.Request, experimentID, skillID string) (string, *string, error) {
+// resolveExperiment returns the experiment that should serve a variant for the
+// given skill read, or nil if none applies. An explicit experimentId is
+// validated (must be running and target the skill) and surfaces its error.
+// Otherwise, unless the caller pinned the read, the first running experiment for
+// the skill is returned (blind serving) — and any lookup failure resolves to nil
+// so an organic read is never broken.
+func (h *Handlers) resolveExperiment(ctx context.Context, req ReadRequest, skillID string) (*store.Experiment, error) {
 	if h.experimentStore == nil || h.variantStore == nil {
-		return "", nil, fmt.Errorf("experiment support not configured")
+		if req.ExperimentID != "" {
+			return nil, fmt.Errorf("experiment support not configured")
+		}
+		return nil, nil
 	}
 
-	exp, err := h.experimentStore.Get(r.Context(), experimentID)
+	if req.ExperimentID != "" {
+		exp, err := h.experimentStore.Get(ctx, req.ExperimentID)
+		if err != nil {
+			return nil, fmt.Errorf("experiment not found: %s", req.ExperimentID)
+		}
+		if exp.Status != store.ExperimentStatusRunning {
+			return nil, fmt.Errorf("experiment %s is not running (status: %s)", req.ExperimentID, exp.Status)
+		}
+		if exp.SkillID != skillID {
+			return nil, fmt.Errorf("experiment %s targets skill %s, not %s", req.ExperimentID, exp.SkillID, skillID)
+		}
+		return exp, nil
+	}
+
+	if variantPolicyPinned(req.VariantPolicy) {
+		return nil, nil
+	}
+
+	// Blind serving: sample from the first running experiment for this skill.
+	exps, err := h.experimentStore.ListBySkill(ctx, skillID)
 	if err != nil {
-		return "", nil, fmt.Errorf("experiment not found: %s", experimentID)
+		return nil, nil // best-effort: a listing failure must not break the read
 	}
-
-	if exp.Status != store.ExperimentStatusRunning {
-		return "", nil, fmt.Errorf("experiment %s is not running (status: %s)", experimentID, exp.Status)
+	for i := range exps {
+		if exps[i].Status == store.ExperimentStatusRunning {
+			return &exps[i], nil
+		}
 	}
+	return nil, nil
+}
 
-	if exp.SkillID != skillID {
-		return "", nil, fmt.Errorf("experiment %s targets skill %s, not %s", experimentID, exp.SkillID, skillID)
+// variantPolicyPinned reports whether the caller opted out of blind serving.
+func variantPolicyPinned(policy string) bool {
+	switch strings.ToLower(strings.TrimSpace(policy)) {
+	case "pinned", "control":
+		return true
+	default:
+		return false
 	}
+}
 
+// selectVariant picks a variant from a running experiment via a weighted walk.
+// Returns the selected variant ID and its content (nil for control, which serves
+// the original SKILL.md).
+func (h *Handlers) selectVariant(ctx context.Context, exp *store.Experiment) (string, *string, error) {
 	if len(exp.Arms) == 0 {
-		return "", nil, fmt.Errorf("experiment %s has no arms", experimentID)
+		return "", nil, fmt.Errorf("experiment %s has no arms", exp.ID)
 	}
 
 	// Weighted random selection: cumulative walk
@@ -385,7 +448,7 @@ func (h *Handlers) selectVariant(r *http.Request, experimentID, skillID string) 
 	}
 
 	// Load variant content
-	_, content, err := h.variantStore.GetWithContent(r.Context(), skillID, selectedArm.VariantID)
+	_, content, err := h.variantStore.GetWithContent(ctx, exp.SkillID, selectedArm.VariantID)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to load variant %s: %w", selectedArm.VariantID, err)
 	}

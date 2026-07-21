@@ -459,6 +459,18 @@ type ExperimentOutcome struct {
 	Data          json.RawMessage `json:"data"` // opaque to PM
 }
 
+// ExperimentServe records that a variant was served for a skill read. It is the
+// serve-side counterpart to ExperimentOutcome: appended when blind serving (or an
+// explicit experiment) selects a variant, so a served variant can later be joined
+// to its outcome. Written to serve.jsonl beside outcomes.jsonl.
+type ExperimentServe struct {
+	ExperimentID string `json:"experimentId"`
+	SkillID      string `json:"skillId"`
+	VariantID    string `json:"variantId"`
+	Source       string `json:"source,omitempty"` // caller identity, e.g. "agent-manager"
+	ServedAt     string `json:"servedAt"`
+}
+
 // PackOrder represents the pack precedence configuration
 type PackOrder struct {
 	ActivePacks   []string `json:"activePacks"`

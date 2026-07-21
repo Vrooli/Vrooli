@@ -839,6 +839,110 @@ func TestRead_ExperimentSelectionRejectsNonRunningExperiment(t *testing.T) {
 	}
 }
 
+func TestRead_BlindServingSamplesRunningExperiment(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics, "/test/store")
+	experiments := newMockExperimentStore()
+	variants := newMockVariantStore()
+	handlers.SetExperimentStores(experiments, variants, newMockPackSkillStore())
+
+	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill", "Original {{NAME}}")
+	addMockVariant(variants, "test-skill", "variant-a", "Treatment", "Variant {{NAME}}")
+	experiments.experiments["exp-running"] = &pmstore.Experiment{
+		ID:      "exp-running",
+		SkillID: "test-skill",
+		Status:  pmstore.ExperimentStatusRunning,
+		Arms: []pmstore.ExperimentArm{
+			{VariantID: pmstore.ControlVariantID, Weight: 0},
+			{VariantID: "variant-a", Weight: 1},
+		},
+	}
+
+	// No experimentId: blind serving should sample the running experiment.
+	req := ReadRequest{
+		Identifiers: []string{"test-skill"},
+		Variables:   map[string]string{"NAME": "Ada"},
+		Source:      "agent-manager",
+	}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+	if resp.SelectedVariantID != "variant-a" {
+		t.Fatalf("expected blind-sampled variant-a, got %q", resp.SelectedVariantID)
+	}
+	if resp.ExperimentID != "exp-running" {
+		t.Fatalf("expected response to carry experimentId exp-running, got %q", resp.ExperimentID)
+	}
+	if resp.Skills[0].Content != "Variant Ada" {
+		t.Fatalf("expected variant content, got %q", resp.Skills[0].Content)
+	}
+	if len(experiments.serves) != 1 {
+		t.Fatalf("expected one recorded serve event, got %d", len(experiments.serves))
+	}
+	if s := experiments.serves[0]; s.ExperimentID != "exp-running" || s.VariantID != "variant-a" || s.Source != "agent-manager" {
+		t.Fatalf("unexpected serve event: %+v", s)
+	}
+}
+
+func TestRead_PinnedVariantPolicySkipsBlindServing(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics, "/test/store")
+	experiments := newMockExperimentStore()
+	variants := newMockVariantStore()
+	handlers.SetExperimentStores(experiments, variants, newMockPackSkillStore())
+
+	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill", "Original {{NAME}}")
+	addMockVariant(variants, "test-skill", "variant-a", "Treatment", "Variant {{NAME}}")
+	experiments.experiments["exp-running"] = &pmstore.Experiment{
+		ID:      "exp-running",
+		SkillID: "test-skill",
+		Status:  pmstore.ExperimentStatusRunning,
+		Arms: []pmstore.ExperimentArm{
+			{VariantID: pmstore.ControlVariantID, Weight: 0},
+			{VariantID: "variant-a", Weight: 1},
+		},
+	}
+
+	// Pinned policy: a running experiment must NOT silently arm this read.
+	req := ReadRequest{
+		Identifiers:   []string{"test-skill"},
+		Variables:     map[string]string{"NAME": "Ada"},
+		VariantPolicy: "pinned",
+	}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+	if resp.SelectedVariantID != "" || resp.ExperimentID != "" {
+		t.Fatalf("expected no variant selection under pinned policy, got variant %q exp %q", resp.SelectedVariantID, resp.ExperimentID)
+	}
+	if resp.Skills[0].Content != "Original Ada" {
+		t.Fatalf("expected original content under pinned policy, got %q", resp.Skills[0].Content)
+	}
+	if len(experiments.serves) != 0 {
+		t.Fatalf("expected no serve events under pinned policy, got %d", len(experiments.serves))
+	}
+}
+
 func TestSync_IncludesVariables(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}

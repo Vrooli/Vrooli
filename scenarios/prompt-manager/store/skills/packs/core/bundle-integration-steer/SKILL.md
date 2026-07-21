@@ -5,8 +5,8 @@ Integrate `scenarios/{{TARGET}}/` into the **Vrooli Business Suite bundle** so t
 Your goal is to ensure `{{TARGET}}` enforces entitlements and consumes credits consistently with every other bundled app, so that a single subscription unlocks and meters all apps in the bundle.
 
 Optional reading:
-- `prompt-manager skills read api-steer`
-- `prompt-manager skills read interoperability-steer`
+- `prompt-manager skill read api-steer`
+- `prompt-manager skill read interoperability-steer`
 
 ---
 
@@ -779,7 +779,7 @@ visited-tracker visit "<file-path>" --location scenarios/{{TARGET}} --tag bundle
 
 ---
 
-### 12. Output Expectations
+### **12. Output Expectations**
 
 You may:
 - Add LPBS auth middleware to `{{TARGET}}`'s API

@@ -703,7 +703,7 @@ Update `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md`:
 
 ---
 
-### 11. Output Expectations
+### **11. Output Expectations**
 
 You may update in `scenarios/{{TARGET}}/`:
 - Add environment variable fallback chains

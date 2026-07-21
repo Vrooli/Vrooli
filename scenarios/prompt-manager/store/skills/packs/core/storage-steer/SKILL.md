@@ -549,7 +549,7 @@ Update `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 
 ---
 
-### 14. Output Expectations
+### **14. Output Expectations**
 
 You may update in `scenarios/{{TARGET}}/`:
 - Add per-domain `schema.sql` + `schema.go` files

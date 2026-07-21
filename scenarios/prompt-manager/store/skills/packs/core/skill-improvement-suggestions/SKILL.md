@@ -86,17 +86,9 @@ The skill explained an async pattern: start `pipeline-run`, then poll `pipeline-
 
 ### **4. Defect Patterns — Conditioning Axis**
 
-A skill is a conditioning signal, not documentation — see `docs/agent-system/SKILL_AUTHORING.md` §"Skills are conditioning signals" for the four lenses (focality, interpretive entropy, verifiability, attention economy). Walk {{SKILL}} against this table:
+A skill is a conditioning signal, not documentation. Walk {{SKILL}} row by row against the **conditioning defect table (C1–C5)** in `docs/agent-system/SKILL_AUTHORING.md` §"Conditioning defect patterns" — that table is the single source of truth for the pattern definitions, signals, and fixes; do not restate it. The routing rule lives there too: a *confirmed* C4 (divergence probe) belongs to `skill-validation`; C1, C2, C3, and C5 belong here.
 
-| # | Defect pattern | Signal in {{SKILL}} | Improvement direction |
-|---|---|---|---|
-| C1 | Hand-rolled rule cluster | 5+ style/format rules that a real, widely documented named standard already encodes | Adopt the standard by name and **delete** the rules it replaces (name-and-delete). Verify the standard is real before citing it; the prose-standard placement map lives in `writing-standards` |
-| C2 | Name-and-keep decoration | A standard or concept cited *alongside* the hand-rolled rules it describes | Delete either the name or the rules — keeping both costs attention and conditions nothing |
-| C3 | Attention-splitting rule pile | Many weak, orthogonal, or contradictory rules aimed at one behavior | Consolidate into one coherent argument or one decision table |
-| C4 | High interpretive entropy | Two compliant readings of a key instruction produce materially different executions | The fix is a *decision*, not more prose; prefer decision tables over prose conditionals. `skill-validation` §4.1.2 owns the divergence probe — route confirmed divergence findings there |
-| C5 | Unverifiable rules | Compliance judged by adjectives ("clear", "appropriate") rather than lint, CLI assertion, or named artifact | Restate the rule as a mechanically checkable condition, or route to the destination-over-direction pattern in canon |
-
-Conditioning suggestions use the SKILL WORDING IMPROVEMENT format (§5.4) and must name the lens they improve.
+Conditioning suggestions use the SKILL WORDING IMPROVEMENT format (§5.4) and must name the defect row (C#) and the lens they improve.
 
 ---
 
@@ -183,7 +175,6 @@ Prose retirement:
 |------|--------|---------|---------|----------|
 | browser-automation-studio | `--smoke-test` flag | Only helps smoke tests | `--step` for inline definition | Helps any quick workflow |
 | browser-automation-studio | `--login-first` | Assumes one auth pattern | `--output` for direct export | Works for any workflow |
-| prompt-manager | `--validate-progress-skill` | One skill only | `--validate` for any skill | Works for all skills |
 
 **Suggestion format:**
 ```
@@ -323,14 +314,7 @@ For CLI-operational skills, scan `Troubleshooting & Edge Cases` first and classi
 
 ### **8. Evaluation Criteria by Skill Category**
 
-Different skill categories need different evaluation focus:
-
-| Category | Primary Focus | Key Questions |
-|----------|---------------|---------------|
-| **Steer** | Convergence patterns | Are decision trees present? Can agents reach consistent decisions? |
-| **Tools** | Safe usage paths | Are guardrails explicit? Is verification included? |
-| **Search** | Output contracts | Is output format defined? Are stop conditions clear? |
-| **Meta** | Governance clarity | Are boundaries explicit? Does this duplicate existing guidance? |
+Category-specific evaluation focus is owned by the matching authoring guide — `skill-authoring` for Steer; `skill-authoring-tools`, `-search`, `-practice`, `-platform`, `-meta` otherwise. Read the guide for {{SKILL}}'s category and evaluate against its rules; do not maintain a separate criteria list here.
 
 ---
 
@@ -409,16 +393,8 @@ When analyzing {{SKILL}}, produce this structured report:
 - Keep as manual playbook: [items that should remain in troubleshooting]
 
 ## Prose Retirement Map (CLI-Operational Skills)
-| Skill Instruction / Gate | Decision (Keep/Collapse/Delete) | Trigger | Notes |
-|---|---|---|---|
-| ... | ... | CLI output contract available / not available | ... |
+[Canonical table shape: `docs/agent-system/PROMOTION_LADDER.md` §"Output requirement for meta analyses"]
 
 ## Implementation Notes
 [Any dependencies, ordering considerations, or caveats]
 ```
-
----
-
-### **11. Remember**
-
-Prefer durable leverage over wording churn: improve CLI/tool contracts, then retire superseded prose. When a named standard can replace a rule pile, name it and delete the pile.

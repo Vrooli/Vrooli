@@ -329,6 +329,14 @@ List raw outcomes for an experiment.
 prompt-manager experiment outcomes <experiment-id> [--json]
 ```
 
+### prompt-manager experiment report
+
+Show a per-arm aggregation report: serve counts, outcome counts, outcome status breakdown, success rate, and mean tokens used.
+
+```bash
+prompt-manager experiment report <experiment-id> [--json]
+```
+
 ### prompt-manager experiment delete
 
 Delete an experiment and its outcomes.

@@ -11,10 +11,10 @@ BAS is a **browser automation tool** that lets you:
 This skill covers **tool usage**. For e2e testing strategy, workflow organization, selector registry setup, and requirements integration, see the **e2e-testing** skill.
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 Optional reading:
-- `prompt-manager skills read e2e-testing`
+- `prompt-manager skill read e2e-testing`
 
 ---
 

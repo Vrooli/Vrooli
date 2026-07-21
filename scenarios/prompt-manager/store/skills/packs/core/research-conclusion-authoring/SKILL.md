@@ -221,7 +221,7 @@ Before finalizing a conclusion, verify:
 
 ---
 
-### 8. Output Expectations
+### **8. Output Expectations**
 
 **Must produce:**
 - A `conclusion.md` file following the template above

@@ -7,7 +7,7 @@ Your goal is to identify the **main ways this scenario is likely to change** (â€
 Do **not** break functionality, regress tests, or introduce new product features. All changes must maintain or improve completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ---
 

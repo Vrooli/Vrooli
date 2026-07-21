@@ -313,7 +313,7 @@ Recommended seams addition:
 
 ---
 
-### 9. Output Expectations
+### **9. Output Expectations**
 
 By the end of this loop, the scenario should:
 - have a clearer product mental model in docs and code

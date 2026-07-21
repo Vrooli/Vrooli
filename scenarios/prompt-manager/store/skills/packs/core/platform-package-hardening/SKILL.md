@@ -92,7 +92,7 @@ Update package docs to include:
 
 ---
 
-### 4. Output Expectations
+### **4. Output Expectations**
 
 **Must produce:**
 - Improved test coverage for the hardened seam(s)

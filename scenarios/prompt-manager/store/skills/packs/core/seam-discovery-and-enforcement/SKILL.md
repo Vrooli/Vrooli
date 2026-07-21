@@ -210,7 +210,7 @@ Challenge yourself before a move:
 
 ---
 
-### 9. Output Expectations
+### **9. Output Expectations**
 
 By the end of this loop, the scenario should:
 - have a `Seam Registry` table in `scenarios/{{TARGET}}/docs/internal/SEAMS.md` listing every seam with its declaration site, production impl, fake, and reason for existing

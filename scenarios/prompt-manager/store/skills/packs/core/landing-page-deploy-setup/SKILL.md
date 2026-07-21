@@ -464,7 +464,7 @@ Note:
 
 ---
 
-### 8. Output Expectations
+### **8. Output Expectations**
 
 **May create/update:**
 - Local admin session state

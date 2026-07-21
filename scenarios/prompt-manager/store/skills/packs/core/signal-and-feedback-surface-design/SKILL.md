@@ -7,7 +7,7 @@ Your goal is to ensure that important states, transitions, and failures are surf
 Do **not** break functionality, regress tests, or introduce new observability stacks. All changes must maintain or improve completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ---
 

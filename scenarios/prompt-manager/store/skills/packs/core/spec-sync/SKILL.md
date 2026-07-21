@@ -5,8 +5,8 @@ Synchronize **specification artifacts with actual implementation state** in `sce
 Your goal is to produce specifications so faithful to the current implementation that a new agent could **recreate the scenario from specs alone** with full feature parity. This is the critical precondition before archiving a scenario via the swarm-manager.
 
 Required reading:
-- `prompt-manager skills read documentation-health`
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read documentation-health`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 

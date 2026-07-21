@@ -10,7 +10,7 @@ Focus on **reducing code surface area** by eliminating artifacts that AI agents 
 
 Required reading:
 - `docs/scenario-qa/methods/audit/code-cleanup.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ### **1. The Problem: AI Agent Accumulation Patterns**
 

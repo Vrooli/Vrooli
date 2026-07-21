@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // FileExperimentStore implements ExperimentStore using the file system.
@@ -144,6 +145,65 @@ func (s *FileExperimentStore) RecordOutcome(ctx context.Context, experimentID st
 	return AppendJSONL(path, outcome)
 }
 
+// RecordServe appends a serve event to the experiment's serve JSONL log.
+func (s *FileExperimentStore) RecordServe(ctx context.Context, serve ExperimentServe) error {
+	if _, err := s.loadExperiment(serve.ExperimentID); err != nil {
+		return fmt.Errorf("experiment not found: %s", serve.ExperimentID)
+	}
+	if serve.ServedAt == "" {
+		serve.ServedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	path := filepath.Join(s.experimentDir(serve.ExperimentID), "serve.jsonl")
+	return AppendJSONL(path, serve)
+}
+
+// ListServes returns all raw serve events for an experiment.
+func (s *FileExperimentStore) ListServes(ctx context.Context, experimentID string) ([]ExperimentServe, error) {
+	if _, err := s.loadExperiment(experimentID); err != nil {
+		return nil, fmt.Errorf("experiment not found: %s", experimentID)
+	}
+
+	path := filepath.Join(s.experimentDir(experimentID), "serve.jsonl")
+	return readServesJSONL(path)
+}
+
+// CountServesByVariant returns serve counts grouped by variant ID.
+// Only parses the variantId field from each line — the rest of the record is not touched.
+func (s *FileExperimentStore) CountServesByVariant(ctx context.Context, experimentID string) (map[string]int, error) {
+	if _, err := s.loadExperiment(experimentID); err != nil {
+		return nil, fmt.Errorf("experiment not found: %s", experimentID)
+	}
+
+	path := filepath.Join(s.experimentDir(experimentID), "serve.jsonl")
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return map[string]int{}, nil
+		}
+		return nil, fmt.Errorf("opening serves: %w", err)
+	}
+	defer f.Close()
+
+	counts := make(map[string]int)
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		// Only parse the variantId field
+		var envelope struct {
+			VariantID string `json:"variantId"`
+		}
+		if err := json.Unmarshal(line, &envelope); err != nil {
+			continue // Skip malformed lines
+		}
+		counts[envelope.VariantID]++
+	}
+
+	return counts, scanner.Err()
+}
+
 // ListOutcomes returns all raw outcomes for an experiment.
 func (s *FileExperimentStore) ListOutcomes(ctx context.Context, experimentID string) ([]ExperimentOutcome, error) {
 	if _, err := s.loadExperiment(experimentID); err != nil {
@@ -195,6 +255,38 @@ func (s *FileExperimentStore) CountOutcomesByVariant(ctx context.Context, experi
 func (s *FileExperimentStore) loadExperiment(experimentID string) (*Experiment, error) {
 	path := filepath.Join(s.experimentDir(experimentID), "experiment.json")
 	return LoadJSON[Experiment](path)
+}
+
+// readServesJSONL reads all serve events from a JSONL file.
+func readServesJSONL(path string) ([]ExperimentServe, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("opening serves: %w", err)
+	}
+	defer f.Close()
+
+	var serves []ExperimentServe
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var serve ExperimentServe
+		if err := json.Unmarshal(line, &serve); err != nil {
+			continue // Skip malformed lines
+		}
+		serves = append(serves, serve)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return serves, fmt.Errorf("scanning serves: %w", err)
+	}
+
+	return serves, nil
 }
 
 // readOutcomesJSONL reads all outcomes from a JSONL file.

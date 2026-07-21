@@ -114,7 +114,7 @@ Keep this section short. If the same failure recurs across scenarios, prefer imp
 
 ---
 
-### 6. Output Expectations
+### **6. Output Expectations**
 
 You may update schema files, generated artifacts, scenario API/CLI/UI consumers, and scenario docs.
 

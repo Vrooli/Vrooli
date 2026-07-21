@@ -7,7 +7,7 @@ Your goal is to turn “something went wrong” into **clear categories with exp
 Do **not** regress tests, weaken protections, or introduce unrelated features. All changes must maintain or improve completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
+- `prompt-manager skill read visited-tracker-tools knowledge-observatory-tools`
 
 ---
 

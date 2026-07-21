@@ -11,6 +11,9 @@
     },
     {
       "prefix": "action-visited/<action-id>"
+    },
+    {
+      "prefix": "skill-experiment/<skill-id>/<experiment-id>"
     }
   ],
   "evidence_consumed": [
@@ -52,6 +55,10 @@
     },
     {
       "prefix": "action-visited/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "skill-experiment/*",
       "destination_kind": "knowledge"
     }
   ],

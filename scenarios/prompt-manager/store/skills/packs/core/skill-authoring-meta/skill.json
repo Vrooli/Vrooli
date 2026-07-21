@@ -5,7 +5,6 @@
   "name": "Meta Skill Authoring",
   "description": "Authoring guide for Meta skills governing the skill system itself.",
   "modes": [
-    "meta",
     "meta"
   ],
   "tags": [

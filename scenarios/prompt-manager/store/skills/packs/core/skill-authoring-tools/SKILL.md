@@ -1,6 +1,6 @@
 ## Meta focus: Tools Skill Authoring
 
-Guide for creating **Tools** skills (where `modes[0] = "Tools"`). Tools skills teach how to use a resource, scenario, or tool safely and effectively.
+Guide for creating **tools** skills (the authored skill declares `modes[0] = "tools"`). Tools skills teach how to use a resource, scenario, or tool safely and effectively.
 
 Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
@@ -32,11 +32,7 @@ Recommended shape:
 
 Important:
 - Do not force rigid section naming for core flow content.
-- Do require the exact section name `Troubleshooting & Edge Cases` when operational complexity exists.
-
-Operational complexity rule:
-- If the tool has multi-step workflows, mutable state, external dependencies, or recurring failure patterns, include `Troubleshooting & Edge Cases`.
-- If the tool is genuinely simple/stable, you may omit it and add one explicit line such as: `No known operational edge cases for standard usage.`
+- Do require the exact section name `Troubleshooting & Edge Cases` when operational complexity exists — the trigger rule and the simple-skill exemption live in `docs/agent-system/SKILL_AUTHORING.md` §"Universal quality bars".
 
 ---
 
@@ -56,12 +52,7 @@ Example:
 
 ### **4. CLI Output Contract (Human-First)**
 
-For agent workflows, default CLI output is the canonical path.
-
-- Prefer direct commands without `--json` / `--raw`
-- Do not add `jq` pipelines in normal workflows
-- Prefer selector-based commands over ID extraction when available
-- Use machine-readable output only when default output is too long or ambiguous for reliable execution, and state that exception explicitly
+Human-first CLI consumption and selector-first workflows are universal quality bars — `docs/agent-system/SKILL_AUTHORING.md` §"Universal quality bars" owns them. When a tools skill needs machine-readable output, state the exception and its justification explicitly in the skill.
 
 ---
 
@@ -98,9 +89,7 @@ Promotion rule:
 
 ### **7. Registration Notes**
 
-Follow `docs/agent-system/SKILL_AUTHORING.md` and ensure:
-- `modes[0]` is **Tools**
-- The description names the tool and the primary value it provides
+Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "tools"` and a description that names the tool and the primary value it provides.
 
 ---
 
@@ -108,7 +97,7 @@ Follow `docs/agent-system/SKILL_AUTHORING.md` and ensure:
 
 You may update:
 - Tools skills to improve clarity, safety, or troubleshooting coverage
-- `metadata.json` entries for Tools skills
+- `skill.json` entries for Tools skills
 
 You must:
 - Provide safe defaults and guardrails

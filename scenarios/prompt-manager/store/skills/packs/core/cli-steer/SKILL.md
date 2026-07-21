@@ -560,7 +560,7 @@ For REST-exception endpoints, the same contract applies: short-circuit with a re
 
 ---
 
-### 16. Output Expectations
+### **16. Output Expectations**
 
 You may update in `scenarios/{{TARGET}}/cli/`:
 - migrate hand-written `APIClient.Get/Post` calls to generated Connect clients for any proto-owned RPC
