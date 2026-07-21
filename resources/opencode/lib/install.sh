@@ -202,7 +202,7 @@ opencode::install::execute() {
     # Heal any pre-1.0 opencode.json that still carries the retired inline
     # `x-vrooli-managed-permissions` key (opencode rejects unknown top-level
     # keys → startup fails). Best-effort: resource-opencode is installed by
-    # the cli.install step and the verb is idempotent + ungated.
+    # the cli.source_build path and the verb is idempotent + ungated.
     if command -v resource-opencode >/dev/null 2>&1; then
         resource-opencode permissions migrate >/dev/null 2>&1 || true
     fi

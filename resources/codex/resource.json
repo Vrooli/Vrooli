@@ -18,24 +18,10 @@
         "location": "sibling"
       }
     },
-    "distribution": { "kind": "prebuilt_artifact", "artifact_name": "resource-codex_${os}_${arch}" },
-    "install": [
-      {
-        "os": [
-          "linux",
-          "darwin"
-        ],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": [
-          "windows"
-        ],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-codex_${os}_${arch}"
+    },
     "invoke": {
       "kind": "installed_command",
       "command": "resource-codex"
@@ -49,11 +35,81 @@
         "README.md",
         "resource.json"
       ]
+    },
+    "source_build": {
+      "kind": "go_module",
+      "freshness_inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "model-policy.json",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
     }
   },
   "template": "external-cli",
   "driver": "external-cli",
-  "deployment": { "profiles": { "desktop": { "linux": { "support": "conditional", "mode": "native-host-tool", "architectures": ["amd64", "arm64"], "requires": ["codex"], "limitations": ["The upstream executable, licensing, authentication, and version policy are host-managed."], "evidence": ["manifest-validation", "host-tool-preflight"] }, "macos": { "support": "conditional", "mode": "native-host-tool", "architectures": ["amd64", "arm64"], "requires": ["codex"], "limitations": ["The upstream executable, licensing, authentication, and version policy are host-managed."], "evidence": ["manifest-validation", "host-tool-preflight"] }, "windows": { "support": "conditional", "mode": "native-host-tool", "architectures": ["amd64", "arm64"], "requires": ["codex"], "limitations": ["The upstream executable, licensing, authentication, and version policy are host-managed."], "evidence": ["manifest-validation", "host-tool-preflight"] } } } },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "codex"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "codex"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "codex"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        }
+      }
+    }
+  },
   "binary": "codex",
   "version_args": [
     "--version"

@@ -18,30 +18,96 @@
         "location": "sibling"
       }
     },
-    "distribution": { "kind": "prebuilt_artifact", "artifact_name": "resource-mail-in-a-box_${os}_${arch}" },
-    "install": [
-      {
-        "os": ["linux", "darwin"],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": ["windows"],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-mail-in-a-box_${os}_${arch}"
+    },
     "invoke": {
       "kind": "installed_command",
       "command": "resource-mail-in-a-box"
     },
     "freshness": {
-      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json"]
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module",
+      "freshness_inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
     }
   },
   "template": "compose-service",
   "driver": "compose-service",
-  "deployment": { "profiles": { "desktop": { "linux": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-engine"], "limitations": ["Compose images, storage, and networking remain host-managed."], "evidence": ["manifest-validation", "docker-preflight"] }, "macos": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "docker-preflight"] }, "windows": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "docker-preflight"] } } } },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-engine"
+          ],
+          "limitations": [
+            "Compose images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-desktop"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-desktop"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
   "compose_file": "docker-compose.yml",
   "portability_tier": "platform-specific",
   "category": "infrastructure",

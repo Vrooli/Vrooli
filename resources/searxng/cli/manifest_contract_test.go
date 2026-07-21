@@ -18,10 +18,10 @@ func TestManifestDeclaresOnlyTheSupportedDockerContract(t *testing.T) {
 		Driver      string `json:"driver"`
 		Description string `json:"description"`
 		CLI         struct {
-			Install []struct {
-				OS  []string `json:"os"`
-				Run string   `json:"run"`
-			} `json:"install"`
+			SourceBuild struct {
+				Kind            string   `json:"kind"`
+				FreshnessInputs []string `json:"freshness_inputs"`
+			} `json:"source_build"`
 		} `json:"cli"`
 		Runtime struct {
 			Image   string `json:"image"`
@@ -66,13 +66,11 @@ func TestManifestDeclaresOnlyTheSupportedDockerContract(t *testing.T) {
 	if len(manifest.HostTools) != 1 || manifest.HostTools[0].Name != "docker" || !manifest.HostTools[0].Required {
 		t.Fatalf("host tools = %#v, want required Docker preflight", manifest.HostTools)
 	}
-	for _, install := range manifest.CLI.Install {
-		if strings.Contains(strings.ToLower(install.Run), "bash") || strings.Contains(strings.ToLower(install.Run), "install.sh") || strings.Contains(strings.ToLower(install.Run), "install.ps1") {
-			t.Fatalf("installer retains shell route: %q", install.Run)
-		}
-		if !strings.HasPrefix(install.Run, "go run ../../packages/cli-core/cmd/cli-installer ") {
-			t.Fatalf("installer does not use the shared Go installer: %q", install.Run)
-		}
+	if manifest.CLI.SourceBuild.Kind != "go_module" {
+		t.Fatalf("cli.source_build.kind = %q, want go_module", manifest.CLI.SourceBuild.Kind)
+	}
+	if len(manifest.CLI.SourceBuild.FreshnessInputs) == 0 {
+		t.Fatal("cli.source_build.freshness_inputs must not be empty")
 	}
 }
 

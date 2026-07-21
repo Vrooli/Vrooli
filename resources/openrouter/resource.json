@@ -22,29 +22,95 @@
       "kind": "prebuilt_artifact",
       "artifact_name": "resource-openrouter_${os}_${arch}"
     },
-    "install": [
-      {
-        "os": ["linux", "darwin"],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": ["windows"],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
     "invoke": {
       "kind": "installed_command",
       "command": "resource-openrouter"
     },
     "freshness": {
-      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json"]
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module",
+      "freshness_inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
     }
   },
   "template": "cloud-api",
   "driver": "cloud-api",
-  "deployment": { "profiles": { "desktop": { "linux": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "OPENROUTER_API_KEY"], "limitations": ["Requires an OpenRouter account and network access."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] }, "macos": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "OPENROUTER_API_KEY"], "limitations": ["Requires an OpenRouter account and network access."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] }, "windows": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "OPENROUTER_API_KEY"], "limitations": ["Requires an OpenRouter account and network access."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] } } } },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "network",
+            "OPENROUTER_API_KEY"
+          ],
+          "limitations": [
+            "Requires an OpenRouter account and network access."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "network",
+            "OPENROUTER_API_KEY"
+          ],
+          "limitations": [
+            "Requires an OpenRouter account and network access."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "network",
+            "OPENROUTER_API_KEY"
+          ],
+          "limitations": [
+            "Requires an OpenRouter account and network access."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        }
+      }
+    }
+  },
   "endpoint": "https://openrouter.ai/api/v1/models",
   "credentials": {
     "env": [
@@ -131,7 +197,9 @@
                   "type": "boolean"
                 }
               },
-              "required": ["role"],
+              "required": [
+                "role"
+              ],
               "additionalProperties": false
             }
           ]

@@ -155,8 +155,25 @@ message BacklogItem {
   optional string finding_ref = 26;
 
   // Deterministic operator signal. It is computed on read from item age,
-  // plan/acceptance validity, and is never persisted in spec.json.
+  // review age, plan/acceptance validity, and is never persisted in spec.json.
   bool stale = 27;
+
+  // Most recent explicit decision that the item remains valid without a
+  // content mutation. This is distinct from `updated`, which tracks changes
+  // to the work specification itself.
+  optional BacklogReviewRecord last_review = 28;
+}
+
+message BacklogReviewRecord {
+  // RFC3339 timestamp of the accepted review.
+  string reviewed_at = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Source session and proposal preserve an auditable decision trail.
+  string session_id = 2 [(buf.validate.field).string.min_len = 1];
+  string proposal_id = 3 [(buf.validate.field).string.min_len = 1];
+
+  // The reviewer-facing rationale for keeping the item unchanged.
+  string rationale = 4;
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.

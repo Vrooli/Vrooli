@@ -18,35 +18,105 @@
         "location": "sibling"
       }
     },
-    "distribution": { "kind": "prebuilt_artifact", "artifact_name": "resource-ollama_${os}_${arch}" },
-    "install": [
-      {
-        "os": ["linux", "darwin"],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": ["windows"],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-ollama_${os}_${arch}"
+    },
     "invoke": {
       "kind": "installed_command",
       "command": "resource-ollama"
     },
     "freshness": {
-      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json", "model-policy.json"]
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json",
+        "model-policy.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module",
+      "freshness_inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json",
+        "model-policy.json"
+      ]
     }
   },
   "template": "docker-service",
   "driver": "docker-service",
-  "deployment": { "profiles": { "desktop": { "linux": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-engine"], "limitations": ["Docker images, storage, and networking remain host-managed."], "evidence": ["manifest-validation", "docker-preflight"] }, "macos": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "docker-preflight"] }, "windows": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "docker-preflight"] } } } },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-engine"
+          ],
+          "limitations": [
+            "Docker images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-desktop"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-desktop"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
   "companions": [
     {
       "name": "capacity-sync",
       "command": "resource-ollama",
-      "args": ["capacity-sync"]
+      "args": [
+        "capacity-sync"
+      ]
     }
   ],
   "portability_tier": "partial",
@@ -104,15 +174,25 @@
         "description": "Logical Ollama model roles resolved through resources/ollama/model-policy.json.",
         "items": {
           "oneOf": [
-            { "type": "string" },
+            {
+              "type": "string"
+            },
             {
               "type": "object",
               "properties": {
-                "role": { "type": "string" },
-                "reason": { "type": "string" },
-                "required": { "type": "boolean" }
+                "role": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean"
+                }
               },
-              "required": ["role"],
+              "required": [
+                "role"
+              ],
               "additionalProperties": false
             }
           ]
@@ -123,20 +203,41 @@
         "description": "Concrete model exceptions. Prefer model_roles; object entries should include reason and owner.",
         "items": {
           "oneOf": [
-            { "type": "string" },
+            {
+              "type": "string"
+            },
             {
               "type": "object",
               "properties": {
-                "name": { "type": "string" },
-                "tag": { "type": "string" },
-                "size": { "type": "string" },
-                "quantization": { "type": "string" },
-                "reason": { "type": "string" },
-                "owner": { "type": "string" },
-                "review_after": { "type": "string", "format": "date" },
-                "required": { "type": "boolean" }
+                "name": {
+                  "type": "string"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "string"
+                },
+                "quantization": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "owner": {
+                  "type": "string"
+                },
+                "review_after": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "required": {
+                  "type": "boolean"
+                }
               },
-              "required": ["name"],
+              "required": [
+                "name"
+              ],
               "additionalProperties": false
             }
           ]

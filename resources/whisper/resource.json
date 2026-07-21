@@ -18,34 +18,105 @@
         "location": "sibling"
       }
     },
-    "distribution": { "kind": "prebuilt_artifact", "artifact_name": "resource-whisper_${os}_${arch}" },
-    "install": [
-      {
-        "os": ["linux", "darwin"],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": ["windows"],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-whisper_${os}_${arch}"
+    },
     "invoke": {
       "kind": "installed_command",
       "command": "resource-whisper"
     },
     "freshness": {
-      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json"]
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module",
+      "freshness_inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
     }
   },
   "template": "compose-service",
   "driver": "compose-service",
-  "deployment": { "profiles": { "desktop": { "linux": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-engine"], "limitations": ["Compose images, storage, and networking remain host-managed."], "evidence": ["manifest-validation", "docker-preflight"] }, "macos": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "docker-preflight"] }, "windows": { "support": "conditional", "mode": "docker-desktop", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "docker-preflight"] } } } },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-engine"
+          ],
+          "limitations": [
+            "Compose images, storage, and networking remain host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-desktop"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-desktop"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "docker-preflight"
+          ]
+        }
+      }
+    }
+  },
   "compose_file": "docker/docker-compose.yml",
   "runtime_env_command": {
     "command": "resource-whisper",
-    "args": ["recommend-model", "--env", "--budget-pct", "60"],
+    "args": [
+      "recommend-model",
+      "--env",
+      "--budget-pct",
+      "60"
+    ],
     "timeout_seconds": 5
   },
   "gpu": {
@@ -65,11 +136,26 @@
     "idle_grace_seconds": 900,
     "profile": {
       "steps": [
-        { "label": "large-v3", "amount_bytes": 5368709120 },
-        { "label": "medium", "amount_bytes": 4294967296 },
-        { "label": "small", "amount_bytes": 2147483648 }
+        {
+          "label": "large-v3",
+          "amount_bytes": 5368709120
+        },
+        {
+          "label": "medium",
+          "amount_bytes": 4294967296
+        },
+        {
+          "label": "small",
+          "amount_bytes": 2147483648
+        }
       ],
-      "apply": { "verb": "capacity-degrade", "argv": ["--to", "{label}"] },
+      "apply": {
+        "verb": "capacity-degrade",
+        "argv": [
+          "--to",
+          "{label}"
+        ]
+      },
       "upshift": true
     }
   },
@@ -77,7 +163,9 @@
     {
       "name": "activity-edge",
       "command": "resource-whisper",
-      "args": ["activity-proxy"],
+      "args": [
+        "activity-proxy"
+      ],
       "port": 8090
     }
   ],
@@ -93,7 +181,10 @@
       "name": "ffmpeg",
       "required": false,
       "reason": "Enable local audio format conversion before transcription when source media is not already Whisper-ready",
-      "when": ["setup", "develop"],
+      "when": [
+        "setup",
+        "develop"
+      ],
       "notes": "Whisper can run without ffmpeg, but conversion workflows are limited"
     }
   ],

@@ -600,7 +600,7 @@ resource_discovery:
       - Privacy-first AI processing
     interfaces:
       - lifecycle: vrooli resource ... ollama (docker-service driver)
-      - cli: resource-ollama (Go module, built/installed via cli/install.sh)
+      - cli: resource-ollama (Go module, built through cli.source_build)
       - api: http://localhost:11434/api
       - health: http://localhost:11434/api/tags
       

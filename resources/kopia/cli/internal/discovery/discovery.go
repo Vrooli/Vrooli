@@ -1,6 +1,6 @@
 // Package discovery locates the kopia host binary and probes its version. It is
 // the read side of binary provisioning; the install command set (manifest
-// install.platforms + cli/install.sh) is the write side.
+// cli.source_build) is the write side.
 package discovery
 
 import (
