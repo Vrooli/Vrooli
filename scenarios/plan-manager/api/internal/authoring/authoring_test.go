@@ -288,6 +288,17 @@ type fakeSourceEvidenceAdvisor struct {
 	paths  []string
 }
 
+type fakeDiagramValidator struct {
+	result authoring.DiagramValidationResult
+	err    error
+	calls  int
+}
+
+func (f *fakeDiagramValidator) ValidateMarkdownDiagrams(_ context.Context, _, _ string) (authoring.DiagramValidationResult, error) {
+	f.calls++
+	return f.result, f.err
+}
+
 func (f *fakeSourceEvidenceAdvisor) AdviseSourceEvidence(_ context.Context, paths []string) (authoring.SourceEvidenceAdvisory, error) {
 	f.paths = append([]string(nil), paths...)
 	return f.result, f.err
@@ -313,6 +324,67 @@ func newService(t *testing.T, d authoring.Deps) authoring.Service {
 		d.Clock = clk
 	}
 	return authoring.NewService(d)
+}
+
+func TestSubmitSectionBlocksInvalidMermaidAndSkipsNonMermaidContent(t *testing.T) {
+	validator := &fakeDiagramValidator{result: authoring.DiagramValidationResult{Findings: []authoring.DiagramFinding{{Code: "mermaid_invalid", Line: 3, Message: "Parse error"}}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Diagrams: validator})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Diagram gate", "diagram-gate", "")
+	require.NoError(t, err)
+
+	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "```mermaid\nsequenceDiagram\nA->>B: one; two\n```")
+	require.NoError(t, err)
+	require.Len(t, violations, 1)
+	require.Contains(t, violations[0].Message, "Mermaid diagram line 3: Parse error")
+	require.Equal(t, 1, validator.calls)
+
+	validator.result = authoring.DiagramValidationResult{}
+	_, violations, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "Plain prose without a diagram.")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, 1, validator.calls, "non-Mermaid sections must not call Knowledge Observatory")
+}
+
+func TestSubmitSectionBlocksWhenMermaidValidationIsUnavailable(t *testing.T) {
+	validator := &fakeDiagramValidator{result: authoring.DiagramValidationResult{Unverified: true}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Diagrams: validator})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Unavailable diagram gate", "unavailable-diagram-gate", "")
+	require.NoError(t, err)
+
+	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "```mermaid\nflowchart TD\nA --> B\n```")
+	require.NoError(t, err)
+	require.Len(t, violations, 1)
+	require.Contains(t, violations[0].Message, "could not be validated")
+}
+
+func TestValidateStructureAndFinalizeBlockInvalidMermaid(t *testing.T) {
+	validator := &fakeDiagramValidator{result: authoring.DiagramValidationResult{Findings: []authoring.DiagramFinding{{Code: "mermaid_invalid", Line: 3, Message: "Parse error"}}}}
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer, Diagrams: validator})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Diagram finalization gate", "diagram-finalization-gate", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "```mermaid\nsequenceDiagram\nA->>B: one; two\n```")
+	require.NoError(t, err)
+
+	valid, violations, _, err := svc.ValidateStructure(ctx, sess.ID)
+	require.NoError(t, err)
+	require.False(t, valid)
+	require.Contains(t, strings.Join(violationMessages(violations), "\n"), "Mermaid diagram line 3: Parse error")
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
+	require.Error(t, err)
+	require.Zero(t, writer.calls, "finalize must never persist a plan with an invalid diagram")
+}
+
+func violationMessages(violations []authoring.StructureViolation) []string {
+	messages := make([]string, 0, len(violations))
+	for _, violation := range violations {
+		messages = append(messages, violation.Message)
+	}
+	return messages
 }
 
 func fillMandatorySectionsOnly(t *testing.T, svc authoring.Service, sessionID string) authoring.Session {

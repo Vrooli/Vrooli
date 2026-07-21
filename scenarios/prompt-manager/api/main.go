@@ -269,10 +269,22 @@ func main() {
 
 	// Set experiment stores on skill handlers for variant-aware read
 	skillHandlers.SetExperimentStores(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
+	skillHandlers.SetIdentityVerifier(skills.NewAgentManagerIdentityVerifier(nil))
 
 	// Variant and experiment handlers
 	variantHandlers := skills.NewVariantHandlers(fileStore.Variants(), fileStore.Skills())
 	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
+	// The service remains available without an audit secret for ordinary skill
+	// use, but audit/recommendation endpoints fail closed until this server-held
+	// signing key is configured.
+	experimentHandlers.SetAuditSecret([]byte(strings.TrimSpace(os.Getenv("PROMPT_MANAGER_EXPERIMENT_AUDIT_SECRET"))))
+	if decisions, ok := fileStore.Teams().(interface {
+		AppendDecision(context.Context, string, *store.DecisionEntry) error
+	}); ok {
+		experimentHandlers.SetDecisionPublisher(decisions)
+	} else {
+		panic("prompt-manager team store does not support decision publishing")
+	}
 
 	// Agent and team AI search vector stores
 	agentAICollection := os.Getenv("AI_SEARCH_AGENT_COLLECTION")
@@ -437,7 +449,7 @@ func main() {
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}),
-		handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "X-Vrooli-Attribution", "X-Caller-ID"}),
+		handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "X-Vrooli-Attribution", "X-Caller-ID", "X-Agent-Identity-Token", "X-Experiment-Read-Receipt-ID"}),
 	)
 
 	// Health check
@@ -491,6 +503,10 @@ func main() {
 	v1.HandleFunc("/experiments/{eid}/conclude", experimentHandlers.ConcludeExperiment).Methods("POST")
 	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.RecordOutcome).Methods("POST")
 	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.ListOutcomes).Methods("GET")
+	v1.HandleFunc("/experiments/{eid}/assignments", experimentHandlers.AssignExperiment).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}/audit-receipt", experimentHandlers.RecordAuditReceipt).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}/holdout-receipt", experimentHandlers.RecordHoldoutReceipt).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}/promote", experimentHandlers.PromoteExperiment).Methods("POST")
 	v1.HandleFunc("/experiments/{eid}/report", experimentHandlers.GetExperimentReport).Methods("GET")
 
 	// Graph routes

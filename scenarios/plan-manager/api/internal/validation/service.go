@@ -456,7 +456,9 @@ func (s *service) StartValidationTicket(ctx context.Context, request ValidationT
 		command := check.Command
 		if check.Kind == ValidationCheckCollectionDiff {
 			command = collectionDiffStartCommand(check, childID)
-			op.ProducerWaitArgv = []string{"git-control-tower", "baseline", "collection", "diff", "status", "--name", check.Baseline, "--operation-id", childID, "--wait", "--json"}
+			// Collection diff owns a distinct native wait subcommand. `diff status`
+			// is an inspection-only operation and deliberately has no --wait flag.
+			op.ProducerWaitArgv = []string{"git-control-tower", "baseline", "collection", "diff", "wait", "--name", check.Baseline, "--operation-id", childID, "--json"}
 		}
 		op.Children = append(op.Children, ValidationChild{
 			ID: childID, Check: check, Command: command,

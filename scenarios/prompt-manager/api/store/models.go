@@ -430,17 +430,45 @@ type Variant struct {
 // Experiment ties skill variants together for A/B testing with weighted traffic splitting.
 type Experiment struct {
 	BaseEntity
-	ID              string          `json:"id"`
-	SkillID         string          `json:"skillId"`
-	Name            string          `json:"name"`
-	Hypothesis      string          `json:"hypothesis,omitempty"`
-	Status          string          `json:"status"` // draft, running, concluded
-	Arms            []ExperimentArm `json:"arms"`
-	StartedAt       *string         `json:"startedAt,omitempty"`
-	ConcludedAt     *string         `json:"concludedAt,omitempty"`
-	WinnerVariantID *string         `json:"winnerVariantId,omitempty"`
-	Notes           string          `json:"notes,omitempty"`
+	ID                    string             `json:"id"`
+	SkillID               string             `json:"skillId"`
+	Name                  string             `json:"name"`
+	Hypothesis            string             `json:"hypothesis,omitempty"`
+	Protocol              ExperimentProtocol `json:"protocol"`
+	Status                string             `json:"status"` // draft, running, concluded
+	Arms                  []ExperimentArm    `json:"arms"`
+	StartedAt             *string            `json:"startedAt,omitempty"`
+	ConcludedAt           *string            `json:"concludedAt,omitempty"`
+	WinnerVariantID       *string            `json:"winnerVariantId,omitempty"`
+	PromotionDecisionID   string             `json:"promotionDecisionId,omitempty"`
+	HoldoutFindingsHash   string             `json:"holdoutFindingsHash,omitempty"`
+	HoldoutCompletedAt    string             `json:"holdoutCompletedAt,omitempty"`
+	HoldoutIdempotencyKey string             `json:"holdoutIdempotencyKey,omitempty"`
+	HoldoutSignature      string             `json:"holdoutSignature,omitempty"`
+	PromotedAt            string             `json:"promotedAt,omitempty"`
+	Notes                 string             `json:"notes,omitempty"`
 	Timestamps
+}
+
+// ExperimentProtocol is the immutable, pre-registered evidence contract for a
+// controlled experiment. Its explicit fields prevent promotion criteria from
+// being changed after results are known.
+type ExperimentProtocol struct {
+	Population                   string   `json:"population"`
+	RandomizationUnit            string   `json:"randomizationUnit"`
+	PrimaryMetric                string   `json:"primaryMetric"`
+	EffectThreshold              float64  `json:"effectThreshold"`
+	Strata                       []string `json:"strata"`
+	ExposurePolicy               string   `json:"exposurePolicy"`
+	OutcomeCompletenessThreshold float64  `json:"outcomeCompletenessThreshold"`
+	Budget                       string   `json:"budget"`
+	StoppingRule                 string   `json:"stoppingRule"`
+	HoldoutRequired              bool     `json:"holdoutRequired"`
+	HoldoutPopulationHash        string   `json:"holdoutPopulationHash"`
+	PromotionAuthority           string   `json:"promotionAuthority"`
+	EvaluatorRubricHash          string   `json:"evaluatorRubricHash"`
+	EvaluatorAuthor              string   `json:"evaluatorAuthor"`
+	ProtocolHash                 string   `json:"protocolHash,omitempty"`
 }
 
 // ExperimentArm is one variant in an experiment with its traffic weight.
@@ -452,11 +480,45 @@ type ExperimentArm struct {
 // ExperimentOutcome is the opaque outcome envelope stored per experiment.
 // Prompt-manager never parses Data — it belongs to the source system (e.g. swarm-manager).
 type ExperimentOutcome struct {
-	VariantID     string          `json:"variantId"`
-	Source        string          `json:"source"`        // e.g. "swarm-manager"
-	SchemaVersion int             `json:"schemaVersion"` // consumer-defined
-	RecordedAt    string          `json:"recordedAt"`
-	Data          json.RawMessage `json:"data"` // opaque to PM
+	IdempotencyKey string                       `json:"idempotencyKey,omitempty"`
+	VariantID      string                       `json:"variantId"`
+	Source         string                       `json:"source"`        // e.g. "swarm-manager"
+	SchemaVersion  int                          `json:"schemaVersion"` // consumer-defined
+	RecordedAt     string                       `json:"recordedAt"`
+	Data           json.RawMessage              `json:"data"` // opaque to PM
+	Controlled     *ControlledExperimentOutcome `json:"controlled,omitempty"`
+}
+
+// ControlledExperimentOutcome is the typed, evaluator-bound primary evidence
+// projection. Data remains available for bounded auxiliary evidence, but a
+// controlled record is never interpreted from terminal run status alone.
+type ControlledExperimentOutcome struct {
+	AssignmentID         string `json:"assignmentId"`
+	ExecutionID          string `json:"executionId"`
+	EvaluatorAttemptID   string `json:"evaluatorAttemptId"`
+	EvaluatorRunID       string `json:"evaluatorRunId"`
+	Verdict              string `json:"verdict,omitempty"`
+	Success              *bool  `json:"success,omitempty"`
+	OutcomeStatus        string `json:"outcomeStatus"` // complete or incomplete
+	RubricHash           string `json:"rubricHash"`
+	EvaluatorPromptHash  string `json:"evaluatorPromptHash"`
+	StructuredSchemaHash string `json:"structuredSchemaHash"`
+	EvidenceHash         string `json:"evidenceHash,omitempty"`
+}
+
+// ExperimentAuditReceipt binds a qualitative audit to immutable quantitative
+// evidence. Signature is generated server-side over canonical fields.
+type ExperimentAuditReceipt struct {
+	ExperimentID         string   `json:"experimentId"`
+	ProtocolHash         string   `json:"protocolHash"`
+	SampledAssignmentIDs []string `json:"sampledAssignmentIds"`
+	FindingsHash         string   `json:"findingsHash"`
+	ChallengeState       string   `json:"challengeState"`
+	AnomalyCount         int      `json:"anomalyCount"`
+	GamingCount          int      `json:"gamingCount"`
+	CompletedAt          string   `json:"completedAt"`
+	Signature            string   `json:"signature"`
+	IdempotencyKey       string   `json:"idempotencyKey"`
 }
 
 // ExperimentServe records that a variant was served for a skill read. It is the
@@ -469,6 +531,38 @@ type ExperimentServe struct {
 	VariantID    string `json:"variantId"`
 	Source       string `json:"source,omitempty"` // caller identity, e.g. "agent-manager"
 	ServedAt     string `json:"servedAt"`
+}
+
+// ExperimentAssignment is the immutable treatment receipt created before a
+// workflow child is dispatched. Content is stored with the receipt so retries
+// cannot observe a later variant edit or a different random draw.
+type ExperimentAssignment struct {
+	ExperimentID   string `json:"experimentId"`
+	SkillID        string `json:"skillId"`
+	VariantID      string `json:"variantId"`
+	ExecutionID    string `json:"executionId"`
+	NodeID         string `json:"nodeId"`
+	AttemptKey     string `json:"attemptKey"`
+	IdempotencyKey string `json:"idempotencyKey"`
+	Content        string `json:"content"`
+	ContentHash    string `json:"contentHash"`
+	AssignedAt     string `json:"assignedAt"`
+}
+
+// ExperimentExposure is a verified skill-read receipt issued from an active
+// workflow run. Identity fields are copied only after agent-manager validates
+// the signed token; callers cannot supply them in the read request body.
+type ExperimentExposure struct {
+	ExperimentID   string `json:"experimentId"`
+	VariantID      string `json:"variantId"`
+	RunID          string `json:"runId"`
+	ExecutionID    string `json:"executionId"`
+	NodeID         string `json:"nodeId"`
+	AttemptID      string `json:"attemptId"`
+	ReadSkillID    string `json:"readSkillId"`
+	Provenance     string `json:"provenance"`
+	ObservedAt     string `json:"observedAt"`
+	IdempotencyKey string `json:"idempotencyKey"`
 }
 
 // PackOrder represents the pack precedence configuration

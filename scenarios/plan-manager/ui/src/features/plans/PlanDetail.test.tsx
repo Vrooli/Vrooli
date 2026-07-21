@@ -28,6 +28,7 @@ import {
   WorkPostureSource,
   ImportProvenanceSchema,
   LegacySectionSchema,
+  PlanDefinitionSchema,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 const getPlan = vi.fn();
@@ -139,6 +140,20 @@ describe("PlanDetail", () => {
     expect(await screen.findByTestId(selectors.pages.planDetail)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.plans.phase({ id: "p1" }))).toBeInTheDocument();
     expect(screen.getAllByTestId(selectors.plans.relevantContext).length).toBeGreaterThan(0);
+  });
+
+  it("renders plan definitions and routes GFM through the markdown renderer", async () => {
+    getPlan.mockResolvedValue(create(PlanSchema, {
+      ...fullPlan,
+      purpose: "| Feature | State |\n|---|---|\n| Markdown | rendered |\n\n```mermaid\nflowchart LR\nA --> B\n```",
+      definitions: [create(PlanDefinitionSchema, { term: "Trust gate", meaning: "Required validation checkpoint." })],
+    }));
+    getGraph.mockResolvedValue([]);
+    renderWithProviders(<PlanDetail planId="definitions" />);
+    expect(await screen.findByTestId(selectors.pages.planDetail)).toBeInTheDocument();
+    expect(screen.getByText("Trust gate")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open" })).toBeInTheDocument();
+    expect(document.querySelector("table")).toBeInTheDocument();
   });
 
   it("renders the professional structured fields and work posture", async () => {

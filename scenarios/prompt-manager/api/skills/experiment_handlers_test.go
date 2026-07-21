@@ -16,15 +16,81 @@ import (
 
 // mockExperimentStore implements store.ExperimentStore for testing.
 type mockExperimentStore struct {
-	experiments map[string]*store.Experiment
-	outcomes    map[string][]store.ExperimentOutcome
-	serves      []store.ExperimentServe
+	experiments  map[string]*store.Experiment
+	outcomes     map[string][]store.ExperimentOutcome
+	serves       []store.ExperimentServe
+	assignments  []store.ExperimentAssignment
+	exposures    []store.ExperimentExposure
+	auditReceipt *store.ExperimentAuditReceipt
+}
+
+func (m *mockExperimentStore) RecordExposure(_ context.Context, exposure store.ExperimentExposure) error {
+	m.exposures = append(m.exposures, exposure)
+	return nil
+}
+func (m *mockExperimentStore) ListExposures(_ context.Context, _ string) ([]store.ExperimentExposure, error) {
+	return append([]store.ExperimentExposure(nil), m.exposures...), nil
+}
+func (m *mockExperimentStore) ListAssignments(_ context.Context, _ string) ([]store.ExperimentAssignment, error) {
+	return append([]store.ExperimentAssignment(nil), m.assignments...), nil
+}
+func (m *mockExperimentStore) GetAssignment(_ context.Context, experimentID, key string) (*store.ExperimentAssignment, error) {
+	for i := range m.assignments {
+		if m.assignments[i].ExperimentID == experimentID && m.assignments[i].IdempotencyKey == key {
+			return &m.assignments[i], nil
+		}
+	}
+	return nil, errors.New("assignment not found")
+}
+func (m *mockExperimentStore) CreateAssignment(_ context.Context, assignment store.ExperimentAssignment) error {
+	m.assignments = append(m.assignments, assignment)
+	return nil
+}
+func (m *mockExperimentStore) RecordAuditReceipt(_ context.Context, receipt store.ExperimentAuditReceipt) error {
+	m.auditReceipt = &receipt
+	return nil
+}
+func (m *mockExperimentStore) GetAuditReceipt(_ context.Context, _ string) (*store.ExperimentAuditReceipt, error) {
+	if m.auditReceipt == nil {
+		return nil, errors.New("audit receipt not found")
+	}
+	return m.auditReceipt, nil
+}
+
+type mockDecisionPublisher struct{ entries []*store.DecisionEntry }
+
+func (m *mockDecisionPublisher) AppendDecision(_ context.Context, _ string, entry *store.DecisionEntry) error {
+	m.entries = append(m.entries, entry)
+	return nil
+}
+func (m *mockDecisionPublisher) GetDecisions(_ context.Context, teamID, contextTag, status string, _ int) ([]store.DecisionEntry, int, error) {
+	if teamID != "meta-optimization" {
+		return nil, 0, errors.New("unexpected team")
+	}
+	result := make([]store.DecisionEntry, 0, len(m.entries))
+	for _, entry := range m.entries {
+		if (contextTag == "" || entry.Context == contextTag) && (status == "" || entry.Status == status) {
+			result = append(result, *entry)
+		}
+	}
+	return result, len(result), nil
 }
 
 func newMockExperimentStore() *mockExperimentStore {
 	return &mockExperimentStore{
 		experiments: make(map[string]*store.Experiment),
 		outcomes:    make(map[string][]store.ExperimentOutcome),
+	}
+}
+
+func validProtocol() store.ExperimentProtocol {
+	return store.ExperimentProtocol{
+		Population: "reference workflow", RandomizationUnit: "workflow-node-per-execution",
+		PrimaryMetric: "evaluator verdict", EffectThreshold: 0.01,
+		ExposurePolicy: "exclude-contaminated", OutcomeCompletenessThreshold: 0.9,
+		Budget: "100 runs", StoppingRule: "fixed sample", HoldoutRequired: true, HoldoutPopulationHash: "sha256:holdout-population",
+		PromotionAuthority: "operator", EvaluatorRubricHash: "sha256:rubric",
+		EvaluatorAuthor: "independent-evaluator",
 	}
 }
 
@@ -156,9 +222,11 @@ func TestExperimentHandlers_CreateAndGet(t *testing.T) {
 	h := NewExperimentHandlers(es, vs, ss)
 
 	reqBody := CreateExperimentRequest{
-		ID:      "exp-1",
-		SkillID: "s1",
-		Name:    "Test Experiment",
+		ID:         "exp-1",
+		SkillID:    "s1",
+		Name:       "Test Experiment",
+		Hypothesis: "variant improves evaluator verdict",
+		Protocol:   validProtocol(),
 		Arms: []ExperimentArmInput{
 			{VariantID: "control", Weight: 0.5},
 			{VariantID: "v1", Weight: 0.5},
@@ -204,12 +272,16 @@ func TestExperimentHandlers_Lifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := NewExperimentHandlers(es, vs, ss)
+	publisher := &mockDecisionPublisher{}
+	h.SetDecisionPublisher(publisher)
+	h.SetAuditSecret([]byte("test-audit-secret"))
 
 	// Create
 	if err := es.Create(context.Background(), &store.Experiment{
-		ID:      "exp-1",
-		SkillID: "s1",
-		Name:    "Test",
+		ID:       "exp-1",
+		SkillID:  "s1",
+		Name:     "Test",
+		Protocol: validProtocol(),
 		Arms: []store.ExperimentArm{
 			{VariantID: "control", Weight: 0.5},
 			{VariantID: "v1", Weight: 0.5},
@@ -237,11 +309,14 @@ func TestExperimentHandlers_Lifecycle(t *testing.T) {
 	}
 
 	// Record outcome
+	es.assignments = append(es.assignments, store.ExperimentAssignment{ExperimentID: "exp-1", SkillID: "s1", VariantID: "v1", ExecutionID: "execution-1", NodeID: "treatment", IdempotencyKey: "assignment-1"})
+	success := true
 	outcomeBody, _ := json.Marshal(RecordOutcomeRequest{
 		VariantID:     "v1",
 		Source:        "test",
 		SchemaVersion: 1,
 		Data:          json.RawMessage(`{"classification":"ready"}`),
+		Controlled:    &store.ControlledExperimentOutcome{AssignmentID: "assignment-1", ExecutionID: "execution-1", EvaluatorAttemptID: "eval-attempt", EvaluatorRunID: "eval-run", Verdict: "pass", Success: &success, OutcomeStatus: "complete", RubricHash: "sha256:rubric", EvaluatorPromptHash: "sha256:evaluator", StructuredSchemaHash: "sha256:schema"},
 	})
 	req2 := httptest.NewRequest("POST", "/experiments/exp-1/outcomes", bytes.NewReader(outcomeBody))
 	req2 = mux.SetURLVars(req2, map[string]string{"eid": "exp-1"})
@@ -251,8 +326,14 @@ func TestExperimentHandlers_Lifecycle(t *testing.T) {
 	if w2.Code != http.StatusNoContent {
 		t.Fatalf("outcome: expected 204, got %d: %s", w2.Code, w2.Body.String())
 	}
+	controlSuccess := false
+	es.assignments = append(es.assignments, store.ExperimentAssignment{ExperimentID: "exp-1", SkillID: "s1", VariantID: "control", ExecutionID: "execution-2", NodeID: "treatment", IdempotencyKey: "assignment-control"})
+	es.outcomes["exp-1"] = append(es.outcomes["exp-1"], store.ExperimentOutcome{VariantID: "control", Controlled: &store.ControlledExperimentOutcome{AssignmentID: "assignment-control", ExecutionID: "execution-2", EvaluatorAttemptID: "eval-control", EvaluatorRunID: "eval-run-control", Verdict: "fail", Success: &controlSuccess, OutcomeStatus: "complete", RubricHash: "sha256:rubric", EvaluatorPromptHash: "sha256:evaluator", StructuredSchemaHash: "sha256:schema"}})
 
 	// Conclude
+	audit := &store.ExperimentAuditReceipt{ExperimentID: "exp-1", ProtocolHash: es.experiments["exp-1"].Protocol.ProtocolHash, SampledAssignmentIDs: []string{"attempt-1"}, FindingsHash: "sha256:findings", ChallengeState: "clear", CompletedAt: "2026-01-01T00:00:00Z", IdempotencyKey: "audit/exp-1"}
+	audit.Signature = h.signAuditReceipt(audit)
+	es.auditReceipt = audit
 	concludeBody, _ := json.Marshal(ConcludeExperimentRequest{
 		WinnerVariantID: "v1",
 		Notes:           "V1 wins",
@@ -275,6 +356,42 @@ func TestExperimentHandlers_Lifecycle(t *testing.T) {
 	}
 	if concludeResp.WinnerVariantID == nil || *concludeResp.WinnerVariantID != "v1" {
 		t.Errorf("expected winner v1")
+	}
+	if concludeResp.PromotionDecisionID == "" || len(publisher.entries) != 1 || publisher.entries[0].Status != store.DecisionStatusPending {
+		t.Fatalf("expected one pending promotion decision, got %#v", publisher.entries)
+	}
+	if ss.updates != 0 {
+		t.Fatalf("conclude must create a recommendation only; skill update calls = %d", ss.updates)
+	}
+
+	// A signed holdout still cannot promote without the exact decision accepted
+	// in prompt-manager's meta-optimization team.
+	holdoutBody, _ := json.Marshal(RecordHoldoutReceiptRequest{FindingsHash: "sha256:holdout", IdempotencyKey: "holdout/exp-1"})
+	holdoutReq := httptest.NewRequest("POST", "/experiments/exp-1/holdout-receipt", bytes.NewReader(holdoutBody))
+	holdoutReq = mux.SetURLVars(holdoutReq, map[string]string{"eid": "exp-1"})
+	holdoutW := httptest.NewRecorder()
+	h.RecordHoldoutReceipt(holdoutW, holdoutReq)
+	if holdoutW.Code != http.StatusOK {
+		t.Fatalf("holdout: expected 200, got %d: %s", holdoutW.Code, holdoutW.Body.String())
+	}
+	promoteBody, _ := json.Marshal(PromoteExperimentRequest{DecisionID: concludeResp.PromotionDecisionID})
+	promoteReq := httptest.NewRequest("POST", "/experiments/exp-1/promote", bytes.NewReader(promoteBody))
+	promoteReq = mux.SetURLVars(promoteReq, map[string]string{"eid": "exp-1"})
+	promoteW := httptest.NewRecorder()
+	h.PromoteExperiment(promoteW, promoteReq)
+	if promoteW.Code != http.StatusForbidden {
+		t.Fatalf("promotion without acceptance: expected 403, got %d: %s", promoteW.Code, promoteW.Body.String())
+	}
+	publisher.entries[0].Status = store.DecisionStatusAccepted
+	promoteReq = httptest.NewRequest("POST", "/experiments/exp-1/promote", bytes.NewReader(promoteBody))
+	promoteReq = mux.SetURLVars(promoteReq, map[string]string{"eid": "exp-1"})
+	promoteW = httptest.NewRecorder()
+	h.PromoteExperiment(promoteW, promoteReq)
+	if promoteW.Code != http.StatusOK {
+		t.Fatalf("accepted promotion: expected 200, got %d: %s", promoteW.Code, promoteW.Body.String())
+	}
+	if ss.updates != 1 {
+		t.Fatalf("accepted variant must update skill exactly once; got %d", ss.updates)
 	}
 }
 
@@ -362,8 +479,9 @@ func TestExperimentHandlers_ListOutcomes(t *testing.T) {
 		ID:     "exp-1",
 		Status: store.ExperimentStatusRunning,
 	}
+	success := true
 	es.outcomes["exp-1"] = []store.ExperimentOutcome{
-		{VariantID: "control", Source: "test", SchemaVersion: 1, RecordedAt: "t1", Data: json.RawMessage(`{}`)},
+		{VariantID: "control", Source: "test", SchemaVersion: 1, RecordedAt: "t1", Data: json.RawMessage(`{}`), Controlled: &store.ControlledExperimentOutcome{AssignmentID: "assignment-1", OutcomeStatus: "complete", Success: &success}},
 		{VariantID: "v1", Source: "test", SchemaVersion: 1, RecordedAt: "t2", Data: json.RawMessage(`{}`)},
 	}
 
@@ -382,5 +500,8 @@ func TestExperimentHandlers_ListOutcomes(t *testing.T) {
 	}
 	if len(resp) != 2 {
 		t.Errorf("expected 2 outcomes, got %d", len(resp))
+	}
+	if resp[0].Controlled == nil || resp[0].Controlled.AssignmentID != "assignment-1" {
+		t.Fatalf("expected controlled evaluator provenance in response, got %#v", resp[0].Controlled)
 	}
 }

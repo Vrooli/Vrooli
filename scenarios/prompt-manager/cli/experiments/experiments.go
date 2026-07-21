@@ -86,7 +86,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "experiment",
 				Aliases:     []string{"experiments", "exp"},
 				NeedsAPI:    true,
-				Description: "Manage experiments (list|show|create|start|conclude|outcomes|report|delete)",
+				Description: "Manage experiments (list|show|create|start|conclude|holdout|promote|outcomes|report|delete)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -115,6 +115,10 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdStart(ctx, subArgs)
 	case "conclude":
 		return cmdConclude(ctx, subArgs)
+	case "holdout":
+		return cmdHoldout(ctx, subArgs)
+	case "promote":
+		return cmdPromote(ctx, subArgs)
 	case "outcomes":
 		return cmdOutcomes(ctx, subArgs)
 	case "report":
@@ -140,6 +144,10 @@ Subcommands:
   create, add           Create a new experiment
   start <eid>           Start a draft experiment
   conclude <eid> <vid>  Conclude a running experiment with a winner
+	  holdout <eid> --findings-hash HASH --idempotency-key KEY
+	                        Record separately held-out confirmation
+	  promote <eid> <decision-id>
+	                        Apply only after operator accepts that exact decision
   outcomes <eid>        List recorded outcomes
   report <eid>          Show per-arm report (serves, outcomes, success rate)
   delete, rm <eid>      Delete an experiment`
@@ -402,6 +410,41 @@ func cmdConclude(ctx appctx.Context, args []string) error {
 	}
 
 	fmt.Printf("Concluded experiment: %s [%s] - winner: %s\n", exp.Name, exp.ID, winnerVID)
+	return nil
+}
+
+func cmdHoldout(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("holdout", flag.ContinueOnError)
+	findings := fs.String("findings-hash", "", "Hash of holdout findings")
+	key := fs.String("idempotency-key", "", "Stable holdout receipt key")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 || *findings == "" || *key == "" {
+		return fmt.Errorf("usage: experiment holdout <eid> --findings-hash HASH --idempotency-key KEY")
+	}
+	var exp ExperimentResponse
+	if err := ctx.Post(fmt.Sprintf("/experiments/%s/holdout-receipt", fs.Arg(0)), struct {
+		FindingsHash   string `json:"findingsHash"`
+		IdempotencyKey string `json:"idempotencyKey"`
+	}{*findings, *key}, &exp); err != nil {
+		return fmt.Errorf("failed to record holdout: %w", err)
+	}
+	fmt.Printf("Recorded signed holdout receipt for experiment %s\n", exp.ID)
+	return nil
+}
+
+func cmdPromote(ctx appctx.Context, args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("usage: experiment promote <eid> <decision-id>")
+	}
+	var exp ExperimentResponse
+	if err := ctx.Post(fmt.Sprintf("/experiments/%s/promote", args[0]), struct {
+		DecisionID string `json:"decisionId"`
+	}{args[1]}, &exp); err != nil {
+		return fmt.Errorf("failed to promote experiment: %w", err)
+	}
+	fmt.Printf("Promoted accepted experiment %s\n", exp.ID)
 	return nil
 }
 

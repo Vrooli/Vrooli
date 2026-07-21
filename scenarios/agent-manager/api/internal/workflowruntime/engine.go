@@ -37,6 +37,9 @@ type (
 		SourceRunID    *uuid.UUID
 		MaxTurns       int
 		Timeout        time.Duration
+		ExperimentID   string
+		VariantID      string
+		PromptHash     string
 	}
 	ChildState struct {
 		RunID          uuid.UUID
@@ -53,6 +56,23 @@ type (
 		Continue(context.Context, ChildRequest) (ChildState, error)
 		Inspect(context.Context, uuid.UUID) (ChildState, error)
 		Stop(context.Context, uuid.UUID) error
+	}
+	// PromptResolution is the immutable treatment selected for one workflow
+	// attempt. It is committed with dispatch_pending before a child run starts.
+	PromptResolution struct {
+		Content      string
+		ExperimentID string
+		VariantID    string
+		ContentHash  string
+	}
+	PromptResolver interface {
+		Resolve(context.Context, *domain.WorkflowPromptRef, PromptAssignmentIdentity) (PromptResolution, error)
+	}
+	PromptAssignmentIdentity struct {
+		ExecutionID    uuid.UUID
+		NodeID         string
+		AttemptKey     string
+		IdempotencyKey string
 	}
 	SubworkflowRequest struct {
 		ParentExecutionID uuid.UUID
@@ -82,12 +102,13 @@ type (
 )
 
 type Engine struct {
-	Store        repository.WorkflowExecutionRepository
-	Catalog      Catalog
-	Children     ChildLauncher
-	Subworkflows SubworkflowLauncher
-	Expressions  *ExpressionEvaluator
-	Now          Clock
+	Store          repository.WorkflowExecutionRepository
+	Catalog        Catalog
+	Children       ChildLauncher
+	Subworkflows   SubworkflowLauncher
+	Expressions    *ExpressionEvaluator
+	PromptResolver PromptResolver
+	Now            Clock
 }
 
 func (e *Engine) Start(ctx context.Context, revision *domain.WorkflowRevision, input json.RawMessage, idempotencyKey string) (*domain.WorkflowExecution, error) {
@@ -590,12 +611,16 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		if x.BudgetUsage.Children >= r.Definition.Budgets.MaxChildren {
 			return e.exhaust(ctx, x, "children")
 		}
-		bindings, prompt, spec, strategy, source, diagnostics, err := e.resolveAgentInput(node, attempts, journal, x.Input)
+		// Treatment is randomized once per execution/node. Retries and schema
+		// repairs deliberately re-request this same receipt while their child-run
+		// idempotency remains attempt-specific below.
+		assignment := PromptAssignmentIdentity{ExecutionID: x.ID, NodeID: node.ID, AttemptKey: fmt.Sprintf("%d", ordinal), IdempotencyKey: fmt.Sprintf("workflow-assignment/%s/node/%s", x.ID, node.ID)}
+		bindings, prompt, resolution, spec, strategy, source, diagnostics, err := e.resolveAgentInput(ctx, node, attempts, journal, x.Input, assignment)
 		if err != nil {
 			return e.fail(ctx, x, "binding_invalid", err.Error())
 		}
 		now := e.now()
-		active = &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: strategy, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: fmt.Sprintf("workflow/%s/node/%s/attempt/%d", x.ID, node.ID, ordinal), InputSnapshot: bindings, PromptSnapshot: prompt, SourceAttemptID: source, Version: 1, CreatedAt: now, UpdatedAt: now}
+		active = &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: strategy, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: fmt.Sprintf("workflow/%s/node/%s/attempt/%d", x.ID, node.ID, ordinal), InputSnapshot: bindings, PromptSnapshot: prompt, ExperimentID: resolution.ExperimentID, VariantID: resolution.VariantID, PromptHash: resolution.ContentHash, SourceAttemptID: source, Version: 1, CreatedAt: now, UpdatedAt: now}
 		x.BudgetUsage.NodeAttempts++
 		x.Version++
 		x.UpdatedAt = now
@@ -923,12 +948,13 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 	return x, nil
 }
 
-func (e *Engine) resolveAgentInput(node *domain.WorkflowNode, attempts []*domain.WorkflowNodeAttempt, journal []*domain.WorkflowJournalEntry, input json.RawMessage) (json.RawMessage, string, *domain.ResultSpec, domain.WorkflowAttemptStrategy, *uuid.UUID, []BindingDiagnostic, error) {
+func (e *Engine) resolveAgentInput(ctx context.Context, node *domain.WorkflowNode, attempts []*domain.WorkflowNodeAttempt, journal []*domain.WorkflowJournalEntry, input json.RawMessage, assignment PromptAssignmentIdentity) (json.RawMessage, string, PromptResolution, *domain.ResultSpec, domain.WorkflowAttemptStrategy, *uuid.UUID, []BindingDiagnostic, error) {
 	var bindings []domain.WorkflowInputBinding
 	var tmpl string
 	var spec *domain.ResultSpec
 	strategy := domain.WorkflowAttemptFreshRun
 	var source *uuid.UUID
+	var resolution PromptResolution
 	if node.Run != nil {
 		bindings = node.Run.Bindings
 		tmpl = node.Run.PromptTemplate
@@ -946,19 +972,44 @@ func (e *Engine) resolveAgentInput(node *domain.WorkflowNode, attempts []*domain
 			}
 		}
 		if source == nil {
-			return nil, "", nil, "", nil, nil, fmt.Errorf("explicit continuation source has no completed attempt")
+			return nil, "", PromptResolution{}, nil, "", nil, nil, fmt.Errorf("explicit continuation source has no completed attempt")
 		}
+	}
+	ref := armedPromptRef(node)
+	if ref != nil {
+		if e.PromptResolver == nil {
+			return nil, "", PromptResolution{}, nil, "", nil, nil, fmt.Errorf("armed promptRef requires a prompt resolver")
+		}
+		var err error
+		resolution, err = e.PromptResolver.Resolve(ctx, ref, assignment)
+		if err != nil {
+			return nil, "", PromptResolution{}, nil, "", nil, nil, err
+		}
+		if resolution.ExperimentID == "" || resolution.VariantID == "" || resolution.Content == "" || resolution.ContentHash == "" {
+			return nil, "", PromptResolution{}, nil, "", nil, nil, fmt.Errorf("armed prompt resolver returned incomplete assignment")
+		}
+		tmpl = resolution.Content
 	}
 	values, diagnostics, err := EvaluateBindingsWithDiagnostics(bindings, BindingContext{Input: input, Journal: journal})
 	if err != nil {
-		return nil, "", nil, "", nil, nil, err
+		return nil, "", PromptResolution{}, nil, "", nil, nil, err
 	}
 	snapshot, err := json.Marshal(values)
 	if err != nil {
-		return nil, "", nil, "", nil, nil, err
+		return nil, "", PromptResolution{}, nil, "", nil, nil, err
 	}
 	prompt, err := RenderPrompt(tmpl, values)
-	return snapshot, prompt, spec, strategy, source, diagnostics, err
+	return snapshot, prompt, resolution, spec, strategy, source, diagnostics, err
+}
+
+func armedPromptRef(node *domain.WorkflowNode) *domain.WorkflowPromptRef {
+	if node.Run != nil && node.Run.PromptRef != nil && node.Run.PromptRef.ExperimentID != "" {
+		return node.Run.PromptRef
+	}
+	if node.Continue != nil && node.Continue.PromptRef != nil && node.Continue.PromptRef.ExperimentID != "" {
+		return node.Continue.PromptRef
+	}
+	return nil
 }
 
 func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecution, a *domain.WorkflowNodeAttempt, attempts []*domain.WorkflowNodeAttempt, journal []*domain.WorkflowJournalEntry) (ChildRequest, error) {
@@ -969,7 +1020,7 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 	} else {
 		spec = node.Continue.ResultSpec
 	}
-	request := ChildRequest{ExecutionID: x.ID, AttemptID: a.ID, NodeID: node.ID, IdempotencyKey: a.IdempotencyKey, Prompt: prompt, ResultSpec: spec}
+	request := ChildRequest{ExecutionID: x.ID, AttemptID: a.ID, NodeID: node.ID, IdempotencyKey: a.IdempotencyKey, Prompt: prompt, ResultSpec: spec, ExperimentID: a.ExperimentID, VariantID: a.VariantID, PromptHash: a.PromptHash}
 	if node.Run != nil {
 		request.ProfileKey = node.Run.ProfileKey
 		request.RoleRef = node.Run.RoleRef
@@ -1380,11 +1431,15 @@ func (e *Engine) prepareParallelAttempt(x *domain.WorkflowExecution, forkID stri
 	if node.Kind != domain.WorkflowNodeRun && node.Kind != domain.WorkflowNodeContinue {
 		return nil, fmt.Errorf("parallel member %s must be run, continue, or child_workflow", node.ID)
 	}
-	input, prompt, _, strategy, source, _, err := e.resolveAgentInput(node, attempts, journal, x.Input)
+	// Parallel planning currently prepares its durable attempt inside the same
+	// engine transaction-free phase. The resolver still runs before the attempt
+	// is committed; Advance supplies cancellation at the outer boundary.
+	assignment := PromptAssignmentIdentity{ExecutionID: x.ID, NodeID: node.ID, AttemptKey: fmt.Sprintf("%d", ordinal), IdempotencyKey: fmt.Sprintf("workflow-assignment/%s/node/%s", x.ID, node.ID)}
+	input, prompt, resolution, _, strategy, source, _, err := e.resolveAgentInput(context.Background(), node, attempts, journal, x.Input, assignment)
 	if err != nil {
 		return nil, err
 	}
-	return &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: strategy, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: idempotencyKey, InputSnapshot: input, PromptSnapshot: prompt, SourceAttemptID: source, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
+	return &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: strategy, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: idempotencyKey, InputSnapshot: input, PromptSnapshot: prompt, ExperimentID: resolution.ExperimentID, VariantID: resolution.VariantID, PromptHash: resolution.ContentHash, SourceAttemptID: source, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
 }
 
 func parallelPlan(definition domain.WorkflowDefinition, forkID string) (map[string]*domain.WorkflowNode, *domain.WorkflowNode, error) {

@@ -723,7 +723,7 @@ func TestBaselineSetFinalValidationUsesTypedFullCollectionDiff(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, op.Children, 1)
 	require.Contains(t, op.Children[0].Command, "--operation-id "+op.Children[0].ID)
-	require.NotEmpty(t, op.ProducerWaitArgv)
+	require.Equal(t, []string{"git-control-tower", "baseline", "collection", "diff", "wait", "--name", "before", "--operation-id", op.Children[0].ID, "--json"}, op.ProducerWaitArgv)
 	op, err = svc.SyncValidation(context.Background(), op.ID)
 	require.NoError(t, err)
 	require.True(t, op.Terminal())

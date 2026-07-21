@@ -44,6 +44,7 @@ type service struct {
 	skills          SkillPackDiscoverer
 	skillSteer      SkillApplicabilityResolver
 	commands        CommandReferenceValidator
+	diagrams        DiagramValidator
 	sourceEvidence  SourceEvidenceAdvisor
 	resolver        ReferenceResolver
 	templateSeed    TemplateSeeder
@@ -79,6 +80,7 @@ type Deps struct {
 	Skills        SkillPackDiscoverer
 	SkillResolver SkillApplicabilityResolver
 	Commands      CommandReferenceValidator
+	Diagrams      DiagramValidator
 	// SourceEvidence is optional and advisory. A failed GCT lookup never makes
 	// an otherwise deterministic-ready plan fail author validation.
 	SourceEvidence SourceEvidenceAdvisor
@@ -117,6 +119,7 @@ func NewService(d Deps) Service {
 		skills:          d.Skills,
 		skillSteer:      resolverOrNoop(d.SkillResolver),
 		commands:        d.Commands,
+		diagrams:        d.Diagrams,
 		sourceEvidence:  d.SourceEvidence,
 		resolver:        d.Resolver,
 		templateSeed:    d.TemplateSeeder,
@@ -212,6 +215,7 @@ func (s *service) applySection(ctx context.Context, sess *Session, idx int, cont
 	sess.Sections[idx].Autofilled = false // an author submission supersedes any autofill
 	violations := violationsForSection(sess.Sections[idx])
 	violations = append(violations, s.commandViolationsForSection(ctx, sess.Sections[idx])...)
+	violations = append(violations, s.diagramViolationsForSections(ctx, []Section{sess.Sections[idx]})...)
 	sess.CurrentSectionKey = firstUnfilledMandatory(sess.Sections)
 	return violations
 }
@@ -238,6 +242,7 @@ func (s *service) ContinueAuthoring(ctx context.Context, sessionID string) (Sess
 	if work.Kind == WorkItemReview {
 		violations, advisory := s.readinessAssessment(ctx, sess)
 		violations = append(violations, s.commandViolationsForSections(ctx, sess.Sections)...)
+		violations = append(violations, s.diagramViolationsForSections(ctx, sess.Sections)...)
 		work = selectWorkItem(sess, violations)
 		work.Step = appendSourceEvidenceAdvisory(work.Step, advisory)
 	}
@@ -251,6 +256,7 @@ func (s *service) ValidateStructure(ctx context.Context, sessionID string) (bool
 	}
 	violations, advisory := s.readinessAssessment(ctx, sess)
 	violations = append(violations, s.commandViolationsForSections(ctx, sess.Sections)...)
+	violations = append(violations, s.diagramViolationsForSections(ctx, sess.Sections)...)
 	valid := len(violations) == 0
 	return valid, violations, appendSourceEvidenceAdvisory(stepForValidation(sess, valid, violations), advisory), nil
 }

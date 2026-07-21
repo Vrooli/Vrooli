@@ -33,6 +33,7 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		RelevantContext:      append([]planmodel.RelevantContextItem(nil), sess.RelevantContext...),
 	}
 	p.Decisions = decisionsFromContent(contentOf(sess.Sections, SectionDecisions))
+	p.Definitions = definitionsFromContent(contentOf(sess.Sections, SectionDefinitions))
 	p.Assumptions, p.AssumptionRisks = splitAssumptionsContent(contentOf(sess.Sections, SectionAssumptions))
 	p.RelevantContext = append(p.RelevantContext, globalContextReasonNotes(contentOf(sess.Sections, SectionRelevantContext))...)
 	p.RelevantContext = append(p.RelevantContext, contextItemsFromLines(contentOf(sess.Sections, SectionRequiredReading), planmodel.RelevantContextScopeGlobal, "")...)
@@ -432,6 +433,30 @@ func decisionsFromContent(content string) []planmodel.PlanDecision {
 		out = append(out, planmodel.PlanDecision{Title: strings.TrimSpace(title), Statement: strings.TrimSpace(statement)})
 	}
 	return out
+}
+
+func definitionsFromContent(content string) []planmodel.PlanDefinition {
+	var out []planmodel.PlanDefinition
+	for _, raw := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), "-"))
+		if line == "" {
+			continue
+		}
+		term, meaning, found := cutDefinitionSeparator(line)
+		if found && term != "" && meaning != "" {
+			out = append(out, planmodel.PlanDefinition{Term: term, Meaning: meaning})
+		}
+	}
+	return out
+}
+
+func cutDefinitionSeparator(line string) (string, string, bool) {
+	for _, separator := range []string{"—", ":"} {
+		if term, meaning, found := strings.Cut(line, separator); found {
+			return strings.TrimSpace(term), strings.TrimSpace(meaning), true
+		}
+	}
+	return line, "", false
 }
 
 // decisionLabelPrefixRe strips an explicit `D<n> —`/`D<n>:` label so authored

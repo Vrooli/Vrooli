@@ -278,6 +278,22 @@ Create a new experiment.
   "skillId": "swarm-manager-workshop",
   "name": "Concise vs Detailed Workshop",
   "hypothesis": "Concise prompts produce equal quality with less tokens",
+  "protocol": {
+    "population": "reference workflow",
+    "randomizationUnit": "workflow-node-per-execution",
+    "primaryMetric": "evaluator verdict",
+    "effectThreshold": 0.05,
+    "strata": ["workflowRevision"],
+    "exposurePolicy": "exclude-contaminated",
+    "outcomeCompletenessThreshold": 0.9,
+    "budget": "100 executions",
+    "stoppingRule": "fixed sample",
+    "holdoutRequired": true,
+    "holdoutPopulationHash": "sha256:...",
+    "promotionAuthority": "operator",
+    "evaluatorRubricHash": "sha256:...",
+    "evaluatorAuthor": "independent-evaluator"
+  },
   "arms": [
     {"variantId": "control", "weight": 0.5},
     {"variantId": "concise-v1", "weight": 0.5}
@@ -290,10 +306,11 @@ Create a new experiment.
 - `control` is a reserved variant ID representing the original SKILL.md
 - All non-control variant IDs must exist for the skill
 - Experiment starts in `draft` status
+- The complete protocol is required and is frozen with its hash at start
 
 ### PUT /api/v1/experiments/{eid}
 
-Update a draft experiment (name, hypothesis, arms).
+Update a draft experiment (name, hypothesis, protocol, arms).
 
 **Note:** Only draft experiments can be updated.
 
@@ -307,7 +324,7 @@ Transition experiment from `draft` to `running`.
 
 ### POST /api/v1/experiments/{eid}/conclude
 
-Conclude a running experiment.
+Conclude a running experiment with a recommendation.
 
 **Request:**
 ```json
@@ -319,8 +336,34 @@ Conclude a running experiment.
 
 **Notes:**
 - Winner must be one of the experiment's arms
-- If winner is not `control`, the winner's content is promoted to SKILL.md
-- Previous SKILL.md content is preserved in version history
+- Conclude never changes `SKILL.md`
+- A signed, clear audit receipt matching the frozen protocol is required before a recommendation decision is published
+- A separately authorized, holdout-confirmed promotion is required to apply content
+
+### POST /api/v1/experiments/{eid}/audit-receipt
+
+Persist a server-signed audit receipt for a running experiment. The caller
+supplies sampled assignment identifiers, a findings hash, challenge state, and
+anomaly/gaming counts; Prompt Manager binds the frozen protocol hash and signs
+the canonical receipt. This endpoint requires `PROMPT_MANAGER_EXPERIMENT_AUDIT_SECRET`.
+Provision this value from the deployment secret manager. Use one stable, non-empty
+secret for the lifetime of an experiment because Prompt Manager verifies the
+receipt signature again before it publishes a recommendation or promotes a
+winner. Do not store this value in a workflow, skill, experiment protocol, or
+source-controlled service declaration.
+
+### POST /api/v1/experiments/{eid}/holdout-receipt
+
+Record the separate holdout finding after conclusion. The server signs the
+experiment ID, frozen protocol hash, published decision ID, finding hash, and
+completion time. It requires `findingsHash` and an idempotency key.
+
+### POST /api/v1/experiments/{eid}/promote
+
+Apply a concluded winner only after a signed holdout receipt and the exact
+published `skill-experiment-promotion` decision has status `accepted` in the
+`meta-optimization` team. The caller supplies `{"decisionId":"..."}`; a
+caller assertion, topic entry, or different accepted decision is insufficient.
 
 ### POST /api/v1/experiments/{eid}/outcomes
 
@@ -349,21 +392,25 @@ List raw outcomes for an experiment.
 
 ### GET /api/v1/experiments/{eid}/report
 
-Aggregated per-arm report for an experiment: serve counts, outcome counts, outcome status breakdown, success rate (successful outcomes / outcomes with a known status), and mean tokens used. Outcomes whose `data` blob carries no parseable `status` are bucketed as `unknown` and excluded from the success-rate denominator. Arms with zero serves and zero outcomes are listed in `zeroDataArms`.
+Aggregated per-arm report for an experiment. Terminal status and token use are
+guardrail observations only. They are not a primary outcome or a promotion
+metric. Arms with zero records are listed in `zeroDataArms`.
 
 **Response:** `ExperimentReportResponse`
 
 ### Variant-Aware Read (extension to POST /api/v1/skills/read)
 
-Reads participate in experiments two ways:
-
-- **Explicit arming:** include `experimentId` in the request. The experiment must be `running` and target the resolved skill; the first resolved skill's content may be replaced by a variant selected via weighted random sampling.
-- **Blind serving (default):** with no `experimentId`, a read still samples an arm automatically when a running experiment exists for the resolved skill. Opt out per read with `variantPolicy`.
+Reads participate in controlled experiments only by explicit arming. Include
+`experimentId` in the request. The experiment must be `running` and target the
+resolved skill. An optional `variantId` selects a declared arm deterministically
+for calibration or workflow dispatch. Reads without `experimentId` are
+observational and never receive a treatment arm.
 
 **Additional request fields:**
 ```json
 {
   "experimentId": "exp-concise-test",
+  "variantId": "concise-v1",
   "variantPolicy": "pinned",
   "source": "agent-manager"
 }
@@ -383,7 +430,7 @@ Reads participate in experiments two ways:
 **Notes:**
 - `control` means the original SKILL.md was used (no content replacement)
 - Variable substitution is applied to variant content as normal
-- Every sampled serve is appended to the experiment's `serve.jsonl` (beside `outcomes.jsonl` in the experiment's runtime data directory); `GET /api/v1/experiments/{eid}/report` aggregates serves and outcomes per arm
+- Controlled evidence is written to prompt-manager's SQLite experiment store with an idempotency key. `GET /api/v1/experiments/{eid}/report` aggregates controlled records only.
 
 ---
 

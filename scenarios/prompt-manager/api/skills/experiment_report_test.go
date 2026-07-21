@@ -71,9 +71,8 @@ func TestBuildExperimentReport(t *testing.T) {
 	if control.StatusCounts["complete"] != 1 || control.StatusCounts["failed"] != 1 || control.StatusCounts["unknown"] != 1 {
 		t.Errorf("control: unexpected status counts: %v", control.StatusCounts)
 	}
-	// 1 complete out of 2 known-status outcomes (unknown excluded from denominator)
-	if control.SuccessRate == nil || *control.SuccessRate != 0.5 {
-		t.Errorf("control: expected success rate 0.5, got %v", control.SuccessRate)
+	if control.SuccessRate != nil {
+		t.Errorf("control: terminal state must not produce a primary success rate, got %v", control.SuccessRate)
 	}
 	if control.MeanTokensUsed == nil || *control.MeanTokensUsed != 200 {
 		t.Errorf("control: expected mean tokens 200, got %v", control.MeanTokensUsed)
@@ -83,8 +82,8 @@ func TestBuildExperimentReport(t *testing.T) {
 	if v1.Serves != 2 || v1.Outcomes != 2 {
 		t.Errorf("v1: expected serves=2 outcomes=2, got serves=%d outcomes=%d", v1.Serves, v1.Outcomes)
 	}
-	if v1.SuccessRate == nil || *v1.SuccessRate != 1.0 {
-		t.Errorf("v1: expected success rate 1.0, got %v", v1.SuccessRate)
+	if v1.SuccessRate != nil {
+		t.Errorf("v1: terminal state must not produce a primary success rate, got %v", v1.SuccessRate)
 	}
 	// Only one outcome carried tokensUsed
 	if v1.MeanTokensUsed == nil || *v1.MeanTokensUsed != 50 {
@@ -130,6 +129,43 @@ func TestBuildExperimentReport_NoData(t *testing.T) {
 	}
 	if len(report.ZeroDataArms) != 2 {
 		t.Errorf("expected both arms in zeroDataArms, got %v", report.ZeroDataArms)
+	}
+}
+
+func TestBuildControlledReport_ExcludesContaminatedAndIncompleteEvidence(t *testing.T) {
+	exp := &store.Experiment{ID: "exp-1", SkillID: "s1", Arms: []store.ExperimentArm{{VariantID: "control"}, {VariantID: "v1"}}}
+	assignments := []store.ExperimentAssignment{
+		{ExperimentID: "exp-1", SkillID: "s1", VariantID: "control", ExecutionID: "e1", NodeID: "treat", IdempotencyKey: "a1"},
+		{ExperimentID: "exp-1", SkillID: "s1", VariantID: "v1", ExecutionID: "e2", NodeID: "treat", IdempotencyKey: "a2"},
+		{ExperimentID: "exp-1", SkillID: "s1", VariantID: "v1", ExecutionID: "e3", NodeID: "treat", IdempotencyKey: "a3"},
+	}
+	ok := true
+	outcomes := []store.ExperimentOutcome{
+		{VariantID: "control", Controlled: &store.ControlledExperimentOutcome{AssignmentID: "a1", OutcomeStatus: "complete", Success: &ok}},
+		{VariantID: "v1", Controlled: &store.ControlledExperimentOutcome{AssignmentID: "a2", OutcomeStatus: "incomplete"}},
+		{VariantID: "v1", Controlled: &store.ControlledExperimentOutcome{AssignmentID: "a3", OutcomeStatus: "complete", Success: &ok}},
+	}
+	exposures := []store.ExperimentExposure{{ExperimentID: "exp-1", VariantID: "control", ExecutionID: "e3", NodeID: "other", ReadSkillID: "s1"}}
+	report := buildControlledReport(exp, assignments, exposures, outcomes)
+	if report.Assignments != 3 || report.EligibleAssignments != 1 || report.IncompleteAssignments != 1 || report.ExcludedAssignments != 1 {
+		t.Fatalf("unexpected evidence accounting: %+v", report)
+	}
+	if report.ExclusionReasons["contaminated"] != 1 || report.ExclusionReasons["incomplete-outcome"] != 1 {
+		t.Fatalf("expected explicit exclusions, got %+v", report.ExclusionReasons)
+	}
+	if report.Arms[0].PosteriorMean == nil || report.Arms[1].PosteriorMean != nil {
+		t.Fatalf("only clean complete evaluator evidence may enter primary estimates: %+v", report.Arms)
+	}
+}
+
+func TestBuildControlledReport_JoinsAgentAttemptProvenanceToDispatchAssignment(t *testing.T) {
+	exp := &store.Experiment{ID: "exp-1", SkillID: "s1", Arms: []store.ExperimentArm{{VariantID: "v1"}}}
+	assignment := store.ExperimentAssignment{ExperimentID: "exp-1", SkillID: "s1", VariantID: "v1", ExecutionID: "execution-1", NodeID: "treatment", IdempotencyKey: "workflow-assignment/execution-1/node/treatment"}
+	success := true
+	outcome := store.ExperimentOutcome{VariantID: "v1", Controlled: &store.ControlledExperimentOutcome{AssignmentID: "agent-attempt-uuid", ExecutionID: "execution-1", OutcomeStatus: "complete", Success: &success}}
+	report := buildControlledReport(exp, []store.ExperimentAssignment{assignment}, nil, []store.ExperimentOutcome{outcome})
+	if report.EligibleAssignments != 1 || report.Arms[0].Successes != 1 {
+		t.Fatalf("agent attempt provenance must join its unique durable assignment: %+v", report)
 	}
 }
 
@@ -194,8 +230,8 @@ func TestExperimentHandlers_GetExperimentReport(t *testing.T) {
 	if report.Arms[1].VariantName != "V1" {
 		t.Errorf("expected v1 arm name %q, got %q", "V1", report.Arms[1].VariantName)
 	}
-	if report.Arms[1].SuccessRate == nil || *report.Arms[1].SuccessRate != 1.0 {
-		t.Errorf("expected v1 success rate 1.0, got %v", report.Arms[1].SuccessRate)
+	if report.Arms[1].SuccessRate != nil {
+		t.Errorf("expected no terminal-status success rate, got %v", report.Arms[1].SuccessRate)
 	}
 	if len(report.ZeroDataArms) != 0 {
 		t.Errorf("expected no zero-data arms, got %v", report.ZeroDataArms)

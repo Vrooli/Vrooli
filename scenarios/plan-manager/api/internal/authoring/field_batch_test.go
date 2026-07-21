@@ -121,6 +121,22 @@ func TestSubmitFieldsEmptyBatchIsCallError(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSubmitFieldsDefinitionsAcceptsBothSeparatorsAndRejectsMalformedLines(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	sess, _, err := svc.StartSession(ctx, "Definitions", "", "")
+	require.NoError(t, err)
+	_, results, _, err := svc.SubmitFields(ctx, sess.ID, []authoring.FieldWrite{
+		sectionWrite(authoring.SectionDefinitions, "Trust gate — required validation checkpoint\nStaleness verdict: computed freshness state\nMissing meaning — "),
+	})
+	require.NoError(t, err)
+	require.True(t, results[0].Accepted)
+	require.Contains(t, results[0].Violations[0].Message, "definition line 3")
+	final, _, err := svc.GetSession(ctx, sess.ID)
+	require.NoError(t, err)
+	requireSectionContent(t, final, authoring.SectionDefinitions, "Trust gate — required validation checkpoint\nStaleness verdict: computed freshness state")
+}
+
 // TestSubmitFieldsIdempotentResend: re-sending the same batch yields the same
 // end state (writes are absolute, not accumulative) — except relevant_context
 // note lines, which are additive by design and excluded here.

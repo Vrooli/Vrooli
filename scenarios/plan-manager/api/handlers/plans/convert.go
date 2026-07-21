@@ -96,6 +96,7 @@ func planFromProtoChecked(p *sharedv1.Plan) (internalplans.Plan, error) {
 		PreservedLegacySections: planproto.LegacySectionsFromProto(p.GetPreservedLegacySections()),
 		ChangeBoundary:          planproto.ChangeBoundaryFromProto(p.GetChangeBoundary()),
 		Mirror:                  planproto.MirrorFromProto(p.GetMirror()),
+		Definitions:             planproto.PlanDefinitionsFromProto(p.GetDefinitions()),
 	}, nil
 }
 

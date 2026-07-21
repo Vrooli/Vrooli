@@ -2,6 +2,7 @@ package skills
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -17,6 +18,15 @@ import (
 type MockStore struct {
 	skills   map[string][]Metadata // folder -> skills
 	contents map[string]string     // folder/filename -> content
+}
+
+type fixedIdentityVerifier struct {
+	identity *VerifiedWorkflowIdentity
+	err      error
+}
+
+func (v fixedIdentityVerifier) VerifyWorkflowIdentity(_ context.Context, _ string) (*VerifiedWorkflowIdentity, error) {
+	return v.identity, v.err
 }
 
 func NewMockStore() *MockStore {
@@ -754,6 +764,31 @@ func TestRead_ExperimentVariantSelectionOverridesSkillContent(t *testing.T) {
 	}
 }
 
+func TestRead_RecordsVerifiedWorkflowExposureWithoutTrustingSource(t *testing.T) {
+	store := NewMockStore()
+	h := NewHandlers(store, &MockMetricsService{}, "/test/store")
+	experiments := newMockExperimentStore()
+	h.SetExperimentStores(experiments, newMockVariantStore(), newMockPackSkillStore())
+	h.SetIdentityVerifier(fixedIdentityVerifier{identity: &VerifiedWorkflowIdentity{RunID: "run-1", Meta: map[string]string{"workflowExecutionId": "execution-1", "workflowNodeId": "node-1", "workflowAttemptId": "attempt-1", "workflowExperimentId": "exp-1", "workflowVariantId": "treatment"}}})
+	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill", "content")
+	body, _ := json.Marshal(ReadRequest{Identifiers: []string{"test-skill"}, Source: "forged-source"})
+	req := httptest.NewRequest(http.MethodPost, "/skills/read", bytes.NewReader(body))
+	req.Header.Set(agentIdentityHeader, "signed-token")
+	req.Header.Set("X-Experiment-Read-Receipt-ID", "receipt-1")
+	w := httptest.NewRecorder()
+	h.Read(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("read status: %d: %s", w.Code, w.Body.String())
+	}
+	if len(experiments.exposures) != 1 {
+		t.Fatalf("exposures = %d", len(experiments.exposures))
+	}
+	got := experiments.exposures[0]
+	if got.Provenance != "verified-run" || got.RunID != "run-1" || got.ExperimentID != "exp-1" || got.ReadSkillID != "test-skill" || got.IdempotencyKey == "" {
+		t.Fatalf("unexpected verified exposure: %#v", got)
+	}
+}
+
 func TestRead_ExperimentControlSelectionKeepsOriginalSkillContent(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
@@ -839,7 +874,7 @@ func TestRead_ExperimentSelectionRejectsNonRunningExperiment(t *testing.T) {
 	}
 }
 
-func TestRead_BlindServingSamplesRunningExperiment(t *testing.T) {
+func TestRead_OrganicReadDoesNotSampleRunningExperiment(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
 	handlers := NewHandlers(store, metrics, "/test/store")
@@ -859,7 +894,7 @@ func TestRead_BlindServingSamplesRunningExperiment(t *testing.T) {
 		},
 	}
 
-	// No experimentId: blind serving should sample the running experiment.
+	// No experimentId: organic reads stay outside the controlled lane.
 	req := ReadRequest{
 		Identifiers: []string{"test-skill"},
 		Variables:   map[string]string{"NAME": "Ada"},
@@ -877,20 +912,17 @@ func TestRead_BlindServingSamplesRunningExperiment(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("read: failed to parse response: %v", err)
 	}
-	if resp.SelectedVariantID != "variant-a" {
-		t.Fatalf("expected blind-sampled variant-a, got %q", resp.SelectedVariantID)
+	if resp.SelectedVariantID != "" {
+		t.Fatalf("expected no treatment assignment, got %q", resp.SelectedVariantID)
 	}
-	if resp.ExperimentID != "exp-running" {
-		t.Fatalf("expected response to carry experimentId exp-running, got %q", resp.ExperimentID)
+	if resp.ExperimentID != "" {
+		t.Fatalf("expected no experiment attribution, got %q", resp.ExperimentID)
 	}
-	if resp.Skills[0].Content != "Variant Ada" {
-		t.Fatalf("expected variant content, got %q", resp.Skills[0].Content)
+	if resp.Skills[0].Content != "Original Ada" {
+		t.Fatalf("expected original content, got %q", resp.Skills[0].Content)
 	}
-	if len(experiments.serves) != 1 {
-		t.Fatalf("expected one recorded serve event, got %d", len(experiments.serves))
-	}
-	if s := experiments.serves[0]; s.ExperimentID != "exp-running" || s.VariantID != "variant-a" || s.Source != "agent-manager" {
-		t.Fatalf("unexpected serve event: %+v", s)
+	if len(experiments.serves) != 0 {
+		t.Fatalf("expected no controlled serve event, got %d", len(experiments.serves))
 	}
 }
 

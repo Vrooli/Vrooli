@@ -163,6 +163,7 @@ type ReadRequest struct {
 	WithScope    bool              `json:"withScope,omitempty"`    // Include default scope from first skill
 	Scope        string            `json:"scope,omitempty"`        // Explicit scope skill to include
 	ExperimentID string            `json:"experimentId,omitempty"` // Optional: select variant by an explicit experiment
+	VariantID    string            `json:"variantId,omitempty"`    // Optional deterministic experiment arm for controlled dispatch/calibration
 	// VariantPolicy opts out of blind serving. When "pinned" (or "control"), a
 	// running experiment for the skill is NOT sampled automatically — callers that
 	// require deterministic content (e.g. workflow reconcile) set this so a running

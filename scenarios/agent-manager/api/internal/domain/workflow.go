@@ -55,11 +55,27 @@ type WorkflowDefinition struct {
 	Nodes         []WorkflowNode  `json:"nodes"`
 	Edges         []WorkflowEdge  `json:"edges"`
 	Budgets       WorkflowBudgets `json:"budgets"`
+	// ExperimentEvaluator is mandatory for a workflow that arms a skill
+	// experiment. It names an independent downstream evaluator rather than
+	// inferring quality from treatment-run completion.
+	ExperimentEvaluator *WorkflowExperimentEvaluator `json:"experimentEvaluator,omitempty"`
 	// Trigger controls who may start this workflow and whether a workflow may
 	// start another execution of itself. Its zero value is safe: all initiator
 	// classes are allowed, while self-triggering is denied.
 	Trigger  WorkflowTriggerPolicy `json:"trigger,omitempty"`
 	Metadata map[string]string     `json:"metadata,omitempty"`
+}
+
+type WorkflowExperimentEvaluator struct {
+	TreatmentNodeIDs        []string `json:"treatmentNodeIds"`
+	EvaluatorNodeID         string   `json:"evaluatorNodeId"`
+	VerdictPointer          string   `json:"verdictPointer"`
+	AllowedVerdicts         []string `json:"allowedVerdicts"`
+	SuccessVerdicts         []string `json:"successVerdicts"`
+	RubricHash              string   `json:"rubricHash"`
+	RubricAuthor            string   `json:"rubricAuthor"`
+	EvaluatorPromptHash     string   `json:"evaluatorPromptHash"`
+	IndependenceDeclaration string   `json:"independenceDeclaration"`
 }
 
 // WorkflowInitiator is the server-classified source of a workflow start.

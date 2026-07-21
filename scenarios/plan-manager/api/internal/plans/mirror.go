@@ -30,7 +30,7 @@ const (
 	//
 	// v5: Execution Feedback replaces compact command alternatives with a
 	// concrete decision-add example and a short variant list.
-	RendererVersion     = "plan-manager-renderer-v5"
+	RendererVersion     = "plan-manager-renderer-v6"
 	mirrorIndexFilename = "_index.json"
 )
 

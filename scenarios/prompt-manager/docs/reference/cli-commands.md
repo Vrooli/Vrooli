@@ -315,7 +315,9 @@ prompt-manager experiment start <experiment-id>
 
 ### prompt-manager experiment conclude
 
-Conclude a running experiment with a winner.
+Conclude a running experiment with a recommended winner. This command never
+changes `SKILL.md`; a separately authorized holdout-confirmed promotion is
+required.
 
 ```bash
 prompt-manager experiment conclude <experiment-id> <winner-variant-id> [--notes TEXT]

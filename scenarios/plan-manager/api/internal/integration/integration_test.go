@@ -231,6 +231,8 @@ func contentFor(key string) string {
 		return "NO_CONTEXT: integration fixture needs no plan-wide setup."
 	case key == "decisions":
 		return "Storage shape: one SQLite store shared by every domain service."
+	case key == "definitions":
+		return "Integration term — A term used only by this integration fixture."
 	default:
 		return "Authored content for the " + key + " section."
 	}

@@ -40,19 +40,13 @@ When a `skill-improvement` fix is contestable (two plausible rewrites) or target
 
 1. `prompt-manager skill add-variant <skill-id> <variant-id>` — the variant is the hypothesis; record the rationale in the ledger topic.
 2. `prompt-manager experiment create --skill <skill-id> --arm control:0.5 --arm <variant-id>:0.5`, then `prompt-manager experiment start <eid>`.
-3. Serving and attribution are automatic: a running experiment arms organic `skill read` traffic (blind serving; serves append to the experiment's `serve.jsonl`). Agent-manager workflow prompt refs stay pinned unless the workflow deliberately sets `experimentId`; attributed run outcomes (`runId`, `status`, `tokensUsed`) post back automatically at run-terminal points.
-4. Read evidence with `prompt-manager experiment report <eid>` (per-arm serves, outcomes, success rate, mean tokens).
-5. `prompt-manager experiment conclude <eid> <winner-variant-id>` promotes the winner's content onto the skill. This is a gated write; the gate is below.
+3. Only deliberately armed workflow prompt references receive a treatment assignment. The engine persists one immutable, snapshot-hashed assignment at dispatch; retries reuse it. Organic reads are observational receipts and never causal evidence.
+4. Read `experiment report <eid>` for the controlled projection: assignment coverage, contamination/incomplete exclusions, evaluator verdict evidence, descriptive uncertainty, and guardrail cost are explicitly separate.
+5. `experiment conclude <eid> <winner-variant-id>` publishes a **pending** `skill-experiment-promotion` decision to the `meta-optimization` team. It never writes `SKILL.md`.
 
-**Conclusion gate (public/private score split).** This is the single source of truth for the gate; the meta-optimization operating model and the meta-contrarian cite it rather than restate it. Author variants with any public signal (lint, structure checks, judgment); conclude only on the private signals the variant author does not control. The gate, in full:
+**Promotion gate.** The optimizer may recommend only when the frozen protocol's effect, coverage, completeness, budget, and stopping rules are satisfied and a server-verifiable clear audit receipt is present. An independent evaluator supplies the typed primary verdict; terminal state and organic reads cannot substitute. After recommendation, record a separately held-out, server-signed holdout finding. The operator accepts or rejects the exact published decision in `meta-optimization`; only an accepted matching decision plus the signed holdout receipt permits `experiment promote <eid> <decision-id>` to apply a non-control variant. Audit prose, topic entries, and optimizer assertions cannot bypass any gate.
 
-1. Conclude only on non-authored signals: attributed run outcomes, divergence-probe results, or held-out trial verdicts. Never conclude on `skill rate` self-reports alone.
-2. Require at least 10 attributed outcomes per arm.
-3. Require a recorded `challenge-report` from the meta-contrarian before `experiment conclude`.
-4. Do not conclude at materially unequal token cost between arms — an arm that wins while spending more tokens is a different tradeoff; name it in the decision.
-5. A suspiciously large metric jump triggers a transcript audit before conclusion.
-
-Ledger: record hypothesis → arm rationale → report snapshots → challenge → conclusion evidence in `topic:skill-experiment/<skill-id>/<experiment-id>`.
+Ledger: record hypothesis → frozen protocol/rubric and holdout hashes → assignments/exclusions → controlled report → audit receipt → recommendation decision → holdout receipt → operator decision in `topic:skill-experiment/<skill-id>/<experiment-id>`.
 
 ## Action Judgment
 

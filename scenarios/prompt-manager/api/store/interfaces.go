@@ -118,6 +118,25 @@ type ExperimentStore interface {
 	CountOutcomesByVariant(ctx context.Context, experimentID string) (map[string]int, error)
 }
 
+// ExperimentAssignmentStore is deliberately separate from ExperimentStore so
+// legacy read/report test doubles cannot accidentally claim dispatch-safe
+// assignment support. Production uses SQLiteExperimentStore for both.
+type ExperimentAssignmentStore interface {
+	GetAssignment(ctx context.Context, experimentID, idempotencyKey string) (*ExperimentAssignment, error)
+	CreateAssignment(ctx context.Context, assignment ExperimentAssignment) error
+	ListAssignments(ctx context.Context, experimentID string) ([]ExperimentAssignment, error)
+}
+
+type ExperimentExposureStore interface {
+	RecordExposure(context.Context, ExperimentExposure) error
+	ListExposures(context.Context, string) ([]ExperimentExposure, error)
+}
+
+type ExperimentAuditStore interface {
+	RecordAuditReceipt(context.Context, ExperimentAuditReceipt) error
+	GetAuditReceipt(context.Context, string) (*ExperimentAuditReceipt, error)
+}
+
 // AgentStore defines operations for agent storage
 type AgentStore interface {
 	// List returns all agents

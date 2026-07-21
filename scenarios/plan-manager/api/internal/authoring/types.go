@@ -30,6 +30,7 @@ type SectionKey string
 
 const (
 	SectionPurpose              SectionKey = "purpose"
+	SectionDefinitions          SectionKey = "definitions"
 	SectionProblemStatement     SectionKey = "problem_statement"
 	SectionTargetOutcome        SectionKey = "target_outcome"
 	SectionScope                SectionKey = "scope"

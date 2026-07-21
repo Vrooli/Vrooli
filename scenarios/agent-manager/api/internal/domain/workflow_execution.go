@@ -88,26 +88,31 @@ const (
 )
 
 type WorkflowNodeAttempt struct {
-	ID               uuid.UUID               `json:"id"`
-	ExecutionID      uuid.UUID               `json:"executionId"`
-	NodeID           string                  `json:"nodeId"`
-	Ordinal          int                     `json:"ordinal"`
-	Strategy         WorkflowAttemptStrategy `json:"strategy"`
-	Status           WorkflowAttemptStatus   `json:"status"`
-	IdempotencyKey   string                  `json:"idempotencyKey"`
-	InputSnapshot    json.RawMessage         `json:"inputSnapshot"`
-	PromptSnapshot   string                  `json:"promptSnapshot"`
-	RunID            *uuid.UUID              `json:"runId,omitempty"`
-	ConversationID   string                  `json:"conversationId,omitempty"`
-	SourceAttemptID  *uuid.UUID              `json:"sourceAttemptId,omitempty"`
-	ChildExecutionID *uuid.UUID              `json:"childExecutionId,omitempty"`
-	ErrorCode        string                  `json:"errorCode,omitempty"`
-	RawOutput        string                  `json:"rawOutput,omitempty"`
-	ValidationError  string                  `json:"validationError,omitempty"`
-	Version          int64                   `json:"version"`
-	CreatedAt        time.Time               `json:"createdAt"`
-	UpdatedAt        time.Time               `json:"updatedAt"`
-	CompletedAt      *time.Time              `json:"completedAt,omitempty"`
+	ID             uuid.UUID               `json:"id"`
+	ExecutionID    uuid.UUID               `json:"executionId"`
+	NodeID         string                  `json:"nodeId"`
+	Ordinal        int                     `json:"ordinal"`
+	Strategy       WorkflowAttemptStrategy `json:"strategy"`
+	Status         WorkflowAttemptStatus   `json:"status"`
+	IdempotencyKey string                  `json:"idempotencyKey"`
+	InputSnapshot  json.RawMessage         `json:"inputSnapshot"`
+	PromptSnapshot string                  `json:"promptSnapshot"`
+	// Experiment provenance is captured before a dispatch_pending attempt can
+	// transition to dispatched. It survives retry and recovery with the attempt.
+	ExperimentID     string     `json:"experimentId,omitempty"`
+	VariantID        string     `json:"variantId,omitempty"`
+	PromptHash       string     `json:"promptHash,omitempty"`
+	RunID            *uuid.UUID `json:"runId,omitempty"`
+	ConversationID   string     `json:"conversationId,omitempty"`
+	SourceAttemptID  *uuid.UUID `json:"sourceAttemptId,omitempty"`
+	ChildExecutionID *uuid.UUID `json:"childExecutionId,omitempty"`
+	ErrorCode        string     `json:"errorCode,omitempty"`
+	RawOutput        string     `json:"rawOutput,omitempty"`
+	ValidationError  string     `json:"validationError,omitempty"`
+	Version          int64      `json:"version"`
+	CreatedAt        time.Time  `json:"createdAt"`
+	UpdatedAt        time.Time  `json:"updatedAt"`
+	CompletedAt      *time.Time `json:"completedAt,omitempty"`
 	// ProfileIdentity is a derived operator projection from the pinned
 	// definition. It is never persisted as a second source of authored truth.
 	ProfileIdentity string `json:"-"`

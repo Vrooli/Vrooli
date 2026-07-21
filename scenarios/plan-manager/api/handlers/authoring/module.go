@@ -47,6 +47,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, storePat
 		Anchor:         internalauthoring.DefaultAnchorIntentDeriver(),
 		Skills:         internalauthoring.NewCommandSkillPackDiscoverer(runner),
 		Commands:       newCLIHealthCommandValidator(),
+		Diagrams:       newDiagramValidator(),
 		SourceEvidence: newGCTSourceEvidenceAdvisor(),
 		Resolver:       internalvalidation.NewFileResolver(""),
 		Renderer:       planRenderer{},

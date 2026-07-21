@@ -1,0 +1,1 @@
+Calibration treatment: Given the supplied token, return exactly {"token":"<input>","quality":"good"}. Do not add prose.

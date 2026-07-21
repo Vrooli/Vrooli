@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+import { installChunkReloadGuard } from "@vrooli/api-base";
 import "./styles.css";
 
 // INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
@@ -14,6 +15,7 @@ if (window.parent !== window) {
 // INTEROP-CRITICAL: Spatial navigation is initialized at startup for embedded
 // keyboard/gamepad control flows.
 initSpatialNav();
+installChunkReloadGuard();
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {

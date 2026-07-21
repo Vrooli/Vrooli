@@ -88,7 +88,12 @@ func (s *service) applyFieldWrite(ctx context.Context, sess *Session, write Fiel
 		if idx < 0 {
 			return FieldWriteResult{}, ErrSectionNotFound{SessionID: sess.ID, SectionKey: string(write.SectionKey)}
 		}
-		violations := s.applySection(ctx, sess, idx, write.Content)
+		content := write.Content
+		var rejected []StructureViolation
+		if write.SectionKey == SectionDefinitions {
+			content, rejected = acceptedDefinitionLines(write.Content)
+		}
+		violations := append(rejected, s.applySection(ctx, sess, idx, content)...)
 		return FieldWriteResult{
 			Accepted:   true,
 			Summary:    SectionSummary(sess.Sections[idx]),
@@ -115,6 +120,27 @@ func (s *service) applyFieldWrite(ctx context.Context, sess *Session, write Fiel
 		Accepted: true,
 		Summary:  fmt.Sprintf("phase %d %s: %s", scratch.Order, write.PhaseField, PhaseFieldSummary(write.PhaseField, scratch)),
 	}, nil
+}
+
+// acceptedDefinitionLines drops only malformed definition lines, allowing the
+// remaining batch content to land. The returned violations name each rejected
+// source line so the CLI can correct it without resubmitting valid terms.
+func acceptedDefinitionLines(content string) (string, []StructureViolation) {
+	accepted := make([]string, 0)
+	violations := make([]StructureViolation, 0)
+	for lineNumber, raw := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), "-"))
+		if line == "" {
+			continue
+		}
+		term, meaning, found := cutDefinitionSeparator(line)
+		if !found || term == "" || meaning == "" {
+			violations = append(violations, StructureViolation{SectionKey: SectionDefinitions, Message: fmt.Sprintf("definition line %d %q rejected: use 'Term — meaning' or 'Term: meaning'", lineNumber+1, line)})
+			continue
+		}
+		accepted = append(accepted, line)
+	}
+	return strings.Join(accepted, "\n"), violations
 }
 
 // introducedPhaseViolation is the field-level quality gate the apply path

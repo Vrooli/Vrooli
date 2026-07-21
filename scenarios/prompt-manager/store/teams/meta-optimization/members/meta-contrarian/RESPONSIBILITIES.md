@@ -10,7 +10,7 @@ Use `docs/agent-system/CONTRARIAN_REVIEW.md` for lifecycle state. Every open cha
 
 For Action proposals, also check that the command boundary is Vrooli-controlled, one CLI command owns the behavior, validation evidence or a blocked reason is present, and baseline/measurement is concrete. Challenge Action sprawl when an existing Action could be improved instead.
 
-For skill experiments, before any `prompt-manager experiment conclude` I record a `challenge-report` on the `skill-experiment/<skill-id>/<experiment-id>` topic; the `skill-optimizer` gate blocks conclusion without it. The gate itself is owned by `skill-optimizer` RESPONSIBILITIES §Skill Experiments (the single source of truth) — I challenge the experiment against it, I do not redefine it.
+For skill experiments, use the declared `development-toolchain-validator/skill-experiment-audit` workflow on a bounded assignment sample. Submit its typed findings through Prompt Manager's signed audit-receipt endpoint before any `prompt-manager experiment conclude`. A freeform challenge report cannot satisfy the gate. The gate itself is owned by `skill-optimizer` RESPONSIBILITIES §Skill Experiments (the single source of truth) — I challenge the experiment against it, I do not redefine it.
 
 ## Boundaries
 - Do not generate positive proposals. Alternatives are other members' jobs.

@@ -46,6 +46,7 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	// current cluster shape and pre-cluster/legacy flat headings.
 	applyClusterSubSections(sections)
 	p.Purpose = sections["purpose"]
+	p.Definitions = parseDefinitionsTable(sections["definitions"])
 	p.Scope = sections["scope"]
 	p.Constraints = sections["constraints"]
 	p.NonGoals = firstNonEmpty(sections["non-goals"], sections["non goals"])
@@ -102,6 +103,27 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 		return Plan{}, err
 	}
 	return p, nil
+}
+
+func parseDefinitionsTable(block string) []PlanDefinition {
+	var out []PlanDefinition
+	for _, line := range strings.Split(block, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "|") || strings.Contains(line, "---") {
+			continue
+		}
+		line = strings.ReplaceAll(line, "\\|", "\x00")
+		parts := strings.Split(line, "|")
+		if len(parts) < 4 {
+			continue
+		}
+		term, meaning := strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2])
+		if strings.EqualFold(term, "term") || term == "" || meaning == "" {
+			continue
+		}
+		out = append(out, PlanDefinition{Term: strings.ReplaceAll(term, "\x00", "|"), Meaning: strings.ReplaceAll(meaning, "\x00", "|")})
+	}
+	return out
 }
 
 // ParseBaselineSetBlock recovers the baseline intent from current concise

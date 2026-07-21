@@ -23,7 +23,7 @@ type FileStore struct {
 	skills      *FileSkillStore
 	actions     *FileActionStore
 	variants    *FileVariantStore
-	experiments *FileExperimentStore
+	experiments ExperimentStore
 	agents      *FileAgentStore
 	teams       *FileTeamStore
 	topics      *FileTopicStore
@@ -43,7 +43,10 @@ func NewFileStore(roots paths.Roots) *FileStore {
 	skillStore := NewFileSkillStore(roots.Config)
 	actionStore := NewFileActionStore(roots.Config)
 	variantStore := NewFileVariantStore(skillStore)
-	experimentStore := NewFileExperimentStore(roots.RuntimeData)
+	experimentStore, err := NewSQLiteExperimentStore(roots.RuntimeData)
+	if err != nil {
+		panic("initialize durable experiment store: " + err.Error())
+	}
 	teamStore := NewFileTeamStore(roots.Config, roots.RuntimeData, relationStore)
 	agentStore := NewFileAgentStore(roots.Config)
 	topicStore := NewFileTopicStore(roots.Config)

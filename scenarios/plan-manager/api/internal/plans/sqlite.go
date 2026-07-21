@@ -315,6 +315,7 @@ func scanPlan(s rowScanner) (Plan, error) {
 	p.ProhibitedApproaches = doc.ProhibitedApproaches
 	p.Decisions = doc.Decisions
 	p.AssumptionRisks = doc.AssumptionRisks
+	p.Definitions = doc.Definitions
 	p.WorkPosture = doc.WorkPosture
 	p.WorkPostureSource = doc.WorkPostureSource
 	p.WorkPostureDetail = doc.WorkPostureDetail

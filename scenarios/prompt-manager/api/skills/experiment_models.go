@@ -1,23 +1,31 @@
 package skills
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"prompt-manager/store"
+)
 
 // ExperimentResponse is the API response for an experiment.
 type ExperimentResponse struct {
-	ID              string                  `json:"id"`
-	SkillID         string                  `json:"skillId"`
-	Name            string                  `json:"name"`
-	Hypothesis      string                  `json:"hypothesis,omitempty"`
-	Status          string                  `json:"status"`
-	Arms            []ExperimentArmResponse `json:"arms"`
-	OutcomeCounts   map[string]int          `json:"outcomeCounts,omitempty"`
-	StartedAt       *string                 `json:"startedAt,omitempty"`
-	ConcludedAt     *string                 `json:"concludedAt,omitempty"`
-	WinnerVariantID *string                 `json:"winnerVariantId,omitempty"`
-	Notes           string                  `json:"notes,omitempty"`
-	CreatedAt       string                  `json:"createdAt"`
-	UpdatedAt       string                  `json:"updatedAt"`
-	Revision        int                     `json:"revision"`
+	ID                  string                   `json:"id"`
+	SkillID             string                   `json:"skillId"`
+	Name                string                   `json:"name"`
+	Hypothesis          string                   `json:"hypothesis,omitempty"`
+	Protocol            store.ExperimentProtocol `json:"protocol"`
+	Status              string                   `json:"status"`
+	Arms                []ExperimentArmResponse  `json:"arms"`
+	OutcomeCounts       map[string]int           `json:"outcomeCounts,omitempty"`
+	StartedAt           *string                  `json:"startedAt,omitempty"`
+	ConcludedAt         *string                  `json:"concludedAt,omitempty"`
+	WinnerVariantID     *string                  `json:"winnerVariantId,omitempty"`
+	PromotionDecisionID string                   `json:"promotionDecisionId,omitempty"`
+	HoldoutFindingsHash string                   `json:"holdoutFindingsHash,omitempty"`
+	HoldoutCompletedAt  string                   `json:"holdoutCompletedAt,omitempty"`
+	PromotedAt          string                   `json:"promotedAt,omitempty"`
+	Notes               string                   `json:"notes,omitempty"`
+	CreatedAt           string                   `json:"createdAt"`
+	UpdatedAt           string                   `json:"updatedAt"`
+	Revision            int                      `json:"revision"`
 }
 
 // ExperimentArmResponse is the API representation of an experiment arm.
@@ -29,11 +37,12 @@ type ExperimentArmResponse struct {
 
 // CreateExperimentRequest is the request body for creating an experiment.
 type CreateExperimentRequest struct {
-	ID         string               `json:"id"`
-	SkillID    string               `json:"skillId"`
-	Name       string               `json:"name"`
-	Hypothesis string               `json:"hypothesis,omitempty"`
-	Arms       []ExperimentArmInput `json:"arms"`
+	ID         string                   `json:"id"`
+	SkillID    string                   `json:"skillId"`
+	Name       string                   `json:"name"`
+	Hypothesis string                   `json:"hypothesis,omitempty"`
+	Protocol   store.ExperimentProtocol `json:"protocol"`
+	Arms       []ExperimentArmInput     `json:"arms"`
 }
 
 // ExperimentArmInput is the request format for an experiment arm.
@@ -44,9 +53,10 @@ type ExperimentArmInput struct {
 
 // UpdateExperimentRequest is the request body for updating an experiment.
 type UpdateExperimentRequest struct {
-	Name       *string              `json:"name,omitempty"`
-	Hypothesis *string              `json:"hypothesis,omitempty"`
-	Arms       []ExperimentArmInput `json:"arms,omitempty"`
+	Name       *string                   `json:"name,omitempty"`
+	Hypothesis *string                   `json:"hypothesis,omitempty"`
+	Protocol   *store.ExperimentProtocol `json:"protocol,omitempty"`
+	Arms       []ExperimentArmInput      `json:"arms,omitempty"`
 }
 
 // ConcludeExperimentRequest is the request body for concluding an experiment.
@@ -57,10 +67,49 @@ type ConcludeExperimentRequest struct {
 
 // RecordOutcomeRequest is the request body for recording an experiment outcome.
 type RecordOutcomeRequest struct {
-	VariantID     string          `json:"variantId"`
-	Source        string          `json:"source"`
-	SchemaVersion int             `json:"schemaVersion"`
-	Data          json.RawMessage `json:"data"`
+	IdempotencyKey string                             `json:"idempotencyKey,omitempty"`
+	VariantID      string                             `json:"variantId"`
+	Source         string                             `json:"source"`
+	SchemaVersion  int                                `json:"schemaVersion"`
+	Data           json.RawMessage                    `json:"data"`
+	Controlled     *store.ControlledExperimentOutcome `json:"controlled,omitempty"`
+}
+
+// AssignExperimentRequest binds an experiment arm to one workflow dispatch.
+// The idempotency key is generated by agent-manager from execution/node/attempt.
+type AssignExperimentRequest struct {
+	ExecutionID    string            `json:"executionId"`
+	NodeID         string            `json:"nodeId"`
+	AttemptKey     string            `json:"attemptKey"`
+	IdempotencyKey string            `json:"idempotencyKey"`
+	Variables      map[string]string `json:"variables,omitempty"`
+	WithScope      bool              `json:"withScope,omitempty"`
+}
+
+type ExperimentAssignmentResponse struct {
+	ExperimentID string `json:"experimentId"`
+	SkillID      string `json:"skillId"`
+	VariantID    string `json:"variantId"`
+	Content      string `json:"content"`
+	ContentHash  string `json:"contentHash"`
+	AssignedAt   string `json:"assignedAt"`
+}
+
+type RecordAuditReceiptRequest struct {
+	SampledAssignmentIDs []string `json:"sampledAssignmentIds"`
+	FindingsHash         string   `json:"findingsHash"`
+	ChallengeState       string   `json:"challengeState"`
+	AnomalyCount         int      `json:"anomalyCount"`
+	GamingCount          int      `json:"gamingCount"`
+	IdempotencyKey       string   `json:"idempotencyKey"`
+}
+
+type RecordHoldoutReceiptRequest struct {
+	FindingsHash   string `json:"findingsHash"`
+	IdempotencyKey string `json:"idempotencyKey"`
+}
+type PromoteExperimentRequest struct {
+	DecisionID string `json:"decisionId"`
 }
 
 // ExperimentReportResponse is the API response for an experiment report:
@@ -74,6 +123,32 @@ type ExperimentReportResponse struct {
 	TotalOutcomes int                   `json:"totalOutcomes"`
 	Arms          []ExperimentArmReport `json:"arms"`
 	ZeroDataArms  []string              `json:"zeroDataArms,omitempty"`
+	Controlled    *ControlledReport     `json:"controlled,omitempty"`
+}
+
+// ControlledReport is the sole promotion-evidence projection. Legacy serves,
+// terminal status, and unattributed reads remain observational and cannot
+// contribute to these counts or effect estimates.
+type ControlledReport struct {
+	Assignments           int                   `json:"assignments"`
+	EligibleAssignments   int                   `json:"eligibleAssignments"`
+	ExcludedAssignments   int                   `json:"excludedAssignments"`
+	IncompleteAssignments int                   `json:"incompleteAssignments"`
+	OutcomeCompleteness   float64               `json:"outcomeCompleteness"`
+	ExclusionReasons      map[string]int        `json:"exclusionReasons,omitempty"`
+	Arms                  []ControlledArmReport `json:"arms"`
+}
+
+type ControlledArmReport struct {
+	VariantID       string   `json:"variantId"`
+	Assignments     int      `json:"assignments"`
+	Eligible        int      `json:"eligible"`
+	Complete        int      `json:"complete"`
+	Successes       int      `json:"successes"`
+	PosteriorMean   *float64 `json:"posteriorMean,omitempty"`
+	CredibleLow     *float64 `json:"credibleLow,omitempty"`
+	CredibleHigh    *float64 `json:"credibleHigh,omitempty"`
+	EffectVsControl *float64 `json:"effectVsControl,omitempty"`
 }
 
 // ExperimentArmReport aggregates serve and outcome data for a single arm.
@@ -90,9 +165,11 @@ type ExperimentArmReport struct {
 
 // ExperimentOutcomeResponse is the API response for an outcome.
 type ExperimentOutcomeResponse struct {
-	VariantID     string          `json:"variantId"`
-	Source        string          `json:"source"`
-	SchemaVersion int             `json:"schemaVersion"`
-	RecordedAt    string          `json:"recordedAt"`
-	Data          json.RawMessage `json:"data"`
+	IdempotencyKey string                             `json:"idempotencyKey,omitempty"`
+	VariantID      string                             `json:"variantId"`
+	Source         string                             `json:"source"`
+	SchemaVersion  int                                `json:"schemaVersion"`
+	RecordedAt     string                             `json:"recordedAt"`
+	Data           json.RawMessage                    `json:"data"`
+	Controlled     *store.ControlledExperimentOutcome `json:"controlled,omitempty"`
 }

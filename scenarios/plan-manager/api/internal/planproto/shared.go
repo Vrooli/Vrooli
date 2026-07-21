@@ -62,6 +62,7 @@ func PlanToProto(p planmodel.Plan) *sharedv1.Plan {
 		Mirror:                  MirrorToProto(p.Mirror),
 		Decisions:               PlanDecisionsToProto(p.Decisions),
 		AssumptionRisks:         PlanAssumptionsToProto(p.AssumptionRisks),
+		Definitions:             PlanDefinitionsToProto(p.Definitions),
 	}
 }
 
@@ -109,6 +110,30 @@ func PlanAssumptionsFromProto(items []*sharedv1.PlanAssumption) []planmodel.Plan
 	return out
 }
 
+func PlanDefinitionsToProto(items []planmodel.PlanDefinition) []*sharedv1.PlanDefinition {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]*sharedv1.PlanDefinition, 0, len(items))
+	for _, item := range items {
+		out = append(out, &sharedv1.PlanDefinition{Term: item.Term, Meaning: item.Meaning})
+	}
+	return out
+}
+
+func PlanDefinitionsFromProto(items []*sharedv1.PlanDefinition) []planmodel.PlanDefinition {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]planmodel.PlanDefinition, 0, len(items))
+	for _, item := range items {
+		if item != nil {
+			out = append(out, planmodel.PlanDefinition{Term: item.GetTerm(), Meaning: item.GetMeaning()})
+		}
+	}
+	return out
+}
+
 func PlanFromProto(p *sharedv1.Plan) planmodel.Plan {
 	if p == nil {
 		return planmodel.Plan{}
@@ -152,6 +177,7 @@ func PlanFromProto(p *sharedv1.Plan) planmodel.Plan {
 		Mirror:                  MirrorFromProto(p.GetMirror()),
 		Decisions:               PlanDecisionsFromProto(p.GetDecisions()),
 		AssumptionRisks:         PlanAssumptionsFromProto(p.GetAssumptionRisks()),
+		Definitions:             PlanDefinitionsFromProto(p.GetDefinitions()),
 	}
 }
 

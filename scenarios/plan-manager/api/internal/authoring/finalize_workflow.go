@@ -87,6 +87,9 @@ func (s *service) Finalize(ctx context.Context, sessionID string, opts FinalizeO
 		if violations := s.commandViolationsForSections(ctx, sess.Sections); len(violations) > 0 {
 			return false, ErrStructureGate{Violations: violations}
 		}
+		if violations := s.diagramViolationsForSections(ctx, sess.Sections); len(violations) > 0 {
+			return false, ErrStructureGate{Violations: violations}
+		}
 		draft, err := sessionToPlan(*sess)
 		if err != nil {
 			return false, err

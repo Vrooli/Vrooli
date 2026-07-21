@@ -22,11 +22,13 @@
 package handlers
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -191,6 +193,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/observed-receipts", h.GetObservedReceipts).Methods("GET")
+	r.HandleFunc("/api/v1/runs/{id}/audit-transcript", h.GetAuditTranscript).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/recover", h.RecoverRun).Methods("POST")
@@ -1787,6 +1790,55 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 	pbRun := protoconv.RunToProto(run)
 	h.attachObservedReceipts(r.Context(), id.String(), pbRun.Result)
 	writeProtoJSON(w, http.StatusOK, &apipb.GetRunResponse{Run: pbRun})
+}
+
+// GetAuditTranscript returns a deliberately bounded excerpt for an audit
+// sample. It never accepts a file path, emits a stable content hash, and caps
+// output at 64KiB so audit evidence cannot become an unbounded transcript API.
+func (h *Handler) GetAuditTranscript(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+	run, err := h.svc.GetRun(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	if run.TranscriptPath == "" {
+		writeSimpleError(w, r, "transcript_unavailable", "run has no persisted transcript")
+		return
+	}
+	limit := 16 * 1024
+	if raw := r.URL.Query().Get("maxBytes"); raw != "" {
+		if parsed, parseErr := strconv.Atoi(raw); parseErr == nil && parsed > 0 && parsed <= 64*1024 {
+			limit = parsed
+		} else {
+			writeSimpleError(w, r, "max_bytes", "maxBytes must be between 1 and 65536")
+			return
+		}
+	}
+	f, err := os.Open(run.TranscriptPath)
+	if err != nil {
+		writeSimpleError(w, r, "transcript_unavailable", "persisted transcript cannot be read")
+		return
+	}
+	defer f.Close()
+	buf := make([]byte, limit+1)
+	n, readErr := io.ReadFull(f, buf)
+	if readErr != nil && readErr != io.ErrUnexpectedEOF && readErr != io.EOF {
+		writeSimpleError(w, r, "transcript_read", "unable to read transcript excerpt")
+		return
+	}
+	truncated := n > limit
+	if truncated {
+		n = limit
+	}
+	data := buf[:n]
+	w.Header().Set("Content-Type", "application/json")
+	digest := sha256.Sum256(data)
+	_ = json.NewEncoder(w).Encode(map[string]any{"runId": id.String(), "maxBytes": limit, "truncated": truncated, "contentHash": fmt.Sprintf("sha256:%x", digest[:]), "content": string(data)})
 }
 
 // ListRuns returns all runs, with optional filtering.

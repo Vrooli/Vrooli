@@ -202,6 +202,7 @@ func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiag
 		}
 		validateNode(n, path, lookup, add, warn)
 	}
+	validateExperimentEvaluator(d, nodes, add)
 	for i := range d.Nodes {
 		n := &d.Nodes[i]
 		if n.Wait == nil || n.Wait.OnTimeout == "" {
@@ -254,6 +255,84 @@ func validate(d *domain.WorkflowDefinition, lookup Lookup) []domain.WorkflowDiag
 		}
 	}
 	return out
+}
+
+func validateExperimentEvaluator(d *domain.WorkflowDefinition, nodes map[string]*domain.WorkflowNode, add func(string, string, string)) {
+	armed := map[string]bool{}
+	for _, node := range d.Nodes {
+		if node.Run != nil && node.Run.PromptRef != nil && node.Run.PromptRef.ExperimentID != "" {
+			armed[node.ID] = true
+		}
+		if node.Continue != nil && node.Continue.PromptRef != nil && node.Continue.PromptRef.ExperimentID != "" {
+			armed[node.ID] = true
+		}
+	}
+	if len(armed) == 0 {
+		return
+	}
+	c := d.ExperimentEvaluator
+	if c == nil {
+		add("experiment_evaluator_required", "experimentEvaluator", "armed promptRefs require an explicit independent evaluator contract")
+		return
+	}
+	if c.EvaluatorNodeID == "" || c.VerdictPointer == "" || c.RubricHash == "" || c.RubricAuthor == "" || c.EvaluatorPromptHash == "" || c.IndependenceDeclaration == "" {
+		add("experiment_evaluator_incomplete", "experimentEvaluator", "evaluator node, verdict pointer, rubric provenance, and independence declaration are required")
+	}
+	if strings.EqualFold(strings.TrimSpace(c.RubricAuthor), "skill-optimizer") {
+		add("experiment_evaluator_author", "experimentEvaluator.rubricAuthor", "rubric author must be outside skill-optimizer")
+	}
+	evaluator := nodes[c.EvaluatorNodeID]
+	if evaluator == nil || (evaluator.Run == nil && evaluator.Continue == nil) {
+		add("experiment_evaluator_node", "experimentEvaluator.evaluatorNodeId", "must name a run or continue evaluator node")
+	} else {
+		var result *domain.ResultSpec
+		var profile, role string
+		if evaluator.Run != nil {
+			result, profile, role = evaluator.Run.ResultSpec, evaluator.Run.ProfileKey, evaluator.Run.RoleRef
+		} else {
+			result = evaluator.Continue.ResultSpec
+		}
+		if result == nil {
+			add("experiment_evaluator_result", "experimentEvaluator.evaluatorNodeId", "evaluator must declare a structured result spec")
+		}
+		for treatmentID := range armed {
+			if treatmentID == c.EvaluatorNodeID {
+				add("experiment_evaluator_independence", "experimentEvaluator.evaluatorNodeId", "evaluator cannot be a treatment node")
+			}
+			treatment := nodes[treatmentID]
+			if treatment != nil && treatment.Run != nil && ((profile != "" && profile == treatment.Run.ProfileKey) || (role != "" && role == treatment.Run.RoleRef)) {
+				add("experiment_evaluator_independence", "experimentEvaluator.evaluatorNodeId", "evaluator profile or role must differ from treatment")
+			}
+		}
+	}
+	if len(c.AllowedVerdicts) == 0 || len(c.SuccessVerdicts) == 0 {
+		add("experiment_evaluator_verdicts", "experimentEvaluator", "allowed and success verdict vocabularies are required")
+	}
+	allowed := map[string]bool{}
+	for _, verdict := range c.AllowedVerdicts {
+		if strings.TrimSpace(verdict) != "" {
+			allowed[verdict] = true
+		}
+	}
+	for _, verdict := range c.SuccessVerdicts {
+		if !allowed[verdict] {
+			add("experiment_evaluator_success_mapping", "experimentEvaluator.successVerdicts", "success verdict must be in allowedVerdicts")
+		}
+	}
+	for treatmentID := range armed {
+		if !containsString(c.TreatmentNodeIDs, treatmentID) {
+			add("experiment_evaluator_treatment", "experimentEvaluator.treatmentNodeIds", "must include every armed treatment node")
+		}
+	}
+}
+
+func containsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func validateTriggerPolicy(policy domain.WorkflowTriggerPolicy, add func(string, string, string)) {

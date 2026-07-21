@@ -98,6 +98,7 @@ provenance** (kept verbatim because it could not be mapped).
 | `prohibited_approaches` | authored (optional) | Approaches that are explicitly off-limits, only when genuinely relevant. |
 | `technical_approach` | authored | Design rationale: the chosen approach and why, not a phase list. Mandatory for implementation plans. |
 | `decisions[]` | authored (optional) | Pinned plan-time contract decisions (`title` + `statement`), rendered `D1..Dn` under **Approach & Decisions** — do not relitigate during execution. Distinct from execution-time `log decision-add` entries. Empty renders nothing. |
+| `definitions[]` | authored (optional) | Plan-local coined or narrowed terms (`term` + `meaning`), rendered as a Definitions table. Reference `docs/concepts/GLOSSARY.md` for shared ecosystem terms instead of restating them. |
 
 **Validation Model** — how regressions and done-ness are proven.
 
@@ -416,31 +417,32 @@ professional, coherent, and complete enough that a human can judge whether the
 plan is better than a legacy plan without reading raw JSON, proto, or authoring
 session internals. It is a deterministic *view* — never parsed back into truth.
 
-**Plan render order** — nine reader-question clusters in fixed order (present
+**Plan render order** — ten reader-question clusters in fixed order (present
 sections only; Work Posture is always shown). Field identity is unchanged:
 clusters are a render grouping over the same structured fields, emitted as
 `###` subsections. The wizard asks in the same order the artifact renders.
 
 1. Title / status / content-hash
 2. Purpose — why does this plan exist? (an abstract, not a restated Problem)
-3. Problem — what is wrong today?
-4. Outcome — what is observably true when done?
-5. Approach & Decisions — the technical approach / design rationale (and, when
+3. Definitions — optional plan-local terminology table for coined/narrowed terms.
+4. Problem — what is wrong today?
+5. Outcome — what is observably true when done?
+6. Approach & Decisions — the technical approach / design rationale (and, when
    present, pinned plan-time contract decisions)
-6. Boundaries — what may I touch, what must I not do? Subsections: Scope,
+7. Boundaries — what may I touch, what must I not do? Subsections: Scope,
    Non-Goals, Constraints, Prohibited Approaches, Work Posture (always shown),
    Change Boundary (always shown for implementation plans)
-7. Assumptions & Risks — subsections: Assumptions, Risks / Hazards
-8. Verification — how do we prove it works? Subsections: Regression Anchor,
+8. Assumptions & Risks — subsections: Assumptions, Risks / Hazards
+9. Verification — how do we prove it works? Subsections: Regression Anchor,
    Validation Strategy, Definition of Done (plan-level gates only; phase
    acceptances are not restated there)
-9. Execution Setup — what do I load before starting? The global setup context
+10. Execution Setup — what do I load before starting? The global setup context
    groups (Load Skills / Read Docs / Run Discovery Searches / Run Commands /
    Inspect References / Operator Notes), References, and the one-line
    Execution Feedback pointer at the typed `plan-manager log` commands
-10. Phases
-11. Import Provenance / Preserved Legacy Sections (only when present)
-12. Plan Graph
+11. Phases
+12. Import Provenance / Preserved Legacy Sections (only when present)
+13. Plan Graph
 
 **Phase render order:** heading → status → intent → affected areas → phase context
 setup → ordered steps → expected outputs → phase validation → acceptance criteria →

@@ -333,6 +333,9 @@ func violationsForSection(sec Section) []StructureViolation {
 	if sec.Key == SectionDecisions {
 		return decisionsGateViolations(sec.Content)
 	}
+	if sec.Key == SectionDefinitions {
+		return definitionsGateViolations(sec.Content)
+	}
 	if sec.Mandatory && empty {
 		out = append(out, StructureViolation{
 			SectionKey: sec.Key,
@@ -348,10 +351,65 @@ func violationsForSection(sec Section) []StructureViolation {
 	return out
 }
 
+func definitionsGateViolations(content string) []StructureViolation {
+	var out []StructureViolation
+	for lineNumber, raw := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), "-"))
+		if line == "" {
+			continue
+		}
+		term, meaning, found := cutDefinitionSeparator(line)
+		if !found || term == "" || meaning == "" {
+			out = append(out, StructureViolation{SectionKey: SectionDefinitions, Message: fmt.Sprintf("definition line %d %q must be 'Term — meaning' or 'Term: meaning' with both parts present", lineNumber+1, line)})
+		}
+	}
+	return out
+}
+
 func (s *service) commandViolationsForSections(ctx context.Context, sections []Section) []StructureViolation {
 	var out []StructureViolation
 	for _, sec := range sections {
 		out = append(out, s.commandViolationsForSection(ctx, sec)...)
+	}
+	return out
+}
+
+type DiagramValidationResult struct {
+	Findings   []DiagramFinding
+	Unverified bool
+}
+type DiagramFinding struct {
+	Code, Message string
+	Line          int
+}
+type DiagramValidator interface {
+	ValidateMarkdownDiagrams(context.Context, string, string) (DiagramValidationResult, error)
+}
+
+func (s *service) diagramViolationsForSections(ctx context.Context, sections []Section) []StructureViolation {
+	var out []StructureViolation
+	for _, sec := range sections {
+		if !strings.Contains(sec.Content, "```mermaid") && !strings.Contains(sec.Content, "~~~mermaid") {
+			continue
+		}
+		if s.diagrams == nil {
+			out = append(out, StructureViolation{SectionKey: sec.Key, Message: "diagram validation unavailable: knowledge-observatory validator is not configured"})
+			continue
+		}
+		result, err := s.diagrams.ValidateMarkdownDiagrams(ctx, sec.Content, string(sec.Key))
+		if err != nil {
+			out = append(out, StructureViolation{SectionKey: sec.Key, Message: fmt.Sprintf("diagram could not be validated through knowledge-observatory: %v", err)})
+			continue
+		}
+		if result.Unverified {
+			out = append(out, StructureViolation{SectionKey: sec.Key, Message: "diagram could not be validated: knowledge-observatory Mermaid engine is unavailable"})
+			continue
+		}
+		for _, finding := range result.Findings {
+			if finding.Code == "mermaid_invalid" {
+				out = append(out, StructureViolation{SectionKey: sec.Key, Message: fmt.Sprintf("Mermaid diagram line %d: %s", finding.Line, finding.Message)})
+			}
+		}
 	}
 	return out
 }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"prompt-manager/store"
 )
@@ -85,11 +86,8 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Variant-aware selection: an explicit experimentId selects a variant for the
-	// first skill; absent that, a running experiment for the skill is sampled
-	// automatically (blind serving) unless the caller pinned the read. Blind
-	// serving is best-effort — a lookup/selection failure must never break an
-	// organic read — while an explicit experiment surfaces its error.
+	// Variant-aware selection requires an explicit experiment ID. Organic reads
+	// remain observational and must never be silently assigned treatment.
 	if len(responses) > 0 {
 		exp, err := h.resolveExperiment(r.Context(), req, responses[0].ID)
 		if err != nil {
@@ -97,7 +95,7 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if exp != nil {
-			selectedVariantID, variantContent, selErr := h.selectVariant(r.Context(), exp)
+			selectedVariantID, variantContent, selErr := h.selectVariant(r.Context(), exp, req.VariantID)
 			switch {
 			case selErr != nil && req.ExperimentID != "":
 				http.Error(w, "Experiment error: "+selErr.Error(), http.StatusBadRequest)
@@ -128,6 +126,10 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	// An active workflow run may read additional skills after receiving its
+	// assigned prompt. Provenance comes exclusively from verified claims; an
+	// unavailable or invalid token is retained as an unattributed observation.
+	h.recordExposureReceipts(r, responses)
 
 	if !allowMissing && (len(resp.Missing) > 0 || len(resp.Ambiguous) > 0) {
 		status := http.StatusNotFound
@@ -192,6 +194,36 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func (h *Handlers) recordExposureReceipts(r *http.Request, responses []Response) {
+	if h.experimentStore == nil || len(responses) == 0 {
+		return
+	}
+	exposures, ok := h.experimentStore.(store.ExperimentExposureStore)
+	if !ok {
+		return
+	}
+	var identity *VerifiedWorkflowIdentity
+	if h.identityVerifier != nil {
+		identity, _ = h.identityVerifier.VerifyWorkflowIdentity(r.Context(), r.Header.Get(agentIdentityHeader))
+	}
+	provenance, runID, experimentID, variantID, executionID, nodeID, attemptID := "unattributed", "", "", "", "", "", ""
+	if identity != nil {
+		meta := identity.Meta
+		runID, experimentID, variantID = identity.RunID, strings.TrimSpace(meta["workflowExperimentId"]), strings.TrimSpace(meta["workflowVariantId"])
+		executionID, nodeID, attemptID = strings.TrimSpace(meta["workflowExecutionId"]), strings.TrimSpace(meta["workflowNodeId"]), strings.TrimSpace(meta["workflowAttemptId"])
+		provenance = "verified-run"
+	}
+	readKey := strings.TrimSpace(r.Header.Get("X-Experiment-Read-Receipt-ID"))
+	if readKey == "" {
+		readKey = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	for _, response := range responses {
+		keyMaterial := strings.Join([]string{experimentID, runID, response.ID, readKey}, "|")
+		keyHash := sha256.Sum256([]byte(keyMaterial))
+		_ = exposures.RecordExposure(r.Context(), store.ExperimentExposure{ExperimentID: experimentID, VariantID: variantID, RunID: runID, ExecutionID: executionID, NodeID: nodeID, AttemptID: attemptID, ReadSkillID: response.ID, Provenance: provenance, IdempotencyKey: fmt.Sprintf("exposure/%x", keyHash)})
+	}
 }
 
 func isValidResolveMode(mode string) bool {
@@ -370,9 +402,6 @@ func contentSHA256(content string) string {
 // resolveExperiment returns the experiment that should serve a variant for the
 // given skill read, or nil if none applies. An explicit experimentId is
 // validated (must be running and target the skill) and surfaces its error.
-// Otherwise, unless the caller pinned the read, the first running experiment for
-// the skill is returned (blind serving) — and any lookup failure resolves to nil
-// so an organic read is never broken.
 func (h *Handlers) resolveExperiment(ctx context.Context, req ReadRequest, skillID string) (*store.Experiment, error) {
 	if h.experimentStore == nil || h.variantStore == nil {
 		if req.ExperimentID != "" {
@@ -395,20 +424,6 @@ func (h *Handlers) resolveExperiment(ctx context.Context, req ReadRequest, skill
 		return exp, nil
 	}
 
-	if variantPolicyPinned(req.VariantPolicy) {
-		return nil, nil
-	}
-
-	// Blind serving: sample from the first running experiment for this skill.
-	exps, err := h.experimentStore.ListBySkill(ctx, skillID)
-	if err != nil {
-		return nil, nil // best-effort: a listing failure must not break the read
-	}
-	for i := range exps {
-		if exps[i].Status == store.ExperimentStatusRunning {
-			return &exps[i], nil
-		}
-	}
 	return nil, nil
 }
 
@@ -425,20 +440,32 @@ func variantPolicyPinned(policy string) bool {
 // selectVariant picks a variant from a running experiment via a weighted walk.
 // Returns the selected variant ID and its content (nil for control, which serves
 // the original SKILL.md).
-func (h *Handlers) selectVariant(ctx context.Context, exp *store.Experiment) (string, *string, error) {
+func (h *Handlers) selectVariant(ctx context.Context, exp *store.Experiment, requestedVariantID string) (string, *string, error) {
 	if len(exp.Arms) == 0 {
 		return "", nil, fmt.Errorf("experiment %s has no arms", exp.ID)
 	}
 
-	// Weighted random selection: cumulative walk
-	roll := rand.Float64()
-	var cumulative float64
 	selectedArm := exp.Arms[len(exp.Arms)-1] // fallback to last arm
-	for _, arm := range exp.Arms {
-		cumulative += arm.Weight
-		if roll < cumulative {
-			selectedArm = arm
-			break
+	if requestedVariantID != "" {
+		found := false
+		for _, arm := range exp.Arms {
+			if arm.VariantID == requestedVariantID {
+				selectedArm, found = arm, true
+				break
+			}
+		}
+		if !found {
+			return "", nil, fmt.Errorf("variant %s is not an arm of experiment %s", requestedVariantID, exp.ID)
+		}
+	} else {
+		roll := rand.Float64()
+		var cumulative float64
+		for _, arm := range exp.Arms {
+			cumulative += arm.Weight
+			if roll < cumulative {
+				selectedArm = arm
+				break
+			}
 		}
 	}
 

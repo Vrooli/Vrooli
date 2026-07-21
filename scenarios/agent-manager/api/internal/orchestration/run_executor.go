@@ -37,6 +37,7 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -222,6 +223,26 @@ func (e *RunExecutor) WithCustomEnvironment(env map[string]string) *RunExecutor 
 	return e
 }
 
+// workflowIdentityMeta extracts only server-authored workflow lineage injected
+// by the workflow launcher. These values become part of the signed identity
+// token and are not accepted from an external request body.
+func workflowIdentityMeta(env map[string]string) map[string]string {
+	meta := make(map[string]string, 6)
+	for envKey, claimKey := range map[string]string{
+		workflowExecutionEnv:  "workflowExecutionId",
+		workflowNodeEnv:       "workflowNodeId",
+		workflowAttemptEnv:    "workflowAttemptId",
+		workflowExperimentEnv: "workflowExperimentId",
+		workflowVariantEnv:    "workflowVariantId",
+		workflowPromptHashEnv: "workflowPromptHash",
+	} {
+		if value := strings.TrimSpace(env[envKey]); value != "" {
+			meta[claimKey] = value
+		}
+	}
+	return meta
+}
+
 // WithOnRunning registers a callback fired exactly once when the run
 // transitions to RunStatusRunning. The spawn dispatcher uses this to
 // release the startup slot so the next queued run can proceed.
@@ -334,6 +355,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 	// Step 3.5: Generate identity token (before execution so it's in env).
 	e.identityToken = phases.GenerateIdentityToken(execCtx, phases.GenerateIdentityTokenInput{
 		Deps: e.deps(), Run: e.run, Profile: e.profile, Task: e.task, Secret: e.identitySecret,
+		Meta: workflowIdentityMeta(e.run.CustomEnv),
 	})
 
 	// Step 4: Execute, walking the preset chain on model-unavailable errors.

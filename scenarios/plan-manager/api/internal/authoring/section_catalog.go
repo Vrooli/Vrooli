@@ -41,6 +41,18 @@ var defaultSkeleton = []sectionSpec{
 		Placeholder:    "<one concise purpose paragraph>",
 	},
 	{
+		Key:            SectionDefinitions,
+		Label:          "Definitions",
+		Mandatory:      false,
+		StepKind:       "definitions",
+		Summary:        "Define terms this plan coins or narrows so a cold executor has one meaning for each term.",
+		Instructions:   []string{"One definition per line as 'Term — meaning' or 'Term: meaning'.", "Define only plan-local coined or narrowed terms.", "Reference docs/concepts/GLOSSARY.md for shared ecosystem terms instead of restating them."},
+		RequiredInputs: []string{"definitions (optional)"},
+		Examples:       []string{"Trust gate — the validation checkpoint required before a phase can advance.", "Staleness verdict: the computed freshness state for a referenced surface."},
+		CommonMistakes: []string{"Restating a shared glossary term.", "Using an empty term or meaning."},
+		Placeholder:    "<term> — <meaning>",
+	},
+	{
 		Key:            SectionProblemStatement,
 		Label:          "Problem / Need",
 		Mandatory:      true,

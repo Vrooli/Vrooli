@@ -29,6 +29,15 @@ type workflowLifecycleBroadcaster interface {
 	BroadcastWorkflowLifecycle(*domain.WorkflowLifecycleEvent)
 }
 
+const (
+	workflowExecutionEnv  = "VROOLI_WORKFLOW_EXECUTION_ID"
+	workflowNodeEnv       = "VROOLI_WORKFLOW_NODE_ID"
+	workflowAttemptEnv    = "VROOLI_WORKFLOW_ATTEMPT_ID"
+	workflowExperimentEnv = "VROOLI_WORKFLOW_EXPERIMENT_ID"
+	workflowVariantEnv    = "VROOLI_WORKFLOW_VARIANT_ID"
+	workflowPromptHashEnv = "VROOLI_WORKFLOW_PROMPT_HASH"
+)
+
 func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
 	taskID := uuid.NewSHA1(req.AttemptID, []byte("workflow-node-task"))
 	task, err := l.o.tasks.Get(ctx, taskID)
@@ -51,7 +60,16 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 	if tag == "" {
 		tag = "workflow-" + req.ExecutionID.String() + "-" + req.NodeID
 	}
-	create := CreateRunRequest{TaskID: taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, IdempotencyKey: req.IdempotencyKey, Tag: tag, Force: req.Force}
+	create := CreateRunRequest{TaskID: taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, IdempotencyKey: req.IdempotencyKey, Tag: tag, Force: req.Force,
+		Environment: map[string]string{
+			workflowExecutionEnv:  req.ExecutionID.String(),
+			workflowNodeEnv:       req.NodeID,
+			workflowAttemptEnv:    req.AttemptID.String(),
+			workflowExperimentEnv: req.ExperimentID,
+			workflowVariantEnv:    req.VariantID,
+			workflowPromptHashEnv: req.PromptHash,
+		},
+	}
 	if req.MaxTurns > 0 {
 		create.MaxTurns = &req.MaxTurns
 	}
@@ -605,6 +623,127 @@ func (o *Orchestrator) onWorkflowExecutionSettled(execution *domain.WorkflowExec
 	if execution.ParentExecutionID != nil && o.workflowNudger != nil {
 		o.workflowNudger.Enqueue(*execution.ParentExecutionID)
 	}
+	o.attributeExperimentForExecution(context.Background(), execution)
+}
+
+// attributeExperimentForExecution emits primary evidence only after the
+// workflow settles. It joins each treatment assignment to the declared
+// evaluator node's structured verdict; treatment completion is guardrail data,
+// never a quality metric.
+func (o *Orchestrator) attributeExperimentForExecution(ctx context.Context, execution *domain.WorkflowExecution) {
+	outcomeClient, ok := o.promptClient.(promptmanager.OutcomeClient)
+	if !ok || outcomeClient == nil || execution == nil || o.workflowExecutions == nil || o.workflows == nil {
+		return
+	}
+	revision, err := o.workflows.GetByDigest(ctx, execution.DefinitionDigest)
+	if err != nil || revision == nil || revision.Definition.ExperimentEvaluator == nil {
+		return
+	}
+	contract := revision.Definition.ExperimentEvaluator
+	attempts, err := o.workflowExecutions.ListAttempts(ctx, execution.ID)
+	if err != nil {
+		return
+	}
+	var evaluatorAttempt *domain.WorkflowNodeAttempt
+	for _, attempt := range attempts {
+		if attempt.NodeID == contract.EvaluatorNodeID && attempt.Status == domain.WorkflowAttemptCompleted && attempt.RunID != nil {
+			evaluatorAttempt = attempt
+		}
+	}
+	if evaluatorAttempt == nil {
+		return
+	}
+	evaluatorRun, err := o.GetRun(ctx, *evaluatorAttempt.RunID)
+	if err != nil || evaluatorRun == nil || evaluatorRun.Result == nil || evaluatorRun.Result.Structured == nil {
+		return
+	}
+	verdict, ok := workflowVerdict(evaluatorRun.Result.Structured.Value, contract.VerdictPointer)
+	if !ok {
+		verdict = ""
+	}
+	success := false
+	for _, allowed := range contract.SuccessVerdicts {
+		if verdict == allowed {
+			success = true
+			break
+		}
+	}
+	for _, treatment := range attempts {
+		if treatment.ExperimentID == "" || treatment.VariantID == "" || !containsWorkflowNode(contract.TreatmentNodeIDs, treatment.NodeID) {
+			continue
+		}
+		guardrail := map[string]any{"status": "unknown", "tokensUsed": 0}
+		if treatment.RunID != nil {
+			if run, getErr := o.GetRun(ctx, *treatment.RunID); getErr == nil && run != nil {
+				guardrail["status"] = string(run.Status)
+				if run.Summary != nil {
+					guardrail["tokensUsed"] = run.Summary.TokensUsed
+				}
+			}
+		}
+		status := outcomeStatus(evaluatorRun.Result.Structured, verdict)
+		var successPointer *bool
+		if status == "complete" {
+			successPointer = &success
+		}
+		data, marshalErr := json.Marshal(map[string]any{"guardrail": guardrail})
+		if marshalErr != nil {
+			continue
+		}
+		assignmentID := "workflow-assignment/" + execution.ID.String() + "/node/" + treatment.NodeID
+		controlled := &promptmanager.ControlledExperimentOutcome{AssignmentID: assignmentID, ExecutionID: execution.ID.String(), EvaluatorAttemptID: evaluatorAttempt.ID.String(), EvaluatorRunID: evaluatorAttempt.RunID.String(), Verdict: verdict, Success: successPointer, OutcomeStatus: status, RubricHash: contract.RubricHash, EvaluatorPromptHash: contract.EvaluatorPromptHash, StructuredSchemaHash: evaluatorRun.Result.Structured.SchemaDigest}
+		if err := outcomeClient.RecordExperimentOutcome(ctx, treatment.ExperimentID, promptmanager.ExperimentOutcome{IdempotencyKey: "workflow-evaluator-outcome/" + execution.ID.String() + "/" + treatment.ID.String(), VariantID: treatment.VariantID, Source: "agent-manager-evaluator", Data: data, Controlled: controlled}); err != nil {
+			obs.Component("experiment-attribution").Warn("record evaluator outcome failed", obs.KeyError, err.Error())
+		}
+	}
+}
+
+func containsWorkflowNode(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func outcomeStatus(result *domain.StructuredResult, verdict string) string {
+	if result == nil || result.Status != domain.StructuredResultSuccess || verdict == "" {
+		return "incomplete"
+	}
+	return "complete"
+}
+
+// workflowVerdict implements RFC 6901 traversal for the evaluator's declared
+// pointer and only accepts a scalar string verdict.
+func workflowVerdict(raw json.RawMessage, pointer string) (string, bool) {
+	if pointer == "" || pointer[0] != '/' || len(raw) == 0 {
+		return "", false
+	}
+	var current any
+	if json.Unmarshal(raw, &current) != nil {
+		return "", false
+	}
+	for _, segment := range strings.Split(pointer[1:], "/") {
+		segment = strings.ReplaceAll(strings.ReplaceAll(segment, "~1", "/"), "~0", "~")
+		switch typed := current.(type) {
+		case map[string]any:
+			current = typed[segment]
+		case []any:
+			index := -1
+			if _, err := fmt.Sscanf(segment, "%d", &index); err != nil || index < 0 || index >= len(typed) {
+				return "", false
+			}
+			current = typed[index]
+		default:
+			return "", false
+		}
+		if current == nil {
+			return "", false
+		}
+	}
+	verdict, ok := current.(string)
+	return verdict, ok
 }
 
 // nudgeWorkflowForRun enqueues an idempotent drive of the workflow execution
@@ -625,87 +764,6 @@ func (o *Orchestrator) nudgeWorkflowForRun(runID uuid.UUID) {
 		return
 	}
 	o.workflowNudger.Enqueue(executionID)
-}
-
-// attributeExperimentForRun posts an experiment outcome to prompt-manager when a
-// just-terminal workflow run executed a node whose prompt was resolved from an
-// armed experiment. It joins the run to its node provenance
-// (run → attempt → node → pinned WorkflowPromptSource) and, when that provenance
-// carries an experiment + variant, reports the run's status and tokens as an
-// outcome. Attribution is best-effort: any miss or failure is logged and
-// swallowed so it never affects run or workflow progress.
-func (o *Orchestrator) attributeExperimentForRun(ctx context.Context, runID uuid.UUID) {
-	outcomeClient, ok := o.promptClient.(promptmanager.OutcomeClient)
-	if !ok || outcomeClient == nil || o.workflowExecutions == nil || o.workflows == nil {
-		return
-	}
-	executionID, err := o.workflowExecutions.ExecutionIDForRun(ctx, runID)
-	if err != nil || executionID == uuid.Nil {
-		return
-	}
-	execution, err := o.workflowExecutions.Get(ctx, executionID)
-	if err != nil || execution == nil {
-		return
-	}
-	attempts, err := o.workflowExecutions.ListAttempts(ctx, executionID)
-	if err != nil {
-		return
-	}
-	var nodeID string
-	for i := len(attempts) - 1; i >= 0; i-- {
-		if attempts[i].RunID != nil && *attempts[i].RunID == runID {
-			nodeID = attempts[i].NodeID
-			break
-		}
-	}
-	if nodeID == "" {
-		return
-	}
-	revision, err := o.workflows.GetByDigest(ctx, execution.DefinitionDigest)
-	if err != nil || revision == nil {
-		return
-	}
-	var provenance *domain.WorkflowPromptSource
-	for _, node := range revision.Definition.Nodes {
-		if node.ID != nodeID {
-			continue
-		}
-		if node.Run != nil {
-			provenance = node.Run.PromptProvenance
-		}
-		if provenance == nil && node.Continue != nil {
-			provenance = node.Continue.PromptProvenance
-		}
-		break
-	}
-	if provenance == nil || provenance.ExperimentID == "" || provenance.VariantID == "" {
-		return
-	}
-	run, err := o.GetRun(ctx, runID)
-	if err != nil || run == nil {
-		return
-	}
-	tokens := 0
-	if run.Summary != nil {
-		tokens = run.Summary.TokensUsed
-	}
-	data, err := json.Marshal(map[string]any{
-		"runId":      runID.String(),
-		"status":     string(run.Status),
-		"tokensUsed": tokens,
-	})
-	if err != nil {
-		return
-	}
-	if err := outcomeClient.RecordExperimentOutcome(ctx, provenance.ExperimentID, promptmanager.ExperimentOutcome{
-		VariantID: provenance.VariantID,
-		Source:    "agent-manager",
-		Data:      data,
-	}); err != nil {
-		obs.Component("experiment-attribution").Warn("record experiment outcome failed",
-			obs.KeyRunID, runID.String(),
-			obs.KeyError, err.Error())
-	}
 }
 
 func (o *Orchestrator) driveWorkflowExecutionLoop(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {

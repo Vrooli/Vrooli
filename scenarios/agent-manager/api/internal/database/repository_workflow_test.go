@@ -93,7 +93,7 @@ func TestWorkflowExecutionRepositoryCASAndJournalSurviveReload(t *testing.T) {
 		t.Fatal(err)
 	}
 	childExecutionID := uuid.New()
-	attempt := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: execution.ID, NodeID: "start", Ordinal: 1, Strategy: domain.WorkflowAttemptChild, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: "attempt-once", InputSnapshot: json.RawMessage(`{}`), PromptSnapshot: "secret prompt persisted, never logged", ChildExecutionID: &childExecutionID, RawOutput: `{"answer":false}`, ValidationError: "schema_mismatch: expected string", Version: 1, CreatedAt: now, UpdatedAt: now}
+	attempt := &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: execution.ID, NodeID: "start", Ordinal: 1, Strategy: domain.WorkflowAttemptChild, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: "attempt-once", InputSnapshot: json.RawMessage(`{}`), PromptSnapshot: "secret prompt persisted, never logged", ExperimentID: "exp-1", VariantID: "treatment-a", PromptHash: "sha256:prompt", ChildExecutionID: &childExecutionID, RawOutput: `{"answer":false}`, ValidationError: "schema_mismatch: expected string", Version: 1, CreatedAt: now, UpdatedAt: now}
 	execution.Version = 2
 	execution.UpdatedAt = now.Add(time.Second)
 	entry := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 2, Kind: domain.WorkflowJournalAttempt, NodeID: "start", AttemptID: &attempt.ID, Payload: json.RawMessage(`{"strategy":"fresh_run"}`), CreatedAt: execution.UpdatedAt}
@@ -112,7 +112,7 @@ func TestWorkflowExecutionRepositoryCASAndJournalSurviveReload(t *testing.T) {
 		t.Fatalf("reloaded=%+v err=%v", got, err)
 	}
 	attempts, err := reloaded.ListAttempts(ctx, execution.ID)
-	if err != nil || len(attempts) != 1 || attempts[0].PromptSnapshot != attempt.PromptSnapshot || attempts[0].RawOutput != attempt.RawOutput || attempts[0].ValidationError != attempt.ValidationError || attempts[0].ChildExecutionID == nil || *attempts[0].ChildExecutionID != childExecutionID {
+	if err != nil || len(attempts) != 1 || attempts[0].PromptSnapshot != attempt.PromptSnapshot || attempts[0].ExperimentID != attempt.ExperimentID || attempts[0].VariantID != attempt.VariantID || attempts[0].PromptHash != attempt.PromptHash || attempts[0].RawOutput != attempt.RawOutput || attempts[0].ValidationError != attempt.ValidationError || attempts[0].ChildExecutionID == nil || *attempts[0].ChildExecutionID != childExecutionID {
 		t.Fatalf("attempts=%+v err=%v", attempts, err)
 	}
 	journal, err := reloaded.ListJournal(ctx, execution.ID, 0, 0)

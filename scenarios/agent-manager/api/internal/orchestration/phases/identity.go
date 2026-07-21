@@ -26,6 +26,9 @@ type GenerateIdentityTokenInput struct {
 	Profile *domain.AgentProfile
 	Task    *domain.Task
 	Secret  []byte
+	// Meta is server-provided execution context. It is included in signed claims
+	// so downstream attribution never accepts caller-provided workflow identity.
+	Meta map[string]string
 }
 
 // GenerateIdentityToken creates a signed identity token for this run and
@@ -53,7 +56,7 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 		ScopePath:  scopePath,
 		IssuedAt:   now.Unix(),
 		ExpiresAt:  now.Add(identity.DefaultTTL).Unix(),
-		Meta:       map[string]string{},
+		Meta:       cloneMeta(in.Meta),
 	}
 
 	token, err := identity.GenerateToken(claims, in.Secret)
@@ -73,4 +76,15 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 	}
 
 	return token
+}
+
+func cloneMeta(meta map[string]string) map[string]string {
+	if len(meta) == 0 {
+		return map[string]string{}
+	}
+	cloned := make(map[string]string, len(meta))
+	for key, value := range meta {
+		cloned[key] = value
+	}
+	return cloned
 }

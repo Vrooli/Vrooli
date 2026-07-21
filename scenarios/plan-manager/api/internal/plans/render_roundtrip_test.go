@@ -96,6 +96,22 @@ func TestRenderParseRenderIdempotent(t *testing.T) {
 	}
 }
 
+func TestDefinitionsRenderAndRoundTrip(t *testing.T) {
+	p := comprehensivePlan()
+	p.Definitions = []plans.PlanDefinition{{Term: "Trust gate", Meaning: "A required validation checkpoint."}, {Term: "Pipe | term", Meaning: "Escapes table pipes."}}
+	markdown := plans.RenderMarkdown(p)
+	if !strings.Contains(markdown, "## Definitions\n\n| Term | Meaning |") || !strings.Contains(markdown, "| Pipe \\| term | Escapes table pipes. |") {
+		t.Fatalf("definitions table was not rendered:\n%s", markdown)
+	}
+	parsed, err := planmodel.ParsePlanMarkdown(markdown)
+	if err != nil {
+		t.Fatalf("parse definitions: %v", err)
+	}
+	if len(parsed.Definitions) != 2 || parsed.Definitions[0] != p.Definitions[0] || parsed.Definitions[1] != p.Definitions[1] {
+		t.Fatalf("definitions did not round-trip: %#v", parsed.Definitions)
+	}
+}
+
 func TestRenderBaselineSetIsDeclarativeAndRoundTrips(t *testing.T) {
 	t.Parallel()
 	p := comprehensivePlan()

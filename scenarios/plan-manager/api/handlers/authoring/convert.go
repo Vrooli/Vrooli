@@ -83,22 +83,6 @@ func autofillSourcesFromProto(sources []string) []internalauthoring.AutofillSour
 	return out
 }
 
-func referenceFromProto(ref *sharedv1.Reference) planmodel.Reference {
-	refs := planproto.ReferencesFromProto([]*sharedv1.Reference{ref})
-	if len(refs) == 0 {
-		return planmodel.Reference{}
-	}
-	return refs[0]
-}
-
-func referenceToProto(ref planmodel.Reference) *sharedv1.Reference {
-	refs := planproto.ReferencesToProto([]planmodel.Reference{ref})
-	if len(refs) == 0 {
-		return nil
-	}
-	return refs[0]
-}
-
 func guidedStepToProto(g internalauthoring.GuidedStep) *sharedv1.GuidedStep {
 	return planproto.GuidedStepToProto(g)
 }

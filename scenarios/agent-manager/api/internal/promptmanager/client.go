@@ -43,12 +43,45 @@ type SourceClient interface {
 	ReadSkillSource(ctx context.Context, skillID, experimentID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error)
 }
 
+// AssignmentRequest identifies the exact workflow dispatch that must receive a
+// stable experimental treatment.
+type AssignmentRequest struct {
+	ExperimentID   string
+	SkillID        string
+	ExecutionID    string
+	NodeID         string
+	AttemptKey     string
+	IdempotencyKey string
+	Variables      map[string]string
+	WithScope      bool
+}
+
+type AssignmentClient interface {
+	AssignExperimentPrompt(ctx context.Context, request AssignmentRequest) (SkillSourceSnapshot, error)
+}
+
 // ExperimentOutcome is the attribution payload posted back to prompt-manager
 // when a served variant reaches a run outcome.
 type ExperimentOutcome struct {
-	VariantID string          `json:"variantId"`
-	Source    string          `json:"source"`
-	Data      json.RawMessage `json:"data,omitempty"`
+	IdempotencyKey string                       `json:"idempotencyKey,omitempty"`
+	VariantID      string                       `json:"variantId"`
+	Source         string                       `json:"source"`
+	Data           json.RawMessage              `json:"data,omitempty"`
+	Controlled     *ControlledExperimentOutcome `json:"controlled,omitempty"`
+}
+
+type ControlledExperimentOutcome struct {
+	AssignmentID         string `json:"assignmentId"`
+	ExecutionID          string `json:"executionId"`
+	EvaluatorAttemptID   string `json:"evaluatorAttemptId"`
+	EvaluatorRunID       string `json:"evaluatorRunId"`
+	Verdict              string `json:"verdict,omitempty"`
+	Success              *bool  `json:"success,omitempty"`
+	OutcomeStatus        string `json:"outcomeStatus"`
+	RubricHash           string `json:"rubricHash"`
+	EvaluatorPromptHash  string `json:"evaluatorPromptHash"`
+	StructuredSchemaHash string `json:"structuredSchemaHash"`
+	EvidenceHash         string `json:"evidenceHash,omitempty"`
 }
 
 // OutcomeClient reports experiment outcomes to prompt-manager, attributing a
@@ -269,6 +302,48 @@ func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID, experimentID 
 		Content:      readResp.Combined,
 		ContentHash:  readResp.CombinedHash,
 	}, nil
+}
+
+func (c *HTTPClient) AssignExperimentPrompt(ctx context.Context, assignment AssignmentRequest) (SkillSourceSnapshot, error) {
+	if assignment.ExperimentID == "" || assignment.SkillID == "" || assignment.ExecutionID == "" || assignment.NodeID == "" || assignment.AttemptKey == "" || assignment.IdempotencyKey == "" {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: complete workflow assignment identity is required")
+	}
+	baseURL, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: resolve URL: %w", err)
+	}
+	body, err := json.Marshal(map[string]any{"executionId": assignment.ExecutionID, "nodeId": assignment.NodeID, "attemptKey": assignment.AttemptKey, "idempotencyKey": assignment.IdempotencyKey, "variables": assignment.Variables, "withScope": assignment.WithScope})
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: marshal assignment: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/experiments/"+url.PathEscape(assignment.ExperimentID)+"/assignments", bytes.NewReader(body))
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: create assignment request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: assignment request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		payload, _ := io.ReadAll(resp.Body)
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: assignment status %d: %s", resp.StatusCode, string(payload))
+	}
+	var decoded struct {
+		ExperimentID string `json:"experimentId"`
+		SkillID      string `json:"skillId"`
+		VariantID    string `json:"variantId"`
+		Content      string `json:"content"`
+		ContentHash  string `json:"contentHash"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: decode assignment: %w", err)
+	}
+	if decoded.ExperimentID != assignment.ExperimentID || decoded.SkillID != assignment.SkillID || decoded.VariantID == "" || strings.TrimSpace(decoded.Content) == "" || decoded.ContentHash == "" {
+		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: assignment response is incomplete or mismatched")
+	}
+	return SkillSourceSnapshot{SkillID: decoded.SkillID, ExperimentID: decoded.ExperimentID, VariantID: decoded.VariantID, Content: decoded.Content, ContentHash: decoded.ContentHash}, nil
 }
 
 // RecordExperimentOutcome posts an outcome to a running experiment, attributing

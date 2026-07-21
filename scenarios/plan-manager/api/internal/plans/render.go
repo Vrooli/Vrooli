@@ -24,8 +24,8 @@ func RenderMarkdown(p Plan) string {
 	return RenderMarkdownWithOptions(p, RenderOptions{})
 }
 
-// RenderMarkdownWithOptions renders the nine reader-question clusters in fixed
-// order (contract decision D1): Purpose / Problem / Outcome / Approach &
+// RenderMarkdownWithOptions renders the ten reader-question clusters in fixed
+// order (contract decision D1): Purpose / Definitions / Problem / Outcome / Approach &
 // Decisions / Boundaries / Assumptions & Risks / Verification / Execution
 // Setup / Phases. Field identity is preserved (D2) — clusters are a render
 // grouping over the same structured fields, rendered as `###` subsections.
@@ -33,6 +33,7 @@ func RenderMarkdownWithOptions(p Plan, opts RenderOptions) string {
 	var b strings.Builder
 	renderHeader(&b, p, opts)
 	writeSection(&b, "Purpose", p.Purpose)
+	renderDefinitionsCluster(&b, p.Definitions)
 	writeSection(&b, "Problem", p.ProblemStatement)
 	writeSection(&b, "Outcome", p.TargetOutcome)
 	renderApproachCluster(&b, p)
@@ -43,6 +44,17 @@ func RenderMarkdownWithOptions(p Plan, opts RenderOptions) string {
 	renderPhaseSections(&b, p)
 	renderGovernanceSections(&b, p, opts)
 	return b.String()
+}
+
+func renderDefinitionsCluster(b *strings.Builder, definitions []PlanDefinition) {
+	if len(definitions) == 0 {
+		return
+	}
+	b.WriteString("## Definitions\n\n| Term | Meaning |\n|---|---|\n")
+	for _, definition := range definitions {
+		fmt.Fprintf(b, "| %s | %s |\n", escapeTableCell(definition.Term), escapeTableCell(definition.Meaning))
+	}
+	b.WriteString("\n")
 }
 
 // renderApproachCluster renders the Approach & Decisions cluster: the technical

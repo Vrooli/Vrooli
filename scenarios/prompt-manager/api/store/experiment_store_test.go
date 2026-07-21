@@ -422,3 +422,89 @@ func TestExperimentStore_RecordOutcomeNotFound(t *testing.T) {
 		t.Error("expected error recording outcome for nonexistent experiment")
 	}
 }
+
+func TestSQLiteExperimentStore_DeduplicatesEvidenceWrites(t *testing.T) {
+	ctx := context.Background()
+	es, err := NewSQLiteExperimentStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := es.Create(ctx, &Experiment{ID: "exp-1", SkillID: "s1", Name: "test"}); err != nil {
+		t.Fatal(err)
+	}
+	serve := ExperimentServe{ExperimentID: "exp-1", SkillID: "s1", VariantID: "control", Source: "workflow", ServedAt: "2026-01-01T00:00:00Z"}
+	if err := es.RecordServe(ctx, serve); err != nil {
+		t.Fatal(err)
+	}
+	if err := es.RecordServe(ctx, serve); err != nil {
+		t.Fatal(err)
+	}
+	serves, err := es.ListServes(ctx, "exp-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(serves) != 1 {
+		t.Fatalf("expected one idempotent serve, got %d", len(serves))
+	}
+
+	outcome := ExperimentOutcome{VariantID: "control", Source: "evaluator", SchemaVersion: 1, RecordedAt: "2026-01-01T00:01:00Z", Data: json.RawMessage(`{"verdict":"pass"}`)}
+	success := true
+	outcome.Controlled = &ControlledExperimentOutcome{AssignmentID: "attempt-1", ExecutionID: "execution-1", EvaluatorAttemptID: "attempt-evaluator", EvaluatorRunID: "run-evaluator", Verdict: "pass", Success: &success, OutcomeStatus: "complete", RubricHash: "sha256:rubric", EvaluatorPromptHash: "sha256:prompt", StructuredSchemaHash: "sha256:schema"}
+	if err := es.RecordOutcome(ctx, "exp-1", outcome); err != nil {
+		t.Fatal(err)
+	}
+	if err := es.RecordOutcome(ctx, "exp-1", outcome); err != nil {
+		t.Fatal(err)
+	}
+	outcomes, err := es.ListOutcomes(ctx, "exp-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(outcomes) != 1 {
+		t.Fatalf("expected one idempotent outcome, got %d", len(outcomes))
+	}
+	if outcomes[0].Controlled == nil || outcomes[0].Controlled.AssignmentID != "attempt-1" || outcomes[0].Controlled.Success == nil || !*outcomes[0].Controlled.Success {
+		t.Fatalf("controlled outcome projection missing: %#v", outcomes[0])
+	}
+}
+
+func TestSQLiteExperimentStore_AssignmentSnapshotIsDurableAndIdempotent(t *testing.T) {
+	ctx := context.Background()
+	es, err := NewSQLiteExperimentStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assignment := ExperimentAssignment{ExperimentID: "exp-1", SkillID: "s1", VariantID: "treatment", ExecutionID: "execution-1", NodeID: "node-1", AttemptKey: "1", IdempotencyKey: "workflow/execution-1/node/node-1/attempt/1", Content: "immutable prompt", ContentHash: "sha256:one"}
+	if err := es.CreateAssignment(ctx, assignment); err != nil {
+		t.Fatal(err)
+	}
+	if err := es.CreateAssignment(ctx, assignment); err == nil {
+		t.Fatal("expected duplicate assignment to violate idempotency key")
+	}
+	got, err := es.GetAssignment(ctx, assignment.ExperimentID, assignment.IdempotencyKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Content != assignment.Content || got.ContentHash != assignment.ContentHash || got.VariantID != assignment.VariantID || got.AssignedAt == "" {
+		t.Fatalf("unexpected immutable assignment: %#v", got)
+	}
+}
+
+func TestSQLiteExperimentStore_PersistsAuditReceipt(t *testing.T) {
+	ctx := context.Background()
+	es, err := NewSQLiteExperimentStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := ExperimentAuditReceipt{ExperimentID: "exp-1", ProtocolHash: "sha256:protocol", SampledAssignmentIDs: []string{"a-1"}, FindingsHash: "sha256:findings", ChallengeState: "clear", CompletedAt: "2026-01-01T00:00:00Z", Signature: "signature", IdempotencyKey: "audit/exp-1"}
+	if err := es.RecordAuditReceipt(ctx, receipt); err != nil {
+		t.Fatal(err)
+	}
+	got, err := es.GetAuditReceipt(ctx, "exp-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ProtocolHash != receipt.ProtocolHash || got.Signature != receipt.Signature || len(got.SampledAssignmentIDs) != 1 {
+		t.Fatalf("unexpected audit receipt: %#v", got)
+	}
+}

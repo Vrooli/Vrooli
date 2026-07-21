@@ -257,6 +257,14 @@ then"); those render as the two-column table under **Assumptions & Risks**.
 Both are optional — empty renders nothing. Execution-time decisions are
 different: capture those with `plan-manager log decision-add` as they happen.
 
+### `definitions` — plan-local terminology (optional)
+
+`author section-submit <session> --section definitions --content "<term> — <meaning>"`
+records one term per line. A colon separator is also accepted. Both the term and
+meaning are required; malformed lines are rejected independently in a batch.
+Define only terms the plan coins or narrows; reference `docs/concepts/GLOSSARY.md`
+for shared Vrooli terms.
+
 Free-form phase `relevant_context` is classified as **notes only**:
 `author phase-submit <session> <phase> --field relevant_context` records every
 prose line as a note (`NO_CONTEXT:` reasons preserved) — it never turns prose

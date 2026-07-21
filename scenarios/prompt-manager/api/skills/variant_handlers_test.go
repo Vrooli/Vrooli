@@ -96,7 +96,8 @@ func (m *mockVariantStore) Delete(_ context.Context, skillID, variantID string) 
 
 // mockPackSkillStore implements store.SkillStore minimally for tests.
 type mockPackSkillStore struct {
-	skills map[string]*store.Skill
+	skills  map[string]*store.Skill
+	updates int
 }
 
 func newMockPackSkillStore() *mockPackSkillStore {
@@ -136,6 +137,7 @@ func (m *mockPackSkillStore) Update(_ context.Context, id string, s *store.Skill
 		return errors.New("skill not found")
 	}
 	m.skills[id] = s
+	m.updates++
 	return nil
 }
 

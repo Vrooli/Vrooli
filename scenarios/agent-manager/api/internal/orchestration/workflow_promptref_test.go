@@ -106,6 +106,25 @@ func TestPromptRefResolvesAndPinsProvenance(t *testing.T) {
 	}
 }
 
+func TestArmedPromptRefWithoutEvaluatorContractIsRejected(t *testing.T) {
+	prompt := &fakePromptSource{content: "Treatment prompt.", hash: "sha256:treatment", rev: 3}
+	o := newPromptRefOrchestrator(t, prompt)
+	ctx := context.Background()
+	armed := strings.Replace(promptRefWorkflow, `"skillId": "fixture-skill"`, `"skillId": "fixture-skill", "experimentId": "exp-1"`, 1)
+	scenarioRoot, servicePath := writeScenarioFixture(t, map[string]string{
+		".vrooli/service.json":               declarationManifest(".vrooli/agent-manager/default.json", ".vrooli/agent-manager/ref.json"),
+		".vrooli/agent-manager/default.json": fixtureProfile,
+		".vrooli/agent-manager/ref.json":     armed,
+	})
+	res, err := o.reconcileScenarioDeclarationsAt(ctx, "fixture-scn", scenarioRoot, servicePath, false, false)
+	if err != nil || res.WorkflowsCreated != 0 || res.WorkflowsFailed != 1 {
+		t.Fatalf("reconcile=%+v err=%v", res, err)
+	}
+	if prompt.calls != 0 {
+		t.Fatalf("reconcile selected treatment %d time(s)", prompt.calls)
+	}
+}
+
 func TestWorkflowPromptStalenessFlipsAndReconcileClears(t *testing.T) {
 	prompt := &fakePromptSource{content: "First body.", hash: "sha256:one", rev: 1}
 	o := newPromptRefOrchestrator(t, prompt)

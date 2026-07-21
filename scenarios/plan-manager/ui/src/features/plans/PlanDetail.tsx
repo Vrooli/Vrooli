@@ -5,6 +5,8 @@ import { AsyncBoundary } from "../../components/AsyncBoundary";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Card, MetaRow, SectionPanel } from "../../components/Surfaces";
 import { Button } from "../../components/ui/button";
+import { MarkdownRenderer } from "../../components/markdown/MarkdownRenderer";
+import { MermaidViewer } from "../../components/markdown/MermaidViewer";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
@@ -17,6 +19,7 @@ import type {
   PlanEdge,
   RegressionAnchor,
   RelevantContextItem,
+  PlanDefinition,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import {
   RelevantContextStatus,
@@ -97,7 +100,16 @@ function RelevantContextList({ items }: { items: readonly RelevantContextItem[] 
   );
 }
 
-function PhaseCard({ phase }: { phase: Phase }) {
+function MarkdownBlock({ content, onMermaidOpen }: { content: string; onMermaidOpen: (code: string) => void }) {
+  return <MarkdownRenderer content={content} className="text-sm text-app-foreground" onMermaidOpen={onMermaidOpen} />;
+}
+
+function DefinitionsTable({ definitions }: { definitions: readonly PlanDefinition[] }) {
+  if (definitions.length === 0) return null;
+  return <table className="w-full border-collapse text-sm"><thead><tr><th className="border border-app-border px-2 py-1 text-left">Term</th><th className="border border-app-border px-2 py-1 text-left">Meaning</th></tr></thead><tbody>{definitions.map((definition) => <tr key={`${definition.term}-${definition.meaning}`}><td className="border border-app-border px-2 py-1 font-medium">{definition.term}</td><td className="border border-app-border px-2 py-1">{definition.meaning}</td></tr>)}</tbody></table>;
+}
+
+function PhaseCard({ phase, onMermaidOpen }: { phase: Phase; onMermaidOpen: (code: string) => void }) {
   const { t } = useTranslation();
   return (
     <li
@@ -123,7 +135,7 @@ function PhaseCard({ phase }: { phase: Phase }) {
           <MetaRow term={t(strings.pages.plans.detail.phaseSteps)}>
             <ol className="ms-4 list-decimal text-xs text-app-foreground">
               {phase.steps.map((s, i) => (
-                <li key={i}>{s}</li>
+                <li key={i}><MarkdownBlock content={s} onMermaidOpen={onMermaidOpen} /></li>
               ))}
             </ol>
           </MetaRow>
@@ -134,10 +146,10 @@ function PhaseCard({ phase }: { phase: Phase }) {
           </MetaRow>
         ) : null}
         {phase.validation ? (
-          <MetaRow term={t(strings.pages.plans.detail.phaseValidation)}>{phase.validation}</MetaRow>
+          <MetaRow term={t(strings.pages.plans.detail.phaseValidation)}><MarkdownBlock content={phase.validation} onMermaidOpen={onMermaidOpen} /></MetaRow>
         ) : null}
         {phase.acceptance ? (
-          <MetaRow term={t(strings.pages.plans.detail.phaseAcceptance)}>{phase.acceptance}</MetaRow>
+          <MetaRow term={t(strings.pages.plans.detail.phaseAcceptance)}><MarkdownBlock content={phase.acceptance} onMermaidOpen={onMermaidOpen} /></MetaRow>
         ) : null}
         {phase.risksHazards.length > 0 ? (
           <MetaRow term={t(strings.pages.plans.detail.phaseRisks)}>
@@ -241,6 +253,7 @@ function GraphView({ planId, edges }: { planId: string; edges: PlanEdge[] }) {
 function PlanBody({ plan }: { plan: Plan }) {
   const { t } = useTranslation();
   const [showMarkdown, setShowMarkdown] = useState(false);
+  const [mermaidCode, setMermaidCode] = useState<string | null>(null);
   const markdown = usePlanMarkdown(plan.id, showMarkdown);
   const graph = usePlanGraph(plan.id);
   const archive = useArchivePlan();
@@ -283,17 +296,18 @@ function PlanBody({ plan }: { plan: Plan }) {
       <div className="grid gap-4 lg:grid-cols-2">
         {plan.purpose ? (
           <SectionPanel title={t(strings.pages.plans.detail.purposeHeading)} headingId="plan-purpose">
-            <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.purpose}</p>
+            <MarkdownBlock content={plan.purpose} onMermaidOpen={setMermaidCode} />
           </SectionPanel>
         ) : null}
+        {(plan.definitions?.length ?? 0) > 0 ? <SectionPanel title="Definitions" headingId="plan-definitions"><DefinitionsTable definitions={plan.definitions} /></SectionPanel> : null}
         {plan.problemStatement ? (
           <SectionPanel title={t(strings.pages.plans.detail.problemHeading)} headingId="plan-problem">
-            <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.problemStatement}</p>
+            <MarkdownBlock content={plan.problemStatement} onMermaidOpen={setMermaidCode} />
           </SectionPanel>
         ) : null}
         {plan.targetOutcome ? (
           <SectionPanel title={t(strings.pages.plans.detail.targetOutcomeHeading)} headingId="plan-target-outcome">
-            <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.targetOutcome}</p>
+            <MarkdownBlock content={plan.targetOutcome} onMermaidOpen={setMermaidCode} />
           </SectionPanel>
         ) : null}
         {plan.scope ? (
@@ -332,7 +346,19 @@ function PlanBody({ plan }: { plan: Plan }) {
       <div className="grid gap-4 lg:grid-cols-2">
         {plan.technicalApproach ? (
           <SectionPanel title={t(strings.pages.plans.detail.technicalApproachHeading)} headingId="plan-technical-approach">
-            <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.technicalApproach}</p>
+            <MarkdownBlock content={plan.technicalApproach} onMermaidOpen={setMermaidCode} />
+          </SectionPanel>
+        ) : null}
+        {plan.decisions.length > 0 ? (
+          <SectionPanel title="Decisions" headingId="plan-decisions">
+            <ol className="flex flex-col gap-3">
+              {plan.decisions.map((decision, index) => (
+                <li key={`${decision.title}-${index}`}>
+                  {decision.title ? <p className="mb-1 text-sm font-medium text-app-foreground">D{index + 1} — {decision.title}</p> : null}
+                  <MarkdownBlock content={decision.statement} onMermaidOpen={setMermaidCode} />
+                </li>
+              ))}
+            </ol>
           </SectionPanel>
         ) : null}
         {plan.prohibitedApproaches ? (
@@ -343,7 +369,7 @@ function PlanBody({ plan }: { plan: Plan }) {
         {plan.validationStrategy || plan.finalValidationCommands.length > 0 ? (
           <SectionPanel title={t(strings.pages.plans.detail.validationStrategyHeading)} headingId="plan-validation-strategy">
             {plan.validationStrategy ? (
-              <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.validationStrategy}</p>
+              <MarkdownBlock content={plan.validationStrategy} onMermaidOpen={setMermaidCode} />
             ) : null}
             {plan.finalValidationCommands.length > 0 ? (
               <div className="mt-2">
@@ -364,7 +390,7 @@ function PlanBody({ plan }: { plan: Plan }) {
 
       {plan.definitionOfDone ? (
         <SectionPanel title={t(strings.pages.plans.detail.dodHeading)} headingId="plan-dod">
-          <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.definitionOfDone}</p>
+          <MarkdownBlock content={plan.definitionOfDone} onMermaidOpen={setMermaidCode} />
         </SectionPanel>
       ) : null}
 
@@ -380,7 +406,7 @@ function PlanBody({ plan }: { plan: Plan }) {
         ) : (
           <ol data-testid={selectors.plans.detailPhases} className="flex flex-col gap-2">
             {plan.phases.map((phase) => (
-              <PhaseCard key={phase.id} phase={phase} />
+              <PhaseCard key={phase.id} phase={phase} onMermaidOpen={setMermaidCode} />
             ))}
           </ol>
         )}
@@ -481,16 +507,12 @@ function PlanBody({ plan }: { plan: Plan }) {
             testIdPrefix={selectors.plans.detailMarkdown}
           >
             <Card className="bg-app-surface-muted p-0">
-              <pre
-                data-testid={selectors.plans.detailMarkdown}
-                className="max-h-[40rem] overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-xs text-app-foreground"
-              >
-                {markdown.data ?? ""}
-              </pre>
+              <div data-testid={selectors.plans.detailMarkdown} className="max-h-[40rem] overflow-auto p-4"><MarkdownBlock content={markdown.data ?? ""} onMermaidOpen={setMermaidCode} /></div>
             </Card>
           </AsyncBoundary>
         ) : null}
       </SectionPanel>
+      <MermaidViewer code={mermaidCode} onClose={() => setMermaidCode(null)} />
     </section>
   );
 }

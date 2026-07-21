@@ -36,8 +36,11 @@ type Handlers struct {
 	experimentStore  store.ExperimentStore // Optional: for variant-aware read
 	variantStore     store.VariantStore    // Optional: for variant-aware read
 	packSkillStore   store.SkillStore      // Optional: for variant-aware read (pack-based)
+	identityVerifier IdentityVerifier      // Optional: verifies workflow provenance on skill reads
 	configDir        string                // Absolute path to store directory for computing file paths
 }
+
+func (h *Handlers) SetIdentityVerifier(verifier IdentityVerifier) { h.identityVerifier = verifier }
 
 // NewHandlers creates a new skills handler.
 // Accepts any implementation of SkillStore and MetricsService interfaces.

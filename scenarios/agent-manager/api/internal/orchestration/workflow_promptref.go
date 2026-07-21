@@ -9,7 +9,23 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/promptmanager"
+	"agent-manager/internal/workflowruntime"
 )
+
+type workflowPromptResolver struct {
+	source promptmanager.AssignmentClient
+}
+
+func (r workflowPromptResolver) Resolve(ctx context.Context, ref *domain.WorkflowPromptRef, identity workflowruntime.PromptAssignmentIdentity) (workflowruntime.PromptResolution, error) {
+	if r.source == nil || ref == nil || strings.TrimSpace(ref.ExperimentID) == "" {
+		return workflowruntime.PromptResolution{}, fmt.Errorf("armed prompt resolution requires a source and experiment")
+	}
+	snap, err := r.source.AssignExperimentPrompt(ctx, promptmanager.AssignmentRequest{ExperimentID: ref.ExperimentID, SkillID: ref.SkillID, ExecutionID: identity.ExecutionID.String(), NodeID: identity.NodeID, AttemptKey: identity.AttemptKey, IdempotencyKey: identity.IdempotencyKey, Variables: ref.Variables, WithScope: ref.WithScope})
+	if err != nil {
+		return workflowruntime.PromptResolution{}, err
+	}
+	return workflowruntime.PromptResolution{Content: snap.Content, ExperimentID: snap.ExperimentID, VariantID: snap.VariantID, ContentHash: snap.ContentHash}, nil
+}
 
 // resolveWorkflowPromptRefs embeds prompt-manager skill content into any run or
 // continue node that authored a promptRef, returning the definition bytes the
@@ -29,20 +45,39 @@ func (o *Orchestrator) resolveWorkflowPromptRefs(ctx context.Context, data []byt
 	if err := dec.Decode(&def); err != nil {
 		return nil, fmt.Errorf("decode workflow definition: %w", err)
 	}
-	source, ok := o.promptClient.(promptmanager.SourceClient)
-	if !ok || source == nil {
-		return nil, fmt.Errorf("promptRef resolution requires a prompt-manager source client")
-	}
 	resolved := false
+	var source promptmanager.SourceClient
 	for i := range def.Nodes {
 		n := &def.Nodes[i]
 		if n.Run != nil && n.Run.PromptRef != nil {
+			if n.Run.PromptRef.ExperimentID != "" {
+				// Armed nodes are deliberately resolved by the workflow engine at
+				// attempt creation. Reconciliation must not choose treatment.
+				continue
+			}
+			if source == nil {
+				var ok bool
+				source, ok = o.promptClient.(promptmanager.SourceClient)
+				if !ok || source == nil {
+					return nil, fmt.Errorf("promptRef resolution requires a prompt-manager source client")
+				}
+			}
 			if err := resolvePromptRef(ctx, source, &n.Run.PromptTemplate, &n.Run.PromptRef, &n.Run.PromptProvenance); err != nil {
 				return nil, fmt.Errorf("nodes[%d].run.promptRef: %w", i, err)
 			}
 			resolved = true
 		}
 		if n.Continue != nil && n.Continue.PromptRef != nil {
+			if n.Continue.PromptRef.ExperimentID != "" {
+				continue
+			}
+			if source == nil {
+				var ok bool
+				source, ok = o.promptClient.(promptmanager.SourceClient)
+				if !ok || source == nil {
+					return nil, fmt.Errorf("promptRef resolution requires a prompt-manager source client")
+				}
+			}
 			if err := resolvePromptRef(ctx, source, &n.Continue.PromptTemplate, &n.Continue.PromptRef, &n.Continue.PromptProvenance); err != nil {
 				return nil, fmt.Errorf("nodes[%d].continue.promptRef: %w", i, err)
 			}

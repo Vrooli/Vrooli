@@ -17,6 +17,37 @@ import (
 	"github.com/google/uuid"
 )
 
+type fixedPromptResolver struct{ resolution PromptResolution }
+
+func (f fixedPromptResolver) Resolve(_ context.Context, _ *domain.WorkflowPromptRef, _ PromptAssignmentIdentity) (PromptResolution, error) {
+	return f.resolution, nil
+}
+
+func TestEngine_AssignsArmedPromptAtAttemptCreation(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "work", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.fast", PromptRef: &domain.WorkflowPromptRef{SkillID: "skill", ExperimentID: "exp-1"}, Bindings: []domain.WorkflowInputBinding{inputBinding("topic", "$.topic")}}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "work"
+	definition.Edges = []domain.WorkflowEdge{{From: "work", To: "done"}}
+	engine, store, _ := testEngine(t, definition)
+	engine.PromptResolver = fixedPromptResolver{resolution: PromptResolution{Content: "Assigned {{.topic}}", ExperimentID: "exp-1", VariantID: "treatment", ContentHash: "sha256:assigned"}}
+	execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{"topic":"A"}`), "armed-attempt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	advanced := mustAdvance(t, engine, execution.ID)
+	attempts, err := store.ListAttempts(context.Background(), execution.ID)
+	if err != nil || len(attempts) != 1 {
+		t.Fatalf("advanced=%+v reason=%+v attempts=%+v err=%v", advanced, advanced.TerminalReason, attempts, err)
+	}
+	got := attempts[0]
+	if got.Status != domain.WorkflowAttemptDispatchPending || got.PromptSnapshot != "Assigned A" || got.ExperimentID != "exp-1" || got.VariantID != "treatment" || got.PromptHash != "sha256:assigned" {
+		t.Fatalf("assignment=%+v", got)
+	}
+}
+
 func TestEngineLoopCreatesDistinctFreshRunsAndTerminates(t *testing.T) { // [REQ:REQ-P2-001]
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{{ID: "slice", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.fast", PromptTemplate: "Work {{.topic}}", Bindings: []domain.WorkflowInputBinding{inputBinding("topic", "$.topic")}}}, {ID: "more", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
