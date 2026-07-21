@@ -4,12 +4,25 @@
   "id": "swarm-manager-workflow-authoring",
   "name": "Swarm Manager Workflow Authoring Session",
   "description": "Human-led design and review of Swarm Manager transitions, Agent Manager workflows, governed prompts, and their small deterministic domain adapters.",
-  "modes": ["tools", "conversation", "swarm-manager", "authoring"],
-  "tags": ["swarm-manager", "session", "workflow", "agent-manager", "transition-catalog", "authoring", "proposal"],
+  "modes": [
+    "tools",
+    "conversation",
+    "swarm-manager",
+    "authoring"
+  ],
+  "tags": [
+    "swarm-manager",
+    "session",
+    "workflow",
+    "agent-manager",
+    "transition-catalog",
+    "authoring",
+    "proposal"
+  ],
   "icon": "workflow",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-07-18T00:00:00Z",
-  "updatedAt": "2026-07-18T00:00:00Z"
+  "updatedAt": "2026-07-21T00:00:00Z"
 }

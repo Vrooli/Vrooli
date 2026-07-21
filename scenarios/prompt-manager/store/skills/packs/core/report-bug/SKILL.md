@@ -48,6 +48,14 @@ Gather before invoking the writer:
 
 Severity rule: severity is **the reporter's claim**. The investigator may overrule it during triage based on actual scope of impact (e.g., a "minor" with a corrupted invariant escalates).
 
+Wording standard: write `repro` steps in Simplified Technical English — one
+action per step, imperative mood, exact commands and paths, 20 words or fewer
+per step ("Run `vrooli scenario start foo`", not "the scenario should be
+started"). Write `expected` and `actual` as observable outcomes, not opinions.
+A well-formed report reads as Given/When/Then — context, repro steps, expected
+vs actual — which lets the investigator convert it directly into a regression
+test.
+
 ---
 
 ### **3. Procedure**

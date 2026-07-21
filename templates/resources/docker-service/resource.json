@@ -22,7 +22,9 @@
       "kind": "prebuilt_artifact",
       "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
     },
-    "source_build": { "kind": "go_module", "freshness_inputs": ["cli/**", "resource.json"] },
+    "source_build": {
+      "kind": "go_module"
+    },
     "invoke": {
       "kind": "installed_command",
       "command": "{{RESOURCE_CLI_COMMAND}}"
@@ -42,9 +44,63 @@
   "deployment": {
     "profiles": {
       "desktop": {
-        "linux": { "support": "conditional", "mode": "bundled-controller", "architectures": ["amd64", "arm64"], "requires": ["docker-engine"], "limitations": ["Docker image, storage, and network remain host-managed dependencies."], "evidence": ["manifest-validation", "resource-cli-unit-tests", "docker-preflight"] },
-        "macos": { "support": "conditional", "mode": "bundled-controller", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "resource-cli-unit-tests", "docker-preflight"] },
-        "windows": { "support": "conditional", "mode": "bundled-controller", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "resource-cli-unit-tests", "docker-preflight"] }
+        "linux": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-engine"
+          ],
+          "limitations": [
+            "Docker image, storage, and network remain host-managed dependencies."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "docker-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-desktop"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "docker-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "docker-desktop",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "docker-desktop"
+          ],
+          "limitations": [
+            "Docker Desktop must be installed and running."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "docker-preflight"
+          ]
+        }
       }
     }
   },

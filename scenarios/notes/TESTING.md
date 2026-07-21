@@ -108,7 +108,7 @@ $ ./test/phases/test-structure.sh
 **Common Failures**:
 - Missing files → Run `make setup` or `vrooli scenario setup notes`
 - Binary not built → Run `cd api && go build -o notes-api .`
-- CLI not installed → Run `cli/install.sh`
+- CLI not installed → Run `vrooli scenario start notes` to install the declared Go CLI
 
 **Manual Test Equivalent**:
 ```bash

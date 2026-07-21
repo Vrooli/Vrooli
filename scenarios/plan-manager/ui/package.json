@@ -32,10 +32,13 @@
     "helmet": "^6.1.0",
     "i18next": "^23.16.4",
     "lucide-react": "^0.424.0",
+    "mermaid": "^11.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^15.1.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.28.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {

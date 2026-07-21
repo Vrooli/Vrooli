@@ -1,3 +1,0 @@
-# New Skill
-
-Enter your skill content here...

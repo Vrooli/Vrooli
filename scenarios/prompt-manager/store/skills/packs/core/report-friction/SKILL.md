@@ -54,6 +54,12 @@ Gather before invoking the writer:
 
 **Severity rule.** Severity is the reporter's claim. The curator may overrule based on observed scope or recurrence. `recurring` requires evidence of recurrence (count, prior-entry pointer); `blocking` requires you are currently stopped (not just slowed); `one-off` will be dropped — file it only if the symptom is genuinely interesting in isolation.
 
+**Wording standard.** Write `expected` and `actual` as observable outcomes in
+plain declarative sentences ("`skill sync` exits 0 and prints the changed
+ids", not "sync is unreliable"). In `description`, state any steps you took in
+Simplified Technical English — one action per sentence, imperative mood, exact
+commands — so the curator can replay your path without your context.
+
 ---
 
 ### **3. Procedure**

@@ -436,6 +436,11 @@ Use short, category-specific delta checks here. Baseline authoring structure bel
 - `skill-authoring-search`
 - `skill-authoring-meta`
 
+#### **All categories — prose style (advisory)**
+
+* [ ] Procedural text follows the STE-100 bar from `docs/agent-system/SKILL_AUTHORING.md` (one instruction per sentence, imperative mood, one meaning per term, concrete commands over categories)
+* [ ] Rules avoid decision-hiding words ("robust", "appropriately", "handle", "as needed") — flag as a WARN-severity wording finding, not a blocker
+
 #### **Steer skills**
 
 * [ ] Decision rules are explicit and consistent (tables/trees)

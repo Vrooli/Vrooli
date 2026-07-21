@@ -136,6 +136,9 @@ type PlanDecision = planmodel.PlanDecision
 // PlanAssumption is one structured assumption with its mitigation.
 type PlanAssumption = planmodel.PlanAssumption
 
+// PlanDefinition is one plan-local coined or narrowed term.
+type PlanDefinition = planmodel.PlanDefinition
+
 // RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED
 // by the authoring wizard (delegating to git-control-tower).
 type RegressionAnchor = planmodel.RegressionAnchor

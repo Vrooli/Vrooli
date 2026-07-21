@@ -55,6 +55,13 @@ When a diagram, example, or flow materially explains the intended system,
 preserve it in the relevant decision content or as a durable referenced
 artifact. Never replace it with “see the prior discussion.”
 
+When a multi-step flow involves three or more actors, components, or
+sequential states, author a Mermaid diagram for it (a fenced ```mermaid
+block inside Approach & Decisions content) instead of an inline prose arrow
+chain ("A -> B -> C"). The fence is the durable format even where a given
+viewer renders it as source text; do not downgrade to prose because of the
+viewer.
+
 There are two valid authoring modes:
 
 - **Plan Manager mode (default):** create, validate, and finalize the
@@ -151,7 +158,33 @@ notes, and the first execution command (`plan-manager exec continue <slug>`).
 
 ---
 
-### 3. Judgment Rules
+### 3. Writing Standard (ASD-STE100)
+
+Write all procedural plan content in ASD-STE100 Simplified Technical English:
+phase steps, validation, acceptance, boundaries, and the Definition of Done.
+The core rules:
+
+- One instruction per sentence. Keep procedural sentences to 20 words or fewer.
+- Use the active voice and the imperative mood ("Run the migration", not
+  "The migration should be run").
+- Use one meaning per word, and the same word for the same thing everywhere
+  in the plan. Define any term with a non-obvious meaning where it first
+  appears.
+- Name concrete objects and commands, not categories ("edit
+  `resolver.go`", not "update the relevant files").
+
+Banned words in procedural content — each hides an undecided decision.
+Replace the word with the specific behavior, path, or check you mean:
+"robust", "comprehensive", "appropriately", "properly", "seamless",
+"handle", "improve", "enhance", "leverage", "as needed".
+
+STE-100 applies to procedures only. Rationale content — why this design,
+rejected alternatives, tradeoffs, risks — stays in normal explanatory prose;
+do not strip nuance from it to satisfy the style rules.
+
+---
+
+### 4. Judgment Rules
 
 - A plan should be executable without this chat history.
 - Before finalization, perform a preservation audit: a fresh execution agent
@@ -190,7 +223,7 @@ notes, and the first execution command (`plan-manager exec continue <slug>`).
 
 ---
 
-### 4. Troubleshooting & Edge Cases
+### 5. Troubleshooting & Edge Cases
 
 | Symptom | Likely cause | First move |
 |---|---|---|
@@ -203,7 +236,7 @@ notes, and the first execution command (`plan-manager exec continue <slug>`).
 
 ---
 
-### 5. Output Expectations
+### 6. Output Expectations
 
 **Must produce:**
 - A finalized Plan Manager plan id/slug, or a clear explanation of why the

@@ -94,6 +94,7 @@ type planDocument struct {
 	ProhibitedApproaches    string             `json:"prohibited_approaches,omitempty"`
 	Decisions               []PlanDecision     `json:"decisions,omitempty"`
 	AssumptionRisks         []PlanAssumption   `json:"assumption_risks,omitempty"`
+	Definitions             []PlanDefinition   `json:"definitions,omitempty"`
 	WorkPosture             WorkPosture        `json:"work_posture,omitempty"`
 	WorkPostureSource       WorkPostureSource  `json:"work_posture_source,omitempty"`
 	WorkPostureDetail       string             `json:"work_posture_detail,omitempty"`
@@ -164,6 +165,7 @@ func (r *sqliteRepository) Save(ctx context.Context, p Plan) error {
 		ProhibitedApproaches:    p.ProhibitedApproaches,
 		Decisions:               p.Decisions,
 		AssumptionRisks:         p.AssumptionRisks,
+		Definitions:             p.Definitions,
 		WorkPosture:             p.WorkPosture,
 		WorkPostureSource:       p.WorkPostureSource,
 		WorkPostureDetail:       p.WorkPostureDetail,

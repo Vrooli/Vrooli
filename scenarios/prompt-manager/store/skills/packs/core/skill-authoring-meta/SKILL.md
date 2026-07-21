@@ -3,7 +3,7 @@
 Guide for creating **Meta** skills (where `modes[0] = "Meta"`). Meta skills govern how the skill system itself evolves, stays coherent, and avoids drift.
 
 Required reading:
-- `docs/agent-system/SKILL_AUTHORING.md`
+- `docs/agent-system/SKILL_AUTHORING.md` — apply §"Skills are conditioning signals" (focality, interpretive entropy, verifiability, attention economy) when reviewing or governing any skill change
 
 ---
 

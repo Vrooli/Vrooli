@@ -183,8 +183,7 @@ cd ui
 npm install
 npm start
 
-# CLI Installation
-bash cli/install.sh
+# CLI installation is handled by the control plane from the declared Go module.
 ```
 
 ### Testing

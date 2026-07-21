@@ -22,7 +22,9 @@
       "kind": "prebuilt_artifact",
       "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
     },
-    "source_build": { "kind": "go_module", "freshness_inputs": ["cli/**", "resource.json"] },
+    "source_build": {
+      "kind": "go_module"
+    },
     "invoke": {
       "kind": "installed_command",
       "command": "{{RESOURCE_CLI_COMMAND}}"
@@ -42,9 +44,63 @@
   "deployment": {
     "profiles": {
       "desktop": {
-        "linux": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "resource credentials"], "limitations": ["No offline capability; provider availability and account policy apply."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] },
-        "macos": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "resource credentials"], "limitations": ["No offline capability; provider availability and account policy apply."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] },
-        "windows": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "resource credentials"], "limitations": ["No offline capability; provider availability and account policy apply."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] }
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "network",
+            "resource credentials"
+          ],
+          "limitations": [
+            "No offline capability; provider availability and account policy apply."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "network",
+            "resource credentials"
+          ],
+          "limitations": [
+            "No offline capability; provider availability and account policy apply."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "network",
+            "resource credentials"
+          ],
+          "limitations": [
+            "No offline capability; provider availability and account policy apply."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests"
+          ]
+        }
       }
     }
   },

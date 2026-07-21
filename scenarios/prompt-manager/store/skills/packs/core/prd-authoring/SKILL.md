@@ -51,6 +51,25 @@ Author to these so the contract validates clean; the wizard produces them for yo
 - **At least one target per tier** — every priority subsection must exist (P0/P1/P2), and the contract expects real targets, not empty lists left as scaffold.
 - **Required content anchors** — the Overview must actually answer **Purpose** (the permanent capability), users/surfaces; Tech Direction must state a **Preferred** stack/approach. Empty or placeholder anchors read as starter-template findings.
 
+## Writing Standard (EARS one-liners + RFC 2119 tiers)
+
+The validator enforces the *shape* of an operational-target line; you own the
+*wording*. Two conventions make targets unambiguous:
+
+- **EARS-shaped descriptions.** Write each target's one-line description as an
+  outcome claim in EARS form where it fits on one line: "When ⟨trigger⟩, the
+  ⟨system⟩ shall ⟨response⟩" (or the ubiquitous form "The ⟨system⟩ shall
+  ⟨response⟩"). A target whose description names an observable response is
+  directly coverable by a requirement; "support X" or "improve Y" is not.
+- **RFC 2119 keywords match the tier.** The priority tiers carry obligation
+  strength: P0 targets are **MUST/shall** claims, P1 are **SHOULD**, P2 are
+  **MAY**. Use those keywords with their RFC 2119 meanings and do not use them
+  loosely elsewhere in the PRD — a P2 written as "must" (or a P0 as "could")
+  misstates the contract.
+
+This is wording guidance inside the existing line format — it changes nothing
+about IDs, headings, or the parser.
+
 ## Requirements Linkage Rules
 
 The PRD is the *what*; `requirements/` is *how you'd know*. The link between them is the whole point:

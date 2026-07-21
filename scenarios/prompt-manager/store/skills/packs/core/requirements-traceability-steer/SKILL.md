@@ -82,7 +82,37 @@ The EM `gameguard` zeroes credit for suppression-shaped fixes; these are the sup
 
 ---
 
-### 5. Verification gate
+### 5. Requirement wording standard (EARS + RFC 2119)
+
+When you author or true a requirement's `title`/`description`, write it as an
+**EARS** (Easy Approach to Requirements Syntax) statement — the falsifiable-
+behavioral-claim rule (§4 ban #3) made structural. Pick the template that fits:
+
+| Pattern | Template |
+|---|---|
+| Ubiquitous | The `<system>` shall `<response>`. |
+| Event-driven | When `<trigger>`, the `<system>` shall `<response>`. |
+| State-driven | While `<state>`, the `<system>` shall `<response>`. |
+| Unwanted behaviour | If `<undesired trigger>`, then the `<system>` shall `<response>`. |
+| Optional feature | Where `<feature is present>`, the `<system>` shall `<response>`. |
+
+Use **RFC 2119** keywords with their defined meanings: `shall`/`must` for
+P0-linked requirements, `should` for P1, `may` for P2. Do not use those words
+loosely elsewhere in the description.
+
+Two consequences worth internalizing:
+
+- A "the system must not X" obligation is an **unwanted-behaviour** claim about
+  an observable response ("If an unauthenticated request arrives, then the API
+  shall return 401"), never a bare absence ("X no longer exists"). Absence
+  claims are untestable and unenumerable.
+- This is an on-touch standard, not a migration: rewrite a requirement into
+  EARS form when you are already editing it. Do not bulk-rewrite a registry
+  just to change wording — that is churn, not truth.
+
+---
+
+### 6. Verification gate
 
 Before claiming the `business` dimension closed for `{{TARGET}}`:
 
@@ -96,17 +126,17 @@ All three clean = L4. Anything less, record the rung + blockers in `PROBLEMS.md`
 
 ---
 
-### 6. Output expectations
+### 7. Output expectations
 
 You **may**: edit `scenarios/{{TARGET}}/requirements/*.json` (descriptions, refs, statuses *with evidence*, criticality with reasons); tag tests with `[REQ:ID]`; fix `prd_ref` values; flip PRD checkboxes whose requirements are complete with passing evidence; update `PROBLEMS.md`.
 
-You **must**: keep every requirement a falsifiable behavioral claim; keep validation refs resolvable; run the §5 gate before claiming done.
+You **must**: keep every requirement a falsifiable behavioral claim; keep validation refs resolvable; run the §6 gate before claiming done.
 
 You **must NOT**: hand-edit sync snapshots or `coverage/` artifacts; force requirements sync (`TESTING_REQUIREMENTS_SYNC_FORCE`) to move statuses; restructure the PRD outside the operational-targets section (business-health owns the document shape — `canonical-prd-template.md`); create standalone `*_AUDIT.md` reports — findings go in durable docs.
 
 ---
 
-### 7. Troubleshooting & Edge Cases
+### 8. Troubleshooting & Edge Cases
 
 - **`validate` passes but the business phase still emits findings.** `validate` is structural only; the producer also checks registry drift (starter tags, empty `validation[]`, unmatched `prd_ref`). The findings list *is* the work queue.
 - **`business_prd_ref_unmatched` but the target looks right.** The producer matches literal `OT-…` tokens in PRD.md; a reformatted or renamed target breaks the match. Fix the ref or the PRD line — exact ID match, no fuzz.

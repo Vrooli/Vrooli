@@ -102,13 +102,44 @@ Optional reading:
 
 ---
 
-### **6. Memory Management with Visited Tracker**
+### **6. Anti-Patterns: Test the Specification, Not the Diff**
+
+The suite is an executable specification of what the scenario does **now**.
+Tests that encode the *history of a change* instead of a *current requirement*
+are noise that hardens into obstruction. Avoid these shapes:
+
+* **Tombstone tests.** After removing a feature, do not write tests asserting
+  the behavior is gone ("the old endpoint returns 404", "the flag no longer
+  exists"). Absences are unenumerable, meaningful only to someone holding the
+  removal diff, and can block a legitimate future feature that reuses the
+  surface. The removal protocol is: delete the old feature's tests, update the
+  requirements registry (delete the requirement or mark it `not_implemented`),
+  and **positively test the replacement behavior**. Removal coverage = the
+  suite passes without the feature.
+* **"Shall not" done as absence.** A genuine ongoing prohibition (auth
+  rejection, input validation, rate limiting) is a *positive* claim about an
+  observable response — "if an unauthenticated request arrives, the API
+  returns 401" — and deserves a permanent test asserting that response. If it
+  matters enough to test forever, it belongs in `requirements/` as an
+  unwanted-behaviour requirement; that is a judgment call, not a mandate to
+  tag every test.
+* **Change-detector tests.** Assertions that pin incidental implementation
+  detail (exact private call order, snapshot-everything) fail on harmless
+  refactors and pass on real regressions. Assert the behavior a requirement
+  names.
+* **Characterization tests as permanent fixtures.** Pinning current behavior
+  wholesale is legitimate *temporarily* while refactoring untested code —
+  mark them as scaffolding and delete them when the refactor lands.
+
+---
+
+### **7. Memory Management with Visited Tracker**
 
 Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `test`.
 
 ---
 
-### **7. Output Expectations**
+### **8. Output Expectations**
 
 You may update or add:
 
@@ -131,6 +162,6 @@ Focus this loop on delivering **practical, high-impact test improvements** that 
 
 ---
 
-### **8. Documentation**
+### **9. Documentation**
 
 Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then update the **Test Gaps** section with your findings (critical flows lacking coverage, flaky tests, assertion quality issues, remaining coverage priorities).

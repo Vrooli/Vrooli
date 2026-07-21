@@ -211,6 +211,13 @@ type PlanAssumption struct {
 	Mitigation string
 }
 
+// PlanDefinition records a term coined or narrowed by a plan. Shared ecosystem
+// vocabulary belongs in docs/concepts/GLOSSARY.md and is referenced instead.
+type PlanDefinition struct {
+	Term    string
+	Meaning string
+}
+
 // RelevantContextItem is the execution-facing setup contract.
 type RelevantContextItem struct {
 	ID           string
@@ -474,6 +481,7 @@ type Plan struct {
 	// assumptions with mitigations (contract decision D3). Empty renders nothing.
 	Decisions       []PlanDecision
 	AssumptionRisks []PlanAssumption
+	Definitions     []PlanDefinition
 	// AUTOFILLED/COMPUTED work posture (never agent-authored).
 	WorkPosture       WorkPosture
 	WorkPostureSource WorkPostureSource

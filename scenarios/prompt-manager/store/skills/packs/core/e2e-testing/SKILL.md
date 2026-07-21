@@ -221,6 +221,23 @@ vrooli scenario requirements manual-log {{TARGET}} REQ-XXX "Reason for manual ch
 ```
 Then build a BAS workflow as soon as possible.
 
+#### Acceptance-Criteria Wording (Gherkin)
+
+Write workflow `metadata.description` values and any acceptance criteria in
+**Given/When/Then** form: "Given a logged-out user on /login, when they submit
+valid credentials, then the dashboard heading is visible." The shape forces
+you to name the starting state, the action, and the observable outcome — the
+three things a workflow must encode anyway — and it maps one-to-one onto the
+workflow's setup steps, action steps, and assertions. Avoid intent-free
+descriptions ("test login works").
+
+One anti-pattern to refuse: after a feature is **removed**, do not author a
+workflow asserting the old UI is gone (a tombstone test). Delete the old
+workflow, update the requirement, and cover the replacement behavior
+positively. An ongoing prohibition (e.g. a locked-out user must not reach the
+dashboard) is different — write it as a positive assertion on the observable
+response (the lockout message is visible).
+
 ---
 
 ### **5. Workflow Authoring Patterns**

@@ -33,9 +33,9 @@ Port bands declared in `.vrooli/service.json` follow the platform policy: `API_P
 
 ## CLI
 
-- `.vrooli/service.json` is the source of truth for the CLI command, adapter kind, install strategies, and invocation contract.
-- The template includes `cli/install.sh` and `cli/install.ps1` as adapter assets referenced by that manifest.
-- Health check: `<scenario-id> status` (after install)
+- `.vrooli/service.json` is the source of truth for the CLI command, Go-module source-build, freshness, and invocation contracts.
+- The control plane builds and installs the Go CLI from `cli/`; the template contains no platform-specific installer wrappers.
+- Health check: `<scenario-id> status` (after the control plane installs the CLI)
 - `status` and `configure` come from `cli-core`; `status` hits root `/health`.
 
 ### CLI Extension Model

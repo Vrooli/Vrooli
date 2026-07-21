@@ -84,6 +84,15 @@ Concrete instructions for what happens next. Each action is an explicit imperati
 {Details}
 ```
 
+**Wording standard for Findings and Actions.** Write finding statements and
+action details in ASD-STE100 Simplified Technical English: one claim or
+instruction per sentence, active voice, imperative mood for actions, 20 words
+or fewer per procedural sentence, and one meaning per term used consistently
+across the conclusion. Do not use vague verbs ("improve", "handle",
+"enhance") in an action — name the exact change, path, or command. The
+Summary, Methodology, and Limitations sections stay in normal explanatory
+prose; nuance and confidence language belong there, not in the action list.
+
 ---
 
 ### 5. Action Types

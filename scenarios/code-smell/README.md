@@ -31,9 +31,6 @@ This scenario adds permanent code quality enforcement to Vrooli, preventing tech
 # Install dependencies
 npm install
 
-# Install CLI
-./cli/install.sh
-
 # Start API server
 go run api/main.go
 

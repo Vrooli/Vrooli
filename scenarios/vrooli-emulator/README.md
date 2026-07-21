@@ -82,7 +82,7 @@ cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev --
 
 ## CLI Contract
 - `vrooli` resolves and installs the CLI from `.vrooli/service.json` `cli.*`; the CLI implementation is not inferred from file layout anymore.
-- The template ships adapter assets at `cli/install.sh` and `cli/install.ps1`, and the manifest declares when each should be used.
+- The manifest declares a Go-module CLI adapter, which the control plane installs from the source module when needed.
 - The CLI stores config in your user config directory (typically `~/.config/vrooli/vrooli-emulator/config.json` or `~/.vrooli/config/vrooli-emulator/config.json`).
 - Run `vrooli-emulator configure api_base http://localhost:<API_PORT>/api/v1` (and optionally `vrooli-emulator configure token <token>`) to point at a remote or non-standard API.
 - `status` and `configure` are provided by `cli-core`; `status` targets the canonical root `/health` endpoint.

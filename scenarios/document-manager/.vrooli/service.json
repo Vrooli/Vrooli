@@ -288,6 +288,9 @@
         "cli/**",
         ".vrooli/service.json"
       ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   }
 }

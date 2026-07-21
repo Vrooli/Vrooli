@@ -53,6 +53,9 @@
         "sidecar/tsconfig.json",
         "sidecar/scripts/build.mjs"
       ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   },
   "hostTools": [

@@ -85,7 +85,7 @@ cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev --
 - All API calls go through `@vrooli/api-base`, which means the UI works no matter where it’s served (localhost dev server, Cloudflare tunnel, proxied iframe, production ingress). Just keep `VITE_API_BASE_URL` pointed at `http://localhost:${API_PORT}/api/v1` during local work.
 
 ## CLI Auto-Detection
-- Install the CLI on macOS/Linux with `./cli/install.sh` (or Windows with `.\cli\install.ps1`). By default the binary lands in `~/.vrooli/bin`.
+- The control plane installs the declared Go CLI into `~/.vrooli/bin` when the scenario starts.
 - The shared onboarding lifecycle state is stored in your user config directory at `~/.config/vrooli/config.json`.
 - Run `vrooli-onboarding configure api_base http://localhost:<API_PORT>/api/v1` (and optionally `vrooli-onboarding configure token <token>`) to point at a remote or non-standard API.
 

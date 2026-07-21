@@ -22,7 +22,9 @@
       "kind": "prebuilt_artifact",
       "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
     },
-    "source_build": { "kind": "go_module", "freshness_inputs": ["cli/**", "resource.json"] },
+    "source_build": {
+      "kind": "go_module"
+    },
     "invoke": {
       "kind": "installed_command",
       "command": "{{RESOURCE_CLI_COMMAND}}"
@@ -42,9 +44,54 @@
   "deployment": {
     "profiles": {
       "desktop": {
-        "linux": { "support": "supported", "mode": "bundled-service", "architectures": ["amd64", "arm64"], "limitations": ["Only declared capabilities are included in the bundle."], "evidence": ["manifest-validation", "artifact-checksum", "target-smoke"] },
-        "macos": { "support": "supported", "mode": "bundled-service", "architectures": ["amd64", "arm64"], "limitations": ["Only declared capabilities are included in the bundle."], "evidence": ["manifest-validation", "artifact-checksum", "target-smoke"] },
-        "windows": { "support": "supported", "mode": "bundled-service", "architectures": ["amd64", "arm64"], "limitations": ["Only declared capabilities are included in the bundle."], "evidence": ["manifest-validation", "artifact-checksum", "target-smoke"] }
+        "linux": {
+          "support": "supported",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "Only declared capabilities are included in the bundle."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "target-smoke"
+          ]
+        },
+        "macos": {
+          "support": "supported",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "Only declared capabilities are included in the bundle."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "target-smoke"
+          ]
+        },
+        "windows": {
+          "support": "supported",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "Only declared capabilities are included in the bundle."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "target-smoke"
+          ]
+        }
       }
     }
   },

@@ -161,6 +161,8 @@ Every function handling external input gets table-driven coverage of:
 
 This is a checklist for *what* the suite must cover, not a template to inline. The `test` skill enforces presence of these cases; this skill ensures the harness (table-driven scaffolding, fake clock, fake env) exists to make writing them cheap.
 
+Assertion-content anti-patterns — tombstone/absence tests after feature removals, change-detector tests, permanent characterization tests — are governed by the `test` skill (§6 "Test the Specification, Not the Diff"). Apply them here too when a refactor tempts you to pin current behavior: scaffolding characterization tests are fine, but delete them when the refactor lands.
+
 ---
 
 ### 7. Helper Organization Contract

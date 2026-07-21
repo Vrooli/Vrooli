@@ -22,7 +22,9 @@
       "kind": "prebuilt_artifact",
       "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
     },
-    "source_build": { "kind": "go_module", "freshness_inputs": ["cli/**", "resource.json"] },
+    "source_build": {
+      "kind": "go_module"
+    },
     "invoke": {
       "kind": "installed_command",
       "command": "{{RESOURCE_CLI_COMMAND}}"
@@ -42,9 +44,60 @@
   "deployment": {
     "profiles": {
       "desktop": {
-        "linux": { "support": "conditional", "mode": "manual", "architectures": ["amd64", "arm64"], "requires": ["manual operator setup"], "limitations": ["Vrooli does not own lifecycle for this resource."], "evidence": ["manifest-validation", "operator-checklist"] },
-        "macos": { "support": "conditional", "mode": "manual", "architectures": ["amd64", "arm64"], "requires": ["manual operator setup"], "limitations": ["Vrooli does not own lifecycle for this resource."], "evidence": ["manifest-validation", "operator-checklist"] },
-        "windows": { "support": "conditional", "mode": "manual", "architectures": ["amd64", "arm64"], "requires": ["manual operator setup"], "limitations": ["Vrooli does not own lifecycle for this resource."], "evidence": ["manifest-validation", "operator-checklist"] }
+        "linux": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "manual operator setup"
+          ],
+          "limitations": [
+            "Vrooli does not own lifecycle for this resource."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "operator-checklist"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "manual operator setup"
+          ],
+          "limitations": [
+            "Vrooli does not own lifecycle for this resource."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "operator-checklist"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "manual operator setup"
+          ],
+          "limitations": [
+            "Vrooli does not own lifecycle for this resource."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "operator-checklist"
+          ]
+        }
       }
     }
   },

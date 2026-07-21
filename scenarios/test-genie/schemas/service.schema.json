@@ -258,15 +258,9 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["go_module", "shell_script"]
+          "enum": ["go_module"]
         },
         "module_dir": {
-          "type": "string"
-        },
-        "script_path": {
-          "type": "string"
-        },
-        "install_script": {
           "type": "string"
         }
       }
