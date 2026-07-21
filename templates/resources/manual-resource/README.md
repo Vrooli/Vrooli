@@ -42,6 +42,6 @@ Generated placeholder packages:
 ## Next Steps
 
 1. Keep any operator-managed state outside the repo through the resource storage/runtime layer.
-2. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.install`, `cli.invoke`, and `cli.freshness`.
+2. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.source_build`, `cli.distribution`, `cli.invoke`, and `cli.freshness`; do not add resource-local installer scripts.
 3. Keep `cli/main.go` focused on bootstrap and delegation; keep any real validation logic under `cli/internal/...`.
 4. Document manual prerequisites and validation probes explicitly.

@@ -18,18 +18,11 @@
         "location": "sibling"
       }
     },
-    "install": [
-      {
-        "os": ["linux", "darwin"],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": ["windows"],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
+    },
+    "source_build": { "kind": "go_module", "freshness_inputs": ["cli/**", "resource.json"] },
     "invoke": {
       "kind": "installed_command",
       "command": "{{RESOURCE_CLI_COMMAND}}"
@@ -46,6 +39,15 @@
   },
   "template": "external-cli",
   "driver": "external-cli",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": { "support": "conditional", "mode": "native-host-tool", "architectures": ["amd64", "arm64"], "requires": ["{{RESOURCE_BINARY}}"], "limitations": ["The upstream executable, licensing, authentication, and version policy are host-managed."], "evidence": ["manifest-validation", "resource-cli-unit-tests", "host-tool-preflight"] },
+        "macos": { "support": "conditional", "mode": "native-host-tool", "architectures": ["amd64", "arm64"], "requires": ["{{RESOURCE_BINARY}}"], "limitations": ["The upstream executable, licensing, authentication, and version policy are host-managed."], "evidence": ["manifest-validation", "resource-cli-unit-tests", "host-tool-preflight"] },
+        "windows": { "support": "conditional", "mode": "native-host-tool", "architectures": ["amd64", "arm64"], "requires": ["{{RESOURCE_BINARY}}"], "limitations": ["The upstream executable, licensing, authentication, and version policy are host-managed."], "evidence": ["manifest-validation", "resource-cli-unit-tests", "host-tool-preflight"] }
+      }
+    }
+  },
   "binary": "{{RESOURCE_BINARY}}",
   "version_args": [
     "--version"

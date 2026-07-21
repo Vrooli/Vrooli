@@ -18,18 +18,11 @@
         "location": "sibling"
       }
     },
-    "install": [
-      {
-        "os": ["linux", "darwin"],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": ["windows"],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
+    },
+    "source_build": { "kind": "go_module", "freshness_inputs": ["cli/**", "resource.json"] },
     "invoke": {
       "kind": "installed_command",
       "command": "{{RESOURCE_CLI_COMMAND}}"
@@ -46,6 +39,15 @@
   },
   "template": "native-cli",
   "driver": "native-cli",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": { "support": "supported", "mode": "bundled-service", "architectures": ["amd64", "arm64"], "limitations": ["Only declared capabilities are included in the bundle."], "evidence": ["manifest-validation", "artifact-checksum", "target-smoke"] },
+        "macos": { "support": "supported", "mode": "bundled-service", "architectures": ["amd64", "arm64"], "limitations": ["Only declared capabilities are included in the bundle."], "evidence": ["manifest-validation", "artifact-checksum", "target-smoke"] },
+        "windows": { "support": "supported", "mode": "bundled-service", "architectures": ["amd64", "arm64"], "limitations": ["Only declared capabilities are included in the bundle."], "evidence": ["manifest-validation", "artifact-checksum", "target-smoke"] }
+      }
+    }
+  },
   "binary": "{{RESOURCE_CLI_COMMAND}}",
   "version_args": [
     "info"

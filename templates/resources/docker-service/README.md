@@ -47,7 +47,7 @@ Generated placeholder packages:
 1. Replace the placeholder container image in `resource.json`.
 2. Define real health checks and port mappings.
 3. Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths; do not replace them with repo-local `data/` paths.
-4. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.install`, `cli.invoke`, and `cli.freshness`.
+4. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.source_build`, `cli.distribution`, `cli.invoke`, and `cli.freshness`; do not add resource-local installer scripts.
 5. Keep `cli/main.go` focused on bootstrap and delegation; put resource-specific logic in `cli/internal/...`.
 6. Start with the standard delegated lifecycle surface. Only add custom CLI commands after the resource has a clear resource-local operator workflow that should not live in `vrooli resource ...`.
 7. Define `environment_exports` for every scenario-facing variable this resource provides.

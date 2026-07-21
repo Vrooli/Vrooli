@@ -216,17 +216,6 @@ fixture_helpers::get_workflow_fixture() {
     local workflow_dir="$(fixture_helpers::get_workflow_fixture_path)"
     
     case "$platform" in
-        "comfyui")
-            local type="${2:-default}"
-            case "$type" in
-                "ollama")
-                    echo "$workflow_dir/comfyui/comfy-ollama-guided.json"
-                    ;;
-                *)
-                    echo "$workflow_dir/comfyui/comfy-text-to-image.json"
-                    ;;
-            esac
-            ;;
         "integration")
             echo "$workflow_dir/integration/multi-ai-pipeline.json"
             ;;

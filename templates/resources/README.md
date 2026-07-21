@@ -52,11 +52,15 @@ Resource scaffolds focus on:
 That difference does not change the CLI contract. Canonical resource templates should still emit the same manifest-driven CLI surface shape as scenario templates:
 
 - `cli/go.mod`
-- `cli/install.sh`
-- `cli/install.ps1`
-- explicit `resource.json` `cli.install`
+- explicit `resource.json` `cli.source_build`
+- explicit `resource.json` `cli.distribution`
 - explicit `resource.json` `cli.invoke`
 - explicit `resource.json` `cli.freshness`
+
+Source-checkout installation is owned by the Go resource control plane and
+the shared `cli-installer`; templates must not generate resource-local Bash or
+PowerShell installer wrappers. Deployed targets consume signed prebuilt CLI
+artifacts instead of compiling source.
 
 Resource CLIs remain thinner than scenario CLIs by design. The default bootstrap is `cliapp.NewResourceApp(...)` with delegated lifecycle commands, not `NewStandardScenarioApp(...)`.
 
@@ -70,3 +74,5 @@ All generated resource scaffolds should:
 - ✅ Include a complete manifest-driven resource CLI scaffold
 - ✅ Include docs plus baseline Go lint/test scaffolding
 - ✅ Stay honest about portability and operational limits
+- ✅ Require no Bash in mature lifecycle, configuration, diagnostics, or test
+  paths; any temporary shell compatibility has an explicit removal criterion

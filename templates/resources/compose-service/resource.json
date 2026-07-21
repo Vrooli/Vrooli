@@ -18,18 +18,11 @@
         "location": "sibling"
       }
     },
-    "install": [
-      {
-        "os": ["linux", "darwin"],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": ["windows"],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
+    },
+    "source_build": { "kind": "go_module", "freshness_inputs": ["cli/**", "resource.json"] },
     "invoke": {
       "kind": "installed_command",
       "command": "{{RESOURCE_CLI_COMMAND}}"
@@ -47,6 +40,15 @@
   },
   "template": "compose-service",
   "driver": "compose-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": { "support": "conditional", "mode": "bundled-controller", "architectures": ["amd64", "arm64"], "requires": ["docker-engine"], "limitations": ["The compose topology, images, storage, and network remain host-managed dependencies."], "evidence": ["manifest-validation", "resource-cli-unit-tests", "docker-preflight"] },
+        "macos": { "support": "conditional", "mode": "bundled-controller", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "resource-cli-unit-tests", "docker-preflight"] },
+        "windows": { "support": "conditional", "mode": "bundled-controller", "architectures": ["amd64", "arm64"], "requires": ["docker-desktop"], "limitations": ["Docker Desktop must be installed and running."], "evidence": ["manifest-validation", "resource-cli-unit-tests", "docker-preflight"] }
+      }
+    }
+  },
   "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
   "category": "{{RESOURCE_CATEGORY}}",
   "dependencies": [],

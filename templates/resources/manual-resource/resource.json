@@ -18,18 +18,11 @@
         "location": "sibling"
       }
     },
-    "install": [
-      {
-        "os": ["linux", "darwin"],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": ["windows"],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
+    },
+    "source_build": { "kind": "go_module", "freshness_inputs": ["cli/**", "resource.json"] },
     "invoke": {
       "kind": "installed_command",
       "command": "{{RESOURCE_CLI_COMMAND}}"
@@ -46,6 +39,15 @@
   },
   "template": "manual-resource",
   "driver": "manual",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": { "support": "conditional", "mode": "manual", "architectures": ["amd64", "arm64"], "requires": ["manual operator setup"], "limitations": ["Vrooli does not own lifecycle for this resource."], "evidence": ["manifest-validation", "operator-checklist"] },
+        "macos": { "support": "conditional", "mode": "manual", "architectures": ["amd64", "arm64"], "requires": ["manual operator setup"], "limitations": ["Vrooli does not own lifecycle for this resource."], "evidence": ["manifest-validation", "operator-checklist"] },
+        "windows": { "support": "conditional", "mode": "manual", "architectures": ["amd64", "arm64"], "requires": ["manual operator setup"], "limitations": ["Vrooli does not own lifecycle for this resource."], "evidence": ["manifest-validation", "operator-checklist"] }
+      }
+    }
+  },
   "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
   "category": "{{RESOURCE_CATEGORY}}",
   "dependency_schema": {

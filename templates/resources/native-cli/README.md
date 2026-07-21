@@ -50,6 +50,6 @@ Generated placeholder packages:
 ## Next Steps
 
 1. Keep mutable runtime state outside the repo and expose it through canonical resource storage paths.
-2. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.install`, `cli.invoke`, and `cli.freshness`.
+2. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.source_build`, `cli.distribution`, `cli.invoke`, and `cli.freshness`; do not add resource-local installer scripts.
 3. Keep `cli/main.go` focused on bootstrap; put command wiring in `cli/internal/app` and resource logic in `cli/internal/domain`.
 4. Replace placeholder domain commands with the real operator surface for the resource.

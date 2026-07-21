@@ -44,6 +44,6 @@ Generated placeholder packages:
 ## Next Steps
 
 1. Keep any cached/config state outside the repo through the resource storage/runtime layer.
-2. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.install`, `cli.invoke`, and `cli.freshness`.
+2. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.source_build`, `cli.distribution`, `cli.invoke`, and `cli.freshness`; do not add resource-local installer scripts.
 3. Keep `cli/main.go` focused on bootstrap and delegation; put provider-specific config/auth/health logic in `cli/internal/...`.
 4. Replace the placeholder endpoint, health probe, and credential expectations.

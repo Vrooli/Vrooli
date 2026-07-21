@@ -18,18 +18,11 @@
         "location": "sibling"
       }
     },
-    "install": [
-      {
-        "os": ["linux", "darwin"],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": ["windows"],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
+    },
+    "source_build": { "kind": "go_module", "freshness_inputs": ["cli/**", "resource.json"] },
     "invoke": {
       "kind": "installed_command",
       "command": "{{RESOURCE_CLI_COMMAND}}"
@@ -46,6 +39,15 @@
   },
   "template": "cloud-api",
   "driver": "cloud-api",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "resource credentials"], "limitations": ["No offline capability; provider availability and account policy apply."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] },
+        "macos": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "resource credentials"], "limitations": ["No offline capability; provider availability and account policy apply."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] },
+        "windows": { "support": "conditional", "mode": "bundled-client", "architectures": ["amd64", "arm64"], "requires": ["network", "resource credentials"], "limitations": ["No offline capability; provider availability and account policy apply."], "evidence": ["manifest-validation", "resource-cli-unit-tests"] }
+      }
+    }
+  },
   "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
   "category": "{{RESOURCE_CATEGORY}}",
   "endpoint": "{{RESOURCE_ENDPOINT}}",
