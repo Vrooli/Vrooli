@@ -20,6 +20,7 @@ import (
 	runtimeenv "github.com/vrooli/vrooli/internal/resources/runtime/env"
 	runtimelogs "github.com/vrooli/vrooli/internal/resources/runtime/logs"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
+	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -31,7 +32,10 @@ type resourceDriver interface {
 	Run(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string, stdout, stderr io.Writer) error
 }
 
-var lookPathCommandFn = exec.LookPath
+var (
+	lookPathCommandFn       = exec.LookPath
+	runSourceBuildCommandFn = func(cmd *exec.Cmd) error { return cmd.Run() }
+)
 
 func driverForManifest(manifest ResourceManifest) (resourceDriver, error) {
 	switch manifest.Driver {
@@ -1338,6 +1342,9 @@ func externalCLIBinary(manifest ResourceManifest) string {
 }
 
 func runInstallCommand(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	if sourceBuild := manifest.CLI.SourceBuild; sourceBuild != nil {
+		return runSourceBuild(ctx, controller, manifest, sourceBuild)
+	}
 	command := manifest.Install.Command
 	if len(command) == 0 {
 		command = manifest.Install.Platforms[manifestpkg.CurrentPlatform()]
@@ -1372,6 +1379,45 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 		}
 	}
 	return waitErr
+}
+
+// runSourceBuild is the Go-native source-checkout installation path. It is
+// intentionally separate from deployed resource distribution: developers with
+// a checkout need Go to build changed source, while desktop bundles consume
+// signed prebuilt artifacts and never reach this code.
+func runSourceBuild(ctx context.Context, controller *Controller, manifest ResourceManifest, sourceBuild *scenario.CLISourceBuildConfig) error {
+	if sourceBuild.Kind != "go_module" {
+		return fmt.Errorf("unsupported resource source build kind %q", sourceBuild.Kind)
+	}
+	resourceRoot := filepath.Join(controller.Root, "resources", manifest.Name)
+	moduleDir := filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
+	manifestPath := filepath.Join(resourceRoot, "resource.json")
+	installer := filepath.Join(controller.Root, "packages", "cli-core", "cmd", "cli-installer")
+	installDir := filepath.Join(controller.Home, ".vrooli", "bin")
+	args := []string{
+		"run", installer,
+		"--module", moduleDir,
+		"--name", manifest.CLI.Command,
+		"--manifest", manifestPath,
+		"--install-dir", installDir,
+		"--context-root", resourceRoot,
+	}
+	for _, input := range sourceBuild.FreshnessInputs {
+		args = append(args, "--freshness-input", input)
+	}
+	stderrTail := newTailBuffer(16 << 10)
+	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd.Dir = controller.Root
+	cmd.Env = resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
+	cmd.Stdout = io.Discard
+	cmd.Stderr = stderrTail
+	if err := runSourceBuildCommandFn(cmd); err != nil {
+		if detail := strings.TrimSpace(stderrTail.String()); detail != "" {
+			return fmt.Errorf("source-build resource CLI: %w\n%s", err, detail)
+		}
+		return fmt.Errorf("source-build resource CLI: %w", err)
+	}
+	return nil
 }
 
 // tailBuffer is an io.Writer that retains only the last max bytes written —

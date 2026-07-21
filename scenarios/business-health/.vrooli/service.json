@@ -39,23 +39,6 @@
       "manifest": {},
       "build_metadata": {}
     },
-    "install": [
-      {
-        "os": [
-          "linux",
-          "darwin"
-        ],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": [
-          "windows"
-        ],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
     "invoke": {
       "kind": "installed_command",
       "command": "business-health"

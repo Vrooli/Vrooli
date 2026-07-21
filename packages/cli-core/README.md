@@ -49,12 +49,14 @@ Notes:
 
 ## Quickstart (install a resource CLI)
 ```bash
-# From repo root (macOS/Linux)
-./packages/cli-core/install.sh resources/postgres/cli --name resource-postgres --manifest resources/postgres/resource.json
-
-# Windows/PowerShell
-powershell -ExecutionPolicy Bypass -File packages/cli-core/install.ps1 -ModulePath resources/postgres/cli -Name resource-postgres -Manifest resources/postgres/resource.json
+# From a source checkout, use the Go-native resource control plane. It reads
+# cli.source_build from resource.json and invokes cli-installer without a
+# resource-local shell wrapper.
+vrooli resource install postgres
 ```
+
+Desktop and release deployments do not use this source-build path; they consume
+the signed prebuilt artifact declared by `cli.distribution`.
 
 ## Package Governance
 

@@ -253,23 +253,6 @@
       "kind": "go_module",
       "module_dir": "cli"
     },
-    "install": [
-      {
-        "os": [
-          "linux",
-          "darwin"
-        ],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": [
-          "windows"
-        ],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
     "invoke": {
       "kind": "installed_command",
       "command": "algorithm-library"

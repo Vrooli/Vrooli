@@ -186,6 +186,22 @@ message AgentSessionProposal {
   optional AgentSessionAttribution attribution = 8;
 }
 
+// AgentSessionProposalTarget identifies the backlog item or initiative whose
+// proposal review surface owns a session's proposals.
+message AgentSessionProposalTarget {
+  // Entity kind receiving the proposed changes.
+  string type = 1 [(buf.validate.field).string = {
+    in: ["backlog_item", "initiative"]
+  }];
+
+  // Stable entity reference. Backlog items use "kind/name"; initiatives use
+  // their initiative name.
+  string ref = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable target title.
+  string name = 3 [(buf.validate.field).string.min_len = 1];
+}
+
 // AgentSessionArtifact links a session to a proposed or applied artifact.
 message AgentSessionArtifact {
   // Unique artifact link identifier.
@@ -319,4 +335,7 @@ message AgentSession {
 
   // Uploaded or generated attachments owned by this session.
   repeated AgentSessionAttachment attachments = 16;
+
+  // Entity whose proposal review surface owns this session's proposals.
+  optional AgentSessionProposalTarget proposal_target = 17;
 }

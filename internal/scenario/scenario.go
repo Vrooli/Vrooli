@@ -116,9 +116,25 @@ type CLIConfig struct {
 	Command   string             `json:"command,omitempty"`
 	Adapter   CLIAdapterConfig   `json:"adapter,omitempty"`
 	Artifacts CLIArtifactsConfig `json:"artifacts,omitempty"`
-	Install   []CLIInstallStep   `json:"install,omitempty"`
-	Invoke    CLIInvokeConfig    `json:"invoke,omitempty"`
-	Freshness *CLIFreshnessCheck `json:"freshness,omitempty"`
+	// Distribution is the release artifact consumed by deployment packaging.
+	// Install remains a source/developer workflow, not a target requirement.
+	Distribution *CLIDistributionConfig `json:"distribution,omitempty"`
+	// SourceBuild declares how a source checkout builds this CLI for developer
+	// workflows. Deployment must use Distribution artifacts instead; it never
+	// builds source on the target device.
+	SourceBuild *CLISourceBuildConfig `json:"source_build,omitempty"`
+	Invoke      CLIInvokeConfig       `json:"invoke,omitempty"`
+	Freshness   *CLIFreshnessCheck    `json:"freshness,omitempty"`
+}
+
+type CLIDistributionConfig struct {
+	Kind         string `json:"kind,omitempty"`
+	ArtifactName string `json:"artifact_name,omitempty"`
+}
+
+type CLISourceBuildConfig struct {
+	Kind            string   `json:"kind,omitempty"`
+	FreshnessInputs []string `json:"freshness_inputs,omitempty"`
 }
 
 type CLIArtifactsConfig struct {
@@ -135,13 +151,6 @@ type CLIAdapterConfig struct {
 	ModuleDir     string `json:"module_dir,omitempty"`
 	ScriptPath    string `json:"script_path,omitempty"`
 	InstallScript string `json:"install_script,omitempty"`
-}
-
-type CLIInstallStep struct {
-	OS         []string `json:"os,omitempty"`
-	Kind       string   `json:"kind,omitempty"`
-	Run        string   `json:"run,omitempty"`
-	InstallDir string   `json:"install_dir,omitempty"`
 }
 
 type CLIInvokeConfig struct {
@@ -467,6 +476,13 @@ func (cfg *CLIConfig) applyDefaults() {
 	cfg.Adapter.InstallScript = strings.TrimSpace(cfg.Adapter.InstallScript)
 	cfg.Artifacts.Manifest.Location = strings.TrimSpace(cfg.Artifacts.Manifest.Location)
 	cfg.Artifacts.BuildMetadata.Location = strings.TrimSpace(cfg.Artifacts.BuildMetadata.Location)
+	if cfg.Distribution != nil {
+		cfg.Distribution.Kind = strings.TrimSpace(cfg.Distribution.Kind)
+		cfg.Distribution.ArtifactName = strings.TrimSpace(cfg.Distribution.ArtifactName)
+	}
+	if cfg.SourceBuild != nil {
+		cfg.SourceBuild.Kind = strings.TrimSpace(cfg.SourceBuild.Kind)
+	}
 	cfg.Invoke.Kind = strings.TrimSpace(cfg.Invoke.Kind)
 	cfg.Invoke.Command = strings.TrimSpace(cfg.Invoke.Command)
 	if cfg.Enabled && cfg.Artifacts.Manifest.Location == "" {
@@ -524,17 +540,31 @@ func (cfg CLIConfig) Validate() error {
 	default:
 		return fmt.Errorf("unsupported cli.artifacts.build_metadata.location %q", cfg.Artifacts.BuildMetadata.Location)
 	}
-	for i, step := range cfg.Install {
-		step.Kind = strings.TrimSpace(step.Kind)
-		step.Run = strings.TrimSpace(step.Run)
-		if step.Kind == "" {
-			return fmt.Errorf("install[%d].kind is required", i)
+	if cfg.Distribution != nil {
+		if cfg.Distribution.Kind != "prebuilt_artifact" {
+			return fmt.Errorf("unsupported cli.distribution.kind %q", cfg.Distribution.Kind)
 		}
-		if step.Kind != "command" {
-			return fmt.Errorf("unsupported cli.install[%d].kind %q", i, step.Kind)
+		if cfg.Distribution.ArtifactName == "" {
+			return errors.New("distribution.artifact_name is required for prebuilt_artifact")
 		}
-		if step.Run == "" {
-			return fmt.Errorf("install[%d].run is required", i)
+		if !strings.Contains(cfg.Distribution.ArtifactName, "${os}") || !strings.Contains(cfg.Distribution.ArtifactName, "${arch}") {
+			return errors.New("distribution.artifact_name must contain ${os} and ${arch}")
+		}
+	}
+	if cfg.SourceBuild != nil {
+		if cfg.SourceBuild.Kind != "go_module" {
+			return fmt.Errorf("unsupported cli.source_build.kind %q", cfg.SourceBuild.Kind)
+		}
+		if cfg.Adapter.Kind != "go_module" {
+			return errors.New("cli.source_build.kind=go_module requires cli.adapter.kind=go_module")
+		}
+		if len(cfg.SourceBuild.FreshnessInputs) == 0 {
+			return errors.New("cli.source_build.freshness_inputs is required")
+		}
+		for i, input := range cfg.SourceBuild.FreshnessInputs {
+			if strings.TrimSpace(input) == "" {
+				return fmt.Errorf("cli.source_build.freshness_inputs[%d] is required", i)
+			}
 		}
 	}
 	return nil

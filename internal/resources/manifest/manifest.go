@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenario"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 const SchemaPath = ".vrooli/schemas/resource.schema.json"
@@ -64,6 +65,7 @@ type ResourceManifest struct {
 	HostTools             []hostreqspec.Declaration    `json:"hostTools,omitempty"`
 	HostSafeguards        []hostreqspec.Declaration    `json:"hostSafeguards,omitempty"`
 	GPU                   *ResourceGPU                 `json:"gpu,omitempty"`
+	Deployment            ResourceDeployment           `json:"deployment,omitempty"`
 	// Companions are long-lived HOST-side processes the compose-service driver
 	// starts after the container(s) come up and stops when the resource stops.
 	// They exist for resources whose container alone cannot do everything on the
@@ -78,6 +80,12 @@ type ResourceManifest struct {
 	// hardware-aware model selection for whisper.
 	RuntimeEnvCommand *ResourceRuntimeEnvCommand `json:"runtime_env_command,omitempty"`
 }
+
+// ResourceDeployment is the resource-owned, target-specific delivery claim.
+// Scenarios may select a declared fallback, but cannot invent a portable route.
+type ResourceDeployment = resourcedeployment.Deployment
+type ResourceDeploymentProfile = resourcedeployment.Profile
+type ResourceDeploymentTarget = resourcedeployment.Target
 
 // ResourceRuntimeEnvCommand declares a CLI invocation the compose
 // driver runs to harvest dynamic env variables. Stdout is parsed as
@@ -362,6 +370,9 @@ func Validate(manifest ResourceManifest) error {
 	if err := validateDurableData(manifest.Driver, manifest.DurableData); err != nil {
 		return err
 	}
+	if err := validateDeployment(manifest); err != nil {
+		return err
+	}
 	switch manifest.Driver {
 	case "docker-service":
 		if strings.TrimSpace(manifest.Runtime.Image) == "" {
@@ -381,6 +392,81 @@ func Validate(manifest ResourceManifest) error {
 		}
 	}
 	return nil
+}
+
+var (
+	AllowedDeploymentSupports = []string{"supported", "conditional", "degraded", "unsupported"}
+	AllowedDeploymentModes    = []string{"bundled-service", "bundled-controller", "bundled-client", "native-host-tool", "docker-desktop", "remote-service", "manual"}
+	AllowedDeploymentArchs    = []string{"amd64", "arm64"}
+)
+
+func validateDeployment(manifest ResourceManifest) error {
+	for profileName, profile := range manifest.Deployment.Profiles {
+		if strings.TrimSpace(profileName) == "" {
+			return fmt.Errorf("deployment profile name must not be empty")
+		}
+		for platform, target := range map[string]*ResourceDeploymentTarget{"linux": profile.Linux, "macos": profile.MacOS, "windows": profile.Windows} {
+			if target == nil {
+				return fmt.Errorf("deployment.profiles.%s.%s is required", profileName, platform)
+			}
+			if !slices.Contains(AllowedDeploymentSupports, target.Support) {
+				return fmt.Errorf("deployment.profiles.%s.%s.support %q is invalid", profileName, platform, target.Support)
+			}
+			if !slices.Contains(AllowedDeploymentModes, target.Mode) {
+				return fmt.Errorf("deployment.profiles.%s.%s.mode %q is invalid", profileName, platform, target.Mode)
+			}
+			if !deploymentModeAllowedForDriver(manifest.Driver, target.Mode) {
+				return fmt.Errorf("deployment.profiles.%s.%s.mode %q is not permitted for %s", profileName, platform, target.Mode, manifest.Driver)
+			}
+			if target.Support == "unsupported" {
+				if strings.TrimSpace(target.Reason) == "" {
+					return fmt.Errorf("deployment.profiles.%s.%s.reason is required for unsupported targets", profileName, platform)
+				}
+				continue
+			}
+			if len(target.Architectures) == 0 {
+				return fmt.Errorf("deployment.profiles.%s.%s.architectures is required", profileName, platform)
+			}
+			for _, arch := range target.Architectures {
+				if !slices.Contains(AllowedDeploymentArchs, arch) {
+					return fmt.Errorf("deployment.profiles.%s.%s.architectures contains invalid arch %q", profileName, platform, arch)
+				}
+			}
+			if len(target.Evidence) == 0 {
+				return fmt.Errorf("deployment.profiles.%s.%s.evidence is required for %s targets", profileName, platform, target.Support)
+			}
+			if len(target.Limitations) == 0 {
+				return fmt.Errorf("deployment.profiles.%s.%s.limitations is required for %s targets", profileName, platform, target.Support)
+			}
+			if target.Support == "supported" {
+				for _, requiredEvidence := range []string{"manifest-validation", "artifact-checksum", "target-smoke"} {
+					if !slices.Contains(target.Evidence, requiredEvidence) {
+						return fmt.Errorf("deployment.profiles.%s.%s.supported requires %q evidence", profileName, platform, requiredEvidence)
+					}
+				}
+			}
+			if strings.HasPrefix(target.Mode, "bundled-") && (manifest.CLI == nil || manifest.CLI.Adapter.Kind != "go_module" || manifest.CLI.Distribution == nil || manifest.CLI.Distribution.Kind != "prebuilt_artifact") {
+				return fmt.Errorf("deployment.profiles.%s.%s bundled mode requires cli.adapter.kind=go_module and cli.distribution.kind=prebuilt_artifact", profileName, platform)
+			}
+		}
+	}
+	return nil
+}
+
+// deploymentModeAllowedForDriver encodes the archetype baseline as a feasible
+// envelope, not a promise. A resource still has to supply target evidence and
+// artifact/host requirements before its individual profile is accepted.
+func deploymentModeAllowedForDriver(driver, mode string) bool {
+	allowed := map[string][]string{
+		"cloud-api":       {"bundled-client", "remote-service"},
+		"native-cli":      {"bundled-service", "bundled-client", "manual"},
+		"docker-service":  {"bundled-controller", "docker-desktop", "manual"},
+		"compose-service": {"bundled-controller", "docker-desktop", "manual"},
+		"external-cli":    {"native-host-tool", "bundled-client", "manual"},
+		"desktop-app":     {"native-host-tool", "manual"},
+		"manual":          {"manual"},
+	}
+	return slices.Contains(allowed[driver], mode)
 }
 
 // validateDurableData enforces the durable_data block: only host-filesystem

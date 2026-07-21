@@ -66,10 +66,6 @@ func writeGoScenarioCLIManifest(t *testing.T, root, name string) {
 				Kind:      "go_module",
 				ModuleDir: "cli",
 			},
-			Install: []scenario.CLIInstallStep{{
-				Kind: "command",
-				Run:  "cd cli && ./install.sh",
-			}},
 		}),
 	))
 }
@@ -86,10 +82,6 @@ func writeShellScenarioCLIManifest(t *testing.T, root, name string) {
 				ScriptPath:    filepath.ToSlash(filepath.Join("cli", name)),
 				InstallScript: "cli/install.sh",
 			},
-			Install: []scenario.CLIInstallStep{{
-				Kind: "command",
-				Run:  "cd cli && ./install.sh",
-			}},
 		}),
 	))
 }
@@ -121,10 +113,6 @@ func writeShellResourceCLIManifest(t *testing.T, root, name string) {
 			ScriptPath:    filepath.ToSlash(filepath.Join("cli", "resource-"+name)),
 			InstallScript: "cli/install.sh",
 		},
-		Install: []scenario.CLIInstallStep{{
-			Kind: "command",
-			Run:  "cd cli && ./install.sh",
-		}},
 	}
 	testresource.WriteResourceManifest(t, root, name, manifest)
 }

@@ -184,16 +184,6 @@
       "kind": "go_module",
       "module_dir": "cli"
     },
-    "install": [
-      {
-        "os": [
-          "linux",
-          "darwin"
-        ],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      }
-    ],
     "invoke": {
       "kind": "installed_command",
       "command": "local-info-scout"

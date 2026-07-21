@@ -188,14 +188,18 @@ class ApplyAdoptionRequest(_message.Message):
     def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., version: _Optional[str] = ..., confirm_overwrite: _Optional[bool] = ..., override_validation: _Optional[bool] = ..., replace_existing: _Optional[bool] = ...) -> None: ...
 
 class ApplyAdoptionResponse(_message.Message):
-    __slots__ = ("adoption", "written_path", "import_sites")
+    __slots__ = ("adoption", "written_path", "import_sites", "style_fit_affinity", "style_fit_detail")
     ADOPTION_FIELD_NUMBER: _ClassVar[int]
     WRITTEN_PATH_FIELD_NUMBER: _ClassVar[int]
     IMPORT_SITES_FIELD_NUMBER: _ClassVar[int]
+    STYLE_FIT_AFFINITY_FIELD_NUMBER: _ClassVar[int]
+    STYLE_FIT_DETAIL_FIELD_NUMBER: _ClassVar[int]
     adoption: Adoption
     written_path: str
     import_sites: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, adoption: _Optional[_Union[Adoption, _Mapping]] = ..., written_path: _Optional[str] = ..., import_sites: _Optional[_Iterable[str]] = ...) -> None: ...
+    style_fit_affinity: str
+    style_fit_detail: str
+    def __init__(self, adoption: _Optional[_Union[Adoption, _Mapping]] = ..., written_path: _Optional[str] = ..., import_sites: _Optional[_Iterable[str]] = ..., style_fit_affinity: _Optional[str] = ..., style_fit_detail: _Optional[str] = ...) -> None: ...
 
 class ReapplyAdoptionRequest(_message.Message):
     __slots__ = ("id", "version", "confirm_local_overwrite", "override_validation")

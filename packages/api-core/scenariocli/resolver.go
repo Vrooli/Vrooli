@@ -23,7 +23,6 @@ type cliConfig struct {
 	Enabled   bool               `json:"enabled"`
 	Command   string             `json:"command,omitempty"`
 	Adapter   cliAdapterConfig   `json:"adapter,omitempty"`
-	Install   []cliInstallStep   `json:"install,omitempty"`
 	Freshness *cliFreshnessCheck `json:"freshness,omitempty"`
 }
 
@@ -32,11 +31,6 @@ type cliAdapterConfig struct {
 	ModuleDir     string `json:"module_dir,omitempty"`
 	ScriptPath    string `json:"script_path,omitempty"`
 	InstallScript string `json:"install_script,omitempty"`
-}
-
-type cliInstallStep struct {
-	Kind string `json:"kind,omitempty"`
-	Run  string `json:"run,omitempty"`
 }
 
 type cliFreshnessCheck struct {
@@ -189,19 +183,6 @@ func (cfg *cliConfig) validate() error {
 		}
 	default:
 		return fmt.Errorf("unsupported cli.adapter.kind %q", cfg.Adapter.Kind)
-	}
-	for i := range cfg.Install {
-		cfg.Install[i].Kind = strings.TrimSpace(cfg.Install[i].Kind)
-		cfg.Install[i].Run = strings.TrimSpace(cfg.Install[i].Run)
-		if cfg.Install[i].Kind == "" {
-			return fmt.Errorf("install[%d].kind is required", i)
-		}
-		if cfg.Install[i].Kind != "command" {
-			return fmt.Errorf("unsupported cli.install[%d].kind %q", i, cfg.Install[i].Kind)
-		}
-		if cfg.Install[i].Run == "" {
-			return fmt.Errorf("install[%d].run is required", i)
-		}
 	}
 	return nil
 }

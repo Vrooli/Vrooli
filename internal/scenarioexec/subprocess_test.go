@@ -67,7 +67,6 @@ func writeShellScenarioCLI(t *testing.T, root, name string) {
 				ScriptPath:    filepath.ToSlash(filepath.Join("cli", name)),
 				InstallScript: "cli/install.sh",
 			},
-			Install: []scenario.CLIInstallStep{{Kind: "command", Run: "bash ./cli/install.sh"}},
 			Freshness: &scenario.CLIFreshnessCheck{
 				Inputs: []string{filepath.ToSlash(filepath.Join("cli", name)), "cli/install.sh"},
 			},

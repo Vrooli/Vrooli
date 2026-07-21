@@ -190,6 +190,10 @@ message ApplyAdoptionResponse {
   // Scenario-relative files that import the written target. This lets an
   // operator see the immediate replacement blast radius in the apply result.
   repeated string import_sites = 3;
+  // The style-fit decision evaluated for this apply. A discouraged verdict
+  // requires override_validation=true before this response can be produced.
+  string style_fit_affinity = 4;
+  string style_fit_detail = 5;
 }
 
 message ReapplyAdoptionRequest {

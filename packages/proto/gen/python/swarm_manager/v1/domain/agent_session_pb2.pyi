@@ -93,6 +93,16 @@ class AgentSessionProposal(_message.Message):
     attribution: AgentSessionAttribution
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., payload_json: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., attribution: _Optional[_Union[AgentSessionAttribution, _Mapping]] = ...) -> None: ...
 
+class AgentSessionProposalTarget(_message.Message):
+    __slots__ = ("type", "ref", "name")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    type: str
+    ref: str
+    name: str
+    def __init__(self, type: _Optional[str] = ..., ref: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
+
 class AgentSessionArtifact(_message.Message):
     __slots__ = ("id", "session_id", "artifact_type", "action", "entity_ref", "title", "proposal_id", "activity_id", "run_id", "mutation_source", "attribution", "created_at")
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -122,7 +132,7 @@ class AgentSessionArtifact(_message.Message):
     def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., artifact_type: _Optional[str] = ..., action: _Optional[str] = ..., entity_ref: _Optional[str] = ..., title: _Optional[str] = ..., proposal_id: _Optional[str] = ..., activity_id: _Optional[str] = ..., run_id: _Optional[str] = ..., mutation_source: _Optional[str] = ..., attribution: _Optional[_Union[AgentSessionAttribution, _Mapping]] = ..., created_at: _Optional[str] = ...) -> None: ...
 
 class AgentSession(_message.Message):
-    __slots__ = ("id", "title", "kind", "status", "skill_id", "task_id", "run_id", "profile_key", "failure_reason", "created_at", "updated_at", "messages", "proposals", "artifacts", "created_by", "attachments")
+    __slots__ = ("id", "title", "kind", "status", "skill_id", "task_id", "run_id", "profile_key", "failure_reason", "created_at", "updated_at", "messages", "proposals", "artifacts", "created_by", "attachments", "proposal_target")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -139,6 +149,7 @@ class AgentSession(_message.Message):
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
+    PROPOSAL_TARGET_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     kind: str
@@ -155,4 +166,5 @@ class AgentSession(_message.Message):
     artifacts: _containers.RepeatedCompositeFieldContainer[AgentSessionArtifact]
     created_by: AgentSessionAttribution
     attachments: _containers.RepeatedCompositeFieldContainer[AgentSessionAttachment]
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., kind: _Optional[str] = ..., status: _Optional[str] = ..., skill_id: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., failure_reason: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[AgentSessionMessage, _Mapping]]] = ..., proposals: _Optional[_Iterable[_Union[AgentSessionProposal, _Mapping]]] = ..., artifacts: _Optional[_Iterable[_Union[AgentSessionArtifact, _Mapping]]] = ..., created_by: _Optional[_Union[AgentSessionAttribution, _Mapping]] = ..., attachments: _Optional[_Iterable[_Union[AgentSessionAttachment, _Mapping]]] = ...) -> None: ...
+    proposal_target: AgentSessionProposalTarget
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., kind: _Optional[str] = ..., status: _Optional[str] = ..., skill_id: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., failure_reason: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[AgentSessionMessage, _Mapping]]] = ..., proposals: _Optional[_Iterable[_Union[AgentSessionProposal, _Mapping]]] = ..., artifacts: _Optional[_Iterable[_Union[AgentSessionArtifact, _Mapping]]] = ..., created_by: _Optional[_Union[AgentSessionAttribution, _Mapping]] = ..., attachments: _Optional[_Iterable[_Union[AgentSessionAttachment, _Mapping]]] = ..., proposal_target: _Optional[_Union[AgentSessionProposalTarget, _Mapping]] = ...) -> None: ...

@@ -238,10 +238,6 @@ func TestReadServiceAcceptsGoModuleCLIContract(t *testing.T) {
 				Kind:      "go_module",
 				ModuleDir: "cli",
 			},
-			Install: []CLIInstallStep{{
-				Kind: "command",
-				Run:  "cd cli && ./install.sh",
-			}},
 		},
 	})
 

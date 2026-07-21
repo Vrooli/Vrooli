@@ -60,8 +60,17 @@ func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {
 			if manifest.CLI.Artifacts.BuildMetadata.Location != "sibling" {
 				t.Fatalf("cli.artifacts.build_metadata.location = %q, want sibling", manifest.CLI.Artifacts.BuildMetadata.Location)
 			}
-			if len(manifest.CLI.Install) == 0 {
-				t.Fatal("expected explicit cli.install steps")
+			if manifest.CLI.Distribution == nil || manifest.CLI.Distribution.Kind != "prebuilt_artifact" {
+				t.Fatal("expected explicit cli.distribution.kind=prebuilt_artifact")
+			}
+			if !strings.Contains(manifest.CLI.Distribution.ArtifactName, "${os}") || !strings.Contains(manifest.CLI.Distribution.ArtifactName, "${arch}") {
+				t.Fatalf("cli.distribution.artifact_name = %q, want OS and arch placeholders", manifest.CLI.Distribution.ArtifactName)
+			}
+			if manifest.CLI.SourceBuild == nil || manifest.CLI.SourceBuild.Kind != "go_module" {
+				t.Fatal("expected explicit cli.source_build.kind=go_module")
+			}
+			if len(manifest.CLI.SourceBuild.FreshnessInputs) == 0 {
+				t.Fatal("expected cli.source_build.freshness_inputs")
 			}
 			if manifest.CLI.Invoke.Kind != "installed_command" {
 				t.Fatalf("cli.invoke.kind = %q, want installed_command", manifest.CLI.Invoke.Kind)
@@ -86,6 +95,11 @@ func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {
 			if _, err := os.Stat(filepath.Join(root, "resources", name, "cli.sh")); !os.IsNotExist(err) {
 				t.Fatalf("expected root-level cli.sh removal for %s, stat err=%v", name, err)
 			}
+			for _, legacy := range []string{"cli/install.sh", "cli/install.ps1"} {
+				if _, err := os.Stat(filepath.Join(root, "resources", name, filepath.FromSlash(legacy))); !os.IsNotExist(err) {
+					t.Fatalf("expected source-installer wrapper removal for %s: %s", name, legacy)
+				}
+			}
 			installPath := filepath.Join(root, "resources", name, "lib", "install.sh")
 			data, err := os.ReadFile(installPath)
 			if err == nil {
@@ -101,6 +115,57 @@ func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {
 				}
 			} else if !os.IsNotExist(err) {
 				t.Fatalf("read %s: %v", installPath, err)
+			}
+		})
+	}
+}
+
+func TestAllResourcesDeclareDesktopDeploymentContract(t *testing.T) {
+	root := testkitgo.ProjectRoot(t)
+	entries, err := os.ReadDir(filepath.Join(root, "resources"))
+	if err != nil {
+		t.Fatalf("read resources: %v", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		t.Run(name, func(t *testing.T) {
+			manifest, err := manifestpkg.Load(filepath.Join(root, "resources", name, "resource.json"))
+			if err != nil {
+				t.Fatalf("load manifest: %v", err)
+			}
+			profile, ok := manifest.Deployment.Profiles["desktop"]
+			if !ok {
+				t.Fatal("missing deployment.profiles.desktop")
+			}
+			if manifest.CLI == nil || manifest.CLI.Distribution == nil || manifest.CLI.Distribution.Kind != "prebuilt_artifact" {
+				t.Fatal("every resource must declare a prebuilt CLI distribution")
+			}
+			if manifest.CLI.SourceBuild == nil || manifest.CLI.SourceBuild.Kind != "go_module" || len(manifest.CLI.SourceBuild.FreshnessInputs) == 0 {
+				t.Fatal("every resource must declare a Go-native cli.source_build contract")
+			}
+			for _, legacy := range []string{"cli/install.sh", "cli/install.ps1"} {
+				if _, err := os.Stat(filepath.Join(root, "resources", name, filepath.FromSlash(legacy))); !os.IsNotExist(err) {
+					t.Fatalf("expected source-installer wrapper removal for %s: %s", name, legacy)
+				}
+			}
+			for platform, target := range map[string]*manifestpkg.ResourceDeploymentTarget{
+				"linux": profile.Linux, "macos": profile.MacOS, "windows": profile.Windows,
+			} {
+				if target == nil {
+					t.Fatalf("missing desktop %s target", platform)
+				}
+				if target.Support == "unsupported" {
+					if target.Reason == "" {
+						t.Fatal("unsupported target must explain why")
+					}
+					continue
+				}
+				if len(target.Architectures) == 0 || len(target.Evidence) == 0 {
+					t.Fatalf("desktop %s must declare architectures and evidence", platform)
+				}
 			}
 		})
 	}

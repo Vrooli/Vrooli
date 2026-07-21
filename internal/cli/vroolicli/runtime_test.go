@@ -126,7 +126,6 @@ func TestLocateTestGenieCLIUsesManifestDrivenInstalledPath(t *testing.T) {
 				Kind:      "go_module",
 				ModuleDir: "cli",
 			},
-			Install: []scenario.CLIInstallStep{{Kind: "command", Run: "cd cli && ./install.sh"}},
 		}),
 	))
 	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "test-genie", "cli", "go.mod"), "module test-genie/cli\n")
@@ -270,7 +269,6 @@ func TestEnsureScenarioCLIWarnsWhenPreviousPathWasNonCanonical(t *testing.T) {
 				Kind:      "go_module",
 				ModuleDir: "cli",
 			},
-			Install: []scenario.CLIInstallStep{{Kind: "command", Run: "cd cli && ./install.sh"}},
 		}),
 	))
 	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "alpha", "cli", "go.mod"), "module alpha/cli\n")

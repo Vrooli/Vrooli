@@ -77,6 +77,24 @@ func TestValidateAcceptsNativeCLIManifest(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsDeploymentModeOutsideArchetypeBaseline(t *testing.T) {
+	err := Validate(ResourceManifest{
+		Name:   "fixture",
+		CLI:    &scenario.CLIConfig{Enabled: true, Command: "resource-fixture", Adapter: scenario.CLIAdapterConfig{Kind: "go_module", ModuleDir: "cli"}},
+		Driver: "external-cli", Binary: "fixture", PortabilityTier: "full",
+		Deployment: ResourceDeployment{Profiles: map[string]ResourceDeploymentProfile{
+			"desktop": {
+				Linux:   &ResourceDeploymentTarget{Support: "conditional", Mode: "bundled-service", Architectures: []string{"amd64"}, Evidence: []string{"test"}},
+				MacOS:   &ResourceDeploymentTarget{Support: "unsupported", Mode: "native-host-tool", Reason: "test"},
+				Windows: &ResourceDeploymentTarget{Support: "unsupported", Mode: "native-host-tool", Reason: "test"},
+			},
+		}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "not permitted") {
+		t.Fatalf("Validate() error = %v, want archetype baseline rejection", err)
+	}
+}
+
 func TestValidateAppliesDefaultCLIArtifacts(t *testing.T) {
 	manifest := ResourceManifest{
 		Name: "redis",

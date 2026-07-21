@@ -522,6 +522,72 @@ func (x *AgentSessionProposal) GetAttribution() *AgentSessionAttribution {
 	return nil
 }
 
+// AgentSessionProposalTarget identifies the backlog item or initiative whose
+// proposal review surface owns a session's proposals.
+type AgentSessionProposalTarget struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Entity kind receiving the proposed changes.
+	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	// Stable entity reference. Backlog items use "kind/name"; initiatives use
+	// their initiative name.
+	Ref string `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
+	// Human-readable target title.
+	Name          string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentSessionProposalTarget) Reset() {
+	*x = AgentSessionProposalTarget{}
+	mi := &file_swarm_manager_v1_domain_agent_session_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSessionProposalTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSessionProposalTarget) ProtoMessage() {}
+
+func (x *AgentSessionProposalTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_agent_session_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSessionProposalTarget.ProtoReflect.Descriptor instead.
+func (*AgentSessionProposalTarget) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_agent_session_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *AgentSessionProposalTarget) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *AgentSessionProposalTarget) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *AgentSessionProposalTarget) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 // AgentSessionArtifact links a session to a proposed or applied artifact.
 type AgentSessionArtifact struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -558,7 +624,7 @@ type AgentSessionArtifact struct {
 
 func (x *AgentSessionArtifact) Reset() {
 	*x = AgentSessionArtifact{}
-	mi := &file_swarm_manager_v1_domain_agent_session_proto_msgTypes[5]
+	mi := &file_swarm_manager_v1_domain_agent_session_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -570,7 +636,7 @@ func (x *AgentSessionArtifact) String() string {
 func (*AgentSessionArtifact) ProtoMessage() {}
 
 func (x *AgentSessionArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_agent_session_proto_msgTypes[5]
+	mi := &file_swarm_manager_v1_domain_agent_session_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -583,7 +649,7 @@ func (x *AgentSessionArtifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentSessionArtifact.ProtoReflect.Descriptor instead.
 func (*AgentSessionArtifact) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_agent_session_proto_rawDescGZIP(), []int{5}
+	return file_swarm_manager_v1_domain_agent_session_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AgentSessionArtifact) GetId() string {
@@ -709,14 +775,16 @@ type AgentSession struct {
 	// Initial creator attribution.
 	CreatedBy *AgentSessionAttribution `protobuf:"bytes,15,opt,name=created_by,json=createdBy,proto3,oneof" json:"created_by,omitempty"`
 	// Uploaded or generated attachments owned by this session.
-	Attachments   []*AgentSessionAttachment `protobuf:"bytes,16,rep,name=attachments,proto3" json:"attachments,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Attachments []*AgentSessionAttachment `protobuf:"bytes,16,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	// Entity whose proposal review surface owns this session's proposals.
+	ProposalTarget *AgentSessionProposalTarget `protobuf:"bytes,17,opt,name=proposal_target,json=proposalTarget,proto3,oneof" json:"proposal_target,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AgentSession) Reset() {
 	*x = AgentSession{}
-	mi := &file_swarm_manager_v1_domain_agent_session_proto_msgTypes[6]
+	mi := &file_swarm_manager_v1_domain_agent_session_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -728,7 +796,7 @@ func (x *AgentSession) String() string {
 func (*AgentSession) ProtoMessage() {}
 
 func (x *AgentSession) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_agent_session_proto_msgTypes[6]
+	mi := &file_swarm_manager_v1_domain_agent_session_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -741,7 +809,7 @@ func (x *AgentSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentSession.ProtoReflect.Descriptor instead.
 func (*AgentSession) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_agent_session_proto_rawDescGZIP(), []int{6}
+	return file_swarm_manager_v1_domain_agent_session_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AgentSession) GetId() string {
@@ -856,6 +924,13 @@ func (x *AgentSession) GetAttachments() []*AgentSessionAttachment {
 	return nil
 }
 
+func (x *AgentSession) GetProposalTarget() *AgentSessionProposalTarget {
+	if x != nil {
+		return x.ProposalTarget
+	}
+	return nil
+}
+
 var File_swarm_manager_v1_domain_agent_session_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
@@ -920,7 +995,12 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\a \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12P\n" +
 	"\vattribution\x18\b \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x00R\vattribution\x88\x01\x01B\x0e\n" +
-	"\f_attribution\"\xe9\x05\n" +
+	"\f_attribution\"\x89\x01\n" +
+	"\x1aAgentSessionProposalTarget\x123\n" +
+	"\x04type\x18\x01 \x01(\tB\x1f\xbaH\x1cr\x1aR\fbacklog_itemR\n" +
+	"initiativeR\x04type\x12\x19\n" +
+	"\x03ref\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03ref\x12\x1b\n" +
+	"\x04name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xe9\x05\n" +
 	"\x14AgentSessionArtifact\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12&\n" +
 	"\n" +
@@ -946,7 +1026,7 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\f_activity_idB\t\n" +
 	"\a_run_idB\x12\n" +
 	"\x10_mutation_sourceB\x0e\n" +
-	"\f_attribution\"\xe9\a\n" +
+	"\f_attribution\"\xd9\b\n" +
 	"\fAgentSession\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12m\n" +
@@ -968,13 +1048,15 @@ const file_swarm_manager_v1_domain_agent_session_proto_rawDesc = "" +
 	"\tartifacts\x18\x0e \x03(\v2&.swarm_manager.v1.AgentSessionArtifactR\tartifacts\x12M\n" +
 	"\n" +
 	"created_by\x18\x0f \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x04R\tcreatedBy\x88\x01\x01\x12J\n" +
-	"\vattachments\x18\x10 \x03(\v2(.swarm_manager.v1.AgentSessionAttachmentR\vattachmentsB\n" +
+	"\vattachments\x18\x10 \x03(\v2(.swarm_manager.v1.AgentSessionAttachmentR\vattachments\x12Z\n" +
+	"\x0fproposal_target\x18\x11 \x01(\v2,.swarm_manager.v1.AgentSessionProposalTargetH\x05R\x0eproposalTarget\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\x0e\n" +
 	"\f_profile_keyB\x11\n" +
 	"\x0f_failure_reasonB\r\n" +
-	"\v_created_byBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\v_created_byB\x12\n" +
+	"\x10_proposal_targetBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_agent_session_proto_rawDescOnce sync.Once
@@ -988,15 +1070,16 @@ func file_swarm_manager_v1_domain_agent_session_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_agent_session_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_agent_session_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_swarm_manager_v1_domain_agent_session_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_swarm_manager_v1_domain_agent_session_proto_goTypes = []any{
-	(*AgentSessionAttribution)(nil), // 0: swarm_manager.v1.AgentSessionAttribution
-	(*AgentSessionMessage)(nil),     // 1: swarm_manager.v1.AgentSessionMessage
-	(*AgentSessionContextItem)(nil), // 2: swarm_manager.v1.AgentSessionContextItem
-	(*AgentSessionAttachment)(nil),  // 3: swarm_manager.v1.AgentSessionAttachment
-	(*AgentSessionProposal)(nil),    // 4: swarm_manager.v1.AgentSessionProposal
-	(*AgentSessionArtifact)(nil),    // 5: swarm_manager.v1.AgentSessionArtifact
-	(*AgentSession)(nil),            // 6: swarm_manager.v1.AgentSession
+	(*AgentSessionAttribution)(nil),    // 0: swarm_manager.v1.AgentSessionAttribution
+	(*AgentSessionMessage)(nil),        // 1: swarm_manager.v1.AgentSessionMessage
+	(*AgentSessionContextItem)(nil),    // 2: swarm_manager.v1.AgentSessionContextItem
+	(*AgentSessionAttachment)(nil),     // 3: swarm_manager.v1.AgentSessionAttachment
+	(*AgentSessionProposal)(nil),       // 4: swarm_manager.v1.AgentSessionProposal
+	(*AgentSessionProposalTarget)(nil), // 5: swarm_manager.v1.AgentSessionProposalTarget
+	(*AgentSessionArtifact)(nil),       // 6: swarm_manager.v1.AgentSessionArtifact
+	(*AgentSession)(nil),               // 7: swarm_manager.v1.AgentSession
 }
 var file_swarm_manager_v1_domain_agent_session_proto_depIdxs = []int32{
 	2, // 0: swarm_manager.v1.AgentSessionMessage.context:type_name -> swarm_manager.v1.AgentSessionContextItem
@@ -1004,14 +1087,15 @@ var file_swarm_manager_v1_domain_agent_session_proto_depIdxs = []int32{
 	0, // 2: swarm_manager.v1.AgentSessionArtifact.attribution:type_name -> swarm_manager.v1.AgentSessionAttribution
 	1, // 3: swarm_manager.v1.AgentSession.messages:type_name -> swarm_manager.v1.AgentSessionMessage
 	4, // 4: swarm_manager.v1.AgentSession.proposals:type_name -> swarm_manager.v1.AgentSessionProposal
-	5, // 5: swarm_manager.v1.AgentSession.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
+	6, // 5: swarm_manager.v1.AgentSession.artifacts:type_name -> swarm_manager.v1.AgentSessionArtifact
 	0, // 6: swarm_manager.v1.AgentSession.created_by:type_name -> swarm_manager.v1.AgentSessionAttribution
 	3, // 7: swarm_manager.v1.AgentSession.attachments:type_name -> swarm_manager.v1.AgentSessionAttachment
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	5, // 8: swarm_manager.v1.AgentSession.proposal_target:type_name -> swarm_manager.v1.AgentSessionProposalTarget
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_agent_session_proto_init() }
@@ -1023,15 +1107,15 @@ func file_swarm_manager_v1_domain_agent_session_proto_init() {
 	file_swarm_manager_v1_domain_agent_session_proto_msgTypes[2].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_agent_session_proto_msgTypes[3].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_agent_session_proto_msgTypes[4].OneofWrappers = []any{}
-	file_swarm_manager_v1_domain_agent_session_proto_msgTypes[5].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_agent_session_proto_msgTypes[6].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_agent_session_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_agent_session_proto_rawDesc), len(file_swarm_manager_v1_domain_agent_session_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

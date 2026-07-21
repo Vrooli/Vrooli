@@ -142,10 +142,6 @@ func writeShellScenario(t *testing.T, root, name string) string {
 				"script_path":    "cli/" + name,
 				"install_script": "cli/install.sh",
 			},
-			"install": []map[string]any{{
-				"kind": "command",
-				"run":  "bash ./cli/install.sh",
-			}},
 			"freshness": map[string]any{
 				"inputs": []string{"cli/" + name, "cli/install.sh"},
 			},

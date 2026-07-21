@@ -957,9 +957,13 @@ type ApplyAdoptionResponse struct {
 	WrittenPath string                 `protobuf:"bytes,2,opt,name=written_path,json=writtenPath,proto3" json:"written_path,omitempty"`
 	// Scenario-relative files that import the written target. This lets an
 	// operator see the immediate replacement blast radius in the apply result.
-	ImportSites   []string `protobuf:"bytes,3,rep,name=import_sites,json=importSites,proto3" json:"import_sites,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ImportSites []string `protobuf:"bytes,3,rep,name=import_sites,json=importSites,proto3" json:"import_sites,omitempty"`
+	// The style-fit decision evaluated for this apply. A discouraged verdict
+	// requires override_validation=true before this response can be produced.
+	StyleFitAffinity string `protobuf:"bytes,4,opt,name=style_fit_affinity,json=styleFitAffinity,proto3" json:"style_fit_affinity,omitempty"`
+	StyleFitDetail   string `protobuf:"bytes,5,opt,name=style_fit_detail,json=styleFitDetail,proto3" json:"style_fit_detail,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ApplyAdoptionResponse) Reset() {
@@ -1011,6 +1015,20 @@ func (x *ApplyAdoptionResponse) GetImportSites() []string {
 		return x.ImportSites
 	}
 	return nil
+}
+
+func (x *ApplyAdoptionResponse) GetStyleFitAffinity() string {
+	if x != nil {
+		return x.StyleFitAffinity
+	}
+	return ""
+}
+
+func (x *ApplyAdoptionResponse) GetStyleFitDetail() string {
+	if x != nil {
+		return x.StyleFitDetail
+	}
+	return ""
 }
 
 type ReapplyAdoptionRequest struct {
@@ -2871,11 +2889,13 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12+\n" +
 	"\x11confirm_overwrite\x18\x05 \x01(\bR\x10confirmOverwrite\x12/\n" +
 	"\x13override_validation\x18\x06 \x01(\bR\x12overrideValidation\x12)\n" +
-	"\x10replace_existing\x18\a \x01(\bR\x0freplaceExisting\"\xb0\x01\n" +
+	"\x10replace_existing\x18\a \x01(\bR\x0freplaceExisting\"\x88\x02\n" +
 	"\x15ApplyAdoptionResponse\x12Q\n" +
 	"\badoption\x18\x01 \x01(\v25.vrooli.react_component_library.v1.adoptions.AdoptionR\badoption\x12!\n" +
 	"\fwritten_path\x18\x02 \x01(\tR\vwrittenPath\x12!\n" +
-	"\fimport_sites\x18\x03 \x03(\tR\vimportSites\"\xab\x01\n" +
+	"\fimport_sites\x18\x03 \x03(\tR\vimportSites\x12,\n" +
+	"\x12style_fit_affinity\x18\x04 \x01(\tR\x10styleFitAffinity\x12(\n" +
+	"\x10style_fit_detail\x18\x05 \x01(\tR\x0estyleFitDetail\"\xab\x01\n" +
 	"\x16ReapplyAdoptionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x126\n" +

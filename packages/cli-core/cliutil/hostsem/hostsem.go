@@ -9,16 +9,15 @@
 // is called. If all slots are busy, Acquire blocks (with backoff) until a
 // slot frees up or the supplied context is cancelled.
 //
-// Linux-only by design — Vrooli targets Linux per project memory. The
-// underlying syscalls are gated by the standard `unix` build constraints.
+// Unix hosts use flock(2); Windows uses a named kernel mutex. Both preserve
+// cross-process slot semantics while allowing resource release artifacts to
+// cross-build for every declared desktop target.
 package hostsem
 
 import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
-	"syscall"
 	"time"
 )
 
@@ -80,23 +79,13 @@ func (s *Semaphore) Acquire(ctx context.Context) (func(), error) {
 
 func (s *Semaphore) tryAcquireOnce() (func(), bool, error) {
 	for i := 0; i < s.slots; i++ {
-		path := filepath.Join(s.dir, fmt.Sprintf("slot-%d.lock", i))
-		f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
+		release, acquired, err := tryAcquireSlot(s.dir, i)
 		if err != nil {
-			return nil, false, fmt.Errorf("hostsem: open slot %d: %w", i, err)
+			return nil, false, err
 		}
-		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-			_ = f.Close()
-			if err == syscall.EWOULDBLOCK {
-				continue
-			}
-			return nil, false, fmt.Errorf("hostsem: flock slot %d: %w", i, err)
+		if acquired {
+			return release, true, nil
 		}
-		release := func() {
-			_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-			_ = f.Close()
-		}
-		return release, true, nil
 	}
 	return nil, false, nil
 }

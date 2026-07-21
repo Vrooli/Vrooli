@@ -424,14 +424,16 @@ func protoToJSON(m *capturev1.CaptureResponse) map[string]interface{} {
 	}
 	if readiness := m.GetReadiness(); readiness != nil {
 		out["readiness"] = map[string]interface{}{
-			"requested_strategy":   readiness.GetRequestedStrategy(),
-			"selected_strategy":    readiness.GetSelectedStrategy(),
-			"outcome":              readiness.GetOutcome(),
-			"duration_ms":          readiness.GetDurationMs(),
-			"fallback_reason":      readiness.GetFallbackReason(),
-			"profile_version":      readiness.GetProfileVersion(),
-			"route":                readiness.GetRoute(),
-			"required_surface_ids": readiness.GetRequiredSurfaceIds(),
+			"requested_strategy":         readiness.GetRequestedStrategy(),
+			"selected_strategy":          readiness.GetSelectedStrategy(),
+			"outcome":                    readiness.GetOutcome(),
+			"duration_ms":                readiness.GetDurationMs(),
+			"navigation_duration_ms":     readiness.GetNavigationDurationMs(),
+			"readiness_wait_duration_ms": readiness.GetReadinessWaitDurationMs(),
+			"fallback_reason":            readiness.GetFallbackReason(),
+			"profile_version":            readiness.GetProfileVersion(),
+			"route":                      readiness.GetRoute(),
+			"required_surface_ids":       readiness.GetRequiredSurfaceIds(),
 		}
 	}
 	// Surface the inline accessibility snapshot when requested — it is the
