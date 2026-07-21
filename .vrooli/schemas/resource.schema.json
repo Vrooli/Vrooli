@@ -475,7 +475,7 @@
       "required": ["support", "mode"],
       "properties": {
         "support": { "type": "string", "enum": ["supported", "conditional", "degraded", "unsupported"] },
-        "mode": { "type": "string", "enum": ["bundled-service", "bundled-controller", "bundled-client", "native-host-tool", "docker-desktop", "remote-service", "manual"] },
+        "mode": { "type": "string", "enum": ["bundled-client", "native-host-tool", "docker-desktop", "remote-service", "manual"] },
         "architectures": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["amd64", "arm64"] } },
         "requires": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 } },

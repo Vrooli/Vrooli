@@ -2,7 +2,7 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "twilio",
   "display_name": "Twilio",
-  "description": "Hosted Twilio API resource with native credential/status checks and shell-retained messaging actions.",
+  "description": "Hosted Twilio API resource with typed Go credential and provider diagnostics.",
   "cli": {
     "enabled": true,
     "command": "resource-twilio",
@@ -36,14 +36,7 @@
       ]
     },
     "source_build": {
-      "kind": "go_module",
-      "freshness_inputs": [
-        "cli/**",
-        "cli/internal/**",
-        "docs/**",
-        "README.md",
-        "resource.json"
-      ]
+      "kind": "go_module"
     }
   },
   "template": "cloud-api",

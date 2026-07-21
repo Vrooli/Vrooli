@@ -1557,6 +1557,120 @@ func (x *DocHealthResponse) GetAssessment() *v1.MaturityAssessment {
 	return nil
 }
 
+// ValidateMarkdownDiagramsRequest validates Mermaid fences in arbitrary Markdown.
+type ValidateMarkdownDiagramsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	SourceLabel   *string                `protobuf:"bytes,2,opt,name=source_label,json=sourceLabel,proto3,oneof" json:"source_label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateMarkdownDiagramsRequest) Reset() {
+	*x = ValidateMarkdownDiagramsRequest{}
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateMarkdownDiagramsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateMarkdownDiagramsRequest) ProtoMessage() {}
+
+func (x *ValidateMarkdownDiagramsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateMarkdownDiagramsRequest.ProtoReflect.Descriptor instead.
+func (*ValidateMarkdownDiagramsRequest) Descriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ValidateMarkdownDiagramsRequest) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *ValidateMarkdownDiagramsRequest) GetSourceLabel() string {
+	if x != nil && x.SourceLabel != nil {
+		return *x.SourceLabel
+	}
+	return ""
+}
+
+// ValidateMarkdownDiagramsResponse contains Mermaid-only findings.
+type ValidateMarkdownDiagramsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Findings      []*DocHealthFinding    `protobuf:"bytes,1,rep,name=findings,proto3" json:"findings,omitempty"`
+	Engine        string                 `protobuf:"bytes,2,opt,name=engine,proto3" json:"engine,omitempty"`
+	Unverified    bool                   `protobuf:"varint,3,opt,name=unverified,proto3" json:"unverified,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateMarkdownDiagramsResponse) Reset() {
+	*x = ValidateMarkdownDiagramsResponse{}
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateMarkdownDiagramsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateMarkdownDiagramsResponse) ProtoMessage() {}
+
+func (x *ValidateMarkdownDiagramsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateMarkdownDiagramsResponse.ProtoReflect.Descriptor instead.
+func (*ValidateMarkdownDiagramsResponse) Descriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ValidateMarkdownDiagramsResponse) GetFindings() []*DocHealthFinding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+func (x *ValidateMarkdownDiagramsResponse) GetEngine() string {
+	if x != nil {
+		return x.Engine
+	}
+	return ""
+}
+
+func (x *ValidateMarkdownDiagramsResponse) GetUnverified() bool {
+	if x != nil {
+		return x.Unverified
+	}
+	return false
+}
+
 var File_knowledge_observatory_v1_api_proto protoreflect.FileDescriptor
 
 const file_knowledge_observatory_v1_api_proto_rawDesc = "" +
@@ -1748,14 +1862,25 @@ const file_knowledge_observatory_v1_api_proto_rawDesc = "" +
 	"assessmentB\x15\n" +
 	"\x13_source_template_idB\x10\n" +
 	"\x0e_manifest_pathB\x12\n" +
-	"\x10_manifest_status*\x98\x01\n" +
+	"\x10_manifest_status\"t\n" +
+	"\x1fValidateMarkdownDiagramsRequest\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\tR\acontent\x12&\n" +
+	"\fsource_label\x18\x02 \x01(\tH\x00R\vsourceLabel\x88\x01\x01B\x0f\n" +
+	"\r_source_label\"\xa2\x01\n" +
+	" ValidateMarkdownDiagramsResponse\x12F\n" +
+	"\bfindings\x18\x01 \x03(\v2*.knowledge_observatory.v1.DocHealthFindingR\bfindings\x12\x16\n" +
+	"\x06engine\x18\x02 \x01(\tR\x06engine\x12\x1e\n" +
+	"\n" +
+	"unverified\x18\x03 \x01(\bR\n" +
+	"unverified*\x98\x01\n" +
 	"\x11DocHealthSeverity\x12#\n" +
 	"\x1fDOC_HEALTH_SEVERITY_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18DOC_HEALTH_SEVERITY_INFO\x10\x01\x12\x1f\n" +
 	"\x1bDOC_HEALTH_SEVERITY_WARNING\x10\x02\x12\x1f\n" +
-	"\x1bDOC_HEALTH_SEVERITY_FAILURE\x10\x032\x83\x01\n" +
+	"\x1bDOC_HEALTH_SEVERITY_FAILURE\x10\x032\x97\x02\n" +
 	"\x1bKnowledgeObservatoryService\x12d\n" +
-	"\tDocHealth\x12*.knowledge_observatory.v1.DocHealthRequest\x1a+.knowledge_observatory.v1.DocHealthResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1;knowledgeobservatoryv1b\x06proto3"
+	"\tDocHealth\x12*.knowledge_observatory.v1.DocHealthRequest\x1a+.knowledge_observatory.v1.DocHealthResponse\x12\x91\x01\n" +
+	"\x18ValidateMarkdownDiagrams\x129.knowledge_observatory.v1.ValidateMarkdownDiagramsRequest\x1a:.knowledge_observatory.v1.ValidateMarkdownDiagramsResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1;knowledgeobservatoryv1b\x06proto3"
 
 var (
 	file_knowledge_observatory_v1_api_proto_rawDescOnce sync.Once
@@ -1770,35 +1895,37 @@ func file_knowledge_observatory_v1_api_proto_rawDescGZIP() []byte {
 }
 
 var file_knowledge_observatory_v1_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_knowledge_observatory_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_knowledge_observatory_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_knowledge_observatory_v1_api_proto_goTypes = []any{
-	(DocHealthSeverity)(0),               // 0: knowledge_observatory.v1.DocHealthSeverity
-	(*SearchRequest)(nil),                // 1: knowledge_observatory.v1.SearchRequest
-	(*SearchResult)(nil),                 // 2: knowledge_observatory.v1.SearchResult
-	(*SearchResponse)(nil),               // 3: knowledge_observatory.v1.SearchResponse
-	(*DependencyStatus)(nil),             // 4: knowledge_observatory.v1.DependencyStatus
-	(*InfrastructureHealthResponse)(nil), // 5: knowledge_observatory.v1.InfrastructureHealthResponse
-	(*QualityMetrics)(nil),               // 6: knowledge_observatory.v1.QualityMetrics
-	(*CollectionHealth)(nil),             // 7: knowledge_observatory.v1.CollectionHealth
-	(*KnowledgeHealthResponse)(nil),      // 8: knowledge_observatory.v1.KnowledgeHealthResponse
-	(*DocHealthFinding)(nil),             // 9: knowledge_observatory.v1.DocHealthFinding
-	(*DocHealthMisplacedDoc)(nil),        // 10: knowledge_observatory.v1.DocHealthMisplacedDoc
-	(*DocHealthMissingDoc)(nil),          // 11: knowledge_observatory.v1.DocHealthMissingDoc
-	(*DocHealthCounts)(nil),              // 12: knowledge_observatory.v1.DocHealthCounts
-	(*DocHealthRequest)(nil),             // 13: knowledge_observatory.v1.DocHealthRequest
-	(*DocHealthResponse)(nil),            // 14: knowledge_observatory.v1.DocHealthResponse
-	nil,                                  // 15: knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry
-	nil,                                  // 16: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry
-	(*structpb.Struct)(nil),              // 17: google.protobuf.Struct
-	(*structpb.Value)(nil),               // 18: google.protobuf.Value
-	(*v1.MaturityAssessment)(nil),        // 19: common.v1.MaturityAssessment
+	(DocHealthSeverity)(0),                   // 0: knowledge_observatory.v1.DocHealthSeverity
+	(*SearchRequest)(nil),                    // 1: knowledge_observatory.v1.SearchRequest
+	(*SearchResult)(nil),                     // 2: knowledge_observatory.v1.SearchResult
+	(*SearchResponse)(nil),                   // 3: knowledge_observatory.v1.SearchResponse
+	(*DependencyStatus)(nil),                 // 4: knowledge_observatory.v1.DependencyStatus
+	(*InfrastructureHealthResponse)(nil),     // 5: knowledge_observatory.v1.InfrastructureHealthResponse
+	(*QualityMetrics)(nil),                   // 6: knowledge_observatory.v1.QualityMetrics
+	(*CollectionHealth)(nil),                 // 7: knowledge_observatory.v1.CollectionHealth
+	(*KnowledgeHealthResponse)(nil),          // 8: knowledge_observatory.v1.KnowledgeHealthResponse
+	(*DocHealthFinding)(nil),                 // 9: knowledge_observatory.v1.DocHealthFinding
+	(*DocHealthMisplacedDoc)(nil),            // 10: knowledge_observatory.v1.DocHealthMisplacedDoc
+	(*DocHealthMissingDoc)(nil),              // 11: knowledge_observatory.v1.DocHealthMissingDoc
+	(*DocHealthCounts)(nil),                  // 12: knowledge_observatory.v1.DocHealthCounts
+	(*DocHealthRequest)(nil),                 // 13: knowledge_observatory.v1.DocHealthRequest
+	(*DocHealthResponse)(nil),                // 14: knowledge_observatory.v1.DocHealthResponse
+	(*ValidateMarkdownDiagramsRequest)(nil),  // 15: knowledge_observatory.v1.ValidateMarkdownDiagramsRequest
+	(*ValidateMarkdownDiagramsResponse)(nil), // 16: knowledge_observatory.v1.ValidateMarkdownDiagramsResponse
+	nil,                                      // 17: knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry
+	nil,                                      // 18: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry
+	(*structpb.Struct)(nil),                  // 19: google.protobuf.Struct
+	(*structpb.Value)(nil),                   // 20: google.protobuf.Value
+	(*v1.MaturityAssessment)(nil),            // 21: common.v1.MaturityAssessment
 }
 var file_knowledge_observatory_v1_api_proto_depIdxs = []int32{
-	17, // 0: knowledge_observatory.v1.SearchResult.metadata:type_name -> google.protobuf.Struct
+	19, // 0: knowledge_observatory.v1.SearchResult.metadata:type_name -> google.protobuf.Struct
 	2,  // 1: knowledge_observatory.v1.SearchResponse.results:type_name -> knowledge_observatory.v1.SearchResult
-	18, // 2: knowledge_observatory.v1.DependencyStatus.error:type_name -> google.protobuf.Value
-	15, // 3: knowledge_observatory.v1.InfrastructureHealthResponse.dependencies:type_name -> knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry
-	16, // 4: knowledge_observatory.v1.InfrastructureHealthResponse.metrics:type_name -> knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry
+	20, // 2: knowledge_observatory.v1.DependencyStatus.error:type_name -> google.protobuf.Value
+	17, // 3: knowledge_observatory.v1.InfrastructureHealthResponse.dependencies:type_name -> knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry
+	18, // 4: knowledge_observatory.v1.InfrastructureHealthResponse.metrics:type_name -> knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry
 	6,  // 5: knowledge_observatory.v1.CollectionHealth.metrics:type_name -> knowledge_observatory.v1.QualityMetrics
 	7,  // 6: knowledge_observatory.v1.KnowledgeHealthResponse.collections:type_name -> knowledge_observatory.v1.CollectionHealth
 	6,  // 7: knowledge_observatory.v1.KnowledgeHealthResponse.overall_metrics:type_name -> knowledge_observatory.v1.QualityMetrics
@@ -1812,16 +1939,19 @@ var file_knowledge_observatory_v1_api_proto_depIdxs = []int32{
 	9,  // 15: knowledge_observatory.v1.DocHealthResponse.reference_findings:type_name -> knowledge_observatory.v1.DocHealthFinding
 	9,  // 16: knowledge_observatory.v1.DocHealthResponse.manifest_findings:type_name -> knowledge_observatory.v1.DocHealthFinding
 	12, // 17: knowledge_observatory.v1.DocHealthResponse.counts:type_name -> knowledge_observatory.v1.DocHealthCounts
-	19, // 18: knowledge_observatory.v1.DocHealthResponse.assessment:type_name -> common.v1.MaturityAssessment
-	4,  // 19: knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry.value:type_name -> knowledge_observatory.v1.DependencyStatus
-	18, // 20: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry.value:type_name -> google.protobuf.Value
-	13, // 21: knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth:input_type -> knowledge_observatory.v1.DocHealthRequest
-	14, // 22: knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth:output_type -> knowledge_observatory.v1.DocHealthResponse
-	22, // [22:23] is the sub-list for method output_type
-	21, // [21:22] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	21, // 18: knowledge_observatory.v1.DocHealthResponse.assessment:type_name -> common.v1.MaturityAssessment
+	9,  // 19: knowledge_observatory.v1.ValidateMarkdownDiagramsResponse.findings:type_name -> knowledge_observatory.v1.DocHealthFinding
+	4,  // 20: knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry.value:type_name -> knowledge_observatory.v1.DependencyStatus
+	20, // 21: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry.value:type_name -> google.protobuf.Value
+	13, // 22: knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth:input_type -> knowledge_observatory.v1.DocHealthRequest
+	15, // 23: knowledge_observatory.v1.KnowledgeObservatoryService.ValidateMarkdownDiagrams:input_type -> knowledge_observatory.v1.ValidateMarkdownDiagramsRequest
+	14, // 24: knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth:output_type -> knowledge_observatory.v1.DocHealthResponse
+	16, // 25: knowledge_observatory.v1.KnowledgeObservatoryService.ValidateMarkdownDiagrams:output_type -> knowledge_observatory.v1.ValidateMarkdownDiagramsResponse
+	24, // [24:26] is the sub-list for method output_type
+	22, // [22:24] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_knowledge_observatory_v1_api_proto_init() }
@@ -1841,13 +1971,14 @@ func file_knowledge_observatory_v1_api_proto_init() {
 	file_knowledge_observatory_v1_api_proto_msgTypes[10].OneofWrappers = []any{}
 	file_knowledge_observatory_v1_api_proto_msgTypes[12].OneofWrappers = []any{}
 	file_knowledge_observatory_v1_api_proto_msgTypes[13].OneofWrappers = []any{}
+	file_knowledge_observatory_v1_api_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_knowledge_observatory_v1_api_proto_rawDesc), len(file_knowledge_observatory_v1_api_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

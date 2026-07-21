@@ -1,6 +1,6 @@
 # Redis Configuration Template for Vrooli Resources
 # This file is generated automatically - do not edit directly
-# Edit defaults.sh to change configuration values
+# Resource configuration is declared by resource.json and runtime settings.
 
 # Network Configuration
 bind {{REDIS_BIND}}

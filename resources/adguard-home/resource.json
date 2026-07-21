@@ -36,14 +36,7 @@
       ]
     },
     "source_build": {
-      "kind": "go_module",
-      "freshness_inputs": [
-        "cli/**",
-        "cli/internal/**",
-        "docs/**",
-        "README.md",
-        "resource.json"
-      ]
+      "kind": "go_module"
     }
   },
   "template": "docker-service",
@@ -230,6 +223,10 @@
     "start_timeout_seconds": 30,
     "stop_timeout_seconds": 30,
     "retries": 2
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": false
   },
   "template_version": "2"
 }

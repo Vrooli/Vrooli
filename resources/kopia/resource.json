@@ -36,14 +36,7 @@
       ]
     },
     "source_build": {
-      "kind": "go_module",
-      "freshness_inputs": [
-        "cli/**",
-        "cli/internal/**",
-        "docs/**",
-        "README.md",
-        "resource.json"
-      ]
+      "kind": "go_module"
     }
   },
   "template": "external-cli",

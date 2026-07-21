@@ -272,6 +272,12 @@ func defaultResourceCLIConfig(name string) *scenario.CLIConfig {
 			Kind:      "go_module",
 			ModuleDir: "cli",
 		},
+		SourceBuild: &scenario.CLISourceBuildConfig{Kind: "go_module"},
+		Invoke: scenario.CLIInvokeConfig{
+			Kind:    "installed_command",
+			Command: "resource-" + strings.TrimSpace(name),
+		},
+		Freshness: &scenario.CLIFreshnessCheck{Inputs: []string{"cli/**", "resource.json"}},
 	}
 }
 

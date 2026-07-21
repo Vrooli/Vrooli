@@ -22,7 +22,8 @@ This resource is being aligned to the updated `cloud-api` structure.
 - `resource.json` is the declarative authority for endpoint, credentials, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Twilio-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+- The supported operator surface is the Go CLI and shared control plane; no
+  resource-local shell runtime is required.
 
 The intended escalation path is:
 

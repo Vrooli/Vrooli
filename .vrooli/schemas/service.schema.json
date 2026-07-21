@@ -426,7 +426,10 @@
           "then": {
             "required": [
               "command",
-              "adapter"
+              "adapter",
+              "source_build",
+              "invoke",
+              "freshness"
             ]
           }
         }
@@ -435,21 +438,18 @@
     },
     "cliAdapter": {
       "type": "object",
+      "required": [
+        "kind",
+        "module_dir"
+      ],
       "properties": {
         "kind": {
           "type": "string",
           "enum": [
-            "go_module",
-            "shell_script"
+            "go_module"
           ]
         },
         "module_dir": {
-          "type": "string"
-        },
-        "script_path": {
-          "type": "string"
-        },
-        "install_script": {
           "type": "string"
         }
       },
@@ -501,16 +501,19 @@
     "cliSourceBuild": {
       "type": "object",
       "description": "Developer/release build inputs. This is never a desktop delivery mechanism.",
-      "required": ["kind", "freshness_inputs"],
+      "required": ["kind"],
       "properties": {
-        "kind": { "type": "string", "enum": ["go_module"] },
-        "freshness_inputs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        "kind": { "type": "string", "enum": ["go_module"] }
       },
       "additionalProperties": false
     },
     "cliInvoke": {
       "type": "object",
       "description": "How the installed CLI is invoked after installation.",
+      "required": [
+        "kind",
+        "command"
+      ],
       "properties": {
         "kind": {
           "type": "string",
@@ -527,9 +530,13 @@
     "cliFreshness": {
       "type": "object",
       "description": "Source inputs used to determine whether the installed CLI artifact is stale and should be rebuilt.",
+      "required": [
+        "inputs"
+      ],
       "properties": {
         "inputs": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "string"
           }

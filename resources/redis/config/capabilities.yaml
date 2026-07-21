@@ -194,7 +194,7 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "resources/redis/test/integration-test.sh"
+    test_file: "resources/redis/Makefile"
     test_coverage:
       - service_health
       - basic_operations

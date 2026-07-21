@@ -37,6 +37,9 @@ const (
 	// KnowledgeObservatoryServiceDocHealthProcedure is the fully-qualified name of the
 	// KnowledgeObservatoryService's DocHealth RPC.
 	KnowledgeObservatoryServiceDocHealthProcedure = "/knowledge_observatory.v1.KnowledgeObservatoryService/DocHealth"
+	// KnowledgeObservatoryServiceValidateMarkdownDiagramsProcedure is the fully-qualified name of the
+	// KnowledgeObservatoryService's ValidateMarkdownDiagrams RPC.
+	KnowledgeObservatoryServiceValidateMarkdownDiagramsProcedure = "/knowledge_observatory.v1.KnowledgeObservatoryService/ValidateMarkdownDiagrams"
 )
 
 // KnowledgeObservatoryServiceClient is a client for the
@@ -45,6 +48,7 @@ type KnowledgeObservatoryServiceClient interface {
 	// DocHealth runs the full documentation-health suite for a scenario and
 	// returns the combined result.
 	DocHealth(context.Context, *connect.Request[v1.DocHealthRequest]) (*connect.Response[v1.DocHealthResponse], error)
+	ValidateMarkdownDiagrams(context.Context, *connect.Request[v1.ValidateMarkdownDiagramsRequest]) (*connect.Response[v1.ValidateMarkdownDiagramsResponse], error)
 }
 
 // NewKnowledgeObservatoryServiceClient constructs a client for the
@@ -65,17 +69,30 @@ func NewKnowledgeObservatoryServiceClient(httpClient connect.HTTPClient, baseURL
 			connect.WithSchema(knowledgeObservatoryServiceMethods.ByName("DocHealth")),
 			connect.WithClientOptions(opts...),
 		),
+		validateMarkdownDiagrams: connect.NewClient[v1.ValidateMarkdownDiagramsRequest, v1.ValidateMarkdownDiagramsResponse](
+			httpClient,
+			baseURL+KnowledgeObservatoryServiceValidateMarkdownDiagramsProcedure,
+			connect.WithSchema(knowledgeObservatoryServiceMethods.ByName("ValidateMarkdownDiagrams")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // knowledgeObservatoryServiceClient implements KnowledgeObservatoryServiceClient.
 type knowledgeObservatoryServiceClient struct {
-	docHealth *connect.Client[v1.DocHealthRequest, v1.DocHealthResponse]
+	docHealth                *connect.Client[v1.DocHealthRequest, v1.DocHealthResponse]
+	validateMarkdownDiagrams *connect.Client[v1.ValidateMarkdownDiagramsRequest, v1.ValidateMarkdownDiagramsResponse]
 }
 
 // DocHealth calls knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth.
 func (c *knowledgeObservatoryServiceClient) DocHealth(ctx context.Context, req *connect.Request[v1.DocHealthRequest]) (*connect.Response[v1.DocHealthResponse], error) {
 	return c.docHealth.CallUnary(ctx, req)
+}
+
+// ValidateMarkdownDiagrams calls
+// knowledge_observatory.v1.KnowledgeObservatoryService.ValidateMarkdownDiagrams.
+func (c *knowledgeObservatoryServiceClient) ValidateMarkdownDiagrams(ctx context.Context, req *connect.Request[v1.ValidateMarkdownDiagramsRequest]) (*connect.Response[v1.ValidateMarkdownDiagramsResponse], error) {
+	return c.validateMarkdownDiagrams.CallUnary(ctx, req)
 }
 
 // KnowledgeObservatoryServiceHandler is an implementation of the
@@ -84,6 +101,7 @@ type KnowledgeObservatoryServiceHandler interface {
 	// DocHealth runs the full documentation-health suite for a scenario and
 	// returns the combined result.
 	DocHealth(context.Context, *connect.Request[v1.DocHealthRequest]) (*connect.Response[v1.DocHealthResponse], error)
+	ValidateMarkdownDiagrams(context.Context, *connect.Request[v1.ValidateMarkdownDiagramsRequest]) (*connect.Response[v1.ValidateMarkdownDiagramsResponse], error)
 }
 
 // NewKnowledgeObservatoryServiceHandler builds an HTTP handler from the service implementation. It
@@ -99,10 +117,18 @@ func NewKnowledgeObservatoryServiceHandler(svc KnowledgeObservatoryServiceHandle
 		connect.WithSchema(knowledgeObservatoryServiceMethods.ByName("DocHealth")),
 		connect.WithHandlerOptions(opts...),
 	)
+	knowledgeObservatoryServiceValidateMarkdownDiagramsHandler := connect.NewUnaryHandler(
+		KnowledgeObservatoryServiceValidateMarkdownDiagramsProcedure,
+		svc.ValidateMarkdownDiagrams,
+		connect.WithSchema(knowledgeObservatoryServiceMethods.ByName("ValidateMarkdownDiagrams")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/knowledge_observatory.v1.KnowledgeObservatoryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case KnowledgeObservatoryServiceDocHealthProcedure:
 			knowledgeObservatoryServiceDocHealthHandler.ServeHTTP(w, r)
+		case KnowledgeObservatoryServiceValidateMarkdownDiagramsProcedure:
+			knowledgeObservatoryServiceValidateMarkdownDiagramsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -114,4 +140,8 @@ type UnimplementedKnowledgeObservatoryServiceHandler struct{}
 
 func (UnimplementedKnowledgeObservatoryServiceHandler) DocHealth(context.Context, *connect.Request[v1.DocHealthRequest]) (*connect.Response[v1.DocHealthResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth is not implemented"))
+}
+
+func (UnimplementedKnowledgeObservatoryServiceHandler) ValidateMarkdownDiagrams(context.Context, *connect.Request[v1.ValidateMarkdownDiagramsRequest]) (*connect.Response[v1.ValidateMarkdownDiagramsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("knowledge_observatory.v1.KnowledgeObservatoryService.ValidateMarkdownDiagrams is not implemented"))
 }

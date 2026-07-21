@@ -22,7 +22,8 @@ This resource is being aligned to the updated `docker-service` structure.
 - `resource.json` is the declarative authority for lifecycle, runtime, health, exports, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Redis-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+- The supported operator surface is the Go CLI and shared control plane; no
+  resource-local shell runtime is required.
 
 The intended escalation path is:
 
@@ -62,5 +63,6 @@ Connection defaults:
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for Redis behavior.
 - Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
-- Existing shell-heavy workflows in `lib/` are transitional. New logic should land in Go under `cli/internal/...`.
+- Resource-specific behavior belongs in `cli/internal/...`; runtime shape,
+  ports, volumes, and health remain declarative in `resource.json`.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/redis/docs/OPERATIONS.md) as the architecture boundary for future migrations.

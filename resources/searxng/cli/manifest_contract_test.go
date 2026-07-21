@@ -19,9 +19,11 @@ func TestManifestDeclaresOnlyTheSupportedDockerContract(t *testing.T) {
 		Description string `json:"description"`
 		CLI         struct {
 			SourceBuild struct {
-				Kind            string   `json:"kind"`
-				FreshnessInputs []string `json:"freshness_inputs"`
+				Kind string `json:"kind"`
 			} `json:"source_build"`
+			Freshness struct {
+				Inputs []string `json:"inputs"`
+			} `json:"freshness"`
 		} `json:"cli"`
 		Runtime struct {
 			Image   string `json:"image"`
@@ -69,8 +71,8 @@ func TestManifestDeclaresOnlyTheSupportedDockerContract(t *testing.T) {
 	if manifest.CLI.SourceBuild.Kind != "go_module" {
 		t.Fatalf("cli.source_build.kind = %q, want go_module", manifest.CLI.SourceBuild.Kind)
 	}
-	if len(manifest.CLI.SourceBuild.FreshnessInputs) == 0 {
-		t.Fatal("cli.source_build.freshness_inputs must not be empty")
+	if len(manifest.CLI.Freshness.Inputs) == 0 {
+		t.Fatal("cli.freshness.inputs must not be empty")
 	}
 }
 

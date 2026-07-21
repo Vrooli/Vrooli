@@ -300,3 +300,21 @@ class DocHealthResponse(_message.Message):
     timestamp: str
     assessment: _maturity_pb2.MaturityAssessment
     def __init__(self, scenario_name: _Optional[str] = ..., source_template_id: _Optional[str] = ..., manifest_path: _Optional[str] = ..., manifest_status: _Optional[str] = ..., health_score: _Optional[float] = ..., total_docs: _Optional[int] = ..., misplaced_docs: _Optional[_Iterable[_Union[DocHealthMisplacedDoc, _Mapping]]] = ..., missing_docs: _Optional[_Iterable[_Union[DocHealthMissingDoc, _Mapping]]] = ..., extra_docs: _Optional[_Iterable[str]] = ..., temporary_docs: _Optional[_Iterable[str]] = ..., contract_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., content_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., reference_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., manifest_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., counts: _Optional[_Union[DocHealthCounts, _Mapping]] = ..., timestamp: _Optional[str] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ...) -> None: ...
+
+class ValidateMarkdownDiagramsRequest(_message.Message):
+    __slots__ = ("content", "source_label")
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_LABEL_FIELD_NUMBER: _ClassVar[int]
+    content: str
+    source_label: str
+    def __init__(self, content: _Optional[str] = ..., source_label: _Optional[str] = ...) -> None: ...
+
+class ValidateMarkdownDiagramsResponse(_message.Message):
+    __slots__ = ("findings", "engine", "unverified")
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    ENGINE_FIELD_NUMBER: _ClassVar[int]
+    UNVERIFIED_FIELD_NUMBER: _ClassVar[int]
+    findings: _containers.RepeatedCompositeFieldContainer[DocHealthFinding]
+    engine: str
+    unverified: bool
+    def __init__(self, findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., engine: _Optional[str] = ..., unverified: _Optional[bool] = ...) -> None: ...

@@ -425,6 +425,19 @@ message DocHealthResponse {
   common.v1.MaturityAssessment assessment = 17;
 }
 
+// ValidateMarkdownDiagramsRequest validates Mermaid fences in arbitrary Markdown.
+message ValidateMarkdownDiagramsRequest {
+  string content = 1;
+  optional string source_label = 2;
+}
+
+// ValidateMarkdownDiagramsResponse contains Mermaid-only findings.
+message ValidateMarkdownDiagramsResponse {
+  repeated DocHealthFinding findings = 1;
+  string engine = 2;
+  bool unverified = 3;
+}
+
 // KnowledgeObservatoryService is the Connect-RPC entry point for the
 // knowledge-observatory scenario. The service starts with documentation
 // health; remaining REST endpoints will migrate here in follow-up plans.
@@ -432,4 +445,5 @@ service KnowledgeObservatoryService {
   // DocHealth runs the full documentation-health suite for a scenario and
   // returns the combined result.
   rpc DocHealth(DocHealthRequest) returns (DocHealthResponse);
+  rpc ValidateMarkdownDiagrams(ValidateMarkdownDiagramsRequest) returns (ValidateMarkdownDiagramsResponse);
 }

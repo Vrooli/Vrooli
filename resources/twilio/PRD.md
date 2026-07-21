@@ -107,7 +107,7 @@ N/A - CLI-based service
 ## Implementation Roadmap
 
 ### Phase 1: Core Infrastructure (Current)
-1. Add v2.0 contract compliance (lib/core.sh, lib/test.sh)
+1. Add v2.0 contract compliance through the Go CLI and declarative manifest
 2. Implement secrets.yaml for Vault integration
 3. Create proper test suite structure
 4. Fix health check implementation
@@ -248,7 +248,7 @@ N/A - CLI-based service
 - Progress: 46% → 54% complete
 
 ### 2025-01-11 - Major Improvement
-- ✅ Implemented v2.0 contract compliance (lib/core.sh, lib/test.sh)
+- ✅ Replaced obsolete v2.0 shell contract references with the Go CLI contract
 - ✅ Added Vault secrets integration (config/secrets.yaml)
 - ✅ Created comprehensive test suite (smoke/integration/unit tests)
 - ✅ Fixed lifecycle management (start/stop/restart)

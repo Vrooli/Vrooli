@@ -70,9 +70,6 @@
       "kyutai-stt": {
         "enabled": true
       },
-      "mail-in-a-box": {
-        "enabled": true
-      },
       "minio": {
         "description": "S3-compatible object storage service",
         "enabled": true,
