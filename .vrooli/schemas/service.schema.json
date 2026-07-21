@@ -398,11 +398,11 @@
         "artifacts": {
           "$ref": "#/definitions/cliArtifacts"
         },
-        "install": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/cliInstallStep"
-          }
+        "distribution": {
+          "$ref": "#/definitions/cliDistribution"
+        },
+        "source_build": {
+          "$ref": "#/definitions/cliSourceBuild"
         },
         "invoke": {
           "$ref": "#/definitions/cliInvoke"
@@ -484,33 +484,28 @@
       },
       "additionalProperties": false
     },
-    "cliInstallStep": {
+    "cliDistribution": {
       "type": "object",
+      "description": "A signed release artifact consumed by a deployment target; source installs are not target delivery.",
+      "required": ["kind", "artifact_name"],
       "properties": {
-        "os": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "kind": {
+        "kind": { "type": "string", "enum": ["prebuilt_artifact"] },
+        "artifact_name": {
           "type": "string",
-          "enum": [
-            "command"
-          ]
-        },
-        "run": {
-          "type": "string",
-          "description": "Install command that must produce the full CLI artifact set, including any declared sibling manifest metadata."
-        },
-        "install_dir": {
-          "type": "string"
+          "pattern": "\\$\\{os\\}.*\\$\\{arch\\}|\\$\\{arch\\}.*\\$\\{os\\}",
+          "description": "Platform artifact template, e.g. resource-example_${os}_${arch}."
         }
       },
-      "required": [
-        "kind",
-        "run"
-      ],
+      "additionalProperties": false
+    },
+    "cliSourceBuild": {
+      "type": "object",
+      "description": "Developer/release build inputs. This is never a desktop delivery mechanism.",
+      "required": ["kind", "freshness_inputs"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["go_module"] },
+        "freshness_inputs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      },
       "additionalProperties": false
     },
     "cliInvoke": {

@@ -23,6 +23,17 @@
       "purge_after": "2026-07-11"
     },
     {
+      "name": "cloudflare-ai-gateway",
+      "archived_at": "2026-07-19",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "cloudflare-ai-gateway",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260719-215345-cloudflare-ai-gateway",
+      "archive_hash": "5177d6c2861d5cdecc2b8b681abb73a3ab8857973e034fad93d506cd199e17a6",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-10-17"
+    },
+    {
       "name": "cncjs",
       "archived_at": "2026-04-12",
       "reason": "Archived from active repo implementation after blueprint preservation.",
@@ -32,6 +43,17 @@
       "retention_policy_days": 90,
       "restore_supported": true,
       "purge_after": "2026-07-11"
+    },
+    {
+      "name": "comfyui",
+      "archived_at": "2026-07-20",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "comfyui",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260720-032346-comfyui",
+      "archive_hash": "a2d14d0bf72d3da7acbb6d8e60992cc7f9b21369ed440d3ec1ea6869750daf89",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-10-18"
     },
     {
       "name": "earthly",
@@ -287,6 +309,17 @@
       "purge_after": "2026-07-11"
     },
     {
+      "name": "neo4j",
+      "archived_at": "2026-07-19",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "neo4j",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260719-215341-neo4j",
+      "archive_hash": "52a6d7427f308d48e60112ac1447f443db15576692c8f98ed8bff3f1787e6c9a",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-10-17"
+    },
+    {
       "name": "nsfw-detector",
       "archived_at": "2026-04-12",
       "reason": "Archived from active repo implementation after blueprint preservation.",
@@ -375,6 +408,17 @@
       "purge_after": "2026-07-11"
     },
     {
+      "name": "postgis",
+      "archived_at": "2026-07-20",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "postgis",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260720-031538-postgis",
+      "archive_hash": "3006a3a7da0304d5566e1b924fdf43f343723d81caa0cf435ea282268dfbec3d",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-10-18"
+    },
+    {
       "name": "pushover",
       "archived_at": "2026-04-12",
       "reason": "Archived from active repo implementation after blueprint preservation.",
@@ -397,6 +441,17 @@
       "purge_after": "2026-07-11"
     },
     {
+      "name": "questdb",
+      "archived_at": "2026-07-19",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "questdb",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260719-212308-questdb",
+      "archive_hash": "936348c4db39033416865470e0bc11027c48a714828decb05dea363186c5bbb6",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-10-17"
+    },
+    {
       "name": "restic",
       "archived_at": "2026-04-12",
       "reason": "Archived from active repo implementation after blueprint preservation.",
@@ -417,6 +472,17 @@
       "retention_policy_days": 90,
       "restore_supported": true,
       "purge_after": "2026-07-11"
+    },
+    {
+      "name": "sagemath",
+      "archived_at": "2026-07-19",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "sagemath",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260719-215337-sagemath",
+      "archive_hash": "be7acd425729ff81492c8eb594ee6b750aa1290906d013d5fc162ad874551a51",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-10-17"
     },
     {
       "name": "segment-anything",

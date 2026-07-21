@@ -106,7 +106,7 @@ func (h *connectHandler) ApplyAdoption(ctx context.Context, req *connect.Request
 		}
 		return nil, connectErr
 	}
-	return connect.NewResponse(&adoptionsv1.ApplyAdoptionResponse{Adoption: domainToProto(result.Adoption), WrittenPath: result.WrittenPath, ImportSites: result.ImportSites}), nil
+	return connect.NewResponse(&adoptionsv1.ApplyAdoptionResponse{Adoption: domainToProto(result.Adoption), WrittenPath: result.WrittenPath, ImportSites: result.ImportSites, StyleFitAffinity: string(result.StyleFitAffinity), StyleFitDetail: result.StyleFitDetail}), nil
 }
 
 func (h *connectHandler) ReapplyAdoption(ctx context.Context, req *connect.Request[adoptionsv1.ReapplyAdoptionRequest]) (*connect.Response[adoptionsv1.ReapplyAdoptionResponse], error) {

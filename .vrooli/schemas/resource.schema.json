@@ -9,7 +9,8 @@
     "name",
     "cli",
     "driver",
-    "portability_tier"
+    "portability_tier",
+    "deployment"
   ],
   "properties": {
     "$schema": {
@@ -410,6 +411,19 @@
     "template_version": {
       "type": "string"
     },
+    "deployment": {
+      "type": "object",
+      "description": "Resource-owned deployment profiles. A supported claim requires declared target evidence and, for bundled modes, a prebuilt CLI artifact contract.",
+      "required": ["profiles"],
+      "properties": {
+        "profiles": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/definitions/deploymentProfile" }
+        }
+      },
+      "additionalProperties": false
+    },
     "upstream_cli": {
       "type": "object",
       "description": "External CLI (e.g. claude, codex, opencode) this resource wraps. Records the pinned version and docs source so config adapters can detect upstream schema drift via `permissions doctor` / equivalent surfaces.",
@@ -446,6 +460,35 @@
     }
   },
   "definitions": {
+    "deploymentProfile": {
+      "type": "object",
+      "required": ["linux", "macos", "windows"],
+      "properties": {
+        "linux": { "$ref": "#/definitions/deploymentTarget" },
+        "macos": { "$ref": "#/definitions/deploymentTarget" },
+        "windows": { "$ref": "#/definitions/deploymentTarget" }
+      },
+      "additionalProperties": false
+    },
+    "deploymentTarget": {
+      "type": "object",
+      "required": ["support", "mode"],
+      "properties": {
+        "support": { "type": "string", "enum": ["supported", "conditional", "degraded", "unsupported"] },
+        "mode": { "type": "string", "enum": ["bundled-service", "bundled-controller", "bundled-client", "native-host-tool", "docker-desktop", "remote-service", "manual"] },
+        "architectures": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["amd64", "arm64"] } },
+        "requires": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "fallbacks": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "evidence": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        { "if": { "properties": { "support": { "const": "unsupported" } } }, "then": { "required": ["reason"] } },
+        { "if": { "not": { "properties": { "support": { "const": "unsupported" } } } }, "then": { "required": ["architectures", "limitations", "evidence"] } }
+      ],
+      "additionalProperties": false
+    },
     "hostRequirement": {
       "type": "object",
       "properties": {

@@ -20,20 +20,10 @@
         "enabled": true,
         "required": true
       },
-      "cloudflare-ai-gateway": {
-        "enabled": true
-      },
       "codex": {
         "description": "AI-powered code generation and completion via OpenAI GPT models",
         "enabled": true,
         "required": false
-      },
-      "comfyui": {
-        "enabled": false,
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        }
       },
       "gemini": {
         "description": "Google Gemini AI API integration",
@@ -88,16 +78,6 @@
         "enabled": true,
         "required": false
       },
-      "neo4j": {
-        "description": "Native property graph database for knowledge graphs and recommendations",
-        "docker_image": "neo4j:5.24.0",
-        "enabled": true,
-        "ports": {
-          "bolt": 7687,
-          "http": 7474
-        },
-        "required": false
-      },
       "ollama": {
         "enabled": true,
         "healthCheck": {
@@ -117,18 +97,6 @@
         "enabled": true,
         "required": false
       },
-      "postgis": {
-        "container_name": "postgis-main",
-        "data_directory": "${HOME}/.vrooli/postgis",
-        "description": "Spatial database extension for PostgreSQL - enables geographic queries and location-based analysis",
-        "enabled": true,
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        },
-        "required": false,
-        "version": "16-3.4"
-      },
       "postgres": {
         "enabled": true,
         "healthCheck": {
@@ -146,11 +114,6 @@
         "required": true,
         "status": "installed",
         "version": "unknown"
-      },
-      "questdb": {
-        "description": "High-performance time series database",
-        "enabled": true,
-        "required": false
       },
       "redis": {
         "description": "Event bus and caching layer",
@@ -171,9 +134,6 @@
         "version": "7"
       },
       "reranker": {
-        "enabled": true
-      },
-      "sagemath": {
         "enabled": true
       },
       "searxng": {
@@ -756,7 +716,6 @@
       "intelligence-system",
       "self-improving",
       "vrooli-core",
-      "ecosystem-manager",
       "capability-builder",
       "semantic-search",
       "multi-resource"

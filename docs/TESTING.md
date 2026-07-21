@@ -46,14 +46,17 @@ The run is owned by the test-genie server, so it survives your command being can
 
 **Scenario starts have the same contract — don't poll them either.** `vrooli scenario start|restart` write a durable start-operation record; to wait on one, block once with `vrooli scenario wait <scenario> --json [--timeout N]` (exit `0` healthy, `1` failed, `2` degraded, `124` timeout with the start unaffected). Full protocol: `docs/reference/cli-commands.md` ("Scenario start wait contract").
 
-**Baseline diff is durable too — don't poll it.** `git-control-tower baseline diff --scenario S --name N` returns immediately with a run id + re-attach command (it reuses a clean-tree run when one exists, so it usually doesn't even re-run the suite). Resolve the verdict with `git-control-tower baseline diff status --scenario S --name N --run <run-id>` (exit `0` clean, `1` regression, `2` not-comparable, `3` not-ready), or add `--wait` to block server-side and print it inline.
+**Baseline diff is durable too — don't poll it.** `git-control-tower baseline diff --scenario S --name N` returns immediately with a run id + re-attach command. It reuses a prior current result only when that scenario's declared source fingerprint and validation configuration still match; otherwise it runs the tests again. Ordinary dirty or unrelated workspace files do not invalidate the baseline. Resolve the verdict with `git-control-tower baseline diff status --scenario S --name N --run <run-id>` (exit `0` clean, `1` regression, `2` not-comparable, `3` not-ready), or add `--wait` to block server-side and print it inline.
 
 **Baseline snapshot is re-attachable.** `git-control-tower baseline snapshot --scenario S --name N` returns as soon as the server owns the run. Resolve the manifest write with `git-control-tower baseline snapshot status --scenario S --name N --run <run-id>` (exit `0` ready, `2` missing/failed, `3` pending), or add `--wait` to block server-side. If a later `show`/`diff` cannot find the manifest, use `snapshot status` first; it distinguishes pending/failed snapshot intents from a wrong baseline name and prints similar-name hints when available.
 
-**Baseline collections are equally strict.** `baseline collection show --wait`
-and collection diff waits exit `3` with a typed incomplete outcome and one exact
-recovery command whenever required child work remains pending. Cancellation or
-deadline detaches without rewriting durable state; it never becomes success.
+**Baseline collections use the same standing contract.** `baseline collection
+show` and `baseline collection diff status` are pure reads that return the
+typed `OperationStanding` with `wait`, `inspect`, or `recover`; they never
+decide completion from client timing. `baseline collection show --wait` and
+`baseline collection diff wait` are the only blocking attachments. A bounded
+wait exits `124` after emitting its detached standing and exact reattach
+command; cancellation never rewrites durable state or becomes success.
 
 **Plan Manager delegates; it does not wait.** A Plan Manager execution first
 renders a Git Control Tower baseline-collection capture command. Run that exact
