@@ -27,6 +27,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-compon
 // =============================================================================
 
 service AdoptionsService {
+  // ListScenarios exposes the scenario-root inventory for typed workflow and
+  // adoption pickers. It is read-only and returns a stable lexical ordering.
+  rpc ListScenarios(ListScenariosRequest) returns (ListScenariosResponse);
   rpc ListAdoptions(ListAdoptionsRequest) returns (ListAdoptionsResponse);
   rpc ListEffectiveAdoptions(ListEffectiveAdoptionsRequest) returns (ListEffectiveAdoptionsResponse);
   rpc ApplyAdoption(ApplyAdoptionRequest) returns (ApplyAdoptionResponse);
@@ -58,6 +61,21 @@ service AdoptionsService {
   // header-less scenario file and creates its adoption record, attributed to
   // the exact component + version echoed from a DiscoverAdoptions candidate.
   rpc ConfirmDiscovery(ConfirmDiscoveryRequest) returns (ConfirmDiscoveryResponse);
+}
+
+message ListScenariosRequest {}
+
+message ListScenariosResponse {
+  repeated ScenarioOption scenarios = 1;
+}
+
+// ScenarioOption is the typed display contract for a selectable scenario.
+// `name` is the stable scenario slug; `display_name` is presentation metadata
+// for picker clients and currently defaults to the slug when no richer source
+// metadata is available.
+message ScenarioOption {
+  string name = 1;
+  string display_name = 2;
 }
 
 enum LibraryVersionStatus {

@@ -377,7 +377,7 @@ class IngestParityReport(_message.Message):
     def __init__(self, origin_files: _Optional[_Iterable[str]] = ..., harvested_files: _Optional[_Iterable[str]] = ..., findings: _Optional[_Iterable[_Union[IngestFinding, _Mapping]]] = ..., acknowledged: _Optional[bool] = ...) -> None: ...
 
 class CreateComponentVersionRequest(_message.Message):
-    __slots__ = ("component_id", "version", "from_version", "intent", "file_name", "source", "changelog_md", "acknowledge_parity_waiver")
+    __slots__ = ("component_id", "version", "from_version", "intent", "file_name", "source", "changelog_md", "acknowledge_parity_waiver", "parity_report")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     FROM_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -386,6 +386,7 @@ class CreateComponentVersionRequest(_message.Message):
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     CHANGELOG_MD_FIELD_NUMBER: _ClassVar[int]
     ACKNOWLEDGE_PARITY_WAIVER_FIELD_NUMBER: _ClassVar[int]
+    PARITY_REPORT_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     version: str
     from_version: str
@@ -394,7 +395,8 @@ class CreateComponentVersionRequest(_message.Message):
     source: str
     changelog_md: str
     acknowledge_parity_waiver: bool
-    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., from_version: _Optional[str] = ..., intent: _Optional[_Union[ComponentVersionIntent, str]] = ..., file_name: _Optional[str] = ..., source: _Optional[str] = ..., changelog_md: _Optional[str] = ..., acknowledge_parity_waiver: _Optional[bool] = ...) -> None: ...
+    parity_report: IngestParityReport
+    def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., from_version: _Optional[str] = ..., intent: _Optional[_Union[ComponentVersionIntent, str]] = ..., file_name: _Optional[str] = ..., source: _Optional[str] = ..., changelog_md: _Optional[str] = ..., acknowledge_parity_waiver: _Optional[bool] = ..., parity_report: _Optional[_Union[IngestParityReport, _Mapping]] = ...) -> None: ...
 
 class CreateComponentVersionResponse(_message.Message):
     __slots__ = ("component", "version", "source_path")

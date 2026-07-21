@@ -310,6 +310,142 @@ func (ReconvergeAction) EnumDescriptor() ([]byte, []int) {
 	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{4}
 }
 
+type ListScenariosRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListScenariosRequest) Reset() {
+	*x = ListScenariosRequest{}
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListScenariosRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListScenariosRequest) ProtoMessage() {}
+
+func (x *ListScenariosRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListScenariosRequest.ProtoReflect.Descriptor instead.
+func (*ListScenariosRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{0}
+}
+
+type ListScenariosResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenarios     []*ScenarioOption      `protobuf:"bytes,1,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListScenariosResponse) Reset() {
+	*x = ListScenariosResponse{}
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListScenariosResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListScenariosResponse) ProtoMessage() {}
+
+func (x *ListScenariosResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListScenariosResponse.ProtoReflect.Descriptor instead.
+func (*ListScenariosResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ListScenariosResponse) GetScenarios() []*ScenarioOption {
+	if x != nil {
+		return x.Scenarios
+	}
+	return nil
+}
+
+// ScenarioOption is the typed display contract for a selectable scenario.
+// `name` is the stable scenario slug; `display_name` is presentation metadata
+// for picker clients and currently defaults to the slug when no richer source
+// metadata is available.
+type ScenarioOption struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioOption) Reset() {
+	*x = ScenarioOption{}
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioOption) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioOption) ProtoMessage() {}
+
+func (x *ScenarioOption) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioOption.ProtoReflect.Descriptor instead.
+func (*ScenarioOption) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ScenarioOption) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ScenarioOption) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
 type Adoption struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// UUID assigned by the API on create.
@@ -345,7 +481,7 @@ type Adoption struct {
 
 func (x *Adoption) Reset() {
 	*x = Adoption{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[0]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -357,7 +493,7 @@ func (x *Adoption) String() string {
 func (*Adoption) ProtoMessage() {}
 
 func (x *Adoption) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[0]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -370,7 +506,7 @@ func (x *Adoption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Adoption.ProtoReflect.Descriptor instead.
 func (*Adoption) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{0}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Adoption) GetId() string {
@@ -488,7 +624,7 @@ type AdoptionFile struct {
 
 func (x *AdoptionFile) Reset() {
 	*x = AdoptionFile{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[1]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -500,7 +636,7 @@ func (x *AdoptionFile) String() string {
 func (*AdoptionFile) ProtoMessage() {}
 
 func (x *AdoptionFile) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[1]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -513,7 +649,7 @@ func (x *AdoptionFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdoptionFile.ProtoReflect.Descriptor instead.
 func (*AdoptionFile) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{1}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AdoptionFile) GetLibraryPath() string {
@@ -579,7 +715,7 @@ type ListAdoptionsRequest struct {
 
 func (x *ListAdoptionsRequest) Reset() {
 	*x = ListAdoptionsRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[2]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -591,7 +727,7 @@ func (x *ListAdoptionsRequest) String() string {
 func (*ListAdoptionsRequest) ProtoMessage() {}
 
 func (x *ListAdoptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[2]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -604,7 +740,7 @@ func (x *ListAdoptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAdoptionsRequest.ProtoReflect.Descriptor instead.
 func (*ListAdoptionsRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{2}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ListAdoptionsRequest) GetComponentId() string {
@@ -637,7 +773,7 @@ type ListAdoptionsResponse struct {
 
 func (x *ListAdoptionsResponse) Reset() {
 	*x = ListAdoptionsResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[3]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -649,7 +785,7 @@ func (x *ListAdoptionsResponse) String() string {
 func (*ListAdoptionsResponse) ProtoMessage() {}
 
 func (x *ListAdoptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[3]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -662,7 +798,7 @@ func (x *ListAdoptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAdoptionsResponse.ProtoReflect.Descriptor instead.
 func (*ListAdoptionsResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{3}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListAdoptionsResponse) GetAdoptions() []*Adoption {
@@ -688,7 +824,7 @@ type EffectiveAdoption struct {
 
 func (x *EffectiveAdoption) Reset() {
 	*x = EffectiveAdoption{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[4]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +836,7 @@ func (x *EffectiveAdoption) String() string {
 func (*EffectiveAdoption) ProtoMessage() {}
 
 func (x *EffectiveAdoption) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[4]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +849,7 @@ func (x *EffectiveAdoption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffectiveAdoption.ProtoReflect.Descriptor instead.
 func (*EffectiveAdoption) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{4}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *EffectiveAdoption) GetSourceAssetId() string {
@@ -761,7 +897,7 @@ type ListEffectiveAdoptionsRequest struct {
 
 func (x *ListEffectiveAdoptionsRequest) Reset() {
 	*x = ListEffectiveAdoptionsRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[5]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -773,7 +909,7 @@ func (x *ListEffectiveAdoptionsRequest) String() string {
 func (*ListEffectiveAdoptionsRequest) ProtoMessage() {}
 
 func (x *ListEffectiveAdoptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[5]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -786,7 +922,7 @@ func (x *ListEffectiveAdoptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffectiveAdoptionsRequest.ProtoReflect.Descriptor instead.
 func (*ListEffectiveAdoptionsRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{5}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListEffectiveAdoptionsRequest) GetComponentId() string {
@@ -812,7 +948,7 @@ type ListEffectiveAdoptionsResponse struct {
 
 func (x *ListEffectiveAdoptionsResponse) Reset() {
 	*x = ListEffectiveAdoptionsResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[6]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -824,7 +960,7 @@ func (x *ListEffectiveAdoptionsResponse) String() string {
 func (*ListEffectiveAdoptionsResponse) ProtoMessage() {}
 
 func (x *ListEffectiveAdoptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[6]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -837,7 +973,7 @@ func (x *ListEffectiveAdoptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEffectiveAdoptionsResponse.ProtoReflect.Descriptor instead.
 func (*ListEffectiveAdoptionsResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{6}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListEffectiveAdoptionsResponse) GetAdoptions() []*EffectiveAdoption {
@@ -874,7 +1010,7 @@ type ApplyAdoptionRequest struct {
 
 func (x *ApplyAdoptionRequest) Reset() {
 	*x = ApplyAdoptionRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[7]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -886,7 +1022,7 @@ func (x *ApplyAdoptionRequest) String() string {
 func (*ApplyAdoptionRequest) ProtoMessage() {}
 
 func (x *ApplyAdoptionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[7]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -899,7 +1035,7 @@ func (x *ApplyAdoptionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyAdoptionRequest.ProtoReflect.Descriptor instead.
 func (*ApplyAdoptionRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{7}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ApplyAdoptionRequest) GetComponentId() string {
@@ -968,7 +1104,7 @@ type ApplyAdoptionResponse struct {
 
 func (x *ApplyAdoptionResponse) Reset() {
 	*x = ApplyAdoptionResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[8]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -980,7 +1116,7 @@ func (x *ApplyAdoptionResponse) String() string {
 func (*ApplyAdoptionResponse) ProtoMessage() {}
 
 func (x *ApplyAdoptionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[8]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -993,7 +1129,7 @@ func (x *ApplyAdoptionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyAdoptionResponse.ProtoReflect.Descriptor instead.
 func (*ApplyAdoptionResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{8}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ApplyAdoptionResponse) GetAdoption() *Adoption {
@@ -1047,7 +1183,7 @@ type ReapplyAdoptionRequest struct {
 
 func (x *ReapplyAdoptionRequest) Reset() {
 	*x = ReapplyAdoptionRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[9]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1059,7 +1195,7 @@ func (x *ReapplyAdoptionRequest) String() string {
 func (*ReapplyAdoptionRequest) ProtoMessage() {}
 
 func (x *ReapplyAdoptionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[9]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1072,7 +1208,7 @@ func (x *ReapplyAdoptionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReapplyAdoptionRequest.ProtoReflect.Descriptor instead.
 func (*ReapplyAdoptionRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{9}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ReapplyAdoptionRequest) GetId() string {
@@ -1113,7 +1249,7 @@ type ReapplyAdoptionResponse struct {
 
 func (x *ReapplyAdoptionResponse) Reset() {
 	*x = ReapplyAdoptionResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[10]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1125,7 +1261,7 @@ func (x *ReapplyAdoptionResponse) String() string {
 func (*ReapplyAdoptionResponse) ProtoMessage() {}
 
 func (x *ReapplyAdoptionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[10]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1138,7 +1274,7 @@ func (x *ReapplyAdoptionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReapplyAdoptionResponse.ProtoReflect.Descriptor instead.
 func (*ReapplyAdoptionResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{10}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ReapplyAdoptionResponse) GetAdoption() *Adoption {
@@ -1164,7 +1300,7 @@ type DeleteAdoptionRequest struct {
 
 func (x *DeleteAdoptionRequest) Reset() {
 	*x = DeleteAdoptionRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[11]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1176,7 +1312,7 @@ func (x *DeleteAdoptionRequest) String() string {
 func (*DeleteAdoptionRequest) ProtoMessage() {}
 
 func (x *DeleteAdoptionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[11]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1189,7 +1325,7 @@ func (x *DeleteAdoptionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAdoptionRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAdoptionRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{11}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DeleteAdoptionRequest) GetId() string {
@@ -1207,7 +1343,7 @@ type DeleteAdoptionResponse struct {
 
 func (x *DeleteAdoptionResponse) Reset() {
 	*x = DeleteAdoptionResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[12]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1219,7 +1355,7 @@ func (x *DeleteAdoptionResponse) String() string {
 func (*DeleteAdoptionResponse) ProtoMessage() {}
 
 func (x *DeleteAdoptionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[12]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1232,7 +1368,7 @@ func (x *DeleteAdoptionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAdoptionResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAdoptionResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{12}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{15}
 }
 
 type RefreshAdoptionsRequest struct {
@@ -1246,7 +1382,7 @@ type RefreshAdoptionsRequest struct {
 
 func (x *RefreshAdoptionsRequest) Reset() {
 	*x = RefreshAdoptionsRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[13]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1258,7 +1394,7 @@ func (x *RefreshAdoptionsRequest) String() string {
 func (*RefreshAdoptionsRequest) ProtoMessage() {}
 
 func (x *RefreshAdoptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[13]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1271,7 +1407,7 @@ func (x *RefreshAdoptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshAdoptionsRequest.ProtoReflect.Descriptor instead.
 func (*RefreshAdoptionsRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{13}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RefreshAdoptionsRequest) GetComponentId() string {
@@ -1310,7 +1446,7 @@ type ResolveAdoptionPathRequest struct {
 
 func (x *ResolveAdoptionPathRequest) Reset() {
 	*x = ResolveAdoptionPathRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[14]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1322,7 +1458,7 @@ func (x *ResolveAdoptionPathRequest) String() string {
 func (*ResolveAdoptionPathRequest) ProtoMessage() {}
 
 func (x *ResolveAdoptionPathRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[14]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1335,7 +1471,7 @@ func (x *ResolveAdoptionPathRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveAdoptionPathRequest.ProtoReflect.Descriptor instead.
 func (*ResolveAdoptionPathRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{14}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ResolveAdoptionPathRequest) GetComponentId() string {
@@ -1406,7 +1542,7 @@ type ResolvedVersionFile struct {
 
 func (x *ResolvedVersionFile) Reset() {
 	*x = ResolvedVersionFile{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[15]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1418,7 +1554,7 @@ func (x *ResolvedVersionFile) String() string {
 func (*ResolvedVersionFile) ProtoMessage() {}
 
 func (x *ResolvedVersionFile) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[15]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1431,7 +1567,7 @@ func (x *ResolvedVersionFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvedVersionFile.ProtoReflect.Descriptor instead.
 func (*ResolvedVersionFile) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{15}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ResolvedVersionFile) GetLibraryPath() string {
@@ -1509,7 +1645,7 @@ type ResolveAdoptionPathResponse struct {
 
 func (x *ResolveAdoptionPathResponse) Reset() {
 	*x = ResolveAdoptionPathResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[16]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1521,7 +1657,7 @@ func (x *ResolveAdoptionPathResponse) String() string {
 func (*ResolveAdoptionPathResponse) ProtoMessage() {}
 
 func (x *ResolveAdoptionPathResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[16]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1534,7 +1670,7 @@ func (x *ResolveAdoptionPathResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveAdoptionPathResponse.ProtoReflect.Descriptor instead.
 func (*ResolveAdoptionPathResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{16}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ResolveAdoptionPathResponse) GetPath() string {
@@ -1601,7 +1737,7 @@ type SuggestAdoptionsRequest struct {
 
 func (x *SuggestAdoptionsRequest) Reset() {
 	*x = SuggestAdoptionsRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[17]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1613,7 +1749,7 @@ func (x *SuggestAdoptionsRequest) String() string {
 func (*SuggestAdoptionsRequest) ProtoMessage() {}
 
 func (x *SuggestAdoptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[17]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1626,7 +1762,7 @@ func (x *SuggestAdoptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuggestAdoptionsRequest.ProtoReflect.Descriptor instead.
 func (*SuggestAdoptionsRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{17}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SuggestAdoptionsRequest) GetScenario() string {
@@ -1666,7 +1802,7 @@ type AdoptionSuggestion struct {
 
 func (x *AdoptionSuggestion) Reset() {
 	*x = AdoptionSuggestion{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[18]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1678,7 +1814,7 @@ func (x *AdoptionSuggestion) String() string {
 func (*AdoptionSuggestion) ProtoMessage() {}
 
 func (x *AdoptionSuggestion) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[18]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1691,7 +1827,7 @@ func (x *AdoptionSuggestion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdoptionSuggestion.ProtoReflect.Descriptor instead.
 func (*AdoptionSuggestion) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{18}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *AdoptionSuggestion) GetScenario() string {
@@ -1752,7 +1888,7 @@ type SuggestAdoptionsResponse struct {
 
 func (x *SuggestAdoptionsResponse) Reset() {
 	*x = SuggestAdoptionsResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[19]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1764,7 +1900,7 @@ func (x *SuggestAdoptionsResponse) String() string {
 func (*SuggestAdoptionsResponse) ProtoMessage() {}
 
 func (x *SuggestAdoptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[19]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1777,7 +1913,7 @@ func (x *SuggestAdoptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuggestAdoptionsResponse.ProtoReflect.Descriptor instead.
 func (*SuggestAdoptionsResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{19}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *SuggestAdoptionsResponse) GetSuggestions() []*AdoptionSuggestion {
@@ -1808,7 +1944,7 @@ type RefreshAdoptionsResponse struct {
 
 func (x *RefreshAdoptionsResponse) Reset() {
 	*x = RefreshAdoptionsResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[20]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1820,7 +1956,7 @@ func (x *RefreshAdoptionsResponse) String() string {
 func (*RefreshAdoptionsResponse) ProtoMessage() {}
 
 func (x *RefreshAdoptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[20]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1833,7 +1969,7 @@ func (x *RefreshAdoptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshAdoptionsResponse.ProtoReflect.Descriptor instead.
 func (*RefreshAdoptionsResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{20}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *RefreshAdoptionsResponse) GetAdoptions() []*Adoption {
@@ -1917,7 +2053,7 @@ type ReconcileAdoptionsRequest struct {
 
 func (x *ReconcileAdoptionsRequest) Reset() {
 	*x = ReconcileAdoptionsRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[21]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1929,7 +2065,7 @@ func (x *ReconcileAdoptionsRequest) String() string {
 func (*ReconcileAdoptionsRequest) ProtoMessage() {}
 
 func (x *ReconcileAdoptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[21]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1942,7 +2078,7 @@ func (x *ReconcileAdoptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileAdoptionsRequest.ProtoReflect.Descriptor instead.
 func (*ReconcileAdoptionsRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{21}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ReconcileAdoptionsRequest) GetApply() bool {
@@ -1965,7 +2101,7 @@ type ReconcileFinding struct {
 
 func (x *ReconcileFinding) Reset() {
 	*x = ReconcileFinding{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[22]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1977,7 +2113,7 @@ func (x *ReconcileFinding) String() string {
 func (*ReconcileFinding) ProtoMessage() {}
 
 func (x *ReconcileFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[22]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1990,7 +2126,7 @@ func (x *ReconcileFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileFinding.ProtoReflect.Descriptor instead.
 func (*ReconcileFinding) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{22}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ReconcileFinding) GetScenario() string {
@@ -2040,7 +2176,7 @@ type ReconcileAdoptionsResponse struct {
 
 func (x *ReconcileAdoptionsResponse) Reset() {
 	*x = ReconcileAdoptionsResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[23]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2052,7 +2188,7 @@ func (x *ReconcileAdoptionsResponse) String() string {
 func (*ReconcileAdoptionsResponse) ProtoMessage() {}
 
 func (x *ReconcileAdoptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[23]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2065,7 +2201,7 @@ func (x *ReconcileAdoptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileAdoptionsResponse.ProtoReflect.Descriptor instead.
 func (*ReconcileAdoptionsResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{23}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ReconcileAdoptionsResponse) GetScanned() int32 {
@@ -2109,7 +2245,7 @@ type ReconvergeAdoptionsRequest struct {
 
 func (x *ReconvergeAdoptionsRequest) Reset() {
 	*x = ReconvergeAdoptionsRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[24]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2121,7 +2257,7 @@ func (x *ReconvergeAdoptionsRequest) String() string {
 func (*ReconvergeAdoptionsRequest) ProtoMessage() {}
 
 func (x *ReconvergeAdoptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[24]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2134,7 +2270,7 @@ func (x *ReconvergeAdoptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconvergeAdoptionsRequest.ProtoReflect.Descriptor instead.
 func (*ReconvergeAdoptionsRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{24}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ReconvergeAdoptionsRequest) GetScenario() string {
@@ -2163,7 +2299,7 @@ type ReconvergeFileOutcome struct {
 
 func (x *ReconvergeFileOutcome) Reset() {
 	*x = ReconvergeFileOutcome{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[25]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2175,7 +2311,7 @@ func (x *ReconvergeFileOutcome) String() string {
 func (*ReconvergeFileOutcome) ProtoMessage() {}
 
 func (x *ReconvergeFileOutcome) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[25]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2188,7 +2324,7 @@ func (x *ReconvergeFileOutcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconvergeFileOutcome.ProtoReflect.Descriptor instead.
 func (*ReconvergeFileOutcome) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{25}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ReconvergeFileOutcome) GetLibraryPath() string {
@@ -2235,7 +2371,7 @@ type ReconvergeOutcome struct {
 
 func (x *ReconvergeOutcome) Reset() {
 	*x = ReconvergeOutcome{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[26]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2247,7 +2383,7 @@ func (x *ReconvergeOutcome) String() string {
 func (*ReconvergeOutcome) ProtoMessage() {}
 
 func (x *ReconvergeOutcome) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[26]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2260,7 +2396,7 @@ func (x *ReconvergeOutcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconvergeOutcome.ProtoReflect.Descriptor instead.
 func (*ReconvergeOutcome) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{26}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ReconvergeOutcome) GetAdoptionId() string {
@@ -2361,7 +2497,7 @@ type ReconvergeAdoptionsResponse struct {
 
 func (x *ReconvergeAdoptionsResponse) Reset() {
 	*x = ReconvergeAdoptionsResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[27]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2373,7 +2509,7 @@ func (x *ReconvergeAdoptionsResponse) String() string {
 func (*ReconvergeAdoptionsResponse) ProtoMessage() {}
 
 func (x *ReconvergeAdoptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[27]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2386,7 +2522,7 @@ func (x *ReconvergeAdoptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconvergeAdoptionsResponse.ProtoReflect.Descriptor instead.
 func (*ReconvergeAdoptionsResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{27}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ReconvergeAdoptionsResponse) GetScanned() int32 {
@@ -2457,7 +2593,7 @@ type DiscoverAdoptionsRequest struct {
 
 func (x *DiscoverAdoptionsRequest) Reset() {
 	*x = DiscoverAdoptionsRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[28]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2469,7 +2605,7 @@ func (x *DiscoverAdoptionsRequest) String() string {
 func (*DiscoverAdoptionsRequest) ProtoMessage() {}
 
 func (x *DiscoverAdoptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[28]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2482,7 +2618,7 @@ func (x *DiscoverAdoptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverAdoptionsRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverAdoptionsRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{28}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *DiscoverAdoptionsRequest) GetScenario() string {
@@ -2530,7 +2666,7 @@ type DiscoveryCandidate struct {
 
 func (x *DiscoveryCandidate) Reset() {
 	*x = DiscoveryCandidate{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[29]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2542,7 +2678,7 @@ func (x *DiscoveryCandidate) String() string {
 func (*DiscoveryCandidate) ProtoMessage() {}
 
 func (x *DiscoveryCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[29]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2555,7 +2691,7 @@ func (x *DiscoveryCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoveryCandidate.ProtoReflect.Descriptor instead.
 func (*DiscoveryCandidate) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{29}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *DiscoveryCandidate) GetScenario() string {
@@ -2653,7 +2789,7 @@ type DiscoverAdoptionsResponse struct {
 
 func (x *DiscoverAdoptionsResponse) Reset() {
 	*x = DiscoverAdoptionsResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[30]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2665,7 +2801,7 @@ func (x *DiscoverAdoptionsResponse) String() string {
 func (*DiscoverAdoptionsResponse) ProtoMessage() {}
 
 func (x *DiscoverAdoptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[30]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2678,7 +2814,7 @@ func (x *DiscoverAdoptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverAdoptionsResponse.ProtoReflect.Descriptor instead.
 func (*DiscoverAdoptionsResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{30}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *DiscoverAdoptionsResponse) GetScanned() int32 {
@@ -2717,7 +2853,7 @@ type ConfirmDiscoveryRequest struct {
 
 func (x *ConfirmDiscoveryRequest) Reset() {
 	*x = ConfirmDiscoveryRequest{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[31]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2729,7 +2865,7 @@ func (x *ConfirmDiscoveryRequest) String() string {
 func (*ConfirmDiscoveryRequest) ProtoMessage() {}
 
 func (x *ConfirmDiscoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[31]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2742,7 +2878,7 @@ func (x *ConfirmDiscoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmDiscoveryRequest.ProtoReflect.Descriptor instead.
 func (*ConfirmDiscoveryRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{31}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ConfirmDiscoveryRequest) GetScenario() string {
@@ -2784,7 +2920,7 @@ type ConfirmDiscoveryResponse struct {
 
 func (x *ConfirmDiscoveryResponse) Reset() {
 	*x = ConfirmDiscoveryResponse{}
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[32]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2796,7 +2932,7 @@ func (x *ConfirmDiscoveryResponse) String() string {
 func (*ConfirmDiscoveryResponse) ProtoMessage() {}
 
 func (x *ConfirmDiscoveryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[32]
+	mi := &file_react_component_library_v1_adoptions_adoptions_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2809,7 +2945,7 @@ func (x *ConfirmDiscoveryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmDiscoveryResponse.ProtoReflect.Descriptor instead.
 func (*ConfirmDiscoveryResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{32}
+	return file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ConfirmDiscoveryResponse) GetAdoption() *Adoption {
@@ -2837,7 +2973,13 @@ var File_react_component_library_v1_adoptions_adoptions_proto protoreflect.FileD
 
 const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\n" +
-	"4react-component-library/v1/adoptions/adoptions.proto\x12+vrooli.react_component_library.v1.adoptions\x1a\x1fgoogle/protobuf/timestamp.proto\"\xce\x05\n" +
+	"4react-component-library/v1/adoptions/adoptions.proto\x12+vrooli.react_component_library.v1.adoptions\x1a\x1fgoogle/protobuf/timestamp.proto\"\x16\n" +
+	"\x14ListScenariosRequest\"r\n" +
+	"\x15ListScenariosResponse\x12Y\n" +
+	"\tscenarios\x18\x01 \x03(\v2;.vrooli.react_component_library.v1.adoptions.ScenarioOptionR\tscenarios\"G\n" +
+	"\x0eScenarioOption\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\"\xce\x05\n" +
 	"\bAdoption\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fcomponent_id\x18\x02 \x01(\tR\vcomponentId\x12\x1d\n" +
@@ -3073,8 +3215,9 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\x1fRECONVERGE_ACTION_WOULD_REAPPLY\x10\x02\x12&\n" +
 	"\"RECONVERGE_ACTION_FLAGGED_MODIFIED\x10\x03\x12(\n" +
 	"$RECONVERGE_ACTION_SKIPPED_UNRESOLVED\x10\x04\x12\x1b\n" +
-	"\x17RECONVERGE_ACTION_ERROR\x10\x052\xbc\x0f\n" +
+	"\x17RECONVERGE_ACTION_ERROR\x10\x052\xd5\x10\n" +
 	"\x10AdoptionsService\x12\x96\x01\n" +
+	"\rListScenarios\x12A.vrooli.react_component_library.v1.adoptions.ListScenariosRequest\x1aB.vrooli.react_component_library.v1.adoptions.ListScenariosResponse\x12\x96\x01\n" +
 	"\rListAdoptions\x12A.vrooli.react_component_library.v1.adoptions.ListAdoptionsRequest\x1aB.vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse\x12\xb1\x01\n" +
 	"\x16ListEffectiveAdoptions\x12J.vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsRequest\x1aK.vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsResponse\x12\x96\x01\n" +
 	"\rApplyAdoption\x12A.vrooli.react_component_library.v1.adoptions.ApplyAdoptionRequest\x1aB.vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse\x12\x9c\x01\n" +
@@ -3101,103 +3244,109 @@ func file_react_component_library_v1_adoptions_adoptions_proto_rawDescGZIP() []b
 }
 
 var file_react_component_library_v1_adoptions_adoptions_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_react_component_library_v1_adoptions_adoptions_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_react_component_library_v1_adoptions_adoptions_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_react_component_library_v1_adoptions_adoptions_proto_goTypes = []any{
 	(LibraryVersionStatus)(0),              // 0: vrooli.react_component_library.v1.adoptions.LibraryVersionStatus
 	(LocalStatus)(0),                       // 1: vrooli.react_component_library.v1.adoptions.LocalStatus
 	(ResolveSource)(0),                     // 2: vrooli.react_component_library.v1.adoptions.ResolveSource
 	(RecommendationClass)(0),               // 3: vrooli.react_component_library.v1.adoptions.RecommendationClass
 	(ReconvergeAction)(0),                  // 4: vrooli.react_component_library.v1.adoptions.ReconvergeAction
-	(*Adoption)(nil),                       // 5: vrooli.react_component_library.v1.adoptions.Adoption
-	(*AdoptionFile)(nil),                   // 6: vrooli.react_component_library.v1.adoptions.AdoptionFile
-	(*ListAdoptionsRequest)(nil),           // 7: vrooli.react_component_library.v1.adoptions.ListAdoptionsRequest
-	(*ListAdoptionsResponse)(nil),          // 8: vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse
-	(*EffectiveAdoption)(nil),              // 9: vrooli.react_component_library.v1.adoptions.EffectiveAdoption
-	(*ListEffectiveAdoptionsRequest)(nil),  // 10: vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsRequest
-	(*ListEffectiveAdoptionsResponse)(nil), // 11: vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsResponse
-	(*ApplyAdoptionRequest)(nil),           // 12: vrooli.react_component_library.v1.adoptions.ApplyAdoptionRequest
-	(*ApplyAdoptionResponse)(nil),          // 13: vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse
-	(*ReapplyAdoptionRequest)(nil),         // 14: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionRequest
-	(*ReapplyAdoptionResponse)(nil),        // 15: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse
-	(*DeleteAdoptionRequest)(nil),          // 16: vrooli.react_component_library.v1.adoptions.DeleteAdoptionRequest
-	(*DeleteAdoptionResponse)(nil),         // 17: vrooli.react_component_library.v1.adoptions.DeleteAdoptionResponse
-	(*RefreshAdoptionsRequest)(nil),        // 18: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsRequest
-	(*ResolveAdoptionPathRequest)(nil),     // 19: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathRequest
-	(*ResolvedVersionFile)(nil),            // 20: vrooli.react_component_library.v1.adoptions.ResolvedVersionFile
-	(*ResolveAdoptionPathResponse)(nil),    // 21: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse
-	(*SuggestAdoptionsRequest)(nil),        // 22: vrooli.react_component_library.v1.adoptions.SuggestAdoptionsRequest
-	(*AdoptionSuggestion)(nil),             // 23: vrooli.react_component_library.v1.adoptions.AdoptionSuggestion
-	(*SuggestAdoptionsResponse)(nil),       // 24: vrooli.react_component_library.v1.adoptions.SuggestAdoptionsResponse
-	(*RefreshAdoptionsResponse)(nil),       // 25: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse
-	(*ReconcileAdoptionsRequest)(nil),      // 26: vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsRequest
-	(*ReconcileFinding)(nil),               // 27: vrooli.react_component_library.v1.adoptions.ReconcileFinding
-	(*ReconcileAdoptionsResponse)(nil),     // 28: vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsResponse
-	(*ReconvergeAdoptionsRequest)(nil),     // 29: vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsRequest
-	(*ReconvergeFileOutcome)(nil),          // 30: vrooli.react_component_library.v1.adoptions.ReconvergeFileOutcome
-	(*ReconvergeOutcome)(nil),              // 31: vrooli.react_component_library.v1.adoptions.ReconvergeOutcome
-	(*ReconvergeAdoptionsResponse)(nil),    // 32: vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsResponse
-	(*DiscoverAdoptionsRequest)(nil),       // 33: vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsRequest
-	(*DiscoveryCandidate)(nil),             // 34: vrooli.react_component_library.v1.adoptions.DiscoveryCandidate
-	(*DiscoverAdoptionsResponse)(nil),      // 35: vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsResponse
-	(*ConfirmDiscoveryRequest)(nil),        // 36: vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryRequest
-	(*ConfirmDiscoveryResponse)(nil),       // 37: vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryResponse
-	(*timestamppb.Timestamp)(nil),          // 38: google.protobuf.Timestamp
+	(*ListScenariosRequest)(nil),           // 5: vrooli.react_component_library.v1.adoptions.ListScenariosRequest
+	(*ListScenariosResponse)(nil),          // 6: vrooli.react_component_library.v1.adoptions.ListScenariosResponse
+	(*ScenarioOption)(nil),                 // 7: vrooli.react_component_library.v1.adoptions.ScenarioOption
+	(*Adoption)(nil),                       // 8: vrooli.react_component_library.v1.adoptions.Adoption
+	(*AdoptionFile)(nil),                   // 9: vrooli.react_component_library.v1.adoptions.AdoptionFile
+	(*ListAdoptionsRequest)(nil),           // 10: vrooli.react_component_library.v1.adoptions.ListAdoptionsRequest
+	(*ListAdoptionsResponse)(nil),          // 11: vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse
+	(*EffectiveAdoption)(nil),              // 12: vrooli.react_component_library.v1.adoptions.EffectiveAdoption
+	(*ListEffectiveAdoptionsRequest)(nil),  // 13: vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsRequest
+	(*ListEffectiveAdoptionsResponse)(nil), // 14: vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsResponse
+	(*ApplyAdoptionRequest)(nil),           // 15: vrooli.react_component_library.v1.adoptions.ApplyAdoptionRequest
+	(*ApplyAdoptionResponse)(nil),          // 16: vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse
+	(*ReapplyAdoptionRequest)(nil),         // 17: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionRequest
+	(*ReapplyAdoptionResponse)(nil),        // 18: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse
+	(*DeleteAdoptionRequest)(nil),          // 19: vrooli.react_component_library.v1.adoptions.DeleteAdoptionRequest
+	(*DeleteAdoptionResponse)(nil),         // 20: vrooli.react_component_library.v1.adoptions.DeleteAdoptionResponse
+	(*RefreshAdoptionsRequest)(nil),        // 21: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsRequest
+	(*ResolveAdoptionPathRequest)(nil),     // 22: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathRequest
+	(*ResolvedVersionFile)(nil),            // 23: vrooli.react_component_library.v1.adoptions.ResolvedVersionFile
+	(*ResolveAdoptionPathResponse)(nil),    // 24: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse
+	(*SuggestAdoptionsRequest)(nil),        // 25: vrooli.react_component_library.v1.adoptions.SuggestAdoptionsRequest
+	(*AdoptionSuggestion)(nil),             // 26: vrooli.react_component_library.v1.adoptions.AdoptionSuggestion
+	(*SuggestAdoptionsResponse)(nil),       // 27: vrooli.react_component_library.v1.adoptions.SuggestAdoptionsResponse
+	(*RefreshAdoptionsResponse)(nil),       // 28: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse
+	(*ReconcileAdoptionsRequest)(nil),      // 29: vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsRequest
+	(*ReconcileFinding)(nil),               // 30: vrooli.react_component_library.v1.adoptions.ReconcileFinding
+	(*ReconcileAdoptionsResponse)(nil),     // 31: vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsResponse
+	(*ReconvergeAdoptionsRequest)(nil),     // 32: vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsRequest
+	(*ReconvergeFileOutcome)(nil),          // 33: vrooli.react_component_library.v1.adoptions.ReconvergeFileOutcome
+	(*ReconvergeOutcome)(nil),              // 34: vrooli.react_component_library.v1.adoptions.ReconvergeOutcome
+	(*ReconvergeAdoptionsResponse)(nil),    // 35: vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsResponse
+	(*DiscoverAdoptionsRequest)(nil),       // 36: vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsRequest
+	(*DiscoveryCandidate)(nil),             // 37: vrooli.react_component_library.v1.adoptions.DiscoveryCandidate
+	(*DiscoverAdoptionsResponse)(nil),      // 38: vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsResponse
+	(*ConfirmDiscoveryRequest)(nil),        // 39: vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryRequest
+	(*ConfirmDiscoveryResponse)(nil),       // 40: vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryResponse
+	(*timestamppb.Timestamp)(nil),          // 41: google.protobuf.Timestamp
 }
 var file_react_component_library_v1_adoptions_adoptions_proto_depIdxs = []int32{
-	0,  // 0: vrooli.react_component_library.v1.adoptions.Adoption.library_version_status:type_name -> vrooli.react_component_library.v1.adoptions.LibraryVersionStatus
-	1,  // 1: vrooli.react_component_library.v1.adoptions.Adoption.local_status:type_name -> vrooli.react_component_library.v1.adoptions.LocalStatus
-	38, // 2: vrooli.react_component_library.v1.adoptions.Adoption.created_at:type_name -> google.protobuf.Timestamp
-	38, // 3: vrooli.react_component_library.v1.adoptions.Adoption.refreshed_at:type_name -> google.protobuf.Timestamp
-	6,  // 4: vrooli.react_component_library.v1.adoptions.Adoption.files:type_name -> vrooli.react_component_library.v1.adoptions.AdoptionFile
-	5,  // 5: vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse.adoptions:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
-	5,  // 6: vrooli.react_component_library.v1.adoptions.EffectiveAdoption.parent_adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
-	9,  // 7: vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsResponse.adoptions:type_name -> vrooli.react_component_library.v1.adoptions.EffectiveAdoption
-	5,  // 8: vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse.adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
-	5,  // 9: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse.adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
-	2,  // 10: vrooli.react_component_library.v1.adoptions.ResolvedVersionFile.source:type_name -> vrooli.react_component_library.v1.adoptions.ResolveSource
-	2,  // 11: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse.source:type_name -> vrooli.react_component_library.v1.adoptions.ResolveSource
-	20, // 12: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse.files:type_name -> vrooli.react_component_library.v1.adoptions.ResolvedVersionFile
-	3,  // 13: vrooli.react_component_library.v1.adoptions.AdoptionSuggestion.classification:type_name -> vrooli.react_component_library.v1.adoptions.RecommendationClass
-	23, // 14: vrooli.react_component_library.v1.adoptions.SuggestAdoptionsResponse.suggestions:type_name -> vrooli.react_component_library.v1.adoptions.AdoptionSuggestion
-	5,  // 15: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse.adoptions:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
-	27, // 16: vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsResponse.findings:type_name -> vrooli.react_component_library.v1.adoptions.ReconcileFinding
-	1,  // 17: vrooli.react_component_library.v1.adoptions.ReconvergeFileOutcome.local_status:type_name -> vrooli.react_component_library.v1.adoptions.LocalStatus
-	0,  // 18: vrooli.react_component_library.v1.adoptions.ReconvergeOutcome.library_version_status:type_name -> vrooli.react_component_library.v1.adoptions.LibraryVersionStatus
-	1,  // 19: vrooli.react_component_library.v1.adoptions.ReconvergeOutcome.local_status:type_name -> vrooli.react_component_library.v1.adoptions.LocalStatus
-	4,  // 20: vrooli.react_component_library.v1.adoptions.ReconvergeOutcome.action:type_name -> vrooli.react_component_library.v1.adoptions.ReconvergeAction
-	30, // 21: vrooli.react_component_library.v1.adoptions.ReconvergeOutcome.files:type_name -> vrooli.react_component_library.v1.adoptions.ReconvergeFileOutcome
-	31, // 22: vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsResponse.outcomes:type_name -> vrooli.react_component_library.v1.adoptions.ReconvergeOutcome
-	34, // 23: vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsResponse.candidates:type_name -> vrooli.react_component_library.v1.adoptions.DiscoveryCandidate
-	5,  // 24: vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryResponse.adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
-	7,  // 25: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.ListAdoptionsRequest
-	10, // 26: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListEffectiveAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsRequest
-	12, // 27: vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption:input_type -> vrooli.react_component_library.v1.adoptions.ApplyAdoptionRequest
-	14, // 28: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReapplyAdoption:input_type -> vrooli.react_component_library.v1.adoptions.ReapplyAdoptionRequest
-	16, // 29: vrooli.react_component_library.v1.adoptions.AdoptionsService.DeleteAdoption:input_type -> vrooli.react_component_library.v1.adoptions.DeleteAdoptionRequest
-	18, // 30: vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.RefreshAdoptionsRequest
-	26, // 31: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconcileAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsRequest
-	29, // 32: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconvergeAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsRequest
-	19, // 33: vrooli.react_component_library.v1.adoptions.AdoptionsService.ResolveAdoptionPath:input_type -> vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathRequest
-	22, // 34: vrooli.react_component_library.v1.adoptions.AdoptionsService.SuggestAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.SuggestAdoptionsRequest
-	33, // 35: vrooli.react_component_library.v1.adoptions.AdoptionsService.DiscoverAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsRequest
-	36, // 36: vrooli.react_component_library.v1.adoptions.AdoptionsService.ConfirmDiscovery:input_type -> vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryRequest
-	8,  // 37: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse
-	11, // 38: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListEffectiveAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsResponse
-	13, // 39: vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption:output_type -> vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse
-	15, // 40: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReapplyAdoption:output_type -> vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse
-	17, // 41: vrooli.react_component_library.v1.adoptions.AdoptionsService.DeleteAdoption:output_type -> vrooli.react_component_library.v1.adoptions.DeleteAdoptionResponse
-	25, // 42: vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse
-	28, // 43: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconcileAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsResponse
-	32, // 44: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconvergeAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsResponse
-	21, // 45: vrooli.react_component_library.v1.adoptions.AdoptionsService.ResolveAdoptionPath:output_type -> vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse
-	24, // 46: vrooli.react_component_library.v1.adoptions.AdoptionsService.SuggestAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.SuggestAdoptionsResponse
-	35, // 47: vrooli.react_component_library.v1.adoptions.AdoptionsService.DiscoverAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsResponse
-	37, // 48: vrooli.react_component_library.v1.adoptions.AdoptionsService.ConfirmDiscovery:output_type -> vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryResponse
-	37, // [37:49] is the sub-list for method output_type
-	25, // [25:37] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	7,  // 0: vrooli.react_component_library.v1.adoptions.ListScenariosResponse.scenarios:type_name -> vrooli.react_component_library.v1.adoptions.ScenarioOption
+	0,  // 1: vrooli.react_component_library.v1.adoptions.Adoption.library_version_status:type_name -> vrooli.react_component_library.v1.adoptions.LibraryVersionStatus
+	1,  // 2: vrooli.react_component_library.v1.adoptions.Adoption.local_status:type_name -> vrooli.react_component_library.v1.adoptions.LocalStatus
+	41, // 3: vrooli.react_component_library.v1.adoptions.Adoption.created_at:type_name -> google.protobuf.Timestamp
+	41, // 4: vrooli.react_component_library.v1.adoptions.Adoption.refreshed_at:type_name -> google.protobuf.Timestamp
+	9,  // 5: vrooli.react_component_library.v1.adoptions.Adoption.files:type_name -> vrooli.react_component_library.v1.adoptions.AdoptionFile
+	8,  // 6: vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse.adoptions:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
+	8,  // 7: vrooli.react_component_library.v1.adoptions.EffectiveAdoption.parent_adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
+	12, // 8: vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsResponse.adoptions:type_name -> vrooli.react_component_library.v1.adoptions.EffectiveAdoption
+	8,  // 9: vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse.adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
+	8,  // 10: vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse.adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
+	2,  // 11: vrooli.react_component_library.v1.adoptions.ResolvedVersionFile.source:type_name -> vrooli.react_component_library.v1.adoptions.ResolveSource
+	2,  // 12: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse.source:type_name -> vrooli.react_component_library.v1.adoptions.ResolveSource
+	23, // 13: vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse.files:type_name -> vrooli.react_component_library.v1.adoptions.ResolvedVersionFile
+	3,  // 14: vrooli.react_component_library.v1.adoptions.AdoptionSuggestion.classification:type_name -> vrooli.react_component_library.v1.adoptions.RecommendationClass
+	26, // 15: vrooli.react_component_library.v1.adoptions.SuggestAdoptionsResponse.suggestions:type_name -> vrooli.react_component_library.v1.adoptions.AdoptionSuggestion
+	8,  // 16: vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse.adoptions:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
+	30, // 17: vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsResponse.findings:type_name -> vrooli.react_component_library.v1.adoptions.ReconcileFinding
+	1,  // 18: vrooli.react_component_library.v1.adoptions.ReconvergeFileOutcome.local_status:type_name -> vrooli.react_component_library.v1.adoptions.LocalStatus
+	0,  // 19: vrooli.react_component_library.v1.adoptions.ReconvergeOutcome.library_version_status:type_name -> vrooli.react_component_library.v1.adoptions.LibraryVersionStatus
+	1,  // 20: vrooli.react_component_library.v1.adoptions.ReconvergeOutcome.local_status:type_name -> vrooli.react_component_library.v1.adoptions.LocalStatus
+	4,  // 21: vrooli.react_component_library.v1.adoptions.ReconvergeOutcome.action:type_name -> vrooli.react_component_library.v1.adoptions.ReconvergeAction
+	33, // 22: vrooli.react_component_library.v1.adoptions.ReconvergeOutcome.files:type_name -> vrooli.react_component_library.v1.adoptions.ReconvergeFileOutcome
+	34, // 23: vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsResponse.outcomes:type_name -> vrooli.react_component_library.v1.adoptions.ReconvergeOutcome
+	37, // 24: vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsResponse.candidates:type_name -> vrooli.react_component_library.v1.adoptions.DiscoveryCandidate
+	8,  // 25: vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryResponse.adoption:type_name -> vrooli.react_component_library.v1.adoptions.Adoption
+	5,  // 26: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListScenarios:input_type -> vrooli.react_component_library.v1.adoptions.ListScenariosRequest
+	10, // 27: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.ListAdoptionsRequest
+	13, // 28: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListEffectiveAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsRequest
+	15, // 29: vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption:input_type -> vrooli.react_component_library.v1.adoptions.ApplyAdoptionRequest
+	17, // 30: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReapplyAdoption:input_type -> vrooli.react_component_library.v1.adoptions.ReapplyAdoptionRequest
+	19, // 31: vrooli.react_component_library.v1.adoptions.AdoptionsService.DeleteAdoption:input_type -> vrooli.react_component_library.v1.adoptions.DeleteAdoptionRequest
+	21, // 32: vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.RefreshAdoptionsRequest
+	29, // 33: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconcileAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsRequest
+	32, // 34: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconvergeAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsRequest
+	22, // 35: vrooli.react_component_library.v1.adoptions.AdoptionsService.ResolveAdoptionPath:input_type -> vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathRequest
+	25, // 36: vrooli.react_component_library.v1.adoptions.AdoptionsService.SuggestAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.SuggestAdoptionsRequest
+	36, // 37: vrooli.react_component_library.v1.adoptions.AdoptionsService.DiscoverAdoptions:input_type -> vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsRequest
+	39, // 38: vrooli.react_component_library.v1.adoptions.AdoptionsService.ConfirmDiscovery:input_type -> vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryRequest
+	6,  // 39: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListScenarios:output_type -> vrooli.react_component_library.v1.adoptions.ListScenariosResponse
+	11, // 40: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.ListAdoptionsResponse
+	14, // 41: vrooli.react_component_library.v1.adoptions.AdoptionsService.ListEffectiveAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.ListEffectiveAdoptionsResponse
+	16, // 42: vrooli.react_component_library.v1.adoptions.AdoptionsService.ApplyAdoption:output_type -> vrooli.react_component_library.v1.adoptions.ApplyAdoptionResponse
+	18, // 43: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReapplyAdoption:output_type -> vrooli.react_component_library.v1.adoptions.ReapplyAdoptionResponse
+	20, // 44: vrooli.react_component_library.v1.adoptions.AdoptionsService.DeleteAdoption:output_type -> vrooli.react_component_library.v1.adoptions.DeleteAdoptionResponse
+	28, // 45: vrooli.react_component_library.v1.adoptions.AdoptionsService.RefreshAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.RefreshAdoptionsResponse
+	31, // 46: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconcileAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.ReconcileAdoptionsResponse
+	35, // 47: vrooli.react_component_library.v1.adoptions.AdoptionsService.ReconvergeAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.ReconvergeAdoptionsResponse
+	24, // 48: vrooli.react_component_library.v1.adoptions.AdoptionsService.ResolveAdoptionPath:output_type -> vrooli.react_component_library.v1.adoptions.ResolveAdoptionPathResponse
+	27, // 49: vrooli.react_component_library.v1.adoptions.AdoptionsService.SuggestAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.SuggestAdoptionsResponse
+	38, // 50: vrooli.react_component_library.v1.adoptions.AdoptionsService.DiscoverAdoptions:output_type -> vrooli.react_component_library.v1.adoptions.DiscoverAdoptionsResponse
+	40, // 51: vrooli.react_component_library.v1.adoptions.AdoptionsService.ConfirmDiscovery:output_type -> vrooli.react_component_library.v1.adoptions.ConfirmDiscoveryResponse
+	39, // [39:52] is the sub-list for method output_type
+	26, // [26:39] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_react_component_library_v1_adoptions_adoptions_proto_init() }
@@ -3211,7 +3360,7 @@ func file_react_component_library_v1_adoptions_adoptions_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_react_component_library_v1_adoptions_adoptions_proto_rawDesc), len(file_react_component_library_v1_adoptions_adoptions_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   33,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

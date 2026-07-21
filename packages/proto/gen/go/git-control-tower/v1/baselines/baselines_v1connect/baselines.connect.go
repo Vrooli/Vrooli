@@ -54,6 +54,9 @@ const (
 	// BaselinesServiceDeleteBaselineProcedure is the fully-qualified name of the BaselinesService's
 	// DeleteBaseline RPC.
 	BaselinesServiceDeleteBaselineProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/DeleteBaseline"
+	// BaselinesServiceRepairBaselineProcedure is the fully-qualified name of the BaselinesService's
+	// RepairBaseline RPC.
+	BaselinesServiceRepairBaselineProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/RepairBaseline"
 	// BaselinesServiceStartCollectionCaptureProcedure is the fully-qualified name of the
 	// BaselinesService's StartCollectionCapture RPC.
 	BaselinesServiceStartCollectionCaptureProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/StartCollectionCapture"
@@ -105,6 +108,10 @@ type BaselinesServiceClient interface {
 	StartDiff(context.Context, *connect.Request[baselines.StartDiffRequest]) (*connect.Response[baselines.StartDiffResponse], error)
 	GetDiffResult(context.Context, *connect.Request[baselines.GetDiffResultRequest]) (*connect.Response[baselines.GetDiffResultResponse], error)
 	DeleteBaseline(context.Context, *connect.Request[baselines.DeleteBaselineRequest]) (*connect.Response[baselines.DeleteBaselineResponse], error)
+	// Repairs only deterministic lifecycle split-state. The default is a
+	// non-mutating plan; callers must explicitly set apply to write an audit
+	// entry or converge a tombstoned manifest.
+	RepairBaseline(context.Context, *connect.Request[baselines.RepairBaselineRequest]) (*connect.Response[baselines.RepairBaselineResponse], error)
 	// Collections aggregate existing per-scenario immutable anchors. They do not
 	// create a multi-scenario Test Genie run or alter comparison semantics.
 	StartCollectionCapture(context.Context, *connect.Request[baselines.StartCollectionCaptureRequest]) (*connect.Response[baselines.StartCollectionCaptureResponse], error)
@@ -181,6 +188,12 @@ func NewBaselinesServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BaselinesServiceDeleteBaselineProcedure,
 			connect.WithSchema(baselinesServiceMethods.ByName("DeleteBaseline")),
+			connect.WithClientOptions(opts...),
+		),
+		repairBaseline: connect.NewClient[baselines.RepairBaselineRequest, baselines.RepairBaselineResponse](
+			httpClient,
+			baseURL+BaselinesServiceRepairBaselineProcedure,
+			connect.WithSchema(baselinesServiceMethods.ByName("RepairBaseline")),
 			connect.WithClientOptions(opts...),
 		),
 		startCollectionCapture: connect.NewClient[baselines.StartCollectionCaptureRequest, baselines.StartCollectionCaptureResponse](
@@ -273,6 +286,7 @@ type baselinesServiceClient struct {
 	startDiff               *connect.Client[baselines.StartDiffRequest, baselines.StartDiffResponse]
 	getDiffResult           *connect.Client[baselines.GetDiffResultRequest, baselines.GetDiffResultResponse]
 	deleteBaseline          *connect.Client[baselines.DeleteBaselineRequest, baselines.DeleteBaselineResponse]
+	repairBaseline          *connect.Client[baselines.RepairBaselineRequest, baselines.RepairBaselineResponse]
 	startCollectionCapture  *connect.Client[baselines.StartCollectionCaptureRequest, baselines.StartCollectionCaptureResponse]
 	getCollectionStatus     *connect.Client[baselines.GetCollectionStatusRequest, baselines.GetCollectionStatusResponse]
 	waitCollectionCapture   *connect.Client[baselines.WaitCollectionCaptureRequest, baselines.WaitCollectionCaptureResponse]
@@ -322,6 +336,11 @@ func (c *baselinesServiceClient) GetDiffResult(ctx context.Context, req *connect
 // DeleteBaseline calls vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline.
 func (c *baselinesServiceClient) DeleteBaseline(ctx context.Context, req *connect.Request[baselines.DeleteBaselineRequest]) (*connect.Response[baselines.DeleteBaselineResponse], error) {
 	return c.deleteBaseline.CallUnary(ctx, req)
+}
+
+// RepairBaseline calls vrooli.git_control_tower.v1.baselines.BaselinesService.RepairBaseline.
+func (c *baselinesServiceClient) RepairBaseline(ctx context.Context, req *connect.Request[baselines.RepairBaselineRequest]) (*connect.Response[baselines.RepairBaselineResponse], error) {
+	return c.repairBaseline.CallUnary(ctx, req)
 }
 
 // StartCollectionCapture calls
@@ -408,6 +427,10 @@ type BaselinesServiceHandler interface {
 	StartDiff(context.Context, *connect.Request[baselines.StartDiffRequest]) (*connect.Response[baselines.StartDiffResponse], error)
 	GetDiffResult(context.Context, *connect.Request[baselines.GetDiffResultRequest]) (*connect.Response[baselines.GetDiffResultResponse], error)
 	DeleteBaseline(context.Context, *connect.Request[baselines.DeleteBaselineRequest]) (*connect.Response[baselines.DeleteBaselineResponse], error)
+	// Repairs only deterministic lifecycle split-state. The default is a
+	// non-mutating plan; callers must explicitly set apply to write an audit
+	// entry or converge a tombstoned manifest.
+	RepairBaseline(context.Context, *connect.Request[baselines.RepairBaselineRequest]) (*connect.Response[baselines.RepairBaselineResponse], error)
 	// Collections aggregate existing per-scenario immutable anchors. They do not
 	// create a multi-scenario Test Genie run or alter comparison semantics.
 	StartCollectionCapture(context.Context, *connect.Request[baselines.StartCollectionCaptureRequest]) (*connect.Response[baselines.StartCollectionCaptureResponse], error)
@@ -479,6 +502,12 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 		BaselinesServiceDeleteBaselineProcedure,
 		svc.DeleteBaseline,
 		connect.WithSchema(baselinesServiceMethods.ByName("DeleteBaseline")),
+		connect.WithHandlerOptions(opts...),
+	)
+	baselinesServiceRepairBaselineHandler := connect.NewUnaryHandler(
+		BaselinesServiceRepairBaselineProcedure,
+		svc.RepairBaseline,
+		connect.WithSchema(baselinesServiceMethods.ByName("RepairBaseline")),
 		connect.WithHandlerOptions(opts...),
 	)
 	baselinesServiceStartCollectionCaptureHandler := connect.NewUnaryHandler(
@@ -575,6 +604,8 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 			baselinesServiceGetDiffResultHandler.ServeHTTP(w, r)
 		case BaselinesServiceDeleteBaselineProcedure:
 			baselinesServiceDeleteBaselineHandler.ServeHTTP(w, r)
+		case BaselinesServiceRepairBaselineProcedure:
+			baselinesServiceRepairBaselineHandler.ServeHTTP(w, r)
 		case BaselinesServiceStartCollectionCaptureProcedure:
 			baselinesServiceStartCollectionCaptureHandler.ServeHTTP(w, r)
 		case BaselinesServiceGetCollectionStatusProcedure:
@@ -636,6 +667,10 @@ func (UnimplementedBaselinesServiceHandler) GetDiffResult(context.Context, *conn
 
 func (UnimplementedBaselinesServiceHandler) DeleteBaseline(context.Context, *connect.Request[baselines.DeleteBaselineRequest]) (*connect.Response[baselines.DeleteBaselineResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline is not implemented"))
+}
+
+func (UnimplementedBaselinesServiceHandler) RepairBaseline(context.Context, *connect.Request[baselines.RepairBaselineRequest]) (*connect.Response[baselines.RepairBaselineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.RepairBaseline is not implemented"))
 }
 
 func (UnimplementedBaselinesServiceHandler) StartCollectionCapture(context.Context, *connect.Request[baselines.StartCollectionCaptureRequest]) (*connect.Response[baselines.StartCollectionCaptureResponse], error) {

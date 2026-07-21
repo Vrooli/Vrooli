@@ -1983,6 +1983,142 @@ func (x *DeleteBaselineResponse) GetDeleted() bool {
 	return false
 }
 
+type RepairBaselineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	RepoId        int64                  `protobuf:"varint,4,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
+	Apply         bool                   `protobuf:"varint,5,opt,name=apply,proto3" json:"apply,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RepairBaselineRequest) Reset() {
+	*x = RepairBaselineRequest{}
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RepairBaselineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RepairBaselineRequest) ProtoMessage() {}
+
+func (x *RepairBaselineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RepairBaselineRequest.ProtoReflect.Descriptor instead.
+func (*RepairBaselineRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *RepairBaselineRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *RepairBaselineRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RepairBaselineRequest) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *RepairBaselineRequest) GetRepoId() int64 {
+	if x != nil {
+		return x.RepoId
+	}
+	return 0
+}
+
+func (x *RepairBaselineRequest) GetApply() bool {
+	if x != nil {
+		return x.Apply
+	}
+	return false
+}
+
+type RepairBaselineResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Generation    int64                  `protobuf:"varint,1,opt,name=generation,proto3" json:"generation,omitempty"`
+	Actions       []string               `protobuf:"bytes,2,rep,name=actions,proto3" json:"actions,omitempty"`
+	Applied       bool                   `protobuf:"varint,3,opt,name=applied,proto3" json:"applied,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RepairBaselineResponse) Reset() {
+	*x = RepairBaselineResponse{}
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RepairBaselineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RepairBaselineResponse) ProtoMessage() {}
+
+func (x *RepairBaselineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RepairBaselineResponse.ProtoReflect.Descriptor instead.
+func (*RepairBaselineResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *RepairBaselineResponse) GetGeneration() int64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *RepairBaselineResponse) GetActions() []string {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *RepairBaselineResponse) GetApplied() bool {
+	if x != nil {
+		return x.Applied
+	}
+	return false
+}
+
 type CollectionTarget struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -1994,7 +2130,7 @@ type CollectionTarget struct {
 
 func (x *CollectionTarget) Reset() {
 	*x = CollectionTarget{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[24]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2006,7 +2142,7 @@ func (x *CollectionTarget) String() string {
 func (*CollectionTarget) ProtoMessage() {}
 
 func (x *CollectionTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[24]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2019,7 +2155,7 @@ func (x *CollectionTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectionTarget.ProtoReflect.Descriptor instead.
 func (*CollectionTarget) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{24}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *CollectionTarget) GetScenario() string {
@@ -2060,7 +2196,7 @@ type CollectionMember struct {
 
 func (x *CollectionMember) Reset() {
 	*x = CollectionMember{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[25]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2072,7 +2208,7 @@ func (x *CollectionMember) String() string {
 func (*CollectionMember) ProtoMessage() {}
 
 func (x *CollectionMember) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[25]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2085,7 +2221,7 @@ func (x *CollectionMember) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectionMember.ProtoReflect.Descriptor instead.
 func (*CollectionMember) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{25}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *CollectionMember) GetScenario() string {
@@ -2159,7 +2295,7 @@ type CollectionCoverage struct {
 
 func (x *CollectionCoverage) Reset() {
 	*x = CollectionCoverage{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[26]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2171,7 +2307,7 @@ func (x *CollectionCoverage) String() string {
 func (*CollectionCoverage) ProtoMessage() {}
 
 func (x *CollectionCoverage) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[26]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2184,7 +2320,7 @@ func (x *CollectionCoverage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectionCoverage.ProtoReflect.Descriptor instead.
 func (*CollectionCoverage) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{26}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *CollectionCoverage) GetRequired() int32 {
@@ -2253,7 +2389,7 @@ type BaselineCollection struct {
 
 func (x *BaselineCollection) Reset() {
 	*x = BaselineCollection{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[27]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2265,7 +2401,7 @@ func (x *BaselineCollection) String() string {
 func (*BaselineCollection) ProtoMessage() {}
 
 func (x *BaselineCollection) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[27]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2278,7 +2414,7 @@ func (x *BaselineCollection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BaselineCollection.ProtoReflect.Descriptor instead.
 func (*BaselineCollection) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{27}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *BaselineCollection) GetName() string {
@@ -2355,7 +2491,7 @@ type StartCollectionCaptureRequest struct {
 
 func (x *StartCollectionCaptureRequest) Reset() {
 	*x = StartCollectionCaptureRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[28]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2367,7 +2503,7 @@ func (x *StartCollectionCaptureRequest) String() string {
 func (*StartCollectionCaptureRequest) ProtoMessage() {}
 
 func (x *StartCollectionCaptureRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[28]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2380,7 +2516,7 @@ func (x *StartCollectionCaptureRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartCollectionCaptureRequest.ProtoReflect.Descriptor instead.
 func (*StartCollectionCaptureRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{28}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *StartCollectionCaptureRequest) GetName() string {
@@ -2456,7 +2592,7 @@ type StartCollectionCaptureResponse struct {
 
 func (x *StartCollectionCaptureResponse) Reset() {
 	*x = StartCollectionCaptureResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[29]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2468,7 +2604,7 @@ func (x *StartCollectionCaptureResponse) String() string {
 func (*StartCollectionCaptureResponse) ProtoMessage() {}
 
 func (x *StartCollectionCaptureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[29]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2481,7 +2617,7 @@ func (x *StartCollectionCaptureResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartCollectionCaptureResponse.ProtoReflect.Descriptor instead.
 func (*StartCollectionCaptureResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{29}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *StartCollectionCaptureResponse) GetCollection() *BaselineCollection {
@@ -2509,7 +2645,7 @@ type GetCollectionStatusRequest struct {
 
 func (x *GetCollectionStatusRequest) Reset() {
 	*x = GetCollectionStatusRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[30]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2521,7 +2657,7 @@ func (x *GetCollectionStatusRequest) String() string {
 func (*GetCollectionStatusRequest) ProtoMessage() {}
 
 func (x *GetCollectionStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[30]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2534,7 +2670,7 @@ func (x *GetCollectionStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCollectionStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetCollectionStatusRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{30}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetCollectionStatusRequest) GetName() string {
@@ -2568,7 +2704,7 @@ type GetCollectionStatusResponse struct {
 
 func (x *GetCollectionStatusResponse) Reset() {
 	*x = GetCollectionStatusResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[31]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2580,7 +2716,7 @@ func (x *GetCollectionStatusResponse) String() string {
 func (*GetCollectionStatusResponse) ProtoMessage() {}
 
 func (x *GetCollectionStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[31]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2593,7 +2729,7 @@ func (x *GetCollectionStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCollectionStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetCollectionStatusResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{31}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetCollectionStatusResponse) GetCollection() *BaselineCollection {
@@ -2622,7 +2758,7 @@ type WaitCollectionCaptureRequest struct {
 
 func (x *WaitCollectionCaptureRequest) Reset() {
 	*x = WaitCollectionCaptureRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[32]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2634,7 +2770,7 @@ func (x *WaitCollectionCaptureRequest) String() string {
 func (*WaitCollectionCaptureRequest) ProtoMessage() {}
 
 func (x *WaitCollectionCaptureRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[32]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2647,7 +2783,7 @@ func (x *WaitCollectionCaptureRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitCollectionCaptureRequest.ProtoReflect.Descriptor instead.
 func (*WaitCollectionCaptureRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{32}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *WaitCollectionCaptureRequest) GetName() string {
@@ -2689,7 +2825,7 @@ type WaitCollectionCaptureResponse struct {
 
 func (x *WaitCollectionCaptureResponse) Reset() {
 	*x = WaitCollectionCaptureResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[33]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2701,7 +2837,7 @@ func (x *WaitCollectionCaptureResponse) String() string {
 func (*WaitCollectionCaptureResponse) ProtoMessage() {}
 
 func (x *WaitCollectionCaptureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[33]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2714,7 +2850,7 @@ func (x *WaitCollectionCaptureResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitCollectionCaptureResponse.ProtoReflect.Descriptor instead.
 func (*WaitCollectionCaptureResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{33}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *WaitCollectionCaptureResponse) GetCollection() *BaselineCollection {
@@ -2752,7 +2888,7 @@ type ExtendCollectionRequest struct {
 
 func (x *ExtendCollectionRequest) Reset() {
 	*x = ExtendCollectionRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[34]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2764,7 +2900,7 @@ func (x *ExtendCollectionRequest) String() string {
 func (*ExtendCollectionRequest) ProtoMessage() {}
 
 func (x *ExtendCollectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[34]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2777,7 +2913,7 @@ func (x *ExtendCollectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExtendCollectionRequest.ProtoReflect.Descriptor instead.
 func (*ExtendCollectionRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{34}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ExtendCollectionRequest) GetName() string {
@@ -2833,7 +2969,7 @@ type ExtendCollectionResponse struct {
 
 func (x *ExtendCollectionResponse) Reset() {
 	*x = ExtendCollectionResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[35]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2845,7 +2981,7 @@ func (x *ExtendCollectionResponse) String() string {
 func (*ExtendCollectionResponse) ProtoMessage() {}
 
 func (x *ExtendCollectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[35]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2858,7 +2994,7 @@ func (x *ExtendCollectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExtendCollectionResponse.ProtoReflect.Descriptor instead.
 func (*ExtendCollectionResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{35}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ExtendCollectionResponse) GetCollection() *BaselineCollection {
@@ -2897,7 +3033,7 @@ type CollectionDiffMember struct {
 
 func (x *CollectionDiffMember) Reset() {
 	*x = CollectionDiffMember{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[36]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2909,7 +3045,7 @@ func (x *CollectionDiffMember) String() string {
 func (*CollectionDiffMember) ProtoMessage() {}
 
 func (x *CollectionDiffMember) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[36]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2922,7 +3058,7 @@ func (x *CollectionDiffMember) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollectionDiffMember.ProtoReflect.Descriptor instead.
 func (*CollectionDiffMember) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{36}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *CollectionDiffMember) GetScenario() string {
@@ -2983,7 +3119,7 @@ type StartCollectionDiffRequest struct {
 
 func (x *StartCollectionDiffRequest) Reset() {
 	*x = StartCollectionDiffRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[37]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2995,7 +3131,7 @@ func (x *StartCollectionDiffRequest) String() string {
 func (*StartCollectionDiffRequest) ProtoMessage() {}
 
 func (x *StartCollectionDiffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[37]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3008,7 +3144,7 @@ func (x *StartCollectionDiffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartCollectionDiffRequest.ProtoReflect.Descriptor instead.
 func (*StartCollectionDiffRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{37}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *StartCollectionDiffRequest) GetName() string {
@@ -3058,7 +3194,7 @@ type StartCollectionDiffResponse struct {
 
 func (x *StartCollectionDiffResponse) Reset() {
 	*x = StartCollectionDiffResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[38]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3070,7 +3206,7 @@ func (x *StartCollectionDiffResponse) String() string {
 func (*StartCollectionDiffResponse) ProtoMessage() {}
 
 func (x *StartCollectionDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[38]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3083,7 +3219,7 @@ func (x *StartCollectionDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartCollectionDiffResponse.ProtoReflect.Descriptor instead.
 func (*StartCollectionDiffResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{38}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *StartCollectionDiffResponse) GetCollection() *BaselineCollection {
@@ -3126,7 +3262,7 @@ type GetCollectionDiffStatusRequest struct {
 
 func (x *GetCollectionDiffStatusRequest) Reset() {
 	*x = GetCollectionDiffStatusRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[39]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3138,7 +3274,7 @@ func (x *GetCollectionDiffStatusRequest) String() string {
 func (*GetCollectionDiffStatusRequest) ProtoMessage() {}
 
 func (x *GetCollectionDiffStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[39]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3151,7 +3287,7 @@ func (x *GetCollectionDiffStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCollectionDiffStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetCollectionDiffStatusRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{39}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *GetCollectionDiffStatusRequest) GetName() string {
@@ -3195,7 +3331,7 @@ type GetCollectionDiffStatusResponse struct {
 
 func (x *GetCollectionDiffStatusResponse) Reset() {
 	*x = GetCollectionDiffStatusResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[40]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3207,7 +3343,7 @@ func (x *GetCollectionDiffStatusResponse) String() string {
 func (*GetCollectionDiffStatusResponse) ProtoMessage() {}
 
 func (x *GetCollectionDiffStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[40]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3220,7 +3356,7 @@ func (x *GetCollectionDiffStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCollectionDiffStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetCollectionDiffStatusResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{40}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetCollectionDiffStatusResponse) GetCollection() *BaselineCollection {
@@ -3273,7 +3409,7 @@ type WaitCollectionDiffRequest struct {
 
 func (x *WaitCollectionDiffRequest) Reset() {
 	*x = WaitCollectionDiffRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[41]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3285,7 +3421,7 @@ func (x *WaitCollectionDiffRequest) String() string {
 func (*WaitCollectionDiffRequest) ProtoMessage() {}
 
 func (x *WaitCollectionDiffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[41]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3298,7 +3434,7 @@ func (x *WaitCollectionDiffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitCollectionDiffRequest.ProtoReflect.Descriptor instead.
 func (*WaitCollectionDiffRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{41}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *WaitCollectionDiffRequest) GetName() string {
@@ -3350,7 +3486,7 @@ type WaitCollectionDiffResponse struct {
 
 func (x *WaitCollectionDiffResponse) Reset() {
 	*x = WaitCollectionDiffResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[42]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3362,7 +3498,7 @@ func (x *WaitCollectionDiffResponse) String() string {
 func (*WaitCollectionDiffResponse) ProtoMessage() {}
 
 func (x *WaitCollectionDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[42]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3375,7 +3511,7 @@ func (x *WaitCollectionDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitCollectionDiffResponse.ProtoReflect.Descriptor instead.
 func (*WaitCollectionDiffResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{42}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *WaitCollectionDiffResponse) GetCollection() *BaselineCollection {
@@ -3431,7 +3567,7 @@ type DeleteCollectionRequest struct {
 
 func (x *DeleteCollectionRequest) Reset() {
 	*x = DeleteCollectionRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[43]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3443,7 +3579,7 @@ func (x *DeleteCollectionRequest) String() string {
 func (*DeleteCollectionRequest) ProtoMessage() {}
 
 func (x *DeleteCollectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[43]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3456,7 +3592,7 @@ func (x *DeleteCollectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCollectionRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCollectionRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{43}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *DeleteCollectionRequest) GetName() string {
@@ -3489,7 +3625,7 @@ type DeleteCollectionResponse struct {
 
 func (x *DeleteCollectionResponse) Reset() {
 	*x = DeleteCollectionResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[44]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3501,7 +3637,7 @@ func (x *DeleteCollectionResponse) String() string {
 func (*DeleteCollectionResponse) ProtoMessage() {}
 
 func (x *DeleteCollectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[44]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3514,7 +3650,7 @@ func (x *DeleteCollectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCollectionResponse.ProtoReflect.Descriptor instead.
 func (*DeleteCollectionResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{44}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *DeleteCollectionResponse) GetDeleted() bool {
@@ -3535,7 +3671,7 @@ type PathSnapshotReference struct {
 
 func (x *PathSnapshotReference) Reset() {
 	*x = PathSnapshotReference{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[45]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3547,7 +3683,7 @@ func (x *PathSnapshotReference) String() string {
 func (*PathSnapshotReference) ProtoMessage() {}
 
 func (x *PathSnapshotReference) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[45]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3560,7 +3696,7 @@ func (x *PathSnapshotReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathSnapshotReference.ProtoReflect.Descriptor instead.
 func (*PathSnapshotReference) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{45}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *PathSnapshotReference) GetName() string {
@@ -3600,7 +3736,7 @@ type PathEntry struct {
 
 func (x *PathEntry) Reset() {
 	*x = PathEntry{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[46]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3612,7 +3748,7 @@ func (x *PathEntry) String() string {
 func (*PathEntry) ProtoMessage() {}
 
 func (x *PathEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[46]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3625,7 +3761,7 @@ func (x *PathEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathEntry.ProtoReflect.Descriptor instead.
 func (*PathEntry) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{46}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *PathEntry) GetPath() string {
@@ -3698,7 +3834,7 @@ type PathSnapshot struct {
 
 func (x *PathSnapshot) Reset() {
 	*x = PathSnapshot{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[47]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3710,7 +3846,7 @@ func (x *PathSnapshot) String() string {
 func (*PathSnapshot) ProtoMessage() {}
 
 func (x *PathSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[47]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3723,7 +3859,7 @@ func (x *PathSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathSnapshot.ProtoReflect.Descriptor instead.
 func (*PathSnapshot) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{47}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *PathSnapshot) GetName() string {
@@ -3814,7 +3950,7 @@ type PathSnapshotContributor struct {
 
 func (x *PathSnapshotContributor) Reset() {
 	*x = PathSnapshotContributor{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[48]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3826,7 +3962,7 @@ func (x *PathSnapshotContributor) String() string {
 func (*PathSnapshotContributor) ProtoMessage() {}
 
 func (x *PathSnapshotContributor) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[48]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3839,7 +3975,7 @@ func (x *PathSnapshotContributor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathSnapshotContributor.ProtoReflect.Descriptor instead.
 func (*PathSnapshotContributor) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{48}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *PathSnapshotContributor) GetPath() string {
@@ -3874,7 +4010,7 @@ type PathSnapshotIssue struct {
 
 func (x *PathSnapshotIssue) Reset() {
 	*x = PathSnapshotIssue{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[49]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3886,7 +4022,7 @@ func (x *PathSnapshotIssue) String() string {
 func (*PathSnapshotIssue) ProtoMessage() {}
 
 func (x *PathSnapshotIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[49]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3899,7 +4035,7 @@ func (x *PathSnapshotIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathSnapshotIssue.ProtoReflect.Descriptor instead.
 func (*PathSnapshotIssue) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{49}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *PathSnapshotIssue) GetCode() string {
@@ -3933,7 +4069,7 @@ type PathSnapshotRecommendation struct {
 
 func (x *PathSnapshotRecommendation) Reset() {
 	*x = PathSnapshotRecommendation{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[50]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3945,7 +4081,7 @@ func (x *PathSnapshotRecommendation) String() string {
 func (*PathSnapshotRecommendation) ProtoMessage() {}
 
 func (x *PathSnapshotRecommendation) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[50]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3958,7 +4094,7 @@ func (x *PathSnapshotRecommendation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathSnapshotRecommendation.ProtoReflect.Descriptor instead.
 func (*PathSnapshotRecommendation) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{50}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *PathSnapshotRecommendation) GetSelection() string {
@@ -4001,7 +4137,7 @@ type PathSnapshotEstimate struct {
 
 func (x *PathSnapshotEstimate) Reset() {
 	*x = PathSnapshotEstimate{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[51]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4013,7 +4149,7 @@ func (x *PathSnapshotEstimate) String() string {
 func (*PathSnapshotEstimate) ProtoMessage() {}
 
 func (x *PathSnapshotEstimate) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[51]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4026,7 +4162,7 @@ func (x *PathSnapshotEstimate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathSnapshotEstimate.ProtoReflect.Descriptor instead.
 func (*PathSnapshotEstimate) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{51}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *PathSnapshotEstimate) GetSelections() []string {
@@ -4153,7 +4289,7 @@ type EstimatePathSnapshotRequest struct {
 
 func (x *EstimatePathSnapshotRequest) Reset() {
 	*x = EstimatePathSnapshotRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[52]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4165,7 +4301,7 @@ func (x *EstimatePathSnapshotRequest) String() string {
 func (*EstimatePathSnapshotRequest) ProtoMessage() {}
 
 func (x *EstimatePathSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[52]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4178,7 +4314,7 @@ func (x *EstimatePathSnapshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EstimatePathSnapshotRequest.ProtoReflect.Descriptor instead.
 func (*EstimatePathSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{52}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *EstimatePathSnapshotRequest) GetSelections() []string {
@@ -4218,7 +4354,7 @@ type EstimatePathSnapshotResponse struct {
 
 func (x *EstimatePathSnapshotResponse) Reset() {
 	*x = EstimatePathSnapshotResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[53]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4230,7 +4366,7 @@ func (x *EstimatePathSnapshotResponse) String() string {
 func (*EstimatePathSnapshotResponse) ProtoMessage() {}
 
 func (x *EstimatePathSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[53]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4243,7 +4379,7 @@ func (x *EstimatePathSnapshotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EstimatePathSnapshotResponse.ProtoReflect.Descriptor instead.
 func (*EstimatePathSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{53}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *EstimatePathSnapshotResponse) GetEstimate() *PathSnapshotEstimate {
@@ -4265,7 +4401,7 @@ type PathSnapshotPolicyViolation struct {
 
 func (x *PathSnapshotPolicyViolation) Reset() {
 	*x = PathSnapshotPolicyViolation{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[54]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4277,7 +4413,7 @@ func (x *PathSnapshotPolicyViolation) String() string {
 func (*PathSnapshotPolicyViolation) ProtoMessage() {}
 
 func (x *PathSnapshotPolicyViolation) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[54]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4290,7 +4426,7 @@ func (x *PathSnapshotPolicyViolation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PathSnapshotPolicyViolation.ProtoReflect.Descriptor instead.
 func (*PathSnapshotPolicyViolation) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{54}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *PathSnapshotPolicyViolation) GetEstimate() *PathSnapshotEstimate {
@@ -4313,7 +4449,7 @@ type SourceDelta struct {
 
 func (x *SourceDelta) Reset() {
 	*x = SourceDelta{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[55]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4325,7 +4461,7 @@ func (x *SourceDelta) String() string {
 func (*SourceDelta) ProtoMessage() {}
 
 func (x *SourceDelta) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[55]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4338,7 +4474,7 @@ func (x *SourceDelta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceDelta.ProtoReflect.Descriptor instead.
 func (*SourceDelta) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{55}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *SourceDelta) GetPath() string {
@@ -4385,7 +4521,7 @@ type CapturePathSnapshotRequest struct {
 
 func (x *CapturePathSnapshotRequest) Reset() {
 	*x = CapturePathSnapshotRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[56]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4397,7 +4533,7 @@ func (x *CapturePathSnapshotRequest) String() string {
 func (*CapturePathSnapshotRequest) ProtoMessage() {}
 
 func (x *CapturePathSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[56]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4410,7 +4546,7 @@ func (x *CapturePathSnapshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapturePathSnapshotRequest.ProtoReflect.Descriptor instead.
 func (*CapturePathSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{56}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *CapturePathSnapshotRequest) GetName() string {
@@ -4472,7 +4608,7 @@ type CapturePathSnapshotResponse struct {
 
 func (x *CapturePathSnapshotResponse) Reset() {
 	*x = CapturePathSnapshotResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[57]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4484,7 +4620,7 @@ func (x *CapturePathSnapshotResponse) String() string {
 func (*CapturePathSnapshotResponse) ProtoMessage() {}
 
 func (x *CapturePathSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[57]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4497,7 +4633,7 @@ func (x *CapturePathSnapshotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapturePathSnapshotResponse.ProtoReflect.Descriptor instead.
 func (*CapturePathSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{57}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *CapturePathSnapshotResponse) GetSnapshot() *PathSnapshot {
@@ -4525,7 +4661,7 @@ type GetPathSnapshotRequest struct {
 
 func (x *GetPathSnapshotRequest) Reset() {
 	*x = GetPathSnapshotRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[58]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4537,7 +4673,7 @@ func (x *GetPathSnapshotRequest) String() string {
 func (*GetPathSnapshotRequest) ProtoMessage() {}
 
 func (x *GetPathSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[58]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4550,7 +4686,7 @@ func (x *GetPathSnapshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPathSnapshotRequest.ProtoReflect.Descriptor instead.
 func (*GetPathSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{58}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *GetPathSnapshotRequest) GetName() string {
@@ -4583,7 +4719,7 @@ type GetPathSnapshotResponse struct {
 
 func (x *GetPathSnapshotResponse) Reset() {
 	*x = GetPathSnapshotResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[59]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4595,7 +4731,7 @@ func (x *GetPathSnapshotResponse) String() string {
 func (*GetPathSnapshotResponse) ProtoMessage() {}
 
 func (x *GetPathSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[59]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4608,7 +4744,7 @@ func (x *GetPathSnapshotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPathSnapshotResponse.ProtoReflect.Descriptor instead.
 func (*GetPathSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{59}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *GetPathSnapshotResponse) GetSnapshot() *PathSnapshot {
@@ -4632,7 +4768,7 @@ type DiffPathSnapshotsRequest struct {
 
 func (x *DiffPathSnapshotsRequest) Reset() {
 	*x = DiffPathSnapshotsRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[60]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4644,7 +4780,7 @@ func (x *DiffPathSnapshotsRequest) String() string {
 func (*DiffPathSnapshotsRequest) ProtoMessage() {}
 
 func (x *DiffPathSnapshotsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[60]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4657,7 +4793,7 @@ func (x *DiffPathSnapshotsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiffPathSnapshotsRequest.ProtoReflect.Descriptor instead.
 func (*DiffPathSnapshotsRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{60}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *DiffPathSnapshotsRequest) GetBeforeName() string {
@@ -4705,7 +4841,7 @@ type DiffPathSnapshotsResponse struct {
 
 func (x *DiffPathSnapshotsResponse) Reset() {
 	*x = DiffPathSnapshotsResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[61]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4717,7 +4853,7 @@ func (x *DiffPathSnapshotsResponse) String() string {
 func (*DiffPathSnapshotsResponse) ProtoMessage() {}
 
 func (x *DiffPathSnapshotsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[61]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4730,7 +4866,7 @@ func (x *DiffPathSnapshotsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiffPathSnapshotsResponse.ProtoReflect.Descriptor instead.
 func (*DiffPathSnapshotsResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{61}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *DiffPathSnapshotsResponse) GetClassification() string {
@@ -4758,7 +4894,7 @@ type DeletePathSnapshotRequest struct {
 
 func (x *DeletePathSnapshotRequest) Reset() {
 	*x = DeletePathSnapshotRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[62]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4770,7 +4906,7 @@ func (x *DeletePathSnapshotRequest) String() string {
 func (*DeletePathSnapshotRequest) ProtoMessage() {}
 
 func (x *DeletePathSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[62]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4783,7 +4919,7 @@ func (x *DeletePathSnapshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePathSnapshotRequest.ProtoReflect.Descriptor instead.
 func (*DeletePathSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{62}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *DeletePathSnapshotRequest) GetName() string {
@@ -4816,7 +4952,7 @@ type DeletePathSnapshotResponse struct {
 
 func (x *DeletePathSnapshotResponse) Reset() {
 	*x = DeletePathSnapshotResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[63]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4828,7 +4964,7 @@ func (x *DeletePathSnapshotResponse) String() string {
 func (*DeletePathSnapshotResponse) ProtoMessage() {}
 
 func (x *DeletePathSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[63]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4841,7 +4977,7 @@ func (x *DeletePathSnapshotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePathSnapshotResponse.ProtoReflect.Descriptor instead.
 func (*DeletePathSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{63}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *DeletePathSnapshotResponse) GetDeleted() bool {
@@ -5032,7 +5168,19 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x17\n" +
 	"\arepo_id\x18\x04 \x01(\x03R\x06repoId\"2\n" +
 	"\x16DeleteBaselineResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"o\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"\x8e\x01\n" +
+	"\x15RepairBaselineRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x17\n" +
+	"\arepo_id\x18\x04 \x01(\x03R\x06repoId\x12\x14\n" +
+	"\x05apply\x18\x05 \x01(\bR\x05apply\"l\n" +
+	"\x16RepairBaselineResponse\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x01 \x01(\x03R\n" +
+	"generation\x12\x18\n" +
+	"\aactions\x18\x02 \x03(\tR\aactions\x12\x18\n" +
+	"\aapplied\x18\x03 \x01(\bR\aapplied\"o\n" +
 	"\x10CollectionTarget\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12#\n" +
 	"\rbaseline_name\x18\x02 \x01(\tR\fbaselineName\x12\x1a\n" +
@@ -5284,7 +5432,7 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x17\n" +
 	"\arepo_id\x18\x03 \x01(\x03R\x06repoId\"6\n" +
 	"\x1aDeletePathSnapshotResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted2\x82\x18\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted2\x92\x19\n" +
 	"\x10BaselinesService\x12\x9c\x01\n" +
 	"\x13SnapshotForBaseline\x12A.vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest\x1aB.vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse\x12\x96\x01\n" +
 	"\x11GetSnapshotStatus\x12?.vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest\x1a@.vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse\x12\x84\x01\n" +
@@ -5292,7 +5440,8 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\rListBaselines\x12;.vrooli.git_control_tower.v1.baselines.ListBaselinesRequest\x1a<.vrooli.git_control_tower.v1.baselines.ListBaselinesResponse\x12~\n" +
 	"\tStartDiff\x127.vrooli.git_control_tower.v1.baselines.StartDiffRequest\x1a8.vrooli.git_control_tower.v1.baselines.StartDiffResponse\x12\x8a\x01\n" +
 	"\rGetDiffResult\x12;.vrooli.git_control_tower.v1.baselines.GetDiffResultRequest\x1a<.vrooli.git_control_tower.v1.baselines.GetDiffResultResponse\x12\x8d\x01\n" +
-	"\x0eDeleteBaseline\x12<.vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest\x1a=.vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse\x12\xa5\x01\n" +
+	"\x0eDeleteBaseline\x12<.vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest\x1a=.vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse\x12\x8d\x01\n" +
+	"\x0eRepairBaseline\x12<.vrooli.git_control_tower.v1.baselines.RepairBaselineRequest\x1a=.vrooli.git_control_tower.v1.baselines.RepairBaselineResponse\x12\xa5\x01\n" +
 	"\x16StartCollectionCapture\x12D.vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest\x1aE.vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse\x12\x9c\x01\n" +
 	"\x13GetCollectionStatus\x12A.vrooli.git_control_tower.v1.baselines.GetCollectionStatusRequest\x1aB.vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse\x12\xa2\x01\n" +
 	"\x15WaitCollectionCapture\x12C.vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureRequest\x1aD.vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse\x12\x93\x01\n" +
@@ -5319,7 +5468,7 @@ func file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP() []byte {
 	return file_git_control_tower_v1_baselines_baselines_proto_rawDescData
 }
 
-var file_git_control_tower_v1_baselines_baselines_proto_msgTypes = make([]protoimpl.MessageInfo, 64)
+var file_git_control_tower_v1_baselines_baselines_proto_msgTypes = make([]protoimpl.MessageInfo, 66)
 var file_git_control_tower_v1_baselines_baselines_proto_goTypes = []any{
 	(*GitState)(nil),                        // 0: vrooli.git_control_tower.v1.baselines.GitState
 	(*RunAnchor)(nil),                       // 1: vrooli.git_control_tower.v1.baselines.RunAnchor
@@ -5345,56 +5494,58 @@ var file_git_control_tower_v1_baselines_baselines_proto_goTypes = []any{
 	(*RunBusyInfo)(nil),                     // 21: vrooli.git_control_tower.v1.baselines.RunBusyInfo
 	(*DeleteBaselineRequest)(nil),           // 22: vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
 	(*DeleteBaselineResponse)(nil),          // 23: vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
-	(*CollectionTarget)(nil),                // 24: vrooli.git_control_tower.v1.baselines.CollectionTarget
-	(*CollectionMember)(nil),                // 25: vrooli.git_control_tower.v1.baselines.CollectionMember
-	(*CollectionCoverage)(nil),              // 26: vrooli.git_control_tower.v1.baselines.CollectionCoverage
-	(*BaselineCollection)(nil),              // 27: vrooli.git_control_tower.v1.baselines.BaselineCollection
-	(*StartCollectionCaptureRequest)(nil),   // 28: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest
-	(*StartCollectionCaptureResponse)(nil),  // 29: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse
-	(*GetCollectionStatusRequest)(nil),      // 30: vrooli.git_control_tower.v1.baselines.GetCollectionStatusRequest
-	(*GetCollectionStatusResponse)(nil),     // 31: vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse
-	(*WaitCollectionCaptureRequest)(nil),    // 32: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureRequest
-	(*WaitCollectionCaptureResponse)(nil),   // 33: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse
-	(*ExtendCollectionRequest)(nil),         // 34: vrooli.git_control_tower.v1.baselines.ExtendCollectionRequest
-	(*ExtendCollectionResponse)(nil),        // 35: vrooli.git_control_tower.v1.baselines.ExtendCollectionResponse
-	(*CollectionDiffMember)(nil),            // 36: vrooli.git_control_tower.v1.baselines.CollectionDiffMember
-	(*StartCollectionDiffRequest)(nil),      // 37: vrooli.git_control_tower.v1.baselines.StartCollectionDiffRequest
-	(*StartCollectionDiffResponse)(nil),     // 38: vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse
-	(*GetCollectionDiffStatusRequest)(nil),  // 39: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusRequest
-	(*GetCollectionDiffStatusResponse)(nil), // 40: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse
-	(*WaitCollectionDiffRequest)(nil),       // 41: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffRequest
-	(*WaitCollectionDiffResponse)(nil),      // 42: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse
-	(*DeleteCollectionRequest)(nil),         // 43: vrooli.git_control_tower.v1.baselines.DeleteCollectionRequest
-	(*DeleteCollectionResponse)(nil),        // 44: vrooli.git_control_tower.v1.baselines.DeleteCollectionResponse
-	(*PathSnapshotReference)(nil),           // 45: vrooli.git_control_tower.v1.baselines.PathSnapshotReference
-	(*PathEntry)(nil),                       // 46: vrooli.git_control_tower.v1.baselines.PathEntry
-	(*PathSnapshot)(nil),                    // 47: vrooli.git_control_tower.v1.baselines.PathSnapshot
-	(*PathSnapshotContributor)(nil),         // 48: vrooli.git_control_tower.v1.baselines.PathSnapshotContributor
-	(*PathSnapshotIssue)(nil),               // 49: vrooli.git_control_tower.v1.baselines.PathSnapshotIssue
-	(*PathSnapshotRecommendation)(nil),      // 50: vrooli.git_control_tower.v1.baselines.PathSnapshotRecommendation
-	(*PathSnapshotEstimate)(nil),            // 51: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate
-	(*EstimatePathSnapshotRequest)(nil),     // 52: vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotRequest
-	(*EstimatePathSnapshotResponse)(nil),    // 53: vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotResponse
-	(*PathSnapshotPolicyViolation)(nil),     // 54: vrooli.git_control_tower.v1.baselines.PathSnapshotPolicyViolation
-	(*SourceDelta)(nil),                     // 55: vrooli.git_control_tower.v1.baselines.SourceDelta
-	(*CapturePathSnapshotRequest)(nil),      // 56: vrooli.git_control_tower.v1.baselines.CapturePathSnapshotRequest
-	(*CapturePathSnapshotResponse)(nil),     // 57: vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse
-	(*GetPathSnapshotRequest)(nil),          // 58: vrooli.git_control_tower.v1.baselines.GetPathSnapshotRequest
-	(*GetPathSnapshotResponse)(nil),         // 59: vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse
-	(*DiffPathSnapshotsRequest)(nil),        // 60: vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsRequest
-	(*DiffPathSnapshotsResponse)(nil),       // 61: vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse
-	(*DeletePathSnapshotRequest)(nil),       // 62: vrooli.git_control_tower.v1.baselines.DeletePathSnapshotRequest
-	(*DeletePathSnapshotResponse)(nil),      // 63: vrooli.git_control_tower.v1.baselines.DeletePathSnapshotResponse
-	(*runs.ArtifactRef)(nil),                // 64: vrooli.test_genie.v1.runs.ArtifactRef
-	(*runs.PhaseDiff)(nil),                  // 65: vrooli.test_genie.v1.runs.PhaseDiff
-	(*runs.CompareRunsResponse)(nil),        // 66: vrooli.test_genie.v1.runs.CompareRunsResponse
-	(*v1.OperationStanding)(nil),            // 67: common.v1.OperationStanding
+	(*RepairBaselineRequest)(nil),           // 24: vrooli.git_control_tower.v1.baselines.RepairBaselineRequest
+	(*RepairBaselineResponse)(nil),          // 25: vrooli.git_control_tower.v1.baselines.RepairBaselineResponse
+	(*CollectionTarget)(nil),                // 26: vrooli.git_control_tower.v1.baselines.CollectionTarget
+	(*CollectionMember)(nil),                // 27: vrooli.git_control_tower.v1.baselines.CollectionMember
+	(*CollectionCoverage)(nil),              // 28: vrooli.git_control_tower.v1.baselines.CollectionCoverage
+	(*BaselineCollection)(nil),              // 29: vrooli.git_control_tower.v1.baselines.BaselineCollection
+	(*StartCollectionCaptureRequest)(nil),   // 30: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest
+	(*StartCollectionCaptureResponse)(nil),  // 31: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse
+	(*GetCollectionStatusRequest)(nil),      // 32: vrooli.git_control_tower.v1.baselines.GetCollectionStatusRequest
+	(*GetCollectionStatusResponse)(nil),     // 33: vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse
+	(*WaitCollectionCaptureRequest)(nil),    // 34: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureRequest
+	(*WaitCollectionCaptureResponse)(nil),   // 35: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse
+	(*ExtendCollectionRequest)(nil),         // 36: vrooli.git_control_tower.v1.baselines.ExtendCollectionRequest
+	(*ExtendCollectionResponse)(nil),        // 37: vrooli.git_control_tower.v1.baselines.ExtendCollectionResponse
+	(*CollectionDiffMember)(nil),            // 38: vrooli.git_control_tower.v1.baselines.CollectionDiffMember
+	(*StartCollectionDiffRequest)(nil),      // 39: vrooli.git_control_tower.v1.baselines.StartCollectionDiffRequest
+	(*StartCollectionDiffResponse)(nil),     // 40: vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse
+	(*GetCollectionDiffStatusRequest)(nil),  // 41: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusRequest
+	(*GetCollectionDiffStatusResponse)(nil), // 42: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse
+	(*WaitCollectionDiffRequest)(nil),       // 43: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffRequest
+	(*WaitCollectionDiffResponse)(nil),      // 44: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse
+	(*DeleteCollectionRequest)(nil),         // 45: vrooli.git_control_tower.v1.baselines.DeleteCollectionRequest
+	(*DeleteCollectionResponse)(nil),        // 46: vrooli.git_control_tower.v1.baselines.DeleteCollectionResponse
+	(*PathSnapshotReference)(nil),           // 47: vrooli.git_control_tower.v1.baselines.PathSnapshotReference
+	(*PathEntry)(nil),                       // 48: vrooli.git_control_tower.v1.baselines.PathEntry
+	(*PathSnapshot)(nil),                    // 49: vrooli.git_control_tower.v1.baselines.PathSnapshot
+	(*PathSnapshotContributor)(nil),         // 50: vrooli.git_control_tower.v1.baselines.PathSnapshotContributor
+	(*PathSnapshotIssue)(nil),               // 51: vrooli.git_control_tower.v1.baselines.PathSnapshotIssue
+	(*PathSnapshotRecommendation)(nil),      // 52: vrooli.git_control_tower.v1.baselines.PathSnapshotRecommendation
+	(*PathSnapshotEstimate)(nil),            // 53: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate
+	(*EstimatePathSnapshotRequest)(nil),     // 54: vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotRequest
+	(*EstimatePathSnapshotResponse)(nil),    // 55: vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotResponse
+	(*PathSnapshotPolicyViolation)(nil),     // 56: vrooli.git_control_tower.v1.baselines.PathSnapshotPolicyViolation
+	(*SourceDelta)(nil),                     // 57: vrooli.git_control_tower.v1.baselines.SourceDelta
+	(*CapturePathSnapshotRequest)(nil),      // 58: vrooli.git_control_tower.v1.baselines.CapturePathSnapshotRequest
+	(*CapturePathSnapshotResponse)(nil),     // 59: vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse
+	(*GetPathSnapshotRequest)(nil),          // 60: vrooli.git_control_tower.v1.baselines.GetPathSnapshotRequest
+	(*GetPathSnapshotResponse)(nil),         // 61: vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse
+	(*DiffPathSnapshotsRequest)(nil),        // 62: vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsRequest
+	(*DiffPathSnapshotsResponse)(nil),       // 63: vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse
+	(*DeletePathSnapshotRequest)(nil),       // 64: vrooli.git_control_tower.v1.baselines.DeletePathSnapshotRequest
+	(*DeletePathSnapshotResponse)(nil),      // 65: vrooli.git_control_tower.v1.baselines.DeletePathSnapshotResponse
+	(*runs.ArtifactRef)(nil),                // 66: vrooli.test_genie.v1.runs.ArtifactRef
+	(*runs.PhaseDiff)(nil),                  // 67: vrooli.test_genie.v1.runs.PhaseDiff
+	(*runs.CompareRunsResponse)(nil),        // 68: vrooli.test_genie.v1.runs.CompareRunsResponse
+	(*v1.OperationStanding)(nil),            // 69: common.v1.OperationStanding
 }
 var file_git_control_tower_v1_baselines_baselines_proto_depIdxs = []int32{
 	0,  // 0: vrooli.git_control_tower.v1.baselines.BaselineManifest.git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
 	1,  // 1: vrooli.git_control_tower.v1.baselines.BaselineManifest.run:type_name -> vrooli.git_control_tower.v1.baselines.RunAnchor
 	2,  // 2: vrooli.git_control_tower.v1.baselines.BaselineManifest.migration:type_name -> vrooli.git_control_tower.v1.baselines.MigrationInfo
-	64, // 3: vrooli.git_control_tower.v1.baselines.RunArtifactCatalog.artifacts:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
+	66, // 3: vrooli.git_control_tower.v1.baselines.RunArtifactCatalog.artifacts:type_name -> vrooli.test_genie.v1.runs.ArtifactRef
 	5,  // 4: vrooli.git_control_tower.v1.baselines.EvidenceComparison.base_catalog:type_name -> vrooli.git_control_tower.v1.baselines.RunArtifactCatalog
 	5,  // 5: vrooli.git_control_tower.v1.baselines.EvidenceComparison.current_catalog:type_name -> vrooli.git_control_tower.v1.baselines.RunArtifactCatalog
 	6,  // 6: vrooli.git_control_tower.v1.baselines.EvidenceComparison.visual_deltas:type_name -> vrooli.git_control_tower.v1.baselines.VisualDelta
@@ -5405,39 +5556,39 @@ var file_git_control_tower_v1_baselines_baselines_proto_depIdxs = []int32{
 	3,  // 11: vrooli.git_control_tower.v1.baselines.DiffResult.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
 	0,  // 12: vrooli.git_control_tower.v1.baselines.DiffResult.current_git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
 	4,  // 13: vrooli.git_control_tower.v1.baselines.DiffResult.staleness:type_name -> vrooli.git_control_tower.v1.baselines.Staleness
-	65, // 14: vrooli.git_control_tower.v1.baselines.DiffResult.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
+	67, // 14: vrooli.git_control_tower.v1.baselines.DiffResult.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
 	7,  // 15: vrooli.git_control_tower.v1.baselines.DiffResult.evidence:type_name -> vrooli.git_control_tower.v1.baselines.EvidenceComparison
-	66, // 16: vrooli.git_control_tower.v1.baselines.DiffResult.comparison:type_name -> vrooli.test_genie.v1.runs.CompareRunsResponse
-	25, // 17: vrooli.git_control_tower.v1.baselines.BaselineCollection.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionMember
-	26, // 18: vrooli.git_control_tower.v1.baselines.BaselineCollection.coverage:type_name -> vrooli.git_control_tower.v1.baselines.CollectionCoverage
-	45, // 19: vrooli.git_control_tower.v1.baselines.BaselineCollection.path_snapshots:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotReference
-	24, // 20: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest.targets:type_name -> vrooli.git_control_tower.v1.baselines.CollectionTarget
-	27, // 21: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	27, // 22: vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	67, // 23: vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse.standing:type_name -> common.v1.OperationStanding
-	27, // 24: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	67, // 25: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse.standing:type_name -> common.v1.OperationStanding
-	24, // 26: vrooli.git_control_tower.v1.baselines.ExtendCollectionRequest.targets:type_name -> vrooli.git_control_tower.v1.baselines.CollectionTarget
-	27, // 27: vrooli.git_control_tower.v1.baselines.ExtendCollectionResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	27, // 28: vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	36, // 29: vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
-	27, // 30: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	36, // 31: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
-	67, // 32: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.standing:type_name -> common.v1.OperationStanding
-	27, // 33: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
-	36, // 34: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
-	67, // 35: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.standing:type_name -> common.v1.OperationStanding
-	46, // 36: vrooli.git_control_tower.v1.baselines.PathSnapshot.entries:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
-	48, // 37: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.top_contributors:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotContributor
-	49, // 38: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.issues:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotIssue
-	50, // 39: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.recommendations:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotRecommendation
-	51, // 40: vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotResponse.estimate:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate
-	51, // 41: vrooli.git_control_tower.v1.baselines.PathSnapshotPolicyViolation.estimate:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate
-	46, // 42: vrooli.git_control_tower.v1.baselines.SourceDelta.before:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
-	46, // 43: vrooli.git_control_tower.v1.baselines.SourceDelta.after:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
-	47, // 44: vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse.snapshot:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshot
-	47, // 45: vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse.snapshot:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshot
-	55, // 46: vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse.deltas:type_name -> vrooli.git_control_tower.v1.baselines.SourceDelta
+	68, // 16: vrooli.git_control_tower.v1.baselines.DiffResult.comparison:type_name -> vrooli.test_genie.v1.runs.CompareRunsResponse
+	27, // 17: vrooli.git_control_tower.v1.baselines.BaselineCollection.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionMember
+	28, // 18: vrooli.git_control_tower.v1.baselines.BaselineCollection.coverage:type_name -> vrooli.git_control_tower.v1.baselines.CollectionCoverage
+	47, // 19: vrooli.git_control_tower.v1.baselines.BaselineCollection.path_snapshots:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotReference
+	26, // 20: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest.targets:type_name -> vrooli.git_control_tower.v1.baselines.CollectionTarget
+	29, // 21: vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	29, // 22: vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	69, // 23: vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse.standing:type_name -> common.v1.OperationStanding
+	29, // 24: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	69, // 25: vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse.standing:type_name -> common.v1.OperationStanding
+	26, // 26: vrooli.git_control_tower.v1.baselines.ExtendCollectionRequest.targets:type_name -> vrooli.git_control_tower.v1.baselines.CollectionTarget
+	29, // 27: vrooli.git_control_tower.v1.baselines.ExtendCollectionResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	29, // 28: vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	38, // 29: vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
+	29, // 30: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	38, // 31: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
+	69, // 32: vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse.standing:type_name -> common.v1.OperationStanding
+	29, // 33: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.collection:type_name -> vrooli.git_control_tower.v1.baselines.BaselineCollection
+	38, // 34: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.members:type_name -> vrooli.git_control_tower.v1.baselines.CollectionDiffMember
+	69, // 35: vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse.standing:type_name -> common.v1.OperationStanding
+	48, // 36: vrooli.git_control_tower.v1.baselines.PathSnapshot.entries:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
+	50, // 37: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.top_contributors:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotContributor
+	51, // 38: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.issues:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotIssue
+	52, // 39: vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate.recommendations:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotRecommendation
+	53, // 40: vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotResponse.estimate:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate
+	53, // 41: vrooli.git_control_tower.v1.baselines.PathSnapshotPolicyViolation.estimate:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshotEstimate
+	48, // 42: vrooli.git_control_tower.v1.baselines.SourceDelta.before:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
+	48, // 43: vrooli.git_control_tower.v1.baselines.SourceDelta.after:type_name -> vrooli.git_control_tower.v1.baselines.PathEntry
+	49, // 44: vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse.snapshot:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshot
+	49, // 45: vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse.snapshot:type_name -> vrooli.git_control_tower.v1.baselines.PathSnapshot
+	57, // 46: vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse.deltas:type_name -> vrooli.git_control_tower.v1.baselines.SourceDelta
 	8,  // 47: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:input_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
 	10, // 48: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest
 	12, // 49: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:input_type -> vrooli.git_control_tower.v1.baselines.GetBaselineRequest
@@ -5445,41 +5596,43 @@ var file_git_control_tower_v1_baselines_baselines_proto_depIdxs = []int32{
 	16, // 51: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartDiffRequest
 	18, // 52: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:input_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultRequest
 	22, // 53: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
-	28, // 54: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionCapture:input_type -> vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest
-	30, // 55: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetCollectionStatusRequest
-	32, // 56: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionCapture:input_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureRequest
-	34, // 57: vrooli.git_control_tower.v1.baselines.BaselinesService.ExtendCollection:input_type -> vrooli.git_control_tower.v1.baselines.ExtendCollectionRequest
-	37, // 58: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartCollectionDiffRequest
-	39, // 59: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiffStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusRequest
-	41, // 60: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionDiff:input_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionDiffRequest
-	43, // 61: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteCollection:input_type -> vrooli.git_control_tower.v1.baselines.DeleteCollectionRequest
-	52, // 62: vrooli.git_control_tower.v1.baselines.BaselinesService.EstimatePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotRequest
-	56, // 63: vrooli.git_control_tower.v1.baselines.BaselinesService.CapturePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.CapturePathSnapshotRequest
-	58, // 64: vrooli.git_control_tower.v1.baselines.BaselinesService.GetPathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.GetPathSnapshotRequest
-	60, // 65: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffPathSnapshots:input_type -> vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsRequest
-	62, // 66: vrooli.git_control_tower.v1.baselines.BaselinesService.DeletePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.DeletePathSnapshotRequest
-	9,  // 67: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:output_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
-	11, // 68: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse
-	13, // 69: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:output_type -> vrooli.git_control_tower.v1.baselines.GetBaselineResponse
-	15, // 70: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:output_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
-	17, // 71: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartDiffResponse
-	19, // 72: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:output_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
-	23, // 73: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
-	29, // 74: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionCapture:output_type -> vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse
-	31, // 75: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse
-	33, // 76: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionCapture:output_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse
-	35, // 77: vrooli.git_control_tower.v1.baselines.BaselinesService.ExtendCollection:output_type -> vrooli.git_control_tower.v1.baselines.ExtendCollectionResponse
-	38, // 78: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse
-	40, // 79: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiffStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse
-	42, // 80: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionDiff:output_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse
-	44, // 81: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteCollection:output_type -> vrooli.git_control_tower.v1.baselines.DeleteCollectionResponse
-	53, // 82: vrooli.git_control_tower.v1.baselines.BaselinesService.EstimatePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotResponse
-	57, // 83: vrooli.git_control_tower.v1.baselines.BaselinesService.CapturePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse
-	59, // 84: vrooli.git_control_tower.v1.baselines.BaselinesService.GetPathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse
-	61, // 85: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffPathSnapshots:output_type -> vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse
-	63, // 86: vrooli.git_control_tower.v1.baselines.BaselinesService.DeletePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.DeletePathSnapshotResponse
-	67, // [67:87] is the sub-list for method output_type
-	47, // [47:67] is the sub-list for method input_type
+	24, // 54: vrooli.git_control_tower.v1.baselines.BaselinesService.RepairBaseline:input_type -> vrooli.git_control_tower.v1.baselines.RepairBaselineRequest
+	30, // 55: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionCapture:input_type -> vrooli.git_control_tower.v1.baselines.StartCollectionCaptureRequest
+	32, // 56: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetCollectionStatusRequest
+	34, // 57: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionCapture:input_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureRequest
+	36, // 58: vrooli.git_control_tower.v1.baselines.BaselinesService.ExtendCollection:input_type -> vrooli.git_control_tower.v1.baselines.ExtendCollectionRequest
+	39, // 59: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartCollectionDiffRequest
+	41, // 60: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiffStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusRequest
+	43, // 61: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionDiff:input_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionDiffRequest
+	45, // 62: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteCollection:input_type -> vrooli.git_control_tower.v1.baselines.DeleteCollectionRequest
+	54, // 63: vrooli.git_control_tower.v1.baselines.BaselinesService.EstimatePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotRequest
+	58, // 64: vrooli.git_control_tower.v1.baselines.BaselinesService.CapturePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.CapturePathSnapshotRequest
+	60, // 65: vrooli.git_control_tower.v1.baselines.BaselinesService.GetPathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.GetPathSnapshotRequest
+	62, // 66: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffPathSnapshots:input_type -> vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsRequest
+	64, // 67: vrooli.git_control_tower.v1.baselines.BaselinesService.DeletePathSnapshot:input_type -> vrooli.git_control_tower.v1.baselines.DeletePathSnapshotRequest
+	9,  // 68: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:output_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
+	11, // 69: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse
+	13, // 70: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:output_type -> vrooli.git_control_tower.v1.baselines.GetBaselineResponse
+	15, // 71: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:output_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
+	17, // 72: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartDiffResponse
+	19, // 73: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:output_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
+	23, // 74: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
+	25, // 75: vrooli.git_control_tower.v1.baselines.BaselinesService.RepairBaseline:output_type -> vrooli.git_control_tower.v1.baselines.RepairBaselineResponse
+	31, // 76: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionCapture:output_type -> vrooli.git_control_tower.v1.baselines.StartCollectionCaptureResponse
+	33, // 77: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetCollectionStatusResponse
+	35, // 78: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionCapture:output_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionCaptureResponse
+	37, // 79: vrooli.git_control_tower.v1.baselines.BaselinesService.ExtendCollection:output_type -> vrooli.git_control_tower.v1.baselines.ExtendCollectionResponse
+	40, // 80: vrooli.git_control_tower.v1.baselines.BaselinesService.StartCollectionDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartCollectionDiffResponse
+	42, // 81: vrooli.git_control_tower.v1.baselines.BaselinesService.GetCollectionDiffStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetCollectionDiffStatusResponse
+	44, // 82: vrooli.git_control_tower.v1.baselines.BaselinesService.WaitCollectionDiff:output_type -> vrooli.git_control_tower.v1.baselines.WaitCollectionDiffResponse
+	46, // 83: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteCollection:output_type -> vrooli.git_control_tower.v1.baselines.DeleteCollectionResponse
+	55, // 84: vrooli.git_control_tower.v1.baselines.BaselinesService.EstimatePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.EstimatePathSnapshotResponse
+	59, // 85: vrooli.git_control_tower.v1.baselines.BaselinesService.CapturePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.CapturePathSnapshotResponse
+	61, // 86: vrooli.git_control_tower.v1.baselines.BaselinesService.GetPathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.GetPathSnapshotResponse
+	63, // 87: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffPathSnapshots:output_type -> vrooli.git_control_tower.v1.baselines.DiffPathSnapshotsResponse
+	65, // 88: vrooli.git_control_tower.v1.baselines.BaselinesService.DeletePathSnapshot:output_type -> vrooli.git_control_tower.v1.baselines.DeletePathSnapshotResponse
+	68, // [68:89] is the sub-list for method output_type
+	47, // [47:68] is the sub-list for method input_type
 	47, // [47:47] is the sub-list for extension type_name
 	47, // [47:47] is the sub-list for extension extendee
 	0,  // [0:47] is the sub-list for field type_name
@@ -5496,7 +5649,7 @@ func file_git_control_tower_v1_baselines_baselines_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_git_control_tower_v1_baselines_baselines_proto_rawDesc), len(file_git_control_tower_v1_baselines_baselines_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   64,
+			NumMessages:   66,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

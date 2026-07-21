@@ -643,6 +643,12 @@ message PlanAssumption {
   string mitigation = 2; // what changes if the assumption is wrong
 }
 
+// PlanDefinition is a plan-local term coined or narrowed by the author.
+message PlanDefinition {
+  string term = 1;
+  string meaning = 2;
+}
+
 // Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
 // the authored/computed split per field.
 message Plan {
@@ -698,6 +704,9 @@ message Plan {
   repeated PlanAssumption assumption_risks = 37;
   // Optional for migration: pre-cutover plans retain regression_anchor only.
   BaselineSetIntent baseline_set = 38;
+  // AUTHORED optional local terminology. Shared ecosystem terms are referenced
+  // from docs/concepts/GLOSSARY.md rather than duplicated here.
+  repeated PlanDefinition definitions = 39;
 }
 
 // PlanEdge is one supersession/dependency edge between two plans (the plan

@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AdoptionsServiceListScenariosProcedure is the fully-qualified name of the AdoptionsService's
+	// ListScenarios RPC.
+	AdoptionsServiceListScenariosProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListScenarios"
 	// AdoptionsServiceListAdoptionsProcedure is the fully-qualified name of the AdoptionsService's
 	// ListAdoptions RPC.
 	AdoptionsServiceListAdoptionsProcedure = "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListAdoptions"
@@ -74,6 +77,9 @@ const (
 // AdoptionsServiceClient is a client for the
 // vrooli.react_component_library.v1.adoptions.AdoptionsService service.
 type AdoptionsServiceClient interface {
+	// ListScenarios exposes the scenario-root inventory for typed workflow and
+	// adoption pickers. It is read-only and returns a stable lexical ordering.
+	ListScenarios(context.Context, *connect.Request[adoptions.ListScenariosRequest]) (*connect.Response[adoptions.ListScenariosResponse], error)
 	ListAdoptions(context.Context, *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error)
 	ListEffectiveAdoptions(context.Context, *connect.Request[adoptions.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptions.ListEffectiveAdoptionsResponse], error)
 	ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error)
@@ -119,6 +125,12 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 	baseURL = strings.TrimRight(baseURL, "/")
 	adoptionsServiceMethods := adoptions.File_react_component_library_v1_adoptions_adoptions_proto.Services().ByName("AdoptionsService").Methods()
 	return &adoptionsServiceClient{
+		listScenarios: connect.NewClient[adoptions.ListScenariosRequest, adoptions.ListScenariosResponse](
+			httpClient,
+			baseURL+AdoptionsServiceListScenariosProcedure,
+			connect.WithSchema(adoptionsServiceMethods.ByName("ListScenarios")),
+			connect.WithClientOptions(opts...),
+		),
 		listAdoptions: connect.NewClient[adoptions.ListAdoptionsRequest, adoptions.ListAdoptionsResponse](
 			httpClient,
 			baseURL+AdoptionsServiceListAdoptionsProcedure,
@@ -196,6 +208,7 @@ func NewAdoptionsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // adoptionsServiceClient implements AdoptionsServiceClient.
 type adoptionsServiceClient struct {
+	listScenarios          *connect.Client[adoptions.ListScenariosRequest, adoptions.ListScenariosResponse]
 	listAdoptions          *connect.Client[adoptions.ListAdoptionsRequest, adoptions.ListAdoptionsResponse]
 	listEffectiveAdoptions *connect.Client[adoptions.ListEffectiveAdoptionsRequest, adoptions.ListEffectiveAdoptionsResponse]
 	applyAdoption          *connect.Client[adoptions.ApplyAdoptionRequest, adoptions.ApplyAdoptionResponse]
@@ -208,6 +221,11 @@ type adoptionsServiceClient struct {
 	suggestAdoptions       *connect.Client[adoptions.SuggestAdoptionsRequest, adoptions.SuggestAdoptionsResponse]
 	discoverAdoptions      *connect.Client[adoptions.DiscoverAdoptionsRequest, adoptions.DiscoverAdoptionsResponse]
 	confirmDiscovery       *connect.Client[adoptions.ConfirmDiscoveryRequest, adoptions.ConfirmDiscoveryResponse]
+}
+
+// ListScenarios calls vrooli.react_component_library.v1.adoptions.AdoptionsService.ListScenarios.
+func (c *adoptionsServiceClient) ListScenarios(ctx context.Context, req *connect.Request[adoptions.ListScenariosRequest]) (*connect.Response[adoptions.ListScenariosResponse], error) {
+	return c.listScenarios.CallUnary(ctx, req)
 }
 
 // ListAdoptions calls vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions.
@@ -282,6 +300,9 @@ func (c *adoptionsServiceClient) ConfirmDiscovery(ctx context.Context, req *conn
 // AdoptionsServiceHandler is an implementation of the
 // vrooli.react_component_library.v1.adoptions.AdoptionsService service.
 type AdoptionsServiceHandler interface {
+	// ListScenarios exposes the scenario-root inventory for typed workflow and
+	// adoption pickers. It is read-only and returns a stable lexical ordering.
+	ListScenarios(context.Context, *connect.Request[adoptions.ListScenariosRequest]) (*connect.Response[adoptions.ListScenariosResponse], error)
 	ListAdoptions(context.Context, *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error)
 	ListEffectiveAdoptions(context.Context, *connect.Request[adoptions.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptions.ListEffectiveAdoptionsResponse], error)
 	ApplyAdoption(context.Context, *connect.Request[adoptions.ApplyAdoptionRequest]) (*connect.Response[adoptions.ApplyAdoptionResponse], error)
@@ -322,6 +343,12 @@ type AdoptionsServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adoptionsServiceMethods := adoptions.File_react_component_library_v1_adoptions_adoptions_proto.Services().ByName("AdoptionsService").Methods()
+	adoptionsServiceListScenariosHandler := connect.NewUnaryHandler(
+		AdoptionsServiceListScenariosProcedure,
+		svc.ListScenarios,
+		connect.WithSchema(adoptionsServiceMethods.ByName("ListScenarios")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adoptionsServiceListAdoptionsHandler := connect.NewUnaryHandler(
 		AdoptionsServiceListAdoptionsProcedure,
 		svc.ListAdoptions,
@@ -396,6 +423,8 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 	)
 	return "/vrooli.react_component_library.v1.adoptions.AdoptionsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AdoptionsServiceListScenariosProcedure:
+			adoptionsServiceListScenariosHandler.ServeHTTP(w, r)
 		case AdoptionsServiceListAdoptionsProcedure:
 			adoptionsServiceListAdoptionsHandler.ServeHTTP(w, r)
 		case AdoptionsServiceListEffectiveAdoptionsProcedure:
@@ -428,6 +457,10 @@ func NewAdoptionsServiceHandler(svc AdoptionsServiceHandler, opts ...connect.Han
 
 // UnimplementedAdoptionsServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdoptionsServiceHandler struct{}
+
+func (UnimplementedAdoptionsServiceHandler) ListScenarios(context.Context, *connect.Request[adoptions.ListScenariosRequest]) (*connect.Response[adoptions.ListScenariosResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ListScenarios is not implemented"))
+}
 
 func (UnimplementedAdoptionsServiceHandler) ListAdoptions(context.Context, *connect.Request[adoptions.ListAdoptionsRequest]) (*connect.Response[adoptions.ListAdoptionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.adoptions.AdoptionsService.ListAdoptions is not implemented"))

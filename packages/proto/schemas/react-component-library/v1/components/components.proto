@@ -352,6 +352,9 @@ message CreateComponentVersionRequest {
   string source = 6;
   string changelog_md = 7;
   bool acknowledge_parity_waiver = 8;
+  // Durable operator-authored parity evidence for versions created outside
+  // the ingest workflow. Uses the same contract as ingest.
+  IngestParityReport parity_report = 9;
 }
 
 message CreateComponentVersionResponse {

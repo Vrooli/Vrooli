@@ -24,6 +24,10 @@ service BaselinesService {
   rpc StartDiff(StartDiffRequest) returns (StartDiffResponse);
   rpc GetDiffResult(GetDiffResultRequest) returns (GetDiffResultResponse);
   rpc DeleteBaseline(DeleteBaselineRequest) returns (DeleteBaselineResponse);
+  // Repairs only deterministic lifecycle split-state. The default is a
+  // non-mutating plan; callers must explicitly set apply to write an audit
+  // entry or converge a tombstoned manifest.
+  rpc RepairBaseline(RepairBaselineRequest) returns (RepairBaselineResponse);
   // Collections aggregate existing per-scenario immutable anchors. They do not
   // create a multi-scenario Test Genie run or alter comparison semantics.
   rpc StartCollectionCapture(StartCollectionCaptureRequest) returns (StartCollectionCaptureResponse);
@@ -266,6 +270,20 @@ message DeleteBaselineRequest {
 
 message DeleteBaselineResponse {
   bool deleted = 1;
+}
+
+message RepairBaselineRequest {
+  string scenario = 1;
+  string name = 2;
+  string branch = 3;
+  int64 repo_id = 4;
+  bool apply = 5;
+}
+
+message RepairBaselineResponse {
+  int64 generation = 1;
+  repeated string actions = 2;
+  bool applied = 3;
 }
 
 message CollectionTarget {

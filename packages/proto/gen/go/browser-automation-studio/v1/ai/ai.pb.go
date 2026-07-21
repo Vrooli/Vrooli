@@ -25,13 +25,15 @@ const (
 )
 
 // Viewport mirrors the optional browser viewport hint accepted by the
-// screenshot endpoint. Server clamps each dimension to [200, 10000].
+// screenshot endpoint. Server clamps dimensions to [200, 10000] and device
+// scale factor to [0.5, 4.0].
 type Viewport struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Width         int32                  `protobuf:"varint,1,opt,name=width,proto3" json:"width,omitempty"`
-	Height        int32                  `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Width             int32                  `protobuf:"varint,1,opt,name=width,proto3" json:"width,omitempty"`
+	Height            int32                  `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
+	DeviceScaleFactor *float64               `protobuf:"fixed64,3,opt,name=device_scale_factor,json=deviceScaleFactor,proto3,oneof" json:"device_scale_factor,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Viewport) Reset() {
@@ -74,6 +76,13 @@ func (x *Viewport) GetWidth() int32 {
 func (x *Viewport) GetHeight() int32 {
 	if x != nil {
 		return x.Height
+	}
+	return 0
+}
+
+func (x *Viewport) GetDeviceScaleFactor() float64 {
+	if x != nil && x.DeviceScaleFactor != nil {
+		return *x.DeviceScaleFactor
 	}
 	return 0
 }
@@ -2226,10 +2235,12 @@ var File_browser_automation_studio_v1_ai_ai_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_ai_ai_proto_rawDesc = "" +
 	"\n" +
-	"(browser-automation-studio/v1/ai/ai.proto\x12\x1fbrowser_automation_studio.v1.ai\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"8\n" +
+	"(browser-automation-studio/v1/ai/ai.proto\x12\x1fbrowser_automation_studio.v1.ai\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9e\x01\n" +
 	"\bViewport\x12\x14\n" +
 	"\x05width\x18\x01 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x02 \x01(\x05R\x06height\"U\n" +
+	"\x06height\x18\x02 \x01(\x05R\x06height\x12L\n" +
+	"\x13device_scale_factor\x18\x03 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x10@)\x00\x00\x00\x00\x00\x00\xe0?H\x00R\x11deviceScaleFactor\x88\x01\x01B\x16\n" +
+	"\x14_device_scale_factor\"U\n" +
 	"\tRectangle\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
 	"\x01y\x18\x02 \x01(\x01R\x01y\x12\x14\n" +
@@ -2530,6 +2541,7 @@ func file_browser_automation_studio_v1_ai_ai_proto_init() {
 	if File_browser_automation_studio_v1_ai_ai_proto != nil {
 		return
 	}
+	file_browser_automation_studio_v1_ai_ai_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

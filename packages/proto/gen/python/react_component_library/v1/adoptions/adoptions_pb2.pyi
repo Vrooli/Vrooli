@@ -75,6 +75,24 @@ RECONVERGE_ACTION_FLAGGED_MODIFIED: ReconvergeAction
 RECONVERGE_ACTION_SKIPPED_UNRESOLVED: ReconvergeAction
 RECONVERGE_ACTION_ERROR: ReconvergeAction
 
+class ListScenariosRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListScenariosResponse(_message.Message):
+    __slots__ = ("scenarios",)
+    SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    scenarios: _containers.RepeatedCompositeFieldContainer[ScenarioOption]
+    def __init__(self, scenarios: _Optional[_Iterable[_Union[ScenarioOption, _Mapping]]] = ...) -> None: ...
+
+class ScenarioOption(_message.Message):
+    __slots__ = ("name", "display_name")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    display_name: str
+    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ...) -> None: ...
+
 class Adoption(_message.Message):
     __slots__ = ("id", "component_id", "library_id", "scenario", "adopted_path", "adopted_version", "library_version_status", "local_status", "status_detail", "created_at", "refreshed_at", "source_sha256", "applied_at", "files")
     ID_FIELD_NUMBER: _ClassVar[int]

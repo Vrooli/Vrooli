@@ -376,6 +376,30 @@ class DeleteBaselineResponse(_message.Message):
     deleted: bool
     def __init__(self, deleted: _Optional[bool] = ...) -> None: ...
 
+class RepairBaselineRequest(_message.Message):
+    __slots__ = ("scenario", "name", "branch", "repo_id", "apply")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    name: str
+    branch: str
+    repo_id: int
+    apply: bool
+    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., repo_id: _Optional[int] = ..., apply: _Optional[bool] = ...) -> None: ...
+
+class RepairBaselineResponse(_message.Message):
+    __slots__ = ("generation", "actions", "applied")
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    ACTIONS_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    generation: int
+    actions: _containers.RepeatedScalarFieldContainer[str]
+    applied: bool
+    def __init__(self, generation: _Optional[int] = ..., actions: _Optional[_Iterable[str]] = ..., applied: _Optional[bool] = ...) -> None: ...
+
 class CollectionTarget(_message.Message):
     __slots__ = ("scenario", "baseline_name", "required")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]

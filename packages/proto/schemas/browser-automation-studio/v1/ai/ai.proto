@@ -68,10 +68,15 @@ service AIService {
 // =============================================================================
 
 // Viewport mirrors the optional browser viewport hint accepted by the
-// screenshot endpoint. Server clamps each dimension to [200, 10000].
+// screenshot endpoint. Server clamps dimensions to [200, 10000] and device
+// scale factor to [0.5, 4.0].
 message Viewport {
   int32 width = 1;
   int32 height = 2;
+  optional double device_scale_factor = 3 [(buf.validate.field).double = {
+    gte: 0.5
+    lte: 4.0
+  }];
 }
 
 // Rectangle is an element bounding box in CSS pixels.

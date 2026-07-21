@@ -12,12 +12,14 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Viewport(_message.Message):
-    __slots__ = ("width", "height")
+    __slots__ = ("width", "height", "device_scale_factor")
     WIDTH_FIELD_NUMBER: _ClassVar[int]
     HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_SCALE_FACTOR_FIELD_NUMBER: _ClassVar[int]
     width: int
     height: int
-    def __init__(self, width: _Optional[int] = ..., height: _Optional[int] = ...) -> None: ...
+    device_scale_factor: float
+    def __init__(self, width: _Optional[int] = ..., height: _Optional[int] = ..., device_scale_factor: _Optional[float] = ...) -> None: ...
 
 class Rectangle(_message.Message):
     __slots__ = ("x", "y", "width", "height")

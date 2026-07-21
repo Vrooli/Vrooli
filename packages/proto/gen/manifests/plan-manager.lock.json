@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "plan-manager",
-  "input_digest": "sha256:669d3d4daa3065e6db6eec1ce6f5879a14706dded8417698ee585f0238977af2",
+  "input_digest": "sha256:c07e4c32c8d126628a1fa7c5ee1a49f6addd0eabab42fbb0e86bb080fcd60dac",
   "input_files": [
     "schemas/plan-manager/v1/authoring/authoring.proto",
     "schemas/plan-manager/v1/execution/execution.proto",
@@ -33,7 +33,7 @@
     "gen/go/plan-manager/v1/plans/plans_v1connect/plans.connect.go": "sha256:a3eb196d4068d63654ee5addec6794e7b3a82dae73568f729f5bab827c912954",
     "gen/go/plan-manager/v1/shared/errors.pb.go": "sha256:27f8a7482d10399a3d05edadf784cec5b935500e59720deed4eab20508c5fd09",
     "gen/go/plan-manager/v1/shared/health.pb.go": "sha256:def0e1d08670ab95e8beed8e7053dae4239cd71827653dfb227f396af5e878d8",
-    "gen/go/plan-manager/v1/shared/model.pb.go": "sha256:8cc588c4f68549a46db0d0c53a633a0faae5fab8e717a1b2eb5ed0a696a3c681",
+    "gen/go/plan-manager/v1/shared/model.pb.go": "sha256:99828bca7a53fde0322788d29d68abc990ff197da9c4535517810ee338df6943",
     "gen/go/plan-manager/v1/validation/validation.pb.go": "sha256:d2cbbb219af63fd0ec1516081f100d29bf4e8bc3e44f16f304670987e7ae2b3f",
     "gen/go/plan-manager/v1/validation/validation_v1connect/validation.connect.go": "sha256:3af29861a687ca7df582687a73646a06d5ffeb8f7c297df2af7c306d86c4e6bf",
     "gen/python/plan_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -54,8 +54,8 @@
     "gen/python/plan_manager/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
     "gen/python/plan_manager/v1/shared/health_pb2.py": "sha256:5ed151f8fa510a6871571fde497812c6d7439c603e8f49317b40006c2b902353",
     "gen/python/plan_manager/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
-    "gen/python/plan_manager/v1/shared/model_pb2.py": "sha256:ecfa5b69bae4d4c9a0aa7012afaff818ca7f0afff68518cbb008370a9e097a7e",
-    "gen/python/plan_manager/v1/shared/model_pb2.pyi": "sha256:60b1f239cbb1c4ef7f35f5774013b706f1a51b036bba4d36e0a752db846202b7",
+    "gen/python/plan_manager/v1/shared/model_pb2.py": "sha256:82d2df5be6be14385c1df6db9ed3edda7c36860c15b731d79950a5a1c4960fb0",
+    "gen/python/plan_manager/v1/shared/model_pb2.pyi": "sha256:101cbaac3d6677a7d8c602fde73c702b7407a2c7e8e31d22d68533a2b48df9bc",
     "gen/python/plan_manager/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/plan_manager/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/plan_manager/v1/validation/validation_pb2.py": "sha256:391faea4beb11b4672392206c8f738c718014681c944fad1dadd38c293275710",
@@ -66,7 +66,7 @@
     "gen/typescript/js/plan-manager/v1/plans/plans_pb.js": "sha256:642073807cf4ba2613a0739af98f2f91958b919c86e86a22bf3de9b7d9163a17",
     "gen/typescript/js/plan-manager/v1/shared/errors_pb.js": "sha256:915eb8c49153b41ad94445034fde0575b1c4af3aae9c53ac761e73f4d1f9f861",
     "gen/typescript/js/plan-manager/v1/shared/health_pb.js": "sha256:04a259c3b0158c10a49b5a1fcd2949b9f17fb82a9d1fd7465f5eddd17926ac74",
-    "gen/typescript/js/plan-manager/v1/shared/model_pb.js": "sha256:7915a2916001663a5bde0d3e0e8a717e00c720bd54fb7a157b4cd0bf74aa7fe6",
+    "gen/typescript/js/plan-manager/v1/shared/model_pb.js": "sha256:744a6dc1de6952c943bb6eef7fc3042b2d086f54a1dd42fd6ab9738bd102e8e4",
     "gen/typescript/js/plan-manager/v1/validation/validation_pb.js": "sha256:1b4bbb169570dcd520e518827f4dd94510d4ce8d6a3148aed274b94d6ece4b4b",
     "gen/typescript/plan-manager/v1/authoring/authoring_pb.ts": "sha256:63f7d60e45bf6e010199dd082759fc260133e681570cf410054238d2746db41d",
     "gen/typescript/plan-manager/v1/execution/execution_pb.ts": "sha256:192c04dd6609c095e47681bedb3de445c085544cb94462c37235f0b62c67f024",
@@ -74,7 +74,7 @@
     "gen/typescript/plan-manager/v1/plans/plans_pb.ts": "sha256:347d0e78dbee2aa236d338fee87c733bbd08b137483143ce40f4d3e14637483f",
     "gen/typescript/plan-manager/v1/shared/errors_pb.ts": "sha256:94ae27744bfdfdca897c807a788676f9da5e1c54277ed4d279ffa6c84b6a6d84",
     "gen/typescript/plan-manager/v1/shared/health_pb.ts": "sha256:3aafde2d59e9cf2eda540f6935af5ffcec1724c9c1ebc514e53c75618990cfb0",
-    "gen/typescript/plan-manager/v1/shared/model_pb.ts": "sha256:001a6f98b49a76e3eac99b392ebd4e9102509396e663c38a59a959c7fe82a17e",
+    "gen/typescript/plan-manager/v1/shared/model_pb.ts": "sha256:6f83ee8609e67904e5a4fd5f8835a5ce60461702870741b694831d48a0955025",
     "gen/typescript/plan-manager/v1/validation/validation_pb.ts": "sha256:092b61c86c4552d98c32df6f2d2079c619229d5f2e19ad02e7855b8b1a59ce8a"
   }
 }
