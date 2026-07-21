@@ -1,0 +1,52 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "cloudflare-ai-gateway",
+  "display_name": "Cloudflare AI Gateway",
+  "category": "ai",
+  "summary": "Hosted AI-gateway control-plane capability for provider routing, observability, and policy.",
+  "why_it_matters": "Cloudflare AI Gateway may be useful when a scenario needs its specific hosted gateway capabilities, but no current production scenario declares or uses it. The blueprint retains the integration decision without maintaining an unused provider-specific client.",
+  "when_to_use": [
+    "A scenario has a concrete need for Cloudflare AI Gateway routing, analytics, caching, or policy controls.",
+    "An owning scenario commits to a tested provider contract, credential flow, and fallback behavior."
+  ],
+  "example_scenarios": [
+    "Multi-provider AI applications",
+    "AI request observability",
+    "Gateway policy enforcement"
+  ],
+  "integration_kind": "cloud-api",
+  "platform_support": {
+    "portability_tier": "full",
+    "notes": "As a hosted API integration, portability is primarily determined by the Go client, credential management, and network availability.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "A concrete owning scenario with a declared resource dependency",
+    "Cloudflare account, gateway configuration, and secure credential flow",
+    "A decision explaining why existing direct-provider integrations are insufficient"
+  ],
+  "dependencies": [],
+  "suggested_template": "cloud-api",
+  "implementation_notes": [
+    "Start with the resource maturity migration playbook.",
+    "Implement provider calls, credentials, diagnostics, and tests in Go without Bash dependencies.",
+    "Keep the integration consumer-owned and test fallback behavior when the hosted gateway is unavailable."
+  ],
+  "operational_notes": [
+    "Define cost controls, request logging policy, and credential rotation before activation.",
+    "Health checks should validate the configured gateway contract without exposing secrets."
+  ],
+  "risks": [
+    "No active consumer currently justifies maintenance.",
+    "Hosted-provider lock-in and usage costs require an explicit owner decision."
+  ],
+  "status": "candidate",
+  "replacement_for": ["cloudflare-ai-gateway"],
+  "references": [
+    {"kind": "resource", "value": "resources/cloudflare-ai-gateway"},
+    {"kind": "doc", "value": "docs/resources/maturity-migration.md"}
+  ],
+  "last_reviewed": "2026-07-19"
+}

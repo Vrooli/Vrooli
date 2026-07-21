@@ -230,12 +230,6 @@
         "adapter": {
           "$ref": "#/definitions/cli_adapter"
         },
-        "install": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/cli_install_step"
-          }
-        },
         "invoke": {
           "$ref": "#/definitions/cli_invoke"
         },
@@ -273,28 +267,6 @@
           "type": "string"
         },
         "install_script": {
-          "type": "string"
-        }
-      }
-    },
-    "cli_install_step": {
-      "type": "object",
-      "required": ["kind", "run"],
-      "properties": {
-        "os": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "kind": {
-          "type": "string",
-          "enum": ["command"]
-        },
-        "run": {
-          "type": "string"
-        },
-        "install_dir": {
           "type": "string"
         }
       }

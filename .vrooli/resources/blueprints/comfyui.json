@@ -1,0 +1,52 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "comfyui",
+  "display_name": "ComfyUI",
+  "category": "ai",
+  "summary": "Local node-based image-generation and workflow-execution capability.",
+  "why_it_matters": "ComfyUI can be reconsidered when a scenario has a concrete need for its workflow model, but no current scenario requires its resource implementation. The blueprint preserves the option without maintaining an unused Docker and Bash control surface.",
+  "when_to_use": [
+    "A scenario needs ComfyUI-specific workflow interoperability that its standalone local or cloud image backends cannot provide.",
+    "An owning scenario commits to a tested image-generation contract, model-storage plan, and platform-support decision."
+  ],
+  "example_scenarios": ["Image-generation workflows", "Creative-content production", "Node-based AI pipelines"],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "The former implementation depended on Docker and GPU-specific shell handling. A future owner should prefer a managed local-service design where feasible and isolate GPU and host-runtime differences behind explicit platform adapters.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "A concrete owning scenario with a declared resource dependency.",
+    "A defined workflow/API contract and model licensing, storage, and download plan.",
+    "An explicit GPU, runtime, desktop-bundling, and platform-support decision."
+  ],
+  "dependencies": [],
+  "suggested_template": "docker-service",
+  "implementation_notes": [
+    "Start with the resource maturity and migration playbook before restoring an implementation.",
+    "Use a Go-native CLI and control surface; do not reintroduce Bash for lifecycle, configuration, workflows, models, GPU handling, or tests.",
+    "Reassess Docker against a managed local-service archetype before implementation.",
+    "Validate a real workflow submission and result retrieval path, including a clear non-GPU or unsupported-platform response."
+  ],
+  "operational_notes": [
+    "Define model provenance, licensing, disk quotas, workflow compatibility, and GPU memory limits before activation.",
+    "Health checks must verify the declared workflow API rather than only container readiness."
+  ],
+  "risks": [
+    "No active consumer currently justifies maintenance.",
+    "GPU and model-management behavior substantially increase portability and support cost.",
+    "A Docker-first runtime may be unsuitable for desktop bundles."
+  ],
+  "status": "candidate",
+  "replacement_for": ["comfyui"],
+  "references": [
+    {"kind": "resource", "value": "resources/comfyui"},
+    {"kind": "scenario", "value": "scenarios/image-tools"},
+    {"kind": "scenario", "value": "scenarios/campaign-content-studio"},
+    {"kind": "doc", "value": "docs/resources/maturity-migration.md"}
+  ],
+  "last_reviewed": "2026-07-20"
+}

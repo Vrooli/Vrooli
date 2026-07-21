@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scenario-architecture-manifest/v1",
+  "title": "Scenario Architecture Manifest",
+  "description": "Template-owned, cross-cutting architecture conventions for scenarios generated from a template: the code-layout zone taxonomy (responsibility tiers + import-direction) that architecture-cartographer reads to classify packages. The SSOT for zones; a per-scenario `.vrooli/architecture.json` overlay is the only override and any deviation is reported as a finding. Mirrors scenarios/architecture-cartographer/api/internal/zones/zones.go.",
+  "type": "object",
+  "required": ["contract", "zones"],
+  "properties": {
+    "version": { "type": "string" },
+    "contract": { "$ref": "#/$defs/Contract" },
+    "zones": { "$ref": "#/$defs/ZonesContract" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "Contract": {
+      "type": "object",
+      "required": ["kind", "schema"],
+      "properties": {
+        "kind": { "type": "string", "const": "scenario-architecture" },
+        "schema": { "type": "string", "const": "scenario-architecture-manifest/v1" },
+        "template": { "type": "string" },
+        "extensionRule": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "ZonesContract": {
+      "type": "object",
+      "required": ["pathPatterns"],
+      "properties": {
+        "pathPatterns": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        },
+        "builtinSubstrateSegments": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "compositionRootSegments": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "coordinatingArchetypes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

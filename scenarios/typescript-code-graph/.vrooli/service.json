@@ -39,23 +39,6 @@
       "manifest": {},
       "build_metadata": {}
     },
-    "install": [
-      {
-        "os": [
-          "linux",
-          "darwin"
-        ],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": [
-          "windows"
-        ],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
     "invoke": {
       "kind": "installed_command",
       "command": "typescript-code-graph"
@@ -76,7 +59,7 @@
     {
       "name": "node",
       "required": true,
-      "reason": "Node sidecar runtime (>=20) \u2014 runs the bundled ts-morph parser child process. The supervisor execs `node sidecar/dist/index.js` on API start; without Node, the API returns Unavailable on every Extract/RewriteApply call.",
+      "reason": "Node sidecar runtime (>=20) — runs the bundled ts-morph parser child process. The supervisor execs `node sidecar/dist/index.js` on API start; without Node, the API returns Unavailable on every Extract/RewriteApply call.",
       "when": [
         "setup",
         "develop",

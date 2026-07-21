@@ -1,0 +1,52 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "sagemath",
+  "display_name": "SageMath",
+  "category": "science",
+  "summary": "Symbolic mathematics, scientific computing, and notebook-based analysis capability.",
+  "why_it_matters": "SageMath can support advanced mathematical and scientific workloads, but no current production scenario declares or uses it. Keeping a blueprint avoids maintaining an unused Docker and shell implementation.",
+  "when_to_use": [
+    "A scenario requires reproducible symbolic mathematics or scientific-computing workflows beyond its existing libraries.",
+    "An owning scenario commits to a tested notebook, API, or batch-computation integration."
+  ],
+  "example_scenarios": [
+    "Engineering analysis",
+    "Scientific modeling",
+    "Educational mathematics workflows"
+  ],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "The former implementation depended on Docker. A future owner should evaluate a native or managed approach before choosing Docker for desktop-oriented use.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "A concrete owning scenario with a declared resource dependency",
+    "A defined compute, notebook, or API contract",
+    "A platform-support and runtime decision"
+  ],
+  "dependencies": [],
+  "suggested_template": "docker-service",
+  "implementation_notes": [
+    "Start with the resource maturity migration playbook.",
+    "Use Go-native lifecycle, configuration, diagnostics, and tests; do not reintroduce Bash as the control surface.",
+    "Choose the lightest feasible runtime archetype after validating the workload."
+  ],
+  "operational_notes": [
+    "Define CPU, memory, storage, and notebook-execution limits before enabling the service.",
+    "Test the actual mathematical workload, not merely container readiness."
+  ],
+  "risks": [
+    "No active consumer currently justifies maintenance.",
+    "A Docker dependency may be unsuitable for desktop bundles."
+  ],
+  "status": "candidate",
+  "replacement_for": ["sagemath"],
+  "references": [
+    {"kind": "resource", "value": "resources/sagemath"},
+    {"kind": "doc", "value": "docs/resources/maturity-migration.md"}
+  ],
+  "last_reviewed": "2026-07-19"
+}

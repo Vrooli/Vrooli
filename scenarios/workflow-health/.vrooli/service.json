@@ -39,23 +39,6 @@
       "manifest": {},
       "build_metadata": {}
     },
-    "install": [
-      {
-        "os": [
-          "linux",
-          "darwin"
-        ],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": [
-          "windows"
-        ],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
     "invoke": {
       "kind": "installed_command",
       "command": "workflow-health"
@@ -130,12 +113,12 @@
       "steps": [
         {
           "name": "build-api",
-          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o workflow-health-api .",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o workflow-health-api .",
           "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -143,7 +126,7 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
         }
       ]
@@ -153,7 +136,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api \u0026\u0026 ./workflow-health-api",
+          "run": "cd api && ./workflow-health-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -162,7 +145,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js",
+          "run": "cd ui && node server.js",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {

@@ -51,18 +51,6 @@
       "kind": "go_module",
       "module_dir": "cli"
     },
-    "install": [
-      {
-        "os": ["linux", "darwin"],
-        "kind": "command",
-        "run": "bash ./cli/install.sh"
-      },
-      {
-        "os": ["windows"],
-        "kind": "command",
-        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
-      }
-    ],
     "invoke": {
       "kind": "installed_command",
       "command": "vrooli-emulator"
@@ -108,7 +96,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/vrooli-emulator-api"]
+            "targets": [
+              "api/vrooli-emulator-api"
+            ]
           },
           {
             "type": "cli",
@@ -199,44 +189,75 @@
       "name": "Xvfb",
       "required": true,
       "reason": "Provide the virtual X display that backs every emulator session",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
       "notes": "Native runtime handler provisions the Linux virtual display dependency when absent"
     },
     {
       "name": "x11vnc",
       "required": false,
       "reason": "Expose interactive sessions over VNC; not needed for headless sessions",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"]
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "websockify",
       "required": false,
       "reason": "Bridge the VNC port to a browser WebSocket endpoint",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"]
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "openbox",
       "required": false,
       "reason": "Provide a lightweight window manager inside the virtual display",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"]
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "xdotool",
       "required": true,
       "reason": "Detect visible X11 windows for the process monitor",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"]
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ]
     },
     {
       "name": "ffmpeg",
       "required": true,
       "reason": "Capture X11 desktop frames for emulator screenshots and visual evidence",
-      "when": ["setup", "develop", "test"],
-      "platforms": ["linux"]
+      "when": [
+        "setup",
+        "develop",
+        "test"
+      ],
+      "platforms": [
+        "linux"
+      ]
     }
   ]
 }
