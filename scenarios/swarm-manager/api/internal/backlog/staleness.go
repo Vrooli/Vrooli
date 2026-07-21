@@ -10,11 +10,17 @@ import (
 const defaultStaleAfter = 14 * 24 * time.Hour
 
 // IsStale is deliberately a read-time calculation: stale state is an
-// operator hint, not durable workflow state. A malformed timestamp is stale
-// because the item cannot establish its freshness deterministically.
+// operator hint, not durable workflow state. A recent accepted review is a
+// freshness signal independent of a content update. A malformed timestamp is
+// stale because the item cannot establish its freshness deterministically.
 func IsStale(item BacklogItem, repoRoot string, now time.Time) bool {
-	updated, err := time.Parse(time.RFC3339, strings.TrimSpace(item.Updated))
-	if err != nil || now.Sub(updated) >= defaultStaleAfter {
+	freshness, err := time.Parse(time.RFC3339, strings.TrimSpace(item.Updated))
+	if item.LastReview != nil {
+		if reviewedAt, reviewErr := time.Parse(time.RFC3339, strings.TrimSpace(item.LastReview.ReviewedAt)); reviewErr == nil && reviewedAt.After(freshness) {
+			freshness, err = reviewedAt, nil
+		}
+	}
+	if err != nil || now.Sub(freshness) >= defaultStaleAfter {
 		return true
 	}
 	if item.PlanRef != nil && strings.TrimSpace(item.PlanRef.PlanID) == "" {

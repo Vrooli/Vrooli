@@ -34,6 +34,7 @@ import type {
   AgentSessionKind,
   AgentSessionMessage as AgentSessionMessageDomain,
   AgentSessionProposal as AgentSessionProposalDomain,
+  AgentSessionProposalTarget,
   AgentSessionRunEvent as AgentSessionRunEventDomain,
   AgentSessionStatus,
 } from "../../types";
@@ -169,6 +170,15 @@ export function mapProtoAgentSession(protoSession: AgentSession): AgentSessionDo
       url: API_ENDPOINTS.agentSessionAttachment(protoSession.id ?? "", attachment.id ?? ""),
     })) ?? [],
     ...(protoSession.createdBy ? { createdBy: mapProtoAgentSessionAttribution(protoSession.createdBy) } : {}),
+    ...(protoSession.proposalTarget ? { proposalTarget: mapProtoProposalTarget(protoSession.proposalTarget) } : {}),
+  };
+}
+
+function mapProtoProposalTarget(target: NonNullable<AgentSession["proposalTarget"]>): AgentSessionProposalTarget {
+  return {
+    type: target.type === "initiative" ? "initiative" : "backlog_item",
+    ref: target.ref ?? "",
+    name: target.name ?? "",
   };
 }
 

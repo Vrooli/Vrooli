@@ -84,6 +84,9 @@ func TestSessionProtoJSONRoundTrip(t *testing.T) {
 	if decoded.GetProposals()[0].GetPayloadJson() != `{"items":[]}` {
 		t.Fatalf("payload_json = %q", decoded.GetProposals()[0].GetPayloadJson())
 	}
+	if decoded.GetProposalTarget().GetRef() != "api-quality-gates" {
+		t.Fatalf("proposal_target.ref = %q, want api-quality-gates", decoded.GetProposalTarget().GetRef())
+	}
 }
 
 func TestAttributionFromProvenance(t *testing.T) {
@@ -118,16 +121,17 @@ func validSession() Session {
 		Source:      "session/sess_test",
 	}
 	return Session{
-		ID:        "sess_test",
-		Title:     "Plan API quality gates",
-		Kind:      KindMetaOrchestration,
-		Status:    StatusProposalReady,
-		SkillID:   "swarm-manager-meta-orchestrator",
-		TaskID:    "task-1",
-		RunID:     "run-1",
-		CreatedAt: testTimestamp,
-		UpdatedAt: testTimestamp,
-		CreatedBy: attr,
+		ID:             "sess_test",
+		Title:          "Plan API quality gates",
+		Kind:           KindMetaOrchestration,
+		Status:         StatusProposalReady,
+		SkillID:        "swarm-manager-meta-orchestrator",
+		TaskID:         "task-1",
+		RunID:          "run-1",
+		CreatedAt:      testTimestamp,
+		UpdatedAt:      testTimestamp,
+		CreatedBy:      attr,
+		ProposalTarget: &ProposalTarget{Type: ContextInitiative, Ref: "api-quality-gates", Name: "API Quality Gates"},
 		Messages: []Message{{
 			ID:        "msg-1",
 			Role:      MessageRoleUser,

@@ -6,7 +6,6 @@
  */
 
 import { BacklogFormDialog } from "./backlog-form-dialog";
-import { useState } from "react";
 import { AcceptanceGlobDialog } from "./acceptance-glob-dialog";
 import { BacklogAgentDialog } from "./backlog-agent-dialog";
 import { RunBacklogModal } from "./run-backlog-modal";
@@ -21,15 +20,11 @@ import { selectors } from "../../consts/selectors";
 import { useBacklogDetail } from "../../contexts/BacklogDetailContext";
 import { useRuntimeConfig } from "../../hooks/useRuntimeConfig";
 import { useBacklogDetailUIStore } from "../../stores";
-import { defaultApiClient } from "../../lib/api-client";
-import { API_ENDPOINTS } from "../../lib/api-endpoints";
 import type { useBacklogDetailData } from "../../hooks/useBacklogDetailData";
 import type { useBacklogHandlers } from "../../hooks/useBacklogHandlers";
 import type { BacklogFile, ItemBlockingInfo } from "../../types";
 import type { BacklogItem } from "../../types/domain";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
-
-const resetScopeOptions: Array<[string, string]> = [["workshop", "Workshop rounds and conclusion"], ["clarifications", "Clarifications"], ["review", "Review rounds"], ["handoff_executions", "Handoff data and executions"], ["plan_unbind", "Plan binding"]];
 
 export interface BacklogDialogsProps {
   data: ReturnType<typeof useBacklogDetailData>;
@@ -52,40 +47,13 @@ export function BacklogDialogs({
   upsertItem,
   blockingInfo,
 }: BacklogDialogsProps) {
-  const { backlogKind, name, item, agentRunIsActive, agentRunningLabel } = useBacklogDetail();
+  const { backlogKind, name, item } = useBacklogDetail();
   const ui = useBacklogDetailUIStore();
   const { getDeleteConfirmLevel } = useRuntimeConfig();
   const deleteLevel = getDeleteConfirmLevel("backlog");
-	const [recreateOpen, setRecreateOpen] = useState(false);
-	const [resetOpen, setResetOpen] = useState(false);
-	const [scope, setScope] = useState<string[]>(["workshop"]);
-	const [lifecyclePending, setLifecyclePending] = useState(false);
-	const [lifecycleError, setLifecycleError] = useState<string | undefined>();
-	const toggleScope = (value: string) => setScope((current) => current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value]);
-	const recreate = async () => {
-		if (!backlogKind || !name) return;
-		setLifecyclePending(true); setLifecycleError(undefined);
-		try { await defaultApiClient.post(API_ENDPOINTS.backlogRecreate(backlogKind, name), {}); setRecreateOpen(false); data.invalidateItem(); }
-		catch (error) { setLifecycleError(error instanceof Error ? error.message : "Unable to recreate item."); }
-		finally { setLifecyclePending(false); }
-	};
-	const resetArtifacts = async () => {
-		if (!backlogKind || !name || scope.length === 0) return;
-		setLifecyclePending(true); setLifecycleError(undefined);
-		try { await defaultApiClient.post(API_ENDPOINTS.backlogResetArtifacts(backlogKind, name), { scope }); setResetOpen(false); data.invalidateItem(); }
-		catch (error) { setLifecycleError(error instanceof Error ? error.message : "Unable to reset artifacts."); }
-		finally { setLifecyclePending(false); }
-	};
 
   return (
     <>
-		{item && <section className="mt-6 rounded-lg border border-rose-500/30 bg-rose-500/[0.04] p-4" data-testid="backlog-lifecycle-controls">
-			<h2 className="text-sm font-semibold text-rose-200">Lifecycle controls</h2>
-			<p className="mt-1 text-xs text-slate-400">{agentRunIsActive ? `${agentRunningLabel} Lifecycle changes are unavailable until it finishes.` : "These actions preserve the canonical spec or archived history, but remove derived work only after confirmation."}</p>
-			<div className="mt-3 flex flex-wrap gap-2"><button type="button" className="rounded border border-rose-400/40 px-3 py-1.5 text-sm text-rose-200 disabled:opacity-50" disabled={lifecyclePending || agentRunIsActive} onClick={() => setRecreateOpen(true)}>Recreate item</button><button type="button" className="rounded border border-amber-400/40 px-3 py-1.5 text-sm text-amber-200 disabled:opacity-50" disabled={lifecyclePending || agentRunIsActive} onClick={() => setResetOpen(true)}>Reset artifacts</button></div>
-		</section>}
-		<ConfirmDialog isOpen={recreateOpen} onClose={() => setRecreateOpen(false)} onConfirm={() => void recreate()} title="Recreate backlog item" description={`Archives "${item?.title || name}" and creates a fresh backlog clone. Metadata, membership, dependencies, and lineage are retained; derived work starts fresh.`} confirmationText={item?.name} confirmLabel="Recreate item" isLoading={lifecyclePending} errorMessage={lifecycleError} />
-		<ConfirmDialog isOpen={resetOpen} onClose={() => setResetOpen(false)} onConfirm={() => void resetArtifacts()} title="Reset derived artifacts" description="Deletes only the selected derived artifacts. The canonical item specification is kept." confirmLabel="Reset selected artifacts" isLoading={lifecyclePending} errorMessage={lifecycleError} sidePanel={<div className="space-y-2 p-4"><p className="text-sm font-medium text-slate-100">Choose what to remove</p>{resetScopeOptions.map(([value, label]) => <label key={value} className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={scope.includes(value)} onChange={() => toggleScope(value)} />{label}</label>)}</div>} />
       {item && (
         <BacklogFormDialog
           isOpen={ui.showEdit}

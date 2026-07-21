@@ -15,7 +15,7 @@ export interface ProposalMutationOutcome {
 
 export interface ProposalSessionProposal {
   id: string;
-  kind: "mutation_list" | string;
+  kind: "mutation_list" | "no_change_recommendation" | string;
   status: "draft" | "ready" | "applied" | "needs_revision" | "superseded" | "failed" | string;
   summary: string;
   payload_json: string;
@@ -50,6 +50,7 @@ export interface IProposalSessionService {
   list(target?: { type: ProposalSessionTargetType; ref: string }): Promise<ProposalSession[]>;
   create(args: CreateProposalSessionArgs): Promise<ProposalSession>;
   decide(sessionId: string, proposalId: string, acceptedMutationIds: string[], note?: string): Promise<ProposalSession>;
+  acceptKeep(sessionId: string, proposalId: string, note?: string): Promise<ProposalSession>;
   revise(sessionId: string, proposalId: string, note?: string): Promise<ProposalSession>;
 }
 
@@ -67,6 +68,9 @@ export function createProposalSessionService(apiClient: IApiClient = defaultApiC
         accepted_mutation_ids: acceptedMutationIds,
         note: note ?? "",
       });
+    },
+    acceptKeep(sessionId, proposalId, note) {
+      return apiClient.post<ProposalSession>(API_ENDPOINTS.agentSessionAcceptKeepRecommendation(sessionId, proposalId), { note: note ?? "" });
     },
     revise(sessionId, proposalId, note) {
       return apiClient.post<ProposalSession>(API_ENDPOINTS.agentSessionReviseMutationProposal(sessionId, proposalId), { note: note ?? "" });

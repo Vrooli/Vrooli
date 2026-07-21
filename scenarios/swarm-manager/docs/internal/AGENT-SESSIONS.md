@@ -132,8 +132,9 @@ Supported proposal kinds:
 | Kind | Apply behavior |
 |---|---|
 | `backlog_batch_import` | Uses the backlog batch applier to create or update initiatives and create multiple backlog items in one audited action. |
+| `mutation_list` | A proposal-session change set. It is decided through the proposal-session decision flow, rather than the generic session apply route. |
 
-Proposal apply never lets a session agent directly mutate project-management files from the chat flow. The session can propose; Swarm Manager applies.
+Proposal apply never lets a session agent directly mutate project-management files from the chat flow. The session can propose; Swarm Manager applies. Proposal kinds and apply behavior are server-owned; response clients must render an unfamiliar future kind generically instead of rejecting the complete session response.
 
 ## Artifacts
 
@@ -188,10 +189,10 @@ Entity attribution chips can reopen the related session when `created_by.session
 
 ## Storage
 
-Sessions are stored below the scenario root:
+Sessions are stored in the scenario data root, never below the scenario source root:
 
 ```text
-agent-sessions/
+~/.vrooli/data/vrooli/swarm-manager/agent-sessions/
   sess_<id>/
     session.json
     messages.jsonl
@@ -206,6 +207,12 @@ agent-sessions/
 conversation transcript. Session artifact views are projected from the
 canonical evidence ledger. Historical `artifacts.jsonl` files are import-only
 migration input and are not part of the active storage contract.
+
+On first startup after this storage migration, the API copies any legacy
+`scenarios/swarm-manager/agent-sessions/` tree into the data root without
+overwriting or deleting the source copy. It records a migration marker and
+refuses an ambiguous merge into a non-empty destination; source-tree cleanup
+is only safe after backup/restore and API-read verification.
 
 ## Maintenance Notes
 

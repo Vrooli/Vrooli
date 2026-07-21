@@ -37,6 +37,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/cancel", h.Cancel).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/apply", h.ApplyProposal).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/decide", h.DecideMutationProposal).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/accept-keep", h.AcceptNoChangeRecommendation).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/revise", h.ReviseMutationProposal).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/proposal-sessions", h.CreateProposalSession).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/proposal-sessions", h.ListProposalSessions).Methods(http.MethodGet)
@@ -108,6 +109,21 @@ func (h *Handler) DecideMutationProposal(w http.ResponseWriter, r *http.Request)
 	session, err := h.service.DecideMutationListProposal(r.Context(), vars["session_id"], vars["proposal_id"], req.AcceptedMutationIDs, req.Note)
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] decide mutation proposal", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, session)
+}
+
+func (h *Handler) AcceptNoChangeRecommendation(w http.ResponseWriter, r *http.Request) {
+	var req mutationProposalRevisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierr.MapError(w, "[agent-sessions] accept no-change recommendation", apierr.BadRequest("invalid request body"))
+		return
+	}
+	vars := mux.Vars(r)
+	session, err := h.service.AcceptNoChangeRecommendation(r.Context(), vars["session_id"], vars["proposal_id"], req.Note)
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] accept no-change recommendation", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, session)

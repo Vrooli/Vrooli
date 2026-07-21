@@ -33,8 +33,12 @@ func (s *Service) ingestMutationProposal(ctx context.Context, session Session, a
 	if needsRevision {
 		status = ProposalStatusNeedsRevision
 	}
+	kind := ProposalMutationList
+	if !needsRevision && isNoChangeMutationProposal(ingested.PayloadJSON) {
+		kind = ProposalNoChangeRecommendation
+	}
 	_, err = s.RecordProposal(ctx, session.ID, Proposal{
-		Kind:             ProposalMutationList,
+		Kind:             kind,
 		Status:           status,
 		Summary:          mutationProposalSummary(session.ProposalTarget, needsRevision),
 		PayloadJSON:      ingested.PayloadJSON,
@@ -55,6 +59,20 @@ func mutationProposalSummary(target *ProposalTarget, needsRevision bool) string 
 		return "Revision requested for " + target.Name
 	}
 	return "Mutation proposal for " + target.Name
+}
+
+// isNoChangeMutationProposal recognizes the explicit mutation-list envelope
+// used by proposal sessions to say that no graph change is recommended. The
+// envelope's rationale remains the reviewer-facing explanation.
+func isNoChangeMutationProposal(payloadJSON string) bool {
+	var payload struct {
+		Form      string            `json:"form"`
+		Mutations []json.RawMessage `json:"mutations"`
+	}
+	if json.Unmarshal([]byte(payloadJSON), &payload) != nil {
+		return false
+	}
+	return payload.Form == "mutation_list" && len(payload.Mutations) == 0
 }
 
 // DecideMutationListProposal records an explicit subset decision and delegates
@@ -99,6 +117,33 @@ func (s *Service) DecideMutationListProposal(ctx context.Context, sessionID, pro
 	return s.store.LoadSession(session.ID)
 }
 
+// AcceptNoChangeRecommendation records an explicit operator acceptance of a
+// keep-as-is conclusion. Unlike Apply, this does not mutate item content; the
+// composed processor records a separate review freshness signal instead.
+func (s *Service) AcceptNoChangeRecommendation(ctx context.Context, sessionID, proposalID, note string) (Session, error) {
+	session, proposal, err := s.loadNoChangeRecommendation(sessionID, proposalID)
+	if err != nil {
+		return Session{}, err
+	}
+	if proposal.Status != ProposalStatusReady || proposal.NeedsRevision {
+		return Session{}, apierr.Conflict("no-change recommendation must be ready before acceptance")
+	}
+	if s.mutationProposalProcessor == nil {
+		return Session{}, apierr.Unavailable("session proposal review is unavailable")
+	}
+	source := MutationProposalSource{SessionID: session.ID, RunID: session.RunID, DecidedAt: nowRFC3339(), ProposalID: proposal.ID}
+	if err := s.mutationProposalProcessor.AcceptNoChange(ctx, *proposal.Target, proposal.PayloadJSON, source); err != nil {
+		return Session{}, err
+	}
+	proposal.Status = ProposalStatusApplied
+	proposal.UpdatedAt = source.DecidedAt
+	proposal.Decisions = append(proposal.Decisions, ProposalDecision{Kind: "accept_keep", Note: strings.TrimSpace(note), DecidedAt: source.DecidedAt})
+	if err := s.store.SaveProposal(session.ID, proposal); err != nil {
+		return Session{}, err
+	}
+	return s.store.LoadSession(session.ID)
+}
+
 func rejectedMutationIDs(payloadJSON string, accepted []string) []string {
 	var payload struct {
 		Mutations []struct {
@@ -126,7 +171,7 @@ func rejectedMutationIDs(payloadJSON string, accepted []string) []string {
 }
 
 func (s *Service) RequestMutationProposalRevision(ctx context.Context, sessionID, proposalID, note string) (Session, error) {
-	session, proposal, err := s.loadMutationProposal(sessionID, proposalID)
+	session, proposal, err := s.loadRevisableProposal(sessionID, proposalID)
 	if err != nil {
 		return Session{}, err
 	}
@@ -172,8 +217,42 @@ func (s *Service) loadMutationProposal(sessionID, proposalID string) (Session, P
 	return session, proposal, nil
 }
 
+func (s *Service) loadRevisableProposal(sessionID, proposalID string) (Session, Proposal, error) {
+	session, proposal, err := s.loadMutationProposal(sessionID, proposalID)
+	if err == nil {
+		return session, proposal, nil
+	}
+	// A no-change recommendation has the same target and revision lifecycle as
+	// a mutation proposal, but is intentionally excluded from the Apply path.
+	session, loadErr := s.store.LoadSession(strings.TrimSpace(sessionID))
+	if loadErr != nil {
+		return Session{}, Proposal{}, mapStoreError(loadErr)
+	}
+	proposal, ok := findProposal(session, strings.TrimSpace(proposalID))
+	if !ok || proposal.Kind != ProposalNoChangeRecommendation || proposal.Target == nil {
+		return Session{}, Proposal{}, err
+	}
+	return session, proposal, nil
+}
+
+func (s *Service) loadNoChangeRecommendation(sessionID, proposalID string) (Session, Proposal, error) {
+	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+	if err != nil {
+		return Session{}, Proposal{}, mapStoreError(err)
+	}
+	proposal, ok := findProposal(session, strings.TrimSpace(proposalID))
+	if !ok || proposal.Target == nil || (proposal.Kind != ProposalNoChangeRecommendation && !isNoChangeMutationProposal(proposal.PayloadJSON)) {
+		return Session{}, Proposal{}, apierr.NotFound("session no-change recommendation not found")
+	}
+	return session, proposal, nil
+}
+
 func revisionPrompt(proposal Proposal, note string) string {
-	parts := []string{"Revise the mutation_list proposal for this session. Emit one complete fenced JSON mutation_list envelope."}
+	intro := "Revise the mutation_list proposal for this session. Emit one complete fenced JSON mutation_list envelope."
+	if proposal.Kind == ProposalNoChangeRecommendation {
+		intro = "Revisit the no-change recommendation for this session. If the target should remain unchanged, emit a fenced mutation_list JSON envelope with an empty mutations array and a clear rationale. If changes are warranted, emit the complete mutation_list instead."
+	}
+	parts := []string{intro}
 	if len(proposal.ParseWarnings) > 0 {
 		parts = append(parts, "Parse warnings:\n- "+strings.Join(proposal.ParseWarnings, "\n- "))
 	}

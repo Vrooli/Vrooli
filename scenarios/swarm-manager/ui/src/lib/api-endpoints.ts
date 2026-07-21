@@ -82,6 +82,8 @@ export const API_ENDPOINTS = {
   proposalSessions: "/proposal-sessions",
   agentSessionDecideMutationProposal: (sessionId: string, proposalId: string) =>
     `/agent-sessions/${sessionId}/proposals/${proposalId}/decide`,
+  agentSessionAcceptKeepRecommendation: (sessionId: string, proposalId: string) =>
+    `/agent-sessions/${sessionId}/proposals/${proposalId}/accept-keep`,
   agentSessionReviseMutationProposal: (sessionId: string, proposalId: string) =>
     `/agent-sessions/${sessionId}/proposals/${proposalId}/revise`,
   agentSessionArtifacts: (sessionId: string) => `/agent-sessions/${sessionId}/artifacts`,

@@ -125,6 +125,7 @@ const SESSION: AgentSession = {
       createdAt: "2026-05-01T12:11:00Z",
     },
   ],
+  proposalTarget: { type: "initiative", ref: "quality-gates", name: "Quality gates" },
 };
 
 const DRAFT_SESSION: AgentSession = {
@@ -169,14 +170,15 @@ describe("SessionDetailsPage", () => {
     });
   });
 
-  it("renders header, conversation, proposals, and artifacts", async () => {
+  it("groups proposals with artifacts instead of rendering a separate proposal tab", async () => {
     renderPage();
 
     expect(screen.getByText("Plan quality work")).toBeInTheDocument();
     expect(screen.getByText("Plan it.")).toBeInTheDocument();
     expect(screen.getByText("On it.")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Proposals/ })).toBeNull();
+    await activateTab(/Artifacts 2/);
     expect(screen.getByText("Apply this plan.")).toBeInTheDocument();
-    await activateTab(/Artifacts 1/);
     expect(screen.getByText("Quality gates")).toBeInTheDocument();
   });
 
@@ -239,10 +241,10 @@ describe("SessionDetailsPage", () => {
     expect(screen.getByTestId("session-inspector-resize-handle")).toHaveAttribute("role", "separator");
   });
 
-  it("defaults the desktop inspector to proposals when a proposal is ready", () => {
+  it("defaults the desktop inspector to artifacts when a proposal is ready", () => {
     renderPage();
 
-    expect(screen.getByRole("tab", { name: /Proposals 1/ })).toHaveAttribute("data-state", "active");
+    expect(screen.getByRole("tab", { name: /Artifacts 2/ })).toHaveAttribute("data-state", "active");
   });
 
   it("uses full-page mobile tabs instead of stacked secondary sections", async () => {
@@ -256,7 +258,7 @@ describe("SessionDetailsPage", () => {
     expect(screen.queryByText("Apply this plan.")).toBeNull();
     expect(screen.getByTestId("agent-session-composer").closest(".fixed")).toBeInTheDocument();
 
-    await activateTab(/Proposals 1/);
+    await activateTab(/Artifacts 2/);
 
     expect(screen.getByText("Apply this plan.")).toBeVisible();
   });
@@ -302,7 +304,7 @@ describe("SessionDetailsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Quality gates")).toBeInTheDocument();
+    expect((await screen.findAllByText("Quality gates")).length).toBeGreaterThan(0);
 
     const composer = screen.getByTestId("agent-session-composer");
     fireEvent.change(composer, { target: { value: "Use this context" } });
@@ -450,26 +452,22 @@ describe("SessionDetailsPage", () => {
     expect(screen.getByTestId("session-delete-action")).toBeDisabled();
   });
 
-  it("applies a proposal", async () => {
-    const applyProposal = vi.fn().mockResolvedValue([]);
-    storeMock.useAgentSessionStore.setState({ applyProposal });
-
-    renderPage();
-
-    fireEvent.click(screen.getByTestId("agent-session-apply-proposal"));
-
-    await waitFor(() => {
-      expect(applyProposal).toHaveBeenCalledWith("sess_meta", "prop-1");
-    });
-  });
-
   it("navigates to the artifact detail page on artifact click", async () => {
     renderPage();
 
-    await activateTab(/Artifacts 1/);
+    await activateTab(/Artifacts 2/);
     fireEvent.click(screen.getByTestId("agent-session-artifact"));
 
     expect(navigateMock).toHaveBeenCalledWith("/initiatives/quality-gates");
+  });
+
+  it("opens a proposal in its target proposal review tab", async () => {
+    renderPage();
+
+    await activateTab(/Artifacts 2/);
+    fireEvent.click(screen.getByTestId("agent-session-proposal-artifact"));
+
+    expect(navigateMock).toHaveBeenCalledWith("/initiatives/quality-gates?tab=proposals");
   });
 
   it("renders not-found when session is missing", async () => {

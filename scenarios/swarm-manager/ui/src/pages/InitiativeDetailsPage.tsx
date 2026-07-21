@@ -30,6 +30,7 @@ import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspa
 import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-panel";
 import { InitiativeDependencyGraph } from "../components/initiative/InitiativeDependencyGraph";
 import { ProposalSessionsPanel } from "../components/session/ProposalSessionsPanel";
+import { proposalSessionService } from "../services/proposal-session-service";
 import { InitiativeReviewPanel } from "../components/initiative/initiative-review-panel";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createInitiativeFileServiceAdapter } from "../services/initiative-file-service-adapter";
@@ -252,6 +253,16 @@ export function InitiativeDetailsPage() {
 
   const initiative = data?.initiative;
   const rollup = data?.rollup;
+  const { data: proposalSessions = [] } = useQuery({
+    queryKey: ["proposal-sessions", "initiative", initiative?.name ?? ""],
+    queryFn: () => proposalSessionService.list({ type: "initiative", ref: initiative?.name ?? "" }),
+    enabled: Boolean(initiative?.name),
+    refetchInterval: 15_000,
+  });
+  const proposalCount = useMemo(
+    () => proposalSessions.reduce((count, session) => count + (session.proposals ?? []).filter((proposal) => proposal.kind === "mutation_list" || proposal.kind === "no_change_recommendation").length, 0),
+    [proposalSessions],
+  );
 	const initiativeHasActiveAgent = useOperationsStore((state) => {
 		if (!initiative) return false;
 		const members = new Set(initiative.items ?? []);
@@ -460,6 +471,7 @@ export function InitiativeDetailsPage() {
     attachToSession.actionItem,
 		{
 			label: "Recreate",
+			description: "Archive this initiative and create a fresh successor with its members preserved.",
 			icon: <Archive />,
 			disabled: recreateMutation.isPending || initiativeHasActiveAgent,
 			onSelect: () => setRecreateOpen(true),
@@ -467,6 +479,7 @@ export function InitiativeDetailsPage() {
     isArchived
       ? {
           label: "Unarchive",
+		  description: "Restore this initiative to active planning.",
           icon: <ArchiveRestore />,
           loading: unarchiveMutation.isPending,
           disabled: isArchiveActionPending,
@@ -474,6 +487,7 @@ export function InitiativeDetailsPage() {
         }
       : {
           label: "Archive",
+		  description: "Hide this initiative from active planning while keeping its history.",
           icon: <Archive />,
           loading: archiveMutation.isPending,
           disabled: isArchiveActionPending,
@@ -481,6 +495,7 @@ export function InitiativeDetailsPage() {
         },
     {
       label: "Delete",
+	  description: "Permanently remove this initiative.",
       icon: <Trash2 />,
       loading: deleteMutation.isPending,
       disabled: deleteMutation.isPending,
@@ -622,6 +637,7 @@ export function InitiativeDetailsPage() {
           <TabsTrigger value="proposals" className="gap-2" data-testid={selectors.initiativeDetails.tabFeedback}>
             <GitPullRequestArrow className="h-4 w-4" />
             Proposals
+            {proposalCount > 0 && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">{proposalCount}</span>}
           </TabsTrigger>
           <TabsTrigger value="review" className="gap-2" data-testid={selectors.initiativeDetails.tabReview}>
             <ClipboardCheck className="h-4 w-4" />

@@ -218,7 +218,7 @@ func TestServiceStartWorkflowAuthoringUsesAuthoringSkillAndPurpose(t *testing.T)
 	}
 }
 
-func TestProposalSessionRefreshIngestsValidatedMutationProposal(t *testing.T) {
+func TestProposalSessionRefreshRecordsNoChangeRecommendation(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
 	processor := &fakeMutationProposalProcessor{ingestion: MutationProposalIngestion{PayloadJSON: `{"form":"mutation_list","mutations":[]}`}}
@@ -244,8 +244,52 @@ func TestProposalSessionRefreshIngestsValidatedMutationProposal(t *testing.T) {
 		t.Fatalf("ingest/proposals = %d/%+v", processor.ingestCalls, refreshed.Proposals)
 	}
 	proposal := refreshed.Proposals[0]
-	if proposal.Kind != ProposalMutationList || proposal.Status != ProposalStatusReady || proposal.Target == nil || proposal.Target.Ref != "quality-gates" {
+	if proposal.Kind != ProposalNoChangeRecommendation || proposal.Status != ProposalStatusReady || proposal.Target == nil || proposal.Target.Ref != "quality-gates" {
 		t.Fatalf("proposal = %+v", proposal)
+	}
+}
+
+func TestProposalSessionRefreshKeepsNonEmptyMutationListActionable(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+	processor := &fakeMutationProposalProcessor{ingestion: MutationProposalIngestion{PayloadJSON: `{"form":"mutation_list","mutations":[{"id":"m1","op":"reset_artifacts"}]}`}}
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "waiting_for_user", Summary: "proposal"}}
+	svc := newTestService(t, spawner)
+	svc.SetContextResolver(fakeContextResolver{})
+	svc.SetMutationProposalProcessor(processor)
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Proposal", ProposalTarget: &ProposalTarget{Type: ContextInitiative, Ref: "quality-gates", Name: "Quality Gates"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Start(context.Background(), ContinueRequest{SessionID: draft.ID, Message: "Find missing work."}); err != nil {
+		t.Fatal(err)
+	}
+	refreshed, err := svc.Refresh(context.Background(), draft.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refreshed.Proposals) != 1 || refreshed.Proposals[0].Kind != ProposalMutationList {
+		t.Fatalf("proposal = %+v", refreshed.Proposals)
+	}
+}
+
+func TestAcceptNoChangeRecommendationSupportsLegacyEmptyMutationLists(t *testing.T) {
+	restoreClock := freezeAgentSessionClock(t)
+	defer restoreClock()
+	processor := &fakeMutationProposalProcessor{}
+	svc := newTestService(t, &fakeSessionSpawner{})
+	svc.SetMutationProposalProcessor(processor)
+	session := createStartedSession(t, svc, KindSwarmOperations, "Proposal", "Review item.")
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{Kind: ProposalMutationList, Status: ProposalStatusReady, Summary: "Keep", PayloadJSON: `{"form":"mutation_list","rationale":"Still valid.","mutations":[]}`, Target: &ProposalTarget{Type: ContextBacklogItem, Ref: "research/item", Name: "Item"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	accepted, err := svc.AcceptNoChangeRecommendation(context.Background(), session.ID, proposal.ID, "confirmed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !processor.acceptedKeep || accepted.Proposals[0].Status != ProposalStatusApplied || accepted.Proposals[0].Decisions[0].Kind != "accept_keep" {
+		t.Fatalf("accepted = %+v processor=%+v", accepted.Proposals, processor)
 	}
 }
 
@@ -915,10 +959,11 @@ type fakeBacklogBatchApplier struct {
 }
 
 type fakeMutationProposalProcessor struct {
-	ingestion   MutationProposalIngestion
-	application MutationProposalApplication
-	ingestCalls int
-	accepted    []string
+	ingestion    MutationProposalIngestion
+	application  MutationProposalApplication
+	ingestCalls  int
+	accepted     []string
+	acceptedKeep bool
 }
 
 func (f *fakeMutationProposalProcessor) Ingest(_ context.Context, _ ProposalTarget, _ string) (MutationProposalIngestion, error) {
@@ -929,6 +974,11 @@ func (f *fakeMutationProposalProcessor) Ingest(_ context.Context, _ ProposalTarg
 func (f *fakeMutationProposalProcessor) Apply(_ context.Context, _ ProposalTarget, _ string, accepted []string, _ MutationProposalSource) (MutationProposalApplication, error) {
 	f.accepted = append([]string(nil), accepted...)
 	return f.application, nil
+}
+
+func (f *fakeMutationProposalProcessor) AcceptNoChange(_ context.Context, _ ProposalTarget, _ string, _ MutationProposalSource) error {
+	f.acceptedKeep = true
+	return nil
 }
 
 type fakeContextResolver struct{}

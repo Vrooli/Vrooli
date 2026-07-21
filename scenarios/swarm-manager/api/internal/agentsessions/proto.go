@@ -109,6 +109,17 @@ func proposalToProto(proposal Proposal) *domainpb.AgentSessionProposal {
 	return msg
 }
 
+func proposalTargetToProto(target *ProposalTarget) *domainpb.AgentSessionProposalTarget {
+	if target == nil {
+		return nil
+	}
+	return &domainpb.AgentSessionProposalTarget{
+		Type: string(target.Type),
+		Ref:  target.Ref,
+		Name: target.Name,
+	}
+}
+
 func artifactToProto(artifact Artifact) *domainpb.AgentSessionArtifact {
 	msg := &domainpb.AgentSessionArtifact{
 		Id:           artifact.ID,
@@ -188,6 +199,7 @@ func SessionToProto(session Session) *domainpb.AgentSession {
 	if session.CreatedBy != nil {
 		msg.CreatedBy = AttributionToProto(*session.CreatedBy)
 	}
+	msg.ProposalTarget = proposalTargetToProto(session.ProposalTarget)
 	for _, message := range session.Messages {
 		msg.Messages = append(msg.Messages, messageToProto(message))
 	}

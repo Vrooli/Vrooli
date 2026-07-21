@@ -83,6 +83,7 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
     items.push({
       label: itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : `Finalize ${deliverableLabel}`,
       icon: <Sparkles />,
+      description: "Finalize the current workshop deliverable.",
       onSelect: onFinalizeWorkshop,
       disabled: itemActions.finalizeDisabled || isRunningAgent,
       title: (itemActions.finalizeDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined,
@@ -92,6 +93,7 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
     items.push({
       label: itemActions.agentExecuting ? agentRunningLabel : "Run",
       icon: <Play />,
+      description: "Run this item through its next execution step.",
       onSelect: onStartRun,
       disabled: itemActions.runDisabled,
       title: itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined,
@@ -101,6 +103,7 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
     items.push({
       label: itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel,
       icon: <MessageSquareText />,
+      description: "Continue shaping the work with a guided workshop.",
       onSelect: onRunWorkshop,
       disabled: itemActions.workshopDisabled || isRunningAgent,
       title: (itemActions.workshopDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined,
@@ -109,6 +112,7 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
   items.push({
     label: "Edit",
     icon: <Edit />,
+    description: "Change the canonical title, scope, status, or priority.",
     onSelect: onEdit,
     testId: selectors.backlogDetails.editButton,
   });
@@ -116,6 +120,7 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
     items.push({
       label: "Follow Up",
       icon: <MessageSquare />,
+      description: "Give the most recent run additional direction.",
       onSelect: onFollowUp,
     });
   }
@@ -123,6 +128,7 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
     items.push({
       label: "Retry",
       icon: <RefreshCw />,
+      description: "Repeat the last run with the same scope.",
       onSelect: onRetry,
       title: "Re-run with the same scope. Use Follow-Up if the work needs to change.",
     });
@@ -131,6 +137,7 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
     items.push({
       label: agentLabel,
       icon: <Sparkles />,
+      description: "Start agent-assisted work for this item.",
       onSelect: onOpenAgentDialog,
       disabled: isLocked,
       testId: selectors.backlogDetails.agentButton,
@@ -140,6 +147,7 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
     items.push({
       label: isUpdating ? "Archiving..." : "Archive",
       icon: <Archive />,
+      description: "Hide this item from active work while retaining history.",
       onSelect: onArchive,
       disabled: isUpdating,
     });
@@ -148,6 +156,7 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
     items.push({
       label: "Reset Workshop",
       icon: <RotateCcw />,
+      description: "Remove workshop material while preserving the item specification.",
       onSelect: onResetWorkshop,
       destructive: true,
     });
@@ -155,6 +164,7 @@ export function buildBacklogActionMenuItems(detail: BacklogActionMenuDetail, {
   items.push({
     label: "Delete",
     icon: <Trash2 />,
+    description: "Permanently remove this backlog item.",
     onSelect: onDelete,
     destructive: true,
     testId: selectors.backlogDetails.deleteButton,

@@ -16,6 +16,16 @@ func TestIsStaleUsesUpdatedAgeAndAcceptancePaths(t *testing.T) {
 	if !IsStale(old, t.TempDir(), now) {
 		t.Fatal("old item was not marked stale")
 	}
+	reviewed := old
+	reviewed.LastReview = &ReviewRecord{ReviewedAt: now.Add(-time.Hour).Format(time.RFC3339), SessionID: "session-1", ProposalID: "proposal-1", Rationale: "Still valid."}
+	if IsStale(reviewed, t.TempDir(), now) {
+		t.Fatal("recently reviewed item marked stale")
+	}
+	expiredReview := reviewed
+	expiredReview.LastReview = &ReviewRecord{ReviewedAt: now.Add(-14 * 24 * time.Hour).Format(time.RFC3339), SessionID: "session-1", ProposalID: "proposal-1"}
+	if !IsStale(expiredReview, t.TempDir(), now) {
+		t.Fatal("item with expired review was not marked stale")
+	}
 	missing := fresh
 	missing.AcceptanceAllow = []string{"missing/path/**"}
 	if !IsStale(missing, t.TempDir(), now) {

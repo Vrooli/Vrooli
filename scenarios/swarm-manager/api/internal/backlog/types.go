@@ -125,6 +125,16 @@ type BacklogItem struct {
 	SuggestedSkills []string             `json:"suggested_skills,omitempty"`
 	CreatedBy       *identity.Provenance `json:"created_by,omitempty"`
 	ArchivedAt      *string              `json:"archived_at,omitempty"`
+	LastReview      *ReviewRecord        `json:"last_review,omitempty"`
+}
+
+// ReviewRecord captures an accepted no-change review without altering the
+// work item's content-update timestamp.
+type ReviewRecord struct {
+	ReviewedAt string `json:"reviewed_at"`
+	SessionID  string `json:"session_id"`
+	ProposalID string `json:"proposal_id"`
+	Rationale  string `json:"rationale,omitempty"`
 }
 
 // PlanRef links a swarm-manager work container to a canonical plan-manager plan.
@@ -269,6 +279,14 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if item.ArchivedAt != nil {
 		result.ArchivedAt = item.ArchivedAt
+	}
+	if item.LastReview != nil {
+		result.LastReview = &domainpb.BacklogReviewRecord{
+			ReviewedAt: item.LastReview.ReviewedAt,
+			SessionId:  item.LastReview.SessionID,
+			ProposalId: item.LastReview.ProposalID,
+			Rationale:  item.LastReview.Rationale,
+		}
 	}
 	return result
 }

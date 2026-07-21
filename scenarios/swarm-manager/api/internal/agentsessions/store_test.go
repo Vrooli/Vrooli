@@ -63,6 +63,50 @@ func TestFileStoreReadsLegacyArtifactsForMigration(t *testing.T) {
 	}
 }
 
+func TestMigrateLegacySourceDataCopiesSessionsWithoutDeletingSource(t *testing.T) {
+	scenarioRoot := t.TempDir()
+	dataRoot := t.TempDir()
+	legacyStore := NewFileStore(scenarioRoot)
+	session := validStoredSession("sess_legacy_migration")
+	if err := legacyStore.CreateSession(session); err != nil {
+		t.Fatal(err)
+	}
+	if err := legacyStore.AppendMessage(session.ID, Message{ID: "msg-1", Role: MessageRoleUser, Content: "preserve me", CreatedAt: testTimestamp}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := MigrateLegacySourceData(scenarioRoot, dataRoot); err != nil {
+		t.Fatalf("MigrateLegacySourceData() error = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(scenarioRoot, "agent-sessions", session.ID, sessionFileName)); err != nil {
+		t.Fatalf("legacy source data was removed: %v", err)
+	}
+	migrated, err := NewFileStore(dataRoot).LoadSession(session.ID)
+	if err != nil {
+		t.Fatalf("migrated session unavailable: %v", err)
+	}
+	if len(migrated.Messages) != 1 || migrated.Messages[0].Content != "preserve me" {
+		t.Fatalf("migrated session = %+v", migrated)
+	}
+	if err := MigrateLegacySourceData(scenarioRoot, dataRoot); err != nil {
+		t.Fatalf("idempotent migration error = %v", err)
+	}
+}
+
+func TestMigrateLegacySourceDataRefusesToMergeIntoExistingData(t *testing.T) {
+	scenarioRoot := t.TempDir()
+	dataRoot := t.TempDir()
+	if err := NewFileStore(scenarioRoot).CreateSession(validStoredSession("sess_legacy")); err != nil {
+		t.Fatal(err)
+	}
+	if err := NewFileStore(dataRoot).CreateSession(validStoredSession("sess_existing")); err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateLegacySourceData(scenarioRoot, dataRoot); err == nil {
+		t.Fatal("MigrateLegacySourceData() error = nil, want refusal to merge")
+	}
+}
+
 func TestFileStoreListFiltersAndLimit(t *testing.T) {
 	store := NewFileStore(t.TempDir())
 	first := validStoredSession("sess_first")

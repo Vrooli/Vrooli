@@ -20,7 +20,6 @@ import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
 import { SessionEventTimeline } from "../components/session/SessionEventTimeline";
 import { SessionInspector } from "../components/session/SessionInspector";
 import { SessionMetadata } from "../components/session/SessionMetadata";
-import { SessionProposalList } from "../components/session/SessionProposalList";
 import { SessionSectionTabs, type SessionSectionValue } from "../components/session/SessionSectionTabs";
 import { useComposerImageAttachments } from "../components/composer/useComposerImageAttachments";
 import { optionsToRefs } from "../components/session/context/session-context-options";
@@ -41,7 +40,7 @@ import { useAgentSessionStore } from "../stores";
 import { useAgentSessionEvents } from "../hooks/useAgentSessionEvents";
 import { useAgentSessionPolling } from "../hooks/useAgentSessionPolling";
 import { useAppBack } from "../app/routes/useAppBack";
-import { detailPathFromNodeId } from "../app/routes/route-paths";
+import { backlogDetailPath, detailPathFromNodeId, initiativeDetailPath } from "../app/routes/route-paths";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import type { AgentSession, AgentSessionArtifact } from "../types";
 
@@ -63,7 +62,6 @@ export function SessionDetailsPage() {
   const refreshSession = useAgentSessionStore((s) => s.refreshSession);
   const cancelSession = useAgentSessionStore((s) => s.cancelSession);
   const deleteSession = useAgentSessionStore((s) => s.deleteSession);
-  const applyProposal = useAgentSessionStore((s) => s.applyProposal);
   const isMutating = useAgentSessionStore((s) => s.isMutating);
   const isRefreshing = useAgentSessionStore((s) => s.isRefreshing);
   const error = useAgentSessionStore((s) => s.error);
@@ -231,19 +229,6 @@ export function SessionDetailsPage() {
     });
   }, [closeDetail, deleteSession, requestDeleteSession, session]);
 
-  const handleApply = useCallback(
-    async (proposalId: string) => {
-      if (!session) return;
-      setLocalError(null);
-      try {
-        await applyProposal(session.id, proposalId);
-      } catch (err) {
-        setLocalError(err instanceof Error ? err.message : "Unable to apply proposal.");
-      }
-    },
-    [applyProposal, session],
-  );
-
   const handleOpenArtifact = useCallback(
     (artifact: AgentSessionArtifact) => {
       const nodeId = nodeIdForSessionArtifact(artifact);
@@ -285,11 +270,26 @@ export function SessionDetailsPage() {
   const deleteDisabled = isMutating;
   const isWaitingForAgent = isSessionWaitingForAgent(session);
 
-  const proposalContent = (variant: "panel" | "plain") => (
-    <SessionProposalList proposals={session.proposals} isMutating={isMutating} onApply={handleApply} variant={variant} />
-  );
   const artifactContent = (variant: "panel" | "plain") => (
-    <SessionArtifactList artifacts={session.artifacts} onOpenArtifact={handleOpenArtifact} variant={variant} />
+    <SessionArtifactList
+      artifacts={session.artifacts}
+      proposals={session.proposals}
+      proposalTarget={session.proposalTarget}
+      onOpenArtifact={handleOpenArtifact}
+      onOpenProposal={() => {
+        const target = session.proposalTarget;
+        if (!target) return;
+        if (target.type === "initiative") {
+          navigate(initiativeDetailPath(target.ref, { tab: "proposals" }));
+          return;
+        }
+        const slashIndex = target.ref.indexOf("/");
+        if (slashIndex > 0 && slashIndex < target.ref.length - 1) {
+          navigate(backlogDetailPath(target.ref.slice(0, slashIndex), target.ref.slice(slashIndex + 1), { tab: "proposals" }));
+        }
+      }}
+      variant={variant}
+    />
   );
   const detailContent = (variant: "panel" | "plain") => <SessionMetadata session={session} variant={variant} />;
   const eventsContent = (variant: "panel" | "plain") => (
@@ -304,8 +304,7 @@ export function SessionDetailsPage() {
 
   const inspectorSections = [
     { value: "events" as const, label: "Events", count: events.length, content: eventsContent("plain") },
-    { value: "proposals" as const, label: "Proposals", count: session.proposals.length, content: proposalContent("plain") },
-    { value: "artifacts" as const, label: "Artifacts", count: session.artifacts.length, content: artifactContent("plain") },
+    { value: "artifacts" as const, label: "Artifacts", count: session.artifacts.length + session.proposals.length, content: artifactContent("plain") },
     { value: "details" as const, label: "Details", content: detailContent("plain") },
   ];
 
@@ -313,6 +312,7 @@ export function SessionDetailsPage() {
     attachToSession.actionItem,
     ...(session.status === "draft" ? [{
       label: "Refresh brief",
+      description: "Regenerate the context brief before the session begins.",
       icon: <RefreshCw />,
       onSelect: () => void handleRefreshStartupBrief(),
       disabled: isMutating || startupBriefQuery.isFetching,
@@ -321,6 +321,7 @@ export function SessionDetailsPage() {
     }] : []),
     {
       label: "Refresh",
+      description: "Fetch the latest session state and agent activity.",
       icon: <RefreshCw />,
       onSelect: () => void handleRefresh(),
       disabled: isMutating || isRefreshing,
@@ -329,6 +330,7 @@ export function SessionDetailsPage() {
     },
     {
       label: "Delete session",
+      description: "Permanently remove this session and its stored context.",
       icon: <Trash2 />,
       onSelect: handleDelete,
       disabled: deleteDisabled,
@@ -364,8 +366,7 @@ export function SessionDetailsPage() {
                 sections={[
                   { value: "conversation", label: "Conversation", content: null },
                   { value: "events", label: "Events", count: events.length, content: null },
-                  { value: "proposals", label: "Proposals", count: session.proposals.length, content: null },
-                  { value: "artifacts", label: "Artifacts", count: session.artifacts.length, content: null },
+                  { value: "artifacts", label: "Artifacts", count: session.artifacts.length + session.proposals.length, content: null },
                   { value: "details", label: "Details", content: null },
                 ]}
                 activeValue={mobileSection}
@@ -412,7 +413,6 @@ export function SessionDetailsPage() {
               />
             )}
             {mobileSection === "events" && eventsContent("plain")}
-            {mobileSection === "proposals" && proposalContent("plain")}
             {mobileSection === "artifacts" && artifactContent("plain")}
             {mobileSection === "details" && detailContent("plain")}
           </div>

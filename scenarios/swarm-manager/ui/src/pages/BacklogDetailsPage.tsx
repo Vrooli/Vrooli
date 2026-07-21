@@ -7,9 +7,10 @@
 
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Activity, Archive, ArchiveRestore, CheckSquare, CircleHelp, ClipboardList, Files, GitPullRequestArrow, Sparkles } from "lucide-react";
+import { Activity, Archive, ArchiveRestore, CheckSquare, CircleHelp, ClipboardList, Files, GitPullRequestArrow, RefreshCw, RotateCcw, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { PlanPanel } from "../components/backlog/plan-panel";
 import { useUrlState } from "../hooks/use-url-state";
 import { ErrorState } from "../components/ui/error-state";
@@ -26,6 +27,7 @@ import { BacklogDialogs } from "../components/backlog/backlog-dialogs";
 import { HeaderPrimaryAction } from "../components/backlog/header-primary-action";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { ProposalSessionsPanel } from "../components/session/ProposalSessionsPanel";
+import { proposalSessionService } from "../services/proposal-session-service";
 import { backlogOption } from "../components/session/context/session-context-refs";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
@@ -50,9 +52,11 @@ import { BACKLOG_LENSES } from "../components/detail/lens-options";
 import { backlogService } from "../services/backlog-service";
 import { autoFilerService } from "../services/auto-filer-service";
 import { reviewService } from "../services/review-service";
+import { defaultApiClient } from "../lib/api-client";
+import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { useReviewStore } from "../stores/review-store";
 import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { formatRelativeTime } from "../lib";
@@ -65,6 +69,13 @@ import type { WorkshopAutoAdvance, WorkshopSaveResponse } from "../services/back
 
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
 const AGENT_RUN_REFRESH_MS = 6000;
+const LIFECYCLE_RESET_SCOPES: Array<[string, string]> = [
+  ["workshop", "Workshop rounds and conclusion"],
+  ["clarifications", "Clarifications"],
+  ["review", "Review rounds"],
+  ["handoff_executions", "Handoff data and executions"],
+  ["plan_unbind", "Plan binding"],
+];
 type DetailsTab = "info" | "prompt" | "proposals" | "files" | "output" | "activity";
 
 export function BacklogDetailsPage() {
@@ -130,6 +141,21 @@ export function BacklogDetailsPage() {
   const [workshopAutoAdvance, setWorkshopAutoAdvance] = useState<WorkshopAutoAdvance | null>(null);
   const [dismissSuggestionPending, setDismissSuggestionPending] = useState(false);
   const [dismissSuggestionError, setDismissSuggestionError] = useState<string | null>(null);
+  const [recreateOpen, setRecreateOpen] = useState(false);
+  const [resetArtifactsOpen, setResetArtifactsOpen] = useState(false);
+  const [resetScope, setResetScope] = useState<string[]>(["workshop"]);
+  const [lifecyclePending, setLifecyclePending] = useState(false);
+  const [lifecycleError, setLifecycleError] = useState<string | undefined>();
+  const { data: proposalSessions = [] } = useQuery({
+    queryKey: ["proposal-sessions", "backlog_item", backlogKind && name ? `${backlogKind}/${name}` : ""],
+    queryFn: () => proposalSessionService.list({ type: "backlog_item", ref: `${backlogKind}/${name}` }),
+    enabled: Boolean(backlogKind && name),
+    refetchInterval: 15_000,
+  });
+  const proposalCount = useMemo(
+    () => proposalSessions.reduce((count, session) => count + (session.proposals ?? []).filter((proposal) => proposal.kind === "mutation_list" || proposal.kind === "no_change_recommendation").length, 0),
+    [proposalSessions],
+  );
   const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
   const handleWorkshopSaveResult = useCallback((result: WorkshopSaveResponse) => {
     setWorkshopAutoAdvance(result.autoAdvance?.nextMode ? result.autoAdvance : null);
@@ -149,6 +175,34 @@ export function BacklogDetailsPage() {
       setDismissSuggestionPending(false);
     }
   }, [item, refetchItem, upsertItem]);
+  const recreateItem = useCallback(async () => {
+    if (!backlogKind || !name) return;
+    setLifecyclePending(true);
+    setLifecycleError(undefined);
+    try {
+      await defaultApiClient.post(API_ENDPOINTS.backlogRecreate(backlogKind, name), {});
+      setRecreateOpen(false);
+      data.invalidateItem();
+    } catch (error) {
+      setLifecycleError(error instanceof Error ? error.message : "Unable to recreate item.");
+    } finally {
+      setLifecyclePending(false);
+    }
+  }, [backlogKind, data, name]);
+  const resetArtifacts = useCallback(async () => {
+    if (!backlogKind || !name || resetScope.length === 0) return;
+    setLifecyclePending(true);
+    setLifecycleError(undefined);
+    try {
+      await defaultApiClient.post(API_ENDPOINTS.backlogResetArtifacts(backlogKind, name), { scope: resetScope });
+      setResetArtifactsOpen(false);
+      data.invalidateItem();
+    } catch (error) {
+      setLifecycleError(error instanceof Error ? error.message : "Unable to reset artifacts.");
+    } finally {
+      setLifecyclePending(false);
+    }
+  }, [backlogKind, data, name, resetScope]);
 
   // --- Handlers hook ---
   const handlers = useBacklogHandlers({
@@ -436,6 +490,20 @@ export function BacklogDetailsPage() {
         },
       },
     ),
+    {
+      label: "Recreate item",
+      description: "Archive this item and create a fresh successor with its lineage intact.",
+      icon: <RotateCcw />,
+      onSelect: () => setRecreateOpen(true),
+      disabled: lifecyclePending || agentRunIsBlocking,
+    },
+    {
+      label: "Reset derived artifacts",
+      description: "Remove selected generated work while preserving the canonical specification.",
+      icon: <RefreshCw />,
+      onSelect: () => setResetArtifactsOpen(true),
+      disabled: lifecyclePending || agentRunIsBlocking,
+    },
   ] : [];
 
   const suggestionActions = item?.status === "suggested" && item.archivedAt == null ? (
@@ -505,6 +573,7 @@ export function BacklogDetailsPage() {
           <TabsTrigger value="proposals" className="gap-2">
             <GitPullRequestArrow className="h-4 w-4" />
             Proposals
+            {proposalCount > 0 && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">{proposalCount}</span>}
           </TabsTrigger>
           <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
             <Files className="h-4 w-4" />
@@ -660,6 +729,28 @@ export function BacklogDetailsPage() {
             agentDialogRequirementIds={agentDialogRequirementIds}
             upsertItem={upsertItem}
             blockingInfo={itemActions ? { blocked: itemActions.blocked, blockingDepKeys: itemActions.blockingDepKeys, allForceable: false } : null}
+          />
+          <ConfirmDialog
+            isOpen={recreateOpen}
+            onClose={() => setRecreateOpen(false)}
+            onConfirm={() => void recreateItem()}
+            title="Recreate backlog item"
+            description={`Archives "${item?.title || name}" and creates a fresh backlog clone. Metadata, membership, dependencies, and lineage are retained; derived work starts fresh.`}
+            confirmationText={item?.name}
+            confirmLabel="Recreate item"
+            isLoading={lifecyclePending}
+            errorMessage={lifecycleError}
+          />
+          <ConfirmDialog
+            isOpen={resetArtifactsOpen}
+            onClose={() => setResetArtifactsOpen(false)}
+            onConfirm={() => void resetArtifacts()}
+            title="Reset derived artifacts"
+            description="Deletes only the selected derived artifacts. The canonical item specification is kept."
+            confirmLabel="Reset selected artifacts"
+            isLoading={lifecyclePending}
+            errorMessage={lifecycleError}
+            sidePanel={<div className="space-y-2 p-4"><p className="text-sm font-medium text-slate-100">Choose what to remove</p>{LIFECYCLE_RESET_SCOPES.map(([value, label]) => <label key={value} className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={resetScope.includes(value)} onChange={() => setResetScope((current) => current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value])} />{label}</label>)}</div>}
           />
         </div>
       </DetailPageLayout>

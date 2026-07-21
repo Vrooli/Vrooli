@@ -81,6 +81,27 @@ describe("agent-session-service", () => {
     });
   });
 
+  it("keeps known and future proposal kinds from invalidating the session list", async () => {
+    vi.mocked(mockApiClient.get).mockResolvedValue({
+      sessions: [{
+        ...SESSION_RESPONSE,
+        proposals: [
+          { ...SESSION_RESPONSE.proposals[0], kind: "mutation_list", status: "needs_revision" },
+          { ...SESSION_RESPONSE.proposals[0], id: "prop-future", kind: "future_server_kind", status: "future_status" },
+        ],
+      }],
+    });
+
+    await expect(service.list()).resolves.toMatchObject([
+      {
+        proposals: [
+          { kind: "mutation_list", status: "needs_revision" },
+          { kind: "future_server_kind", status: "future_status" },
+        ],
+      },
+    ]);
+  });
+
   it("creates, starts, and continues sessions using backend field names", async () => {
     vi.mocked(mockApiClient.post).mockResolvedValue({ session: SESSION_RESPONSE });
 

@@ -50,7 +50,29 @@ const (
 	ProposalOperatingModeDraft              ProposalKind = "operating_mode_draft"
 	ProposalOperatingModeImplementationPlan ProposalKind = "operating_mode_implementation_plan"
 	ProposalMutationList                    ProposalKind = "mutation_list"
+	// ProposalNoChangeRecommendation captures a completed review whose
+	// recommendation is to leave the target unchanged. It is deliberately a
+	// separate outcome from mutation_list so it cannot be accidentally applied
+	// as an empty change set.
+	ProposalNoChangeRecommendation ProposalKind = "no_change_recommendation"
 )
+
+// knownProposalKinds is the server-owned catalog of proposal payloads the
+// session service persists and understands. Clients intentionally receive kind
+// as an open string so a newly introduced server kind cannot invalidate an
+// otherwise valid session-list response from an older client.
+var knownProposalKinds = []ProposalKind{
+	ProposalBacklogBatchImport,
+	ProposalOperatingModeDraft,
+	ProposalOperatingModeImplementationPlan,
+	ProposalMutationList,
+	ProposalNoChangeRecommendation,
+}
+
+// KnownProposalKinds returns a copy of the persisted proposal-kind catalog.
+func KnownProposalKinds() []ProposalKind {
+	return append([]ProposalKind(nil), knownProposalKinds...)
+}
 
 type ProposalStatus string
 
@@ -377,9 +399,9 @@ func (p Proposal) Validate() error {
 			return fmt.Errorf("%w: attribution: %v", ErrValidation, err)
 		}
 	}
-	if p.Kind == ProposalMutationList {
+	if p.Kind == ProposalMutationList || p.Kind == ProposalNoChangeRecommendation {
 		if p.Target == nil {
-			return validationError("mutation_list proposal target is required")
+			return validationError("proposal target is required")
 		}
 		if err := p.Target.Validate(); err != nil {
 			return fmt.Errorf("%w: target: %v", ErrValidation, err)
@@ -486,7 +508,7 @@ func IsKnownMessageRole(role MessageRole) bool {
 
 func IsKnownProposalKind(kind ProposalKind) bool {
 	switch kind {
-	case ProposalBacklogBatchImport, ProposalOperatingModeDraft, ProposalOperatingModeImplementationPlan, ProposalMutationList:
+	case ProposalBacklogBatchImport, ProposalOperatingModeDraft, ProposalOperatingModeImplementationPlan, ProposalMutationList, ProposalNoChangeRecommendation:
 		return true
 	default:
 		return false

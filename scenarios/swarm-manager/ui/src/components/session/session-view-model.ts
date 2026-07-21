@@ -1,7 +1,7 @@
 import { Archive, Gauge, Workflow } from "lucide-react";
 import type { AgentSession, AgentSessionArtifact, AgentSessionKind, AgentSessionProposal } from "../../types";
 
-export type SessionInspectorSection = "events" | "proposals" | "artifacts" | "details";
+export type SessionInspectorSection = "events" | "artifacts" | "details";
 
 export const SESSION_KIND_LABELS: Record<AgentSession["kind"], string> = {
   meta_orchestration: "Plan work",
@@ -42,7 +42,7 @@ export function defaultSessionInspectorSection(
   artifacts: AgentSessionArtifact[],
   status?: AgentSession["status"],
 ): SessionInspectorSection {
-  if (proposals.some((proposal) => proposal.status === "ready")) return "proposals";
+  if (proposals.length > 0) return "artifacts";
   if (status === "starting" || status === "running") return "events";
   if (artifacts.length > 0) return "artifacts";
   return "details";

@@ -28,6 +28,7 @@ export function useAttachToSessionAction(
 
   const actionItem = useMemo<ActionMenuItem>(() => ({
     label: "Attach to session",
+    description: "Add this work as context for a new or existing agent session.",
     icon: <AttachToSessionActionIcon />,
     disabled: !available,
     onSelect: openSheet,

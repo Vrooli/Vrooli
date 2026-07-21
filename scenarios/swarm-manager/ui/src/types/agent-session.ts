@@ -53,6 +53,12 @@ export type AgentSessionContextType =
 export type AgentSessionProposalKind = string;
 export type AgentSessionProposalStatus = string;
 
+export interface AgentSessionProposalTarget {
+  type: "backlog_item" | "initiative";
+  ref: string;
+  name: string;
+}
+
 export type AgentSessionArtifactType =
   | "backlog_item"
   | "initiative"
@@ -115,7 +121,7 @@ export type AgentSessionArtifact = Omit<
 
 export type AgentSession = Omit<
   ProtoMessage<ProtoAgentSession>,
-  "kind" | "status" | "messages" | "proposals" | "artifacts" | "attachments" | "createdBy"
+  "kind" | "status" | "messages" | "proposals" | "artifacts" | "attachments" | "createdBy" | "proposalTarget"
 > & {
   kind: AgentSessionKind;
   status: AgentSessionStatus;
@@ -124,6 +130,7 @@ export type AgentSession = Omit<
   artifacts: AgentSessionArtifact[];
   attachments?: AgentSessionAttachment[];
   createdBy?: AgentSessionAttribution;
+  proposalTarget?: AgentSessionProposalTarget;
 };
 
 export type AgentSessionEventType =

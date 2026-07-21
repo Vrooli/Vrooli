@@ -26,7 +26,7 @@ func (s *Server) wireSessionMutationProposals(materializer *graph.Materializer) 
 		return
 	}
 	s.agentSessionSvc.SetMutationProposalProcessor(&sessionMutationProposalProcessor{
-		applier: applier, stateBuilder: newSessionProposalStateBuilder(materializer, s.initStore, s.backlogHandler.Store()), resolveTarget: s.resolveSessionProposalTarget,
+		applier: applier, stateBuilder: newSessionProposalStateBuilder(materializer, s.initStore, s.backlogHandler.Store()), resolveTarget: s.resolveSessionProposalTarget, backlogStore: s.backlogHandler.Store(),
 	})
 }
 
@@ -34,6 +34,36 @@ type sessionMutationProposalProcessor struct {
 	applier       *proposals.Applier
 	stateBuilder  proposals.StateBuilder
 	resolveTarget func(agentsessions.ProposalTarget) (string, error)
+	backlogStore  backlog.Store
+}
+
+func (p *sessionMutationProposalProcessor) AcceptNoChange(ctx context.Context, target agentsessions.ProposalTarget, payloadJSON string, source agentsessions.MutationProposalSource) error {
+	if target.Type != agentsessions.ContextBacklogItem {
+		return fmt.Errorf("no-change acceptance is currently supported for backlog-item targets only")
+	}
+	parts := strings.SplitN(strings.TrimSpace(target.Ref), "/", 2)
+	if len(parts) != 2 || strings.TrimSpace(parts[1]) == "" {
+		return fmt.Errorf("invalid backlog proposal target %q", target.Ref)
+	}
+	kind, err := backlog.ParseBacklogKind(parts[0])
+	if err != nil {
+		return fmt.Errorf("invalid backlog proposal target %q: %w", target.Ref, err)
+	}
+	item, err := p.backlogStore.LoadItem(kind, parts[1])
+	if err != nil {
+		return fmt.Errorf("load backlog proposal target %q: %w", target.Ref, err)
+	}
+	var payload struct {
+		Rationale string `json:"rationale"`
+	}
+	if err := json.Unmarshal([]byte(payloadJSON), &payload); err != nil {
+		return fmt.Errorf("parse no-change recommendation: %w", err)
+	}
+	item.LastReview = &backlog.ReviewRecord{ReviewedAt: source.DecidedAt, SessionID: source.SessionID, ProposalID: source.ProposalID, Rationale: strings.TrimSpace(payload.Rationale)}
+	if err := p.backlogStore.SaveItem(item); err != nil {
+		return fmt.Errorf("save no-change review for %q: %w", target.Ref, err)
+	}
+	return nil
 }
 
 func (p *sessionMutationProposalProcessor) Ingest(_ context.Context, target agentsessions.ProposalTarget, assistantReply string) (agentsessions.MutationProposalIngestion, error) {

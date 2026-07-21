@@ -6,6 +6,8 @@ import { cn } from "../../lib/utils";
 
 export interface ActionMenuItem {
   label: string;
+  /** Brief outcome-oriented explanation shown beneath the action label. */
+  description?: string;
   onSelect: () => void;
   icon?: ReactNode;
   disabled?: boolean;
@@ -181,9 +183,9 @@ export function ActionMenuItemButton({
         item.onSelect();
       }}
       className={cn(
-        "flex h-9 w-full items-center gap-2 px-3 text-left text-sm transition-colors",
+        "flex min-h-12 w-full items-start gap-3 px-3 py-2.5 text-left transition-colors",
         "disabled:cursor-not-allowed disabled:opacity-50",
-        "[&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0",
+        "[&>svg]:mt-0.5 [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0",
         item.destructive
           ? "text-red-300 hover:bg-red-500/10"
           : "text-slate-200 hover:bg-slate-800",
@@ -191,7 +193,10 @@ export function ActionMenuItemButton({
       data-testid={item.testId}
     >
       {item.loading ? <Loader2 className="animate-spin" /> : item.icon}
-      <span className="min-w-0 truncate">{item.label}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-medium">{item.label}</span>
+        {item.description && <span className="mt-0.5 block text-xs leading-4 text-slate-400">{item.description}</span>}
+      </span>
     </button>
   );
 }

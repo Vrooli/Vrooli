@@ -55,6 +55,7 @@ type ContextResolver interface {
 type MutationProposalProcessor interface {
 	Ingest(ctx context.Context, target ProposalTarget, assistantReply string) (MutationProposalIngestion, error)
 	Apply(ctx context.Context, target ProposalTarget, payloadJSON string, acceptedMutationIDs []string, source MutationProposalSource) (MutationProposalApplication, error)
+	AcceptNoChange(ctx context.Context, target ProposalTarget, payloadJSON string, source MutationProposalSource) error
 }
 
 type MutationProposalIngestion struct {
@@ -64,9 +65,10 @@ type MutationProposalIngestion struct {
 }
 
 type MutationProposalSource struct {
-	SessionID string
-	RunID     string
-	DecidedAt string
+	SessionID  string
+	RunID      string
+	DecidedAt  string
+	ProposalID string
 }
 
 type MutationProposalApplication struct{ Outcomes []MutationOutcome }
