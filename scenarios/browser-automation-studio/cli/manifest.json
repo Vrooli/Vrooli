@@ -1228,7 +1228,9 @@
           "flags": [
             { "name": "url", "required": true, "description": "Target URL to capture" },
             { "name": "width", "description": "Optional viewport width (clamped to [200, 10000])" },
-            { "name": "height", "description": "Optional viewport height (clamped to [200, 10000])" }
+            { "name": "height", "description": "Optional viewport height (clamped to [200, 10000])" },
+            { "name": "device", "description": "Viewport preset: mobile (390x844), tablet (768x1024), desktop (1440x900)" },
+            { "name": "device-scale-factor", "description": "Browser device scale factor (0.5-4.0)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "AIService", "method": "TakePreviewScreenshot" },
           "governance": {

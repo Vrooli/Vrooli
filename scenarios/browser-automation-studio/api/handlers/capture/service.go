@@ -15,6 +15,7 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/internal/compat"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
+	"github.com/vrooli/browser-automation-studio/viewport"
 	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -369,7 +370,8 @@ func normalizeCaptures(in []capturev1.CaptureType) ([]capturev1.CaptureType, err
 // width AND height win when both are set. Setting only one is invalid.
 func resolveDimensions(d *capturev1.Dimensions) (int32, int32, error) {
 	if d == nil {
-		return 1440, 900, nil
+		preset := viewport.Default()
+		return preset.Width, preset.Height, nil
 	}
 	hasW, hasH := d.Width != nil, d.Height != nil
 	if hasW != hasH {
@@ -381,12 +383,15 @@ func resolveDimensions(d *capturev1.Dimensions) (int32, int32, error) {
 	}
 	switch d.GetPreset() {
 	case capturev1.DimensionsPreset_DIMENSIONS_PRESET_MOBILE:
-		return 390, 844, nil
+		preset, err := viewport.Resolve("mobile")
+		return preset.Width, preset.Height, err
 	case capturev1.DimensionsPreset_DIMENSIONS_PRESET_TABLET:
-		return 768, 1024, nil
+		preset, err := viewport.Resolve("tablet")
+		return preset.Width, preset.Height, err
 	case capturev1.DimensionsPreset_DIMENSIONS_PRESET_DESKTOP,
 		capturev1.DimensionsPreset_DIMENSIONS_PRESET_UNSPECIFIED:
-		return 1440, 900, nil
+		preset := viewport.Default()
+		return preset.Width, preset.Height, nil
 	default:
 		return 0, 0, connect.NewError(connect.CodeInvalidArgument,
 			fmt.Errorf("unknown dimensions preset: %v", d.GetPreset()))

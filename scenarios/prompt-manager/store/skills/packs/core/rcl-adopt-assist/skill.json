@@ -1,0 +1,12 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "rcl-adopt-assist",
+  "name": "RCL Adopt Assist",
+  "description": "Adopt a React Component Library asset into a scenario with integration and baseline-aware verification.",
+  "modes": ["tools"],
+  "tags": ["react-component-library", "catalog", "adopt"],
+  "icon": "package",
+  "status": "active",
+  "entry": "SKILL.md"
+}

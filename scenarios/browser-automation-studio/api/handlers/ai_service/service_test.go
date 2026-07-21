@@ -107,6 +107,24 @@ func TestService_TakePreviewScreenshot_Happy(t *testing.T) {
 	assert.Equal(t, "image/png", resp.Msg.GetContentType())
 }
 
+func TestService_TakePreviewScreenshot_Viewport390x844(t *testing.T) {
+	runner := aihandlers.NewMockAutomationRunner()
+	runner.Outcomes = []autocontracts.StepOutcome{
+		{Success: true, NodeID: "preview.navigate"},
+		{Success: true, NodeID: "preview.screenshot", Screenshot: &autocontracts.Screenshot{Data: []byte{1}}, FinalURL: "https://example.com/"},
+	}
+	client, _ := newServiceForTest(t, runner)
+	resp, err := client.TakePreviewScreenshot(context.Background(), connect.NewRequest(&aiv1.TakePreviewScreenshotRequest{
+		Url:      "https://example.com",
+		Viewport: &aiv1.Viewport{Width: 390, Height: 844},
+	}))
+	require.NoError(t, err)
+	assert.Equal(t, int32(390), resp.Msg.GetViewportWidth())
+	assert.Equal(t, int32(844), resp.Msg.GetViewportHeight())
+	require.Len(t, runner.RunCalls, 1)
+	assert.Equal(t, 390, runner.RunCalls[0].ViewportWidth)
+}
+
 func TestService_TakePreviewScreenshot_RejectsEmptyURL(t *testing.T) {
 	client, _ := newServiceForTest(t, aihandlers.NewMockAutomationRunner())
 

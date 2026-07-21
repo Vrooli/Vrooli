@@ -61,7 +61,7 @@ Is it a one-off task or project detail?
 
 ### **5. Registration Notes**
 
-Follow **Skill Principles** and ensure:
+Follow `docs/agent-system/SKILL_AUTHORING.md` and ensure:
 - `modes[0]` is **Meta**
 - The description states the governance surface clearly
 

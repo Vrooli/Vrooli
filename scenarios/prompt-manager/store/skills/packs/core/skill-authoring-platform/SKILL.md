@@ -117,7 +117,7 @@ When Platform skills touch CLI behavior (directly or via shared libraries):
 
 ### 8. Registration Notes
 
-Follow **Skill Principles** and ensure:
+Follow `docs/agent-system/SKILL_AUTHORING.md` and ensure:
 - `modes[0]` is `platform`
 - The description names the shared package surface and the safety posture (compatibility-first, brownfield-safe)
 

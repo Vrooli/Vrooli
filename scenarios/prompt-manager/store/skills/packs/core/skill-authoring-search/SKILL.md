@@ -99,7 +99,7 @@ If output is not JSON, specify the exact headings and required fields.
 
 ### **7. Registration Notes**
 
-Follow **Skill Principles** and ensure:
+Follow `docs/agent-system/SKILL_AUTHORING.md` and ensure:
 - `modes[0]` is **Search**
 - The description reflects the search intent and output contract
 

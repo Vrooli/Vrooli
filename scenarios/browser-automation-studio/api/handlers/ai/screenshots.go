@@ -50,9 +50,10 @@ type PreviewScreenshotResult struct {
 // PreviewScreenshotArgs is the Go-typed input to RunPreviewScreenshot.
 // ViewportWidth/Height of 0 = use defaults.
 type PreviewScreenshotArgs struct {
-	URL            string
-	ViewportWidth  int
-	ViewportHeight int
+	URL               string
+	ViewportWidth     int
+	ViewportHeight    int
+	DeviceScaleFactor float64
 }
 
 type ScreenshotHandler struct {
@@ -136,16 +137,29 @@ func (h *ScreenshotHandler) RunPreviewScreenshot(ctx context.Context, args Previ
 	}
 
 	start := time.Now()
-	outcomes, events, err := h.runner.Run(ctx, viewportWidth, viewportHeight, instructions)
+	if args.DeviceScaleFactor != 0 && (args.DeviceScaleFactor < 0.5 || args.DeviceScaleFactor > 4.0) {
+		return nil, fmt.Errorf("device scale factor must be between 0.5 and 4.0")
+	}
+
+	var outcomes []autocontracts.StepOutcome
+	var events []autocontracts.EventEnvelope
+	if scaledRunner, ok := h.runner.(deviceScaleAutomationRunner); ok {
+		outcomes, events, err = scaledRunner.RunWithDeviceScale(ctx, viewportWidth, viewportHeight, args.DeviceScaleFactor, instructions)
+	} else {
+		outcomes, events, err = h.runner.Run(ctx, viewportWidth, viewportHeight, instructions)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("automation run: %w", err)
 	}
 
-	if len(outcomes) < 2 {
-		return nil, errors.New("automation run returned no screenshot outcome")
+	outcomeByNodeID := make(map[string]autocontracts.StepOutcome, len(outcomes))
+	for _, outcome := range outcomes {
+		outcomeByNodeID[outcome.NodeID] = outcome
 	}
-
-	nav := outcomes[0]
+	nav, ok := outcomeByNodeID["preview.navigate"]
+	if !ok {
+		return nil, errors.New("automation run returned no navigation outcome")
+	}
 	if !nav.Success {
 		message := "navigation failed"
 		if nav.Failure != nil && strings.TrimSpace(nav.Failure.Message) != "" {
@@ -154,7 +168,10 @@ func (h *ScreenshotHandler) RunPreviewScreenshot(ctx context.Context, args Previ
 		return nil, fmt.Errorf("navigate: %s", message)
 	}
 
-	shot := outcomes[1]
+	shot, ok := outcomeByNodeID["preview.screenshot"]
+	if !ok {
+		return nil, errors.New("automation run returned no screenshot outcome")
+	}
 	if !shot.Success {
 		message := "screenshot failed"
 		if shot.Failure != nil && strings.TrimSpace(shot.Failure.Message) != "" {

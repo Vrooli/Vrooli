@@ -37,6 +37,9 @@ func (s *service) TakePreviewScreenshot(
 	if vp := msg.GetViewport(); vp != nil {
 		args.ViewportWidth = int(vp.GetWidth())
 		args.ViewportHeight = int(vp.GetHeight())
+		if vp.DeviceScaleFactor != nil {
+			args.DeviceScaleFactor = vp.GetDeviceScaleFactor()
+		}
 	}
 
 	result, err := s.deps.Screenshot.RunPreviewScreenshot(ctx, args)

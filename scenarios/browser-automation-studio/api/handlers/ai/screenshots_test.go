@@ -78,6 +78,18 @@ func TestScreenshotHandler_RunPreviewScreenshot_Success(t *testing.T) {
 	assert.Equal(t, previewMaxViewportDimension, call.ViewportHeight) // height clamped down from 20000
 }
 
+func TestScreenshotHandler_RunPreviewScreenshot_LooksUpOutcomesByNodeID(t *testing.T) {
+	mockRunner := NewMockAutomationRunner()
+	mockRunner.Outcomes = []autocontracts.StepOutcome{
+		{Success: true, NodeID: "unrelated"},
+		{Success: true, NodeID: "preview.screenshot", Screenshot: &autocontracts.Screenshot{Data: []byte{1}}, FinalURL: "https://example.com/"},
+		{Success: true, NodeID: "preview.navigate"},
+	}
+	result, err := newScreenshotHandlerForTest(mockRunner).RunPreviewScreenshot(context.Background(), PreviewScreenshotArgs{URL: "https://example.com"})
+	require.NoError(t, err)
+	require.Equal(t, []byte{1}, result.ScreenshotPNG)
+}
+
 func TestScreenshotHandler_RunPreviewScreenshot_Errors(t *testing.T) {
 	t.Run("rejects empty URL", func(t *testing.T) {
 		handler := newScreenshotHandlerForTest(NewMockAutomationRunner())

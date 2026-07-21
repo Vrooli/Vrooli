@@ -94,8 +94,6 @@ type captureFlags struct {
 }
 
 // flagsFromContext lifts a captureFlags out of a parsed RunContext.
-// Mirrors parseCaptureFlags so the proto-build / render paths stay
-// unchanged.
 func flagsFromContext(rc cliapp.RunContext) (captureFlags, error) {
 	f := captureFlags{
 		url:                 strings.TrimSpace(rc.Flag("url")),
@@ -173,115 +171,6 @@ func runCaptureRC(ctx *appctx.Context, rc cliapp.RunContext) error {
 	}
 
 	return renderCaptureResponse(resp.Msg, f.json)
-}
-
-// parseCaptureFlags is retained for the test suite — it exercises the
-// same captureFlags shape that production builds via flagsFromContext.
-// Both code paths feed buildCaptureRequest unchanged.
-func parseCaptureFlags(args []string) (captureFlags, error) {
-	f := captureFlags{}
-	needsValue := func(i int, name string) (string, error) {
-		if i+1 >= len(args) {
-			return "", fmt.Errorf("%s requires a value", name)
-		}
-		return args[i+1], nil
-	}
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--url":
-			v, err := needsValue(i, "--url")
-			if err != nil {
-				return f, err
-			}
-			f.url = v
-			i++
-		case "--capture":
-			v, err := needsValue(i, "--capture")
-			if err != nil {
-				return f, err
-			}
-			for _, tok := range strings.Split(v, ",") {
-				tok = strings.TrimSpace(tok)
-				if tok != "" {
-					f.captures = append(f.captures, tok)
-				}
-			}
-			i++
-		case "--dimensions":
-			v, err := needsValue(i, "--dimensions")
-			if err != nil {
-				return f, err
-			}
-			f.dimensions = strings.ToLower(strings.TrimSpace(v))
-			i++
-		case "--width":
-			v, err := needsValue(i, "--width")
-			if err != nil {
-				return f, err
-			}
-			n, err := strconv.Atoi(v)
-			if err != nil {
-				return f, fmt.Errorf("--width: %w", err)
-			}
-			f.width = n
-			f.hasWidth = true
-			i++
-		case "--height":
-			v, err := needsValue(i, "--height")
-			if err != nil {
-				return f, err
-			}
-			n, err := strconv.Atoi(v)
-			if err != nil {
-				return f, fmt.Errorf("--height: %w", err)
-			}
-			f.height = n
-			f.hasHeight = true
-			i++
-		case "--device-scale-factor":
-			v, err := needsValue(i, "--device-scale-factor")
-			if err != nil {
-				return f, err
-			}
-			n, err := strconv.ParseFloat(v, 64)
-			if err != nil {
-				return f, fmt.Errorf("--device-scale-factor: %w", err)
-			}
-			f.deviceScaleFactor = n
-			f.hasDeviceScale = true
-			i++
-		case "--wait-for":
-			v, err := needsValue(i, "--wait-for")
-			if err != nil {
-				return f, err
-			}
-			f.waitFor = v
-			i++
-		case "--out":
-			v, err := needsValue(i, "--out")
-			if err != nil {
-				return f, err
-			}
-			f.outDir = v
-			i++
-		case "--label":
-			v, err := needsValue(i, "--label")
-			if err != nil {
-				return f, err
-			}
-			f.label = v
-			i++
-		case "--inline-accessibility":
-			f.inlineAccessibility = true
-		case "--json":
-			f.json = true
-		case "--dry-run":
-			f.dryRun = true
-		default:
-			return f, fmt.Errorf("unknown option: %s", args[i])
-		}
-	}
-	return f, nil
 }
 
 func buildCaptureRequest(f captureFlags) (*capturev1.CaptureRequest, error) {

@@ -2,7 +2,7 @@
 
 Author durable implementation plans through Plan Manager's guided authoring
 runtime. Plan Manager is the plan-logic authority: it owns the section order
-(the nine reader-question clusters), phase shape, validation gates, context
+(the ten reader-question clusters), phase shape, validation gates, context
 discovery execution, rendered markdown, and persistence. This skill supplies
 only the judgment layer — when to plan, and how to decide well inside the
 wizard.
@@ -22,6 +22,10 @@ to it. Compress repetition and incidental conversation; do **not** compress
 away a decision, constraint, visual model, or acceptance expectation that a
 fresh execution agent would need in order to make the same implementation
 choices.
+
+When a plan coins or narrows a term, fill the optional **Definitions** section
+with one `Term — meaning` line per term. Do not duplicate shared ecosystem
+vocabulary there; reference `docs/concepts/GLOSSARY.md` instead.
 
 Before authoring, build a private source inventory from the operator request,
 conversation, attachments, workshop decisions, research, code inspection, and
@@ -174,9 +178,9 @@ The core rules:
   `resolver.go`", not "update the relevant files").
 
 Banned words in procedural content — each hides an undecided decision.
-Replace the word with the specific behavior, path, or check you mean:
-"robust", "comprehensive", "appropriately", "properly", "seamless",
-"handle", "improve", "enhance", "leverage", "as needed".
+Replace the word with the specific behavior, path, or check you mean.
+The canonical word list lives in `docs/agent-system/SKILL_AUTHORING.md`
+§"Universal quality bars" — cite it, do not copy it.
 
 STE-100 applies to procedures only. Rationale content — why this design,
 rejected alternatives, tradeoffs, risks — stays in normal explanatory prose;

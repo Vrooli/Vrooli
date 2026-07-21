@@ -1,6 +1,6 @@
 ## Meta focus: Skill Validation
 
-Analyze **{{SKILL}}** by running a structured “validation suite” that surfaces **issues, inconsistencies, and capability gaps**. This skill teaches how to *test* a skill like you’d test an API: extract its contract, probe its edge cases, and produce an actionable report that can be used to **fix and extend** the skill (i.e. expand its reliable capability surface).
+Analyze **{{SKILL}}** by running a structured "validation suite" that surfaces **issues, inconsistencies, and capability gaps**. This skill teaches how to *test* a skill like you'd test an API: extract its contract, probe its edge cases, and produce an actionable report that can be used to **fix and extend** the skill. Validation asks one question: **is the contract true and executable?** The sibling skill `skill-improvement-suggestions` asks the complementary question — is the contract cheap and well-conditioned — so hand efficiency and optimization findings there.
 
 Required reading:
 
@@ -32,17 +32,18 @@ Skill validation keeps operational guidance reliable.
 
 * Testing whether {{SKILL}} is **internally consistent**
 * Testing whether {{SKILL}} is **externally executable** (commands, flags, paths, references)
+* Testing whether {{SKILL}} **conditions convergent behavior** (conditioning-quality check + divergence probe)
 * Detecting **CLI output contract bypass** (examples that bypass default human-friendly CLI output contracts via format flags, parsing pipelines, or shell extraction)
 * Detecting **capability leakage** (core workflows that rely on non-Vrooli tools like direct API calls, OS-specific glue, scripts, or direct resource CLIs)
-* Identifying **capability gaps** (things the skill claims or implies, but doesn’t actually enable)
+* Identifying **capability gaps** (things the skill claims or implies, but doesn't actually enable)
 * Identifying **missing guardrails** (verification steps, stop conditions, safety constraints)
 * Identifying **broken references** to other skills/tools/concepts
 * Producing **expansion patches**: copy-pastable additions that close gaps and fix correctness issues
 
 **Out of scope (handoff to other processes):**
 
-* Full rewrites for token efficiency or tone (see **Skill Improvement Suggestions**)
-* Implementing new CLI tools or changing tool behavior (that’s a tool PR / improvement suggestion)
+* Full rewrites for token efficiency or tone (see **skill-improvement-suggestions**)
+* Implementing new CLI tools or changing tool behavior (that's a tool PR / improvement suggestion)
 * Scenario-specific feature work (belongs in scenario PRDs / issues)
 * Deep architectural strategy debates (belongs in Steer skills, not a validation pass)
 
@@ -53,7 +54,7 @@ Skill validation keeps operational guidance reliable.
 A reliable skill has an implicit contract:
 
 * **Inputs**: prerequisites, context, assumptions, required tools, required files
-* **Behavior**: steps, decision rules, “when to do what”
+* **Behavior**: steps, decision rules, "when to do what"
 * **Outputs**: expected artifacts, observable success conditions, what to document
 * **Failure modes**: what can go wrong and how to debug it safely
 * **Constraints**: what you must not do, and why
@@ -64,46 +65,30 @@ A reliable skill has an implicit contract:
 * **Completeness** (does it cover what it claims to cover?)
 * **Consistency** (does it contradict itself?)
 * **Executability** (can a real agent run this without guessing?)
+* **Convergence** (do two readers produce the same execution?)
 * **Safety** (does it prevent foot-guns?)
 
-If you can’t write down the contract clearly, the skill probably can’t be applied reliably.
+If you can't write down the contract clearly, the skill probably can't be applied reliably.
 
 ---
 
 ### **4. The Skill Validation Suite**
 
-Run these checks in order. Each stage produces findings you’ll later convert into a structured report.
+Run these checks in order. Each stage produces findings you'll later convert into a structured report.
 
-#### **4.1 Structure Conformance Check (Skill Principles Compliance)**
+#### **4.1 Structure Conformance Check**
 
-Every skill should have the universal quality bars from **Skill Principles**:
+Check {{SKILL}} against the universal quality bars in `docs/agent-system/SKILL_AUTHORING.md` §"Universal quality bars": intent statement, boundary definition, convergence patterns, output expectations, human-first CLI consumption, selector-first workflows, STE-100 procedural prose, and the `Troubleshooting & Edge Cases` rule for CLI-operational skills. Do not restate the bars — anchor each finding to the specific bar it violates.
 
-* [ ] **Intent statement** (1–2 sentences at the top)
-* [ ] **Scope boundaries** (In scope / Out of scope)
-* [ ] **Convergence patterns** when choices must be consistent (decision tree / table / rules)
-* [ ] **Output expectations** (what may/must/must not change or produce)
+Two placement checks specific to validation:
 
-Additional structure check for skills with operational CLI workflows:
 * [ ] Core workflow remains readable without rigid over-structuring
-* [ ] If operational complexity exists, a dedicated `Troubleshooting & Edge Cases` section exists
-* [ ] Long-tail failures are centralized in that section (not scattered through primary workflow)
+* [ ] Long-tail failures are centralized in `Troubleshooting & Edge Cases` (not scattered through the primary workflow)
 
 **Common failure:**
 
-* Skill has “good content” but lacks explicit boundaries → agents over-apply it.
+* Skill has "good content" but lacks explicit boundaries → agents over-apply it.
 * Skill has steps but no convergence rules → different agents do different things.
-
-**Expansion patch pattern (copy-paste style):**
-
-```markdown
-### Scope Boundaries
-
-**In scope:**
-- ...
-
-**Out of scope:**
-- ...
-```
 
 #### **4.1.1 Destination-Clarity Check (Audit-Shaped Skills)**
 
@@ -124,18 +109,30 @@ Reference exemplars to cite when patching:
 
 Not applicable to Tools, Search, Practice, or greenfield-directive steer skills.
 
+#### **4.1.2 Conditioning-Quality Check + Divergence Probe**
+
+Evaluate {{SKILL}} through the four lenses in `docs/agent-system/SKILL_AUTHORING.md` §"Skills are conditioning signals": focality, interpretive entropy, verifiability, attention economy. Raise these findings:
+
+* **Hand-rolled rule cluster** (focality): a block of 5+ style/format rules that a real, widely documented named standard already encodes. Name the candidate standard; the patch is to adopt the name and delete the rules it replaces (**name-and-delete**). Verify the standard exists before citing it.
+* **Name-and-keep decoration**: a concept or standard invoked *alongside* the hand-rolled rules it describes. The patch deletes either the name or the rules — keeping both costs attention and conditions nothing.
+* **Attention-splitting rule pile**: many weak, orthogonal, or contradictory rules competing to shape one behavior. The patch consolidates them into one coherent argument or a decision table.
+
+**Divergence probe — run it, do not just judge:** pick the 1–3 instructions in {{SKILL}} that most determine executor behavior. For each, attempt to produce **two materially different executions that both comply with the text** (different files touched, different commands run, different acceptance checks). If you succeed, that is at least a **Major** finding, anchored to the exact sentence that permits both readings. The patch is a *decision*, not more prose — an ambiguous sentence usually marks a decision the author never made. Models demonstrate ambiguity more reliably than they rate it; always attempt the probe before declaring the skill unambiguous.
+
+Severity guide: divergence on a decision the skill exists to fix = **Major**; hand-rolled cluster with a verified named standard available = **Gap**; name-and-keep decoration = **Minor** (wording finding).
+
 #### **4.2 Contract Extraction & Capability Map**
 
 Make the contract explicit by building a capability map:
 
-1. List the **top-level claims** the skill makes (“This skill lets you…”)
+1. List the **top-level claims** the skill makes ("This skill lets you…")
 2. For each claim, record:
 
    * **Primary path**: the minimal steps to achieve the outcome
    * **Verification**: how you know it worked (observable pass/fail)
    * **Artifacts**: what files/logs/output should exist afterward
    * **Failure path**: what to do if it fails
-   * **Hidden prerequisites**: any assumptions that aren’t stated
+   * **Hidden prerequisites**: any assumptions that aren't stated
 
 **Capability Map Template:**
 
@@ -146,23 +143,23 @@ Make the contract explicit by building a capability map:
 ```
 
 **Gap detection rule:**
-If a capability is claimed or implied but lacks a primary path + verification, that is a **capability gap** even if the skill is “well written.”
+If a capability is claimed or implied but lacks a primary path + verification, that is a **capability gap** even if the skill is "well written."
 
 #### **4.3 Internal Consistency Audit (No Contradictions, No Drift)**
 
 Look for contradictions in:
 
 * Terminology (same concept, different names)
-* Flags/commands (two different ways claimed as “the” way)
+* Flags/commands (two different ways claimed as "the" way)
 * Paths / placeholders (e.g. `{{TARGET}}` vs `{TARGET}` vs `<TARGET>`)
-* Ordering (“Do X before Y” in one section, reversed elsewhere)
-* “Must” vs “May” vs “Never” rules that conflict
+* Ordering ("Do X before Y" in one section, reversed elsewhere)
+* "Must" vs "May" vs "Never" rules that conflict
 
 **Concrete example of the kind of issue you should surface:**
 
-* A skill may say “Parameters must be nested in `initial_params` via `--params`” in one place,
+* A skill may say "Parameters must be nested in `initial_params` via `--params`" in one place,
   but later show a command using a different flag like `--initial-params` without explaining the relationship.
-  That’s either:
+  That's either:
 
   * a real inconsistency (bug), or
   * a missing explanation (gap),
@@ -185,7 +182,7 @@ Validate:
   * Use: `prompt-manager skill read <skill-id>` for each referenced skill ID
 * **Commands and flags are plausible and consistent**
 
-  * Where possible, validate against `--help`, `schema`, `lint`, or “list” commands
+  * Where possible, validate against `--help`, `schema`, `lint`, or "list" commands
 * **Paths resolve** (relative vs absolute rules are explained)
 * **Examples are copy-paste safe**
 
@@ -222,23 +219,23 @@ Validate:
 <tool> lint --help
 ```
 
-If you can’t verify against tool help, label it explicitly as **“unverified”** in the report, not as a fact.
+If you can't verify against tool help, label it explicitly as **"unverified"** in the report, not as a fact.
 
 #### **4.5 Verification & Observability Check (Success Must Be Observable)**
 
-A skill is not truly usable if it can’t tell you what “done” looks like.
+A skill is not truly usable if it can't tell you what "done" looks like.
 
 For each major workflow, ensure it includes at least one of:
 
 * A file or artifact to inspect (`README.md`, logs, generated outputs)
 * A command that returns a clear status
-* A deterministic condition (“element exists,” “tests pass,” “build succeeds”)
+* A deterministic condition ("element exists," "tests pass," "build succeeds")
 
 **Red flag patterns:**
 
-* “Run X” with no next step
-* “Verify it works” with no method
-* “Should be fine” language
+* "Run X" with no next step
+* "Verify it works" with no method
+* "Should be fine" language
 
 **Expansion patch pattern:**
 
@@ -259,7 +256,7 @@ Minimum expectation:
 
 * A list of likely failure types
 * A debugging order (what to check first vs later)
-* A small number of “most common fixes”
+* A small number of "most common fixes"
 * A clear distinction between symptoms vs root causes
 
 For skills with operational CLI complexity, validate placement:
@@ -270,7 +267,7 @@ For skills with operational CLI complexity, validate placement:
 **Red flags:**
 
 * Only happy paths exist
-* Debugging section is just “check logs” without interpretation
+* Debugging section is just "check logs" without interpretation
 * No prioritization (agents flail)
 
 **Expansion patch pattern:**
@@ -283,21 +280,6 @@ For skills with operational CLI complexity, validate placement:
 | ...    | ...          | ...        | ... |
 ```
 
-#### **4.6.1 Troubleshooting-First Promotion Pass (CLI-Operational Skills)**
-
-For skills with operational CLI workflows, run a short promotion pass before proposing prose-heavy edits:
-
-1. Scan `Troubleshooting & Edge Cases` entries first.
-2. For each repeated or high-friction entry, decide:
-   - promote to CLI output contract improvement,
-   - promote to a tool capability improvement,
-   - or keep as a rare/manual playbook item.
-3. Use this pass to prioritize durable fixes before adding more skill text.
-
-Guidance:
-- This is a convergence aid, not a rigid format requirement.
-- If the same troubleshooting clarification appears multiple times, treat it as a product-signal candidate (usually at least **Gap**).
-
 #### **4.7 Safety & Guardrail Check**
 
 Even non-security skills can create dangerous behavior if they normalize unsafe patterns.
@@ -306,7 +288,7 @@ Check for:
 
 * Steps that could delete data / modify production / expose secrets
 * Instructions that encourage hardcoding credentials, tokens, or personal data
-* Missing “do not” constraints for dangerous tools
+* Missing "do not" constraints for dangerous tools
 * Missing warnings around irreversible operations
 
 **Guardrail rule:**
@@ -320,7 +302,7 @@ If a step is risky, the skill should include:
 
 Skills are a system. Validation includes checking coherence with:
 
-* **Skill Principles** (structure, boundaries)
+* **`docs/agent-system/SKILL_AUTHORING.md`** (structure, boundaries)
 * Other referenced or adjacent skills (no conflicting directives)
 * Category intent (Steer vs Tools vs Search vs Meta)
 
@@ -333,26 +315,18 @@ Skills are a system. Validation includes checking coherence with:
 When you find cross-skill conflicts:
 
 * Identify the conflicting statements
-* Recommend a “single source of truth” location
+* Recommend a "single source of truth" location
 * Propose a patch: either consolidate or reference
 
-#### **4.9 Complexity Retirement Pass (Required for CLI-Operational Skills)**
+#### **4.9 Promotion & Retirement Pass (Required for CLI-Operational Skills)**
 
-Apply the canonical lifecycle from `docs/agent-system/PROMOTION_LADDER.md`.
+`docs/agent-system/PROMOTION_LADDER.md` owns the lifecycle, the retirement and retention criteria, and — in §"Output requirement for meta analyses" — the mandate that this skill classify each major workflow instruction as `Keep` / `Collapse to Action/CLI contract` / `Delete`. Do not restate the lifecycle here; apply it.
 
-For each major gate/workflow instruction in {{SKILL}}, classify:
-- `Keep` (policy/safety/ownership boundary; should remain in skill)
-- `Collapse to CLI contract` (replace detailed prose with command + output contract expectation)
-- `Delete` (fully superseded by durable CLI/tool contract)
+Procedure:
 
-For `Collapse`/`Delete`, include:
-- prerequisite CLI/tool contract improvement (or existing contract evidence),
-- the exact skill area to compress/remove,
-- a residual risk note (if any).
-
-Classification rule:
-- If the instruction describes volatile operational mechanics already emitted by CLI output, default to `Collapse` or `Delete`, not expansion.
-- If the instruction encodes durable policy or safety constraints, default to `Keep`.
+1. Scan `Troubleshooting & Edge Cases` first. A clarification that repeats is a promotion candidate (usually at least **Gap**) — promote to a CLI output contract or tool capability before adding prose.
+2. Classify each major gate/workflow instruction per the canon output requirement. For `Collapse`/`Delete`, name the prerequisite CLI/tool contract (or existing contract evidence) and any residual risk.
+3. Record results in the report's `Complexity Retirement` table. Durable CLI/tool fixes rank above interim prose patches.
 
 ---
 
@@ -368,17 +342,16 @@ Classify every finding:
 | **Minor**        | Typos, mild redundancy, small clarity issues                                                  | Annoying but not blocking              |
 | **Nice-to-have** | Quality upgrades not required for correctness                                                 | Handoff to Improvement Suggestions     |
 
-**Rule:** Treat “forces the agent to guess” as at least **Major**.
+**Rule:** Treat "forces the agent to guess" as at least **Major**. A confirmed divergence-probe finding (§4.1.2) is a proven instance of forced guessing.
 
 Contract integrity rules:
 - **Major**: Primary workflow bypasses default human-friendly CLI output contracts (format switches, parsing/scraping, shell extraction) without explicit justification and guardrails.
-- **Gap**: Skill’s core promise requires non-Vrooli tools/commands for routine execution (capability leakage). Prefer a Vrooli CLI/tool promotion recommendation over expanding prose workarounds.
+- **Gap**: Skill's core promise requires non-Vrooli tools/commands for routine execution (capability leakage). Prefer a Vrooli CLI/tool promotion recommendation over expanding prose workarounds.
 - **Critical**: Out-of-band steps normalize unsafe behavior (secrets exposure, destructive ops, production mutation) without warnings and verification.
 
 Structure rule for CLI-operational skills:
-- For operationally complex skills that rely on CLI workflows, missing `Troubleshooting & Edge Cases` or scattering long-tail clarifications outside it should be classified as **Major**.
-- Repeated long-tail clarifications that should be promoted to CLI/tooling should be classified as **Gap** and handed off to Skill Improvement Suggestions.
-- If repeated troubleshooting clarifications are found, include at least one durable CLI/tool conversion recommendation in addition to any interim skill patch.
+- Missing `Troubleshooting & Edge Cases` or scattering long-tail clarifications outside it is **Major**.
+- Repeated long-tail clarifications that should be promoted to CLI/tooling are **Gap** — hand off to Skill Improvement Suggestions with at least one durable CLI/tool conversion recommendation.
 
 ---
 
@@ -393,16 +366,16 @@ Finding found
   │      → Critical → Patch required (fix)
   │
   ├─ Is it contradictory or ambiguous (forces guessing)?
-  │      → Major → Patch required (clarify)
+  │      → Major → Patch required (clarify — the patch is a decision, not more prose)
   │
   ├─ Is a capability claimed/implied but not actually enabled?
   │      → Gap → Expansion patch required (extend)
   │
-  └─ Is it mostly about efficiency/wording/streamlining?
+  └─ Is it mostly about efficiency, conditioning quality, or wording?
          → Nice-to-have → Hand off to Skill Improvement Suggestions
 ```
 
-This prevents “validation reports” from turning into opinionated rewrites.
+This prevents "validation reports" from turning into opinionated rewrites.
 
 ---
 
@@ -415,9 +388,9 @@ High-leverage expansion patch types:
 1. **Missing prerequisites section**
 2. **Missing verification section**
 3. **Missing failure mode table**
-4. **Missing decision table (“when to use which approach”)**
+4. **Missing decision table ("when to use which approach")**
 5. **Missing output contract (what artifacts or results exist)**
-6. **Missing “when NOT to use this” boundaries**
+6. **Missing "when NOT to use this" boundaries**
 
 **Patch style rules:**
 
@@ -439,7 +412,7 @@ Use short, category-specific delta checks here. Baseline authoring structure bel
 #### **All categories — prose style (advisory)**
 
 * [ ] Procedural text follows the STE-100 bar from `docs/agent-system/SKILL_AUTHORING.md` (one instruction per sentence, imperative mood, one meaning per term, concrete commands over categories)
-* [ ] Rules avoid decision-hiding words ("robust", "appropriately", "handle", "as needed") — flag as a WARN-severity wording finding, not a blocker
+* [ ] Rules avoid decision-hiding words — canonical list in `docs/agent-system/SKILL_AUTHORING.md` §"Universal quality bars" — flag as a WARN-severity wording finding, not a blocker
 
 #### **Steer skills**
 
@@ -456,7 +429,7 @@ Use short, category-specific delta checks here. Baseline authoring structure bel
 #### **Search skills**
 
 * [ ] Evidence contract and stop conditions are explicit and enforceable
-* [ ] Failure paths avoid token-sink “read everything” behavior
+* [ ] Failure paths avoid token-sink "read everything" behavior
 
 #### **Meta skills**
 
@@ -473,28 +446,28 @@ When validating **{{SKILL}}**, you must:
 * Read {{SKILL}} fully before reporting
 * Produce the report in the format defined below: `Summary` -> `Findings` -> `Recommendations` -> `Notes`
 * Extract and present a capability map (inside `Findings`)
+* Run the divergence probe (§4.1.2) and report its outcome — including "no divergence found on probed instructions"
 * For any skill that includes CLI commands, identify contract bypass and capability leakage (if any) and classify them (inside `Findings`)
 * Classify findings by severity
 * Include evidence (quotes/snippets) for each issue
 * Provide **expansion patches** for Critical/Major/Gap findings (copy-pastable)
 * Separate validation findings from optimization suggestions
-* For CLI-operational skills, include a concise troubleshooting-promotion analysis (what should move to CLI/tooling vs remain manual)
-* For CLI-operational skills, include a required `Complexity Retirement` section with `Keep/Collapse/Delete` decisions
+* For CLI-operational skills, include the `Complexity Retirement` table per §4.9
 * In `Recommendations`, provide numbered recommendations with choices (`A`, `B`, `C`...) and mark one choice as **(Recommended)**
 * Each recommendation choice must include enough detail to execute: what to do, why, verification, and any required copy-paste patch
 
 You may:
 
 * Recommend follow-up usage of **Skill Improvement Suggestions**
-* Suggest where a tool verification step *should* exist (even if you can’t run it)
-* Mark items as “unverified” if you cannot confirm externally
+* Suggest where a tool verification step *should* exist (even if you can't run it)
+* Mark items as "unverified" if you cannot confirm externally
 
 You must NOT:
 
 * Rewrite the entire skill as part of validation
 * Hide uncertainty (label unverified things explicitly)
 * Turn validation into a stylistic critique
-* Propose scenario-specific feature work as “skill validation”
+* Propose scenario-specific feature work as "skill validation"
 
 ---
 
@@ -506,7 +479,7 @@ When analyzing {{SKILL}}, produce this structured report:
 # Skill Validation Report for {{SKILL}}
 
 ## Summary
-[2–4 sentences: overall reliability, main risk areas, whether it’s safe to use as-is]
+[2–4 sentences: overall reliability, main risk areas, whether it's safe to use as-is]
 
 ## Findings
 
@@ -515,15 +488,20 @@ When analyzing {{SKILL}}, produce this structured report:
 |-----------|-----------------------|----------------------|----------------------------|------|
 | ...       | Yes/No                | Yes/No               | Yes/No                     | ...  |
 
+### Divergence Probe
+| Probed Instruction | Divergent Readings Found? | Permitting Sentence | Decision Needed |
+|---|---|---|---|
+| ... | Yes/No | "...quote..." | ... |
+
 ### Contract Integrity (Required When {{SKILL}} Includes CLI Commands)
 
 #### Contract Bypass Register
-| Command / Step | Bypass Type | Why It’s A Bypass | Allowed? | Notes / Fix |
+| Command / Step | Bypass Type | Why It's A Bypass | Allowed? | Notes / Fix |
 |---|---|---|---|---|
 | ... | `--json` / `--raw` / parsing / shell extraction | ... | Yes/No | ... |
 
 #### Non-Vrooli Dependency Register (Capability Leakage)
-| Non-Vrooli Command / Step | Purpose | Why It’s Needed | Vrooli Replacement | Notes |
+| Non-Vrooli Command / Step | Purpose | Why It's Needed | Vrooli Replacement | Notes |
 |---|---|---|---|---|
 | ... | ... | ... | Existing or proposed CLI/tool contract | ... |
 
@@ -544,7 +522,7 @@ When analyzing {{SKILL}}, produce this structured report:
 Finding template (use for each `Critical` / `Major` / `Gap` item):
 
 ### [Severity]: [Title]
-- Evidence: “...quote...”
+- Evidence: "...quote..."
 - Why it fails validation: ...
 - Impact: ...
 - **Patch (copy-paste):**
@@ -557,19 +535,10 @@ Finding template (use for each `Critical` / `Major` / `Gap` item):
 - Conflicts found: [if any]
 - Promotion candidates from `Troubleshooting & Edge Cases`: [items to convert into CLI/tool improvements]
 
-### Durable vs Interim Fixes
-- Durable CLI/tool conversion candidates: [high-leverage fixes that reduce repeated troubleshooting prose]
-- Interim skill-level guardrails: [minimal wording/structure patches needed now]
-
 ### Complexity Retirement (CLI-Operational Skills)
 | Skill Instruction / Gate | Decision (Keep/Collapse/Delete) | Rationale | Prerequisite Contract | Risk |
 |---|---|---|---|---|
 | ... | ... | ... | ... | ... |
-
-### Complexity Signals
-- Gate/step count: [before -> after if patches applied]
-- Troubleshooting item count: [before -> after if patches applied]
-- Net effect: [reduced / neutral / increased] with rationale
 
 ## Recommendations
 
@@ -590,12 +559,6 @@ Selection hint:
 - Verification: ...
 - Patch (copy-paste) / Tooling change: ...
 
-**C:** [Choice summary]
-- What to do: ...
-- Why: ...
-- Verification: ...
-- Patch (copy-paste) / Tooling change: ...
-
 Repeat for each recommendation (`R2`, `R3`...).
 
 ## Notes
@@ -608,4 +571,4 @@ Repeat for each recommendation (`R2`, `R3`...).
 
 ### **11. Remember**
 
-A validated skill is reliable operational truth: consistent, executable, observable, and safe.
+A validated skill is reliable operational truth: consistent, executable, observable, convergent, and safe.

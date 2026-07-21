@@ -14,6 +14,8 @@ Pick one skill through a usage-weighted priority ladder:
 
 When evaluating a skill, ask whether it should stay judgment prose, reference an existing Action, become a new Action candidate, route to CLI-backlog first, be pruned, be improved, or — for a steer skill — **graduate**. Conversion is the core leverage when one Vrooli-controlled CLI command can own the deterministic behavior and an Action can expose it. Pruning is higher leverage when the skill or Action has no meaningful usage and no roadmap need.
 
+Improvement findings sit on two axes that compose (`docs/agent-system/SKILL_AUTHORING.md` §"Skills are conditioning signals"): **efficiency** (token cost, manual loops, conversion candidates) and **conditioning quality** (focality, interpretive entropy, verifiability, attention economy). An inefficient skill and a poorly-conditioning skill are different defects with different fixes — a token-lean skill can still be a hand-rolled rule pile that a named standard should replace (name-and-delete). Audit both axes on every visit and record which axis each `improve` finding is on.
+
 ## Steer-Skill Graduation (the conveyor belt)
 
 Steer audit lenses sit on a conveyor: they start as agentic judgment (run by the scenario-qa **quality-auditor**) and, over time, their *detection* migrates into a programmatic engine (e.g. a test-genie phase). I own the call that a lens has **graduated**: I raise a `skill-graduation` decision proposing that the skill's `programmaticHome` pointer be set (format `engine:identifier`, e.g. `test-genie:architecture`) via `prompt-manager skill update --programmatic-home <engine:id>`.

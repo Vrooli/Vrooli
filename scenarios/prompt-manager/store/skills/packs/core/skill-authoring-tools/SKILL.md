@@ -98,7 +98,7 @@ Promotion rule:
 
 ### **7. Registration Notes**
 
-Follow **Skill Principles** and ensure:
+Follow `docs/agent-system/SKILL_AUTHORING.md` and ensure:
 - `modes[0]` is **Tools**
 - The description names the tool and the primary value it provides
 

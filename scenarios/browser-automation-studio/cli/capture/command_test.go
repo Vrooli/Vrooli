@@ -3,40 +3,31 @@ package capture
 import (
 	"testing"
 
+	"github.com/vrooli/cli-core/cliapp"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 )
 
-func TestParseCaptureFlags_BasicURL(t *testing.T) {
-	f, err := parseCaptureFlags([]string{"--url", "https://example.com"})
+func TestFlagsFromContext_UsesProductionParser(t *testing.T) {
+	rc, err := cliapp.NewTestRunContextFromArgs(captureArgSchema(), []string{
+		"--url", "https://example.com", "--capture", "screenshot, console-logs", "--dimensions", "mobile", "--device-scale-factor", "2", "--dry-run",
+	}, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("parseCaptureFlags: %v", err)
+		t.Fatalf("parse: %v", err)
 	}
-	if f.url != "https://example.com" {
-		t.Fatalf("url=%q", f.url)
+	f, err := flagsFromContext(rc)
+	if err != nil {
+		t.Fatalf("flagsFromContext: %v", err)
+	}
+	if f.url != "https://example.com" || f.dimensions != "mobile" || !f.hasDeviceScale || f.deviceScaleFactor != 2 || !f.dryRun {
+		t.Fatalf("unexpected flags: %+v", f)
+	}
+	if got := f.captures; len(got) != 2 || got[0] != "screenshot" || got[1] != "console-logs" {
+		t.Fatalf("captures: %v", got)
 	}
 }
 
-func TestParseCaptureFlags_CSVCaptures(t *testing.T) {
-	f, err := parseCaptureFlags([]string{"--url", "https://x", "--capture", "screenshot, console-logs ,network"})
-	if err != nil {
-		t.Fatalf("parseCaptureFlags: %v", err)
-	}
-	want := []string{"screenshot", "console-logs", "network"}
-	if len(f.captures) != len(want) {
-		t.Fatalf("captures=%v", f.captures)
-	}
-	for i, w := range want {
-		if f.captures[i] != w {
-			t.Errorf("captures[%d]=%q want %q", i, f.captures[i], w)
-		}
-	}
-}
-
-func TestParseCaptureFlags_DimensionsAndExplicitOverride(t *testing.T) {
-	f, err := parseCaptureFlags([]string{"--url", "u", "--dimensions", "mobile", "--width", "1200", "--height", "800"})
-	if err != nil {
-		t.Fatalf("parseCaptureFlags: %v", err)
-	}
+func TestBuildCaptureRequest_DimensionsAndExplicitOverride(t *testing.T) {
+	f := captureFlags{url: "u", dimensions: "mobile", width: 1200, height: 800, hasWidth: true, hasHeight: true}
 	req, err := buildCaptureRequest(f)
 	if err != nil {
 		t.Fatalf("build: %v", err)
@@ -56,11 +47,8 @@ func TestParseCaptureFlags_DimensionsAndExplicitOverride(t *testing.T) {
 	}
 }
 
-func TestParseCaptureFlags_DimensionsPresetOnly(t *testing.T) {
-	f, err := parseCaptureFlags([]string{"--url", "u", "--dimensions", "mobile"})
-	if err != nil {
-		t.Fatalf("parseCaptureFlags: %v", err)
-	}
+func TestBuildCaptureRequest_DimensionsPresetOnly(t *testing.T) {
+	f := captureFlags{url: "u", dimensions: "mobile"}
 	req, err := buildCaptureRequest(f)
 	if err != nil {
 		t.Fatalf("build: %v", err)
@@ -70,17 +58,14 @@ func TestParseCaptureFlags_DimensionsPresetOnly(t *testing.T) {
 	}
 }
 
-func TestParseCaptureFlags_WaitForVariants(t *testing.T) {
+func TestBuildCaptureRequest_WaitForVariants(t *testing.T) {
 	cases := map[string]func(*capturev1.WaitFor) bool{
 		"500":         func(w *capturev1.WaitFor) bool { return w.GetTimeoutMs() == 500 },
 		"networkidle": func(w *capturev1.WaitFor) bool { return w.GetNetworkidle() },
 		"#root":       func(w *capturev1.WaitFor) bool { return w.GetSelector() == "#root" },
 	}
 	for input, check := range cases {
-		f, err := parseCaptureFlags([]string{"--url", "u", "--wait-for", input})
-		if err != nil {
-			t.Fatalf("%q parse: %v", input, err)
-		}
+		f := captureFlags{url: "u", waitFor: input}
 		req, err := buildCaptureRequest(f)
 		if err != nil {
 			t.Fatalf("%q build: %v", input, err)
@@ -91,26 +76,21 @@ func TestParseCaptureFlags_WaitForVariants(t *testing.T) {
 	}
 }
 
-func TestParseCaptureFlags_UnknownCaptureType(t *testing.T) {
-	f, err := parseCaptureFlags([]string{"--url", "u", "--capture", "screenshot,wat"})
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+func TestBuildCaptureRequest_UnknownCaptureType(t *testing.T) {
+	f := captureFlags{url: "u", captures: []string{"screenshot", "wat"}}
 	if _, err := buildCaptureRequest(f); err == nil {
 		t.Fatal("expected error for unknown capture type")
 	}
 }
 
-func TestParseCaptureFlags_BoolFlagsAndUnknown(t *testing.T) {
-	f, err := parseCaptureFlags([]string{"--url", "u", "--json", "--dry-run"})
+func TestBuildCaptureRequest_DeviceScaleFactor(t *testing.T) {
+	f := captureFlags{url: "u", deviceScaleFactor: 2, hasDeviceScale: true}
+	req, err := buildCaptureRequest(f)
 	if err != nil {
-		t.Fatalf("parse: %v", err)
+		t.Fatalf("build: %v", err)
 	}
-	if !f.json || !f.dryRun {
-		t.Fatalf("flags: %+v", f)
-	}
-	if _, err := parseCaptureFlags([]string{"--bogus"}); err == nil {
-		t.Fatal("expected error for unknown flag")
+	if req.Dimensions == nil || req.Dimensions.GetDeviceScaleFactor() != 2 {
+		t.Fatalf("device scale factor: %+v", req.Dimensions)
 	}
 }
 

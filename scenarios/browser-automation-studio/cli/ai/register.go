@@ -39,5 +39,11 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("%s: load from manifest: %w", GroupName, err)
 	}
+	for index := range group.Subcommands {
+		if group.Subcommands[index].Name == "preview-screenshot" {
+			group.Subcommands[index] = previewScreenshotCommand(core)
+			break
+		}
+	}
 	return group, nil
 }

@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "writing-standards",
+  "name": "Writing Standards",
+  "description": "Placement map of controlled-language standards (ASD-STE100, EARS, RFC 2119, Gherkin) to Vrooli artifacts — which standard governs plans, requirements, PRDs, tests, reports, and skills, and where each does not apply",
+  "modes": [
+    "meta"
+  ],
+  "tags": [
+    "writing",
+    "style",
+    "standards",
+    "ste100",
+    "ears",
+    "authoring"
+  ],
+  "icon": "pen-line",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-07-21T00:00:00Z",
+  "updatedAt": "2026-07-21T00:00:00Z"
+}

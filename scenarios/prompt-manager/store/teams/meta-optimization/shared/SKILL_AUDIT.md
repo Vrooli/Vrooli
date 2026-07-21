@@ -7,7 +7,7 @@ Usage-weighted priority audit of the skill library. Maintained by `skill-optimiz
 - **Rating** — rough overall health: `high` (popular + healthy), `mixed` (popular but flags), `low` (low use), `drift` (changed-since-validation)
 - **Last visited** — ISO date of most recent `skill-visited/<skill-id>` knowledge entry
 - **Disposition** — `convert` | `improve` | `prune` | `no-action`
-- **Notes** — one-line context
+- **Notes** — one-line context. For `improve`, name the defect axis: `efficiency`, `conditioning`, or `drift` (axes per `docs/agent-system/SKILL_AUTHORING.md` §"Skills are conditioning signals"); for `conditioning`, name the lens and any candidate named standard
 
 ## Audit rows
 
