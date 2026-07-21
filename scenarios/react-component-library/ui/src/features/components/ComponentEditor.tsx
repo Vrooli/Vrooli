@@ -128,6 +128,8 @@ interface ComponentEditorProps {
   /** Asset pages control the normal one-pane view from their URL-backed tabs. */
   activePane?: WorkspacePane;
   onActivePaneChange?: (pane: WorkspacePane) => void;
+  selectedStory?: string;
+  onSelectedStoryChange?: (story: string) => void;
 }
 
 /**
@@ -152,6 +154,8 @@ export function ComponentEditor({
   renderable = true,
   activePane,
   onActivePaneChange,
+  selectedStory,
+  onSelectedStoryChange,
 }: ComponentEditorProps) {
   const { t } = useTranslation();
   const shellNavigation = useShellNavigation();
@@ -269,7 +273,9 @@ export function ComponentEditor({
   const activateSpecimen = useCallback((identity: SpecimenIdentity) => {
     setActiveSpecimen(identity);
     previewFrameRef.current = specimenFramesRef.current.get(identity) ?? null;
-  }, []);
+    const story = identity.split(":").slice(1).join(":");
+    if (story && story !== "__default__") onSelectedStoryChange?.(story);
+  }, [onSelectedStoryChange]);
 
   const retrySpecimen = useCallback((identity: SpecimenIdentity) => {
     setSpecimenErrors((current) => {
@@ -366,8 +372,9 @@ export function ComponentEditor({
 
   useEffect(() => {
     if (activeSpecimen || examples.length === 0) return;
-    activateSpecimen(specimenIdentity(examples[0]));
-  }, [activeSpecimen, activateSpecimen, examples]);
+    const restored = selectedStory ? examples.find((example) => example.storyId === selectedStory) : undefined;
+    activateSpecimen(specimenIdentity(restored ?? examples[0]));
+  }, [activeSpecimen, activateSpecimen, examples, selectedStory]);
 
   useEffect(() => {
     if (previewState !== "waiting") return;
@@ -684,7 +691,7 @@ export function ComponentEditor({
                     >
                       {splitView && paneHeader("preview", index, paneLabels.preview, <Eye aria-hidden className="h-3.5 w-3.5" />)}
                       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
-                        <nav className="flex max-w-full gap-1 overflow-x-auto" aria-label="Component states">
+                        <nav className="flex max-w-full gap-1 overflow-x-auto" aria-label="Component stories">
                           {specimens.map((example) => { const identity = specimenIdentity(example); const selected = identity === activeSpecimen; return <Button key={identity} type="button" variant={selected ? "primary" : "secondary"} className="h-8 shrink-0 px-2 text-xs" aria-current={selected ? "true" : undefined} onClick={() => { setComparedSpecimens(new Set()); activateSpecimen(identity); }}>{example?.displayName || example?.name || "Default"}</Button>; })}
                         </nav>
                         <ThemeSwitcher postToFrames={postToPreviewFrames} previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} filters={filters} />
@@ -718,7 +725,7 @@ export function ComponentEditor({
                                 const error = specimenErrors[identity];
                                 const isActive = activeSpecimen === identity;
                                 return (
-                                  <section key={identity} data-testid={selectors.components.editor.exampleCard} data-specimen={identity} className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}>
+                                  <section key={identity} data-testid={selectors.components.editor.exampleCard} data-specimen={identity} data-story={example?.storyId ?? "__default__"} className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}>
                                     <header className="flex items-center justify-between gap-2 border-b border-app-border px-3 py-2">
                                       <h3 data-testid={selectors.components.editor.exampleTitle} className="min-w-0 truncate text-sm font-semibold text-app-foreground">{title}</h3>
                                       {examples.length > 1 && <Button data-testid={selectors.components.editor.exampleCompare} type="button" variant={comparedSpecimens.has(identity) ? "primary" : "secondary"} aria-pressed={comparedSpecimens.has(identity)} disabled={!comparedSpecimens.has(identity) && comparedSpecimens.size >= 2} className="h-7 px-2 text-xs" onClick={() => toggleComparison(identity)}>{t(strings.components.editor.compareSpecimen)}</Button>}
@@ -734,7 +741,7 @@ export function ComponentEditor({
                                         data-specimen={identity}
                                         title={`${t(strings.components.editor.previewHeading)} - ${title}`}
                                         src={harnessUrl(id, baselineSha, previewReloadKey + (specimenRetries[identity] ?? 0), example, selectedVersion)}
-                                        sandbox="allow-scripts"
+                                        sandbox="allow-scripts allow-same-origin"
                                         ref={(frame) => registerPreviewFrame(identity, frame)}
                                         onLoad={() => {
                                           // Loading a later iframe must not steal the user's active

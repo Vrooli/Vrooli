@@ -8,6 +8,11 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
+  "shortcuts": [
+    { "name": "Extract into library", "short_name": "Extract", "description": "Start an extract-assist workflow.", "url": "./?action=extract", "icons": [{ "src": "manifest-icon-192.maskable.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Adopt into scenarios", "short_name": "Adopt", "description": "Start adopt-assist workflows.", "url": "./?action=adopt", "icons": [{ "src": "manifest-icon-192.maskable.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Create component", "short_name": "Create", "description": "Create a library component.", "url": "./?action=create", "icons": [{ "src": "manifest-icon-192.maskable.png", "sizes": "192x192", "type": "image/png" }] }
+  ],
   "icons": [
     {
       "src": "manifest-icon-192.maskable.png",

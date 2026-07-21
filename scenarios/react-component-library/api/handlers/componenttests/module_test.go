@@ -21,9 +21,16 @@ import (
 	componenttests "react-component-library/handlers/componenttests"
 	"react-component-library/internal/clock"
 	internalcomponents "react-component-library/internal/components"
+	domain "react-component-library/internal/componenttests"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/testutil/db"
 )
+
+type passingExecutor struct{}
+
+func (passingExecutor) ExecuteStory(context.Context, string, string, string) (domain.StoryExecution, error) {
+	return domain.StoryExecution{Passed: true}, nil
+}
 
 func TestModuleRunsAndListsDurableContractReport(t *testing.T) {
 	database := db.NewSQLite(t)
@@ -36,7 +43,7 @@ func TestModuleRunsAndListsDurableContractReport(t *testing.T) {
 	assets, repo := components.BuildService(database, clock.System{}, root)
 	router := mux.NewRouter()
 	components.ModuleFromService(assets, repo, root, log.New(io.Discard, "", 0)).Mount(router)
-	componenttests.Module(database, assets, root, log.New(io.Discard, "", 0)).Mount(router)
+	componenttests.ModuleWithExecutor(database, assets, root, passingExecutor{}, log.New(io.Discard, "", 0)).Mount(router)
 	index := call(router, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
 	require.Equal(t, http.StatusOK, index.Code, index.Body.String())
 	provider := call(router, validationconnect.ScenarioValidationServiceValidateScenarioProcedure, `{"scenario":"react-component-library","includeExecution":true}`)

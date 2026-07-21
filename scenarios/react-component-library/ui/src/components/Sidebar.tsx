@@ -33,7 +33,7 @@ export function SidebarContent({ onNavigate, headerSlot, inventorySlot, onCollap
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-2 py-3">
-        <Link to="/catalog" onClick={onNavigate} className="mb-2 flex rounded-control px-2 py-2 text-sm text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground">Browse assets</Link>
+        <Link to="/catalog" onClick={onNavigate} className="mb-2 flex rounded-control px-2 py-2 text-sm text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground">{t("nav.browseAssets", { defaultValue: "Browse assets" })}</Link>
         {inventorySlot}
       </div>
     </div>

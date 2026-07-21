@@ -284,6 +284,9 @@ describe("ComponentEditor", () => {
 
     const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
     expect(frame.getAttribute("src")).toContain("/preview/cmp-7/harness.html");
+    // The preview runtime is guarded by the same Cloudflare Access session as
+    // the app. An opaque sandbox origin omits that session for module imports.
+    expect(frame.getAttribute("sandbox")).toBe("allow-scripts allow-same-origin");
     await waitFor(() => {
       expect(frame.getAttribute("src")).toContain("v=sha-pre");
     });

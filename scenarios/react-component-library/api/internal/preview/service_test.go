@@ -190,20 +190,18 @@ func TestService_GetBundleVersion_UsesImmutableVersionContent(t *testing.T) {
 	require.Contains(t, bundle.JS, "Historical")
 }
 
-func TestService_GetBundle_RejectsHookAsset(t *testing.T) {
+func TestService_GetBundle_AllowsHookFixtures(t *testing.T) {
 	comp := &fakeComponentsService{
 		getFn: func(_ context.Context, id string) (components.Component, error) {
 			return components.Component{ID: id, LibraryID: "react-component-library:useFocusTrap", AssetKind: components.AssetKindHook}, nil
 		},
 		getContentFn: func(context.Context, string) (components.Content, error) {
-			t.Fatal("hook preview must not read render content")
-			return components.Content{}, nil
+			return components.Content{Body: "export const useFocusTrap = () => {}", SourcePath: "hooks/useFocusTrap.ts"}, nil
 		},
 	}
-	_, err := NewService(comp, NewEsbuilder()).GetBundle(context.Background(), "hook-1")
-	var notRenderable ErrNotRenderable
-	require.ErrorAs(t, err, &notRenderable)
-	require.Contains(t, err.Error(), "cannot be previewed")
+	bundle, err := NewService(comp, NewEsbuilder()).GetBundle(context.Background(), "hook-1")
+	require.NoError(t, err)
+	require.Contains(t, bundle.JS, "useFocusTrap")
 }
 
 func TestEsbuilderBundlesRelativeImports(t *testing.T) {

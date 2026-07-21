@@ -7,23 +7,26 @@
  * Closing the editor returns the user to the components list.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { adoptionsClient, RecommendationClass } from "../api/adoptions";
+import { adoptionsClient } from "../api/adoptions";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/empty-state";
 import { StatusBadge } from "../components/ui/status-badge";
 import { componentsClient, getCatalogAsset, getComponentExperience, type CatalogAsset } from "../api/components";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { CreateAdoptionDialog } from "../features/adoptions/CreateAdoptionDialog";
 import { ComponentEditor, type ComparisonSession } from "../features/components/ComponentEditor";
+import { AdoptionsCard } from "../features/adoptions/AdoptionsCard";
 import { ComponentExperiencePanel } from "../features/components/ComponentExperiencePanel";
 import { ComponentTestPanel } from "../features/components/ComponentTestPanel";
 import { VersionsCard } from "../features/versions/VersionsCard";
 import { useTranslation } from "../i18n";
-import { assetInfoTab, assetPath, assetSearchForTab, type AssetInfoTab } from "../routes";
+import { assetInfoTab, assetPath, assetSearchForTab, assetStory, type AssetInfoTab } from "../routes";
+
+const assetNavigationStorageKey = (assetID: string) => `rcl.asset-navigation.${assetID}`;
+type StoredAssetNavigation = { tab?: InfoTab; story?: string };
 
 type InfoTab = AssetInfoTab;
 
@@ -74,10 +77,10 @@ function isHook(asset: CatalogAsset) {
   return (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
 }
 
-function HookWorkspace({ asset, onClose, tab, onTabChange }: { asset: CatalogAsset; onClose: () => void; tab: InfoTab; onTabChange: (tab: InfoTab) => void }) {
+function HookWorkspace({ asset, onClose, tab, onTabChange, selectedStory, onSelectedStoryChange }: { asset: CatalogAsset; onClose: () => void; tab: InfoTab; onTabChange: (tab: InfoTab) => void; selectedStory?: string; onSelectedStoryChange: (story: string) => void }) {
   const { t } = useTranslation();
   const effective = useQuery({ queryKey: ["adoptions", "effective", asset.id], queryFn: () => adoptionsClient.listEffectiveAdoptions({ componentId: asset.id, limit: 100 }) });
-  return <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col"><ComponentEditor id={asset.id} libraryId={asset.libraryId || asset.id} onClose={onClose} renderable activePane={paneForTab(tab)} onActivePaneChange={(pane) => onTabChange(tabForPane(pane, tab))} navigationSlot={<DetailTabs active={tab} onChange={onTabChange} versionCount={asset.metrics?.versionCount ?? 0} adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0} renderable />} metadataSlot={<aside data-testid="hook-workspace-details" className="space-y-3"><StatusBadge tone="info">{t("catalog.hookFixturePreview", { defaultValue: "Live fixture preview — declared inputs and adapters only." })}</StatusBadge><div className="flex flex-wrap gap-2 text-xs"><StatusBadge tone="neutral">{t("catalog.directAdoptions", { defaultValue: "{{count}} direct", count: asset.metrics?.directAdoptionCount ?? 0 })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.effectiveAdoptions", { defaultValue: "{{count}} effective", count: asset.metrics?.effectiveAdoptionCount ?? 0 })}</StatusBadge></div>{tab === "overview" && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs"><dt className="text-app-muted-foreground">{t("catalog.kind", { defaultValue: "Kind" })}</dt><dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd><dt className="text-app-muted-foreground">{t("catalog.source", { defaultValue: "Source" })}</dt><dd className="break-all font-mono">{asset.sourcePath || "—"}</dd></dl>}{tab === "tests" && <ComponentTestPanel componentId={asset.id} version={asset.latestVersion || asset.version} />}{tab === "versions" && <VersionsCard componentId={asset.id} onSelectVersion={() => undefined} onCompare={() => undefined} />}{tab === "adoptions" && <div data-testid="hook-effective-adoptions" className="space-y-2 text-xs">{effective.isLoading ? <p className="text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : (effective.data?.adoptions ?? []).length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No recorded usage." })} /> : <ul className="space-y-2">{(effective.data?.adoptions ?? []).map((entry) => <li key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`} className="rounded-control border border-app-border p-2"><p className="font-medium">{entry.mediated ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" }) : t("catalog.directUsage", { defaultValue: "Direct usage" })}</p><p className="mt-1">{entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}</p><p className="mt-1 font-mono text-app-muted-foreground">{entry.parentAdoption?.id}</p></li>)}</ul>}</div>}</aside>} /></div>;
+  return <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col"><ComponentEditor id={asset.id} libraryId={asset.libraryId || asset.id} onClose={onClose} renderable activePane={paneForTab(tab)} onActivePaneChange={(pane) => onTabChange(tabForPane(pane, tab))} selectedStory={selectedStory} onSelectedStoryChange={onSelectedStoryChange} navigationSlot={<DetailTabs active={tab} onChange={onTabChange} versionCount={asset.metrics?.versionCount ?? 0} adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0} renderable />} metadataSlot={<aside data-testid="hook-workspace-details" className="space-y-3"><StatusBadge tone="info">{t("catalog.hookFixturePreview", { defaultValue: "Live fixture preview — declared inputs and adapters only." })}</StatusBadge><div className="flex flex-wrap gap-2 text-xs"><StatusBadge tone="neutral">{t("catalog.directAdoptions", { defaultValue: "{{count}} direct", count: asset.metrics?.directAdoptionCount ?? 0 })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.effectiveAdoptions", { defaultValue: "{{count}} effective", count: asset.metrics?.effectiveAdoptionCount ?? 0 })}</StatusBadge></div>{tab === "overview" && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs"><dt className="text-app-muted-foreground">{t("catalog.kind", { defaultValue: "Kind" })}</dt><dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd><dt className="text-app-muted-foreground">{t("catalog.source", { defaultValue: "Source" })}</dt><dd className="break-all font-mono">{asset.sourcePath || "—"}</dd></dl>}{tab === "tests" && <ComponentTestPanel componentId={asset.id} version={asset.latestVersion || asset.version} />}{tab === "versions" && <VersionsCard componentId={asset.id} onSelectVersion={() => undefined} onCompare={() => undefined} />}{tab === "adoptions" && <div data-testid="hook-effective-adoptions" className="space-y-2 text-xs">{effective.isLoading ? <p className="text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : (effective.data?.adoptions ?? []).length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No recorded usage." })} /> : <ul className="space-y-2">{(effective.data?.adoptions ?? []).map((entry) => <li key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`} className="rounded-control border border-app-border p-2"><p className="font-medium">{entry.mediated ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" }) : t("catalog.directUsage", { defaultValue: "Direct usage" })}</p><p className="mt-1">{entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}</p><p className="mt-1 font-mono text-app-muted-foreground">{entry.parentAdoption?.id}</p></li>)}</ul>}</div>}</aside>} /></div>;
 }
 
 export function ComponentDetailPage() {
@@ -89,9 +92,29 @@ export function ComponentDetailPage() {
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [comparison, setComparison] = useState<ComparisonSession | null>(null);
   const infoTab = assetInfoTab(search);
-  const setInfoTab = (tab: InfoTab) => setSearch(assetSearchForTab(tab), { replace: true });
+  const selectedStory = assetStory(search);
+  const setInfoTab = (tab: InfoTab) => setSearch(assetSearchForTab(tab, undefined, selectedStory), { replace: true });
   const [selectedAdoptionID, setSelectedAdoptionID] = useState("");
-  const [createTarget, setCreateTarget] = useState<{ componentId: string; scenario: string } | null>(null);
+
+  useEffect(() => {
+    if (!id || search.has("tab") || search.has("story")) return;
+    try {
+      const saved = window.localStorage.getItem(assetNavigationStorageKey(id));
+      const navigation = saved ? JSON.parse(saved) as StoredAssetNavigation : undefined;
+      if (navigation?.tab || navigation?.story) setSearch(assetSearchForTab(navigation.tab ?? "overview", undefined, navigation.story), { replace: true });
+    } catch {
+      // Storage may be unavailable in private browsing; URL/default remain authoritative.
+    }
+  }, [id, search, setSearch]);
+
+  useEffect(() => {
+    if (!id) return;
+    try {
+      window.localStorage.setItem(assetNavigationStorageKey(id), JSON.stringify({ tab: infoTab, story: selectedStory }));
+    } catch {
+      // Navigation continuity degrades safely to the URL when storage is unavailable.
+    }
+  }, [id, infoTab, selectedStory]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["components", "get", id],
@@ -134,11 +157,6 @@ export function ComponentDetailPage() {
     queryFn: () => adoptionsClient.listAdoptions({ componentId: id ?? "", limit: 0 }),
     enabled: Boolean(id),
   });
-  const suggestionsQuery = useQuery({
-    queryKey: ["adoptions", "suggestions", "component", id],
-    queryFn: () => adoptionsClient.suggestAdoptions({ componentId: id ?? "", limit: 8 }),
-    enabled: Boolean(id) && infoTab === "adoptions",
-  });
   const refreshMutation = useMutation({
     mutationFn: () => adoptionsClient.refreshAdoptions({ componentId: id ?? "" }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["adoptions", "component", id] }),
@@ -170,7 +188,7 @@ export function ComponentDetailPage() {
 
   const component = catalogAsset.data?.component ?? data.component;
   if (isHook(component)) {
-    return <HookWorkspace asset={component} onClose={() => { void navigate("/"); }} tab={infoTab} onTabChange={setInfoTab} />;
+    return <HookWorkspace asset={component} onClose={() => { void navigate("/"); }} tab={infoTab} onTabChange={setInfoTab} selectedStory={selectedStory} onSelectedStoryChange={(story) => setSearch(assetSearchForTab(infoTab, undefined, story), { replace: true })} />;
   }
   // Proto clients provide empty collections, while test and older persisted
   // projections can omit these optional-shaped values entirely.
@@ -180,7 +198,6 @@ export function ComponentDetailPage() {
   const dependencies = (component.dependencies as Array<{ libraryId: string; version: string }> | undefined) ?? [];
   const adoptions = adoptionsQuery.data?.adoptions ?? [];
   const selectedAdoption = adoptions.find((adoption) => adoption.id === selectedAdoptionID) ?? adoptions[0];
-  const suggestions = suggestionsQuery.data?.suggestions ?? [];
 
   return (
     <div data-testid="component-detail-page" className="flex min-h-0 flex-1 flex-col">
@@ -193,6 +210,8 @@ export function ComponentDetailPage() {
         selectedVersion={selectedVersion}
         activePane={paneForTab(infoTab)}
         onActivePaneChange={(pane) => setInfoTab(tabForPane(pane, infoTab))}
+        selectedStory={selectedStory}
+        onSelectedStoryChange={(story) => setSearch(assetSearchForTab(infoTab, undefined, story), { replace: true })}
         navigationSlot={<DetailTabs active={infoTab} onChange={setInfoTab} versionCount={component.metrics?.versionCount ?? 0} adoptionCount={component.metrics?.directAdoptionCount ?? adoptions.length} />}
         comparison={comparison}
         onCloseComparison={() => setComparison(null)}
@@ -216,7 +235,7 @@ export function ComponentDetailPage() {
               </section>
               <section className="rounded-lg border border-app-border bg-app-surface-muted p-3 text-sm text-app-foreground">
                 <h3 className="font-medium">{t("componentDetail.info.dependencies", { defaultValue: "Shared assets" })}</h3>
-                {dependencies.length === 0 ? <p className="mt-2 text-xs text-app-muted-foreground">{t("componentDetail.info.noDependencies", { defaultValue: "No shared assets declared." })}</p> : <ul className="mt-2 space-y-1 text-xs">{dependencies.map((dependency) => <li key={`${dependency.libraryId}@${dependency.version}`}><Link to={assetPath(dependency.libraryId)} className="font-mono text-app-primary underline-offset-2 hover:underline">{dependency.libraryId}</Link><span className="text-app-muted-foreground"> · {dependency.version}</span></li>)}</ul>}
+                {dependencies.length === 0 ? <p className="mt-2 text-xs text-app-muted-foreground">{t("componentDetail.info.noDependencies", { defaultValue: "No shared assets declared." })}</p> : <ul className="mt-2 space-y-1 text-xs">{dependencies.map((dependency) => <li key={`${dependency.libraryId}@${dependency.version}`}><Link to={assetPath(dependency.libraryId, { tab: infoTab })} className="font-mono text-app-primary underline-offset-2 hover:underline">{dependency.libraryId}</Link><span className="text-app-muted-foreground"> · {dependency.version}</span></li>)}</ul>}
               </section>
             </>}
             {infoTab === "tests" && <ComponentTestPanel componentId={component.id} version={selectedVersion ?? component.latestVersion ?? component.version} />}
@@ -225,12 +244,11 @@ export function ComponentDetailPage() {
               <div className="flex items-center justify-between"><h3 className="font-medium">{t("componentDetail.info.adoptions", { defaultValue: "Adoptions" })}</h3><Button size="sm" onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>{refreshMutation.isPending ? t(strings.adoptions.refreshing) : t(strings.adoptions.refreshAction)}</Button></div>
               {adoptionsQuery.isLoading ? <p className="text-xs text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : adoptions.length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No scenarios have adopted this component yet." })} /> : <div className="space-y-2">{adoptions.map((adoption) => <Button key={adoption.id} type="button" variant="secondary" onClick={() => setSelectedAdoptionID(adoption.id)} className={`h-auto w-full rounded-control border p-2 text-left ${selectedAdoption?.id === adoption.id ? "border-app-primary" : "border-app-border"}`}><div className="flex items-center justify-between gap-2"><span className="font-medium">{adoption.scenario}</span><StatusBadge tone={statusTone(adoption.libraryVersionStatus, adoption.localStatus)}>{statusLabel(adoption.libraryVersionStatus, adoption.localStatus)}</StatusBadge></div><p className="mt-1 font-mono text-xs text-app-muted-foreground">{adoption.adoptedVersion} · {adoption.adoptedPath}</p></Button>)}</div>}
               {selectedAdoption && <ul data-testid="component-detail-adoption-file-tree" className="space-y-1 rounded-control bg-app-background p-2 font-mono text-xs text-app-muted-foreground">{(selectedAdoption.files.length > 0 ? selectedAdoption.files.map((file) => file.adoptedPath) : [selectedAdoption.adoptedPath]).map((path) => <li key={path}>{path}</li>)}</ul>}
-              <div className="border-t border-app-border pt-3"><h3 className="font-medium">{t(strings.adoptions.suggestions.title)}</h3>{suggestionsQuery.isLoading ? <p className="mt-1 text-xs text-app-muted-foreground">{t("componentDetail.info.suggestionsLoading", { defaultValue: "Finding candidates…" })}</p> : <div className="mt-2 space-y-2">{suggestions.map((suggestion) => <div key={suggestion.scenario} className="rounded-control border border-app-border p-2"><p className="font-medium">{suggestion.scenario}</p><StatusBadge tone="neutral">{suggestion.classification === RecommendationClass.HEURISTIC ? t("adoptions.suggestions.heuristic", { defaultValue: "Heuristic candidate — review before adopting" }) : t("adoptions.suggestions.unavailable", { defaultValue: "Unavailable candidate" })}</StatusBadge><p className="mt-1 text-xs text-app-muted-foreground">{suggestion.reasons.join(" · ")}</p><Button size="sm" className="mt-2" onClick={() => setCreateTarget({ componentId: component.id, scenario: suggestion.scenario })}>{t(strings.adoptions.suggestions.adoptAction)}</Button></div>)}{suggestions.length === 0 && <p className="mt-1 text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.empty)}</p>}</div>}</div>
+              <AdoptionsCard componentId={component.id} suggestionsOnly />
             </section>}
           </div>
         )}
       />
-      <CreateAdoptionDialog open={Boolean(createTarget)} initial={createTarget} onClose={() => setCreateTarget(null)} />
     </div>
   );
 }

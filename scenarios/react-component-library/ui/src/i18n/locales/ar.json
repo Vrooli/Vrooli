@@ -9,7 +9,8 @@
     "openDrawer": "فتح التنقل",
     "closeDrawer": "إغلاق التنقل",
     "drawerLabel": "درج التنقل",
-    "settings": "الإعدادات"
+    "settings": "الإعدادات",
+    "browseAssets": "استعراض الأصول"
   },
   "theme": {
     "light": "السمة الفاتحة",
@@ -184,10 +185,10 @@
       "previewTimeout": "لم تُبلغ المعاينة أنها جاهزة قبل انتهاء المهلة.",
       "previewRetry": "إعادة المحاولة",
       "comparing": "تجري مقارنة النماذج المحددة",
-      "showAllSpecimens": "إظهار الكل",
-      "specimenStatus": "{{ready}} من {{total}} نماذج جاهزة",
-      "focusSpecimen": "تركيز",
-      "compareSpecimen": "مقارنة",
+      "showAllSpecimens": "إظهار كل القصص",
+      "specimenStatus": "{{ready}} من {{total}} قصص جاهزة",
+      "focusSpecimen": "تركيز القصة",
+      "compareSpecimen": "مقارنة القصة",
       "tryProps": "تجربة props",
       "tryPropsDescription": "هذا مؤقت لهذه العينة. يختفي عند إعادة تحميل المعاينة أو مغادرة المحرر.",
       "indexedPropsLabel": "props المفهرسة، قابلة للتحرير كـ JSON",

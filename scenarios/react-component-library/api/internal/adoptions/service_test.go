@@ -119,10 +119,16 @@ func (f *validationDeps) ValidateAdoption(context.Context, string, string, strin
 	return f.verdict, nil
 }
 
-type validationStyles struct{ calls int }
+type validationStyles struct {
+	calls   int
+	verdict components.StyleFitVerdict
+}
 
 func (f *validationStyles) ValidateStyleFit(context.Context, string, string, string) (components.StyleFitVerdict, error) {
 	f.calls++
+	if f.verdict.Kind != "" || f.verdict.Affinity != "" {
+		return f.verdict, nil
+	}
 	return components.StyleFitVerdict{Kind: components.StyleFitVerdictWarn}, nil
 }
 
@@ -573,6 +579,24 @@ func TestService_ApplyAndReapply_BlockDependencyVerdictsUnlessExplicitlyOverridd
 	require.NoError(t, err)
 	require.Equal(t, 4, dependency.calls)
 	require.Equal(t, 4, styles.calls)
+}
+
+func TestService_Apply_BlocksDiscouragedStyleUnlessExplicitlyOverridden(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{byID: map[string]components.Component{"cmp": {ID: "cmp", LibraryID: "rcl:Button", LatestVersion: "1.0.0"}}, body: map[string]string{"cmp": "export function Button() { return <button />; }"}}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC)))
+	styles := &validationStyles{verdict: components.StyleFitVerdict{Kind: components.StyleFitVerdictWarn, Affinity: components.DesignAffinityDiscouraged}}
+	adoptions.SetValidationGates(svc, &validationDeps{verdict: deps.Verdict{Kind: deps.VerdictOK}}, styles)
+
+	_, err := svc.Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx"})
+	var blocked adoptions.ErrAdoptionValidationBlocked
+	require.ErrorAs(t, err, &blocked)
+	require.Empty(t, files.bytes)
+
+	_, err = svc.Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", OverrideValidation: true})
+	require.NoError(t, err)
+	require.Equal(t, 2, styles.calls)
 }
 
 func TestService_Reapply_PersistsNewVersionAndSnapshot(t *testing.T) {

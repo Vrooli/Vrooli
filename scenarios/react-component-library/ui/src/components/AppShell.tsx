@@ -10,7 +10,7 @@
  * Replaces the starter centered-card layout: no `max-w-xl`, no eyebrow,
  * no card wrapping page-level content.
  */
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { SidebarShell } from "../../../library/components/SidebarShell/versions/1.1.0/SidebarShell";
@@ -26,6 +26,7 @@ import { CatalogBrowser } from "../features/catalog/CatalogBrowser";
 import { CreateComponentDialog } from "../features/components/CreateComponentDialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { ActionLauncher, type LauncherAction } from "./ActionLauncher";
 
 const SIDEBAR_STORAGE = "react-component-library.sidebar.width.v1";
 
@@ -43,7 +44,25 @@ export function AppShell({ children }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [launcherAction, setLauncherAction] = useState<LauncherAction>(null);
+  const [launcherAssetID, setLauncherAssetID] = useState("");
+  const [launcherTarget, setLauncherTarget] = useState("");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get("action");
+    if (requested === "create") {
+      setShowCreate(true);
+      setLauncherAction(null);
+      return;
+    }
+    if (requested === "extract" || requested === "adopt") {
+      setLauncherAssetID(params.get("assetId") ?? "");
+      setLauncherTarget(params.get("targetScenario") ?? "");
+      setLauncherAction(requested);
+    }
+  }, [location.search]);
 
   const { size: sidebarWidth, resizeHandleProps } = useResizablePanel({
     containerRef: shellRef,
@@ -119,6 +138,7 @@ export function AppShell({ children }: Props) {
         </main>
       </div>
       {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
+      <ActionLauncher action={launcherAction} onActionChange={setLauncherAction} onCreate={() => setShowCreate(true)} initialAssetID={launcherAssetID} initialTarget={launcherTarget} />
     </div>
     </ShellNavigationContext.Provider>
   );

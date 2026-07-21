@@ -9,7 +9,8 @@
     "openDrawer": "ナビゲーションを開く",
     "closeDrawer": "ナビゲーションを閉じる",
     "drawerLabel": "ナビゲーションドロワー",
-    "settings": "設定"
+    "settings": "設定",
+    "browseAssets": "アセットを閲覧"
   },
   "theme": {
     "light": "ライトテーマ",
@@ -180,10 +181,10 @@
       "previewTimeout": "タイムアウト前にプレビューの準備完了が報告されませんでした。",
       "previewRetry": "再試行",
       "comparing": "選択した表示例を比較中",
-      "showAllSpecimens": "すべて表示",
-      "specimenStatus": "{{total}} 件中 {{ready}} 件の表示例が準備完了",
-      "focusSpecimen": "フォーカス",
-      "compareSpecimen": "比較",
+      "showAllSpecimens": "すべてのストーリーを表示",
+      "specimenStatus": "{{total}} 件中 {{ready}} 件のストーリーが準備完了",
+      "focusSpecimen": "ストーリーにフォーカス",
+      "compareSpecimen": "ストーリーを比較",
       "tryProps": "props を試す",
       "tryPropsDescription": "この表示例だけの一時的な変更です。プレビューの再読み込みまたはエディターを離れると消えます。",
       "indexedPropsLabel": "インデックス済み props（JSON として編集可能）",

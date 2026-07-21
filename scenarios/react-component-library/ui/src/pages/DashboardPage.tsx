@@ -46,11 +46,10 @@ export function DashboardPage() {
       <h2 id="dashboard-welcome" className="mt-1 text-2xl font-semibold tracking-tight">{t("dashboard.review", { defaultValue: "Review attention items" })}</h2>
     </section>
 
-    <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       <Metric label={t("dashboard.assets", { defaultValue: "Assets" })} value={allAssets.length} />
       <Metric label={t("dashboard.adoptionCurrency", { defaultValue: "Adoption currency" })} value={allAdoptions.length - issueCount} />
       <Metric label={t("dashboard.needsReview", { defaultValue: "Need review" })} value={issueCount} tone={issueCount > 0 ? "warning" : "default"} />
-      <Metric label={t("dashboard.styleConflicts", { defaultValue: "Style conflicts" })} value={0} />
     </dl>
 
     <div className="grid gap-4 lg:grid-cols-2">

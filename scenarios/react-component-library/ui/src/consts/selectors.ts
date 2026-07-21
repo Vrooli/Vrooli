@@ -297,6 +297,13 @@ const literalSelectors = {
     shell: "app-shell",
     main: "app-main",
   },
+  launcher: {
+    open: "launcher-open",
+    menu: "launcher-menu",
+    extract: "launcher-extract",
+    adopt: "launcher-adopt",
+    create: "launcher-create",
+  },
   assets: {
     hookWorkspace: "hook-detail-page",
     hookOverviewTab: "hook-detail-overview-tab",
@@ -572,6 +579,15 @@ const literalSelectors = {
 // is a TypeScript error when "fr" isn't a supported locale. The runtime enum
 // validation in `normalizeParams` provides the same guarantee at call time.
 const dynamicSelectorDefinitions = {
+  components: {
+    editor: {
+      storyCard: defineDynamicSelector({
+        description: "Rendered component story card by canonical story id",
+        selectorPattern: '[data-testid="components-editor-example-card"][data-story="${story}"]',
+        params: { story: { type: "string" } },
+      }),
+    },
+  },
   preview: {
     select: defineDynamicSelector({
       description: "Preview harness native select control",

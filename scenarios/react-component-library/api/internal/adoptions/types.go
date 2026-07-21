@@ -20,6 +20,8 @@ package adoptions
 import (
 	"fmt"
 	"time"
+
+	"react-component-library/internal/components"
 )
 
 // LibraryVersionStatus tracks whether the adopted version is still the
@@ -144,9 +146,11 @@ type ApplyInput struct {
 // together. ImportSites is intentionally computed after the write so callers
 // receive the locations that now consume the adopted target.
 type ApplyResult struct {
-	Adoption    Adoption
-	WrittenPath string
-	ImportSites []string
+	Adoption         Adoption
+	WrittenPath      string
+	ImportSites      []string
+	StyleFitAffinity components.DesignAffinity
+	StyleFitDetail   string
 }
 
 type ReapplyInput struct {

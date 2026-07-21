@@ -229,6 +229,7 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory) string {
 	}
 	sb.WriteString(`
 <div id="preview-error" hidden></div>
+<pre id="rcl-story-result" hidden></pre>
 <script type="module">
 const componentModuleURL = "data:text/javascript;base64,`)
 	// Embedded module loaded as a data: URL keeps everything on one
@@ -413,6 +414,7 @@ window.addEventListener("message", (ev) => {
   post({ v: 1, t: "HELLO", caps: ["inspect"] });
 })();
 const errEl = document.getElementById("preview-error");
+const storyResultEl = document.getElementById("rcl-story-result");
 const showPreviewError = (message) => {
   errEl.hidden = false;
   errEl.textContent = message;
@@ -483,6 +485,14 @@ const assertPreviewExpectations = () => {
     failures.push("expect[" + index + "] unsupported kind " + (kind || "<missing>"));
   }
   if (failures.length > 0) throw new Error(failures.join("; "));
+};
+const reportStoryResult = (passed, failures) => {
+  const result = { passed, failures: Array.isArray(failures) ? failures : [] };
+  // The DOM mirror is consumed only by the server-owned headless runner; the
+  // normal iframe path continues to receive the typed postMessage below.
+  storyResultEl.textContent = JSON.stringify(result);
+  storyResultEl.hidden = true;
+  parent.postMessage({ type: "rcl-story-result", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", ...result }, "*");
 };
 const createNodeFactory = (React, Icons) => {
   const resolve = (value) => {
@@ -637,7 +647,12 @@ try {
 	  if (!node && previewStory.kind === "hook" && expectation.kind === "visible") node = document.querySelector("[data-rcl-hook-root]");
       if (expectation.kind === "notVisible") return visible(node) ? "expected target not to be visible" : "";
       if (expectation.kind === "visible" || expectation.kind === "text" || expectation.kind === "role") return visible(node) ? "" : "expected target to be visible";
-      if (expectation.kind === "attribute") return node && node.getAttribute(expectation.attribute || "") === expectation.value ? "" : "expected attribute value was not found";
+      if (expectation.kind === "attribute") {
+        const attribute = expectation.attribute || expectation.name || "";
+        if (!node) return "expected attribute value was not found";
+        if (expectation.value === undefined) return node.hasAttribute(attribute) ? "" : "expected attribute value was not found";
+        return node.getAttribute(attribute) === expectation.value ? "" : "expected attribute value was not found";
+      }
       return "unsupported expectation";
     };
     const runStory = async () => {
@@ -659,15 +674,21 @@ try {
       // React 18 may defer the commit past the first animation frame. Story
       // expectations run against the committed specimen, never the scheduling
       // frame that happened to follow root.render().
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      // A bounded timer is the fallback for headless Chrome, where animation
+      // frames may be throttled even after React has committed the root.
+      await new Promise((resolve) => setTimeout(resolve, 50));
       for (const expectation of previewStory.expect || []) {
         const message = expectationFailure(expectation);
         if (message) failures.push({ kind: "expect", expectation, message });
       }
-      parent.postMessage({ type: "rcl-story-result", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", passed: failures.length === 0, failures }, "*");
+      reportStoryResult(failures.length === 0, failures);
     };
     renderPreview({});
-    void runStory();
+    void runStory().then(() => {
+      parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, story: previewStory.name || "", version: previewStory.version || "" }, "*");
+    }).catch((error) => {
+      showPreviewError("preview: story execution failed - " + (error && error.stack || error));
+    });
     window.addEventListener("message", (ev) => {
       const data = ev && ev.data;
       if (!data || (data.type !== "rcl-preview-props-override" && data.type !== "rcl-preview-props-reset")) return;
@@ -690,14 +711,6 @@ try {
       renderPreview({});
       parent.postMessage({ type: "rcl-preview-props-reset", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "" }, "*");
     });
-    setTimeout(() => {
-      try {
-        assertPreviewExpectations();
-        parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, story: previewStory.name || "", version: previewStory.version || "" }, "*");
-      } catch (e) {
-        showPreviewError("preview: assertion failed - " + (e && e.stack || e));
-      }
-    }, 50);
   }
 } catch (e) {
   showPreviewError("preview: render failed - " + (e && e.stack || e));

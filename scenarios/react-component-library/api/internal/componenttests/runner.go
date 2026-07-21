@@ -77,10 +77,27 @@ type StoryReader interface {
 	ListStories(context.Context, components.StoryQuery) ([]components.ComponentStory, error)
 }
 
+// StoryExecution is the browser-observed outcome of one rendered story. The
+// runner intentionally consumes the preview harness result rather than
+// reimplementing DOM assertions in Go.
+type StoryExecution struct {
+	Passed   bool
+	Failures []string
+	Duration time.Duration
+}
+
+// StoryExecutor loads the production preview harness for one immutable story.
+// It is a narrow seam so runner tests can calibrate pass, fail, and no-mount
+// outcomes without starting a browser.
+type StoryExecutor interface {
+	ExecuteStory(context.Context, string, string, string) (StoryExecution, error)
+}
+
 type Runner struct {
-	Assets  components.DependencyReader
-	Stories StoryReader
-	Now     func() time.Time
+	Assets   components.DependencyReader
+	Stories  StoryReader
+	Executor StoryExecutor
+	Now      func() time.Time
 }
 
 // Run performs the deterministic, safe pre-harness stages. Browser and React
@@ -148,13 +165,36 @@ func (r Runner) directStoryResults(ctx context.Context, asset components.Compone
 	}
 	results := []Result{{Stage: StageContract, AssetLibraryID: asset.LibraryID, Version: version.Version, Verdict: VerdictPassed, Message: "validated story contract accepted"}}
 	for _, definition := range story.Stories {
-		message := "declared component story accepted for preview and runner"
-		if asset.AssetKind == components.AssetKindHook {
-			message = "declared hook fixture accepted for runner"
+		if r.Executor == nil {
+			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictBlocked, Message: "story executor is not configured", Remediation: "configure the preview harness executor before trusting story results"})
+			continue
 		}
-		results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictPassed, Message: message})
+		execution, err := r.Executor.ExecuteStory(ctx, asset.LibraryID, version.Version, definition.ID)
+		if err != nil {
+			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictFailed, Message: "story did not render: " + err.Error(), Remediation: "fix the preview harness or story mount before adopting this version"})
+			continue
+		}
+		message := fmt.Sprintf("rendered story assertion completed in %s", execution.Duration.Round(time.Millisecond))
+		if !execution.Passed {
+			message = strings.Join(execution.Failures, "; ")
+			if message == "" {
+				message = "story assertions failed"
+			}
+		}
+		verdict := VerdictPassed
+		if !execution.Passed {
+			verdict = VerdictFailed
+		}
+		results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: verdict, Message: message, Remediation: remediationFor(verdict)})
 	}
 	return results, []Artifact{{Kind: "story-contract", Label: "story.json", AssetLibraryID: asset.LibraryID, Version: version.Version, Reference: asset.LibraryID + "@" + version.Version + ":story.json"}}, nil
+}
+
+func remediationFor(verdict Verdict) string {
+	if verdict == VerdictFailed {
+		return "fix the rendered story expectation or component behavior"
+	}
+	return ""
 }
 
 func staticSourceResult(asset components.Component, version components.ComponentVersion) Result {

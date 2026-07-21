@@ -136,4 +136,21 @@ describe("AppShell", () => {
     expect(shell.className).toContain("pb-safe");
     expect(screen.getByTestId("sidebar-shell-backdrop")).toBeInTheDocument();
   });
+
+  it("opens the shared main-actions menu and exposes all three guided actions", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Routes><Route element={<AppShell />}><Route path="/" element={<div>page</div>} /></Route></Routes>, { routerEntries: ["/"] });
+    await user.click(screen.getByRole("button", { name: "launcher.open" }));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "launcher.extract" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "launcher.adopt" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "launcher.create" })).toBeInTheDocument();
+  });
+
+  it("opens the requested action from a PWA deep link", () => {
+    renderWithProviders(<Routes><Route element={<AppShell />}><Route path="/" element={<div>page</div>} /></Route></Routes>, { routerEntries: ["/?action=adopt&assetId=cmp-1&targetScenario=demo"] });
+    expect(screen.getByRole("dialog", { name: "launcher.adopt" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("cmp-1")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("demo")).toBeInTheDocument();
+  });
 });

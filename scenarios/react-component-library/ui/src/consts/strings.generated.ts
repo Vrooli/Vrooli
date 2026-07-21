@@ -22,6 +22,7 @@ export const strings = {
     closeDrawer: "nav.closeDrawer",
     drawerLabel: "nav.drawerLabel",
     settings: "nav.settings",
+    browseAssets: "nav.browseAssets",
   },
   theme: {
     light: "theme.light",

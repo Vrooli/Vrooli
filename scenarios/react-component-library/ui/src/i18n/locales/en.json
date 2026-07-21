@@ -9,7 +9,8 @@
     "openDrawer": "Open navigation",
     "closeDrawer": "Close navigation",
     "drawerLabel": "Navigation drawer",
-    "settings": "Settings"
+    "settings": "Settings",
+    "browseAssets": "Browse assets"
   },
   "theme": {
     "light": "Light theme",
@@ -183,15 +184,15 @@
       "previewFailed": "Preview failed to render.",
       "previewTimeout": "Preview did not report ready before the timeout.",
       "previewRetry": "Retry",
-      "comparing": "Comparing selected specimens",
-      "showAllSpecimens": "Show all",
-      "specimenStatus": "{{ready}} of {{total}} specimens ready",
-      "focusSpecimen": "Focus",
-      "compareSpecimen": "Compare",
+      "comparing": "Comparing selected stories",
+      "showAllSpecimens": "Show all stories",
+      "specimenStatus": "{{ready}} of {{total}} stories ready",
+      "focusSpecimen": "Focus story",
+      "compareSpecimen": "Compare story",
       "tryProps": "Try props",
-      "tryPropsDescription": "Temporary for this specimen. It disappears when the preview reloads or you leave the editor.",
+      "tryPropsDescription": "Temporary for this story. It disappears when the preview reloads or you leave the editor.",
       "indexedPropsLabel": "Indexed props, editable as JSON",
-      "propsApplied": "Applied to this specimen",
+      "propsApplied": "Applied to this story",
       "applyTemporaryProps": "Apply temporary props",
       "applyingProps": "Applying…",
       "resetIndexedProps": "Reset to indexed props",
@@ -206,7 +207,7 @@
     },
     "themeSwitcher": {
       "appearanceLabel": "Appearance & visual checks",
-      "appearanceDescription": "Choose a color mode, token source, and visual simulation for every specimen in this preview session.",
+      "appearanceDescription": "Choose a color mode, token source, and visual simulation for every story in this preview session.",
       "modeLabel": "Color scheme",
       "modeDescription": "System follows the app setting. Light and Dark force the preview's resolved color mode.",
       "mode": {

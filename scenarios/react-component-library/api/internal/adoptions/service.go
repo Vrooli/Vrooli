@@ -290,7 +290,8 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	if version == "" {
 		return ApplyResult{}, ErrInvalidAdoption{Field: "version", Reason: "component has no latest version"}
 	}
-	if err := s.validateAdoption(ctx, in.ComponentID, version, in.Scenario, in.OverrideValidation); err != nil {
+	styleFit, err := s.validateAdoption(ctx, in.ComponentID, version, in.Scenario, in.OverrideValidation)
+	if err != nil {
 		return ApplyResult{}, err
 	}
 	exists, err := s.files.Exists(ctx, in.Scenario, in.AdoptedPath)
@@ -371,7 +372,12 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	return ApplyResult{Adoption: root, WrittenPath: written, ImportSites: importSites}, nil
+	result := ApplyResult{Adoption: root, WrittenPath: written, ImportSites: importSites}
+	if styleFit != nil {
+		result.StyleFitAffinity = styleFit.Affinity
+		result.StyleFitDetail = styleFit.Detail
+	}
+	return result, nil
 }
 
 type adoptionPlan struct {
@@ -535,7 +541,7 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		}
 		version = firstNonEmpty(cmp.LatestVersion, cmp.Version, row.AdoptedVersion)
 	}
-	if err := s.validateAdoption(ctx, row.ComponentID, version, row.Scenario, in.OverrideValidation); err != nil {
+	if _, err := s.validateAdoption(ctx, row.ComponentID, version, row.Scenario, in.OverrideValidation); err != nil {
 		return Adoption{}, "", err
 	}
 	v, err := s.library.GetVersion(ctx, row.ComponentID, version)
@@ -574,28 +580,32 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 }
 
 // validateAdoption deliberately executes both checks before deciding whether
-// a blocking dependency verdict is allowed. Style-fit currently communicates
-// compatibility as ok/info/warn, while dependency validation owns the
-// blocking verdict. An override only bypasses that block; it never bypasses
-// execution of either server-side validation.
-func (s *service) validateAdoption(ctx context.Context, componentID, version, scenario string, override bool) error {
+// either blocking verdict is allowed. A discouraged style affinity is an
+// explicit incompatibility, not advisory copy: applying it without an
+// operator override would silently undermine the catalog's style contract.
+// An override never bypasses execution of either server-side validation.
+func (s *service) validateAdoption(ctx context.Context, componentID, version, scenario string, override bool) (*components.StyleFitVerdict, error) {
 	blocked := false
 	if s.deps != nil {
 		verdict, err := s.deps.ValidateAdoption(ctx, componentID, version, scenario)
 		if err != nil {
-			return fmt.Errorf("validate adoption dependencies: %w", err)
+			return nil, fmt.Errorf("validate adoption dependencies: %w", err)
 		}
 		blocked = verdict.Kind == deps.VerdictBlock
 	}
+	var styleFit *components.StyleFitVerdict
 	if s.styles != nil {
-		if _, err := s.styles.ValidateStyleFit(ctx, componentID, version, scenario); err != nil {
-			return fmt.Errorf("validate adoption style fit: %w", err)
+		verdict, err := s.styles.ValidateStyleFit(ctx, componentID, version, scenario)
+		if err != nil {
+			return nil, fmt.Errorf("validate adoption style fit: %w", err)
 		}
+		styleFit = &verdict
+		blocked = blocked || verdict.Affinity == components.DesignAffinityDiscouraged
 	}
 	if blocked && !override {
-		return ErrAdoptionValidationBlocked{ComponentID: componentID, Version: version, Scenario: scenario}
+		return styleFit, ErrAdoptionValidationBlocked{ComponentID: componentID, Version: version, Scenario: scenario}
 	}
-	return nil
+	return styleFit, nil
 }
 
 func (s *service) List(ctx context.Context, q ListQuery) ([]Adoption, error) {

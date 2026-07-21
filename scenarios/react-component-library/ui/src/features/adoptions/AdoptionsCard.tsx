@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "../../components/ui/button";
 import {
@@ -18,7 +19,6 @@ import {
   LibraryVersionStatus,
   LocalStatus,
   type Adoption,
-  type AdoptionSuggestion,
 } from "../../api/adoptions";
 import { errorMessage } from "../../lib/errorMessage";
 import { CreateAdoptionDialog } from "./CreateAdoptionDialog";
@@ -128,12 +128,12 @@ function refreshedAtLabel(adoption: Adoption, t: ReturnType<typeof useTranslatio
  * library component → target scenario mapping plus its drift status.
  * Surface for req 08 (AD-001..AD-003).
  */
-export function AdoptionsCard({ componentId }: { componentId?: string }) {
+export function AdoptionsCard({ componentId, suggestionsOnly = false }: { componentId?: string; suggestionsOnly?: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [scenario, setScenario] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [suggestion, setSuggestion] = useState<AdoptionSuggestion | null>(null);
+  const navigate = useNavigate();
 
   const adoptionsQuery = useQuery({
     queryKey: ["adoptions", { scenario, componentId }],
@@ -278,6 +278,11 @@ export function AdoptionsCard({ componentId }: { componentId?: string }) {
     },
   ];
 
+  if (suggestionsOnly) {
+    const suggestions = suggestionsQuery.data?.suggestions ?? [];
+    return <section data-testid="adoption-suggestions" className="rounded-panel border border-app-border bg-app-surface p-4"><h3 className="text-sm font-semibold text-app-foreground">{t(strings.adoptions.suggestions.title)}</h3><p className="mt-1 text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.subtitle)}</p><div className="mt-3 space-y-2">{suggestions.map((item) => <article key={`${item.scenario}-${item.componentId}`} className="flex items-start justify-between gap-3 rounded-control border border-app-border p-3 text-xs"><div><div className="font-medium text-app-foreground">{item.displayName} <span className="text-app-muted-foreground">→ {item.scenario}</span></div><StatusBadge tone="neutral">{item.classification === 1 ? t("adoptions.suggestions.heuristic", { defaultValue: "Heuristic candidate — review before adopting" }) : t("adoptions.suggestions.unavailable", { defaultValue: "Unavailable candidate" })}</StatusBadge><ul className="mt-1 list-disc space-y-0.5 ps-4 text-app-muted-foreground">{item.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div><Button size="sm" onClick={() => void navigate(`/?action=adopt&assetId=${encodeURIComponent(item.componentId)}&targetScenario=${encodeURIComponent(item.scenario)}`)}>{t(strings.adoptions.suggestions.adoptAction)}</Button></article>)}{!suggestionsQuery.isLoading && suggestions.length === 0 && <p className="text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.empty)}</p>}</div></section>;
+  }
+
   const filters: Array<DataTableFilter<Adoption>> = [
     {
       id: "all",
@@ -421,15 +426,15 @@ export function AdoptionsCard({ componentId }: { componentId?: string }) {
               <div>
                 <div className="font-medium text-app-foreground">{item.displayName} <span className="text-app-muted-foreground">→ {item.scenario}</span></div>
                 <p className="mt-1 text-app-muted-foreground">{item.classification === 1 ? t("adoptions.suggestions.heuristic", { defaultValue: "Heuristic candidate — review before adopting" }) : t("adoptions.suggestions.unavailable", { defaultValue: "Unavailable candidate" })}</p>
-                <p className="mt-1 text-app-muted-foreground">{item.reasons.join(" · ")}</p>
+                <ul className="mt-1 list-disc space-y-0.5 ps-4 text-app-muted-foreground">{item.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
               </div>
-              <Button size="sm" onClick={() => { setSuggestion(item); setCreateOpen(true); }}>{t(strings.adoptions.suggestions.adoptAction)}</Button>
+              <Button size="sm" onClick={() => void navigate(`/?action=adopt&assetId=${encodeURIComponent(item.componentId)}&targetScenario=${encodeURIComponent(item.scenario)}`)}>{t(strings.adoptions.suggestions.adoptAction)}</Button>
             </div>
           ))}
           {!suggestionsQuery.isLoading && (suggestionsQuery.data?.suggestions.length ?? 0) === 0 && <p className="text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.empty)}</p>}
         </div>
       </section>
-      <CreateAdoptionDialog open={createOpen} initial={suggestion ? { componentId: suggestion.componentId, scenario: suggestion.scenario } : null} onClose={() => { setCreateOpen(false); setSuggestion(null); }} />
+      <CreateAdoptionDialog open={createOpen} initial={null} onClose={() => setCreateOpen(false)} />
     </section>
   );
 }

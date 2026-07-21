@@ -82,9 +82,6 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 	if err != nil {
 		return Bundle{}, err
 	}
-	if asset.AssetKind == components.AssetKindHook {
-		return Bundle{}, ErrNotRenderable{AssetID: asset.ID, LibraryID: asset.LibraryID}
-	}
 	// Resolve the complete pinned asset graph before bundling. Relative imports
 	// remain bundled from the catalog source tree, while this explicit check
 	// prevents previewing a component whose declared hook/component closure is
@@ -128,18 +125,6 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 		Warnings:     warnings,
 		Dependencies: declarations,
 	}, nil
-}
-
-// ErrNotRenderable makes hook preview rejection explicit. Hooks are
-// first-class assets but do not have a React render surface; callers should
-// inspect their versioned source and adopt them through a component closure.
-type ErrNotRenderable struct {
-	AssetID   string
-	LibraryID string
-}
-
-func (e ErrNotRenderable) Error() string {
-	return fmt.Sprintf("asset %q is a hook and cannot be previewed; inspect its source or select a consuming component", e.LibraryID)
 }
 
 // ErrBundle wraps an esbuild failure with the diagnostics esbuild
