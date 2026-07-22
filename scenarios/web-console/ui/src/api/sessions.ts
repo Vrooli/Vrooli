@@ -56,6 +56,7 @@ export interface SessionInfo {
   owner: string;
   /** Human-facing label set by the creator (empty when unset). */
   display_label: string;
+  tracking_degraded?: boolean;
 }
 
 export interface PolicyResponse {
@@ -88,6 +89,9 @@ export interface RecoverableSession {
   last_rollout_path?: string;
   recoverable: boolean;
   not_recoverable_reason?: string;
+  pane_name?: string;
+  header_color?: string;
+  group_name?: string;
 }
 
 export interface RecoverResult {
@@ -116,6 +120,7 @@ type ProtoSession = {
   origin?: SessionOrigin;
   owner?: string;
   displayLabel?: string;
+  trackingDegraded?: boolean;
 };
 
 type ProtoRecoverable = {
@@ -134,6 +139,9 @@ type ProtoRecoverable = {
   lastRolloutPath: string;
   recoverable: boolean;
   notRecoverableReason: string;
+  paneName: string;
+  headerColor: string;
+  groupName: string;
 };
 
 type ProtoPolicyView = {
@@ -190,6 +198,7 @@ function decodeSession(s: ProtoSession | undefined): SessionInfo {
     origin: originName(s?.origin),
     owner: s?.owner ?? "",
     display_label: s?.displayLabel ?? "",
+    ...(s?.trackingDegraded ? { tracking_degraded: true } : {}),
   };
 }
 
@@ -210,6 +219,9 @@ function decodeRecoverable(r: ProtoRecoverable): RecoverableSession {
     last_rollout_path: r.lastRolloutPath || undefined,
     recoverable: r.recoverable,
     not_recoverable_reason: r.notRecoverableReason || undefined,
+    pane_name: r.paneName || undefined,
+    header_color: r.headerColor || undefined,
+    group_name: r.groupName || undefined,
   };
 }
 
@@ -316,8 +328,11 @@ export async function listRecoverableSessions(): Promise<RecoverableSession[]> {
   return resp.sessions.map(decodeRecoverable);
 }
 
-export async function recoverSession(oldId: string): Promise<RecoverResult> {
-  const resp = await sessionsClient.recover({ id: oldId });
+export async function recoverSession(oldId: string, idempotencyKey?: string): Promise<RecoverResult> {
+  const resp = await sessionsClient.recover(
+    { id: oldId },
+    idempotencyKey ? { headers: { "X-Idempotency-Key": idempotencyKey } } : undefined,
+  );
   return {
     old_session_id: resp.oldSessionId,
     new_session_id: resp.newSessionId,

@@ -65,6 +65,20 @@ func TestBuildTmuxNewSessionArgs_NoEnvIsUnchanged(t *testing.T) {
 	}
 }
 
+func TestTmuxPTYFactory_UsesLaunchSpecWorkingDir(t *testing.T) {
+	spec := pty.LaunchSpec{
+		SessionID:  "cwd-override",
+		Shell:      "/bin/sh",
+		Cols:       80,
+		Rows:       24,
+		WorkingDir: "/recovered/project",
+	}
+	got := buildTmuxNewSessionArgs("wc-cwd-override", spec.WorkingDir, spec)
+	if got[5] != "/recovered/project" {
+		t.Fatalf("tmux working dir = %q, want recovered cwd", got[5])
+	}
+}
+
 // TestTmuxPTYFactory_PropagatesSessionEnvIntoPane is the end-to-end
 // guarantee for mid-session attribution inside tmux: a pane running in
 // this session must see WC_WEB_CONSOLE_SESSION_ID set to THIS session's

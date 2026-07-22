@@ -372,6 +372,17 @@ func (s *ConversationStore) ListSession(sessionID string) ConversationSessionSta
 	return state
 }
 
+// HasConversationAfter reports whether tracking recorded an event after the
+// supplied instant. It is used by the recovered-session health signal.
+func (s *ConversationStore) HasConversationAfter(sessionID string, after time.Time) bool {
+	for _, event := range s.ListSession(sessionID).Events {
+		if event.CreatedAt.After(after) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *ConversationStore) UpdateCursor(sessionID string, patch conversationCursorPatch) ConversationCursor {
 	cursor, err := s.repository.UpdateCursor(sessionID, patch)
 	if err != nil {

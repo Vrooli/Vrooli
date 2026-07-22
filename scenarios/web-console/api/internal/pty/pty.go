@@ -73,7 +73,10 @@ type LaunchSpec struct {
 	Shell     string
 	Cols      uint16
 	Rows      uint16
-	Env       map[string]string
+	// WorkingDir overrides the configured default for this terminal. Recovery
+	// uses the orphan's recorded cwd so reattached work resumes in place.
+	WorkingDir string
+	Env        map[string]string
 }
 
 // Factory creates a PTY-backed process for the given launch spec. Inject

@@ -453,6 +453,9 @@ func tmuxCmdContext(ctx context.Context, args ...string) *exec.Cmd {
 func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	sessionName := tmuxSessionPrefix + spec.SessionID
 	workingDir := config.ResolveWorkingDir()
+	if strings.TrimSpace(spec.WorkingDir) != "" {
+		workingDir = spec.WorkingDir
+	}
 
 	// 1. Create detached tmux session with the target shell.
 	// We use systemd-run --scope to launch the tmux new-session command in

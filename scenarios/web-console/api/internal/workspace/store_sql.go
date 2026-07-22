@@ -166,6 +166,40 @@ func (s *SQLStore) DeletePane(sessionID string) error {
 	return nil
 }
 
+func (s *SQLStore) ReassignPane(oldSessionID, newSessionID string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin pane reassignment: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // rollback after commit is a no-op
+
+	// There is no customized state to migrate when the source pane is absent;
+	// retain the replacement's ordinary default pane in that case.
+	var sourceExists bool
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM workspace_panes WHERE session_id = ?)`, oldSessionID).Scan(&sourceExists); err != nil {
+		return fmt.Errorf("check source pane: %w", err)
+	}
+	if !sourceExists {
+		return tx.Commit()
+	}
+
+	// The generic create flow may already have inserted a default pane. Delete
+	// only that replacement row, then move every original field unchanged.
+	if _, err := tx.Exec(`DELETE FROM workspace_panes WHERE session_id = ?`, newSessionID); err != nil {
+		return fmt.Errorf("delete replacement pane: %w", err)
+	}
+	result, err := tx.Exec(`UPDATE workspace_panes SET session_id = ?, updated_at = ? WHERE session_id = ?`, newSessionID, FormatTime(time.Now()), oldSessionID)
+	if err != nil {
+		return fmt.Errorf("move original pane: %w", err)
+	}
+	if count, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("count moved pane: %w", err)
+	} else if count == 0 {
+		return nil
+	}
+	return tx.Commit()
+}
+
 func (s *SQLStore) CreateGroup(name, color string) (Group, error) {
 	if name == "" {
 		name = "Group"

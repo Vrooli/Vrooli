@@ -27,7 +27,7 @@ flowchart TD
     B -->|Non-zero| C[Warning: Command Failed]
     B -->|Zero| D{Output Contains?}
     D -->|"running"| E[OK: Scenario Healthy]
-    D -->|"not running"/"stopped"| F[Warning: Scenario Stopped]
+    D -->|not running or stopped| F[Warning: Scenario Stopped]
     D -->|Other| G[Warning: Unclear Status]
 ```
 

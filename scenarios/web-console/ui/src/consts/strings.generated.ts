@@ -276,6 +276,9 @@ export const strings = {
     reattachTitle: "recoverableSessions.reattachTitle",
     dismiss: "recoverableSessions.dismiss",
     dismissTitle: "recoverableSessions.dismissTitle",
+    view: "recoverableSessions.view",
+    reattachAll: "recoverableSessions.reattachAll",
+    dismissAll: "recoverableSessions.dismissAll",
   },
   sessionRecovery: {
     recovering: "sessionRecovery.recovering",

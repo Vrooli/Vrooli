@@ -251,6 +251,7 @@ type Server struct {
 	hookAuthToken        string
 	codexTailer          *CodexTailer
 	codexCheckpointStore CodexCheckpointStore
+	claudeTailer         *ClaudeTailer
 	grokTailer           *GrokTailer
 	opencodeWatcher      *OpenCodeWatcher
 	agentCheckpointStore AgentTranscriptCheckpointStore
@@ -547,6 +548,12 @@ func NewServer(db *sql.DB) *Server {
 	srv.codexTailer.Start()
 	log.Println("codex-tailer: started watching for per-session rollout files")
 
+	// Claude hooks deliver promptly when healthy; this cursor-backed reader is
+	// the durable fallback for resumed sessions and hook regressions.
+	srv.claudeTailer = NewClaudeTailer(srv)
+	srv.claudeTailer.Start()
+	log.Println("claude-tailer: started watching Claude transcripts")
+
 	// Start Grok transcript tailer (per-session GROK_HOME updates.jsonl).
 	srv.grokTailer = NewGrokTailer(srv)
 	srv.grokTailer.Start()
@@ -584,6 +591,7 @@ func (s *Server) setupRoutes() {
 		Conversations:    s.conversations,
 		CodexCheckpoints: s.codexCheckpointStore,
 		AgentCheckpoints: s.agentCheckpointStore,
+		Workspace:        s.workspace,
 		CopyCodexHome:    copyCodexHome,
 	}, nil).Mount(s.router)
 
@@ -1200,6 +1208,9 @@ func main() {
 			srv.sessions.StopReattachWatchdog()
 			if srv.codexTailer != nil {
 				srv.codexTailer.Stop()
+			}
+			if srv.claudeTailer != nil {
+				srv.claudeTailer.Stop()
 			}
 			if srv.grokTailer != nil {
 				srv.grokTailer.Stop()

@@ -240,19 +240,20 @@ func policyToProto(p Policy) *sessionsv1.ExpirationPolicy {
 
 func sessionToProto(s Session) *sessionsv1.Session {
 	return &sessionsv1.Session{
-		Id:              s.ID,
-		Shell:           s.Shell,
-		CreatedAt:       s.CreatedAt,
-		Cols:            int32(s.Cols),
-		Rows:            int32(s.Rows),
-		Backend:         s.Backend,
-		SurvivesRestart: s.SurvivesRestart,
-		Policy:          policyToProto(s.Policy),
-		Busy:            s.Busy,
-		Recovered:       s.Recovered,
-		Origin:          originToEnum(s.Origin),
-		Owner:           s.Owner,
-		DisplayLabel:    s.DisplayLabel,
+		Id:               s.ID,
+		Shell:            s.Shell,
+		CreatedAt:        s.CreatedAt,
+		Cols:             int32(s.Cols),
+		Rows:             int32(s.Rows),
+		Backend:          s.Backend,
+		SurvivesRestart:  s.SurvivesRestart,
+		Policy:           policyToProto(s.Policy),
+		Busy:             s.Busy,
+		Recovered:        s.Recovered,
+		Origin:           originToEnum(s.Origin),
+		Owner:            s.Owner,
+		DisplayLabel:     s.DisplayLabel,
+		TrackingDegraded: s.TrackingDegraded,
 	}
 }
 
@@ -311,6 +312,9 @@ func recoverableToProto(r RecoverableSession) *sessionsv1.RecoverableSession {
 		LastRolloutPath:      r.LastRolloutPath,
 		Recoverable:          r.Recoverable,
 		NotRecoverableReason: r.NotRecoverable,
+		PaneName:             r.PaneName,
+		HeaderColor:          r.HeaderColor,
+		GroupName:            r.GroupName,
 	}
 }
 

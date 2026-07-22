@@ -123,6 +123,13 @@ type Session struct {
 	idleWaiters []chan struct{}
 }
 
+// LastFrameAt returns the most recent non-empty terminal-output frame time.
+func (s *Session) LastFrameAt() time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastFrameAt
+}
+
 // SendInput delivers a typed SessionInput to the PTY through the single
 // applyInput seam. Thread-safe — the PTY reference may be swapped during
 // tmux re-attach.

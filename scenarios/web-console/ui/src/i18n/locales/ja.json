@@ -258,7 +258,10 @@
     "reattach": "再アタッチ",
     "reattachTitle": "新しいペインに再アタッチ",
     "dismiss": "閉じる",
-    "dismissTitle": "このオーファンをリストから非表示にする(ディスク上の状態は保持)"
+    "dismissTitle": "このオーファンをリストから非表示にする(ディスク上の状態は保持)",
+    "view": "表示",
+    "reattachAll": "すべて再アタッチ",
+    "dismissAll": "すべて閉じる"
   },
   "sessionRecovery": {
     "recovering": "セッションを復元中… {{recovered}}/{{total}}",

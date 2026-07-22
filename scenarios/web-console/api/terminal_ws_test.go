@@ -49,6 +49,30 @@ func createTestSession(t *testing.T, ts *httptest.Server, srv *Server) string {
 	return sess.ID
 }
 
+// The API serves terminal sockets through Server.Handler in production, not
+// directly through the mux. Keep this path covered: response-writer middleware
+// must preserve http.Hijacker or gorilla/websocket cannot complete an upgrade.
+func TestTerminalWS_FullHandlerStackSupportsWebSocketUpgrade(t *testing.T) {
+	srv := newFakeTestServer()
+	srv.setupRoutes()
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL(ts, "/api/v1/sessions/"+sess.ID+"/ws"), nil)
+	if err != nil {
+		if resp != nil {
+			t.Fatalf("dial terminal websocket through full handler: status=%d: %v", resp.StatusCode, err)
+		}
+		t.Fatalf("dial terminal websocket through full handler: %v", err)
+	}
+	defer conn.Close()
+}
+
 // [REQ:P0-002b] WebSocket I/O Streaming - session not found returns 404
 func TestHandleTerminalWS_SessionNotFound(t *testing.T) {
 	srv := newFakeTestServer()

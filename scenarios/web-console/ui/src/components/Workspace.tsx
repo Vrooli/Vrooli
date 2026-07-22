@@ -170,6 +170,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   })));
   const workspacePanes = workspace.panes;
   const activeWorkspacePane = workspace.activePane;
+  const activeSessionTrackingDegraded = sessionPanes.find((pane) => pane.session.id === workspace.activePane)?.session.tracking_degraded;
   const addWorkspacePane = workspace.addPane;
   const addWorkspacePaneToGroup = workspace.addPaneToGroup;
   const removeWorkspacePane = workspace.removePane;
@@ -1442,6 +1443,11 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
             pendingActivePaneRef.current = result.new_session_id;
           }}
         />
+        {activeSessionTrackingDegraded && activeViewMode === "messages" && (
+          <div role="status" className="border-b border-amber-700/40 bg-amber-900/20 px-3 py-1 text-xs text-amber-100">
+            Conversation tracking may be delayed for this recovered Claude session. Terminal activity is continuing.
+          </div>
+        )}
 
         {/* Tab bar (only in tabs mode) */}
         {workspace.displayMode === "tabs" && (

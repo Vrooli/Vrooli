@@ -203,7 +203,7 @@
           "requiredBy": ["monetizable"],
           "completion": "conditional",
           "condition": "Required when the scenario is evaluated as a product, SKU component, add-on, or service accelerator.",
-          "ownerSkills": ["monetization-signal-classifier"]
+          "ownerSkills": ["signal-classifier"]
         },
         {
           "path": "business/GO-TO-MARKET.md",
@@ -217,7 +217,7 @@
           "requiredBy": ["monetizable"],
           "completion": "conditional",
           "condition": "Required when the scenario has a market-facing use case or monetization hypothesis.",
-          "ownerSkills": ["marketing-signal-classifier"]
+          "ownerSkills": ["signal-classifier"]
         }
       ]
     },

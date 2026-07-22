@@ -69,7 +69,7 @@ func TestGlossarySearchNoMatch(t *testing.T) {
 // TestSetupOrder verifies GET /api/v1/setup-order returns dependency-sorted resources.
 // [REQ:REQ-P2-001] - Setup Order Algorithm
 func TestSetupOrder(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres, testResRedis, testResJudge0})
+	srv := newTestServer(t, []map[string]string{testResPostgres, testResRedis, testResNextcloud})
 
 	w := doGet(t, srv, "/api/v1/setup-order")
 	requireStatus(t, w, http.StatusOK)
@@ -82,8 +82,8 @@ func TestSetupOrder(t *testing.T) {
 		t.Fatalf("expected 3 ordered resources, got %v", resp["setup_order"])
 	}
 
-	// postgres and redis should come before judge0 (which depends on both).
-	var postgresOrder, redisOrder, judge0Order float64
+	// postgres and redis should come before nextcloud (which depends on both).
+	var postgresOrder, redisOrder, nextcloudOrder float64
 	for _, item := range order {
 		entry := item.(map[string]any)
 		if entry["name"] == "postgres" {
@@ -92,20 +92,20 @@ func TestSetupOrder(t *testing.T) {
 		if entry["name"] == "redis" {
 			redisOrder = entry["order"].(float64)
 		}
-		if entry["name"] == "judge0" {
-			judge0Order = entry["order"].(float64)
+		if entry["name"] == "nextcloud" {
+			nextcloudOrder = entry["order"].(float64)
 		}
 	}
 
-	if postgresOrder >= judge0Order || redisOrder >= judge0Order {
-		t.Errorf("postgres (order=%v) and redis (order=%v) should come before judge0 (order=%v)", postgresOrder, redisOrder, judge0Order)
+	if postgresOrder >= nextcloudOrder || redisOrder >= nextcloudOrder {
+		t.Errorf("postgres (order=%v) and redis (order=%v) should come before nextcloud (order=%v)", postgresOrder, redisOrder, nextcloudOrder)
 	}
 }
 
 // TestSetupOrderCircularDeps verifies handling of circular dependencies.
 // [REQ:REQ-P2-001] - Setup Order Algorithm
 func TestSetupOrderCircularDeps(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResJudge0})
+	srv := newTestServer(t, []map[string]string{testResNextcloud})
 
 	w := doGet(t, srv, "/api/v1/setup-order")
 	requireStatus(t, w, http.StatusOK)
@@ -113,7 +113,7 @@ func TestSetupOrderCircularDeps(t *testing.T) {
 	var resp map[string]any
 	decodeJSON(t, w, &resp)
 
-	// judge0 depends on postgres and redis which aren't available,
+	// nextcloud depends on postgres and redis which aren't available,
 	// but it should still appear in the order
 	order, ok := resp["setup_order"].([]any)
 	if !ok || len(order) == 0 {

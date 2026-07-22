@@ -36,6 +36,7 @@ func newSessionsConnectHandlerForServer(srv *Server) sessionsConnectIface {
 		Metrics:          srv.metrics,
 		Conversations:    srv.conversations,
 		CodexCheckpoints: srv.codexCheckpointStore,
+		Workspace:        srv.workspace,
 		CopyCodexHome:    copyCodexHome,
 	}})
 }

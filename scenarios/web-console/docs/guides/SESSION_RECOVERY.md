@@ -63,7 +63,9 @@ web-console session dismiss 8a10aa94-29d1-472d-a910-7a5548a7ca35
 
 ## UI Surface
 
-When the API has any `awaiting_recovery` rows, the workspace shows an amber banner above the tab strip listing the orphans. Each row has `Reattach` (calls `POST /api/v1/sessions/{id}/recover`) and `Dismiss` buttons. Claude rows without a known `agent_session_id` render with `Reattach` disabled — `claude --resume` against the wrong project is unsafe and not auto-guessed.
+When the API has any `awaiting_recovery` rows, the workspace shows a compact amber summary above the tab strip. Select **View** to open a drawer containing each orphan's pane name, header color, group, agent, and working directory. **Reattach all** processes rows sequentially and continues after an individual failure; every row uses a stable `X-Idempotency-Key`, so an ambiguous network retry cannot create a duplicate replacement pane. Claude rows without a known `agent_session_id` render with `Reattach` disabled — `claude --resume` against the wrong project is unsafe and not auto-guessed.
+
+Recovery moves the original workspace-pane record to the replacement session in the same SQLite transaction: name, header color, group, ordering, active state, theme, font size, and message-view capability are retained. The replacement inherits the original working directory as well.
 
 ## Storage Locations
 

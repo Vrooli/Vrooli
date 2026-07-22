@@ -239,6 +239,17 @@ func (sm *Manager) isSessionLimitReached() bool {
 // Create starts a new shell session with a PTY.
 // [REQ:P0-002a] PTY Session Backend
 func (sm *Manager) Create(shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy) (*Session, error) {
+	return sm.create(shell, cols, rows, bid, pol, "")
+}
+
+// CreateWithWorkingDir starts a session in workingDir when non-empty. It is
+// intentionally separate from Create so existing create paths retain their
+// configured-default behavior.
+func (sm *Manager) CreateWithWorkingDir(shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string) (*Session, error) {
+	return sm.create(shell, cols, rows, bid, pol, workingDir)
+}
+
+func (sm *Manager) create(shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string) (*Session, error) {
 	shell, cols, rows = sm.applySessionDefaults(shell, cols, rows)
 
 	// Resolve backend (read default under lock to avoid data race with settings handler)
@@ -277,11 +288,12 @@ func (sm *Manager) Create(shell string, cols, rows uint16, bid backend.ID, pol *
 
 	sessionID := uuid.New().String()
 	spec := pty.LaunchSpec{
-		SessionID: sessionID,
-		Shell:     shell,
-		Cols:      cols,
-		Rows:      rows,
-		Env:       sm.envForSession(sessionID),
+		SessionID:  sessionID,
+		Shell:      shell,
+		Cols:       cols,
+		Rows:       rows,
+		WorkingDir: workingDir,
+		Env:        sm.envForSession(sessionID),
 	}
 
 	p, err := factory(spec)

@@ -117,6 +117,23 @@ func (m *MemStore) DeletePane(sessionID string) error {
 	return nil
 }
 
+func (m *MemStore) ReassignPane(oldSessionID, newSessionID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	old, ok := m.panes[oldSessionID]
+	if !ok {
+		return nil
+	}
+	delete(m.panes, newSessionID)
+	copy := *old
+	copy.SessionID = newSessionID
+	copy.UpdatedAt = FormatTime(time.Now())
+	m.panes[newSessionID] = &copy
+	delete(m.panes, oldSessionID)
+	return nil
+}
+
 func (m *MemStore) CreateGroup(name, color string) (Group, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

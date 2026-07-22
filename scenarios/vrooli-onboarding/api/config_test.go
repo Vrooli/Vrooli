@@ -122,13 +122,13 @@ func TestConfigValidate(t *testing.T) {
 	}
 }
 
-// TestConfigValidateWithDependencyWarnings verifies dependency warnings (judge0 without redis).
+// TestConfigValidateWithDependencyWarnings verifies dependency warnings for a resource with missing dependencies.
 // [REQ:REQ-P0-005] - Config Validation
 func TestConfigValidateWithDependencyWarnings(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResJudge0, testResPostgres})
+	srv := newTestServer(t, []map[string]string{testResNextcloud, testResPostgres})
 
 	w := doPost(t, srv, "/api/v1/config/validate",
-		`{"resources": {"judge0": {"enabled": true, "name": "judge0"}}}`)
+		`{"resources": {"nextcloud": {"enabled": true, "name": "nextcloud"}}}`)
 	requireStatus(t, w, http.StatusOK)
 
 	var resp map[string]any
@@ -150,14 +150,14 @@ func TestConfigValidateWithDependencyWarnings(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if result["resource"] == "judge0" {
+		if result["resource"] == "nextcloud" {
 			if warnings, ok := result["warnings"].([]any); ok && len(warnings) > 0 {
 				foundWarning = true
 			}
 		}
 	}
 	if !foundWarning {
-		t.Error("expected dependency warning for judge0 without redis enabled")
+		t.Error("expected dependency warning for nextcloud without redis enabled")
 	}
 }
 
@@ -249,14 +249,14 @@ func TestConfigValidateMultipleDependencyWarnings(t *testing.T) {
 	srv := newTestServer(t, []map[string]string{
 		testResPostgres, testResRedis,
 		{
-			"name": "judge0", "status": "running",
+			"name": "nextcloud", "status": "running",
 			"installed": "true", "last_updated": "2026-01-01T00:00:00Z",
 		},
 	})
 
-	// judge0 depends on postgres and redis - enable judge0 without them
+	// nextcloud depends on postgres and redis - enable nextcloud without them
 	w := doPost(t, srv, "/api/v1/config/validate",
-		`{"resources": {"judge0": {"enabled": true, "name": "judge0"}}}`)
+		`{"resources": {"nextcloud": {"enabled": true, "name": "nextcloud"}}}`)
 	requireStatus(t, w, http.StatusOK)
 
 	var resp map[string]any
@@ -272,16 +272,16 @@ func TestConfigValidateMultipleDependencyWarnings(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if result["resource"] == "judge0" {
+		if result["resource"] == "nextcloud" {
 			warnings, ok := result["warnings"].([]any)
 			if !ok || len(warnings) < 2 {
-				t.Errorf("expected at least 2 dependency warnings for judge0, got %d", len(warnings))
+				t.Errorf("expected at least 2 dependency warnings for nextcloud, got %d", len(warnings))
 			}
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected judge0 in validation results")
+		t.Error("expected nextcloud in validation results")
 	}
 }
 
@@ -323,11 +323,11 @@ func TestConfigGenerateEmptyBody(t *testing.T) {
 // TestConfigValidateDisabledResourceSkipsDepsCheck verifies disabled resources don't trigger dependency warnings.
 // [REQ:REQ-P0-005] - Config Validation
 func TestConfigValidateDisabledResourceSkipsDepsCheck(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres, testResJudge0})
+	srv := newTestServer(t, []map[string]string{testResPostgres, testResNextcloud})
 
-	// judge0 is disabled, so its dependencies should NOT generate warnings.
+	// nextcloud is disabled, so its dependencies should NOT generate warnings.
 	w := doPost(t, srv, "/api/v1/config/validate",
-		`{"resources": {"judge0": {"enabled": false, "name": "judge0"}}}`)
+		`{"resources": {"nextcloud": {"enabled": false, "name": "nextcloud"}}}`)
 	requireStatus(t, w, http.StatusOK)
 
 	var resp map[string]any
@@ -361,10 +361,10 @@ func TestConfigValidateDisabledResourceSkipsDepsCheck(t *testing.T) {
 // TestConfigValidateEnabledWithAllDeps verifies no warnings when all deps are satisfied.
 // [REQ:REQ-P0-005] - Config Validation
 func TestConfigValidateEnabledWithAllDeps(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres, testResRedis, testResJudge0})
+	srv := newTestServer(t, []map[string]string{testResPostgres, testResRedis, testResNextcloud})
 
 	w := doPost(t, srv, "/api/v1/config/validate",
-		`{"resources": {"judge0": {"enabled": true, "name": "judge0"}, "postgres": {"enabled": true, "name": "postgres"}, "redis": {"enabled": true, "name": "redis"}}}`)
+		`{"resources": {"nextcloud": {"enabled": true, "name": "nextcloud"}, "postgres": {"enabled": true, "name": "postgres"}, "redis": {"enabled": true, "name": "redis"}}}`)
 	requireStatus(t, w, http.StatusOK)
 
 	var resp map[string]any
@@ -375,13 +375,13 @@ func TestConfigValidateEnabledWithAllDeps(t *testing.T) {
 		t.Error("expected valid=true when all deps are satisfied")
 	}
 
-	// judge0 should have no warnings when all dependencies are enabled.
+	// nextcloud should have no warnings when all dependencies are enabled.
 	results := resp["results"].([]any)
 	for _, r := range results {
 		result := r.(map[string]any)
-		if result["resource"] == "judge0" {
+		if result["resource"] == "nextcloud" {
 			if warnings, ok := result["warnings"].([]any); ok && len(warnings) > 0 {
-				t.Errorf("judge0 should have no warnings when all dependencies are enabled, got %v", warnings)
+				t.Errorf("nextcloud should have no warnings when all dependencies are enabled, got %v", warnings)
 			}
 		}
 	}

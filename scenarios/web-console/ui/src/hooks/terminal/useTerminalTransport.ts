@@ -19,7 +19,6 @@ export function isCleanWsClose(code: number): boolean {
   return code === 1000 || code === 1001;
 }
 
-const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_DELAY_MS = 400;
 const RECONNECT_MAX_DELAY_MS = 5000;
 
@@ -158,7 +157,6 @@ export function useTerminalTransport({
           visibilityListener = onVisible;
           return;
         }
-        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return;
         reconnectAttempts += 1;
         const delay = Math.min(
           RECONNECT_BASE_DELAY_MS * 2 ** (reconnectAttempts - 1),

@@ -7,6 +7,7 @@ import (
 	"time"
 	"web-console/internal/backend"
 	"web-console/internal/sessionstore"
+	intworkspace "web-console/internal/workspace"
 
 	"connectrpc.com/connect"
 
@@ -113,6 +114,42 @@ func TestHandleRecover_Codex_HappyPath(t *testing.T) {
 	}
 	if old.RecoveredInto != resp.GetNewSessionId() {
 		t.Errorf("RecoveredInto: got %q want %q", old.RecoveredInto, resp.GetNewSessionId())
+	}
+}
+
+func TestHandleRecover_MigratesCustomizedPane(t *testing.T) {
+	srv := newRecoveryTestServer(t)
+	saveOrphan(t, srv, "pane-old", sessionstore.AgentCodex, "codex-pane")
+	if err := srv.sessionStore.UpdateAgentInfo("pane-old", sessionstore.AgentInfo{CWD: "/work/recovered"}); err != nil {
+		t.Fatalf("set cwd: %v", err)
+	}
+	if err := srv.workspace.UpsertPane(intworkspace.Pane{
+		SessionID:            "pane-old",
+		Name:                 "Important recovery work",
+		HeaderColor:          "#ff6b6b",
+		ThemeID:              "midnight",
+		FontSize:             12,
+		SortOrder:            4,
+		GroupID:              "group-1",
+		SupportsMessagesView: true,
+	}); err != nil {
+		t.Fatalf("create customized pane: %v", err)
+	}
+
+	resp, err := callRecover(t, srv, "pane-old")
+	if err != nil {
+		t.Fatalf("Recover: %v", err)
+	}
+	layout, err := srv.workspace.GetLayout()
+	if err != nil {
+		t.Fatalf("GetLayout: %v", err)
+	}
+	if len(layout.Panes) != 1 {
+		t.Fatalf("panes after recovery = %d, want 1", len(layout.Panes))
+	}
+	got := layout.Panes[0]
+	if got.SessionID != resp.GetNewSessionId() || got.Name != "Important recovery work" || got.HeaderColor != "#ff6b6b" || got.ThemeID != "midnight" || got.FontSize != 12 || got.SortOrder != 4 || got.GroupID != "group-1" || !got.SupportsMessagesView {
+		t.Fatalf("recovered pane = %#v, original customization was not preserved", got)
 	}
 }
 

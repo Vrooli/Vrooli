@@ -90,7 +90,7 @@ func TestResourceHealthAllStopped(t *testing.T) {
 // [REQ:REQ-P1-001] - Resource Health API
 func TestResourceHealthManyResources(t *testing.T) {
 	srv := newTestServer(t, []map[string]string{
-		testResPostgres, testResRedis, testResOllama, testResJudge0,
+		testResPostgres, testResRedis, testResOllama, testResNextcloud,
 	})
 
 	w := doGet(t, srv, "/api/v1/resources/health")

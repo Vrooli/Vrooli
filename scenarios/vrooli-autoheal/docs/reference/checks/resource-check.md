@@ -21,7 +21,7 @@ flowchart TD
     B -->|Non-zero| C[Critical: Command Failed]
     B -->|Zero| D{Output Contains?}
     D -->|"running"| E[OK: Resource Healthy]
-    D -->|"not running"/"stopped"| F[Critical: Resource Stopped]
+    D -->|not running or stopped| F[Critical: Resource Stopped]
     D -->|Other| G[Warning: Unclear Status]
 ```
 

@@ -263,7 +263,10 @@
     "reattach": "Reattach",
     "reattachTitle": "Reattach into a fresh pane",
     "dismiss": "Dismiss",
-    "dismissTitle": "Hide this orphan from the list (on-disk state preserved)"
+    "dismissTitle": "Hide this orphan from the list (on-disk state preserved)",
+    "view": "View",
+    "reattachAll": "Reattach all",
+    "dismissAll": "Dismiss all"
   },
   "sessionRecovery": {
     "recovering": "Recovering sessions… {{recovered}}/{{total}}",

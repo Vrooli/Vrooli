@@ -47,12 +47,12 @@ type resourceStatusFixture struct {
 }
 
 var (
-	testResPostgres = map[string]string{"name": "postgres", "status": "running", "installed": "true"}
-	testResRedis    = map[string]string{"name": "redis", "status": "running", "installed": "true"}
-	testResOllama   = map[string]string{"name": "ollama", "status": "installed", "installed": "true"}
-	testResJudge0   = map[string]string{"name": "judge0", "status": "running", "installed": "true"}
-	testResStopped  = map[string]string{"name": "redis", "status": "stopped", "installed": "true"}
-	testResMystery  = map[string]string{"name": "mystery", "status": "stopped", "installed": "false"}
+	testResPostgres  = map[string]string{"name": "postgres", "status": "running", "installed": "true"}
+	testResRedis     = map[string]string{"name": "redis", "status": "running", "installed": "true"}
+	testResOllama    = map[string]string{"name": "ollama", "status": "installed", "installed": "true"}
+	testResNextcloud = map[string]string{"name": "nextcloud", "status": "running", "installed": "true"}
+	testResStopped   = map[string]string{"name": "redis", "status": "stopped", "installed": "true"}
+	testResMystery   = map[string]string{"name": "mystery", "status": "stopped", "installed": "false"}
 )
 
 func fixtureFromMap(raw map[string]string) resourceStatusFixture {
@@ -453,7 +453,7 @@ func TestCategorizeSpecificResources(t *testing.T) {
 	}{
 		{"vault", "security"},
 		{"qdrant", "database"},
-		{"judge0", "devops"},
+		{"nextcloud", "collaboration"},
 		{"n8n", "devops"},
 	}
 

@@ -49,7 +49,7 @@ var categoryMap = map[string]string{
 	"gazebo": "engineering", "elmer-fem": "engineering", "su2": "engineering",
 	"godot": "engineering", "simpy": "engineering",
 	// DevOps / infrastructure
-	"earthly": "devops", "k6": "devops", "judge0": "devops",
+	"earthly": "devops", "k6": "devops",
 	"n8n": "devops", "kafka": "devops",
 	// Media
 	"ffmpeg": "media",
@@ -58,7 +58,6 @@ var categoryMap = map[string]string{
 	"virustotal": "security",
 	// Communication
 	"pushover": "communication", "twilio": "communication",
-	"mail-in-a-box": "communication",
 	// Data / analytics
 	"airbyte": "data", "apache-superset": "data", "geonode": "data",
 	// Business / enterprise

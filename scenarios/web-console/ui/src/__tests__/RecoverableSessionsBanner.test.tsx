@@ -27,6 +27,10 @@ beforeEach(() => {
 });
 
 describe("RecoverableSessionsBanner", () => {
+  async function openDrawer() {
+    fireEvent.click(screen.getByRole("button", { name: "recoverableSessions.view" }));
+    await waitFor(() => expect(screen.getByTestId("recoverable-sessions-drawer")).toBeInTheDocument());
+  }
   it("renders nothing when the list is empty", async () => {
     listMock.mockResolvedValue([]);
     const { container } = render(<RecoverableSessionsBanner />);
@@ -53,6 +57,8 @@ describe("RecoverableSessionsBanner", () => {
     render(<RecoverableSessionsBanner />);
     await waitFor(() => expect(screen.getByTestId("recoverable-sessions-banner")).toBeInTheDocument());
 
+    expect(screen.queryByTestId("recoverable-row-aaaaaaaa-1111-2222-3333-444444444444")).toBeNull();
+    await openDrawer();
     const reattachA = screen.getByTestId("recoverable-row-aaaaaaaa-1111-2222-3333-444444444444-recover");
     expect(reattachA).not.toBeDisabled();
     const reattachB = screen.getByTestId("recoverable-row-bbbbbbbb-1111-2222-3333-444444444444-recover");
@@ -95,10 +101,11 @@ describe("RecoverableSessionsBanner", () => {
     const onRecovered = vi.fn();
     render(<RecoverableSessionsBanner onRecovered={onRecovered} />);
     await waitFor(() => expect(screen.getByTestId("recoverable-sessions-banner")).toBeInTheDocument());
+    await openDrawer();
 
     fireEvent.click(screen.getByTestId("recoverable-row-id1-recover"));
 
-    await waitFor(() => expect(recoverMock).toHaveBeenCalledWith("id1"));
+    await waitFor(() => expect(recoverMock).toHaveBeenCalledWith("id1", expect.any(String)));
     await waitFor(() =>
       expect(onRecovered).toHaveBeenCalledWith(
         expect.objectContaining({ old_session_id: "id1", new_session_id: "newid" }),
@@ -123,6 +130,7 @@ describe("RecoverableSessionsBanner", () => {
     ]);
     render(<RecoverableSessionsBanner />);
     await waitFor(() => expect(screen.getByTestId("recoverable-sessions-banner")).toBeInTheDocument());
+    await openDrawer();
 
     // Both new agent types render their own recovery row.
     expect(screen.getByTestId("recoverable-row-cccccccc-1111-2222-3333-444444444444")).toBeInTheDocument();
@@ -143,8 +151,34 @@ describe("RecoverableSessionsBanner", () => {
 
     render(<RecoverableSessionsBanner />);
     await waitFor(() => expect(screen.getByTestId("recoverable-sessions-banner")).toBeInTheDocument());
+    await openDrawer();
 
     fireEvent.click(screen.getByTestId("recoverable-row-id2-dismiss"));
     await waitFor(() => expect(dismissMock).toHaveBeenCalledWith("id2"));
+  });
+
+  it("keeps a large recovery set out of the banner and lists all rows in the drawer", async () => {
+    const rows = Array.from({ length: 20 }, (_, i) => ({ id: `session-${i}`, agent_type: "claude" as const, recoverable: true }));
+    listMock.mockResolvedValue(rows);
+    render(<RecoverableSessionsBanner />);
+    await waitFor(() => expect(screen.getByTestId("recoverable-sessions-banner")).toBeInTheDocument());
+    expect(screen.queryByTestId("recoverable-row-session-0")).toBeNull();
+    await openDrawer();
+    expect(screen.getAllByTestId(/recoverable-row-session-\d+$/)).toHaveLength(20);
+  });
+
+  it("continues bulk recovery after an individual recovery failure", async () => {
+    const rows: RecoverableSession[] = [
+      { id: "first", agent_type: "claude", recoverable: true },
+      { id: "second", agent_type: "claude", recoverable: true },
+    ];
+    listMock.mockResolvedValue(rows);
+    recoverMock.mockRejectedValueOnce(new Error("first failed")).mockResolvedValueOnce({ old_session_id: "second", new_session_id: "replacement" });
+
+    render(<RecoverableSessionsBanner />);
+    await waitFor(() => expect(screen.getByTestId("recoverable-sessions-banner")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "recoverableSessions.reattachAll" }));
+    await waitFor(() => expect(recoverMock).toHaveBeenCalledTimes(2));
+    expect(recoverMock.mock.calls.map(([id]) => id)).toEqual(["first", "second"]);
   });
 });

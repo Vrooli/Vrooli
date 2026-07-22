@@ -65,9 +65,10 @@ type Session struct {
 	Recovered       bool
 	// Provenance. Origin is the closed-set vocabulary
 	// "ui" | "programmatic" | "remote".
-	Origin       string
-	Owner        string
-	DisplayLabel string
+	Origin           string
+	Owner            string
+	DisplayLabel     string
+	TrackingDegraded bool
 }
 
 // CreateInput carries the fields a caller may set when creating a session.
@@ -128,6 +129,9 @@ type RecoverableSession struct {
 	LastRolloutPath string
 	Recoverable     bool
 	NotRecoverable  string
+	PaneName        string
+	HeaderColor     string
+	GroupName       string
 }
 
 // PolicyView mirrors the legacy PolicyResponse: policy with derived

@@ -14,12 +14,14 @@ import (
 	"web-console/internal/policy"
 	intsessions "web-console/internal/sessions"
 	"web-console/internal/sessionstore"
+	intworkspace "web-console/internal/workspace"
 	"web-console/session"
 )
 
 // SessionManager is the slice of session.Manager the Adapter depends on.
 type SessionManager interface {
 	Create(shell string, cols, rows uint16, backend backend.ID, policy *policy.Policy) (*session.Session, error)
+	CreateWithWorkingDir(shell string, cols, rows uint16, backend backend.ID, policy *policy.Policy, workingDir string) (*session.Session, error)
 	Get(id string) (*session.Session, bool)
 	List() []*session.Session
 	Delete(id string) error
@@ -34,6 +36,7 @@ type SessionManager interface {
 type ConversationsStore interface {
 	DeleteSession(id string)
 	CopySession(oldID, newID string) error
+	HasConversationAfter(sessionID string, after time.Time) bool
 }
 
 // CodexCheckpoints is the minimal seam for clearing per-source ingestion
@@ -54,6 +57,7 @@ type Adapter struct {
 	Conversations    ConversationsStore
 	CodexCheckpoints CodexCheckpoints
 	AgentCheckpoints CodexCheckpoints
+	Workspace        intworkspace.Store
 	CopyCodexHome    func(oldID, newID string) error
 	Logger           *log.Logger
 }
@@ -151,15 +155,36 @@ func (a *Adapter) List(_ context.Context) ([]Session, error) {
 	// the in-memory session carries only PTY/terminal state. Merge one store
 	// read into the live list rather than reading per-session.
 	provenance := a.provenanceByID()
+	recoveredAgents := make(map[string]sessionstore.Agent)
+	for _, meta := range provenance {
+		if meta.RecoveredInto != "" {
+			recoveredAgents[meta.RecoveredInto] = meta.AgentType
+		}
+	}
 	out := make([]Session, 0, len(live))
 	for _, sess := range live {
 		s := responseToHandlerSession(intsessions.FromSession(sess))
 		if p, ok := provenance[s.ID]; ok {
 			s.Origin, s.Owner, s.DisplayLabel = string(p.Origin), p.Owner, p.DisplayLabel
 		}
+		if recoveredAgents[s.ID] == sessionstore.AgentClaude && isClaudeTrackingDegraded(sess, a.Conversations) {
+			s.TrackingDegraded = true
+		}
 		out = append(out, s)
 	}
 	return out, nil
+}
+
+const trackingGracePeriod = 2 * time.Minute
+
+func isClaudeTrackingDegraded(sess *session.Session, conversations ConversationsStore) bool {
+	if conversations == nil || sess.CreatedAt.IsZero() || time.Since(sess.CreatedAt) < trackingGracePeriod {
+		return false
+	}
+	if outputAt := sess.LastFrameAt(); outputAt.IsZero() || !outputAt.After(sess.CreatedAt) {
+		return false
+	}
+	return !conversations.HasConversationAfter(sess.ID, sess.CreatedAt)
 }
 
 // provenanceByID snapshots stored provenance keyed by session id. Returns an
@@ -245,8 +270,26 @@ func (a *Adapter) ListRecoverable(_ context.Context) ([]RecoverableSession, erro
 		return nil, fmt.Errorf("%w: %s", ErrInternal, err.Error())
 	}
 	out := make([]RecoverableSession, 0, len(rows))
+	panes := map[string]intworkspace.Pane{}
+	groups := map[string]string{}
+	if a.Workspace != nil {
+		layout, err := a.Workspace.GetLayout()
+		if err != nil {
+			return nil, fmt.Errorf("%w: load workspace identity: %s", ErrInternal, err.Error())
+		}
+		for _, pane := range layout.Panes {
+			panes[pane.SessionID] = pane
+		}
+		for _, group := range layout.Groups {
+			groups[group.ID] = group.Name
+		}
+	}
 	for _, m := range rows {
-		out = append(out, toHandlerRecoverable(m))
+		r := toHandlerRecoverable(m)
+		if pane, ok := panes[m.ID]; ok {
+			r.PaneName, r.HeaderColor, r.GroupName = pane.Name, pane.HeaderColor, groups[pane.GroupID]
+		}
+		out = append(out, r)
 	}
 	return out, nil
 }
@@ -307,7 +350,7 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 		rows = 36
 	}
 	pol := old.Policy
-	newSess, err := a.Manager.Create(old.Shell, cols, rows, backend.Persistent, &pol)
+	newSess, err := a.Manager.CreateWithWorkingDir(old.Shell, cols, rows, backend.Persistent, &pol, old.CWD)
 	if err != nil {
 		a.logger().Printf("recover[%s]: create new session: %v", oldID, err)
 		return RecoverResult{}, mapCreateError(err)
@@ -343,6 +386,12 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 	// Carry provenance onto the recovered session so it keeps its original
 	// origin/owner/label in the sidebar.
 	_ = a.Store.SetProvenance(newSess.ID, old.Origin, old.Owner, old.DisplayLabel)
+	if a.Workspace != nil {
+		if err := a.Workspace.ReassignPane(oldID, newSess.ID); err != nil {
+			a.logger().Printf("recover[%s -> %s]: migrate workspace pane: %v", oldID, newSess.ID, err)
+			return RecoverResult{}, fmt.Errorf("migrate workspace pane: %v: %w", err, ErrInternal)
+		}
+	}
 
 	// Carry the prior conversation history onto the new session id so the
 	// messages view is populated after reattach. Best-effort: a copy failure

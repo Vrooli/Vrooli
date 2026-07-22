@@ -13,6 +13,10 @@ type Store interface {
 	UpsertPane(p Pane) error
 	// DeletePane removes pane metadata. Idempotent.
 	DeletePane(sessionID string) error
+	// ReassignPane moves a pane's complete workspace identity to its recovered
+	// replacement session. Any default pane created for newSessionID is removed
+	// before the original pane is re-keyed.
+	ReassignPane(oldSessionID, newSessionID string) error
 	// CreateGroup adds a new tab group.
 	CreateGroup(name, color string) (Group, error)
 	// UpdateGroup modifies a tab group; nil-pointer fields are left unchanged.
