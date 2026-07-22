@@ -73,7 +73,7 @@ function catalogFiles() {
 function writeGeneratedTSConfig(outputPath, files) {
   writeFileSync(
     outputPath,
-    `${JSON.stringify({ extends: "./tsconfig.catalog.json", files, include: [] }, null, 2)}\n`,
+    `${JSON.stringify({ extends: "./tsconfig.catalog.json", files: ["./src/catalog-story-harness.d.ts", ...files], include: [] }, null, 2)}\n`,
   );
 }
 

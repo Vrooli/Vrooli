@@ -366,6 +366,68 @@ func TestIndexer_RunProjectsValidatedStoryContract(t *testing.T) {
 	require.JSONEq(t, `{"fields":[{"path":"tone","kind":"enum","options":["primary","secondary"],"default":"primary"}]}`, stories[0].ArgsJSON)
 }
 
+func TestIndexer_RunValidatesStoryHarnessArtifacts(t *testing.T) {
+	const story = `{
+  "schemaVersion": 2,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id": "interactive", "name": "Interactive", "harness": "StatefulHarness", "args": {}}]
+}`
+
+	tests := []struct {
+		name       string
+		storyTSX   string
+		finding    components.IndexFindingKind
+		wantSource bool
+	}{
+		{name: "missing artifact", finding: components.IndexFindingStoryHarnessMissing},
+		{name: "missing export", storyTSX: `export const AnotherHarness = () => null;`, finding: components.IndexFindingStoryHarnessExport},
+		{name: "matching export is excluded from adoption files", storyTSX: `export const StatefulHarness = () => null;`, wantSource: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fsys := fstest.MapFS{
+				"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+				"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+				"components/Button/versions/1.0.0/story.json": {Data: []byte(story)},
+			}
+			if tt.storyTSX != "" {
+				fsys["components/Button/versions/1.0.0/story.tsx"] = &fstest.MapFile{Data: []byte(tt.storyTSX)}
+			}
+			repo := mocks.NewFakeRepository()
+			res, err := components.NewIndexer(repo, ".", fsys).Run(context.Background())
+			require.NoError(t, err)
+			if tt.finding != "" {
+				require.Len(t, res.Findings, 1)
+				require.Equal(t, tt.finding, res.Findings[0].Kind)
+				return
+			}
+			require.Empty(t, res.Findings)
+			component, err := repo.GetByLibraryID(context.Background(), "react-component-library:Button")
+			require.NoError(t, err)
+			version, err := repo.GetVersion(context.Background(), component.ID, "1.0.0")
+			require.NoError(t, err)
+			require.Len(t, version.Files, 1)
+			require.Equal(t, "Button.tsx", version.Files[0].Path)
+		})
+	}
+}
+
+func TestIndexer_RunFindsOrphanStoryHarnessArtifact(t *testing.T) {
+	fsys := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+		"components/Button/versions/1.0.0/story.json": {Data: []byte(`{"schemaVersion":2,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"primary","name":"Primary","args":{}}]}`)},
+		"components/Button/versions/1.0.0/story.tsx":  {Data: []byte(`export const UnusedHarness = () => null;`)},
+	}
+	res, err := components.NewIndexer(mocks.NewFakeRepository(), ".", fsys).Run(context.Background())
+	require.NoError(t, err)
+	require.Len(t, res.Findings, 1)
+	require.Equal(t, components.IndexFindingStoryHarnessOrphan, res.Findings[0].Kind)
+}
+
 func TestIndexer_RunReportsMalformedHeaderErrors(t *testing.T) {
 	fs := fstest.MapFS{
 		"components/Broken/component.json": {Data: []byte(`{"displayName":"Broken","latest":"1.0.0"}`)},

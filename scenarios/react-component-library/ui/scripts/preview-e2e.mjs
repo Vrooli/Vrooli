@@ -228,16 +228,16 @@ async function assertAssetPreview(page, componentID, target = {}) {
     // proves the catalog link contract while the server independently supports
     // refreshing the resulting detail deep link.
     await page.goto(`${baseURL()}/`, { waitUntil: "domcontentloaded" });
-    const assetLink = page.locator('[data-testid="app-main"]').locator(`a[href="${assetPath}"]`);
+    // The catalog's persistent asset navigator lives alongside the main
+    // workspace, not inside it. Constraining this lookup to app-main made the
+    // runtime gate falsely fail for every valid catalog item.
+    const assetLink = page.locator(`a[href="${assetPath}"]`).first();
     await assetLink.waitFor({ state: "visible", timeout: 15_000 });
     await assetLink.click();
     await page.locator('[data-testid="components-editor-panel"]').waitFor({ state: "visible", timeout: 15_000 });
-    // Desktop shows Preview, Code, and Info together. The segmented switcher
-    // is intentionally mobile-only, so only use it when it is actually shown.
-    const previewModeButton = page.locator('[data-testid="components-editor-preview-mode-button"]');
-    if (await previewModeButton.isVisible()) {
-      await previewModeButton.click();
-    }
+    // The runner uses the desktop viewport where preview is mounted with the
+    // other workspace panes. Do not click the responsive mode toggle: in the
+    // desktop shell it is an action toggle and can hide the active preview.
 
     const frameElements = page.locator('[data-testid="components-editor-preview-frame"]');
     await frameElements.first().waitFor({ state: "attached", timeout: 10_000 });

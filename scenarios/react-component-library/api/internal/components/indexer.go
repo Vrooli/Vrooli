@@ -300,6 +300,11 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			if f.IsDir() {
 				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: "subdirectories are not supported"}
 			}
+			// story.tsx is a preview-only artifact. It is validated with the
+			// story contract but is never an asset companion or adoption input.
+			if f.Name() == "story.tsx" {
+				continue
+			}
 			if strings.HasSuffix(f.Name(), ".tsx") || strings.HasSuffix(f.Name(), ".ts") {
 				sourceFiles = append(sourceFiles, f)
 			}
@@ -462,11 +467,48 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 	if AssetKind(contract.Kind) != assetKind {
 		return nil, []IndexFinding{invalidStoryFinding(sourcePath, "/kind", string(assetKind), string(contract.Kind), "story kind must match manifest asset kind")}
 	}
+	storyPath := filepath.ToSlash(filepath.Join(filepath.Dir(sourcePath), "story.tsx"))
+	storySource, storyErr := fs.ReadFile(idx.fs, storyPath)
+	harnesses := make(map[string]struct{})
+	for _, definition := range contract.Stories {
+		if definition.Harness != "" {
+			harnesses[definition.Harness] = struct{}{}
+		}
+	}
+	if len(harnesses) > 0 && errors.Is(storyErr, fs.ErrNotExist) {
+		return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessMissing, SourcePath: storyPath, Field: "/stories", Detail: "a story references a harness but story.tsx is missing"}}
+	}
+	if storyErr != nil && !errors.Is(storyErr, fs.ErrNotExist) {
+		return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessMissing, SourcePath: storyPath, Field: "/stories", Detail: storyErr.Error()}}
+	}
+	if storyErr == nil {
+		exports := harnessExports(string(storySource))
+		if len(harnesses) == 0 {
+			return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessOrphan, SourcePath: storyPath, Field: "/stories", Detail: "story.tsx exists but no story references a harness export"}}
+		}
+		for harness := range harnesses {
+			if _, found := exports[harness]; !found {
+				return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessExport, SourcePath: storyPath, Field: "/stories/harness", Actual: harness, Detail: "referenced harness export was not found in story.tsx"}}
+			}
+		}
+	}
 	args, _ := json.Marshal(contract.Args)
 	environment, _ := json.Marshal(contract.Environment)
 	stories, _ := json.Marshal(contract.Stories)
 	normalized, _ := json.Marshal(contract)
 	return &ComponentStory{LibraryID: libraryID, Version: version, SchemaVersion: contract.SchemaVersion, Kind: contract.Kind, Title: contract.Title, ArgsJSON: string(args), EnvironmentJSON: string(environment), StoriesJSON: string(stories), ContractJSON: string(normalized), SourcePath: sourcePath}, nil
+}
+
+var storyHarnessExportRE = regexp.MustCompile(`(?m)^\s*export\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z_$][A-Za-z0-9_$]*)`)
+
+func harnessExports(source string) map[string]struct{} {
+	exports := make(map[string]struct{})
+	for _, match := range storyHarnessExportRE.FindAllStringSubmatch(source, -1) {
+		if len(match) > 1 {
+			exports[match[1]] = struct{}{}
+		}
+	}
+	return exports
 }
 
 func assetKindForManifestPath(path, declared string) (AssetKind, error) {

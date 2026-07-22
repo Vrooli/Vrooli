@@ -472,6 +472,9 @@ func adoptionUnitFiles(v components.ComponentVersion, entryTarget string) []adop
 	out := make([]adoptionUnitFile, 0, len(files))
 	targets := make(map[string]string, len(files))
 	for _, file := range files {
+		if file.Path == "story.tsx" {
+			continue
+		}
 		target := filepath.ToSlash(filepath.Join(filepath.Dir(entryTarget), file.Path))
 		if file.IsEntry {
 			target = entryTarget

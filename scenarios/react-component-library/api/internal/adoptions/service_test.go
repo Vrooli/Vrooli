@@ -443,6 +443,7 @@ func TestService_ApplyVendorsEveryFileInAUnit(t *testing.T) {
 		"cmp@1.0.0": {ComponentID: "cmp", LibraryID: "rcl:Drawer", Version: "1.0.0", Content: "import { trap } from './focus';", ContentSHA256: sha("entry"), Files: []components.ComponentVersionFile{
 			{Path: "Drawer.tsx", Content: "import { trap } from './focus';", ContentSHA256: sha("entry"), IsEntry: true},
 			{Path: "focus.ts", Content: "export const trap = () => null;", ContentSHA256: sha("focus")},
+			{Path: "story.tsx", Content: "export const Story = () => null;", ContentSHA256: sha("story")},
 		}},
 	}}
 	files := &fakeFiles{bytes: map[string][]byte{}}
@@ -451,6 +452,7 @@ func TestService_ApplyVendorsEveryFileInAUnit(t *testing.T) {
 	require.Len(t, result.Adoption.Files, 2)
 	require.Contains(t, string(files.bytes["target::ui/src/components/Drawer.tsx"]), "@vrooliComponentSource rcl:Drawer")
 	require.Contains(t, string(files.bytes["target::ui/src/components/focus.ts"]), "@vrooliComponentSource rcl:Drawer")
+	require.NotContains(t, files.bytes, "target::ui/src/components/story.tsx")
 }
 
 func TestService_ApplyPlacesHookCompanionsInHookSlotAndRewritesImports(t *testing.T) {

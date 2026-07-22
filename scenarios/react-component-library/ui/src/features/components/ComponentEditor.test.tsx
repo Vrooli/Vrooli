@@ -297,17 +297,19 @@ describe("ComponentEditor", () => {
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
       makeGetComponentContentResponse({ content: "v1", sha256: "sha-gallery" }),
     );
-    vi.mocked(listComponentStories).mockResolvedValueOnce({ stories: [{ id: "contract", componentId: "cmp-7", libraryId: "lib:Gallery", version: "1.0.0", schemaVersion: 1, kind: "component", title: "", argsJson: '{"fields":[]}', environmentJson: '{"fixtures":[]}', storiesJson: '[{"id":"primary","name":"Primary","args":{}},{"id":"disabled","name":"Disabled","args":{}}]', contractJson: "{}", sourcePath: "story.json" }] });
+    vi.mocked(listComponentStories).mockResolvedValueOnce({ stories: [{ id: "contract", componentId: "cmp-7", libraryId: "lib:Gallery", version: "1.0.0", schemaVersion: 2, kind: "component", title: "", argsJson: '{"fields":[]}', environmentJson: '{"fixtures":[]}', storiesJson: '[{"id":"primary","name":"Primary","description":"Primary action in its normal state.","args":{}},{"id":"disabled","name":"Disabled","args":{}}]', contractJson: "{}", sourcePath: "story.json" }] });
 
     renderWithProviders(
       <ComponentEditor id="cmp-7" libraryId="lib:Gallery" onClose={() => {}} activePane="preview" />,
     );
 
-    await screen.findByRole("button", { name: "Primary" });
+    await screen.findAllByTestId(selectors.components.editor.storyPickerItem);
     const frames = await screen.findAllByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
 
     expect(screen.getByTestId(selectors.components.editor.gallery)).toBeInTheDocument();
     expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
+    expect(screen.getByTestId(selectors.components.editor.storyDescription)).toHaveTextContent("Primary action in its normal state.");
+    expect(screen.getAllByTestId(selectors.components.editor.storyPickerItem)[0]).toHaveAttribute("title", "Primary action in its normal state.");
     expect(frames).toHaveLength(1);
     expect(frames[0]?.getAttribute("src")).toContain("story=primary");
     expect(vi.mocked(listComponentStories)).toHaveBeenCalledWith({ componentId: "cmp-7", version: "1.0.0", limit: 1 });
@@ -315,6 +317,54 @@ describe("ComponentEditor", () => {
     // Each gallery frame posts the resolved theme once it loads.
     if (frames[0]) fireEvent.load(frames[0]);
     expect(screen.queryByTestId(selectors.components.editor.previewError)).not.toBeInTheDocument();
+  });
+
+  it("shows preview events newest-first and clears the active story log", async () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    const { componentsClient, listComponentStories } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "v1", sha256: "sha-events" }),
+    );
+    vi.mocked(listComponentStories).mockResolvedValueOnce({ stories: [{ id: "contract", componentId: "cmp-events", libraryId: "lib:Events", version: "1.0.0", schemaVersion: 2, kind: "component", title: "", argsJson: '{"fields":[]}', environmentJson: '{"fixtures":[]}', storiesJson: '[{"id":"primary","name":"Primary","args":{}}]', contractJson: "{}", sourcePath: "story.json" }] });
+    try {
+      renderWithProviders(<ComponentEditor id="cmp-events" libraryId="lib:Events" onClose={() => {}} activePane="preview" />);
+      await screen.findByRole("button", { name: "Primary" });
+      await screen.findByTestId(selectors.components.editor.previewToolsPanel);
+      const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+      window.dispatchEvent(new MessageEvent("message", {
+        data: { type: "rcl-preview-event", id: "cmp-events", story: "primary", version: "1.0.0", name: "change", args: ["#51cf66"], ts: 1 },
+        source: frame.contentWindow,
+      }));
+      expect((await screen.findAllByTestId(selectors.components.editor.previewEventItem))[0]).toHaveTextContent('change("#51cf66")');
+      await userEvent.setup().click(screen.getByTestId(selectors.components.editor.previewEventsClear));
+      expect(screen.getByTestId(selectors.components.editor.previewEventsEmpty)).toBeInTheDocument();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("caps the active preview event stream at 200 entries", async () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    const { componentsClient, listComponentStories } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(makeGetComponentContentResponse({ content: "v1", sha256: "sha-event-cap" }));
+    vi.mocked(listComponentStories).mockResolvedValueOnce({ stories: [{ id: "contract", componentId: "cmp-event-cap", libraryId: "lib:Events", version: "1.0.0", schemaVersion: 2, kind: "component", title: "", argsJson: '{"fields":[]}', environmentJson: '{"fixtures":[]}', storiesJson: '[{"id":"primary","name":"Primary","args":{}}]', contractJson: "{}", sourcePath: "story.json" }] });
+    try {
+      renderWithProviders(<ComponentEditor id="cmp-event-cap" libraryId="lib:Events" onClose={() => {}} activePane="preview" />);
+      await screen.findByRole("button", { name: "Primary" });
+      await screen.findByTestId(selectors.components.editor.previewToolsPanel);
+      const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+      for (let index = 0; index <= 200; index++) {
+        window.dispatchEvent(new MessageEvent("message", { data: { type: "rcl-preview-event", id: "cmp-event-cap", story: "primary", version: "1.0.0", name: `event-${index}`, args: [], ts: index }, source: frame.contentWindow }));
+      }
+      const eventItems = await screen.findAllByTestId(selectors.components.editor.previewEventItem);
+      expect(eventItems).toHaveLength(200);
+      expect(eventItems[0]).toHaveTextContent("event-200()");
+      expect(eventItems.at(-1)).toHaveTextContent("event-1()");
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
   });
 
   it("exposes the preview gallery as a semantic readiness surface", async () => {

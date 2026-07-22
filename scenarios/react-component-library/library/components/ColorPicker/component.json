@@ -1,0 +1,23 @@
+{
+  "libraryId": "react-component-library:ColorPicker",
+  "displayName": "ColorPicker",
+  "description": "Accessible palette, recent-color, gradient, and native custom-color picker.",
+  "tags": [
+    "form",
+    "color",
+    "appearance"
+  ],
+  "slot": "ui-primitive",
+  "category": "uncategorized",
+  "entry": "ColorPicker.tsx",
+  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "0.1.0-draft.1"
+}

@@ -22,11 +22,14 @@ for running code in the preview iframe.
 
 ## Grammar
 
-Every asset version contains exactly one `story.json`.
+Every asset version contains exactly one `story.json`. Schema version 1 remains
+fully supported. Schema version 2 adds optional story captions and a constrained
+code harness seam; use it when a controlled or composed specimen cannot be
+shown faithfully with public props alone.
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "component",
   "title": "Status Badge",
   "args": {
@@ -54,12 +57,38 @@ Every asset version contains exactly one `story.json`.
     {
       "id": "success",
       "name": "Success",
+      "description": "The standard positive status treatment.",
       "args": { "tone": "success", "children": { "$text": "Current" } },
       "expect": [{ "kind": "text", "value": "Current" }]
     }
   ]
 }
 ```
+
+### Schema version 2: captions and custom harnesses
+
+`stories[].description` is optional explanatory copy displayed below the
+specimen title and in the story picker. Omit it rather than rendering an empty
+caption.
+
+`stories[].harness` optionally names a JavaScript named export from the one
+version-local `story.tsx` file. The export receives `{ args, log }`, where
+`args` is the fully resolved story props (including workbench knob overrides)
+and `log(name, ...args)` records an event in the workbench. A harness changes
+presentation only: `story.json` remains the sole source of story ids, public
+argument schema, interactions, and expectations. Harness files are preview
+artifacts; catalog ingestion, adoption closures, and source-parity inventories
+exclude them, so demo code never ships to adopters.
+
+```tsx
+export function ControlledWithReadout({ args, log }: StoryHarnessProps) {
+  const [value, setValue] = useState(args.value)
+  return <><ColorPicker {...args} value={value} onChange={(next) => { setValue(next); log("change", next) }} /><output>{value}</output></>
+}
+```
+
+Harness names must be valid non-reserved JavaScript identifiers. Unknown JSON
+fields still fail parsing, including misspelled `description` or `harness`.
 
 `kind` is either `component` or `hook`. `schemaVersion` is mandatory and is
 the compatibility boundary for the parser. Unknown top-level or field keys are

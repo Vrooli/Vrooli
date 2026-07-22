@@ -2,6 +2,48 @@ package components
 
 import "testing"
 
+func TestParseStoryContractSchemaVersionTwoParsesHarnessAndDescription(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 2,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"controlled","name":"Controlled","description":"Shows the selected value.","harness":"ControlledWithReadout","args":{}}]
+}`))
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
+	}
+	if got := contract.Stories[0]; got.Harness != "ControlledWithReadout" || got.Description != "Shows the selected value." {
+		t.Fatalf("story fields = %#v", got)
+	}
+}
+
+func TestParseStoryContractRejectsInvalidHarnessExport(t *testing.T) {
+	_, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 2,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"controlled","name":"Controlled","harness":"not-a-valid-export","args":{}}]
+}`))
+	if len(diagnostics) != 1 || diagnostics[0].Rule != "javascript_identifier" {
+		t.Fatalf("diagnostics = %v", diagnostics)
+	}
+}
+
+func TestParseStoryContractStillRejectsUnknownSchemaVersionTwoField(t *testing.T) {
+	_, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 2,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"controlled","name":"Controlled","caption":"misspelled","args":{}}]
+}`))
+	if len(diagnostics) != 1 || diagnostics[0].Rule != "valid_json" {
+		t.Fatalf("diagnostics = %v", diagnostics)
+	}
+}
+
 func TestParseStoryContractValidatesOneAssetLevelSchema(t *testing.T) {
 	contract, diagnostics := ParseStoryContract([]byte(`{
   "schemaVersion": 1,

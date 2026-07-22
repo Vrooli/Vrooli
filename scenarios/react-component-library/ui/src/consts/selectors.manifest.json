@@ -20,6 +20,26 @@
       "testId": "app-main",
       "selector": "[data-testid=\"app-main\"]"
     },
+    "launcher.open": {
+      "testId": "launcher-open",
+      "selector": "[data-testid=\"launcher-open\"]"
+    },
+    "launcher.menu": {
+      "testId": "launcher-menu",
+      "selector": "[data-testid=\"launcher-menu\"]"
+    },
+    "launcher.extract": {
+      "testId": "launcher-extract",
+      "selector": "[data-testid=\"launcher-extract\"]"
+    },
+    "launcher.adopt": {
+      "testId": "launcher-adopt",
+      "selector": "[data-testid=\"launcher-adopt\"]"
+    },
+    "launcher.create": {
+      "testId": "launcher-create",
+      "selector": "[data-testid=\"launcher-create\"]"
+    },
     "assets.hookWorkspace": {
       "testId": "hook-detail-page",
       "selector": "[data-testid=\"hook-detail-page\"]"
@@ -328,6 +348,10 @@
       "testId": "components-editor-gallery",
       "selector": "[data-testid=\"components-editor-gallery\"]"
     },
+    "components.editor.storyPickerItem": {
+      "testId": "components-editor-story-picker-item",
+      "selector": "[data-testid=\"components-editor-story-picker-item\"]"
+    },
     "components.editor.exampleCard": {
       "testId": "components-editor-example-card",
       "selector": "[data-testid=\"components-editor-example-card\"]"
@@ -335,6 +359,10 @@
     "components.editor.exampleTitle": {
       "testId": "components-editor-example-title",
       "selector": "[data-testid=\"components-editor-example-title\"]"
+    },
+    "components.editor.storyDescription": {
+      "testId": "components-editor-story-description",
+      "selector": "[data-testid=\"components-editor-story-description\"]"
     },
     "components.editor.exampleFocus": {
       "testId": "components-editor-example-focus",
@@ -383,6 +411,26 @@
     "components.editor.propsError": {
       "testId": "components-editor-props-error",
       "selector": "[data-testid=\"components-editor-props-error\"]"
+    },
+    "components.editor.previewToolsPanel": {
+      "testId": "components-editor-preview-tools-panel",
+      "selector": "[data-testid=\"components-editor-preview-tools-panel\"]"
+    },
+    "components.editor.previewEventsClear": {
+      "testId": "components-editor-preview-events-clear",
+      "selector": "[data-testid=\"components-editor-preview-events-clear\"]"
+    },
+    "components.editor.previewEventItem": {
+      "testId": "components-editor-preview-event-item",
+      "selector": "[data-testid=\"components-editor-preview-event-item\"]"
+    },
+    "components.editor.previewEventsEmpty": {
+      "testId": "components-editor-preview-events-empty",
+      "selector": "[data-testid=\"components-editor-preview-events-empty\"]"
+    },
+    "components.editor.previewToolsToggle": {
+      "testId": "components-editor-preview-tools-toggle",
+      "selector": "[data-testid=\"components-editor-preview-tools-toggle\"]"
     },
     "components.editor.previewFrame": {
       "testId": "components-editor-preview-frame",
@@ -926,6 +974,16 @@
     }
   },
   "dynamicSelectors": {
+    "components.editor.storyCard": {
+      "description": "Rendered component story card by canonical story id",
+      "selectorPattern": "[data-testid=\"components-editor-example-card\"][data-story=\"${story}\"]",
+      "params": [
+        {
+          "name": "story",
+          "type": "string"
+        }
+      ]
+    },
     "preview.select": {
       "description": "Preview harness native select control",
       "selectorPattern": "select",

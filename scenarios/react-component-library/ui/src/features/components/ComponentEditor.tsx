@@ -44,8 +44,11 @@ type SpecimenIdentity = `${string}:${string}`;
 type PreviewSpecimen = {
   id: string; componentId: string; libraryId: string; version: string;
   name: string; displayName: string; propsJson: string; environment: Record<string, string>; expectJson: string;
-  sourcePath: string; storyId: string;
+  sourcePath: string; storyId: string; description?: string;
 };
+
+type PreviewEvent = { story: string; name: string; args: unknown[]; ts: number };
+const MAX_PREVIEW_EVENTS = 200;
 
 
 function specimenIdentity(example?: Pick<PreviewSpecimen, "version" | "name">): SpecimenIdentity {
@@ -222,6 +225,7 @@ export function ComponentEditor({
   const [specimenOverrides, setSpecimenOverrides] = useState<Record<string, Record<string, unknown>>>({});
   const [overrideStatus, setOverrideStatus] = useState<Record<string, "idle" | "applying" | "applied" | "error">>({});
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
+  const [previewEvents, setPreviewEvents] = useState<PreviewEvent[]>([]);
   const previewReloadKey = 0;
   const [uncontrolledPane, setUncontrolledPane] = useState<WorkspacePane>("files");
   const currentPane = activePane ?? uncontrolledPane;
@@ -297,7 +301,7 @@ export function ComponentEditor({
 
   useEffect(() => {
     const handler = (ev: MessageEvent) => {
-      const data = ev.data as { type?: string; id?: string; message?: string; story?: string; version?: string; passed?: boolean; failures?: Array<{ message?: string }> } | null;
+      const data = ev.data as { type?: string; id?: string; message?: string; story?: string; version?: string; name?: string; args?: unknown[]; ts?: number; passed?: boolean; failures?: Array<{ message?: string }> } | null;
       const identity: SpecimenIdentity = `${data?.version || "__current__"}:${data?.story || "__default__"}`;
       const frame = specimenFramesRef.current.get(identity);
       if (!data || data.id !== id || !frame || ev.source !== frame.contentWindow) return;
@@ -327,6 +331,9 @@ export function ComponentEditor({
       } else if (data.type === "rcl-story-result" && data.passed === false) {
         const details = (data.failures ?? []).map((failure) => failure.message).filter(Boolean).join(" ");
         setSpecimenErrors((current) => ({ ...current, [identity]: details || "Story interactions or expectations failed." }));
+      } else if (data.type === "rcl-preview-event" && typeof data.name === "string") {
+        const eventName = data.name;
+        setPreviewEvents((current) => [{ story: data.story ?? "", name: eventName, args: Array.isArray(data.args) ? data.args : [], ts: typeof data.ts === "number" ? data.ts : Date.now() }, ...current].slice(0, MAX_PREVIEW_EVENTS));
       }
     };
     window.addEventListener("message", handler);
@@ -352,16 +359,17 @@ export function ComponentEditor({
     setSpecimenOverrides({});
     setOverrideStatus({});
     setOverrideMessages({});
+    setPreviewEvents([]);
   }, [baselineSha, previewReloadKey]);
 
   const storySpecimens = useMemo<PreviewSpecimen[]>(() => (storiesQuery.data?.stories ?? []).flatMap((contract) => {
     try {
-      const definitions = JSON.parse(contract.storiesJson) as Array<{ id?: unknown; name?: unknown; args?: unknown; environment?: unknown; expect?: unknown }>;
+      const definitions = JSON.parse(contract.storiesJson) as Array<{ id?: unknown; name?: unknown; description?: unknown; args?: unknown; environment?: unknown; expect?: unknown }>;
       if (!Array.isArray(definitions)) return [];
       return definitions.flatMap((definition) => {
-        if (!definition || typeof definition.id !== "string" || typeof definition.name !== "string" || !definition.args || typeof definition.args !== "object" || Array.isArray(definition.args)) return [];
+        if (typeof definition.id !== "string" || typeof definition.name !== "string" || !definition.args || typeof definition.args !== "object" || Array.isArray(definition.args)) return [];
         const environment: Record<string, string> = definition.environment && typeof definition.environment === "object" && !Array.isArray(definition.environment) ? Object.fromEntries(Object.entries(definition.environment as Record<string, unknown>).filter(([, value]) => typeof value === "string")) as Record<string, string> : {};
-        return [{ id: `${contract.id}:${definition.id}`, componentId: contract.componentId, libraryId: contract.libraryId, version: contract.version, name: definition.id, displayName: definition.name, propsJson: JSON.stringify(definition.args), environment, expectJson: JSON.stringify(Array.isArray(definition.expect) ? definition.expect : []), sourcePath: contract.sourcePath, storyId: definition.id }];
+        return [{ id: `${contract.id}:${definition.id}`, componentId: contract.componentId, libraryId: contract.libraryId, version: contract.version, name: definition.id, displayName: definition.name, description: typeof definition.description === "string" && definition.description.trim() ? definition.description : undefined, propsJson: JSON.stringify(definition.args), environment, expectJson: JSON.stringify(Array.isArray(definition.expect) ? definition.expect : []), sourcePath: contract.sourcePath, storyId: definition.id }];
       });
     } catch { return []; }
   }), [storiesQuery.data?.stories]);
@@ -692,8 +700,8 @@ export function ComponentEditor({
                     >
                       {splitView && paneHeader("preview", index, paneLabels.preview, <Eye aria-hidden className="h-3.5 w-3.5" />)}
                       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
-                        <nav className="flex max-w-full gap-1 overflow-x-auto" aria-label="Component stories">
-                          {specimens.map((example) => { const identity = specimenIdentity(example); const selected = identity === activeSpecimen; return <Button key={identity} type="button" variant={selected ? "primary" : "secondary"} className="h-8 shrink-0 px-2 text-xs" aria-current={selected ? "true" : undefined} onClick={() => activateSpecimen(identity)}>{example?.displayName || example?.name || "Default"}</Button>; })}
+                        <nav className="flex max-w-full gap-1 overflow-x-auto" aria-label={t(strings.components.editor.storiesLabel)}>
+                          {specimens.map((example) => { const identity = specimenIdentity(example); const selected = identity === activeSpecimen; return <Button key={identity} data-testid={selectors.components.editor.storyPickerItem} type="button" variant={selected ? "primary" : "secondary"} className="h-8 shrink-0 px-2 text-xs" aria-current={selected ? "true" : undefined} title={example?.description} onClick={() => activateSpecimen(identity)}>{example?.displayName || example?.name || "Default"}</Button>; })}
                         </nav>
                         <ThemeSwitcher postToFrames={postToPreviewFrames} previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} filters={filters} />
                         <EmulatorToolbar emulator={emulator} />
@@ -728,9 +736,10 @@ export function ComponentEditor({
                                 return (
                                   <section key={identity} data-testid={selectors.components.editor.exampleCard} data-specimen={identity} data-story={example?.storyId ?? "__default__"} className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}>
                                     <header className="flex items-center justify-between gap-2 border-b border-app-border px-3 py-2">
-                                      <h3 data-testid={selectors.components.editor.exampleTitle} className="min-w-0 truncate text-sm font-semibold text-app-foreground">{title}</h3>
+                                      <h3 data-testid={selectors.components.editor.exampleTitle} title={example?.description} className="min-w-0 truncate text-sm font-semibold text-app-foreground">{title}</h3>
                                       {examples.length > 1 && <Button data-testid={selectors.components.editor.exampleCompare} type="button" variant={comparedSpecimens.has(identity) ? "primary" : "secondary"} aria-pressed={comparedSpecimens.has(identity)} disabled={!comparedSpecimens.has(identity) && comparedSpecimens.size >= 2} className="h-7 px-2 text-xs" onClick={() => toggleComparison(identity)}>{t(strings.components.editor.compareStory)}</Button>}
                                     </header>
+                                    {example?.description ? <p data-testid={selectors.components.editor.storyDescription} className="border-b border-app-border bg-app-muted/30 px-3 py-2 text-xs leading-relaxed text-app-muted-foreground">{example.description}</p> : null}
                                     {error ? (
                                       <div data-testid={selectors.components.editor.specimenError} className="flex min-h-[18rem] flex-col items-center justify-center gap-3 bg-app-danger/5 p-4 text-center">
                                         <p className="text-xs text-app-danger">{error}</p>
@@ -766,7 +775,7 @@ export function ComponentEditor({
                       {activeSpecimen && desktopLayout && <>
                         <Separator className="hidden h-1 shrink-0 bg-app-border hover:bg-app-primary lg:block" />
                         <Panel panelRef={previewToolsPanelRef} id="tools" defaultSize={280} minSize={160} maxSize="45%" collapsible collapsedSize={0} onResize={(size) => setPreviewToolsCollapsed(size.inPixels === 0)} className="hidden min-h-0 lg:block">
-                          <div id="component-preview-tools" data-testid={selectors.components.editor.previewToolsPanel} className="h-full overflow-y-auto border-t border-app-border bg-app-surface p-3"><div className="grid gap-3 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(20rem,1.2fr)]"><PropsExperimentPanel key={activeSpecimen} storyId={activeExample?.storyId} storyName={activeSpecimenLabel} initialArgs={activeExample ? JSON.parse(activeExample.propsJson) : {}} initialEnvironment={activeExample?.environment} storyContract={activeStoryContract} status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")} message={overrideMessages[activeSpecimen]} onApply={applyPropsOverride} onReset={resetPropsOverride} /><InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} /></div></div>
+                          <div id="component-preview-tools" data-testid={selectors.components.editor.previewToolsPanel} className="h-full overflow-y-auto border-t border-app-border bg-app-surface p-3"><div className="grid gap-3 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(20rem,1.2fr)]"><PropsExperimentPanel key={activeSpecimen} storyId={activeExample?.storyId} storyName={activeSpecimenLabel} initialArgs={activeExample ? JSON.parse(activeExample.propsJson) : {}} initialEnvironment={activeExample?.environment} storyContract={activeStoryContract} status={overrideStatus[activeSpecimen] ?? (specimenOverrides[activeSpecimen] ? "applied" : "idle")} message={overrideMessages[activeSpecimen]} onApply={applyPropsOverride} onReset={resetPropsOverride} /><InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} /></div><section className="mt-3 rounded-md border border-app-border p-3" aria-label={t(strings.components.editor.events)}><div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-sm font-semibold">{t(strings.components.editor.events)}</h3><Button data-testid={selectors.components.editor.previewEventsClear} type="button" variant="secondary" className="h-7 px-2 text-xs" onClick={() => setPreviewEvents([])}>{t(strings.components.editor.clearEvents)}</Button></div><ol className="max-h-48 space-y-1 overflow-auto font-mono text-xs">{previewEvents.filter((event) => !activeExample?.storyId || event.story === activeExample.storyId).map((event, index) => <li key={`${event.ts}-${index}`} data-testid={selectors.components.editor.previewEventItem} className="break-words rounded bg-app-muted/50 px-2 py-1"><span className="font-semibold">{event.name}</span>{event.args.length ? `(${event.args.map((arg) => JSON.stringify(arg)).join(", ")})` : "()"}</li>)}{previewEvents.length === 0 ? <li data-testid={selectors.components.editor.previewEventsEmpty} className="font-sans text-app-muted-foreground">{t(strings.components.editor.noEvents)}</li> : null}</ol></section></div>
                         </Panel>
                       </>}
                       </Group>

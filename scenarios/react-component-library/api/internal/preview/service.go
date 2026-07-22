@@ -12,7 +12,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"react-component-library/internal/components"
@@ -25,6 +27,10 @@ type Bundle struct {
 	// source. Imports react / react-dom / react-dom/client are kept
 	// as bare specifiers; the harness HTML resolves them via importmap.
 	JS string
+	// HarnessJS is an optional separately bundled story.tsx module. Keeping it
+	// separate preserves the component entry's export selection and lets a
+	// harness import the version-local component normally.
+	HarnessJS string
 
 	// SourcePath is echoed from the components service so callers can
 	// render a heading without a second lookup.
@@ -118,13 +124,34 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 	if err != nil {
 		return Bundle{}, err
 	}
+	var harnessJS string
+	if storyReader, ok := s.components.(interface {
+		GetVersionContentAt(context.Context, string, string, string) (components.Content, error)
+	}); ok && version != "" {
+		storyContent, storyErr := storyReader.GetVersionContentAt(ctx, id, version, "story.tsx")
+		if storyErr == nil {
+			var storyWarnings []string
+			harnessJS, storyWarnings, storyErr = s.bundler.BuildBundle(ctx, storyContent.Body, storyContent.SourcePath)
+			warnings = append(warnings, storyWarnings...)
+			if storyErr != nil {
+				return Bundle{}, storyErr
+			}
+		} else if !isMissingStoryArtifact(storyErr) {
+			return Bundle{}, storyErr
+		}
+	}
 	return Bundle{
 		JS:           js,
+		HarnessJS:    harnessJS,
 		SourcePath:   content.SourcePath,
-		SHA256:       digest(js),
+		SHA256:       digest(js + harnessJS),
 		Warnings:     warnings,
 		Dependencies: declarations,
 	}, nil
+}
+
+func isMissingStoryArtifact(err error) bool {
+	return errors.Is(err, os.ErrNotExist) || strings.Contains(err.Error(), "file does not exist")
 }
 
 // ErrBundle wraps an esbuild failure with the diagnostics esbuild

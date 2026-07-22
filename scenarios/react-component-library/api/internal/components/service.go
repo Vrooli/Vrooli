@@ -235,6 +235,29 @@ func (s *service) GetVersionContent(ctx context.Context, componentID, version st
 	return Content{Body: v.Content, SourcePath: v.SourcePath, SHA256: v.ContentSHA256}, nil
 }
 
+// GetVersionContentAt reads a companion source file beside an immutable
+// version entry. It intentionally is not part of Service: preview is the only
+// consumer and probes for this capability so existing service fakes stay small.
+func (s *service) GetVersionContentAt(ctx context.Context, componentID, version, path string) (Content, error) {
+	if s.content == nil {
+		return Content{}, errNoContentStore
+	}
+	v, err := s.repo.GetVersion(ctx, componentID, version)
+	if err != nil {
+		return Content{}, err
+	}
+	c, err := s.repo.Get(ctx, componentID)
+	if err != nil {
+		return Content{}, err
+	}
+	c.SourcePath = v.SourcePath
+	store, ok := s.content.(PathContentStore)
+	if !ok {
+		return Content{}, errNoContentStore
+	}
+	return store.ReadPath(ctx, c, path)
+}
+
 func (s *service) UpdateContent(ctx context.Context, id string, in WriteContentInput) (Content, error) {
 	return s.UpdateContentAt(ctx, id, "", in)
 }

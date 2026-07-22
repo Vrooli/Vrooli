@@ -1,0 +1,14 @@
+{
+  "originFiles": [
+    "ColorPicker.tsx",
+    "colorUtils.ts",
+    "useDeferredColorCommit.ts"
+  ],
+  "harvestedFiles": [
+    "ColorPicker.tsx",
+    "colorUtils.ts",
+    "useDeferredColorCommit.ts"
+  ],
+  "findings": null,
+  "acknowledged": false
+}

@@ -169,6 +169,20 @@ func TestRenderHarnessHTMLSupportsScopedTemporaryPropsOverrides(t *testing.T) {
 	require.NotContains(t, html, `eval(`)
 }
 
+func TestRenderHarnessHTMLRecordsDeclarativeHandlersAndCustomHarnessEvents(t *testing.T) {
+	html := renderHarnessHTML("cmp-1", internalpreview.Bundle{
+		JS:         "export default function Demo() { return null }",
+		HarnessJS:  "export function StatefulHarness() { return null }",
+		SourcePath: "components/Demo.tsx",
+		SHA256:     "sha",
+	}, harnessStory{Name: "interactive", Version: "1.0.0", Harness: "StatefulHarness"})
+	require.Contains(t, html, `const createNodeFactory = (React, Icons, log) =>`)
+	require.Contains(t, html, `return (...args) => log(name, ...args);`)
+	require.Contains(t, html, `type: "rcl-preview-event"`)
+	require.Contains(t, html, `React.createElement(Harness, { args: props, log: postPreviewEvent })`)
+	require.Less(t, strings.Index(html, `const postPreviewEvent =`), strings.Index(html, `const resolveProps = createNodeFactory`))
+}
+
 func withPackageRuntimeCandidates(t *testing.T, fn func(string) []string) {
 	t.Helper()
 	prev := packageRuntimeCandidatesFor

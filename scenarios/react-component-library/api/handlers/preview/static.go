@@ -134,6 +134,7 @@ type harnessStory struct {
 	EnvironmentSchemaJSON string
 	InteractionsJSON      string
 	ExpectJSON            string
+	Harness               string
 }
 
 // resolveStory uses the indexed story contract as the only harness baseline.
@@ -175,7 +176,7 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 			if err != nil {
 				return harnessStory{}, fmt.Errorf("preview: encode story environment: %w", err)
 			}
-			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect)}, nil
+			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect), Harness: definition.Harness}, nil
 		}
 	}
 	return harnessStory{}, fmt.Errorf("preview: story %q not found for component %q", storyID, id)
@@ -253,6 +254,9 @@ const componentModuleURL = "data:text/javascript;base64,`)
 	// for the full ESM payload including non-ASCII characters.
 	sb.WriteString(base64Encode(b.JS))
 	sb.WriteString(`";
+const storyHarnessModuleURL = "data:text/javascript;base64,`)
+	sb.WriteString(base64Encode(b.HarnessJS))
+	sb.WriteString(`";
 const previewStory = {
   name: ` + jsString(ex.Name) + `,
   version: ` + jsString(ex.Version) + `,
@@ -264,6 +268,7 @@ const previewStory = {
 	environmentSchema: ` + jsonObjectLiteral(ex.EnvironmentSchemaJSON) + `,
 	interactions: ` + jsonArrayLiteral(ex.InteractionsJSON) + `,
   expect: ` + jsonArrayLiteral(ex.ExpectJSON) + `,
+  harness: ` + jsString(ex.Harness) + `,
 };
 // Resolved-theme bridge: the host owns the app/system decision and posts
 // {type:"rcl-resolved-theme", theme:"light"|"dark"}. Stamping the root is
@@ -508,12 +513,15 @@ const reportStoryResult = (passed, failures) => {
   storyResultEl.hidden = true;
   parent.postMessage({ type: "rcl-story-result", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", ...result }, "*");
 };
-const createNodeFactory = (React, Icons) => {
+const createNodeFactory = (React, Icons, log) => {
   const resolve = (value) => {
     if (Array.isArray(value)) return value.map(resolve);
     if (!value || typeof value !== "object") return value;
     if (Object.prototype.hasOwnProperty.call(value, "$text")) return String(value.$text ?? "");
-    if (Object.prototype.hasOwnProperty.call(value, "$handler")) return () => {};
+    if (Object.prototype.hasOwnProperty.call(value, "$handler")) {
+      const name = String(value.$handler || "handler");
+      return (...args) => log(name, ...args);
+    }
     if (Object.prototype.hasOwnProperty.call(value, "$rowKey")) {
       const field = String(value.$rowKey || "id");
       return (row, index) => String((row && row[field]) ?? index);
@@ -558,11 +566,12 @@ const isRenderableComponent = (value) => (
   (value && typeof value === "object" && typeof value.$$typeof === "symbol")
 );
 try {
-  const [{ createRoot }, Mod, React, Icons] = await Promise.all([
+  const [{ createRoot }, Mod, React, Icons, HarnessMod] = await Promise.all([
     import("react-dom/client"),
     import(componentModuleURL),
     import("react"),
     import("lucide-react").catch(() => ({})),
+		previewStory.harness ? import(storyHarnessModuleURL) : Promise.resolve({}),
   ]);
   const Cmp = isRenderableComponent(Mod.default)
     ? Mod.default
@@ -574,7 +583,18 @@ try {
     showPreviewError("preview: component file exports neither a default nor a callable named export");
   } else {
     const root = createRoot(document.getElementById("root"));
-    const resolveProps = createNodeFactory(React, Icons);
+    const postPreviewEvent = (name, ...args) => {
+      const sanitize = (value, depth = 0) => {
+        if (depth > 5) return "[depth limit]";
+        if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+        if (typeof value === "number") return Number.isFinite(value) ? value : "[number]";
+        if (Array.isArray(value)) return value.slice(0, 50).map((item) => sanitize(item, depth + 1));
+        if (typeof value === "object") { const out = {}; for (const [key, item] of Object.entries(value).slice(0, 50)) out[key] = sanitize(item, depth + 1); return out; }
+        return "[" + typeof value + "]";
+      };
+      parent.postMessage({ type: "rcl-preview-event", id: ` + jsString(id) + `, story: previewStory.name || "", version: previewStory.version || "", name: String(name), args: args.map((value) => sanitize(value)), ts: Date.now() }, "*");
+    };
+    const resolveProps = createNodeFactory(React, Icons, postPreviewEvent);
     const valueAtPath = (object, path) => path.split(".").reduce((value, key) => value && typeof value === "object" ? value[key] : undefined, object);
     const mergeStoryProps = (base, override) => {
       const result = { ...(base && typeof base === "object" && !Array.isArray(base) ? base : {}) };
@@ -643,6 +663,12 @@ try {
     const renderPreview = (override, environment = previewStory.environment) => {
       const safeOverride = override && typeof override === "object" && !Array.isArray(override) ? override : {};
       const props = resolveProps(mergeStoryProps(previewStory.props, safeOverride));
+      if (previewStory.harness) {
+        const Harness = HarnessMod[previewStory.harness];
+        if (typeof Harness !== "function") throw new Error("preview: harness export " + previewStory.harness + " was not found");
+        root.render(React.createElement(Harness, { args: props, log: postPreviewEvent }));
+        return;
+      }
       root.render(previewStory.kind === "hook" ? React.createElement(hookFixture(props, environment)) : React.createElement(Cmp, props));
     };
     const locate = (target) => {
@@ -676,6 +702,10 @@ try {
     };
     const runStory = async () => {
       const failures = [];
+      // React 18 schedules the initial root commit asynchronously. Interactions
+      // must target the mounted specimen, not the scheduling frame following
+      // root.render(); this matters especially for custom stateful harnesses.
+      await new Promise((resolve) => setTimeout(resolve, 50));
       for (const interaction of previewStory.interactions || []) {
         let target = locate(interaction.target);
         if (interaction.kind === "settle") { await new Promise((resolve) => setTimeout(resolve, 20)); continue; }
@@ -688,7 +718,17 @@ try {
         else if (interaction.kind === "focus") target.focus();
         else if (interaction.kind === "blur") target.blur();
         else if (interaction.kind === "key") target.dispatchEvent(new KeyboardEvent("keydown", { key: interaction.text || "", bubbles: true }));
-        else if (interaction.kind === "type") { target.value = interaction.text || ""; target.dispatchEvent(new Event("input", { bubbles: true })); target.dispatchEvent(new Event("change", { bubbles: true })); }
+        else if (interaction.kind === "type") {
+          const text = interaction.text || "";
+          // Bypass React's controlled-input value tracker before dispatching
+          // the browser events. A plain assignment updates that tracker, so
+          // React can correctly treat the following input/change as a no-op.
+          const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), "value")?.set;
+          if (setter) setter.call(target, text);
+          else target.value = text;
+          target.dispatchEvent(new Event("input", { bubbles: true }));
+          target.dispatchEvent(new Event("change", { bubbles: true }));
+        }
       }
       // React 18 may defer the commit past the first animation frame. Story
       // expectations run against the committed specimen, never the scheduling

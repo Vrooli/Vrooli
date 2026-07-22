@@ -257,11 +257,14 @@ const (
 type IndexFindingKind string
 
 const (
-	IndexFindingHeaderDisagreement IndexFindingKind = "header_disagreement"
-	IndexFindingStaleDesignStyle   IndexFindingKind = "stale_design_style"
-	IndexFindingInvalidStory       IndexFindingKind = "invalid_story"
-	IndexFindingMissingStory       IndexFindingKind = "missing_story"
-	IndexFindingLegacyStorySource  IndexFindingKind = "legacy_story_source"
+	IndexFindingHeaderDisagreement  IndexFindingKind = "header_disagreement"
+	IndexFindingStaleDesignStyle    IndexFindingKind = "stale_design_style"
+	IndexFindingInvalidStory        IndexFindingKind = "invalid_story"
+	IndexFindingMissingStory        IndexFindingKind = "missing_story"
+	IndexFindingLegacyStorySource   IndexFindingKind = "legacy_story_source"
+	IndexFindingStoryHarnessMissing IndexFindingKind = "story_harness_missing"
+	IndexFindingStoryHarnessExport  IndexFindingKind = "story_harness_export"
+	IndexFindingStoryHarnessOrphan  IndexFindingKind = "story_harness_orphan"
 	// IndexFindingRegistryOrphan is emitted when a component_versions
 	// row (or its sibling child rows) has no owning row in the
 	// components registry — soft-FK cruft the reindex sweep removes.

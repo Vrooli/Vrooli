@@ -82,8 +82,13 @@ var storyFixtureAdapters = map[string]struct{}{
 }
 
 type StoryDefinition struct {
-	ID           string             `json:"id"`
-	Name         string             `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Description is optional specimen context shown by the catalog workbench.
+	Description string `json:"description,omitempty"`
+	// Harness selects a named export from the version-local story.tsx file.
+	// It is available only in schemaVersion 2 and later.
+	Harness      string             `json:"harness,omitempty"`
 	Args         json.RawMessage    `json:"args"`
 	Environment  map[string]string  `json:"environment,omitempty"`
 	Interactions []StoryInteraction `json:"interactions,omitempty"`
@@ -136,8 +141,8 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		return []StoryDiagnostic{{Pointer: "/", Rule: "required", Detail: "story contract is required"}}
 	}
 	var diagnostics []StoryDiagnostic
-	if contract.SchemaVersion != 1 {
-		diagnostics = append(diagnostics, storyDiagnostic("/schemaVersion", "supported_version", "schemaVersion must be 1"))
+	if contract.SchemaVersion != 1 && contract.SchemaVersion != 2 {
+		diagnostics = append(diagnostics, storyDiagnostic("/schemaVersion", "supported_version", "schemaVersion must be 1 or 2"))
 	}
 	if contract.Kind != StoryKindComponent && contract.Kind != StoryKindHook {
 		diagnostics = append(diagnostics, storyDiagnostic("/kind", "asset_kind", "kind must be component or hook"))
@@ -200,6 +205,12 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		}
 		if strings.TrimSpace(story.Name) == "" {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/name", "required", "name is required"))
+		}
+		if contract.SchemaVersion == 1 && (story.Harness != "" || story.Description != "") {
+			diagnostics = append(diagnostics, storyDiagnostic(pointer, "schema_version", "harness and description require schemaVersion 2"))
+		}
+		if story.Harness != "" && !validHarnessExport(story.Harness) {
+			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/harness", "javascript_identifier", "harness must be a valid named JavaScript export identifier"))
 		}
 		diagnostics = append(diagnostics, validateStoryArgs(pointer+"/args", story.Args, fields)...)
 		for key, option := range story.Environment {
@@ -317,6 +328,11 @@ func validateStoryValue(pointer string, field StoryField, raw json.RawMessage) [
 
 var storyPathSegment = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
 var storyID = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+var storyHarnessExport = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
+
+var javascriptReservedWords = map[string]struct{}{
+	"await": {}, "break": {}, "case": {}, "catch": {}, "class": {}, "const": {}, "continue": {}, "debugger": {}, "default": {}, "delete": {}, "do": {}, "else": {}, "enum": {}, "export": {}, "extends": {}, "false": {}, "finally": {}, "for": {}, "function": {}, "if": {}, "implements": {}, "import": {}, "in": {}, "instanceof": {}, "interface": {}, "let": {}, "new": {}, "null": {}, "package": {}, "private": {}, "protected": {}, "public": {}, "return": {}, "super": {}, "switch": {}, "static": {}, "this": {}, "throw": {}, "true": {}, "try": {}, "typeof": {}, "var": {}, "void": {}, "while": {}, "with": {}, "yield": {},
+}
 
 func validStoryPath(path string) bool {
 	if path == "" || strings.HasPrefix(path, ".") || strings.HasSuffix(path, ".") {
@@ -331,6 +347,14 @@ func validStoryPath(path string) bool {
 }
 
 func validStoryID(value string) bool { return storyID.MatchString(strings.TrimSpace(value)) }
+func validHarnessExport(value string) bool {
+	value = strings.TrimSpace(value)
+	if !storyHarnessExport.MatchString(value) {
+		return false
+	}
+	_, reserved := javascriptReservedWords[value]
+	return !reserved
+}
 func storyDiagnostic(pointer, rule, detail string) StoryDiagnostic {
 	return StoryDiagnostic{Pointer: pointer, Rule: rule, Detail: detail}
 }

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "kind": "component",
+  "args": { "fields": [
+    { "path": "value", "kind": "text", "default": "#4dabf7" },
+    { "path": "palette", "kind": "array", "default": ["#4dabf7", "#51cf66", "#ff6b6b"] }
+  ] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "palette", "name": "Palette", "description": "A compact palette with transparent and custom-color choices.", "args": { "value": "#4dabf7", "palette": ["#4dabf7", "#51cf66", "#ff6b6b"] }, "expect": [{ "kind": "role", "role": "button", "name": "#4dabf7" }] },
+    { "id": "controlled-with-recents", "name": "Controlled with recents", "description": "A controlled harness exposes the selected color and records committed choices.", "harness": "ControlledWithRecents", "args": { "value": "#4dabf7", "palette": ["#4dabf7", "#51cf66", "#ff6b6b"] }, "interactions": [{ "kind": "click", "target": { "role": "button", "name": "#51cf66" } }, { "kind": "settle" }], "expect": [{ "kind": "text", "value": "Selected: #51cf66" }] }
+  ]
+}

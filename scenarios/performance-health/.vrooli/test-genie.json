@@ -219,7 +219,7 @@
         "fixer_status": "implemented",
         "recommended_skill_ids": [
           "performance",
-          "react-stability"
+          "failure-topography-and-graceful-degradation"
         ]
       },
       "perf_build_profile_script": {
@@ -233,7 +233,7 @@
         "fixer_status": "implemented",
         "recommended_skill_ids": [
           "performance",
-          "react-stability"
+          "failure-topography-and-graceful-degradation"
         ]
       },
       "perf_build_profiler_util": {
@@ -247,7 +247,7 @@
         "fixer_status": "implemented",
         "recommended_skill_ids": [
           "performance",
-          "react-stability"
+          "failure-topography-and-graceful-degradation"
         ]
       },
       "perf_build_profiler_boundary": {
@@ -261,7 +261,7 @@
         "fixer_status": "implemented",
         "recommended_skill_ids": [
           "performance",
-          "react-stability"
+          "failure-topography-and-graceful-degradation"
         ]
       },
       "PERF_BUDGET_BREACH_GO_BUILD": {
@@ -340,7 +340,7 @@
         "reason": "A component-commit-average budget breach is a real UI performance regression that requires investigation, not a mechanical fix.",
         "recommended_skill_ids": [
           "performance",
-          "react-stability"
+          "failure-topography-and-graceful-degradation"
         ]
       },
       "PERF_BUDGET_BREACH_COMPONENT_COMMIT_MAX": {
@@ -354,7 +354,7 @@
         "reason": "A component-commit-max budget breach is a real UI performance regression that requires investigation, not a mechanical fix.",
         "recommended_skill_ids": [
           "performance",
-          "react-stability"
+          "failure-topography-and-graceful-degradation"
         ]
       },
       "PERF_LIGHTHOUSE_BELOW_ERROR_THRESHOLD": {
@@ -368,7 +368,7 @@
         "reason": "A Lighthouse category scoring below its configured error threshold (in .vrooli/lighthouse.json) is a real UI quality/performance regression that requires investigation, not a mechanical fix. This restores the native test-genie perf phase's Lighthouse gating.",
         "recommended_skill_ids": [
           "performance",
-          "react-stability"
+          "failure-topography-and-graceful-degradation"
         ]
       },
       "PERF_BUILD_FAILED": {
@@ -395,7 +395,7 @@
         "reason": "A slow component commit hot spot requires product and profiling investigation, not a mechanical edit.",
         "recommended_skill_ids": [
           "performance",
-          "react-stability"
+          "failure-topography-and-graceful-degradation"
         ]
       },
       "PERF_BUDGET_AXIS_UNGATED": {
