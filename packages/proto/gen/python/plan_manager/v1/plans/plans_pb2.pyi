@@ -9,6 +9,14 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class CandidateRevisionState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CANDIDATE_REVISION_STATE_UNSPECIFIED: _ClassVar[CandidateRevisionState]
+    CANDIDATE_REVISION_STATE_PENDING: _ClassVar[CandidateRevisionState]
+    CANDIDATE_REVISION_STATE_APPLIED: _ClassVar[CandidateRevisionState]
+    CANDIDATE_REVISION_STATE_DISCARDED: _ClassVar[CandidateRevisionState]
+    CANDIDATE_REVISION_STATE_EXPIRED: _ClassVar[CandidateRevisionState]
+
 class ReconcileConflictPolicy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RECONCILE_CONFLICT_POLICY_UNSPECIFIED: _ClassVar[ReconcileConflictPolicy]
@@ -27,6 +35,11 @@ class ReconcileAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RECONCILE_ACTION_SKIPPED_DUPLICATE: _ClassVar[ReconcileAction]
     RECONCILE_ACTION_PARSE_FAILED: _ClassVar[ReconcileAction]
     RECONCILE_ACTION_CONFLICT: _ClassVar[ReconcileAction]
+CANDIDATE_REVISION_STATE_UNSPECIFIED: CandidateRevisionState
+CANDIDATE_REVISION_STATE_PENDING: CandidateRevisionState
+CANDIDATE_REVISION_STATE_APPLIED: CandidateRevisionState
+CANDIDATE_REVISION_STATE_DISCARDED: CandidateRevisionState
+CANDIDATE_REVISION_STATE_EXPIRED: CandidateRevisionState
 RECONCILE_CONFLICT_POLICY_UNSPECIFIED: ReconcileConflictPolicy
 RECONCILE_CONFLICT_POLICY_REPORT_ONLY: ReconcileConflictPolicy
 RECONCILE_CONFLICT_POLICY_SKIP_EXISTING: ReconcileConflictPolicy
@@ -94,6 +107,176 @@ class UpdatePlanResponse(_message.Message):
     PLAN_FIELD_NUMBER: _ClassVar[int]
     plan: _model_pb2.Plan
     def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+
+class CandidateRevision(_message.Message):
+    __slots__ = ("id", "plan_id", "expected_base_content_hash", "proposal_provenance", "candidate_plan", "workspace", "state", "created_at", "updated_at", "expires_at", "applied_at", "applied_content_hash", "discard_reason")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_BASE_CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    PROPOSAL_PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_PLAN_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_AT_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    DISCARD_REASON_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    plan_id: str
+    expected_base_content_hash: str
+    proposal_provenance: str
+    candidate_plan: _model_pb2.Plan
+    workspace: WorkspaceScope
+    state: CandidateRevisionState
+    created_at: str
+    updated_at: str
+    expires_at: str
+    applied_at: str
+    applied_content_hash: str
+    discard_reason: str
+    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., expected_base_content_hash: _Optional[str] = ..., proposal_provenance: _Optional[str] = ..., candidate_plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., state: _Optional[_Union[CandidateRevisionState, str]] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., expires_at: _Optional[str] = ..., applied_at: _Optional[str] = ..., applied_content_hash: _Optional[str] = ..., discard_reason: _Optional[str] = ...) -> None: ...
+
+class CandidateFieldChange(_message.Message):
+    __slots__ = ("field", "before_json", "after_json")
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    BEFORE_JSON_FIELD_NUMBER: _ClassVar[int]
+    AFTER_JSON_FIELD_NUMBER: _ClassVar[int]
+    field: str
+    before_json: str
+    after_json: str
+    def __init__(self, field: _Optional[str] = ..., before_json: _Optional[str] = ..., after_json: _Optional[str] = ...) -> None: ...
+
+class CandidateRevisionDiff(_message.Message):
+    __slots__ = ("changes",)
+    CHANGES_FIELD_NUMBER: _ClassVar[int]
+    changes: _containers.RepeatedCompositeFieldContainer[CandidateFieldChange]
+    def __init__(self, changes: _Optional[_Iterable[_Union[CandidateFieldChange, _Mapping]]] = ...) -> None: ...
+
+class CandidateValidationDiagnostic(_message.Message):
+    __slots__ = ("severity", "code", "location", "message", "guidance")
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    LOCATION_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    GUIDANCE_FIELD_NUMBER: _ClassVar[int]
+    severity: str
+    code: str
+    location: str
+    message: str
+    guidance: str
+    def __init__(self, severity: _Optional[str] = ..., code: _Optional[str] = ..., location: _Optional[str] = ..., message: _Optional[str] = ..., guidance: _Optional[str] = ...) -> None: ...
+
+class CandidateRevisionPreview(_message.Message):
+    __slots__ = ("candidate", "base_plan", "diff", "impact", "rendered_markdown", "quality_status", "diagnostics")
+    CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    BASE_PLAN_FIELD_NUMBER: _ClassVar[int]
+    DIFF_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
+    RENDERED_MARKDOWN_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_STATUS_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    candidate: CandidateRevision
+    base_plan: _model_pb2.Plan
+    diff: CandidateRevisionDiff
+    impact: PlanMutationImpact
+    rendered_markdown: str
+    quality_status: str
+    diagnostics: _containers.RepeatedCompositeFieldContainer[CandidateValidationDiagnostic]
+    def __init__(self, candidate: _Optional[_Union[CandidateRevision, _Mapping]] = ..., base_plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., diff: _Optional[_Union[CandidateRevisionDiff, _Mapping]] = ..., impact: _Optional[_Union[PlanMutationImpact, _Mapping]] = ..., rendered_markdown: _Optional[str] = ..., quality_status: _Optional[str] = ..., diagnostics: _Optional[_Iterable[_Union[CandidateValidationDiagnostic, _Mapping]]] = ...) -> None: ...
+
+class CreateCandidateRevisionRequest(_message.Message):
+    __slots__ = ("plan_id", "expected_base_content_hash", "proposal_provenance", "candidate_plan", "workspace", "expires_at")
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_BASE_CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    PROPOSAL_PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_PLAN_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    plan_id: str
+    expected_base_content_hash: str
+    proposal_provenance: str
+    candidate_plan: _model_pb2.Plan
+    workspace: WorkspaceScope
+    expires_at: str
+    def __init__(self, plan_id: _Optional[str] = ..., expected_base_content_hash: _Optional[str] = ..., proposal_provenance: _Optional[str] = ..., candidate_plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., expires_at: _Optional[str] = ...) -> None: ...
+
+class CreateCandidateRevisionResponse(_message.Message):
+    __slots__ = ("candidate",)
+    CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    candidate: CandidateRevision
+    def __init__(self, candidate: _Optional[_Union[CandidateRevision, _Mapping]] = ...) -> None: ...
+
+class GetCandidateRevisionRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class GetCandidateRevisionResponse(_message.Message):
+    __slots__ = ("candidate",)
+    CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    candidate: CandidateRevision
+    def __init__(self, candidate: _Optional[_Union[CandidateRevision, _Mapping]] = ...) -> None: ...
+
+class PreviewCandidateRevisionRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class PreviewCandidateRevisionResponse(_message.Message):
+    __slots__ = ("preview",)
+    PREVIEW_FIELD_NUMBER: _ClassVar[int]
+    preview: CandidateRevisionPreview
+    def __init__(self, preview: _Optional[_Union[CandidateRevisionPreview, _Mapping]] = ...) -> None: ...
+
+class ValidateCandidateRevisionRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class ValidateCandidateRevisionResponse(_message.Message):
+    __slots__ = ("preview",)
+    PREVIEW_FIELD_NUMBER: _ClassVar[int]
+    preview: CandidateRevisionPreview
+    def __init__(self, preview: _Optional[_Union[CandidateRevisionPreview, _Mapping]] = ...) -> None: ...
+
+class ApplyCandidateRevisionRequest(_message.Message):
+    __slots__ = ("id", "expected_base_content_hash", "acknowledge_quality_impact")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_BASE_CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    ACKNOWLEDGE_QUALITY_IMPACT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    expected_base_content_hash: str
+    acknowledge_quality_impact: bool
+    def __init__(self, id: _Optional[str] = ..., expected_base_content_hash: _Optional[str] = ..., acknowledge_quality_impact: _Optional[bool] = ...) -> None: ...
+
+class ApplyCandidateRevisionResponse(_message.Message):
+    __slots__ = ("candidate", "plan", "preview")
+    CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    PREVIEW_FIELD_NUMBER: _ClassVar[int]
+    candidate: CandidateRevision
+    plan: _model_pb2.Plan
+    preview: CandidateRevisionPreview
+    def __init__(self, candidate: _Optional[_Union[CandidateRevision, _Mapping]] = ..., plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., preview: _Optional[_Union[CandidateRevisionPreview, _Mapping]] = ...) -> None: ...
+
+class DiscardCandidateRevisionRequest(_message.Message):
+    __slots__ = ("id", "reason")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    reason: str
+    def __init__(self, id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class DiscardCandidateRevisionResponse(_message.Message):
+    __slots__ = ("candidate",)
+    CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    candidate: CandidateRevision
+    def __init__(self, candidate: _Optional[_Union[CandidateRevision, _Mapping]] = ...) -> None: ...
 
 class ArchivePlanRequest(_message.Message):
     __slots__ = ("id", "workspace")

@@ -22,7 +22,7 @@ This resource is being aligned to the updated `docker-service` structure.
 - `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Unstructured-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+- `cli/internal/unstructured` owns typed health and document-processing requests.
 
 The intended escalation path is:
 
@@ -47,6 +47,11 @@ vrooli resource install unstructured-io
 
 # Check status through the shared control plane
 resource-unstructured-io status
+
+# Typed document-processing commands
+resource-unstructured-io health
+resource-unstructured-io formats
+resource-unstructured-io process --input document.pdf --output elements.json
 ```
 
 Default endpoint:
@@ -57,5 +62,5 @@ Default endpoint:
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for document processing workflows.
 - Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
-- Existing shell-heavy workflows in `lib/` are transitional. New logic should land in Go under `cli/internal/...`.
+- Resource-local shell workflows are retired. Use the typed CLI or the shared resource control plane.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/unstructured-io/docs/OPERATIONS.md) as the architecture boundary for future migrations.

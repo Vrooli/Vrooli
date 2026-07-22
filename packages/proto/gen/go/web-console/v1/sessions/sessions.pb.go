@@ -152,8 +152,11 @@ type Session struct {
 	Origin          SessionOrigin          `protobuf:"varint,11,opt,name=origin,proto3,enum=vrooli.web_console.v1.sessions.SessionOrigin" json:"origin,omitempty"`
 	Owner           string                 `protobuf:"bytes,12,opt,name=owner,proto3" json:"owner,omitempty"`                                   // free-form provenance tag, e.g. "agent-manager"
 	DisplayLabel    string                 `protobuf:"bytes,13,opt,name=display_label,json=displayLabel,proto3" json:"display_label,omitempty"` // human-facing label for the sidebar
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// True when a recovered Claude pane has terminal output but no new tracked
+	// conversation event after the recovery grace period.
+	TrackingDegraded bool `protobuf:"varint,14,opt,name=tracking_degraded,json=trackingDegraded,proto3" json:"tracking_degraded,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Session) Reset() {
@@ -277,6 +280,13 @@ func (x *Session) GetDisplayLabel() string {
 	return ""
 }
 
+func (x *Session) GetTrackingDegraded() bool {
+	if x != nil {
+		return x.TrackingDegraded
+	}
+	return false
+}
+
 // RecoverableSession describes an awaiting_recovery row.
 type RecoverableSession struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
@@ -295,6 +305,9 @@ type RecoverableSession struct {
 	LastRolloutPath      string                 `protobuf:"bytes,13,opt,name=last_rollout_path,json=lastRolloutPath,proto3" json:"last_rollout_path,omitempty"`
 	Recoverable          bool                   `protobuf:"varint,14,opt,name=recoverable,proto3" json:"recoverable,omitempty"`
 	NotRecoverableReason string                 `protobuf:"bytes,15,opt,name=not_recoverable_reason,json=notRecoverableReason,proto3" json:"not_recoverable_reason,omitempty"`
+	PaneName             string                 `protobuf:"bytes,16,opt,name=pane_name,json=paneName,proto3" json:"pane_name,omitempty"`
+	HeaderColor          string                 `protobuf:"bytes,17,opt,name=header_color,json=headerColor,proto3" json:"header_color,omitempty"`
+	GroupName            string                 `protobuf:"bytes,18,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -430,6 +443,27 @@ func (x *RecoverableSession) GetRecoverable() bool {
 func (x *RecoverableSession) GetNotRecoverableReason() string {
 	if x != nil {
 		return x.NotRecoverableReason
+	}
+	return ""
+}
+
+func (x *RecoverableSession) GetPaneName() string {
+	if x != nil {
+		return x.PaneName
+	}
+	return ""
+}
+
+func (x *RecoverableSession) GetHeaderColor() string {
+	if x != nil {
+		return x.HeaderColor
+	}
+	return ""
+}
+
+func (x *RecoverableSession) GetGroupName() string {
+	if x != nil {
+		return x.GroupName
 	}
 	return ""
 }
@@ -1528,7 +1562,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"&web-console/v1/sessions/sessions.proto\x12\x1evrooli.web_console.v1.sessions\"B\n" +
 	"\x10ExpirationPolicy\x12\x12\n" +
 	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1a\n" +
-	"\bduration\x18\x02 \x01(\tR\bduration\"\xb9\x03\n" +
+	"\bduration\x18\x02 \x01(\tR\bduration\"\xe6\x03\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05shell\x18\x02 \x01(\tR\x05shell\x12\x1d\n" +
@@ -1544,7 +1578,8 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	" \x01(\bR\trecovered\x12E\n" +
 	"\x06origin\x18\v \x01(\x0e2-.vrooli.web_console.v1.sessions.SessionOriginR\x06origin\x12\x14\n" +
 	"\x05owner\x18\f \x01(\tR\x05owner\x12#\n" +
-	"\rdisplay_label\x18\r \x01(\tR\fdisplayLabel\"\xec\x03\n" +
+	"\rdisplay_label\x18\r \x01(\tR\fdisplayLabel\x12+\n" +
+	"\x11tracking_degraded\x18\x0e \x01(\bR\x10trackingDegraded\"\xcb\x04\n" +
 	"\x12RecoverableSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\abackend\x18\x02 \x01(\tR\abackend\x12\x14\n" +
@@ -1564,7 +1599,11 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x03cwd\x18\f \x01(\tR\x03cwd\x12*\n" +
 	"\x11last_rollout_path\x18\r \x01(\tR\x0flastRolloutPath\x12 \n" +
 	"\vrecoverable\x18\x0e \x01(\bR\vrecoverable\x124\n" +
-	"\x16not_recoverable_reason\x18\x0f \x01(\tR\x14notRecoverableReason\"\xce\x03\n" +
+	"\x16not_recoverable_reason\x18\x0f \x01(\tR\x14notRecoverableReason\x12\x1b\n" +
+	"\tpane_name\x18\x10 \x01(\tR\bpaneName\x12!\n" +
+	"\fheader_color\x18\x11 \x01(\tR\vheaderColor\x12\x1d\n" +
+	"\n" +
+	"group_name\x18\x12 \x01(\tR\tgroupName\"\xce\x03\n" +
 	"\rCreateRequest\x12\x14\n" +
 	"\x05shell\x18\x01 \x01(\tR\x05shell\x12\x12\n" +
 	"\x04cols\x18\x02 \x01(\x05R\x04cols\x12\x12\n" +

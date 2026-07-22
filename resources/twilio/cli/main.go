@@ -5,11 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"resource-twilio/cli/internal/health"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
-
-	"resource-twilio/cli/internal/health"
 )
 
 const (

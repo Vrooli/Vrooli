@@ -49,6 +49,10 @@ vrooli resource install redis
 # Check status through the shared control plane
 resource-redis status
 
+# Back up and restore a key prefix (best effort; quiesce writers for consistency)
+resource-redis dump --prefix app: --output /safe/app.redis.json
+resource-redis restore --prefix app: --input /safe/app.redis.json
+
 # Connect directly with redis-cli if needed
 redis-cli -p 6380
 ```

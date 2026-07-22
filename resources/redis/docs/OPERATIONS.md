@@ -20,6 +20,13 @@ Do not turn `cli/main.go` into the implementation surface. If the resource needs
 - Keep mutable runtime state in canonical resource storage paths rather than repo-local ad hoc paths.
 - Prefer shared `vrooli resource ...` lifecycle behavior before adding resource-local commands.
 
+## Prefix Backup Contract
+
+Use `resource-redis dump --prefix <prefix> --output <archive>` to create a
+best-effort JSON archive. Use `resource-redis restore --prefix <prefix>
+--input <archive>` to restore entries. The archive records Redis `DUMP` values
+and remaining TTLs. Quiesce writers when a consistent snapshot is required.
+
 ## Shell Deletion Gate
 
 The legacy `lib/`, `config/defaults.sh`, `config/messages.sh`, and

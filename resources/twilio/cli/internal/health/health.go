@@ -27,7 +27,10 @@ func Probe(ctx context.Context, client *http.Client, endpoint, accountSID, authT
 		return 0, fmt.Errorf("call Twilio Accounts endpoint: %w", err)
 	}
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusUnauthorized && response.StatusCode != http.StatusForbidden {
+	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
+		return response.StatusCode, fmt.Errorf("Twilio credentials rejected (HTTP %d)", response.StatusCode)
+	}
+	if response.StatusCode != http.StatusOK {
 		return response.StatusCode, fmt.Errorf("Twilio Accounts endpoint returned HTTP %d", response.StatusCode)
 	}
 	return response.StatusCode, nil

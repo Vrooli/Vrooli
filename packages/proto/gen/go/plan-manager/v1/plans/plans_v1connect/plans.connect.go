@@ -41,6 +41,24 @@ const (
 	PlansServiceCreatePlanProcedure = "/vrooli.plan_manager.v1.plans.PlansService/CreatePlan"
 	// PlansServiceUpdatePlanProcedure is the fully-qualified name of the PlansService's UpdatePlan RPC.
 	PlansServiceUpdatePlanProcedure = "/vrooli.plan_manager.v1.plans.PlansService/UpdatePlan"
+	// PlansServiceCreateCandidateRevisionProcedure is the fully-qualified name of the PlansService's
+	// CreateCandidateRevision RPC.
+	PlansServiceCreateCandidateRevisionProcedure = "/vrooli.plan_manager.v1.plans.PlansService/CreateCandidateRevision"
+	// PlansServiceGetCandidateRevisionProcedure is the fully-qualified name of the PlansService's
+	// GetCandidateRevision RPC.
+	PlansServiceGetCandidateRevisionProcedure = "/vrooli.plan_manager.v1.plans.PlansService/GetCandidateRevision"
+	// PlansServicePreviewCandidateRevisionProcedure is the fully-qualified name of the PlansService's
+	// PreviewCandidateRevision RPC.
+	PlansServicePreviewCandidateRevisionProcedure = "/vrooli.plan_manager.v1.plans.PlansService/PreviewCandidateRevision"
+	// PlansServiceValidateCandidateRevisionProcedure is the fully-qualified name of the PlansService's
+	// ValidateCandidateRevision RPC.
+	PlansServiceValidateCandidateRevisionProcedure = "/vrooli.plan_manager.v1.plans.PlansService/ValidateCandidateRevision"
+	// PlansServiceApplyCandidateRevisionProcedure is the fully-qualified name of the PlansService's
+	// ApplyCandidateRevision RPC.
+	PlansServiceApplyCandidateRevisionProcedure = "/vrooli.plan_manager.v1.plans.PlansService/ApplyCandidateRevision"
+	// PlansServiceDiscardCandidateRevisionProcedure is the fully-qualified name of the PlansService's
+	// DiscardCandidateRevision RPC.
+	PlansServiceDiscardCandidateRevisionProcedure = "/vrooli.plan_manager.v1.plans.PlansService/DiscardCandidateRevision"
 	// PlansServiceArchivePlanProcedure is the fully-qualified name of the PlansService's ArchivePlan
 	// RPC.
 	PlansServiceArchivePlanProcedure = "/vrooli.plan_manager.v1.plans.PlansService/ArchivePlan"
@@ -115,6 +133,19 @@ type PlansServiceClient interface {
 	// UpdatePlan replaces the authored fields of an existing plan; computed fields
 	// are recomputed server-side.
 	UpdatePlan(context.Context, *connect.Request[plans.UpdatePlanRequest]) (*connect.Response[plans.UpdatePlanResponse], error)
+	// CreateCandidateRevision stores a whole-plan revision without changing the
+	// canonical plan. Workflow agents use this path instead of UpdatePlan.
+	CreateCandidateRevision(context.Context, *connect.Request[plans.CreateCandidateRevisionRequest]) (*connect.Response[plans.CreateCandidateRevisionResponse], error)
+	GetCandidateRevision(context.Context, *connect.Request[plans.GetCandidateRevisionRequest]) (*connect.Response[plans.GetCandidateRevisionResponse], error)
+	// PreviewCandidateRevision computes diff, quality, diagnostics, and rendered
+	// content without mutating the canonical plan.
+	PreviewCandidateRevision(context.Context, *connect.Request[plans.PreviewCandidateRevisionRequest]) (*connect.Response[plans.PreviewCandidateRevisionResponse], error)
+	ValidateCandidateRevision(context.Context, *connect.Request[plans.ValidateCandidateRevisionRequest]) (*connect.Response[plans.ValidateCandidateRevisionResponse], error)
+	// ApplyCandidateRevision changes the existing canonical plan only when its
+	// base hash still matches, acknowledgment is explicit, and no execution is
+	// active for the plan.
+	ApplyCandidateRevision(context.Context, *connect.Request[plans.ApplyCandidateRevisionRequest]) (*connect.Response[plans.ApplyCandidateRevisionResponse], error)
+	DiscardCandidateRevision(context.Context, *connect.Request[plans.DiscardCandidateRevisionRequest]) (*connect.Response[plans.DiscardCandidateRevisionResponse], error)
 	// ArchivePlan soft-archives a plan (kept, hidden by default).
 	ArchivePlan(context.Context, *connect.Request[plans.ArchivePlanRequest]) (*connect.Response[plans.ArchivePlanResponse], error)
 	// RenderMarkdown renders the structured record to its human-readable markdown
@@ -201,6 +232,42 @@ func NewPlansServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+PlansServiceUpdatePlanProcedure,
 			connect.WithSchema(plansServiceMethods.ByName("UpdatePlan")),
+			connect.WithClientOptions(opts...),
+		),
+		createCandidateRevision: connect.NewClient[plans.CreateCandidateRevisionRequest, plans.CreateCandidateRevisionResponse](
+			httpClient,
+			baseURL+PlansServiceCreateCandidateRevisionProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("CreateCandidateRevision")),
+			connect.WithClientOptions(opts...),
+		),
+		getCandidateRevision: connect.NewClient[plans.GetCandidateRevisionRequest, plans.GetCandidateRevisionResponse](
+			httpClient,
+			baseURL+PlansServiceGetCandidateRevisionProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("GetCandidateRevision")),
+			connect.WithClientOptions(opts...),
+		),
+		previewCandidateRevision: connect.NewClient[plans.PreviewCandidateRevisionRequest, plans.PreviewCandidateRevisionResponse](
+			httpClient,
+			baseURL+PlansServicePreviewCandidateRevisionProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("PreviewCandidateRevision")),
+			connect.WithClientOptions(opts...),
+		),
+		validateCandidateRevision: connect.NewClient[plans.ValidateCandidateRevisionRequest, plans.ValidateCandidateRevisionResponse](
+			httpClient,
+			baseURL+PlansServiceValidateCandidateRevisionProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("ValidateCandidateRevision")),
+			connect.WithClientOptions(opts...),
+		),
+		applyCandidateRevision: connect.NewClient[plans.ApplyCandidateRevisionRequest, plans.ApplyCandidateRevisionResponse](
+			httpClient,
+			baseURL+PlansServiceApplyCandidateRevisionProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("ApplyCandidateRevision")),
+			connect.WithClientOptions(opts...),
+		),
+		discardCandidateRevision: connect.NewClient[plans.DiscardCandidateRevisionRequest, plans.DiscardCandidateRevisionResponse](
+			httpClient,
+			baseURL+PlansServiceDiscardCandidateRevisionProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("DiscardCandidateRevision")),
 			connect.WithClientOptions(opts...),
 		),
 		archivePlan: connect.NewClient[plans.ArchivePlanRequest, plans.ArchivePlanResponse](
@@ -334,31 +401,37 @@ func NewPlansServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // plansServiceClient implements PlansServiceClient.
 type plansServiceClient struct {
-	listPlans             *connect.Client[plans.ListPlansRequest, plans.ListPlansResponse]
-	getPlan               *connect.Client[plans.GetPlanRequest, plans.GetPlanResponse]
-	createPlan            *connect.Client[plans.CreatePlanRequest, plans.CreatePlanResponse]
-	updatePlan            *connect.Client[plans.UpdatePlanRequest, plans.UpdatePlanResponse]
-	archivePlan           *connect.Client[plans.ArchivePlanRequest, plans.ArchivePlanResponse]
-	renderMarkdown        *connect.Client[plans.RenderMarkdownRequest, plans.RenderMarkdownResponse]
-	addPhase              *connect.Client[plans.AddPhaseRequest, plans.AddPhaseResponse]
-	updatePhase           *connect.Client[plans.UpdatePhaseRequest, plans.UpdatePhaseResponse]
-	addRelevantContext    *connect.Client[plans.AddRelevantContextRequest, plans.AddRelevantContextResponse]
-	listRelevantContext   *connect.Client[plans.ListRelevantContextRequest, plans.ListRelevantContextResponse]
-	updateRelevantContext *connect.Client[plans.UpdateRelevantContextRequest, plans.UpdateRelevantContextResponse]
-	removeRelevantContext *connect.Client[plans.RemoveRelevantContextRequest, plans.RemoveRelevantContextResponse]
-	addReference          *connect.Client[plans.AddReferenceRequest, plans.AddReferenceResponse]
-	listReferences        *connect.Client[plans.ListReferencesRequest, plans.ListReferencesResponse]
-	updateReference       *connect.Client[plans.UpdateReferenceRequest, plans.UpdateReferenceResponse]
-	removeReference       *connect.Client[plans.RemoveReferenceRequest, plans.RemoveReferenceResponse]
-	getGraph              *connect.Client[plans.GetGraphRequest, plans.GetGraphResponse]
-	linkSupersession      *connect.Client[plans.LinkSupersessionRequest, plans.LinkSupersessionResponse]
-	linkDependency        *connect.Client[plans.LinkDependencyRequest, plans.LinkDependencyResponse]
-	importPlan            *connect.Client[plans.ImportPlanRequest, plans.ImportPlanResponse]
-	migratePlan           *connect.Client[plans.MigratePlanRequest, plans.MigratePlanResponse]
-	reconcilePlans        *connect.Client[plans.ReconcilePlansRequest, plans.ReconcilePlansResponse]
-	listTemplates         *connect.Client[plans.ListTemplatesRequest, plans.ListTemplatesResponse]
-	createFromTemplate    *connect.Client[plans.CreateFromTemplateRequest, plans.CreateFromTemplateResponse]
-	listAuditFacts        *connect.Client[plans.ListAuditFactsRequest, plans.ListAuditFactsResponse]
+	listPlans                 *connect.Client[plans.ListPlansRequest, plans.ListPlansResponse]
+	getPlan                   *connect.Client[plans.GetPlanRequest, plans.GetPlanResponse]
+	createPlan                *connect.Client[plans.CreatePlanRequest, plans.CreatePlanResponse]
+	updatePlan                *connect.Client[plans.UpdatePlanRequest, plans.UpdatePlanResponse]
+	createCandidateRevision   *connect.Client[plans.CreateCandidateRevisionRequest, plans.CreateCandidateRevisionResponse]
+	getCandidateRevision      *connect.Client[plans.GetCandidateRevisionRequest, plans.GetCandidateRevisionResponse]
+	previewCandidateRevision  *connect.Client[plans.PreviewCandidateRevisionRequest, plans.PreviewCandidateRevisionResponse]
+	validateCandidateRevision *connect.Client[plans.ValidateCandidateRevisionRequest, plans.ValidateCandidateRevisionResponse]
+	applyCandidateRevision    *connect.Client[plans.ApplyCandidateRevisionRequest, plans.ApplyCandidateRevisionResponse]
+	discardCandidateRevision  *connect.Client[plans.DiscardCandidateRevisionRequest, plans.DiscardCandidateRevisionResponse]
+	archivePlan               *connect.Client[plans.ArchivePlanRequest, plans.ArchivePlanResponse]
+	renderMarkdown            *connect.Client[plans.RenderMarkdownRequest, plans.RenderMarkdownResponse]
+	addPhase                  *connect.Client[plans.AddPhaseRequest, plans.AddPhaseResponse]
+	updatePhase               *connect.Client[plans.UpdatePhaseRequest, plans.UpdatePhaseResponse]
+	addRelevantContext        *connect.Client[plans.AddRelevantContextRequest, plans.AddRelevantContextResponse]
+	listRelevantContext       *connect.Client[plans.ListRelevantContextRequest, plans.ListRelevantContextResponse]
+	updateRelevantContext     *connect.Client[plans.UpdateRelevantContextRequest, plans.UpdateRelevantContextResponse]
+	removeRelevantContext     *connect.Client[plans.RemoveRelevantContextRequest, plans.RemoveRelevantContextResponse]
+	addReference              *connect.Client[plans.AddReferenceRequest, plans.AddReferenceResponse]
+	listReferences            *connect.Client[plans.ListReferencesRequest, plans.ListReferencesResponse]
+	updateReference           *connect.Client[plans.UpdateReferenceRequest, plans.UpdateReferenceResponse]
+	removeReference           *connect.Client[plans.RemoveReferenceRequest, plans.RemoveReferenceResponse]
+	getGraph                  *connect.Client[plans.GetGraphRequest, plans.GetGraphResponse]
+	linkSupersession          *connect.Client[plans.LinkSupersessionRequest, plans.LinkSupersessionResponse]
+	linkDependency            *connect.Client[plans.LinkDependencyRequest, plans.LinkDependencyResponse]
+	importPlan                *connect.Client[plans.ImportPlanRequest, plans.ImportPlanResponse]
+	migratePlan               *connect.Client[plans.MigratePlanRequest, plans.MigratePlanResponse]
+	reconcilePlans            *connect.Client[plans.ReconcilePlansRequest, plans.ReconcilePlansResponse]
+	listTemplates             *connect.Client[plans.ListTemplatesRequest, plans.ListTemplatesResponse]
+	createFromTemplate        *connect.Client[plans.CreateFromTemplateRequest, plans.CreateFromTemplateResponse]
+	listAuditFacts            *connect.Client[plans.ListAuditFactsRequest, plans.ListAuditFactsResponse]
 }
 
 // ListPlans calls vrooli.plan_manager.v1.plans.PlansService.ListPlans.
@@ -379,6 +452,39 @@ func (c *plansServiceClient) CreatePlan(ctx context.Context, req *connect.Reques
 // UpdatePlan calls vrooli.plan_manager.v1.plans.PlansService.UpdatePlan.
 func (c *plansServiceClient) UpdatePlan(ctx context.Context, req *connect.Request[plans.UpdatePlanRequest]) (*connect.Response[plans.UpdatePlanResponse], error) {
 	return c.updatePlan.CallUnary(ctx, req)
+}
+
+// CreateCandidateRevision calls vrooli.plan_manager.v1.plans.PlansService.CreateCandidateRevision.
+func (c *plansServiceClient) CreateCandidateRevision(ctx context.Context, req *connect.Request[plans.CreateCandidateRevisionRequest]) (*connect.Response[plans.CreateCandidateRevisionResponse], error) {
+	return c.createCandidateRevision.CallUnary(ctx, req)
+}
+
+// GetCandidateRevision calls vrooli.plan_manager.v1.plans.PlansService.GetCandidateRevision.
+func (c *plansServiceClient) GetCandidateRevision(ctx context.Context, req *connect.Request[plans.GetCandidateRevisionRequest]) (*connect.Response[plans.GetCandidateRevisionResponse], error) {
+	return c.getCandidateRevision.CallUnary(ctx, req)
+}
+
+// PreviewCandidateRevision calls
+// vrooli.plan_manager.v1.plans.PlansService.PreviewCandidateRevision.
+func (c *plansServiceClient) PreviewCandidateRevision(ctx context.Context, req *connect.Request[plans.PreviewCandidateRevisionRequest]) (*connect.Response[plans.PreviewCandidateRevisionResponse], error) {
+	return c.previewCandidateRevision.CallUnary(ctx, req)
+}
+
+// ValidateCandidateRevision calls
+// vrooli.plan_manager.v1.plans.PlansService.ValidateCandidateRevision.
+func (c *plansServiceClient) ValidateCandidateRevision(ctx context.Context, req *connect.Request[plans.ValidateCandidateRevisionRequest]) (*connect.Response[plans.ValidateCandidateRevisionResponse], error) {
+	return c.validateCandidateRevision.CallUnary(ctx, req)
+}
+
+// ApplyCandidateRevision calls vrooli.plan_manager.v1.plans.PlansService.ApplyCandidateRevision.
+func (c *plansServiceClient) ApplyCandidateRevision(ctx context.Context, req *connect.Request[plans.ApplyCandidateRevisionRequest]) (*connect.Response[plans.ApplyCandidateRevisionResponse], error) {
+	return c.applyCandidateRevision.CallUnary(ctx, req)
+}
+
+// DiscardCandidateRevision calls
+// vrooli.plan_manager.v1.plans.PlansService.DiscardCandidateRevision.
+func (c *plansServiceClient) DiscardCandidateRevision(ctx context.Context, req *connect.Request[plans.DiscardCandidateRevisionRequest]) (*connect.Response[plans.DiscardCandidateRevisionResponse], error) {
+	return c.discardCandidateRevision.CallUnary(ctx, req)
 }
 
 // ArchivePlan calls vrooli.plan_manager.v1.plans.PlansService.ArchivePlan.
@@ -499,6 +605,19 @@ type PlansServiceHandler interface {
 	// UpdatePlan replaces the authored fields of an existing plan; computed fields
 	// are recomputed server-side.
 	UpdatePlan(context.Context, *connect.Request[plans.UpdatePlanRequest]) (*connect.Response[plans.UpdatePlanResponse], error)
+	// CreateCandidateRevision stores a whole-plan revision without changing the
+	// canonical plan. Workflow agents use this path instead of UpdatePlan.
+	CreateCandidateRevision(context.Context, *connect.Request[plans.CreateCandidateRevisionRequest]) (*connect.Response[plans.CreateCandidateRevisionResponse], error)
+	GetCandidateRevision(context.Context, *connect.Request[plans.GetCandidateRevisionRequest]) (*connect.Response[plans.GetCandidateRevisionResponse], error)
+	// PreviewCandidateRevision computes diff, quality, diagnostics, and rendered
+	// content without mutating the canonical plan.
+	PreviewCandidateRevision(context.Context, *connect.Request[plans.PreviewCandidateRevisionRequest]) (*connect.Response[plans.PreviewCandidateRevisionResponse], error)
+	ValidateCandidateRevision(context.Context, *connect.Request[plans.ValidateCandidateRevisionRequest]) (*connect.Response[plans.ValidateCandidateRevisionResponse], error)
+	// ApplyCandidateRevision changes the existing canonical plan only when its
+	// base hash still matches, acknowledgment is explicit, and no execution is
+	// active for the plan.
+	ApplyCandidateRevision(context.Context, *connect.Request[plans.ApplyCandidateRevisionRequest]) (*connect.Response[plans.ApplyCandidateRevisionResponse], error)
+	DiscardCandidateRevision(context.Context, *connect.Request[plans.DiscardCandidateRevisionRequest]) (*connect.Response[plans.DiscardCandidateRevisionResponse], error)
 	// ArchivePlan soft-archives a plan (kept, hidden by default).
 	ArchivePlan(context.Context, *connect.Request[plans.ArchivePlanRequest]) (*connect.Response[plans.ArchivePlanResponse], error)
 	// RenderMarkdown renders the structured record to its human-readable markdown
@@ -581,6 +700,42 @@ func NewPlansServiceHandler(svc PlansServiceHandler, opts ...connect.HandlerOpti
 		PlansServiceUpdatePlanProcedure,
 		svc.UpdatePlan,
 		connect.WithSchema(plansServiceMethods.ByName("UpdatePlan")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServiceCreateCandidateRevisionHandler := connect.NewUnaryHandler(
+		PlansServiceCreateCandidateRevisionProcedure,
+		svc.CreateCandidateRevision,
+		connect.WithSchema(plansServiceMethods.ByName("CreateCandidateRevision")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServiceGetCandidateRevisionHandler := connect.NewUnaryHandler(
+		PlansServiceGetCandidateRevisionProcedure,
+		svc.GetCandidateRevision,
+		connect.WithSchema(plansServiceMethods.ByName("GetCandidateRevision")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServicePreviewCandidateRevisionHandler := connect.NewUnaryHandler(
+		PlansServicePreviewCandidateRevisionProcedure,
+		svc.PreviewCandidateRevision,
+		connect.WithSchema(plansServiceMethods.ByName("PreviewCandidateRevision")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServiceValidateCandidateRevisionHandler := connect.NewUnaryHandler(
+		PlansServiceValidateCandidateRevisionProcedure,
+		svc.ValidateCandidateRevision,
+		connect.WithSchema(plansServiceMethods.ByName("ValidateCandidateRevision")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServiceApplyCandidateRevisionHandler := connect.NewUnaryHandler(
+		PlansServiceApplyCandidateRevisionProcedure,
+		svc.ApplyCandidateRevision,
+		connect.WithSchema(plansServiceMethods.ByName("ApplyCandidateRevision")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServiceDiscardCandidateRevisionHandler := connect.NewUnaryHandler(
+		PlansServiceDiscardCandidateRevisionProcedure,
+		svc.DiscardCandidateRevision,
+		connect.WithSchema(plansServiceMethods.ByName("DiscardCandidateRevision")),
 		connect.WithHandlerOptions(opts...),
 	)
 	plansServiceArchivePlanHandler := connect.NewUnaryHandler(
@@ -719,6 +874,18 @@ func NewPlansServiceHandler(svc PlansServiceHandler, opts ...connect.HandlerOpti
 			plansServiceCreatePlanHandler.ServeHTTP(w, r)
 		case PlansServiceUpdatePlanProcedure:
 			plansServiceUpdatePlanHandler.ServeHTTP(w, r)
+		case PlansServiceCreateCandidateRevisionProcedure:
+			plansServiceCreateCandidateRevisionHandler.ServeHTTP(w, r)
+		case PlansServiceGetCandidateRevisionProcedure:
+			plansServiceGetCandidateRevisionHandler.ServeHTTP(w, r)
+		case PlansServicePreviewCandidateRevisionProcedure:
+			plansServicePreviewCandidateRevisionHandler.ServeHTTP(w, r)
+		case PlansServiceValidateCandidateRevisionProcedure:
+			plansServiceValidateCandidateRevisionHandler.ServeHTTP(w, r)
+		case PlansServiceApplyCandidateRevisionProcedure:
+			plansServiceApplyCandidateRevisionHandler.ServeHTTP(w, r)
+		case PlansServiceDiscardCandidateRevisionProcedure:
+			plansServiceDiscardCandidateRevisionHandler.ServeHTTP(w, r)
 		case PlansServiceArchivePlanProcedure:
 			plansServiceArchivePlanHandler.ServeHTTP(w, r)
 		case PlansServiceRenderMarkdownProcedure:
@@ -784,6 +951,30 @@ func (UnimplementedPlansServiceHandler) CreatePlan(context.Context, *connect.Req
 
 func (UnimplementedPlansServiceHandler) UpdatePlan(context.Context, *connect.Request[plans.UpdatePlanRequest]) (*connect.Response[plans.UpdatePlanResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.UpdatePlan is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) CreateCandidateRevision(context.Context, *connect.Request[plans.CreateCandidateRevisionRequest]) (*connect.Response[plans.CreateCandidateRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.CreateCandidateRevision is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) GetCandidateRevision(context.Context, *connect.Request[plans.GetCandidateRevisionRequest]) (*connect.Response[plans.GetCandidateRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.GetCandidateRevision is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) PreviewCandidateRevision(context.Context, *connect.Request[plans.PreviewCandidateRevisionRequest]) (*connect.Response[plans.PreviewCandidateRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.PreviewCandidateRevision is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) ValidateCandidateRevision(context.Context, *connect.Request[plans.ValidateCandidateRevisionRequest]) (*connect.Response[plans.ValidateCandidateRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.ValidateCandidateRevision is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) ApplyCandidateRevision(context.Context, *connect.Request[plans.ApplyCandidateRevisionRequest]) (*connect.Response[plans.ApplyCandidateRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.ApplyCandidateRevision is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) DiscardCandidateRevision(context.Context, *connect.Request[plans.DiscardCandidateRevisionRequest]) (*connect.Response[plans.DiscardCandidateRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.DiscardCandidateRevision is not implemented"))
 }
 
 func (UnimplementedPlansServiceHandler) ArchivePlan(context.Context, *connect.Request[plans.ArchivePlanRequest]) (*connect.Response[plans.ArchivePlanResponse], error) {

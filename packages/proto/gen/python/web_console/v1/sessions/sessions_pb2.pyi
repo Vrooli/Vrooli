@@ -27,7 +27,7 @@ class ExpirationPolicy(_message.Message):
     def __init__(self, mode: _Optional[str] = ..., duration: _Optional[str] = ...) -> None: ...
 
 class Session(_message.Message):
-    __slots__ = ("id", "shell", "created_at", "cols", "rows", "backend", "survives_restart", "policy", "busy", "recovered", "origin", "owner", "display_label")
+    __slots__ = ("id", "shell", "created_at", "cols", "rows", "backend", "survives_restart", "policy", "busy", "recovered", "origin", "owner", "display_label", "tracking_degraded")
     ID_FIELD_NUMBER: _ClassVar[int]
     SHELL_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -41,6 +41,7 @@ class Session(_message.Message):
     ORIGIN_FIELD_NUMBER: _ClassVar[int]
     OWNER_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_LABEL_FIELD_NUMBER: _ClassVar[int]
+    TRACKING_DEGRADED_FIELD_NUMBER: _ClassVar[int]
     id: str
     shell: str
     created_at: str
@@ -54,10 +55,11 @@ class Session(_message.Message):
     origin: SessionOrigin
     owner: str
     display_label: str
-    def __init__(self, id: _Optional[str] = ..., shell: _Optional[str] = ..., created_at: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., survives_restart: _Optional[bool] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., busy: _Optional[bool] = ..., recovered: _Optional[bool] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ...) -> None: ...
+    tracking_degraded: bool
+    def __init__(self, id: _Optional[str] = ..., shell: _Optional[str] = ..., created_at: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., survives_restart: _Optional[bool] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., busy: _Optional[bool] = ..., recovered: _Optional[bool] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., tracking_degraded: _Optional[bool] = ...) -> None: ...
 
 class RecoverableSession(_message.Message):
-    __slots__ = ("id", "backend", "shell", "cols", "rows", "created_at", "orphaned_at", "last_activity_at", "agent_type", "agent_session_id", "launch_command", "cwd", "last_rollout_path", "recoverable", "not_recoverable_reason")
+    __slots__ = ("id", "backend", "shell", "cols", "rows", "created_at", "orphaned_at", "last_activity_at", "agent_type", "agent_session_id", "launch_command", "cwd", "last_rollout_path", "recoverable", "not_recoverable_reason", "pane_name", "header_color", "group_name")
     ID_FIELD_NUMBER: _ClassVar[int]
     BACKEND_FIELD_NUMBER: _ClassVar[int]
     SHELL_FIELD_NUMBER: _ClassVar[int]
@@ -73,6 +75,9 @@ class RecoverableSession(_message.Message):
     LAST_ROLLOUT_PATH_FIELD_NUMBER: _ClassVar[int]
     RECOVERABLE_FIELD_NUMBER: _ClassVar[int]
     NOT_RECOVERABLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    PANE_NAME_FIELD_NUMBER: _ClassVar[int]
+    HEADER_COLOR_FIELD_NUMBER: _ClassVar[int]
+    GROUP_NAME_FIELD_NUMBER: _ClassVar[int]
     id: str
     backend: str
     shell: str
@@ -88,7 +93,10 @@ class RecoverableSession(_message.Message):
     last_rollout_path: str
     recoverable: bool
     not_recoverable_reason: str
-    def __init__(self, id: _Optional[str] = ..., backend: _Optional[str] = ..., shell: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., created_at: _Optional[str] = ..., orphaned_at: _Optional[str] = ..., last_activity_at: _Optional[str] = ..., agent_type: _Optional[str] = ..., agent_session_id: _Optional[str] = ..., launch_command: _Optional[str] = ..., cwd: _Optional[str] = ..., last_rollout_path: _Optional[str] = ..., recoverable: _Optional[bool] = ..., not_recoverable_reason: _Optional[str] = ...) -> None: ...
+    pane_name: str
+    header_color: str
+    group_name: str
+    def __init__(self, id: _Optional[str] = ..., backend: _Optional[str] = ..., shell: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., created_at: _Optional[str] = ..., orphaned_at: _Optional[str] = ..., last_activity_at: _Optional[str] = ..., agent_type: _Optional[str] = ..., agent_session_id: _Optional[str] = ..., launch_command: _Optional[str] = ..., cwd: _Optional[str] = ..., last_rollout_path: _Optional[str] = ..., recoverable: _Optional[bool] = ..., not_recoverable_reason: _Optional[str] = ..., pane_name: _Optional[str] = ..., header_color: _Optional[str] = ..., group_name: _Optional[str] = ...) -> None: ...
 
 class CreateRequest(_message.Message):
     __slots__ = ("shell", "cols", "rows", "backend", "policy", "has_policy", "launch_command", "agent_type", "origin", "owner", "display_label", "execute_launch_command")

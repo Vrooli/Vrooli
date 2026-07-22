@@ -20,6 +20,12 @@ Do not turn `cli/main.go` into the implementation surface. If the resource needs
 - Prefer shared `vrooli resource ...` lifecycle behavior before adding resource-local commands.
 - Distinguish safe smoke checks from quota-consuming or mutating provider actions.
 
+## Provider Diagnostic
+
+Use `resource-twilio provider-check` for the only supported provider-specific
+operation. It sends an authenticated read-only request to the Accounts endpoint.
+Missing credentials, credential rejection, and provider failures return errors.
+
 ## Shell Deletion Gate
 
 The legacy `lib/`, `config/defaults.sh`, and `test/*.sh` tree was removed after

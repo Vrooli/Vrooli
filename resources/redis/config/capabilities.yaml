@@ -76,7 +76,7 @@ spec:
     optimal_combinations:
       - [redis, postgres, n8n]              # Complete data stack with caching
       - [redis, ollama, qdrant]             # AI workflows with caching layer
-      - [redis, judge0, minio]              # Cached execution and storage
+      - [redis, minio]                      # Cached storage
   
   # Business intelligence
   business:
@@ -138,7 +138,7 @@ spec:
       - queue-based-architectures
     integration_targets:
       preferred: [postgres, n8n, ollama]
-      compatible: [qdrant, vault, minio, judge0]
+      compatible: [qdrant, vault, minio]
       avoid: [file-storage, long-term-archival]
     workflow_templates:
       caching: "Check cache → If miss, fetch from source → Store in cache → Return data"

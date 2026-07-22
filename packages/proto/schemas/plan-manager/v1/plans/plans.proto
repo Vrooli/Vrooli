@@ -36,6 +36,19 @@ service PlansService {
   // UpdatePlan replaces the authored fields of an existing plan; computed fields
   // are recomputed server-side.
   rpc UpdatePlan(UpdatePlanRequest) returns (UpdatePlanResponse);
+  // CreateCandidateRevision stores a whole-plan revision without changing the
+  // canonical plan. Workflow agents use this path instead of UpdatePlan.
+  rpc CreateCandidateRevision(CreateCandidateRevisionRequest) returns (CreateCandidateRevisionResponse);
+  rpc GetCandidateRevision(GetCandidateRevisionRequest) returns (GetCandidateRevisionResponse);
+  // PreviewCandidateRevision computes diff, quality, diagnostics, and rendered
+  // content without mutating the canonical plan.
+  rpc PreviewCandidateRevision(PreviewCandidateRevisionRequest) returns (PreviewCandidateRevisionResponse);
+  rpc ValidateCandidateRevision(ValidateCandidateRevisionRequest) returns (ValidateCandidateRevisionResponse);
+  // ApplyCandidateRevision changes the existing canonical plan only when its
+  // base hash still matches, acknowledgment is explicit, and no execution is
+  // active for the plan.
+  rpc ApplyCandidateRevision(ApplyCandidateRevisionRequest) returns (ApplyCandidateRevisionResponse);
+  rpc DiscardCandidateRevision(DiscardCandidateRevisionRequest) returns (DiscardCandidateRevisionResponse);
   // ArchivePlan soft-archives a plan (kept, hidden by default).
   rpc ArchivePlan(ArchivePlanRequest) returns (ArchivePlanResponse);
   // RenderMarkdown renders the structured record to its human-readable markdown
@@ -132,6 +145,96 @@ message UpdatePlanRequest {
 message UpdatePlanResponse {
   shared.Plan plan = 1;
 }
+
+enum CandidateRevisionState {
+  CANDIDATE_REVISION_STATE_UNSPECIFIED = 0;
+  CANDIDATE_REVISION_STATE_PENDING = 1;
+  CANDIDATE_REVISION_STATE_APPLIED = 2;
+  CANDIDATE_REVISION_STATE_DISCARDED = 3;
+  CANDIDATE_REVISION_STATE_EXPIRED = 4;
+}
+
+message CandidateRevision {
+  string id = 1;
+  string plan_id = 2;
+  string expected_base_content_hash = 3;
+  string proposal_provenance = 4;
+  shared.Plan candidate_plan = 5;
+  WorkspaceScope workspace = 6;
+  CandidateRevisionState state = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  string expires_at = 10;
+  string applied_at = 11;
+  string applied_content_hash = 12;
+  string discard_reason = 13;
+}
+
+message CandidateFieldChange {
+  string field = 1;
+  string before_json = 2;
+  string after_json = 3;
+}
+
+message CandidateRevisionDiff {
+  repeated CandidateFieldChange changes = 1;
+}
+
+message CandidateValidationDiagnostic {
+  string severity = 1;
+  string code = 2;
+  string location = 3;
+  string message = 4;
+  string guidance = 5;
+}
+
+message CandidateRevisionPreview {
+  CandidateRevision candidate = 1;
+  shared.Plan base_plan = 2;
+  CandidateRevisionDiff diff = 3;
+  PlanMutationImpact impact = 4;
+  string rendered_markdown = 5;
+  string quality_status = 6;
+  repeated CandidateValidationDiagnostic diagnostics = 7;
+}
+
+message CreateCandidateRevisionRequest {
+  string plan_id = 1;
+  string expected_base_content_hash = 2;
+  string proposal_provenance = 3;
+  shared.Plan candidate_plan = 4;
+  WorkspaceScope workspace = 5;
+  string expires_at = 6;
+}
+
+message CreateCandidateRevisionResponse { CandidateRevision candidate = 1; }
+
+message GetCandidateRevisionRequest { string id = 1; }
+message GetCandidateRevisionResponse { CandidateRevision candidate = 1; }
+
+message PreviewCandidateRevisionRequest { string id = 1; }
+message PreviewCandidateRevisionResponse { CandidateRevisionPreview preview = 1; }
+
+message ValidateCandidateRevisionRequest { string id = 1; }
+message ValidateCandidateRevisionResponse { CandidateRevisionPreview preview = 1; }
+
+message ApplyCandidateRevisionRequest {
+  string id = 1;
+  string expected_base_content_hash = 2;
+  bool acknowledge_quality_impact = 3;
+}
+
+message ApplyCandidateRevisionResponse {
+  CandidateRevision candidate = 1;
+  shared.Plan plan = 2;
+  CandidateRevisionPreview preview = 3;
+}
+
+message DiscardCandidateRevisionRequest {
+  string id = 1;
+  string reason = 2;
+}
+message DiscardCandidateRevisionResponse { CandidateRevision candidate = 1; }
 
 message ArchivePlanRequest {
   string id = 1;
