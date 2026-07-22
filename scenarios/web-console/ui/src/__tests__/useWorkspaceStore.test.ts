@@ -168,6 +168,80 @@ describe("useWorkspaceStore", () => {
     });
   });
 
+  describe("applyAppearance", () => {
+    beforeEach(() => {
+      const store = useWorkspaceStore.getState();
+      store.addPane("sess-1", "bash");
+      store.addPane("sess-2", "zsh");
+      store.setPaneColor("sess-1", "#ff7a7a");
+      store.setPaneTheme("sess-1", "dracula");
+      store.setPaneFontSize("sess-1", 18);
+    });
+
+    it("copies only the selected properties to existing panes", () => {
+      useWorkspaceStore.getState().applyAppearance("sess-1", {
+        properties: ["fontSize"],
+        toExistingPanes: true,
+        asNewPaneDefault: false,
+      });
+      const other = useWorkspaceStore.getState().panes.find((p) => p.sessionId === "sess-2");
+      expect(other?.fontSize).toBe(18);
+      expect(other?.headerColor).toBe("transparent");
+      expect(other?.themeId).toBe("slate-ocean");
+    });
+
+    it("does not touch defaults unless asNewPaneDefault is set", () => {
+      useWorkspaceStore.getState().applyAppearance("sess-1", {
+        properties: ["headerColor", "themeId", "fontSize"],
+        toExistingPanes: true,
+        asNewPaneDefault: false,
+      });
+      const state = useWorkspaceStore.getState();
+      expect(state.defaultHeaderColor).toBe("transparent");
+      expect(state.defaultThemeId).toBe("slate-ocean");
+      expect(state.defaultFontSize).toBe(14);
+    });
+
+    it("saves selected properties as new-pane defaults without touching panes", () => {
+      useWorkspaceStore.getState().applyAppearance("sess-1", {
+        properties: ["headerColor", "themeId"],
+        toExistingPanes: false,
+        asNewPaneDefault: true,
+      });
+      const state = useWorkspaceStore.getState();
+      expect(state.defaultHeaderColor).toBe("#ff7a7a");
+      expect(state.defaultThemeId).toBe("dracula");
+      expect(state.defaultFontSize).toBe(14);
+      const other = state.panes.find((p) => p.sessionId === "sess-2");
+      expect(other?.headerColor).toBe("transparent");
+    });
+
+    it("no-ops with an empty property list or unknown session", () => {
+      const before = useWorkspaceStore.getState().panes;
+      useWorkspaceStore.getState().applyAppearance("sess-1", {
+        properties: [],
+        toExistingPanes: true,
+        asNewPaneDefault: true,
+      });
+      useWorkspaceStore.getState().applyAppearance("missing", {
+        properties: ["fontSize"],
+        toExistingPanes: true,
+        asNewPaneDefault: true,
+      });
+      expect(useWorkspaceStore.getState().panes).toEqual(before);
+      expect(useWorkspaceStore.getState().defaultFontSize).toBe(14);
+    });
+  });
+
+  describe("settingsInitialTab", () => {
+    it("sets and clears the one-shot deep-link tab", () => {
+      useWorkspaceStore.getState().setSettingsInitialTab("new-pane-defaults");
+      expect(useWorkspaceStore.getState().settingsInitialTab).toBe("new-pane-defaults");
+      useWorkspaceStore.getState().setSettingsInitialTab(null);
+      expect(useWorkspaceStore.getState().settingsInitialTab).toBeNull();
+    });
+  });
+
   describe("default appearance", () => {
     it("starts with default values", () => {
       const state = useWorkspaceStore.getState();

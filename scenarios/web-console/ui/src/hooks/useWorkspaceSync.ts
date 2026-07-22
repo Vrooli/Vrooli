@@ -42,6 +42,30 @@ export function useWorkspaceSync() {
     [],
   );
 
+  /** Awaitable bulk save of the same metadata patch to many panes. Returns
+   *  the session ids whose save failed so the caller can surface the partial
+   *  failure (unlike the fire-and-forget single-pane path). */
+  const syncPaneUpdates = useCallback(
+    async (
+      sessionIds: string[],
+      update: Partial<Omit<WorkspacePaneDTO, "session_id">>,
+    ): Promise<string[]> => {
+      const results = await Promise.allSettled(
+        sessionIds.map((id) => updateWorkspacePane(id, update)),
+      );
+      const failed: string[] = [];
+      results.forEach((result, i) => {
+        if (result.status === "rejected") {
+          const id = sessionIds[i];
+          if (id) failed.push(id);
+          console.error("Failed to sync pane update:", result.reason);
+        }
+      });
+      return failed;
+    },
+    [],
+  );
+
   /** Immediate save of active pane change. */
   const syncActivePane = useCallback((paneOrder: string[], activePane: string | null) => {
     saveWorkspaceLayout({ active_pane: activePane, pane_order: paneOrder }).catch((err) =>
@@ -77,6 +101,7 @@ export function useWorkspaceSync() {
   return {
     syncPaneOrder,
     syncPaneUpdate,
+    syncPaneUpdates,
     syncActivePane,
     syncCreateGroup,
     syncUpdateGroup,

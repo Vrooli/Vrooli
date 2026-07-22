@@ -44,6 +44,18 @@ export interface TabContextMenuState {
   position: { x: number; y: number };
 }
 
+/** The pane appearance properties that can be propagated to other sessions. */
+export type AppearanceProperty = "headerColor" | "themeId" | "fontSize";
+
+export interface ApplyAppearanceOptions {
+  /** Which properties of the source pane to propagate. */
+  properties: AppearanceProperty[];
+  /** Copy the selected properties onto every currently-open pane. */
+  toExistingPanes: boolean;
+  /** Save the selected properties as the defaults seeded into new panes. */
+  asNewPaneDefault: boolean;
+}
+
 interface WorkspaceState {
   panes: PaneMetadata[];
   columnFractions: number[];
@@ -55,6 +67,10 @@ interface WorkspaceState {
   /** Mobile toolbar key layout: "compact" (single row) or "expanded" (two rows with D-pad). */
   toolbarLayout: ToolbarLayout;
   settingsModalOpen: boolean;
+  /** One-shot request to open the settings modal on a specific tab (e.g. a
+   *  deep link from the appearance modal). Consumed and cleared by
+   *  SettingsModal. Not persisted. */
+  settingsInitialTab: string | null;
   aiModalOpen: boolean;
   /** Whether the inline AI suggestion bar is active (mobile only). Not persisted. */
   aiSuggestActive: boolean;
@@ -135,6 +151,7 @@ interface WorkspaceActions {
   setDisplayMode: (mode: DisplayMode) => void;
   setToolbarLayout: (layout: ToolbarLayout) => void;
   setSettingsModalOpen: (open: boolean) => void;
+  setSettingsInitialTab: (tab: string | null) => void;
   setAiModalOpen: (open: boolean) => void;
   setAiSuggestActive: (active: boolean) => void;
   setVoiceEnabled: (enabled: boolean) => void;
@@ -176,7 +193,10 @@ interface WorkspaceActions {
    *  so groups stay contiguous. Returns nothing; caller syncs order + update. */
   addPaneToGroup: (sessionId: string, groupId: string) => void;
   toggleGroupCollapsed: (groupId: string) => void;
-  applyAppearanceToAll: (sessionId: string) => void;
+  /** Propagate a subset of the source pane's appearance to existing panes
+   *  and/or the new-pane defaults. Never mutates defaults implicitly — the
+   *  caller opts into each target. */
+  applyAppearance: (sessionId: string, options: ApplyAppearanceOptions) => void;
   setTabContextMenu: (menu: TabContextMenuState | null) => void;
   setManageGroupsTarget: (target: { sessionId: string | null } | null) => void;
   setKeepScreenAwake: (enabled: boolean) => void;
@@ -200,6 +220,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       displayMode: "grid",
       toolbarLayout: "expanded",
       settingsModalOpen: false,
+      settingsInitialTab: null,
       aiModalOpen: false,
       aiSuggestActive: false,
       voiceEnabled: true,
@@ -336,6 +357,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setDisplayMode: (mode) => set({ displayMode: mode }),
       setToolbarLayout: (layout) => set({ toolbarLayout: layout }),
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
+      setSettingsInitialTab: (tab) => set({ settingsInitialTab: tab }),
       setAiModalOpen: (open) => set({ aiModalOpen: open }),
       setAiSuggestActive: (active) => set({ aiSuggestActive: active }),
       setVoiceEnabled: (enabled) => set({ voiceEnabled: enabled }),
@@ -422,17 +444,24 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           g.id === groupId ? { ...g, isCollapsed: !g.isCollapsed } : g
         ),
       })),
-      applyAppearanceToAll: (sessionId) =>
+      applyAppearance: (sessionId, options) =>
         set((state) => {
           const source = state.panes.find((p) => p.sessionId === sessionId);
-          if (!source) return state;
-          const { headerColor, themeId, fontSize } = source;
-          return {
-            panes: state.panes.map((p) => ({ ...p, headerColor, themeId, fontSize })),
-            defaultHeaderColor: headerColor,
-            defaultThemeId: themeId,
-            defaultFontSize: fontSize,
-          };
+          if (!source || options.properties.length === 0) return state;
+          const patch: Partial<Pick<PaneMetadata, "headerColor" | "themeId" | "fontSize">> = {};
+          if (options.properties.includes("headerColor")) patch.headerColor = source.headerColor;
+          if (options.properties.includes("themeId")) patch.themeId = source.themeId;
+          if (options.properties.includes("fontSize")) patch.fontSize = source.fontSize;
+          const next: Partial<WorkspaceState> = {};
+          if (options.toExistingPanes) {
+            next.panes = state.panes.map((p) => ({ ...p, ...patch }));
+          }
+          if (options.asNewPaneDefault) {
+            if (patch.headerColor !== undefined) next.defaultHeaderColor = patch.headerColor;
+            if (patch.themeId !== undefined) next.defaultThemeId = patch.themeId;
+            if (patch.fontSize !== undefined) next.defaultFontSize = patch.fontSize;
+          }
+          return next;
         }),
       setTabContextMenu: (menu) => set({ tabContextMenu: menu }),
       setManageGroupsTarget: (target) => set({ manageGroupsTarget: target }),

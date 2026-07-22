@@ -74,6 +74,8 @@ export default function SettingsModal({
   const { t } = useTranslation();
   const settingsModalOpen = useWorkspaceStore((state) => state.settingsModalOpen);
   const setSettingsModalOpen = useWorkspaceStore((state) => state.setSettingsModalOpen);
+  const settingsInitialTab = useWorkspaceStore((state) => state.settingsInitialTab);
+  const setSettingsInitialTab = useWorkspaceStore((state) => state.setSettingsInitialTab);
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [activeTab, setActiveTab] = useState<SettingsTabId>(loadStoredTab);
   const settingsTabs = useSettingsTabs();
@@ -81,6 +83,16 @@ export default function SettingsModal({
   useEffect(() => {
     storeTab(activeTab);
   }, [activeTab]);
+
+  // Consume a one-shot deep-link request (e.g. "Manage defaults" in the
+  // appearance modal) — jump to the requested tab, then clear the request.
+  useEffect(() => {
+    if (!settingsInitialTab) return;
+    if ((SETTINGS_TAB_IDS as readonly string[]).includes(settingsInitialTab)) {
+      setActiveTab(settingsInitialTab as SettingsTabId);
+    }
+    setSettingsInitialTab(null);
+  }, [settingsInitialTab, setSettingsInitialTab]);
 
   const activeDefinition = useMemo(
     () => settingsTabs.find((tab) => tab.id === activeTab) ?? settingsTabs[0],

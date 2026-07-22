@@ -74,3 +74,52 @@ describe("HeaderColorPicker two-color UX", () => {
     expect(onChange).toHaveBeenLastCalledWith("#4dabf7");
   });
 });
+
+describe("HeaderColorPicker custom-input recents", () => {
+  it("dragging the native picker applies live without recording recents", () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    const input = screen.getByTestId("appearance-header-color-custom-input");
+
+    // Chromium fires BOTH `input` and `change` per drag tick — neither may
+    // record a recent.
+    fireEvent.input(input, { target: { value: "#111111" } });
+    fireEvent.change(input, { target: { value: "#222222" } });
+
+    expect(onChange).toHaveBeenLastCalledWith("#222222");
+    expect(useWorkspaceStore.getState().recentHeaderColors).toEqual([]);
+  });
+
+  it("blurring the input records only the final dragged color", () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    const input = screen.getByTestId("appearance-header-color-custom-input");
+
+    fireEvent.change(input, { target: { value: "#111111" } });
+    fireEvent.change(input, { target: { value: "#333333" } });
+    fireEvent.blur(input);
+
+    expect(useWorkspaceStore.getState().recentHeaderColors).toEqual(["#333333"]);
+
+    // A second blur without new picking must not double-record.
+    fireEvent.blur(input);
+    expect(useWorkspaceStore.getState().recentHeaderColors).toEqual(["#333333"]);
+  });
+
+  it("unmounting flushes the pending custom color into recents", () => {
+    const { unmount } = render(<Harness />);
+    const input = screen.getByTestId("appearance-header-color-custom-input");
+
+    fireEvent.change(input, { target: { value: "#444444" } });
+    expect(useWorkspaceStore.getState().recentHeaderColors).toEqual([]);
+
+    unmount();
+    expect(useWorkspaceStore.getState().recentHeaderColors).toEqual(["#444444"]);
+  });
+
+  it("swatch clicks still record recents immediately", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByTestId("appearance-header-color-#ff6b6b"));
+    expect(useWorkspaceStore.getState().recentHeaderColors).toEqual(["#ff6b6b"]);
+  });
+});
