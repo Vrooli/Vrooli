@@ -233,6 +233,60 @@ type PlanTemplate = planmodel.PlanTemplate
 // ListFilter narrows ListPlans. A zero value matches all non-archived plans.
 type ListFilter = planmodel.ListFilter
 
+// CandidateRevision is a durable, whole-plan proposal. It never changes the
+// canonical plan until ApplyCandidate succeeds under its hash and execution
+// guards.
+type CandidateRevision struct {
+	ID                      string
+	PlanID                  string
+	ExpectedBaseContentHash string
+	ProposalProvenance      string
+	CandidatePlan           Plan
+	Workspace               WorkspaceScope
+	State                   CandidateRevisionState
+	CreatedAt               string
+	UpdatedAt               string
+	ExpiresAt               string
+	AppliedAt               string
+	AppliedContentHash      string
+	DiscardReason           string
+}
+
+type CandidateRevisionState string
+
+const (
+	CandidateRevisionPending   CandidateRevisionState = "pending"
+	CandidateRevisionApplied   CandidateRevisionState = "applied"
+	CandidateRevisionDiscarded CandidateRevisionState = "discarded"
+	CandidateRevisionExpired   CandidateRevisionState = "expired"
+)
+
+type CandidateFieldChange struct {
+	Field      string
+	BeforeJSON string
+	AfterJSON  string
+}
+
+type CandidateRevisionDiff struct{ Changes []CandidateFieldChange }
+
+type CandidateValidationDiagnostic struct {
+	Severity string
+	Code     string
+	Location string
+	Message  string
+	Guidance string
+}
+
+type CandidateRevisionPreview struct {
+	Candidate     CandidateRevision
+	BasePlan      Plan
+	Diff          CandidateRevisionDiff
+	Impact        MutationImpact
+	Rendered      string
+	QualityStatus string
+	Diagnostics   []CandidateValidationDiagnostic
+}
+
 // WorkspaceScope anchors filesystem-scoped plan operations to a Vrooli
 // workspace root instead of the Plan Manager API process cwd.
 type WorkspaceScope struct {

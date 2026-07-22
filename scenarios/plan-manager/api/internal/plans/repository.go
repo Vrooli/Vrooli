@@ -25,4 +25,6 @@ type Repository interface {
 	// multi-write operation (edge + any associated plan document updates)
 	// commits atomically or rolls back as a unit.
 	WithTx(ctx context.Context, fn func(Repository) error) error
+	SaveCandidate(ctx context.Context, candidate CandidateRevision) error
+	GetCandidate(ctx context.Context, id string) (CandidateRevision, bool, error)
 }

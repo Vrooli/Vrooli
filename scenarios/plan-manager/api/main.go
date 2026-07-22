@@ -142,6 +142,9 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := internalplans.EnsureMigrations(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("plan storage migration failed: %v", err)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},

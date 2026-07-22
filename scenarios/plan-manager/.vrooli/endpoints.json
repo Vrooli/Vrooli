@@ -77,6 +77,54 @@
       "category": "plans"
     },
     {
+      "id": "plans_candidate_create",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/CreateCandidateRevision",
+      "method": "POST",
+      "summary": "Create candidate revision",
+      "description": "Stores a whole-plan candidate without changing canonical plan content.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_candidate_get",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/GetCandidateRevision",
+      "method": "POST",
+      "summary": "Get candidate revision",
+      "description": "Returns one durable candidate revision.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_candidate_preview",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/PreviewCandidateRevision",
+      "method": "POST",
+      "summary": "Preview candidate revision",
+      "description": "Computes a candidate diff, validation diagnostics, and rendered preview without mutation.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_candidate_validate",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/ValidateCandidateRevision",
+      "method": "POST",
+      "summary": "Validate candidate revision",
+      "description": "Validates a candidate revision without changing canonical plan content.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_candidate_apply",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/ApplyCandidateRevision",
+      "method": "POST",
+      "summary": "Apply candidate revision",
+      "description": "Applies a candidate once under base-hash, acknowledgment, and execution-active guards.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_candidate_discard",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/DiscardCandidateRevision",
+      "method": "POST",
+      "summary": "Discard candidate revision",
+      "description": "Marks an unapplied candidate as discarded.",
+      "category": "plans"
+    },
+    {
       "id": "plans_archive",
       "path": "/vrooli.plan_manager.v1.plans.PlansService/ArchivePlan",
       "method": "POST",
@@ -109,6 +157,70 @@
       "category": "plans"
     },
     {
+      "id": "plans_add_relevant_context",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/AddRelevantContext",
+      "method": "POST",
+      "summary": "Add relevant context",
+      "description": "Adds one structured setup item with a server-owned identity.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_list_relevant_context",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/ListRelevantContext",
+      "method": "POST",
+      "summary": "List relevant context",
+      "description": "Returns accepted setup context for a plan or one phase.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_update_relevant_context",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/UpdateRelevantContext",
+      "method": "POST",
+      "summary": "Update relevant context",
+      "description": "Replaces one structured setup item without rewriting the whole plan.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_remove_relevant_context",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/RemoveRelevantContext",
+      "method": "POST",
+      "summary": "Remove relevant context",
+      "description": "Removes one structured setup item from a plan or phase.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_add_reference",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/AddReference",
+      "method": "POST",
+      "summary": "Add a reference",
+      "description": "Adds one structured reference with a server-owned identity.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_list_references",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/ListReferences",
+      "method": "POST",
+      "summary": "List references",
+      "description": "Returns structured code/doc/req references for a plan or one phase.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_update_reference",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/UpdateReference",
+      "method": "POST",
+      "summary": "Update reference",
+      "description": "Replaces one structured reference without rewriting the whole plan.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_remove_reference",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/RemoveReference",
+      "method": "POST",
+      "summary": "Remove reference",
+      "description": "Removes one structured reference from a plan or phase.",
+      "category": "plans"
+    },
+    {
       "id": "plans_get_graph",
       "path": "/vrooli.plan_manager.v1.plans.PlansService/GetGraph",
       "method": "POST",
@@ -137,14 +249,14 @@
       "path": "/vrooli.plan_manager.v1.plans.PlansService/ImportPlan",
       "method": "POST",
       "summary": "Import a markdown plan",
-      "description": "Adopts a markdown plan from a fallback read location into the structured model.",
+      "description": "Canonicalizes a markdown plan from a configured source location into the structured model.",
       "category": "plans"
     },
     {
       "id": "plans_migrate",
       "path": "/vrooli.plan_manager.v1.plans.PlansService/MigratePlan",
       "method": "POST",
-      "summary": "Migrate a plan to canonical",
+      "summary": "Canonicalize a fallback plan",
       "description": "Ensures a fallback-resolved plan resides in the canonical home store.",
       "category": "plans"
     },
@@ -153,7 +265,7 @@
       "path": "/vrooli.plan_manager.v1.plans.PlansService/ReconcilePlans",
       "method": "POST",
       "summary": "Reconcile plans",
-      "description": "Repairs rendered mirrors and non-destructively adopts legacy markdown plans in bulk.",
+      "description": "Repairs rendered mirrors and non-destructively canonicalizes misplaced markdown plan sources.",
       "category": "plans"
     },
     {
@@ -170,6 +282,14 @@
       "method": "POST",
       "summary": "Create from template",
       "description": "Pre-scaffolds a plan from a template.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_list_audit_facts",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/ListAuditFacts",
+      "method": "POST",
+      "summary": "List verified plan audit facts",
+      "description": "Returns Plan Manager-authoritative facts for one Agent Manager run.",
       "category": "plans"
     },
     {
@@ -197,19 +317,59 @@
       "category": "validation"
     },
     {
+      "id": "validation_start",
+      "path": "/vrooli.plan_manager.v1.validation.ValidationService/StartValidation",
+      "method": "POST",
+      "summary": "Create validation ticket",
+      "description": "Persists producer-owned validation actions; scoped idempotency retries return the original operation.",
+      "category": "validation"
+    },
+    {
+      "id": "validation_operation",
+      "path": "/vrooli.plan_manager.v1.validation.ValidationService/GetValidationOperation",
+      "method": "POST",
+      "summary": "Inspect validation ticket",
+      "description": "Reads a durable validation ticket without starting or waiting for producer work.",
+      "category": "validation"
+    },
+    {
+      "id": "validation_wait",
+      "path": "/vrooli.plan_manager.v1.validation.ValidationService/WaitValidationOperation",
+      "method": "POST",
+      "summary": "Legacy validation inspection",
+      "description": "Compatibility inspection route; use the producer wait command rendered by the ticket.",
+      "category": "validation"
+    },
+    {
+      "id": "validation_resume",
+      "path": "/vrooli.plan_manager.v1.validation.ValidationService/ResumeValidationOperation",
+      "method": "POST",
+      "summary": "Legacy validation inspection",
+      "description": "Compatibility inspection route; producer recovery remains owned by Git Control Tower or Test Genie.",
+      "category": "validation"
+    },
+    {
+      "id": "validation_sync",
+      "path": "/vrooli.plan_manager.v1.validation.ValidationService/SyncValidation",
+      "method": "POST",
+      "summary": "Synchronize validation evidence",
+      "description": "Reads producer-owned durable evidence once and atomically records terminal validation truth.",
+      "category": "validation"
+    },
+    {
       "id": "validation_run",
       "path": "/vrooli.plan_manager.v1.validation.ValidationService/RunValidation",
       "method": "POST",
-      "summary": "Run validation",
-      "description": "Runs the derived baseline/check set on request and returns the result + staleness (OT-P0-005). Degrades to unknown rather than fabricating a pass.",
+      "summary": "Legacy validation guidance",
+      "description": "Returns the producer-ticket migration route; never dispatches or waits for validation work.",
       "category": "validation"
     },
     {
       "id": "validation_verify_dod",
       "path": "/vrooli.plan_manager.v1.validation.ValidationService/VerifyDefinitionOfDone",
       "method": "POST",
-      "summary": "Verify Definition of Done",
-      "description": "Verifies a plan's DoD against the regression anchor as an oracle (OT-P0-005).",
+      "summary": "Legacy DoD guidance",
+      "description": "Returns the selector-free producer-ticket migration route; never dispatches or waits for validation work.",
       "category": "validation"
     },
     {
@@ -242,6 +402,14 @@
       "method": "POST",
       "summary": "Submit a section",
       "description": "Records authored content for a section and re-validates it (PM-AUTHOR-002).",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_submit_fields",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/SubmitFields",
+      "method": "POST",
+      "summary": "Submit fields in batch",
+      "description": "Applies a batch of section/phase-field writes under one session lock with one save: per-item independent apply with accepted/rejected + violations + a parse summary per item — one call can carry a single field, a whole phase, or the whole plan.",
       "category": "authoring"
     },
     {
@@ -309,59 +477,11 @@
       "category": "authoring"
     },
     {
-      "id": "authoring_discover_context_candidates",
-      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/DiscoverContextCandidates",
+      "id": "authoring_discover_skill_pack",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/DiscoverSkillPack",
       "method": "POST",
-      "summary": "Discover context candidates",
-      "description": "Runs guided context discovery for decomposed concepts and stores pending candidates.",
-      "category": "authoring"
-    },
-    {
-      "id": "authoring_accept_context_candidate",
-      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/AcceptContextCandidate",
-      "method": "POST",
-      "summary": "Accept context candidate",
-      "description": "Promotes a pending context candidate into global or phase-scoped relevant context.",
-      "category": "authoring"
-    },
-    {
-      "id": "authoring_reject_context_candidate",
-      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectContextCandidate",
-      "method": "POST",
-      "summary": "Reject context candidate",
-      "description": "Records why a discovered context candidate is not relevant.",
-      "category": "authoring"
-    },
-    {
-      "id": "authoring_suggest_references",
-      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/SuggestReferences",
-      "method": "POST",
-      "summary": "Suggest references",
-      "description": "Queries search-hub's Answer projection from the session title/scope/approach and stores reviewable reference candidates (routed by locator shape). Degrades to no candidates, never a fabricated reference.",
-      "category": "authoring"
-    },
-    {
-      "id": "authoring_list_reference_candidates",
-      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/ListReferenceCandidates",
-      "method": "POST",
-      "summary": "List reference candidates",
-      "description": "Returns the session's reference candidates without changing wizard position.",
-      "category": "authoring"
-    },
-    {
-      "id": "authoring_accept_reference_candidate",
-      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/AcceptReferenceCandidate",
-      "method": "POST",
-      "summary": "Accept reference candidate",
-      "description": "Promotes one pending reference candidate (with optional inline edit) into the references section; only accepted locators satisfy the references gate.",
-      "category": "authoring"
-    },
-    {
-      "id": "authoring_reject_reference_candidate",
-      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectReferenceCandidate",
-      "method": "POST",
-      "summary": "Reject reference candidate",
-      "description": "Records why a suggested reference is not relevant.",
+      "summary": "Discover skill pack",
+      "description": "Runs prompt-manager skill discovery for decomposed concepts and auto-upserts the returned skill pack into global relevant context.",
       "category": "authoring"
     },
     {
@@ -370,6 +490,14 @@
       "method": "POST",
       "summary": "Add phase draft",
       "description": "Appends one structured phase draft so agents do not submit all phases as a markdown blob.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_move_phase",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/MovePhase",
+      "method": "POST",
+      "summary": "Move phase draft",
+      "description": "Reorders one structured phase draft before or after another without rewriting authored phase content.",
       "category": "authoring"
     },
     {
@@ -453,6 +581,46 @@
       "category": "execution"
     },
     {
+      "id": "execution_abandon",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/AbandonExecution",
+      "method": "POST",
+      "summary": "Abandon execution",
+      "description": "Terminally abandons an accidental execution while preserving audit history.",
+      "category": "execution"
+    },
+    {
+      "id": "execution_sync_baseline",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/SyncBaseline",
+      "method": "POST",
+      "summary": "Synchronize baseline evidence",
+      "description": "Reads the producer-owned GCT collection once and persists typed coverage without starting or waiting for capture.",
+      "category": "execution"
+    },
+    {
+      "id": "execution_amend_scope",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/AmendScope",
+      "method": "POST",
+      "summary": "Amend validation scope",
+      "description": "Records an auditable expansion within the captured baseline inventory and invalidates prior phase evidence.",
+      "category": "execution"
+    },
+    {
+      "id": "execution_adopt_baseline",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/AdoptBaseline",
+      "method": "POST",
+      "summary": "Adopt legacy baseline",
+      "description": "Creates a producer ticket or an explicit degraded legacy state without starting or waiting for capture.",
+      "category": "execution"
+    },
+    {
+      "id": "execution_repair_source_scope",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/RepairSourceScope",
+      "method": "POST",
+      "summary": "Repair baseline source scope",
+      "description": "Boundary-checks and re-estimates an informational source-evidence replacement before capture can be issued.",
+      "category": "execution"
+    },
+    {
       "id": "execution_get_next",
       "path": "/vrooli.plan_manager.v1.execution.ExecutionService/GetNext",
       "method": "POST",
@@ -474,6 +642,14 @@
       "method": "POST",
       "summary": "Complete the run",
       "description": "Runs the thin guided completion process, assembles the canonical handoff, and captures a velocity point (OT-P1-001/002).",
+      "category": "execution"
+    },
+    {
+      "id": "execution_partial_handoff",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/PartialHandoff",
+      "method": "POST",
+      "summary": "Create partial handoff",
+      "description": "Persists an honest resumable handoff without marking the execution normally complete.",
       "category": "execution"
     },
     {
@@ -554,6 +730,14 @@
       "method": "POST",
       "summary": "Update a log entry",
       "description": "Edits an entry's title/detail/severity/triage and appends evidence.",
+      "category": "log"
+    },
+    {
+      "id": "log_reassign",
+      "path": "/vrooli.plan_manager.v1.log.LogService/ReassignEntry",
+      "method": "POST",
+      "summary": "Reassign a log entry",
+      "description": "Moves an existing log entry to another phase by phase id or ordinal.",
       "category": "log"
     },
     {

@@ -39,3 +39,24 @@ CREATE TABLE IF NOT EXISTS plan_edges (
 
 CREATE INDEX IF NOT EXISTS idx_plan_edges_from ON plan_edges(from_plan_id);
 CREATE INDEX IF NOT EXISTS idx_plan_edges_to ON plan_edges(to_plan_id);
+
+-- candidate_revisions are durable whole-plan proposals. Their candidate plan
+-- document is isolated from plans.document until guarded application.
+CREATE TABLE IF NOT EXISTS candidate_revisions (
+  id                        TEXT PRIMARY KEY,
+  plan_id                   TEXT NOT NULL,
+  expected_base_content_hash TEXT NOT NULL,
+  proposal_provenance       TEXT NOT NULL DEFAULT '',
+  workspace_id              TEXT NOT NULL DEFAULT '',
+  workspace_root            TEXT NOT NULL DEFAULT '',
+  state                     TEXT NOT NULL,
+  candidate_document        TEXT NOT NULL,
+  created_at                TEXT NOT NULL,
+  updated_at                TEXT NOT NULL,
+  expires_at                TEXT NOT NULL DEFAULT '',
+  applied_at                TEXT NOT NULL DEFAULT '',
+  applied_content_hash      TEXT NOT NULL DEFAULT '',
+  discard_reason            TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_candidate_revisions_plan ON candidate_revisions(plan_id, state, created_at);

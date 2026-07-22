@@ -3,8 +3,10 @@ package plans
 import (
 	"errors"
 	"math"
+	"reflect"
 	"testing"
 
+	"plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
 
 	"github.com/stretchr/testify/require"
@@ -37,20 +39,36 @@ func fullDomainPlan() internalplans.Plan {
 		Acceptance:      "it works",
 		Status:          internalplans.PhaseStatusActive,
 		References:      []internalplans.Reference{ref},
+		RelevantContext: []internalplans.RelevantContextItem{{ID: "phase-context", Label: "phase context", Kind: internalplans.RelevantContextDoc, Scope: internalplans.RelevantContextScopePhase, PhaseID: "ph-1", Required: true, RepeatPolicy: internalplans.RelevantContextPhaseEntry, Source: internalplans.RelevantContextSourceAuthored, Status: internalplans.RelevantContextStatusReady}},
+		AffectedAreas:   []string{"api/handlers"},
+		Steps:           []string{"implement"},
+		ExpectedOutputs: []string{"binary"},
+		Validation:      "go test ./...",
+		HandoffNotes:    "hand off",
+		RisksHazards:    []string{"risk"},
+		ChangeBoundary:  internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/foo/**"}, AcceptanceDeny: []string{"packages/proto/**"}, OperatorOnlyReason: "not operator only"},
+		ValidationScope: planmodel.ValidationScope{Mode: planmodel.ValidationScopeFullPlan, Boundary: internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/foo/**"}}, Rationale: "full coverage"},
 	}
 	return internalplans.Plan{
-		ID:          "plan-1",
-		Slug:        "the-slug",
-		Title:       "The Title",
-		Status:      internalplans.PlanStatusActive,
-		ContentHash: "deadbeef",
-		CreatedAt:   "2026-01-01T00:00:00Z",
-		UpdatedAt:   "2026-01-02T00:00:00Z",
-		Purpose:     "purpose",
-		Scope:       "scope",
-		Constraints: "constraints",
-		NonGoals:    "non-goals",
-		References:  []internalplans.Reference{ref},
+		ID:            "plan-1",
+		Slug:          "the-slug",
+		Title:         "The Title",
+		Status:        internalplans.PlanStatusActive,
+		ContentHash:   "deadbeef",
+		CreatedAt:     "2026-01-01T00:00:00Z",
+		UpdatedAt:     "2026-01-02T00:00:00Z",
+		WorkspaceID:   "workspace",
+		WorkspaceRoot: "/workspace",
+		Purpose:       "purpose",
+		Scope:         "scope",
+		Constraints:   "constraints",
+		NonGoals:      "non-goals",
+		References:    []internalplans.Reference{ref},
+		ChangeBoundary: internalplans.ChangeBoundary{
+			AcceptanceAllow:    []string{"scenarios/foo/**"},
+			AcceptanceDeny:     []string{"packages/proto/**"},
+			OperatorOnlyReason: "not operator only",
+		},
 		RegressionAnchor: internalplans.RegressionAnchor{
 			Strategy:       "captured",
 			Scenario:       "foo",
@@ -61,10 +79,29 @@ func fullDomainPlan() internalplans.Plan {
 			CapturedAt:     "2026-01-01T00:00:00Z",
 			Unavailable:    false,
 		},
-		DefinitionOfDone: "done when green",
-		Phases:           []internalplans.Phase{phase},
-		Supersedes:       []string{"plan-0"},
-		SupersededBy:     []string{"plan-2"},
+		BaselineSet:             planmodel.BaselineSetIntent{Name: "baseline", ScenarioTargets: []string{"foo"}, RepoPaths: []string{"docs/**"}, CapturePolicy: planmodel.BaselineCapturePolicyExecutionStart, Compatibility: planmodel.BaselineSetCompatibilityCurrent},
+		DefinitionOfDone:        "done when green",
+		Phases:                  []internalplans.Phase{phase},
+		Supersedes:              []string{"plan-0"},
+		SupersededBy:            []string{"plan-2"},
+		RelevantContext:         []internalplans.RelevantContextItem{{ID: "context-1", Label: "context", Kind: internalplans.RelevantContextSkill, Scope: internalplans.RelevantContextScopeGlobal, Required: true, RepeatPolicy: internalplans.RelevantContextOncePerExecution, Source: internalplans.RelevantContextSourceAuthored, Status: internalplans.RelevantContextStatusReady}},
+		ProblemStatement:        "problem",
+		TargetOutcome:           "outcome",
+		Assumptions:             "assumptions",
+		TechnicalApproach:       "approach",
+		ValidationStrategy:      "strategy",
+		FinalValidationCommands: []string{"go test ./..."},
+		RisksHazards:            "risks",
+		ProhibitedApproaches:    "do not",
+		Decisions:               []internalplans.PlanDecision{{Title: "D1", Statement: "choose shared converter"}},
+		AssumptionRisks:         []internalplans.PlanAssumption{{Statement: "assumption", Mitigation: "mitigate"}},
+		Definitions:             []internalplans.PlanDefinition{{Term: "term", Meaning: "meaning"}},
+		WorkPosture:             internalplans.WorkPostureGreenfield,
+		WorkPostureSource:       internalplans.WorkPostureSourceServiceMaturity,
+		WorkPostureDetail:       "maturity",
+		ImportProvenance:        &internalplans.ImportProvenance{SourcePath: "docs/legacy.md", ImportedAt: "2026-01-01T00:00:00Z", OriginalFormat: internalplans.OriginalFormatLegacyMarkdown, Note: "import", WorkspaceID: "workspace", WorkspaceRoot: "/workspace"},
+		PreservedLegacySections: []internalplans.LegacySection{{Heading: "Legacy", Content: "content", MappedTo: "none", PreservationReason: internalplans.PreservationReasonUnmapped}},
+		Mirror:                  internalplans.RenderedPlanMirror{Path: "/workspace/plan.md", RelativePath: "plan.md", ContentHash: "mirror-hash", RenderVersion: "v1", RenderedAt: "2026-01-02T00:00:00Z", Status: internalplans.RenderedMirrorStatusFresh, LastError: "none"},
 	}
 }
 
@@ -72,6 +109,18 @@ func TestPlanRoundTrip(t *testing.T) {
 	p := fullDomainPlan()
 	got := planFromProto(planToProto(p))
 	require.Equal(t, p, got, "domain→proto→domain must preserve every field")
+}
+
+func TestPlanFixtureCoversEveryField(t *testing.T) {
+	plan := reflect.ValueOf(fullDomainPlan())
+	typ := plan.Type()
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		require.Falsef(t, plan.Field(i).IsZero(), "fullDomainPlan leaves Plan.%s at its zero value", field.Name)
+	}
 }
 
 func TestPlanToProtoMapsFields(t *testing.T) {

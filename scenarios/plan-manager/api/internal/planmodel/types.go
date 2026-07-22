@@ -3,7 +3,10 @@
 // dependencies.
 package planmodel
 
-import "strings"
+import (
+	"reflect"
+	"strings"
+)
 
 // PlanStatus is the lifecycle state of a plan. COMPUTED from the phase-status
 // set plus lifecycle actions; never free-text edited.
@@ -491,6 +494,82 @@ type Plan struct {
 	PreservedLegacySections []LegacySection
 	// COMPUTED projection metadata for the durable rendered markdown mirror.
 	Mirror RenderedPlanMirror
+}
+
+// FieldClass describes who owns a top-level Plan field. Keeping this contract
+// alongside Plan makes additions deliberate: callers, persistence, hashing,
+// and wire tests can all derive their behaviour from the same declaration.
+type FieldClass string
+
+const (
+	FieldClassAuthored   FieldClass = "authored"
+	FieldClassIdentity   FieldClass = "identity"
+	FieldClassComputed   FieldClass = "computed"
+	FieldClassGovernance FieldClass = "governance"
+	FieldClassGraph      FieldClass = "graph"
+)
+
+// PlanFieldClasses classifies every exported field in Plan. It is intentionally
+// data, rather than a collection of per-consumer field lists.
+var PlanFieldClasses = map[string]FieldClass{
+	"ID":                      FieldClassIdentity,
+	"Slug":                    FieldClassIdentity,
+	"Title":                   FieldClassAuthored,
+	"Status":                  FieldClassComputed,
+	"ContentHash":             FieldClassComputed,
+	"CreatedAt":               FieldClassIdentity,
+	"UpdatedAt":               FieldClassIdentity,
+	"WorkspaceID":             FieldClassIdentity,
+	"WorkspaceRoot":           FieldClassIdentity,
+	"Purpose":                 FieldClassAuthored,
+	"Scope":                   FieldClassAuthored,
+	"Constraints":             FieldClassAuthored,
+	"NonGoals":                FieldClassAuthored,
+	"References":              FieldClassAuthored,
+	"ChangeBoundary":          FieldClassAuthored,
+	"RegressionAnchor":        FieldClassAuthored,
+	"BaselineSet":             FieldClassAuthored,
+	"DefinitionOfDone":        FieldClassAuthored,
+	"Phases":                  FieldClassAuthored,
+	"Supersedes":              FieldClassGraph,
+	"SupersededBy":            FieldClassGraph,
+	"RelevantContext":         FieldClassAuthored,
+	"ProblemStatement":        FieldClassAuthored,
+	"TargetOutcome":           FieldClassAuthored,
+	"Assumptions":             FieldClassAuthored,
+	"TechnicalApproach":       FieldClassAuthored,
+	"ValidationStrategy":      FieldClassAuthored,
+	"FinalValidationCommands": FieldClassAuthored,
+	"RisksHazards":            FieldClassAuthored,
+	"ProhibitedApproaches":    FieldClassAuthored,
+	"Decisions":               FieldClassAuthored,
+	"AssumptionRisks":         FieldClassAuthored,
+	"Definitions":             FieldClassAuthored,
+	"WorkPosture":             FieldClassComputed,
+	"WorkPostureSource":       FieldClassComputed,
+	"WorkPostureDetail":       FieldClassComputed,
+	"ImportProvenance":        FieldClassGovernance,
+	"PreservedLegacySections": FieldClassGovernance,
+	"Mirror":                  FieldClassComputed,
+}
+
+// PreserveNonAuthoredPlanFields copies all caller-unowned top-level fields
+// from stored into incoming. Lifecycle rules that intentionally derive a new
+// value (for example UpdatedAt or Status) run after this operation.
+func PreserveNonAuthoredPlanFields(incoming, stored *Plan) {
+	if incoming == nil || stored == nil {
+		return
+	}
+	in := reflect.ValueOf(incoming).Elem()
+	old := reflect.ValueOf(stored).Elem()
+	typ := in.Type()
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		if field.PkgPath != "" || PlanFieldClasses[field.Name] == FieldClassAuthored {
+			continue
+		}
+		in.Field(i).Set(old.Field(i))
+	}
 }
 
 // PlanEdge is one supersession/dependency edge between two plans.

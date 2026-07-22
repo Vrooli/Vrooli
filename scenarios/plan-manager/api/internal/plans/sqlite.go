@@ -135,6 +135,28 @@ SELECT from_plan_id, to_plan_id, kind FROM plan_edges ORDER BY from_plan_id, to_
 SELECT from_plan_id, to_plan_id, kind FROM plan_edges
 WHERE from_plan_id = ? OR to_plan_id = ?
 ORDER BY from_plan_id, to_plan_id, kind`
+
+	upsertCandidateSQL = `
+INSERT INTO candidate_revisions (id, plan_id, expected_base_content_hash, proposal_provenance, workspace_id, workspace_root, state, candidate_document, created_at, updated_at, expires_at, applied_at, applied_content_hash, discard_reason)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+  state=excluded.state,
+  updated_at=excluded.updated_at,
+  expires_at=excluded.expires_at,
+  applied_at=excluded.applied_at,
+  applied_content_hash=excluded.applied_content_hash,
+  discard_reason=excluded.discard_reason`
+
+	getCandidateSQL = `
+SELECT id, plan_id, expected_base_content_hash, proposal_provenance, workspace_id, workspace_root, state, candidate_document, created_at, updated_at, expires_at, applied_at, applied_content_hash, discard_reason
+FROM candidate_revisions WHERE id = ? LIMIT 1`
+
+	listExecutionsForCandidateGuardSQL = `
+SELECT e.id, COALESCE(s.document, '')
+FROM executions e
+LEFT JOIN execution_scope_states s ON s.execution_id = e.id
+WHERE e.plan_id = ? AND e.complete = 0
+ORDER BY e.id`
 )
 
 func (r *sqliteRepository) Save(ctx context.Context, p Plan) error {
@@ -269,6 +291,80 @@ func (r *sqliteRepository) SaveEdge(ctx context.Context, e PlanEdge) error {
 		return fmt.Errorf("save plan edge %s->%s: %w", e.FromPlanID, e.ToPlanID, err)
 	}
 	return nil
+}
+
+func (r *sqliteRepository) SaveCandidate(ctx context.Context, candidate CandidateRevision) error {
+	raw, err := json.Marshal(candidate.CandidatePlan)
+	if err != nil {
+		return fmt.Errorf("marshal candidate revision %q: %w", candidate.ID, err)
+	}
+	if _, err := r.db.ExecContext(ctx, upsertCandidateSQL,
+		candidate.ID, candidate.PlanID, candidate.ExpectedBaseContentHash, candidate.ProposalProvenance,
+		candidate.Workspace.ID, candidate.Workspace.Root, string(candidate.State), string(raw),
+		candidate.CreatedAt, candidate.UpdatedAt, candidate.ExpiresAt, candidate.AppliedAt,
+		candidate.AppliedContentHash, candidate.DiscardReason,
+	); err != nil {
+		return fmt.Errorf("upsert candidate revision %q: %w", candidate.ID, err)
+	}
+	return nil
+}
+
+func (r *sqliteRepository) GetCandidate(ctx context.Context, id string) (CandidateRevision, bool, error) {
+	var (
+		candidate CandidateRevision
+		state     string
+		document  string
+	)
+	err := r.db.QueryRowContext(ctx, getCandidateSQL, id).Scan(
+		&candidate.ID, &candidate.PlanID, &candidate.ExpectedBaseContentHash, &candidate.ProposalProvenance,
+		&candidate.Workspace.ID, &candidate.Workspace.Root, &state, &document, &candidate.CreatedAt,
+		&candidate.UpdatedAt, &candidate.ExpiresAt, &candidate.AppliedAt, &candidate.AppliedContentHash, &candidate.DiscardReason,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return CandidateRevision{}, false, nil
+	}
+	if err != nil {
+		return CandidateRevision{}, false, fmt.Errorf("get candidate revision %q: %w", id, err)
+	}
+	candidate.State = CandidateRevisionState(state)
+	if err := json.Unmarshal([]byte(document), &candidate.CandidatePlan); err != nil {
+		return CandidateRevision{}, false, fmt.Errorf("unmarshal candidate revision %q: %w", id, err)
+	}
+	return candidate, true, nil
+}
+
+// ActiveExecutionIDs is intentionally a small read-only bridge to the
+// execution-owned store. Candidate application needs only the mechanical
+// no-active-execution guard; it does not take ownership of executions.
+func (r *sqliteRepository) ActiveExecutionIDs(ctx context.Context, planID string) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, listExecutionsForCandidateGuardSQL, planID)
+	if err != nil {
+		return nil, fmt.Errorf("list candidate execution guards for plan %q: %w", planID, err)
+	}
+	defer rows.Close()
+	ids := make([]string, 0)
+	for rows.Next() {
+		var (
+			id       string
+			document string
+		)
+		if err := rows.Scan(&id, &document); err != nil {
+			return nil, fmt.Errorf("scan candidate execution guard: %w", err)
+		}
+		var state struct {
+			LifecycleState string `json:"lifecycle_state"`
+		}
+		if document != "" && json.Unmarshal([]byte(document), &state) == nil {
+			if state.LifecycleState == "completed" || state.LifecycleState == "abandoned" {
+				continue
+			}
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate candidate execution guards: %w", err)
+	}
+	return ids, nil
 }
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows.

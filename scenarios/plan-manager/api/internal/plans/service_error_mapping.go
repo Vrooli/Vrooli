@@ -29,5 +29,21 @@ func ToConnectError(err error) error {
 	if errors.As(err, &tmplNotFound) {
 		return connect.NewError(connect.CodeNotFound, tmplNotFound)
 	}
+	var candidateNotFound ErrCandidateNotFound
+	if errors.As(err, &candidateNotFound) {
+		return connect.NewError(connect.CodeNotFound, candidateNotFound)
+	}
+	var stale ErrCandidateStaleBase
+	if errors.As(err, &stale) {
+		return connect.NewError(connect.CodeAborted, stale)
+	}
+	var active ErrCandidateExecutionActive
+	if errors.As(err, &active) {
+		return connect.NewError(connect.CodeFailedPrecondition, active)
+	}
+	var candidateState ErrCandidateState
+	if errors.As(err, &candidateState) {
+		return connect.NewError(connect.CodeFailedPrecondition, candidateState)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

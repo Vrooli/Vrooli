@@ -350,6 +350,7 @@ func TestPlansRequestMapping(t *testing.T) {
 			argv: []string{
 				"plan-7", "--title", "T2", "--dod", "d2",
 				"--technical-approach", "repaired approach",
+				"--decision", "D1::Use one converter", "--decision", "D2::Preserve every field",
 				"--change-allow", "scenarios/plan-manager/**,packages/proto/**",
 				"--change-deny", "scenarios/other/**",
 				"--anchor-strategy", "change_boundary",
@@ -363,6 +364,11 @@ func TestPlansRequestMapping(t *testing.T) {
 				require.Equal(t, "d2", p.GetDefinitionOfDone())
 				require.Equal(t, "existing purpose", p.GetPurpose(), "unsupplied authored fields must survive a CLI patch")
 				require.Equal(t, "repaired approach", p.GetTechnicalApproach())
+				require.Len(t, p.GetDecisions(), 2)
+				require.Equal(t, "D1", p.GetDecisions()[0].GetTitle())
+				require.Equal(t, "Use one converter", p.GetDecisions()[0].GetStatement())
+				require.Equal(t, "D2", p.GetDecisions()[1].GetTitle())
+				require.Equal(t, "Preserve every field", p.GetDecisions()[1].GetStatement())
 				require.Equal(t, []string{"scenarios/plan-manager/**", "packages/proto/**"}, p.GetChangeBoundary().GetAcceptanceAllow())
 				require.Equal(t, []string{"scenarios/other/**"}, p.GetChangeBoundary().GetAcceptanceDeny())
 				require.Equal(t, "change_boundary", p.GetRegressionAnchor().GetStrategy())

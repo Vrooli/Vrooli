@@ -56,6 +56,13 @@ type Service interface {
 	ImportSuperseding(ctx context.Context, sourcePath, markdown, title, slug string, workspace WorkspaceScope, supersede string) (Plan, Plan, error)
 	Migrate(ctx context.Context, idOrSlug string) (Plan, error)
 	Reconcile(ctx context.Context, req ReconcileRequest) (ReconcileResult, error)
+
+	CreateCandidate(ctx context.Context, candidate CandidateRevision) (CandidateRevision, error)
+	GetCandidate(ctx context.Context, id string) (CandidateRevision, error)
+	PreviewCandidate(ctx context.Context, id string) (CandidateRevisionPreview, error)
+	ValidateCandidate(ctx context.Context, id string) (CandidateRevisionPreview, error)
+	ApplyCandidate(ctx context.Context, id, expectedBaseHash string, acknowledgeQualityImpact bool) (CandidateRevision, Plan, CandidateRevisionPreview, error)
+	DiscardCandidate(ctx context.Context, id, reason string) (CandidateRevision, error)
 }
 
 type service struct {
@@ -184,11 +191,10 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	if !ok {
 		return Plan{}, ErrPlanNotFound{ID: p.ID}
 	}
-	// Preserve computed/identity fields; the caller only owns authored fields.
-	p.Slug = existing.Slug
-	p.WorkspaceID = existing.WorkspaceID
-	p.WorkspaceRoot = existing.WorkspaceRoot
-	p.CreatedAt = existing.CreatedAt
+	// The caller owns authored fields only. All identity, computed, governance,
+	// and graph fields come from the stored plan; explicit lifecycle rules below
+	// may then derive their next values.
+	planmodel.PreserveNonAuthoredPlanFields(&p, &existing)
 	p.UpdatedAt = s.now()
 	if strings.TrimSpace(p.Title) == "" {
 		p.Title = existing.Title
@@ -199,19 +205,6 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 		p.Status = PlanStatusArchived
 	} else {
 		p.Status = computePlanStatus(p.Phases)
-	}
-	// Supersession edges are managed by graph APIs and content-hash derivation,
-	// not free-form update payload fields.
-	p.Supersedes = existing.Supersedes
-	p.SupersededBy = existing.SupersededBy
-	// Import provenance and preserved legacy sections are governance lineage, not
-	// authored fields: a normal authored-field update that omits them must not drop
-	// them. They are preserved unless the caller explicitly supplies a replacement.
-	if p.ImportProvenance == nil {
-		p.ImportProvenance = existing.ImportProvenance
-	}
-	if len(p.PreservedLegacySections) == 0 {
-		p.PreservedLegacySections = existing.PreservedLegacySections
 	}
 	s.applyPosture(ctx, &p)
 	p.ContentHash = contentHash(p)
@@ -1340,6 +1333,10 @@ func contentHash(p Plan) string {
 		RisksHazards            string                `json:"risks_hazards"`
 		Decisions               []PlanDecision        `json:"decisions"`
 		AssumptionRisks         []PlanAssumption      `json:"assumption_risks"`
+		Definitions             []PlanDefinition      `json:"definitions"`
+		ChangeBoundary          ChangeBoundary        `json:"change_boundary"`
+		RegressionAnchor        RegressionAnchor      `json:"regression_anchor"`
+		BaselineSet             BaselineSetIntent     `json:"baseline_set"`
 		DefinitionOfDone        string                `json:"definition_of_done"`
 		References              []Reference           `json:"references"`
 		Phases                  []Phase               `json:"phases"`
@@ -1360,6 +1357,10 @@ func contentHash(p Plan) string {
 		RisksHazards:            p.RisksHazards,
 		Decisions:               p.Decisions,
 		AssumptionRisks:         p.AssumptionRisks,
+		Definitions:             p.Definitions,
+		ChangeBoundary:          p.ChangeBoundary,
+		RegressionAnchor:        p.RegressionAnchor,
+		BaselineSet:             p.BaselineSet,
 		DefinitionOfDone:        p.DefinitionOfDone,
 		References:              stripRefIDs(p.References),
 		Phases:                  stripPhaseIDs(p.Phases),

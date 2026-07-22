@@ -1,7 +1,6 @@
 package plans
 
 import (
-	"fmt"
 	"strings"
 
 	"plan-manager/internal/planproto"
@@ -46,75 +45,88 @@ func mutationImpactToProto(impact internalplans.MutationImpact) *plansv1.PlanMut
 	}
 }
 
+func candidateRevisionToProto(candidate internalplans.CandidateRevision) *plansv1.CandidateRevision {
+	return &plansv1.CandidateRevision{
+		Id:                      candidate.ID,
+		PlanId:                  candidate.PlanID,
+		ExpectedBaseContentHash: candidate.ExpectedBaseContentHash,
+		ProposalProvenance:      candidate.ProposalProvenance,
+		CandidatePlan:           planToProto(candidate.CandidatePlan),
+		Workspace:               workspaceScopeToProto(candidate.Workspace),
+		State:                   candidateStateToProto(candidate.State),
+		CreatedAt:               candidate.CreatedAt,
+		UpdatedAt:               candidate.UpdatedAt,
+		ExpiresAt:               candidate.ExpiresAt,
+		AppliedAt:               candidate.AppliedAt,
+		AppliedContentHash:      candidate.AppliedContentHash,
+		DiscardReason:           candidate.DiscardReason,
+	}
+}
+
+func candidateRevisionFromProto(candidate *plansv1.CandidateRevision) (internalplans.CandidateRevision, error) {
+	if candidate == nil {
+		return internalplans.CandidateRevision{}, internalplans.ErrInvalidPlan{Reason: "candidate is required"}
+	}
+	plan, err := planFromProtoChecked(candidate.GetCandidatePlan())
+	if err != nil {
+		return internalplans.CandidateRevision{}, err
+	}
+	return internalplans.CandidateRevision{
+		ID:                      candidate.GetId(),
+		PlanID:                  candidate.GetPlanId(),
+		ExpectedBaseContentHash: candidate.GetExpectedBaseContentHash(),
+		ProposalProvenance:      candidate.GetProposalProvenance(),
+		CandidatePlan:           plan,
+		Workspace:               workspaceScopeFromProto(candidate.GetWorkspace()),
+		ExpiresAt:               candidate.GetExpiresAt(),
+	}, nil
+}
+
+func candidatePreviewToProto(preview internalplans.CandidateRevisionPreview) *plansv1.CandidateRevisionPreview {
+	changes := make([]*plansv1.CandidateFieldChange, 0, len(preview.Diff.Changes))
+	for _, change := range preview.Diff.Changes {
+		changes = append(changes, &plansv1.CandidateFieldChange{Field: change.Field, BeforeJson: change.BeforeJSON, AfterJson: change.AfterJSON})
+	}
+	diagnostics := make([]*plansv1.CandidateValidationDiagnostic, 0, len(preview.Diagnostics))
+	for _, diagnostic := range preview.Diagnostics {
+		diagnostics = append(diagnostics, &plansv1.CandidateValidationDiagnostic{Severity: diagnostic.Severity, Code: diagnostic.Code, Location: diagnostic.Location, Message: diagnostic.Message, Guidance: diagnostic.Guidance})
+	}
+	return &plansv1.CandidateRevisionPreview{
+		Candidate:        candidateRevisionToProto(preview.Candidate),
+		BasePlan:         planToProto(preview.BasePlan),
+		Diff:             &plansv1.CandidateRevisionDiff{Changes: changes},
+		Impact:           mutationImpactToProto(preview.Impact),
+		RenderedMarkdown: preview.Rendered,
+		QualityStatus:    preview.QualityStatus,
+		Diagnostics:      diagnostics,
+	}
+}
+
 func planFromProto(p *sharedv1.Plan) internalplans.Plan {
-	out, _ := planFromProtoChecked(p)
-	return out
+	return planproto.PlanFromProto(p)
 }
 
 func planFromProtoChecked(p *sharedv1.Plan) (internalplans.Plan, error) {
 	if p == nil {
 		return internalplans.Plan{}, nil
 	}
-	phases, err := phasesFromProtoChecked(p.GetPhases())
-	if err != nil {
+	if err := rejectUnsupportedPlanPhaseFields(p); err != nil {
 		return internalplans.Plan{}, err
 	}
-	return internalplans.Plan{
-		ID:                      p.GetId(),
-		Slug:                    p.GetSlug(),
-		Title:                   p.GetTitle(),
-		Status:                  planStatusFromProto(p.GetStatus()),
-		ContentHash:             p.GetContentHash(),
-		CreatedAt:               p.GetCreatedAt(),
-		UpdatedAt:               p.GetUpdatedAt(),
-		WorkspaceID:             p.GetWorkspaceId(),
-		WorkspaceRoot:           p.GetWorkspaceRoot(),
-		Purpose:                 p.GetPurpose(),
-		Scope:                   p.GetScope(),
-		Constraints:             p.GetConstraints(),
-		NonGoals:                p.GetNonGoals(),
-		References:              referencesFromProto(p.GetReferences()),
-		RegressionAnchor:        anchorFromProto(p.GetRegressionAnchor()),
-		BaselineSet:             planproto.BaselineSetFromProto(p.GetBaselineSet()),
-		DefinitionOfDone:        p.GetDefinitionOfDone(),
-		Phases:                  phases,
-		Supersedes:              p.GetSupersedes(),
-		SupersededBy:            p.GetSupersededBy(),
-		RelevantContext:         planproto.RelevantContextItemsFromProto(p.GetRelevantContext()),
-		ProblemStatement:        p.GetProblemStatement(),
-		TargetOutcome:           p.GetTargetOutcome(),
-		Assumptions:             p.GetAssumptions(),
-		TechnicalApproach:       p.GetTechnicalApproach(),
-		ValidationStrategy:      p.GetValidationStrategy(),
-		FinalValidationCommands: p.GetFinalValidationCommands(),
-		RisksHazards:            p.GetRisksHazards(),
-		ProhibitedApproaches:    p.GetProhibitedApproaches(),
-		WorkPosture:             planproto.WorkPostureFromProto(p.GetWorkPosture()),
-		WorkPostureSource:       planproto.WorkPostureSourceFromProto(p.GetWorkPostureSource()),
-		WorkPostureDetail:       p.GetWorkPostureDetail(),
-		ImportProvenance:        planproto.ImportProvenanceFromProto(p.GetImportProvenance()),
-		PreservedLegacySections: planproto.LegacySectionsFromProto(p.GetPreservedLegacySections()),
-		ChangeBoundary:          planproto.ChangeBoundaryFromProto(p.GetChangeBoundary()),
-		Mirror:                  planproto.MirrorFromProto(p.GetMirror()),
-		Definitions:             planproto.PlanDefinitionsFromProto(p.GetDefinitions()),
-	}, nil
+	return planproto.PlanFromProto(p), nil
 }
 
-func phasesFromProtoChecked(phases []*sharedv1.Phase) ([]internalplans.Phase, error) {
-	out := make([]internalplans.Phase, 0, len(phases))
-	for i, ph := range phases {
-		converted, err := phaseFromProtoChecked(ph)
-		if err != nil {
-			return nil, fmt.Errorf("phase %d: %w", i, err)
+func rejectUnsupportedPlanPhaseFields(p *sharedv1.Plan) error {
+	for _, ph := range p.GetPhases() {
+		if err := rejectUnsupportedPhaseFields(ph); err != nil {
+			return err
 		}
-		out = append(out, converted)
 	}
-	return out, nil
+	return nil
 }
 
 func phaseFromProto(ph *sharedv1.Phase) internalplans.Phase {
-	out, _ := phaseFromProtoChecked(ph)
-	return out
+	return planproto.PhaseFromProto(ph)
 }
 
 func phaseFromProtoChecked(ph *sharedv1.Phase) (internalplans.Phase, error) {
@@ -124,27 +136,7 @@ func phaseFromProtoChecked(ph *sharedv1.Phase) (internalplans.Phase, error) {
 	if err := rejectUnsupportedPhaseFields(ph); err != nil {
 		return internalplans.Phase{}, err
 	}
-	return internalplans.Phase{
-		ID:              ph.GetId(),
-		Order:           int(ph.GetOrder()),
-		Title:           ph.GetTitle(),
-		Intent:          ph.GetIntent(),
-		RequiredReading: ph.GetRequiredReading(),
-		Reminders:       ph.GetReminders(),
-		BaselineScope:   ph.GetBaselineScope(),
-		Acceptance:      ph.GetAcceptance(),
-		Status:          phaseStatusFromProto(ph.GetStatus()),
-		References:      referencesFromProto(ph.GetReferences()),
-		RelevantContext: planproto.RelevantContextItemsFromProto(ph.GetRelevantContext()),
-		AffectedAreas:   ph.GetAffectedAreas(),
-		Steps:           ph.GetSteps(),
-		ExpectedOutputs: ph.GetExpectedOutputs(),
-		Validation:      ph.GetValidation(),
-		HandoffNotes:    ph.GetHandoffNotes(),
-		RisksHazards:    ph.GetRisksHazards(),
-		ChangeBoundary:  planproto.ChangeBoundaryFromProto(ph.GetChangeBoundary()),
-		ValidationScope: planproto.ValidationScopeFromProto(ph.GetValidationScope()),
-	}, nil
+	return planproto.PhaseFromProto(ph), nil
 }
 
 func rejectUnsupportedPhaseFields(ph *sharedv1.Phase) error {
@@ -224,6 +216,28 @@ func workspaceScopeFromProto(scope *plansv1.WorkspaceScope) internalplans.Worksp
 	return internalplans.WorkspaceScope{
 		ID:   strings.TrimSpace(scope.GetId()),
 		Root: strings.TrimSpace(scope.GetRoot()),
+	}
+}
+
+func workspaceScopeToProto(scope internalplans.WorkspaceScope) *plansv1.WorkspaceScope {
+	if scope.ID == "" && scope.Root == "" {
+		return nil
+	}
+	return &plansv1.WorkspaceScope{Id: scope.ID, Root: scope.Root}
+}
+
+func candidateStateToProto(state internalplans.CandidateRevisionState) plansv1.CandidateRevisionState {
+	switch state {
+	case internalplans.CandidateRevisionPending:
+		return plansv1.CandidateRevisionState_CANDIDATE_REVISION_STATE_PENDING
+	case internalplans.CandidateRevisionApplied:
+		return plansv1.CandidateRevisionState_CANDIDATE_REVISION_STATE_APPLIED
+	case internalplans.CandidateRevisionDiscarded:
+		return plansv1.CandidateRevisionState_CANDIDATE_REVISION_STATE_DISCARDED
+	case internalplans.CandidateRevisionExpired:
+		return plansv1.CandidateRevisionState_CANDIDATE_REVISION_STATE_EXPIRED
+	default:
+		return plansv1.CandidateRevisionState_CANDIDATE_REVISION_STATE_UNSPECIFIED
 	}
 }
 

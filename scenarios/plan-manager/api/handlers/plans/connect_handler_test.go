@@ -27,45 +27,52 @@ type fakePlansService struct {
 	templates []internalplans.PlanTemplate
 	markdown  string
 	reconcile internalplans.ReconcileResult
+	candidate internalplans.CandidateRevision
+	preview   internalplans.CandidateRevisionPreview
 	err       error
 	context   []internalplans.RelevantContextItem
 	refs      []internalplans.Reference
 
-	gotListFilter           internalplans.ListFilter
-	gotGetID                string
-	gotGetWorkspace         internalplans.WorkspaceScope
-	gotCreate               internalplans.Plan
-	gotUpdate               internalplans.Plan
-	gotArchiveID            string
-	gotArchiveWorkspace     internalplans.WorkspaceScope
-	gotRenderID             string
-	gotRenderWorkspace      internalplans.WorkspaceScope
-	gotRenderOptions        internalplans.RenderOptions
-	gotAddPhasePlanID       string
-	gotAddPhaseWorkspace    internalplans.WorkspaceScope
-	gotAddPhase             internalplans.Phase
-	gotUpdatePhasePlanID    string
-	gotUpdatePhaseWorkspace internalplans.WorkspaceScope
-	gotUpdatePhase          internalplans.Phase
-	gotRepairID             string
-	gotRepairWorkspace      internalplans.WorkspaceScope
-	gotRepairPhaseID        string
-	gotRepairItemID         string
-	gotRepairContext        internalplans.RelevantContextItem
-	gotRepairReference      internalplans.Reference
-	gotGraphPlanID          string
-	gotSupersedingID        string
-	gotSupersededID         string
-	gotDependingID          string
-	gotDependencyID         string
-	gotImportPath           string
-	gotImportMarkdown       string
-	gotImportWorkspace      internalplans.WorkspaceScope
-	gotMigrateID            string
-	gotReconcile            internalplans.ReconcileRequest
-	gotTemplateID           string
-	gotTemplateTitle        string
-	gotTemplateSlug         string
+	gotListFilter            internalplans.ListFilter
+	gotGetID                 string
+	gotGetWorkspace          internalplans.WorkspaceScope
+	gotCreate                internalplans.Plan
+	gotUpdate                internalplans.Plan
+	gotArchiveID             string
+	gotArchiveWorkspace      internalplans.WorkspaceScope
+	gotRenderID              string
+	gotRenderWorkspace       internalplans.WorkspaceScope
+	gotRenderOptions         internalplans.RenderOptions
+	gotAddPhasePlanID        string
+	gotAddPhaseWorkspace     internalplans.WorkspaceScope
+	gotAddPhase              internalplans.Phase
+	gotUpdatePhasePlanID     string
+	gotUpdatePhaseWorkspace  internalplans.WorkspaceScope
+	gotUpdatePhase           internalplans.Phase
+	gotRepairID              string
+	gotRepairWorkspace       internalplans.WorkspaceScope
+	gotRepairPhaseID         string
+	gotRepairItemID          string
+	gotRepairContext         internalplans.RelevantContextItem
+	gotRepairReference       internalplans.Reference
+	gotGraphPlanID           string
+	gotSupersedingID         string
+	gotSupersededID          string
+	gotDependingID           string
+	gotDependencyID          string
+	gotImportPath            string
+	gotImportMarkdown        string
+	gotImportWorkspace       internalplans.WorkspaceScope
+	gotMigrateID             string
+	gotReconcile             internalplans.ReconcileRequest
+	gotTemplateID            string
+	gotTemplateTitle         string
+	gotTemplateSlug          string
+	gotCandidate             internalplans.CandidateRevision
+	gotCandidateID           string
+	gotCandidateBaseHash     string
+	gotCandidateAcknowledged bool
+	gotDiscardReason         string
 }
 
 func (f *fakePlansService) Create(_ context.Context, p internalplans.Plan) (internalplans.Plan, error) {
@@ -76,6 +83,39 @@ func (f *fakePlansService) Create(_ context.Context, p internalplans.Plan) (inte
 func (f *fakePlansService) Update(_ context.Context, p internalplans.Plan) (internalplans.Plan, error) {
 	f.gotUpdate = p
 	return f.plan, f.err
+}
+
+func (f *fakePlansService) CreateCandidate(_ context.Context, candidate internalplans.CandidateRevision) (internalplans.CandidateRevision, error) {
+	f.gotCandidate = candidate
+	return f.candidate, f.err
+}
+
+func (f *fakePlansService) GetCandidate(_ context.Context, id string) (internalplans.CandidateRevision, error) {
+	f.gotCandidateID = id
+	return f.candidate, f.err
+}
+
+func (f *fakePlansService) PreviewCandidate(_ context.Context, id string) (internalplans.CandidateRevisionPreview, error) {
+	f.gotCandidateID = id
+	return f.preview, f.err
+}
+
+func (f *fakePlansService) ValidateCandidate(_ context.Context, id string) (internalplans.CandidateRevisionPreview, error) {
+	f.gotCandidateID = id
+	return f.preview, f.err
+}
+
+func (f *fakePlansService) ApplyCandidate(_ context.Context, id, baseHash string, acknowledged bool) (internalplans.CandidateRevision, internalplans.Plan, internalplans.CandidateRevisionPreview, error) {
+	f.gotCandidateID = id
+	f.gotCandidateBaseHash = baseHash
+	f.gotCandidateAcknowledged = acknowledged
+	return f.candidate, f.plan, f.preview, f.err
+}
+
+func (f *fakePlansService) DiscardCandidate(_ context.Context, id, reason string) (internalplans.CandidateRevision, error) {
+	f.gotCandidateID = id
+	f.gotDiscardReason = reason
+	return f.candidate, f.err
 }
 
 func (f *fakePlansService) Get(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope) (internalplans.Plan, error) {

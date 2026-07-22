@@ -176,6 +176,10 @@
               "description": "Technical approach / design rationale"
             },
             {
+              "name": "decision",
+              "description": "Structured decision as TITLE::STATEMENT; repeat to replace all decisions"
+            },
+            {
               "name": "validation-strategy",
               "description": "Validation strategy"
             },
@@ -781,6 +785,60 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "candidate-create",
+          "description": "Store a whole-plan candidate revision without changing the canonical plan",
+          "positionals": [{"name": "plan", "required": true, "description": "Canonical plan id or slug"}],
+          "flags": [
+            {"name": "base-hash", "description": "Expected canonical plan content hash", "required": true},
+            {"name": "provenance", "description": "Proposal or workshop provenance", "required": true},
+            {"name": "candidate-json", "description": "Whole candidate shared.Plan JSON", "required": true},
+            {"name": "expires-at", "description": "Optional RFC3339 candidate expiry time"},
+            {"name": "workspace", "description": "Workspace root used to resolve the canonical plan"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "CreateCandidateRevision"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "candidate-get",
+          "description": "Show one durable candidate revision",
+          "positionals": [{"name": "id", "required": true, "description": "Candidate revision id"}],
+          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "GetCandidateRevision"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "candidate-preview",
+          "description": "Compute candidate diff, diagnostics, and rendered content without mutating the plan",
+          "positionals": [{"name": "id", "required": true, "description": "Candidate revision id"}],
+          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "PreviewCandidateRevision"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "candidate-validate",
+          "description": "Validate a candidate revision without mutating the plan",
+          "positionals": [{"name": "id", "required": true, "description": "Candidate revision id"}],
+          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "ValidateCandidateRevision"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "candidate-apply",
+          "description": "Apply a validated candidate when the base hash matches and no execution is active",
+          "positionals": [{"name": "id", "required": true, "description": "Candidate revision id"}],
+          "flags": [
+            {"name": "base-hash", "description": "Expected canonical plan content hash", "required": true},
+            {"name": "acknowledge-quality-impact", "description": "Explicitly acknowledge the reviewed candidate quality impact", "bool": true, "required": true}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "ApplyCandidateRevision"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "candidate-discard",
+          "description": "Discard an unapplied candidate revision",
+          "positionals": [{"name": "id", "required": true, "description": "Candidate revision id"}],
+          "flags": [{"name": "reason", "description": "Optional discard rationale"}],
+          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "DiscardCandidateRevision"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
         },
         {
           "name": "reconcile",

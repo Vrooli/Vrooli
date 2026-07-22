@@ -305,6 +305,29 @@ anchor strategies remain import/read-only for pre-cutover plans.
 
 ## Persisted Plan Repair
 
+### Candidate revisions
+
+Use candidate revisions for a workflow-produced whole-plan update. The create
+command persists a proposal only. Preview and validate are non-mutating. Apply
+requires the original base hash and a deliberate acknowledgment. It fails while
+an execution is active for the plan.
+
+```bash
+plan-manager plans candidate-create <plan> \
+  --base-hash <content-hash> \
+  --provenance 'workshop:<session>:<response>' \
+  --candidate-json '<shared.Plan JSON>'
+plan-manager plans candidate-preview <candidate-id>
+plan-manager plans candidate-validate <candidate-id>
+plan-manager plans candidate-apply <candidate-id> \
+  --base-hash <content-hash> --acknowledge-quality-impact
+plan-manager plans candidate-discard <candidate-id> --reason 'operator rejected proposal'
+```
+
+Candidate creation does not change the canonical plan. Apply changes the
+canonical plan in place and keeps its plan ID stable. Do not use `plans update`
+from a workflow result; use a candidate revision instead.
+
 Finalized plans can be repaired without archiving/re-authoring and without
 editing the rendered markdown mirror. These commands mutate the structured
 record, preserve phase identity, recompute plan metadata, and republish the

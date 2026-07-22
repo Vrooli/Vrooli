@@ -123,6 +123,13 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 	applyStringFlag(ctx, "non-goals", func(v string) { plan.NonGoals = v })
 	applyStringFlag(ctx, "assumptions", func(v string) { plan.Assumptions = v })
 	applyStringFlag(ctx, "technical-approach", func(v string) { plan.TechnicalApproach = v })
+	if values := ctx.FlagValues("decision"); len(values) > 0 {
+		decisions, err := decisionsFromFlags(values)
+		if err != nil {
+			return err
+		}
+		plan.Decisions = decisions
+	}
 	applyStringFlag(ctx, "validation-strategy", func(v string) { plan.ValidationStrategy = v })
 	applyStringFlag(ctx, "risks", func(v string) { plan.RisksHazards = v })
 	applyStringFlag(ctx, "prohibited-approaches", func(v string) { plan.ProhibitedApproaches = v })
@@ -167,6 +174,94 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("update plan", err, nil)
 	}
 	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Updated")
+}
+
+func (h *handlers) candidateCreate(ctx cliapp.RunContext) error {
+	var candidatePlan sharedv1.Plan
+	if err := protojson.Unmarshal([]byte(ctx.Flag("candidate-json")), &candidatePlan); err != nil {
+		return fmt.Errorf("parse --candidate-json as Plan JSON: %w", err)
+	}
+	resp, err := h.client.CreateCandidateRevision(context.Background(), connect.NewRequest(&plansv1.CreateCandidateRevisionRequest{
+		PlanId: ctx.Positional("plan"), ExpectedBaseContentHash: ctx.Flag("base-hash"), ProposalProvenance: ctx.Flag("provenance"),
+		CandidatePlan: &candidatePlan, Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")), ExpiresAt: ctx.Flag("expires-at"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("create candidate revision", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Candidate revision created without changing the canonical plan."}, ResultsHeading: "Candidate", Results: candidateDetail(resp.Msg.GetCandidate())})
+}
+
+func (h *handlers) candidateGet(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetCandidateRevision(context.Background(), connect.NewRequest(&plansv1.GetCandidateRevisionRequest{Id: ctx.Positional("id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get candidate revision", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Candidate revision loaded."}, ResultsHeading: "Candidate", Results: candidateDetail(resp.Msg.GetCandidate())})
+}
+
+func (h *handlers) candidatePreview(ctx cliapp.RunContext) error {
+	resp, err := h.client.PreviewCandidateRevision(context.Background(), connect.NewRequest(&plansv1.PreviewCandidateRevisionRequest{Id: ctx.Positional("id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("preview candidate revision", err, nil)
+	}
+	return renderCandidatePreview(ctx, resp.Msg.GetPreview(), "Candidate preview")
+}
+
+func (h *handlers) candidateValidate(ctx cliapp.RunContext) error {
+	resp, err := h.client.ValidateCandidateRevision(context.Background(), connect.NewRequest(&plansv1.ValidateCandidateRevisionRequest{Id: ctx.Positional("id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("validate candidate revision", err, nil)
+	}
+	return renderCandidatePreview(ctx, resp.Msg.GetPreview(), "Candidate validation")
+}
+
+func (h *handlers) candidateApply(ctx cliapp.RunContext) error {
+	resp, err := h.client.ApplyCandidateRevision(context.Background(), connect.NewRequest(&plansv1.ApplyCandidateRevisionRequest{Id: ctx.Positional("id"), ExpectedBaseContentHash: ctx.Flag("base-hash"), AcknowledgeQualityImpact: ctx.BoolFlag("acknowledge-quality-impact")}))
+	if err != nil {
+		return cliapp.WrapAPIError("apply candidate revision", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Candidate revision applied to the canonical plan."}, ResultsHeading: "Plan", Results: planDetail(resp.Msg.GetPlan())})
+}
+
+func (h *handlers) candidateDiscard(ctx cliapp.RunContext) error {
+	resp, err := h.client.DiscardCandidateRevision(context.Background(), connect.NewRequest(&plansv1.DiscardCandidateRevisionRequest{Id: ctx.Positional("id"), Reason: ctx.Flag("reason")}))
+	if err != nil {
+		return cliapp.WrapAPIError("discard candidate revision", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Candidate revision discarded; canonical plan is unchanged."}, ResultsHeading: "Candidate", Results: candidateDetail(resp.Msg.GetCandidate())})
+}
+
+func candidateDetail(candidate *plansv1.CandidateRevision) []string {
+	if candidate == nil {
+		return []string{"No candidate returned."}
+	}
+	return []string{"id: " + candidate.GetId(), "plan: " + candidate.GetPlanId(), "state: " + candidate.GetState().String(), "base-hash: " + candidate.GetExpectedBaseContentHash(), "provenance: " + candidate.GetProposalProvenance()}
+}
+
+func renderCandidatePreview(ctx cliapp.RunContext, preview *plansv1.CandidateRevisionPreview, title string) error {
+	if preview == nil {
+		return fmt.Errorf("server returned no candidate preview")
+	}
+	results := candidateDetail(preview.GetCandidate())
+	results = append(results, "quality: "+preview.GetQualityStatus(), fmt.Sprintf("changed fields: %d", len(preview.GetDiff().GetChanges())))
+	for _, diagnostic := range preview.GetDiagnostics() {
+		results = append(results, diagnostic.GetSeverity()+" "+diagnostic.GetCode()+": "+diagnostic.GetMessage())
+	}
+	return cliapp.RenderProtoList(ctx, preview, cliapp.ListReport{Summary: []string{title + " computed without changing the canonical plan."}, ResultsHeading: "Candidate", Results: results})
+}
+
+func decisionsFromFlags(values []string) ([]*sharedv1.PlanDecision, error) {
+	decisions := make([]*sharedv1.PlanDecision, 0, len(values))
+	for _, value := range values {
+		title, statement, ok := strings.Cut(value, "::")
+		title = strings.TrimSpace(title)
+		statement = strings.TrimSpace(statement)
+		if !ok || title == "" || statement == "" {
+			return nil, fmt.Errorf("--decision must use TITLE::STATEMENT")
+		}
+		decisions = append(decisions, &sharedv1.PlanDecision{Title: title, Statement: statement})
+	}
+	return decisions, nil
 }
 
 func (h *handlers) archive(ctx cliapp.RunContext) error {

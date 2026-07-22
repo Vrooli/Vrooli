@@ -95,6 +95,66 @@ func (h *connectHandler) UpdatePlan(ctx context.Context, req *connect.Request[pl
 	return connect.NewResponse(&plansv1.UpdatePlanResponse{Plan: planToProto(p)}), nil
 }
 
+func (h *connectHandler) CreateCandidateRevision(ctx context.Context, req *connect.Request[plansv1.CreateCandidateRevisionRequest]) (*connect.Response[plansv1.CreateCandidateRevisionResponse], error) {
+	plan, err := planFromProtoChecked(req.Msg.GetCandidatePlan())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	candidate, err := h.deps.Service.CreateCandidate(ctx, internalplans.CandidateRevision{
+		PlanID:                  req.Msg.GetPlanId(),
+		ExpectedBaseContentHash: req.Msg.GetExpectedBaseContentHash(),
+		ProposalProvenance:      req.Msg.GetProposalProvenance(),
+		CandidatePlan:           plan,
+		Workspace:               workspaceScopeFromProto(req.Msg.GetWorkspace()),
+		ExpiresAt:               req.Msg.GetExpiresAt(),
+	})
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.CreateCandidateRevisionResponse{Candidate: candidateRevisionToProto(candidate)}), nil
+}
+
+func (h *connectHandler) GetCandidateRevision(ctx context.Context, req *connect.Request[plansv1.GetCandidateRevisionRequest]) (*connect.Response[plansv1.GetCandidateRevisionResponse], error) {
+	candidate, err := h.deps.Service.GetCandidate(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.GetCandidateRevisionResponse{Candidate: candidateRevisionToProto(candidate)}), nil
+}
+
+func (h *connectHandler) PreviewCandidateRevision(ctx context.Context, req *connect.Request[plansv1.PreviewCandidateRevisionRequest]) (*connect.Response[plansv1.PreviewCandidateRevisionResponse], error) {
+	preview, err := h.deps.Service.PreviewCandidate(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.PreviewCandidateRevisionResponse{Preview: candidatePreviewToProto(preview)}), nil
+}
+
+func (h *connectHandler) ValidateCandidateRevision(ctx context.Context, req *connect.Request[plansv1.ValidateCandidateRevisionRequest]) (*connect.Response[plansv1.ValidateCandidateRevisionResponse], error) {
+	preview, err := h.deps.Service.ValidateCandidate(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.ValidateCandidateRevisionResponse{Preview: candidatePreviewToProto(preview)}), nil
+}
+
+func (h *connectHandler) ApplyCandidateRevision(ctx context.Context, req *connect.Request[plansv1.ApplyCandidateRevisionRequest]) (*connect.Response[plansv1.ApplyCandidateRevisionResponse], error) {
+	candidate, plan, preview, err := h.deps.Service.ApplyCandidate(ctx, req.Msg.GetId(), req.Msg.GetExpectedBaseContentHash(), req.Msg.GetAcknowledgeQualityImpact())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	h.recordFact(ctx, "plan.candidate_applied", plan)
+	return connect.NewResponse(&plansv1.ApplyCandidateRevisionResponse{Candidate: candidateRevisionToProto(candidate), Plan: planToProto(plan), Preview: candidatePreviewToProto(preview)}), nil
+}
+
+func (h *connectHandler) DiscardCandidateRevision(ctx context.Context, req *connect.Request[plansv1.DiscardCandidateRevisionRequest]) (*connect.Response[plansv1.DiscardCandidateRevisionResponse], error) {
+	candidate, err := h.deps.Service.DiscardCandidate(ctx, req.Msg.GetId(), req.Msg.GetReason())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.DiscardCandidateRevisionResponse{Candidate: candidateRevisionToProto(candidate)}), nil
+}
+
 func (h *connectHandler) ArchivePlan(ctx context.Context, req *connect.Request[plansv1.ArchivePlanRequest]) (*connect.Response[plansv1.ArchivePlanResponse], error) {
 	p, err := h.deps.Service.Archive(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()))
 	if err != nil {

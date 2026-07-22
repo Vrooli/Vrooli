@@ -9,6 +9,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -433,6 +434,88 @@ func TestContentHashChangesWithNewFields(t *testing.T) {
 	other, err := svc.Create(ctx, plans.Plan{Title: "Hash A", TechnicalApproach: "approach two"})
 	require.NoError(t, err)
 	require.NotEqual(t, base.ContentHash, other.ContentHash, "technical_approach must affect the content hash")
+	withDefinition, err := svc.Create(ctx, plans.Plan{Title: "Hash A", Definitions: []plans.PlanDefinition{{Term: "field", Meaning: "registered"}}})
+	require.NoError(t, err)
+	require.NotEqual(t, base.ContentHash, withDefinition.ContentHash, "definitions must affect the content hash")
+	withBoundary, err := svc.Create(ctx, plans.Plan{Title: "Hash A", ChangeBoundary: plans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/plan-manager/**"}}})
+	require.NoError(t, err)
+	require.NotEqual(t, base.ContentHash, withBoundary.ContentHash, "plan change boundary must affect the content hash")
+}
+
+func TestEnsureMigrationsRehashesWithoutChangingPlanDocumentOrTimestamp(t *testing.T) {
+	d, clk := newDB(t)
+	repo := plans.NewSQLiteRepository(d, clk)
+	seed := samplePlan()
+	seed.UpdatedAt = "2026-01-01T00:00:00Z"
+	seed.Definitions = []plans.PlanDefinition{{Term: "field", Meaning: "registered"}}
+	seed.ChangeBoundary = plans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/plan-manager/**"}}
+	seed.ContentHash = "legacy-hash"
+	require.NoError(t, repo.Save(context.Background(), seed))
+
+	var beforeDocument, beforeUpdated string
+	require.NoError(t, d.QueryRow(`SELECT document, updated_at FROM plans WHERE id = ?`, seed.ID).Scan(&beforeDocument, &beforeUpdated))
+	require.NoError(t, plans.EnsureMigrations(context.Background(), d))
+	var firstHash, afterDocument, afterUpdated string
+	require.NoError(t, d.QueryRow(`SELECT content_hash, document, updated_at FROM plans WHERE id = ?`, seed.ID).Scan(&firstHash, &afterDocument, &afterUpdated))
+	require.NotEqual(t, "legacy-hash", firstHash)
+	require.Equal(t, beforeDocument, afterDocument)
+	require.Equal(t, beforeUpdated, afterUpdated)
+
+	require.NoError(t, plans.EnsureMigrations(context.Background(), d))
+	var secondHash string
+	require.NoError(t, d.QueryRow(`SELECT content_hash FROM plans WHERE id = ?`, seed.ID).Scan(&secondHash))
+	require.Equal(t, firstHash, secondHash, "a second migration run must not rewrite hashes")
+}
+
+func TestEnsureMigrationsHandlesEmptyStore(t *testing.T) {
+	d, _ := newDB(t)
+	require.NoError(t, plans.EnsureMigrations(context.Background(), d))
+	var migrations int
+	require.NoError(t, d.QueryRow(`SELECT COUNT(*) FROM plan_storage_migrations`).Scan(&migrations))
+	require.Equal(t, 1, migrations)
+	require.NoError(t, plans.EnsureMigrations(context.Background(), d))
+	require.NoError(t, d.QueryRow(`SELECT COUNT(*) FROM plan_storage_migrations`).Scan(&migrations))
+	require.Equal(t, 1, migrations)
+}
+
+func TestUpdatePreservesNonAuthoredPlanFields(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	created, err := svc.Create(ctx, samplePlan())
+	require.NoError(t, err)
+	created.ImportProvenance = &plans.ImportProvenance{SourcePath: "docs/legacy.md", OriginalFormat: plans.OriginalFormatLegacyMarkdown}
+	created.PreservedLegacySections = []plans.LegacySection{{Heading: "Legacy", Content: "kept"}}
+	created.Supersedes = []string{"old-plan"}
+	created.SupersededBy = []string{"new-plan"}
+	created.Mirror = plans.RenderedPlanMirror{Path: "mirror.md", Status: plans.RenderedMirrorStatusFresh}
+	created, err = svc.Update(ctx, created)
+	require.NoError(t, err)
+
+	incoming := created
+	incomingValue := reflect.ValueOf(&incoming).Elem()
+	typ := incomingValue.Type()
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		if planmodel.PlanFieldClasses[field.Name] != planmodel.FieldClassAuthored {
+			incomingValue.Field(i).Set(reflect.Zero(field.Type))
+		}
+	}
+	// Update needs an identifier to locate the stored plan; it is still copied
+	// back from storage by the table-driven preservation path.
+	incoming.ID = created.ID
+	got, err := svc.Update(ctx, incoming)
+	require.NoError(t, err)
+
+	gotValue := reflect.ValueOf(got)
+	createdValue := reflect.ValueOf(created)
+	derived := map[string]bool{"UpdatedAt": true, "Status": true, "ContentHash": true, "WorkPosture": true, "WorkPostureSource": true, "WorkPostureDetail": true}
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		if planmodel.PlanFieldClasses[field.Name] == planmodel.FieldClassAuthored || derived[field.Name] {
+			continue
+		}
+		require.Equalf(t, createdValue.Field(i).Interface(), gotValue.Field(i).Interface(), "Plan.%s must be preserved", field.Name)
+	}
 }
 
 func TestCreatePublishesRenderedMirror(t *testing.T) {

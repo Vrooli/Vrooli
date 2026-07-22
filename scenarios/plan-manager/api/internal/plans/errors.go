@@ -1,8 +1,11 @@
 package plans
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
 
-import "plan-manager/internal/planmodel"
+	"plan-manager/internal/planmodel"
+)
 
 // ErrPlanNotFound is returned when no plan matches an id or slug.
 type ErrPlanNotFound = planmodel.ErrPlanNotFound
@@ -18,3 +21,37 @@ type ErrPhaseNotFound = planmodel.ErrPhaseNotFound
 type ErrTemplateNotFound struct{ ID string }
 
 func (e ErrTemplateNotFound) Error() string { return fmt.Sprintf("template %q not found", e.ID) }
+
+type ErrCandidateNotFound struct{ ID string }
+
+func (e ErrCandidateNotFound) Error() string {
+	return fmt.Sprintf("candidate revision %q not found", e.ID)
+}
+
+type ErrCandidateState struct {
+	ID    string
+	State CandidateRevisionState
+}
+
+func (e ErrCandidateState) Error() string {
+	return fmt.Sprintf("candidate revision %q is %s", e.ID, e.State)
+}
+
+type ErrCandidateStaleBase struct {
+	PlanID   string
+	Expected string
+	Actual   string
+}
+
+func (e ErrCandidateStaleBase) Error() string {
+	return fmt.Sprintf("candidate plan %q is stale: expected base hash %q, found %q", e.PlanID, e.Expected, e.Actual)
+}
+
+type ErrCandidateExecutionActive struct {
+	PlanID       string
+	ExecutionIDs []string
+}
+
+func (e ErrCandidateExecutionActive) Error() string {
+	return fmt.Sprintf("candidate plan %q cannot apply while execution(s) are active: %s", e.PlanID, strings.Join(e.ExecutionIDs, ", "))
+}

@@ -681,6 +681,40 @@ live in `packages/proto/schemas/plan-manager/v1/shared/model.proto`
 (`LogEntry`/`LogSummary`/`DownstreamRef` + the enums) and the service in
 `packages/proto/schemas/plan-manager/v1/log/log.proto` (`LogService`).
 
+## Candidate Revisions
+
+A candidate revision is a durable whole-plan proposal. It lets an untrusted
+workflow return a proposed plan change without writing the canonical plan.
+Plan Manager stores the candidate with the canonical plan ID, the expected base
+content hash, proposal provenance, workspace scope, lifecycle state, and the
+complete candidate plan content.
+
+The lifecycle is `pending → applied | discarded | expired`. Preview and
+validation are pure reads. They return a structured authored-field diff, the
+quality impact, validation diagnostics, and rendered candidate markdown. They
+never modify the canonical plan or its mirror.
+
+Apply requires all of the following:
+
+- The candidate is pending and unexpired.
+- The caller repeats the exact expected base content hash.
+- The caller explicitly acknowledges the reviewed quality impact.
+- The canonical plan still has that base hash.
+- No execution bound to the plan is non-terminal.
+- Candidate validation has no failure diagnostics.
+
+On success, Plan Manager replaces only canonical authored fields in place. The
+plan ID stays stable. Computed metadata is recomputed and the canonical mirror
+is published. A repeated apply returns the already-applied canonical revision.
+Stale bases, invalid candidates, missing candidates, non-pending state, and
+active executions are typed failures. Swarm Manager owns actor authorization;
+Plan Manager enforces these mechanical safety rules only.
+
+`UpdatePlan` remains the explicit trusted whole-plan editor. Workflow agents
+must create candidates and return their IDs to Swarm Manager for authorized
+application. `ImportPlan` remains the net-new-plan import path, not a revision
+mechanism.
+
 ## Invariants
 
 These are load-bearing rules. Tests enforce them; changing them is a deliberate
