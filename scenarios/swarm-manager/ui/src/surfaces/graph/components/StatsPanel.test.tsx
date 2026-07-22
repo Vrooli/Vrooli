@@ -59,7 +59,7 @@ const MOCK_STATS: StatsResponse = {
     execution_duration_samples: 80,
   },
   scope: {
-    initiatives: [
+    goals: [
       { name: "auth-rework", total: 10, completed: 8, in_progress: 1, blocked: 1, scope_creep: 0.15 },
     ],
     max_dependency_depth: 2,
@@ -147,14 +147,14 @@ const MOCK_STATS: StatsResponse = {
     proposal_applied_by_kind: { meta_orchestration: 1 },
     proposal_apply_rate_by_kind: { meta_orchestration: { rate: 0.5, sample_size: 2 } },
     artifacts_created_by_kind: { meta_orchestration: 4 },
-    artifacts_by_type: { backlog_item: 3, initiative: 1 },
+    artifacts_by_type: { backlog_item: 3, goal: 1 },
     avg_messages_per_session: 2.7,
     avg_time_to_first_proposal_seconds: 420,
     first_proposal_sample_size: 2,
     failed_session_rate: 0,
     failed_session_sample_size: 2,
     session_created_backlog_items: 3,
-    session_created_initiatives: 1,
+    session_created_goals: 1,
   },
 };
 
@@ -405,7 +405,7 @@ describe("StatsView", () => {
       expect(screen.getByTestId("stats-content-sessions")).toBeInTheDocument();
       expect(screen.getAllByText("Meta Orchestration").length).toBeGreaterThan(0);
       expect(screen.getByText("Backlog Artifacts")).toBeInTheDocument();
-      expect(screen.getByText("Initiative Artifacts")).toBeInTheDocument();
+      expect(screen.getByText("Goal Artifacts")).toBeInTheDocument();
       expect(screen.getByText("Backlog Item")).toBeInTheDocument();
     });
   });
@@ -514,7 +514,7 @@ describe("StatsView", () => {
   });
 
   describe("Scope tab", () => {
-    it("displays initiative progress", async () => {
+    it("displays goal progress", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
       renderWithProviders(<StatsView />);
 
@@ -526,10 +526,10 @@ describe("StatsView", () => {
       expect(screen.getByText("1 blocked")).toBeInTheDocument();
     });
 
-    it("shows empty state when no initiatives", async () => {
+    it("shows empty state when no goals", async () => {
       const noInitStats = {
         ...MOCK_STATS,
-        scope: { initiatives: [], max_dependency_depth: 0 },
+        scope: { goals: [], max_dependency_depth: 0 },
       };
       mockGetStats.mockResolvedValue(noInitStats);
       renderWithProviders(<StatsView />);
@@ -537,13 +537,13 @@ describe("StatsView", () => {
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("stats-tab-scope"));
 
-      expect(screen.getByText("No initiatives yet")).toBeInTheDocument();
+      expect(screen.getByText("No goals yet")).toBeInTheDocument();
     });
 
-    it("renders the empty state when initiatives is null", async () => {
+    it("renders the empty state when goals is null", async () => {
       const nullStats = {
         ...MOCK_STATS,
-        scope: { ...MOCK_STATS.scope, initiatives: null },
+        scope: { ...MOCK_STATS.scope, goals: null },
       } as unknown as StatsResponse;
       mockGetStats.mockResolvedValue(nullStats);
       renderWithProviders(<StatsView />);
@@ -551,7 +551,7 @@ describe("StatsView", () => {
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("stats-tab-scope"));
 
-      expect(screen.getByText("No initiatives yet")).toBeInTheDocument();
+      expect(screen.getByText("No goals yet")).toBeInTheDocument();
     });
   });
 

@@ -1,15 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import { RollupProgressBar, rollupTotal } from "./rollup-progress-bar";
-import type { InitiativeRollup } from "../../types";
+import { RollupProgressBar, rollupTotal, type GoalRollup } from "./rollup-progress-bar";
 
-function makeRollup(overrides: Partial<InitiativeRollup> = {}): InitiativeRollup {
+
+function makeRollup(overrides: Partial<GoalRollup> = {}): GoalRollup {
   const base = { completed: 0, inProgress: 0, failed: 0, pending: 0, total: 0, archived: 0, ...overrides };
   // Auto-compute total if not explicitly set
   if (!overrides.total) {
     base.total = base.completed + base.inProgress + base.failed + base.pending;
   }
-  return base as InitiativeRollup;
+  return base as GoalRollup;
 }
 
 describe("rollupTotal", () => {

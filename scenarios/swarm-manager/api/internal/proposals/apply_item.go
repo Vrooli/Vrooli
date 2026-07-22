@@ -30,7 +30,7 @@ func (a *Applier) applyAddItem(ctx context.Context, spec ItemSpec, source Source
 		Tags:            append([]string(nil), spec.Tags...),
 		DependsOn:       append([]string(nil), spec.DependsOn...),
 		Effort:          strings.ToUpper(strings.TrimSpace(spec.Effort)),
-		Initiative:      source.InitiativeName,
+		Milestone:      source.MilestoneName,
 		AcceptanceAllow: append([]string(nil), spec.AcceptanceAllow...),
 		AcceptanceDeny:  append([]string(nil), spec.AcceptanceDeny...),
 		Note:            spec.Note,
@@ -96,7 +96,7 @@ func (a *Applier) applyUpdateItem(ctx context.Context, ref string, patch *ItemPa
 
 // toBacklogPatch converts proposals' ItemPatch (the wire shape an agent
 // produces) into backlog.ItemPatch (the shared mutation primitive). Ops
-// that touch status/initiative/spawned_from are excluded here — those
+// that touch status/milestone/spawned_from are excluded here — those
 // have dedicated mutations so misuse surfaces as an unknown op instead
 // of a silent field smuggle.
 func toBacklogPatch(p *ItemPatch) backlog.ItemPatch {

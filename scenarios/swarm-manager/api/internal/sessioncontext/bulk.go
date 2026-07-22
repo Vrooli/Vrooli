@@ -11,7 +11,7 @@ import (
 )
 
 // ReferenceCandidate is a single typed entity mention extracted from agent
-// output (e.g. from an `initiative:ship-cockpit` code span). Type uses the
+// output (e.g. from a `goal:ship-cockpit` code span). Type uses the
 // marker vocabulary the session skills emit (see markerContextType); Name is
 // the raw reference (`<name>`, `<kind>/<name>`, or `<id>`).
 type ReferenceCandidate struct {
@@ -37,7 +37,7 @@ type ResolvedReference struct {
 // markers are deliberately short and hyphenated (`operating-mode`) to read
 // naturally in prose; the ContextType values are the storage enum.
 var markerContextType = map[string]agentsessions.ContextType{
-	"initiative":     agentsessions.ContextInitiative,
+	"goal":           agentsessions.ContextGoal,
 	"backlog":        agentsessions.ContextBacklogItem,
 	"execution":      agentsessions.ContextExecution,
 	"capture":        agentsessions.ContextCapture,
@@ -123,8 +123,8 @@ func detailPathFromNodeID(nodeID string) string {
 	if rest, ok := strings.CutPrefix(nodeID, "execution-record/"); ok {
 		return joinDetailPath("/executions", rest)
 	}
-	if rest, ok := strings.CutPrefix(nodeID, "initiative/"); ok {
-		return joinDetailPath("/initiatives", rest)
+	if rest, ok := strings.CutPrefix(nodeID, "goal/"); ok {
+		return joinDetailPath("/goals", rest)
 	}
 	if rest, ok := strings.CutPrefix(nodeID, "capture/"); ok {
 		return joinDetailPath("/captures", rest)
@@ -154,7 +154,7 @@ var referenceEnrichmentLimits = agentsessions.ContextLimits{MaxSummaryRunes: 1}
 // code spans. The contract is deliberately strict — only marked, known-marker,
 // whitespace-free spans qualify — because we never trust the model to be
 // reliable: an explicit prefix is the price of navigability. Unmarked prose
-// mentions and CLI commands (`initiatives list` — has a space, no marker) are
+// mentions and CLI commands (`goals list` — has a space, no marker) are
 // ignored. Duplicates collapse to one candidate.
 func extractReferenceCandidates(content string) []ReferenceCandidate {
 	seen := make(map[string]bool)

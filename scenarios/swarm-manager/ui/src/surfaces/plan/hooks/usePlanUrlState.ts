@@ -103,7 +103,7 @@ export function usePlanUrlState(): PlanUrlStateResult {
     setGoal,
     resetFilters: () => {
       setFilters({ statuses: [], lanes: [], ownerTypes: [], modes: [], q: "" });
-      setViewMode("by-initiative");
+      setViewMode("by-milestone");
       setShowSnoozed(false);
     },
   };

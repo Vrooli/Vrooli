@@ -8,8 +8,8 @@ import (
 	"swarm-manager/cli/domains/captures"
 	"swarm-manager/cli/domains/evidence"
 	"swarm-manager/cli/domains/execution"
+	"swarm-manager/cli/domains/goals"
 	"swarm-manager/cli/domains/health"
-	"swarm-manager/cli/domains/initiatives"
 	"swarm-manager/cli/domains/migration"
 	"swarm-manager/cli/domains/operations"
 	"swarm-manager/cli/domains/portfolio"
@@ -42,7 +42,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		execution.Register(deps),
 		evidence.Register(deps),
 		prompts.Register(deps),
-		initiatives.Register(deps),
+		goals.Register(deps),
 		captures.Register(deps),
 		records.Register(deps),
 		related.Register(deps),

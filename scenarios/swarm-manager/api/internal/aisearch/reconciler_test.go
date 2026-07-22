@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 	"swarm-manager/internal/testutil"
 )
 
@@ -18,7 +18,7 @@ import (
 //
 // fakeEmbedder and fakeVectorStore satisfy the Embedder / VectorStore
 // interfaces directly; reconciler tests don't need an httptest.Server. The
-// reader fakes (fakeBacklogReader, fakeInitReader) are reused from
+// reader fakes (fakeBacklogReader, fakeGoalReader) are reused from
 // service_test.go via same-package access.
 
 type fakeEmbedder struct {
@@ -181,23 +181,23 @@ func (s *fakeVectorStore) Available(_ context.Context) bool { return true }
 
 // ---- builders ----
 
-func newReconcilerForTest(t *testing.T) (*Reconciler, *fakeEmbedder, *fakeVectorStore, *fakeVectorStore, *fakeBacklogReader, *fakeInitReader) {
+func newReconcilerForTest(t *testing.T) (*Reconciler, *fakeEmbedder, *fakeVectorStore, *fakeVectorStore, *fakeBacklogReader, *fakeGoalReader) {
 	t.Helper()
 	emb := &fakeEmbedder{}
 	bs := &fakeVectorStore{}
 	is := &fakeVectorStore{}
 	br := &fakeBacklogReader{}
-	ir := &fakeInitReader{}
-	r := NewReconciler(emb, bs, is, br, ir, 0)
-	return r, emb, bs, is, br, ir
+	gr := &fakeGoalReader{}
+	r := NewReconciler(emb, bs, is, br, gr, 0)
+	return r, emb, bs, is, br, gr
 }
 
 func mustHash(item backlog.BacklogItem) string {
 	return composePayloadHash(composeBacklogText(item), buildBacklogPayload(item, ""))
 }
 
-func mustHashInit(init initiatives.Initiative) string {
-	return composePayloadHash(composeInitiativeText(init), buildInitiativePayload(init, ""))
+func mustHashGoal(goal goals.Goal) string {
+	return composePayloadHash(composeGoalText(goal), buildGoalPayload(goal, ""))
 }
 
 // ---- Plan ----
@@ -211,7 +211,7 @@ func TestReconciler_Plan_EmptyDisk_EmptyQdrant(t *testing.T) {
 	if report.HasWork() {
 		t.Errorf("expected no work, got %+v", report)
 	}
-	if report.UnchangedBacklog != 0 || report.UnchangedInitiative != 0 {
+	if report.UnchangedBacklog != 0 || report.UnchangedGoal != 0 {
 		t.Errorf("expected zero unchanged counts, got %+v", report)
 	}
 }
@@ -735,25 +735,25 @@ func TestReconciler_Cancel_StopsInFlight(t *testing.T) {
 	}
 }
 
-// ---- Initiative coverage (sanity) ----
+// ---- Goal coverage (sanity) ----
 
-func TestReconciler_Plan_InitiativeMatchedSkipped(t *testing.T) {
-	// Pin that the initiative path mirrors the backlog path: same Plan logic,
+func TestReconciler_Plan_GoalMatchedSkipped(t *testing.T) {
+	// Pin that the goal path mirrors the backlog path: same Plan logic,
 	// same Unchanged behavior, no work needed when hash matches.
-	r, _, _, is, _, ir := newReconcilerForTest(t)
-	init := initiatives.Initiative{Name: "obs-core", Title: "Observability Core"}
-	ir.items = []initiatives.Initiative{init}
-	is.seed(initiativePointID(init.Name), map[string]interface{}{"payload_hash": mustHashInit(init)})
+	r, _, _, gs, _, gr := newReconcilerForTest(t)
+	goal := goals.Goal{Name: "obs-core", Title: "Observability Core"}
+	gr.items = []goals.Goal{goal}
+	gs.seed(goalPointID(goal.Name), map[string]interface{}{"payload_hash": mustHashGoal(goal)})
 
 	report, err := r.Plan(context.Background())
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
 	if report.HasWork() {
-		t.Errorf("expected no work for matched initiative, got %+v", report)
+		t.Errorf("expected no work for matched goal, got %+v", report)
 	}
-	if report.UnchangedInitiative != 1 {
-		t.Errorf("expected UnchangedInitiative=1, got %d", report.UnchangedInitiative)
+	if report.UnchangedGoal != 1 {
+		t.Errorf("expected UnchangedGoal=1, got %d", report.UnchangedGoal)
 	}
 }
 

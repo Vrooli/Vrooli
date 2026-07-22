@@ -38,11 +38,11 @@ func (s *ConnectService) GetRelated(ctx context.Context, req *connect.Request[ap
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		target = TargetRef{Kind: TargetBacklog, BacklogKind: kind, Name: strings.TrimSpace(t.Backlog.Name)}
-	case *api.GetRelatedRequest_Initiative:
-		if t.Initiative == nil || strings.TrimSpace(t.Initiative.Name) == "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative name is required"))
+	case *api.GetRelatedRequest_Goal:
+		if t.Goal == nil || strings.TrimSpace(t.Goal.Name) == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("goal name is required"))
 		}
-		target = TargetRef{Kind: TargetInitiative, Name: strings.TrimSpace(t.Initiative.Name)}
+		target = TargetRef{Kind: TargetGoal, Name: strings.TrimSpace(t.Goal.Name)}
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
 	}

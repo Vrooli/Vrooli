@@ -9,7 +9,7 @@ import (
 func baseState(t *testing.T) CurrentState {
 	t.Helper()
 	return CurrentState{
-		InitiativeName: "ui-rewrite",
+		MilestoneName: "ui-rewrite",
 		Nodes: map[string]GraphNode{
 			"execute/foo": {ID: "execute/foo", Kind: "execute", Name: "foo", Title: "Foo", Priority: 5},
 			"execute/bar": {ID: "execute/bar", Kind: "execute", Name: "bar", Title: "Bar", Priority: 5},
@@ -17,7 +17,7 @@ func baseState(t *testing.T) CurrentState {
 		Edges: []GraphEdge{
 			{From: "execute/foo", To: "execute/bar"},
 		},
-		KnownInitiatives: map[string]struct{}{
+		KnownMilestones: map[string]struct{}{
 			"ui-rewrite":    {},
 			"other-project": {},
 		},
@@ -70,7 +70,7 @@ func TestValidate_LifecycleOperations(t *testing.T) {
 	p := Proposal{Form: FormMutationList, Mutations: []Mutation{
 		{ID: "recreate", Op: OpRecreateItem, Target: "execute/foo"},
 		{ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: []ResetArtifactScope{ResetScopeWorkshop, ResetScopePlanUnbind}},
-		{ID: "recreate-initiative", Op: OpRecreateInitiative, Target: "ui-rewrite"},
+		{ID: "recreate-milestone", Op: OpRecreateMilestone, Target: "ui-rewrite"},
 	}}
 	if err := Validate(p, baseState(t)); err != nil {
 		t.Fatalf("Validate lifecycle operations: %v", err)
@@ -310,40 +310,40 @@ func TestValidate_Edge_RejectsRemovingMissingEdge(t *testing.T) {
 	}
 }
 
-func TestValidate_MoveInitiative_RejectsUnknownDest(t *testing.T) {
+func TestValidate_MoveMilestone_RejectsUnknownDest(t *testing.T) {
 	state := baseState(t)
 	p := Proposal{
 		Form: FormMutationList,
 		Mutations: []Mutation{
-			{ID: "m1", Op: OpMoveInitiative, Target: "execute/foo", Initiative: "ghost-initiative"},
+			{ID: "m1", Op: OpMoveMilestone, Target: "execute/foo", Milestone: "ghost-milestone"},
 		},
 	}
 	err := Validate(p, state)
-	if err == nil || !strings.Contains(err.Error(), "not a known initiative") {
+	if err == nil || !strings.Contains(err.Error(), "not a known milestone") {
 		t.Fatalf("expected unknown-dest error, got %v", err)
 	}
 }
 
-func TestValidate_MoveInitiative_RejectsSelfMove(t *testing.T) {
+func TestValidate_MoveMilestone_RejectsSelfMove(t *testing.T) {
 	state := baseState(t)
 	p := Proposal{
 		Form: FormMutationList,
 		Mutations: []Mutation{
-			{ID: "m1", Op: OpMoveInitiative, Target: "execute/foo", Initiative: "ui-rewrite"},
+			{ID: "m1", Op: OpMoveMilestone, Target: "execute/foo", Milestone: "ui-rewrite"},
 		},
 	}
 	err := Validate(p, state)
-	if err == nil || !strings.Contains(err.Error(), "is the current initiative") {
+	if err == nil || !strings.Contains(err.Error(), "is the current milestone") {
 		t.Fatalf("expected self-move error, got %v", err)
 	}
 }
 
-func TestValidate_MoveInitiative_AllowsDetach(t *testing.T) {
+func TestValidate_MoveMilestone_AllowsDetach(t *testing.T) {
 	state := baseState(t)
 	p := Proposal{
 		Form: FormMutationList,
 		Mutations: []Mutation{
-			{ID: "m1", Op: OpMoveInitiative, Target: "execute/foo", Initiative: ""},
+			{ID: "m1", Op: OpMoveMilestone, Target: "execute/foo", Milestone: ""},
 		},
 	}
 	if err := Validate(p, state); err != nil {

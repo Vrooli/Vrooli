@@ -25,7 +25,7 @@ export const ALLOWED_STATUSES = new Set([
 ]);
 
 export const ALLOWED_OWNER_TYPES = new Set([
-  "initiative",
+  "milestone",
   "backlog",
   "scenario",
   "capture",
@@ -64,7 +64,7 @@ export function readPlanStateFromUrl(searchParams: URLSearchParams): PlanBoardUr
   const viewMode: OperationsViewMode =
     viewRaw && (OPERATIONS_VIEW_MODES as readonly string[]).includes(viewRaw)
       ? (viewRaw as OperationsViewMode)
-      : "by-initiative";
+      : "by-milestone";
 
   return {
     filters: {
@@ -102,7 +102,7 @@ export function writePlanStateToParams(
   } else {
     next.delete("window_seconds");
   }
-  if (state.viewMode !== "by-initiative") {
+  if (state.viewMode !== "by-milestone") {
     next.set("view", state.viewMode);
   } else {
     next.delete("view");

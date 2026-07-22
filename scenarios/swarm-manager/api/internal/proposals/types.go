@@ -22,7 +22,7 @@ const (
 type Op string
 
 const (
-	// OpAddItem creates a new backlog item and attaches it to the initiative.
+	// OpAddItem creates a new backlog item and attaches it to the milestone.
 	OpAddItem Op = "add_item"
 
 	// OpUpdateItem applies a partial patch to an existing item's metadata
@@ -41,15 +41,15 @@ const (
 	OpChangePriority Op = "change_priority"
 
 	// OpAddEdge adds `From` depends_on `To`. Both endpoints must be
-	// members of the initiative's current graph.
+	// members of the milestone's current graph.
 	OpAddEdge Op = "add_edge"
 
 	// OpRemoveEdge removes `From` depends_on `To`.
 	OpRemoveEdge Op = "remove_edge"
 
-	// OpMoveInitiative transfers an item from its current initiative to
-	// `Initiative` (the destination). Empty Initiative detaches the item.
-	OpMoveInitiative Op = "move_initiative"
+	// OpMoveMilestone transfers an item from its current milestone to
+	// `Milestone` (the destination). Empty Milestone detaches the item.
+	OpMoveMilestone Op = "move_milestone"
 
 	// OpArchiveItem sets the item's ArchivedAt timestamp. Irreversible from
 	// the proposal API — use the existing unarchive endpoint to restore.
@@ -89,9 +89,9 @@ const (
 	// item. It never deletes the canonical item specification.
 	OpResetArtifacts Op = "reset_artifacts"
 
-	// OpRecreateInitiative archives an initiative and creates a fresh active
+	// OpRecreateMilestone archives an milestone and creates a fresh active
 	// successor while moving its member items to that successor.
-	OpRecreateInitiative Op = "recreate_initiative"
+	OpRecreateMilestone Op = "recreate_milestone"
 )
 
 // AllOps returns the canonical list of supported ops. Used for validation
@@ -104,14 +104,14 @@ func AllOps() []Op {
 		OpChangePriority,
 		OpAddEdge,
 		OpRemoveEdge,
-		OpMoveInitiative,
+		OpMoveMilestone,
 		OpArchiveItem,
 		OpInterruptInProgress,
 		OpSplitItem,
 		OpMergeItems,
 		OpRecreateItem,
 		OpResetArtifacts,
-		OpRecreateInitiative,
+		OpRecreateMilestone,
 	}
 }
 
@@ -173,8 +173,8 @@ type Mutation struct {
 	From string `json:"from,omitempty"`
 	To   string `json:"to,omitempty"`
 
-	// OpMoveInitiative destination initiative name. Empty detaches.
-	Initiative string `json:"initiative,omitempty"`
+	// OpMoveMilestone destination milestone name. Empty detaches.
+	Milestone string `json:"milestone,omitempty"`
 
 	// OpSplitItem payload: the new items to create.
 	Into []ItemSpec `json:"into,omitempty"`
@@ -222,7 +222,7 @@ type ItemSpec struct {
 	Tags            []string `json:"tags,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
 	Effort          string   `json:"effort,omitempty"`
-	Initiative      string   `json:"initiative,omitempty"`
+	Milestone      string   `json:"milestone,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 	Note            string   `json:"note,omitempty"`
@@ -244,7 +244,7 @@ type ItemPatch struct {
 }
 
 // Graph is the full-graph target state. Only the nodes/edges relevant to
-// the initiative are represented — cross-initiative relationships are out
+// the milestone are represented — cross-milestone relationships are out
 // of scope for proposals.
 type Graph struct {
 	Nodes []GraphNode `json:"nodes"`
@@ -274,14 +274,14 @@ type GraphEdge struct {
 }
 
 // Source carries attribution metadata for every apply. Feedback rounds
-// (W4) populate FeedbackRoundID + InitiativeName + RoundNumber/RoundSlug;
+// (W4) populate FeedbackRoundID + MilestoneName + RoundNumber/RoundSlug;
 // review rounds (W5) populate ReviewRoundID; operating-mode proposals
-// also populate Mode, Phase, and RunID. At least InitiativeName is
+// also populate Mode, Phase, and RunID. At least MilestoneName is
 // required. Entrypoint identifies the originating surface so downstream
 // telemetry (event log, agentactivity) can group by code path
-// ("session.proposal", "initiative.review", etc.).
+// ("session.proposal", "milestone.review", etc.).
 type Source struct {
-	InitiativeName  string
+	MilestoneName  string
 	Mode            string
 	Phase           string
 	FeedbackRoundID string

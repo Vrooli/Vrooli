@@ -47,39 +47,6 @@ func TestSummarizePendingQuestion(t *testing.T) {
 	}
 }
 
-func TestParseCommaSeparated(t *testing.T) {
-	cases := []struct {
-		in   string
-		want []string
-	}{
-		{"a, b ,c", []string{"a", "b", "c"}},
-		{"", []string{}},
-		{" , , ", []string{}},
-		{"single", []string{"single"}},
-	}
-	for _, c := range cases {
-		got := parseCommaSeparated(c.in)
-		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("parseCommaSeparated(%q) = %v, want %v", c.in, got, c.want)
-		}
-	}
-}
-
-func TestIsValidInitiativeStatus(t *testing.T) {
-	valid := []string{"active", "completed"}
-	for _, s := range valid {
-		if !isValidInitiativeStatus(s) {
-			t.Errorf("isValidInitiativeStatus(%q) = false, want true", s)
-		}
-	}
-	invalid := []string{"", "Active", "paused", "done"}
-	for _, s := range invalid {
-		if isValidInitiativeStatus(s) {
-			t.Errorf("isValidInitiativeStatus(%q) = true, want false", s)
-		}
-	}
-}
-
 func TestBoolCount(t *testing.T) {
 	if got := boolCount(true, false, true, true); got != 3 {
 		t.Errorf("boolCount = %d, want 3", got)
@@ -131,23 +98,6 @@ func TestBoolLabel(t *testing.T) {
 	}
 	if boolLabel(false) != "no" {
 		t.Error("boolLabel(false) should be no")
-	}
-}
-
-func TestSubmissionPreview(t *testing.T) {
-	if got := submissionPreview("   "); got != "" {
-		t.Errorf("blank = %q", got)
-	}
-	if got := submissionPreview("hello"); got != "hello" {
-		t.Errorf("short = %q", got)
-	}
-	long := make([]byte, 150)
-	for i := range long {
-		long[i] = 'a'
-	}
-	got := submissionPreview(string(long))
-	if len(got) != 103 || got[100:] != "..." {
-		t.Errorf("long preview len=%d suffix=%q", len(got), got[len(got)-3:])
 	}
 }
 

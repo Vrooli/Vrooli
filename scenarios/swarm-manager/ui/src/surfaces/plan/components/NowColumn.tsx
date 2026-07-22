@@ -1,7 +1,7 @@
 /**
  * NowColumn — the in-flight column, at full Operations-Center parity:
  * live activity cards from the proven operations polling path, lane
- * utilization bars, queue chip, group-by (initiative / phase), select
+ * utilization bars, queue chip, group-by (milestone / phase), select
  * mode, and Spawn / Refresh actions. Bulk-stop confirms and outcomes are
  * handled by OpsBulkActions mounted at the board level.
  */
@@ -11,7 +11,7 @@ import { Bot, HelpCircle, ListChecks, Plus, RefreshCw } from "lucide-react";
 import { CollapsibleSection } from "../../../components/ui/collapsible-section";
 import { ActivityRow } from "../../../components/operations/ActivityRow";
 import { LaneBar } from "../../../components/operations/LaneBar";
-import { groupByInitiative, laneLabel, orderLanes } from "../../../components/operations/utils";
+import { groupByMilestone, laneLabel, orderLanes } from "../../../components/operations/utils";
 import { Button } from "../../../components/ui/button";
 import { Tooltip } from "../../../components/ui/tooltip";
 import { cn } from "../../../lib/utils";
@@ -46,8 +46,8 @@ export function NowColumn() {
   const lanes = useMemo(() => orderLanes(view?.lanes ?? []), [view?.lanes]);
   const queueDepth = view?.queue.depth ?? 0;
 
-  const initiativeGroups = useMemo(
-    () => (viewMode === "by-initiative" ? groupByInitiative(activities) : []),
+  const milestoneGroups = useMemo(
+    () => (viewMode === "by-milestone" ? groupByMilestone(activities) : []),
     [viewMode, activities],
   );
   const laneBuckets = useMemo(
@@ -148,8 +148,8 @@ export function NowColumn() {
             </Button>
             {spawnError && <p className="text-xs text-rose-400">{spawnError}</p>}
           </div>
-        ) : viewMode === "by-initiative" ? (
-          initiativeGroups.map((group) => (
+        ) : viewMode === "by-milestone" ? (
+          milestoneGroups.map((group) => (
             <div key={group.key || "__standalone__"} data-testid={`plan-now-group-${group.key || "standalone"}`}>
               <p className="px-1 pb-1 text-xs font-medium text-slate-400">
                 {group.standalone ? "standalone" : group.label}

@@ -29,23 +29,23 @@ func newTestHandler(t *testing.T, opts handlerOpts) (*Handler, *Reconciler, *mux
 	if bs == nil {
 		bs = &fakeVectorStore{}
 	}
-	is := opts.initStore
-	if is == nil {
-		is = &fakeVectorStore{}
+	gs := opts.goalStore
+	if gs == nil {
+		gs = &fakeVectorStore{}
 	}
 	br := opts.backlogReader
 	if br == nil {
 		br = &fakeBacklogReader{}
 	}
-	ir := opts.initReader
-	if ir == nil {
-		ir = &fakeInitReader{}
+	gr := opts.goalReader
+	if gr == nil {
+		gr = &fakeGoalReader{}
 	}
 
 	// Service uses the same fakes for search + status; Reconciler owns the
 	// reconcile lifecycle. Threshold of 0 lets the default kick in.
-	svc := NewService(emb, bs, is, br, ir, 0)
-	reconciler := NewReconciler(emb, bs, is, br, ir, 1)
+	svc := NewService(emb, bs, gs, br, gr, 0)
+	reconciler := NewReconciler(emb, bs, gs, br, gr, 1)
 	h := NewHandler(svc, reconciler)
 	r := mux.NewRouter()
 	h.RegisterRoutes(r)
@@ -55,9 +55,9 @@ func newTestHandler(t *testing.T, opts handlerOpts) (*Handler, *Reconciler, *mux
 type handlerOpts struct {
 	embedder      Embedder
 	backlogStore  VectorStore
-	initStore     VectorStore
+	goalStore     VectorStore
 	backlogReader BacklogReader
-	initReader    InitiativeReader
+	goalReader    GoalReader
 }
 
 func TestHandler_Search_InvalidBody(t *testing.T) {

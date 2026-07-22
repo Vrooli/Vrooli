@@ -12,8 +12,9 @@ type BacklogLister interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
 }
 
-// InitiativeEntry is the graph-specific initiative view needed by projections.
-type InitiativeEntry struct {
+// GoalEntry is the graph-specific goal view needed by projections. Items is
+// the authoritative dependency-derived closure, not persisted membership.
+type GoalEntry struct {
 	Name       string
 	Title      string
 	Status     string
@@ -21,9 +22,9 @@ type InitiativeEntry struct {
 	ArchivedAt *string
 }
 
-// InitiativeLister lists initiatives needed by graph projections.
-type InitiativeLister interface {
-	List() ([]InitiativeEntry, error)
+// GoalLister lists goals needed by graph projections.
+type GoalLister interface {
+	List() ([]GoalEntry, error)
 }
 
 // CaptureEntry represents a capture with its classification data.

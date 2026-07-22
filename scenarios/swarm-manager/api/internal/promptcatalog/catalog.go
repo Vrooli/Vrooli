@@ -12,12 +12,12 @@ import (
 type Group string
 
 const (
-	GroupCapture    Group = "capture"
-	GroupBacklog    Group = "backlog"
-	GroupExecution  Group = "execution"
-	GroupArchive    Group = "archive"
-	GroupSupport    Group = "support"
-	GroupInitiative Group = "initiative"
+	GroupCapture   Group = "capture"
+	GroupBacklog   Group = "backlog"
+	GroupExecution Group = "execution"
+	GroupArchive   Group = "archive"
+	GroupSupport   Group = "support"
+	GroupGoal      Group = "goal"
 )
 
 type UsageType string
@@ -175,37 +175,27 @@ var staticEntries = []Entry{
 	{
 		ID:         "session-proposals",
 		Title:      "Session-backed Proposal Agent",
-		Group:      GroupInitiative,
+		Group:      GroupGoal,
 		UsageType:  UsageDirectRuntime,
 		SourceType: SourceSkill,
-		Trigger:    "A session is launched against an initiative or an initiative-owned backlog item",
+		Trigger:    "A session is launched against a goal or an item in its derived scope",
 		SkillID:    "swarm-manager-proposals",
-		Purpose:    "Produce an operator-reviewed mutation-list proposal from hydrated entity context, including recreate_item, reset_artifacts, and recreate_initiative lifecycle operations when stale work needs controlled renewal.",
+		Purpose:    "Produce an operator-reviewed mutation-list proposal from hydrated goal context, including item renewal and scoped dependency changes when stale work needs controlled renewal.",
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
-			"swarm-manager-initiative-context",
+			"swarm-manager-goal-context",
 			"implementation-plan-authoring",
 		},
 	},
 	{
-		ID:         "initiative-review",
-		Title:      "Initiative Review Agent",
-		Group:      GroupInitiative,
-		UsageType:  UsageDirectRuntime,
-		SourceType: SourceSkill,
-		Trigger:    "All items in an initiative reach a terminal state; runs once per initiative review cycle",
-		SkillID:    "swarm-manager-initiative-review",
-		Purpose:    "Assess whether the initiative delivered its goal and propose follow-up mutations if needed.",
-	},
-	{
-		ID:         "support-initiative-context",
-		Title:      "Initiative Context Reference",
+		ID:         "support-goal-context",
+		Title:      "Goal Context Reference",
 		Group:      GroupSupport,
 		UsageType:  UsageSupportReference,
 		SourceType: SourceSkill,
-		Trigger:    "Referenced by initiative-scoped prompt skills (feedback, review)",
-		SkillID:    "swarm-manager-initiative-context",
-		Purpose:    "Initiative folder layout, graph.json schema, and read-only CLI surface for context loading.",
+		Trigger:    "Referenced by goal-scoped prompt skills and milestone review",
+		SkillID:    "swarm-manager-goal-context",
+		Purpose:    "Goal-derived scope, milestone partitioning, and read-only CLI context loading.",
 	},
 }
 
@@ -247,33 +237,6 @@ func Lookup(id string) (Entry, bool) {
 
 func ResolveCaptureSkill() (Entry, bool) {
 	return Lookup("capture-classify")
-}
-
-// ResolveInitiativeSkill picks the catalog entry for an initiative-scoped
-// agent run keyed by purpose ("feedback" | "review"). Returns the entry
-// and true on hit, or zero+false when no matching skill is registered —
-// the caller can fall back to the hard-coded skill ID for resilience.
-func ResolveInitiativeSkill(purpose string) (Entry, bool) {
-	switch strings.ToLower(strings.TrimSpace(purpose)) {
-	case "review":
-		return Lookup("initiative-review")
-	}
-	return Entry{}, false
-}
-
-func ResolveInitiativeModeSkill(mode, phase string) (Entry, bool) {
-	normalizedMode := strings.ToLower(strings.TrimSpace(mode))
-	normalizedPhase := strings.ToLower(strings.TrimSpace(phase))
-	for _, entry := range catalogEntries() {
-		if entry.Group != GroupInitiative || entry.SourceType != SourceSkill || entry.UsageType != UsageDirectRuntime {
-			continue
-		}
-		if !contains(entry.Modes, normalizedMode) || !contains(entry.Operations, normalizedPhase) {
-			continue
-		}
-		return cloneEntry(entry), true
-	}
-	return Entry{}, false
 }
 
 func ResolveSpecSyncSkill() (Entry, bool) {

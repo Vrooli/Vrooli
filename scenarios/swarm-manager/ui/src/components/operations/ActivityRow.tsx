@@ -1,12 +1,12 @@
 /**
- * ActivityRow — compact row component shared between by-initiative and
+ * ActivityRow — compact row component shared between by-milestone and
  * by-phase views.
  *
  * Renders a status dot, the activity's display name, a short subtitle
  * (`mode · phase · round` for operating-mode runs, `purpose` for
  * everything else), the lane chip, and runtime. Click navigates to the
  * existing activity / execution detail surfaces — operating-mode runs
- * link to the initiative details page (where the round opens), backlog
+ * group under their milestone, backlog
  * spawns link to the existing execution detail page if one exists,
  * captures and sessions link to their respective detail pages.
  *
@@ -111,9 +111,6 @@ function statusLabel(status: string): string {
 function detailHref(row: ActivityRowType): string | null {
   if (row.ownerType === "backlog" && row.ownerKind && row.ownerName) {
     return `/backlog/${row.ownerKind}/${row.ownerName}`;
-  }
-  if (row.ownerType === "initiative" && row.ownerName) {
-    return `/initiatives/${row.ownerName}`;
   }
   if (row.ownerType === "scenario" && row.ownerName) {
     return `/scenarios/${row.ownerName}`;

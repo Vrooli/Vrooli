@@ -3,8 +3,8 @@
  *
  * Fetches GET /scenarios/{name}/context and surfaces the scenario's full
  * coverage picture to the operator:
- *   - Initiatives whose member items target this scenario (with rollup)
- *   - Orphan backlog items targeting this scenario but not in any initiative
+ *   - Goals whose derived scope targets this scenario (with rollup)
+ *   - Backlog items targeting this scenario but not in a goal's derived scope
  *   - Combined completion rollup across everything
  *
  * This is the surface that answers "what's being done about scenario X?"
@@ -24,7 +24,7 @@ export interface ScenarioCoverageSectionProps {
   scenarioName: string;
 }
 
-/** Full coverage view for a scenario: initiatives + orphan items + rollup. */
+/** Full coverage view for a scenario: goals + unassigned items + rollup. */
 export function ScenarioCoverageSection({ scenarioName }: ScenarioCoverageSectionProps) {
   const { data, error, isLoading } = useQuery({
     queryKey: ["scenario-context", scenarioName],
@@ -35,7 +35,7 @@ export function ScenarioCoverageSection({ scenarioName }: ScenarioCoverageSectio
 
   if (isLoading) {
     return (
-      <DetailSection title="Associated Initiatives & Backlog" icon={Target}>
+      <DetailSection title="Associated Goals & Backlog" icon={Target}>
         <p className="text-sm text-slate-500">Loading coverage…</p>
       </DetailSection>
     );
@@ -43,7 +43,7 @@ export function ScenarioCoverageSection({ scenarioName }: ScenarioCoverageSectio
 
   if (error) {
     return (
-      <DetailSection title="Associated Initiatives & Backlog" icon={Target}>
+      <DetailSection title="Associated Goals & Backlog" icon={Target}>
         <p className="text-sm text-red-300">Failed to load scenario coverage.</p>
       </DetailSection>
     );
@@ -51,11 +51,11 @@ export function ScenarioCoverageSection({ scenarioName }: ScenarioCoverageSectio
 
   if (!data) return null;
 
-  const empty = data.initiatives.length === 0 && data.orphanItems.length === 0;
+  const empty = data.goals.length === 0 && data.orphanItems.length === 0;
 
   return (
     <DetailSection
-      title="Associated Initiatives & Backlog"
+      title="Associated Goals & Backlog"
       icon={Target}
       data-testid="scenario-coverage-section"
     >
@@ -76,50 +76,50 @@ export function ScenarioCoverageSection({ scenarioName }: ScenarioCoverageSectio
 
         {empty && (
           <p className="text-sm text-slate-400" data-testid="scenario-coverage-empty">
-            No initiatives or backlog items target this scenario yet. Consider
-            creating an initiative or backlog item once there is concrete work to
+            No goals or backlog items target this scenario yet. Consider
+            creating a goal or backlog item once there is concrete work to
             pursue.
           </p>
         )}
 
-        {data.initiatives.length > 0 && (
-          <div className="space-y-2" data-testid="scenario-coverage-initiatives">
+        {data.goals.length > 0 && (
+          <div className="space-y-2" data-testid="scenario-coverage-goals">
             <div className="flex items-baseline justify-between">
-              <h3 className="text-sm font-semibold text-slate-100">Initiatives</h3>
+              <h3 className="text-sm font-semibold text-slate-100">Goals</h3>
               <span className="rounded-full border border-slate-700/80 bg-slate-900/70 px-2 py-0.5 text-[11px] text-slate-400">
-                {data.initiatives.length}
+                {data.goals.length}
               </span>
             </div>
             <div className="grid min-w-0 gap-2">
-              {data.initiatives.map((init) => (
+              {data.goals.map((goal) => (
                 <div
-                  key={init.name}
+                  key={goal.name}
                   className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <EntityLink
-                        entityType="initiative"
-                        name={init.name}
-                        label={init.title || init.name}
+                        entityType="goal"
+                        name={goal.name}
+                        label={goal.title || goal.name}
                       />
-                      <p className="mt-1 truncate text-[11px] text-slate-500">{init.name}</p>
+                      <p className="mt-1 truncate text-[11px] text-slate-500">{goal.name}</p>
                     </div>
                     <span className="shrink-0 text-[11px] text-slate-500">
-                      {init.status}
-                      {init.priority > 0 ? ` · P${init.priority}` : ""}
+                      {goal.status}
+                      {goal.priority > 0 ? ` · P${goal.priority}` : ""}
                     </span>
                   </div>
-                  {init.rollup.total > 0 ? (
+                  {goal.rollup.total > 0 ? (
                     <>
-                      <RollupProgressBar rollup={init.rollup} barHeight="h-1.5" className="mt-3" />
+                      <RollupProgressBar rollup={goal.rollup} barHeight="h-1.5" className="mt-3" />
                       <div className="mt-2 flex flex-wrap gap-3 text-[11px]">
-                        <span className="text-emerald-400">{init.rollup.completed} done</span>
-                        <span className="text-purple-400">{init.rollup.inProgress} active</span>
-                        {init.rollup.failed > 0 && (
-                          <span className="text-red-400">{init.rollup.failed} failed</span>
+                        <span className="text-emerald-400">{goal.rollup.completed} done</span>
+                        <span className="text-purple-400">{goal.rollup.inProgress} active</span>
+                        {goal.rollup.failed > 0 && (
+                          <span className="text-red-400">{goal.rollup.failed} failed</span>
                         )}
-                        <span className="text-slate-500">{init.rollup.pending} pending</span>
+                        <span className="text-slate-500">{goal.rollup.pending} pending</span>
                       </div>
                     </>
                   ) : (
@@ -139,7 +139,7 @@ export function ScenarioCoverageSection({ scenarioName }: ScenarioCoverageSectio
               <h3 className="text-sm font-semibold text-slate-100">
                 Orphan items
                 <span className="ml-2 text-xs font-normal text-slate-500">
-                  (targeting but not in any initiative)
+                  (targeting but not in any goal scope)
                 </span>
               </h3>
               <span className="rounded-full border border-slate-700/80 bg-slate-900/70 px-2 py-0.5 text-[11px] text-slate-400">

@@ -11,7 +11,7 @@ import {
   captureDetailPath,
   executionDetailPath,
   graphPath,
-  initiativeDetailPath,
+  goalDetailPath,
 } from "../../../app/routes/route-paths";
 import { ActionMenu, type ActionMenuItem } from "../../../components/ui/action-menu";
 import { SetAsGoalDialog } from "../../../components/goals/SetAsGoalDialog";
@@ -45,8 +45,8 @@ export function PlanCardMenu({ card }: PlanCardMenuProps) {
         navigate(executionDetailPath(card.executionId));
       } else if (card.id.startsWith("capture/")) {
         navigate(captureDetailPath(card.id.slice("capture/".length)));
-      } else if (card.id.startsWith("initiative/")) {
-        navigate(initiativeDetailPath(card.id.slice("initiative/".length)));
+      } else if (card.id.startsWith("goal/")) {
+        navigate(goalDetailPath(card.id.slice("goal/".length)));
       } else if (itemKey) {
         navigate(backlogDetailPath(card.itemKind, card.itemName));
       }

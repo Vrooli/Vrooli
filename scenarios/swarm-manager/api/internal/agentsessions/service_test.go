@@ -25,7 +25,7 @@ func TestLegacyArtifactsRemainReadableFromSessionStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeLegacyArtifacts(t, svc.store.(*FileStore), Artifact{ID: "art-legacy", SessionID: session.ID, ArtifactType: ArtifactInitiative, Action: ArtifactActionCreated, EntityRef: "initiative/evidence", Title: "Evidence", CreatedAt: testTimestamp})
+	writeLegacyArtifacts(t, svc.store.(*FileStore), Artifact{ID: "art-legacy", SessionID: session.ID, ArtifactType: ArtifactMilestone, Action: ArtifactActionCreated, EntityRef: "milestone/evidence", Title: "Evidence", CreatedAt: testTimestamp})
 	artifacts, err := svc.ListArtifacts(context.Background(), session.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -114,8 +114,8 @@ func TestServiceStartStoresResolvedContextAndAddsItToPrompt(t *testing.T) {
 		SessionID: draft.ID,
 		Message:   "Plan this work.",
 		ContextRefs: []ContextRef{
-			{Type: ContextInitiative, Ref: "quality-gates"},
-			{Type: ContextInitiative, Ref: "quality-gates"},
+			{Type: ContextGoal, Ref: "quality-gates"},
+			{Type: ContextGoal, Ref: "quality-gates"},
 		},
 	})
 	if err != nil {
@@ -128,7 +128,7 @@ func TestServiceStartStoresResolvedContextAndAddsItToPrompt(t *testing.T) {
 		t.Fatalf("selected_at = %q, want %q", session.Messages[0].Context[0].SelectedAt, testTimestamp)
 	}
 	if !strings.Contains(spawner.spawnReq.Prompt, "Attached context:") ||
-		!strings.Contains(spawner.spawnReq.Prompt, "[initiative] Quality Gates (quality-gates)") ||
+		!strings.Contains(spawner.spawnReq.Prompt, "[goal] Quality Gates (quality-gates)") ||
 		!strings.Contains(spawner.spawnReq.Prompt, "Operator message:\nPlan this work.") {
 		t.Fatalf("prompt did not include context before operator message:\n%s", spawner.spawnReq.Prompt)
 	}
@@ -226,7 +226,7 @@ func TestProposalSessionRefreshRecordsNoChangeRecommendation(t *testing.T) {
 	svc := newTestService(t, spawner)
 	svc.SetContextResolver(fakeContextResolver{})
 	svc.SetMutationProposalProcessor(processor)
-	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Proposal", ProposalTarget: &ProposalTarget{Type: ContextInitiative, Ref: "quality-gates", Name: "Quality Gates"}})
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Proposal", ProposalTarget: &ProposalTarget{Type: ContextGoal, Ref: "quality-gates", Name: "Quality Gates"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func TestProposalSessionRefreshKeepsNonEmptyMutationListActionable(t *testing.T)
 	svc := newTestService(t, spawner)
 	svc.SetContextResolver(fakeContextResolver{})
 	svc.SetMutationProposalProcessor(processor)
-	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Proposal", ProposalTarget: &ProposalTarget{Type: ContextInitiative, Ref: "quality-gates", Name: "Quality Gates"}})
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Proposal", ProposalTarget: &ProposalTarget{Type: ContextGoal, Ref: "quality-gates", Name: "Quality Gates"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestProposalSessionRefreshPersistsRevisionStateForMalformedTurn(t *testing.
 	svc := newTestService(t, spawner)
 	svc.SetContextResolver(fakeContextResolver{})
 	svc.SetMutationProposalProcessor(processor)
-	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Proposal", ProposalTarget: &ProposalTarget{Type: ContextInitiative, Ref: "quality-gates", Name: "Quality Gates"}})
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Proposal", ProposalTarget: &ProposalTarget{Type: ContextGoal, Ref: "quality-gates", Name: "Quality Gates"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +325,7 @@ func TestMutationProposalDecisionAndRevisionUseSameSessionRun(t *testing.T) {
 	svc := newTestService(t, spawner)
 	svc.SetMutationProposalProcessor(processor)
 	session := createStartedSession(t, svc, KindSwarmOperations, "Proposal", "Find missing work.")
-	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{Kind: ProposalMutationList, Status: ProposalStatusReady, Summary: "Proposal", PayloadJSON: `{"form":"mutation_list","mutations":[]}`, Target: &ProposalTarget{Type: ContextInitiative, Ref: "quality-gates", Name: "Quality Gates"}})
+	proposal, err := svc.RecordProposal(context.Background(), session.ID, Proposal{Kind: ProposalMutationList, Status: ProposalStatusReady, Summary: "Proposal", PayloadJSON: `{"form":"mutation_list","mutations":[]}`, Target: &ProposalTarget{Type: ContextGoal, Ref: "quality-gates", Name: "Quality Gates"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +336,7 @@ func TestMutationProposalDecisionAndRevisionUseSameSessionRun(t *testing.T) {
 	if processor.accepted[0] != "m1" || applied.Proposals[0].Status != ProposalStatusApplied || len(applied.Proposals[0].Decisions) != 1 {
 		t.Fatalf("applied = %+v processor=%+v", applied.Proposals, processor)
 	}
-	proposal, err = svc.RecordProposal(context.Background(), session.ID, Proposal{Kind: ProposalMutationList, Status: ProposalStatusNeedsRevision, NeedsRevision: true, Summary: "Needs revision", PayloadJSON: `{}`, Target: &ProposalTarget{Type: ContextInitiative, Ref: "quality-gates", Name: "Quality Gates"}, ValidationErrors: []string{"unknown target"}})
+	proposal, err = svc.RecordProposal(context.Background(), session.ID, Proposal{Kind: ProposalMutationList, Status: ProposalStatusNeedsRevision, NeedsRevision: true, Summary: "Needs revision", PayloadJSON: `{}`, Target: &ProposalTarget{Type: ContextGoal, Ref: "quality-gates", Name: "Quality Gates"}, ValidationErrors: []string{"unknown target"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -828,9 +828,9 @@ func TestServiceAttachArtifactsPersistsBatchAtomically(t *testing.T) {
 		},
 		{
 			SessionID:    session.ID,
-			ArtifactType: ArtifactInitiative,
+			ArtifactType: ArtifactMilestone,
 			Action:       ArtifactActionCreated,
-			EntityRef:    "initiative-a",
+			EntityRef:    "milestone-a",
 		},
 	})
 	if err != nil {
@@ -888,12 +888,12 @@ func TestServiceApplyLegacyOperatingModeImplementationPlanIsReadOnly(t *testing.
 		ID:      "prop-plan",
 		Kind:    ProposalOperatingModeImplementationPlan,
 		Status:  ProposalStatusReady,
-		Summary: "Create implementation initiative and items.",
+		Summary: "Create implementation milestone and items.",
 		PayloadJSON: `{
 			"mode_id":"phased-refactor",
 			"backlog_batch_import":{
-				"initiatives":[{"name":"phased-refactor-mode","title":"Phased Refactor Mode"}],
-				"items":[{"name":"implement-mode","title":"Implement mode","kind":"feature","initiative":"phased-refactor-mode"}]
+				"milestones":[{"name":"phased-refactor-mode","title":"Phased Refactor Mode"}],
+				"items":[{"name":"implement-mode","title":"Implement mode","kind":"feature","milestone":"phased-refactor-mode"}]
 			}
 		}`,
 		CreatedAt: testTimestamp,

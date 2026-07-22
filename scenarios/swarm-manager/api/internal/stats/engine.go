@@ -9,7 +9,6 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/eta"
 	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/initiatives"
 )
 
 // indexByteFast returns the index of the first occurrence of c in s,
@@ -47,11 +46,6 @@ type BacklogLister interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
 }
 
-// InitiativeLister loads initiatives for ETA initiative-gate parity with planview.
-type InitiativeLister interface {
-	LoadAll() ([]initiatives.Initiative, error)
-}
-
 // GoalScoper resolves a goal name to the item refs ("<kind>/<name>") in its
 // transitive prerequisite closure.
 type GoalScoper interface {
@@ -62,7 +56,6 @@ type GoalScoper interface {
 // event-log aggregate when these are absent.
 type Config struct {
 	Backlog     BacklogLister
-	Initiatives InitiativeLister
 	Goals       GoalScoper
 	ETA         ETAEstimatorFactory
 }
@@ -217,13 +210,6 @@ func estimateRemaining(ctx context.Context, cfg Config, inScope map[string]bool)
 	if inScope != nil {
 		items = filterBacklogItemsToScope(items, inScope)
 	}
-	var inits []initiatives.Initiative
-	if cfg.Initiatives != nil {
-		inits, err = cfg.Initiatives.LoadAll()
-		if err != nil {
-			return nil
-		}
-	}
 	if err := ctx.Err(); err != nil {
 		return nil
 	}
@@ -231,7 +217,7 @@ func estimateRemaining(ctx context.Context, cfg Config, inScope map[string]bool)
 	if err != nil || est == nil {
 		return nil
 	}
-	in := eta.BuildClosureInput(items, inits)
+	in := eta.BuildClosureInput(items)
 	band, ok := est.EstimateGoal(in)
 	if !ok {
 		return nil
@@ -269,8 +255,8 @@ func filterEventsToScope(events []eventlog.Event, inScope map[string]bool) []eve
 			}
 		case eventlog.EventBacklogCreated:
 			var p eventlog.BacklogCreatedPayload
-			if unmarshalMeta(e.Metadata, &p) && inScope[e.EntityID] && p.Initiative != "" {
-				scopedInitiatives[p.Initiative] = true
+			if unmarshalMeta(e.Metadata, &p) && inScope[e.EntityID] && p.Milestone != "" {
+				scopedInitiatives[p.Milestone] = true
 			}
 		case eventlog.EventBacklogInitiativeChanged:
 			var p eventlog.InitiativeChangePayload

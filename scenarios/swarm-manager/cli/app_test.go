@@ -852,8 +852,8 @@ func TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint(t *testing.T) {
 		if got := r.URL.Query().Get("limit"); got != "2" {
 			t.Fatalf("unexpected limit query: %q", got)
 		}
-		if got := r.URL.Query().Get("initiative"); got != "focus" {
-			t.Fatalf("unexpected initiative query: %q", got)
+		if got := r.URL.Query().Get("milestone"); got != "focus" {
+			t.Fatalf("unexpected milestone query: %q", got)
 		}
 		_, _ = w.Write([]byte(`{"items":[{"kind":"idea","name":"alpha","questions":[{"id":"OT-P0-001","source":"review","title":"Architecture","review_type":"target"}]}]}`))
 	}))
@@ -862,7 +862,7 @@ func TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
-	if err := app.cmdBacklogPendingQuestions([]string{"--source", "review", "--limit", "2", "--initiative", "focus"}); err != nil {
+	if err := app.cmdBacklogPendingQuestions([]string{"--source", "review", "--limit", "2", "--milestone", "focus"}); err != nil {
 		t.Fatalf("cmdBacklogPendingQuestions returned error: %v", err)
 	}
 }
@@ -1130,37 +1130,6 @@ func TestCmdExecutionCreateResolvesModeFromPolicyWhenUnset(t *testing.T) {
 	}
 	if !settingsRequested {
 		t.Fatal("expected settings endpoint to be requested when --mode is unset")
-	}
-}
-
-func TestCmdInitiativesUpdateValidation(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() returned error: %v", err)
-	}
-
-	err = app.cmdInitiativesUpdate([]string{})
-	if err == nil {
-		t.Error("cmdInitiativesUpdate with no args should return error")
-	}
-	if !strings.Contains(err.Error(), "usage") {
-		t.Errorf("Error should contain 'usage', got: %v", err)
-	}
-
-	err = app.cmdInitiativesUpdate([]string{"--name", "my-init", "--data", `{}`})
-	if err == nil {
-		t.Error("cmdInitiativesUpdate with empty data should return error")
-	}
-	if !strings.Contains(err.Error(), "at least one field must be provided") {
-		t.Errorf("Error should contain empty-update message, got: %v", err)
-	}
-
-	err = app.cmdInitiativesUpdate([]string{"--name", "my-init", "--data", `{"scope":"legacy"}`})
-	if err == nil {
-		t.Error("cmdInitiativesUpdate with unknown field should return error")
-	}
-	if !strings.Contains(err.Error(), `unknown field "scope"`) {
-		t.Errorf("Error should report unknown field, got: %v", err)
 	}
 }
 

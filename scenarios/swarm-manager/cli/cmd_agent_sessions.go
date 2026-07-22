@@ -226,6 +226,6 @@ func (a *App) cmdSessionsDelete(args []string) error {
 	}
 	printSection("Deleted")
 	fmt.Printf("  Session %s deleted.\n", response.SessionID)
-	fmt.Println("  Created backlog items, initiatives, captures, files, and agent activity records were preserved.")
+	fmt.Println("  Created backlog items, milestones, captures, files, and agent activity records were preserved.")
 	return nil
 }

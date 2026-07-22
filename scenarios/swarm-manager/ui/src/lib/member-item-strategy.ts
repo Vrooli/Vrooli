@@ -1,7 +1,7 @@
-/** The persisted initiative strategy value for per-item workflows. */
+/** The persisted milestone strategy value for per-item workflows. */
 export const MEMBER_ITEM_STRATEGY_WIRE_VALUE = "item-level";
 
-/** Operator-facing label for the only supported initiative strategy. */
+/** Operator-facing label for the only supported milestone strategy. */
 export const MEMBER_ITEM_STRATEGY_LABEL = "Member-item workflow";
 
 export type ModePresentation =

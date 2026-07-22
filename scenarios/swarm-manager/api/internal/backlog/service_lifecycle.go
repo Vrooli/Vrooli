@@ -123,11 +123,11 @@ func removeArtifactDir(itemDir, name string) error {
 }
 
 type itemDetacher interface {
-	ForgetItem(initiativeName, ref string) error
+	ForgetItem(milestoneName, ref string) error
 }
 
 // RecreateItem makes an active backlog clone with lineage and archives the
-// source only after dependents and initiative membership point at the clone.
+// source only after dependents and milestone membership point at the clone.
 // Every write after creation has compensating rollback, preserving the source
 // graph when a filesystem failure occurs mid-operation.
 func (s *Service) RecreateItem(ctx context.Context, kind BacklogKind, name string) (BacklogItem, error) {
@@ -155,7 +155,7 @@ func (s *Service) RecreateItem(ctx context.Context, kind BacklogKind, name strin
 	ref := string(kind) + "/" + name
 	cloneRef := string(kind) + "/" + cloneName
 	now := time.Now().UTC().Format(time.RFC3339)
-	clone := BacklogItem{Name: cloneName, Title: source.Title, Description: source.Description, Status: StatusBacklog, Priority: source.Priority, Tags: append([]string(nil), source.Tags...), Created: now, Updated: now, Kind: source.Kind, DependsOn: append([]string(nil), source.DependsOn...), Initiative: source.Initiative, Effort: source.Effort, AcceptanceAllow: append([]string(nil), source.AcceptanceAllow...), AcceptanceDeny: append([]string(nil), source.AcceptanceDeny...), Creates: append([]string(nil), source.Creates...), SpawnedFrom: ref, FindingRef: source.FindingRef, Note: source.Note, SuggestedSkills: append([]string(nil), source.SuggestedSkills...), CreatedBy: source.CreatedBy}
+	clone := BacklogItem{Name: cloneName, Title: source.Title, Description: source.Description, Status: StatusBacklog, Priority: source.Priority, Tags: append([]string(nil), source.Tags...), Created: now, Updated: now, Kind: source.Kind, DependsOn: append([]string(nil), source.DependsOn...), Milestone: source.Milestone, Effort: source.Effort, AcceptanceAllow: append([]string(nil), source.AcceptanceAllow...), AcceptanceDeny: append([]string(nil), source.AcceptanceDeny...), Creates: append([]string(nil), source.Creates...), SpawnedFrom: ref, FindingRef: source.FindingRef, Note: source.Note, SuggestedSkills: append([]string(nil), source.SuggestedSkills...), CreatedBy: source.CreatedBy}
 	if err := s.Create(clone, CreationContext{Context: ctx, Source: SourceProposal}); err != nil {
 		return BacklogItem{}, fmt.Errorf("create recreation clone: %w", err)
 	}
@@ -175,11 +175,11 @@ func (s *Service) RecreateItem(ctx context.Context, kind BacklogKind, name strin
 		for _, previous := range dependents {
 			_ = s.store.SaveItem(previous)
 		}
-		if source.Initiative != "" {
+		if source.Milestone != "" {
 			if detacher, ok := s.assigner.(itemDetacher); ok {
-				_ = detacher.ForgetItem(source.Initiative, cloneRef)
+				_ = detacher.ForgetItem(source.Milestone, cloneRef)
 			}
-			_ = s.assigner.RememberItem(source.Initiative, ref)
+			_ = s.assigner.RememberItem(source.Milestone, ref)
 		}
 		_, _ = s.ArchiveItem(ctx, kind, cloneName, "recreation rollback")
 	}
@@ -196,15 +196,15 @@ func (s *Service) RecreateItem(ctx context.Context, kind BacklogKind, name strin
 			return BacklogItem{}, fmt.Errorf("save retargeted dependent %s/%s: %w", updated.Kind, updated.Name, err)
 		}
 	}
-	if source.Initiative != "" {
+	if source.Milestone != "" {
 		detacher, ok := s.assigner.(itemDetacher)
 		if !ok {
 			restored()
-			return BacklogItem{}, fmt.Errorf("recreate item requires initiative detacher")
+			return BacklogItem{}, fmt.Errorf("recreate item requires milestone detacher")
 		}
-		if err := detacher.ForgetItem(source.Initiative, ref); err != nil {
+		if err := detacher.ForgetItem(source.Milestone, ref); err != nil {
 			restored()
-			return BacklogItem{}, fmt.Errorf("move initiative membership: %w", err)
+			return BacklogItem{}, fmt.Errorf("move milestone membership: %w", err)
 		}
 	}
 	if _, err := s.ArchiveItem(ctx, kind, name, "recreated as "+cloneRef); err != nil {

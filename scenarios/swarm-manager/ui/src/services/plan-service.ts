@@ -38,7 +38,7 @@ export interface CanonicalPlanSummary {
 }
 
 export interface PlanImportContainerInput {
-  type: "items" | "initiative";
+  type: "items" | "milestone";
   name?: string;
   title?: string;
   description?: string;
@@ -61,7 +61,7 @@ export interface PlanImportItemResult {
   action: string;
 }
 
-export interface PlanImportInitiativeResult {
+export interface PlanImportMilestoneResult {
   name: string;
   title: string;
   mode?: string;
@@ -71,9 +71,9 @@ export interface PlanImportInitiativeResult {
 export interface PlanImportResult {
   slug: string;
   planId: string;
-  container: "items" | "initiative";
+  container: "items" | "milestone";
   items: PlanImportItemResult[];
-  initiative?: PlanImportInitiativeResult;
+  milestone?: PlanImportMilestoneResult;
   count: number;
   created: number;
   linked: number;
@@ -156,7 +156,7 @@ function mapCard(card: ProtoPlanCard): PlanCardData {
     status: card.status,
     priority: card.priority,
     wave: card.wave,
-    initiative: card.initiative,
+    milestone: card.milestone,
     effort: card.effort,
     gate: mapGate(card),
     outcome: mapOutcome(card.outcome),
@@ -264,7 +264,7 @@ export function createPlanService(apiClient: IApiClient = defaultApiClient): IPl
       return {
         slug: asString(data.slug),
         planId: asString(data.plan_id),
-        container: data.container === "initiative" ? "initiative" : "items",
+        container: data.container === "milestone" ? "milestone" : "items",
         items: Array.isArray(data.items)
           ? data.items.map((item) => {
               const raw = item as Record<string, unknown>;
@@ -276,12 +276,12 @@ export function createPlanService(apiClient: IApiClient = defaultApiClient): IPl
               };
             })
           : [],
-        initiative: data.initiative && typeof data.initiative === "object"
+        milestone: data.milestone && typeof data.milestone === "object"
           ? {
-              name: asString((data.initiative as Record<string, unknown>).name),
-              title: asString((data.initiative as Record<string, unknown>).title),
-              mode: asString((data.initiative as Record<string, unknown>).mode) || undefined,
-              action: asString((data.initiative as Record<string, unknown>).action),
+              name: asString((data.milestone as Record<string, unknown>).name),
+              title: asString((data.milestone as Record<string, unknown>).title),
+              mode: asString((data.milestone as Record<string, unknown>).mode) || undefined,
+              action: asString((data.milestone as Record<string, unknown>).action),
             }
           : undefined,
         count: asNumber(data.count),

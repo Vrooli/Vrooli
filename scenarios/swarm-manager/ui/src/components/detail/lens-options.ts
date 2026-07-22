@@ -21,7 +21,6 @@ const PLAN_GRAPH_LENSES: LensOption[] = [PLAN_LENS, GRAPH_LENS];
 const PLAN_ONLY_LENSES: LensOption[] = [PLAN_LENS];
 
 export const BACKLOG_LENSES: LensOption[] = PLAN_GRAPH_LENSES;
-export const INITIATIVE_LENSES: LensOption[] = PLAN_GRAPH_LENSES;
 export const GOAL_LENSES: LensOption[] = PLAN_ONLY_LENSES;
 export const EXECUTION_LENSES: LensOption[] = PLAN_GRAPH_LENSES;
 export const SCENARIO_LENSES: LensOption[] = PLAN_GRAPH_LENSES;

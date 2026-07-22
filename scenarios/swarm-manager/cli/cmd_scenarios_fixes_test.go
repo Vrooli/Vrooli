@@ -11,7 +11,7 @@ import (
 
 const fixesContextResponse = `{
   "scenario_name": "web-console",
-  "initiatives": [],
+  "milestones": [],
   "orphan_items": [],
   "rollup": {"total":0,"completed":0,"in_progress":0,"failed":0,"pending":0,"archived":0},
   "fixes": {

@@ -59,10 +59,6 @@ export type {
 export { executionService, createExecutionService } from "./execution-service";
 export type { IExecutionService, CreateExecutionRequest, ListExecutionFilters } from "./execution-service";
 
-// Initiatives
-export { initiativeService, createInitiativeService } from "./initiative-service";
-export type { IInitiativeService } from "./initiative-service";
-
 // Goals
 export { goalsService, createGoalsService } from "./goals-service";
 export type { IGoalsService } from "./goals-service";
@@ -98,9 +94,7 @@ export type {
 } from "./review-service";
 
 
-// Initiative Review
-export { initiativeReviewService, createInitiativeReviewService } from "./initiative-review-service";
-export type { IInitiativeReviewService, DecideInitiativeReviewArgs } from "./initiative-review-service";
+// Milestone Review
 
 // Embedded Services
 export { embeddedService, createEmbeddedService } from "./embedded-service";

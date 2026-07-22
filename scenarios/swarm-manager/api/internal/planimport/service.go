@@ -20,11 +20,10 @@ type ImportedRef struct {
 	Action string `json:"action"`
 }
 
-// ImportedInitiative is the plan-bound initiative the bridge reports back.
-type ImportedInitiative struct {
+// ImportedGoal is the plan-bound goal the bridge reports back.
+type ImportedGoal struct {
 	Name   string `json:"name"`
 	Title  string `json:"title"`
-	Mode   string `json:"mode,omitempty"`
 	Action string `json:"action"`
 }
 
@@ -35,11 +34,11 @@ type BatchLander interface {
 	LandBatch(ctx context.Context, payload BatchPayload, prov identity.Provenance) ([]ImportedRef, error)
 }
 
-// InitiativeLander lands the optional initiative container around imported
+// GoalLander lands the optional goal container around imported
 // phase items. It lives outside BatchLander because item-only imports remain
 // the default API behavior.
-type InitiativeLander interface {
-	LandInitiative(ctx context.Context, spec InitiativeSpec, itemRefs []ImportedRef, prov identity.Provenance) (ImportedInitiative, error)
+type GoalLander interface {
+	LandGoal(ctx context.Context, spec GoalSpec, itemRefs []ImportedRef, prov identity.Provenance) (ImportedGoal, error)
 }
 
 // Service fetches an authored plan and lands its phases as a provenance-stamped
@@ -47,12 +46,12 @@ type InitiativeLander interface {
 type Service struct {
 	fetcher    planclient.PlanReader
 	lander     BatchLander
-	initLander InitiativeLander
+	goalLander GoalLander
 }
 
 // NewService wires the plan fetcher and the batch lander.
-func NewService(fetcher planclient.PlanReader, lander BatchLander, initLander InitiativeLander) *Service {
-	return &Service{fetcher: fetcher, lander: lander, initLander: initLander}
+func NewService(fetcher planclient.PlanReader, lander BatchLander, goalLander GoalLander) *Service {
+	return &Service{fetcher: fetcher, lander: lander, goalLander: goalLander}
 }
 
 // Request describes a Create-Work-From-Plan backend operation. PlanID preserves
@@ -77,15 +76,15 @@ type ContainerSpec struct {
 
 // Result reports what an import produced.
 type Result struct {
-	Slug       string              `json:"slug"`
-	PlanID     string              `json:"plan_id"`
-	Container  string              `json:"container"`
-	Items      []ImportedRef       `json:"items"`
-	Initiative *ImportedInitiative `json:"initiative,omitempty"`
-	Count      int                 `json:"count"`
-	Created    int                 `json:"created"`
-	Linked     int                 `json:"linked"`
-	Updated    int                 `json:"updated"`
+	Slug      string        `json:"slug"`
+	PlanID    string        `json:"plan_id"`
+	Container string        `json:"container"`
+	Items     []ImportedRef `json:"items"`
+	Goal      *ImportedGoal `json:"goal,omitempty"`
+	Count     int           `json:"count"`
+	Created   int           `json:"created"`
+	Linked    int           `json:"linked"`
+	Updated   int           `json:"updated"`
 }
 
 // PlanSummary is the small picker-facing shape used by the UI. Swarm-manager
@@ -130,11 +129,11 @@ func (s *Service) Import(ctx context.Context, req Request, prov identity.Provena
 	if containerType == "" {
 		containerType = "items"
 	}
-	if containerType != "items" && containerType != "initiative" {
-		return Result{}, apierr.BadRequest("container must be items or initiative")
+	if containerType != "items" && containerType != "goal" {
+		return Result{}, apierr.BadRequest("container must be items or goal")
 	}
-	if containerType == "initiative" && s.initLander == nil {
-		return Result{}, fmt.Errorf("planimport: initiative container support is not configured")
+	if containerType == "goal" && s.goalLander == nil {
+		return Result{}, fmt.Errorf("planimport: goal container support is not configured")
 	}
 
 	plan, err := s.resolvePlan(ctx, req)
@@ -145,24 +144,14 @@ func (s *Service) Import(ctx context.Context, req Request, prov identity.Provena
 	if err != nil {
 		return Result{}, err
 	}
-	var preparedInitiative *ImportedInitiative
-	if containerType == "initiative" {
-		if err := validateInitiativeMode(req.Container.Mode); err != nil {
-			return Result{}, err
-		}
-		initSpec := initiativeSpec(req.Container, plan)
-		landed, err := s.initLander.LandInitiative(ctx, initSpec, nil, prov)
+	var preparedGoal *ImportedGoal
+	if containerType == "goal" {
+		goalSpec := goalSpec(req.Container, plan)
+		landed, err := s.goalLander.LandGoal(ctx, goalSpec, nil, prov)
 		if err != nil {
 			return Result{}, err
 		}
-		preparedInitiative = &landed
-		initName := strings.TrimSpace(initSpec.Name)
-		if initName == "" {
-			initName = plan.GetSlug()
-		}
-		for i := range payload.Items {
-			payload.Items[i].Initiative = initName
-		}
+		preparedGoal = &landed
 	}
 	refs, err := s.lander.LandBatch(ctx, payload, prov)
 	if err != nil {
@@ -179,15 +168,15 @@ func (s *Service) Import(ctx context.Context, req Request, prov identity.Provena
 			result.Linked++
 		}
 	}
-	if containerType == "initiative" {
-		landed, err := s.initLander.LandInitiative(ctx, initiativeSpec(req.Container, plan), refs, prov)
+	if containerType == "goal" {
+		landed, err := s.goalLander.LandGoal(ctx, goalSpec(req.Container, plan), refs, prov)
 		if err != nil {
 			return Result{}, err
 		}
-		if preparedInitiative != nil && preparedInitiative.Action == "created" {
+		if preparedGoal != nil && preparedGoal.Action == "created" {
 			landed.Action = "created"
 		}
-		result.Initiative = &landed
+		result.Goal = &landed
 	}
 	return result, nil
 }
@@ -212,23 +201,7 @@ func (s *Service) resolvePlan(ctx context.Context, req Request) (*sharedv1.Plan,
 	return s.fetcher.GetPlan(ctx, planID)
 }
 
-// validateInitiativeMode rejects an import that would stamp an initiative
-// with an unknown mode or a mode that does not target initiatives (e.g. the
-// generic plan-target phased-plan-drain): initiative-keyed surfaces reject
-// plan-target modes with typed errors, so accepting one here would create a
-// wedged initiative. Empty means the server default and is always valid.
-func validateInitiativeMode(raw string) error {
-	mode := strings.TrimSpace(raw)
-	if mode == "" {
-		return nil
-	}
-	if strings.EqualFold(mode, "item-level") {
-		return nil
-	}
-	return apierr.BadRequest("initiative mode %q is retired; use item-level workflow strategy", mode)
-}
-
-func initiativeSpec(container ContainerSpec, plan *sharedv1.Plan) InitiativeSpec {
+func goalSpec(container ContainerSpec, plan *sharedv1.Plan) GoalSpec {
 	name := strings.TrimSpace(container.Name)
 	if name == "" {
 		name = strings.TrimSpace(plan.GetSlug())
@@ -240,17 +213,10 @@ func initiativeSpec(container ContainerSpec, plan *sharedv1.Plan) InitiativeSpec
 	if title == "" {
 		title = name
 	}
-	return InitiativeSpec{
+	return GoalSpec{
 		Name:        name,
 		Title:       title,
 		Description: strings.TrimSpace(container.Description),
-		Mode:        strings.TrimSpace(container.Mode),
-		PlanRef: PlanRef{
-			Provider: "plan-manager",
-			PlanID:   strings.TrimSpace(plan.GetId()),
-			Slug:     strings.TrimSpace(plan.GetSlug()),
-			Role:     "operating_mode_plan",
-		},
 	}
 }
 
@@ -258,8 +224,8 @@ func normalizeContainerType(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "", "item", "items", "backlog":
 		return "items"
-	case "initiative", "initiatives":
-		return "initiative"
+	case "goal", "goals":
+		return "goal"
 	default:
 		return strings.ToLower(strings.TrimSpace(raw))
 	}

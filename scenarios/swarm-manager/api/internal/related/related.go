@@ -12,7 +12,7 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/depgraph"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/records"
 )
@@ -20,16 +20,16 @@ import (
 type TargetKind string
 
 const (
-	TargetBacklog    TargetKind = "backlog"
-	TargetInitiative TargetKind = "initiative"
+	TargetBacklog TargetKind = "backlog"
+	TargetGoal    TargetKind = "goal"
 )
 
 type EntityKind string
 
 const (
-	EntityBacklog    EntityKind = "backlog"
-	EntityInitiative EntityKind = "initiative"
-	EntityRecord     EntityKind = "record"
+	EntityBacklog EntityKind = "backlog"
+	EntityGoal    EntityKind = "goal"
+	EntityRecord  EntityKind = "record"
 )
 
 type GroupName string
@@ -79,23 +79,22 @@ type BacklogReader interface {
 	LoadAll([]backlog.BacklogKind) ([]backlog.BacklogItem, error)
 	LoadItem(backlog.BacklogKind, string) (backlog.BacklogItem, error)
 }
-type InitiativeReader interface {
-	LoadAll() ([]initiatives.Initiative, error)
-	Load(string) (*initiatives.Initiative, error)
+type GoalReader interface {
+	List() ([]goals.GoalWithScope, error)
 }
 type Similarity interface {
 	Similar(context.Context, TargetRef, int) ([]Entity, bool, error)
 }
 
 type Engine struct {
-	backlog     BacklogReader
-	initiatives InitiativeReader
-	records     records.Store
-	similar     Similarity
+	backlog BacklogReader
+	goals   GoalReader
+	records records.Store
+	similar Similarity
 }
 
-func NewEngine(b BacklogReader, i InitiativeReader, r records.Store, s Similarity) *Engine {
-	return &Engine{b, i, r, s}
+func NewEngine(b BacklogReader, g GoalReader, r records.Store, s Similarity) *Engine {
+	return &Engine{b, g, r, s}
 }
 func (e *Engine) Compute(ctx context.Context, target TargetRef, limit int) (Report, error) {
 	linked, err := e.linked(ctx, target)
@@ -157,8 +156,8 @@ func itemMap(items []backlog.BacklogItem) map[string]backlog.BacklogItem {
 func backlogEntity(i backlog.BacklogItem, reasons ...string) Entity {
 	return Entity{EntityBacklog, string(i.Kind) + "/" + i.Name, i.Title, string(i.Status), backlog.IsArchived(i), reasons, 0}
 }
-func initiativeEntity(i initiatives.Initiative, reasons ...string) Entity {
-	return Entity{EntityInitiative, i.Name, i.Title, i.Status, i.ArchivedAt != nil && strings.TrimSpace(*i.ArchivedAt) != "", reasons, 0}
+func goalEntity(g goals.GoalWithScope, reasons ...string) Entity {
+	return Entity{EntityGoal, g.Goal.Name, g.Goal.Title, g.Goal.Status, g.Goal.ArchivedAt != nil && strings.TrimSpace(*g.Goal.ArchivedAt) != "", reasons, 0}
 }
 func recordEntity(r records.Record, reasons ...string) Entity {
 	return Entity{EntityRecord, r.ID, r.Trigger, string(r.Outcome), true, reasons, 0}
@@ -169,7 +168,7 @@ func (e *Engine) linked(_ context.Context, target TargetRef) ([]Entity, error) {
 	if err != nil {
 		return nil, err
 	}
-	inits, err := e.initiatives.LoadAll()
+	goalList, err := e.goals.List()
 	if err != nil {
 		return nil, err
 	}
@@ -194,9 +193,16 @@ func (e *Engine) linked(_ context.Context, target TargetRef) ([]Entity, error) {
 				out = append(out, backlogEntity(x, "depends on this item"))
 			}
 		}
-		for _, x := range items {
-			if x.Initiative != "" && x.Initiative == item.Initiative && x.Name != item.Name {
-				out = append(out, backlogEntity(x, "shares initiative: "+item.Initiative))
+		for _, goal := range goalList {
+			if containsRef(goal.Scope.Closure, target.Key()) {
+				for _, key := range goal.Scope.Closure {
+					if key == target.Key() {
+						continue
+					}
+					if byItem, ok := byKey[key]; ok {
+						out = append(out, backlogEntity(byItem, "shares goal: "+goal.Goal.Name))
+					}
+				}
 			}
 		}
 		rs, err := e.records.List(records.ListFilter{BacklogRef: target.Key(), IncludeStubs: true})
@@ -207,47 +213,41 @@ func (e *Engine) linked(_ context.Context, target TargetRef) ([]Entity, error) {
 			out = append(out, recordEntity(r, "record for this item"))
 		}
 	} else {
-		init, ok := findInitiative(inits, target.Name)
+		goal, ok := findGoal(goalList, target.Name)
 		if !ok {
-			return nil, fmt.Errorf("initiative target %q not found", target.Name)
+			return nil, fmt.Errorf("goal target %q not found", target.Name)
 		}
-		for _, key := range init.Items {
+		for _, key := range goal.Scope.Closure {
 			if x, ok := byKey[key]; ok {
-				out = append(out, backlogEntity(x, "member of this initiative"))
+				out = append(out, backlogEntity(x, "in this goal's derived scope"))
 			}
 		}
-		for _, other := range inits {
-			if other.Name == init.Name {
-				continue
-			}
-			for _, d := range other.DependsOn {
-				if d == init.Name {
-					out = append(out, initiativeEntity(other, "depends on this initiative"))
-				}
-			}
-			for _, d := range init.DependsOn {
-				if d == other.Name {
-					out = append(out, initiativeEntity(other, "depends on this initiative"))
-				}
-			}
-		}
-		rs, err := e.records.List(records.ListFilter{InitiativeID: target.Name, IncludeStubs: true})
+		rs, err := e.records.List(records.ListFilter{MilestoneID: target.Name, IncludeStubs: true})
 		if err != nil {
 			return nil, err
 		}
 		for _, r := range rs {
-			out = append(out, recordEntity(r, "record for this initiative"))
+			out = append(out, recordEntity(r, "record for this goal"))
 		}
 	}
 	return merge(out), nil
 }
-func findInitiative(in []initiatives.Initiative, name string) (initiatives.Initiative, bool) {
-	for _, i := range in {
-		if i.Name == name {
-			return i, true
+func findGoal(in []goals.GoalWithScope, name string) (goals.GoalWithScope, bool) {
+	for _, g := range in {
+		if g.Goal.Name == name {
+			return g, true
 		}
 	}
-	return initiatives.Initiative{}, false
+	return goals.GoalWithScope{}, false
+}
+
+func containsRef(refs []string, ref string) bool {
+	for _, candidate := range refs {
+		if candidate == ref {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Engine) scope(target TargetRef) ([]Entity, error) {
@@ -255,11 +255,11 @@ func (e *Engine) scope(target TargetRef) ([]Entity, error) {
 	if err != nil {
 		return nil, err
 	}
-	inits, err := e.initiatives.LoadAll()
+	goalList, err := e.goals.List()
 	if err != nil {
 		return nil, err
 	}
-	targetScopes := scopesForTarget(target, items, inits)
+	targetScopes := scopesForTarget(target, items, goalList)
 	out := []Entity{}
 	for _, x := range items {
 		if target.Kind == TargetBacklog && target.Key() == string(x.Kind)+"/"+x.Name {
@@ -271,13 +271,13 @@ func (e *Engine) scope(target TargetRef) ([]Entity, error) {
 			out = append(out, backlogEntity(x, reasons...))
 		}
 	}
-	for _, x := range inits {
-		if target.Kind == TargetInitiative && target.Name == x.Name {
+	for _, x := range goalList {
+		if target.Kind == TargetGoal && target.Name == x.Goal.Name {
 			continue
 		}
-		common := intersection(targetScopes, scopesForInitiative(x, items))
+		common := intersection(targetScopes, scopesForGoal(x, items))
 		if len(common) > 0 {
-			out = append(out, initiativeEntity(x, scopeReasons(common, targetScopes.globs, nil)...))
+			out = append(out, goalEntity(x, scopeReasons(common, targetScopes.globs, nil)...))
 		}
 	}
 	return merge(out), nil
@@ -292,9 +292,9 @@ func scopesForItem(i backlog.BacklogItem) scopeSet {
 	g := append(append([]string{}, i.AcceptanceAllow...), i.Creates...)
 	return scopeSet{set(pathutil.ScenariosFromGlobs(g)), g}
 }
-func scopesForInitiative(in initiatives.Initiative, items []backlog.BacklogItem) scopeSet {
+func scopesForGoal(goal goals.GoalWithScope, items []backlog.BacklogItem) scopeSet {
 	o := scopeSet{set(mapKeys(nil)), nil}
-	for _, key := range in.Items {
+	for _, key := range goal.Scope.Closure {
 		for _, i := range items {
 			if string(i.Kind)+"/"+i.Name == key {
 				s := scopesForItem(i)
@@ -307,10 +307,10 @@ func scopesForInitiative(in initiatives.Initiative, items []backlog.BacklogItem)
 	}
 	return o
 }
-func scopesForTarget(t TargetRef, items []backlog.BacklogItem, inits []initiatives.Initiative) scopeSet {
-	if t.Kind == TargetInitiative {
-		if i, ok := findInitiative(inits, t.Name); ok {
-			return scopesForInitiative(i, items)
+func scopesForTarget(t TargetRef, items []backlog.BacklogItem, goalList []goals.GoalWithScope) scopeSet {
+	if t.Kind == TargetGoal {
+		if goal, ok := findGoal(goalList, t.Name); ok {
+			return scopesForGoal(goal, items)
 		}
 	}
 	for _, i := range items {

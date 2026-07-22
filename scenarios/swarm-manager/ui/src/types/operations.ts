@@ -6,7 +6,7 @@
  *
  * The backend keys are snake_case; the UI types are camelCase. The
  * `operations-service` module performs explicit field-by-field
- * normalization following the same pattern as `initiative-mode-service`.
+ * normalization following the same pattern as `milestone-mode-service`.
  *
  * Lane vocabulary mirrors `agentactivity.Lane` on the backend — the four
  * canonical lanes are always present in `OperationsView.lanes`, even when
@@ -54,11 +54,11 @@ export type OperationsActivityStatus =
 
 /**
  * Subset of `AgentActivityOwnerType` the operations endpoint surfaces.
- * Kept loose (`string`) for forward compatibility — the by-initiative view
- * groups by `OwnerType === "initiative"` and falls back to the standalone
+ * Kept loose (`string`) for forward compatibility — the by-milestone view
+ * groups by `OwnerType === "milestone"` and falls back to the standalone
  * bucket otherwise.
  */
-export type OperationsOwnerType = "backlog" | "initiative" | "scenario" | "capture" | "session" | string;
+export type OperationsOwnerType = "backlog" | "milestone" | "scenario" | "capture" | "session" | string;
 
 export interface LaneStatus {
   lane: OperationsLane | string;
@@ -92,7 +92,7 @@ export interface ActivityRow {
   mode?: string;
   phase?: string;
   round?: number;
-  initiativeName?: string;
+  milestoneName?: string;
   requestedAt: string;
   startedAt?: string;
   finishedAt?: string;
@@ -120,7 +120,7 @@ export interface OperationsBriefingSummary {
   saturatedLanes: string[];
   activeLaneCountByLane: Record<string, number>;
   totalBacklogItems: number;
-  activeInitiatives: number;
+  activeGoals: number;
   blockedItems: number;
   activeSessions: number;
 }
@@ -186,14 +186,14 @@ export interface OperationsFilters {
 }
 
 /**
- * View the Ops Center body renders. P6 ships only `by-initiative`; P7a
+ * View the Ops Center body renders. P6 ships only `by-milestone`; P7a
  * adds `by-phase`. Stored both in the operations-store and as a `view=`
  * URL query parameter for deep-linkability.
  */
-export type OperationsViewMode = "by-initiative" | "by-phase";
+export type OperationsViewMode = "by-milestone" | "by-phase";
 
 export const OPERATIONS_VIEW_MODES: readonly OperationsViewMode[] = [
-  "by-initiative",
+  "by-milestone",
   "by-phase",
 ] as const;
 

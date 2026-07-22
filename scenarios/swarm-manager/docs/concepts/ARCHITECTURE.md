@@ -42,7 +42,7 @@ records and event projections remain read-only for audit and migration history.
 
 Swarm Manager is the **staging and review layer** for agent-generated plans. Its primary role is to receive work proposals from prompt-manager agent teams, let operators review and refine them, and then control when and how they execute.
 
-The primary operator surface is now the **graph workspace**. Operators navigate backlog items, initiatives, scenarios, executions, agent activities, runs, and captures primarily through a graph-first view, with sidebar lists and detail routes serving as search, drill-down, and non-graph navigation paths.
+The primary operator surface is now the **graph workspace**. Operators navigate backlog items, milestones, scenarios, executions, agent activities, runs, and captures primarily through a graph-first view, with sidebar lists and detail routes serving as search, drill-down, and non-graph navigation paths.
 
 ```
 prompt-manager                         swarm-manager
@@ -81,7 +81,7 @@ Recommendation generation lives in Prompt Manager teams, not in Swarm Manager.
 | Concept | Description | Lifecycle States | Implementation |
 |---------|-------------|------------------|----------------|
 | **Backlog Item** | Unit of work stored as git-tracked folders (`idea`, `research`, `fix`, `execute`, `chore`) | `suggested` -> `backlog`/`ready`; normal flow: `backlog` -> `researching` -> `ready` -> `queued` -> `in_progress` -> `completed`/`failed`/`archived` | [CODE: ui/src/types/domain.ts#BacklogItem] |
-| **Initiative** | Lightweight grouping of related backlog items by a shared label plus explicit initiative metadata | Derived from member items with explicit operator-managed metadata (`name`, `title`, `description`, `status`) | [CODE: api/internal/initiatives/service.go] |
+| **Milestone** | Lightweight grouping of related backlog items by a shared label plus explicit milestone metadata | Derived from member items with explicit operator-managed metadata (`name`, `title`, `description`, `status`) | [CODE: api/internal/milestones/service.go] |
 | **Dependency** | Directed edge between backlog items (`depends_on` field in spec.json) | N/A (structural, validated on write) | [CODE: api/internal/depgraph/graph.go] |
 | **Execution Run** | Governed execution-control record linked to backlog work | `pending` -> `scheduled` -> `running` -> `completed`/`failed`/`canceled` | [CODE: ui/src/types/domain.ts#ExecutionRecord] |
 | **Agent Activity** | Durable record for one tracked AgentManager interaction (`spawn` or `continue`) across backlog, scenario, capture, and session flows | `pending` -> `starting`/`running`/`needs_review` -> `complete`/`failed`/`cancelled` | [CODE: ui/src/types/domain.ts#AgentActivity] |
@@ -100,9 +100,9 @@ Swarm-manager's domain forms a four-entity pipeline that closes the recursive-le
 3. **Records** — narrative artifacts of completed work; what was learned, including hypotheses ruled out, files touched, commit, and outcome. Records are the **write side of the recursive-learning loop**: future agents query them via `ai-search query --kind fix` and `records search`. Stub records are auto-created on backlog terminal transitions (`review-decide --accept|--fail`) and filled by the executing agent; records can also be created for work that never touched the backlog.
 4. **Events** — audit log of state deltas (backlog status changes, record creations and supersedes, etc.) consumed by the stats engine to surface throughput, regression rate, and visibility split.
 
-### Initiatives
+### Milestones
 
-Initiatives are a lightweight grouping mechanism. Each backlog item may carry an `initiative` string field in its `spec.json`. Items sharing the same initiative value are considered members of that initiative. Initiative metadata is managed through the initiatives API or supplied inline during backlog batch-create preview/create. Initiative updates are partial: callers only send the fields they intend to change.
+Milestones are a lightweight grouping mechanism. Each backlog item may carry an `milestone` string field in its `spec.json`. Items sharing the same milestone value are considered members of that milestone. Milestone metadata is managed through the milestones API or supplied inline during backlog batch-create preview/create. Milestone updates are partial: callers only send the fields they intend to change.
 
 ### Dependencies
 
@@ -128,8 +128,8 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 3. **Batch operations**
    ```
-   POST /api/v1/backlog/batch (preview=true) -> validate items + initiative plan + dependency refs -> no writes
-   POST /api/v1/backlog/batch -> apply initiative changes -> create items atomically -> assign initiative membership
+   POST /api/v1/backlog/batch (preview=true) -> validate items + milestone plan + dependency refs -> no writes
+   POST /api/v1/backlog/batch -> apply milestone changes -> create items atomically -> assign milestone membership
    POST /api/v1/backlog/batch/queue -> topological sort via depgraph -> queue items in dependency order
    ```
 
@@ -169,7 +169,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
    ```
    Graph launcher -> draft agent session -> composer message + context/images -> Agent Manager run -> proposal -> API-owned apply -> artifact attribution
    ```
-   Agent Sessions support longer human-led planning and operations conversations inside Swarm Manager. Session details uses the shared composer also used by Quick Capture, with session-only context chips for existing backlog items, initiatives, captures, executions, agent activity, scenarios, prior sessions, and the current operations briefing. Message context is resolved by the API before it reaches Agent Manager, and uploaded images are stored as session-owned attachments. Meta-orchestration sessions can create multiple initiatives and backlog items through the batch apply seam. Swarm operations sessions receive a bounded `operations_briefing/latest` context by default, answer broad current-status questions from that packet first, then drill down through the operations/overview/stats commands only when needed. See [DOC: docs/internal/AGENT-SESSIONS.md].
+   Agent Sessions support longer human-led planning and operations conversations inside Swarm Manager. Session details uses the shared composer also used by Quick Capture, with session-only context chips for existing backlog items, milestones, captures, executions, agent activity, scenarios, prior sessions, and the current operations briefing. Message context is resolved by the API before it reaches Agent Manager, and uploaded images are stored as session-owned attachments. Meta-orchestration sessions can create multiple milestones and backlog items through the batch apply seam. Swarm operations sessions receive a bounded `operations_briefing/latest` context by default, answer broad current-status questions from that packet first, then drill down through the operations/overview/stats commands only when needed. See [DOC: docs/internal/AGENT-SESSIONS.md].
 
 8. **UI route navigation**
    ```
@@ -179,7 +179,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
    /backlog/:kind/:name -> backlog detail
    /scenarios/:name -> scenario detail
    /executions/:executionId -> execution detail
-   /initiatives/:name -> initiative detail
+   /milestones/:name -> milestone detail
    /captures/:captureId -> capture detail
    /graph/plan -> redirect to /plan (legacy graph path; query state preserved)
    /graph/focus -> redirect to /graph?mode=focus (legacy graph path; query state preserved)
@@ -206,7 +206,7 @@ Swarm Manager exposes two operator navigation surfaces: **Plan** and **Graph**. 
 
 Four columns computed by the server plan projection (`GET /api/v1/plan`, `internal/planview`):
 
-- **Now** — in-flight agent runs (cards from `GET /api/v1/operations` via the proven polling path) with lane utilization bars, queue chip, group-by initiative/phase, select-mode bulk stop, spawn and refresh actions.
+- **Now** — in-flight agent runs (cards from `GET /api/v1/operations` via the proven polling path) with lane utilization bars, queue chip, group-by milestone/phase, select-mode bulk stop, spawn and refresh actions.
 - **Next** — actionable immediately: human gate cards (decide / review / classify, from the `internal/gates` read-model) plus runnable and needs-workshop item cards at dependency wave 0. Header bulk actions: Run all ready (threshold-confirmed) and Answer all (decision drawer).
 - **Later** — not yet actionable, grouped by nearest blocker (gate-blocked groups sort above item-blocked), with honest ordinal wave badges from `depgraph.Waves` frontier peeling. Waves deeper than 5 collapse into a "beyond horizon" rollup; dependency cycles surface as diagnostics.
 - **Done** — window-capped recent outcomes (1h–24h picker on the column header).
@@ -218,7 +218,7 @@ Filters (search / status / owner-type / lane / group-by / show-snoozed) live in 
 ### Graph
 **Purpose:** Full structural exploration, selection, inspector actions, and attention-filtered focus mode on one graph surface.
 
-The default graph mode renders the topology projection (`GET /api/v1/graph?lens=topology`) on the node/edge canvas. Focus mode is a client-side filter over the same topology payload: nodes pass `computeNodeAttention` (pending decisions, review-ready, failures) and their initiative/scenario context is re-attached via `member_of`/`targets` edges. Node click applies BFS visual focus; the inspector panel offers per-entity actions.
+The default graph mode renders the topology projection (`GET /api/v1/graph?lens=topology`) on the node/edge canvas. Focus mode is a client-side filter over the same topology payload: nodes pass `computeNodeAttention` (pending decisions, review-ready, failures) and their milestone/scenario context is re-attached via `member_of`/`targets` edges. Node click applies BFS visual focus; the inspector panel offers per-entity actions.
 
 **Navigation:** Graph tab at `/graph`; the board's per-card "Focus on graph" action and detail-page focus links navigate to `/graph?mode=focus&select=<node>`. Keyboard shortcut: `2`.
 
@@ -240,7 +240,7 @@ The default graph mode renders the topology projection (`GET /api/v1/graph?lens=
 │ HTTP/proto endpoints, validation, response contracts         │
 ├─────────────────────────────────────────────────────────────┤
 │ DOMAIN LOGIC LAYER                                           │
-│ Backlog + initiatives + depgraph + overview + scenarios +    │
+│ Backlog + milestones + depgraph + overview + scenarios +    │
 │ execution + agentactivity + agentsessions + promptcatalog +  │
 │ settings orchestration                                       │
 ├─────────────────────────────────────────────────────────────┤
@@ -256,9 +256,9 @@ The default graph mode renders the topology projection (`GET /api/v1/graph?lens=
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| Presentation | Functional | Shared app shell owns global navigation; the Plan board is primary (`/plan`), with one Graph surface (`/graph`) backed by the topology projection plus focus mode, canonical detail routes for backlog, initiatives, scenarios, executions, and captures, and a sidebar Sessions tab |
-| API Gateway | Implemented | Health, graph, backlog (incl. batch), agent sessions, scenarios, settings, queue, execution, prompts, initiatives, overview, captures, agent-manager status |
-| Domain Logic | Implemented | CRUD, archive, queue, research, batch ops, dependency graph, initiatives, agent sessions, overview aggregation, execution scheduling and run control |
+| Presentation | Functional | Shared app shell owns global navigation; the Plan board is primary (`/plan`), with one Graph surface (`/graph`) backed by the topology projection plus focus mode, canonical detail routes for backlog, milestones, scenarios, executions, and captures, and a sidebar Sessions tab |
+| API Gateway | Implemented | Health, graph, backlog (incl. batch), agent sessions, scenarios, settings, queue, execution, prompts, milestones, overview, captures, agent-manager status |
+| Domain Logic | Implemented | CRUD, archive, queue, research, batch ops, dependency graph, milestones, agent sessions, overview aggregation, execution scheduling and run control |
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
 | Persistence | Filesystem-first | Backlog items and execution/agent-activity/settings/queue JSON persisted on disk |
 
@@ -315,8 +315,8 @@ api/internal/
 │   └── batch_queue_handler.go # Batch queue (topological order)
 ├── depgraph/          # Dependency graph (pure computation)
 │   └── graph.go       # Cycle detection, topological sort
-├── initiatives/       # Initiative CRUD + rollup status
-├── overview/          # Aggregation endpoint (backlog + initiatives + graph + stats)
+├── milestones/       # Milestone CRUD + rollup status
+├── overview/          # Aggregation endpoint (backlog + milestones + graph + stats)
 ├── captures/          # Capture CRUD and classification
 ├── promptcatalog/     # Canonical runtime prompt inventory and resolvers
 ├── workshop/          # Readiness scoring, round I/O
@@ -335,12 +335,12 @@ api/internal/
 - `/api/v1/backlog/*` - backlog CRUD, queue, research (workshop)
 - `/api/v1/backlog/batch` - batch create (all-or-nothing with dependency validation)
 - `/api/v1/backlog/batch/queue` - batch queue (topologically sorted, dependency-aware)
-- `/api/v1/initiatives/*` - initiative CRUD with rollup status from member items
+- `/api/v1/milestones/*` - milestone CRUD with rollup status from member items
 - `/api/v1/goals/*` - goal CRUD, targets, priority; each response carries the transitive-closure scope (progress %) and a p50/p80 ETA band
-- `/api/v1/plan-import` - POST an existing `{plan_id}` or adopted `{source_path|markdown}` plan, choose `container: "items"` or `container: "initiative"`, and land idempotent plan-bound work with `plan_ref` populated and created/linked/updated counts
+- `/api/v1/plan-import` - POST an existing `{plan_id}` or adopted `{source_path|markdown}` plan, choose `container: "items"` or `container: "milestone"`, and land idempotent plan-bound work with `plan_ref` populated and created/linked/updated counts
 - `/api/v1/plan-import/plans` - list canonical plan-manager plans for the Create-Work-From-Plan picker
 - `/api/v1/execution/auto-drain` - GET/PUT the continuous goal-directed auto-enqueue toggle (default OFF; a scenario-local flag, not a proto setting)
-- `/api/v1/overview` - aggregated view (backlog, initiatives, dependency graph, summary stats)
+- `/api/v1/overview` - aggregated view (backlog, milestones, dependency graph, summary stats)
 - `/api/v1/operations/brief` - bounded current operations briefing for CLI, UI, and Swarm operations session prompts
 - `/api/v1/graph?lens=topology` - the topology projection (Graph focus mode filters it client-side)
 - `/api/v1/plan?window_seconds=...` - the Plan board projection (waves + gates read-model)
@@ -372,8 +372,8 @@ The `swarm-manager-meta-orchestrator` skill is the primary entry point for turni
 1. Parse high-level input into clusters and candidate items
 2. Discuss and refine the plan with the user, potentially across many turns before creation
 3. Inspect existing scenarios/codepaths when the target systems already exist
-4. Shape items with canonical backlog fields (`initiative`, `depends_on`, `acceptance_allow`, `acceptance_deny`)
-5. Preview the multi-initiative import through `backlog batch-create --preview`
+4. Shape items with canonical backlog fields (`milestone`, `depends_on`, `acceptance_allow`, `acceptance_deny`)
+5. Preview the multi-milestone import through `backlog batch-create --preview`
 6. Create the items only after user approval
 
 The skill intentionally supports long pre-creation planning so workshop auto-spawn happens only after the backlog descriptions are front-loaded with useful context.

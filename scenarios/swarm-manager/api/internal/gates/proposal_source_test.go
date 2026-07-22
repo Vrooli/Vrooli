@@ -44,14 +44,14 @@ func TestProposalSourceAggregatesReadyBacklogTargets(t *testing.T) {
 	}
 }
 
-func TestProposalSourceAggregatesReadyInitiativeTargets(t *testing.T) {
-	target := &agentsessions.ProposalTarget{Type: agentsessions.ContextInitiative, Ref: "refresh-program", Name: "Refresh program"}
+func TestProposalSourceAggregatesReadyGoalTargets(t *testing.T) {
+	target := &agentsessions.ProposalTarget{Type: agentsessions.ContextGoal, Ref: "refresh-program", Name: "Refresh program"}
 	source := ProposalSource{Store: proposalStore{sessions: []agentsessions.Session{{Proposals: []agentsessions.Proposal{{Kind: agentsessions.ProposalMutationList, Status: agentsessions.ProposalStatusReady, Target: target}}}}}}
 	got, err := source.Enumerate(context.Background())
 	if err != nil || len(got) != 1 {
 		t.Fatalf("Enumerate() = %#v, %v", got, err)
 	}
-	if got[0].OwnerType != "initiative" || got[0].OwnerName != "refresh-program" || got[0].Count != 1 {
-		t.Fatalf("unexpected initiative proposal gate: %#v", got[0])
+	if got[0].OwnerType != "goal" || got[0].OwnerName != "refresh-program" || got[0].Count != 1 {
+		t.Fatalf("unexpected goal proposal gate: %#v", got[0])
 	}
 }

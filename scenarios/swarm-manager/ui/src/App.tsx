@@ -54,9 +54,6 @@ const ScenarioDetailsPage = lazy(() =>
 const ExecutionDetailsPage = lazy(() =>
   import("./pages/ExecutionDetailsPage").then((m) => ({ default: m.ExecutionDetailsPage })),
 );
-const InitiativeDetailsPage = lazy(() =>
-  import("./pages/InitiativeDetailsPage").then((m) => ({ default: m.InitiativeDetailsPage })),
-);
 const GoalDetailsPage = lazy(() =>
   import("./pages/GoalDetailsPage").then((m) => ({ default: m.GoalDetailsPage })),
 );
@@ -124,7 +121,6 @@ export default function App() {
               <Route path="backlog/:kind/:name" element={<PageErrorBoundary pageName="Backlog Details"><BacklogDetailsPage /></PageErrorBoundary>} />
               <Route path="scenarios/:name" element={<PageErrorBoundary pageName="Scenario Details"><ScenarioDetailsPage /></PageErrorBoundary>} />
               <Route path="executions/:executionId" element={<PageErrorBoundary pageName="Execution Details"><ExecutionDetailsPage /></PageErrorBoundary>} />
-              <Route path="initiatives/:name" element={<PageErrorBoundary pageName="Initiative Details"><InitiativeDetailsPage /></PageErrorBoundary>} />
               <Route path="goals/:name" element={<PageErrorBoundary pageName="Goal Details"><GoalDetailsPage /></PageErrorBoundary>} />
               <Route path="captures/:captureId" element={<PageErrorBoundary pageName="Capture Details"><CaptureDetailsPage /></PageErrorBoundary>} />
               <Route path="records" element={<PageErrorBoundary pageName="Records"><RecordsPage /></PageErrorBoundary>} />

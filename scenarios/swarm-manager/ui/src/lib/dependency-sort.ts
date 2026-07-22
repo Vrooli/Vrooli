@@ -20,11 +20,11 @@
 
 /**
  * Minimal shape any entity must satisfy to participate in dependency-aware
- * sorting. Callers supply a `kind` namespace ("idea", "initiative", ...) plus
+ * sorting. Callers supply a `kind` namespace ("idea", "milestone", ...) plus
  * a stable `name` so that keys (`"kind/name"`) don't collide across domains.
  *
- * BacklogItem structurally satisfies this; initiatives pass plain objects
- * with `kind: "initiative"`.
+ * BacklogItem structurally satisfies this; milestones pass plain objects
+ * with `kind: "milestone"`.
  */
 export interface DepthItem {
   kind: string;

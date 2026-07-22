@@ -27,7 +27,7 @@ func newRecordCaptureAdapter(svc *records.Service) *recordCaptureAdapter {
 // item's terminal decision — the write-side of the recursive-learning loop. The
 // item's own human-authored title/description become the record's
 // trigger/approach (so a hit carries the lesson, not just an id), the acceptance
-// globs derive the target scenario, the initiative links it back, and the
+// globs derive the target scenario, the milestone links it back, and the
 // decision maps to an outcome.
 //
 // Unlike the empty stub this hook used to create (which `records edit` was meant
@@ -71,7 +71,7 @@ func (a *recordCaptureAdapter) CreateBacklogRecord(ctx context.Context, req back
 		Kind:         records.RecordKind(req.Kind),
 		Scenario:     scenario,
 		BacklogRef:   fmt.Sprintf("%s/%s", req.Kind, req.Name),
-		InitiativeID: strings.TrimSpace(req.Initiative),
+		MilestoneID: strings.TrimSpace(req.Milestone),
 		Trigger:      trigger,
 		Approach:     approach,
 		Outcome:      outcome,

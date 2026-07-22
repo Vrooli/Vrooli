@@ -26,7 +26,6 @@ type BatchItem struct {
 	Description     string   `json:"description,omitempty"`
 	Kind            string   `json:"kind"`
 	DependsOn       []string `json:"depends_on,omitempty"`
-	Initiative      string   `json:"initiative,omitempty"`
 	SpawnedFrom     string   `json:"spawned_from,omitempty"`
 	Effort          string   `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
@@ -43,12 +42,10 @@ type PlanRef struct {
 	Role     string `json:"role,omitempty"`
 }
 
-type InitiativeSpec struct {
+type GoalSpec struct {
 	Name        string
 	Title       string
 	Description string
-	Mode        string
-	PlanRef     PlanRef
 }
 
 // BatchPayload is the JSON body posted to the batch-create endpoint.

@@ -60,7 +60,7 @@ func TestEmitBacklogCreated(t *testing.T) {
 	if err := json.Unmarshal(e.Metadata, &p); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if p.Kind != "execute" || p.Priority != 5 || p.Initiative != "init-a" || p.Effort != "M" {
+	if p.Kind != "execute" || p.Priority != 5 || p.Milestone != "init-a" || p.Effort != "M" {
 		t.Errorf("payload: %+v", p)
 	}
 }
@@ -145,28 +145,6 @@ func TestEmitExecutionCompleted(t *testing.T) {
 	}
 }
 
-func TestEmitInitiativeItemAdded(t *testing.T) {
-	emitter, repo := setupEmitter(t)
-
-	emitter.EmitInitiativeItemAdded("init-a", "execute/my-item")
-
-	e := lastEvent(t, repo)
-	if e.EntityType != eventlog.EntityInitiative {
-		t.Errorf("entity_type: got %q", e.EntityType)
-	}
-	if e.EventType != eventlog.EventInitiativeItemAdded {
-		t.Errorf("event_type: got %q", e.EventType)
-	}
-
-	var p eventlog.InitiativeItemPayload
-	if err := json.Unmarshal(e.Metadata, &p); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if p.Item != "execute/my-item" {
-		t.Errorf("payload: %+v", p)
-	}
-}
-
 func TestEmitQueued(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 
@@ -204,24 +182,6 @@ func TestEmitNilPayload(t *testing.T) {
 	// Nil payload should result in nil metadata.
 	if e.Metadata != nil {
 		t.Errorf("expected nil metadata, got %s", e.Metadata)
-	}
-}
-
-func TestEmitInitiativeArchived(t *testing.T) {
-	emitter, repo := setupEmitter(t)
-
-	emitter.EmitInitiativeArchived("init-old", "active", "2026-04-06T00:00:00Z")
-
-	e := lastEvent(t, repo)
-	if e.EventType != eventlog.EventInitiativeArchived {
-		t.Errorf("event_type: got %q", e.EventType)
-	}
-	var p eventlog.ArchivePayload
-	if err := json.Unmarshal(e.Metadata, &p); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if p.PreviousStatus != "active" || p.ArchivedAt != "2026-04-06T00:00:00Z" {
-		t.Errorf("payload: %+v", p)
 	}
 }
 
@@ -319,7 +279,7 @@ func TestEmitBacklogProposalApplied_ReviewRoundTakesPrecedence(t *testing.T) {
 		Target:          "execute/foo",
 	})
 	e := lastEvent(t, repo)
-	if e.ActorType != "initiative_review" {
+	if e.ActorType != "milestone_review" {
 		t.Errorf("review must dominate feedback: actor_type=%q", e.ActorType)
 	}
 	if e.ActorID != "ui-rewrite/review-002" {

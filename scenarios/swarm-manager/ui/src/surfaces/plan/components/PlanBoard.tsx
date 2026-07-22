@@ -214,8 +214,8 @@ function activityNodeId(row: ActivityRow): string | null {
   switch (row.ownerType) {
     case "backlog":
       return row.ownerKind ? `backlog-item/${row.ownerKind}/${row.ownerName}` : null;
-    case "initiative":
-      return `initiative/${row.ownerName}`;
+    case "milestone":
+      return `milestone/${row.ownerName}`;
     case "scenario":
       return `scenario/${row.ownerName}`;
     case "capture":
@@ -227,7 +227,7 @@ function activityNodeId(row: ActivityRow): string | null {
 
 function cycleEntityToNodeId(entity: string): string {
   const trimmed = entity.trim();
-  if (trimmed.startsWith("backlog-item/") || trimmed.startsWith("scenario/") || trimmed.startsWith("initiative/") || trimmed.startsWith("goal/")) {
+  if (trimmed.startsWith("backlog-item/") || trimmed.startsWith("scenario/") || trimmed.startsWith("milestone/") || trimmed.startsWith("goal/")) {
     return trimmed;
   }
   const parts = trimmed.split("/");

@@ -42,8 +42,6 @@ import (
 	"swarm-manager/internal/goals"
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/identity"
-	"swarm-manager/internal/initiativereview"
-	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/integrationstatus"
 	"swarm-manager/internal/operations"
 	"swarm-manager/internal/overview"
@@ -93,18 +91,15 @@ type Server struct {
 	recordsHandler       *records.Handler
 	recordsStore         records.Store
 	scenariosHandler     *scenarios.Handler
-	initStore            *initiatives.Store
-	initiativeService    *initiatives.Service
+	milestoneAssigner    backlog.ItemAttacher
 	goalService          *goals.Service
 	overviewSvc          *overview.Service
 	executionSvc         *execution.Service
 	executionHandler     *execution.Handler
 	reviewSvc            *review.Service
 	reviewHandler        *review.Handler
-	initiativeReviewSvc  *initiativereview.Service
 	executionStopChan    chan struct{}
 	reviewStopChan       chan struct{}
-	initReviewStopChan   chan struct{}
 	graphBroker          *graph.Broker
 	graphDispatch        *graph.Dispatch
 	graphProjection      *graph.ProjectionService
@@ -195,7 +190,6 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		agentSvc:           agentSvc,
 		executionStopChan:  make(chan struct{}),
 		reviewStopChan:     make(chan struct{}),
-		initReviewStopChan: make(chan struct{}),
 		aiSearchStopChan:   make(chan struct{}),
 		reviewSweeperStop:  make(chan struct{}),
 		autoFilerStopChan:  make(chan struct{}),
@@ -265,7 +259,6 @@ func (s *Server) setupRoutes() {
 
 	// --- Core domain ---
 	backlogHandler := s.registerBacklogRoutes(s.dataRoot, scenarioRoot)
-	initService := s.registerInitiativeRoutes(s.dataRoot, backlogHandler)
 	s.registerPlanWorkshopRoutes(s.dataRoot)
 	s.registerGoalsRoutes(s.dataRoot, backlogHandler)
 	s.registerCapturesRoutes(s.cacheRoot, backlogHandler)
@@ -279,7 +272,7 @@ func (s *Server) setupRoutes() {
 
 	// --- Cross-domain wiring ---
 	s.scenariosHandler.SetBacklogLister(backlogHandler.Store())
-	s.scenariosHandler.SetInitiativesLister(initService)
+	s.scenariosHandler.SetGoalsLister(s.goalService)
 	if execSvc != nil {
 		s.scenariosHandler.SetExecutionLister(executionSnapshotLister{svc: execSvc})
 	}
@@ -294,34 +287,28 @@ func (s *Server) setupRoutes() {
 	}
 
 	// --- Read-only surfaces ---
-	overviewSvc := s.registerOverviewRoutes(backlogHandler, initService)
+	overviewSvc := s.registerOverviewRoutes(backlogHandler)
 	if execSvc != nil {
 		overviewSvc.SetGovernanceProvider(execSvc)
 	}
-	materializer := s.registerGraphRoutes(scenarioRoot)
-	s.wireSessionMutationProposals(materializer)
-	s.registerInitiativeReviewRoutes(materializer)
-	// Initiative review is registered after the initial workflow guard wiring.
-	// Reapply the same guard so its declared workflow receives registry and
-	// integration preflight before any trigger can start it.
-	s.wireWorkflowStartGuards(backlogHandler, execSvc)
+	s.registerGraphRoutes(scenarioRoot)
 	s.registerOperationsRoutes()
 	s.registerPlanRoutes(scenarioRoot)
-	s.registerPlanImportRoutes(backlogHandler, initService)
+	s.registerPlanImportRoutes(backlogHandler, s.goalService)
 	s.registerPromptRoutes(scenarioRoot)
 	s.registerAgentManagerRoutes()
 
 	// --- AI search (must come last so readers see fully-wired stores) ---
-	s.registerAISearchRoutes(backlogHandler, initService)
+	s.registerAISearchRoutes(backlogHandler)
 }
 
 // registerAISearchRoutes constructs the aisearch service from environment
-// configuration, wires index-on-write hooks into the backlog and initiative
+// configuration, wires index-on-write hooks into the backlog and goal
 // stores, and registers HTTP routes under /api/v1/search/ai. If required
 // resources (Ollama, Qdrant) are not configured, the service is still created
 // so /status can explain why AI search is unavailable; write hooks are still
 // attached so index operations queue correctly once resources come online.
-func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) {
+func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler) {
 	cfg := aisearch.LoadConfigFromEnv()
 	policyCtx, cancelPolicy := context.WithTimeout(context.Background(), 5*time.Second)
 	embeddingPolicy, err := aisearchpkg.ResolveEmbeddingPolicy(policyCtx, "embedding.default")
@@ -332,13 +319,13 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 
 	embedder := aisearch.NewEmbedder(embeddingPolicy.Role)
 	backlogVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.BacklogCollection, embeddingPolicy)
-	initVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.InitiativeCollection, embeddingPolicy)
+	goalVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.GoalCollection, embeddingPolicy)
 	recordVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.RecordCollection, embeddingPolicy)
 
 	backlogReader := aisearch.NewBacklogStoreAdapter(backlogHandler.Store())
-	initReader := aisearch.NewInitiativeStoreAdapter(s.initStore)
+	goalReader := aisearch.NewGoalServiceAdapter(s.goalService)
 
-	svc := aisearch.NewService(embedder, backlogVS, initVS, backlogReader, initReader, cfg.Threshold)
+	svc := aisearch.NewService(embedder, backlogVS, goalVS, backlogReader, goalReader, cfg.Threshold)
 	svc.SetRecordStore(recordVS)
 
 	// The Reconciler is the single owner of the "make qdrant match disk"
@@ -346,8 +333,8 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 	// reconcile + reconcile-status + reconcile-cancel. They share embedder
 	// and stores but don't share state.
 	reconciler := aisearch.NewReconciler(
-		embedder, backlogVS, initVS,
-		backlogReader, initReader,
+		embedder, backlogVS, goalVS,
+		backlogReader, goalReader,
 		aisearch.ResolveReconcileParallelism(),
 	)
 
@@ -355,7 +342,7 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 	// write-path goroutines would bang on unreachable URLs on every mutation.
 	if cfg.OllamaURL != "" && cfg.QdrantURL != "" {
 		backlogHandler.SetAIIndexer(svc)
-		initService.SetAIIndexer(svc)
+		s.goalService.SetAIIndexer(svc)
 		if s.recordsService != nil {
 			s.recordsService.SetIndexer(aisearch.NewRecordIndexerAdapter(svc))
 		}
@@ -370,7 +357,7 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initSer
 	s.aiSearchReconciler = reconciler
 	// Related work has deterministic providers even while semantic search is
 	// unavailable; the adapter reports that third group as degraded.
-	related.RegisterRoutes(s.router, related.NewEngine(backlogHandler.Store(), s.initStore, s.recordsStore, related.NewAISearchSimilarity(svc)))
+	related.RegisterRoutes(s.router, related.NewEngine(backlogHandler.Store(), s.goalService, s.recordsStore, related.NewAISearchSimilarity(svc)))
 }
 
 // registerDiscoveryRoutes mounts the Connect-RPC DiscoveryService. The
@@ -427,38 +414,24 @@ func (s *Server) registerBacklogRoutes(dataRoot, scenarioRoot string) *backlog.H
 	return backlogHandler
 }
 
-func (s *Server) registerInitiativeRoutes(dataRoot string, backlogHandler *backlog.Handler) *initiatives.Service {
-	initStore := initiatives.NewStore(dataRoot)
-	s.initStore = initStore
-	initService := initiatives.NewService(initStore, backlogHandler.Store())
-	initService.SetActivityChecker(s.agentActivitySvc)
-	lifecycleService, err := backlog.NewService(backlog.ServiceConfig{Store: backlogHandler.Store(), Assigner: initService, Events: s.emitter, ActivityChecker: s.agentActivitySvc})
+// registerGoalsRoutes wires the goals domain and installs the goal-owned
+// milestone membership writer for all backlog mutations.
+func (s *Server) registerGoalsRoutes(dataRoot string, backlogHandler *backlog.Handler) *goals.Service {
+	goalStore := goals.NewStore(dataRoot)
+	goalService := goals.NewService(goalStore, backlogHandler.Store())
+	goalService.SetEstimatorFactory(s.newETAEstimator)
+	goalHandler := goals.NewHandler(goalService)
+	goalHandler.RegisterRoutes(s.router)
+	goals.RegisterConnectRoutes(s.router, goalService)
+
+	assigner := goals.NewBacklogMilestoneAssigner(goalService)
+	backlogHandler.SetMilestoneAssigner(assigner)
+	s.milestoneAssigner = assigner
+	lifecycleService, err := backlog.NewService(backlog.ServiceConfig{Store: backlogHandler.Store(), Assigner: assigner, Events: s.emitter, ActivityChecker: s.agentActivitySvc})
 	if err != nil {
 		panic(err)
 	}
 	backlogHandler.SetLifecycleService(lifecycleService)
-	initHandler := initiatives.NewHandler(initService)
-	initHandler.SetAgentSessionArtifactRecorder(s.agentSessionSvc)
-	initHandler.RegisterRoutes(s.router)
-	s.initiativeService = initService
-
-	// Wire initiative assigner into backlog handler for batch operations.
-	backlogHandler.SetInitiativeAssigner(initiatives.NewBacklogAssignerAdapter(initService))
-	return initService
-}
-
-// registerGoalsRoutes wires the goals domain (store, service, HTTP routes).
-// Depends on the initiative store (already set by registerInitiativeRoutes) and
-// the backlog store for scope computation and seeding.
-func (s *Server) registerGoalsRoutes(dataRoot string, backlogHandler *backlog.Handler) *goals.Service {
-	goalStore := goals.NewStore(dataRoot)
-	goalService := goals.NewService(goalStore, backlogHandler.Store(), s.initStore)
-	// Wire the ETA estimator factory. It reads s.eventRepo / s.executionSvc at
-	// call time, so it is safe to set here even though executionSvc is created
-	// later in setupRoutes — the closure resolves them lazily per request.
-	goalService.SetEstimatorFactory(s.newETAEstimator)
-	goalHandler := goals.NewHandler(goalService)
-	goalHandler.RegisterRoutes(s.router)
 	s.goalService = goalService
 	return goalService
 }
@@ -466,14 +439,14 @@ func (s *Server) registerGoalsRoutes(dataRoot string, backlogHandler *backlog.Ha
 // registerPlanImportRoutes wires the read-only plan-manager import bridge:
 // POST /api/v1/plan-import fetches an authored plan over Connect and lands its
 // phases as a provenance-stamped linear chain via the atomic batch-create.
-func (s *Server) registerPlanImportRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) {
+func (s *Server) registerPlanImportRoutes(backlogHandler *backlog.Handler, goalService *goals.Service) {
 	if backlogHandler == nil {
 		return
 	}
 	svc := planimport.NewService(
 		planclient.NewConnectClient(nil, nil),
 		planImportLander{handler: backlogHandler},
-		planImportInitiativeLander{svc: initService},
+		planImportGoalLander{svc: goalService},
 	)
 	planimport.NewHandler(svc).RegisterRoutes(s.router)
 }
@@ -517,12 +490,6 @@ func (l planImportLander) LandBatch(ctx context.Context, payload planimport.Batc
 		updated.Effort = item.Effort
 		updated.AcceptanceAllow = append([]string(nil), item.AcceptanceAllow...)
 		updated.AcceptanceDeny = append([]string(nil), item.AcceptanceDeny...)
-		if strings.TrimSpace(item.Initiative) != "" {
-			if strings.TrimSpace(existing.Initiative) != "" && existing.Initiative != item.Initiative {
-				return nil, errors.New("plan-import item already belongs to another initiative")
-			}
-			updated.Initiative = item.Initiative
-		}
 		updated.SpawnedFrom = item.SpawnedFrom
 		updated.PlanRef = backlogPlanRef(item.PlanRef)
 		if !backlogItemsSame(existing, updated) {
@@ -567,7 +534,7 @@ func backlogItemsSame(a, b backlog.BacklogItem) bool {
 	return a.Title == b.Title &&
 		a.Description == b.Description &&
 		a.Effort == b.Effort &&
-		a.Initiative == b.Initiative &&
+		a.Milestone == b.Milestone &&
 		a.SpawnedFrom == b.SpawnedFrom &&
 		stringSlicesEqual(a.DependsOn, b.DependsOn) &&
 		stringSlicesEqual(a.AcceptanceAllow, b.AcceptanceAllow) &&
@@ -575,88 +542,58 @@ func backlogItemsSame(a, b backlog.BacklogItem) bool {
 		planImportRefsEqual(a.PlanRef, b.PlanRef)
 }
 
-type planImportInitiativeLander struct{ svc *initiatives.Service }
+type planImportGoalLander struct{ svc *goals.Service }
 
-func (l planImportInitiativeLander) LandInitiative(
+func (l planImportGoalLander) LandGoal(
 	_ context.Context,
-	spec planimport.InitiativeSpec,
+	spec planimport.GoalSpec,
 	itemRefs []planimport.ImportedRef,
-	prov identity.Provenance,
-) (planimport.ImportedInitiative, error) {
+	_ identity.Provenance,
+) (planimport.ImportedGoal, error) {
 	if l.svc == nil {
-		return planimport.ImportedInitiative{}, errors.New("initiative service is not configured")
+		return planimport.ImportedGoal{}, errors.New("goal service is not configured")
 	}
 	name := strings.TrimSpace(spec.Name)
 	if name == "" {
-		return planimport.ImportedInitiative{}, errors.New("initiative name is required")
+		return planimport.ImportedGoal{}, errors.New("goal name is required")
 	}
 	title := strings.TrimSpace(spec.Title)
 	if title == "" {
 		title = name
 	}
-	mode := initiatives.NormalizeMode("")
-	planRef := initiativePlanRef(spec.PlanRef)
 	refs := importedItemRefs(itemRefs)
 
 	action := "linked"
 	existing, err := l.svc.Get(name)
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
-			return planimport.ImportedInitiative{}, err
+			return planimport.ImportedGoal{}, err
 		}
-		createdBy := prov
-		if _, err := l.svc.Create(initiatives.CreateRequest{
+		if _, err := l.svc.Create(goals.CreateRequest{
 			Name:        name,
 			Title:       title,
 			Description: strings.TrimSpace(spec.Description),
-			Items:       refs,
-			CreatedBy:   &createdBy,
-			PlanRef:     planRef,
+			Targets:     refs,
 		}); err != nil {
-			return planimport.ImportedInitiative{}, err
+			return planimport.ImportedGoal{}, err
 		}
-		return planimport.ImportedInitiative{Name: name, Title: title, Mode: mode, Action: "created"}, nil
+		return planimport.ImportedGoal{Name: name, Title: title, Action: "created"}, nil
 	}
 
-	init := existing.Initiative
-	needsMetaUpdate := init.Title != title ||
-		init.Description != strings.TrimSpace(spec.Description) ||
-		!planImportInitiativeRefsEqual(init.PlanRef, planRef)
-	if needsMetaUpdate {
+	if existing.Goal.Title != title || existing.Goal.Description != strings.TrimSpace(spec.Description) {
 		description := strings.TrimSpace(spec.Description)
-		if _, err := l.svc.Update(name, initiatives.UpdateRequest{
-			Title:       &title,
-			Description: &description,
-			PlanRef:     planRef,
-			PlanRefSet:  true,
-		}); err != nil {
-			return planimport.ImportedInitiative{}, err
+		if _, err := l.svc.Update(name, goals.UpdateRequest{Title: &title, Description: &description}); err != nil {
+			return planimport.ImportedGoal{}, err
 		}
 		action = "updated"
 	}
-	missingRefs := missingInitiativeRefs(init.Items, refs)
-	if len(missingRefs) > 0 {
-		if err := l.svc.AddItems(name, missingRefs); err != nil {
-			return planimport.ImportedInitiative{}, err
+	if len(refs) > 0 {
+		if _, err := l.svc.AddTargets(name, refs); err != nil {
+			return planimport.ImportedGoal{}, err
 		}
 		action = "updated"
 	}
-	return planimport.ImportedInitiative{Name: name, Title: title, Mode: mode, Action: action}, nil
-}
-
-func initiativePlanRef(ref planimport.PlanRef) *initiatives.PlanRef {
-	if strings.TrimSpace(ref.Provider) == "" &&
-		strings.TrimSpace(ref.PlanID) == "" &&
-		strings.TrimSpace(ref.Slug) == "" &&
-		strings.TrimSpace(ref.Role) == "" {
-		return nil
-	}
-	return &initiatives.PlanRef{
-		Provider: strings.TrimSpace(ref.Provider),
-		PlanID:   strings.TrimSpace(ref.PlanID),
-		Slug:     strings.TrimSpace(ref.Slug),
-		Role:     strings.TrimSpace(ref.Role),
-	}
+	return planimport.ImportedGoal{Name: name, Title: title, Action: action}, nil
 }
 
 func importedItemRefs(items []planimport.ImportedRef) []string {
@@ -670,29 +607,6 @@ func importedItemRefs(items []planimport.ImportedRef) []string {
 		refs = append(refs, kind+"/"+name)
 	}
 	return refs
-}
-
-func missingInitiativeRefs(existing, refs []string) []string {
-	seen := make(map[string]bool, len(existing))
-	for _, ref := range existing {
-		seen[ref] = true
-	}
-	missing := make([]string, 0, len(refs))
-	for _, ref := range refs {
-		if seen[ref] {
-			continue
-		}
-		seen[ref] = true
-		missing = append(missing, ref)
-	}
-	return missing
-}
-
-func planImportInitiativeRefsEqual(a, b *initiatives.PlanRef) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-	return a.Provider == b.Provider && a.PlanID == b.PlanID && a.Slug == b.Slug && a.Role == b.Role
 }
 
 func stringSlicesEqual(a, b []string) bool {
@@ -731,8 +645,8 @@ func (a goalReadyAdapter) ReadyGoalItems() ([]execution.GoalReadyItem, error) {
 	return out, nil
 }
 
-func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) *overview.Service {
-	overviewSvc := overview.NewService(backlogHandler.Store(), initService)
+func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler) *overview.Service {
+	overviewSvc := overview.NewService(backlogHandler.Store(), s.goalService)
 	overviewHandler := overview.NewHandler(overviewSvc)
 	overviewHandler.RegisterRoutes(s.router)
 	s.overviewSvc = overviewSvc
@@ -839,10 +753,6 @@ func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, execut
 	if s.reviewSvc != nil {
 		s.reviewSvc.SetTransitionRegistry(registry)
 		s.reviewSvc.SetWorkflowStartGuard(guard)
-	}
-	if s.initiativeReviewSvc != nil {
-		s.initiativeReviewSvc.SetTransitionRegistry(registry)
-		s.initiativeReviewSvc.SetWorkflowStartGuard(guard)
 	}
 	if s.planWorkshopWorkflow != nil {
 		s.planWorkshopWorkflow.SetStartGuard(guard)
@@ -972,11 +882,6 @@ func main() {
 		go srv.reviewSvc.StartBackgroundWorker(srv.reviewStopChan)
 	}
 
-	if srv.initiativeReviewSvc != nil {
-		srv.initiativeReviewSvc.RecoverActiveRounds()
-		go srv.initiativeReviewSvc.StartBackgroundWorker(srv.initReviewStopChan)
-	}
-
 	if srv.autoFilerSweeper != nil {
 		go func() {
 			ctx, cancel := context.WithCancel(context.Background())
@@ -1024,7 +929,6 @@ func main() {
 	}
 	close(srv.executionStopChan)
 	close(srv.reviewStopChan)
-	close(srv.initReviewStopChan)
 	close(srv.aiSearchStopChan)
 	close(srv.reviewSweeperStop)
 	close(srv.autoFilerStopChan)

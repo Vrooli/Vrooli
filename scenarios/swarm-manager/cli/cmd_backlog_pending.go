@@ -14,7 +14,7 @@ func (a *App) cmdBacklogPendingQuestions(args []string) error {
 	fs := flag.NewFlagSet("backlog pending-questions", flag.ContinueOnError)
 	sourceFlag := fs.String("source", "review", "Question source: review")
 	limitFlag := fs.Int("limit", 0, "Maximum number of backlog items to return (0 = unlimited)")
-	initiativeFlag := fs.String("initiative", "", "Restrict to backlog items in the given initiative")
+	milestoneFlag := fs.String("milestone", "", "Restrict to backlog items in the given milestone")
 	briefFlag := fs.Bool("brief", false, "Return a small agent-oriented pending-question brief")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -36,8 +36,8 @@ func (a *App) cmdBacklogPendingQuestions(args []string) error {
 	if *limitFlag > 0 {
 		query.Set("limit", strconv.Itoa(*limitFlag))
 	}
-	if initiative := strings.TrimSpace(*initiativeFlag); initiative != "" {
-		query.Set("initiative", initiative)
+	if milestone := strings.TrimSpace(*milestoneFlag); milestone != "" {
+		query.Set("milestone", milestone)
 	}
 	if *briefFlag && *limitFlag == 0 {
 		query.Set("limit", "8")
@@ -76,8 +76,8 @@ func (a *App) cmdBacklogPendingQuestions(args []string) error {
 	if *limitFlag > 0 {
 		fmt.Printf("  Limit: %d\n", *limitFlag)
 	}
-	if initiative := strings.TrimSpace(*initiativeFlag); initiative != "" {
-		fmt.Printf("  Initiative: %s\n", initiative)
+	if milestone := strings.TrimSpace(*milestoneFlag); milestone != "" {
+		fmt.Printf("  Milestone: %s\n", milestone)
 	}
 
 	printSection("Results")

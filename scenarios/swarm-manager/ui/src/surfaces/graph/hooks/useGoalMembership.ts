@@ -14,12 +14,12 @@ import type { GoalBadge } from "../types";
 /**
  * nodeIdToGoalRef converts a graph node id to the ref used in goal targets and
  * closures. Backlog nodes ("backlog-item/<kind>/<name>") map to "<kind>/<name>";
- * initiative nodes ("initiative/<name>") pass through. Other nodes cannot be
+ * goal nodes ("goal/<name>") pass through. Other nodes cannot be
  * goal members.
  */
 export function nodeIdToGoalRef(nodeId: string): string | null {
   if (nodeId.startsWith("backlog-item/")) return nodeId.slice("backlog-item/".length);
-  if (nodeId.startsWith("initiative/")) return nodeId;
+  if (nodeId.startsWith("goal/")) return nodeId;
   return null;
 }
 

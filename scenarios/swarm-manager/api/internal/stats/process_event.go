@@ -125,11 +125,11 @@ func (s *aggregateState) handleBacklogCreated(e *eventlog.Event) {
 	var p eventlog.BacklogCreatedPayload
 	if unmarshalMeta(e.Metadata, &p) {
 		s.itemStatus[e.EntityID] = p.Status
-		if p.Initiative != "" {
-			if s.initiativeItems[p.Initiative] == nil {
-				s.initiativeItems[p.Initiative] = make(map[string]bool)
+		if p.Milestone != "" {
+			if s.initiativeItems[p.Milestone] == nil {
+				s.initiativeItems[p.Milestone] = make(map[string]bool)
 			}
-			s.initiativeItems[p.Initiative][e.EntityID] = true
+			s.initiativeItems[p.Milestone][e.EntityID] = true
 		}
 	}
 }

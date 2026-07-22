@@ -122,7 +122,6 @@ export function DetailActionButtons({
     && a.id !== "view-scenario-details"
     && a.id !== "view-execution-details"
     && a.id !== "edit-backlog"
-    && a.id !== "edit-initiative"
     && a.id !== "edit-scenario",
   );
 

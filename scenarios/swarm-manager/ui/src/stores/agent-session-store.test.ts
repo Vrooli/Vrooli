@@ -35,7 +35,7 @@ const SESSION_B: AgentSession = {
 const ARTIFACT: AgentSessionArtifact = {
   id: "art-1",
   sessionId: "sess_a",
-  artifactType: "initiative",
+  artifactType: "milestone",
   action: "created",
   entityRef: "quality-gates",
   createdAt: "2026-05-01T12:02:00Z",
@@ -156,10 +156,10 @@ describe("agent-session-store", () => {
   it("loads artifacts by entity and exposes active selectors", async () => {
     await useAgentSessionStore.getState().fetchSessions(undefined, { force: true });
 
-    const artifacts = await useAgentSessionStore.getState().loadArtifactsByEntity("initiative", "quality-gates");
+    const artifacts = await useAgentSessionStore.getState().loadArtifactsByEntity("milestone", "quality-gates");
 
     expect(artifacts).toEqual([ARTIFACT]);
-    expect(useAgentSessionStore.getState().artifactsByEntity[artifactEntityKey("initiative", "quality-gates")]).toEqual([
+    expect(useAgentSessionStore.getState().artifactsByEntity[artifactEntityKey("milestone", "quality-gates")]).toEqual([
       ARTIFACT,
     ]);
     expect(selectActiveAgentSessions(useAgentSessionStore.getState()).map((session) => session.id)).toEqual(["sess_a"]);
@@ -167,14 +167,14 @@ describe("agent-session-store", () => {
 
   it("deletes sessions from memory, entity artifact cache, and persisted storage", async () => {
     await useAgentSessionStore.getState().fetchSessions(undefined, { force: true });
-    await useAgentSessionStore.getState().loadArtifactsByEntity("initiative", "quality-gates");
+    await useAgentSessionStore.getState().loadArtifactsByEntity("milestone", "quality-gates");
 
     await useAgentSessionStore.getState().deleteSession("sess_a");
 
     const state = useAgentSessionStore.getState();
     expect(service.delete).toHaveBeenCalledWith("sess_a");
     expect(state.sessions.map((session) => session.id)).toEqual(["sess_b"]);
-    expect(state.artifactsByEntity[artifactEntityKey("initiative", "quality-gates")]).toBeUndefined();
+    expect(state.artifactsByEntity[artifactEntityKey("milestone", "quality-gates")]).toBeUndefined();
     expect(state.isMutating).toBe(false);
     expect(window.localStorage.getItem("swarm-manager.agent-sessions.v1")).toContain("sess_b");
     expect(window.localStorage.getItem("swarm-manager.agent-sessions.v1")).not.toContain("sess_a");

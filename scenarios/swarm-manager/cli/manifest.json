@@ -243,12 +243,12 @@
       ]
     },
     {
-      "name": "initiative",
-      "description": "Initiative measures.",
+      "name": "goal",
+      "description": "Goal measures.",
       "commands": [
         {
           "name": "created",
-          "description": "Count initiatives created in a time window.",
+          "description": "Count goals created in a time window.",
           "flags": [
             {
               "name": "window",
@@ -258,7 +258,7 @@
           "binding": {
             "kind": "connect-rpc",
             "service": "MeasuresService",
-            "method": "CountInitiativesCreated"
+            "method": "CountGoalsCreated"
           },
           "governance": {
             "effect": "read",
@@ -268,12 +268,12 @@
             ]
           },
           "measure": {
-            "domain": "initiative",
-            "intent": "How many initiatives were created in a time window.",
+            "domain": "goal",
+            "intent": "How many goals were created in a time window.",
             "questions": [
-              "how many initiatives were created this week",
-              "new initiatives started last month",
-              "how many initiatives did we open this quarter"
+              "how many goals were created this week",
+              "new goals started last month",
+              "how many goals did we open this quarter"
             ],
             "params": {
               "window": {
@@ -284,8 +284,8 @@
             "result": {
               "kind": "scalar",
               "value_field": "count",
-              "unit": "initiatives",
-              "summary_template": "{count} initiatives created ({window})"
+              "unit": "goals",
+              "summary_template": "{count} goals created ({window})"
             }
           }
         }
@@ -502,7 +502,7 @@
     "omitted": [
       {
         "domain": "capture",
-        "reason": "Captures are an ephemeral pre-triage inbox: they are converted into backlog items and initiatives (counted there) and emit no creation event of their own, so they carry no durable historical value to measure independently."
+        "reason": "Captures are an ephemeral pre-triage inbox: they are converted into backlog items and goals (counted there) and emit no creation event of their own, so they carry no durable historical value to measure independently."
       }
     ],
     "domains": [

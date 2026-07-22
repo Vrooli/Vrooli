@@ -13,17 +13,17 @@ import (
 
 func intPtr(v int) *int { return &v }
 
-func TestBatchCreate_InitiativePriorityAndDeps_Preview(t *testing.T) {
+func TestBatchCreate_MilestonePriorityAndDeps_Preview(t *testing.T) {
 	h, _, _ := setupBatchTestHandler(t)
 
 	deps := []string{"foundation"}
 	payload := batchCreateRequest{
 		Preview: true,
 		Items: []batchCreateItem{
-			{Name: "f-item", Title: "F Item", Kind: "idea", Initiative: "foundation"},
-			{Name: "d-item", Title: "D Item", Kind: "idea", Initiative: "dependent"},
+			{Name: "f-item", Title: "F Item", Kind: "idea", Milestone: "foundation"},
+			{Name: "d-item", Title: "D Item", Kind: "idea", Milestone: "dependent"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "foundation", Title: "Foundation", Priority: intPtr(1)},
 			{Name: "dependent", Title: "Dependent", Priority: intPtr(3), DependsOn: &deps},
 		},
@@ -36,12 +36,12 @@ func TestBatchCreate_InitiativePriorityAndDeps_Preview(t *testing.T) {
 	if !resp.Preview {
 		t.Fatal("expected preview=true in response")
 	}
-	if len(resp.Initiatives) != 2 {
-		t.Fatalf("expected 2 initiative results, got %d", len(resp.Initiatives))
+	if len(resp.Milestones) != 2 {
+		t.Fatalf("expected 2 milestone results, got %d", len(resp.Milestones))
 	}
 
-	byName := make(map[string]batchCreateInitiativeResult, len(resp.Initiatives))
-	for _, r := range resp.Initiatives {
+	byName := make(map[string]batchCreateMilestoneResult, len(resp.Milestones))
+	for _, r := range resp.Milestones {
 		byName[r.Name] = r
 	}
 
@@ -56,14 +56,14 @@ func TestBatchCreate_InitiativePriorityAndDeps_Preview(t *testing.T) {
 	}
 }
 
-func TestBatchCreate_InitiativePriority_InvalidRange(t *testing.T) {
+func TestBatchCreate_MilestonePriority_InvalidRange(t *testing.T) {
 	h, _, _ := setupBatchTestHandler(t)
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "item", Title: "Item", Kind: "idea", Initiative: "bad"},
+			{Name: "item", Title: "Item", Kind: "idea", Milestone: "bad"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "bad", Title: "Bad", Priority: intPtr(99)},
 		},
 	}
@@ -75,35 +75,35 @@ func TestBatchCreate_InitiativePriority_InvalidRange(t *testing.T) {
 	}
 }
 
-func TestBatchCreate_InitiativeDepends_UnknownRef(t *testing.T) {
+func TestBatchCreate_MilestoneDepends_UnknownRef(t *testing.T) {
 	h, _, _ := setupBatchTestHandler(t)
 
-	ghost := []string{"ghost-initiative"}
+	ghost := []string{"ghost-milestone"}
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "item", Title: "Item", Kind: "idea", Initiative: "real"},
+			{Name: "item", Title: "Item", Kind: "idea", Milestone: "real"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "real", Title: "Real", DependsOn: &ghost},
 		},
 	}
 
 	w := doBatchCreate(t, h, payload)
 	testutil.AssertStatusBadRequest(t, w)
-	if !strings.Contains(w.Body.String(), "ghost-initiative") {
+	if !strings.Contains(w.Body.String(), "ghost-milestone") {
 		t.Errorf("expected unknown-dep error naming the ghost, got: %s", w.Body.String())
 	}
 }
 
-func TestBatchCreate_InitiativeSelfDepends(t *testing.T) {
+func TestBatchCreate_MilestoneSelfDepends(t *testing.T) {
 	h, _, _ := setupBatchTestHandler(t)
 
 	self := []string{"self-ref"}
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "item", Title: "Item", Kind: "idea", Initiative: "self-ref"},
+			{Name: "item", Title: "Item", Kind: "idea", Milestone: "self-ref"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "self-ref", Title: "Self", DependsOn: &self},
 		},
 	}
@@ -115,15 +115,15 @@ func TestBatchCreate_InitiativeSelfDepends(t *testing.T) {
 	}
 }
 
-func TestBatchCreate_InitiativeDepends_KindNameFormRejected(t *testing.T) {
+func TestBatchCreate_MilestoneDepends_KindNameFormRejected(t *testing.T) {
 	h, _, _ := setupBatchTestHandler(t)
 
 	mixed := []string{"idea/some-item"}
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "item", Title: "Item", Kind: "idea", Initiative: "mixed"},
+			{Name: "item", Title: "Item", Kind: "idea", Milestone: "mixed"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "mixed", Title: "Mixed", DependsOn: &mixed},
 		},
 	}
@@ -135,7 +135,7 @@ func TestBatchCreate_InitiativeDepends_KindNameFormRejected(t *testing.T) {
 	}
 }
 
-func TestBatchCreate_InitiativeCrossDeps_OrderIndependent(t *testing.T) {
+func TestBatchCreate_MilestoneCrossDeps_OrderIndependent(t *testing.T) {
 	h, _, ia := setupBatchTestHandler(t)
 
 	deps := []string{"alpha"}
@@ -145,10 +145,10 @@ func TestBatchCreate_InitiativeCrossDeps_OrderIndependent(t *testing.T) {
 	alphaDeps := []string{"omega"}
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "a-item", Title: "A", Kind: "idea", Initiative: "alpha"},
-			{Name: "o-item", Title: "O", Kind: "idea", Initiative: "omega"},
+			{Name: "a-item", Title: "A", Kind: "idea", Milestone: "alpha"},
+			{Name: "o-item", Title: "O", Kind: "idea", Milestone: "omega"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "alpha", Title: "Alpha (depends on omega)", DependsOn: &alphaDeps},
 			{Name: "omega", Title: "Omega"},
 		},
@@ -167,9 +167,9 @@ func TestBatchCreate_InitiativeCrossDeps_OrderIndependent(t *testing.T) {
 	_ = deps // silence unused in future additions
 }
 
-func TestBatchCreate_InitiativeUpdate_OnPriorityChange(t *testing.T) {
+func TestBatchCreate_MilestoneUpdate_OnPriorityChange(t *testing.T) {
 	h, _, ia := setupBatchTestHandler(t)
-	ia.snapshots["existing"] = InitiativeSnapshot{
+	ia.snapshots["existing"] = MilestoneSnapshot{
 		Name:     "existing",
 		Title:    "Existing",
 		Status:   "active",
@@ -179,9 +179,9 @@ func TestBatchCreate_InitiativeUpdate_OnPriorityChange(t *testing.T) {
 	payload := batchCreateRequest{
 		Preview: true,
 		Items: []batchCreateItem{
-			{Name: "item", Title: "Item", Kind: "idea", Initiative: "existing"},
+			{Name: "item", Title: "Item", Kind: "idea", Milestone: "existing"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "existing", Title: "Existing", Priority: intPtr(2)},
 		},
 	}
@@ -190,18 +190,18 @@ func TestBatchCreate_InitiativeUpdate_OnPriorityChange(t *testing.T) {
 	testutil.AssertStatusOK(t, w)
 
 	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
-	if len(resp.Initiatives) != 1 || resp.Initiatives[0].Action != "update" {
-		t.Fatalf("expected action=update for priority change, got %+v", resp.Initiatives)
+	if len(resp.Milestones) != 1 || resp.Milestones[0].Action != "update" {
+		t.Fatalf("expected action=update for priority change, got %+v", resp.Milestones)
 	}
-	if resp.Initiatives[0].Priority != 2 {
-		t.Errorf("preview priority = %d, want 2", resp.Initiatives[0].Priority)
+	if resp.Milestones[0].Priority != 2 {
+		t.Errorf("preview priority = %d, want 2", resp.Milestones[0].Priority)
 	}
 }
 
-func TestBatchCreate_InitiativeUpdate_OnDepsChange(t *testing.T) {
+func TestBatchCreate_MilestoneUpdate_OnDepsChange(t *testing.T) {
 	h, _, ia := setupBatchTestHandler(t)
-	ia.snapshots["base"] = InitiativeSnapshot{Name: "base", Title: "Base", Status: "active"}
-	ia.snapshots["follower"] = InitiativeSnapshot{
+	ia.snapshots["base"] = MilestoneSnapshot{Name: "base", Title: "Base", Status: "active"}
+	ia.snapshots["follower"] = MilestoneSnapshot{
 		Name:      "follower",
 		Title:     "Follower",
 		Status:    "active",
@@ -212,10 +212,10 @@ func TestBatchCreate_InitiativeUpdate_OnDepsChange(t *testing.T) {
 	payload := batchCreateRequest{
 		Preview: true,
 		Items: []batchCreateItem{
-			{Name: "b-item", Title: "B Item", Kind: "idea", Initiative: "base"},
-			{Name: "f-item", Title: "F Item", Kind: "idea", Initiative: "follower"},
+			{Name: "b-item", Title: "B Item", Kind: "idea", Milestone: "base"},
+			{Name: "f-item", Title: "F Item", Kind: "idea", Milestone: "follower"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "base", Title: "Base"},
 			{Name: "follower", Title: "Follower", DependsOn: &deps},
 		},
@@ -225,8 +225,8 @@ func TestBatchCreate_InitiativeUpdate_OnDepsChange(t *testing.T) {
 	testutil.AssertStatusOK(t, w)
 
 	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
-	byName := make(map[string]batchCreateInitiativeResult, len(resp.Initiatives))
-	for _, r := range resp.Initiatives {
+	byName := make(map[string]batchCreateMilestoneResult, len(resp.Milestones))
+	for _, r := range resp.Milestones {
 		byName[r.Name] = r
 	}
 	if byName["follower"].Action != "update" {
@@ -237,26 +237,26 @@ func TestBatchCreate_InitiativeUpdate_OnDepsChange(t *testing.T) {
 	}
 }
 
-func TestBatchCreate_InitiativeReuse_WhenIdentical(t *testing.T) {
+func TestBatchCreate_MilestoneReuse_WhenIdentical(t *testing.T) {
 	h, _, ia := setupBatchTestHandler(t)
-	ia.snapshots["same"] = InitiativeSnapshot{
+	ia.snapshots["same"] = MilestoneSnapshot{
 		Name:      "same",
 		Title:     "Same",
 		Status:    "active",
 		Priority:  4,
 		DependsOn: []string{"dep1", "dep2"},
 	}
-	ia.snapshots["dep1"] = InitiativeSnapshot{Name: "dep1", Title: "D1", Status: "active"}
-	ia.snapshots["dep2"] = InitiativeSnapshot{Name: "dep2", Title: "D2", Status: "active"}
+	ia.snapshots["dep1"] = MilestoneSnapshot{Name: "dep1", Title: "D1", Status: "active"}
+	ia.snapshots["dep2"] = MilestoneSnapshot{Name: "dep2", Title: "D2", Status: "active"}
 
 	// Provide the same set of deps, but in reversed order to test set-equality.
 	deps := []string{"dep2", "dep1"}
 	payload := batchCreateRequest{
 		Preview: true,
 		Items: []batchCreateItem{
-			{Name: "x-item", Title: "X Item", Kind: "idea", Initiative: "same"},
+			{Name: "x-item", Title: "X Item", Kind: "idea", Milestone: "same"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "same", Title: "Same", Status: strPtr("active"), Priority: intPtr(4), DependsOn: &deps},
 		},
 	}
@@ -265,14 +265,14 @@ func TestBatchCreate_InitiativeReuse_WhenIdentical(t *testing.T) {
 	testutil.AssertStatusOK(t, w)
 
 	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
-	if len(resp.Initiatives) != 1 || resp.Initiatives[0].Action != "reuse" {
-		t.Fatalf("expected action=reuse for identical spec, got %+v", resp.Initiatives)
+	if len(resp.Milestones) != 1 || resp.Milestones[0].Action != "reuse" {
+		t.Fatalf("expected action=reuse for identical spec, got %+v", resp.Milestones)
 	}
 }
 
-func TestBatchCreate_InitiativeRollback_PreservesPriorityAndDeps(t *testing.T) {
+func TestBatchCreate_MilestoneRollback_PreservesPriorityAndDeps(t *testing.T) {
 	h, _, ia := setupBatchTestHandler(t)
-	ia.snapshots["preserved"] = InitiativeSnapshot{
+	ia.snapshots["preserved"] = MilestoneSnapshot{
 		Name:      "preserved",
 		Title:     "Preserved",
 		Status:    "active",
@@ -280,18 +280,18 @@ func TestBatchCreate_InitiativeRollback_PreservesPriorityAndDeps(t *testing.T) {
 		DependsOn: []string{"anchor"},
 		Items:     []string{},
 	}
-	ia.snapshots["anchor"] = InitiativeSnapshot{Name: "anchor", Title: "Anchor", Status: "active"}
+	ia.snapshots["anchor"] = MilestoneSnapshot{Name: "anchor", Title: "Anchor", Status: "active"}
 
-	// Force AddItems to fail after the initiative has been updated with new
+	// Force AddItems to fail after the milestone has been updated with new
 	// priority, so rollback kicks in via Replace.
 	ia.addErr = errStub("disk full")
 
 	deps := []string{"anchor"}
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "rollback-item", Title: "RI", Kind: "idea", Initiative: "preserved"},
+			{Name: "rollback-item", Title: "RI", Kind: "idea", Milestone: "preserved"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "preserved", Title: "Preserved", Priority: intPtr(1), DependsOn: &deps},
 		},
 	}
@@ -308,14 +308,14 @@ func TestBatchCreate_InitiativeRollback_PreservesPriorityAndDeps(t *testing.T) {
 	}
 }
 
-func TestBatchCreate_InitiativeUnknownField_StillRejected(t *testing.T) {
+func TestBatchCreate_MilestoneUnknownField_StillRejected(t *testing.T) {
 	h, _, _ := setupBatchTestHandler(t)
 
 	body := strings.NewReader(`{
 		"items": [
-			{"name":"item","title":"Item","kind":"idea","initiative":"bad"}
+			{"name":"item","title":"Item","kind":"idea","milestone":"bad"}
 		],
-		"initiatives": [
+		"milestones": [
 			{"name":"bad","title":"Bad","bogus":"field"}
 		]
 	}`)
@@ -333,13 +333,13 @@ func TestBatchCreate_InitiativeUnknownField_StillRejected(t *testing.T) {
 // Sanity-check that the marshaled request round-trips when the caller encodes
 // a *[]string depends_on field to JSON — the default encoder should produce
 // a plain array, and decoding it back should not trip strict mode.
-func TestBatchCreate_InitiativeDepends_JSONRoundTrip(t *testing.T) {
+func TestBatchCreate_MilestoneDepends_JSONRoundTrip(t *testing.T) {
 	deps := []string{"a", "b"}
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "i", Title: "I", Kind: "idea", Initiative: "x"},
+			{Name: "i", Title: "I", Kind: "idea", Milestone: "x"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "x", Title: "X", DependsOn: &deps},
 		},
 	}

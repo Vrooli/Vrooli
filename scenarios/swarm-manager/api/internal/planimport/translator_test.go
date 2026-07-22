@@ -3,7 +3,6 @@ package planimport
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"swarm-manager/internal/identity"
@@ -147,17 +146,17 @@ func (s *stubLander) LandBatch(_ context.Context, payload BatchPayload, _ identi
 	return refs, nil
 }
 
-type stubInitiativeLander struct {
+type stubGoalLander struct {
 	calls []struct {
-		spec InitiativeSpec
+		spec GoalSpec
 		refs []ImportedRef
 	}
 	firstAction string
 }
 
-func (s *stubInitiativeLander) LandInitiative(_ context.Context, spec InitiativeSpec, refs []ImportedRef, _ identity.Provenance) (ImportedInitiative, error) {
+func (s *stubGoalLander) LandGoal(_ context.Context, spec GoalSpec, refs []ImportedRef, _ identity.Provenance) (ImportedGoal, error) {
 	s.calls = append(s.calls, struct {
-		spec InitiativeSpec
+		spec GoalSpec
 		refs []ImportedRef
 	}{spec: spec, refs: refs})
 	action := "linked"
@@ -166,7 +165,7 @@ func (s *stubInitiativeLander) LandInitiative(_ context.Context, spec Initiative
 	} else if len(refs) > 0 {
 		action = "updated"
 	}
-	return ImportedInitiative{Name: spec.Name, Title: spec.Title, Mode: spec.Mode, Action: action}, nil
+	return ImportedGoal{Name: spec.Name, Title: spec.Title, Action: action}, nil
 }
 
 func TestService_ImportFetchesTranslatesAndLands(t *testing.T) {
@@ -217,63 +216,37 @@ func TestService_ImportAdoptsExternalMarkdown(t *testing.T) {
 	}
 }
 
-// TestService_ImportRejectsPlanTargetMode pins the server-side target-kind
-// validation: an import may not stamp an initiative with a plan-target mode.
-func TestService_ImportRejectsPlanTargetMode(t *testing.T) {
-	svc := NewService(stubFetcher{plan: fixturePlan()}, &stubLander{}, &stubInitiativeLander{firstAction: "created"})
-	_, err := svc.Import(context.Background(), Request{
-		PlanID: "my-plan",
-		Container: ContainerSpec{
-			Type: "initiative",
-			Name: "my-plan-work",
-			Mode: "phased-plan-drain",
-		},
-	}, identity.Provenance{})
-	if err == nil || !strings.Contains(err.Error(), "retired") {
-		t.Fatalf("Import err = %v, want retired-mode rejection", err)
-	}
-}
-
-func TestService_ImportInitiativeContainer(t *testing.T) {
+func TestService_ImportGoalContainer(t *testing.T) {
 	lander := &stubLander{}
-	initLander := &stubInitiativeLander{firstAction: "created"}
-	svc := NewService(stubFetcher{plan: fixturePlan()}, lander, initLander)
+	goalLander := &stubGoalLander{firstAction: "created"}
+	svc := NewService(stubFetcher{plan: fixturePlan()}, lander, goalLander)
 
 	res, err := svc.Import(context.Background(), Request{
 		PlanID: "my-plan",
 		Container: ContainerSpec{
-			Type:  "initiative",
+			Type:  "goal",
 			Name:  "my-plan-work",
 			Title: "My Plan Work",
-			Mode:  "item-level",
 		},
 	}, identity.Provenance{})
 	if err != nil {
 		t.Fatalf("Import: %v", err)
 	}
-	if res.Container != "initiative" || res.Initiative == nil {
-		t.Fatalf("result missing initiative: %+v", res)
+	if res.Container != "goal" || res.Goal == nil {
+		t.Fatalf("result missing goal: %+v", res)
 	}
-	if res.Initiative.Action != "created" {
-		t.Fatalf("initiative action = %q, want created", res.Initiative.Action)
+	if res.Goal.Action != "created" {
+		t.Fatalf("goal action = %q, want created", res.Goal.Action)
 	}
-	if len(initLander.calls) != 2 {
-		t.Fatalf("initiative lander calls = %d, want 2", len(initLander.calls))
+	if len(goalLander.calls) != 2 {
+		t.Fatalf("goal lander calls = %d, want 2", len(goalLander.calls))
 	}
-	if initLander.calls[0].spec.PlanRef.Role != "operating_mode_plan" {
-		t.Fatalf("initiative plan_ref = %+v", initLander.calls[0].spec.PlanRef)
-	}
-	if len(initLander.calls[1].refs) != 3 {
-		t.Fatalf("initiative item refs = %d, want 3", len(initLander.calls[1].refs))
+	if len(goalLander.calls[1].refs) != 3 {
+		t.Fatalf("goal item refs = %d, want 3", len(goalLander.calls[1].refs))
 	}
 	var p BatchPayload
 	if err := json.Unmarshal([]byte(lander.gotPayload), &p); err != nil {
 		t.Fatalf("landed payload not valid JSON: %v", err)
-	}
-	for _, item := range p.Items {
-		if item.Initiative != "my-plan-work" {
-			t.Fatalf("item %s initiative = %q", item.Name, item.Initiative)
-		}
 	}
 }
 

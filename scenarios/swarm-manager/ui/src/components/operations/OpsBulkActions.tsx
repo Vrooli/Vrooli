@@ -181,7 +181,7 @@ export function OpsBulkActions({ className }: OpsBulkActionsProps) {
         onClose={() => setStopAllOpen(false)}
         onConfirm={onConfirmStopAll}
         title={`Stop all ${activeCount} running ${activeCount === 1 ? "run" : "runs"}?`}
-        description="Every active agent run is cancelled. Type STOP ALL exactly to confirm — this affects every initiative, capture, and standalone item currently in flight."
+        description="Every active agent run is cancelled. Type STOP ALL exactly to confirm — this affects every goal, capture, and standalone item currently in flight."
         confirmationText={STOP_ALL_CONFIRMATION}
         confirmLabel={`Stop ${activeCount}`}
         isLoading={isBulkStopping}

@@ -93,7 +93,7 @@ func encodeCard(card Card) *domainpb.PlanCard {
 		Status:      card.Status,
 		Priority:    int32(card.Priority),
 		Wave:        int32(card.Wave),
-		Initiative:  card.Initiative,
+		Milestone:  card.Milestone,
 		Effort:      card.Effort,
 		Outcome:     card.Outcome,
 		FinishedAt:  card.FinishedAt,

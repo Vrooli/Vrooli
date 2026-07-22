@@ -42,7 +42,7 @@ export type BacklogKind = "idea" | "research" | "fix" | "execute" | "chore";
 /**
  * A backlog item represents a unit of work for the swarm.
  */
-export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny" | "creates" | "createdBy" | "stale"> & {
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "milestone" | "acceptanceAllow" | "acceptanceDeny" | "creates" | "createdBy" | "stale"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
   /** ISO timestamp when the item was archived, or undefined if not archived. */
@@ -51,8 +51,8 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   kind: BacklogKind;
   /** Items this depends on, as "kind/name" refs. Empty array from API, optional in client code. */
   dependsOn?: string[];
-  /** Initiative this item belongs to. */
-  initiative?: string;
+  /** Milestone this item belongs to. */
+  milestone?: string;
   /** Glob patterns for expected file modifications. */
   acceptanceAllow?: string[];
   /** Glob patterns for forbidden file modifications. */
@@ -86,7 +86,7 @@ export interface BacklogFormValues {
   tags: string[];
   kind: BacklogKind;
   dependsOn?: string[];
-  initiative?: string;
+  milestone?: string;
   effort?: string;
   acceptanceAllow?: string[];
   acceptanceDeny?: string[];

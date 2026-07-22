@@ -23,10 +23,10 @@ func badCreate(msg string) error { return &CreateValidationError{Msg: msg} }
 // buildItemFromCreateRequest validates and normalizes a CreateBacklogItemRequest
 // into a BacklogItem. It is pure (no HTTP), so both the REST handler and the
 // Connect BacklogService share the exact same validation + construction logic,
-// which is the whole point of the shared typed contract. validateInitiative is
-// injected because initiative-reference validation needs the store (a Handler
+// which is the whole point of the shared typed contract. validateMilestone is
+// injected because milestone-reference validation needs the store (a Handler
 // method); pass a no-op-tolerant closure.
-func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identity.Provenance, validateInitiative func(string) error) (BacklogItem, error) {
+func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identity.Provenance, validateMilestone func(string) error) (BacklogItem, error) {
 	normalizeCreateBacklogItemRequest(req)
 
 	if err := httputil.ValidateProto(req); err != nil {
@@ -69,12 +69,12 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 	if dependsOn == nil {
 		dependsOn = []string{}
 	}
-	initiative := ""
-	if req.Initiative != nil {
-		initiative = strings.TrimSpace(*req.Initiative)
+	milestone := ""
+	if req.Milestone != nil {
+		milestone = strings.TrimSpace(*req.Milestone)
 	}
-	if validateInitiative != nil {
-		if err := validateInitiative(initiative); err != nil {
+	if validateMilestone != nil {
+		if err := validateMilestone(milestone); err != nil {
 			return BacklogItem{}, badCreate(err.Error())
 		}
 	}
@@ -123,7 +123,7 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 		Updated:         now,
 		Kind:            kind,
 		DependsOn:       dependsOn,
-		Initiative:      initiative,
+		Milestone:      milestone,
 		Effort:          effort,
 		AcceptanceAllow: req.AcceptanceAllow,
 		AcceptanceDeny:  req.AcceptanceDeny,

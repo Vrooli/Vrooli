@@ -49,14 +49,14 @@ export interface TimingStats {
   execution_duration_samples: number;
 }
 
-/** Initiative health and scope changes. */
+/** Goal health and scope changes. */
 export interface ScopeStats {
-  initiatives: InitiativeHealth[];
+  goals: GoalHealth[];
   max_dependency_depth: number;
 }
 
-/** Progress summary for a single initiative. */
-export interface InitiativeHealth {
+/** Progress summary for a single goal. */
+export interface GoalHealth {
   name: string;
   total: number;
   completed: number;
@@ -172,7 +172,7 @@ export interface SessionStats {
   failed_session_rate: number;
   failed_session_sample_size: number;
   session_created_backlog_items: number;
-  session_created_initiatives: number;
+  session_created_goals: number;
 }
 
 /** Completions in a calendar week. */

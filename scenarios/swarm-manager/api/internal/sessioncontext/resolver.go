@@ -28,9 +28,9 @@ type operationsBriefingBuilder interface {
 	Build(ctx context.Context, filters operations.Filters) (*operations.OperationsBriefing, error)
 }
 
-// operationsSnapshotProvider supplies the cached, ranked initiative snapshot
+// operationsSnapshotProvider supplies the cached, ranked goal snapshot
 // that augments the swarm_operations startup brief. Optional: when nil, the
-// brief omits the ranked-initiatives section and falls back to the activity
+// brief omits the ranked-goals section and falls back to the activity
 // briefing alone.
 type operationsSnapshotProvider interface {
 	GetSnapshot(ctx context.Context) (*operations.OperationsSnapshot, error)
@@ -73,8 +73,6 @@ func (r *Resolver) resolve(ctx context.Context, ref agentsessions.ContextRef, li
 	switch ref.Type {
 	case agentsessions.ContextBacklogItem:
 		return r.resolveBacklogItem(ref.Ref, limits)
-	case agentsessions.ContextInitiative:
-		return r.resolveJSONFile(ref, filepath.Join(r.scenarioRoot, "initiatives", ref.Ref, "initiative.json"), "initiative", "initiative/"+ref.Ref, limits)
 	case agentsessions.ContextCapture:
 		return r.resolveJSONFile(ref, filepath.Join(r.scenarioRoot, "captures", ref.Ref, "capture.json"), "capture", "capture/"+ref.Ref, limits)
 	case agentsessions.ContextScenario:
@@ -155,14 +153,14 @@ func (r *Resolver) resolveOperationsBriefing(ctx context.Context, ref string, li
 
 func formatOperationsBriefingSummary(briefing *operations.OperationsBriefing) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Generated: %s. Window: %ds. Active: %d. Recently finished: %d. Queue: %d/%d. Active initiatives: %d. Blocked items: %d. Active sessions: %d.\n",
+	fmt.Fprintf(&b, "Generated: %s. Window: %ds. Active: %d. Recently finished: %d. Queue: %d/%d. Active goals: %d. Blocked items: %d. Active sessions: %d.\n",
 		briefing.GeneratedAt.Format(time.RFC3339),
 		briefing.WindowSeconds,
 		briefing.Summary.ActiveActivityCount,
 		briefing.Summary.RecentlyFinishedCount,
 		briefing.Summary.QueueDepth,
 		briefing.Summary.MaxQueueDepth,
-		briefing.Summary.ActiveInitiatives,
+		briefing.Summary.ActiveGoals,
 		briefing.Summary.BlockedItems,
 		briefing.Summary.ActiveSessions,
 	)
@@ -355,7 +353,7 @@ func itemFromMap(ref agentsessions.ContextRef, payload map[string]any, nodeID st
 		summary = compactJSON(payload)
 	}
 	metadata := map[string]any{}
-	for _, key := range []string{"status", "kind", "priority", "mode", "initiative", "updated", "created"} {
+	for _, key := range []string{"status", "kind", "priority", "updated", "created"} {
 		if value, ok := payload[key]; ok {
 			metadata[key] = value
 		}

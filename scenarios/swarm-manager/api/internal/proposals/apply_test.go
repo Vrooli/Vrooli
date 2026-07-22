@@ -10,17 +10,17 @@ import (
 	"testing"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 )
 
 // applyEnv bundles the test fixtures: a temp-dir-backed backlog FileStore,
-// initiatives Service, and the Applier under test. Each test gets its own
+// milestones Service, and the Applier under test. Each test gets its own
 // env so state doesn't leak between cases.
 type applyEnv struct {
 	t          *testing.T
 	root       string
 	backlog    *backlog.FileStore
-	initSvc    *initiatives.Service
+	initSvc    *goals.BacklogMilestoneAssigner
 	creator    *backlog.Service
 	applier    *Applier
 	cancelFake *fakeCanceller
@@ -69,23 +69,24 @@ type capturedEvent struct {
 }
 
 func (f *fakeEvents) EmitProposalMutationApplied(source Source, m Mutation) {
-	f.calls = append(f.calls, source.InitiativeName+":"+m.ID+":"+string(m.Op))
+	f.calls = append(f.calls, source.MilestoneName+":"+m.ID+":"+string(m.Op))
 	f.captured = append(f.captured, capturedEvent{source: source, mutation: m})
 }
 
 func newApplyEnv(t *testing.T) *applyEnv {
 	t.Helper()
 	root := t.TempDir()
-	// Match FileStore layout: kind dirs are peers of initiatives dir.
-	for _, dir := range []string{"ideas", "research", "fixes", "executes", "chores", "initiatives"} {
+	// Match FileStore layout: kind dirs are peers of milestones dir.
+	for _, dir := range []string{"ideas", "research", "fixes", "executes", "chores", "milestones"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
 	}
 
 	store := backlog.NewFileStore(root)
-	initStore := initiatives.NewStore(filepath.Join(root, "initiatives"))
-	initSvc := initiatives.NewService(initStore, store)
+	goalStore := goals.NewStore(root)
+	goalSvc := goals.NewService(goalStore, store)
+	initSvc := goals.NewBacklogMilestoneAssigner(goalSvc)
 
 	cancelFake := &fakeCanceller{}
 	schedFake := &fakeScheduler{}
@@ -112,22 +113,16 @@ func newApplyEnv(t *testing.T) *applyEnv {
 		t.Fatalf("NewApplier: %v", err)
 	}
 
-	// Seed a working initiative + two items so most ops have a target.
-	if _, err := initSvc.Create(initiatives.CreateRequest{
-		Name:  "ui-rewrite",
-		Title: "UI Rewrite",
-	}); err != nil {
-		t.Fatalf("seed initiative: %v", err)
+	// Seed a working milestone + two items so most ops have a target.
+	if err := initSvc.Create(backlog.MilestoneSpec{Name: "work/ui-rewrite", Title: "UI Rewrite"}); err != nil {
+		t.Fatalf("seed milestone: %v", err)
 	}
-	if _, err := initSvc.Create(initiatives.CreateRequest{
-		Name:  "other-project",
-		Title: "Other",
-	}); err != nil {
-		t.Fatalf("seed other init: %v", err)
+	if err := initSvc.Create(backlog.MilestoneSpec{Name: "work/other-project", Title: "Other"}); err != nil {
+		t.Fatalf("seed other milestone: %v", err)
 	}
 	seedItem(t, store, "execute", "foo", "Foo")
 	seedItem(t, store, "execute", "bar", "Bar")
-	if err := initSvc.AddItems("ui-rewrite", []string{"execute/foo", "execute/bar"}); err != nil {
+	if err := assignItems(t, store, initSvc, "work/ui-rewrite", []string{"execute/foo", "execute/bar"}); err != nil {
 		t.Fatalf("add items: %v", err)
 	}
 
@@ -143,6 +138,23 @@ func newApplyEnv(t *testing.T) *applyEnv {
 	}
 }
 
+func assignItems(t *testing.T, store *backlog.FileStore, assigner *goals.BacklogMilestoneAssigner, milestone string, refs []string) error {
+	t.Helper()
+	if err := assigner.AddItems(milestone, refs); err != nil {
+		return err
+	}
+	for _, ref := range refs {
+		parts := strings.SplitN(ref, "/", 2)
+		if len(parts) != 2 {
+			return errors.New("invalid backlog reference")
+		}
+		if _, err := store.SetItemMilestone(backlog.BacklogKind(parts[0]), parts[1], milestone); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func TestApply_DeniedMutationLeavesItemDirectoryByteIdentical(t *testing.T) {
 	env := newApplyEnv(t)
 	path := filepath.Join(env.backlog.ItemDir(backlog.KindExecute, "foo"), "spec.json")
@@ -152,7 +164,7 @@ func TestApply_DeniedMutationLeavesItemDirectoryByteIdentical(t *testing.T) {
 	}
 	state := env.currentState()
 	proposal := Proposal{Form: FormMutationList, Mutations: []Mutation{{ID: "deny", Op: OpChangePriority, Target: "execute/foo", Priority: intPtr(1)}}}
-	result, err := env.applier.Apply(context.Background(), proposal, state, []string{}, Source{InitiativeName: "ui-rewrite"})
+	result, err := env.applier.Apply(context.Background(), proposal, state, []string{}, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("Apply() error = %v", err)
 	}
@@ -189,11 +201,11 @@ func seedItem(t *testing.T, store *backlog.FileStore, kind, name, title string) 
 func (e *applyEnv) currentState() CurrentState {
 	e.t.Helper()
 	state := CurrentState{
-		InitiativeName: "ui-rewrite",
-		Nodes:          map[string]GraphNode{},
-		KnownInitiatives: map[string]struct{}{
-			"ui-rewrite":    {},
-			"other-project": {},
+		MilestoneName: "work/ui-rewrite",
+		Nodes:         map[string]GraphNode{},
+		KnownMilestones: map[string]struct{}{
+			"work/ui-rewrite":    {},
+			"work/other-project": {},
 		},
 		InProgressRefs: map[string]struct{}{},
 	}
@@ -204,7 +216,7 @@ func (e *applyEnv) currentState() CurrentState {
 		if err != nil {
 			continue
 		}
-		if item.Initiative != "ui-rewrite" {
+		if item.Milestone != "work/ui-rewrite" {
 			continue
 		}
 		state.Nodes[ref] = GraphNode{
@@ -242,7 +254,7 @@ func TestApply_AddItem_CreatesItemAndAttaches(t *testing.T) {
 			}},
 		},
 	}
-	res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -250,18 +262,18 @@ func TestApply_AddItem_CreatesItemAndAttaches(t *testing.T) {
 		t.Fatalf("expected 1 applied, got %+v", res)
 	}
 	item := env.loadItem("execute", "baz")
-	if item.Initiative != "ui-rewrite" {
-		t.Fatalf("expected initiative ui-rewrite, got %q", item.Initiative)
+	if item.Milestone != "work/ui-rewrite" {
+		t.Fatalf("expected milestone ui-rewrite, got %q", item.Milestone)
 	}
 	if item.Effort != "S" {
 		t.Fatalf("expected effort=S, got %q", item.Effort)
 	}
-	init, err := env.initSvc.Get("ui-rewrite")
+	init, err := env.initSvc.Get("work/ui-rewrite")
 	if err != nil {
 		t.Fatalf("get init: %v", err)
 	}
-	if !stringSliceContains(init.Initiative.Items, "execute/baz") {
-		t.Fatalf("initiative items missing execute/baz: %v", init.Initiative.Items)
+	if !stringSliceContains(init.Items, "execute/baz") {
+		t.Fatalf("milestone items missing execute/baz: %v", init.Items)
 	}
 	if env.schedFake.calls == 0 {
 		t.Fatalf("expected invalidator.ScheduleAll to be called on successful apply")
@@ -276,7 +288,7 @@ func TestApply_ChangePriority_ModifiesPriority(t *testing.T) {
 			{ID: "m1", Op: OpChangePriority, Target: "execute/foo", Priority: intPtr(10)},
 		},
 	}
-	res, err := env.applier.Apply(context.Background(), p, env.currentState(), []string{"m1"}, Source{InitiativeName: "ui-rewrite"})
+	res, err := env.applier.Apply(context.Background(), p, env.currentState(), []string{"m1"}, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -298,7 +310,7 @@ func TestApply_SkipsUnacceptedMutations(t *testing.T) {
 			{ID: "skip", Op: OpChangePriority, Target: "execute/bar", Priority: intPtr(8)},
 		},
 	}
-	res, err := env.applier.Apply(context.Background(), p, env.currentState(), []string{"accept"}, Source{InitiativeName: "ui-rewrite"})
+	res, err := env.applier.Apply(context.Background(), p, env.currentState(), []string{"accept"}, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -345,7 +357,7 @@ func TestApply_UpdateItem_AppliesPatch(t *testing.T) {
 			}},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	item := env.loadItem("execute", "foo")
@@ -363,7 +375,7 @@ func TestApply_ChangeStatus_AcceptsUserSettable(t *testing.T) {
 				{ID: "m1", Op: OpChangeStatus, Target: "execute/foo", Status: status},
 			},
 		}
-		res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+		res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 		if err != nil {
 			t.Fatalf("apply status=%s: %v", status, err)
 		}
@@ -385,7 +397,7 @@ func TestApply_ChangeStatus_RejectsTerminal(t *testing.T) {
 			{ID: "m1", Op: OpChangeStatus, Target: "execute/foo", Status: "completed"},
 		},
 	}
-	_, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	_, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err == nil || !errors.Is(err, ErrTerminalStatusWrite) {
 		t.Fatalf("expected terminal-status error, got %v", err)
 	}
@@ -399,7 +411,7 @@ func TestApply_AddEdge_AddsToDependsOn(t *testing.T) {
 			{ID: "m1", Op: OpAddEdge, From: "execute/bar", To: "execute/foo"},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	bar := env.loadItem("execute", "bar")
@@ -425,7 +437,7 @@ func TestApply_RemoveEdge_RemovesFromDependsOn(t *testing.T) {
 			{ID: "m1", Op: OpRemoveEdge, From: "execute/bar", To: "execute/foo"},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, state, nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, state, nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	bar = env.loadItem("execute", "bar")
@@ -434,34 +446,34 @@ func TestApply_RemoveEdge_RemovesFromDependsOn(t *testing.T) {
 	}
 }
 
-func TestApply_MoveInitiative_ReassignsMembership(t *testing.T) {
+func TestApply_MoveMilestone_ReassignsMembership(t *testing.T) {
 	env := newApplyEnv(t)
 	p := Proposal{
 		Form: FormMutationList,
 		Mutations: []Mutation{
-			{ID: "m1", Op: OpMoveInitiative, Target: "execute/foo", Initiative: "other-project"},
+			{ID: "m1", Op: OpMoveMilestone, Target: "execute/foo", Milestone: "work/other-project"},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	foo := env.loadItem("execute", "foo")
-	if foo.Initiative != "other-project" {
-		t.Fatalf("expected initiative=other-project, got %q", foo.Initiative)
+	if foo.Milestone != "work/other-project" {
+		t.Fatalf("expected milestone=other-project, got %q", foo.Milestone)
 	}
-	origin, err := env.initSvc.Get("ui-rewrite")
+	origin, err := env.initSvc.Get("work/ui-rewrite")
 	if err != nil {
 		t.Fatalf("get origin: %v", err)
 	}
-	if stringSliceContains(origin.Initiative.Items, "execute/foo") {
-		t.Fatalf("origin still lists execute/foo: %v", origin.Initiative.Items)
+	if stringSliceContains(origin.Items, "execute/foo") {
+		t.Fatalf("origin still lists execute/foo: %v", origin.Items)
 	}
-	dest, err := env.initSvc.Get("other-project")
+	dest, err := env.initSvc.Get("work/other-project")
 	if err != nil {
 		t.Fatalf("get dest: %v", err)
 	}
-	if !stringSliceContains(dest.Initiative.Items, "execute/foo") {
-		t.Fatalf("destination missing execute/foo: %v", dest.Initiative.Items)
+	if !stringSliceContains(dest.Items, "execute/foo") {
+		t.Fatalf("destination missing execute/foo: %v", dest.Items)
 	}
 }
 
@@ -473,7 +485,7 @@ func TestApply_ArchiveItem_SetsArchivedAt(t *testing.T) {
 			{ID: "m1", Op: OpArchiveItem, Target: "execute/foo"},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	foo := env.loadItem("execute", "foo")
@@ -497,7 +509,7 @@ func TestApply_InterruptInProgress_DelegatesToCanceller(t *testing.T) {
 			{ID: "m1", Op: OpInterruptInProgress, Target: "execute/foo"},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	if len(env.cancelFake.calls) != 1 || env.cancelFake.calls[0] != "execute/foo" {
@@ -532,7 +544,7 @@ func TestApply_RecoversFromMutationPanic(t *testing.T) {
 			{ID: "m2", Op: OpInterruptInProgress, Target: "execute/bar"},
 		},
 	}
-	res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply returned error (panic should have been recovered): %v", err)
 	}
@@ -558,7 +570,7 @@ func TestApply_SplitItem_CreatesChildrenAndArchivesSource(t *testing.T) {
 			}},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	if _, err := env.backlog.LoadItem("execute", "foo-ui"); err != nil {
@@ -573,21 +585,21 @@ func TestApply_SplitItem_CreatesChildrenAndArchivesSource(t *testing.T) {
 	}
 }
 
-func TestApply_RequiresSourceInitiative(t *testing.T) {
+func TestApply_RequiresSourceMilestone(t *testing.T) {
 	env := newApplyEnv(t)
 	p := Proposal{Form: FormMutationList}
 	_, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{})
-	if err == nil || !strings.Contains(err.Error(), "InitiativeName") {
-		t.Fatalf("expected source-initiative error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "MilestoneName") {
+		t.Fatalf("expected source-milestone error, got %v", err)
 	}
 }
 
-func TestApply_RejectsMismatchedInitiative(t *testing.T) {
+func TestApply_RejectsMismatchedMilestone(t *testing.T) {
 	env := newApplyEnv(t)
 	p := Proposal{Form: FormMutationList}
-	_, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "different"})
+	_, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "different"})
 	if err == nil || !strings.Contains(err.Error(), "does not match") {
-		t.Fatalf("expected mismatched-initiative error, got %v", err)
+		t.Fatalf("expected mismatched-milestone error, got %v", err)
 	}
 }
 
@@ -599,7 +611,7 @@ func TestApply_RevalidatesBeforeApplying(t *testing.T) {
 			{ID: "m1", Op: OpArchiveItem, Target: "execute/missing"},
 		},
 	}
-	_, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	_, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err == nil || !errors.Is(err, ErrInvalidProposal) {
 		t.Fatalf("expected revalidation error, got %v", err)
 	}
@@ -624,12 +636,12 @@ func TestApply_EmitsEventsForSuccessfulMutations(t *testing.T) {
 			{ID: "m2", Op: OpArchiveItem, Target: "execute/bar"},
 		},
 	}
-	if _, err := applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite", FeedbackRoundID: "round-1"}); err != nil {
+	if _, err := applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite", FeedbackRoundID: "round-1"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	sort.Strings(events.calls)
 	got := strings.Join(events.calls, "|")
-	want := "ui-rewrite:m1:change_priority|ui-rewrite:m2:archive_item"
+	want := "work/ui-rewrite:m1:change_priority|work/ui-rewrite:m2:archive_item"
 	if got != want {
 		t.Fatalf("events: got %q, want %q", got, want)
 	}
@@ -654,11 +666,11 @@ func TestApply_PropagatesRoundMetadataThroughEvents(t *testing.T) {
 		},
 	}
 	src := Source{
-		InitiativeName:  "ui-rewrite",
+		MilestoneName:   "work/ui-rewrite",
 		FeedbackRoundID: "ui-rewrite/round-003",
 		RoundNumber:     3,
-		RoundSlug:       "ui-rewrite",
-		Entrypoint:      "initiative.feedback",
+		RoundSlug:       "work/ui-rewrite",
+		Entrypoint:      "milestone.feedback",
 		DecidedBy:       "test-operator",
 	}
 	if _, err := applier.Apply(context.Background(), p, env.currentState(), nil, src); err != nil {
@@ -671,11 +683,11 @@ func TestApply_PropagatesRoundMetadataThroughEvents(t *testing.T) {
 	if got.RoundNumber != 3 {
 		t.Errorf("RoundNumber: got %d, want 3", got.RoundNumber)
 	}
-	if got.RoundSlug != "ui-rewrite" {
-		t.Errorf("RoundSlug: got %q, want %q", got.RoundSlug, "ui-rewrite")
+	if got.RoundSlug != "work/ui-rewrite" {
+		t.Errorf("RoundSlug: got %q, want %q", got.RoundSlug, "work/ui-rewrite")
 	}
-	if got.Entrypoint != "initiative.feedback" {
-		t.Errorf("Entrypoint: got %q, want %q", got.Entrypoint, "initiative.feedback")
+	if got.Entrypoint != "milestone.feedback" {
+		t.Errorf("Entrypoint: got %q, want %q", got.Entrypoint, "milestone.feedback")
 	}
 	if got.FeedbackRoundID != "ui-rewrite/round-003" {
 		t.Errorf("FeedbackRoundID: got %q", got.FeedbackRoundID)
@@ -683,12 +695,12 @@ func TestApply_PropagatesRoundMetadataThroughEvents(t *testing.T) {
 }
 
 // flakyAssigner wraps a real assigner. RememberItem fails for the named
-// initiative; calls to other names fall through. ForgetItem always
-// passes through. Used to exercise the applyMoveInitiative rollback path
+// milestone; calls to other names fall through. ForgetItem always
+// passes through. Used to exercise the applyMoveMilestone rollback path
 // where the destination membership write fails after the source detach
 // already succeeded.
 type flakyAssigner struct {
-	inner       InitiativeAssigner
+	inner       MilestoneAssigner
 	failForName string
 }
 
@@ -703,9 +715,9 @@ func (f *flakyAssigner) ForgetItem(name, ref string) error {
 	return f.inner.ForgetItem(name, ref)
 }
 
-func TestApply_MoveInitiative_RollsBackWhenDestRememberFails(t *testing.T) {
+func TestApply_MoveMilestone_RollsBackWhenDestRememberFails(t *testing.T) {
 	env := newApplyEnv(t)
-	flaky := &flakyAssigner{inner: env.initSvc, failForName: "other-project"}
+	flaky := &flakyAssigner{inner: env.initSvc, failForName: "work/other-project"}
 	applier, err := NewApplier(Config{Store: env.backlog, Assigner: flaky, Creator: creatorWith(t, env.backlog, flaky)})
 	if err != nil {
 		t.Fatal(err)
@@ -714,10 +726,10 @@ func TestApply_MoveInitiative_RollsBackWhenDestRememberFails(t *testing.T) {
 	p := Proposal{
 		Form: FormMutationList,
 		Mutations: []Mutation{
-			{ID: "m1", Op: OpMoveInitiative, Target: "execute/foo", Initiative: "other-project"},
+			{ID: "m1", Op: OpMoveMilestone, Target: "execute/foo", Milestone: "work/other-project"},
 		},
 	}
-	res, err := applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -727,19 +739,19 @@ func TestApply_MoveInitiative_RollsBackWhenDestRememberFails(t *testing.T) {
 	if !strings.Contains(res.Outcomes[0].Error, "simulated remember failure") {
 		t.Fatalf("expected remember-failure error, got %q", res.Outcomes[0].Error)
 	}
-	// Item.initiative should be rolled back to ui-rewrite, not stuck on
-	// the destination — the rollback restores SetItemInitiative + the
+	// Item.milestone should be rolled back to ui-rewrite, not stuck on
+	// the destination — the rollback restores SetItemMilestone + the
 	// membership list.
 	foo := env.loadItem("execute", "foo")
-	if foo.Initiative != "ui-rewrite" {
-		t.Fatalf("rollback failed: item.initiative=%q, want ui-rewrite", foo.Initiative)
+	if foo.Milestone != "work/ui-rewrite" {
+		t.Fatalf("rollback failed: item.milestone=%q, want ui-rewrite", foo.Milestone)
 	}
-	origin, err := env.initSvc.Get("ui-rewrite")
+	origin, err := env.initSvc.Get("work/ui-rewrite")
 	if err != nil {
 		t.Fatalf("get origin: %v", err)
 	}
-	if !stringSliceContains(origin.Initiative.Items, "execute/foo") {
-		t.Fatalf("rollback failed: ui-rewrite no longer lists execute/foo: %v", origin.Initiative.Items)
+	if !stringSliceContains(origin.Items, "execute/foo") {
+		t.Fatalf("rollback failed: ui-rewrite no longer lists execute/foo: %v", origin.Items)
 	}
 }
 
@@ -781,12 +793,12 @@ func (f *flakyStore) ItemDir(kind backlog.BacklogKind, name string) string {
 	return f.inner.ItemDir(kind, name)
 }
 
-func (f *flakyStore) SetItemInitiative(kind backlog.BacklogKind, name, initiative string) (string, error) {
-	return f.inner.SetItemInitiative(kind, name, initiative)
+func (f *flakyStore) SetItemMilestone(kind backlog.BacklogKind, name, milestone string) (string, error) {
+	return f.inner.SetItemMilestone(kind, name, milestone)
 }
 
-func (f *flakyStore) ClearItemInitiative(kind backlog.BacklogKind, name, expected string) (string, bool, error) {
-	return f.inner.ClearItemInitiative(kind, name, expected)
+func (f *flakyStore) ClearItemMilestone(kind backlog.BacklogKind, name, expected string) (string, bool, error) {
+	return f.inner.ClearItemMilestone(kind, name, expected)
 }
 
 func (f *flakyStore) ValidateDependencies(deps []string) error {
@@ -810,7 +822,7 @@ func TestApply_SplitItem_RollsBackChildrenOnFailure(t *testing.T) {
 			}},
 		},
 	}
-	res, err := applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -844,7 +856,7 @@ func newMergeEnv(t *testing.T) *applyEnv {
 	for _, name := range []string{"alpha", "beta", "gamma", "delta"} {
 		seedItem(t, env.backlog, "execute", name, strings.ToTitle(name))
 	}
-	if err := env.initSvc.AddItems("ui-rewrite", []string{"execute/alpha", "execute/beta", "execute/gamma", "execute/delta"}); err != nil {
+	if err := assignItems(t, env.backlog, env.initSvc, "work/ui-rewrite", []string{"execute/alpha", "execute/beta", "execute/gamma", "execute/delta"}); err != nil {
 		t.Fatalf("add items: %v", err)
 	}
 	// alpha depends on gamma (outbound external — should retarget to merged)
@@ -910,7 +922,7 @@ func TestApply_MergeItems_HappyPath(t *testing.T) {
 		},
 	}
 	state := env.mergeState()
-	res, err := env.applier.Apply(context.Background(), p, state, nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := env.applier.Apply(context.Background(), p, state, nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -918,8 +930,8 @@ func TestApply_MergeItems_HappyPath(t *testing.T) {
 		t.Fatalf("expected applied=1, got %+v", res)
 	}
 	merged := env.loadItem("execute", "merged")
-	if merged.Initiative != "ui-rewrite" {
-		t.Fatalf("merged not attached to initiative, got %q", merged.Initiative)
+	if merged.Milestone != "work/ui-rewrite" {
+		t.Fatalf("merged not attached to milestone, got %q", merged.Milestone)
 	}
 	if merged.Status != backlog.StatusBacklog {
 		t.Fatalf("merged should enter as backlog, got %q", merged.Status)
@@ -972,7 +984,7 @@ func TestApply_MergeItems_DropsIntraSourceEdges(t *testing.T) {
 			},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	merged := env.loadItem("execute", "merged")
@@ -996,7 +1008,7 @@ func TestApply_MergeItems_RetargetsExternalEdges(t *testing.T) {
 			},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	merged := env.loadItem("execute", "merged")
@@ -1029,7 +1041,7 @@ func TestApply_MergeItems_MergedSpecDependsOnFiltersSources(t *testing.T) {
 			},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	merged := env.loadItem("execute", "merged")
@@ -1064,7 +1076,7 @@ func TestApply_MergeItems_RollbackOnSourceArchiveFailure(t *testing.T) {
 			},
 		},
 	}
-	res, err := applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := applier.Apply(context.Background(), p, env.mergeState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -1132,7 +1144,7 @@ func TestApply_MergeItems_RollbackOnRetargetFailure(t *testing.T) {
 			},
 		},
 	}
-	res, err := applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := applier.Apply(context.Background(), p, env.mergeState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -1190,7 +1202,7 @@ func TestApply_MergeItems_EmitsEventOnMergedRefAndPropagatesSources(t *testing.T
 			},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	if len(events.captured) != 1 {
@@ -1255,7 +1267,7 @@ func stringSliceContains(xs []string, target string) bool {
 // agent proposes two new items and an edge between them in a single
 // mutation_list. Both ops must land, and the edge must be recorded on the
 // "from" item's depends_on — not dropped silently because the endpoints
-// didn't pre-exist in the initiative graph.
+// didn't pre-exist in the milestone graph.
 func TestApply_StagedEdge_BothEndpointsNewlyCreated(t *testing.T) {
 	env := newApplyEnv(t)
 	p := Proposal{
@@ -1266,7 +1278,7 @@ func TestApply_StagedEdge_BothEndpointsNewlyCreated(t *testing.T) {
 			{ID: "m3", Op: OpAddEdge, From: "execute/beta", To: "execute/alpha"},
 		},
 	}
-	res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -1297,7 +1309,7 @@ func TestApply_UpdateItem_PropagatesSaveError(t *testing.T) {
 			{ID: "m1", Op: OpUpdateItem, Target: "execute/foo", Patch: &ItemPatch{Title: &newTitle}},
 		},
 	}
-	res, err := applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -1329,7 +1341,7 @@ func TestApply_AddEdge_PropagatesLoadError(t *testing.T) {
 			{ID: "m1", Op: OpAddEdge, From: "execute/bar", To: "execute/foo"},
 		},
 	}
-	res, err := applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -1358,7 +1370,7 @@ func TestApply_NormalizedWhitespaceFlowsThroughCleanly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
-	res, err := env.applier.Apply(context.Background(), normalized, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := env.applier.Apply(context.Background(), normalized, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -1380,7 +1392,7 @@ func TestApply_NormalizedWhitespaceFlowsThroughCleanly(t *testing.T) {
 			{ID: "m1", Op: OpChangeStatus, Target: "  execute/foo  ", Status: "  READY  "},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), raw, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"}); err == nil {
+	if _, err := env.applier.Apply(context.Background(), raw, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err == nil {
 		t.Fatalf("expected un-normalized whitespace to fail validation")
 	}
 }
@@ -1398,7 +1410,7 @@ func TestApply_ArchiveItem_IsIdempotent(t *testing.T) {
 			{ID: "m1", Op: OpArchiveItem, Target: "execute/foo"},
 		},
 	}
-	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("first apply: %v", err)
 	}
 	originalTs := *env.loadItem("execute", "foo").ArchivedAt
@@ -1408,7 +1420,7 @@ func TestApply_ArchiveItem_IsIdempotent(t *testing.T) {
 
 	// Apply again — should succeed and leave the timestamp alone.
 	p.Mutations[0].ID = "m2"
-	res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("second apply: %v", err)
 	}
@@ -1455,7 +1467,7 @@ func TestApply_InterruptBeforeSubsequentMutation(t *testing.T) {
 	}
 	state := env.currentState()
 	state.InProgressRefs["execute/foo"] = struct{}{}
-	if _, err := env.applier.Apply(context.Background(), p, state, nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+	if _, err := env.applier.Apply(context.Background(), p, state, nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
 	if observedPriorityAtCancel != 5 {
@@ -1491,7 +1503,7 @@ func TestApply_RespectsContextCancellation(t *testing.T) {
 			{ID: "m2", Op: OpChangePriority, Target: "execute/bar", Priority: intPtr(8)},
 		},
 	}
-	res, err := env.applier.Apply(ctx, p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	res, err := env.applier.Apply(ctx, p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"})
 	if err != nil {
 		t.Fatalf("Apply returned err: %v", err)
 	}
@@ -1526,11 +1538,11 @@ func TestApply_AttributionChainSurfacedInOutcomesAndEvents(t *testing.T) {
 		},
 	}
 	source := Source{
-		InitiativeName:  "ui-rewrite",
+		MilestoneName:   "work/ui-rewrite",
 		FeedbackRoundID: "ui-rewrite/round-001",
 		RoundNumber:     1,
 		RoundSlug:       "test-round",
-		Entrypoint:      "initiative.feedback",
+		Entrypoint:      "milestone.feedback",
 		DecidedBy:       "tester",
 	}
 	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, source); err != nil {
@@ -1564,8 +1576,8 @@ func TestApplyFlow_HappyPath(t *testing.T) {
 	state := env.currentState()
 
 	stateBuilder := func(name string) (CurrentState, error) {
-		if name != "ui-rewrite" {
-			t.Fatalf("stateBuilder called with unexpected initiative %q", name)
+		if name != "work/ui-rewrite" {
+			t.Fatalf("stateBuilder called with unexpected milestone %q", name)
 		}
 		return state, nil
 	}
@@ -1579,11 +1591,11 @@ func TestApplyFlow_HappyPath(t *testing.T) {
 		},
 	}
 	source := Source{
-		InitiativeName:   "ui-rewrite",
+		MilestoneName:    "work/ui-rewrite",
 		FeedbackRoundID:  "ui-rewrite/round-001",
 		RoundNumber:      1,
 		RoundSlug:        "test-round",
-		Entrypoint:       "initiative.feedback",
+		Entrypoint:       "milestone.feedback",
 		DecidedBy:        "tester",
 		DecidedAtRFC3339: "2026-05-02T00:00:00Z",
 	}
@@ -1614,7 +1626,7 @@ func TestApplyFlow_HappyPath(t *testing.T) {
 // useful trace.
 func TestApplyFlow_RejectsNilStateBuilder(t *testing.T) {
 	env := newApplyEnv(t)
-	source := Source{InitiativeName: "ui-rewrite"}
+	source := Source{MilestoneName: "work/ui-rewrite"}
 	p := Proposal{Form: FormMutationList}
 
 	_, err := env.applier.ApplyFlow(context.Background(), p, nil, nil, source)
@@ -1626,23 +1638,23 @@ func TestApplyFlow_RejectsNilStateBuilder(t *testing.T) {
 	}
 }
 
-// TestApplyFlow_RejectsEmptyInitiative pins the precondition that ApplyFlow
-// asks for the initiative name on Source — the same field Apply requires.
+// TestApplyFlow_RejectsEmptyMilestone pins the precondition that ApplyFlow
+// asks for the milestone name on Source — the same field Apply requires.
 // Catching it here gives a clearer error than the deeper Apply check.
-func TestApplyFlow_RejectsEmptyInitiative(t *testing.T) {
+func TestApplyFlow_RejectsEmptyMilestone(t *testing.T) {
 	env := newApplyEnv(t)
 	stateBuilder := func(name string) (CurrentState, error) {
-		t.Fatalf("stateBuilder must not be called with empty initiative")
+		t.Fatalf("stateBuilder must not be called with empty milestone")
 		return CurrentState{}, nil
 	}
 	p := Proposal{Form: FormMutationList}
 
-	_, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, nil, Source{InitiativeName: "   "})
+	_, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, nil, Source{MilestoneName: "   "})
 	if err == nil {
-		t.Fatalf("expected error from empty InitiativeName, got nil")
+		t.Fatalf("expected error from empty MilestoneName, got nil")
 	}
-	if !strings.Contains(err.Error(), "InitiativeName") {
-		t.Fatalf("expected error to mention InitiativeName, got %v", err)
+	if !strings.Contains(err.Error(), "MilestoneName") {
+		t.Fatalf("expected error to mention MilestoneName, got %v", err)
 	}
 }
 
@@ -1656,7 +1668,7 @@ func TestApplyFlow_StateBuilderError(t *testing.T) {
 		return CurrentState{}, wantErr
 	}
 	p := Proposal{Form: FormMutationList}
-	source := Source{InitiativeName: "ui-rewrite"}
+	source := Source{MilestoneName: "work/ui-rewrite"}
 
 	_, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, nil, source)
 	if err == nil {
@@ -1680,7 +1692,7 @@ func TestApplyFlow_NormalizeError(t *testing.T) {
 
 	// Bypass UnmarshalJSON's form check by constructing the Proposal in code.
 	p := Proposal{Form: Form("bogus")}
-	source := Source{InitiativeName: "ui-rewrite"}
+	source := Source{MilestoneName: "work/ui-rewrite"}
 
 	_, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, nil, source)
 	if err == nil {
@@ -1695,23 +1707,23 @@ func TestApplyFlow_NormalizeError(t *testing.T) {
 }
 
 // TestApplyFlow_ApplyError surfaces an apply-level rejection (mismatched
-// initiative) directly rather than wrapping it again — Apply already
+// milestone) directly rather than wrapping it again — Apply already
 // produces a clear message. This pins the contract: ApplyFlow does not
 // add its own wrapping on top of Apply errors.
 func TestApplyFlow_ApplyError(t *testing.T) {
 	env := newApplyEnv(t)
-	state := env.currentState() // initiative "ui-rewrite"
+	state := env.currentState() // milestone "work/ui-rewrite"
 	stateBuilder := func(name string) (CurrentState, error) { return state, nil }
 
 	p := Proposal{Form: FormMutationList}
-	source := Source{InitiativeName: "other-project"} // mismatch with state
+	source := Source{MilestoneName: "work/other-project"} // mismatch with state
 
 	_, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, nil, source)
 	if err == nil {
 		t.Fatalf("expected error from Apply, got nil")
 	}
 	if !strings.Contains(err.Error(), "does not match current state") {
-		t.Fatalf("expected mismatched-initiative error, got %v", err)
+		t.Fatalf("expected mismatched-milestone error, got %v", err)
 	}
 }
 
@@ -1730,7 +1742,7 @@ func TestApplyFlow_PassesAcceptedIDs(t *testing.T) {
 			{ID: "m2", Op: OpChangePriority, Target: "execute/bar", Priority: intPtr(8)},
 		},
 	}
-	source := Source{InitiativeName: "ui-rewrite", DecidedBy: "tester"}
+	source := Source{MilestoneName: "work/ui-rewrite", DecidedBy: "tester"}
 
 	res, err := env.applier.ApplyFlow(context.Background(), p, stateBuilder, []string{"m1"}, source)
 	if err != nil {

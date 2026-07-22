@@ -548,9 +548,9 @@
       "testId": "backlog-details-prompt-panel",
       "selector": "[data-testid=\"backlog-details-prompt-panel\"]"
     },
-    "backlogDetails.initiativeChip": {
-      "testId": "backlog-details-initiative-chip",
-      "selector": "[data-testid=\"backlog-details-initiative-chip\"]"
+    "backlogDetails.milestoneChip": {
+      "testId": "backlog-details-milestone-chip",
+      "selector": "[data-testid=\"backlog-details-milestone-chip\"]"
     },
     "backlogForm.dialog": {
       "testId": "backlog-form-dialog",
@@ -1096,79 +1096,7 @@
       "testId": "review-follow-up-sheet",
       "selector": "[data-testid=\"review-follow-up-sheet\"]"
     },
-    "initiativeDetails.page": {
-      "testId": "initiative-details-page",
-      "selector": "[data-testid=\"initiative-details-page\"]"
-    },
-    "initiativeDetails.title": {
-      "testId": "initiative-details-title",
-      "selector": "[data-testid=\"initiative-details-title\"]"
-    },
-    "initiativeDetails.status": {
-      "testId": "initiative-details-status",
-      "selector": "[data-testid=\"initiative-details-status\"]"
-    },
-    "initiativeDetails.description": {
-      "testId": "initiative-details-description",
-      "selector": "[data-testid=\"initiative-details-description\"]"
-    },
-    "initiativeDetails.rollup": {
-      "testId": "initiative-details-rollup",
-      "selector": "[data-testid=\"initiative-details-rollup\"]"
-    },
-    "initiativeDetails.itemsList": {
-      "testId": "initiative-details-items-list",
-      "selector": "[data-testid=\"initiative-details-items-list\"]"
-    },
-    "initiativeDetails.itemsViewToggle": {
-      "testId": "initiative-items-view-toggle",
-      "selector": "[data-testid=\"initiative-items-view-toggle\"]"
-    },
-    "initiativeDetails.itemsListView": {
-      "testId": "initiative-items-list-view",
-      "selector": "[data-testid=\"initiative-items-list-view\"]"
-    },
-    "initiativeDetails.itemsGraphView": {
-      "testId": "initiative-items-graph-view",
-      "selector": "[data-testid=\"initiative-items-graph-view\"]"
-    },
-    "initiativeDetails.backLink": {
-      "testId": "initiative-details-back-link",
-      "selector": "[data-testid=\"initiative-details-back-link\"]"
-    },
-    "initiativeDetails.tabRow": {
-      "testId": "initiative-details-tab-row",
-      "selector": "[data-testid=\"initiative-details-tab-row\"]"
-    },
-    "initiativeDetails.tabInfo": {
-      "testId": "initiative-details-tab-info",
-      "selector": "[data-testid=\"initiative-details-tab-info\"]"
-    },
-    "initiativeDetails.tabFiles": {
-      "testId": "initiative-details-tab-files",
-      "selector": "[data-testid=\"initiative-details-tab-files\"]"
-    },
-    "initiativeDetails.tabFeedback": {
-      "testId": "initiative-details-tab-feedback",
-      "selector": "[data-testid=\"initiative-details-tab-feedback\"]"
-    },
-    "initiativeDetails.tabReview": {
-      "testId": "initiative-details-tab-review",
-      "selector": "[data-testid=\"initiative-details-tab-review\"]"
-    },
-    "initiativeDetails.tabRelated": {
-      "testId": "initiative-details-tab-related",
-      "selector": "[data-testid=\"initiative-details-tab-related\"]"
-    },
-    "initiativeDetails.relatedContent": {
-      "testId": "initiative-details-related-content",
-      "selector": "[data-testid=\"initiative-details-related-content\"]"
-    },
-    "initiativeDetails.addFeedbackButtonDesktop": {
-      "testId": "initiative-details-add-feedback-desktop",
-      "selector": "[data-testid=\"initiative-details-add-feedback-desktop\"]"
-    },
-    "initiativeDetails.conceptExplainerDialog": {
+    "goalDetails.conceptExplainerDialog": {
       "testId": "concept-explainer-dialog",
       "selector": "[data-testid=\"concept-explainer-dialog\"]"
     },
@@ -1187,38 +1115,6 @@
     "related.groupSimilar": {
       "testId": "related-group-similar",
       "selector": "[data-testid=\"related-group-similar\"]"
-    },
-    "initiativeReview.panel": {
-      "testId": "initiative-review-panel",
-      "selector": "[data-testid=\"initiative-review-panel\"]"
-    },
-    "initiativeReview.triggerButton": {
-      "testId": "initiative-review-trigger",
-      "selector": "[data-testid=\"initiative-review-trigger\"]"
-    },
-    "initiativeReview.roundCard": {
-      "testId": "initiative-review-round-card",
-      "selector": "[data-testid=\"initiative-review-round-card\"]"
-    },
-    "initiativeReview.verdictAccept": {
-      "testId": "initiative-review-verdict-accept",
-      "selector": "[data-testid=\"initiative-review-verdict-accept\"]"
-    },
-    "initiativeReview.verdictFail": {
-      "testId": "initiative-review-verdict-fail",
-      "selector": "[data-testid=\"initiative-review-verdict-fail\"]"
-    },
-    "initiativeReview.verdictFollowup": {
-      "testId": "initiative-review-verdict-followup",
-      "selector": "[data-testid=\"initiative-review-verdict-followup\"]"
-    },
-    "initiativeReview.rationaleInput": {
-      "testId": "initiative-review-rationale",
-      "selector": "[data-testid=\"initiative-review-rationale\"]"
-    },
-    "initiativeReview.decisionRecord": {
-      "testId": "initiative-review-decision-record",
-      "selector": "[data-testid=\"initiative-review-decision-record\"]"
     },
     "prompts.page": {
       "testId": "prompts-page",
@@ -1747,7 +1643,7 @@
       ]
     },
     "plan.nowGroup": {
-      "description": "Now column group (initiative name or 'standalone')",
+      "description": "Now column group (milestone name or 'standalone')",
       "selectorPattern": "[data-testid=\"plan-now-group-${key}\"]",
       "testIdPattern": "plan-now-group-${key}",
       "params": [
@@ -1827,7 +1723,7 @@
           "type": "enum",
           "values": [
             "backlog",
-            "initiative",
+            "goal",
             "record"
           ]
         },

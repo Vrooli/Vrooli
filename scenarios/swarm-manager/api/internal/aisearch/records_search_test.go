@@ -131,7 +131,7 @@ func TestSearch_EntityBothIncludesRecords(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
-	// Backlog + initiative stores are nil, so EntityBoth should still pick up
+	// Backlog + goal stores are nil, so EntityBoth should still pick up
 	// the record store and return its results.
 	if resp.Total != 1 || resp.Results[0].Entity != EntityRecord {
 		t.Errorf("expected EntityBoth to surface records when only recordStore is wired; got %+v", resp)

@@ -4,7 +4,7 @@
  * Renders the Fix History block on the scenario detail page. Lets the operator
  * partition fixes by Active / Archived / All and free-text search across
  * title and name. Mounted inside ScenarioCoverageSection so a single
- * /scenarios/{name}/context fetch covers all three blocks (initiatives,
+ * /scenarios/{name}/context fetch covers all three blocks (goals,
  * orphans, fixes).
  *
  * The section answers: "has this scenario seen a related fix before?"
@@ -116,7 +116,7 @@ export function ScenarioFixHistorySection({ fixes }: ScenarioFixHistorySectionPr
                     />
                     <p className="mt-1 truncate text-[11px] text-slate-500">
                       {fix.path}
-                      {fix.initiative ? ` · initiative=${fix.initiative}` : ""}
+                      {fix.goal ? ` · goal=${fix.goal}` : ""}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] text-slate-500">

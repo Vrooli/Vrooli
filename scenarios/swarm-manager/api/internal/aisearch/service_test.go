@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 )
 
 // --- Test doubles ---
@@ -35,17 +35,17 @@ func (f *fakeBacklogReader) LoadItem(_ backlog.BacklogKind, name string) (backlo
 	return backlog.BacklogItem{}, nil
 }
 
-type fakeInitReader struct {
-	items  []initiatives.Initiative
+type fakeGoalReader struct {
+	items  []goals.Goal
 	loaded int32
 }
 
-func (f *fakeInitReader) List() ([]initiatives.Initiative, error) {
+func (f *fakeGoalReader) List() ([]goals.Goal, error) {
 	atomic.AddInt32(&f.loaded, 1)
 	return f.items, nil
 }
 
-func (f *fakeInitReader) Get(name string) (*initiatives.Initiative, error) {
+func (f *fakeGoalReader) Get(name string) (*goals.Goal, error) {
 	for i, it := range f.items {
 		if it.Name == name {
 			return &f.items[i], nil
@@ -355,13 +355,13 @@ func TestApplyFilters_TargetScenario_InterfaceSlicePayload(t *testing.T) {
 
 func TestApplyFilters_TargetScenario_OnlyAppliesToBacklog(t *testing.T) {
 	results := []AISearchResult{
-		{Entity: EntityInitiative, Score: 0.7, Payload: map[string]interface{}{
+		{Entity: EntityGoal, Score: 0.7, Payload: map[string]interface{}{
 			"name": "audio-platform",
 		}},
 	}
 	got := applyFilters(results, SearchFilters{TargetScenario: "web-console"})
 	if len(got) != 1 {
-		t.Errorf("initiative entities must pass target_scenario filter; got %+v", got)
+		t.Errorf("goal entities must pass target_scenario filter; got %+v", got)
 	}
 }
 
@@ -397,15 +397,15 @@ func TestNormalizeFilters_ExplicitFalseNotOverwrittenForFix(t *testing.T) {
 	}
 }
 
-func TestApplyFilters_InitiativeOnlyAppliesToBacklog(t *testing.T) {
+func TestApplyFilters_GoalMatchesGoalPayload(t *testing.T) {
 	results := []AISearchResult{
-		{Entity: EntityBacklog, Score: 0.9, Payload: map[string]interface{}{"initiative": "obs"}},
-		{Entity: EntityBacklog, Score: 0.8, Payload: map[string]interface{}{"initiative": "other"}},
-		{Entity: EntityInitiative, Score: 0.7, Payload: map[string]interface{}{"name": "obs"}},
+		{Entity: EntityBacklog, Score: 0.9, Payload: map[string]interface{}{"milestone": "obs"}},
+		{Entity: EntityBacklog, Score: 0.8, Payload: map[string]interface{}{"milestone": "other"}},
+		{Entity: EntityGoal, Score: 0.7, Payload: map[string]interface{}{"name": "obs"}},
 	}
-	got := applyFilters(results, SearchFilters{Initiative: "obs"})
-	if len(got) != 2 {
-		t.Fatalf("expected backlog item in 'obs' and all initiatives, got %d: %+v", len(got), got)
+	got := applyFilters(results, SearchFilters{Goal: "obs"})
+	if len(got) != 3 {
+		t.Fatalf("expected all backlogs plus matching goal, got %d: %+v", len(got), got)
 	}
 }
 
@@ -419,7 +419,7 @@ func TestService_GetStatus_Available(t *testing.T) {
 		NewVectorStore(qServer.URL, "", "b", 3),
 		NewVectorStore(qServer.URL, "", "i", 3),
 		&fakeBacklogReader{items: make([]backlog.BacklogItem, 4)},
-		&fakeInitReader{items: make([]initiatives.Initiative, 3)},
+		&fakeGoalReader{items: make([]goals.Goal, 3)},
 		0,
 	)
 	st := svc.GetStatus(context.Background())
@@ -429,10 +429,10 @@ func TestService_GetStatus_Available(t *testing.T) {
 	if !st.Ollama || !st.Qdrant {
 		t.Errorf("expected both systems ok, got %+v", st)
 	}
-	if st.IndexedBacklog != 7 || st.IndexedInitiatives != 7 {
+	if st.IndexedBacklog != 7 || st.IndexedGoals != 7 {
 		t.Errorf("expected counts 7 each (stub returns same), got %+v", st)
 	}
-	if st.OnDiskBacklog != 4 || st.OnDiskInitiatives != 3 {
+	if st.OnDiskBacklog != 4 || st.OnDiskGoals != 3 {
 		t.Errorf("on-disk counts wrong: %+v", st)
 	}
 }

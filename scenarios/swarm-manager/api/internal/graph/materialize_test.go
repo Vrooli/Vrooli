@@ -26,23 +26,23 @@ func (s *stubBacklogStore) LoadItem(kind backlog.BacklogKind, name string) (back
 	return backlog.BacklogItem{}, os.ErrNotExist
 }
 
-// stubInitiativeLister returns a fixed initiative list.
-type stubInitiativeLister struct {
-	entries []InitiativeEntry
+// stubGoalLister returns a fixed goal list.
+type stubGoalLister struct {
+	entries []GoalEntry
 }
 
-func (s *stubInitiativeLister) List() ([]InitiativeEntry, error) {
+func (s *stubGoalLister) List() ([]GoalEntry, error) {
 	return s.entries, nil
 }
 
-func TestMaterializeInitiative_WritesGraphJSON(t *testing.T) {
+func TestMaterializeGoal_WritesGraphJSON(t *testing.T) {
 	rootDir := t.TempDir()
 	initDir := filepath.Join(rootDir, "initiatives", "my-init")
 	if err := os.MkdirAll(initDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	lister := &stubInitiativeLister{entries: []InitiativeEntry{
+	lister := &stubGoalLister{entries: []GoalEntry{
 		{Name: "my-init", Title: "My Initiative", Status: "active", Items: []string{"execute/foo", "execute/bar"}},
 	}}
 	store := &stubBacklogStore{items: map[string]backlog.BacklogItem{
@@ -54,8 +54,8 @@ func TestMaterializeInitiative_WritesGraphJSON(t *testing.T) {
 		return filepath.Join(rootDir, "initiatives", name)
 	})
 
-	if err := m.MaterializeInitiative(context.Background(), "my-init"); err != nil {
-		t.Fatalf("MaterializeInitiative: %v", err)
+	if err := m.MaterializeGoal(context.Background(), "my-init"); err != nil {
+		t.Fatalf("MaterializeGoal: %v", err)
 	}
 
 	data, err := os.ReadFile(filepath.Join(initDir, "graph.json"))
@@ -67,8 +67,8 @@ func TestMaterializeInitiative_WritesGraphJSON(t *testing.T) {
 		t.Fatalf("unmarshal graph.json: %v", err)
 	}
 
-	if g.Initiative != "my-init" {
-		t.Errorf("Initiative = %q, want %q", g.Initiative, "my-init")
+	if g.Goal != "my-init" {
+		t.Errorf("Goal = %q, want %q", g.Goal, "my-init")
 	}
 	if len(g.Nodes) != 2 {
 		t.Fatalf("Nodes = %d, want 2", len(g.Nodes))
@@ -81,13 +81,13 @@ func TestMaterializeInitiative_WritesGraphJSON(t *testing.T) {
 	}
 }
 
-func TestMaterializeInitiative_DropsCrossInitiativeEdges(t *testing.T) {
+func TestMaterializeGoal_DropsCrossGoalEdges(t *testing.T) {
 	rootDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(rootDir, "initiatives", "a"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	lister := &stubInitiativeLister{entries: []InitiativeEntry{
+	lister := &stubGoalLister{entries: []GoalEntry{
 		{Name: "a", Status: "active", Items: []string{"execute/inside"}},
 	}}
 	store := &stubBacklogStore{items: map[string]backlog.BacklogItem{
@@ -99,7 +99,7 @@ func TestMaterializeInitiative_DropsCrossInitiativeEdges(t *testing.T) {
 	m := NewMaterializer(lister, store, func(name string) string {
 		return filepath.Join(rootDir, "initiatives", name)
 	})
-	if err := m.MaterializeInitiative(context.Background(), "a"); err != nil {
+	if err := m.MaterializeGoal(context.Background(), "a"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -111,14 +111,14 @@ func TestMaterializeInitiative_DropsCrossInitiativeEdges(t *testing.T) {
 	}
 }
 
-func TestMaterializeInitiative_SkipsWriteWhenContentUnchanged(t *testing.T) {
+func TestMaterializeGoal_SkipsWriteWhenContentUnchanged(t *testing.T) {
 	rootDir := t.TempDir()
 	initDir := filepath.Join(rootDir, "initiatives", "steady")
 	if err := os.MkdirAll(initDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	lister := &stubInitiativeLister{entries: []InitiativeEntry{
+	lister := &stubGoalLister{entries: []GoalEntry{
 		{Name: "steady", Status: "active", Items: []string{"execute/foo", "execute/bar"}},
 	}}
 	store := &stubBacklogStore{items: map[string]backlog.BacklogItem{
@@ -129,7 +129,7 @@ func TestMaterializeInitiative_SkipsWriteWhenContentUnchanged(t *testing.T) {
 		return filepath.Join(rootDir, "initiatives", name)
 	})
 
-	if err := m.MaterializeInitiative(context.Background(), "steady"); err != nil {
+	if err := m.MaterializeGoal(context.Background(), "steady"); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(initDir, "graph.json")
@@ -177,7 +177,7 @@ func TestMaterializeInitiative_SkipsWriteWhenContentUnchanged(t *testing.T) {
 		Name: "bar", Kind: backlog.KindExecute, Title: "Bar Renamed",
 		Status: backlog.StatusBacklog, Priority: 2, DependsOn: []string{"execute/foo"},
 	}
-	if err := m.MaterializeInitiative(context.Background(), "steady"); err != nil {
+	if err := m.MaterializeGoal(context.Background(), "steady"); err != nil {
 		t.Fatal(err)
 	}
 	thirdContent, err := os.ReadFile(path)
@@ -189,7 +189,7 @@ func TestMaterializeInitiative_SkipsWriteWhenContentUnchanged(t *testing.T) {
 	}
 }
 
-func TestMaterializeInitiative_RemovesStaleGraph(t *testing.T) {
+func TestMaterializeGoal_RemovesStaleGraph(t *testing.T) {
 	rootDir := t.TempDir()
 	initDir := filepath.Join(rootDir, "initiatives", "gone")
 	if err := os.MkdirAll(initDir, 0o755); err != nil {
@@ -202,12 +202,12 @@ func TestMaterializeInitiative_RemovesStaleGraph(t *testing.T) {
 	}
 
 	// Lister reports no such initiative → materializer should remove the stale file.
-	lister := &stubInitiativeLister{entries: []InitiativeEntry{}}
+	lister := &stubGoalLister{entries: []GoalEntry{}}
 	store := &stubBacklogStore{items: map[string]backlog.BacklogItem{}}
 	m := NewMaterializer(lister, store, func(name string) string {
 		return filepath.Join(rootDir, "initiatives", name)
 	})
-	if err := m.MaterializeInitiative(context.Background(), "gone"); err != nil {
+	if err := m.MaterializeGoal(context.Background(), "gone"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -246,7 +246,7 @@ func TestReadGraph_ParsesValidJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := MaterializedGraph{
-		Initiative:  "happy",
+		Goal:        "happy",
 		GeneratedAt: "2026-04-23T12:00:00Z",
 		Nodes: []MaterializedGraphNode{
 			{ID: "execute/foo", Kind: "execute", Name: "foo", Title: "Foo", Status: "backlog", Priority: 3, Effort: "M"},
@@ -271,8 +271,8 @@ func TestReadGraph_ParsesValidJSON(t *testing.T) {
 	if got == nil {
 		t.Fatal("ReadGraph returned nil graph")
 	}
-	if got.Initiative != want.Initiative {
-		t.Errorf("Initiative = %q, want %q", got.Initiative, want.Initiative)
+	if got.Goal != want.Goal {
+		t.Errorf("Goal = %q, want %q", got.Goal, want.Goal)
 	}
 	if len(got.Nodes) != 1 || got.Nodes[0].ID != "execute/foo" {
 		t.Errorf("Nodes = %+v, want single execute/foo", got.Nodes)
@@ -333,7 +333,7 @@ func TestMaterializer_ScheduleAllCoalesces(t *testing.T) {
 		}
 	}
 
-	lister := &stubInitiativeLister{entries: []InitiativeEntry{
+	lister := &stubGoalLister{entries: []GoalEntry{
 		{Name: "one", Status: "active", Items: []string{"execute/a"}},
 		{Name: "two", Status: "active", Items: []string{"execute/a"}},
 	}}
@@ -385,7 +385,7 @@ func TestMaterializer_DispatchHookWiring(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(rootDir, "initiatives", "wired"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	lister := &stubInitiativeLister{entries: []InitiativeEntry{
+	lister := &stubGoalLister{entries: []GoalEntry{
 		{Name: "wired", Status: "active", Items: []string{"execute/a"}},
 	}}
 	counting := &countingBacklogStore{stubBacklogStore: &stubBacklogStore{

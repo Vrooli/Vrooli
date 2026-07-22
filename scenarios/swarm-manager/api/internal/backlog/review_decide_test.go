@@ -103,8 +103,8 @@ func TestReviewDecide_RejectedFromWrongStatus(t *testing.T) {
 
 // TestReviewDecide_ItemTerminalHandlerFires verifies the SetItemTerminalHandler
 // callback is invoked synchronously after a successful review-decide with the
-// target terminal status. This is the hook the initiative review service
-// uses to check whether the initiative is now ready for its own review.
+// target terminal status. This is the hook the milestone review service
+// uses to check whether the milestone is now ready for its own review.
 func TestReviewDecide_ItemTerminalHandlerFires(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 	createTestItem(t, rootDir, KindExecute, BacklogItem{

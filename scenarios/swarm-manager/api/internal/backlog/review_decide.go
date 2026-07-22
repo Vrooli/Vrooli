@@ -161,7 +161,7 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Records capture: auto-write a FILLED, searchable record drawn from this
-	// item (title→trigger, description→approach, globs→scenario, initiative
+	// item (title→trigger, description→approach, globs→scenario, milestone
 	// linked) so closed work self-records into the recursive-learning loop —
 	// instead of the empty unindexed stub this hook used to make (which nothing
 	// ever filled). Runs BEFORE itemTerminalHandler so the response can include
@@ -176,7 +176,7 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 			Title:           item.Title,
 			Description:     item.Description,
 			AcceptanceAllow: item.AcceptanceAllow,
-			Initiative:      item.Initiative,
+			Milestone:      item.Milestone,
 			Status:          targetStatus,
 			DecidedBy:       req.DecidedBy,
 		})
@@ -188,7 +188,7 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Notify downstream consumers (e.g., initiative review) that this item
+	// Notify downstream consumers (e.g., milestone review) that this item
 	// reached a terminal status. Runs synchronously; the handler is expected
 	// to self-dispatch expensive work. Errors are not surfaced — the
 	// terminal decision is authoritative regardless of side-effect outcome.

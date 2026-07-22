@@ -30,7 +30,7 @@ describe("attachStarterSuggestions (attach-sheet view of the starter cards)", ()
     expect(backlogCard?.text).toBe('Plan follow-up work for "Fix flaky stats test".');
     const generic = suggestions.find((s) => s.id === "meta-plan");
     expect(generic?.specific).toBe(false);
-    expect(generic?.text).toBe("Turn this idea into initiatives and backlog items.");
+    expect(generic?.text).toBe("Turn this idea into goals and backlog items.");
   });
 
   it("drops cards that require a different context type", () => {

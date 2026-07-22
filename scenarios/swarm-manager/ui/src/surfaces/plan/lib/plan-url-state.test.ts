@@ -11,7 +11,7 @@ describe("readPlanStateFromUrl", () => {
     const state = readPlanStateFromUrl(new URLSearchParams());
     expect(state.filters.windowSeconds).toBe(DEFAULT_PLAN_WINDOW_SECONDS);
     expect(state.filters.statuses).toEqual([]);
-    expect(state.viewMode).toBe("by-initiative");
+    expect(state.viewMode).toBe("by-milestone");
     expect(state.showSnoozed).toBe(false);
     expect(state.goal).toBe("");
   });
@@ -49,7 +49,7 @@ describe("readPlanStateFromUrl", () => {
     expect(state.filters.lanes).toEqual([]);
     expect(state.filters.ownerTypes).toEqual([]);
     expect(state.filters.windowSeconds).toBe(DEFAULT_PLAN_WINDOW_SECONDS);
-    expect(state.viewMode).toBe("by-initiative");
+    expect(state.viewMode).toBe("by-milestone");
   });
 });
 

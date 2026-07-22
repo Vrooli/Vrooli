@@ -3,7 +3,7 @@
  *
  * Wraps `GET /api/v1/operations` and normalizes the snake_case wire shape
  * into the camelCase `OperationsView` UI type. Mirrors the field-by-field
- * normalization pattern established by `initiative-mode-service.ts` —
+ * normalization pattern established by `milestone-mode-service.ts` —
  * we deliberately avoid generic snake→camel converters so renames on the
  * backend surface here as type errors instead of silently mismatching.
  *
@@ -85,7 +85,7 @@ function normalizeActivity(raw: unknown): ActivityRow {
     mode: stringValue(row.mode, "") || undefined,
     phase: stringValue(row.phase, "") || undefined,
     round: typeof row.round === "number" && row.round > 0 ? row.round : undefined,
-    initiativeName: stringValue(row.initiative_name ?? row.initiativeName, "") || undefined,
+    milestoneName: stringValue(row.milestone_name ?? row.milestoneName, "") || undefined,
     requestedAt: stringValue(row.requested_at ?? row.requestedAt),
     startedAt: stringValue(row.started_at ?? row.startedAt, "") || undefined,
     finishedAt: stringValue(row.finished_at ?? row.finishedAt, "") || undefined,
@@ -133,7 +133,7 @@ function normalizeBriefingSummary(raw: unknown): OperationsBriefingSummary {
       Object.entries(laneCounts).filter((entry): entry is [string, number] => typeof entry[1] === "number"),
     ),
     totalBacklogItems: numberValue(summary.total_backlog_items ?? summary.totalBacklogItems),
-    activeInitiatives: numberValue(summary.active_initiatives ?? summary.activeInitiatives),
+    activeGoals: numberValue(summary.active_goals ?? summary.activeGoals),
     blockedItems: numberValue(summary.blocked_items ?? summary.blockedItems),
     activeSessions: numberValue(summary.active_sessions ?? summary.activeSessions),
   };

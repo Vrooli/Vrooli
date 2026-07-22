@@ -3,8 +3,6 @@ package stats
 import (
 	"sort"
 	"time"
-
-	"swarm-manager/internal/initiatives"
 )
 
 // MinSampleMeaningful is the threshold below which a metric renders as
@@ -134,7 +132,7 @@ func (s *aggregateState) buildSession() SessionStats {
 		FailedSessionRate:                 failedRate,
 		FailedSessionSampleSize:           terminal,
 		SessionCreatedBacklogItems:        s.sessionCreatedBacklogItems,
-		SessionCreatedInitiatives:         s.sessionCreatedInitiatives,
+		SessionCreatedGoals:               s.sessionCreatedInitiatives,
 	}
 }
 
@@ -159,11 +157,13 @@ func isTerminalSessionStatus(status string) bool {
 func (s *aggregateState) buildMode() ModeStats {
 	usage := make(map[string]int)
 	for name := range s.initiativeCreated {
-		// Blank means the initiative never switched modes: it runs the
-		// member-item workflow strategy. Normalize through the single seam so
-		// the stats bucket carries the sentinel wire value (presentation
-		// relabels it; the bucket is never dropped or merged).
-		mode := initiatives.NormalizeMode(s.initiativeMode[name])
+		// Blank historical mode values represent the default item-level
+		// workflow. The initiative service is retired, so stats normalizes
+		// archived event data locally rather than depending on that package.
+		mode := s.initiativeMode[name]
+		if mode == "" {
+			mode = "item-level"
+		}
 		usage[mode]++
 	}
 
@@ -336,10 +336,10 @@ func (s *aggregateState) buildTiming() TimingStats {
 }
 
 func (s *aggregateState) buildScope() ScopeStats {
-	inits := []InitiativeHealth{}
+	inits := []GoalHealth{}
 	for name := range s.initiativeCreated {
 		items := s.initiativeItems[name]
-		ih := InitiativeHealth{
+		ih := GoalHealth{
 			Name:  name,
 			Total: len(items),
 		}
@@ -363,7 +363,7 @@ func (s *aggregateState) buildScope() ScopeStats {
 	sort.Slice(inits, func(i, j int) bool { return inits[i].Name < inits[j].Name })
 
 	return ScopeStats{
-		Initiatives: inits,
+		Goals: inits,
 	}
 }
 

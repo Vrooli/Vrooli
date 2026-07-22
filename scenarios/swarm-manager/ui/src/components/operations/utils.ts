@@ -141,14 +141,14 @@ export function activitySubtitle(row: ActivityRow): string {
 }
 
 /**
- * Group activities by initiative. Initiative-owned activities cluster
- * under their `initiativeName` (or `ownerName` when ownerType is
- * "initiative"); everything else (item-level work, scenario/capture
+ * Group activities by milestone. Milestone-owned activities cluster
+ * under their `milestoneName` (or `ownerName` when ownerType is
+ * "milestone"); everything else (item-level work, scenario/capture
  * spawns, sessions) lands in a single "standalone" bucket the
- * by-initiative view renders at the bottom.
+ * by-milestone view renders at the bottom.
  */
-export interface InitiativeGroup {
-  /** Stable key — initiative name, or "" for the standalone bucket. */
+export interface MilestoneGroup {
+  /** Stable key — milestone name, or "" for the standalone bucket. */
   key: string;
   /** Display label — derived from the first row that supplied it. */
   label: string;
@@ -157,31 +157,31 @@ export interface InitiativeGroup {
   standalone: boolean;
 }
 
-export function groupByInitiative(rows: ActivityRow[]): InitiativeGroup[] {
-  const groups = new Map<string, InitiativeGroup>();
+export function groupByMilestone(rows: ActivityRow[]): MilestoneGroup[] {
+  const groups = new Map<string, MilestoneGroup>();
   const standaloneKey = "";
   for (const row of rows) {
-    const initiative =
-      row.initiativeName ||
-      (row.ownerType === "initiative" ? row.ownerName : "");
-    const key = initiative || standaloneKey;
+    const milestone =
+      row.milestoneName ||
+      (row.ownerType === "milestone" ? row.ownerName : "");
+    const key = milestone || standaloneKey;
     const existing = groups.get(key);
     if (existing) {
       existing.rows.push(row);
-      if (!existing.label && initiative) existing.label = initiative;
+      if (!existing.label && milestone) existing.label = milestone;
     } else {
       groups.set(key, {
         key,
-        label: initiative,
+        label: milestone,
         rows: [row],
-        standalone: !initiative,
+        standalone: !milestone,
       });
     }
   }
-  // Order: initiative groups first (alphabetical by label), standalone last.
-  const initiativeGroups = Array.from(groups.values())
+  // Order: milestone groups first (alphabetical by label), standalone last.
+  const milestoneGroups = Array.from(groups.values())
     .filter((g) => !g.standalone)
     .sort((a, b) => a.label.localeCompare(b.label));
   const standalone = groups.get(standaloneKey);
-  return standalone ? [...initiativeGroups, standalone] : initiativeGroups;
+  return standalone ? [...milestoneGroups, standalone] : milestoneGroups;
 }

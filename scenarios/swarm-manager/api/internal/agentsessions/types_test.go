@@ -131,7 +131,7 @@ func validSession() Session {
 		CreatedAt:      testTimestamp,
 		UpdatedAt:      testTimestamp,
 		CreatedBy:      attr,
-		ProposalTarget: &ProposalTarget{Type: ContextInitiative, Ref: "api-quality-gates", Name: "API Quality Gates"},
+		ProposalTarget: &ProposalTarget{Type: ContextGoal, Ref: "api-quality-gates", Name: "API Quality Gates"},
 		Messages: []Message{{
 			ID:        "msg-1",
 			Role:      MessageRoleUser,
@@ -142,7 +142,7 @@ func validSession() Session {
 			ID:          "prop-1",
 			Kind:        ProposalBacklogBatchImport,
 			Status:      ProposalStatusReady,
-			Summary:     "Create the API quality gate initiative.",
+			Summary:     "Create the API quality gate milestone.",
 			PayloadJSON: `{"items":[]}`,
 			CreatedAt:   testTimestamp,
 			UpdatedAt:   testTimestamp,
@@ -151,7 +151,7 @@ func validSession() Session {
 		Artifacts: []Artifact{{
 			ID:             "art-1",
 			SessionID:      "sess_test",
-			ArtifactType:   ArtifactInitiative,
+			ArtifactType:   ArtifactMilestone,
 			Action:         ArtifactActionProposed,
 			EntityRef:      "api-quality-gates",
 			Title:          "API Quality Gates",

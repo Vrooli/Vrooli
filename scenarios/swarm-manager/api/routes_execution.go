@@ -73,7 +73,7 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 	if s.backlogHandler != nil {
 		filerCfg := backlog.ServiceConfig{
 			Store:    s.backlogHandler.Store(),
-			Assigner: s.initiativeService,
+			Assigner: s.milestoneAssigner,
 		}
 		if s.emitter != nil {
 			filerCfg.Events = s.emitter

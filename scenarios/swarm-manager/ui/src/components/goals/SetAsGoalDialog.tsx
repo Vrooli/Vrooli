@@ -1,5 +1,5 @@
 /**
- * SetAsGoalDialog — promote a backlog item or initiative to a goal. The target
+ * SetAsGoalDialog — promote a backlog item to a goal. The target
  * can be added to any existing goal (as a new end-state target) or seed a brand
  * new goal. Shared by the graph node inspector and the plan card menu.
  */
@@ -15,7 +15,7 @@ import { useGoals, useGoalMutations } from "../../surfaces/plan/hooks/useGoals";
 export interface SetAsGoalDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Target ref: "<kind>/<name>" for an item or "initiative/<name>". */
+  /** Target ref: "<kind>/<name>" for a backlog item. */
   targetRef: string;
   /** Human title used to seed a new goal and label the dialog. */
   targetTitle: string;

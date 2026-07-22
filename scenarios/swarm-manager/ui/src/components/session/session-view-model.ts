@@ -17,7 +17,7 @@ export const SESSION_KIND_LAUNCHER_LABELS: Record<Exclude<AgentSessionKind, "ope
 };
 
 export const SESSION_KIND_DESCRIPTIONS: Record<Exclude<AgentSessionKind, "operating_mode_authoring">, string> = {
-  meta_orchestration: "Draft initiatives, backlog items, and approval-ready work plans.",
+  meta_orchestration: "Draft goals, backlog items, and approval-ready work plans.",
   swarm_operations: "Review progress, pending decisions, priorities, and work routing.",
 	workflow_authoring: "Turn your agent-working method into a reviewed workflow or a Swarm improvement proposal.",
 };

@@ -12,8 +12,7 @@ import (
 type SubjectKind string
 
 const (
-	SubjectBacklog    SubjectKind = "backlog_item"
-	SubjectInitiative SubjectKind = "initiative"
+	SubjectBacklog SubjectKind = "backlog_item"
 )
 
 type Subject struct {
@@ -22,7 +21,7 @@ type Subject struct {
 }
 
 func (s Subject) Validate() error {
-	if s.Kind != SubjectBacklog && s.Kind != SubjectInitiative {
+	if s.Kind != SubjectBacklog {
 		return fmt.Errorf("workshop subject kind is invalid")
 	}
 	if strings.TrimSpace(s.Ref) == "" {

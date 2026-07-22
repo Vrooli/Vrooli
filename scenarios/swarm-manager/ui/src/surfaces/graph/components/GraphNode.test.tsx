@@ -92,11 +92,11 @@ describe("GraphNode — actionable badge", () => {
   });
 });
 
-import { makeInitiativeNode } from "../test-helpers";
+import { makeGoalNode } from "../test-helpers";
 
-describe("GraphNode — initiative active round chip", () => {
+describe("GraphNode — goal active round chip", () => {
   it("renders the active-round chip with phase label when an active round is present", () => {
-    const node = makeInitiativeNode("initiative/foo", {
+    const node = makeGoalNode("goal/foo", {
       activeRound: { mode: "holistic-loop", phase: "investigate", round: 3, status: "agent_running" },
       operatingMode: "holistic-loop",
     });
@@ -104,14 +104,14 @@ describe("GraphNode — initiative active round chip", () => {
     expect(screen.getByTestId("graph-node-active-round-chip")).toHaveTextContent("Investigate");
   });
 
-  it("does not render the chip on initiatives without an active round", () => {
-    const node = makeInitiativeNode("initiative/foo", {});
+  it("does not render the chip on goals without an active round", () => {
+    const node = makeGoalNode("goal/foo", {});
     renderGraphNode(node.data);
     expect(screen.queryByTestId("graph-node-active-round-chip")).toBeNull();
   });
 
   it("renders the chip in a non-pulsing variant when status is reserved", () => {
-    const node = makeInitiativeNode("initiative/foo", {
+    const node = makeGoalNode("goal/foo", {
       activeRound: { mode: "holistic-loop", phase: "plan", round: 1, status: "reserved" },
     });
     renderGraphNode(node.data);

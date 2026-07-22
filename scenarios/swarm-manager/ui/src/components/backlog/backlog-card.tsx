@@ -21,7 +21,7 @@ import type { AttentionReason } from "../../lib/attention";
 import type { StepperCompletionResult } from "./inline-question-stepper";
 import { InlineQuestionStepper } from "./inline-question-stepper";
 import { PendingDecisionBadge } from "./pending-decision-badge";
-import { InitiativeBadge } from "./initiative-badge";
+import { MilestoneBadge } from "./milestone-badge";
 import { DependencyIndicator } from "./dependency-indicator";
 import { ScenarioBadge } from "./scenario-badge";
 import { AgentRunningBadge } from "./agent-running-badge";
@@ -234,9 +234,9 @@ function BacklogCardImpl({
               <PendingDecisionBadge reasons={attentionReasons} />
             </div>
           )}
-          {(item.initiative || (item.dependsOn && item.dependsOn.length > 0)) && (
+          {(item.milestone || (item.dependsOn && item.dependsOn.length > 0)) && (
             <div className="mt-2 flex flex-wrap gap-1">
-              <InitiativeBadge initiative={item.initiative} />
+              <MilestoneBadge milestone={item.milestone} />
               <DependencyIndicator dependsOn={item.dependsOn} />
             </div>
           )}

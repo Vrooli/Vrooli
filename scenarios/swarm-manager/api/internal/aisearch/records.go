@@ -10,7 +10,7 @@ import (
 
 // recordPointID returns the deterministic UUIDv5 Qdrant point ID for a record.
 // The namespace prefix "swarm-manager:record/" is distinct from backlog/
-// initiative prefixes so collisions across collections are impossible by
+// milestone prefixes so collisions across collections are impossible by
 // construction; see vectorstore.go:qdrantNamespace.
 func recordPointID(id string) string {
 	if id == "" {
@@ -42,7 +42,7 @@ func buildRecordPayload(r records.Record, payloadHash string) map[string]interfa
 		"kind":          string(r.Kind),
 		"scenario":      r.Scenario,
 		"backlog_ref":   r.BacklogRef,
-		"initiative_id": r.InitiativeID,
+		"milestone_id":  r.MilestoneID,
 		"supersedes":    r.Supersedes,
 		"superseded_by": r.SupersededBy,
 		"outcome":       string(r.Outcome),
@@ -87,7 +87,7 @@ func (s *Service) IndexRecord(ctx context.Context, r records.Record) error {
 
 	id := recordPointID(r.ID)
 	// Records have NO reconciler coverage — the aisearch Reconciler ensures only
-	// the backlog + initiative collections (reconciler.go), so this write-through
+	// the backlog + milestone collections (reconciler.go), so this write-through
 	// is the sole path that populates the records collection. Ensure it exists
 	// before the upsert; otherwise the first record upsert hits a non-existent
 	// collection (404) and, because records.Service swallows index errors, records

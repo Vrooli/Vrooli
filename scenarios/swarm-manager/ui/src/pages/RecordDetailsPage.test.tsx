@@ -12,7 +12,7 @@ function makeRecord(overrides: Partial<RecordItem> = {}): RecordItem {
     kind: "fix",
     scenario: "web-console",
     backlogRef: "fix/silence-race",
-    initiativeId: "voice-reliability",
+    milestoneId: "voice-reliability",
     supersedes: "rec-old",
     supersededBy: "rec-new",
     trigger: "voice auto-stop silence race",
@@ -40,7 +40,7 @@ describe("RecordDetailsPage reference links", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders backlog, initiative, and supersede refs as in-app links to the right routes", async () => {
+  it("renders backlog, milestone, and supersede refs as in-app links to the right routes", async () => {
     vi.spyOn(recordsService, "get").mockResolvedValue(makeRecord());
     renderPage();
 
@@ -48,18 +48,18 @@ describe("RecordDetailsPage reference links", () => {
       expect(screen.getByTestId("record-backlog-link")).toBeInTheDocument();
     });
     expect(screen.getByTestId("record-backlog-link")).toHaveAttribute("href", "/backlog/fix/silence-race");
-    expect(screen.getByTestId("record-initiative-link")).toHaveAttribute("href", "/initiatives/voice-reliability");
+    expect(screen.getByTestId("record-milestone-link")).toHaveAttribute("href", "/milestones/voice-reliability");
     expect(screen.getByTestId("record-supersedes-link")).toHaveAttribute("href", "/records/rec-old");
     expect(screen.getByTestId("record-superseded-by-link")).toHaveAttribute("href", "/records/rec-new");
   });
 
-  it("omits the initiative link when the record has no initiative", async () => {
-    vi.spyOn(recordsService, "get").mockResolvedValue(makeRecord({ initiativeId: undefined }));
+  it("omits the milestone link when the record has no milestone", async () => {
+    vi.spyOn(recordsService, "get").mockResolvedValue(makeRecord({ milestoneId: undefined }));
     renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("record-backlog-link")).toBeInTheDocument();
     });
-    expect(screen.queryByTestId("record-initiative-link")).toBeNull();
+    expect(screen.queryByTestId("record-milestone-link")).toBeNull();
   });
 });

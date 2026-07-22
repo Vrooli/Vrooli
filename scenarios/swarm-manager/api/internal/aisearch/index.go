@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 	"swarm-manager/internal/pathutil"
 )
 
@@ -23,11 +23,11 @@ type BacklogReader interface {
 	LoadItem(kind backlog.BacklogKind, name string) (backlog.BacklogItem, error)
 }
 
-// InitiativeReader is the minimum surface aisearch needs to enumerate and
-// load initiatives. Implemented by initiatives.Service via an adapter.
-type InitiativeReader interface {
-	List() ([]initiatives.Initiative, error)
-	Get(name string) (*initiatives.Initiative, error)
+// GoalReader is the minimum surface aisearch needs to enumerate and load
+// goals.
+type GoalReader interface {
+	List() ([]goals.Goal, error)
+	Get(name string) (*goals.Goal, error)
 }
 
 // qdrantNamespace is a stable namespace UUID used to derive deterministic
@@ -54,14 +54,13 @@ func backlogPointID(kind backlog.BacklogKind, name string) string {
 	return uuidV5(qdrantNamespace, "swarm-manager:"+k+"/"+n)
 }
 
-// initiativePointID returns the deterministic UUIDv5 Qdrant point ID for an
-// initiative.
-func initiativePointID(name string) string {
+// goalPointID returns the deterministic UUIDv5 Qdrant point ID for a goal.
+func goalPointID(name string) string {
 	n := strings.TrimSpace(name)
 	if n == "" {
 		n = "unknown"
 	}
-	return uuidV5(qdrantNamespace, "swarm-manager:initiative/"+n)
+	return uuidV5(qdrantNamespace, "swarm-manager:goal/"+n)
 }
 
 func uuidV5(namespace [16]byte, name string) string {
@@ -126,8 +125,8 @@ func composeBacklogText(item backlog.BacklogItem) string {
 	if status := strings.TrimSpace(string(item.Status)); status != "" {
 		parts = append(parts, "Status: "+status)
 	}
-	if init := strings.TrimSpace(item.Initiative); init != "" {
-		parts = append(parts, "Initiative: "+init)
+	if init := strings.TrimSpace(item.Milestone); init != "" {
+		parts = append(parts, "Milestone: "+init)
 	}
 	if effort := strings.TrimSpace(item.Effort); effort != "" {
 		parts = append(parts, "Effort: "+effort)
@@ -145,30 +144,21 @@ func composeBacklogText(item backlog.BacklogItem) string {
 	return strings.Join(parts, "\n\n")
 }
 
-// composeInitiativeText builds the embedding input text for an initiative.
-func composeInitiativeText(init initiatives.Initiative) string {
+// composeGoalText builds the embedding input text for a goal.
+func composeGoalText(goal goals.Goal) string {
 	var parts []string
 
-	if title := strings.TrimSpace(init.Title); title != "" {
+	if title := strings.TrimSpace(goal.Title); title != "" {
 		parts = append(parts, title)
 	}
-	if desc := strings.TrimSpace(init.Description); desc != "" {
+	if desc := strings.TrimSpace(goal.Description); desc != "" {
 		parts = append(parts, "Description: "+desc)
 	}
-	if status := strings.TrimSpace(init.Status); status != "" {
+	if status := strings.TrimSpace(goal.Status); status != "" {
 		parts = append(parts, "Status: "+status)
 	}
-	if len(init.DependsOn) > 0 {
-		parts = append(parts, "Dependencies: "+strings.Join(init.DependsOn, ", "))
-	}
-	if len(init.Items) > 0 {
-		parts = append(parts, "Items: "+strings.Join(init.Items, ", "))
-	}
-	if note := strings.TrimSpace(init.Note); note != "" {
-		if len(note) > 2000 {
-			note = note[:2000] + "..."
-		}
-		parts = append(parts, "Note: "+note)
+	if len(goal.Targets) > 0 {
+		parts = append(parts, "Targets: "+strings.Join(goal.Targets, ", "))
 	}
 
 	return strings.Join(parts, "\n\n")
@@ -197,7 +187,7 @@ func buildBacklogPayload(item backlog.BacklogItem, payloadHash string) map[strin
 		"status":           string(item.Status),
 		"priority":         item.Priority,
 		"tags":             tags,
-		"initiative":       item.Initiative,
+		"milestone":        item.Milestone,
 		"effort":           item.Effort,
 		"archived":         item.ArchivedAt != nil,
 		"target_scenarios": scenarios,
@@ -208,16 +198,16 @@ func buildBacklogPayload(item backlog.BacklogItem, payloadHash string) map[strin
 	return out
 }
 
-// buildInitiativePayload returns the Qdrant payload map for an initiative.
+// buildGoalPayload returns the Qdrant payload map for a goal.
 // payloadHash, if non-empty, is added under "payload_hash" — same convention
 // as buildBacklogPayload.
-func buildInitiativePayload(init initiatives.Initiative, payloadHash string) map[string]interface{} {
+func buildGoalPayload(goal goals.Goal, payloadHash string) map[string]interface{} {
 	out := map[string]interface{}{
-		"name":     init.Name,
-		"title":    init.Title,
-		"status":   init.Status,
-		"priority": init.Priority,
-		"archived": init.ArchivedAt != nil,
+		"name":     goal.Name,
+		"title":    goal.Title,
+		"status":   goal.Status,
+		"priority": goal.Priority,
+		"archived": goal.ArchivedAt != nil,
 	}
 	if payloadHash != "" {
 		out["payload_hash"] = payloadHash
@@ -267,39 +257,38 @@ func (s *Service) DeleteBacklogItem(ctx context.Context, kind backlog.BacklogKin
 	return nil
 }
 
-// IndexInitiative embeds and upserts an initiative's vector.
-func (s *Service) IndexInitiative(ctx context.Context, init initiatives.Initiative) error {
-	if s.embedder == nil || s.initiativeStore == nil {
-		return fmt.Errorf("aisearch not configured for initiative indexing")
+// IndexGoal embeds and upserts a goal's vector.
+func (s *Service) IndexGoal(ctx context.Context, goal goals.Goal) error {
+	if s.embedder == nil || s.goalStore == nil {
+		return fmt.Errorf("aisearch not configured for goal indexing")
 	}
-
-	text := composeInitiativeText(init)
-	payload := buildInitiativePayload(init, "")
+	text := composeGoalText(goal)
+	payload := buildGoalPayload(goal, "")
 	payload["payload_hash"] = composePayloadHash(text, payload)
 
 	vector, err := s.embedder.Embed(ctx, text)
 	if err != nil {
-		return fmt.Errorf("embed initiative %s: %w", init.Name, err)
+		return fmt.Errorf("embed goal %s: %w", goal.Name, err)
 	}
 
-	id := initiativePointID(init.Name)
-	if err := s.initiativeStore.Upsert(ctx, id, vector, payload); err != nil {
-		return fmt.Errorf("upsert initiative %s: %w", init.Name, err)
+	id := goalPointID(goal.Name)
+	if err := s.goalStore.Upsert(ctx, id, vector, payload); err != nil {
+		return fmt.Errorf("upsert goal %s: %w", goal.Name, err)
 	}
 
-	slog.Debug("[aisearch] indexed initiative", "name", init.Name, "id", id)
+	slog.Debug("[aisearch] indexed goal", "name", goal.Name, "id", id)
 	return nil
 }
 
-// DeleteInitiative removes the vector for an initiative.
-func (s *Service) DeleteInitiative(ctx context.Context, name string) error {
-	if s.initiativeStore == nil {
-		return fmt.Errorf("aisearch not configured for initiative indexing")
+// DeleteGoal removes the vector for a goal.
+func (s *Service) DeleteGoal(ctx context.Context, name string) error {
+	if s.goalStore == nil {
+		return fmt.Errorf("aisearch not configured for goal indexing")
 	}
-	id := initiativePointID(name)
-	if err := s.initiativeStore.Delete(ctx, id); err != nil {
-		return fmt.Errorf("delete initiative %s: %w", name, err)
+	id := goalPointID(name)
+	if err := s.goalStore.Delete(ctx, id); err != nil {
+		return fmt.Errorf("delete goal %s: %w", name, err)
 	}
-	slog.Debug("[aisearch] deleted initiative from index", "name", name, "id", id)
+	slog.Debug("[aisearch] deleted goal from index", "name", name, "id", id)
 	return nil
 }

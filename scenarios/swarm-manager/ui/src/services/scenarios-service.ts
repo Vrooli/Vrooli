@@ -48,8 +48,8 @@ import type {
 } from "../types";
 
 /**
- * Rollup counts for a scenario coverage view (combined across initiative
- * members and orphan items targeting the scenario).
+ * Rollup counts for a scenario coverage view (combined across goal scope
+ * items and unassigned items targeting the scenario).
  */
 export interface ScenarioContextRollup {
   total: number;
@@ -61,10 +61,10 @@ export interface ScenarioContextRollup {
 }
 
 /**
- * An initiative that targets a scenario, as returned by the coverage view.
+ * A goal whose derived scope targets a scenario, as returned by the coverage view.
  * Only the fields needed by the UI are exposed.
  */
-export interface ScenarioContextInitiative {
+export interface ScenarioContextGoal {
   name: string;
   title: string;
   status: string;
@@ -73,7 +73,7 @@ export interface ScenarioContextInitiative {
 }
 
 /**
- * A backlog item targeting a scenario but not assigned to any initiative.
+ * A backlog item targeting a scenario but not in any goal's derived scope.
  */
 export interface ScenarioContextOrphanItem {
   kind: string;
@@ -86,14 +86,14 @@ export interface ScenarioContextOrphanItem {
 
 /**
  * A fix backlog item targeting a scenario, surfaced for the Fix History
- * section. Includes both initiative-member and orphan fixes.
+ * section. Includes both goal-scope and unassigned fixes.
  */
 export interface ScenarioFix {
   name: string;
   title: string;
   status: string;
   priority: number;
-  initiative?: string;
+  goal?: string;
   updated?: string;
   archivedAt?: string;
   path: string;
@@ -108,13 +108,13 @@ export interface ScenarioFixHistory {
 }
 
 /**
- * Full coverage view for a scenario: every initiative whose member items
+ * Full coverage view for a scenario: every goal whose derived scope
  * target the scenario, every orphan backlog item targeting the scenario,
  * and a combined completion rollup.
  */
 export interface ScenarioContext {
   scenarioName: string;
-  initiatives: ScenarioContextInitiative[];
+  goals: ScenarioContextGoal[];
   orphanItems: ScenarioContextOrphanItem[];
   rollup: ScenarioContextRollup;
   fixes: ScenarioFixHistory;
@@ -167,9 +167,12 @@ interface RawRollup {
   archived?: number;
 }
 
-interface RawScenarioContextInitiative {
-  initiative?: { name?: string; title?: string; status?: string; priority?: number };
-  rollup?: RawRollup;
+interface RawScenarioContextGoal {
+  name?: string;
+  title?: string;
+  status?: string;
+  priority?: number;
+  scope?: RawRollup;
 }
 
 interface RawScenarioContextOrphan {
@@ -187,7 +190,7 @@ interface RawScenarioFix {
   title?: string;
   status?: string;
   priority?: number;
-  initiative?: string;
+  goal?: string;
   updated?: string;
   archived_at?: string;
   archivedAt?: string;
@@ -202,7 +205,7 @@ interface RawScenarioFixHistory {
 interface RawScenarioContext {
   scenario_name?: string;
   scenarioName?: string;
-  initiatives?: RawScenarioContextInitiative[];
+  goals?: RawScenarioContextGoal[];
   orphan_items?: RawScenarioContextOrphan[];
   orphanItems?: RawScenarioContextOrphan[];
   rollup?: RawRollup;
@@ -215,7 +218,7 @@ function normalizeFix(raw: RawScenarioFix): ScenarioFix {
     title: raw.title ?? "",
     status: raw.status ?? "",
     priority: raw.priority ?? 0,
-    initiative: raw.initiative,
+    goal: raw.goal,
     updated: raw.updated,
     archivedAt: raw.archivedAt ?? raw.archived_at,
     path: raw.path ?? "",
@@ -237,12 +240,12 @@ function normalizeRollup(raw: RawRollup | undefined): ScenarioContextRollup {
 function normalizeScenarioContext(raw: RawScenarioContext): ScenarioContext {
   return {
     scenarioName: raw.scenarioName ?? raw.scenario_name ?? "",
-    initiatives: (raw.initiatives ?? []).map((init) => ({
-      name: init.initiative?.name ?? "",
-      title: init.initiative?.title ?? "",
-      status: init.initiative?.status ?? "",
-      priority: init.initiative?.priority ?? 0,
-      rollup: normalizeRollup(init.rollup),
+    goals: (raw.goals ?? []).map((goal) => ({
+      name: goal.name ?? "",
+      title: goal.title ?? "",
+      status: goal.status ?? "",
+      priority: goal.priority ?? 0,
+      rollup: normalizeRollup(goal.scope),
     })),
     orphanItems: (raw.orphanItems ?? raw.orphan_items ?? []).map((o) => ({
       kind: o.kind ?? "",

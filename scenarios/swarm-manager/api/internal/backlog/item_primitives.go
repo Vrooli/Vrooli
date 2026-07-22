@@ -4,12 +4,12 @@ import (
 	"strings"
 )
 
-// ItemAttacher is the minimal initiative-side hook Service.Create uses
-// to record a new item as a member of an initiative without rewriting
-// the item file. Satisfied by both initiatives.Service and the batch
-// handler's InitiativeAssigner.
+// ItemAttacher is the minimal milestone-side hook Service.Create uses
+// to record a new item as a member of an milestone without rewriting
+// the item file. Satisfied by both milestones.Service and the batch
+// handler's MilestoneAssigner.
 type ItemAttacher interface {
-	RememberItem(initiativeName, ref string) error
+	RememberItem(milestoneName, ref string) error
 }
 
 // ItemPatch is a struct-based patch describing updatable BacklogItem
@@ -25,7 +25,7 @@ type ItemPatch struct {
 	Priority        *int
 	Tags            *[]string
 	DependsOn       *[]string
-	Initiative      *string
+	Milestone      *string
 	Effort          *string
 	AcceptanceAllow *[]string
 	AcceptanceDeny  *[]string
@@ -63,8 +63,8 @@ func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	if patch.DependsOn != nil {
 		item.DependsOn = cloneStrings(*patch.DependsOn)
 	}
-	if patch.Initiative != nil {
-		item.Initiative = strings.TrimSpace(*patch.Initiative)
+	if patch.Milestone != nil {
+		item.Milestone = strings.TrimSpace(*patch.Milestone)
 	}
 	if patch.Effort != nil {
 		item.Effort = strings.ToUpper(strings.TrimSpace(*patch.Effort))

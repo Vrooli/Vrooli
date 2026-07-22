@@ -40,10 +40,13 @@ the prompt, Runs, validation, routing, waits, retries, and provenance.
 | `work.retry` | Workflow | `swarm-manager/phased-plan-drain` | `apply_plan_execution` |
 | `work.follow_up` | Workflow | `swarm-manager/work-follow-up` | `apply_follow_up` |
 | `work.control` | Deterministic | `workflow-control-input/v1` | `control_workflow_execution` |
-| `initiative.discover` | Workflow | `swarm-manager/initiative-discover` | `apply_initiative_proposal` |
-| `initiative.plan` | Workflow | `swarm-manager/initiative-plan`; Plan Manager validates | `bind_initiative_plan_ref` |
-| `initiative.execute` | Workflow | `swarm-manager/initiative-execute`; evidence-gated | `apply_initiative_execution` |
-| `initiative.review` | Workflow | `swarm-manager/initiative-review`; evidence-gated | `apply_initiative_review` |
+| `milestone.discover` | Workflow | `swarm-manager/milestone-discover` | `apply_milestone_proposal` |
+| `milestone.plan` | Workflow | `swarm-manager/milestone-plan`; Plan Manager validates | `bind_milestone_plan_ref` |
+| `milestone.execute` | Workflow | `swarm-manager/milestone-execute`; evidence-gated | `apply_milestone_execution` |
+| `milestone.review` | Workflow | `swarm-manager/milestone-review`; evidence-gated | `apply_milestone_review` |
+| `goal.discover` | Workflow | `swarm-manager/goal-discover` | `apply_goal_proposal` |
+| `goal.plan` | Workflow | `swarm-manager/goal-plan` | `apply_goal_proposal` |
+| `milestone.review` | Workflow | `swarm-manager/milestone-review`; evidence-gated | `apply_milestone_review` |
 | `scenario.spec_sync` | Workflow | `swarm-manager/scenario-spec-sync` | `apply_scenario_spec_sync` |
 
 The table deliberately does not manufacture a one-to-one replacement for

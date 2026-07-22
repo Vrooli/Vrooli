@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 )
 
 // captureAdapter reads capture entries from the filesystem for graph projections.
@@ -80,30 +80,30 @@ func (a *captureAdapter) ListCaptures() ([]CaptureEntry, error) {
 	return result, nil
 }
 
-// initiativeAdapter bridges the initiatives store to InitiativeLister.
-type initiativeAdapter struct {
-	store *initiatives.Store
+// goalAdapter bridges goals.Service to GoalLister.
+type goalAdapter struct {
+	service *goals.Service
 }
 
-// NewInitiativeAdapter creates an InitiativeLister backed by the given initiatives.Store.
-func NewInitiativeAdapter(store *initiatives.Store) *initiativeAdapter {
-	return &initiativeAdapter{store: store}
+// NewGoalAdapter creates a GoalLister backed by the given goals.Service.
+func NewGoalAdapter(service *goals.Service) *goalAdapter {
+	return &goalAdapter{service: service}
 }
 
-func (a *initiativeAdapter) List() ([]InitiativeEntry, error) {
-	items, err := a.store.LoadAll()
+func (a *goalAdapter) List() ([]GoalEntry, error) {
+	items, err := a.service.List()
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]InitiativeEntry, 0, len(items))
+	result := make([]GoalEntry, 0, len(items))
 	for _, item := range items {
-		result = append(result, InitiativeEntry{
-			Name:       item.Name,
-			Title:      item.Title,
-			Status:     item.Status,
-			Items:      append([]string(nil), item.Items...),
-			ArchivedAt: item.ArchivedAt,
+		result = append(result, GoalEntry{
+			Name:       item.Goal.Name,
+			Title:      item.Goal.Title,
+			Status:     item.Goal.Status,
+			Items:      append([]string(nil), item.Scope.Closure...),
+			ArchivedAt: item.Goal.ArchivedAt,
 		})
 	}
 	return result, nil

@@ -40,7 +40,7 @@ import { useAgentSessionStore } from "../stores";
 import { useAgentSessionEvents } from "../hooks/useAgentSessionEvents";
 import { useAgentSessionPolling } from "../hooks/useAgentSessionPolling";
 import { useAppBack } from "../app/routes/useAppBack";
-import { backlogDetailPath, detailPathFromNodeId, initiativeDetailPath } from "../app/routes/route-paths";
+import { backlogDetailPath, detailPathFromNodeId, goalDetailPath } from "../app/routes/route-paths";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import type { AgentSession, AgentSessionArtifact } from "../types";
 
@@ -208,7 +208,7 @@ export function SessionDetailsPage() {
     requestDeleteSession({
       entityName: session.title.trim() || session.id,
       description:
-        "This removes the conversation, session details, proposal drafts, and session artifact links. Created backlog items, initiatives, captures, files, and agent activity records stay in Swarm Manager.",
+        "This removes the conversation, session details, proposal drafts, and session artifact links. Created backlog items, milestones, captures, files, and agent activity records stay in Swarm Manager.",
       confirmLabel: "Delete Session",
       testIds: {
         dialog: "session-delete-dialog",
@@ -279,8 +279,8 @@ export function SessionDetailsPage() {
       onOpenProposal={() => {
         const target = session.proposalTarget;
         if (!target) return;
-        if (target.type === "initiative") {
-          navigate(initiativeDetailPath(target.ref, { tab: "proposals" }));
+        if (target.type === "goal") {
+          navigate(goalDetailPath(target.ref, { tab: "proposals" }));
           return;
         }
         const slashIndex = target.ref.indexOf("/");

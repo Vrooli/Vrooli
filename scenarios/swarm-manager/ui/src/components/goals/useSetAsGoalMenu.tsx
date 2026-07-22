@@ -1,7 +1,8 @@
 /**
  * useSetAsGoalMenu — packages the "Set as goal" context-menu item together with
  * the SetAsGoalDialog it opens, so any list row (sidebar backlog items,
- * initiatives, …) can offer "Add to a goal" by reusing the exact flow behind
+ * scenarios, backlog items, and other eligible records can offer "Add to a goal"
+ * by reusing the exact flow behind
  * the graph node inspector's and plan card menu's "Set as goal" button.
  */
 

@@ -37,7 +37,7 @@ function runNavigateTo(action: ReturnType<typeof getAction>, node: GraphNode) {
 }
 
 describe("getActionsForNode", () => {
-  // Full graph mode: actions for capture, backlog, initiative, scenario.
+  // Full graph mode: actions for capture, backlog, goal, scenario.
   it("returns capture actions for topology/capture", () => {
     const actions = getActionsForNode("topology", "capture");
     expect(actions.map((a) => a.id)).toEqual(["classify", "create-item", "delete-capture"]);
@@ -46,13 +46,13 @@ describe("getActionsForNode", () => {
   it("returns backlog actions for topology/backlog", () => {
     const actions = getActionsForNode("topology", "backlog");
     expect(actions.map((a) => a.id)).toEqual([
-      "edit-backlog", "queue", "add-dependency", "assign-initiative", "view-files",
+      "edit-backlog", "queue", "add-dependency", "assign-goal", "view-files",
     ]);
   });
 
-  it("returns initiative actions for topology/initiative", () => {
-    const actions = getActionsForNode("topology", "initiative");
-    expect(actions.map((a) => a.id)).toEqual(["edit-initiative", "manage-members", "archive-initiative"]);
+  it("returns goal actions for topology/goal", () => {
+    const actions = getActionsForNode("topology", "goal");
+    expect(actions.map((a) => a.id)).toEqual(["edit-goal", "manage-members", "archive-goal"]);
   });
 
   it("returns scenario actions for topology/scenario", () => {
@@ -87,10 +87,10 @@ describe("action navigateTo", () => {
     expect(runNavigateTo(edit, node)).toEqual({ entityType: "backlog", kind: "execute", name: "my-task" });
   });
 
-  it("edit-initiative returns initiative DetailSelection", () => {
-    const edit = getAction("topology", "initiative", "edit-initiative");
-    const node = makeNode("initiative/my-init", "initiative", "active");
-    expect(runNavigateTo(edit, node)).toEqual({ entityType: "initiative", name: "my-init" });
+  it("edit-goal returns goal DetailSelection", () => {
+    const edit = getAction("topology", "goal", "edit-goal");
+    const node = makeNode("goal/my-init", "goal", "active");
+    expect(runNavigateTo(edit, node)).toEqual({ entityType: "goal", name: "my-init" });
   });
 
   it("view-scenario-files returns scenario DetailSelection with tab", () => {

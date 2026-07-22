@@ -76,7 +76,7 @@ func (b *BriefingBuilder) Build(ctx context.Context, filters Filters) (*Operatio
 	if b.cfg.Overview != nil {
 		if ov, err := b.cfg.Overview.GetOverview(); err == nil && ov != nil {
 			summary.TotalBacklogItems = ov.Summary.TotalItems
-			summary.ActiveInitiatives = ov.Summary.ActiveInitiatives
+			summary.ActiveGoals = ov.Summary.ActiveGoals
 			summary.BlockedItems = len(ov.DependencyGraph.Blocked)
 		} else if err != nil {
 			warnings = append(warnings, "overview unavailable: "+err.Error())
@@ -169,7 +169,7 @@ func briefingActivities(rows []ActivityRow, limit int) []BriefingActivity {
 			Mode:           row.Mode,
 			Phase:          row.Phase,
 			Round:          row.Round,
-			InitiativeName: row.InitiativeName,
+			MilestoneName:  row.MilestoneName,
 			RequestedAt:    row.RequestedAt,
 			StartedAt:      row.StartedAt,
 			FinishedAt:     row.FinishedAt,

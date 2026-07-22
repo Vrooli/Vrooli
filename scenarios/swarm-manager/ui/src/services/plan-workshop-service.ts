@@ -2,7 +2,7 @@ import { defaultApiClient, type IApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 
 export type PlanWorkshopSubject = {
-  kind: "backlog_item" | "initiative";
+  kind: "backlog_item";
   ref: string;
 };
 

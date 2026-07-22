@@ -17,7 +17,7 @@ type Record struct {
 	Kind         string   `json:"kind"`
 	Scenario     string   `json:"scenario"`
 	BacklogRef   string   `json:"backlog_ref,omitempty"`
-	InitiativeID string   `json:"initiative_id,omitempty"`
+	MilestoneID string   `json:"milestone_id,omitempty"`
 	Supersedes   string   `json:"supersedes,omitempty"`
 	SupersededBy string   `json:"superseded_by,omitempty"`
 	Trigger      string   `json:"trigger"`
@@ -302,7 +302,7 @@ func (a *App) cmdRecordsCreate(args []string) error {
 	var files stringSlice
 	fs.Var(&files, "files", "Repo-relative file path (repeatable)")
 	backlogRefFlag := fs.String("backlog-ref", "", "Backlog reference (kind/name)")
-	initiativeIDFlag := fs.String("initiative-id", "", "Initiative this work belongs to (links the record back to the initiative)")
+	milestoneIDFlag := fs.String("milestone-id", "", "Milestone this work belongs to (links the record back to the milestone)")
 	supersedesFlag := fs.String("supersedes", "", "Record ID this record supersedes")
 	outcomeFlag := fs.String("outcome", "shipped", "Outcome category (shipped|partial|abandoned|duplicate)")
 	createdByFlag := fs.String("created-by", "", "Author identifier (agent id or human)")
@@ -315,7 +315,7 @@ func (a *App) cmdRecordsCreate(args []string) error {
 		kind: *kindFlag, scenario: *scenarioFlag, trigger: *triggerFlag,
 		approach: *approachFlag, evidence: *evidenceFlag, ruledOut: ruledOut,
 		commit: *commitFlag, files: files, backlogRef: *backlogRefFlag,
-		initiativeID: *initiativeIDFlag, supersedes: *supersedesFlag,
+		milestoneID: *milestoneIDFlag, supersedes: *supersedesFlag,
 		outcome: *outcomeFlag, createdBy: *createdByFlag,
 	}
 
@@ -342,7 +342,7 @@ func (a *App) cmdRecordsCreate(args []string) error {
 		"kind":          in.kind,
 		"scenario":      in.scenario,
 		"backlog_ref":   in.backlogRef,
-		"initiative_id": in.initiativeID,
+		"milestone_id": in.milestoneID,
 		"supersedes":    in.supersedes,
 		"trigger":       in.trigger,
 		"approach":      in.approach,
@@ -581,7 +581,7 @@ const recordsOutcomes = "shipped|partial|abandoned|duplicate"
 type recordsCreateInput struct {
 	kind, scenario, trigger, approach, evidence string
 	ruledOut, files                             stringSlice
-	commit, backlogRef, initiativeID            string
+	commit, backlogRef, milestoneID            string
 	supersedes, outcome, createdBy              string
 }
 
@@ -615,7 +615,7 @@ func (in recordsCreateInput) suggestedCommand() string {
 		parts = append(parts, "--files", shellQuote(f))
 	}
 	addOpt("backlog-ref", in.backlogRef)
-	addOpt("initiative-id", in.initiativeID)
+	addOpt("milestone-id", in.milestoneID)
 	addOpt("supersedes", in.supersedes)
 	if o := strings.TrimSpace(in.outcome); o != "" && o != "shipped" {
 		parts = append(parts, "--outcome", shellQuote(o))

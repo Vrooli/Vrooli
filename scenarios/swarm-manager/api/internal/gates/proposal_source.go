@@ -29,12 +29,12 @@ func (s ProposalSource) Enumerate(_ context.Context) ([]Gate, error) {
 			if proposal.Kind != agentsessions.ProposalMutationList || proposal.Status != agentsessions.ProposalStatusReady || proposal.Target == nil {
 				continue
 			}
-			if proposal.Target.Type == agentsessions.ContextInitiative {
+			if proposal.Target.Type == agentsessions.ContextGoal {
 				name := strings.TrimSpace(proposal.Target.Ref)
 				if name == "" {
 					continue
 				}
-				key := "initiative/" + name
+				key := "goal/" + name
 				counts[key]++
 				titles[key] = proposal.Target.Name
 				continue
@@ -52,9 +52,9 @@ func (s ProposalSource) Enumerate(_ context.Context) ([]Gate, error) {
 	}
 	out := make([]Gate, 0, len(counts))
 	for ref, count := range counts {
-		if strings.HasPrefix(ref, "initiative/") {
-			name := strings.TrimPrefix(ref, "initiative/")
-			out = append(out, Gate{ID: GateID(KindProposal, "initiative", name), Kind: KindProposal, OwnerType: "initiative", OwnerName: name, OwnerTitle: titles[ref], Count: count})
+		if strings.HasPrefix(ref, "goal/") {
+			name := strings.TrimPrefix(ref, "goal/")
+			out = append(out, Gate{ID: GateID(KindProposal, "goal", name), Kind: KindProposal, OwnerType: "goal", OwnerName: name, OwnerTitle: titles[ref], Count: count})
 			continue
 		}
 		parts := strings.SplitN(ref, "/", 2)

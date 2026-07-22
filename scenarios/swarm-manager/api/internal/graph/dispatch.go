@@ -21,7 +21,7 @@ func NewDispatch(b Broadcaster, invalidator CacheInvalidator) *Dispatch {
 
 // AddInvalidateHook registers a function called after every DispatchInvalidate
 // with the normalized lens set. Hooks are invoked synchronously in registration
-// order. Used to trigger side effects (e.g., per-initiative graph.json
+// order. Used to trigger side effects (e.g., per-goal graph.json
 // materialization) in response to topology/backlog mutations.
 //
 // The hook must not panic and should be non-blocking — long-running work

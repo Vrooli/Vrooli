@@ -23,7 +23,7 @@ export type DeletableEntityType =
   | "session"
   | "scenario"
   | "backlog"
-  | "initiative"
+  | "goal"
   | "capture"
   | "backlogFile";
 
@@ -58,9 +58,9 @@ export const DELETABLE_ENTITIES: readonly DeletableEntityMeta[] = [
     defaultLevel: "simple",
   },
   {
-    type: "initiative",
-    label: "Initiatives",
-    description: "Initiative groupings and their metadata.",
+    type: "goal",
+    label: "Goals",
+    description: "Goals and their owned milestones.",
     defaultLevel: "strong",
   },
   {

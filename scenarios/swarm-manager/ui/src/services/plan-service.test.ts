@@ -40,14 +40,14 @@ describe("plan service Create-Work-From-Plan methods", () => {
     }]);
   });
 
-  it("posts an import request and maps item and initiative results", async () => {
+  it("posts an import request and maps item and milestone results", async () => {
     const api = mockClient();
     vi.mocked(api.post).mockResolvedValue({
       slug: "alpha-plan",
       plan_id: "plan-1",
-      container: "initiative",
+      container: "milestone",
       items: [{ kind: "execute", name: "alpha-phase-1", title: "Build", action: "created" }],
-      initiative: { name: "alpha", title: "Alpha", mode: "phased-plan-drain", action: "created" },
+      milestone: { name: "alpha", title: "Alpha", mode: "phased-plan-drain", action: "created" },
       count: 1,
       created: 1,
       linked: 0,
@@ -56,7 +56,7 @@ describe("plan service Create-Work-From-Plan methods", () => {
 
     const result = await createPlanService(api).importPlan({
       planId: "plan-1",
-      container: { type: "initiative", name: "alpha", mode: "phased-plan-drain" },
+      container: { type: "milestone", name: "alpha", mode: "phased-plan-drain" },
     });
 
     expect(api.post).toHaveBeenCalledWith("/plan-import", {
@@ -65,9 +65,9 @@ describe("plan service Create-Work-From-Plan methods", () => {
       markdown: undefined,
       title: undefined,
       slug: undefined,
-      container: { type: "initiative", name: "alpha", mode: "phased-plan-drain" },
+      container: { type: "milestone", name: "alpha", mode: "phased-plan-drain" },
     }, { signal: undefined });
-    expect(result.initiative?.name).toBe("alpha");
+    expect(result.milestone?.name).toBe("alpha");
     expect(result.items[0]?.name).toBe("alpha-phase-1");
   });
 });

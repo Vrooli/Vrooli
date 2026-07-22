@@ -312,8 +312,8 @@ func printFixTable(fixes []ScenarioFix) {
 			archived = " · archived " + *f.ArchivedAt
 		}
 		init := ""
-		if f.Initiative != "" {
-			init = " · initiative=" + f.Initiative
+		if f.Milestone != "" {
+			init = " · milestone=" + f.Milestone
 		}
 		fmt.Printf("  [P%d %s] %s\n", f.Priority, f.Status, title)
 		fmt.Printf("    %s%s%s\n", f.Path, init, archived)

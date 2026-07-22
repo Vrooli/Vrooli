@@ -28,7 +28,6 @@ import { AISearchResults } from "./AISearchResults";
 import { FilterBar } from "./FilterBar";
 import { BacklogTab } from "./BacklogTab";
 import { CapturesTab } from "./CapturesTab";
-import { InitiativesTab } from "./InitiativesTab";
 import { GoalsTab } from "./GoalsTab";
 import { ExecutionsTab } from "./ExecutionsTab";
 import { SessionsTab } from "./SessionsTab";
@@ -251,7 +250,6 @@ export function Sidebar({
             activeTab={activeTab}
             backlogFilters={state.filters.backlog}
             captureFilters={state.filters.captures}
-            initiativeFilters={state.filters.initiatives}
             executionFilters={state.filters.executions}
             sessionFilters={state.filters.sessions}
             sort={state.sorts[activeTab]}
@@ -292,19 +290,6 @@ export function Sidebar({
                   onToggleSelection={selection.toggleItem}
                   onVisibleIdsChange={selection.pruneToVisible}
                   onCreateCapture={createAction?.tab === "captures" ? createAction.onClick : undefined}
-                />
-              )}
-              {activeTab === "initiatives" && (
-                <InitiativesTab
-                  searchQuery={debouncedSearch}
-                  filters={state.filters.initiatives}
-                  sort={state.sorts.initiatives}
-                  onItemClick={onItemClick}
-                  onClearSearch={clearSearch}
-                  selectionMode={selection.selectionMode}
-                  selectedIds={selection.selectedIds}
-                  onToggleSelection={selection.toggleItem}
-                  onVisibleIdsChange={selection.pruneToVisible}
                 />
               )}
               {activeTab === "goals" && (

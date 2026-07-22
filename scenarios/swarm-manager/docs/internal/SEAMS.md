@@ -25,7 +25,7 @@ session kinds remain readable but cannot be started.
 ## Workflow application
 
 Each workflow start records its correlation, input digest, workflow revision,
-and terminal outcome. Domain adapters validate the current item, initiative,
+and terminal outcome. Domain adapters validate the current item, milestone,
 plan, and evidence frontiers before applying a result. Duplicate terminal
 delivery is idempotent; stale results are recorded without mutating the domain.
 

@@ -60,7 +60,7 @@ func TestProposalResponseRequiresOneReconciliation(t *testing.T) {
 		starts++
 		return WorkflowProvenance{Transition: "plan.workshop.reconcile", ExecutionID: "execution-" + response.ID, DefinitionDigest: "sha256:workflow", StartedAt: "2026-07-22T00:00:00Z"}, nil
 	})
-	session, err := svc.Open(Subject{Kind: SubjectInitiative, Ref: "initiative-a"}, ReviewPacket{Proposals: []ProposalRef{{SessionID: "session-a", ProposalID: "proposal-a"}}})
+	session, err := svc.Open(Subject{Kind: SubjectBacklog, Ref: "execute/a"}, ReviewPacket{Proposals: []ProposalRef{{SessionID: "session-a", ProposalID: "proposal-a"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestReviewRunProjectsTypedResultOnce(t *testing.T) {
 		}
 		return "sess-review", []ProposalRef{{SessionID: "sess-review", ProposalID: "proposal-review", ApplyMode: "direct"}}, nil
 	})
-	session, err := svc.Open(Subject{Kind: SubjectInitiative, Ref: "initiative-a"}, ReviewPacket{})
+	session, err := svc.Open(Subject{Kind: SubjectBacklog, Ref: "execute/a"}, ReviewPacket{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,7 @@ func TestApplyReconciliationCreatesCandidateWithoutCanonicalApply(t *testing.T) 
 		}
 		return nil
 	})
-	session, err := svc.Open(Subject{Kind: SubjectInitiative, Ref: "initiative-a"}, ReviewPacket{Proposals: []ProposalRef{{SessionID: "session-a", ProposalID: "proposal-a", ApplyMode: "reconciliation"}}})
+	session, err := svc.Open(Subject{Kind: SubjectBacklog, Ref: "execute/a"}, ReviewPacket{Proposals: []ProposalRef{{SessionID: "session-a", ProposalID: "proposal-a", ApplyMode: "reconciliation"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +263,7 @@ func TestApplyReconciliationCreatesCandidateWithoutCanonicalApply(t *testing.T) 
 
 func TestDiscardCandidateLeavesCanonicalPlanUntouchedAndIsIdempotent(t *testing.T) {
 	svc := NewService(NewStore(t.TempDir()), func(Subject) (string, string, string, error) { return "v1", "plan-1", "hash-1", nil })
-	session, err := svc.Open(Subject{Kind: SubjectInitiative, Ref: "initiative-a"}, ReviewPacket{})
+	session, err := svc.Open(Subject{Kind: SubjectBacklog, Ref: "execute/a"}, ReviewPacket{})
 	if err != nil {
 		t.Fatal(err)
 	}

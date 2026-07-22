@@ -53,7 +53,7 @@ const (
 
 // PendingQuestions returns unreviewed targets and requirements for backlog items.
 func (h *Handler) PendingQuestions(w http.ResponseWriter, r *http.Request) {
-	_, limit, initiative, ok := parsePendingQuestionsQuery(w, r)
+	_, limit, milestone, ok := parsePendingQuestionsQuery(w, r)
 	if !ok {
 		return
 	}
@@ -68,7 +68,7 @@ func (h *Handler) PendingQuestions(w http.ResponseWriter, r *http.Request) {
 	var result []PendingQuestionsItem
 
 	for _, item := range items {
-		if initiative != "" && item.Initiative != initiative {
+		if milestone != "" && item.Milestone != milestone {
 			continue
 		}
 
@@ -128,8 +128,8 @@ func parsePendingQuestionsQuery(w http.ResponseWriter, r *http.Request) (pending
 		limit = parsed
 	}
 
-	initiative := strings.TrimSpace(r.URL.Query().Get("initiative"))
-	return source, limit, initiative, true
+	milestone := strings.TrimSpace(r.URL.Query().Get("milestone"))
+	return source, limit, milestone, true
 }
 
 func rankPendingQuestionItems(items []BacklogItem) (map[string]int, map[string]int, map[string]backlogrank.Item) {

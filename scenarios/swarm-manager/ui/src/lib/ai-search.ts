@@ -10,13 +10,13 @@ import { useEffect, useState } from "react";
 import { defaultApiClient, isApiError, type IApiClient } from "./api-client";
 import { API_ENDPOINTS } from "./api-endpoints";
 
-export type AISearchEntity = "backlog" | "initiative" | "both";
+export type AISearchEntity = "backlog" | "goal" | "both";
 export type AISearchFallback = "none" | "text-search" | "unavailable";
 
 export interface AISearchFilters {
   status?: string[];
   kind?: string[];
-  initiative?: string;
+  goal?: string;
   include_archived?: boolean;
 }
 
@@ -50,9 +50,9 @@ export interface AISearchStatus {
   ollama: boolean;
   qdrant: boolean;
   indexedBacklog: number;
-  indexedInitiatives: number;
+  indexedGoals: number;
   onDiskBacklog: number;
-  onDiskInitiatives: number;
+  onDiskGoals: number;
   message?: string;
 }
 
@@ -87,7 +87,7 @@ export function normalizeAISearchResponse(
       ? r.fallback
       : "unavailable";
   const entity: AISearchEntity =
-    r.entity === "backlog" || r.entity === "initiative" || r.entity === "both"
+    r.entity === "backlog" || r.entity === "goal" || r.entity === "both"
       ? r.entity
       : (requestedEntity ?? "both");
   const query = typeof r.query === "string" ? r.query : "";

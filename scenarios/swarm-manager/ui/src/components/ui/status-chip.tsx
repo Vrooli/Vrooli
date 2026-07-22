@@ -3,7 +3,7 @@
  *
  * Small labeled pill used to convey a single piece of status-like information:
  * a lifecycle status ("Completed"), an agent activity ("Workshopping"), or a
- * pending-input reason ("3 decisions"). Shared between the Initiative Details
+ * pending-input reason ("3 decisions"). Shared between the Goal Details
  * row chip and the dependency chip list on the Backlog Details page.
  *
  * Visual vocabulary:

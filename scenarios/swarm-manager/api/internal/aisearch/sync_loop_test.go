@@ -13,7 +13,7 @@ import (
 
 // makeSyncLoop wires a SyncLoop over the test fakes, with RunOnce defaulting
 // to "no work, no error" unless the caller seeds work into the backlog reader.
-func makeSyncLoop(t *testing.T, interval time.Duration, disabled bool) (*SyncLoop, *fakeEmbedder, *fakeVectorStore, *fakeBacklogReader, *fakeInitReader) {
+func makeSyncLoop(t *testing.T, interval time.Duration, disabled bool) (*SyncLoop, *fakeEmbedder, *fakeVectorStore, *fakeBacklogReader, *fakeGoalReader) {
 	t.Helper()
 	r, emb, bs, _, br, ir := newReconcilerForTest(t)
 	loop := &SyncLoop{

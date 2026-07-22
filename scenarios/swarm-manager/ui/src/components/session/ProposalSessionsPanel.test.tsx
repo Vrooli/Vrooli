@@ -30,7 +30,7 @@ describe("ProposalSessionsPanel", () => {
 
   it("opens the proposal-focused attach sheet instead of creating a session immediately", async () => {
     renderWithProviders(
-      <ProposalSessionsPanel target={{ type: "initiative", ref: "initiative-alpha", name: "Initiative Alpha" }} />,
+      <ProposalSessionsPanel target={{ type: "goal", ref: "goal-alpha", name: "Goal Alpha" }} />,
     );
 
     await userEvent.click(screen.getByTestId(selectors.agentSessions.proposalStart));
@@ -66,7 +66,7 @@ describe("ProposalSessionsPanel", () => {
       },
     ]);
 
-    renderWithProviders(<ProposalSessionsPanel target={{ type: "initiative", ref: "initiative-alpha", name: "Initiative Alpha" }} />);
+    renderWithProviders(<ProposalSessionsPanel target={{ type: "goal", ref: "goal-alpha", name: "Goal Alpha" }} />);
 
     expect(await screen.findByText("Review change set (1)")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Apply proposal" })).toHaveLength(2);
@@ -98,7 +98,7 @@ describe("ProposalSessionsPanel", () => {
       }],
     }]);
 
-    renderWithProviders(<ProposalSessionsPanel target={{ type: "initiative", ref: "initiative-alpha", name: "Initiative Alpha" }} />);
+    renderWithProviders(<ProposalSessionsPanel target={{ type: "goal", ref: "goal-alpha", name: "Goal Alpha" }} />);
 
     expect(await screen.findByText("No changes recommended")).toBeInTheDocument();
     expect(screen.getByText("The evidence supports keeping the item unchanged.")).toBeInTheDocument();

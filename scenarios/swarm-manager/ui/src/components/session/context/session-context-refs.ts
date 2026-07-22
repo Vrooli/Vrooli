@@ -6,7 +6,6 @@ import type {
   BacklogItem,
   Capture,
   ExecutionRecord,
-  InitiativeWithRollup,
   GoalWithScope,
   Scenario,
 } from "../../../types";
@@ -25,17 +24,6 @@ export function backlogOption(item: BacklogItem): SessionContextOption {
     title: item.title || item.name,
     subtitle: `${item.kind} · ${item.status}`,
     nodeId: `backlog-item/${ref}`,
-  };
-}
-
-export function initiativeOption(item: InitiativeWithRollup): SessionContextOption {
-  const initiative = item.initiative;
-  return {
-    type: "initiative",
-    ref: initiative.name,
-    title: initiative.title || initiative.name,
-    subtitle: initiative.status,
-    nodeId: `initiative/${initiative.name}`,
   };
 }
 
@@ -116,7 +104,7 @@ export function startupBriefOption(kind: string, title = "Startup brief", genera
     ref: `startup_brief/${kind}`,
     title,
     subtitle: generatedAt ? `Generated ${generatedAt}` : "Brief-first context and drill-down commands",
-		nodeId: kind === "swarm_operations" ? "/operations" : kind === "workflow_authoring" ? "/sessions" : "/initiatives",
+		nodeId: kind === "swarm_operations" ? "/operations" : kind === "workflow_authoring" ? "/sessions" : "/goals",
   };
 }
 

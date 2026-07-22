@@ -36,7 +36,7 @@ func TestFileStoreReadsLegacyArtifactsForMigration(t *testing.T) {
 	writeLegacyArtifacts(t, store, Artifact{
 		ID:           "art-1",
 		SessionID:    session.ID,
-		ArtifactType: ArtifactInitiative,
+		ArtifactType: ArtifactMilestone,
 		Action:       ArtifactActionProposed,
 		EntityRef:    "quality-gates",
 		Title:        "Quality Gates",
@@ -54,7 +54,7 @@ func TestFileStoreReadsLegacyArtifactsForMigration(t *testing.T) {
 		t.Fatalf("status = %q, want proposal_ready", loaded.Status)
 	}
 
-	artifacts, err := store.ListArtifactsByEntity(ArtifactInitiative, "quality-gates")
+	artifacts, err := store.ListArtifactsByEntity(ArtifactMilestone, "quality-gates")
 	if err != nil {
 		t.Fatalf("ListArtifactsByEntity() error = %v", err)
 	}

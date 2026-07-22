@@ -42,7 +42,7 @@ func TestCmdAISearchSearch_SendsExpectedPayload(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 	run := app.cmdAISearchSearch("backlog")
-	if err := run([]string{"retry", "semantics", "--limit", "10", "--status", "ready,queued", "--kind", "idea,execute", "--initiative", "obs-core", "--include-archived"}); err != nil {
+	if err := run([]string{"retry", "semantics", "--limit", "10", "--status", "ready,queued", "--kind", "idea,execute", "--goal", "obs-core", "--include-archived"}); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	if got["query"] != "retry semantics" {
@@ -61,8 +61,8 @@ func TestCmdAISearchSearch_SendsExpectedPayload(t *testing.T) {
 	if filters["include_archived"] != true {
 		t.Errorf("include_archived: %v", filters["include_archived"])
 	}
-	if filters["initiative"] != "obs-core" {
-		t.Errorf("initiative: %v", filters["initiative"])
+	if filters["goal"] != "obs-core" {
+		t.Errorf("goal: %v", filters["goal"])
 	}
 	status := filters["status"].([]any)
 	if len(status) != 2 || status[0] != "ready" {
@@ -76,7 +76,7 @@ func TestCmdAISearchSearch_SendsExpectedPayload(t *testing.T) {
 
 func TestCmdAISearchStatus_RendersOperational(t *testing.T) {
 	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"available":true,"ollama":true,"qdrant":true,"indexedBacklog":5,"indexedInitiatives":2,"onDiskBacklog":5,"onDiskInitiatives":2}`))
+		_, _ = w.Write([]byte(`{"available":true,"ollama":true,"qdrant":true,"indexedBacklog":5,"indexedGoals":2,"onDiskBacklog":5,"onDiskGoals":2}`))
 	}))
 	app, err := NewApp()
 	if err != nil {
@@ -115,7 +115,7 @@ func TestCmdAISearchReconcileStatus_RendersProgress(t *testing.T) {
 		if r.URL.Path != "/api/v1/search/ai/reconcile/status" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		_, _ = w.Write([]byte(`{"running":false,"finishedAt":"2026-04-20T00:00:00Z","lastResult":{"upsertedBacklog":5,"upsertedInitiative":0,"deletedBacklog":2,"deletedInitiative":0}}`))
+		_, _ = w.Write([]byte(`{"running":false,"finishedAt":"2026-04-20T00:00:00Z","lastResult":{"upsertedBacklog":5,"upsertedGoal":0,"deletedBacklog":2,"deletedGoal":0}}`))
 	}))
 	app, err := NewApp()
 	if err != nil {
@@ -206,7 +206,6 @@ func TestAISearchCommandsRegistered(t *testing.T) {
 		{"ai-search", "reconcile-status"},
 		{"ai-search", "query", "hello"},
 		{"backlog", "search-ai", "retry"},
-		{"initiatives", "search-ai", "obs"},
 	}
 	for _, args := range cases {
 		err := app.Run(args)

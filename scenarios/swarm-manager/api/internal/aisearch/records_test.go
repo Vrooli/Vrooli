@@ -26,15 +26,15 @@ func TestRecordPointID_Deterministic(t *testing.T) {
 // Risk 4 mitigation: backlog and record point IDs must not collide even when
 // the entity-suffix happens to be the same string ("x"). The namespace prefix
 // discipline ("swarm-manager:record/" vs "swarm-manager:execute/") prevents it.
-func TestRecordPointID_DiffersFromBacklogAndInitiative(t *testing.T) {
+func TestRecordPointID_DiffersFromBacklogAndGoal(t *testing.T) {
 	r := recordPointID("x")
 	b := backlogPointID(backlog.KindExecute, "x")
-	i := initiativePointID("x")
+	g := goalPointID("x")
 	if r == b {
 		t.Error("record and backlog point IDs collided for name 'x'")
 	}
-	if r == i {
-		t.Error("record and initiative point IDs collided for name 'x'")
+	if r == g {
+		t.Error("record and goal point IDs collided for name 'x'")
 	}
 }
 
@@ -44,7 +44,7 @@ func TestBuildRecordPayload_FieldsAndEntityDiscriminator(t *testing.T) {
 		Kind:         records.KindFix,
 		Scenario:     "audio-tools",
 		BacklogRef:   "fix/voice-auto-stop",
-		InitiativeID: "voice-reliability",
+		MilestoneID:  "voice-reliability",
 		Supersedes:   "rec-prev",
 		SupersededBy: "",
 		Outcome:      records.OutcomeShipped,
@@ -68,8 +68,8 @@ func TestBuildRecordPayload_FieldsAndEntityDiscriminator(t *testing.T) {
 	if p["backlog_ref"] != "fix/voice-auto-stop" {
 		t.Errorf("backlog_ref = %v", p["backlog_ref"])
 	}
-	if p["initiative_id"] != "voice-reliability" {
-		t.Errorf("initiative_id = %v", p["initiative_id"])
+	if p["milestone_id"] != "voice-reliability" {
+		t.Errorf("milestone_id = %v", p["milestone_id"])
 	}
 	if p["supersedes"] != "rec-prev" {
 		t.Errorf("supersedes = %v", p["supersedes"])

@@ -4,9 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils";
 import { goalsService } from "../../services";
 import { useBacklogStore } from "../../stores";
-import { useInitiativeStore } from "../../stores/initiative-store";
 import type { BacklogItem } from "../../types";
-import type { InitiativeWithRollup } from "../../types";
 import type { GoalWithScope } from "../../types/goal";
 import { CreateGoalDialog } from "./CreateGoalDialog";
 
@@ -52,47 +50,16 @@ function makeGoal(name: string): GoalWithScope {
   };
 }
 
-function makeInitiative(name: string): InitiativeWithRollup {
-  return {
-    initiative: {
-      name,
-      title: name,
-      description: "",
-      status: "active",
-      created: "",
-      updated: "",
-      itemRefs: [],
-      dependsOn: [],
-    },
-    rollup: {
-      total: 0,
-      completed: 0,
-      inProgress: 0,
-      failed: 0,
-      pending: 0,
-      archived: 0,
-    },
-  } as unknown as InitiativeWithRollup;
-}
-
 function seedStores() {
   useBacklogStore.getState().setItems([
     makeBacklogItem("execute", "workspace-goal", "Workspace goal"),
   ]);
-  useInitiativeStore.setState({
-    items: [makeInitiative("navigation")],
-    status: "success",
-    error: null,
-    isRefreshing: false,
-    lastFetchedAt: Date.now(),
-  });
 }
 
 describe("CreateGoalDialog", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     useBacklogStore.getState().reset();
-    useInitiativeStore.getState().reset();
   });
 
   it("requires a title", async () => {
@@ -114,8 +81,6 @@ describe("CreateGoalDialog", () => {
     );
 
     await userEvent.type(screen.getByTestId("create-goal-title"), "Workspace");
-    // Backlog targets live on the "Items" tab; switch to it, then pick the card.
-    await userEvent.click(screen.getByTestId("create-goal-tab-item"));
     await userEvent.click(screen.getByText("Workspace goal"));
     await userEvent.click(screen.getByTestId("create-goal-submit"));
 

@@ -31,7 +31,6 @@ var guardedPackages = []string{
 	"../workshop",
 	"../execution",
 	"../review",
-	"../initiativereview",
 }
 
 // spawnMethods are the Agent Manager spawn/continuation seam method names. A call

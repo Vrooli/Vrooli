@@ -66,7 +66,7 @@ export type AgentActivityPurpose =
   | "review"
   | "feedback"
   | "feedback_continue"
-  | "initiative_review"
+  | "milestone_review"
   | "meta_orchestration"
   | "operating_mode_authoring"
   | "swarm_operations"
@@ -91,7 +91,7 @@ export const AGENT_ACTIVITY_PURPOSES = [
   "review",
   "feedback",
   "feedback_continue",
-  "initiative_review",
+  "milestone_review",
   "meta_orchestration",
   "operating_mode_authoring",
   "swarm_operations",
@@ -102,9 +102,9 @@ export type AgentActivityInteractionType = "spawn" | "continue";
 /** Exhaustive array of all AgentActivityInteractionType values. */
 export const AGENT_ACTIVITY_INTERACTION_TYPES = ["spawn", "continue"] as const satisfies readonly AgentActivityInteractionType[];
 
-export type AgentActivityOwnerType = "backlog" | "capture" | "scenario" | "initiative" | "session";
+export type AgentActivityOwnerType = "backlog" | "capture" | "scenario" | "milestone" | "session";
 /** Exhaustive array of all AgentActivityOwnerType values. */
-export const AGENT_ACTIVITY_OWNER_TYPES = ["backlog", "capture", "scenario", "initiative", "session"] as const satisfies readonly AgentActivityOwnerType[];
+export const AGENT_ACTIVITY_OWNER_TYPES = ["backlog", "capture", "scenario", "milestone", "session"] as const satisfies readonly AgentActivityOwnerType[];
 
 export type AgentActivity = Omit<
   ProtoMessage<ProtoAgentActivity>,

@@ -18,7 +18,7 @@ application of results, and learning.
 
 ```mermaid
 flowchart LR
-  IN[Intake<br/>capture or session] --> W[Work ledger<br/>backlog + initiatives + dependencies]
+  IN[Intake<br/>capture or session] --> W[Work ledger<br/>backlog + milestones + dependencies]
   W --> P[Canonical plan<br/>Plan Manager]
   P --> X[Authorized engagement<br/>Swarm execution record]
   X --> F[Agent Manager workflow]
@@ -59,7 +59,7 @@ authorization check.
 | **Capture** | Fast, low-commitment intake for an observation, request, bug, or idea. | Raw input, attachments, classification state. | A commitment to do work. |
 | **Agent Session** | A durable human-led conversation for exploring, planning, or operating the project. | Conversation, message context, proposed mutations, attribution. | Autonomous programmatic orchestration. |
 | **Backlog item** | The smallest independently reviewable and schedulable work commitment. | Goal, scope, dependencies, status, supporting context, canonical `plan_ref` when executable. | Its agent execution algorithm. |
-| **Initiative** | A portfolio/goal container for related work that cannot honestly be represented as one backlog item or one plan. | Desired outcome, membership, cross-item constraints, progress and operator attention. | A separate agent runtime or mandatory mega-workflow. |
+| **Milestone** | A portfolio/goal container for related work that cannot honestly be represented as one backlog item or one plan. | Desired outcome, membership, cross-item constraints, progress and operator attention. | A separate agent runtime or mandatory mega-workflow. |
 | **Plan reference** | The canonical execution specification for a work commitment. | Identity/provenance of a Plan Manager plan. | Plan-authoring heuristics or a shadow copy of plan content. |
 | **Execution record** | Swarm's durable authorization and correlation record for an approved engagement. | Start intent, policy, entity/version/frontier correlation, approval, exactly-once result application. | Agent attempts, transcript, branches, or retry state. |
 | **Agent Manager workflow execution** | The durable programmatic agentic method. | Nodes, Runs/continuations, budgets, waits, branches, journal, typed output, provenance. | Swarm-domain mutation or business approval policy. |
@@ -85,7 +85,7 @@ The session kinds remain explicit rather than becoming an untyped chat bucket:
 
 | Session kind | Human goal |
 | --- | --- |
-| `meta_orchestration` | Explore a broad objective and propose initiatives and/or backlog items. |
+| `meta_orchestration` | Explore a broad objective and propose milestones and/or backlog items. |
 | `swarm_operations` | Understand project status, pending decisions, and available operator actions. |
 | `workflow_authoring` | Describe a natural coding-agent method, compare it with the transition catalog, and produce a reviewed workflow or scenario-improvement proposal. |
 
@@ -104,15 +104,15 @@ whether the plan is structurally valid. Swarm records acceptance actor,
 timestamp, subject version, and hash, then rejects a changed plan or work
 contract until it is accepted again.
 
-Initiatives coordinate multiple items and plans. They can choose different
-workflows as the initiative learns; they do not imply one fixed sequence or
+Milestones coordinate multiple items and plans. They can choose different
+workflows as the milestone learns; they do not imply one fixed sequence or
 one persistent agent conversation. Their value is goal-level visibility,
 dependency-aware organization, and a place for the operator to decide what
 matters next.
 
 Completion is not simply "an agent exited." A work outcome is complete only
 when the authorized workflow result, required validation evidence, and any
-operator approval satisfy the item's or initiative's completion policy. Swarm
+operator approval satisfy the item's or milestone's completion policy. Swarm
 then applies the terminal domain change, writes the learning record, and emits
 events that power throughput, quality, and regression statistics.
 
@@ -169,7 +169,7 @@ stateDiagram-v2
 ```
 
 The diagram is a conceptual map, not a claim that every kind shares identical
-persisted status names. Research, maintenance, and initiative work may have
+persisted status names. Research, maintenance, and milestone work may have
 different deliverables, but must fit the same authority model.
 
 ### Required transition contracts
@@ -202,7 +202,7 @@ its failure logic back into imperative Swarm code.
 | A required integration is unavailable or stale | Do not start the affected action, or park an in-flight action with the unavailable capability named. Resume/retry only under declared policy. | Deterministic integration preflight plus workflow terminal semantics; never degrade into an unrecorded manual workaround. |
 | An operator starts, schedules, pauses, resumes, cancels, or retries work | Create/update an authorized engagement; cancellation and retry use new, idempotent intent where required. | Deterministic Swarm execution-control action; it starts or controls a workflow rather than recreating its graph. |
 | Scope changes during learning | Plan Workshop packet → one operator response → direct application or a candidate revision → fresh acceptance where needed. | The session references the one proposal store; Plan Manager validates/diffs/applies candidate plans; Swarm owns exact-once resolution and authorization. |
-| Research or review discovers additional work | Produce a typed follow-up proposal → create or link a backlog item/initiative → return to normal shaping. | Workflow or session produces the proposal; Swarm applies it explicitly and preserves provenance. |
+| Research or review discovers additional work | Produce a typed follow-up proposal → create or link a backlog item/milestone → return to normal shaping. | Workflow or session produces the proposal; Swarm applies it explicitly and preserves provenance. |
 | A suggestion is no longer valid or wanted | Dismiss, archive, or reconcile it without deleting operator history. | Deterministic policy/operator action. A future observation may create a new suggestion rather than reviving stale state implicitly. |
 | Completed work needs correction or renewed scope | Reopen or create a follow-up with an explicit relationship to the completed record; do not mutate historical completion into a new execution. | Deterministic ledger action plus an appropriate new workflow if agent work is needed. |
 
@@ -227,7 +227,7 @@ Names below are capabilities, not a frozen registry:
 ```text
 capture classification          backlog refinement          plan author / repair
 investigation / research        plan execution / drain      independent review
-fixup / follow-up               initiative discovery        initiative reconciliation
+fixup / follow-up               milestone discovery        milestone reconciliation
 ```
 
 Each declaration has a name, version, schemas, bindings, budgets, and typed
@@ -237,7 +237,7 @@ scenario owns a duplicate loop/branch engine.
 
 ## Migration guardrails
 
-- Preserve backlog items, initiatives, plans, records, events, and operator
+- Preserve backlog items, milestones, plans, records, events, and operator
   history. Any persisted-model change requires a one-shot, observable migration
   and no long-lived compatibility behavior in request paths.
 - Do not translate every existing operating mode mechanically. First identify

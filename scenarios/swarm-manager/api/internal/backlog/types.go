@@ -113,7 +113,7 @@ type BacklogItem struct {
 	Updated         string        `json:"updated"`
 	Kind            BacklogKind   `json:"kind"`
 	DependsOn       []string      `json:"depends_on,omitempty"`
-	Initiative      string        `json:"initiative,omitempty"`
+	Milestone      string        `json:"milestone,omitempty"`
 	Effort          string        `json:"effort,omitempty"`
 	AcceptanceAllow []string      `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string      `json:"acceptance_deny,omitempty"`
@@ -249,8 +249,8 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	if len(item.DependsOn) > 0 {
 		result.DependsOn = item.DependsOn
 	}
-	if strings.TrimSpace(item.Initiative) != "" {
-		result.Initiative = &item.Initiative
+	if strings.TrimSpace(item.Milestone) != "" {
+		result.Milestone = &item.Milestone
 	}
 	if strings.TrimSpace(item.Effort) != "" {
 		result.Effort = &item.Effort

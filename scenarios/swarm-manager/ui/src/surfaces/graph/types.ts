@@ -5,7 +5,7 @@ import {
   BACKLOG_STATUSES,
   CAPTURE_STATUSES,
   EXECUTION_STATUSES,
-  INITIATIVE_STATUSES,
+  GOAL_STATUSES,
   SCENARIO_STATUSES,
   type AgentActivityInteractionType,
   type AgentActivityPurpose,
@@ -33,7 +33,7 @@ export type GraphEntityType =
   | "agent-activity"
   | "capture"
   | "agent-run"
-  | "initiative";
+  | "goal";
 
 
 /**
@@ -46,10 +46,10 @@ export const ENTITY_STATUS_REGISTRY: Partial<Record<GraphEntityType, readonly st
   "agent-activity": AGENT_ACTIVITY_STATUSES,
   "agent-run": AGENT_RUN_STATUSES,
   scenario: SCENARIO_STATUSES,
-  initiative: INITIATIVE_STATUSES,
+  goal: GOAL_STATUSES,
 };
 
-export interface InitiativeRollupData {
+export interface GoalRollupData {
   total: number;
   completed: number;
   in_progress: number;
@@ -88,13 +88,13 @@ export interface BacklogGraphNodeData extends GraphBaseNodeData {
   activeExecutionCount?: number;
 }
 
-export interface InitiativeGraphNodeData extends GraphBaseNodeData {
-  entityType: "initiative";
-  rawType: "Initiative";
+export interface GoalGraphNodeData extends GraphBaseNodeData {
+  entityType: "goal";
+  rawType: "Goal";
   name: string;
   title: string;
   status: string;
-  rollup: InitiativeRollupData;
+  rollup: GoalRollupData;
 }
 
 export interface CaptureGraphNodeData extends GraphBaseNodeData {
@@ -150,10 +150,10 @@ export interface RunGraphNodeData extends GraphBaseNodeData {
 
 export interface ClusterGraphNodeData extends GraphBaseNodeData {
   label: string;
-  entityType: "initiative";
+  entityType: "goal";
   rawType: "Cluster";
   collapsed: boolean;
-  rollup: InitiativeRollupData | null;
+  rollup: GoalRollupData | null;
   isUnassigned?: boolean;
   pulsing?: boolean;
 }
@@ -167,7 +167,7 @@ export interface CappedGraphNodeData extends GraphBaseNodeData {
 
 export type GraphNodeData =
   | BacklogGraphNodeData
-  | InitiativeGraphNodeData
+  | GoalGraphNodeData
   | CaptureGraphNodeData
   | ScenarioGraphNodeData
   | ExecutionGraphNodeData

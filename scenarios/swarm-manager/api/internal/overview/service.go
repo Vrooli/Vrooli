@@ -1,5 +1,5 @@
 // Package overview provides a unified situational-awareness endpoint that
-// aggregates backlog items, initiatives, and dependency graph information
+// aggregates backlog items, goals, and dependency graph information
 // into a single response. This powers the CLI "overview" command and can
 // serve as a dashboard data source.
 package overview
@@ -11,7 +11,7 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/depgraph"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 )
 
 // BacklogLister loads backlog items from the store.
@@ -19,9 +19,9 @@ type BacklogLister interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
 }
 
-// InitiativeLister lists initiatives with computed rollup status.
-type InitiativeLister interface {
-	List() ([]initiatives.InitiativeWithRollup, error)
+// GoalLister lists goals with their derived scope.
+type GoalLister interface {
+	List() ([]goals.GoalWithScope, error)
 }
 
 // GovernanceProvider returns governance status from the execution service.
@@ -29,18 +29,18 @@ type GovernanceProvider interface {
 	GovernanceStatus() (*execution.GovernanceStatusResponse, error)
 }
 
-// Service assembles overview data from backlog and initiative sources.
+// Service assembles overview data from backlog and goal sources.
 type Service struct {
-	backlog     BacklogLister
-	initiatives InitiativeLister
-	governance  GovernanceProvider
+	backlog    BacklogLister
+	goals      GoalLister
+	governance GovernanceProvider
 }
 
 // NewService creates an overview Service backed by the given data sources.
-func NewService(bl BacklogLister, il InitiativeLister) *Service {
+func NewService(bl BacklogLister, gl GoalLister) *Service {
 	return &Service{
-		backlog:     bl,
-		initiatives: il,
+		backlog: bl,
+		goals:   gl,
 	}
 }
 
@@ -52,7 +52,7 @@ func (s *Service) SetGovernanceProvider(gp GovernanceProvider) {
 // OverviewResponse is the top-level payload returned by GetOverview.
 type OverviewResponse struct {
 	Items           []backlog.BacklogItem               `json:"items"`
-	Initiatives     []initiatives.InitiativeWithRollup  `json:"initiatives"`
+	Goals           []goals.GoalWithScope               `json:"goals"`
 	DependencyGraph DependencyGraph                     `json:"dependency_graph"`
 	Summary         OverviewSummary                     `json:"summary"`
 	Consistency     ConsistencyReport                   `json:"consistency"`
@@ -68,13 +68,13 @@ type DependencyGraph struct {
 
 // OverviewSummary provides aggregate counts for quick triage.
 type OverviewSummary struct {
-	TotalItems        int            `json:"total_items"`
-	ItemsByStatus     map[string]int `json:"items_by_status"`
-	ItemsByKind       map[string]int `json:"items_by_kind"`
-	ActiveInitiatives int            `json:"active_initiatives"`
+	TotalItems    int            `json:"total_items"`
+	ItemsByStatus map[string]int `json:"items_by_status"`
+	ItemsByKind   map[string]int `json:"items_by_kind"`
+	ActiveGoals   int            `json:"active_goals"`
 }
 
-// GetOverview loads all backlog items and initiatives, builds the dependency
+// GetOverview loads all backlog items and goals, builds the dependency
 // graph, and computes summary statistics.
 func (s *Service) GetOverview() (*OverviewResponse, error) {
 	// Load all backlog items (nil kinds = all kinds).
@@ -83,25 +83,25 @@ func (s *Service) GetOverview() (*OverviewResponse, error) {
 		return nil, fmt.Errorf("load backlog items: %w", err)
 	}
 
-	// Load initiatives with rollup.
-	inits, err := s.initiatives.List()
+	// Load goals with their derived scope.
+	goalList, err := s.goals.List()
 	if err != nil {
-		return nil, fmt.Errorf("load initiatives: %w", err)
+		return nil, fmt.Errorf("load goals: %w", err)
 	}
 
 	// Build dependency graph and compute blocked/unblocked sets.
 	depGraph := buildDependencyGraph(items)
 
 	// Build summary statistics.
-	summary := buildSummary(items, inits)
+	summary := buildSummary(items, goalList)
 
 	consistency := ConsistencyReport{
-		InitiativeEdgeSuggestions: computeInitiativeEdgeSuggestions(items, inits),
+		GoalScopeSuggestions: computeGoalScopeSuggestions(items, goalList),
 	}
 
 	resp := &OverviewResponse{
 		Items:           items,
-		Initiatives:     inits,
+		Goals:           goalList,
 		DependencyGraph: depGraph,
 		Summary:         summary,
 		Consistency:     consistency,
@@ -159,8 +159,8 @@ func buildDependencyGraph(items []backlog.BacklogItem) DependencyGraph {
 	}
 }
 
-// buildSummary computes aggregate counts across items and initiatives.
-func buildSummary(items []backlog.BacklogItem, inits []initiatives.InitiativeWithRollup) OverviewSummary {
+// buildSummary computes aggregate counts across items and goals.
+func buildSummary(items []backlog.BacklogItem, goalList []goals.GoalWithScope) OverviewSummary {
 	byStatus := make(map[string]int)
 	byKind := make(map[string]int)
 	for _, item := range items {
@@ -169,17 +169,17 @@ func buildSummary(items []backlog.BacklogItem, inits []initiatives.InitiativeWit
 	}
 
 	activeCount := 0
-	for _, init := range inits {
-		if init.Initiative.Status == "active" {
+	for _, goal := range goalList {
+		if goal.Goal.Status == goals.StatusActive {
 			activeCount++
 		}
 	}
 
 	return OverviewSummary{
-		TotalItems:        len(items),
-		ItemsByStatus:     byStatus,
-		ItemsByKind:       byKind,
-		ActiveInitiatives: activeCount,
+		TotalItems:    len(items),
+		ItemsByStatus: byStatus,
+		ItemsByKind:   byKind,
+		ActiveGoals:   activeCount,
 	}
 }
 

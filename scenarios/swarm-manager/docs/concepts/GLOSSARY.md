@@ -36,7 +36,7 @@ A versioned Swarm declaration that identifies the subject, prerequisites, Agent 
 Agent Manager's durable execution of a declared workflow. It pins an immutable workflow revision and input snapshot while Agent Manager owns prompts, nodes, waits, branches, retries, and the execution journal.
 
 ## Plan Workshop Session
-A durable Swarm Manager aggregate for one backlog item or initiative. It
+A durable Swarm Manager aggregate for one backlog item or milestone. It
 versions review packets containing findings, decision questions, and references
 to Agent Session proposal records; it never owns a second proposal store.
 

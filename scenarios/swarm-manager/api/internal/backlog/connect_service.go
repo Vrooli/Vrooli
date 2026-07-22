@@ -60,7 +60,7 @@ func (s *ConnectService) CreateItem(ctx context.Context, req *connect.Request[ap
 	}
 
 	prov := identity.FromContext(ctx)
-	item, err := buildItemFromCreateRequest(in, prov, s.h.validateInitiativeReference)
+	item, err := buildItemFromCreateRequest(in, prov, s.h.validateMilestoneReference)
 	if err != nil {
 		var ve *CreateValidationError
 		if errors.As(err, &ve) {

@@ -61,7 +61,7 @@ function itemCard(id: string, overrides?: Partial<PlanCardData>): PlanCardData {
     status: "ready",
     priority: 3,
     wave: 0,
-    initiative: "",
+    milestone: "",
     effort: "",
     gate: null,
     outcome: "",

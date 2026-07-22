@@ -10,7 +10,7 @@ import (
 
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 	"swarm-manager/internal/operations"
 )
 
@@ -27,29 +27,26 @@ type startupBriefMetadata struct {
 	StaleAfter             string                  `json:"stale_after"`
 	FreshnessSeconds       int                     `json:"freshness_seconds"`
 	SourceCounts           map[string]int          `json:"source_counts,omitempty"`
-	RankedInitiatives      []rankedInitiativeBrief `json:"ranked_initiatives,omitempty"`
+	RankedGoals            []rankedGoalBrief       `json:"ranked_goals,omitempty"`
 	RecommendedNextActions []briefAction           `json:"recommended_next_actions,omitempty"`
 	DrillDownCommands      []briefDrillDownCommand `json:"drill_down_commands,omitempty"`
 	Warnings               []string                `json:"warnings,omitempty"`
 }
 
-// rankedInitiativeBrief is the compact per-initiative ranking row embedded in
+// rankedGoalBrief is the compact per-goal ranking row embedded in
 // the operations startup brief metadata. Ref carries the typed reference
-// (`initiative:<name>`) the agent should echo verbatim so the UI can linkify
+// (`goal:<name>`) the agent should echo verbatim so the UI can linkify
 // it; the remaining fields are the signals the snapshot ranked on.
-type rankedInitiativeBrief struct {
-	Ref                string `json:"ref"`
-	Name               string `json:"name"`
-	Title              string `json:"title"`
-	Priority           int    `json:"priority"`
-	Readiness          string `json:"readiness"`
-	DownstreamUnblocks int    `json:"downstream_unblocks"`
+type rankedGoalBrief struct {
+	Ref       string `json:"ref"`
+	Name      string `json:"name"`
+	Title     string `json:"title"`
+	Priority  int    `json:"priority"`
+	Readiness string `json:"readiness"`
 }
 
-// maxStartupBriefRankedInitiatives bounds how many ranked initiatives land in
-// the brief so a large portfolio doesn't blow the session context budget. The
-// agent drills the long tail via `swarm-manager initiatives list`.
-const maxStartupBriefRankedInitiatives = 8
+// maxStartupBriefRankedGoals bounds how many ranked goals land in the brief.
+const maxStartupBriefRankedGoals = 8
 
 type briefAction struct {
 	ID      string `json:"id"`
@@ -120,7 +117,7 @@ func (r *Resolver) operationsStartupBrief(ctx context.Context, limits agentsessi
 	}
 
 	summary := formatOperationsBriefingSummary(briefing)
-	// Augment the activity briefing with the ranked initiative snapshot so
+	// Augment the activity briefing with the ranked goal snapshot so
 	// the agent receives deterministic rankings instead of re-deriving them
 	// per turn. The ranked section is prepended: it is the headline value of
 	// this brief, and the summary is truncated to a rune budget — leading with
@@ -130,12 +127,12 @@ func (r *Resolver) operationsStartupBrief(ctx context.Context, limits agentsessi
 	// to the activity briefing alone with a recorded warning.
 	if r.snapshots != nil {
 		if snap, snapErr := r.snapshots.GetSnapshot(ctx); snapErr != nil {
-			metadata.Warnings = append(metadata.Warnings, "ranked initiatives unavailable: "+snapErr.Error())
+			metadata.Warnings = append(metadata.Warnings, "ranked goals unavailable: "+snapErr.Error())
 		} else {
-			ranked := rankedInitiativeBriefs(snap)
-			metadata.RankedInitiatives = ranked
-			metadata.SourceCounts["ranked_initiatives"] = len(snap.Initiatives)
-			summary = formatRankedInitiatives(snap, ranked) + summary
+			ranked := rankedGoalBriefs(snap)
+			metadata.RankedGoals = ranked
+			metadata.SourceCounts["ranked_goals"] = len(snap.Goals)
+			summary = formatRankedGoals(snap, ranked) + summary
 		}
 	}
 
@@ -149,72 +146,65 @@ func (r *Resolver) operationsStartupBrief(ctx context.Context, limits agentsessi
 	)
 }
 
-// rankedInitiativeBriefs projects the bounded head of the snapshot's ranked
-// initiatives into the compact brief rows, stamping each with its typed
-// `initiative:<name>` reference for downstream linkification.
-func rankedInitiativeBriefs(snap *operations.OperationsSnapshot) []rankedInitiativeBrief {
-	limit := maxStartupBriefRankedInitiatives
-	if len(snap.Initiatives) < limit {
-		limit = len(snap.Initiatives)
+// rankedGoalBriefs stamps compact goal ranking rows with typed goal refs.
+func rankedGoalBriefs(snap *operations.OperationsSnapshot) []rankedGoalBrief {
+	limit := maxStartupBriefRankedGoals
+	if len(snap.Goals) < limit {
+		limit = len(snap.Goals)
 	}
-	out := make([]rankedInitiativeBrief, 0, limit)
-	for _, ri := range snap.Initiatives[:limit] {
-		out = append(out, rankedInitiativeBrief{
-			Ref:                "initiative:" + ri.Name,
-			Name:               ri.Name,
-			Title:              ri.Title,
-			Priority:           ri.Priority,
-			Readiness:          ri.Readiness,
-			DownstreamUnblocks: ri.DownstreamUnblocks,
+	out := make([]rankedGoalBrief, 0, limit)
+	for _, goal := range snap.Goals[:limit] {
+		out = append(out, rankedGoalBrief{
+			Ref: "goal:" + goal.Name, Name: goal.Name, Title: goal.Title,
+			Priority: goal.Priority, Readiness: goal.Readiness,
 		})
 	}
 	return out
 }
 
-// formatRankedInitiatives renders the ranked head as a human-readable section
+// formatRankedGoals renders the ranked head as a human-readable section
 // appended to the operations brief summary. Each line leads with the typed
-// `initiative:<name>` reference so an agent quoting it produces a span the UI
+// `goal:<name>` reference so an agent quoting it produces a span the UI
 // linkifies.
-func formatRankedInitiatives(snap *operations.OperationsSnapshot, rows []rankedInitiativeBrief) string {
+func formatRankedGoals(snap *operations.OperationsSnapshot, rows []rankedGoalBrief) string {
 	if len(rows) == 0 {
 		return ""
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "Ranked initiatives (%d ready, %d blocked of %d total):\n",
-		snap.Summary.ReadyInitiatives, snap.Summary.BlockedInitiatives, snap.Summary.TotalInitiatives)
+	fmt.Fprintf(&b, "Ranked goals (%d ready, %d blocked of %d total):\n",
+		snap.Summary.ReadyGoals, snap.Summary.BlockedGoals, snap.Summary.TotalGoals)
 	for _, row := range rows {
 		priority := "unprioritized"
 		if row.Priority > 0 {
 			priority = fmt.Sprintf("P%d", row.Priority)
 		}
-		fmt.Fprintf(&b, "- `initiative:%s` [%s %s]: %s (unblocks %d)\n",
-			row.Name, priority, row.Readiness, firstNonEmpty(row.Title, row.Name), row.DownstreamUnblocks)
+		fmt.Fprintf(&b, "- `goal:%s` [%s %s]: %s\n", row.Name, priority, row.Readiness, firstNonEmpty(row.Title, row.Name))
 	}
 	return b.String()
 }
 
 func (r *Resolver) portfolioStartupBrief(limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
 	backlogStore := backlog.NewFileStore(r.scenarioRoot)
-	initService := initiatives.NewService(initiatives.NewStore(r.scenarioRoot), backlogStore)
-	inits, initErr := initService.List()
+	goalService := goals.NewService(goals.NewStore(r.scenarioRoot), backlogStore)
+	goalList, goalErr := goalService.List()
 	items, itemErr := backlogStore.LoadAll(nil)
-	warnings := warningStrings(initErr, itemErr)
+	warnings := warningStrings(goalErr, itemErr)
 	now := time.Now().UTC()
 
 	statusCounts := map[string]int{}
 	for _, item := range items {
 		statusCounts[string(item.Status)]++
 	}
-	initStatusCounts := map[string]int{}
-	for _, item := range inits {
-		initStatusCounts[item.Initiative.Status]++
+	goalStatusCounts := map[string]int{}
+	for _, item := range goalList {
+		goalStatusCounts[item.Goal.Status]++
 	}
 
-	sort.Slice(inits, func(i, j int) bool {
-		if inits[i].Initiative.Priority == inits[j].Initiative.Priority {
-			return inits[i].Initiative.Updated > inits[j].Initiative.Updated
+	sort.Slice(goalList, func(i, j int) bool {
+		if goalList[i].Goal.Priority == goalList[j].Goal.Priority {
+			return goalList[i].Goal.Updated > goalList[j].Goal.Updated
 		}
-		return inits[i].Initiative.Priority > inits[j].Initiative.Priority
+		return goalList[i].Goal.Priority > goalList[j].Goal.Priority
 	})
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].Priority == items[j].Priority {
@@ -224,25 +214,22 @@ func (r *Resolver) portfolioStartupBrief(limits agentsessions.ContextLimits) (ag
 	})
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Generated: %s. Initiatives: %d. Backlog items: %d.\n", now.Format(time.RFC3339), len(inits), len(items))
-	writeCountMap(&b, "Initiative status counts", initStatusCounts)
+	fmt.Fprintf(&b, "Generated: %s. Goals: %d. Backlog items: %d.\n", now.Format(time.RFC3339), len(goalList), len(items))
+	writeCountMap(&b, "Goal status counts", goalStatusCounts)
 	writeCountMap(&b, "Backlog status counts", statusCounts)
-	if len(inits) > 0 {
-		b.WriteString("Top initiatives:\n")
-		for _, item := range take(inits, startupBriefItemLimit) {
-			init := item.Initiative
-			fmt.Fprintf(&b, "- %s [%s priority=%d mode=%s]: %s. Rollup total=%d completed=%d failed=%d in_progress=%d pending=%d\n",
-				init.Name, init.Status, init.Priority, initiatives.NormalizeMode(init.Mode), init.Title,
-				item.Rollup.Total, item.Rollup.Completed, item.Rollup.Failed, item.Rollup.InProgress, item.Rollup.Pending)
+	if len(goalList) > 0 {
+		b.WriteString("Top goals:\n")
+		for _, item := range take(goalList, startupBriefItemLimit) {
+			goal := item.Goal
+			fmt.Fprintf(&b, "- %s [%s priority=%d]: %s. Scope total=%d completed=%d ready=%d blocked=%d\n",
+				goal.Name, goal.Status, goal.Priority, goal.Title,
+				item.Scope.Total, item.Scope.CompletedCount, len(item.Scope.Ready), item.Scope.BlockedCount)
 		}
 	}
 	if len(items) > 0 {
 		b.WriteString("High-priority backlog candidates:\n")
 		for _, item := range take(items, startupBriefItemLimit) {
 			fmt.Fprintf(&b, "- %s/%s [%s priority=%d]: %s", item.Kind, item.Name, item.Status, item.Priority, item.Title)
-			if item.Initiative != "" {
-				fmt.Fprintf(&b, " initiative=%s", item.Initiative)
-			}
 			if len(item.DependsOn) > 0 {
 				fmt.Fprintf(&b, " depends_on=%s", strings.Join(item.DependsOn, ","))
 			}
@@ -255,21 +242,21 @@ func (r *Resolver) portfolioStartupBrief(limits agentsessions.ContextLimits) (ag
 		StaleAfter:       now.Add(startupBriefFreshnessPortfolioSeconds * time.Second).Format(time.RFC3339),
 		FreshnessSeconds: startupBriefFreshnessPortfolioSeconds,
 		SourceCounts: map[string]int{
-			"initiatives":   len(inits),
+			"goals":         len(goalList),
 			"backlog_items": len(items),
 		},
 		RecommendedNextActions: []briefAction{
 			{ID: "plan-from-brief", Label: "Plan from brief", Reason: "Use this bounded portfolio snapshot before scanning broad lists."},
-			{ID: "check-candidates", Label: "Check next-action candidates", Reason: "Use a targeted initiative or backlog command only after identifying a likely scope.", Command: "swarm-manager initiatives list --json"},
+			{ID: "check-candidates", Label: "Check next-action candidates", Reason: "Use a targeted goal or backlog command only after identifying a likely scope.", Command: "swarm-manager goals list --json"},
 		},
 		DrillDownCommands: []briefDrillDownCommand{
-			{Label: "Initiatives", Command: "swarm-manager initiatives list --json"},
+			{Label: "Goals", Command: "swarm-manager goals list --json"},
 			{Label: "Pending questions", Command: "swarm-manager backlog pending-questions --brief --json"},
 			{Label: "Stats", Command: "swarm-manager stats summary --json"},
 		},
 		Warnings: warnings,
 	}
-	return startupContextItem(agentsessions.KindMetaOrchestration, "Portfolio startup brief", b.String(), "/initiatives", metadata, limits)
+	return startupContextItem(agentsessions.KindMetaOrchestration, "Portfolio startup brief", b.String(), "/goals", metadata, limits)
 }
 
 // workflowAuthoringStartupBrief gives the authoring conversation the durable

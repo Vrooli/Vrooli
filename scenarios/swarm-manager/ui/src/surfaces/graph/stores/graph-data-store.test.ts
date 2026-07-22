@@ -280,8 +280,8 @@ describe("graphDataStore", () => {
   });
 
 
-  it("includes initiatives and scenarios in focus lens when they link to attention-worthy items", async () => {
-    // Regression: initiative and scenario nodes have no attention state of
+  it("includes goals and scenarios in focus lens when they link to attention-worthy items", async () => {
+    // Regression: goal and scenario nodes have no attention state of
     // their own, so filtering by computeNodeAttention used to drop all of
     // them from the focus lens. They should be pulled in whenever they
     // connect to an attention-worthy item via member_of / targets edges.
@@ -293,17 +293,17 @@ describe("graphDataStore", () => {
       status: "failed", // failed status → needsAttention
       priority: 1,
     });
-    const initiativeNode = makeGraphNode("initiative/my-init", "initiative", {
-      label: "My Initiative",
+    const goalNode = makeGraphNode("goal/my-init", "goal", {
+      label: "My Goal",
       name: "my-init",
-      title: "My Initiative",
+      title: "My Goal",
       status: "active",
       rollup: { total: 1, completed: 0, in_progress: 0, failed: 1, pending: 0 },
     });
-    const orphanInitiative = makeGraphNode("initiative/other-init", "initiative", {
-      label: "Other Initiative",
+    const orphanGoal = makeGraphNode("goal/other-init", "goal", {
+      label: "Other Goal",
       name: "other-init",
-      title: "Other Initiative",
+      title: "Other Goal",
       status: "active",
       rollup: { total: 0, completed: 0, in_progress: 0, failed: 0, pending: 0 },
     });
@@ -320,7 +320,7 @@ describe("graphDataStore", () => {
     const memberEdge = makeGraphEdge(
       "member_of:fix/failing-task->my-init",
       "backlog-item/fix/failing-task",
-      "initiative/my-init",
+      "goal/my-init",
       "member_of",
     );
     const targetsEdge = makeGraphEdge(
@@ -331,7 +331,7 @@ describe("graphDataStore", () => {
     );
 
     getGraphMock.mockResolvedValueOnce({
-      nodes: [backlogNode, initiativeNode, orphanInitiative, scenarioNode, orphanScenario],
+      nodes: [backlogNode, goalNode, orphanGoal, scenarioNode, orphanScenario],
       edges: [memberEdge, targetsEdge],
       meta: {
         lens: "topology",
@@ -348,10 +348,10 @@ describe("graphDataStore", () => {
     const focusSnapshot = useGraphDataStore.getState().graphsByLens.focus;
     const ids = focusSnapshot.nodes.map((n) => n.id);
     expect(ids).toContain("backlog-item/fix/failing-task");
-    expect(ids).toContain("initiative/my-init");
+    expect(ids).toContain("goal/my-init");
     expect(ids).toContain("scenario/target-app");
     // Orphans — no attention-worthy neighbor — should stay out.
-    expect(ids).not.toContain("initiative/other-init");
+    expect(ids).not.toContain("goal/other-init");
     expect(ids).not.toContain("scenario/unrelated");
     // Context edges should be preserved now that both endpoints are visible.
     const edgeIds = focusSnapshot.edges.map((e) => e.id);

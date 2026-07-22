@@ -1,5 +1,5 @@
 // Package goals provides the goal-scope domain for swarm-manager: a goal is an
-// explicit set of end-state targets (backlog items and/or initiatives) whose
+// explicit set of end-state backlog item targets whose
 // transitive prerequisite closure defines the work tracked toward it. Goals
 // scope the graph/board views and goal-directed execution, and are the anchor
 // the ETA engine estimates against. The store mirrors the initiatives store
@@ -7,11 +7,8 @@
 package goals
 
 import (
-	"strings"
-
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/eta"
-	"swarm-manager/internal/initiatives"
 )
 
 // Status values for a goal.
@@ -19,11 +16,6 @@ const (
 	StatusActive   = "active"
 	StatusArchived = "archived"
 )
-
-// InitiativeTargetPrefix marks a target ref as an initiative rather than a
-// backlog item. Item refs are "<kind>/<name>"; initiative refs are
-// "initiative/<name>".
-const InitiativeTargetPrefix = "initiative/"
 
 // Goal is a first-class scope entity. Targets are end-state refs; the scope is
 // derived (targets + transitive prerequisite closure) rather than stored.
@@ -33,8 +25,7 @@ type Goal struct {
 	Description string `json:"description,omitempty"`
 	Status      string `json:"status"`
 	Priority    int    `json:"priority,omitempty"`
-	// Targets are end-state refs: "<kind>/<name>" for items or
-	// "initiative/<name>" for initiatives.
+	// Targets are end-state item refs: "<kind>/<name>".
 	Targets []string `json:"targets"`
 	// Seeded marks goals auto-created from de-facto goal tags so the UI can
 	// distinguish them from operator-authored goals.
@@ -42,9 +33,24 @@ type Goal struct {
 	// ScopeHistory records closure-size snapshots over time so scope growth
 	// (creep) is surfaced, not hidden. The first entry is the baseline.
 	ScopeHistory []ScopeSnapshot `json:"scope_history,omitempty"`
-	Created      string          `json:"created"`
-	Updated      string          `json:"updated"`
-	ArchivedAt   *string         `json:"archived_at,omitempty"`
+	// Milestones are an optional owned partition of this goal's derived scope.
+	// They never alter the target set or dependency closure.
+	Milestones []Milestone `json:"milestones,omitempty"`
+	Created    string      `json:"created"`
+	Updated    string      `json:"updated"`
+	ArchivedAt *string     `json:"archived_at,omitempty"`
+}
+
+// Milestone is an owned, non-nestable subdivision of a goal. It is serialized
+// with its goal so membership and acceptance criteria update atomically.
+type Milestone struct {
+	Name               string   `json:"name"`
+	Title              string   `json:"title"`
+	Description        string   `json:"description,omitempty"`
+	Items              []string `json:"items,omitempty"`
+	AcceptanceCriteria []string `json:"acceptance_criteria,omitempty"`
+	DependsOn          []string `json:"depends_on,omitempty"`
+	ArchivedAt         *string  `json:"archived_at,omitempty"`
 }
 
 // ReadyGoalItem is a ready-to-run backlog item in an active goal's closure,
@@ -63,16 +69,6 @@ type ScopeSnapshot struct {
 	TargetCount int    `json:"target_count"`
 	ClosureSize int    `json:"closure_size"`
 	Completed   int    `json:"completed"`
-}
-
-// IsInitiativeTarget reports whether a target ref denotes an initiative.
-func IsInitiativeTarget(ref string) bool {
-	return strings.HasPrefix(ref, InitiativeTargetPrefix)
-}
-
-// InitiativeName extracts the initiative name from an "initiative/<name>" ref.
-func InitiativeName(ref string) string {
-	return strings.TrimPrefix(ref, InitiativeTargetPrefix)
 }
 
 // CreateRequest holds fields for creating a goal.
@@ -110,19 +106,10 @@ type GoalWithScope struct {
 	ScopeEntities *ScopeEntities `json:"scope_entities,omitempty"`
 }
 
-// ScopeEntities is read-time hydration for a goal's rendered refs (targets ∪
-// ready ∪ blocked): full backlog items and initiative summaries keyed by ref.
+// ScopeEntities is read-time hydration for a goal's rendered item refs.
 // The detail UI reuses its standard cards from this instead of joining the
 // list endpoints, which window and filter items out. Derived, never stored —
 // the goal itself keeps only refs so nothing here can go stale on disk.
 type ScopeEntities struct {
-	Items       map[string]backlog.BacklogItem `json:"items,omitempty"`
-	Initiatives map[string]InitiativeSummary   `json:"initiatives,omitempty"`
-}
-
-// InitiativeSummary pairs a target initiative with rollup counts computed from
-// the same live item data the scope walk loaded.
-type InitiativeSummary struct {
-	Initiative initiatives.Initiative   `json:"initiative"`
-	Rollup     initiatives.RollupStatus `json:"rollup"`
+	Items map[string]backlog.BacklogItem `json:"items,omitempty"`
 }

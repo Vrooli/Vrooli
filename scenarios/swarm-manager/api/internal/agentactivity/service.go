@@ -49,7 +49,7 @@ type ServiceConfig struct {
 }
 
 // Service projects Agent Manager Run activity for human-led sessions. Structured
-// backlog, capture, execution, review, and initiative work uses declared
+// backlog, capture, execution, review, and milestone work uses declared
 // workflows and must never acquire a raw Run continuation through this seam.
 type Service struct {
 	store           Store

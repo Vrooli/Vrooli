@@ -46,9 +46,6 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 	if s.opsAggregator != nil {
 		cfg.Ops = s.opsAggregator
 	}
-	if s.initStore != nil {
-		cfg.Initiatives = s.initStore
-	}
 	// Goal scoping: ?goal=<name> subsets the board to that goal's closure. The
 	// goals service is registered before plan routes (main.go), so it is set here.
 	if s.goalService != nil {
@@ -59,10 +56,9 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 	cfg.ETA = s.newETAEstimator
 	if s.statsEngine != nil {
 		s.statsEngine.Configure(stats.Config{
-			Backlog:     store,
-			Initiatives: s.initStore,
-			Goals:       s.goalService,
-			ETA:         s.newETAEstimator,
+			Backlog: store,
+			Goals:   s.goalService,
+			ETA:     s.newETAEstimator,
 		})
 	}
 	svc, err := planview.NewService(cfg)

@@ -31,8 +31,8 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 	itemByKey := make(map[string]backlog.BacklogItem, len(items))
 	nodes, edges = appendTopologyBacklogNodes(nodes, edges, items, execRecords, itemIndex, itemByKey)
 
-	// Initiative nodes and member_of edges.
-	nodes = p.appendTopologyInitiativeNodes(ctx, nodes, itemByKey)
+	// Goal nodes and membership edges.
+	nodes = p.appendTopologyGoalNodes(ctx, nodes, itemByKey)
 	edges = appendTopologyMemberOfEdges(edges, items)
 
 	// Capture nodes and classified_as edges.
@@ -91,32 +91,32 @@ func appendTopologyBacklogNodes(
 	return nodes, edges
 }
 
-// appendTopologyInitiativeNodes appends non-archived initiative nodes.
-func (p *ProjectionService) appendTopologyInitiativeNodes(
+// appendTopologyGoalNodes appends non-archived goal nodes.
+func (p *ProjectionService) appendTopologyGoalNodes(
 	ctx context.Context,
 	nodes []Node,
 	itemByKey map[string]backlog.BacklogItem,
 ) []Node {
-	if p.initiative == nil {
+	if p.goal == nil {
 		return nodes
 	}
-	inits, err := p.initiative.List()
+	goals, err := p.goal.List()
 	if err != nil {
-		slog.Error("topology: initiatives error", "error", err)
+		slog.Error("topology: goals error", "error", err)
 		return nodes
 	}
-	for _, init := range inits {
-		if init.ArchivedAt != nil {
+	for _, goal := range goals {
+		if goal.ArchivedAt != nil {
 			continue
 		}
 
-		rollup := computeInitiativeRollup(init.Items, itemByKey)
-		initNodeID := "initiative/" + init.Name
-		data := GraphInitiativeNodeData{
-			Name:   init.Name,
-			Title:  init.Title,
-			Status: init.Status,
-			Rollup: GraphInitiativeRollup{
+		rollup := computeGoalRollup(goal.Items, itemByKey)
+		goalNodeID := "goal/" + goal.Name
+		data := GraphGoalNodeData{
+			Name:   goal.Name,
+			Title:  goal.Title,
+			Status: goal.Status,
+			Rollup: GraphGoalRollup{
 				Total:      int32(rollup.Total),
 				Completed:  int32(rollup.Completed),
 				InProgress: int32(rollup.InProgress),
@@ -125,8 +125,8 @@ func (p *ProjectionService) appendTopologyInitiativeNodes(
 			},
 		}
 		nodes = append(nodes, Node{
-			ID:   initNodeID,
-			Type: "Initiative",
+			ID:   goalNodeID,
+			Type: "Goal",
 			Data: data,
 		})
 	}
@@ -134,19 +134,19 @@ func (p *ProjectionService) appendTopologyInitiativeNodes(
 }
 
 // appendTopologyMemberOfEdges appends member_of edges from active backlog items
-// to their initiatives.
+// to their goals.
 func appendTopologyMemberOfEdges(edges []Edge, items []backlog.BacklogItem) []Edge {
 	for _, item := range items {
 		if item.Status == backlog.StatusCompleted || item.ArchivedAt != nil {
 			continue
 		}
-		if item.Initiative != "" {
+		if item.Milestone != "" {
 			key := backlogItemKey(string(item.Kind), item.Name)
 			nodeID := backlogItemNodeID(string(item.Kind), item.Name)
 			edges = append(edges, Edge{
-				ID:     fmt.Sprintf("member_of:%s->%s", key, item.Initiative),
+				ID:     fmt.Sprintf("member_of:%s->%s", key, item.Milestone),
 				Source: nodeID,
-				Target: "initiative/" + item.Initiative,
+				Target: "goal/" + item.Milestone,
 				Type:   "member_of",
 			})
 		}

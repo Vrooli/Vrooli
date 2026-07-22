@@ -1,21 +1,21 @@
-// Graph materialization — project each initiative's member item graph into a
-// stable on-disk artifact (`initiatives/{name}/graph.json`).
+// Graph materialization — project each goal's derived item graph into a
+// stable on-disk artifact (`goals/{name}/graph.json`).
 //
 // Agents and UI components read graph.json as the canonical view of an
-// initiative's item graph. It is a READ-ONLY projection: the source of truth
+// goal's item graph. It is a READ-ONLY projection: the source of truth
 // remains each item's `depends_on` array. Any direct write to graph.json is
 // a bug — it will be overwritten on the next mutation.
 //
 // Invariants:
-//   - graph.json contains only items currently assigned to the initiative
+//   - graph.json contains only items in the goal's derived scope
 //   - edges reflect depends_on relationships where both endpoints live in the
-//     initiative (cross-initiative edges are dropped here; surface them via
+//     goal (cross-goal edges are dropped here; surface them via
 //     the full graph API instead)
 //   - generated_at is a UTC RFC3339 timestamp refreshed on every write
 //
 // This is intentionally simpler than the full graph projection (no active
 // executions, no agent activity) — the materialized artifact is for cheap
-// per-initiative agent/UI consumption. For operational views use the full
+// per-goal agent/UI consumption. For operational views use the full
 // projection service.
 package graph
 
@@ -36,7 +36,7 @@ import (
 	"swarm-manager/internal/storage"
 )
 
-// graphJSONFilename is the canonical filename under each initiative folder.
+// graphJSONFilename is the canonical filename under each goal folder.
 const graphJSONFilename = "graph.json"
 
 // MaterializedGraphNode describes one item in the materialized graph.
@@ -52,25 +52,25 @@ type MaterializedGraphNode struct {
 }
 
 // MaterializedGraphEdge describes a dependency between two items in the
-// initiative. Edges are directional: `From` depends on `To`.
+// goal. Edges are directional: `From` depends on `To`.
 type MaterializedGraphEdge struct {
 	From string `json:"from"`
 	To   string `json:"to"`
 	Kind string `json:"kind"` // "depends_on"
 }
 
-// MaterializedGraph is the on-disk projection of an initiative's item graph.
+// MaterializedGraph is the on-disk projection of a goal's derived item graph.
 type MaterializedGraph struct {
-	Initiative  string                  `json:"initiative"`
+	Goal        string                  `json:"goal"`
 	GeneratedAt string                  `json:"generated_at"`
 	Nodes       []MaterializedGraphNode `json:"nodes"`
 	Edges       []MaterializedGraphEdge `json:"edges"`
 }
 
-// Materializer writes per-initiative graph.json projections.
+// Materializer writes per-goal graph.json projections.
 //
 // The materializer depends only on read interfaces — it never mutates items,
-// initiatives, or any state beyond writing graph.json files.
+// goals, or any state beyond writing graph.json files.
 //
 // `ScheduleAll` coalesces burst invalidations (e.g., a batch-create that
 // fires many invalidations in quick succession) so we don't rebuild
@@ -80,14 +80,14 @@ type MaterializedGraph struct {
 //
 //	mu guards the scheduling/pending coalescing flags. Its scope is
 //	intentionally narrow — only ScheduleAll and runUntilSettled touch it.
-//	MaterializeInitiative and MaterializeAll are safe to call without
+//	MaterializeGoal and MaterializeAll are safe to call without
 //	holding mu (they only read through the injected interfaces). Writes
 //	to graph.json go through storage.WriteJSONAtomic, which handles
 //	cross-process atomicity via the temp-file + rename pattern.
 type Materializer struct {
-	initLister   InitiativeLister
+	goalLister   GoalLister
 	backlogStore BacklogItemLoader
-	initDirFn    func(name string) string
+	goalDirFn    func(name string) string
 
 	mu         sync.Mutex
 	scheduling bool // goroutine is currently materializing
@@ -107,43 +107,43 @@ type BacklogItemLoader interface {
 // Deprecated: use BacklogItemLoader.
 type BacklogStore = BacklogItemLoader
 
-// NewMaterializer constructs a materializer. `initDirFn` returns the on-disk
-// folder for a named initiative (typically `initiatives.Store.InitDir`).
+// NewMaterializer constructs a materializer. `goalDirFn` returns the on-disk
+// folder for a named goal (typically `goals.Store.GoalDir`).
 // Pass `nil` for any dependency to disable materialization (all methods
 // become no-ops).
-func NewMaterializer(initLister InitiativeLister, backlogStore BacklogItemLoader, initDirFn func(name string) string) *Materializer {
+func NewMaterializer(goalLister GoalLister, backlogStore BacklogItemLoader, goalDirFn func(name string) string) *Materializer {
 	return &Materializer{
-		initLister:   initLister,
+		goalLister:   goalLister,
 		backlogStore: backlogStore,
-		initDirFn:    initDirFn,
+		goalDirFn:    goalDirFn,
 	}
 }
 
-// MaterializeInitiative rebuilds graph.json for a single initiative. Missing
-// items (names that reference deleted backlog items) are silently dropped;
-// cross-initiative dependencies are not represented.
-func (m *Materializer) MaterializeInitiative(ctx context.Context, initName string) error {
-	if m == nil || m.initLister == nil || m.backlogStore == nil || m.initDirFn == nil {
+// MaterializeGoal rebuilds graph.json for a single goal. Missing items (names
+// that reference deleted backlog items) are silently dropped; cross-goal
+// dependencies are not represented.
+func (m *Materializer) MaterializeGoal(ctx context.Context, goalName string) error {
+	if m == nil || m.goalLister == nil || m.backlogStore == nil || m.goalDirFn == nil {
 		return nil
 	}
-	if strings.TrimSpace(initName) == "" {
-		return fmt.Errorf("initiative name is required")
+	if strings.TrimSpace(goalName) == "" {
+		return fmt.Errorf("goal name is required")
 	}
 
-	all, err := m.initLister.List()
+	all, err := m.goalLister.List()
 	if err != nil {
-		return fmt.Errorf("list initiatives: %w", err)
+		return fmt.Errorf("list goals: %w", err)
 	}
-	var target *InitiativeEntry
+	var target *GoalEntry
 	for i := range all {
-		if all[i].Name == initName {
+		if all[i].Name == goalName {
 			target = &all[i]
 			break
 		}
 	}
 	if target == nil {
-		// Initiative was deleted; remove any stale graph.json.
-		path := m.graphPath(initName)
+		// Goal was deleted; remove any stale graph.json.
+		path := m.graphPath(goalName)
 		if _, statErr := os.Stat(path); statErr == nil {
 			if rmErr := os.Remove(path); rmErr != nil {
 				slog.Debug("graph: remove stale graph.json failed", "err", rmErr, "path", path)
@@ -153,36 +153,36 @@ func (m *Materializer) MaterializeInitiative(ctx context.Context, initName strin
 	}
 
 	graph := m.buildGraph(ctx, *target)
-	return m.writeGraph(initName, graph)
+	return m.writeGraph(goalName, graph)
 }
 
-// MaterializeAll rebuilds graph.json for every initiative. Called on startup
-// and after bulk mutations. Per-initiative failures are logged individually
-// (so operators can tell which initiatives went stale) and joined into the
-// returned error — never aborts the loop, so a single bad initiative can't
+// MaterializeAll rebuilds graph.json for every goal. Called on startup and
+// after bulk mutations. Per-goal failures are logged individually (so
+// operators can tell which goals went stale) and joined into the returned
+// error — never aborts the loop, so a single bad goal can't
 // block the rest from re-materializing.
 func (m *Materializer) MaterializeAll(ctx context.Context) error {
-	if m == nil || m.initLister == nil || m.backlogStore == nil || m.initDirFn == nil {
+	if m == nil || m.goalLister == nil || m.backlogStore == nil || m.goalDirFn == nil {
 		return nil
 	}
-	all, err := m.initLister.List()
+	all, err := m.goalLister.List()
 	if err != nil {
-		return fmt.Errorf("list initiatives: %w", err)
+		return fmt.Errorf("list goals: %w", err)
 	}
 	var errs []error
-	for _, init := range all {
-		if err := m.MaterializeInitiative(ctx, init.Name); err != nil {
-			slog.Warn("materialize initiative failed", "initiative", init.Name, "err", err)
-			errs = append(errs, fmt.Errorf("initiative %s: %w", init.Name, err))
+	for _, goal := range all {
+		if err := m.MaterializeGoal(ctx, goal.Name); err != nil {
+			slog.Warn("materialize goal failed", "goal", goal.Name, "err", err)
+			errs = append(errs, fmt.Errorf("goal %s: %w", goal.Name, err))
 		}
 	}
 	return errors.Join(errs...)
 }
 
 // ReadGraph loads the materialized graph.json for a single
-// initiative. Returns (nil, nil) if no graph has been materialized yet.
-func (m *Materializer) ReadGraph(initName string) (*MaterializedGraph, error) {
-	path := m.graphPath(initName)
+// goal. Returns (nil, nil) if no graph has been materialized yet.
+func (m *Materializer) ReadGraph(goalName string) (*MaterializedGraph, error) {
+	path := m.graphPath(goalName)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -197,17 +197,17 @@ func (m *Materializer) ReadGraph(initName string) (*MaterializedGraph, error) {
 	return &g, nil
 }
 
-// buildGraph projects the initiative's member items and their dependency
+// buildGraph projects the goal's derived items and their dependency
 // edges into a MaterializedGraph. Pure — no I/O beyond reading items.
-func (m *Materializer) buildGraph(ctx context.Context, init InitiativeEntry) MaterializedGraph {
-	nodes := make([]MaterializedGraphNode, 0, len(init.Items))
-	memberSet := make(map[string]struct{}, len(init.Items))
+func (m *Materializer) buildGraph(ctx context.Context, goal GoalEntry) MaterializedGraph {
+	nodes := make([]MaterializedGraphNode, 0, len(goal.Items))
+	memberSet := make(map[string]struct{}, len(goal.Items))
 
-	for _, ref := range init.Items {
+	for _, ref := range goal.Items {
 		parts := strings.SplitN(ref, "/", 2)
 		if len(parts) != 2 {
-			slog.Warn("initiative references unparsable item during materialization",
-				"initiative", init.Name, "item_ref", ref)
+			slog.Warn("goal references unparsable item during materialization",
+				"goal", goal.Name, "item_ref", ref)
 			continue
 		}
 		kind := backlog.BacklogKind(parts[0])
@@ -215,10 +215,10 @@ func (m *Materializer) buildGraph(ctx context.Context, init InitiativeEntry) Mat
 		item, err := m.backlogStore.LoadItem(kind, name)
 		if err != nil {
 			// Dropped items are not errors — they may be mid-deletion or
-			// the initiative has a stale reference. Log so the gap is
+			// the goal has a stale reference. Log so the gap is
 			// visible without failing the whole projection.
-			slog.Warn("initiative item not found during materialization",
-				"initiative", init.Name, "item_ref", ref, "err", err)
+			slog.Warn("goal item not found during materialization",
+				"goal", goal.Name, "item_ref", ref, "err", err)
 			continue
 		}
 		archived := item.ArchivedAt != nil && *item.ArchivedAt != ""
@@ -236,7 +236,7 @@ func (m *Materializer) buildGraph(ctx context.Context, init InitiativeEntry) Mat
 	}
 
 	edges := make([]MaterializedGraphEdge, 0)
-	for _, ref := range init.Items {
+	for _, ref := range goal.Items {
 		parts := strings.SplitN(ref, "/", 2)
 		if len(parts) != 2 {
 			continue
@@ -246,8 +246,8 @@ func (m *Materializer) buildGraph(ctx context.Context, init InitiativeEntry) Mat
 			continue
 		}
 		for _, dep := range item.DependsOn {
-			// Only represent intra-initiative edges in graph.json; the full
-			// graph projection covers cross-initiative relationships.
+			// Only represent intra-goal edges in graph.json; the full graph
+			// projection covers cross-goal relationships.
 			if _, ok := memberSet[dep]; !ok {
 				continue
 			}
@@ -260,7 +260,7 @@ func (m *Materializer) buildGraph(ctx context.Context, init InitiativeEntry) Mat
 	}
 
 	return MaterializedGraph{
-		Initiative:  init.Name,
+		Goal:        goal.Name,
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 		Nodes:       nodes,
 		Edges:       edges,
@@ -269,15 +269,15 @@ func (m *Materializer) buildGraph(ctx context.Context, init InitiativeEntry) Mat
 
 // writeGraph persists a MaterializedGraph to disk atomically.
 //
-// Skips the write when the existing graph.json has identical Initiative,
+// Skips the write when the existing graph.json has identical Goal,
 // Nodes, and Edges — GeneratedAt alone is not worth a file-system write or
-// the git-status noise it produces across ~60 initiatives on every burst.
+// the git-status noise it produces across many goals on every burst.
 // First-time writes, corrupt existing files, and any real content change
 // fall through to WriteJSONAtomic.
-func (m *Materializer) writeGraph(initName string, g MaterializedGraph) error {
-	path := m.graphPath(initName)
-	if existing, err := m.ReadGraph(initName); err == nil && existing != nil {
-		if existing.Initiative == g.Initiative &&
+func (m *Materializer) writeGraph(goalName string, g MaterializedGraph) error {
+	path := m.graphPath(goalName)
+	if existing, err := m.ReadGraph(goalName); err == nil && existing != nil {
+		if existing.Goal == g.Goal &&
 			reflect.DeepEqual(existing.Nodes, g.Nodes) &&
 			reflect.DeepEqual(existing.Edges, g.Edges) {
 			return nil
@@ -289,12 +289,12 @@ func (m *Materializer) writeGraph(initName string, g MaterializedGraph) error {
 	return storage.WriteJSONAtomic(path, g)
 }
 
-// graphPath returns the absolute path to an initiative's graph.json.
-func (m *Materializer) graphPath(initName string) string {
-	if m.initDirFn == nil {
+// graphPath returns the absolute path to a goal's graph.json.
+func (m *Materializer) graphPath(goalName string) string {
+	if m.goalDirFn == nil {
 		return ""
 	}
-	return filepath.Join(m.initDirFn(initName), graphJSONFilename)
+	return filepath.Join(m.goalDirFn(goalName), graphJSONFilename)
 }
 
 // ScheduleAll triggers MaterializeAll on a background goroutine. If a

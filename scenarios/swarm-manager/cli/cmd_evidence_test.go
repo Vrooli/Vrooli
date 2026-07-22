@@ -9,6 +9,7 @@ import (
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
+	clitest "swarm-manager/cli/internal/testutil"
 )
 
 type stubEvidenceHandler struct {
@@ -56,7 +57,12 @@ func newEvidenceTestApp(t *testing.T, stub apiconnect.EvidenceServiceHandler) *A
 	path, handler := apiconnect.NewEvidenceServiceHandler(stub)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
-	app, _ := newFeedbackTestApp(t, mux)
+	server := clitest.NewAPIServer(t, mux)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp: %v", err)
+	}
+	_ = server
 	return app
 }
 

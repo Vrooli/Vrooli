@@ -34,7 +34,7 @@ func TestLeadTimeHours(t *testing.T) {
 
 func TestBuildBackfillSamples(t *testing.T) {
 	items := []CompletedItem{
-		{Ref: "execute/a", Kind: "execute", Effort: "m", Initiative: "init-x", Created: "2026-06-01T00:00:00Z", Completed: "2026-06-03T00:00:00Z"},
+		{Ref: "execute/a", Kind: "execute", Effort: "m", Milestone: "init-x", Created: "2026-06-01T00:00:00Z", Completed: "2026-06-03T00:00:00Z"},
 		{Ref: "execute/b", Kind: "execute", Effort: "", Created: "2026-06-01T00:00:00Z", Completed: "2026-06-01T12:00:00Z"},
 		{Ref: "fix/c", Kind: "fix", Effort: "L", Created: "2026-06-01T00:00:00Z", Completed: "2026-06-01T00:00:00Z"}, // no span
 		{Ref: "execute/d", Kind: "execute", Effort: "S", Created: "bad", Completed: "2026-06-02T00:00:00Z"},          // unparseable
@@ -60,8 +60,8 @@ func TestBuildBackfillSamples(t *testing.T) {
 	if samples[0].Ref != "execute/a" || samples[0].EffortClass != "M" || samples[0].DurationHours != 48 {
 		t.Errorf("sample[0] = %+v, want execute/a M 48h", samples[0])
 	}
-	if samples[0].Initiative != "init-x" {
-		t.Errorf("sample[0].Initiative = %q, want init-x", samples[0].Initiative)
+	if samples[0].Milestone != "init-x" {
+		t.Errorf("sample[0].Milestone = %q, want init-x", samples[0].Milestone)
 	}
 	// Second sample: unsized item keeps empty effort class (folds into global).
 	if samples[1].Ref != "execute/b" || samples[1].EffortClass != "" || samples[1].DurationHours != 12 {

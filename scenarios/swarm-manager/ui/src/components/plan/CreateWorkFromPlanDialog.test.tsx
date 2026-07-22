@@ -10,7 +10,7 @@ describe("CreateWorkFromPlanDialog", () => {
     vi.restoreAllMocks();
   });
 
-  it("imports an existing plan into an initiative container", async () => {
+  it("imports an existing plan into an milestone container", async () => {
     vi.spyOn(planService, "listCanonicalPlans").mockResolvedValue([{
       id: "plan-1",
       slug: "alpha-plan",
@@ -22,9 +22,9 @@ describe("CreateWorkFromPlanDialog", () => {
     const importPlan = vi.spyOn(planService, "importPlan").mockResolvedValue({
       slug: "alpha-plan",
       planId: "plan-1",
-      container: "initiative",
+      container: "milestone",
       items: [{ kind: "execute", name: "alpha-plan-phase-1", title: "Build", action: "created" }],
-      initiative: { name: "alpha", title: "Alpha", mode: "holistic-loop", action: "created" },
+      milestone: { name: "alpha", title: "Alpha", mode: "holistic-loop", action: "created" },
       count: 1,
       created: 1,
       linked: 0,
@@ -38,8 +38,8 @@ describe("CreateWorkFromPlanDialog", () => {
 
     await screen.findByText("Alpha Plan");
     await userEvent.click(screen.getByTestId("create-work-plan-option-alpha-plan"));
-    await userEvent.click(screen.getByText("Initiative"));
-    await userEvent.type(screen.getByPlaceholderText("initiative-name"), "alpha");
+    await userEvent.click(screen.getByText("Milestone"));
+    await userEvent.type(screen.getByPlaceholderText("milestone-name"), "alpha");
     await userEvent.click(screen.getByTestId("create-work-from-plan-submit"));
 
     await waitFor(() => expect(importPlan).toHaveBeenCalledWith({
@@ -49,7 +49,7 @@ describe("CreateWorkFromPlanDialog", () => {
       title: undefined,
       slug: undefined,
       container: {
-        type: "initiative",
+        type: "milestone",
         name: "alpha",
         title: undefined,
         description: undefined,

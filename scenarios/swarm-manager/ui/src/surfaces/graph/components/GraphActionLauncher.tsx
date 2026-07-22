@@ -81,7 +81,7 @@ export function GraphActionLauncher({
           <LauncherItem
             icon={<FilePlus2 className="h-5 w-5" />}
             label="Create from plan"
-            description="Bind a canonical plan to backlog work or an initiative."
+            description="Bind a canonical plan to backlog work or an goal."
             onClick={() => runAction(onCreateFromPlan)}
           />
         </div>

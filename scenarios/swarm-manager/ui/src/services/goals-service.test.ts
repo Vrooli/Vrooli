@@ -24,7 +24,7 @@ describe("Goals Service", () => {
         title: "Monetization v1",
         status: "active",
         priority: 7,
-        targets: ["execute/foo", "initiative/bar"],
+        targets: ["execute/foo"],
         seeded: true,
         scope_history: [{ at: "t0", target_count: 2, closure_size: 9, completed: 3 }],
         created: "c",

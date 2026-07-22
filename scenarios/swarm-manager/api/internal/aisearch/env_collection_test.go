@@ -11,7 +11,7 @@ func clearNamespaceEnv(t *testing.T) {
 	t.Setenv("VROOLI_VARIANT", "")
 	t.Setenv("VROOLI_SCENARIO", "")
 	t.Setenv("AI_SEARCH_BACKLOG_COLLECTION", "")
-	t.Setenv("AI_SEARCH_INITIATIVE_COLLECTION", "")
+	t.Setenv("AI_SEARCH_GOAL_COLLECTION", "")
 	t.Setenv("AI_SEARCH_RECORD_COLLECTION", "")
 }
 
@@ -103,14 +103,14 @@ func TestLoadConfigFromEnv_VariantAwareCollections(t *testing.T) {
 
 	cfg := LoadConfigFromEnv()
 	checks := map[string]string{
-		"backlog":     cfg.BacklogCollection,
-		"initiatives": cfg.InitiativeCollection,
-		"records":     cfg.RecordCollection,
+		"backlog": cfg.BacklogCollection,
+		"goals":   cfg.GoalCollection,
+		"records": cfg.RecordCollection,
 	}
 	want := map[string]string{
-		"backlog":     "swarm-manager_shadow_backlog",
-		"initiatives": "swarm-manager_shadow_initiatives",
-		"records":     "swarm-manager_shadow_records",
+		"backlog": "swarm-manager_shadow_backlog",
+		"goals":   "swarm-manager_shadow_goals",
+		"records": "swarm-manager_shadow_records",
 	}
 	for domain, got := range checks {
 		if got != want[domain] {
@@ -131,8 +131,8 @@ func TestLoadConfigFromEnv_LiveCollections(t *testing.T) {
 	if cfg.BacklogCollection != "swarm-manager_backlog" {
 		t.Errorf("live backlog collection = %q, want swarm-manager_backlog", cfg.BacklogCollection)
 	}
-	if cfg.InitiativeCollection != "swarm-manager_initiatives" {
-		t.Errorf("live initiative collection = %q, want swarm-manager_initiatives", cfg.InitiativeCollection)
+	if cfg.GoalCollection != "swarm-manager_goals" {
+		t.Errorf("live goal collection = %q, want swarm-manager_goals", cfg.GoalCollection)
 	}
 	if cfg.RecordCollection != "swarm-manager_records" {
 		t.Errorf("live record collection = %q, want swarm-manager_records", cfg.RecordCollection)

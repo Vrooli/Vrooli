@@ -5,11 +5,10 @@
  * Presentation-layer code should import these rather than defining their own.
  */
 
-import { Activity, Bot, Bug, Circle, CheckCircle, AlertCircle, Cpu, Lightbulb, MessageSquare, Package, Rocket, Search, Target, Trophy, Wrench, Zap, type LucideIcon } from "lucide-react";
+import { Activity, Bot, Bug, Circle, CheckCircle, AlertCircle, Cpu, Lightbulb, MessageSquare, Package, Rocket, Search, Trophy, Wrench, Zap, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
 import type { BacklogKind, BacklogStatus } from "./backlog";
 import type { CaptureStatus } from "./capture";
-import type { InitiativeStatus } from "./initiative";
 import type { ScenarioStatus } from "./scenario";
 import type { ExecutionMode, ExecutionStatus } from "./execution";
 import type { AgentActivityStatus, AgentRunStatus } from "./agent";
@@ -124,7 +123,6 @@ export function formatBacklogStatus(status: BacklogStatus): string {
  */
 export type EntityType =
   | "backlog"
-  | "initiative"
   | "goal"
   | "scenario"
   | "capture"
@@ -137,13 +135,11 @@ export type EntityType =
  * Graph nodes, detail page headers, and any other entity-type-aware UI
  * should import from here rather than defining their own icon mappings.
  *
- * Goal uses Trophy so it is visually distinct from initiative (Target);
- * every goal surface must resolve its icon from here rather than hardcoding
- * Target, which would make goals and initiatives indistinguishable.
+ * Every goal surface resolves its icon from this registry rather than
+ * hardcoding an icon locally.
  */
 export const ENTITY_TYPE_ICONS: Record<EntityType, LucideIcon> = {
   backlog: Lightbulb,
-  initiative: Target,
   goal: Trophy,
   scenario: Package,
   capture: MessageSquare,
@@ -157,7 +153,6 @@ export const ENTITY_TYPE_ICONS: Record<EntityType, LucideIcon> = {
  */
 export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   backlog: "Backlog",
-  initiative: "Initiative",
   goal: "Goal",
   scenario: "Scenario",
   capture: "Capture",
@@ -169,7 +164,6 @@ export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
 export type SidebarEntityType =
   | "backlog"
   | "captures"
-  | "initiatives"
   | "goals"
   | "executions"
   | "sessions";
@@ -182,7 +176,6 @@ export type SidebarEntityType =
 export const SIDEBAR_TAB_ICONS: Record<SidebarEntityType, LucideIcon> = {
   backlog: ENTITY_TYPE_ICONS.backlog,
   captures: ENTITY_TYPE_ICONS.capture,
-  initiatives: ENTITY_TYPE_ICONS.initiative,
   goals: ENTITY_TYPE_ICONS.goal,
   executions: ENTITY_TYPE_ICONS.execution,
   sessions: Bot,
@@ -236,31 +229,6 @@ export const REVIEW_CLASSIFICATION_COLORS: Record<string, string> = {
   ready_with_notes: "bg-amber-500/20 text-amber-400",
   needs_work: "bg-red-500/20 text-red-400",
   not_assessable: "bg-slate-500/20 text-slate-400",
-};
-
-// ============================================================================
-// Initiative Status Display
-// ============================================================================
-
-export const INITIATIVE_STATUSES: InitiativeStatus[] = [
-  "active",
-  "in_review",
-  "review_pending",
-  "completed",
-  "failed",
-  "needs_followup",
-];
-
-/**
- * Maps initiative status to semi-transparent chip color classes (bg + text).
- */
-export const INITIATIVE_STATUS_CHIP_COLORS: Record<string, string> = {
-  active: "bg-sky-500/15 text-sky-400",
-  in_review: "bg-amber-500/20 text-amber-400",
-  review_pending: "bg-cyan-500/20 text-cyan-400",
-  completed: "bg-green-500/15 text-green-400",
-  failed: "bg-red-500/20 text-red-400",
-  needs_followup: "bg-orange-500/20 text-orange-400",
 };
 
 // ============================================================================

@@ -21,7 +21,6 @@ import { BacklogCard } from "../components/backlog/backlog-card";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
-import { InitiativeSummaryCard } from "../components/initiative/initiative-summary-card";
 import { GOAL_LENSES } from "../components/detail/lens-options";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import type { ActionMenuItem } from "../components/ui/action-menu";
@@ -35,8 +34,7 @@ import { ENTITY_TYPE_ICONS } from "../types/constants";
 import {
   backlogDetailPath,
   graphPath,
-  initiativeDetailPath,
-  routeTargetToNodeId,
+	 routeTargetToNodeId,
 } from "../app/routes/route-paths";
 
 const MAX_PRIORITY = 10;
@@ -50,16 +48,6 @@ interface ParsedGoalRef {
 }
 
 function parseGoalRef(ref: string): ParsedGoalRef {
-  if (ref.startsWith("initiative/")) {
-    const name = ref.slice("initiative/".length);
-    return {
-      ref,
-      label: name,
-      href: name ? initiativeDetailPath(name) : null,
-      kindLabel: "initiative",
-    };
-  }
-
   const slashIdx = ref.indexOf("/");
   if (slashIdx > 0) {
     const kind = ref.slice(0, slashIdx);
@@ -105,9 +93,8 @@ function RefChip({ refId }: { refId: string }) {
 }
 
 /**
- * One scope ref rendered as the standard entity card — the same BacklogCard /
- * InitiativeSummaryCard used by the sidebar and pickers — fed by the server's
- * scope hydration. Falls back to the lightweight RefChip when a ref didn't
+ * One scope ref rendered as the standard BacklogCard fed by the server's scope
+ * hydration. Falls back to the lightweight RefChip when a ref didn't
  * resolve (e.g. a target typo or a deleted item).
  */
 function ScopeEntityCard({ refId, entities }: { refId: string; entities?: GoalScopeEntities }) {
@@ -124,18 +111,6 @@ function ScopeEntityCard({ refId, entities }: { refId: string; entities?: GoalSc
       >
         <BacklogCard item={item} />
       </button>
-    );
-  }
-
-  const summary = entities?.initiatives[refId];
-  if (summary) {
-    return (
-      <div data-testid={`goal-ref-card-${refId}`}>
-        <InitiativeSummaryCard
-          item={summary}
-          onOpen={() => navigate(initiativeDetailPath(summary.initiative.name))}
-        />
-      </div>
     );
   }
 

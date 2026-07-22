@@ -28,7 +28,7 @@ func TestReviewDecide_RecordCaptured_OnAccept(t *testing.T) {
 	createTestItem(t, rootDir, KindFix, BacklogItem{
 		Name: "rec-cap-accept", Status: StatusReviewPending, Kind: KindFix,
 		Title: "Fix the silence race", Description: "Debounce VAD stop events.",
-		Initiative: "voice-reliability", AcceptanceAllow: []string{"scenarios/web-console/**"},
+		Milestone: "voice-reliability", AcceptanceAllow: []string{"scenarios/web-console/**"},
 	})
 	creator := &fakeRecordCreator{id: "rec-12345"}
 	h.SetRecordCreator(creator)
@@ -54,8 +54,8 @@ func TestReviewDecide_RecordCaptured_OnAccept(t *testing.T) {
 	if c.Title != "Fix the silence race" || c.Description != "Debounce VAD stop events." {
 		t.Errorf("capture request did not carry item title/description: %+v", c)
 	}
-	if c.Initiative != "voice-reliability" {
-		t.Errorf("capture request initiative = %q, want voice-reliability", c.Initiative)
+	if c.Milestone != "voice-reliability" {
+		t.Errorf("capture request milestone = %q, want voice-reliability", c.Milestone)
 	}
 	if len(c.AcceptanceAllow) != 1 || c.AcceptanceAllow[0] != "scenarios/web-console/**" {
 		t.Errorf("capture request acceptance globs = %v", c.AcceptanceAllow)

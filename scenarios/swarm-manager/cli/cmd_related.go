@@ -18,8 +18,8 @@ func (a *App) relatedClient() apiconnect.RelatedServiceClient {
 	h, b := cliapp.NewConnectHTTPClient(a.core)
 	return apiconnect.NewRelatedServiceClient(h, b)
 }
-func (a *App) cmdRelatedBacklog(args []string) error    { return a.cmdRelated(args, true) }
-func (a *App) cmdRelatedInitiative(args []string) error { return a.cmdRelated(args, false) }
+func (a *App) cmdRelatedBacklog(args []string) error { return a.cmdRelated(args, true) }
+func (a *App) cmdRelatedGoal(args []string) error    { return a.cmdRelated(args, false) }
 func (a *App) cmdRelated(args []string, backlog bool) error {
 	fs := flag.NewFlagSet("related", flag.ContinueOnError)
 	exclude := fs.Bool("exclude-historical", false, "exclude archived work and records")
@@ -37,9 +37,9 @@ func (a *App) cmdRelated(args []string, backlog bool) error {
 		req.Target = &api.GetRelatedRequest_Backlog{Backlog: &api.RelatedBacklogTarget{Kind: strings.TrimSpace(pos[0]), Name: strings.TrimSpace(pos[1])}}
 	} else {
 		if len(pos) != 1 {
-			return fmt.Errorf("usage: swarm-manager related initiative <name>")
+			return fmt.Errorf("usage: swarm-manager related goal <name>")
 		}
-		req.Target = &api.GetRelatedRequest_Initiative{Initiative: &api.RelatedInitiativeTarget{Name: strings.TrimSpace(pos[0])}}
+		req.Target = &api.GetRelatedRequest_Goal{Goal: &api.RelatedGoalTarget{Name: strings.TrimSpace(pos[0])}}
 	}
 	response, err := a.relatedClient().GetRelated(context.Background(), connect.NewRequest(req))
 	if err != nil {

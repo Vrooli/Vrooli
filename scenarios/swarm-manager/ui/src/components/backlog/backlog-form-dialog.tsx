@@ -40,7 +40,7 @@ export function BacklogFormDialog({
   const setNameDirty = useBacklogFormStore((state) => state.setNameDirty);
   const setError = useBacklogFormStore((state) => state.setError);
   const initialize = useBacklogFormStore((state) => state.initialize);
-  const { name, title, description, status, priority, kind, tags, initiative, dependsOn, effort, acceptanceAllow, acceptanceDeny } = values;
+  const { name, title, description, status, priority, kind, tags, milestone, dependsOn, effort, acceptanceAllow, acceptanceDeny } = values;
 
   const isEditMode = mode === "edit";
 
@@ -78,7 +78,7 @@ export function BacklogFormDialog({
       tags,
       kind,
       dependsOn: dependsOn && dependsOn.length > 0 ? dependsOn : undefined,
-      initiative: initiative?.trim() || undefined,
+      milestone: milestone?.trim() || undefined,
       effort: effort?.trim() || undefined,
       acceptanceAllow: acceptanceAllow && acceptanceAllow.length > 0 ? acceptanceAllow : undefined,
       acceptanceDeny: acceptanceDeny && acceptanceDeny.length > 0 ? acceptanceDeny : undefined,
@@ -130,7 +130,7 @@ export function BacklogFormDialog({
           status={status}
           priority={priority}
           tagsInput={tagsInput}
-          initiative={initiative}
+          milestone={milestone}
           dependsOn={dependsOn}
           effort={effort}
           acceptanceAllow={acceptanceAllow}

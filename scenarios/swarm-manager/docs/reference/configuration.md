@@ -35,7 +35,7 @@ Swarm Manager exposes a focused configuration surface:
 
 ### Plan Workshop
 
-Plan Workshop has no automatic initialization, auto-advance, or readiness settings. Operators explicitly open a review for a backlog item or initiative, submit one response, and decide whether to accept the resulting valid candidate plan. Execution checks the accepted canonical plan on the server.
+Plan Workshop has no automatic initialization, auto-advance, or readiness settings. Operators explicitly open a review for a backlog item or milestone, submit one response, and decide whether to accept the resulting valid candidate plan. Execution checks the accepted canonical plan on the server.
 
 ### Execution Defaults (Settings API)
 
@@ -103,7 +103,7 @@ Operator notes:
 | `delete_confirmation_levels.session` | "simple" | "none"/"simple"/"strong" | Session delete confirmation level |
 | `delete_confirmation_levels.scenario` | "strong" | "none"/"simple"/"strong" | Scenario delete confirmation level |
 | `delete_confirmation_levels.backlog` | "simple" | "none"/"simple"/"strong" | Backlog item delete confirmation level |
-| `delete_confirmation_levels.initiative` | "strong" | "none"/"simple"/"strong" | Initiative delete confirmation level |
+| `delete_confirmation_levels.milestone` | "strong" | "none"/"simple"/"strong" | Milestone delete confirmation level |
 | `delete_confirmation_levels.capture` | "none" | "none"/"simple"/"strong" | Capture delete confirmation level |
 | `delete_confirmation_levels.backlogFile` | "simple" | "none"/"simple"/"strong" | Backlog file delete confirmation level |
 

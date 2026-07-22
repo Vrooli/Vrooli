@@ -15,7 +15,7 @@ vi.mock("react-router-dom", () => ({
 vi.mock("../hooks/useGoalMembership", () => ({
   nodeIdToGoalRef: (nodeId: string) => {
     if (nodeId.startsWith("backlog-item/")) return nodeId.slice("backlog-item/".length);
-    if (nodeId.startsWith("initiative/")) return nodeId;
+    if (nodeId.startsWith("goal/")) return nodeId;
     return null;
   },
   useGoalMembershipIndex: mockUseGoalMembershipIndex,
@@ -112,7 +112,7 @@ import { cloneGraphUIInitialState, useGraphUIStore } from "../stores/graph-ui-st
 import {
   makeExecutionNode,
   makeGraphEdge,
-  makeInitiativeNode,
+  makeGoalNode,
   makeBacklogNode,
   makeCaptureNode,
   makeScenarioNode,
@@ -155,7 +155,7 @@ describe("GraphCanvas", () => {
       ...state,
       lens: "topology",
       nodes: [
-        makeInitiativeNode("initiative/graph-adoption", {
+        makeGoalNode("goal/graph-adoption", {
           label: "Graph Adoption",
           status: "active",
         }),
@@ -172,7 +172,7 @@ describe("GraphCanvas", () => {
         makeGraphEdge(
           "member_of:a",
           "backlog-item/execute/task-a",
-          "initiative/graph-adoption",
+          "goal/graph-adoption",
           "member_of",
         ),
       ],
@@ -186,7 +186,7 @@ describe("GraphCanvas", () => {
 
     const renderedNodeIds = screen.getByTestId("rendered-node-ids").textContent ?? "";
     expect(renderedNodeIds).toContain("backlog-item/execute/task-a");
-    expect(renderedNodeIds).toContain("initiative/graph-adoption");
+    expect(renderedNodeIds).toContain("goal/graph-adoption");
     expect(renderedNodeIds).toContain("scenario/swarm-manager");
   });
 

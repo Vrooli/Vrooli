@@ -56,7 +56,7 @@ func (h *Handler) doUpdate(ctx context.Context, kind BacklogKind, name string, r
 	oldStatus := existing.Status
 	oldPriority := existing.Priority
 	oldEffort := existing.Effort
-	oldInitiative := existing.Initiative
+	oldMilestone := existing.Milestone
 	oldDependsOn := append([]string(nil), existing.DependsOn...)
 
 	if fields.Has(updateFieldEffort) {
@@ -70,8 +70,8 @@ func (h *Handler) doUpdate(ctx context.Context, kind BacklogKind, name string, r
 	applyUpdateBacklogPatch(&existing, update, fields)
 	existing.Updated = time.Now().UTC().Format(time.RFC3339)
 
-	if fields.Has(updateFieldInitiative) {
-		if err := h.validateInitiativeReference(existing.Initiative); err != nil {
+	if fields.Has(updateFieldMilestone) {
+		if err := h.validateMilestoneReference(existing.Milestone); err != nil {
 			return BacklogItem{}, apierr.BadRequest("%s", err.Error())
 		}
 	}
@@ -85,44 +85,44 @@ func (h *Handler) doUpdate(ctx context.Context, kind BacklogKind, name string, r
 		}
 	}
 
-	if apiErr := h.saveWithInitiativeUpdate(existing, kind, name, oldInitiative, fields); apiErr != nil {
+	if apiErr := h.saveWithMilestoneUpdate(existing, kind, name, oldMilestone, fields); apiErr != nil {
 		return BacklogItem{}, apiErr
 	}
 
-	h.logAndEmitUpdate(kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldInitiative, existing.Initiative, oldDependsOn, existing.DependsOn)
+	h.logAndEmitUpdate(kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldMilestone, existing.Milestone, oldDependsOn, existing.DependsOn)
 	h.maybeManuallyAcceptExecution(ctx, kind, name, oldStatus, existing.Status)
 	return existing, nil
 }
 
-// saveWithInitiativeUpdate detaches the item from the old initiative (when
+// saveWithMilestoneUpdate detaches the item from the old milestone (when
 // changed), saves the item, rolls back on save failure, and attaches to the
-// new initiative. Consolidating these three dependent operations eliminates
+// new milestone. Consolidating these three dependent operations eliminates
 // duplicate error-path branches in doUpdate.
-func (h *Handler) saveWithInitiativeUpdate(existing BacklogItem, kind BacklogKind, name, oldInitiative string, fields backlogUpdateFieldSet) *apierr.DomainError {
+func (h *Handler) saveWithMilestoneUpdate(existing BacklogItem, kind BacklogKind, name, oldMilestone string, fields backlogUpdateFieldSet) *apierr.DomainError {
 	ref := string(kind) + "/" + name
-	initiativeChanged := fields.Has(updateFieldInitiative) && oldInitiative != existing.Initiative
+	milestoneChanged := fields.Has(updateFieldMilestone) && oldMilestone != existing.Milestone
 
-	if initiativeChanged && h.initiativeAssigner != nil && oldInitiative != "" {
-		if err := h.initiativeAssigner.ForgetItem(oldInitiative, ref); err != nil {
-			slog.Error("failed to detach item from old initiative", "ref", ref, "initiative", oldInitiative, "err", err)
-			return apierr.Internal("failed to update old initiative membership")
+	if milestoneChanged && h.milestoneAssigner != nil && oldMilestone != "" {
+		if err := h.milestoneAssigner.ForgetItem(oldMilestone, ref); err != nil {
+			slog.Error("failed to detach item from old milestone", "ref", ref, "milestone", oldMilestone, "err", err)
+			return apierr.Internal("failed to update old milestone membership")
 		}
 	}
 
 	if err := h.store.SaveItem(existing); err != nil {
-		if initiativeChanged && h.initiativeAssigner != nil && oldInitiative != "" {
-			if rErr := h.initiativeAssigner.RememberItem(oldInitiative, ref); rErr != nil {
-				slog.Error("failed to re-attach to old initiative after save failure", "ref", ref, "err", rErr)
+		if milestoneChanged && h.milestoneAssigner != nil && oldMilestone != "" {
+			if rErr := h.milestoneAssigner.RememberItem(oldMilestone, ref); rErr != nil {
+				slog.Error("failed to re-attach to old milestone after save failure", "ref", ref, "err", rErr)
 			}
 		}
 		slog.Error("failed to save item", "name", name, "err", err)
 		return apierr.Internal("failed to save backlog item")
 	}
 
-	if initiativeChanged && h.initiativeAssigner != nil && existing.Initiative != "" {
-		if err := h.initiativeAssigner.RememberItem(existing.Initiative, ref); err != nil {
-			slog.Error("failed to attach item to new initiative", "ref", ref, "initiative", existing.Initiative, "err", err)
-			return apierr.Internal("failed to update new initiative membership")
+	if milestoneChanged && h.milestoneAssigner != nil && existing.Milestone != "" {
+		if err := h.milestoneAssigner.RememberItem(existing.Milestone, ref); err != nil {
+			slog.Error("failed to attach item to new milestone", "ref", ref, "milestone", existing.Milestone, "err", err)
+			return apierr.Internal("failed to update new milestone membership")
 		}
 	}
 	return nil
@@ -134,7 +134,7 @@ func (h *Handler) logAndEmitUpdate(
 	oldStatus, newStatus BacklogStatus,
 	oldPriority, newPriority int,
 	oldEffort, newEffort string,
-	oldInitiative, newInitiative string,
+	oldMilestone, newMilestone string,
 	oldDeps, newDeps []string,
 ) {
 	if oldStatus != newStatus || oldPriority != newPriority {
@@ -156,8 +156,8 @@ func (h *Handler) logAndEmitUpdate(
 	if oldEffort != newEffort {
 		h.eventLogger.EmitBacklogEffortChanged(entityID, oldEffort, newEffort)
 	}
-	if oldInitiative != newInitiative {
-		h.eventLogger.EmitBacklogInitiativeChanged(entityID, oldInitiative, newInitiative)
+	if oldMilestone != newMilestone {
+		h.eventLogger.EmitBacklogMilestoneChanged(entityID, oldMilestone, newMilestone)
 	}
 	h.emitDependencyChanges(entityID, oldDeps, newDeps)
 }

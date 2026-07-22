@@ -6,11 +6,11 @@ import type { AgentSessionContextItem } from "../../types";
 
 function ctxItem(overrides: Partial<AgentSessionContextItem>): AgentSessionContextItem {
   return {
-    type: "initiative",
+    type: "goal",
     ref: "ship-cockpit",
     title: "Ship the cockpit",
     summary: "",
-    nodeId: "initiative/ship-cockpit",
+    nodeId: "goal/ship-cockpit",
     metadataJson: "",
     selectedAt: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -25,32 +25,32 @@ describe("ChatMessageBubble entity references", () => {
   it("renders a resolved reference as an anchor to its detail path", () => {
     render(
       <ChatMessageBubble
-        message={message("Start `initiative:ship-cockpit` next.", [ctxItem({})])}
+        message={message("Start `goal:ship-cockpit` next.", [ctxItem({})])}
       />,
     );
     const anchor = document.querySelector('a[data-entity-ref="true"]');
     expect(anchor).not.toBeNull();
-    expect(anchor?.getAttribute("href")).toBe("/initiatives/ship-cockpit");
-    expect(anchor?.textContent).toBe("initiative:ship-cockpit");
+    expect(anchor?.getAttribute("href")).toBe("/goals/ship-cockpit");
+    expect(anchor?.textContent).toBe("goal:ship-cockpit");
   });
 
   it("does not linkify a typed span that has no resolved context entry", () => {
-    render(<ChatMessageBubble message={message("Maybe `initiative:ghost`.", [])} />);
+    render(<ChatMessageBubble message={message("Maybe `goal:ghost`.", [])} />);
     expect(document.querySelector('a[data-entity-ref="true"]')).toBeNull();
-    expect(document.querySelector("code")?.textContent).toBe("initiative:ghost");
+    expect(document.querySelector("code")?.textContent).toBe("goal:ghost");
   });
 
   it("intercepts reference clicks for client-side navigation", () => {
     const onReferenceNavigate = vi.fn();
     render(
       <ChatMessageBubble
-        message={message("Open `initiative:ship-cockpit`.", [ctxItem({})])}
+        message={message("Open `goal:ship-cockpit`.", [ctxItem({})])}
         onReferenceNavigate={onReferenceNavigate}
       />,
     );
-    const anchor = screen.getByText("initiative:ship-cockpit");
+    const anchor = screen.getByText("goal:ship-cockpit");
     fireEvent.click(anchor);
-    expect(onReferenceNavigate).toHaveBeenCalledWith("/initiatives/ship-cockpit");
+    expect(onReferenceNavigate).toHaveBeenCalledWith("/goals/ship-cockpit");
   });
 
   it("maps backlog context items through the kind/name route", () => {

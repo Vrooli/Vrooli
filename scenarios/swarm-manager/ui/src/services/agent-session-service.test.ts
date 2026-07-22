@@ -38,7 +38,7 @@ const SESSION_RESPONSE = {
 const ARTIFACT_RESPONSE = {
   id: "art-1",
   session_id: "sess_1",
-  artifact_type: "initiative",
+  artifact_type: "milestone",
   action: "created",
   entity_ref: "quality-gates",
   title: "Quality Gates",
@@ -201,9 +201,9 @@ describe("agent-session-service", () => {
     expect(mockApiClient.get).toHaveBeenCalledWith("/agent-sessions/sess_1/artifacts");
 
     vi.mocked(mockApiClient.get).mockResolvedValueOnce({ artifacts: [ARTIFACT_RESPONSE] });
-    await expect(service.getArtifactsByEntity("initiative", "quality-gates")).resolves.toHaveLength(1);
+    await expect(service.getArtifactsByEntity("milestone", "quality-gates")).resolves.toHaveLength(1);
     expect(mockApiClient.get).toHaveBeenCalledWith(
-      "/artifacts/by-entity?artifact_type=initiative&entity_ref=quality-gates"
+      "/artifacts/by-entity?artifact_type=milestone&entity_ref=quality-gates"
     );
   });
 

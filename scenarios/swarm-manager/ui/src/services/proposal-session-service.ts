@@ -2,7 +2,7 @@ import { defaultApiClient, type IApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { buildQueryString } from "../lib/query-utils";
 
-export type ProposalSessionTargetType = "initiative" | "backlog_item";
+export type ProposalSessionTargetType = "goal" | "backlog_item";
 
 export interface ProposalMutationOutcome {
   mutation_id: string;

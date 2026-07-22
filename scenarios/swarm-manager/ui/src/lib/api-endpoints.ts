@@ -110,25 +110,6 @@ export const API_ENDPOINTS = {
   recordNarrative: (id: string) => `/records/${id}/narrative`,
   recordSupersede: (id: string) => `/records/${id}/supersede`,
   recordSearch: "/records/search",
-  initiatives: "/initiatives",
-  initiativeByName: (name: string) => `/initiatives/${name}`,
-  initiativeArchiveItem: (name: string) => `/initiatives/${name}/archive-item`,
-  initiativeRecreate: (name: string) => `/initiatives/${name}/recreate`,
-  initiativeItems: (name: string) => `/initiatives/${name}/items`,
-  initiativeFiles: (name: string) => `/initiatives/${name}/files`,
-  initiativeFileOperations: (name: string) => `/initiatives/${name}/files`,
-  initiativeFileContent: (name: string, filePath: string) =>
-    `/initiatives/${name}/files/${filePath}`,
-  // Initiative review — final verdict after all member items reach terminal.
-  initiativeReviewRounds: (name: string) => `/initiatives/${name}/review`,
-  initiativeReviewRound: (name: string, round: number) =>
-    `/initiatives/${name}/review/${round}`,
-  initiativeReviewTrigger: (name: string) => `/initiatives/${name}/review/trigger`,
-  initiativeReviewDecide: (name: string) => `/initiatives/${name}/review/decide`,
-  initiativeReviewDecisions: (name: string) => `/initiatives/${name}/review/decisions`,
-  // The operating-mode subsystem is served over Proto + Connect-RPC
-  // (`OperatingModeService`); its client lives in
-  // `services/initiative-mode-service.ts`, not this REST endpoint table.
   graph: "/graph",
   plan: "/plan",
   planImport: "/plan-import",

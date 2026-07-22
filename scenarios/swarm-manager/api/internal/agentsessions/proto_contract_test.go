@@ -22,7 +22,7 @@ func TestPublicProposalContractAcceptsEveryPersistableProposalKind(t *testing.T)
 			UpdatedAt:   testTimestamp,
 		}
 		if kind == ProposalMutationList {
-			proposal.Target = &ProposalTarget{Type: ContextInitiative, Ref: "contract", Name: "Contract"}
+			proposal.Target = &ProposalTarget{Type: ContextGoal, Ref: "contract", Name: "Contract"}
 		}
 		if err := validator.Validate(proposalToProto(proposal)); err != nil {
 			t.Errorf("public proposal contract rejects %q: %v", kind, err)

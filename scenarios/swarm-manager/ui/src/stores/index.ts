@@ -18,6 +18,5 @@ export {
   useAgentSessionStore,
   agentSessionStoreInitialState,
 } from "./agent-session-store";
-export { useInitiativeStore, initiativeStoreInitialState } from "./initiative-store";
 export { useBacklogDetailUIStore } from "./backlog-detail-ui-store";
 export type { LoadStatus } from "./store-utils";

@@ -10,30 +10,30 @@ import (
 
 // ProjectionService builds lens-specific graph projections from data sources.
 type ProjectionService struct {
-	backlog    BacklogLister
-	initiative InitiativeLister
-	capture    CaptureLister
-	scenario   ScenarioLister
-	execution  ExecutionLister
+	backlog   BacklogLister
+	goal      GoalLister
+	capture   CaptureLister
+	scenario  ScenarioLister
+	execution ExecutionLister
 }
 
 // ProjectionConfig holds constructor dependencies for ProjectionService.
 type ProjectionConfig struct {
-	Backlog    BacklogLister
-	Initiative InitiativeLister
-	Capture    CaptureLister
-	Scenario   ScenarioLister
-	Execution  ExecutionLister
+	Backlog   BacklogLister
+	Goal      GoalLister
+	Capture   CaptureLister
+	Scenario  ScenarioLister
+	Execution ExecutionLister
 }
 
 // NewProjectionService creates a ProjectionService.
 func NewProjectionService(cfg ProjectionConfig) *ProjectionService {
 	return &ProjectionService{
-		backlog:    cfg.Backlog,
-		initiative: cfg.Initiative,
-		capture:    cfg.Capture,
-		scenario:   cfg.Scenario,
-		execution:  cfg.Execution,
+		backlog:   cfg.Backlog,
+		goal:      cfg.Goal,
+		capture:   cfg.Capture,
+		scenario:  cfg.Scenario,
+		execution: cfg.Execution,
 	}
 }
 
@@ -59,7 +59,7 @@ func backlogItemKey(kind, name string) string {
 	return kind + "/" + name
 }
 
-type initiativeRollup struct {
+type goalRollup struct {
 	Total      int
 	Completed  int
 	InProgress int
@@ -67,8 +67,8 @@ type initiativeRollup struct {
 	Pending    int
 }
 
-func computeInitiativeRollup(items []string, itemByKey map[string]backlog.BacklogItem) initiativeRollup {
-	rollup := initiativeRollup{
+func computeGoalRollup(items []string, itemByKey map[string]backlog.BacklogItem) goalRollup {
+	rollup := goalRollup{
 		Total: len(items),
 	}
 

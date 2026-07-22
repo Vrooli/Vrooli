@@ -20,7 +20,7 @@ describe("ConceptExplainerDialog", () => {
         sections={SECTIONS}
       />,
     );
-    expect(screen.queryByTestId(selectors.initiativeDetails.conceptExplainerDialog)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.goalDetails.conceptExplainerDialog)).not.toBeInTheDocument();
   });
 
   it("renders title, intro, and sections grouped by heading when open", () => {
@@ -33,7 +33,7 @@ describe("ConceptExplainerDialog", () => {
         sections={SECTIONS}
       />,
     );
-    expect(screen.getByTestId(selectors.initiativeDetails.conceptExplainerDialog)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.goalDetails.conceptExplainerDialog)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Scope" })).toBeInTheDocument();
     expect(screen.getByText("Scope determines the unit of work.")).toBeInTheDocument();
     expect(screen.getByText("Group A")).toBeInTheDocument();

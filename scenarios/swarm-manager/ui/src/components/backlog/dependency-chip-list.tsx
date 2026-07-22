@@ -7,7 +7,7 @@
  *   [title button]  [status chip]  [activity chip | attention chips]
  *
  * Clicking the title navigates to that backlog item. The status chip carries
- * the lifecycle color (the same palette used by graph nodes and the Initiative
+ * the lifecycle color (the same palette used by graph nodes and the Goal
  * Details row) and is itself clickable for inline status changes when
  * `onStatusChange` is provided.
  *

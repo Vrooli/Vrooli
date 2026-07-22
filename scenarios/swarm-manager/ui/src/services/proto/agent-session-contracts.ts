@@ -56,7 +56,7 @@ const sessionStatuses = new Set<string>([
 const messageRoles = new Set<string>(["user", "assistant", "system"]);
 const contextTypes = new Set<string>([
   "backlog_item",
-  "initiative",
+  "goal",
   "capture",
   "execution",
   "agent_activity",
@@ -68,7 +68,7 @@ const contextTypes = new Set<string>([
 ]);
 const artifactTypes = new Set<string>([
   "backlog_item",
-  "initiative",
+  "milestone",
   "operating_mode_proposal",
   "operating_mode_definition",
   "capture",
@@ -176,7 +176,7 @@ export function mapProtoAgentSession(protoSession: AgentSession): AgentSessionDo
 
 function mapProtoProposalTarget(target: NonNullable<AgentSession["proposalTarget"]>): AgentSessionProposalTarget {
   return {
-    type: target.type === "initiative" ? "initiative" : "backlog_item",
+    type: target.type === "goal" ? "goal" : "backlog_item",
     ref: target.ref ?? "",
     name: target.name ?? "",
   };

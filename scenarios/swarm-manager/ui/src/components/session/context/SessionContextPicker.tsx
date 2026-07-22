@@ -12,13 +12,11 @@ import {
   useBacklogStore,
   useCaptureStore,
   useExecutionStore,
-  useInitiativeStore,
   useScenariosStore,
 } from "../../../stores";
 import type { AgentSessionContextType, AgentSessionKind } from "../../../types";
 import { ContextChipTray } from "../../composer/ContextChipTray";
 import { BacklogCard } from "../../backlog/backlog-card";
-import { InitiativeSummaryCard } from "../../initiative/initiative-summary-card";
 import { ExecutionSummaryCard } from "../../execution/execution-summary-card";
 import { ScenarioSummaryCard } from "../../scenario/scenario-summary-card";
 import { SessionSummaryCard } from "../session-summary-card";
@@ -33,13 +31,14 @@ import {
   captureOption,
   contextKey,
   executionOption,
-  initiativeOption,
   operationsBriefingOption,
   scenarioOption,
   sessionOption,
   startupBriefOption,
   type SessionContextOption,
 } from "./session-context-refs";
+import { goalsService } from "../../../services/goals-service";
+import type { GoalWithScope } from "../../../types/goal";
 
 interface SessionContextPickerProps {
   isOpen: boolean;
@@ -76,14 +75,13 @@ function SessionContextPickerContent({
   initialFilterKey,
 }: SessionContextPickerProps) {
   const allowedTypes = useMemo(() => allowedContextTypesForKind(sessionKind), [sessionKind]);
-  const [activeType, setActiveType] = useState<AgentSessionContextType>(allowedTypes[0] ?? "initiative");
+	const [activeType, setActiveType] = useState<AgentSessionContextType>(allowedTypes[0] ?? "goal");
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<SessionContextOption[]>(selected);
 
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
   const backlogItems = useBacklogStore((s) => s.items);
-  const fetchInitiatives = useInitiativeStore((s) => s.fetchInitiatives);
-  const initiatives = useInitiativeStore((s) => s.items);
+	const [goals, setGoals] = useState<GoalWithScope[]>([]);
   const fetchCaptures = useCaptureStore((s) => s.fetchCaptures);
   const captures = useCaptureStore((s) => s.captures);
   const fetchExecutions = useExecutionStore((s) => s.fetchExecutions);
@@ -100,21 +98,21 @@ function SessionContextPickerContent({
     setDraft(selected);
     setActiveType((current) => {
       if (initialType && allowedTypes.includes(initialType)) return initialType;
-      return allowedTypes.includes(current) ? current : allowedTypes[0] ?? "initiative";
+		return allowedTypes.includes(current) ? current : allowedTypes[0] ?? "goal";
     });
     setQuery("");
     void fetchBacklog();
-    void fetchInitiatives();
+		void goalsService.list().then(setGoals).catch(() => setGoals([]));
     void fetchCaptures();
     void fetchExecutions();
     void refreshActivities(false);
     void fetchScenarios();
     void fetchSessions({ limit: 100 });
-  }, [allowedTypes, fetchBacklog, fetchCaptures, fetchExecutions, fetchInitiatives, fetchScenarios, fetchSessions, initialType, isOpen, refreshActivities, selected]);
+	}, [allowedTypes, fetchBacklog, fetchCaptures, fetchExecutions, fetchScenarios, fetchSessions, initialType, isOpen, refreshActivities, selected]);
 
   const optionsByType = useMemo<Record<AgentSessionContextType, SessionContextOption[]>>(() => buildContextOptionsByType({
     backlogItems,
-    initiatives,
+		goals,
     captures,
     executions,
     activities,
@@ -122,7 +120,7 @@ function SessionContextPickerContent({
     sessions,
     sessionKind,
     currentSessionId,
-  }), [activities, backlogItems, captures, currentSessionId, executions, initiatives, scenarios, sessionKind, sessions]);
+	}), [activities, backlogItems, captures, currentSessionId, executions, goals, scenarios, sessionKind, sessions]);
 
   // Phase-3 narrowing: when opened from a starter card carrying a filter key,
   // the targeted type's list (and its tab count) shrink to the actionable subset,
@@ -207,14 +205,8 @@ function SessionContextPickerContent({
           .map(({ entity, option }) => (
             <BacklogCard key={contextKey(option.type, option.ref)} item={entity} selection={selectionFor(option)} />
           ));
-      case "initiative":
-        return initiatives
-          .map((entity) => ({ entity, option: initiativeOption(entity) }))
-          .filter(({ option }) => matchesNeedle(option))
-          .slice(0, 80)
-          .map(({ entity, option }) => (
-            <InitiativeSummaryCard key={contextKey(option.type, option.ref)} item={entity} selection={selectionFor(option)} />
-          ));
+	  case "goal":
+		return (optionsByType[activeType] ?? []).filter(matchesNeedle).slice(0, 80).map(fallbackRow);
       case "execution":
         return visibleExecutions
           .map((entity) => ({ entity, option: executionOption(entity) }))

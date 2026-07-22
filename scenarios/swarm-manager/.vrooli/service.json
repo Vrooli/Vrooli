@@ -182,7 +182,7 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Vector store for AI search over backlog items and initiatives"
+        "description": "Vector store for AI search over backlog items and goals"
       }
     },
     "scenarios": {
@@ -211,12 +211,11 @@
               ".vrooli/agent-manager/work-follow-up.json",
               ".vrooli/agent-manager/work-correct.json",
               ".vrooli/agent-manager/scenario-spec-sync.json",
-              ".vrooli/agent-manager/initiative-review.json",
               ".vrooli/agent-manager/evidence-request.json",
               ".vrooli/agent-manager/fix-and-revalidate.json",
-              ".vrooli/agent-manager/initiative-discover.json",
-              ".vrooli/agent-manager/initiative-plan.json",
-              ".vrooli/agent-manager/initiative-execute.json"
+              ".vrooli/agent-manager/goal-discover.json",
+              ".vrooli/agent-manager/goal-plan.json",
+              ".vrooli/agent-manager/milestone-review.json"
             ]
           }
         }

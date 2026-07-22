@@ -13,7 +13,7 @@ func TestNormalize_MutationListAssignsMissingIDs(t *testing.T) {
 			{Op: OpArchiveItem, Target: "execute/baz"},
 		},
 	}
-	out, err := Normalize(p, CurrentState{InitiativeName: "i"})
+	out, err := Normalize(p, CurrentState{MilestoneName: "i"})
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
@@ -33,21 +33,21 @@ func TestNormalize_MutationListTrimsWhitespace(t *testing.T) {
 		Form: FormMutationList,
 		Mutations: []Mutation{
 			{Op: OpChangeStatus, Target: "  execute/foo  ", Status: "  READY  "},
-			{Op: OpMoveInitiative, Target: " execute/bar ", Initiative: "  dest  "},
+			{Op: OpMoveMilestone, Target: " execute/bar ", Milestone: "  dest  "},
 		},
 	}
-	out, _ := Normalize(p, CurrentState{InitiativeName: "i"})
+	out, _ := Normalize(p, CurrentState{MilestoneName: "i"})
 	if out.Mutations[0].Target != "execute/foo" || out.Mutations[0].Status != "ready" {
 		t.Fatalf("normalize did not trim/lowercase: %+v", out.Mutations[0])
 	}
-	if out.Mutations[1].Initiative != "dest" {
-		t.Fatalf("normalize did not trim initiative: %+v", out.Mutations[1])
+	if out.Mutations[1].Milestone != "dest" {
+		t.Fatalf("normalize did not trim milestone: %+v", out.Mutations[1])
 	}
 }
 
 func TestNormalize_FullGraphDiff_AddArchiveUpdate(t *testing.T) {
 	current := CurrentState{
-		InitiativeName: "i",
+		MilestoneName: "i",
 		Nodes: map[string]GraphNode{
 			"execute/keep":   {ID: "execute/keep", Kind: "execute", Name: "keep", Title: "Keep", Priority: 5, Effort: "S"},
 			"execute/update": {ID: "execute/update", Kind: "execute", Name: "update", Title: "Old Title", Priority: 5},
@@ -100,7 +100,7 @@ func TestNormalize_FullGraphDiff_AddArchiveUpdate(t *testing.T) {
 
 func TestNormalize_FullGraphIsDeterministic(t *testing.T) {
 	current := CurrentState{
-		InitiativeName: "i",
+		MilestoneName: "i",
 		Nodes: map[string]GraphNode{
 			"execute/a": {ID: "execute/a", Kind: "execute", Name: "a", Title: "A"},
 		},
@@ -137,7 +137,7 @@ func TestNormalize_FullGraphIsDeterministic(t *testing.T) {
 
 func TestNormalize_FullGraphNoDiff_EmitsNoMutations(t *testing.T) {
 	current := CurrentState{
-		InitiativeName: "i",
+		MilestoneName: "i",
 		Nodes: map[string]GraphNode{
 			"execute/a": {ID: "execute/a", Kind: "execute", Name: "a", Title: "A", Priority: 5},
 		},
@@ -164,7 +164,7 @@ func TestNormalize_FullGraphBackfillsKindNameFromID(t *testing.T) {
 		Nodes: []GraphNode{{ID: "execute/alpha", Title: "Alpha"}},
 	}
 	p := Proposal{Form: FormFullGraph, Graph: target}
-	out, err := Normalize(p, CurrentState{InitiativeName: "i"})
+	out, err := Normalize(p, CurrentState{MilestoneName: "i"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestNormalize_FullGraphBackfillsKindNameFromID(t *testing.T) {
 
 func TestNormalize_FullGraphDedupesEdges(t *testing.T) {
 	current := CurrentState{
-		InitiativeName: "i",
+		MilestoneName: "i",
 		Nodes: map[string]GraphNode{
 			"execute/a": {ID: "execute/a", Kind: "execute", Name: "a", Title: "A"},
 			"execute/b": {ID: "execute/b", Kind: "execute", Name: "b", Title: "B"},

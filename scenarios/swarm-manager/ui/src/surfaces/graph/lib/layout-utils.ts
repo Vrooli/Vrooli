@@ -48,7 +48,7 @@ export function getDagreConfig(mode: Exclude<LayoutMode, "grouped">, direction: 
  * row (TB) or column (LR).
  */
 const GROUPED_LANE_ORDER: GraphEntityType[] = [
-  "initiative",
+  "goal",
   "backlog",
   "scenario",
   "execution",

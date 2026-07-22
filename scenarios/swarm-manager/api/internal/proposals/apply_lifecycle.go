@@ -35,9 +35,9 @@ func (a *Applier) applyResetArtifacts(ctx context.Context, ref string, scopes []
 	return err
 }
 
-func (a *Applier) applyRecreateInitiative(ctx context.Context, name string) error {
-	if a.initiativeLifecycle == nil {
-		return fmt.Errorf("recreate_initiative unavailable: lifecycle service is not wired")
+func (a *Applier) applyRecreateMilestone(ctx context.Context, name string) error {
+	if a.milestoneLifecycle == nil {
+		return fmt.Errorf("recreate_milestone unavailable: lifecycle service is not wired")
 	}
-	return a.initiativeLifecycle.RecreateInitiative(ctx, name)
+	return a.milestoneLifecycle.RecreateMilestone(ctx, name)
 }

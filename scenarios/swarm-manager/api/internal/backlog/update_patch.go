@@ -23,7 +23,7 @@ const (
 	updateFieldPriority        = "priority"
 	updateFieldTags            = "tags"
 	updateFieldDependsOn       = "depends_on"
-	updateFieldInitiative      = "initiative"
+	updateFieldMilestone      = "milestone"
 	updateFieldEffort          = "effort"
 	updateFieldAcceptanceAllow = "acceptance_allow"
 	updateFieldAcceptanceDeny  = "acceptance_deny"
@@ -140,9 +140,9 @@ func normalizeUpdateBacklogPatch(req *apipb.UpdateBacklogItemRequest, fields bac
 		normalized := strings.ToLower(strings.TrimSpace(*req.Status))
 		req.Status = &normalized
 	}
-	if fields.Has(updateFieldInitiative) && req.Initiative != nil {
-		trimmed := strings.TrimSpace(*req.Initiative)
-		req.Initiative = &trimmed
+	if fields.Has(updateFieldMilestone) && req.Milestone != nil {
+		trimmed := strings.TrimSpace(*req.Milestone)
+		req.Milestone = &trimmed
 	}
 	if fields.Has(updateFieldEffort) && req.Effort != nil {
 		normalized := strings.ToUpper(strings.TrimSpace(*req.Effort))
@@ -287,9 +287,9 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 		v := cloneStrings(req.DependsOn)
 		patch.DependsOn = &v
 	}
-	if fields.Has(updateFieldInitiative) {
-		v := req.GetInitiative()
-		patch.Initiative = &v
+	if fields.Has(updateFieldMilestone) {
+		v := req.GetMilestone()
+		patch.Milestone = &v
 	}
 	if fields.Has(updateFieldEffort) {
 		v := req.GetEffort()

@@ -83,10 +83,10 @@ func (m *mockExecutionQueuer) RetryLatestForBacklog(_ context.Context, backlogKi
 	return m.retryLatestRecord, m.retryLatestHasPrior, nil
 }
 
-// TestGoldenPath_BatchCreateInitiativeQueue exercises the full pipeline:
-// batch-create items with dependencies and an initiative, then batch-queue
+// TestGoldenPath_BatchCreateMilestoneQueue exercises the full pipeline:
+// batch-create items with dependencies and an milestone, then batch-queue
 // them with confirm:true, verifying topological ordering and execution IDs.
-func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
+func TestGoldenPath_BatchCreateMilestoneQueue(t *testing.T) {
 	h, rootDir, ia := setupBatchTestHandler(t)
 
 	eq := &mockExecutionQueuer{
@@ -94,16 +94,16 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 	}
 	h.SetExecutionQueuer(eq)
 
-	// Phase 1: Batch-create 3 items in a dependency chain with an initiative.
+	// Phase 1: Batch-create 3 items in a dependency chain with an milestone.
 	p1, p2, p3 := int32(1), int32(2), int32(3)
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "item-a", Title: "Item A", Kind: "idea", Priority: &p1, Initiative: "test-initiative", PlanRef: testPlanRef("item-a")},
-			{Name: "item-b", Title: "Item B", Kind: "idea", Priority: &p2, DependsOn: []string{"idea/item-a"}, Initiative: "test-initiative", PlanRef: testPlanRef("item-b")},
-			{Name: "item-c", Title: "Item C", Kind: "idea", Priority: &p3, DependsOn: []string{"idea/item-b"}, Initiative: "test-initiative", PlanRef: testPlanRef("item-c")},
+			{Name: "item-a", Title: "Item A", Kind: "idea", Priority: &p1, Milestone: "test-milestone", PlanRef: testPlanRef("item-a")},
+			{Name: "item-b", Title: "Item B", Kind: "idea", Priority: &p2, DependsOn: []string{"idea/item-a"}, Milestone: "test-milestone", PlanRef: testPlanRef("item-b")},
+			{Name: "item-c", Title: "Item C", Kind: "idea", Priority: &p3, DependsOn: []string{"idea/item-b"}, Milestone: "test-milestone", PlanRef: testPlanRef("item-c")},
 		},
-		Initiatives: []batchCreateInitiative{
-			{Name: "test-initiative", Title: "Test Initiative"},
+		Milestones: []batchCreateMilestone{
+			{Name: "test-milestone", Title: "Test Milestone"},
 		},
 	}
 
@@ -118,12 +118,12 @@ func TestGoldenPath_BatchCreateInitiativeQueue(t *testing.T) {
 		}
 	}
 
-	// Verify initiative was ensured and items were added.
-	if _, ok := ia.snapshots["test-initiative"]; !ok {
-		t.Error("expected initiative 'test-initiative' to be created")
+	// Verify milestone was ensured and items were added.
+	if _, ok := ia.snapshots["test-milestone"]; !ok {
+		t.Error("expected milestone 'test-milestone' to be created")
 	}
-	if len(ia.addedItems["test-initiative"]) != 3 {
-		t.Errorf("expected 3 items added to initiative, got %d", len(ia.addedItems["test-initiative"]))
+	if len(ia.addedItems["test-milestone"]) != 3 {
+		t.Errorf("expected 3 items added to milestone, got %d", len(ia.addedItems["test-milestone"]))
 	}
 
 	// Phase 2: Make items queueable by setting status to "ready" and preserving plan_ref.

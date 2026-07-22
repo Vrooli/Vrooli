@@ -28,7 +28,7 @@ import (
 // potential graph.json write vector.
 var materializerExportedMethods = []string{
 	"MaterializeAll",
-	"MaterializeInitiative",
+	"MaterializeGoal",
 	"ReadGraph",
 	"ScheduleAll",
 }

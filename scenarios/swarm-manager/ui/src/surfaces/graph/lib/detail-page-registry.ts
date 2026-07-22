@@ -31,7 +31,7 @@ const DETAIL_ENTITY_TYPES: ReadonlySet<DetailEntityType> = new Set<DetailEntityT
   "backlog",
   "scenario",
   "execution",
-  "initiative",
+  "goal",
   "capture",
 ] as const satisfies readonly DetailEntityType[]);
 

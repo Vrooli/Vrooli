@@ -81,7 +81,7 @@ func (r *importContainerRequest) UnmarshalJSON(data []byte) error {
 // Import handles POST /api/v1/plan-import. The legacy shape
 // {"plan_id":"<id-or-slug>"} still imports backlog items; callers may also
 // provide source_path/markdown for plan-manager adoption and container
-// selection for initiative creation.
+// selection for goal creation.
 func (h *Handler) Import(w http.ResponseWriter, r *http.Request) {
 	var req importRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -95,7 +95,7 @@ func (h *Handler) Import(w http.ResponseWriter, r *http.Request) {
 	}
 	containerType := strings.TrimSpace(req.Container.Type)
 	if containerType == "" && strings.TrimSpace(req.Container.Mode) != "" {
-		containerType = "initiative"
+		containerType = "goal"
 	}
 	containerMode := strings.TrimSpace(req.Container.Mode)
 	if containerMode == "" {

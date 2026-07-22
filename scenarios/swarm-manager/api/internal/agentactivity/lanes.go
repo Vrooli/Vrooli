@@ -72,7 +72,7 @@ var purposeLane = map[Purpose]Lane{
 	PurposeReview:            LaneReview,
 	PurposeFeedback:          LaneInvestigate,
 	PurposeFeedbackContinue:  LaneInvestigate,
-	PurposeInitiativeReview:  LaneReview,
+	PurposeMilestoneReview:   LaneReview,
 	PurposeMetaOrchestration: LaneInvestigate,
 	PurposeSwarmOperations:   LaneInvestigate,
 }
@@ -96,7 +96,7 @@ var allRegisteredPurposes = []Purpose{
 	PurposeReview,
 	PurposeFeedback,
 	PurposeFeedbackContinue,
-	PurposeInitiativeReview,
+	PurposeMilestoneReview,
 	PurposeMetaOrchestration,
 	PurposeSwarmOperations,
 }

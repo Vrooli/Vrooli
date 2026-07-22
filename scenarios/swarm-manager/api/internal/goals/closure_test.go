@@ -38,94 +38,55 @@ func TestComputeScope_ClosureAndProgress(t *testing.T) {
 	}
 }
 
-func TestComputeScope_InitiativeTargetExpands(t *testing.T) {
+func TestComputeScope_MilestonePartitionLeavesClosureItemsUnassigned(t *testing.T) {
 	in := ScopeInput{
-		Targets: []string{"initiative/alpha"},
+		Targets: []string{"execute/a", "execute/d"},
 		ItemDeps: map[string][]string{
-			"execute/x":   {"execute/dep"},
-			"execute/y":   nil,
-			"execute/dep": nil,
+			"execute/a": {"execute/b"},
+			"execute/b": nil,
+			"execute/c": nil,
+			"execute/d": nil,
 		},
 		ItemStatus: map[string]string{
-			"execute/x":   "backlog",
-			"execute/y":   "completed",
-			"execute/dep": "completed",
+			"execute/a": "ready",
+			"execute/b": "completed",
+			"execute/c": "backlog",
+			"execute/d": "backlog",
 		},
-		InitiativeItems: map[string][]string{
-			"alpha": {"execute/x", "execute/y"},
+		Milestones: []Milestone{
+			{Name: "build", Title: "Build", Items: []string{"execute/a", "execute/c"}},
+			{Name: "verify", Title: "Verify", Items: []string{"execute/b"}, DependsOn: []string{"build"}},
 		},
 	}
 	got := ComputeScope(in)
-	want := []string{"execute/dep", "execute/x", "execute/y"}
-	if !reflect.DeepEqual(got.Closure, want) {
-		t.Fatalf("closure = %v, want %v", got.Closure, want)
+	if len(got.Milestones) != 2 || got.Milestones[0].ReadyCount != 1 || got.Milestones[1].CompletedCount != 1 {
+		t.Fatalf("milestone rollups = %+v", got.Milestones)
 	}
-	if got.CompletedCount != 2 { // y + dep
-		t.Fatalf("CompletedCount = %d, want 2", got.CompletedCount)
+	if !reflect.DeepEqual(got.Milestones[0].Items, []string{"execute/a"}) {
+		t.Fatalf("first milestone scope items = %v, want only execute/a", got.Milestones[0].Items)
 	}
-}
-
-func TestComputeScope_InitiativeGate(t *testing.T) {
-	// Initiative A (item a1) depends on initiative B (item b1).
-	base := func(b1Status string) ScopeInput {
-		return ScopeInput{
-			Targets: []string{"initiative/A"},
-			ItemDeps: map[string][]string{
-				"execute/a1": nil,
-				"execute/b1": nil,
-			},
-			ItemStatus: map[string]string{
-				"execute/a1": "ready",
-				"execute/b1": b1Status,
-			},
-			InitiativeItems: map[string][]string{
-				"A": {"execute/a1"},
-				"B": {"execute/b1"},
-			},
-			InitiativeDeps: map[string][]string{
-				"A": {"B"},
-			},
-		}
-	}
-
-	// B incomplete => a1 is gate-blocked.
-	blocked := ComputeScope(base("in_progress"))
-	if !reflect.DeepEqual(blocked.Blocked, []string{"execute/a1"}) {
-		t.Fatalf("expected a1 gate-blocked, got Blocked=%v Ready=%v", blocked.Blocked, blocked.Ready)
-	}
-
-	// B complete => a1 becomes ready.
-	ready := ComputeScope(base("completed"))
-	if !reflect.DeepEqual(ready.Ready, []string{"execute/a1"}) {
-		t.Fatalf("expected a1 ready once B complete, got Ready=%v Blocked=%v", ready.Ready, ready.Blocked)
+	if !reflect.DeepEqual(got.Unassigned, []string{"execute/d"}) {
+		t.Fatalf("unassigned = %v, want [execute/d]", got.Unassigned)
 	}
 }
 
-func TestComputeScope_MixedItemDependsOnInitiative(t *testing.T) {
-	// An item depends directly on an initiative (mixed edge, item→initiative).
+func TestComputeScope_MilestoneDependencyGatesReadiness(t *testing.T) {
 	in := ScopeInput{
-		Targets: []string{"execute/consumer"},
-		ItemDeps: map[string][]string{
-			"execute/consumer": {"initiative/prov"},
-			"execute/p1":       nil,
-		},
-		ItemStatus: map[string]string{
-			"execute/consumer": "ready",
-			"execute/p1":       "in_progress",
-		},
-		InitiativeItems: map[string][]string{
-			"prov": {"execute/p1"},
+		Targets:    []string{"execute/release", "execute/build"},
+		ItemDeps:   map[string][]string{"execute/build": nil, "execute/release": nil},
+		ItemStatus: map[string]string{"execute/build": "completed", "execute/release": "ready"},
+		Milestones: []Milestone{
+			{Name: "build", Title: "Build", Items: []string{"execute/build"}},
+			{Name: "release", Title: "Release", Items: []string{"execute/release"}, DependsOn: []string{"build"}},
 		},
 	}
-	blocked := ComputeScope(in)
-	if !reflect.DeepEqual(blocked.Blocked, []string{"execute/consumer"}) {
-		t.Fatalf("consumer should be blocked on initiative prov, got Blocked=%v Ready=%v", blocked.Blocked, blocked.Ready)
+	if got := ComputeScope(in); !reflect.DeepEqual(got.Ready, []string{"execute/release"}) {
+		t.Fatalf("ready after completed predecessor = %v, want [execute/release]", got.Ready)
 	}
-
-	in.ItemStatus["execute/p1"] = "completed"
-	ready := ComputeScope(in)
-	if !reflect.DeepEqual(ready.Ready, []string{"execute/consumer"}) {
-		t.Fatalf("consumer should be ready once prov complete, got Ready=%v", ready.Ready)
+	in.ItemStatus["execute/build"] = "ready"
+	got := ComputeScope(in)
+	if !reflect.DeepEqual(got.Blocked, []string{"execute/release"}) || !reflect.DeepEqual(got.Ready, []string{"execute/build"}) {
+		t.Fatalf("incomplete predecessor should block only release, got blocked=%v ready=%v", got.Blocked, got.Ready)
 	}
 }
 

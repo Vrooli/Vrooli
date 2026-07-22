@@ -45,7 +45,7 @@ const storeMock = vi.hoisted(() => {
       fetchBacklog: vi.fn().mockResolvedValue(undefined),
       items: [{ kind: "execute", name: "starter-item", title: "Starter item", status: "new" }],
     }),
-    useInitiativeStore: makeUseStore({ fetchInitiatives: vi.fn().mockResolvedValue(undefined), items: [] }),
+    useGoalStore: makeUseStore({ fetchGoals: vi.fn().mockResolvedValue(undefined), items: [] }),
     useCaptureStore: makeUseStore({ fetchCaptures: vi.fn().mockResolvedValue(undefined), captures: [] }),
     useExecutionStore: makeUseStore({ fetchExecutions: vi.fn().mockResolvedValue(undefined), items: [] }),
     useAgentActivitiesStore: makeUseStore({ refreshActivities: vi.fn().mockResolvedValue(undefined), activities: [] }),
@@ -57,7 +57,7 @@ vi.mock("../stores", () => ({
   agentSessionStoreInitialState: storeMock.initialState,
   useAgentSessionStore: storeMock.useAgentSessionStore,
   useBacklogStore: storeMock.useBacklogStore,
-  useInitiativeStore: storeMock.useInitiativeStore,
+  useGoalStore: storeMock.useGoalStore,
   useCaptureStore: storeMock.useCaptureStore,
   useExecutionStore: storeMock.useExecutionStore,
   useAgentActivitiesStore: storeMock.useAgentActivitiesStore,
@@ -118,14 +118,14 @@ const SESSION: AgentSession = {
     {
       id: "art-1",
       sessionId: "sess_meta",
-      artifactType: "initiative",
+      artifactType: "milestone",
       action: "created",
       entityRef: "quality-gates",
       title: "Quality gates",
       createdAt: "2026-05-01T12:11:00Z",
     },
   ],
-  proposalTarget: { type: "initiative", ref: "quality-gates", name: "Quality gates" },
+  proposalTarget: { type: "goal", ref: "quality-gates", name: "Quality gates" },
 };
 
 const DRAFT_SESSION: AgentSession = {
@@ -297,7 +297,7 @@ describe("SessionDetailsPage", () => {
     const continueSession = vi.fn().mockResolvedValue(SESSION);
     storeMock.useAgentSessionStore.setState({ continueSession });
     stageContextForSession("sess_meta", {
-      type: "initiative",
+      type: "goal",
       ref: "quality-gates",
       title: "Quality gates",
     });
@@ -314,7 +314,7 @@ describe("SessionDetailsPage", () => {
       expect(continueSession).toHaveBeenCalledWith({
         sessionId: "sess_meta",
         message: "Use this context",
-        contextRefs: [{ type: "initiative", ref: "quality-gates" }],
+        contextRefs: [{ type: "goal", ref: "quality-gates" }],
       });
     });
   });
@@ -327,16 +327,16 @@ describe("SessionDetailsPage", () => {
 
     expect(screen.getByTestId("agent-session-starter-suggestions")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /Turn this idea into initiatives and backlog items/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Turn this idea into goals and backlog items/i }));
 
-    expect(screen.getByTestId("agent-session-composer")).toHaveValue("Turn this idea into initiatives and backlog items.");
+    expect(screen.getByTestId("agent-session-composer")).toHaveValue("Turn this idea into goals and backlog items.");
 
     fireEvent.keyDown(screen.getByTestId("agent-session-composer"), { key: "Enter", ctrlKey: true });
 
     await waitFor(() => {
       expect(startSession).toHaveBeenCalledWith({
         sessionId: "sess_draft",
-        message: "Turn this idea into initiatives and backlog items.",
+        message: "Turn this idea into goals and backlog items.",
         contextRefs: [{ type: "startup_brief", ref: "startup_brief/meta_orchestration" }],
         autoContextPolicy: "none",
       });
@@ -350,7 +350,7 @@ describe("SessionDetailsPage", () => {
 
     renderPage("/sessions/sess_draft");
 
-    await userEvent.click(screen.getByRole("button", { name: /Help me drain workshop decisions for a backlog item/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Review a Plan Workshop and recommend the next operator action/i }));
 
     expect(screen.getByTestId("session-context-picker")).toBeInTheDocument();
     expect(screen.getByTestId("session-context-tab-backlog_item")).toHaveAttribute("data-state", "active");
@@ -410,7 +410,7 @@ describe("SessionDetailsPage", () => {
     await userEvent.click(screen.getByTestId("session-delete-action"));
 
     expect(screen.getByTestId("session-delete-dialog")).toBeInTheDocument();
-    expect(screen.getByText(/Created backlog items, initiatives, captures, files, and agent activity records stay/)).toBeInTheDocument();
+    expect(screen.getByText(/Created backlog items, milestones, captures, files, and agent activity records stay/)).toBeInTheDocument();
     expect(screen.getByTestId("session-delete-confirm")).toBeEnabled();
 
     await userEvent.click(screen.getByTestId("session-delete-confirm"));
@@ -452,13 +452,13 @@ describe("SessionDetailsPage", () => {
     expect(screen.getByTestId("session-delete-action")).toBeDisabled();
   });
 
-  it("navigates to the artifact detail page on artifact click", async () => {
+  it("does not navigate for a milestone artifact without a goal route", async () => {
     renderPage();
 
     await activateTab(/Artifacts 2/);
     fireEvent.click(screen.getByTestId("agent-session-artifact"));
 
-    expect(navigateMock).toHaveBeenCalledWith("/initiatives/quality-gates");
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it("opens a proposal in its target proposal review tab", async () => {
@@ -467,7 +467,7 @@ describe("SessionDetailsPage", () => {
     await activateTab(/Artifacts 2/);
     fireEvent.click(screen.getByTestId("agent-session-proposal-artifact"));
 
-    expect(navigateMock).toHaveBeenCalledWith("/initiatives/quality-gates?tab=proposals");
+    expect(navigateMock).toHaveBeenCalledWith("/goals/quality-gates?tab=proposals");
   });
 
   it("renders not-found when session is missing", async () => {

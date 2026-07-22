@@ -1,5 +1,5 @@
 // Package graph provides graph projection logic for the swarm-manager API.
-// It assembles nodes and edges from multiple data sources (backlog, initiatives,
+// It assembles nodes and edges from multiple data sources (backlog, goals,
 // captures, scenarios, executions, agent runs) and projects them through
 // lens-specific filters for the graph workspace UI.
 package graph
@@ -40,8 +40,8 @@ type GraphBacklogNodeData struct {
 	ActiveExecutionCount  int32  `json:"active_execution_count"`
 }
 
-// GraphInitiativeRollup describes initiative member status counts.
-type GraphInitiativeRollup struct {
+// GraphGoalRollup describes derived goal item status counts.
+type GraphGoalRollup struct {
 	Total      int32 `json:"total"`
 	Completed  int32 `json:"completed"`
 	InProgress int32 `json:"in_progress"`
@@ -49,12 +49,12 @@ type GraphInitiativeRollup struct {
 	Pending    int32 `json:"pending"`
 }
 
-// GraphInitiativeNodeData describes an initiative node payload.
-type GraphInitiativeNodeData struct {
-	Name   string                `json:"name"`
-	Title  string                `json:"title"`
-	Status string                `json:"status"`
-	Rollup GraphInitiativeRollup `json:"rollup"`
+// GraphGoalNodeData describes a goal node payload.
+type GraphGoalNodeData struct {
+	Name   string          `json:"name"`
+	Title  string          `json:"title"`
+	Status string          `json:"status"`
+	Rollup GraphGoalRollup `json:"rollup"`
 }
 
 // GraphCaptureNodeData describes a capture node payload.

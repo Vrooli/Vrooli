@@ -1,7 +1,7 @@
 # Plan Workshop
 
 Plan Workshop is Swarm Manager's one operator-visible planning loop for a
-backlog item or initiative. It replaces readiness-score and finalize-round
+backlog item or milestone. It replaces readiness-score and finalize-round
 decisions. Historical `workshop/round-*.json` files remain readable evidence;
 they do not authorize execution or mutate a current workshop session.
 
@@ -20,7 +20,7 @@ deliberate return to the same loop, not an added workflow family.
 ## Operator flow
 
 1. Open a session with `POST /api/v1/plan-workshops`, naming a `backlog_item`
-   (`kind/name`) or `initiative` subject and a typed review packet.
+   (`kind/name`) or `milestone` subject and a typed review packet.
 2. Review findings, decision questions, and references to proposals in the
    existing Agent Session proposal store as one packet.
 3. Submit exactly one idempotent response at
@@ -35,7 +35,7 @@ deliberate return to the same loop, not an added workflow family.
    hash and current plan validity, alongside ordinary dependency and policy
    checks.
 
-Research, independent review, and initiative review each retain their native
+Research, independent review, and milestone review each retain their native
 conclusion or round as historical evidence. Their terminal result also creates
 one idempotent finding on the matching Plan Workshop session, with a typed
 disposition (`plan_revision`, `plan_authoring`, `follow_up`, `archive`,
@@ -51,7 +51,7 @@ allows only one high-confidence proposal for the current execution. It
 deduplicates by source proposal, retains the source review and execution link
 on the child record, and emits proposal creation/application audit events.
 All other follow-up proposals remain an explicit operator decision in Plan
-Workshop. Distinct backlog or initiative work is a normal mutation-list
+Workshop. Distinct backlog or milestone work is a normal mutation-list
 proposal with `spawned_from` provenance, never an implicit execution.
 
 ## Authority and safety

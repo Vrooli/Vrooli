@@ -67,9 +67,9 @@ describe("normalizeAISearchResponse", () => {
   it("falls back to requested entity when server entity is invalid", () => {
     const normalized = normalizeAISearchResponse(
       { results: [], entity: "bogus" },
-      "initiative",
+      "goal",
     );
-    expect(normalized.entity).toBe("initiative");
+    expect(normalized.entity).toBe("goal");
   });
 
   it("defaults fallback to 'unavailable' for invalid values", () => {

@@ -5,7 +5,6 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/eta"
-	"swarm-manager/internal/initiatives"
 )
 
 type fakeBacklog struct{ items []backlog.BacklogItem }
@@ -14,14 +13,10 @@ func (f *fakeBacklog) LoadAll(_ []backlog.BacklogKind) ([]backlog.BacklogItem, e
 	return f.items, nil
 }
 
-type fakeInitiatives struct{ inits []initiatives.Initiative }
-
-func (f *fakeInitiatives) LoadAll() ([]initiatives.Initiative, error) { return f.inits, nil }
-
-func newTestService(t *testing.T, items []backlog.BacklogItem, inits []initiatives.Initiative) *Service {
+func newTestService(t *testing.T, items []backlog.BacklogItem) *Service {
 	t.Helper()
 	store := NewStore(t.TempDir())
-	return NewService(store, &fakeBacklog{items: items}, &fakeInitiatives{inits: inits})
+	return NewService(store, &fakeBacklog{items: items})
 }
 
 func item(kind, name, status string, tags []string, deps ...string) backlog.BacklogItem {
@@ -38,7 +33,7 @@ func TestService_CreateComputesScopeAndBaseline(t *testing.T) {
 	svc := newTestService(t, []backlog.BacklogItem{
 		item("execute", "a", "ready", nil, "execute/b"),
 		item("execute", "b", "completed", nil),
-	}, nil)
+	})
 
 	res, err := svc.Create(CreateRequest{Name: "My Goal", Targets: []string{"execute/a"}})
 	if err != nil {
@@ -58,11 +53,44 @@ func TestService_CreateComputesScopeAndBaseline(t *testing.T) {
 	}
 }
 
+func TestBacklogMilestoneAssignerAddsScopeBeforeMembership(t *testing.T) {
+	svc := newTestService(t, []backlog.BacklogItem{
+		item("execute", "a", "ready", nil),
+	})
+	if _, err := svc.Create(CreateRequest{Name: "release", Title: "Release"}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := svc.CreateMilestone("release", Milestone{Name: "build", Title: "Build"}); err != nil {
+		t.Fatalf("CreateMilestone: %v", err)
+	}
+	assigner := NewBacklogMilestoneAssigner(svc)
+	if err := assigner.RememberItem("release/build", "execute/a"); err != nil {
+		t.Fatalf("RememberItem: %v", err)
+	}
+	got, err := assigner.Get("release/build")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if len(got.Items) != 1 || got.Items[0] != "execute/a" {
+		t.Fatalf("milestone items = %#v, want execute/a", got.Items)
+	}
+	goal, err := svc.Get("release")
+	if err != nil {
+		t.Fatalf("Get goal: %v", err)
+	}
+	if len(goal.Goal.Targets) != 1 || goal.Goal.Targets[0] != "execute/a" {
+		t.Fatalf("goal targets = %#v, want execute/a", goal.Goal.Targets)
+	}
+	if err := assigner.RememberItem("build", "execute/a"); err == nil {
+		t.Fatal("unqualified milestone reference was accepted")
+	}
+}
+
 func TestService_ScopeCreepRecordedOnDrift(t *testing.T) {
 	fb := &fakeBacklog{items: []backlog.BacklogItem{
 		item("execute", "a", "ready", nil),
 	}}
-	svc := NewService(NewStore(t.TempDir()), fb, &fakeInitiatives{})
+	svc := NewService(NewStore(t.TempDir()), fb)
 
 	if _, err := svc.Create(CreateRequest{Name: "g", Targets: []string{"execute/a"}}); err != nil {
 		t.Fatalf("Create: %v", err)
@@ -93,7 +121,7 @@ func TestService_SeedFromTags(t *testing.T) {
 		item("execute", "x", "backlog", []string{"monetization-v1"}),
 		item("fix", "y", "completed", []string{"monetization-v1"}),
 		item("execute", "z", "backlog", []string{"unrelated"}),
-	}, nil)
+	})
 
 	created, err := svc.SeedFromTags([]SeedSpec{
 		{Tag: "monetization-v1", Name: "monetization-v1", Title: "Monetization v1"},
@@ -129,7 +157,7 @@ func TestService_AttachesETABand(t *testing.T) {
 		{Name: "a", Kind: "execute", Status: "ready", Effort: "M"},
 		{Name: "b", Kind: "execute", Status: "backlog", Effort: "M", DependsOn: []string{"execute/a"}},
 	}
-	svc := newTestService(t, items, nil)
+	svc := newTestService(t, items)
 
 	// Cold start: no samples → the band rests on priors.
 	est := eta.NewEstimator(nil, nil, 2, eta.DefaultTrials, eta.DefaultSeed)
@@ -188,7 +216,7 @@ func TestService_AddRemoveTargets(t *testing.T) {
 	svc := newTestService(t, []backlog.BacklogItem{
 		item("execute", "a", "ready", nil),
 		item("execute", "b", "ready", nil),
-	}, nil)
+	})
 	if _, err := svc.Create(CreateRequest{Name: "g", Targets: []string{"execute/a"}}); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -208,12 +236,62 @@ func TestService_AddRemoveTargets(t *testing.T) {
 	}
 }
 
+func TestService_RejectsLegacyInitiativeTargets(t *testing.T) {
+	svc := newTestService(t, nil)
+	if _, err := svc.Create(CreateRequest{Name: "legacy", Targets: []string{"initiative/old-work"}}); err == nil {
+		t.Fatal("expected legacy initiative target to be rejected")
+	}
+}
+
+func TestService_MilestonesAreOwnedScopedAndRoundTrip(t *testing.T) {
+	svc := newTestService(t, []backlog.BacklogItem{
+		item("execute", "a", "ready", nil, "execute/b"),
+		item("execute", "b", "completed", nil),
+		item("execute", "outside", "ready", nil),
+	})
+	if _, err := svc.Create(CreateRequest{Name: "g", Targets: []string{"execute/a"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.CreateMilestone("g", Milestone{Name: "build", Title: "Build"}); err != nil {
+		t.Fatalf("CreateMilestone: %v", err)
+	}
+	if _, err := svc.CreateMilestone("g", Milestone{Name: "verify", Title: "Verify", DependsOn: []string{"build"}}); err != nil {
+		t.Fatalf("CreateMilestone dependent: %v", err)
+	}
+	if _, err := svc.AssignMilestoneItems("g", "build", []string{"execute/a"}); err != nil {
+		t.Fatalf("Assign: %v", err)
+	}
+	if _, err := svc.AssignMilestoneItems("g", "verify", []string{"execute/b"}); err != nil {
+		t.Fatalf("Assign: %v", err)
+	}
+	if _, err := svc.AssignMilestoneItems("g", "build", []string{"execute/outside"}); err == nil {
+		t.Fatal("expected out-of-scope assignment to fail")
+	}
+	got, err := svc.Get("g")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Goal.Milestones) != 2 || len(got.Scope.Milestones) != 2 {
+		t.Fatalf("milestones = %+v scope = %+v", got.Goal.Milestones, got.Scope.Milestones)
+	}
+	if len(got.Scope.Unassigned) != 0 {
+		t.Fatalf("unassigned = %v, want none", got.Scope.Unassigned)
+	}
+	if _, err := svc.ArchiveMilestone("g", "verify"); err != nil {
+		t.Fatalf("ArchiveMilestone: %v", err)
+	}
+	archived, err := svc.Get("g")
+	if err != nil || archived.Goal.Milestones[1].ArchivedAt == nil {
+		t.Fatalf("archived milestone = %+v err=%v", archived.Goal.Milestones[1], err)
+	}
+}
+
 func TestService_ClosureRefsReturnsClosureWithoutDrift(t *testing.T) {
 	svc := newTestService(t, []backlog.BacklogItem{
 		item("execute", "a", "ready", nil, "execute/b"),
 		item("execute", "b", "ready", nil),
 		item("execute", "c", "ready", nil), // unrelated, must not appear
-	}, nil)
+	})
 	if _, err := svc.Create(CreateRequest{Name: "goal-x", Targets: []string{"execute/a"}}); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -246,7 +324,7 @@ func TestService_ItemGoalPrioritiesAndReadyItems(t *testing.T) {
 		item("execute", "a", "ready", nil),              // ready, in high goal
 		item("execute", "b", "ready", nil, "execute/a"), // blocked by a -> not ready
 		item("execute", "c", "ready", nil),              // ready, in low goal
-	}, nil)
+	})
 	if _, err := svc.Create(CreateRequest{Name: "high", Priority: 9, Targets: []string{"execute/b"}}); err != nil {
 		t.Fatalf("create high: %v", err)
 	}

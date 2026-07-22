@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Network } from "lucide-react";
 import type { RelatedEntity, RelatedGroup } from "@vrooli/proto-types/swarm-manager/v1/api/related_pb";
-import { backlogDetailPath, initiativeDetailPath, recordDetailPath } from "../../app/routes/route-paths";
+import { backlogDetailPath, goalDetailPath, recordDetailPath } from "../../app/routes/route-paths";
 import { dynamicSelectors, selectors } from "../../consts/selectors";
 import { useUrlState } from "../../hooks/use-url-state";
 import { ErrorState } from "../ui/error-state";
@@ -17,7 +17,7 @@ function pathFor(row: RelatedEntity) {
     const [kind, name] = row.key.split("/");
     return backlogDetailPath(kind ?? "", name ?? "");
   }
-  if (row.entityKind === "initiative") return initiativeDetailPath(row.key);
+  if (row.entityKind === "goal") return goalDetailPath(row.key);
   return recordDetailPath(row.key);
 }
 
@@ -29,7 +29,7 @@ function groupSelector(name: string) {
 
 const ENTITY_TYPE_STYLES: Record<RelatedEntity["entityKind"], string> = {
   backlog: "bg-cyan-500/15 text-cyan-300",
-  initiative: "bg-sky-500/15 text-sky-300",
+  goal: "bg-sky-500/15 text-sky-300",
   record: "bg-emerald-500/15 text-emerald-300",
 };
 
@@ -89,7 +89,7 @@ export function RelatedTab({ target, enabled }: Props) {
         <button aria-pressed={historical === "include"} onClick={() => setHistorical(historical === "include" ? "exclude" : "include")}>
           {historical === "include" ? "Historical included" : "Historical excluded"}
         </button>
-        {["backlog", "initiative", "record"].map((kind) => (
+        {["backlog", "goal", "record"].map((kind) => (
           <button key={kind} aria-pressed={entityKinds.includes(kind)} onClick={() => toggleKind(kind)}>{kind}s</button>
         ))}
       </div>

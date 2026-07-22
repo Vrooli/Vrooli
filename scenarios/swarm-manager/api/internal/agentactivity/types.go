@@ -23,11 +23,11 @@ const pendingSpawnTTL = 5 * time.Minute
 type OwnerType string
 
 const (
-	OwnerBacklog    OwnerType = "backlog"
-	OwnerCapture    OwnerType = "capture"
-	OwnerScenario   OwnerType = "scenario"
-	OwnerInitiative OwnerType = "initiative"
-	OwnerSession    OwnerType = "session"
+	OwnerBacklog   OwnerType = "backlog"
+	OwnerCapture   OwnerType = "capture"
+	OwnerScenario  OwnerType = "scenario"
+	OwnerMilestone OwnerType = "milestone"
+	OwnerSession   OwnerType = "session"
 )
 
 type Purpose string
@@ -46,7 +46,7 @@ const (
 	PurposeReview            Purpose = "review"
 	PurposeFeedback          Purpose = "feedback"
 	PurposeFeedbackContinue  Purpose = "feedback_continue"
-	PurposeInitiativeReview  Purpose = "initiative_review"
+	PurposeMilestoneReview   Purpose = "milestone_review"
 	PurposeMetaOrchestration Purpose = "meta_orchestration"
 	PurposeSwarmOperations   Purpose = "swarm_operations"
 	PurposeWorkflowAuthoring Purpose = "workflow_authoring"
@@ -146,15 +146,15 @@ func (s Spec) normalized() (Spec, error) {
 	}
 
 	switch s.OwnerType {
-	case OwnerBacklog, OwnerCapture, OwnerScenario, OwnerInitiative, OwnerSession:
+	case OwnerBacklog, OwnerCapture, OwnerScenario, OwnerMilestone, OwnerSession:
 	default:
-		return Spec{}, fmt.Errorf("owner_type must be backlog, capture, scenario, initiative, or session")
+		return Spec{}, fmt.Errorf("owner_type must be backlog, capture, scenario, milestone, or session")
 	}
 
 	if !isValidPurpose(s.Purpose) {
 		return Spec{}, fmt.Errorf("purpose must be a snake-case token")
 	}
-	if s.OwnerType != OwnerInitiative && s.OwnerType != OwnerSession && !isKnownPurpose(s.Purpose) {
+	if s.OwnerType != OwnerMilestone && s.OwnerType != OwnerSession && !isKnownPurpose(s.Purpose) {
 		return Spec{}, fmt.Errorf("purpose %q is not registered for owner_type %q", s.Purpose, s.OwnerType)
 	}
 
@@ -197,7 +197,7 @@ func isValidPurpose(purpose Purpose) bool {
 // isKnownPurpose reports whether the purpose is registered with a lane in
 // purposeLane (lanes.go). Lane registration is the canonical "is this
 // purpose recognized" check — adding a Purpose constant without a lane
-// makes it unspawnable for non-initiative/non-session owners (and panics
+// makes it unspawnable for non-milestone/non-session owners (and panics
 // at init for anything in allRegisteredPurposes), which is the desired
 // fail-loud behavior for forgotten lane coverage.
 func isKnownPurpose(purpose Purpose) bool {

@@ -25,7 +25,7 @@ const STATUS_OPTIONS = [
 ] as const;
 
 const OWNER_TYPE_OPTIONS = [
-  "initiative",
+  "milestone",
   "backlog",
   "scenario",
   "capture",
@@ -145,7 +145,7 @@ export function PlanFilterDrawer({
               className={selectClass}
               data-testid="plan-filter-group-by"
             >
-              <option value="by-initiative">Initiative</option>
+              <option value="by-milestone">Milestone</option>
               <option value="by-phase">Phase</option>
             </select>
           </FilterField>

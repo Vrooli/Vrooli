@@ -94,7 +94,7 @@ function GraphControlsContent() {
       }
     }
 
-    // Discover statuses for entity types not in registry (e.g. initiative)
+    // Discover statuses for entity types not in registry (e.g. goal)
     const discoveredByEntity = new Map<GraphEntityType, Set<string>>();
     for (const node of nodes) {
       const entityType = getGraphNodeEntityType(node);

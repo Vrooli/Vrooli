@@ -183,7 +183,7 @@ func TestAggregate_LaneMath(t *testing.T) {
 		},
 		// One reconcile-lane run via PhaseKind override.
 		{
-			ActivityID: "r1", OwnerType: agentactivity.OwnerInitiative,
+			ActivityID: "r1", OwnerType: agentactivity.OwnerMilestone,
 			OwnerName: "auth-rewrite", Purpose: agentactivity.Purpose("holistic_loop_reconcile"),
 			PhaseKind: "reconcile", Status: agentactivity.StatusRunning,
 			RequestedAt: now.Format(time.RFC3339),
@@ -322,7 +322,7 @@ func TestAggregate_JoinsRoundsByRunID(t *testing.T) {
 	now := fixedNow()()
 	records := []agentactivity.Record{
 		{
-			ActivityID: "rnd-1", OwnerType: agentactivity.OwnerInitiative,
+			ActivityID: "rnd-1", OwnerType: agentactivity.OwnerMilestone,
 			OwnerName: "auth-rewrite", Purpose: agentactivity.Purpose("holistic_loop_review"),
 			PhaseKind:   "review",
 			Status:      agentactivity.StatusRunning,
@@ -330,7 +330,7 @@ func TestAggregate_JoinsRoundsByRunID(t *testing.T) {
 			RequestedAt: now.Format(time.RFC3339),
 		},
 		{
-			ActivityID: "rnd-orphan", OwnerType: agentactivity.OwnerInitiative,
+			ActivityID: "rnd-orphan", OwnerType: agentactivity.OwnerMilestone,
 			OwnerName: "mobile-polish", Purpose: agentactivity.Purpose("phased_plan_drain_execute_next"),
 			PhaseKind:   "execute",
 			Status:      agentactivity.StatusRunning,
@@ -356,16 +356,16 @@ func TestAggregate_JoinsRoundsByRunID(t *testing.T) {
 	if got.Mode != "" || got.Round != 0 {
 		t.Errorf("rnd-1 must not carry retired round metadata: %+v", got)
 	}
-	if got.InitiativeName != "auth-rewrite" {
-		t.Errorf("rnd-1 initiative = %q, want auth-rewrite", got.InitiativeName)
+	if got.MilestoneName != "auth-rewrite" {
+		t.Errorf("rnd-1 milestone = %q, want auth-rewrite", got.MilestoneName)
 	}
 	orphan := byID["rnd-orphan"]
 	if orphan.Mode != "" || orphan.Round != 0 {
 		t.Errorf("rnd-orphan should not carry round join: %+v", orphan)
 	}
-	if orphan.InitiativeName != "mobile-polish" {
-		// Owner-derived initiative still set.
-		t.Errorf("rnd-orphan initiative = %q, want mobile-polish", orphan.InitiativeName)
+	if orphan.MilestoneName != "mobile-polish" {
+		// Owner-derived milestone is still set.
+		t.Errorf("rnd-orphan milestone = %q, want mobile-polish", orphan.MilestoneName)
 	}
 }
 

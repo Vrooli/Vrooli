@@ -70,18 +70,18 @@ describe("filterGraphNodes — entity-scoped status filters", () => {
     const settings: GraphLensSettings = {
       ...createDefaultLensSettings("topology"),
       statusFilters: {
-        initiative: { active: false },
+        goal: { active: false },
       },
     };
 
     const nodes = [
-      makeNode("initiative/init-1", "initiative", { status: "active" }),
-      makeNode("initiative/init-2", "initiative", { status: "completed" }),
+      makeNode("goal/init-1", "goal", { status: "active" }),
+      makeNode("goal/init-2", "goal", { status: "completed" }),
     ];
 
     const result = filterGraphNodes(nodes, settings);
     // init-1 is hidden (status=active is filtered), init-2 has status=completed which is not filtered
-    expect(result.map((n) => n.id)).toEqual(["initiative/init-2"]);
+    expect(result.map((n) => n.id)).toEqual(["goal/init-2"]);
   });
 });
 
@@ -144,7 +144,7 @@ describe("filterGraphEdges", () => {
 
   it("keeps secondary edges in focus lens even when showSecondaryEdges is false", () => {
     // Regression: focus lens already aggressively filters to attention-worthy
-    // items + structural context (initiatives via member_of, scenarios via
+    // items + structural context (goals via member_of, scenarios via
     // targets). Applying the secondary-edge filter on top hides the context
     // edges that were the reason we pulled those nodes in, leaving scenarios
     // floating without visible connections to the backlog items.
@@ -221,12 +221,12 @@ describe("buildGraphPresentation", () => {
     const result = buildGraphPresentation({
       lens: "focus",
       nodes: [
-        makeNode("initiative/init-1", "initiative", { status: "active" }),
+        makeNode("goal/init-1", "goal", { status: "active" }),
         makeNode("backlog-item/execute/task-a", "backlog", { status: "backlog" }),
         makeNode("scenario/app", "scenario", { status: "running" }),
       ],
       edges: [
-        makeEdge("mo1", "backlog-item/execute/task-a", "initiative/init-1", "member_of"),
+        makeEdge("mo1", "backlog-item/execute/task-a", "goal/init-1", "member_of"),
       ],
       settings,
     });

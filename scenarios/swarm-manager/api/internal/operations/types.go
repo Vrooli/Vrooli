@@ -62,7 +62,7 @@ type OperationsBriefingSummary struct {
 	SaturatedLanes        []string       `json:"saturated_lanes"`
 	ActiveLaneCountByLane map[string]int `json:"active_lane_count_by_lane"`
 	TotalBacklogItems     int            `json:"total_backlog_items"`
-	ActiveInitiatives     int            `json:"active_initiatives"`
+	ActiveGoals           int            `json:"active_goals"`
 	BlockedItems          int            `json:"blocked_items"`
 	ActiveSessions        int            `json:"active_sessions"`
 }
@@ -80,7 +80,7 @@ type BriefingActivity struct {
 	Mode           string `json:"mode,omitempty"`
 	Phase          string `json:"phase,omitempty"`
 	Round          int    `json:"round,omitempty"`
-	InitiativeName string `json:"initiative_name,omitempty"`
+	MilestoneName  string `json:"milestone_name,omitempty"`
 	RequestedAt    string `json:"requested_at"`
 	StartedAt      string `json:"started_at,omitempty"`
 	FinishedAt     string `json:"finished_at,omitempty"`
@@ -141,7 +141,7 @@ type QueueStatus struct {
 }
 
 // ActivityRow is the canonical per-run summary the Operations Center
-// renders in both the by-initiative view (nested under the initiative
+// renders in both the by-milestone view (nested under the milestone
 // card) and the by-phase view (placed in its lane column).
 //
 // Row identity is RunID when set and ActivityID otherwise — runID is
@@ -161,7 +161,7 @@ type ActivityRow struct {
 	Mode            string `json:"mode,omitempty"`
 	Phase           string `json:"phase,omitempty"`
 	Round           int    `json:"round,omitempty"`
-	InitiativeName  string `json:"initiative_name,omitempty"`
+	MilestoneName   string `json:"milestone_name,omitempty"`
 	RequestedAt     string `json:"requested_at"`
 	StartedAt       string `json:"started_at,omitempty"`
 	FinishedAt      string `json:"finished_at,omitempty"`

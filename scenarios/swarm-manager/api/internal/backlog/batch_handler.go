@@ -1,5 +1,5 @@
 // Batch operations for backlog items: atomic multi-item creation with
-// dependency validation, initiative assignment, and rollback on failure.
+// dependency validation, milestone assignment, and rollback on failure.
 package backlog
 
 import (
@@ -21,39 +21,39 @@ import (
 	"swarm-manager/internal/identity"
 )
 
-// InitiativeAssigner abstracts initiative operations needed by batch create,
-// avoiding a direct import of the initiatives package (which imports backlog).
-type InitiativeAssigner interface {
-	// Get loads the current state of an initiative for validation or rollback.
-	Get(name string) (*InitiativeSnapshot, error)
-	// Create persists a new initiative with explicit metadata.
-	Create(spec InitiativeSpec) error
-	// Update mutates initiative metadata without changing item membership.
-	Update(spec InitiativeSpec) error
-	// Replace restores an initiative snapshot, including item membership.
-	Replace(snapshot InitiativeSnapshot) error
-	// Delete removes an initiative entirely. Implementations are expected to
-	// cascade: clear the initiative field on every member item and remove the
-	// deleted name from other initiatives' depends_on arrays.
+// MilestoneAssigner abstracts milestone operations needed by batch create,
+// avoiding a direct import of the milestones package (which imports backlog).
+type MilestoneAssigner interface {
+	// Get loads the current state of an milestone for validation or rollback.
+	Get(name string) (*MilestoneSnapshot, error)
+	// Create persists a new milestone with explicit metadata.
+	Create(spec MilestoneSpec) error
+	// Update mutates milestone metadata without changing item membership.
+	Update(spec MilestoneSpec) error
+	// Replace restores an milestone snapshot, including item membership.
+	Replace(snapshot MilestoneSnapshot) error
+	// Delete removes an milestone entirely. Implementations are expected to
+	// cascade: clear the milestone field on every member item and remove the
+	// deleted name from other milestones' depends_on arrays.
 	Delete(name string) error
-	// AddItems appends item references ("kind/name") to the named initiative.
+	// AddItems appends item references ("kind/name") to the named milestone.
 	// Implementations maintain symmetry with the item side: items already
-	// attached to a different initiative are rejected; orphan items have their
-	// initiative field set to this name.
+	// attached to a different milestone are rejected; orphan items have their
+	// milestone field set to this name.
 	AddItems(name string, items []string) error
-	// RememberItem appends a single ref to the initiative's items[] list
+	// RememberItem appends a single ref to the milestone's items[] list
 	// without touching the item side. Used by cascade paths (single-item
-	// create/patch) where the item's initiative field is already correct.
-	RememberItem(initiativeName, ref string) error
-	// ForgetItem removes a single ref from the initiative's items[] list
+	// create/patch) where the item's milestone field is already correct.
+	RememberItem(milestoneName, ref string) error
+	// ForgetItem removes a single ref from the milestone's items[] list
 	// without touching the item side. Used by cascade paths (single-item
 	// delete/patch) where the item file has already been deleted or its
-	// initiative field is handled elsewhere.
-	ForgetItem(initiativeName, ref string) error
+	// milestone field is handled elsewhere.
+	ForgetItem(milestoneName, ref string) error
 }
 
-// InitiativeSpec describes the canonical metadata for an initiative.
-type InitiativeSpec struct {
+// MilestoneSpec describes the canonical metadata for an milestone.
+type MilestoneSpec struct {
 	Name        string
 	Title       string
 	Description string
@@ -64,8 +64,8 @@ type InitiativeSpec struct {
 	PlanRef     *PlanRef
 }
 
-// InitiativeSnapshot captures the full persisted state of an initiative.
-type InitiativeSnapshot struct {
+// MilestoneSnapshot captures the full persisted state of an milestone.
+type MilestoneSnapshot struct {
 	Name        string
 	Title       string
 	Description string
@@ -77,16 +77,16 @@ type InitiativeSnapshot struct {
 	PlanRef     *PlanRef
 }
 
-// SetInitiativeAssigner injects the initiative assigner for batch operations.
+// SetMilestoneAssigner injects the milestone assigner for batch operations.
 // Called from main.go after both packages are initialized.
-func (h *Handler) SetInitiativeAssigner(ia InitiativeAssigner) {
-	h.initiativeAssigner = ia
+func (h *Handler) SetMilestoneAssigner(ia MilestoneAssigner) {
+	h.milestoneAssigner = ia
 }
 
 // batchCreateRequest is the JSON request body for batch-creating backlog items.
 type batchCreateRequest struct {
 	Items       []batchCreateItem       `json:"items"`
-	Initiatives []batchCreateInitiative `json:"initiatives,omitempty"`
+	Milestones []batchCreateMilestone `json:"milestones,omitempty"`
 	Preview     bool                    `json:"preview,omitempty"`
 }
 
@@ -99,7 +99,7 @@ type batchCreateItem struct {
 	Priority        *int32   `json:"priority,omitempty"`
 	Tags            []string `json:"tags,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
-	Initiative      string   `json:"initiative,omitempty"`
+	Milestone      string   `json:"milestone,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
@@ -110,8 +110,8 @@ type batchCreateItem struct {
 	PlanRef     *PlanRef `json:"plan_ref,omitempty"`
 }
 
-// batchCreateInitiative describes initiative metadata supplied with a batch import.
-type batchCreateInitiative struct {
+// batchCreateMilestone describes milestone metadata supplied with a batch import.
+type batchCreateMilestone struct {
 	Name        string    `json:"name"`
 	Title       string    `json:"title"`
 	Description *string   `json:"description,omitempty"`
@@ -121,9 +121,9 @@ type batchCreateInitiative struct {
 	PlanRef     *PlanRef  `json:"plan_ref,omitempty"`
 }
 
-// batchCreateInitiativeResult reports what the batch import will do or did for
-// initiative metadata.
-type batchCreateInitiativeResult struct {
+// batchCreateMilestoneResult reports what the batch import will do or did for
+// milestone metadata.
+type batchCreateMilestoneResult struct {
 	Name        string   `json:"name"`
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
@@ -133,16 +133,16 @@ type batchCreateInitiativeResult struct {
 	Action      string   `json:"action"`
 }
 
-type resolvedInitiativePlan struct {
-	spec     InitiativeSpec
-	existing *InitiativeSnapshot
+type resolvedMilestonePlan struct {
+	spec     MilestoneSpec
+	existing *MilestoneSnapshot
 	action   string
 }
 
 // batchCreateResponse is the JSON response for a successful batch create.
 type batchCreateResponse struct {
 	Items       []BacklogItem                 `json:"items"`
-	Initiatives []batchCreateInitiativeResult `json:"initiatives,omitempty"`
+	Milestones []batchCreateMilestoneResult `json:"milestones,omitempty"`
 	Count       int                           `json:"count"`
 	Preview     bool                          `json:"preview,omitempty"`
 	Warnings    []string                      `json:"warnings,omitempty"`
@@ -150,7 +150,7 @@ type batchCreateResponse struct {
 
 type batchApplyResult struct {
 	items       []BacklogItem
-	initiatives []batchCreateInitiativeResult
+	milestones []batchCreateMilestoneResult
 	artifacts   []agentsessions.Artifact
 }
 
@@ -162,7 +162,7 @@ type validatedItem struct {
 
 // BatchCreate creates multiple backlog items atomically.
 // All items are validated before any are created. If any validation fails,
-// no items are created. If initiative is specified, all items are assigned to it.
+// no items are created. If milestone is specified, all items are assigned to it.
 func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 	var req batchCreateRequest
 	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
@@ -190,7 +190,7 @@ func (h *Handler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 
 	resp := batchCreateResponse{
 		Items:       result.items,
-		Initiatives: result.initiatives,
+		Milestones: result.milestones,
 		Count:       len(result.items),
 		Preview:     req.Preview,
 	}
@@ -251,17 +251,17 @@ func (h *Handler) applyBatchCreateRequest(
 		return batchApplyResult{}, apierr.BadRequest("batch size %d exceeds maximum of %d", len(req.Items), maxBatchSize)
 	}
 
-	providedInitiatives, err := h.validateBatchInitiatives(req.Initiatives)
+	providedMilestones, err := h.validateBatchMilestones(req.Milestones)
 	if err != nil {
 		return batchApplyResult{}, apierr.BadRequest("%s", err.Error())
 	}
 
-	validated, batchNames, referencedInitiatives, err := h.validateBatchItems(req.Items, providedInitiatives)
+	validated, batchNames, referencedMilestones, err := h.validateBatchItems(req.Items, providedMilestones)
 	if err != nil {
 		return batchApplyResult{}, err
 	}
 
-	initiativePlans, initiativeResults, err := h.planInitiativeChanges(referencedInitiatives, providedInitiatives)
+	milestonePlans, milestoneResults, err := h.planMilestoneChanges(referencedMilestones, providedMilestones)
 	if err != nil {
 		return batchApplyResult{}, err
 	}
@@ -279,71 +279,71 @@ func (h *Handler) applyBatchCreateRequest(
 		for _, v := range validated {
 			previewItems = append(previewItems, v.item)
 		}
-		return batchApplyResult{items: previewItems, initiatives: initiativeResults}, nil
+		return batchApplyResult{items: previewItems, milestones: milestoneResults}, nil
 	}
 
 	stampBatchItemProvenance(validated, prov)
-	stampInitiativePlanProvenance(initiativePlans, prov)
+	stampMilestonePlanProvenance(milestonePlans, prov)
 
-	appliedInitiatives, err := h.applyInitiativeChanges(initiativePlans)
+	appliedMilestones, err := h.applyMilestoneChanges(milestonePlans)
 	if err != nil {
 		return batchApplyResult{}, err
 	}
 
-	createdItems, err := h.createBatchItems(ctx, validated, appliedInitiatives)
+	createdItems, err := h.createBatchItems(ctx, validated, appliedMilestones)
 	if err != nil {
 		return batchApplyResult{}, err
 	}
 
-	if err := h.assignItemsToInitiatives(createdItems, appliedInitiatives); err != nil {
+	if err := h.assignItemsToMilestones(createdItems, appliedMilestones); err != nil {
 		return batchApplyResult{}, err
 	}
 
-	artifacts, err := h.recordBatchSessionArtifacts(ctx, createdItems, appliedInitiatives, prov, mutationSource)
+	artifacts, err := h.recordBatchSessionArtifacts(ctx, createdItems, appliedMilestones, prov, mutationSource)
 	if err != nil {
-		rollbackBatchCreate(batchItemDirs(h.store, createdItems), appliedInitiatives, h.initiativeAssigner)
+		rollbackBatchCreate(batchItemDirs(h.store, createdItems), appliedMilestones, h.milestoneAssigner)
 		return batchApplyResult{}, apierr.Internal("failed to record session artifacts")
 	}
 
 	slog.Info("batch-created items", "count", len(createdItems))
 	h.invalidateAllGraphLenses()
 
-	return batchApplyResult{items: createdItems, initiatives: initiativeResults, artifacts: artifacts}, nil
+	return batchApplyResult{items: createdItems, milestones: milestoneResults, artifacts: artifacts}, nil
 }
 
-// validateBatchInitiatives validates and normalizes initiative metadata from
-// the request. Returns a map keyed by initiative name.
-func (h *Handler) validateBatchInitiatives(raw []batchCreateInitiative) (map[string]batchCreateInitiative, error) {
-	result := make(map[string]batchCreateInitiative, len(raw))
+// validateBatchMilestones validates and normalizes milestone metadata from
+// the request. Returns a map keyed by milestone name.
+func (h *Handler) validateBatchMilestones(raw []batchCreateMilestone) (map[string]batchCreateMilestone, error) {
+	result := make(map[string]batchCreateMilestone, len(raw))
 	for i, init := range raw {
 		name := strings.TrimSpace(init.Name)
 		if name == "" {
-			return nil, fmt.Errorf("initiatives[%d]: name is required", i)
+			return nil, fmt.Errorf("milestones[%d]: name is required", i)
 		}
 		if strings.TrimSpace(init.Title) == "" {
-			return nil, fmt.Errorf("initiatives[%d]: title is required", i)
+			return nil, fmt.Errorf("milestones[%d]: title is required", i)
 		}
 		if init.Status != nil {
 			status := strings.TrimSpace(*init.Status)
-			if !isValidInitiativeStatus(status) {
-				return nil, fmt.Errorf("initiatives[%d]: status must be active or completed", i)
+			if !isValidMilestoneStatus(status) {
+				return nil, fmt.Errorf("milestones[%d]: status must be active or completed", i)
 			}
 		}
 		if init.Priority != nil {
 			p := *init.Priority
 			if p < 0 || p > 10 {
-				return nil, fmt.Errorf("initiatives[%d]: priority must be 0 (unset) or 1-10", i)
+				return nil, fmt.Errorf("milestones[%d]: priority must be 0 (unset) or 1-10", i)
 			}
 		}
 		if init.DependsOn != nil {
-			normalized, err := normalizeInitiativeDeps(*init.DependsOn, name)
+			normalized, err := normalizeMilestoneDeps(*init.DependsOn, name)
 			if err != nil {
-				return nil, fmt.Errorf("initiatives[%d]: %s", i, err.Error())
+				return nil, fmt.Errorf("milestones[%d]: %s", i, err.Error())
 			}
 			init.DependsOn = &normalized
 		}
 		if _, exists := result[name]; exists {
-			return nil, fmt.Errorf("initiatives[%d]: duplicate initiative %q", i, name)
+			return nil, fmt.Errorf("milestones[%d]: duplicate milestone %q", i, name)
 		}
 		init.Name = name
 		init.Title = strings.TrimSpace(init.Title)
@@ -357,7 +357,7 @@ func (h *Handler) validateBatchInitiatives(raw []batchCreateInitiative) (map[str
 		}
 		result[name] = init
 	}
-	if err := h.validateInitiativeDepRefs(result); err != nil {
+	if err := h.validateMilestoneDepRefs(result); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -365,14 +365,14 @@ func (h *Handler) validateBatchInitiatives(raw []batchCreateInitiative) (map[str
 
 // validateBatchItems validates each item in the batch and returns the validated
 // items, a set of batch names for duplicate checking, and the set of referenced
-// initiative names.
+// milestone names.
 func (h *Handler) validateBatchItems(
 	items []batchCreateItem,
-	providedInitiatives map[string]batchCreateInitiative,
+	providedMilestones map[string]batchCreateMilestone,
 ) ([]validatedItem, map[string]bool, map[string]bool, error) {
 	validated := make([]validatedItem, 0, len(items))
 	batchNames := make(map[string]bool, len(items))
-	referencedInitiatives := make(map[string]bool)
+	referencedMilestones := make(map[string]bool)
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	for i, raw := range items {
@@ -381,19 +381,19 @@ func (h *Handler) validateBatchItems(
 			return nil, nil, nil, err
 		}
 		batchNames[string(v.kind)+"/"+v.item.Name] = true
-		if v.item.Initiative != "" {
-			referencedInitiatives[v.item.Initiative] = true
+		if v.item.Milestone != "" {
+			referencedMilestones[v.item.Milestone] = true
 		}
 		validated = append(validated, v)
 	}
 
-	for name := range providedInitiatives {
-		if !referencedInitiatives[name] {
-			return nil, nil, nil, apierr.BadRequest("initiative %q is not referenced by any item", name)
+	for name := range providedMilestones {
+		if !referencedMilestones[name] {
+			return nil, nil, nil, apierr.BadRequest("milestone %q is not referenced by any item", name)
 		}
 	}
 
-	return validated, batchNames, referencedInitiatives, nil
+	return validated, batchNames, referencedMilestones, nil
 }
 
 // validateSingleBatchItem validates and normalizes one batch item.
@@ -485,7 +485,7 @@ func (h *Handler) validateSingleBatchItem(
 		Updated:         now,
 		Kind:            kind,
 		DependsOn:       dependsOn,
-		Initiative:      strings.TrimSpace(raw.Initiative),
+		Milestone:      strings.TrimSpace(raw.Milestone),
 		Effort:          effort,
 		AcceptanceAllow: raw.AcceptanceAllow,
 		AcceptanceDeny:  raw.AcceptanceDeny,
@@ -503,7 +503,7 @@ func stampBatchItemProvenance(validated []validatedItem, prov identity.Provenanc
 	}
 }
 
-func stampInitiativePlanProvenance(plans map[string]resolvedInitiativePlan, prov identity.Provenance) {
+func stampMilestonePlanProvenance(plans map[string]resolvedMilestonePlan, prov identity.Provenance) {
 	for name, plan := range plans {
 		if plan.action == "create" && plan.spec.CreatedBy == nil {
 			plan.spec.CreatedBy = &prov
@@ -512,19 +512,19 @@ func stampInitiativePlanProvenance(plans map[string]resolvedInitiativePlan, prov
 	}
 }
 
-// planInitiativeChanges resolves what initiative operations are needed and
+// planMilestoneChanges resolves what milestone operations are needed and
 // returns both the execution plans and preview results.
-func (h *Handler) planInitiativeChanges(
-	referencedInitiatives map[string]bool,
-	providedInitiatives map[string]batchCreateInitiative,
-) (map[string]resolvedInitiativePlan, []batchCreateInitiativeResult, error) {
-	if len(referencedInitiatives) == 0 {
+func (h *Handler) planMilestoneChanges(
+	referencedMilestones map[string]bool,
+	providedMilestones map[string]batchCreateMilestone,
+) (map[string]resolvedMilestonePlan, []batchCreateMilestoneResult, error) {
+	if len(referencedMilestones) == 0 {
 		return nil, nil, nil
 	}
-	if h.initiativeAssigner == nil {
-		return nil, nil, apierr.Internal("initiative support not configured")
+	if h.milestoneAssigner == nil {
+		return nil, nil, apierr.Internal("milestone support not configured")
 	}
-	plans, results, err := h.resolveInitiativePlans(referencedInitiatives, providedInitiatives)
+	plans, results, err := h.resolveMilestonePlans(referencedMilestones, providedMilestones)
 	if err != nil {
 		return nil, nil, apierr.BadRequest("%s", err.Error())
 	}
@@ -575,13 +575,13 @@ func (h *Handler) checkBatchDependencyCycles(validated []validatedItem) error {
 	return nil
 }
 
-// applyInitiativeChanges creates or updates initiatives as planned. Returns
+// applyMilestoneChanges creates or updates milestones as planned. Returns
 // the list of applied plans for rollback tracking. Plans are applied in
-// dependency order so cross-initiative depends_on references are always
+// dependency order so cross-milestone depends_on references are always
 // satisfied before the dependent is persisted.
-func (h *Handler) applyInitiativeChanges(plans map[string]resolvedInitiativePlan) ([]resolvedInitiativePlan, error) {
-	applied := make([]resolvedInitiativePlan, 0, len(plans))
-	order, err := orderedInitiativePlans(plans)
+func (h *Handler) applyMilestoneChanges(plans map[string]resolvedMilestonePlan) ([]resolvedMilestonePlan, error) {
+	applied := make([]resolvedMilestonePlan, 0, len(plans))
+	order, err := orderedMilestonePlans(plans)
 	if err != nil {
 		return nil, apierr.BadRequest("%s", err.Error())
 	}
@@ -589,14 +589,14 @@ func (h *Handler) applyInitiativeChanges(plans map[string]resolvedInitiativePlan
 		plan := plans[name]
 		switch plan.action {
 		case "create":
-			if err := h.initiativeAssigner.Create(plan.spec); err != nil {
-				slog.Error("failed to create initiative", "initiative", name, "err", err)
-				return nil, apierr.Internal("%s", "failed to create initiative: "+httputil.TruncateErrorMessage(err, 240))
+			if err := h.milestoneAssigner.Create(plan.spec); err != nil {
+				slog.Error("failed to create milestone", "milestone", name, "err", err)
+				return nil, apierr.Internal("%s", "failed to create milestone: "+httputil.TruncateErrorMessage(err, 240))
 			}
 		case "update":
-			if err := h.initiativeAssigner.Update(plan.spec); err != nil {
-				slog.Error("failed to update initiative", "initiative", name, "err", err)
-				return nil, apierr.Internal("%s", "failed to update initiative: "+httputil.TruncateErrorMessage(err, 240))
+			if err := h.milestoneAssigner.Update(plan.spec); err != nil {
+				slog.Error("failed to update milestone", "milestone", name, "err", err)
+				return nil, apierr.Internal("%s", "failed to update milestone: "+httputil.TruncateErrorMessage(err, 240))
 			}
 		}
 		applied = append(applied, plan)
@@ -607,12 +607,12 @@ func (h *Handler) applyInitiativeChanges(plans map[string]resolvedInitiativePlan
 // createBatchItems creates all items on disk via the unified
 // backlog.Service.Create chokepoint. SkipDuplicateCheck and
 // SkipCycleCheck are set because validateBatchItems / checkBatchDependencyCycles
-// already validated up front. SkipInitiativeAttach defers initiative
-// membership writes to assignItemsToInitiatives, which uses bulk
-// AddItems for one initiative.json write per initiative instead of N
+// already validated up front. SkipMilestoneAttach defers milestone
+// membership writes to assignItemsToMilestones, which uses bulk
+// AddItems for one milestone.json write per milestone instead of N
 // from per-item RememberItem. SkipGraphInvalidation
 // defer those side effects to the end of the batch where they fire once.
-func (h *Handler) createBatchItems(ctx context.Context, validated []validatedItem, appliedInitiatives []resolvedInitiativePlan) ([]BacklogItem, error) {
+func (h *Handler) createBatchItems(ctx context.Context, validated []validatedItem, appliedMilestones []resolvedMilestonePlan) ([]BacklogItem, error) {
 	createdDirs := make([]string, 0, len(validated))
 	createdItems := make([]BacklogItem, 0, len(validated))
 	svc := h.creationService()
@@ -624,12 +624,12 @@ func (h *Handler) createBatchItems(ctx context.Context, validated []validatedIte
 			Entrypoint:            "http.batch_create",
 			SkipDuplicateCheck:    true,
 			SkipCycleCheck:        true,
-			SkipInitiativeAttach:  true,
+			SkipMilestoneAttach:  true,
 			SkipGraphInvalidation: true,
 			SkipSessionArtifact:   true,
 		})
 		if err != nil {
-			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
+			rollbackBatchCreate(createdDirs, appliedMilestones, h.milestoneAssigner)
 			slog.Error("failed to create batch item", "item", v.item.Name, "err", err)
 			return nil, apierr.Internal("failed to create item: %s", httputil.TruncateErrorMessage(err, 240))
 		}
@@ -639,25 +639,25 @@ func (h *Handler) createBatchItems(ctx context.Context, validated []validatedIte
 	return createdItems, nil
 }
 
-// assignItemsToInitiatives adds created items to their respective initiatives.
-// On failure, rolls back all item directories and initiative changes.
-func (h *Handler) assignItemsToInitiatives(createdItems []BacklogItem, appliedInitiatives []resolvedInitiativePlan) error {
+// assignItemsToMilestones adds created items to their respective milestones.
+// On failure, rolls back all item directories and milestone changes.
+func (h *Handler) assignItemsToMilestones(createdItems []BacklogItem, appliedMilestones []resolvedMilestonePlan) error {
 	createdDirs := make([]string, 0, len(createdItems))
 	for _, item := range createdItems {
 		createdDirs = append(createdDirs, h.store.ItemDir(item.Kind, item.Name))
 	}
 
-	for name, refs := range groupItemRefsByInitiative(createdItems) {
-		if addErr := h.initiativeAssigner.AddItems(name, refs); addErr != nil {
-			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
-			slog.Error("failed to add items to initiative", "initiative", name, "err", addErr)
-			return apierr.Internal("%s", "failed to assign items to initiative: "+httputil.TruncateErrorMessage(addErr, 240))
+	for name, refs := range groupItemRefsByMilestone(createdItems) {
+		if addErr := h.milestoneAssigner.AddItems(name, refs); addErr != nil {
+			rollbackBatchCreate(createdDirs, appliedMilestones, h.milestoneAssigner)
+			slog.Error("failed to add items to milestone", "milestone", name, "err", addErr)
+			return apierr.Internal("%s", "failed to assign items to milestone: "+httputil.TruncateErrorMessage(addErr, 240))
 		}
 	}
 	return nil
 }
 
-func (h *Handler) recordBatchSessionArtifacts(ctx context.Context, items []BacklogItem, applied []resolvedInitiativePlan, prov identity.Provenance, mutationSource string) ([]agentsessions.Artifact, error) {
+func (h *Handler) recordBatchSessionArtifacts(ctx context.Context, items []BacklogItem, applied []resolvedMilestonePlan, prov identity.Provenance, mutationSource string) ([]agentsessions.Artifact, error) {
 	if h.sessionArtifacts == nil || strings.TrimSpace(prov.SessionID) == "" {
 		return nil, nil
 	}
@@ -682,7 +682,7 @@ func (h *Handler) recordBatchSessionArtifacts(ctx context.Context, items []Backl
 		}
 		artifacts = append(artifacts, agentsessions.Artifact{
 			SessionID:      prov.SessionID,
-			ArtifactType:   agentsessions.ArtifactInitiative,
+			ArtifactType:   agentsessions.ArtifactMilestone,
 			Action:         action,
 			EntityRef:      plan.spec.Name,
 			Title:          plan.spec.Title,

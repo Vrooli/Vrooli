@@ -220,7 +220,7 @@ export const literalSelectors = {
     outputTab: "backlog-details-output-tab",
     activityTab: "backlog-details-activity-tab",
     promptPanel: "backlog-details-prompt-panel",
-    initiativeChip: "backlog-details-initiative-chip",
+    milestoneChip: "backlog-details-milestone-chip",
   },
   // Backlog form dialog selectors
   backlogForm: {
@@ -389,26 +389,7 @@ export const literalSelectors = {
     evidenceContextSummary: "review-evidence-context-summary",
     followUpSheet: "review-follow-up-sheet",
   },
-  // Initiative details page selectors
-  initiativeDetails: {
-    page: "initiative-details-page",
-    title: "initiative-details-title",
-    status: "initiative-details-status",
-    description: "initiative-details-description",
-    rollup: "initiative-details-rollup",
-    itemsList: "initiative-details-items-list",
-    itemsViewToggle: "initiative-items-view-toggle",
-    itemsListView: "initiative-items-list-view",
-    itemsGraphView: "initiative-items-graph-view",
-    backLink: "initiative-details-back-link",
-    tabRow: "initiative-details-tab-row",
-    tabInfo: "initiative-details-tab-info",
-    tabFiles: "initiative-details-tab-files",
-    tabFeedback: "initiative-details-tab-feedback",
-    tabReview: "initiative-details-tab-review",
-    tabRelated: "initiative-details-tab-related",
-    relatedContent: "initiative-details-related-content",
-    addFeedbackButtonDesktop: "initiative-details-add-feedback-desktop",
+  goalDetails: {
     conceptExplainerDialog: "concept-explainer-dialog",
   },
   related: {
@@ -417,17 +398,7 @@ export const literalSelectors = {
     groupSameScope: "related-group-same_scope",
     groupSimilar: "related-group-similar",
   },
-  // Initiative review surface — trigger + decide.
-  initiativeReview: {
-    panel: "initiative-review-panel",
-    triggerButton: "initiative-review-trigger",
-    roundCard: "initiative-review-round-card",
-    verdictAccept: "initiative-review-verdict-accept",
-    verdictFail: "initiative-review-verdict-fail",
-    verdictFollowup: "initiative-review-verdict-followup",
-    rationaleInput: "initiative-review-rationale",
-    decisionRecord: "initiative-review-decision-record",
-  },
+  // Goal and milestone review surfaces.
   prompts: {
     page: "prompts-page",
     tabs: "prompts-tabs",
@@ -624,7 +595,7 @@ export const dynamicSelectorDefinitions = {
       params: { id: { type: "string" } },
     }),
     nowGroup: defineDynamicSelector({
-      description: "Now column group (initiative name or 'standalone')",
+      description: "Now column group (milestone name or 'standalone')",
       testIdPattern: "plan-now-group-${key}",
       params: { key: { type: "string" } },
     }),
@@ -660,7 +631,7 @@ export const dynamicSelectorDefinitions = {
     rowByEntity: defineDynamicSelector({
       description: "Related-work result row by entity kind and key",
       testIdPattern: "related-row-${entity}-${id}",
-      params: { entity: { type: "enum", values: ["backlog", "initiative", "record"] }, id: { type: "string" } },
+      params: { entity: { type: "enum", values: ["backlog", "goal", "record"] }, id: { type: "string" } },
     }),
   },
 } as const;

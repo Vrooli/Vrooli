@@ -36,33 +36,29 @@ func TestGraphMaterialization_ExercisesRealWriters(t *testing.T) {
 	h := srv.Handler()
 	rootDir := testDataRoot(t)
 
-	// Create an initiative so subsequent items land in its graph.
-	mustPost(t, h, "/api/v1/initiatives", map[string]any{
-		"name":        "g-init",
-		"title":       "Graph Init",
-		"description": "Used for the materialization integration test.",
-		"status":      "active",
-		"priority":    5,
+	// Create a goal; its graph derives from explicit targets and dependencies.
+	mustPost(t, h, "/api/v1/goals", map[string]any{
+		"name": "g-init", "title": "Graph Goal", "priority": 5,
 	})
 
 	// Graph path is the sink for every assertion. Reading and polling helpers
 	// are hoisted into closures for brevity.
-	graphPath := filepath.Join(rootDir, "initiatives", "g-init", "graph.json")
+	graphPath := filepath.Join(rootDir, "goals", "g-init", "graph.json")
 
 	// Initial materialization (boot-time MaterializeAll) should write graph.json
 	// with zero nodes for the fresh initiative.
 	waitForGraph(t, graphPath, func(g graph.MaterializedGraph) bool {
-		return g.Initiative == "g-init" && len(g.Nodes) == 0
+		return g.Goal == "g-init" && len(g.Nodes) == 0
 	}, "empty graph after initiative create")
 
 	// 1. Single item create with Initiative field. Exercises handler_create.go.
 	mustPost(t, h, "/api/v1/backlog", map[string]any{
-		"kind":       "execute",
-		"name":       "alpha",
-		"title":      "Alpha",
-		"initiative": "g-init",
-		"priority":   5,
+		"kind":     "execute",
+		"name":     "alpha",
+		"title":    "Alpha",
+		"priority": 5,
 	})
+	mustPost(t, h, "/api/v1/goals/g-init/targets", map[string]any{"targets": []string{"execute/alpha"}})
 	waitForGraph(t, graphPath, func(g graph.MaterializedGraph) bool {
 		return len(g.Nodes) == 1 && g.Nodes[0].ID == "execute/alpha"
 	}, "graph has alpha after single create")
@@ -71,10 +67,11 @@ func TestGraphMaterialization_ExercisesRealWriters(t *testing.T) {
 	//    batch-create writer + dispatches the same invalidation.
 	mustPost(t, h, "/api/v1/backlog/batch", map[string]any{
 		"items": []map[string]any{
-			{"kind": "execute", "name": "beta", "title": "Beta", "initiative": "g-init", "priority": 5},
-			{"kind": "execute", "name": "gamma", "title": "Gamma", "initiative": "g-init", "priority": 5},
+			{"kind": "execute", "name": "beta", "title": "Beta", "priority": 5},
+			{"kind": "execute", "name": "gamma", "title": "Gamma", "priority": 5},
 		},
 	})
+	mustPost(t, h, "/api/v1/goals/g-init/targets", map[string]any{"targets": []string{"execute/beta", "execute/gamma"}})
 	waitForGraph(t, graphPath, func(g graph.MaterializedGraph) bool {
 		if len(g.Nodes) != 3 {
 			return false
@@ -189,25 +186,21 @@ func mustDelete(t *testing.T, h http.Handler, path string) {
 }
 
 // TestGraphMaterialization_ExercisesInitiativesService drives membership
-// mutations through POST/DELETE /api/v1/initiatives/{name}/items and asserts
+// mutations through the goal-owned milestone assignment API and asserts
 // graph.json rebuilds. This pins the initiatives.Service.invalidateTopologyGraph
 // hook to the Materializer's ScheduleAll listener — a separate path from the
 // backlog handler's invalidateAllGraphLenses.
 //
 // Writers covered here (plan §W2):
-//   - initiatives/service.go AddItems  (POST   /api/v1/initiatives/{name}/items)
-//   - initiatives/service.go RemoveItems (DELETE /api/v1/initiatives/{name}/items)
-func TestGraphMaterialization_ExercisesInitiativesService(t *testing.T) {
+//   - goals/service.go AssignMilestoneItems
+//   - goals/service.go UnassignMilestoneItems
+func TestGraphMaterialization_ExercisesGoalTargetChanges(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
 	rootDir := testDataRoot(t)
 
-	mustPost(t, h, "/api/v1/initiatives", map[string]any{
-		"name":        "svc-init",
-		"title":       "Service Init",
-		"description": "Exercises initiatives.Service writer paths.",
-		"status":      "active",
-		"priority":    5,
+	mustPost(t, h, "/api/v1/goals", map[string]any{
+		"name": "svc-init", "title": "Service Goal", "priority": 5,
 	})
 
 	// Create two orphan items (no initiative field). These are the items we'll
@@ -219,16 +212,16 @@ func TestGraphMaterialization_ExercisesInitiativesService(t *testing.T) {
 		"kind": "execute", "name": "orphan-b", "title": "Orphan B", "priority": 5,
 	})
 
-	graphPath := filepath.Join(rootDir, "initiatives", "svc-init", "graph.json")
+	graphPath := filepath.Join(rootDir, "goals", "svc-init", "graph.json")
 
 	// Confirm the initiative's graph is empty before attachment.
 	waitForGraph(t, graphPath, func(g graph.MaterializedGraph) bool {
-		return g.Initiative == "svc-init" && len(g.Nodes) == 0
+		return g.Goal == "svc-init" && len(g.Nodes) == 0
 	}, "empty graph before attachment")
 
 	// AddItems: should trigger invalidateTopologyGraph → graph.json rebuilds.
-	mustPost(t, h, "/api/v1/initiatives/svc-init/items", map[string]any{
-		"items": []string{"execute/orphan-a", "execute/orphan-b"},
+	mustPost(t, h, "/api/v1/goals/svc-init/targets", map[string]any{
+		"targets": []string{"execute/orphan-a", "execute/orphan-b"},
 	})
 	waitForGraph(t, graphPath, func(g graph.MaterializedGraph) bool {
 		if len(g.Nodes) != 2 {
@@ -244,8 +237,8 @@ func TestGraphMaterialization_ExercisesInitiativesService(t *testing.T) {
 	}, "graph has 2 nodes after AddItems")
 
 	// RemoveItems: graph.json drops the node.
-	mustDeleteBody(t, h, "/api/v1/initiatives/svc-init/items", map[string]any{
-		"items": []string{"execute/orphan-a"},
+	mustDeleteBody(t, h, "/api/v1/goals/svc-init/targets", map[string]any{
+		"targets": []string{"execute/orphan-a"},
 	})
 	waitForGraph(t, graphPath, func(g graph.MaterializedGraph) bool {
 		if len(g.Nodes) != 1 {
@@ -307,19 +300,16 @@ func TestGraphMaterialization_ExecutionStatusInvalidates(t *testing.T) {
 	h := srv.Handler()
 	rootDir := testDataRoot(t)
 
-	mustPost(t, h, "/api/v1/initiatives", map[string]any{
-		"name":        "exec-init",
-		"title":       "Exec Init",
-		"description": "Pins the dispatch → materializer hook used by execution polling.",
-		"status":      "active",
-		"priority":    5,
+	mustPost(t, h, "/api/v1/goals", map[string]any{
+		"name": "exec-init", "title": "Exec Goal", "priority": 5,
 	})
 	mustPost(t, h, "/api/v1/backlog", map[string]any{
 		"kind": "execute", "name": "exec-item", "title": "Exec Item",
-		"initiative": "exec-init", "priority": 5,
+		"priority": 5,
 	})
+	mustPost(t, h, "/api/v1/goals/exec-init/targets", map[string]any{"targets": []string{"execute/exec-item"}})
 
-	graphPath := filepath.Join(rootDir, "initiatives", "exec-init", "graph.json")
+	graphPath := filepath.Join(rootDir, "goals", "exec-init", "graph.json")
 	waitForGraph(t, graphPath, func(g graph.MaterializedGraph) bool {
 		return len(g.Nodes) == 1
 	}, "graph seeded with exec-item")

@@ -82,9 +82,6 @@ func (s *Server) wireEventLoggers() {
 	if s.executionSvc != nil {
 		s.executionSvc.SetEventLogger(s.emitter)
 	}
-	if s.initiativeService != nil {
-		s.initiativeService.SetEventLogger(s.emitter)
-	}
 	if s.goalService != nil {
 		s.goalService.SetEventLogger(s.emitter)
 	}

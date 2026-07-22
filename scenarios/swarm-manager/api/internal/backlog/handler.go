@@ -53,7 +53,7 @@ type AgentActivityChecker interface {
 // ItemTerminalHandler is invoked after the review-decide endpoint flips an
 // item to a terminal status (completed / failed / needs_followup). The
 // callback fires synchronously inside the HTTP handler so downstream effects
-// (initiative-level review trigger, future per-item telemetry) see the
+// (milestone-level review trigger, future per-item telemetry) see the
 // decision before the response is sent, but implementations are expected to
 // be cheap or self-gate expensive work to a goroutine.
 type ItemTerminalHandler func(ctx context.Context, kind, name string, status BacklogStatus)
@@ -61,7 +61,7 @@ type ItemTerminalHandler func(ctx context.Context, kind, name string, status Bac
 // BacklogRecordRequest carries the context the review-decide hook hands to the
 // records capture seam so it can write a FILLED, searchable record (not an empty
 // stub): the item's own title/description seed the record's trigger/approach,
-// the acceptance globs derive the target scenario, and the initiative links it
+// the acceptance globs derive the target scenario, and the milestone links it
 // back. The hook already has the item loaded, so passing it here costs nothing
 // and lets the record be born indexed instead of an empty stub nobody fills.
 type BacklogRecordRequest struct {
@@ -70,7 +70,7 @@ type BacklogRecordRequest struct {
 	Title           string
 	Description     string
 	AcceptanceAllow []string
-	Initiative      string
+	Milestone      string
 	Status          BacklogStatus
 	DecidedBy       string
 }
@@ -101,7 +101,7 @@ type Handler struct {
 	activityChecker      AgentActivityChecker
 	promptClient         promptmanager.Client
 	planClient           planclient.Client
-	initiativeAssigner   InitiativeAssigner
+	milestoneAssigner   MilestoneAssigner
 	sessionArtifacts     sessionArtifactRecorder
 	executionQueuer      ExecutionQueuer
 	eventDispatcher      dispatch.Invalidator
@@ -132,14 +132,14 @@ func (h *Handler) SetPlanRepair(service *planrepair.Service) {
 
 // EventLogger records state-change events for analytics.
 type EventLogger interface {
-	EmitBacklogCreated(entityID, kind, status string, priority int, initiative, effort string)
-	EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, initiative, effort, actorType, actorID string)
+	EmitBacklogCreated(entityID, kind, status string, priority int, milestone, effort string)
+	EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, milestone, effort, actorType, actorID string)
 	EmitBacklogStatusChanged(entityID, from, to string)
 	EmitBacklogPriorityChanged(entityID string, from, to int)
 	EmitBacklogEffortChanged(entityID, from, to string)
 	EmitBacklogDependencyAdded(entityID, target string)
 	EmitBacklogDependencyRemoved(entityID, target string)
-	EmitBacklogInitiativeChanged(entityID, from, to string)
+	EmitBacklogMilestoneChanged(entityID, from, to string)
 	EmitBacklogArchived(entityID, previousStatus, archivedAt string)
 	EmitBacklogUnarchived(entityID, archivedAt string)
 	EmitBacklogDeleted(entityID string)
@@ -256,7 +256,7 @@ func resolveRepoRootOrDefault(repoRoot string) string {
 }
 
 // Store returns the underlying backlog store for cross-package use (e.g.,
-// initiative rollup computation).
+// milestone rollup computation).
 func (h *Handler) Store() Store {
 	return h.store
 }
@@ -284,7 +284,7 @@ func (h *Handler) SetAgentSessionArtifactRecorder(r sessionArtifactRecorder) {
 // work should self-dispatch.
 //
 // Prefer AddItemTerminalHandler when multiple subsystems need to observe
-// terminal transitions (initiative review + records + future telemetry).
+// terminal transitions (milestone review + records + future telemetry).
 // SetItemTerminalHandler replaces all prior handlers, so chaining via Set
 // silently overwrites earlier registrations.
 func (h *Handler) SetItemTerminalHandler(f ItemTerminalHandler) {
@@ -358,15 +358,15 @@ func (h *Handler) invalidateAllGraphLenses() {
 	h.eventDispatcher.DispatchInvalidate("topology", "plan")
 }
 
-func (h *Handler) validateInitiativeReference(name string) error {
-	if strings.TrimSpace(name) == "" || h.initiativeAssigner == nil {
+func (h *Handler) validateMilestoneReference(name string) error {
+	if strings.TrimSpace(name) == "" || h.milestoneAssigner == nil {
 		return nil
 	}
-	if _, err := h.initiativeAssigner.Get(strings.TrimSpace(name)); err != nil {
+	if _, err := h.milestoneAssigner.Get(strings.TrimSpace(name)); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return fmt.Errorf("initiative %q does not exist", strings.TrimSpace(name))
+			return fmt.Errorf("milestone %q does not exist", strings.TrimSpace(name))
 		}
-		return fmt.Errorf("failed to load initiative %q: %w", strings.TrimSpace(name), err)
+		return fmt.Errorf("failed to load milestone %q: %w", strings.TrimSpace(name), err)
 	}
 	return nil
 }

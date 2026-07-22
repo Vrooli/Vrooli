@@ -74,7 +74,7 @@ export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
     updated: protoItem.updated ?? "",
     kind,
     ...(protoItem.dependsOn?.length ? { dependsOn: protoItem.dependsOn } : {}),
-    ...(protoItem.initiative ? { initiative: protoItem.initiative } : {}),
+    ...(protoItem.milestone ? { milestone: protoItem.milestone } : {}),
     ...(protoItem.acceptanceAllow?.length ? { acceptanceAllow: protoItem.acceptanceAllow } : {}),
     ...(protoItem.acceptanceDeny?.length ? { acceptanceDeny: protoItem.acceptanceDeny } : {}),
     ...(protoItem.effort ? { effort: protoItem.effort } : {}),

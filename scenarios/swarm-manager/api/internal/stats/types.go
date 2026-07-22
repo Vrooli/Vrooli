@@ -93,14 +93,14 @@ type TimingStats struct {
 	ExecutionDurationSamples int     `json:"execution_duration_samples"`
 }
 
-// ScopeStats tracks initiative health and scope changes.
+// ScopeStats tracks goal health and scope changes.
 type ScopeStats struct {
-	Initiatives        []InitiativeHealth `json:"initiatives"`
-	MaxDependencyDepth int                `json:"max_dependency_depth"`
+	Goals              []GoalHealth `json:"goals"`
+	MaxDependencyDepth int          `json:"max_dependency_depth"`
 }
 
-// InitiativeHealth summarizes a single initiative's progress.
-type InitiativeHealth struct {
+// GoalHealth summarizes a single goal's progress.
+type GoalHealth struct {
 	Name       string  `json:"name"`
 	Total      int     `json:"total"`
 	Completed  int     `json:"completed"`
@@ -242,5 +242,5 @@ type SessionStats struct {
 	FailedSessionRate                 float64             `json:"failed_session_rate"`
 	FailedSessionSampleSize           int                 `json:"failed_session_sample_size"`
 	SessionCreatedBacklogItems        int                 `json:"session_created_backlog_items"`
-	SessionCreatedInitiatives         int                 `json:"session_created_initiatives"`
+	SessionCreatedGoals               int                 `json:"session_created_goals"`
 }

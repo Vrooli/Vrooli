@@ -1,19 +1,28 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
- * RollupProgressBar - Segmented progress bar for initiative rollup data.
+ * RollupProgressBar - Segmented progress bar for goal rollup data.
  *
  * Displays a horizontal bar with colored segments proportional to each status
  * count (completed, inProgress, failed, pending). Optionally shows a numeric
  * breakdown below the bar.
  *
- * Used in InitiativeDetailsPage and initiative sidebar cards.
+ * Used in goal detail and sidebar cards.
  */
 
 import { cn } from "../../lib/utils";
-import type { InitiativeRollup } from "../../types";
+
+
+export interface GoalRollup {
+  total: number;
+  completed: number;
+  inProgress: number;
+  failed: number;
+  pending: number;
+  archived: number;
+}
 
 export interface RollupProgressBarProps {
-  rollup: InitiativeRollup;
+  rollup: GoalRollup;
   /** Show the numeric breakdown labels below the bar. Default: false. */
   showLabels?: boolean;
   /** Height class for the bar. Default: "h-2.5". */
@@ -26,11 +35,11 @@ export interface RollupProgressBarProps {
 /**
  * Compute the total count from a rollup object.
  *
- * Archived items are intentionally excluded. They remain part of initiative
+ * Archived items are intentionally excluded. They remain part of goal
  * scope, but the progress bar reflects only live work still participating in
  * the active lifecycle.
  */
-export function rollupTotal(rollup: InitiativeRollup): number {
+export function rollupTotal(rollup: GoalRollup): number {
   return rollup.completed + rollup.inProgress + rollup.failed + rollup.pending;
 }
 
@@ -45,7 +54,7 @@ interface Segment {
   hideWhenZero?: boolean;
 }
 
-function getSegments(rollup: InitiativeRollup): Segment[] {
+function getSegments(rollup: GoalRollup): Segment[] {
   return [
     { key: "completed", count: rollup.completed, barColor: "bg-emerald-500", labelColor: "text-emerald-400", label: "completed" },
     { key: "inProgress", count: rollup.inProgress, barColor: "bg-purple-500", labelColor: "text-purple-400", label: "in progress" },

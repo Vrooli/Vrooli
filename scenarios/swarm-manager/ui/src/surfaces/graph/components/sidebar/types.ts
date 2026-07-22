@@ -12,20 +12,19 @@ import type {
   CaptureStatus,
   ExecutionMode,
   ExecutionStatus,
-  InitiativeStatus,
+  GoalStatus,
 } from "../../../../types";
 
 // ============================================================================
 // Tab Definitions
 // ============================================================================
 
-export const SIDEBAR_TABS = ["backlog", "captures", "initiatives", "goals", "executions", "sessions"] as const;
+export const SIDEBAR_TABS = ["backlog", "captures", "goals", "executions", "sessions"] as const;
 export type SidebarTab = (typeof SIDEBAR_TABS)[number];
 
 export const TAB_LABELS: Record<SidebarTab, string> = {
   backlog: "Backlog",
   captures: "Captures",
-  initiatives: "Initiatives",
   goals: "Goals",
   executions: "Executions",
   sessions: "Sessions",
@@ -46,7 +45,6 @@ export interface SortConfig {
 export const DEFAULT_SORT: Record<SidebarTab, SortConfig> = {
   backlog: { field: "priority", direction: "asc" },
   captures: { field: "recency", direction: "desc" },
-  initiatives: { field: "alphabetical", direction: "asc" },
   goals: { field: "priority", direction: "desc" },
   executions: { field: "recency", direction: "desc" },
   sessions: { field: "recency", direction: "desc" },
@@ -68,8 +66,9 @@ export interface CaptureFilters {
   statuses: CaptureStatus[];
 }
 
-export interface InitiativeFilters {
-  statuses: InitiativeStatus[];
+/** Compatibility shape for the unmounted legacy goal component. */
+export interface GoalFilters {
+  statuses: GoalStatus[];
   showArchived: boolean;
 }
 
@@ -89,7 +88,6 @@ export interface SessionFilters {
 export interface TabFilters {
   backlog: BacklogFilters;
   captures: CaptureFilters;
-  initiatives: InitiativeFilters;
   goals: Record<string, never>;
   executions: ExecutionFilters;
   sessions: SessionFilters;
@@ -98,7 +96,6 @@ export interface TabFilters {
 export const DEFAULT_FILTERS: TabFilters = {
   backlog: { statuses: [], kinds: [], priorityMin: null, priorityMax: null, showArchived: false },
   captures: { statuses: [] },
-  initiatives: { statuses: [], showArchived: false },
   goals: {},
   executions: { statuses: [], modes: [] },
   sessions: { statuses: [], kinds: [], activeOnly: false, hasProposals: false, hasAppliedArtifacts: false },

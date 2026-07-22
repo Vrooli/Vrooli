@@ -30,7 +30,7 @@ export const CYCLE_WAVE = -1;
 export interface PlanGateData {
   id: string;
   kind: PlanGateKind;
-  ownerType: "backlog" | "execution" | "capture" | "initiative";
+  ownerType: "backlog" | "execution" | "capture" | "milestone";
   ownerKind: string;
   ownerName: string;
   ownerTitle: string;
@@ -51,7 +51,7 @@ export interface PlanCardData {
   status: string;
   priority: number;
   wave: number;
-  initiative: string;
+  milestone: string;
   effort: string;
   gate: PlanGateData | null;
   outcome: PlanOutcome | "";

@@ -2,7 +2,7 @@
  * BacklogDetailsPanel
  *
  * Displays the metadata section of a backlog item: title, description,
- * tags, initiative link, dependency lists, acceptance globs, and timestamps.
+ * tags, milestone link, dependency lists, acceptance globs, and timestamps.
  *
  * Extracted from BacklogDetailsPage to reduce file size and improve modularity.
  */
@@ -87,18 +87,13 @@ export function BacklogDetailsPanel({
             <TagList tags={item.tags} maxTags={10} />
           </div>
         )}
-        {item.initiative && (
+        {item.milestone && (
           <div className="space-y-2">
             <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
               <Target className="h-3.5 w-3.5" />
-              Initiative
+              Milestone
             </div>
-            <EntityLink
-              entityType="initiative"
-              name={item.initiative}
-              label={item.initiative}
-              data-testid={selectors.backlogDetails.initiativeChip}
-            />
+			<span className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-200" data-testid={selectors.backlogDetails.milestoneChip}>{item.milestone}</span>
           </div>
         )}
         <DependencyChipList

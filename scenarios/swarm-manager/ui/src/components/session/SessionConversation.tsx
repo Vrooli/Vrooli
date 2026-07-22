@@ -421,8 +421,8 @@ function countNoun(type: AgentSessionContextType, count: number): string {
       return plural ? "backlog items" : "backlog item";
     case "execution":
       return plural ? "runs" : "run";
-    case "initiative":
-      return plural ? "initiatives" : "initiative";
+    case "goal":
+      return plural ? "goals" : "goal";
     case "operating_mode":
       return plural ? "archived workflows" : "archived workflow";
     case "scenario":

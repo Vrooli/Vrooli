@@ -7,7 +7,7 @@ describe("hasDetailPage", () => {
     ["backlog", true],
     ["scenario", true],
     ["execution", true],
-    ["initiative", true],
+    ["goal", true],
     ["capture", true],
     ["agent-activity", false],
     ["agent-run", false],

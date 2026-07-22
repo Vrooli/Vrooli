@@ -7,7 +7,6 @@ import {
   executionDetailPath,
   goalDetailPath,
   graphPath,
-  initiativeDetailPath,
   isGraphLens,
   routeTargetToNodeId,
   scenarioDetailPath,
@@ -34,7 +33,7 @@ describe("route paths", () => {
     expect(backlogDetailPath("fix", "broken thing", { tab: "files" })).toBe("/backlog/fix/broken%20thing?tab=files");
     expect(scenarioDetailPath("swarm-manager")).toBe("/scenarios/swarm-manager");
     expect(executionDetailPath("exec/1")).toBe("/executions/exec%2F1");
-    expect(initiativeDetailPath("route cutover")).toBe("/initiatives/route%20cutover");
+    expect(goalDetailPath("route cutover")).toBe("/goals/route%20cutover");
     expect(goalDetailPath("goal one")).toBe("/goals/goal%20one");
     expect(captureDetailPath("cap 1")).toBe("/captures/cap%201");
     expect(sessionDetailPath("sess 1")).toBe("/sessions/sess%201");
@@ -54,7 +53,7 @@ describe("route paths", () => {
 
   it("builds graph node IDs from route targets", () => {
     expect(routeTargetToNodeId({ entityType: "backlog", kind: "fix", name: "bug" })).toBe("backlog-item/fix/bug");
-    expect(routeTargetToNodeId({ entityType: "initiative", name: "routing" })).toBe("initiative/routing");
+    expect(routeTargetToNodeId({ entityType: "goal", name: "routing" })).toBe("goal/routing");
     expect(routeTargetToNodeId({ entityType: "goal", name: "goal-1" })).toBe("goal/goal-1");
     expect(routeTargetToNodeId({ entityType: "capture", identifier: "cap-1" })).toBe("capture/cap-1");
   });

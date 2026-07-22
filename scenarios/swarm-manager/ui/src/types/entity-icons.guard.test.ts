@@ -2,8 +2,8 @@
  * Guard test for the entity-icon single source of truth.
  *
  * These assertions fail loudly if a future change re-introduces icon drift —
- * e.g. a goal surface hardcoding Target (making goals and initiatives
- * indistinguishable) or a sidebar tab whose icon diverges from its entity.
+ * e.g. a goal surface hardcoding an icon or a sidebar tab whose icon diverges
+ * from its entity.
  */
 
 import { describe, expect, it } from "vitest";
@@ -17,16 +17,11 @@ import { ENTITY_REGISTRY, getEntityIcon, GRAPH_ENTITY_TYPES } from "../surfaces/
 const SIDEBAR_ENTITY_PAIRS: Array<[SidebarEntityType, EntityType]> = [
   ["backlog", "backlog"],
   ["captures", "capture"],
-  ["initiatives", "initiative"],
   ["goals", "goal"],
   ["executions", "execution"],
 ];
 
 describe("entity icon SSOT", () => {
-  it("gives goal and initiative distinct icons", () => {
-    expect(ENTITY_TYPE_ICONS.goal).not.toBe(ENTITY_TYPE_ICONS.initiative);
-  });
-
   it("resolves every entity-backed sidebar tab to its entity's SSOT icon", () => {
     for (const [tab, entity] of SIDEBAR_ENTITY_PAIRS) {
       expect(SIDEBAR_TAB_ICONS[tab]).toBe(ENTITY_TYPE_ICONS[entity]);

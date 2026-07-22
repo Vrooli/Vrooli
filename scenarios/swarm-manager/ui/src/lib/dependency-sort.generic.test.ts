@@ -7,69 +7,69 @@ import {
 } from "./dependency-sort";
 
 // Regression: dependency-sort must work for any `{kind, name, status, dependsOn}`
-// object, not just BacklogItem — initiatives rely on this.
+// object, not just BacklogItem — milestones rely on this.
 
-const mkInit = (
+const mkMilestone = (
   name: string,
   status = "active",
   dependsOn: string[] = [],
 ): DepthItem => ({
-  kind: "initiative",
+  kind: "milestone",
   name,
   status,
   dependsOn,
 });
 
 describe("dependency-sort (generic DepthItem)", () => {
-  it("computes depth across a linear initiative chain", () => {
+  it("computes depth across a linear milestone chain", () => {
     const items = [
-      mkInit("a"),
-      mkInit("b", "active", ["initiative/a"]),
-      mkInit("c", "active", ["initiative/b"]),
+      mkMilestone("a"),
+      mkMilestone("b", "active", ["milestone/a"]),
+      mkMilestone("c", "active", ["milestone/b"]),
     ];
     const depths = computeDepthMap(items);
-    expect(depths.get("initiative/a")).toBe(0);
-    expect(depths.get("initiative/b")).toBe(1);
-    expect(depths.get("initiative/c")).toBe(2);
+    expect(depths.get("milestone/a")).toBe(0);
+    expect(depths.get("milestone/b")).toBe(1);
+    expect(depths.get("milestone/c")).toBe(2);
   });
 
   it("completed status resolves dependencies — depth drops to 0", () => {
     const items = [
-      mkInit("a", "completed"),
-      mkInit("b", "active", ["initiative/a"]),
+      mkMilestone("a", "completed"),
+      mkMilestone("b", "active", ["milestone/a"]),
     ];
     const depths = computeDepthMap(items);
-    expect(depths.get("initiative/b")).toBe(0);
+    expect(depths.get("milestone/b")).toBe(0);
   });
 
   it("tolerates cycles without infinite loop", () => {
     const items = [
-      mkInit("a", "active", ["initiative/b"]),
-      mkInit("b", "active", ["initiative/a"]),
+      mkMilestone("a", "active", ["milestone/b"]),
+      mkMilestone("b", "active", ["milestone/a"]),
     ];
     const depths = computeDepthMap(items);
-    expect(depths.get("initiative/a")).toBeGreaterThanOrEqual(0);
-    expect(depths.get("initiative/b")).toBeGreaterThanOrEqual(0);
+    expect(depths.get("milestone/a")).toBeGreaterThanOrEqual(0);
+    expect(depths.get("milestone/b")).toBeGreaterThanOrEqual(0);
   });
 
   it("counts transitive incomplete dependents", () => {
     const items = [
-      mkInit("root"),
-      mkInit("mid", "active", ["initiative/root"]),
-      mkInit("leaf1", "active", ["initiative/mid"]),
-      mkInit("leaf2", "active", ["initiative/mid"]),
+      mkMilestone("root"),
+      mkMilestone("mid", "active", ["milestone/root"]),
+      mkMilestone("leaf1", "active", ["milestone/mid"]),
+      mkMilestone("leaf2", "active", ["milestone/mid"]),
     ];
     const unblocking = computeUnblockingMap(items);
-    expect(unblocking.get("initiative/root")).toBe(3);
-    expect(unblocking.get("initiative/mid")).toBe(2);
-    expect(unblocking.get("initiative/leaf1")).toBe(0);
+    expect(unblocking.get("milestone/root")).toBe(3);
+    expect(unblocking.get("milestone/mid")).toBe(2);
+    expect(unblocking.get("milestone/leaf1")).toBe(0);
   });
 
   it("sorts a filtered subset by dependency order", () => {
     const all = [
-      mkInit("a"),
-      mkInit("b", "active", ["initiative/a"]),
-      mkInit("c", "active", ["initiative/b"]),
+      mkMilestone("a"),
+      mkMilestone("b", "active", ["milestone/a"]),
+      mkMilestone("c", "active", ["milestone/b"]),
     ];
     // Sort c then a — expect a first (lowest depth).
     const sorted = dependencyAwareSort(

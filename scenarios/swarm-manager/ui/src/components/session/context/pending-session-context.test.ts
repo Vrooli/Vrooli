@@ -8,8 +8,8 @@ import {
   stageContextForSession,
 } from "./pending-session-context";
 
-const initiative: SessionContextOption = {
-  type: "initiative",
+const goal: SessionContextOption = {
+  type: "goal",
   ref: "release-control",
   title: "Release Control",
 };
@@ -26,20 +26,20 @@ describe("pending session context", () => {
   });
 
   it("stages context by session without duplicating the same ref [REQ:REQ-P1-010-SESSION-CONTEXT]", () => {
-    stageContextForSession("sess_1", initiative);
-    stageContextForSession("sess_1", initiative);
+    stageContextForSession("sess_1", goal);
+    stageContextForSession("sess_1", goal);
 
-    expect(peekStagedContextForSession("sess_1")).toEqual([initiative]);
+    expect(peekStagedContextForSession("sess_1")).toEqual([goal]);
 
-    clearStagedContextForSession("sess_1", [initiative]);
+    clearStagedContextForSession("sess_1", [goal]);
     expect(peekStagedContextForSession("sess_1")).toEqual([]);
   });
 
   it("merges compatible context and rejects incompatible context visibly [REQ:REQ-P1-010-SESSION-CONTEXT]", () => {
-    const result = mergeContextOptions([initiative], [initiative, scenario], "swarm_operations");
+    const result = mergeContextOptions([goal], [goal, scenario], "swarm_operations");
 
-    expect(result.items).toEqual([initiative]);
-    expect(result.applied).toEqual([initiative]);
+    expect(result.items).toEqual([goal]);
+    expect(result.applied).toEqual([goal]);
     expect(result.rejected).toHaveLength(1);
     expect(result.rejected[0]?.reason).toMatch(/not allowed/);
   });

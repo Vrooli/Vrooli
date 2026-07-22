@@ -26,16 +26,15 @@ const agentManagerImportPath = "swarm-manager/internal/agentmanager"
 // that must be deleted so the allowlist only ever shrinks or is consciously
 // re-expanded).
 var allowedAgentManagerImporters = map[string]string{
-	"agentactivity":    "historical activity projection and session-run attribution",
-	"agentsessions":    "the interactive human-in-the-loop session boundary",
-	"agentmanager":     "the client package itself",
-	"backlog":          "typed workflow invocation and terminal-result application; no raw runs",
-	"captures":         "typed capture-classification workflow invocation and terminal-result application; no raw runs",
-	"execution":        "typed workflow snapshots, authorization, and exact-once terminal application; no raw runs",
-	"initiativereview": "run management for review rounds (RunInspector wiring) — never launch",
-	"planrepair":       "typed plan-repair workflow invocation and terminal-result application; no raw runs",
-	"review":           "run management for gathering rounds (RunInspector wiring) — never launch",
-	"testutil":         "shared test fakes for the client seam",
+	"agentactivity": "historical activity projection and session-run attribution",
+	"agentsessions": "the interactive human-in-the-loop session boundary",
+	"agentmanager":  "the client package itself",
+	"backlog":       "typed workflow invocation and terminal-result application; no raw runs",
+	"captures":      "typed capture-classification workflow invocation and terminal-result application; no raw runs",
+	"execution":     "typed workflow snapshots, authorization, and exact-once terminal application; no raw runs",
+	"planrepair":    "typed plan-repair workflow invocation and terminal-result application; no raw runs",
+	"review":        "run management for gathering rounds (RunInspector wiring) — never launch",
+	"testutil":      "shared test fakes for the client seam",
 }
 
 // TestAgentManagerImportBoundary walks every package under internal/ and

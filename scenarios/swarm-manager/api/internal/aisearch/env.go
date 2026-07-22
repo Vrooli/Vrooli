@@ -14,15 +14,15 @@ import (
 // Env-var names are declared as constants so the resolvers, the test harness,
 // and any future operator tooling share a single source of truth.
 const (
-	EnvOllamaURL              = "OLLAMA_URL"
-	EnvQdrantURL              = "QDRANT_URL"
-	EnvQdrantBaseURL          = "QDRANT_BASE_URL"
-	EnvQdrantPort             = "QDRANT_PORT"
-	EnvQdrantAPIKey           = "QDRANT_API_KEY" // #nosec G101 -- this is the NAME of an environment variable, not a credential value.
-	EnvAISearchThreshold      = "AI_SEARCH_THRESHOLD"
-	EnvAISearchBacklogColl    = "AI_SEARCH_BACKLOG_COLLECTION"
-	EnvAISearchInitiativeColl = "AI_SEARCH_INITIATIVE_COLLECTION"
-	EnvAISearchRecordColl     = "AI_SEARCH_RECORD_COLLECTION"
+	EnvOllamaURL           = "OLLAMA_URL"
+	EnvQdrantURL           = "QDRANT_URL"
+	EnvQdrantBaseURL       = "QDRANT_BASE_URL"
+	EnvQdrantPort          = "QDRANT_PORT"
+	EnvQdrantAPIKey        = "QDRANT_API_KEY" // #nosec G101 -- this is the NAME of an environment variable, not a credential value.
+	EnvAISearchThreshold   = "AI_SEARCH_THRESHOLD"
+	EnvAISearchBacklogColl = "AI_SEARCH_BACKLOG_COLLECTION"
+	EnvAISearchGoalColl    = "AI_SEARCH_GOAL_COLLECTION"
+	EnvAISearchRecordColl  = "AI_SEARCH_RECORD_COLLECTION"
 
 	// EnvAISearchSyncInterval overrides the SyncLoop tick interval (e.g.
 	// "30m", "24h"). Default DefaultSyncInterval. Invalid values fall back to
@@ -48,11 +48,11 @@ const (
 	// collection. Hardcoding "swarm-manager-backlog" here would bypass shadow
 	// isolation — exactly what storage-steer / test-genie flag as a finding.
 	// (Adopting these is a rename from the old hyphenated names; the convergent
-	// reconciler repopulates the new collections from the backlog/initiative/
+	// reconciler repopulates the new collections from the backlog/goal/
 	// record stores on its next sync.)
-	CollectionDomainBacklog    = "backlog"
-	CollectionDomainInitiative = "initiatives"
-	CollectionDomainRecord     = "records"
+	CollectionDomainBacklog = "backlog"
+	CollectionDomainGoal    = "goals"
+	CollectionDomainRecord  = "records"
 
 	// scenarioSlug is this scenario's own identity, used ONLY to compose a
 	// variant-safe fallback collection name when no identity environment is
@@ -149,13 +149,13 @@ func ResolveQdrantURL() string {
 // aisearch Service. Unset string fields mean "use default"; unset URL fields
 // mean "that subsystem is disabled and the service degrades to fallback."
 type Config struct {
-	OllamaURL            string
-	QdrantURL            string
-	QdrantAPIKey         string
-	Threshold            float64
-	BacklogCollection    string
-	InitiativeCollection string
-	RecordCollection     string
+	OllamaURL         string
+	QdrantURL         string
+	QdrantAPIKey      string
+	Threshold         float64
+	BacklogCollection string
+	GoalCollection    string
+	RecordCollection  string
 }
 
 // LoadConfigFromEnv reads the full aisearch configuration from the process
@@ -164,13 +164,13 @@ type Config struct {
 // caller must interpret as "disabled."
 func LoadConfigFromEnv() Config {
 	cfg := Config{
-		OllamaURL:            ResolveOllamaURL(),
-		QdrantURL:            ResolveQdrantURL(),
-		QdrantAPIKey:         strings.TrimSpace(os.Getenv(EnvQdrantAPIKey)),
-		Threshold:            DefaultThreshold,
-		BacklogCollection:    resolveCollection(EnvAISearchBacklogColl, CollectionDomainBacklog),
-		InitiativeCollection: resolveCollection(EnvAISearchInitiativeColl, CollectionDomainInitiative),
-		RecordCollection:     resolveCollection(EnvAISearchRecordColl, CollectionDomainRecord),
+		OllamaURL:         ResolveOllamaURL(),
+		QdrantURL:         ResolveQdrantURL(),
+		QdrantAPIKey:      strings.TrimSpace(os.Getenv(EnvQdrantAPIKey)),
+		Threshold:         DefaultThreshold,
+		BacklogCollection: resolveCollection(EnvAISearchBacklogColl, CollectionDomainBacklog),
+		GoalCollection:    resolveCollection(EnvAISearchGoalColl, CollectionDomainGoal),
+		RecordCollection:  resolveCollection(EnvAISearchRecordColl, CollectionDomainRecord),
 	}
 	if v := strings.TrimSpace(os.Getenv(EnvAISearchThreshold)); v != "" {
 		if parsed, err := strconv.ParseFloat(v, 64); err == nil && parsed > 0 {

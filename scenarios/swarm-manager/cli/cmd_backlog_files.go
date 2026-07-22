@@ -184,7 +184,7 @@ func (a *App) cmdBacklogFileUpload(args []string) error {
 }
 
 // buildFileUploadMultipart constructs the multipart/form-data body shared by the
-// backlog and initiatives file-upload commands. Exactly one of contentVal or
+// backlog and milestones file-upload commands. Exactly one of contentVal or
 // fileStr must be set (callers validate this). In content mode the server path
 // is required and pathRequiredErr is returned when it is empty; in file mode the
 // server path defaults to the local file's base name. Returns the encoded body

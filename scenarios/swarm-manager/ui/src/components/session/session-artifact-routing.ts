@@ -11,8 +11,6 @@ export function nodeIdForSessionArtifact(artifact: Pick<AgentSessionArtifact, "a
       if (slashIndex <= 0 || slashIndex === ref.length - 1) return null;
       return buildBacklogNodeId(ref.slice(0, slashIndex), ref.slice(slashIndex + 1));
     }
-    case "initiative":
-      return `initiative/${ref}`;
     case "capture":
       return `capture/${ref}`;
     case "agent_activity":

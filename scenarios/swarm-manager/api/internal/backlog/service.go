@@ -62,12 +62,12 @@ type CreationContext struct {
 	// FeedbackRoundID / ReviewRoundID when present.
 	DecidedBy string
 
-	// FeedbackRoundID is "<initiative>/round-<NNN>" populated by
+	// FeedbackRoundID is "<milestone>/round-<NNN>" populated by
 	// proposals.Applier when applying a feedback-round mutation.
 	FeedbackRoundID string
 
-	// ReviewRoundID is "<initiative>/review-<NNN>" populated by the
-	// initiative review flow's auto-apply path.
+	// ReviewRoundID is "<milestone>/review-<NNN>" populated by the
+	// milestone review flow's auto-apply path.
 	ReviewRoundID string
 
 	// RoundNumber and RoundSlug mirror the round metadata so consumers
@@ -77,7 +77,7 @@ type CreationContext struct {
 
 	// Entrypoint identifies the originating skill or HTTP path so
 	// downstream telemetry can group by code surface
-	// ("initiative.feedback", "initiative.review", "http.create").
+	// ("milestone.feedback", "milestone.review", "http.create").
 	Entrypoint string
 
 	// SkipCycleCheck lets the batch path opt out of per-item cycle
@@ -90,11 +90,11 @@ type CreationContext struct {
 	// LoadItem inside Service.Create.
 	SkipDuplicateCheck bool
 
-	// SkipInitiativeAttach lets the batch path persist items first
-	// then bulk-attach to initiatives via AddItems (one initiative.json
-	// write per initiative, instead of N writes from per-item
+	// SkipMilestoneAttach lets the batch path persist items first
+	// then bulk-attach to milestones via AddItems (one milestone.json
+	// write per milestone, instead of N writes from per-item
 	// RememberItem). Other sources should leave this false.
-	SkipInitiativeAttach bool
+	SkipMilestoneAttach bool
 
 	// SkipGraphInvalidation lets the proposals.Applier batch graph
 	// invalidation across an entire mutation set rather than firing
@@ -122,7 +122,7 @@ type CreationStore interface {
 // unchanged while letting Service emit attributed events. Satisfied by
 // *eventlog.Emitter.
 type CreationEventEmitter interface {
-	EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, initiative, effort, actorType, actorID string)
+	EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, milestone, effort, actorType, actorID string)
 }
 
 type archiveEventEmitter interface {
@@ -130,7 +130,7 @@ type archiveEventEmitter interface {
 }
 
 // GraphInvalidator schedules a graph re-projection after a successful
-// creation so the per-initiative graph.json reflects the new node.
+// creation so the per-milestone graph.json reflects the new node.
 // Optional — a nil invalidator means the caller is responsible for
 // invalidating (the proposals.Applier batches invalidation across an
 // entire mutation set).
@@ -357,16 +357,16 @@ func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc Creati
 		return fmt.Errorf("save item: %w", err)
 	}
 
-	if attachName := strings.TrimSpace(item.Initiative); attachName != "" && s.assigner != nil && !cc.SkipInitiativeAttach {
+	if attachName := strings.TrimSpace(item.Milestone); attachName != "" && s.assigner != nil && !cc.SkipMilestoneAttach {
 		ref := string(item.Kind) + "/" + item.Name
 		if err := s.assigner.RememberItem(attachName, ref); err != nil {
 			rollbackItemDir(itemDir)
-			return fmt.Errorf("attach %s to initiative %s: %w", ref, attachName, err)
+			return fmt.Errorf("attach %s to milestone %s: %w", ref, attachName, err)
 		}
 	}
 
 	if err := s.recordBacklogCreatedArtifact(cc, item); err != nil {
-		s.rollbackInitiativeAttach(item, cc)
+		s.rollbackMilestoneAttach(item, cc)
 		rollbackItemDir(itemDir)
 		return fmt.Errorf("record session artifact: %w", err)
 	}
@@ -378,7 +378,7 @@ func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc Creati
 			string(item.Kind),
 			string(item.Status),
 			item.Priority,
-			item.Initiative,
+			item.Milestone,
 			item.Effort,
 			actorType,
 			actorID,
@@ -392,21 +392,21 @@ func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc Creati
 	return nil
 }
 
-// rollbackInitiativeAttach best-effort detaches an item from its initiative,
+// rollbackMilestoneAttach best-effort detaches an item from its milestone,
 // undoing a prior RememberItem when a later creation step fails.
-func (s *Service) rollbackInitiativeAttach(item BacklogItem, cc CreationContext) {
-	attachName := strings.TrimSpace(item.Initiative)
-	if attachName == "" || s.assigner == nil || cc.SkipInitiativeAttach {
+func (s *Service) rollbackMilestoneAttach(item BacklogItem, cc CreationContext) {
+	attachName := strings.TrimSpace(item.Milestone)
+	if attachName == "" || s.assigner == nil || cc.SkipMilestoneAttach {
 		return
 	}
 	detacher, ok := s.assigner.(interface {
-		ForgetItem(initiativeName, ref string) error
+		ForgetItem(milestoneName, ref string) error
 	})
 	if !ok {
 		return
 	}
 	if fErr := detacher.ForgetItem(attachName, string(item.Kind)+"/"+item.Name); fErr != nil {
-		slog.Debug("backlog: rollback detach item failed", "err", fErr, "initiative", attachName)
+		slog.Debug("backlog: rollback detach item failed", "err", fErr, "milestone", attachName)
 	}
 }
 
@@ -475,7 +475,7 @@ func writePendingFiles(itemDir string, files []PendingBacklogFile) error {
 func actorForSource(cc CreationContext) (string, string) {
 	switch {
 	case cc.ReviewRoundID != "":
-		return "initiative_review", cc.ReviewRoundID
+		return "milestone_review", cc.ReviewRoundID
 	case cc.FeedbackRoundID != "":
 		return "feedback_round", cc.FeedbackRoundID
 	case cc.Source == SourceAutoFiler:

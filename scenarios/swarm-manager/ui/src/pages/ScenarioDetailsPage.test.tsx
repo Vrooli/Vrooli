@@ -81,7 +81,7 @@ describe("ScenarioDetailsPage", () => {
     vi.mocked(scenariosService.getFiles).mockResolvedValue([]);
     vi.mocked(scenariosService.getContext).mockResolvedValue({
       scenarioName: "test-scenario",
-      initiatives: [],
+      goals: [],
       orphanItems: [],
       rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
       fixes: { active: [], archived: [] },
@@ -948,7 +948,7 @@ describe("ScenarioDetailsPage", () => {
     });
   });
 
-  describe("associated initiatives & backlog coverage", () => {
+  describe("associated goals & backlog coverage", () => {
     it("renders the coverage section heading on desktop", async () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       renderPage();
@@ -956,14 +956,14 @@ describe("ScenarioDetailsPage", () => {
       await waitFor(() => {
         expect(screen.getByTestId("scenario-coverage-section")).toBeInTheDocument();
       });
-      expect(screen.getByText("Associated Initiatives & Backlog")).toBeInTheDocument();
+      expect(screen.getByText("Associated Goals & Backlog")).toBeInTheDocument();
     });
 
-    it("renders initiatives subsection when context has initiatives", async () => {
+    it("renders goals subsection when context has goals", async () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       vi.mocked(scenariosService.getContext).mockResolvedValue({
         scenarioName: "test-scenario",
-        initiatives: [
+        goals: [
           {
             name: "audio-platform",
             title: "Audio Platform",
@@ -979,7 +979,7 @@ describe("ScenarioDetailsPage", () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId("scenario-coverage-initiatives")).toBeInTheDocument();
+        expect(screen.getByTestId("scenario-coverage-goals")).toBeInTheDocument();
       });
       expect(screen.getByText("Audio Platform")).toBeInTheDocument();
       // Orphans subsection should not render when empty.
@@ -990,7 +990,7 @@ describe("ScenarioDetailsPage", () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       vi.mocked(scenariosService.getContext).mockResolvedValue({
         scenarioName: "test-scenario",
-        initiatives: [],
+        goals: [],
         orphanItems: [
           {
             kind: "execute",
@@ -1009,8 +1009,8 @@ describe("ScenarioDetailsPage", () => {
         expect(screen.getByTestId("scenario-coverage-orphans")).toBeInTheDocument();
       });
       expect(screen.getByText("Orphan One")).toBeInTheDocument();
-      // Initiatives subsection should not render when empty.
-      expect(screen.queryByTestId("scenario-coverage-initiatives")).not.toBeInTheDocument();
+      // Goals subsection should not render when empty.
+      expect(screen.queryByTestId("scenario-coverage-goals")).not.toBeInTheDocument();
     });
 
     it("renders empty-state copy when no coverage exists", async () => {
@@ -1027,7 +1027,7 @@ describe("ScenarioDetailsPage", () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       vi.mocked(scenariosService.getContext).mockResolvedValue({
         scenarioName: "test-scenario",
-        initiatives: [],
+        goals: [],
         orphanItems: [],
         rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
         fixes: {
@@ -1053,7 +1053,7 @@ describe("ScenarioDetailsPage", () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       vi.mocked(scenariosService.getContext).mockResolvedValue({
         scenarioName: "test-scenario",
-        initiatives: [],
+        goals: [],
         orphanItems: [],
         rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
         fixes: {
@@ -1084,7 +1084,7 @@ describe("ScenarioDetailsPage", () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       vi.mocked(scenariosService.getContext).mockResolvedValue({
         scenarioName: "test-scenario",
-        initiatives: [],
+        goals: [],
         orphanItems: [],
         rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
         fixes: {

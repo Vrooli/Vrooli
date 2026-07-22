@@ -71,10 +71,10 @@ func encodeGraphNodeData(data any) (*domainpb.GraphNodeData, error) {
 		return encodeGraphNodeData(&value)
 	case *GraphBacklogNodeData:
 		return encodeBacklogNodeData(value)
-	case GraphInitiativeNodeData:
+	case GraphGoalNodeData:
 		return encodeGraphNodeData(&value)
-	case *GraphInitiativeNodeData:
-		return encodeInitiativeNodeData(value)
+	case *GraphGoalNodeData:
+		return encodeGoalNodeData(value)
 	case GraphCaptureNodeData:
 		return encodeGraphNodeData(&value)
 	case *GraphCaptureNodeData:
@@ -122,15 +122,15 @@ func encodeBacklogNodeData(value *GraphBacklogNodeData) (*domainpb.GraphNodeData
 	}, nil
 }
 
-func encodeInitiativeNodeData(value *GraphInitiativeNodeData) (*domainpb.GraphNodeData, error) {
+func encodeGoalNodeData(value *GraphGoalNodeData) (*domainpb.GraphNodeData, error) {
 	if value == nil {
-		return nil, fmt.Errorf("missing initiative node data")
+		return nil, fmt.Errorf("missing goal node data")
 	}
-	initiative := &domainpb.GraphInitiativeNodeData{
+	goal := &domainpb.GraphGoalNodeData{
 		Name:   value.Name,
 		Title:  value.Title,
 		Status: value.Status,
-		Rollup: &domainpb.GraphInitiativeRollup{
+		Rollup: &domainpb.GraphGoalRollup{
 			Total:      value.Rollup.Total,
 			Completed:  value.Rollup.Completed,
 			InProgress: value.Rollup.InProgress,
@@ -139,8 +139,8 @@ func encodeInitiativeNodeData(value *GraphInitiativeNodeData) (*domainpb.GraphNo
 		},
 	}
 	return &domainpb.GraphNodeData{
-		Value: &domainpb.GraphNodeData_Initiative{
-			Initiative: initiative,
+		Value: &domainpb.GraphNodeData_Goal{
+			Goal: goal,
 		},
 	}, nil
 }

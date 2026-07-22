@@ -31,13 +31,13 @@ type Store interface {
 	ValidateDependencies(dependsOn []string) error
 	CheckDependencies(dependsOn []string) ([]string, error)
 	RemoveDependencyRef(ref string) (int, error)
-	// SetItemInitiative writes the initiative field on the item and returns
+	// SetItemMilestone writes the milestone field on the item and returns
 	// the previous value. ErrNotFound if the item does not exist.
-	SetItemInitiative(kind BacklogKind, name, initiative string) (string, error)
-	// ClearItemInitiative clears the item's initiative field only if it
+	SetItemMilestone(kind BacklogKind, name, milestone string) (string, error)
+	// ClearItemMilestone clears the item's milestone field only if it
 	// currently equals expected. Returns (prevValue, changed, error).
 	// If the item does not exist or the field does not match, changed=false.
-	ClearItemInitiative(kind BacklogKind, name, expected string) (string, bool, error)
+	ClearItemMilestone(kind BacklogKind, name, expected string) (string, bool, error)
 }
 
 // AIIndexer is the fire-and-forget indexing hook the FileStore invokes after
@@ -216,10 +216,10 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "depends_on")
 	}
-	if strings.TrimSpace(item.Initiative) != "" {
-		merged["initiative"] = item.Initiative
+	if strings.TrimSpace(item.Milestone) != "" {
+		merged["milestone"] = item.Milestone
 	} else {
-		delete(merged, "initiative")
+		delete(merged, "milestone")
 	}
 	if strings.TrimSpace(item.Effort) != "" {
 		merged["effort"] = item.Effort
@@ -404,28 +404,28 @@ func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 	return unmet, nil
 }
 
-// SetItemInitiative writes the initiative field on the item at the given
+// SetItemMilestone writes the milestone field on the item at the given
 // kind/name, returning the previous value. Returns ErrNotFound if the item
 // does not exist.
-func (s *FileStore) SetItemInitiative(kind BacklogKind, name, initiative string) (string, error) {
+func (s *FileStore) SetItemMilestone(kind BacklogKind, name, milestone string) (string, error) {
 	item, err := s.LoadItem(kind, name)
 	if err != nil {
 		return "", err
 	}
-	prev := item.Initiative
-	item.Initiative = strings.TrimSpace(initiative)
+	prev := item.Milestone
+	item.Milestone = strings.TrimSpace(milestone)
 	item.Updated = time.Now().UTC().Format(time.RFC3339)
 	if err := s.SaveItem(item); err != nil {
-		return prev, fmt.Errorf("set initiative for %s/%s: %w", kind, name, err)
+		return prev, fmt.Errorf("set milestone for %s/%s: %w", kind, name, err)
 	}
 	return prev, nil
 }
 
-// ClearItemInitiative clears the initiative field on the item only if it
+// ClearItemMilestone clears the milestone field on the item only if it
 // currently equals expected. Returns (prevValue, changed, error). If the
 // item does not exist or the field does not match expected, changed=false
 // and no error is returned.
-func (s *FileStore) ClearItemInitiative(kind BacklogKind, name, expected string) (string, bool, error) {
+func (s *FileStore) ClearItemMilestone(kind BacklogKind, name, expected string) (string, bool, error) {
 	item, err := s.LoadItem(kind, name)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -433,14 +433,14 @@ func (s *FileStore) ClearItemInitiative(kind BacklogKind, name, expected string)
 		}
 		return "", false, err
 	}
-	prev := item.Initiative
+	prev := item.Milestone
 	if prev != expected {
 		return prev, false, nil
 	}
-	item.Initiative = ""
+	item.Milestone = ""
 	item.Updated = time.Now().UTC().Format(time.RFC3339)
 	if err := s.SaveItem(item); err != nil {
-		return prev, false, fmt.Errorf("clear initiative for %s/%s: %w", kind, name, err)
+		return prev, false, fmt.Errorf("clear milestone for %s/%s: %w", kind, name, err)
 	}
 	return prev, true, nil
 }

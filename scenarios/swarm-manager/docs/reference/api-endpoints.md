@@ -1,13 +1,13 @@
 # API Endpoints
 
-This document captures the canonical Swarm Manager API shapes that matter for backlog planning and initiative management.
+This document captures the canonical Swarm Manager API shapes that matter for backlog planning and milestone management.
 
 ## Contract Rules
 
 - Unknown JSON fields are rejected at the HTTP boundary.
 - `scope` is not part of the backlog contract.
 - Backlog execution boundaries are expressed with `acceptance_allow` and `acceptance_deny`.
-- Initiative assignment is per backlog item (`initiative`), not a batch-level flag.
+- Milestone assignment is per backlog item (`milestone`), not a batch-level flag.
 
 ## Agent Sessions
 
@@ -46,7 +46,7 @@ context. `swarm_operations` also accepts the legacy direct
   "auto_context_policy": "default",
   "context_refs": [
     { "type": "startup_brief", "ref": "startup_brief/swarm_operations" },
-    { "type": "initiative", "ref": "desktop-release-governance" },
+    { "type": "milestone", "ref": "desktop-release-governance" },
     { "type": "backlog_item", "ref": "fix/auth-bug" }
   ]
 }
@@ -141,7 +141,7 @@ failure returns an API error.
 Response fields:
 - `generated_at`, `freshness_seconds`, `window_seconds`
 - `summary`: active/recent counts, queue depth, saturated lanes, backlog,
-  initiative, blocked-item, and active-session counts
+  milestone, blocked-item, and active-session counts
 - `active_work`: top bounded active activity rows
 - `needs_attention`: failed, review-needed, saturated, or queue-pressure items
 - `recent_completions`: top bounded recent completions
@@ -164,7 +164,7 @@ JSON create:
   "description": "Short description",
   "priority": 3,
   "effort": "M",
-  "initiative": "release-control",
+  "milestone": "release-control",
   "depends_on": ["fix/auth-bug"],
   "acceptance_allow": ["scenarios/swarm-manager/**"],
   "acceptance_deny": ["scenarios/swarm-manager/secrets/**"]
@@ -231,7 +231,7 @@ The same endpoint supports preview and real creation.
       "description": "Trace the release path across deployment-manager, scenario-to-desktop, LPBS, and prompt-manager skills.",
       "priority": 1,
       "effort": "M",
-      "initiative": "desktop-release-governance",
+      "milestone": "desktop-release-governance",
       "acceptance_allow": [
         "scenarios/deployment-manager/**",
         "scenarios/scenario-to-desktop/**",
@@ -240,7 +240,7 @@ The same endpoint supports preview and real creation.
       ]
     }
   ],
-  "initiatives": [
+  "milestones": [
     {
       "name": "desktop-release-governance",
       "title": "Desktop Release Governance",
@@ -254,7 +254,7 @@ The same endpoint supports preview and real creation.
 Behavior:
 - `preview=true` performs validation only
 - omitting `preview` or setting `false` performs the real create
-- initiative metadata is created or updated before items are written
+- milestone metadata is created or updated before items are written
 - failures roll back the whole batch
 
 ## Retired Workshop Advance Endpoint
@@ -290,7 +290,7 @@ acceptance-glob paths at read time.
 `POST /api/v1/backlog/{kind}/{name}/recreate`
 
 Creates a fresh `backlog` clone, records `spawned_from` as the source ref,
-retargets inbound dependencies and initiative membership, then archives the
+retargets inbound dependencies and milestone membership, then archives the
 source. The operation refuses to run while an agent is active on the item and
 uses compensating rollback if a later write fails.
 
@@ -307,9 +307,9 @@ non-empty `scope` list containing one or more of `workshop`,
 The item specification is retained. Resetting workshop data moves a `ready`
 item back to `backlog`; `plan_unbind` clears only `plan_ref`.
 
-## Initiatives Create
+## Milestones Create
 
-`POST /api/v1/initiatives`
+`POST /api/v1/milestones`
 
 ```json
 {
@@ -320,42 +320,42 @@ item back to `backlog`; `plan_unbind` clears only `plan_ref`.
 }
 ```
 
-## Initiatives Update
+## Milestones Update
 
-`PUT /api/v1/initiatives/{name}`
+`PUT /api/v1/milestones/{name}`
 
-Updates are partial. This endpoint owns descriptive initiative metadata and
+Updates are partial. This endpoint owns descriptive milestone metadata and
 acceptance criteria. Workflow execution state is recorded separately from
-initiative metadata.
+milestone metadata.
 
 ```json
 {
   "title": "Desktop Release Governance",
   "description": "Revised wording only",
   "acceptance_criteria": [
-    "The full initiative can be reviewed at system scope."
+    "The full milestone can be reviewed at system scope."
   ]
 }
 ```
 
-New initiatives start with item-level work. The generic create/update endpoints
+New milestones start with item-level work. The generic create/update endpoints
 reject retired mode fields.
 
 
-## Initiative Archive / Unarchive
+## Milestone Archive / Unarchive
 
-Archive sets `archived_at` on an initiative. Initiatives retain their status when archived.
+Archive sets `archived_at` on an milestone. Milestones retain their status when archived.
 
-`PATCH /api/v1/initiatives/{name}/archive-item`
+`PATCH /api/v1/milestones/{name}/archive-item`
 
-`DELETE /api/v1/initiatives/{name}/archive-item`
+`DELETE /api/v1/milestones/{name}/archive-item`
 
-## Initiative Lifecycle Control
+## Milestone Lifecycle Control
 
-`POST /api/v1/initiatives/{name}/recreate`
+`POST /api/v1/milestones/{name}/recreate`
 
 Creates an active successor with `spawned_from` set to the archived source,
-moves every member item to that successor, and archives the source initiative.
+moves every member item to that successor, and archives the source milestone.
 The operation is rejected while an agent is active on any member item.
 
 ## Session Mutation Proposals
@@ -385,23 +385,23 @@ synthesis (server diffs and emits the equivalent mutation_list).
 
 | `op` | Required fields | Effect |
 |------|-----------------|--------|
-| `add_item` | `item: ItemSpec` | Creates a new backlog item attached to the initiative. |
+| `add_item` | `item: ItemSpec` | Creates a new backlog item attached to the milestone. |
 | `update_item` | `target`, `patch: ItemPatch` | Patches metadata (title, description, priority, tags, depends_on, effort, acceptance globs, note). |
 | `change_status` | `target`, `status` | Non-terminal, non-lifecycle status transitions only. |
 | `change_priority` | `target`, `priority` | Sets priority to 1-10. |
 | `add_edge` | `from`, `to` | Adds a `from depends_on to` edge. |
 | `remove_edge` | `from`, `to` | Removes an existing edge. |
-| `move_initiative` | `target`, `initiative` | Transfers an item to another initiative; empty `initiative` detaches. |
+| `move_milestone` | `target`, `milestone` | Transfers an item to another milestone; empty `milestone` detaches. |
 | `archive_item` | `target` | Sets `archived_at`. |
 | `interrupt_in_progress` | `target` | Cancels the active execution; must be a separate mutation, not implicit. |
 | `split_item` | `target`, `into: [ItemSpec]` (≥2) | Atomic: creates children, archives source. **Dependents are not auto-retargeted** — emit explicit `add_edge`/`remove_edge` mutations alongside the split if you need to repoint dependents. |
 | `merge_items` | `sources: [ref]` (≥2), `item: ItemSpec` | Atomic: creates the merged item, retargets external edges (to/from sources) onto the merged item, drops intra-source edges, archives sources. Validation rejects if any source is `in_progress` — emit `interrupt_in_progress` as a prior mutation if interruption is intended. The merged item enters as `backlog`. |
-| `recreate_item` | `target` | Archives the source and creates a fresh lineage-preserving backlog clone; inbound dependencies and initiative membership move to the clone. |
+| `recreate_item` | `target` | Archives the source and creates a fresh lineage-preserving backlog clone; inbound dependencies and milestone membership move to the clone. |
 | `reset_artifacts` | `target`, non-empty `reset_scope` | Removes only the selected derived artifact groups: `workshop`, `clarifications`, `review`, `handoff_executions`, or `plan_unbind`. |
-| `recreate_initiative` | initiative-name `target` | Archives the source initiative and creates a fresh active successor; member items move to it and the successor records lineage. |
+| `recreate_milestone` | milestone-name `target` | Archives the source milestone and creates a fresh active successor; member items move to it and the successor records lineage. |
 
 The **Triage the attached items for staleness** session starter is proposal-only:
-attach a small number of items or initiatives, then have the agent return one
+attach a small number of items or milestones, then have the agent return one
 verdict per entity. A keep verdict explains its reasoning without a mutation;
 a refresh or supersede verdict uses the typed operations above. Nothing changes
 until an operator decides the resulting proposal.
@@ -435,7 +435,7 @@ until an operator decides the resulting proposal.
 
 **Constraints:**
 
-- `sources` must contain ≥2 distinct refs, all current members of the initiative.
+- `sources` must contain ≥2 distinct refs, all current members of the milestone.
 - The merged item's ref must differ from every source.
 - The merged item's ref must not collide with an existing non-source item or with another item staged earlier in the same proposal.
 - No source may be in `in_progress` at validation time.

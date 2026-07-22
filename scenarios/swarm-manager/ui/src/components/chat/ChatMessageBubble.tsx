@@ -10,7 +10,7 @@ import type { ChatAccent, ChatMessageRenderSlot, ChatMessageView } from "./chat-
 // to the exact inline-code token in the message text. Mirrors the server's
 // markerContextType (api/internal/sessioncontext/bulk.go).
 const REFERENCE_MARKERS: Record<string, string> = {
-  initiative: "initiative",
+  goal: "goal",
   backlog_item: "backlog",
   execution: "execution",
   capture: "capture",

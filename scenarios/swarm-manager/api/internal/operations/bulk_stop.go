@@ -86,12 +86,7 @@ type BulkStopResponse struct {
 // run IDs in order and calls Stopper.StopRun once per ID. Two reasons for
 // serial iteration over fan-out:
 //
-//  1. Initiative locks serialize
-//     access to a given initiative; concurrent StopRun calls against runs
-//     belonging to the same initiative would queue inside the lock and any
-//     additional fan-out from the UI under load could deadlock against
-//     governance.
-//  2. Operator audit. Serial cancellation gives a deterministic per-run
+//  1. Operator audit. Serial cancellation gives a deterministic per-run
 //     outcome ordering that operators can read top-to-bottom in the UI
 //     bulk-action toast.
 //

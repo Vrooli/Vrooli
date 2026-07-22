@@ -12,7 +12,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		Description: "Backlog item management",
 		Subcommands: []cliapp.Command{
 			support.APICommand("list", "List backlog items [--kind KIND]", deps.BacklogList),
-			support.APICommand("pending-questions", "List pending independent-review questions [--source review] [--limit N] [--initiative NAME] [--brief]", deps.BacklogPendingQuestions),
+			support.APICommand("pending-questions", "List pending independent-review questions [--source review] [--limit N] [--milestone NAME] [--brief]", deps.BacklogPendingQuestions),
 			support.APICommand("get", "Get full backlog item details (--kind KIND --name NAME)", deps.BacklogGet),
 			support.APICommand("create", "Create a backlog item (--data JSON)", deps.BacklogCreate),
 			support.APICommand("update", "Update a backlog item (--kind KIND --name NAME --data JSON)", deps.BacklogUpdate),
@@ -33,7 +33,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("review-decide", "Decide the terminal status of a review_pending item (--kind KIND --name NAME --accept|--fail|--followup [--rationale MSG])", deps.BacklogReviewDecide),
 			support.APICommand("recover-review", "Recover an item stranded in_review with no live review round → review_pending (default) or backlog (--kind KIND --name NAME [--to review_pending|backlog] [--rationale MSG])", deps.BacklogRecoverReview),
 			support.APICommand("retry", "Re-dispatch the latest terminal execution as a NEW attempt (--kind KIND --name NAME [--note MSG])", deps.BacklogRetry),
-			support.APICommand("search-ai", "Semantic search over backlog items (<query> [--limit N] [--kind K,...] [--status S,...] [--initiative N] [--include-archived] [--json])", deps.BacklogSearchAI),
+			support.APICommand("search-ai", "Semantic search over backlog items (<query> [--limit N] [--kind K,...] [--status S,...] [--milestone N] [--include-archived] [--json])", deps.BacklogSearchAI),
 		},
 	}
 }

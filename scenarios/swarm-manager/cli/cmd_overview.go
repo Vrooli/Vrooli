@@ -12,27 +12,23 @@ import (
 
 // OverviewResponse mirrors the API overview endpoint payload.
 type OverviewResponse struct {
-	Items           []BacklogItem        `json:"items"`
-	Initiatives     []OverviewInitiative `json:"initiatives"`
-	DependencyGraph OverviewDepGraph     `json:"dependency_graph"`
-	Summary         OverviewSummary      `json:"summary"`
-	Consistency     OverviewConsistency  `json:"consistency"`
-	Governance      *GovernanceStatus    `json:"governance,omitempty"`
+	Items           []BacklogItem       `json:"items"`
+	Goals           []OverviewGoal      `json:"goals"`
+	DependencyGraph OverviewDepGraph    `json:"dependency_graph"`
+	Summary         OverviewSummary     `json:"summary"`
+	Consistency     OverviewConsistency `json:"consistency"`
+	Governance      *GovernanceStatus   `json:"governance,omitempty"`
 }
 
 // OverviewConsistency surfaces drift signals the Portfolio Manager should raise
 // but never auto-apply.
 type OverviewConsistency struct {
-	InitiativeEdgeSuggestions []InitiativeEdgeSuggestion `json:"initiative_edge_suggestions"`
+	GoalScopeSuggestions []GoalScopeSuggestion `json:"goal_scope_suggestions"`
 }
 
-// InitiativeEdgeSuggestion is a probable missing or stale initiative edge.
-type InitiativeEdgeSuggestion struct {
-	From              string   `json:"from"`
-	To                string   `json:"to"`
-	Direction         string   `json:"direction"`
-	InferredFromItems []string `json:"inferred_from_items"`
-	Reason            string   `json:"reason"`
+type GoalScopeSuggestion struct {
+	Goal   string `json:"goal"`
+	Reason string `json:"reason"`
 }
 
 // LaneStatus mirrors the per-lane utilization slice in the API governance
@@ -54,10 +50,20 @@ type GovernanceStatus struct {
 	EstimatedQueuedCost float64      `json:"estimated_queued_cost"`
 }
 
-// OverviewInitiative pairs an initiative with its rollup status.
-type OverviewInitiative struct {
-	Initiative Initiative       `json:"initiative"`
-	Rollup     InitiativeRollup `json:"rollup"`
+// OverviewGoal pairs a goal with its derived closure rollup.
+type OverviewGoal struct {
+	Goal struct {
+		Name     string `json:"name"`
+		Title    string `json:"title"`
+		Status   string `json:"status"`
+		Priority int    `json:"priority"`
+	} `json:"goal"`
+	Scope struct {
+		Total          int      `json:"total"`
+		CompletedCount int      `json:"completed_count"`
+		Ready          []string `json:"ready"`
+		Blocked        []string `json:"blocked"`
+	} `json:"scope"`
 }
 
 // OverviewDepGraph captures dependency edges and blocked/unblocked sets.
@@ -69,10 +75,10 @@ type OverviewDepGraph struct {
 
 // OverviewSummary provides aggregate counts.
 type OverviewSummary struct {
-	TotalItems        int            `json:"total_items"`
-	ItemsByStatus     map[string]int `json:"items_by_status"`
-	ItemsByKind       map[string]int `json:"items_by_kind"`
-	ActiveInitiatives int            `json:"active_initiatives"`
+	TotalItems    int            `json:"total_items"`
+	ItemsByStatus map[string]int `json:"items_by_status"`
+	ItemsByKind   map[string]int `json:"items_by_kind"`
+	ActiveGoals   int            `json:"active_goals"`
 }
 
 func (a *App) cmdOverview(args []string) error {
@@ -109,16 +115,16 @@ func printOverviewMarkdown(resp OverviewResponse) {
 
 	printOverviewGovernance(resp.Governance)
 	printOverviewSummary(resp.Summary)
-	printOverviewInitiatives(resp.Initiatives)
+	printOverviewGoals(resp.Goals)
 	printOverviewUnblocked(resp)
 	printOverviewBlocked(resp.DependencyGraph)
 	printOverviewEdges(resp.DependencyGraph)
-	printOverviewEdgeSuggestions(resp.Consistency.InitiativeEdgeSuggestions)
+	printOverviewScopeSuggestions(resp.Consistency.GoalScopeSuggestions)
 
 	// Next steps.
 	printCommandListSection("Next Steps", []string{
 		cliCommand("backlog", "list"),
-		cliCommand("initiatives", "list"),
+		cliCommand("goals", "list"),
 	})
 }
 
@@ -153,22 +159,19 @@ func printOverviewSummary(summary OverviewSummary) {
 	fmt.Printf("  Total items: %d | By status: %s\n", summary.TotalItems, statusParts)
 	kindParts := formatMapCounts(summary.ItemsByKind)
 	fmt.Printf("  By kind: %s\n", kindParts)
-	fmt.Printf("  Active initiatives: %d\n", summary.ActiveInitiatives)
+	fmt.Printf("  Active goals: %d\n", summary.ActiveGoals)
 	fmt.Println()
 }
 
-func printOverviewInitiatives(initiatives []OverviewInitiative) {
-	if len(initiatives) == 0 {
+func printOverviewGoals(goals []OverviewGoal) {
+	if len(goals) == 0 {
 		return
 	}
-	printSection("Initiatives")
-	for _, item := range initiatives {
-		init := item.Initiative
-		rollup := item.Rollup
-		fmt.Printf("  %s -- %d/%d completed -- %s\n",
-			init.Title, rollup.Completed, rollup.Total, init.Status)
-		if len(init.Items) > 0 {
-			fmt.Printf("    Items: %s\n", strings.Join(init.Items, ", "))
+	printSection("Goals")
+	for _, item := range goals {
+		fmt.Printf("  %s -- %d/%d completed -- %s\n", item.Goal.Title, item.Scope.CompletedCount, item.Scope.Total, item.Goal.Status)
+		if len(item.Scope.Ready) > 0 {
+			fmt.Printf("    Ready: %s\n", strings.Join(item.Scope.Ready, ", "))
 		}
 	}
 	fmt.Println()
@@ -224,18 +227,13 @@ func printOverviewEdges(graph OverviewDepGraph) {
 	fmt.Println()
 }
 
-func printOverviewEdgeSuggestions(suggestions []InitiativeEdgeSuggestion) {
+func printOverviewScopeSuggestions(suggestions []GoalScopeSuggestion) {
 	if len(suggestions) == 0 {
 		return
 	}
-	printSection("Initiative Edge Suggestions")
-	fmt.Println("  Drift between explicit initiative deps and edges implied by child items.")
-	fmt.Println("  Review before accepting — never auto-applied.")
+	printSection("Goal Scope Suggestions")
 	for _, s := range suggestions {
-		fmt.Printf("  - [%s] %s -> %s: %s\n", s.Direction, s.From, s.To, s.Reason)
-		if len(s.InferredFromItems) > 0 {
-			fmt.Printf("      via: %s\n", strings.Join(s.InferredFromItems, ", "))
-		}
+		fmt.Printf("  - %s: %s\n", s.Goal, s.Reason)
 	}
 	fmt.Println()
 }

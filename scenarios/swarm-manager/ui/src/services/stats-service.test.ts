@@ -47,7 +47,7 @@ describe("Stats Service", () => {
           median_execution_minutes: 4.0,
           execution_duration_samples: 10,
         },
-        scope: { initiatives: [], max_dependency_depth: 0 },
+        scope: { goals: [], max_dependency_depth: 0 },
         blocking: {
           currently_blocked: 0,
           blocked_ratio: 0,
@@ -123,7 +123,7 @@ describe("Stats Service", () => {
           failed_session_rate: 0,
           failed_session_sample_size: 0,
           session_created_backlog_items: 0,
-          session_created_initiatives: 0,
+          session_created_goals: 0,
         },
       };
       vi.mocked(mockApiClient.get).mockResolvedValue(mockStats);

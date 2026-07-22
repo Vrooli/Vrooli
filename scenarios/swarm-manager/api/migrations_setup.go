@@ -15,6 +15,8 @@ import (
 // re-running the migration.
 const migrationNameBackfillExecCompletedV1 = "backfill_execution_completed_v1"
 
+const migrationNameGoalsInitiativesSingleEntityV1 = "goals_initiatives_single_goal_entity_v1"
+
 // runMigrationsOnce runs any pending one-time migrations against the event
 // log and the execution store. Each migration is gated on a sentinel event of
 // type system.migration_applied so a restart never re-applies them.

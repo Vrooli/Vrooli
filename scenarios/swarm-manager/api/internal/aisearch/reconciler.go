@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 )
 
 // ErrReconcileBusy signals that RunOnce was called while a previous RunOnce
@@ -31,12 +31,12 @@ var ErrReconcileBusy = errors.New("reconcile already in progress")
 //   - "Should we re-embed this?"     → composePayloadHash + the inline compare in Plan
 //   - "How does the index converge?" → Apply consumes DriftReport
 type Reconciler struct {
-	Embedder         Embedder
-	BacklogStore     VectorStore
-	InitiativeStore  VectorStore
-	BacklogReader    BacklogReader
-	InitiativeReader InitiativeReader
-	Parallelism      int
+	Embedder      Embedder
+	BacklogStore  VectorStore
+	GoalStore     VectorStore
+	BacklogReader BacklogReader
+	GoalReader    GoalReader
+	Parallelism   int
 
 	// Clock is injectable so tests can pin PlannedAt / StartedAt to known
 	// values. Defaults to time.Now via now() when nil.
@@ -60,9 +60,9 @@ type Reconciler struct {
 // (Plan returns an empty per-disabled-side DriftReport without error).
 func NewReconciler(
 	embedder Embedder,
-	backlogStore, initiativeStore VectorStore,
+	backlogStore, goalStore VectorStore,
 	backlogReader BacklogReader,
-	initiativeReader InitiativeReader,
+	goalReader GoalReader,
 	parallelism int,
 ) *Reconciler {
 	if parallelism < 1 {
@@ -72,12 +72,12 @@ func NewReconciler(
 		parallelism = MaxReconcileParallelism
 	}
 	return &Reconciler{
-		Embedder:         embedder,
-		BacklogStore:     backlogStore,
-		InitiativeStore:  initiativeStore,
-		BacklogReader:    backlogReader,
-		InitiativeReader: initiativeReader,
-		Parallelism:      parallelism,
+		Embedder:      embedder,
+		BacklogStore:  backlogStore,
+		GoalStore:     goalStore,
+		BacklogReader: backlogReader,
+		GoalReader:    goalReader,
+		Parallelism:   parallelism,
 	}
 }
 
@@ -97,7 +97,7 @@ func (r *Reconciler) Plan(ctx context.Context) (*DriftReport, error) {
 	if err := r.planBacklog(ctx, report); err != nil {
 		return nil, err
 	}
-	if err := r.planInitiatives(ctx, report); err != nil {
+	if err := r.planGoals(ctx, report); err != nil {
 		return nil, err
 	}
 	return report, nil
@@ -171,68 +171,68 @@ func (r *Reconciler) planBacklog(ctx context.Context, report *DriftReport) error
 	return nil
 }
 
-func (r *Reconciler) planInitiatives(ctx context.Context, report *DriftReport) error {
-	if r.InitiativeStore == nil || r.InitiativeReader == nil {
+func (r *Reconciler) planGoals(ctx context.Context, report *DriftReport) error {
+	if r.GoalStore == nil || r.GoalReader == nil {
 		return nil
 	}
 
-	inits, err := r.InitiativeReader.List()
+	goalsList, err := r.GoalReader.List()
 	if err != nil {
-		return fmt.Errorf("list initiatives: %w", err)
+		return fmt.Errorf("list goals: %w", err)
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	indexed, err := r.InitiativeStore.ScrollIDs(ctx)
+	indexed, err := r.GoalStore.ScrollIDs(ctx)
 	if err != nil {
-		return fmt.Errorf("scroll initiative index: %w", err)
+		return fmt.Errorf("scroll goal index: %w", err)
 	}
 
-	diskByID := make(map[string]struct{}, len(inits))
-	for i := range inits {
-		init := inits[i]
-		id := initiativePointID(init.Name)
+	diskByID := make(map[string]struct{}, len(goalsList))
+	for i := range goalsList {
+		goal := goalsList[i]
+		id := goalPointID(goal.Name)
 		diskByID[id] = struct{}{}
 
-		text := composeInitiativeText(init)
-		payloadNoHash := buildInitiativePayload(init, "")
+		text := composeGoalText(goal)
+		payloadNoHash := buildGoalPayload(goal, "")
 		freshHash := composePayloadHash(text, payloadNoHash)
 
 		existing, present := indexed[id]
 		switch {
 		case !present:
-			report.ToUpsertInitiative = append(report.ToUpsertInitiative, ItemRef{
-				Kind:        KindInitiative,
+			report.ToUpsertGoal = append(report.ToUpsertGoal, ItemRef{
+				Kind:        KindGoal,
 				PointID:     id,
-				Name:        init.Name,
+				Name:        goal.Name,
 				PayloadHash: freshHash,
-				Initiative:  &init,
+				Goal:        &goal,
 			})
 		case existing.PayloadHash == "":
-			report.LegacyInitiative++
-			report.ToUpsertInitiative = append(report.ToUpsertInitiative, ItemRef{
-				Kind:        KindInitiative,
+			report.LegacyGoal++
+			report.ToUpsertGoal = append(report.ToUpsertGoal, ItemRef{
+				Kind:        KindGoal,
 				PointID:     id,
-				Name:        init.Name,
+				Name:        goal.Name,
 				PayloadHash: freshHash,
-				Initiative:  &init,
+				Goal:        &goal,
 			})
 		case existing.PayloadHash != freshHash:
-			report.ToUpsertInitiative = append(report.ToUpsertInitiative, ItemRef{
-				Kind:        KindInitiative,
+			report.ToUpsertGoal = append(report.ToUpsertGoal, ItemRef{
+				Kind:        KindGoal,
 				PointID:     id,
-				Name:        init.Name,
+				Name:        goal.Name,
 				PayloadHash: freshHash,
-				Initiative:  &init,
+				Goal:        &goal,
 			})
 		default:
-			report.UnchangedInitiative++
+			report.UnchangedGoal++
 		}
 	}
 
 	for id := range indexed {
 		if _, onDisk := diskByID[id]; !onDisk {
-			report.ToDeleteInitiative = append(report.ToDeleteInitiative, id)
+			report.ToDeleteGoal = append(report.ToDeleteGoal, id)
 		}
 	}
 	return nil
@@ -260,9 +260,9 @@ func (r *Reconciler) Apply(ctx context.Context, plan *DriftReport) (*ApplyResult
 			return result, fmt.Errorf("ensure backlog collection: %w", err)
 		}
 	}
-	if r.InitiativeStore != nil && (len(plan.ToUpsertInitiative) > 0 || len(plan.ToDeleteInitiative) > 0) {
-		if err := r.InitiativeStore.EnsureCollection(ctx); err != nil {
-			return result, fmt.Errorf("ensure initiative collection: %w", err)
+	if r.GoalStore != nil && (len(plan.ToUpsertGoal) > 0 || len(plan.ToDeleteGoal) > 0) {
+		if err := r.GoalStore.EnsureCollection(ctx); err != nil {
+			return result, fmt.Errorf("ensure goal collection: %w", err)
 		}
 	}
 
@@ -279,15 +279,15 @@ func (r *Reconciler) Apply(ctx context.Context, plan *DriftReport) (*ApplyResult
 		switch kind {
 		case KindBacklogItem:
 			result.UpsertedBacklog++
-		case KindInitiative:
-			result.UpsertedInitiative++
+		case KindGoal:
+			result.UpsertedGoal++
 		}
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(r.Parallelism)
 	r.scheduleUpserts(gctx, g, plan.ToUpsertBacklog, r.BacklogStore, addError, bumpUpsert)
-	r.scheduleUpserts(gctx, g, plan.ToUpsertInitiative, r.InitiativeStore, addError, bumpUpsert)
+	r.scheduleUpserts(gctx, g, plan.ToUpsertGoal, r.GoalStore, addError, bumpUpsert)
 	// errgroup.Wait can return ctx.Canceled; that is the cooperative-cancel
 	// signal, not a hard failure — partial counts in result are still valid.
 	_ = g.Wait()
@@ -300,11 +300,11 @@ func (r *Reconciler) Apply(ctx context.Context, plan *DriftReport) (*ApplyResult
 			result.DeletedBacklog = len(plan.ToDeleteBacklog)
 		}
 	}
-	if len(plan.ToDeleteInitiative) > 0 && r.InitiativeStore != nil {
-		if err := r.InitiativeStore.BatchDelete(ctx, plan.ToDeleteInitiative); err != nil {
-			addError(ReconcileError{Kind: KindInitiative, Op: "delete", Err: err.Error()})
+	if len(plan.ToDeleteGoal) > 0 && r.GoalStore != nil {
+		if err := r.GoalStore.BatchDelete(ctx, plan.ToDeleteGoal); err != nil {
+			addError(ReconcileError{Kind: KindGoal, Op: "delete", Err: err.Error()})
 		} else {
-			result.DeletedInitiative = len(plan.ToDeleteInitiative)
+			result.DeletedGoal = len(plan.ToDeleteGoal)
 		}
 	}
 
@@ -374,13 +374,13 @@ func refToTextAndPayload(ref ItemRef) (string, map[string]interface{}) {
 		text := composeBacklogText(item)
 		payload := buildBacklogPayload(item, ref.PayloadHash)
 		return text, payload
-	case KindInitiative:
-		var init initiatives.Initiative
-		if ref.Initiative != nil {
-			init = *ref.Initiative
+	case KindGoal:
+		var goal goals.Goal
+		if ref.Goal != nil {
+			goal = *ref.Goal
 		}
-		text := composeInitiativeText(init)
-		payload := buildInitiativePayload(init, ref.PayloadHash)
+		text := composeGoalText(goal)
+		payload := buildGoalPayload(goal, ref.PayloadHash)
 		return text, payload
 	default:
 		return "", nil

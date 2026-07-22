@@ -100,7 +100,7 @@ type ListBlockingInfo struct {
 // ComputeListBlockingInfo evaluates dependency blocking for all items in a
 // single pass. Returns a map keyed by "kind/name". Only items with
 // dependencies that are actually blocked are included. Delegates to the
-// generic depgraph package so backlog and initiatives share one implementation.
+// generic depgraph package so backlog and milestones share one implementation.
 func ComputeListBlockingInfo(items []BacklogItem) map[string]ListBlockingInfo {
 	nodes := make([]depgraph.Node, 0, len(items))
 	for _, item := range items {

@@ -2,7 +2,6 @@ import type { AgentSessionContextType, AgentSessionKind, CreatableAgentSessionKi
 
 export const CONTEXT_TYPE_LABELS: Record<AgentSessionContextType, string> = {
   backlog_item: "Backlog",
-  initiative: "Initiatives",
   capture: "Captures",
   execution: "Executions",
   agent_activity: "Activity",
@@ -18,7 +17,6 @@ export const CONTEXT_TYPE_LABELS: Record<AgentSessionContextType, string> = {
 
 export const CONTEXT_TYPE_CAPS: Record<AgentSessionContextType, number> = {
   backlog_item: 8,
-  initiative: 4,
   capture: 4,
   execution: 6,
   agent_activity: 6,
@@ -37,12 +35,12 @@ export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSession
     case "operating_mode_authoring":
       return [];
     case "swarm_operations":
-      return ["startup_brief", "operations_briefing", "initiative", "backlog_item", "execution", "agent_activity", "capture", "session", "plan_dependency_cycles", "plan_eta", "goal"];
+	  return ["startup_brief", "operations_briefing", "goal", "backlog_item", "execution", "agent_activity", "capture", "session", "plan_dependency_cycles", "plan_eta"];
 	case "workflow_authoring":
-		return ["startup_brief", "initiative", "backlog_item", "scenario", "session", "goal"];
+		return ["startup_brief", "goal", "backlog_item", "scenario", "session"];
     case "meta_orchestration":
     default:
-      return ["startup_brief", "initiative", "backlog_item", "capture", "scenario", "session", "plan_dependency_cycles", "plan_eta", "goal"];
+	  return ["startup_brief", "goal", "backlog_item", "capture", "scenario", "session", "plan_dependency_cycles", "plan_eta"];
   }
 }
 

@@ -322,19 +322,19 @@ func TestHasActiveAgent_ReturnsTrueWhenActive(t *testing.T) {
 // Raw Run continuations are reserved for human-led sessions.
 // ---------------------------------------------------------------------------
 
-func TestContinueRun_RejectsInitiativeOwner(t *testing.T) {
+func TestContinueRun_RejectsMilestoneOwner(t *testing.T) {
 	t.Parallel()
 	raw := &stubAgentService{enabled: true}
 	svc := newTestService(t, raw)
 
 	ctx := WithSpec(context.Background(), Spec{
-		OwnerType: OwnerInitiative,
-		OwnerName: "init-x",
+		OwnerType: OwnerMilestone,
+		OwnerName: "milestone-x",
 		Purpose:   PurposeFeedbackContinue,
 		Metadata:  map[string]string{"round_number": "1"},
 	})
 	if err := svc.ContinueRun(ctx, "run-1", "more please"); err == nil {
-		t.Fatal("ContinueRun accepted an initiative-owned programmatic continuation")
+		t.Fatal("ContinueRun accepted a milestone-owned programmatic continuation")
 	}
 
 	records, _ := svc.store.Load()
@@ -351,15 +351,15 @@ func TestSpec_RejectsUnknownOwnerType(t *testing.T) {
 	}
 }
 
-func TestSpec_AcceptsRegistryAuthoredInitiativePurpose(t *testing.T) {
+func TestSpec_AcceptsRegistryAuthoredMilestonePurpose(t *testing.T) {
 	t.Parallel()
 	purpose := Purpose("new_mode_execute_phase")
-	if _, err := (Spec{OwnerType: OwnerInitiative, OwnerName: "init-a", Purpose: purpose}).normalized(); err != nil {
+	if _, err := (Spec{OwnerType: OwnerMilestone, OwnerName: "milestone-a", Purpose: purpose}).normalized(); err != nil {
 		t.Fatalf("purpose %q rejected: %v", purpose, err)
 	}
 }
 
-func TestSpec_RejectsUnknownPurposeForNonInitiativeOwner(t *testing.T) {
+func TestSpec_RejectsUnknownPurposeForNonMilestoneOwner(t *testing.T) {
 	t.Parallel()
 	purpose := Purpose("new_mode_execute_phase")
 	if _, err := (Spec{OwnerType: OwnerBacklog, OwnerKind: "execute", OwnerName: "task-a", Purpose: purpose}).normalized(); err == nil {
@@ -370,7 +370,7 @@ func TestSpec_RejectsUnknownPurposeForNonInitiativeOwner(t *testing.T) {
 func TestSpec_RejectsMalformedPurpose(t *testing.T) {
 	t.Parallel()
 	for _, purpose := range []Purpose{"", "has-dash", "has space"} {
-		if _, err := (Spec{OwnerType: OwnerInitiative, OwnerName: "init-a", Purpose: purpose}).normalized(); err == nil {
+		if _, err := (Spec{OwnerType: OwnerMilestone, OwnerName: "milestone-a", Purpose: purpose}).normalized(); err == nil {
 			t.Fatalf("purpose %q accepted", purpose)
 		}
 	}

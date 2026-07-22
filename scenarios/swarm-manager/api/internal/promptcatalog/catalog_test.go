@@ -37,25 +37,10 @@ func TestSkillUsageSummary(t *testing.T) {
 	}
 }
 
-func TestResolveInitiativeSkill(t *testing.T) {
-	review, ok := ResolveInitiativeSkill("review")
-	if !ok || review.SkillID != "swarm-manager-initiative-review" {
-		t.Fatalf("review skill = %q (ok=%v)", review.SkillID, ok)
-	}
-	if _, ok := ResolveInitiativeSkill("unknown"); ok {
-		t.Fatal("expected unknown purpose to miss")
-	}
-}
-
-func TestResolveInitiativeModeSkill(t *testing.T) {
-	if _, ok := ResolveInitiativeModeSkill("item-level", "execute"); ok {
-		t.Fatal("workflow composition must not resolve retired initiative-mode prompts")
-	}
-}
-
-func TestInitiativeModePromptCatalogEntriesComeFromRegistry(t *testing.T) {
-	if _, ok := ResolveInitiativeModeSkill("holistic-loop", "investigate"); ok {
-		t.Fatal("retired operating modes must not publish runtime prompts")
+func TestGoalContextCatalogEntry(t *testing.T) {
+	entry, ok := Lookup("support-goal-context")
+	if !ok || entry.SkillID != "swarm-manager-goal-context" {
+		t.Fatalf("goal context entry = %+v (ok=%v)", entry, ok)
 	}
 }
 

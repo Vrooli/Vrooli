@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FilePlus2, Link2, Loader2, Search } from "lucide-react";
 import { Link } from "react-router-dom";
-import { backlogDetailPath, initiativeDetailPath } from "../../app/routes/route-paths";
+import { backlogDetailPath } from "../../app/routes/route-paths";
 import {
   planService,
   type CanonicalPlanSummary,
@@ -19,7 +19,7 @@ export interface CreateWorkFromPlanDialogProps {
 }
 
 type SourceMode = "existing" | "markdown";
-type ContainerType = "items" | "initiative";
+type ContainerType = "items" | "milestone";
 
 export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: CreateWorkFromPlanDialogProps) {
   const [sourceMode, setSourceMode] = useState<SourceMode>("existing");
@@ -31,9 +31,9 @@ export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: Create
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [containerType, setContainerType] = useState<ContainerType>("items");
-  const [initiativeName, setInitiativeName] = useState("");
-  const [initiativeTitle, setInitiativeTitle] = useState("");
-  const [initiativeDescription, setInitiativeDescription] = useState("");
+  const [milestoneName, setMilestoneName] = useState("");
+  const [milestoneTitle, setMilestoneTitle] = useState("");
+  const [milestoneDescription, setMilestoneDescription] = useState("");
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,9 +96,9 @@ export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: Create
       slug: sourceMode === "markdown" ? slug.trim() || undefined : undefined,
       container: {
         type: containerType,
-        name: containerType === "initiative" ? initiativeName.trim() || undefined : undefined,
-        title: containerType === "initiative" ? initiativeTitle.trim() || undefined : undefined,
-        description: containerType === "initiative" ? initiativeDescription.trim() || undefined : undefined,
+        name: containerType === "milestone" ? milestoneName.trim() || undefined : undefined,
+        title: containerType === "milestone" ? milestoneTitle.trim() || undefined : undefined,
+        description: containerType === "milestone" ? milestoneDescription.trim() || undefined : undefined,
       },
     })
       .then((next) => {
@@ -114,7 +114,7 @@ export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: Create
       isOpen={isOpen}
       onClose={resetAndClose}
       title="Create work from plan"
-      description="Bind a canonical plan-manager plan to backlog work or an initiative."
+      description="Bind a canonical plan-manager plan to backlog work or an milestone."
       className="!max-w-3xl border-slate-700/80 bg-slate-900"
       contentClassName="px-0 py-0"
       data-testid="create-work-from-plan-dialog"
@@ -231,23 +231,23 @@ export function CreateWorkFromPlanDialog({ isOpen, onClose, onImported }: Create
                 onClick={() => setContainerType("items")}
               />
               <ContainerOption
-                selected={containerType === "initiative"}
-                title="Initiative"
-                hint="Create or update an initiative and attach the phase items."
-                onClick={() => setContainerType("initiative")}
+                selected={containerType === "milestone"}
+                title="Milestone"
+                hint="Create or update an milestone and attach the phase items."
+                onClick={() => setContainerType("milestone")}
               />
             </div>
           </div>
-          {containerType === "initiative" && (
+          {containerType === "milestone" && (
             <div className="space-y-3">
               <div className="grid gap-2 sm:grid-cols-2">
-                <Input value={initiativeName} onChange={(event) => setInitiativeName(event.target.value)} placeholder="initiative-name" size="sm" />
-                <Input value={initiativeTitle} onChange={(event) => setInitiativeTitle(event.target.value)} placeholder="Initiative title" size="sm" />
+                <Input value={milestoneName} onChange={(event) => setMilestoneName(event.target.value)} placeholder="milestone-name" size="sm" />
+                <Input value={milestoneTitle} onChange={(event) => setMilestoneTitle(event.target.value)} placeholder="Milestone title" size="sm" />
               </div>
               <textarea
-                value={initiativeDescription}
-                onChange={(event) => setInitiativeDescription(event.target.value)}
-                placeholder="Initiative description"
+                value={milestoneDescription}
+                onChange={(event) => setMilestoneDescription(event.target.value)}
+                placeholder="Milestone description"
                 className="min-h-20 w-full resize-y rounded-lg border border-white/10 bg-slate-800/50 px-3 py-2 text-base text-slate-50 placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 md:text-sm"
               />
             </div>
@@ -314,11 +314,7 @@ function ImportResultLinks({ result }: { result: PlanImportResult }) {
     <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm" data-testid="create-work-result-links">
       <div className="font-medium text-emerald-200">Linked to {result.slug}</div>
       <div className="mt-2 flex flex-wrap gap-2">
-        {result.initiative && (
-          <Link className="text-cyan-300 hover:text-cyan-200" to={initiativeDetailPath(result.initiative.name)}>
-            Initiative: {result.initiative.title || result.initiative.name}
-          </Link>
-        )}
+		{result.milestone && <span className="text-cyan-300">Milestone: {result.milestone.title || result.milestone.name}</span>}
         {result.items.slice(0, 5).map((item) => (
           <Link key={`${item.kind}/${item.name}`} className="text-cyan-300 hover:text-cyan-200" to={backlogDetailPath(item.kind, item.name)}>
             {item.kind}/{item.name}

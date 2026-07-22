@@ -16,8 +16,8 @@ func NewAISearchSimilarity(service *aisearch.Service) *AISearchSimilarity {
 }
 func (a *AISearchSimilarity) Similar(ctx context.Context, target TargetRef, limit int) ([]Entity, bool, error) {
 	entity := aisearch.EntityBacklog
-	if target.Kind == TargetInitiative {
-		entity = aisearch.EntityInitiative
+	if target.Kind == TargetGoal {
+		entity = aisearch.EntityGoal
 	}
 	response, err := a.service.SimilarTo(ctx, aisearch.SimilarTarget{Entity: entity, BacklogKind: target.BacklogKind, Name: target.Name}, limit)
 	if err != nil {
@@ -53,7 +53,7 @@ func (a *AISearchSimilarity) Similar(ctx context.Context, target TargetRef, limi
 				archived = v
 			}
 		}
-		if kind != EntityBacklog && kind != EntityInitiative && kind != EntityRecord {
+		if kind != EntityBacklog && kind != EntityGoal && kind != EntityRecord {
 			return nil, true, fmt.Errorf("unknown similar entity %q", r.Entity)
 		}
 		out = append(out, Entity{Kind: kind, Key: key, Title: title, Status: status, Archived: archived, Reasons: []string{fmt.Sprintf("%d%% similar", r.ScorePercent)}, ScorePercent: r.ScorePercent})

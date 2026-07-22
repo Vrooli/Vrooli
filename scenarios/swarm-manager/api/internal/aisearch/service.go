@@ -11,7 +11,7 @@ import (
 
 // TextSearcher is the fallback surface used when the embedder or vector store
 // is unavailable. Implementations should perform a simple, cheap lookup (e.g.
-// substring match) across backlog items and initiatives and return
+// substring match) across backlog items and goals and return
 // already-scored results. A nil TextSearcher causes fallback to return an
 // empty response with Fallback = FallbackUnavailable.
 type TextSearcher interface {
@@ -22,14 +22,14 @@ type TextSearcher interface {
 // reconcile lifecycle (drift detection, plan/apply, periodic sync) lives in
 // Reconciler and SyncLoop — Service does not own that decision boundary.
 type Service struct {
-	embedder         Embedder
-	backlogStore     VectorStore
-	initiativeStore  VectorStore
-	recordStore      VectorStore
-	backlogReader    BacklogReader
-	initiativeReader InitiativeReader
-	textSearcher     TextSearcher
-	threshold        float64
+	embedder      Embedder
+	backlogStore  VectorStore
+	goalStore     VectorStore
+	recordStore   VectorStore
+	backlogReader BacklogReader
+	goalReader    GoalReader
+	textSearcher  TextSearcher
+	threshold     float64
 }
 
 // SetRecordStore wires a VectorStore for the records collection. Optional;
@@ -41,26 +41,26 @@ func (s *Service) SetRecordStore(store VectorStore) {
 }
 
 // NewService creates a new AI search service. Any of backlogStore,
-// initiativeStore, backlogReader, initiativeReader may be nil to disable
+// goalStore, backlogReader, goalReader may be nil to disable
 // that surface; the service degrades gracefully.
 func NewService(
 	embedder Embedder,
 	backlogStore VectorStore,
-	initiativeStore VectorStore,
+	goalStore VectorStore,
 	backlogReader BacklogReader,
-	initiativeReader InitiativeReader,
+	goalReader GoalReader,
 	threshold float64,
 ) *Service {
 	if threshold <= 0 {
 		threshold = 0.5
 	}
 	return &Service{
-		embedder:         embedder,
-		backlogStore:     backlogStore,
-		initiativeStore:  initiativeStore,
-		backlogReader:    backlogReader,
-		initiativeReader: initiativeReader,
-		threshold:        threshold,
+		embedder:      embedder,
+		backlogStore:  backlogStore,
+		goalStore:     goalStore,
+		backlogReader: backlogReader,
+		goalReader:    goalReader,
+		threshold:     threshold,
 	}
 }
 
@@ -71,7 +71,7 @@ func (s *Service) SetTextSearcher(t TextSearcher) {
 }
 
 // Search performs a semantic search over the requested entity (backlog,
-// initiative, record, or both). EntityBoth fans out to every wired store
+// goal, record, or both). EntityBoth fans out to every wired store
 // — records are included when a recordStore is configured. On embedder /
 // vector-store failure it falls back to text search when a TextSearcher
 // is configured, or to an empty response marked FallbackUnavailable
@@ -88,7 +88,7 @@ func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchRes
 		entity = EntityBoth
 	}
 	if !entity.Valid() {
-		return nil, fmt.Errorf("invalid entity %q: must be backlog, initiative, or both", req.Entity)
+		return nil, fmt.Errorf("invalid entity %q: must be backlog, goal, record, or both", req.Entity)
 	}
 
 	limit := normalizeLimit(req.Limit)
@@ -132,10 +132,10 @@ func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchRes
 // collection, including archived work. It returns Degraded rather than using
 // Search's text fallback when Ollama or Qdrant is unavailable.
 func (s *Service) SimilarTo(ctx context.Context, target SimilarTarget, limit int) (*SimilarResponse, error) {
-	if target.Entity != EntityBacklog && target.Entity != EntityInitiative {
-		return nil, fmt.Errorf("similar target entity must be backlog or initiative")
+	if target.Entity != EntityBacklog && target.Entity != EntityGoal {
+		return nil, fmt.Errorf("similar target entity must be backlog or goal")
 	}
-	if s.embedder == nil || s.backlogStore == nil || s.initiativeStore == nil {
+	if s.embedder == nil || s.backlogStore == nil || s.goalStore == nil {
 		return &SimilarResponse{Results: []AISearchResult{}, Degraded: true}, nil
 	}
 	var text, self string
@@ -146,11 +146,11 @@ func (s *Service) SimilarTo(ctx context.Context, target SimilarTarget, limit int
 		}
 		text, self = composeBacklogText(item), backlogPointID(target.BacklogKind, target.Name)
 	} else {
-		init, err := s.initiativeReader.Get(target.Name)
+		goal, err := s.goalReader.Get(target.Name)
 		if err != nil {
 			return nil, err
 		}
-		text, self = composeInitiativeText(*init), initiativePointID(target.Name)
+		text, self = composeGoalText(*goal), goalPointID(target.Name)
 	}
 	vector, err := s.embedder.Embed(ctx, text)
 	if err != nil {
@@ -168,7 +168,7 @@ func (s *Service) SimilarTo(ctx context.Context, target SimilarTarget, limit int
 		if target.Entity == EntityBacklog && result.Entity == EntityBacklog && result.ID == target.Name {
 			continue
 		}
-		if target.Entity == EntityInitiative && result.Entity == EntityInitiative && result.ID == target.Name {
+		if target.Entity == EntityGoal && result.Entity == EntityGoal && result.ID == target.Name {
 			continue
 		}
 		filtered = append(filtered, result)
@@ -208,7 +208,7 @@ func (s *Service) searchStores(ctx context.Context, entity EntityType, vector []
 		store  VectorStore
 	}{
 		{EntityBacklog, s.backlogStore},
-		{EntityInitiative, s.initiativeStore},
+		{EntityGoal, s.goalStore},
 		{EntityRecord, s.recordStore},
 	}
 	for _, st := range stores {
@@ -304,12 +304,12 @@ func applyFilters(results []AISearchResult, f SearchFilters) []AISearchResult {
 	}
 	statusSet := toStringSet(f.Status)
 	kindSet := toStringSet(f.Kind)
-	initiative := strings.TrimSpace(f.Initiative)
+	goal := strings.TrimSpace(f.Goal)
 	target := strings.TrimSpace(f.TargetScenario)
 
 	out := results[:0]
 	for _, r := range results {
-		if r.Payload == nil || resultMatchesFilters(r, f, statusSet, kindSet, initiative, target) {
+		if r.Payload == nil || resultMatchesFilters(r, f, statusSet, kindSet, goal, target) {
 			out = append(out, r)
 		}
 	}
@@ -318,14 +318,14 @@ func applyFilters(results []AISearchResult, f SearchFilters) []AISearchResult {
 
 // resultMatchesFilters reports whether a result with a non-nil payload passes
 // every active filter predicate. Empty/zero filter fields match everything.
-func resultMatchesFilters(r AISearchResult, f SearchFilters, statusSet, kindSet map[string]bool, initiative, target string) bool {
+func resultMatchesFilters(r AISearchResult, f SearchFilters, statusSet, kindSet map[string]bool, goal, target string) bool {
 	archived, _ := r.Payload["archived"].(bool)
 	if archived && !f.IncludeArchived {
 		return false
 	}
 	return matchesStatusFilter(r, statusSet) &&
 		matchesKindFilter(r, kindSet) &&
-		matchesInitiativeFilter(r, initiative) &&
+		matchesGoalFilter(r, goal) &&
 		matchesTargetFilter(r, target)
 }
 
@@ -349,13 +349,15 @@ func matchesKindFilter(r AISearchResult, kindSet map[string]bool) bool {
 	return kindSet[kind]
 }
 
-// matchesInitiativeFilter narrows backlog items by their initiative.
-func matchesInitiativeFilter(r AISearchResult, initiative string) bool {
-	if initiative == "" || r.Entity != EntityBacklog {
+// matchesGoalFilter narrows backlog items by their goal. Backlog items are
+// associated through goal scopes rather than a persisted item field, so this
+// filter is currently meaningful only to goal payloads.
+func matchesGoalFilter(r AISearchResult, goal string) bool {
+	if goal == "" || r.Entity != EntityGoal {
 		return true
 	}
-	rInit, _ := r.Payload["initiative"].(string)
-	return rInit == initiative
+	name, _ := r.Payload["name"].(string)
+	return name == goal
 }
 
 // matchesTargetFilter narrows results by target scenario. Backlog items carry
@@ -437,40 +439,40 @@ func (s *Service) GetStatus(ctx context.Context) *AvailabilityStatus {
 	}
 
 	var qdrantOK bool
-	var indexedBacklog, indexedInitiatives int
+	var indexedBacklog, indexedGoals int
 	if s.backlogStore != nil && s.backlogStore.Available(ctx) {
 		qdrantOK = true
 		if n, err := s.backlogStore.CountPoints(ctx); err == nil {
 			indexedBacklog = n
 		}
 	}
-	if s.initiativeStore != nil && s.initiativeStore.Available(ctx) {
+	if s.goalStore != nil && s.goalStore.Available(ctx) {
 		qdrantOK = true
-		if n, err := s.initiativeStore.CountPoints(ctx); err == nil {
-			indexedInitiatives = n
+		if n, err := s.goalStore.CountPoints(ctx); err == nil {
+			indexedGoals = n
 		}
 	}
 
-	var onDiskBacklog, onDiskInitiatives int
+	var onDiskBacklog, onDiskGoals int
 	if s.backlogReader != nil {
 		if items, err := s.backlogReader.LoadAll(); err == nil {
 			onDiskBacklog = len(items)
 		}
 	}
-	if s.initiativeReader != nil {
-		if inits, err := s.initiativeReader.List(); err == nil {
-			onDiskInitiatives = len(inits)
+	if s.goalReader != nil {
+		if goalsList, err := s.goalReader.List(); err == nil {
+			onDiskGoals = len(goalsList)
 		}
 	}
 
 	status := &AvailabilityStatus{
-		Available:          ollamaOK && qdrantOK,
-		Ollama:             ollamaOK,
-		Qdrant:             qdrantOK,
-		IndexedBacklog:     indexedBacklog,
-		IndexedInitiatives: indexedInitiatives,
-		OnDiskBacklog:      onDiskBacklog,
-		OnDiskInitiatives:  onDiskInitiatives,
+		Available:      ollamaOK && qdrantOK,
+		Ollama:         ollamaOK,
+		Qdrant:         qdrantOK,
+		IndexedBacklog: indexedBacklog,
+		IndexedGoals:   indexedGoals,
+		OnDiskBacklog:  onDiskBacklog,
+		OnDiskGoals:    onDiskGoals,
 	}
 	if !status.Available {
 		var missing []string
@@ -494,7 +496,7 @@ func (s *Service) Available(ctx context.Context) bool {
 	if s.backlogStore != nil && !s.backlogStore.Available(ctx) {
 		return false
 	}
-	if s.initiativeStore != nil && !s.initiativeStore.Available(ctx) {
+	if s.goalStore != nil && !s.goalStore.Available(ctx) {
 		return false
 	}
 	return true

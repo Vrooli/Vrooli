@@ -13,7 +13,7 @@ import (
 // BatchCreateRequest is the request body for the batch create endpoint.
 type BatchCreateRequest struct {
 	Items       []BatchCreateItem       `json:"items"`
-	Initiatives []BatchCreateInitiative `json:"initiatives,omitempty"`
+	Milestones []BatchCreateMilestone `json:"milestones,omitempty"`
 	Preview     bool                    `json:"preview,omitempty"`
 }
 
@@ -26,14 +26,14 @@ type BatchCreateItem struct {
 	Priority        *int32   `json:"priority,omitempty"`
 	Tags            []string `json:"tags,omitempty"`
 	DependsOn       []string `json:"depends_on,omitempty"`
-	Initiative      string   `json:"initiative,omitempty"`
+	Milestone      string   `json:"milestone,omitempty"`
 	Effort          *string  `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 	Creates         []string `json:"creates,omitempty"`
 }
 
-type BatchCreateInitiative struct {
+type BatchCreateMilestone struct {
 	Name        string    `json:"name"`
 	Title       string    `json:"title"`
 	Description *string   `json:"description,omitempty"`
@@ -42,7 +42,7 @@ type BatchCreateInitiative struct {
 	DependsOn   *[]string `json:"depends_on,omitempty"`
 }
 
-type BatchCreateInitiativeResult struct {
+type BatchCreateMilestoneResult struct {
 	Name        string   `json:"name"`
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
@@ -55,7 +55,7 @@ type BatchCreateInitiativeResult struct {
 // BatchCreateResponse is the response from the batch create endpoint.
 type BatchCreateResponse struct {
 	Items       []BacklogItem                 `json:"items"`
-	Initiatives []BatchCreateInitiativeResult `json:"initiatives,omitempty"`
+	Milestones []BatchCreateMilestoneResult `json:"milestones,omitempty"`
 	Count       int                           `json:"count"`
 	Preview     bool                          `json:"preview,omitempty"`
 	Warnings    []string                      `json:"warnings,omitempty"`
@@ -145,7 +145,7 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 	}
 
 	printBatchCreateItems(response.Items)
-	printBatchCreateInitiatives(response.Initiatives)
+	printBatchCreateMilestones(response.Milestones)
 
 	if len(response.Items) > 0 {
 		first := response.Items[0]
@@ -170,30 +170,30 @@ func printBatchCreateItems(items []BacklogItem) {
 		if len(item.DependsOn) > 0 {
 			fmt.Printf("    Depends on: %s\n", strings.Join(item.DependsOn, ", "))
 		}
-		if item.Initiative != "" {
-			fmt.Printf("    Initiative: %s\n", item.Initiative)
+		if item.Milestone != "" {
+			fmt.Printf("    Milestone: %s\n", item.Milestone)
 		}
 	}
 }
 
-// printBatchCreateInitiatives renders the "Initiatives" section when any
-// initiatives were created or updated by the batch.
-func printBatchCreateInitiatives(initiatives []BatchCreateInitiativeResult) {
-	if len(initiatives) == 0 {
+// printBatchCreateMilestones renders the "Milestones" section when any
+// milestones were created or updated by the batch.
+func printBatchCreateMilestones(milestones []BatchCreateMilestoneResult) {
+	if len(milestones) == 0 {
 		return
 	}
-	printSection("Initiatives")
-	for _, initiative := range initiatives {
-		fmt.Printf("  [%s] %s (%s)\n", strings.ToUpper(initiative.Action), initiative.Name, initiative.Status)
-		fmt.Printf("    Title: %s\n", initiative.Title)
-		if initiative.Description != "" {
-			fmt.Printf("    Description: %s\n", initiative.Description)
+	printSection("Milestones")
+	for _, milestone := range milestones {
+		fmt.Printf("  [%s] %s (%s)\n", strings.ToUpper(milestone.Action), milestone.Name, milestone.Status)
+		fmt.Printf("    Title: %s\n", milestone.Title)
+		if milestone.Description != "" {
+			fmt.Printf("    Description: %s\n", milestone.Description)
 		}
-		if initiative.Priority > 0 {
-			fmt.Printf("    Priority: %d\n", initiative.Priority)
+		if milestone.Priority > 0 {
+			fmt.Printf("    Priority: %d\n", milestone.Priority)
 		}
-		if len(initiative.DependsOn) > 0 {
-			fmt.Printf("    Depends on: %s\n", strings.Join(initiative.DependsOn, ", "))
+		if len(milestone.DependsOn) > 0 {
+			fmt.Printf("    Depends on: %s\n", strings.Join(milestone.DependsOn, ", "))
 		}
 	}
 }

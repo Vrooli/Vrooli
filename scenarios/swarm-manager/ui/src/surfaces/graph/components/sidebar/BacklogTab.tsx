@@ -518,8 +518,8 @@ type BacklogBulkAction =
   | "unarchive"
   | "status"
   | "priority"
-  | "assign-initiative"
-  | "detach-initiative"
+  | "assign-milestone"
+  | "detach-milestone"
   | "add-tags"
   | "remove-tags"
   | "run"
@@ -547,7 +547,7 @@ function BacklogBulkActions({
   const [action, setAction] = useState<BacklogBulkAction>("archive");
   const [status, setStatus] = useState<BacklogItem["status"]>("ready");
   const [priority, setPriority] = useState(5);
-  const [initiative, setInitiative] = useState("");
+  const [milestone, setMilestone] = useState("");
   const [tags, setTags] = useState("");
   const [runMode, setRunMode] = useState<"manual" | "yolo">("manual");
   const [operation, setOperation] = useState<"generator" | "improver">("generator");
@@ -577,8 +577,8 @@ function BacklogBulkActions({
     unarchive: "Unarchive selected",
     status: "Change status",
     priority: "Set priority",
-    "assign-initiative": "Assign initiative",
-    "detach-initiative": "Detach initiative",
+    "assign-milestone": "Assign milestone",
+    "detach-milestone": "Detach milestone",
     "add-tags": "Add tags",
     "remove-tags": "Remove tags",
     run: "Run selected",
@@ -630,10 +630,10 @@ function BacklogBulkActions({
               return backlogService.update(item.kind, item.name, { status });
             case "priority":
               return backlogService.update(item.kind, item.name, { priority });
-            case "assign-initiative":
-              return backlogService.update(item.kind, item.name, { initiative: initiative.trim() });
-            case "detach-initiative":
-              return backlogService.update(item.kind, item.name, { initiative: "" });
+            case "assign-milestone":
+              return backlogService.update(item.kind, item.name, { milestone: milestone.trim() });
+            case "detach-milestone":
+              return backlogService.update(item.kind, item.name, { milestone: "" });
             case "add-tags":
               return backlogService.update(item.kind, item.name, { tags: Array.from(new Set([...(item.tags ?? []), ...tagList])) });
             case "remove-tags":
@@ -663,13 +663,13 @@ function BacklogBulkActions({
       setRunning(false);
       setPendingConfirm(null);
     }
-  }, [action, eligibleItems, fetchBacklog, initiative, operation, priority, runMode, running, selectedItems, skippedCount, status, tagList]);
+  }, [action, eligibleItems, fetchBacklog, milestone, operation, priority, runMode, running, selectedItems, skippedCount, status, tagList]);
 
-  const needsText = action === "assign-initiative" || action === "add-tags" || action === "remove-tags";
+  const needsText = action === "assign-milestone" || action === "add-tags" || action === "remove-tags";
   const disabled = selectedItems.length === 0
     || running
     || eligibleItems.length === 0
-    || (needsText && (action === "assign-initiative" ? initiative.trim() === "" : tagList.length === 0));
+    || (needsText && (action === "assign-milestone" ? milestone.trim() === "" : tagList.length === 0));
   const requiresConfirm = action === "archive" || action === "unarchive" || action === "run";
   const failedIds = failedOutcomeIds(outcomes);
 
@@ -686,8 +686,8 @@ function BacklogBulkActions({
           <option value="unarchive">Unarchive selected</option>
           <option value="status">Change status</option>
           <option value="priority">Set priority</option>
-          <option value="assign-initiative">Assign initiative</option>
-          <option value="detach-initiative">Detach initiative</option>
+          <option value="assign-milestone">Assign milestone</option>
+          <option value="detach-milestone">Detach milestone</option>
           <option value="add-tags">Add tags</option>
           <option value="remove-tags">Remove tags</option>
           <option value="run">Run selected</option>
@@ -701,8 +701,8 @@ function BacklogBulkActions({
         {action === "priority" && (
           <input type="number" min={1} max={10} value={priority} onChange={(event) => setPriority(Math.max(1, Math.min(10, Number(event.target.value || 1))))} className="h-8 w-16 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200" aria-label="Priority" />
         )}
-        {action === "assign-initiative" && (
-          <input value={initiative} onChange={(event) => setInitiative(event.target.value)} placeholder="initiative-name" className="h-8 min-w-0 flex-1 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200 placeholder:text-slate-500" aria-label="Initiative name" />
+        {action === "assign-milestone" && (
+          <input value={milestone} onChange={(event) => setMilestone(event.target.value)} placeholder="milestone-name" className="h-8 min-w-0 flex-1 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200 placeholder:text-slate-500" aria-label="Milestone name" />
         )}
         {(action === "add-tags" || action === "remove-tags") && (
           <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="tags, comma separated" className="h-8 min-w-0 flex-1 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-200 placeholder:text-slate-500" aria-label="Tags" />

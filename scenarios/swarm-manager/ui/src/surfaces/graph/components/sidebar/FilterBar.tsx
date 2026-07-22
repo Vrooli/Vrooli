@@ -7,14 +7,13 @@ import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { CollapsibleSection } from "../../../../components/ui/collapsible-section";
 import type { SidebarAction } from "./useSidebarState";
-import type { BacklogFilters, CaptureFilters, ExecutionFilters, InitiativeFilters, SessionFilters, SidebarTab, SortConfig, SortDirection, SortField } from "./types";
+import type { BacklogFilters, CaptureFilters, ExecutionFilters, SessionFilters, SidebarTab, SortConfig, SortDirection, SortField } from "./types";
 import { DEFAULT_SORT } from "./types";
 
 interface FilterBarProps {
   activeTab: SidebarTab;
   backlogFilters: BacklogFilters;
   captureFilters: CaptureFilters;
-  initiativeFilters: InitiativeFilters;
   executionFilters: ExecutionFilters;
   sessionFilters: SessionFilters;
   sort: SortConfig;
@@ -92,7 +91,6 @@ function SortControls({ sort, tab, dispatch }: { sort: SortConfig; tab: SidebarT
 const BACKLOG_STATUSES = ["backlog", "researching", "ready", "queued", "in_progress", "completed", "failed"] as const;
 const BACKLOG_KINDS = ["idea", "research", "fix", "execute", "chore"] as const;
 const CAPTURE_STATUSES = ["classifying", "classified", "failed"] as const;
-const INITIATIVE_STATUSES = ["active", "completed"] as const;
 const EXECUTION_STATUSES = ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] as const;
 const EXECUTION_MODES = ["manual", "yolo"] as const;
 const SESSION_STATUSES = ["starting", "running", "waiting_for_user", "proposal_ready", "applying", "complete", "failed", "canceled"] as const;
@@ -165,37 +163,6 @@ function CaptureFilterChips({ filters, dispatch }: { filters: CaptureFilters; di
         ))}
       </div>
     </div>
-  );
-}
-
-function InitiativeFilterChips({ filters, dispatch }: { filters: InitiativeFilters; dispatch: Dispatch<SidebarAction> }) {
-  return (
-    <>
-      <div>
-        <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">Status</p>
-        <div className="flex flex-wrap gap-1">
-          {INITIATIVE_STATUSES.map((s) => (
-            <Chip
-              key={s}
-              label={s}
-              active={filters.statuses.includes(s)}
-              onClick={() => dispatch({ type: "SET_INITIATIVE_FILTERS", filters: { statuses: toggleInArray(filters.statuses, s) } })}
-            />
-          ))}
-        </div>
-      </div>
-      <div>
-        <label className="flex items-center gap-1.5 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={filters.showArchived}
-            onChange={() => dispatch({ type: "SET_INITIATIVE_FILTERS", filters: { showArchived: !filters.showArchived } })}
-            className="h-3 w-3 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
-          />
-          <span className="text-[11px] text-slate-400">Show Archived</span>
-        </label>
-      </div>
-    </>
   );
 }
 
@@ -298,22 +265,21 @@ function SessionFilterChips({ filters, dispatch }: { filters: SessionFilters; di
 // FilterBar
 // ============================================================================
 
-function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captures: CaptureFilters, initiatives: InitiativeFilters, executions: ExecutionFilters, sessions: SessionFilters, sort: SortConfig): boolean {
+function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captures: CaptureFilters, executions: ExecutionFilters, sessions: SessionFilters, sort: SortConfig): boolean {
   const defaultSort = DEFAULT_SORT[tab];
   const sortChanged = sort.field !== defaultSort.field || sort.direction !== defaultSort.direction;
 
   switch (tab) {
     case "backlog": return backlog.statuses.length > 0 || backlog.kinds.length > 0 || backlog.priorityMin !== null || backlog.priorityMax !== null || backlog.showArchived || sortChanged;
     case "captures": return captures.statuses.length > 0 || sortChanged;
-    case "initiatives": return initiatives.statuses.length > 0 || initiatives.showArchived || sortChanged;
     case "goals": return sortChanged;
     case "executions": return executions.statuses.length > 0 || executions.modes.length > 0 || sortChanged;
     case "sessions": return sessions.statuses.length > 0 || sessions.kinds.length > 0 || sessions.activeOnly || sessions.hasProposals || sessions.hasAppliedArtifacts || sortChanged;
   }
 }
 
-export function FilterBar({ activeTab, backlogFilters, captureFilters, initiativeFilters, executionFilters, sessionFilters, sort, dispatch }: FilterBarProps) {
-  const hasActive = hasActiveFiltersForTab(activeTab, backlogFilters, captureFilters, initiativeFilters, executionFilters, sessionFilters, sort);
+export function FilterBar({ activeTab, backlogFilters, captureFilters, executionFilters, sessionFilters, sort, dispatch }: FilterBarProps) {
+  const hasActive = hasActiveFiltersForTab(activeTab, backlogFilters, captureFilters, executionFilters, sessionFilters, sort);
 
   return (
     <CollapsibleSection
@@ -348,7 +314,6 @@ export function FilterBar({ activeTab, backlogFilters, captureFilters, initiativ
       </div>
       {activeTab === "backlog" && <BacklogFilterChips filters={backlogFilters} dispatch={dispatch} />}
       {activeTab === "captures" && <CaptureFilterChips filters={captureFilters} dispatch={dispatch} />}
-      {activeTab === "initiatives" && <InitiativeFilterChips filters={initiativeFilters} dispatch={dispatch} />}
       {activeTab === "executions" && <ExecutionFilterChips filters={executionFilters} dispatch={dispatch} />}
       {activeTab === "sessions" && <SessionFilterChips filters={sessionFilters} dispatch={dispatch} />}
     </CollapsibleSection>

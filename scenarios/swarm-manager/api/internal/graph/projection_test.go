@@ -20,13 +20,13 @@ func (m *mockBacklogLister) LoadAll(_ []backlog.BacklogKind) ([]backlog.BacklogI
 	return m.items, m.err
 }
 
-type mockInitiativeLister struct {
-	inits []InitiativeEntry
+type mockGoalLister struct {
+	goals []GoalEntry
 	err   error
 }
 
-func (m *mockInitiativeLister) List() ([]InitiativeEntry, error) {
-	return m.inits, m.err
+func (m *mockGoalLister) List() ([]GoalEntry, error) {
+	return m.goals, m.err
 }
 
 type mockCaptureLister struct {
@@ -70,13 +70,13 @@ func assertEdgeEndpointsPresent(t *testing.T, resp GraphResponse) {
 func TestProjectTopology(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "task-a", Title: "Task A", Status: backlog.StatusQueued, Priority: 3, DependsOn: []string{"execute/task-b"}, Initiative: "init-1", AcceptanceAllow: []string{"scenarios/my-app"}},
+			{Kind: "execute", Name: "task-a", Title: "Task A", Status: backlog.StatusQueued, Priority: 3, DependsOn: []string{"execute/task-b"}, Milestone: "init-1", AcceptanceAllow: []string{"scenarios/my-app"}},
 			{Kind: "execute", Name: "task-b", Title: "Task B", Status: "ready", Priority: 5},
 			{Kind: "execute", Name: "task-c", Title: "Done", Status: backlog.StatusCompleted},                                           // should be excluded
 			{Kind: "idea", Name: "archived", Title: "Old", Status: backlog.StatusCompleted, ArchivedAt: ptrStr("2026-01-01T00:00:00Z")}, // should be excluded
 		}},
-		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
-			{Name: "init-1", Title: "Initiative 1", Status: "active", Items: []string{"execute/task-a", "execute/task-c"}},
+		Goal: &mockGoalLister{goals: []GoalEntry{
+			{Name: "init-1", Title: "Milestone 1", Status: "active", Items: []string{"execute/task-a", "execute/task-c"}},
 			{Name: "init-archived", Title: "Archived", Status: "completed", ArchivedAt: ptrStr("2026-01-01T00:00:00Z")}, // excluded
 		}},
 		Capture: &mockCaptureLister{caps: []CaptureEntry{
@@ -107,8 +107,8 @@ func TestProjectTopology(t *testing.T) {
 	if nodeTypes["BacklogItem"] != 2 {
 		t.Errorf("expected 2 BacklogItem nodes, got %d", nodeTypes["BacklogItem"])
 	}
-	if nodeTypes["Initiative"] != 1 {
-		t.Errorf("expected 1 Initiative node, got %d", nodeTypes["Initiative"])
+	if nodeTypes["Goal"] != 1 {
+		t.Errorf("expected 1 Goal node, got %d", nodeTypes["Goal"])
 	}
 	if nodeTypes["Capture"] != 1 {
 		t.Errorf("expected 1 Capture node, got %d", nodeTypes["Capture"])
@@ -171,10 +171,10 @@ func TestProjectTopology_TargetsEdges(t *testing.T) {
 func TestMemberOfEdges(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
-			{Kind: "execute", Name: "task-1", Title: "T1", Status: "ready", Initiative: "my-init"},
-			{Kind: "fix", Name: "bug-1", Title: "B1", Status: "ready"}, // no initiative
+			{Kind: "execute", Name: "task-1", Title: "T1", Status: "ready", Milestone: "my-init"},
+			{Kind: "fix", Name: "bug-1", Title: "B1", Status: "ready"}, // no milestone
 		}},
-		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
+		Goal: &mockGoalLister{goals: []GoalEntry{
 			{Name: "my-init", Title: "Init", Status: "active"},
 		}},
 	})
@@ -191,7 +191,7 @@ func TestMemberOfEdges(t *testing.T) {
 			if e.Source != "backlog-item/execute/task-1" {
 				t.Errorf("expected member_of source to be task-1, got %s", e.Source)
 			}
-			if e.Target != "initiative/my-init" {
+			if e.Target != "goal/my-init" {
 				t.Errorf("expected member_of target to be my-init, got %s", e.Target)
 			}
 		}
@@ -230,7 +230,7 @@ func TestClassifiedAsEdges(t *testing.T) {
 	}
 }
 
-func TestTopologyInitiativeRollup(t *testing.T) {
+func TestTopologyGoalRollup(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "done", Status: backlog.StatusCompleted},
@@ -238,7 +238,7 @@ func TestTopologyInitiativeRollup(t *testing.T) {
 			{Kind: "execute", Name: "broken", Status: backlog.StatusFailed},
 			{Kind: "execute", Name: "todo", Status: backlog.StatusReady},
 		}},
-		Initiative: &mockInitiativeLister{inits: []InitiativeEntry{
+		Goal: &mockGoalLister{goals: []GoalEntry{
 			{
 				Name:   "init-1",
 				Title:  "Init 1",
@@ -261,13 +261,13 @@ func TestTopologyInitiativeRollup(t *testing.T) {
 
 	var found bool
 	for _, n := range resp.Nodes {
-		if n.Type != "Initiative" {
+		if n.Type != "Goal" {
 			continue
 		}
 		found = true
-		data, ok := n.Data.(GraphInitiativeNodeData)
+		data, ok := n.Data.(GraphGoalNodeData)
 		if !ok {
-			t.Fatalf("expected GraphInitiativeNodeData, got %T", n.Data)
+			t.Fatalf("expected GraphGoalNodeData, got %T", n.Data)
 		}
 		if data.Rollup.Total != 5 {
 			t.Errorf("expected total=5, got %v", data.Rollup.Total)
@@ -286,7 +286,7 @@ func TestTopologyInitiativeRollup(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Error("expected to find an Initiative node")
+		t.Error("expected to find a Goal node")
 	}
 }
 
@@ -310,11 +310,11 @@ func TestMatchesAcceptancePattern(t *testing.T) {
 	}
 }
 
-// TestComputeInitiativeRollup_NewStatuses asserts that in_review and
+// TestComputeMilestoneRollup_NewStatuses asserts that in_review and
 // review_pending items count as InProgress (they are still in flight from the
-// initiative's perspective), while needs_followup counts as Failed (it is a
+// milestone's perspective), while needs_followup counts as Failed (it is a
 // terminal state that needs more work).
-func TestComputeInitiativeRollup_NewStatuses(t *testing.T) {
+func TestComputeGoalRollup_NewStatuses(t *testing.T) {
 	items := []string{
 		"execute/a",
 		"execute/b",
@@ -329,7 +329,7 @@ func TestComputeInitiativeRollup_NewStatuses(t *testing.T) {
 		"execute/d": {Name: "d", Status: backlog.StatusCompleted},
 		"execute/e": {Name: "e", Status: backlog.StatusInProgress},
 	}
-	got := computeInitiativeRollup(items, itemByKey)
+	got := computeGoalRollup(items, itemByKey)
 
 	if got.Total != 5 {
 		t.Errorf("Total = %d, want 5", got.Total)

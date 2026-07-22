@@ -7,7 +7,7 @@ export const GRAPH_MODES = ["topology", "focus"] as const;
 export type AppGraphSurface = (typeof GRAPH_SURFACES)[number];
 export type GraphMode = (typeof GRAPH_MODES)[number];
 export type AppGraphLens = AppGraphSurface | "focus";
-export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "goal" | "capture" | "session";
+export type DetailEntityType = "backlog" | "scenario" | "execution" | "goal" | "capture" | "session";
 
 export interface DetailRouteTarget {
   entityType: DetailEntityType;
@@ -78,10 +78,6 @@ export function executionDetailPath(executionId: string, query?: QueryParams): s
   return appendQuery(`/executions/${enc(executionId)}`, query);
 }
 
-export function initiativeDetailPath(name: string, query?: QueryParams): string {
-	return appendQuery(`/initiatives/${enc(name)}`, query);
-}
-
 export function recordDetailPath(id: string, query?: QueryParams): string {
 	return appendQuery(`/records/${enc(id)}`, query);
 }
@@ -108,8 +104,6 @@ export function detailPath(target: DetailRouteTarget): string | null {
       return target.name ? scenarioDetailPath(target.name, target.tab ? { tab: target.tab } : undefined) : null;
     case "execution":
       return target.identifier ? executionDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
-    case "initiative":
-      return target.name ? initiativeDetailPath(target.name, target.tab ? { tab: target.tab } : undefined) : null;
     case "goal":
       return target.name ? goalDetailPath(target.name, target.tab ? { tab: target.tab } : undefined) : null;
     case "capture":
@@ -133,8 +127,6 @@ export function detailPathFromNodeId(nodeId: string): string | null {
       return parsed.name ? scenarioDetailPath(parsed.name) : null;
     case "execution":
       return executionDetailPath(parsed.identifier);
-    case "initiative":
-      return parsed.name ? initiativeDetailPath(parsed.name) : null;
     case "capture":
       return captureDetailPath(parsed.identifier);
     default:
@@ -150,8 +142,6 @@ export function routeTargetToNodeId(target: DetailRouteTarget): string | null {
       return target.name ? `scenario/${target.name}` : null;
     case "execution":
       return target.identifier ? `execution-record/${target.identifier}` : null;
-    case "initiative":
-      return target.name ? `initiative/${target.name}` : null;
     case "goal":
       return target.name ? `goal/${target.name}` : null;
     case "capture":

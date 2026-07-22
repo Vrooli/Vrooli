@@ -37,7 +37,7 @@ const MOCK_STATS: StatsResponse = {
     median_execution_minutes: 4.0,
     execution_duration_samples: 10,
   },
-  scope: { initiatives: [], max_dependency_depth: 0 },
+  scope: { goals: [], max_dependency_depth: 0 },
   blocking: { currently_blocked: 0, blocked_ratio: 0, top_reasons: [], avg_block_hours: 0 },
   agent: {
     total_executions: 10,
@@ -108,7 +108,7 @@ const MOCK_STATS: StatsResponse = {
     failed_session_rate: 0,
     failed_session_sample_size: 0,
     session_created_backlog_items: 0,
-    session_created_initiatives: 0,
+    session_created_goals: 0,
   },
 };
 

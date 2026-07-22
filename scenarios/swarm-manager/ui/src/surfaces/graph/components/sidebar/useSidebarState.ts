@@ -14,7 +14,6 @@ import {
   type BacklogFilters,
   type CaptureFilters,
   type ExecutionFilters,
-  type InitiativeFilters,
   type SessionFilters,
   type SidebarTab,
   type SortConfig,
@@ -98,10 +97,6 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
         captures: {
           statuses: restoreArray(filters.captures?.statuses),
         },
-        initiatives: {
-          statuses: restoreArray(filters.initiatives?.statuses),
-          showArchived: filters.initiatives?.showArchived === true,
-        },
         goals: {},
         executions: {
           statuses: restoreArray(filters.executions?.statuses),
@@ -118,7 +113,6 @@ function loadPersistedState(fallback: SidebarState): SidebarState {
       sorts: {
         backlog: restoreSort(sorts.backlog, DEFAULT_SORT.backlog),
         captures: restoreSort(sorts.captures, DEFAULT_SORT.captures),
-        initiatives: restoreSort(sorts.initiatives, DEFAULT_SORT.initiatives),
         goals: restoreSort(sorts.goals, DEFAULT_SORT.goals),
         executions: restoreSort(sorts.executions, DEFAULT_SORT.executions),
         sessions: restoreSort(sorts.sessions, DEFAULT_SORT.sessions),
@@ -148,7 +142,6 @@ type SidebarAction =
   | { type: "SET_SEARCH_MODE"; mode: SearchMode }
   | { type: "SET_BACKLOG_FILTERS"; filters: Partial<BacklogFilters> }
   | { type: "SET_CAPTURE_FILTERS"; filters: Partial<CaptureFilters> }
-  | { type: "SET_INITIATIVE_FILTERS"; filters: Partial<InitiativeFilters> }
   | { type: "SET_EXECUTION_FILTERS"; filters: Partial<ExecutionFilters> }
   | { type: "SET_SESSION_FILTERS"; filters: Partial<SessionFilters> }
   | { type: "SET_SORT"; tab: SidebarTab; sort: Partial<SortConfig> }
@@ -187,15 +180,6 @@ export function sidebarReducer(state: SidebarState, action: SidebarAction): Side
         filters: {
           ...state.filters,
           captures: { ...state.filters.captures, ...action.filters },
-        },
-      };
-
-    case "SET_INITIATIVE_FILTERS":
-      return {
-        ...state,
-        filters: {
-          ...state.filters,
-          initiatives: { ...state.filters.initiatives, ...action.filters },
         },
       };
 

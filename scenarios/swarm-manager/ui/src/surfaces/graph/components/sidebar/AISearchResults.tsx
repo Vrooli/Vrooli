@@ -1,7 +1,7 @@
 /**
  * AISearchResults - Sidebar panel shown when the search-mode toggle is in
  * "AI" mode. Calls POST /search/ai with the current debounced query and
- * renders scored results across backlog items and initiatives.
+ * renders scored results across backlog items and goals.
  *
  * When AI search is unavailable (Ollama/Qdrant down), this component is not
  * rendered; the parent hides the AI mode toggle via useAISearchStatus.
@@ -59,7 +59,7 @@ export function AISearchResults({ query, onItemClick }: AISearchResultsProps) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-8 text-sm text-slate-400">
         <Sparkles className="h-5 w-5" aria-hidden />
-        <div>Type to search semantically across backlog items and initiatives.</div>
+        <div>Type to search semantically across backlog items and goals.</div>
       </div>
     );
   }
@@ -119,7 +119,7 @@ function AISearchResultItem({ result, onItemClick }: AISearchResultItemProps) {
   const nodeId =
     result.entity === "backlog" && kind
       ? buildBacklogNodeId(kind, result.id)
-      : `initiative:${result.id}`;
+      : `goal:${result.id}`;
 
   return (
     <li>

@@ -63,7 +63,7 @@ const (
 	MeasureBacklogCompleted    = "backlog.completed"
 	MeasureBacklogCreated      = "backlog.created"
 	MeasureExecutionCompleted  = "execution.completed"
-	MeasureInitiativeCreated   = "initiative.created"
+	MeasureGoalCreated   = "goal.created"
 	MeasureAgentSessionCreated = "agent_session.created"
 )
 
@@ -112,16 +112,16 @@ func specs() []spec {
 		},
 		{
 			decl: windowDecl(
-				MeasureInitiativeCreated, "initiative", "CountInitiativesCreated",
-				"How many initiatives were created in a time window.",
+				MeasureGoalCreated, "goal", "CountGoalsCreated",
+				"How many goals were created in a time window.",
 				[]string{
-					"how many initiatives were created this week",
-					"new initiatives started last month",
-					"how many initiatives did we open this quarter",
+					"how many goals were created this week",
+					"new goals started last month",
+					"how many goals did we open this quarter",
 				},
-				"initiatives", "{count} initiatives created ({window})",
+				"goals", "{count} goals created ({window})",
 			),
-			compute: countEvents(eventlog.EventInitiativeCreated, "", false),
+			compute: countEvents(eventlog.EventGoalCreated, "", false),
 		},
 		{
 			decl: windowDecl(
@@ -329,12 +329,12 @@ func (h *Handler) CountExecutionsCompleted(ctx context.Context, req *connect.Req
 	return connect.NewResponse(&smmeasuresv1.CountExecutionsCompletedResponse{Count: n}), nil
 }
 
-func (h *Handler) CountInitiativesCreated(ctx context.Context, req *connect.Request[smmeasuresv1.CountInitiativesCreatedRequest]) (*connect.Response[smmeasuresv1.CountInitiativesCreatedResponse], error) {
-	n, err := h.count(ctx, MeasureInitiativeCreated, req.Msg.GetWindow())
+func (h *Handler) CountGoalsCreated(ctx context.Context, req *connect.Request[smmeasuresv1.CountGoalsCreatedRequest]) (*connect.Response[smmeasuresv1.CountGoalsCreatedResponse], error) {
+	n, err := h.count(ctx, MeasureGoalCreated, req.Msg.GetWindow())
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&smmeasuresv1.CountInitiativesCreatedResponse{Count: n}), nil
+	return connect.NewResponse(&smmeasuresv1.CountGoalsCreatedResponse{Count: n}), nil
 }
 
 func (h *Handler) CountAgentSessionsCreated(ctx context.Context, req *connect.Request[smmeasuresv1.CountAgentSessionsCreatedRequest]) (*connect.Response[smmeasuresv1.CountAgentSessionsCreatedResponse], error) {

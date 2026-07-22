@@ -82,17 +82,17 @@ describe("NodeInspectorPanel goal actions", () => {
     });
   });
 
-  it("can create a new goal for an initiative node", async () => {
-    const createdGoal = goal("new-goal", ["initiative/payments"]);
+  it("can create a new goal for an goal node", async () => {
+    const createdGoal = goal("new-goal", ["goal/payments"]);
     const create = vi.spyOn(goalsService, "create").mockResolvedValue(createdGoal);
     const node = {
-      id: "initiative/payments",
-      type: "initiative",
+      id: "goal/payments",
+      type: "goal",
       position: { x: 0, y: 0 },
       data: {
         label: "Payments",
-        entityType: "initiative",
-        rawType: "Initiative",
+        entityType: "goal",
+        rawType: "Goal",
         name: "payments",
         title: "Payments",
         status: "active",
@@ -106,7 +106,7 @@ describe("NodeInspectorPanel goal actions", () => {
     await userEvent.click(screen.getByTestId("set-as-goal-create"));
 
     await waitFor(() => {
-      expect(create).toHaveBeenCalledWith({ title: "Payments", targets: ["initiative/payments"] });
+      expect(create).toHaveBeenCalledWith({ title: "Payments", targets: ["goal/payments"] });
     });
   });
 
@@ -117,7 +117,7 @@ describe("NodeInspectorPanel goal actions", () => {
 
     expect(screen.queryByTestId("inspector-set-goal")).not.toBeInTheDocument();
     expect(screen.getByTestId("inspector-goal-unsupported")).toHaveTextContent(
-      "Goal targets are available for backlog items and initiatives.",
+      "Goal targets are available for backlog items and goals.",
     );
   });
 

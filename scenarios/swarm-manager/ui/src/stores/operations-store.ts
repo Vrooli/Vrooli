@@ -133,7 +133,7 @@ const initialState = {
   error: null as Error | null,
   lastRefreshedAt: null as number | null,
   filters: operationsStoreInitialFilters,
-  viewMode: "by-initiative" as OperationsViewMode,
+  viewMode: "by-milestone" as OperationsViewMode,
   selectionMode: false,
   selection: new Set<string>() as ReadonlySet<string>,
   stoppingRunIds: new Set<string>() as ReadonlySet<string>,

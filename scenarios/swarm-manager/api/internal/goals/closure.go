@@ -2,7 +2,6 @@ package goals
 
 import (
 	"sort"
-	"strings"
 
 	"swarm-manager/internal/depgraph"
 )
@@ -11,13 +10,11 @@ import (
 // progress. Kept as a literal so the goals package does not import backlog.
 const StatusCompleted = "completed"
 
-// ScopeInput carries the pure inputs for scope + gate computation. All refs are
-// "<kind>/<name>" for items and initiative names (bare) for initiatives.
+// ScopeInput carries the pure inputs for item-root scope computation.
 type ScopeInput struct {
-	// Targets are the goal's raw targets: "<kind>/<name>" or "initiative/<name>".
+	// Targets are the goal's raw item refs: "<kind>/<name>".
 	Targets []string
-	// ItemDeps maps every backlog item ref to its depends_on refs (item refs,
-	// or "initiative/<name>" for a mixed item→initiative dep).
+	// ItemDeps maps every backlog item ref to its depends_on item refs.
 	ItemDeps map[string][]string
 	// ItemStatus maps every backlog item ref to its backlog status. Membership
 	// in this map is the definition of "a known item".
@@ -25,46 +22,38 @@ type ScopeInput struct {
 	// ItemEffort maps every backlog item ref to its effort class (XS..XL, or ""
 	// when unsized). Read by the ETA rollup; absent from a ref means unsized.
 	ItemEffort map[string]string
-	// InitiativeItems maps an initiative name to its member item refs.
-	InitiativeItems map[string][]string
-	// InitiativeDeps maps an initiative name to the initiatives (or items, for
-	// mixed initiative→item deps) it depends on.
-	InitiativeDeps map[string][]string
+	// Milestones partitions the computed scope for read-time rollups only.
+	Milestones []Milestone
 }
 
 // Scope is the computed goal scope.
 type Scope struct {
-	Targets        []string `json:"targets"`
-	Closure        []string `json:"closure"`
-	Completed      []string `json:"completed"`
-	Ready          []string `json:"ready"`
-	Blocked        []string `json:"blocked"`
-	Total          int      `json:"total"`
-	CompletedCount int      `json:"completed_count"`
-	BlockedCount   int      `json:"blocked_count"`
-	ProgressPct    float64  `json:"progress_pct"`
+	Targets        []string         `json:"targets"`
+	Closure        []string         `json:"closure"`
+	Completed      []string         `json:"completed"`
+	Ready          []string         `json:"ready"`
+	Blocked        []string         `json:"blocked"`
+	Total          int              `json:"total"`
+	CompletedCount int              `json:"completed_count"`
+	BlockedCount   int              `json:"blocked_count"`
+	ProgressPct    float64          `json:"progress_pct"`
+	Milestones     []MilestoneScope `json:"milestones,omitempty"`
+	Unassigned     []string         `json:"unassigned,omitempty"`
 }
 
-// initiativeNode returns the graph node key for an initiative.
-func initiativeNode(name string) string { return InitiativeTargetPrefix + name }
+// MilestoneScope is the live status rollup for one goal-owned milestone.
+type MilestoneScope struct {
+	Milestone      Milestone `json:"milestone"`
+	Items          []string  `json:"items"`
+	CompletedCount int       `json:"completed_count"`
+	ReadyCount     int       `json:"ready_count"`
+	BlockedCount   int       `json:"blocked_count"`
+}
 
 // ComputeScope resolves a goal's transitive prerequisite closure, progress, and
-// gate-aware readiness. It is pure and cycle-safe.
-//
-// D1: initiative targets expand to member items; the closure walks item
-// depends_on; completed items count as done.
-// D2: initiative depends_on is a synthetic gate — every item in initiative A is
-// blocked until each initiative A depends on is complete (all its items done).
+// readiness. It is pure and cycle-safe.
 func ComputeScope(in ScopeInput) Scope {
-	// Expand targets to item roots (D1: initiative targets → member items).
-	var roots []string
-	for _, t := range in.Targets {
-		if IsInitiativeTarget(t) {
-			roots = append(roots, in.InitiativeItems[InitiativeName(t)]...)
-		} else {
-			roots = append(roots, t)
-		}
-	}
+	roots := append([]string(nil), in.Targets...)
 
 	// Build the item dependency graph over all known items and walk the
 	// transitive closure from the expanded roots.
@@ -90,17 +79,12 @@ func ComputeScope(in ScopeInput) Scope {
 	}
 	sort.Strings(closure)
 
-	// Build the gate-aware readiness graph over items, then fold in the D2
-	// initiative gate.
+	// Build the readiness graph over items.
 	graphMap := make(map[string][]string, len(in.ItemStatus))
 	completed := make(map[string]bool, len(in.ItemStatus))
 	for ref, status := range in.ItemStatus {
 		graphMap[ref] = in.ItemDeps[ref]
 		completed[ref] = status == StatusCompleted
-	}
-	initSatisfied := ApplyInitiativeGate(graphMap, func(k string) bool { return completed[k] }, in.InitiativeItems, in.InitiativeDeps)
-	for k, v := range initSatisfied {
-		completed[k] = v
 	}
 
 	gateGraph := depgraph.New()
@@ -111,6 +95,11 @@ func ComputeScope(in ScopeInput) Scope {
 	for _, ref := range gateGraph.UnblockedItems(completed) {
 		unblocked[ref] = true
 	}
+	// A milestone dependency is a goal-owned gate: an item assigned to a
+	// milestone cannot become ready until every predecessor milestone is
+	// complete. This keeps milestone sequencing in the item graph without
+	// inventing a second top-level work entity.
+	applyMilestoneGate(unblocked, completed, in.Milestones)
 
 	scope := Scope{Targets: append([]string(nil), in.Targets...), Closure: closure}
 	for _, ref := range closure {
@@ -129,67 +118,85 @@ func ComputeScope(in ScopeInput) Scope {
 	if scope.Total > 0 {
 		scope.ProgressPct = float64(scope.CompletedCount) / float64(scope.Total) * 100.0
 	}
+	populateMilestonePartition(&scope, in.Milestones)
 	return scope
 }
 
-// ApplyInitiativeGate augments an item dependency graph in place with the D2
-// initiative gate: every member item inherits its initiative's dependencies,
-// and a synthetic "initiative/<name>" node is added per initiative (deps =
-// member items + the initiative's dependencies). It returns the initiative-node
-// satisfied set (an initiative is satisfied iff all its member items are
-// satisfied) so callers can extend their readiness predicate.
-//
-// itemSatisfied reports whether an item ref is already done (completed/archived
-// per the caller's policy). Only initiatives with dependencies add edges to
-// member items, so an item graph with no gated initiatives is unchanged apart
-// from the added initiative nodes (which callers that render only items ignore).
-func ApplyInitiativeGate(graph map[string][]string, itemSatisfied func(string) bool, initiativeItems, initiativeDeps map[string][]string) map[string]bool {
-	if itemSatisfied == nil {
-		itemSatisfied = func(string) bool { return false }
-	}
-	itemInitiative := make(map[string]string, len(graph))
-	for name, members := range initiativeItems {
-		for _, m := range members {
-			itemInitiative[m] = name
-		}
-	}
-	// Each member item inherits its initiative's dependencies (the gate).
-	for ref, owner := range itemInitiative {
-		deps := initiativeDeps[owner]
-		if len(deps) == 0 {
+func applyMilestoneGate(unblocked, completed map[string]bool, milestones []Milestone) {
+	byName := make(map[string]Milestone, len(milestones))
+	completedMilestones := make(map[string]bool, len(milestones))
+	for _, milestone := range milestones {
+		if milestone.ArchivedAt != nil {
 			continue
 		}
-		for _, d := range deps {
-			graph[ref] = append(graph[ref], NormalizeInitiativeDepRef(d))
-		}
-	}
-	// Add a synthetic node per initiative and compute its satisfied state.
-	initSatisfied := make(map[string]bool, len(initiativeItems))
-	for name, members := range initiativeItems {
-		node := initiativeNode(name)
-		deps := append([]string(nil), members...)
-		for _, d := range initiativeDeps[name] {
-			deps = append(deps, NormalizeInitiativeDepRef(d))
-		}
-		graph[node] = deps
-		complete := true
-		for _, m := range members {
-			if !itemSatisfied(m) {
-				complete = false
+		byName[milestone.Name] = milestone
+		done := len(milestone.Items) > 0
+		for _, ref := range milestone.Items {
+			if !completed[ref] {
+				done = false
 				break
 			}
 		}
-		initSatisfied[node] = complete
+		completedMilestones[milestone.Name] = done
 	}
-	return initSatisfied
+	for _, milestone := range byName {
+		for _, dependency := range milestone.DependsOn {
+			if completedMilestones[dependency] {
+				continue
+			}
+			for _, ref := range milestone.Items {
+				delete(unblocked, ref)
+			}
+			break
+		}
+	}
 }
 
-// NormalizeInitiativeDepRef normalizes an initiative dependency ref. A bare
-// name is an initiative ("initiative/<name>"); a ref already containing "/" is
-// treated as a direct node (an item, for a mixed initiative→item dep).
-func NormalizeInitiativeDepRef(ref string) string {
-	if strings.Contains(ref, "/") {
-		return ref
+func populateMilestonePartition(scope *Scope, milestones []Milestone) {
+	if len(milestones) == 0 {
+		return
 	}
-	return initiativeNode(ref)
+	inScope := make(map[string]bool, len(scope.Closure))
+	completed := make(map[string]bool, len(scope.Completed))
+	ready := make(map[string]bool, len(scope.Ready))
+	blocked := make(map[string]bool, len(scope.Blocked))
+	assigned := make(map[string]bool, len(scope.Closure))
+	for _, ref := range scope.Closure {
+		inScope[ref] = true
+	}
+	for _, ref := range scope.Completed {
+		completed[ref] = true
+	}
+	for _, ref := range scope.Ready {
+		ready[ref] = true
+	}
+	for _, ref := range scope.Blocked {
+		blocked[ref] = true
+	}
+	for _, milestone := range milestones {
+		rollup := MilestoneScope{Milestone: milestone, Items: []string{}}
+		for _, ref := range milestone.Items {
+			if !inScope[ref] || assigned[ref] {
+				continue
+			}
+			assigned[ref] = true
+			rollup.Items = append(rollup.Items, ref)
+			if completed[ref] {
+				rollup.CompletedCount++
+			}
+			if ready[ref] {
+				rollup.ReadyCount++
+			}
+			if blocked[ref] {
+				rollup.BlockedCount++
+			}
+		}
+		sort.Strings(rollup.Items)
+		scope.Milestones = append(scope.Milestones, rollup)
+	}
+	for _, ref := range scope.Closure {
+		if !assigned[ref] {
+			scope.Unassigned = append(scope.Unassigned, ref)
+		}
+	}
 }

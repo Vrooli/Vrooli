@@ -145,8 +145,8 @@ func TestGoalScopedStatsAggregateClosureOnly(t *testing.T) {
 	if scoped.Agent.TotalExecutions != 1 || scoped.Agent.CompletedCount != 1 || scoped.Agent.FollowUpRate != 1 {
 		t.Fatalf("agent = %+v, want only scoped execution", scoped.Agent)
 	}
-	if len(scoped.Scope.Initiatives) != 1 || scoped.Scope.Initiatives[0].Name != "init-scope" || scoped.Scope.Initiatives[0].Blocked != 1 {
-		t.Fatalf("scope initiatives = %+v, want only blocked init-scope", scoped.Scope.Initiatives)
+	if len(scoped.Scope.Goals) != 1 || scoped.Scope.Goals[0].Name != "init-scope" || scoped.Scope.Goals[0].Blocked != 1 {
+		t.Fatalf("scope goals = %+v, want only blocked init-scope", scoped.Scope.Goals)
 	}
 	if scoped.Records.TotalRecords != 1 || scoped.Records.WithBacklogRef != 1 {
 		t.Fatalf("records = %+v, want only scoped record", scoped.Records)
@@ -251,7 +251,7 @@ func TestEmptyEngine(t *testing.T) {
 		t.Fatalf("unmarshal stats: %v", err)
 	}
 	assertJSONArrayField(t, payload, "blocking", "top_reasons")
-	assertJSONArrayField(t, payload, "scope", "initiatives")
+	assertJSONArrayField(t, payload, "scope", "goals")
 	assertJSONArrayField(t, payload, "dashboard", "velocity_trend")
 }
 

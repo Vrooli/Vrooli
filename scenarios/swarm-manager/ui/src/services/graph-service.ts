@@ -15,7 +15,7 @@ import type {
   GraphEntityType,
   GraphLens,
   GraphNode,
-  InitiativeRollupData,
+  GoalRollupData,
 } from "../surfaces/graph/types";
 
 export interface GraphProjectionMeta {
@@ -48,7 +48,7 @@ const NODE_TYPE_MAP: Record<string, GraphEntityType> = {
   AgentActivity: "agent-activity",
   Capture: "capture",
   Run: "agent-run",
-  Initiative: "initiative",
+	Goal: "goal",
 };
 
 function truncate(value: string, maxLength: number): string {
@@ -65,7 +65,7 @@ function mapRollup(proto?: {
   inProgress: number;
   failed: number;
   pending: number;
-}): InitiativeRollupData {
+}): GoalRollupData {
   return {
     total: proto?.total ?? 0,
     completed: proto?.completed ?? 0,
@@ -118,20 +118,20 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
         },
       };
     }
-    case "initiative": {
-      const initiative = data.value.value;
+	case "goal": {
+		const goal = data.value.value;
       return {
         id: raw.id,
         type: entityType,
         position,
         data: {
-          entityType: "initiative",
-          rawType: "Initiative",
-          label: initiative.title || initiative.name || raw.id,
-          name: initiative.name,
-          title: initiative.title,
-          status: initiative.status,
-          rollup: mapRollup(initiative.rollup),
+          entityType: "goal",
+          rawType: "Goal",
+          label: goal.title || goal.name || raw.id,
+          name: goal.name,
+          title: goal.title,
+          status: goal.status,
+          rollup: mapRollup(goal.rollup),
         },
       };
     }

@@ -111,8 +111,8 @@ describe("buildOperationsQuery", () => {
   });
 
   it("renames ownerTypes to owner_type", () => {
-    expect(buildOperationsQuery({ ownerTypes: ["initiative"] })).toBe(
-      "?owner_type=initiative",
+    expect(buildOperationsQuery({ ownerTypes: ["milestone"] })).toBe(
+      "?owner_type=milestone",
     );
   });
 });
@@ -130,7 +130,7 @@ describe("createOperationsService.fetchOperations", () => {
       {
         activity_id: "a-1",
         run_id: "run-1",
-        owner_type: "initiative",
+        owner_type: "milestone",
         owner_name: "auth-rewrite",
         owner_title: "Auth Rewrite",
         purpose: "process",
@@ -140,7 +140,7 @@ describe("createOperationsService.fetchOperations", () => {
         mode: "holistic-loop",
         phase: "execute",
         round: 4,
-        initiative_name: "auth-rewrite",
+        milestone_name: "auth-rewrite",
         requested_at: "2026-05-02T01:00:00Z",
         started_at: "2026-05-02T01:00:01Z",
         runtime_seconds: 180,
@@ -178,13 +178,13 @@ describe("createOperationsService.fetchOperations", () => {
     expect(view.activities[0]).toMatchObject({
       activityId: "a-1",
       runId: "run-1",
-      ownerType: "initiative",
+      ownerType: "milestone",
       ownerTitle: "Auth Rewrite",
       phaseKind: "execute",
       lane: "execute",
       mode: "holistic-loop",
       round: 4,
-      initiativeName: "auth-rewrite",
+      milestoneName: "auth-rewrite",
       runtimeSeconds: 180,
     });
     expect(view.recentlyFinished[0]?.finishedAt).toBe("2026-05-02T00:35:00Z");
@@ -259,7 +259,7 @@ describe("createOperationsService.fetchBriefing", () => {
           saturated_lanes: ["execute"],
           active_lane_count_by_lane: { execute: 2 },
           total_backlog_items: 42,
-          active_initiatives: 7,
+          active_goals: 7,
           blocked_items: 1,
           active_sessions: 3,
         },

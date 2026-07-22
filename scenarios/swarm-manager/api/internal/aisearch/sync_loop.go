@@ -57,8 +57,8 @@ func (s *SyncLoop) RunOnce(ctx context.Context) (*DriftReport, *ApplyResult, err
 		slog.Info("[aisearch] sync_loop: reconcile applied",
 			"upserts", plan.UpsertCount(),
 			"deletes", plan.DeleteCount(),
-			"unchanged", plan.UnchangedBacklog+plan.UnchangedInitiative,
-			"legacy", plan.LegacyBacklog+plan.LegacyInitiative,
+			"unchanged", plan.UnchangedBacklog+plan.UnchangedGoal,
+			"legacy", plan.LegacyBacklog+plan.LegacyGoal,
 		)
 	}
 	return plan, result, nil

@@ -32,7 +32,7 @@ export interface StarterSuggestion {
   requirements?: SuggestionRequirement[];
   /**
    * Non-gating soft count to surface even though the card has no required
-   * context (e.g. "12 active initiatives"). Never disables the card.
+   * context (e.g. "12 active goals"). Never disables the card.
    */
   softCountType?: AgentSessionContextType;
   /**
@@ -86,8 +86,8 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
         {
           id: "operations-review",
           icon: Gauge,
-          text: "Review active initiatives and recommend the top next action.",
-          softCountType: "initiative",
+          text: "Review active goals and recommend the top next action.",
+          softCountType: "goal",
         },
         {
           id: "operations-decisions",
@@ -107,20 +107,20 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           ],
         },
         {
-          id: "operations-initiative",
+          id: "operations-goal",
           icon: Layers,
-          text: "Assess an initiative and recommend its next registered transition.",
+          text: "Assess a goal and recommend its next registered transition.",
           contextText: (title) => `Assess "${title}" and recommend its next registered transition.`,
-          requirements: [{ kind: "context", type: "initiative" }],
+          requirements: [{ kind: "context", type: "goal" }],
         },
         {
           id: "operations-triage-staleness",
           icon: GitPullRequestArrow,
           text: "Triage the attached items for staleness.",
-          detail: "Attach a few items or initiatives; you control token spend. The agent proposes changes and never applies them.",
+          detail: "Attach a few items or goals; you control token spend. The agent proposes changes and never applies them.",
           requirements: [
             { kind: "context", type: "backlog_item", optional: true },
-            { kind: "context", type: "initiative", optional: true },
+            { kind: "context", type: "goal", optional: true },
           ],
         },
       ];
@@ -141,8 +141,8 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
 			{
 				id: "workflow-author-scenario",
 				icon: Layers,
-				text: "Design a workflow for a scenario or initiative.",
-				requirements: [{ kind: "context", type: "scenario", optional: true }, { kind: "context", type: "initiative", optional: true }],
+				text: "Design a workflow for a scenario or goal.",
+				requirements: [{ kind: "context", type: "scenario", optional: true }, { kind: "context", type: "goal", optional: true }],
 			},
 		];
     case "meta_orchestration":
@@ -151,7 +151,7 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
         {
           id: "meta-plan",
           icon: Workflow,
-          text: "Turn this idea into initiatives and backlog items.",
+          text: "Turn this idea into goals and backlog items.",
         },
         {
           id: "meta-existing",
@@ -159,7 +159,7 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           text: "Inspect existing Swarm context first, then propose a plan.",
           contextText: (title) => `Inspect "${title}" and related Swarm context first, then propose a plan.`,
           requirements: [
-            { kind: "context", type: "initiative", optional: true },
+            { kind: "context", type: "goal", optional: true },
             { kind: "context", type: "scenario", optional: true },
           ],
         },
@@ -231,14 +231,14 @@ export function attachStarterSuggestions(
     })
     .sort((a, b) => Number(b.specific) - Number(a.specific));
 
-  if (option.type !== "initiative" && option.type !== "backlog_item") return generic;
+  if (option.type !== "goal" && option.type !== "backlog_item") return generic;
   const entityLabel = title;
-  const proposalActions: AttachStarterSuggestion[] = option.type === "initiative"
+  const proposalActions: AttachStarterSuggestion[] = option.type === "goal"
     ? [
       { id: "proposal-split", prefix: "Split oversized items in", group: "Shape", detail: "Propose smaller, independently reviewable work." },
       { id: "proposal-merge", prefix: "Merge tightly coupled items in", group: "Shape", detail: "Propose a safer combined work item where boundaries are artificial." },
-      { id: "proposal-identify-missing", prefix: "Identify missing work for", group: "Discover", detail: "Find necessary work that the current initiative does not cover." },
-      { id: "proposal-reconcile", prefix: "Reconcile this initiative with code drift:", group: "Reconcile", detail: "Compare recorded intent with the repository and propose corrections." },
+      { id: "proposal-identify-missing", prefix: "Identify missing work for", group: "Discover", detail: "Find necessary work that the current goal does not cover." },
+      { id: "proposal-reconcile", prefix: "Reconcile this goal with code drift:", group: "Reconcile", detail: "Compare recorded intent with the repository and propose corrections." },
       { id: "proposal-reframe", prefix: "Reframe the scope and outcomes for", group: "Shape", detail: "Propose a clearer goal, boundaries, and success criteria." },
     ].map(({ id, prefix, group, detail }) => ({ id, icon: GitPullRequestArrow, text: `${prefix} "${entityLabel}".`, group: group as AttachStarterSuggestion["group"], detail, specific: true, proposalFlavor: "mutation_list" }))
     : [

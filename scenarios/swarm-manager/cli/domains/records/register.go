@@ -22,7 +22,7 @@ const recordsCreateHelpText = `Flags:
   --commit SHA        Commit that shipped the work
   --files PATH        Repo-relative file touched (repeatable)
   --backlog-ref k/n   Backlog item this work closes (kind/name)
-  --initiative-id ID  Initiative this work belongs to
+  --milestone-id ID  Milestone this work belongs to
   --supersedes ID     Record this one amends/replaces
   --outcome O         shipped (default) | partial | abandoned | duplicate
   --created-by ID     Author identifier (agent id or human)

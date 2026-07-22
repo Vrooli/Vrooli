@@ -29,7 +29,7 @@ func readRepoFile(t *testing.T, root, rel string) string {
 	return string(data)
 }
 
-func TestAuthoritativeDocsRejectLegacyScopeAndBatchInitiativeFlag(t *testing.T) {
+func TestAuthoritativeDocsRejectLegacyScopeAndBatchMilestoneFlag(t *testing.T) {
 	root := repoRootFromContractDocsTest(t)
 
 	files := []string{
@@ -44,8 +44,8 @@ func TestAuthoritativeDocsRejectLegacyScopeAndBatchInitiativeFlag(t *testing.T) 
 			t.Fatalf("%s still contains legacy backlog scope examples", rel)
 		}
 		for _, line := range strings.Split(content, "\n") {
-			if strings.Contains(line, "backlog batch-create") && strings.Contains(line, "--initiative") {
-				t.Fatalf("%s still teaches the legacy backlog batch-create --initiative flag", rel)
+			if strings.Contains(line, "backlog batch-create") && strings.Contains(line, "--milestone") {
+				t.Fatalf("%s still teaches the legacy backlog batch-create --milestone flag", rel)
 			}
 		}
 	}
@@ -58,7 +58,7 @@ func TestAuthoritativeDocsDescribeCanonicalBacklogImport(t *testing.T) {
 	for _, required := range []string{
 		"acceptance_allow",
 		"acceptance_deny",
-		`"initiatives": [`,
+		`"milestones": [`,
 		"--preview",
 		"orchestration-summary.md",
 	} {
@@ -72,7 +72,7 @@ func TestAuthoritativeDocsDescribeCanonicalBacklogImport(t *testing.T) {
 		"acceptance_allow",
 		"acceptance_deny",
 		"--preview",
-		`"initiative": "release-control"`,
+		"goals targets-add",
 	} {
 		if !strings.Contains(backlogTools, required) {
 			t.Fatalf("backlog-tools skill missing %q", required)

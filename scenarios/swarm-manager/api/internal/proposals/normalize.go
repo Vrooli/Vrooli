@@ -55,7 +55,7 @@ func normalizeMutationList(p Proposal) Proposal {
 		m.Target = strings.TrimSpace(m.Target)
 		m.From = strings.TrimSpace(m.From)
 		m.To = strings.TrimSpace(m.To)
-		m.Initiative = strings.TrimSpace(m.Initiative)
+		m.Milestone = strings.TrimSpace(m.Milestone)
 		m.Status = strings.ToLower(strings.TrimSpace(m.Status))
 		if len(m.Sources) > 0 {
 			cleaned := make([]string, 0, len(m.Sources))

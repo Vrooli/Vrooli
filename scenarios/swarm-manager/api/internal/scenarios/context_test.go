@@ -7,25 +7,25 @@ import (
 	"testing"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 
 	"github.com/gorilla/mux"
 )
 
-// stubInitiativesLister returns a canned list of initiatives for context tests.
-type stubInitiativesLister struct {
-	items []initiatives.InitiativeWithRollup
+// stubGoalsLister returns canned derived goal scopes for context tests.
+type stubGoalsLister struct {
+	items []goals.GoalWithScope
 	err   error
 }
 
-func (s stubInitiativesLister) List() ([]initiatives.InitiativeWithRollup, error) {
+func (s stubGoalsLister) List() ([]goals.GoalWithScope, error) {
 	return s.items, s.err
 }
 
-func newContextTestHandler(backlogItems []backlog.BacklogItem, inits []initiatives.InitiativeWithRollup) *Handler {
+func newContextTestHandler(backlogItems []backlog.BacklogItem, goalList []goals.GoalWithScope) *Handler {
 	h := NewHandler("")
 	h.SetBacklogLister(stubBacklogLister{items: backlogItems})
-	h.SetInitiativesLister(stubInitiativesLister{items: inits})
+	h.SetGoalsLister(stubGoalsLister{items: goalList})
 	return h
 }
 
@@ -45,53 +45,34 @@ func getContext(t *testing.T, h *Handler, name string) ScenarioContext {
 	return ctx
 }
 
-func TestGetContext_ReturnsInitiativesOrphansAndRollup(t *testing.T) {
-	inits := []initiatives.InitiativeWithRollup{
-		{
-			Initiative:      initiatives.Initiative{Name: "audio-platform", Title: "Audio", Status: "active"},
-			Rollup:          initiatives.RollupStatus{Total: 3, Completed: 1, Pending: 2},
-			TargetScenarios: []string{"web-console"},
-		},
-		{
-			Initiative:      initiatives.Initiative{Name: "other-init", Title: "Other", Status: "active"},
-			Rollup:          initiatives.RollupStatus{Total: 2, Completed: 0, Pending: 2},
-			TargetScenarios: []string{"command-center"},
-		},
-	}
+func TestGetContext_ReturnsGoalsOrphansAndRollup(t *testing.T) {
+	goalList := []goals.GoalWithScope{{Goal: goals.Goal{Name: "audio-platform", Title: "Audio", Status: goals.StatusActive}, Scope: goals.Scope{Closure: []string{"fix/assigned-b"}}}}
 	items := []backlog.BacklogItem{
 		// Orphan targeting web-console.
 		makeItem("orphan-a", backlog.KindExecute, backlog.StatusBacklog, []string{"web-console"}, nil),
-		// Assigned to an initiative — should NOT appear as orphan.
+		// Included by a goal closure — should NOT appear as orphan.
 		{
 			Name: "assigned-b", Kind: backlog.KindFix, Status: backlog.StatusBacklog,
-			Initiative:      "audio-platform",
 			AcceptanceAllow: []string{"scenarios/web-console/**"},
 		},
 		// Orphan targeting different scenario — should be excluded.
 		makeItem("orphan-c", backlog.KindIdea, backlog.StatusBacklog, []string{"command-center"}, nil),
 	}
-	h := newContextTestHandler(items, inits)
+	h := newContextTestHandler(items, goalList)
 
 	ctx := getContext(t, h, "web-console")
 
 	if ctx.ScenarioName != "web-console" {
 		t.Errorf("scenario_name = %q, want web-console", ctx.ScenarioName)
 	}
-	if len(ctx.Initiatives) != 1 || ctx.Initiatives[0].Initiative.Name != "audio-platform" {
-		t.Errorf("initiatives = %+v, want [audio-platform]", ctx.Initiatives)
+	if len(ctx.Goals) != 1 || ctx.Goals[0].Name != "audio-platform" {
+		t.Errorf("goals = %+v, want [audio-platform]", ctx.Goals)
 	}
 	if len(ctx.OrphanItems) != 1 || ctx.OrphanItems[0].Name != "orphan-a" {
 		t.Errorf("orphan_items = %+v, want [orphan-a]", ctx.OrphanItems)
 	}
-	// Rollup = initiative rollup (3/1/0/0/2) + orphan (1 pending)
-	if ctx.Rollup.Total != 4 {
-		t.Errorf("rollup.Total = %d, want 4", ctx.Rollup.Total)
-	}
-	if ctx.Rollup.Completed != 1 {
-		t.Errorf("rollup.Completed = %d, want 1", ctx.Rollup.Completed)
-	}
-	if ctx.Rollup.Pending != 3 {
-		t.Errorf("rollup.Pending = %d, want 3", ctx.Rollup.Pending)
+	if ctx.Rollup.Total != 2 || ctx.Rollup.Pending != 2 {
+		t.Errorf("rollup = %+v, want two pending items", ctx.Rollup)
 	}
 }
 
@@ -103,8 +84,8 @@ func TestGetContext_EmptyScenario_ReturnsWellFormedEmpty(t *testing.T) {
 	if ctx.ScenarioName != "no-such-scenario" {
 		t.Errorf("scenario_name = %q, want no-such-scenario", ctx.ScenarioName)
 	}
-	if len(ctx.Initiatives) != 0 {
-		t.Errorf("expected empty initiatives, got %d", len(ctx.Initiatives))
+	if len(ctx.Goals) != 0 {
+		t.Errorf("expected empty goals, got %d", len(ctx.Goals))
 	}
 	if len(ctx.OrphanItems) != 0 {
 		t.Errorf("expected empty orphans, got %d", len(ctx.OrphanItems))
@@ -175,11 +156,10 @@ func TestGetContext_FixHistory_ActiveAndArchivedPartitioned(t *testing.T) {
 			AcceptanceAllow: []string{"scenarios/web-console/**"},
 			ArchivedAt:      &archived,
 		},
-		// Active fix in an initiative — must still appear in fixes.
+		// Active fix in a goal — must still appear in fixes.
 		{
 			Name: "fix-in-init", Title: "In initiative", Kind: backlog.KindFix,
 			Status: backlog.StatusBacklog, Priority: 3, Updated: "2026-04-23T10:00:00Z",
-			Initiative:      "audio-platform",
 			AcceptanceAllow: []string{"scenarios/web-console/**"},
 		},
 		// Non-fix kind targeting same scenario — must NOT appear in fixes.
@@ -200,8 +180,8 @@ func TestGetContext_FixHistory_ActiveAndArchivedPartitioned(t *testing.T) {
 	if ctx.Fixes.Active[0].Name != "fix-in-init" {
 		t.Errorf("active[0] = %q, want fix-in-init (highest priority first)", ctx.Fixes.Active[0].Name)
 	}
-	if ctx.Fixes.Active[0].Initiative != "audio-platform" {
-		t.Errorf("initiative not surfaced on fix: %+v", ctx.Fixes.Active[0])
+	if ctx.Fixes.Active[0].Goal != "" {
+		t.Errorf("unexpected goal attribution without a goal closure: %+v", ctx.Fixes.Active[0])
 	}
 	if ctx.Fixes.Active[1].Name != "fix-orphan-active" {
 		t.Errorf("active[1] = %q, want fix-orphan-active", ctx.Fixes.Active[1].Name)
@@ -233,53 +213,16 @@ func TestGetContext_FixHistory_EmptyWhenNoFixes(t *testing.T) {
 	}
 }
 
-func TestGetContext_InitiativesRollupAggregatesAllFields(t *testing.T) {
-	inits := []initiatives.InitiativeWithRollup{
-		{
-			Initiative: initiatives.Initiative{Name: "one", Status: "active"},
-			Rollup: initiatives.RollupStatus{
-				Total:      5,
-				Completed:  2,
-				InProgress: 1,
-				Failed:     0,
-				Pending:    2,
-				Archived:   1,
-			},
-			TargetScenarios: []string{"target"},
-		},
-		{
-			Initiative: initiatives.Initiative{Name: "two", Status: "active"},
-			Rollup: initiatives.RollupStatus{
-				Total:      3,
-				Completed:  1,
-				InProgress: 0,
-				Failed:     1,
-				Pending:    1,
-				Archived:   0,
-			},
-			TargetScenarios: []string{"target"},
-		},
+func TestGetContext_GoalRollupAggregatesItemStates(t *testing.T) {
+	archived := "2026-01-01T00:00:00Z"
+	items := []backlog.BacklogItem{
+		{Name: "done", Kind: backlog.KindExecute, Status: backlog.StatusCompleted, AcceptanceAllow: []string{"scenarios/target/**"}},
+		{Name: "working", Kind: backlog.KindExecute, Status: backlog.StatusInProgress, AcceptanceAllow: []string{"scenarios/target/**"}},
+		{Name: "failed", Kind: backlog.KindExecute, Status: backlog.StatusFailed, AcceptanceAllow: []string{"scenarios/target/**"}, ArchivedAt: &archived},
 	}
-	h := newContextTestHandler(nil, inits)
-
-	ctx := getContext(t, h, "target")
-
-	if ctx.Rollup.Total != 8 {
-		t.Errorf("Total = %d, want 8", ctx.Rollup.Total)
-	}
-	if ctx.Rollup.Completed != 3 {
-		t.Errorf("Completed = %d, want 3", ctx.Rollup.Completed)
-	}
-	if ctx.Rollup.InProgress != 1 {
-		t.Errorf("InProgress = %d, want 1", ctx.Rollup.InProgress)
-	}
-	if ctx.Rollup.Failed != 1 {
-		t.Errorf("Failed = %d, want 1", ctx.Rollup.Failed)
-	}
-	if ctx.Rollup.Pending != 3 {
-		t.Errorf("Pending = %d, want 3", ctx.Rollup.Pending)
-	}
-	if ctx.Rollup.Archived != 1 {
-		t.Errorf("Archived = %d, want 1", ctx.Rollup.Archived)
+	goalList := []goals.GoalWithScope{{Goal: goals.Goal{Name: "one", Status: goals.StatusActive}, Scope: goals.Scope{Closure: []string{"execute/done", "execute/working", "execute/failed"}}}}
+	ctx := getContext(t, newContextTestHandler(items, goalList), "target")
+	if ctx.Rollup.Total != 3 || ctx.Rollup.Completed != 1 || ctx.Rollup.InProgress != 1 || ctx.Rollup.Failed != 1 || ctx.Rollup.Archived != 1 {
+		t.Errorf("rollup = %+v", ctx.Rollup)
 	}
 }

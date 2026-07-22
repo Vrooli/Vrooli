@@ -87,7 +87,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) backlogItemFromCreateRequest(w http.ResponseWriter, r *http.Request, req *apipb.CreateBacklogItemRequest) (BacklogItem, bool) {
 	prov := identity.FromContext(r.Context())
-	item, err := buildItemFromCreateRequest(req, prov, h.validateInitiativeReference)
+	item, err := buildItemFromCreateRequest(req, prov, h.validateMilestoneReference)
 	if err != nil {
 		var ve *CreateValidationError
 		if errors.As(err, &ve) {
@@ -118,13 +118,13 @@ func mapCreateError(w http.ResponseWriter, err error) {
 
 // creationService builds a backlog.Service per call from Handler's
 // current dependencies. Constructed inline so late-bound setters
-// (SetInitiativeAssigner, SetEventLogger) are picked up without
+// (SetMilestoneAssigner, SetEventLogger) are picked up without
 // requiring a separate sync step. The Service is the single chokepoint
 // for item creation; HTTP callers MUST go through it.
 func (h *Handler) creationService() *Service {
 	cfg := ServiceConfig{
 		Store:        h.store,
-		Assigner:     h.initiativeAssigner,
+		Assigner:     h.milestoneAssigner,
 		Invalidator:  graphInvalidatorFunc(h.invalidateAllGraphLenses),
 		CycleChecker: CycleCheckerFunc(h.checkDependencyCycles),
 	}

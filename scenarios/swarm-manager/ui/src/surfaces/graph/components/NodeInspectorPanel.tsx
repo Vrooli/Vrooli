@@ -15,7 +15,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ExternalLink, Play, Target } from "lucide-react";
 import { FocusActionsSection } from "./FocusActionsSection";
 import { SetAsGoalDialog } from "../../../components/goals/SetAsGoalDialog";
-import { backlogGoalTarget, initiativeGoalTarget, type GoalTarget } from "../../../components/goals/goal-target";
+import { backlogGoalTarget, type GoalTarget } from "../../../components/goals/goal-target";
 import { cn } from "../../../lib/utils";
 import { useNodeGoalBadges } from "../hooks/useGoalMembership";
 import { StatusBadge } from "../../../components/detail/StatusBadge";
@@ -35,7 +35,7 @@ import {
   BACKLOG_LENSES,
   SCENARIO_LENSES,
   EXECUTION_LENSES,
-  INITIATIVE_LENSES,
+  GOAL_LENSES,
 } from "../../../components/detail/lens-options";
 import type { LensOption } from "../../../components/detail/lens-options";
 import {
@@ -44,7 +44,7 @@ import {
   type GraphEntityType,
   type GraphNodeData,
   type BacklogGraphNodeData,
-  type InitiativeGraphNodeData,
+  type GoalGraphNodeData,
 } from "../types";
 import { detailPathFromNodeId, graphPath } from "../../../app/routes/route-paths";
 
@@ -56,8 +56,8 @@ function getLensesForEntity(entityType: GraphEntityType): LensOption[] {
       return SCENARIO_LENSES;
     case "execution":
       return EXECUTION_LENSES;
-    case "initiative":
-      return INITIATIVE_LENSES;
+    case "goal":
+      return GOAL_LENSES;
     default:
       return [];
   }
@@ -77,8 +77,8 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
         </div>
       );
     }
-    case "initiative": {
-      const d = data as InitiativeGraphNodeData;
+    case "goal": {
+      const d = data as GoalGraphNodeData;
       const { rollup } = d;
       if (!rollup || rollup.total === 0) return null;
       const pct = Math.round((rollup.completed / rollup.total) * 100);
@@ -147,16 +147,12 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
 const FALLBACK_INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight - 300 };
 
 /**
- * goalTargetForNode maps a backlog or initiative node to a goal target ref
- * ("<kind>/<name>" for items, "initiative/<name>" for initiatives). Other node
+ * goalTargetForNode maps a backlog node to its item target ref. Other node
  * types cannot be goal targets and return null.
  */
 function goalTargetForNode(data: GraphNodeData): GoalTarget | null {
   if (data.entityType === "backlog" && data.rawType === "BacklogItem") {
     return backlogGoalTarget(data);
-  }
-  if (data.entityType === "initiative" && data.rawType === "Initiative") {
-    return initiativeGoalTarget(data);
   }
   return null;
 }
@@ -389,7 +385,7 @@ export function NodeInspectorPanel() {
         )}
         {!goalTarget && (
           <p className="border-t border-white/10 pt-3 text-xs text-slate-500" data-testid="inspector-goal-unsupported">
-            Goal targets are available for backlog items and initiatives.
+            Goal targets are available for backlog items and goals.
           </p>
         )}
       </div>

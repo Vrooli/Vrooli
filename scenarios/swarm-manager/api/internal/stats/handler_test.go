@@ -159,8 +159,8 @@ func TestGetStatsIncludesAgentSessionMetrics(t *testing.T) {
 	if got := resp.Session.ProposalApplyRateByKind["meta_orchestration"]; got.Rate != 1 || got.SampleSize != 1 {
 		t.Fatalf("apply rate = %+v, want rate=1 sample=1", got)
 	}
-	if resp.Session.SessionCreatedBacklogItems != 1 || resp.Session.SessionCreatedInitiatives != 1 {
-		t.Fatalf("created counts = backlog:%d initiatives:%d, want 1/1", resp.Session.SessionCreatedBacklogItems, resp.Session.SessionCreatedInitiatives)
+	if resp.Session.SessionCreatedBacklogItems != 1 || resp.Session.SessionCreatedGoals != 1 {
+		t.Fatalf("created counts = backlog:%d goals:%d, want 1/1", resp.Session.SessionCreatedBacklogItems, resp.Session.SessionCreatedGoals)
 	}
 	if resp.Session.AverageMessagesPerSession != 1.5 {
 		t.Fatalf("avg messages = %v, want 1.5", resp.Session.AverageMessagesPerSession)

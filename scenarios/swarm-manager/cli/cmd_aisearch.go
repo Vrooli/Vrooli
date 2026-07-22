@@ -29,14 +29,14 @@ import (
 
 // AISearchStatus mirrors aisearch.AvailabilityStatus from the API.
 type AISearchStatus struct {
-	Available          bool   `json:"available"`
-	Ollama             bool   `json:"ollama"`
-	Qdrant             bool   `json:"qdrant"`
-	IndexedBacklog     int    `json:"indexedBacklog"`
-	IndexedInitiatives int    `json:"indexedInitiatives"`
-	OnDiskBacklog      int    `json:"onDiskBacklog"`
-	OnDiskInitiatives  int    `json:"onDiskInitiatives"`
-	Message            string `json:"message,omitempty"`
+	Available      bool   `json:"available"`
+	Ollama         bool   `json:"ollama"`
+	Qdrant         bool   `json:"qdrant"`
+	IndexedBacklog int    `json:"indexedBacklog"`
+	IndexedGoals   int    `json:"indexedGoals"`
+	OnDiskBacklog  int    `json:"onDiskBacklog"`
+	OnDiskGoals    int    `json:"onDiskGoals"`
+	Message        string `json:"message,omitempty"`
 }
 
 // AISearchReconcileStatus mirrors aisearch.ReconcileStatus.
@@ -53,24 +53,24 @@ type AISearchReconcileStatus struct {
 // AISearchDriftReport mirrors aisearch.DriftReport (the count-only projection
 // that crosses the wire — ItemRef arrays are server-internal).
 type AISearchDriftReport struct {
-	PlannedAt           string   `json:"plannedAt"`
-	ToDeleteBacklog     []string `json:"toDeleteBacklog,omitempty"`
-	ToDeleteInitiative  []string `json:"toDeleteInitiative,omitempty"`
-	UnchangedBacklog    int      `json:"unchangedBacklog"`
-	UnchangedInitiative int      `json:"unchangedInitiative"`
-	LegacyBacklog       int      `json:"legacyBacklog"`
-	LegacyInitiative    int      `json:"legacyInitiative"`
+	PlannedAt        string   `json:"plannedAt"`
+	ToDeleteBacklog  []string `json:"toDeleteBacklog,omitempty"`
+	ToDeleteGoal     []string `json:"toDeleteGoal,omitempty"`
+	UnchangedBacklog int      `json:"unchangedBacklog"`
+	UnchangedGoal    int      `json:"unchangedGoal"`
+	LegacyBacklog    int      `json:"legacyBacklog"`
+	LegacyGoal       int      `json:"legacyGoal"`
 }
 
 // AISearchApplyResult mirrors aisearch.ApplyResult.
 type AISearchApplyResult struct {
-	StartedAt          string                   `json:"startedAt"`
-	FinishedAt         string                   `json:"finishedAt"`
-	UpsertedBacklog    int                      `json:"upsertedBacklog"`
-	UpsertedInitiative int                      `json:"upsertedInitiative"`
-	DeletedBacklog     int                      `json:"deletedBacklog"`
-	DeletedInitiative  int                      `json:"deletedInitiative"`
-	Errors             []AISearchReconcileError `json:"errors,omitempty"`
+	StartedAt       string                   `json:"startedAt"`
+	FinishedAt      string                   `json:"finishedAt"`
+	UpsertedBacklog int                      `json:"upsertedBacklog"`
+	UpsertedGoal    int                      `json:"upsertedGoal"`
+	DeletedBacklog  int                      `json:"deletedBacklog"`
+	DeletedGoal     int                      `json:"deletedGoal"`
+	Errors          []AISearchReconcileError `json:"errors,omitempty"`
 }
 
 // AISearchReconcileError mirrors aisearch.ReconcileError.
@@ -148,13 +148,13 @@ func renderAISearchStatus(st AISearchStatus) error {
 
 	indexLines := []string{
 		fmt.Sprintf("Backlog: %d indexed / %d on disk", st.IndexedBacklog, st.OnDiskBacklog),
-		fmt.Sprintf("Initiatives: %d indexed / %d on disk", st.IndexedInitiatives, st.OnDiskInitiatives),
+		fmt.Sprintf("Goals: %d indexed / %d on disk", st.IndexedGoals, st.OnDiskGoals),
 	}
 	report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Index coverage", Items: indexLines})
 
 	backlogDrift := st.IndexedBacklog != st.OnDiskBacklog
-	initDrift := st.IndexedInitiatives != st.OnDiskInitiatives
-	if backlogDrift || initDrift {
+	goalDrift := st.IndexedGoals != st.OnDiskGoals
+	if backlogDrift || goalDrift {
 		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reconcile")
 	}
 	if !st.Ollama {
@@ -257,8 +257,8 @@ func (a *App) cmdAISearchReconcileCancel(args []string) error {
 	changes := []string{fmt.Sprintf("Running: %t", st.Running)}
 	if st.LastResult != nil {
 		changes = append(changes,
-			fmt.Sprintf("Upserted so far: %d backlog, %d initiative",
-				st.LastResult.UpsertedBacklog, st.LastResult.UpsertedInitiative))
+			fmt.Sprintf("Upserted so far: %d backlog, %d goal",
+				st.LastResult.UpsertedBacklog, st.LastResult.UpsertedGoal))
 	}
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
 		Result:  []string{"Cancel requested"},
@@ -307,15 +307,15 @@ func renderReconcileDryRun(dry aiSearchDryRunResponse) error {
 		report.Changes = []string{"No plan returned"}
 		return cliapp.RenderMutationReport(os.Stdout, report)
 	}
-	upsertCount := plan.LegacyBacklog + plan.LegacyInitiative + len(plan.ToDeleteBacklog) + len(plan.ToDeleteInitiative)
+	upsertCount := plan.LegacyBacklog + plan.LegacyGoal + len(plan.ToDeleteBacklog) + len(plan.ToDeleteGoal)
 	_ = upsertCount
 	report.Changes = []string{
 		fmt.Sprintf("To delete (backlog): %d", len(plan.ToDeleteBacklog)),
-		fmt.Sprintf("To delete (initiative): %d", len(plan.ToDeleteInitiative)),
+		fmt.Sprintf("To delete (goal): %d", len(plan.ToDeleteGoal)),
 		fmt.Sprintf("Unchanged (backlog): %d", plan.UnchangedBacklog),
-		fmt.Sprintf("Unchanged (initiative): %d", plan.UnchangedInitiative),
+		fmt.Sprintf("Unchanged (goal): %d", plan.UnchangedGoal),
 		fmt.Sprintf("Legacy hash drain (backlog): %d", plan.LegacyBacklog),
-		fmt.Sprintf("Legacy hash drain (initiative): %d", plan.LegacyInitiative),
+		fmt.Sprintf("Legacy hash drain (goal): %d", plan.LegacyGoal),
 	}
 	report.NextCommand = []string{"swarm-manager ai-search reconcile"}
 	return cliapp.RenderMutationReport(os.Stdout, report)
@@ -334,20 +334,19 @@ func renderReconcileMutation(st AISearchReconcileStatus) error {
 	if st.LastResult != nil {
 		changes = append(changes,
 			fmt.Sprintf("Upserted (backlog): %d", st.LastResult.UpsertedBacklog),
-			fmt.Sprintf("Upserted (initiative): %d", st.LastResult.UpsertedInitiative),
+			fmt.Sprintf("Upserted (goal): %d", st.LastResult.UpsertedGoal),
 			fmt.Sprintf("Deleted (backlog): %d", st.LastResult.DeletedBacklog),
-			fmt.Sprintf("Deleted (initiative): %d", st.LastResult.DeletedInitiative),
+			fmt.Sprintf("Deleted (goal): %d", st.LastResult.DeletedGoal),
 			fmt.Sprintf("Errors: %d", len(st.LastResult.Errors)),
 		)
 	}
 	if st.LastPlan != nil {
 		changes = append(changes,
 			fmt.Sprintf("Unchanged (backlog): %d", st.LastPlan.UnchangedBacklog),
-			fmt.Sprintf("Unchanged (initiative): %d", st.LastPlan.UnchangedInitiative),
+			fmt.Sprintf("Unchanged (goal): %d", st.LastPlan.UnchangedGoal),
 		)
 	}
 	if st.LastError != "" {
-		changes = append(changes, "Last error: "+st.LastError)
 	}
 	report := cliapp.MutationReport{
 		Result:      []string{resultLine},
@@ -374,10 +373,10 @@ func renderReconcileOperational(st AISearchReconcileStatus) error {
 		report.Triage = append(report.Triage, cliapp.TriageGroup{
 			Heading: "Last result",
 			Items: []string{
-				fmt.Sprintf("Upserted: %d backlog, %d initiative",
-					st.LastResult.UpsertedBacklog, st.LastResult.UpsertedInitiative),
-				fmt.Sprintf("Deleted: %d backlog, %d initiative",
-					st.LastResult.DeletedBacklog, st.LastResult.DeletedInitiative),
+				fmt.Sprintf("Upserted: %d backlog, %d goal",
+					st.LastResult.UpsertedBacklog, st.LastResult.UpsertedGoal),
+				fmt.Sprintf("Deleted: %d backlog, %d goal",
+					st.LastResult.DeletedBacklog, st.LastResult.DeletedGoal),
 				fmt.Sprintf("Errors: %d", len(st.LastResult.Errors)),
 			},
 		})
@@ -386,10 +385,10 @@ func renderReconcileOperational(st AISearchReconcileStatus) error {
 		report.Triage = append(report.Triage, cliapp.TriageGroup{
 			Heading: "Last plan",
 			Items: []string{
-				fmt.Sprintf("Unchanged: %d backlog, %d initiative",
-					st.LastPlan.UnchangedBacklog, st.LastPlan.UnchangedInitiative),
-				fmt.Sprintf("Legacy drain: %d backlog, %d initiative",
-					st.LastPlan.LegacyBacklog, st.LastPlan.LegacyInitiative),
+				fmt.Sprintf("Unchanged: %d backlog, %d goal",
+					st.LastPlan.UnchangedBacklog, st.LastPlan.UnchangedGoal),
+				fmt.Sprintf("Legacy drain: %d backlog, %d goal",
+					st.LastPlan.LegacyBacklog, st.LastPlan.LegacyGoal),
 			},
 		})
 	}
@@ -408,17 +407,17 @@ func renderReconcileOperational(st AISearchReconcileStatus) error {
 
 // cmdAISearchSearch is the generic search command used by both the top-level
 // `ai-search query` and the domain-shortcut `backlog search-ai` /
-// `initiatives search-ai` commands. entityOverride, when non-empty, is applied
+// `goals search-ai` commands. entityOverride, when non-empty, is applied
 // to every request regardless of the --entity flag.
 func (a *App) cmdAISearchSearch(entityOverride string) support.CommandFunc {
 	return func(args []string) error {
 		fs := flag.NewFlagSet("search-ai", flag.ContinueOnError)
-		entity := fs.String("entity", "", "backlog | initiative | record | both (default both)")
+		entity := fs.String("entity", "", "backlog | goal | record | both (default both)")
 		limit := fs.Int("limit", 20, "Max results (1-100)")
 		threshold := fs.Float64("threshold", 0, "Min cosine similarity (0-1); 0 uses server default")
 		kindCSV := fs.String("kind", "", "Comma-separated backlog kinds to include")
 		statusCSV := fs.String("status", "", "Comma-separated statuses to include")
-		initiative := fs.String("initiative", "", "Restrict to a single initiative")
+		goal := fs.String("goal", "", "Restrict to a single goal")
 		targetScenario := fs.String("target-scenario", "", "Restrict to backlog items targeting a specific scenario")
 		includeArchived := fs.Bool("include-archived", false, "Include archived items")
 		jsonOut := cliutil.JSONFlag(fs)
@@ -426,7 +425,7 @@ func (a *App) cmdAISearchSearch(entityOverride string) support.CommandFunc {
 			return err
 		}
 		if fs.NArg() < 1 {
-			return fmt.Errorf("usage: search-ai <query> [--entity backlog|initiative|both] [--limit N] [--kind KIND,...] [--status STATUS,...] [--initiative NAME] [--include-archived] [--json]")
+			return fmt.Errorf("usage: search-ai <query> [--entity backlog|goal|both] [--limit N] [--kind KIND,...] [--status STATUS,...] [--goal NAME] [--include-archived] [--json]")
 		}
 		query := strings.TrimSpace(strings.Join(fs.Args(), " "))
 		if query == "" {
@@ -455,8 +454,8 @@ func (a *App) cmdAISearchSearch(entityOverride string) support.CommandFunc {
 		if s := strings.TrimSpace(*kindCSV); s != "" {
 			filters["kind"] = cliutil.ParseCSV(s)
 		}
-		if s := strings.TrimSpace(*initiative); s != "" {
-			filters["initiative"] = s
+		if s := strings.TrimSpace(*goal); s != "" {
+			filters["goal"] = s
 		}
 		if s := strings.TrimSpace(*targetScenario); s != "" {
 			filters["target_scenario"] = s

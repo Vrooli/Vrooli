@@ -13,23 +13,23 @@ import (
 
 // TestConvergence_AllSourcesAgreeOnDiskState pins the contract that the
 // three creation surfaces — HTTP single, batch, and proposal — produce
-// items with the same on-disk shape and attach to initiatives identically.
+// items with the same on-disk shape and attach to milestones identically.
 // All routes go through Service.Create; this test guards against
 // drift if the unified Service ever sprouts source-specific persistence
 // branches that diverge.
 func TestConvergence_AllSourcesAgreeOnDiskState(t *testing.T) {
 	h, _ := setupTestHandler(t)
-	ia := newMockInitiativeAssigner()
-	ia.snapshots["shared-init"] = InitiativeSnapshot{
+	ia := newMockMilestoneAssigner()
+	ia.snapshots["shared-init"] = MilestoneSnapshot{
 		Name:   "shared-init",
 		Title:  "Shared",
 		Status: "active",
 		Items:  []string{},
 	}
-	h.SetInitiativeAssigner(ia)
+	h.SetMilestoneAssigner(ia)
 
 	// Path 1: HTTP single-create
-	body := bytes.NewBufferString(`{"name":"http-item","title":"HTTP Item","kind":"execute","initiative":"shared-init","priority":4,"effort":"M","description":"created via HTTP"}`)
+	body := bytes.NewBufferString(`{"name":"http-item","title":"HTTP Item","kind":"execute","milestone":"shared-init","priority":4,"effort":"M","description":"created via HTTP"}`)
 	req := httptest.NewRequest("POST", "/api/v1/backlog", body)
 	w := httptest.NewRecorder()
 	h.Create(w, req)
@@ -47,14 +47,14 @@ func TestConvergence_AllSourcesAgreeOnDiskState(t *testing.T) {
 		Priority:    4,
 		Effort:      "M",
 		Description: "created via proposal",
-		Initiative:  "shared-init",
+		Milestone:  "shared-init",
 		Created:     now,
 		Updated:     now,
 	}
 	if err := svc.Create(proposal, CreationContext{
 		Source:                SourceProposal,
 		FeedbackRoundID:       "shared-init/round-001",
-		Entrypoint:            "initiative.feedback",
+		Entrypoint:            "milestone.feedback",
 		SkipCycleCheck:        true,
 		SkipGraphInvalidation: true,
 	}); err != nil {
@@ -77,8 +77,8 @@ func TestConvergence_AllSourcesAgreeOnDiskState(t *testing.T) {
 	if httpItem.Kind != primItem.Kind {
 		t.Errorf("Kind divergence: http=%q primitive=%q", httpItem.Kind, primItem.Kind)
 	}
-	if httpItem.Initiative != primItem.Initiative {
-		t.Errorf("Initiative divergence: http=%q primitive=%q", httpItem.Initiative, primItem.Initiative)
+	if httpItem.Milestone != primItem.Milestone {
+		t.Errorf("Milestone divergence: http=%q primitive=%q", httpItem.Milestone, primItem.Milestone)
 	}
 	if httpItem.Effort != primItem.Effort {
 		t.Errorf("Effort divergence: http=%q primitive=%q", httpItem.Effort, primItem.Effort)
@@ -99,7 +99,7 @@ func TestConvergence_AllSourcesAgreeOnDiskState(t *testing.T) {
 		}
 	}
 
-	// Both items must be members of the initiative.
+	// Both items must be members of the milestone.
 	got := ia.snapshots["shared-init"].Items
 	want := map[string]bool{"execute/http-item": false, "execute/proposal-item": false}
 	for _, ref := range got {
@@ -109,7 +109,7 @@ func TestConvergence_AllSourcesAgreeOnDiskState(t *testing.T) {
 	}
 	for ref, seen := range want {
 		if !seen {
-			t.Errorf("initiative items[] missing %q (got %v)", ref, got)
+			t.Errorf("milestone items[] missing %q (got %v)", ref, got)
 		}
 	}
 }

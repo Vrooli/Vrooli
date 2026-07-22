@@ -28,7 +28,7 @@ export function buildBacklogUpdatePayload(patch: BacklogUpdatePatch): Record<str
   if (patch.priority !== undefined) payload.priority = patch.priority;
   if (patch.tags !== undefined) payload.tags = patch.tags;
   if (patch.dependsOn !== undefined) payload.depends_on = patch.dependsOn;
-  if (patch.initiative !== undefined) payload.initiative = patch.initiative;
+  if (patch.milestone !== undefined) payload.milestone = patch.milestone;
   if (patch.effort !== undefined) payload.effort = patch.effort;
   if (patch.acceptanceAllow !== undefined) payload.acceptance_allow = patch.acceptanceAllow;
   if (patch.acceptanceDeny !== undefined) payload.acceptance_deny = patch.acceptanceDeny;
@@ -75,7 +75,7 @@ export function createCrudMethods(apiClient: IApiClient) {
         tags: item.tags,
         kind: item.kind,
         dependsOn: item.dependsOn ?? [],
-        initiative: item.initiative || undefined,
+        milestone: item.milestone || undefined,
       });
       const payload = toProtoJson(CreateBacklogItemRequestSchema, message);
       const data = await apiClient.post<unknown>(API_ENDPOINTS.backlog, payload);

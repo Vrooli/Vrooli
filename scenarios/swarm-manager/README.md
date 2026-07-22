@@ -70,11 +70,11 @@ make stop
 ## UI Surfaces
 
 The UI is a single **Plan board** (`/plan`) — a lens-driven workspace over
-backlog, scenarios, initiatives, executions, and captures. The former standalone
+backlog, scenarios, goals, executions, and captures. The former standalone
 **Scenarios** and **Execution** list tabs were absorbed into it; their old routes
 (`/scenarios`, `/executions`, `/operations`, `/command-post`) now redirect to
 `/plan`, while the detail pages (`/scenarios/{name}`, `/executions/{id}`,
-`/backlog/{kind}/{name}`, `/initiatives/{name}`) remain
+`/backlog/{kind}/{name}`, `/goals/{name}`) remain
 directly reachable.
 
 - **Plan** (`/plan`) — the primary board; decisions live in its drawer.

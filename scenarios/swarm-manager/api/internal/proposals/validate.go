@@ -9,26 +9,26 @@ import (
 	"swarm-manager/internal/backlog"
 )
 
-// CurrentState is the read-only snapshot of the initiative that a proposal
+// CurrentState is the read-only snapshot of the milestone that a proposal
 // will be validated and applied against. Constructed from a materialized
-// graph.json (graph.MaterializedGraph) plus the set of known initiative
-// names for move_initiative validation.
+// graph.json (graph.MaterializedGraph) plus the set of known milestone
+// names for move_milestone validation.
 //
 // Kept narrow so callers can build one from any source — tests use a fixture
 // literal; the HTTP layer hydrates from the graph Materializer.
 type CurrentState struct {
-	// InitiativeName is the initiative the proposal targets.
-	InitiativeName string
+	// MilestoneName is the milestone the proposal targets.
+	MilestoneName string
 
-	// Nodes indexes members of the initiative by ref ("kind/name").
+	// Nodes indexes members of the milestone by ref ("kind/name").
 	Nodes map[string]GraphNode
 
-	// Edges lists dependency edges within the initiative. Order-insensitive.
+	// Edges lists dependency edges within the milestone. Order-insensitive.
 	Edges []GraphEdge
 
-	// KnownInitiatives is the set of initiative names that exist on disk.
-	// Used by OpMoveInitiative to reject phantom destinations.
-	KnownInitiatives map[string]struct{}
+	// KnownMilestones is the set of milestone names that exist on disk.
+	// Used by OpMoveMilestone to reject phantom destinations.
+	KnownMilestones map[string]struct{}
 
 	// InProgressRefs is the subset of Nodes whose items are currently
 	// StatusInProgress — gates OpInterruptInProgress to realistic targets.
@@ -39,13 +39,13 @@ type CurrentState struct {
 	Standalone bool
 }
 
-// HasNode reports whether a ref is a member of the initiative's current graph.
+// HasNode reports whether a ref is a member of the milestone's current graph.
 func (s *CurrentState) HasNode(ref string) bool {
 	_, ok := s.Nodes[ref]
 	return ok
 }
 
-// HasEdge reports whether an edge exists in the initiative's current graph.
+// HasEdge reports whether an edge exists in the milestone's current graph.
 func (s *CurrentState) HasEdge(from, to string) bool {
 	for _, e := range s.Edges {
 		if e.From == from && e.To == to {
@@ -168,8 +168,8 @@ func validateMutation(m Mutation, idx int, state CurrentState, newItems map[stri
 		return validateEdge(m, state, newItems, true)
 	case OpRemoveEdge:
 		return validateEdge(m, state, newItems, false)
-	case OpMoveInitiative:
-		return validateMoveInitiative(m, state, newItems)
+	case OpMoveMilestone:
+		return validateMoveMilestone(m, state, newItems)
 	case OpArchiveItem:
 		return validateTargetExists(m, state, newItems)
 	case OpInterruptInProgress:
@@ -185,15 +185,15 @@ func validateMutation(m Mutation, idx int, state CurrentState, newItems map[stri
 			return err
 		}
 		return validateResetArtifactScopes(m.ResetScope)
-	case OpRecreateInitiative:
+	case OpRecreateMilestone:
 		if strings.TrimSpace(m.Target) == "" {
-			return fmt.Errorf("op %s requires initiative target", m.Op)
+			return fmt.Errorf("op %s requires milestone target", m.Op)
 		}
 		if strings.Contains(m.Target, "/") {
-			return fmt.Errorf("op %s target must be an initiative name", m.Op)
+			return fmt.Errorf("op %s target must be an milestone name", m.Op)
 		}
-		if state.InitiativeName != m.Target {
-			return fmt.Errorf("op %s target %q does not match proposal initiative %q", m.Op, m.Target, state.InitiativeName)
+		if state.MilestoneName != m.Target {
+			return fmt.Errorf("op %s target %q does not match proposal milestone %q", m.Op, m.Target, state.MilestoneName)
 		}
 		return nil
 	}
@@ -230,7 +230,7 @@ func validateAddItem(m Mutation, idx int, state CurrentState, newItems map[strin
 	}
 	ref := m.Item.Ref()
 	if _, collides := state.Nodes[ref]; collides {
-		return fmt.Errorf("%w: %s already exists in initiative", ErrDuplicateItem, ref)
+		return fmt.Errorf("%w: %s already exists in milestone", ErrDuplicateItem, ref)
 	}
 	if prev, dup := newItems[ref]; dup {
 		return fmt.Errorf("%w: %s already staged by mutations[%d]", ErrDuplicateItem, ref, prev)
@@ -349,23 +349,23 @@ func validateEdge(m Mutation, state CurrentState, newItems map[string]int, addin
 	return nil
 }
 
-func validateMoveInitiative(m Mutation, state CurrentState, newItems map[string]int) error {
+func validateMoveMilestone(m Mutation, state CurrentState, newItems map[string]int) error {
 	if err := validateRef(m.Target); err != nil {
 		return err
 	}
 	if !state.HasNode(m.Target) && !hasStagedNewItem(m.Target, newItems) {
 		return fmt.Errorf("%w: %s", ErrTargetNotFound, m.Target)
 	}
-	dest := strings.TrimSpace(m.Initiative)
+	dest := strings.TrimSpace(m.Milestone)
 	if dest == "" {
 		return nil // detach: allowed
 	}
-	if dest == state.InitiativeName {
-		return fmt.Errorf("move_initiative destination %q is the current initiative", dest)
+	if dest == state.MilestoneName {
+		return fmt.Errorf("move_milestone destination %q is the current milestone", dest)
 	}
-	if state.KnownInitiatives != nil {
-		if _, ok := state.KnownInitiatives[dest]; !ok {
-			return fmt.Errorf("move_initiative destination %q is not a known initiative", dest)
+	if state.KnownMilestones != nil {
+		if _, ok := state.KnownMilestones[dest]; !ok {
+			return fmt.Errorf("move_milestone destination %q is not a known milestone", dest)
 		}
 	}
 	return nil
@@ -424,7 +424,7 @@ func validateSplitItem(m Mutation, idx int, state CurrentState, newItems map[str
 
 // validateMergeItems enforces the merge contract:
 //   - len(Sources) >= 2; sources are unique; every source is a current
-//     member of the initiative graph; no source is in_progress (operator
+//     member of the milestone graph; no source is in_progress (operator
 //     must emit interrupt_in_progress as a prior mutation).
 //   - Item is a well-formed spec whose ref does not collide with any
 //     existing non-source item, nor with any item staged earlier in the
@@ -473,7 +473,7 @@ func validateMergeItems(m Mutation, idx int, state CurrentState, newItems map[st
 	// so collisions with non-source nodes must reject up-front.
 	if _, collides := state.Nodes[mergedRef]; collides {
 		if _, isSource := seen[mergedRef]; !isSource {
-			return fmt.Errorf("%w: merged item %s already exists in initiative", ErrDuplicateItem, mergedRef)
+			return fmt.Errorf("%w: merged item %s already exists in milestone", ErrDuplicateItem, mergedRef)
 		}
 	}
 	if prev, dup := newItems[mergedRef]; dup {

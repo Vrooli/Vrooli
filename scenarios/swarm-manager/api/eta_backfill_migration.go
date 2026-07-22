@@ -42,7 +42,7 @@ func (s *Server) backfillETADurationSamples(alreadySampled map[string]struct{}) 
 			Ref:        ref,
 			Kind:       string(it.Kind),
 			Effort:     it.Effort,
-			Initiative: it.Initiative,
+			Milestone: it.Milestone,
 			Created:    it.Created,
 			Completed:  it.Updated,
 		})
@@ -55,7 +55,7 @@ func (s *Server) backfillETADurationSamples(alreadySampled map[string]struct{}) 
 			DurationHours: sample.DurationHours,
 			Origin:        eventlog.DurationOriginBackfill,
 			Kind:          sample.Kind,
-			Initiative:    sample.Initiative,
+			Milestone:    sample.Milestone,
 		})
 	}
 	slog.Info("backfill_eta_duration_samples_v1 built",

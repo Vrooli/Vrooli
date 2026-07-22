@@ -1,5 +1,5 @@
 // Package aisearch provides embedding-based semantic search over swarm-manager
-// backlog items and initiatives, with graceful fallback to text search when
+// backlog items and goals, with graceful fallback to text search when
 // Ollama or Qdrant is unavailable.
 package aisearch
 
@@ -7,24 +7,24 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 )
 
 // EntityType identifies which collection a search result belongs to.
 type EntityType string
 
 const (
-	EntityBacklog    EntityType = "backlog"
-	EntityInitiative EntityType = "initiative"
-	EntityRecord     EntityType = "record"
-	EntityBoth       EntityType = "both"
+	EntityBacklog EntityType = "backlog"
+	EntityGoal    EntityType = "goal"
+	EntityRecord  EntityType = "record"
+	EntityBoth    EntityType = "both"
 )
 
 // Valid reports whether e is one of the known entity values accepted by the
 // API surface.
 func (e EntityType) Valid() bool {
 	switch e {
-	case EntityBacklog, EntityInitiative, EntityRecord, EntityBoth:
+	case EntityBacklog, EntityGoal, EntityRecord, EntityBoth:
 		return true
 	default:
 		return false
@@ -36,7 +36,7 @@ func (e EntityType) Valid() bool {
 type SearchFilters struct {
 	Status          []string `json:"status,omitempty"`
 	Kind            []string `json:"kind,omitempty"`
-	Initiative      string   `json:"initiative,omitempty"`
+	Goal            string   `json:"goal,omitempty"`
 	TargetScenario  string   `json:"target_scenario,omitempty"`
 	IncludeArchived bool     `json:"include_archived,omitempty"`
 }
@@ -51,7 +51,7 @@ type AISearchRequest struct {
 }
 
 // AISearchResult is a single ranked result. Payload preserves the raw Qdrant
-// payload for the client; typed helpers (BacklogPayloadFrom, InitiativePayloadFrom)
+// payload for the client; typed helpers can unwrap it when the entity is known.
 // can unwrap it when the entity is known.
 type AISearchResult struct {
 	Entity       EntityType             `json:"entity"`
@@ -102,14 +102,14 @@ type SimilarResponse struct {
 // AvailabilityStatus reports whether AI search is currently usable. Exposed by
 // GET /api/v1/search/ai/status.
 type AvailabilityStatus struct {
-	Available          bool   `json:"available"`
-	Ollama             bool   `json:"ollama"`
-	Qdrant             bool   `json:"qdrant"`
-	IndexedBacklog     int    `json:"indexedBacklog"`
-	IndexedInitiatives int    `json:"indexedInitiatives"`
-	OnDiskBacklog      int    `json:"onDiskBacklog"`
-	OnDiskInitiatives  int    `json:"onDiskInitiatives"`
-	Message            string `json:"message,omitempty"`
+	Available      bool   `json:"available"`
+	Ollama         bool   `json:"ollama"`
+	Qdrant         bool   `json:"qdrant"`
+	IndexedBacklog int    `json:"indexedBacklog"`
+	IndexedGoals   int    `json:"indexedGoals"`
+	OnDiskBacklog  int    `json:"onDiskBacklog"`
+	OnDiskGoals    int    `json:"onDiskGoals"`
+	Message        string `json:"message,omitempty"`
 }
 
 // EntityKind discriminates which collection an ItemRef or ReconcileError
@@ -119,7 +119,7 @@ type EntityKind string
 
 const (
 	KindBacklogItem EntityKind = "backlog"
-	KindInitiative  EntityKind = "initiative"
+	KindGoal        EntityKind = "goal"
 )
 
 // ItemRef is the minimal handle the Reconciler needs to embed-and-upsert one
@@ -127,34 +127,34 @@ const (
 // means Apply doesn't need a second LoadAll round-trip — at current scale
 // (~326 items, ~1KB each) the memory cost is negligible.
 //
-// Exactly one of Backlog/Initiative is set per Kind. PayloadHash is the freshly
+// Exactly one of Backlog/Goal is set per Kind. PayloadHash is the freshly
 // computed hash, ready to be stored under "payload_hash" in the Qdrant payload.
 type ItemRef struct {
 	Kind        EntityKind
 	PointID     string
 	Name        string
 	PayloadHash string
-	Backlog     *backlog.BacklogItem    // set when Kind == KindBacklogItem
-	Initiative  *initiatives.Initiative // set when Kind == KindInitiative
+	Backlog     *backlog.BacklogItem // set when Kind == KindBacklogItem
+	Goal        *goals.Goal          // set when Kind == KindGoal
 }
 
 // DriftReport is the structured "what work needs doing?" decision returned by
 // Reconciler.Plan. Apply consumes this verbatim — no second comparison pass.
 //
 // Per-collection breakdowns let the dry-run output show "12 backlog upserts,
-// 3 initiative orphans" rather than a single opaque total. LegacyBacklog and
-// LegacyInitiative track the post-deploy "absent payload_hash → re-embed once"
+// 3 goal orphans" rather than a single opaque total. LegacyBacklog and
+// LegacyGoal track the post-deploy "absent payload_hash → re-embed once"
 // drain so operators can see when convergence is complete.
 type DriftReport struct {
-	PlannedAt           time.Time `json:"plannedAt"`
-	ToUpsertBacklog     []ItemRef `json:"-"` // items, kept out of JSON; counts below
-	ToUpsertInitiative  []ItemRef `json:"-"`
-	ToDeleteBacklog     []string  `json:"toDeleteBacklog,omitempty"`
-	ToDeleteInitiative  []string  `json:"toDeleteInitiative,omitempty"`
-	UnchangedBacklog    int       `json:"unchangedBacklog"`
-	UnchangedInitiative int       `json:"unchangedInitiative"`
-	LegacyBacklog       int       `json:"legacyBacklog"`
-	LegacyInitiative    int       `json:"legacyInitiative"`
+	PlannedAt        time.Time `json:"plannedAt"`
+	ToUpsertBacklog  []ItemRef `json:"-"` // items, kept out of JSON; counts below
+	ToUpsertGoal     []ItemRef `json:"-"`
+	ToDeleteBacklog  []string  `json:"toDeleteBacklog,omitempty"`
+	ToDeleteGoal     []string  `json:"toDeleteGoal,omitempty"`
+	UnchangedBacklog int       `json:"unchangedBacklog"`
+	UnchangedGoal    int       `json:"unchangedGoal"`
+	LegacyBacklog    int       `json:"legacyBacklog"`
+	LegacyGoal       int       `json:"legacyGoal"`
 }
 
 // HasWork reports whether Apply would do anything for this report. The
@@ -162,19 +162,19 @@ type DriftReport struct {
 // has already converged — the optimization that turns 5-minute ticks into
 // "one disk walk + one qdrant scroll + zero embeds" when nothing changed.
 func (d DriftReport) HasWork() bool {
-	return len(d.ToUpsertBacklog)+len(d.ToUpsertInitiative)+
-		len(d.ToDeleteBacklog)+len(d.ToDeleteInitiative) > 0
+	return len(d.ToUpsertBacklog)+len(d.ToUpsertGoal)+
+		len(d.ToDeleteBacklog)+len(d.ToDeleteGoal) > 0
 }
 
 // UpsertCount returns total items needing upsert across both collections.
 // Convenience for status/log lines.
 func (d DriftReport) UpsertCount() int {
-	return len(d.ToUpsertBacklog) + len(d.ToUpsertInitiative)
+	return len(d.ToUpsertBacklog) + len(d.ToUpsertGoal)
 }
 
 // DeleteCount returns total point IDs needing delete across both collections.
 func (d DriftReport) DeleteCount() int {
-	return len(d.ToDeleteBacklog) + len(d.ToDeleteInitiative)
+	return len(d.ToDeleteBacklog) + len(d.ToDeleteGoal)
 }
 
 // ReconcileError captures one per-item failure during Apply so operators can
@@ -192,13 +192,13 @@ type ReconcileError struct {
 // items that completed successfully; failed items appear in Errors with their
 // failing op.
 type ApplyResult struct {
-	StartedAt          time.Time        `json:"startedAt"`
-	FinishedAt         time.Time        `json:"finishedAt"`
-	UpsertedBacklog    int              `json:"upsertedBacklog"`
-	UpsertedInitiative int              `json:"upsertedInitiative"`
-	DeletedBacklog     int              `json:"deletedBacklog"`
-	DeletedInitiative  int              `json:"deletedInitiative"`
-	Errors             []ReconcileError `json:"errors,omitempty"`
+	StartedAt       time.Time        `json:"startedAt"`
+	FinishedAt      time.Time        `json:"finishedAt"`
+	UpsertedBacklog int              `json:"upsertedBacklog"`
+	UpsertedGoal    int              `json:"upsertedGoal"`
+	DeletedBacklog  int              `json:"deletedBacklog"`
+	DeletedGoal     int              `json:"deletedGoal"`
+	Errors          []ReconcileError `json:"errors,omitempty"`
 }
 
 // ReconcileStatus is the wire-shape returned by GET /api/v1/search/ai/reconcile/status.
@@ -227,7 +227,7 @@ type BacklogPayload struct {
 	Status          string   `json:"status"`
 	Priority        int      `json:"priority"`
 	Tags            []string `json:"tags"`
-	Initiative      string   `json:"initiative"`
+	Milestone       string   `json:"milestone"`
 	Effort          string   `json:"effort"`
 	Archived        bool     `json:"archived"`
 	TargetScenarios []string `json:"target_scenarios"`
@@ -246,7 +246,7 @@ type RecordPayload struct {
 	Kind         string   `json:"kind"`
 	Scenario     string   `json:"scenario"`
 	BacklogRef   string   `json:"backlog_ref,omitempty"`
-	InitiativeID string   `json:"initiative_id,omitempty"`
+	MilestoneID  string   `json:"milestone_id,omitempty"`
 	Supersedes   string   `json:"supersedes,omitempty"`
 	SupersededBy string   `json:"superseded_by,omitempty"`
 	Outcome      string   `json:"outcome,omitempty"`
@@ -257,10 +257,10 @@ type RecordPayload struct {
 	PayloadHash  string   `json:"payload_hash,omitempty"`
 }
 
-// InitiativePayload is the typed shape of what aisearch stores in an
-// initiative vector's payload. PayloadHash is the same skip-if-unchanged
+// GoalPayload is the typed shape of what aisearch stores in a goal vector's
+// payload. PayloadHash is the same skip-if-unchanged
 // signal documented on BacklogPayload.
-type InitiativePayload struct {
+type GoalPayload struct {
 	Name        string `json:"name"`
 	Title       string `json:"title"`
 	Status      string `json:"status"`

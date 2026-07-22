@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SidebarTab } from "./types";
 
-export type SelectableSidebarTab = "backlog" | "captures" | "initiatives" | "executions" | "sessions";
+export type SelectableSidebarTab = "backlog" | "captures" | "executions" | "sessions";
 
 export const SELECTABLE_SIDEBAR_TABS: ReadonlySet<SidebarTab> = new Set([
   "backlog",
   "captures",
-  "initiatives",
   "executions",
   "sessions",
 ]);

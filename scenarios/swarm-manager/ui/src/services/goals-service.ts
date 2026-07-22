@@ -1,8 +1,7 @@
 /**
  * Goals Service — data access for goal operations.
  *
- * The goals backend is mux+JSON (snake_case), mirroring the initiatives domain
- * rather than the proto surfaces. This service normalizes responses to the
+ * The goals backend is mux+JSON (snake_case). This service normalizes responses to the
  * camelCase types the UI consumes and exposes the create / update / target /
  * priority levers the goals UX drives.
  */
@@ -21,7 +20,6 @@ import type {
 } from "../types/goal";
 import type { BacklogItem } from "../types/backlog";
 import type { PlanEtaBandData } from "../surfaces/plan/types";
-import { normalizeInitiativeWithRollup } from "./initiative-service";
 
 interface RawSnapshot {
   at?: string;
@@ -95,7 +93,7 @@ interface RawScopeItem {
   kind?: string;
   depends_on?: string[];
   dependsOn?: string[];
-  initiative?: string;
+	milestone?: string;
   effort?: string;
   note?: string;
   archived_at?: string;
@@ -104,7 +102,6 @@ interface RawScopeItem {
 
 interface RawScopeEntities {
   items?: Record<string, RawScopeItem>;
-  initiatives?: Record<string, { initiative?: Record<string, unknown>; rollup?: Record<string, unknown> }>;
 }
 
 interface RawGoalWithScope {
@@ -186,7 +183,7 @@ function normalizeScopeItem(raw: RawScopeItem): BacklogItem {
     updated: raw.updated ?? "",
     kind: (raw.kind ?? "execute") as BacklogItem["kind"],
     dependsOn: raw.dependsOn ?? raw.depends_on ?? [],
-    ...(raw.initiative ? { initiative: raw.initiative } : {}),
+	...(raw.milestone ? { milestone: raw.milestone } : {}),
     ...(raw.effort ? { effort: raw.effort } : {}),
     ...(raw.note ? { note: raw.note } : {}),
     ...(archivedAt ? { archivedAt } : {}),
@@ -199,12 +196,8 @@ function normalizeScopeEntities(raw: RawScopeEntities | undefined): GoalScopeEnt
   for (const [ref, item] of Object.entries(raw.items ?? {})) {
     items[ref] = normalizeScopeItem(item);
   }
-  const initiatives: GoalScopeEntities["initiatives"] = {};
-  for (const [ref, summary] of Object.entries(raw.initiatives ?? {})) {
-    initiatives[ref] = normalizeInitiativeWithRollup(summary);
-  }
-  if (Object.keys(items).length === 0 && Object.keys(initiatives).length === 0) return undefined;
-  return { items, initiatives };
+  if (Object.keys(items).length === 0) return undefined;
+  return { items };
 }
 
 function normalizeWithScope(raw: RawGoalWithScope): GoalWithScope {
@@ -235,7 +228,7 @@ export function createGoalsService(apiClient: IApiClient = defaultApiClient): IG
       const resp = await apiClient.get<
         { items?: RawGoalWithScope[]; goals?: RawGoalWithScope[] } | RawGoalWithScope[]
       >(API_ENDPOINTS.goals);
-      // The API envelopes the list under `items` (matching the initiatives domain).
+	  // The API envelopes the list under `items`.
       // Keep `goals` + bare-array fallbacks for forward/backward compatibility.
       const raw = Array.isArray(resp) ? resp : (resp.items ?? resp.goals ?? []);
       return raw.map(normalizeWithScope);

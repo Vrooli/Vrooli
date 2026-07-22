@@ -6,7 +6,7 @@ type CompletedItem struct {
 	Ref        string // "<kind>/<name>"
 	Kind       string
 	Effort     string
-	Initiative string
+	Milestone string
 	Created    string // RFC3339
 	Completed  string // RFC3339 (the item's Updated timestamp is the completion proxy)
 }
@@ -18,7 +18,7 @@ type BackfillSample struct {
 	EffortClass   string
 	DurationHours float64
 	Kind          string
-	Initiative    string
+	Milestone    string
 }
 
 // BackfillReport summarizes a backfill pass.
@@ -51,7 +51,7 @@ func BuildBackfillSamples(items []CompletedItem, alreadySampled map[string]struc
 			EffortClass:   NormalizeEffort(it.Effort),
 			DurationHours: hours,
 			Kind:          it.Kind,
-			Initiative:    it.Initiative,
+			Milestone:    it.Milestone,
 		})
 		rep.Produced++
 	}

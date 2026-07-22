@@ -146,17 +146,17 @@ function makeBacklogAddDependencyAction(): InspectorAction {
   };
 }
 
-function makeBacklogAssignInitiativeAction(): InspectorAction {
+function makeBacklogAssignGoalAction(): InspectorAction {
   return {
-    id: "assign-initiative",
-    label: "Assign Initiative",
+    id: "assign-goal",
+    label: "Assign Goal",
     icon: Target,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
-      return { entityType: "backlog", kind: parsed.kind, name: parsed.name, tab: "initiative" };
+      return { entityType: "backlog", kind: parsed.kind, name: parsed.name, tab: "goal" };
     },
   };
 }
@@ -176,9 +176,9 @@ function makeBacklogViewFilesAction(): InspectorAction {
   };
 }
 
-function makeInitiativeEditAction(): InspectorAction {
+function makeGoalEditAction(): InspectorAction {
   return {
-    id: "edit-initiative",
+    id: "edit-goal",
     label: "Edit",
     icon: Pencil,
     variant: "default",
@@ -186,12 +186,12 @@ function makeInitiativeEditAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
-      return { entityType: "initiative", name: parsed.name };
+      return { entityType: "goal", name: parsed.name };
     },
   };
 }
 
-function makeInitiativeManageMembersAction(): InspectorAction {
+function makeGoalManageMembersAction(): InspectorAction {
   return {
     id: "manage-members",
     label: "Manage Items",
@@ -201,21 +201,21 @@ function makeInitiativeManageMembersAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
-      return { entityType: "initiative", name: parsed.name, tab: "items" };
+      return { entityType: "goal", name: parsed.name, tab: "items" };
     },
   };
 }
 
-function makeInitiativeArchiveAction(): InspectorAction {
+function makeGoalArchiveAction(): InspectorAction {
   return {
-    id: "archive-initiative",
+    id: "archive-goal",
     label: "Archive",
     icon: Archive,
     variant: "destructive",
     async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
-      if (!parsed?.name) throw new Error("Cannot determine initiative name");
-      await defaultApiClient.patch(API_ENDPOINTS.initiativeArchiveItem(parsed.name), {});
+      if (!parsed?.name) throw new Error("Cannot determine goal name");
+      await defaultApiClient.patch(API_ENDPOINTS.goalArchiveItem(parsed.name), {});
     },
     enabled(node: GraphNode) {
       // Check archivedAt from the node's extra data if available
@@ -273,13 +273,13 @@ export const actionRegistry: ActionRegistry = {
       makeBacklogEditAction(),
       makeQueueAction(),
       makeBacklogAddDependencyAction(),
-      makeBacklogAssignInitiativeAction(),
+      makeBacklogAssignGoalAction(),
       makeBacklogViewFilesAction(),
     ],
-    initiative: [
-      makeInitiativeEditAction(),
-      makeInitiativeManageMembersAction(),
-      makeInitiativeArchiveAction(),
+    goal: [
+      makeGoalEditAction(),
+      makeGoalManageMembersAction(),
+      makeGoalArchiveAction(),
     ],
     scenario: [
       makeScenarioViewFilesAction(),
@@ -296,13 +296,13 @@ export const actionRegistry: ActionRegistry = {
       makeBacklogEditAction(),
       makeQueueAction(),
       makeBacklogAddDependencyAction(),
-      makeBacklogAssignInitiativeAction(),
+      makeBacklogAssignGoalAction(),
       makeBacklogViewFilesAction(),
     ],
-    initiative: [
-      makeInitiativeEditAction(),
-      makeInitiativeManageMembersAction(),
-      makeInitiativeArchiveAction(),
+    goal: [
+      makeGoalEditAction(),
+      makeGoalManageMembersAction(),
+      makeGoalArchiveAction(),
     ],
     scenario: [
       makeScenarioViewFilesAction(),

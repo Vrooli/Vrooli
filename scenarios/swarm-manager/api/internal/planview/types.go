@@ -18,7 +18,6 @@ import (
 	"swarm-manager/internal/eta"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/gates"
-	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/operations"
 )
 
@@ -92,7 +91,7 @@ type Card struct {
 	Status      string      `json:"status,omitempty"`
 	Priority    int         `json:"priority,omitempty"`
 	Wave        int         `json:"wave"`
-	Initiative  string      `json:"initiative,omitempty"`
+	Milestone  string      `json:"milestone,omitempty"`
 	Effort      string      `json:"effort,omitempty"`
 	Gate        *gates.Gate `json:"gate,omitempty"`
 	Outcome     string      `json:"outcome,omitempty"`
@@ -170,13 +169,6 @@ type OpsSummarizer interface {
 	Aggregate(ctx context.Context, f operations.Filters) (*operations.OperationsView, error)
 }
 
-// InitiativeLister provides initiative membership + depends_on so the board's
-// dependency graph can fold in the D2 initiative gate. Optional: when nil,
-// the wave graph uses item depends_on alone (pre-gate behavior).
-type InitiativeLister interface {
-	LoadAll() ([]initiatives.Initiative, error)
-}
-
 // GoalScoper resolves a goal name to the item refs ("<kind>/<name>") in its
 // transitive prerequisite closure, used to scope the board to a goal. Optional:
 // when the Config field is nil, a goal-scoped request is rejected. *goals.Service
@@ -192,15 +184,14 @@ type GoalScoper interface {
 type ETAEstimatorFactory func() (*eta.Estimator, error)
 
 // Config wires Service dependencies. Backlog and Gates are required;
-// Executions, Ops, and Initiatives degrade gracefully when nil (empty Done
-// executions / zero Now counts / no initiative gate). Now defaults to time.Now.
+// Executions and Ops degrade gracefully when nil (empty Done executions / zero
+// Now counts). Now defaults to time.Now.
 type Config struct {
-	Backlog     BacklogLister
-	Gates       GateEnumerator
-	Executions  ExecutionLister
-	Ops         OpsSummarizer
-	Initiatives InitiativeLister
-	Goals       GoalScoper
-	ETA         ETAEstimatorFactory
-	Now         func() time.Time
+	Backlog    BacklogLister
+	Gates      GateEnumerator
+	Executions ExecutionLister
+	Ops        OpsSummarizer
+	Goals      GoalScoper
+	ETA        ETAEstimatorFactory
+	Now        func() time.Time
 }

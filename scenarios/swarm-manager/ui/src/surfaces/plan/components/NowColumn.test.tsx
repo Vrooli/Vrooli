@@ -66,9 +66,9 @@ describe("NowColumn", () => {
     useOperationsStore.getState().reset();
   });
 
-  it("groups activities by initiative with a standalone bucket", async () => {
+  it("groups activities by milestone with a standalone bucket", async () => {
     await loadView([
-      row({ activityId: "a1", runId: "r1", initiativeName: "apollo", ownerTitle: "Apollo item", lane: "execute" }),
+      row({ activityId: "a1", runId: "r1", milestoneName: "apollo", ownerTitle: "Apollo item", lane: "execute" }),
       row({ activityId: "a2", runId: "r2", ownerTitle: "Loose item", lane: "review" }),
     ]);
     renderWithProviders(<NowColumn />);

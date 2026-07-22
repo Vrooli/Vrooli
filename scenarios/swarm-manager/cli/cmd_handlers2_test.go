@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -23,27 +22,6 @@ func TestCmdPortfolioBrief_RendersBrief(t *testing.T) {
 	}
 	if !strings.Contains(out, "line one") || !strings.Contains(out, "line two") {
 		t.Errorf("summary lines missing: %q", out)
-	}
-}
-
-func TestCmdInitiativesCandidates_PassesPurpose(t *testing.T) {
-	var gotQuery url.Values
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/initiative-candidates" {
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-		gotQuery = r.URL.Query()
-		_, _ = w.Write([]byte(`{"brief":{"title":"Candidate"}}`))
-	}))
-	app := newAppT(t)
-	out := clitest.CaptureStdout(t, func() error {
-		return app.cmdInitiativesCandidates([]string{"--purpose", " readiness "})
-	})
-	if gotQuery.Get("purpose") != "readiness" {
-		t.Errorf("purpose query = %q", gotQuery.Get("purpose"))
-	}
-	if !strings.Contains(out, "Candidate") {
-		t.Errorf("output = %q", out)
 	}
 }
 

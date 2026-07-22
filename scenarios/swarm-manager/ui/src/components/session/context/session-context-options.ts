@@ -7,7 +7,7 @@ import type {
   BacklogItem,
   Capture,
   ExecutionRecord,
-  InitiativeWithRollup,
+	GoalWithScope,
   Scenario,
 } from "../../../types";
 import {
@@ -15,7 +15,7 @@ import {
   backlogOption,
   captureOption,
   executionOption,
-  initiativeOption,
+	goalOption,
   operationsBriefingOption,
   scenarioOption,
   sessionOption,
@@ -33,7 +33,7 @@ export function optionsToRefs(options: SessionContextOption[]): AgentSessionCont
  */
 export interface ContextOptionInputs {
   backlogItems: BacklogItem[];
-  initiatives: InitiativeWithRollup[];
+	goals: GoalWithScope[];
   captures: Capture[];
   executions: ExecutionRecord[];
   activities: AgentActivity[];
@@ -56,7 +56,7 @@ export function buildContextOptionsByType(
 ): Record<AgentSessionContextType, SessionContextOption[]> {
   const {
     backlogItems,
-    initiatives,
+	  goals,
     captures,
     executions,
     activities,
@@ -66,8 +66,7 @@ export function buildContextOptionsByType(
     currentSessionId,
   } = inputs;
   return {
-    backlog_item: backlogItems.map(backlogOption),
-    initiative: initiatives.map(initiativeOption),
+	backlog_item: backlogItems.map(backlogOption),
     capture: captures.map(captureOption),
     execution: executions.map(executionOption),
     agent_activity: activities.map(activityOption),
@@ -80,6 +79,6 @@ export function buildContextOptionsByType(
     // generic context picker, so they contribute no pickable options here.
     plan_dependency_cycles: [],
     plan_eta: [],
-    goal: [],
+	goal: goals.map(goalOption),
   };
 }

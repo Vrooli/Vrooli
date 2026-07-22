@@ -77,7 +77,7 @@ const AUTHORING_SESSION: AgentSession = {
 const OPERATIONS_SESSION: AgentSession = {
   ...META_SESSION,
   id: "sess_ops",
-  title: "Manage stalled initiatives",
+  title: "Manage stalled goals",
   kind: "swarm_operations",
   status: "waiting_for_user",
   skillId: "swarm-manager-operations-session",
@@ -120,7 +120,7 @@ describe("SessionsTab", () => {
     const onOpenSession = vi.fn();
     render(<SessionsTab searchQuery="" filters={BASE_FILTERS} sort={RECENCY_SORT} onOpenSession={onOpenSession} />);
 
-    expect(screen.getByText("Manage stalled initiatives")).toBeInTheDocument();
+    expect(screen.getByText("Manage stalled goals")).toBeInTheDocument();
     expect(screen.getByText("Swarm operations")).toBeInTheDocument();
     expect(screen.getByText("Author phased execution mode")).toBeInTheDocument();
     expect(screen.getByText("Plan quality work")).toBeInTheDocument();

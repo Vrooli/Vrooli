@@ -1,4 +1,4 @@
-// Batch helper functions: initiative resolution, rollback, and utility
+// Batch helper functions: milestone resolution, rollback, and utility
 // functions that support atomic batch operations in batch_handler.go.
 package backlog
 
@@ -13,7 +13,7 @@ import (
 	"swarm-manager/internal/depgraph"
 )
 
-func isValidInitiativeStatus(status string) bool {
+func isValidMilestoneStatus(status string) bool {
 	switch status {
 	case "active", "completed":
 		return true
@@ -22,10 +22,10 @@ func isValidInitiativeStatus(status string) bool {
 	}
 }
 
-// normalizeInitiativeDeps trims, dedupes, and sorts depends_on entries for an
-// initiative. Returns errors for blanks, self-references, or kind/name-form
-// strings (which belong on items, not initiatives).
-func normalizeInitiativeDeps(raw []string, self string) ([]string, error) {
+// normalizeMilestoneDeps trims, dedupes, and sorts depends_on entries for an
+// milestone. Returns errors for blanks, self-references, or kind/name-form
+// strings (which belong on items, not milestones).
+func normalizeMilestoneDeps(raw []string, self string) ([]string, error) {
 	seen := make(map[string]bool, len(raw))
 	out := make([]string, 0, len(raw))
 	for _, d := range raw {
@@ -34,7 +34,7 @@ func normalizeInitiativeDeps(raw []string, self string) ([]string, error) {
 			return nil, fmt.Errorf("depends_on contains a blank entry")
 		}
 		if strings.Contains(d, "/") {
-			return nil, fmt.Errorf("depends_on must be initiative names, not kind/name: %q", d)
+			return nil, fmt.Errorf("depends_on must be milestone names, not kind/name: %q", d)
 		}
 		if d == self {
 			return nil, fmt.Errorf("depends_on cannot reference self %q", self)
@@ -49,13 +49,13 @@ func normalizeInitiativeDeps(raw []string, self string) ([]string, error) {
 	return out, nil
 }
 
-// validateInitiativeDepRefs ensures every depends_on entry points at either
-// another initiative in the batch or an existing initiative on disk.
-func (h *Handler) validateInitiativeDepRefs(provided map[string]batchCreateInitiative) error {
-	if h.initiativeAssigner == nil {
+// validateMilestoneDepRefs ensures every depends_on entry points at either
+// another milestone in the batch or an existing milestone on disk.
+func (h *Handler) validateMilestoneDepRefs(provided map[string]batchCreateMilestone) error {
+	if h.milestoneAssigner == nil {
 		for _, init := range provided {
 			if init.DependsOn != nil && len(*init.DependsOn) > 0 {
-				return apierr.Internal("initiative support not configured")
+				return apierr.Internal("milestone support not configured")
 			}
 		}
 		return nil
@@ -68,22 +68,22 @@ func (h *Handler) validateInitiativeDepRefs(provided map[string]batchCreateIniti
 			if _, inBatch := provided[dep]; inBatch {
 				continue
 			}
-			existing, err := h.initiativeAssigner.Get(dep)
+			existing, err := h.milestoneAssigner.Get(dep)
 			if err != nil && !strings.Contains(err.Error(), "not found") {
-				return fmt.Errorf("failed to load initiative %q: %w", dep, err)
+				return fmt.Errorf("failed to load milestone %q: %w", dep, err)
 			}
 			if existing == nil {
-				return fmt.Errorf("initiatives[%s]: depends_on references unknown initiative %q", name, dep)
+				return fmt.Errorf("milestones[%s]: depends_on references unknown milestone %q", name, dep)
 			}
 		}
 	}
 	return nil
 }
 
-// orderedInitiativePlans returns plan names in an order that satisfies
+// orderedMilestonePlans returns plan names in an order that satisfies
 // intra-batch depends_on (dep before dependent). Independent nodes are
 // ordered alphabetically for determinism. On cycle, returns an error.
-func orderedInitiativePlans(plans map[string]resolvedInitiativePlan) ([]string, error) {
+func orderedMilestonePlans(plans map[string]resolvedMilestonePlan) ([]string, error) {
 	g := depgraph.New()
 	for name, plan := range plans {
 		deps := make([]string, 0, len(plan.spec.DependsOn))
@@ -95,24 +95,24 @@ func orderedInitiativePlans(plans map[string]resolvedInitiativePlan) ([]string, 
 		g.AddNode(name, deps)
 	}
 	if cycle, found := g.DetectCycle(); found {
-		return nil, fmt.Errorf("initiative dependency cycle detected: %s", strings.Join(cycle, " -> "))
+		return nil, fmt.Errorf("milestone dependency cycle detected: %s", strings.Join(cycle, " -> "))
 	}
 	return g.TopologicalSort()
 }
 
-func groupItemRefsByInitiative(items []BacklogItem) map[string][]string {
+func groupItemRefsByMilestone(items []BacklogItem) map[string][]string {
 	grouped := make(map[string][]string)
 	for _, item := range items {
-		if strings.TrimSpace(item.Initiative) == "" {
+		if strings.TrimSpace(item.Milestone) == "" {
 			continue
 		}
 		ref := string(item.Kind) + "/" + item.Name
-		grouped[item.Initiative] = append(grouped[item.Initiative], ref)
+		grouped[item.Milestone] = append(grouped[item.Milestone], ref)
 	}
 	return grouped
 }
 
-func rollbackBatchCreate(createdDirs []string, appliedInitiatives []resolvedInitiativePlan, assigner InitiativeAssigner) {
+func rollbackBatchCreate(createdDirs []string, appliedMilestones []resolvedMilestonePlan, assigner MilestoneAssigner) {
 	for _, dir := range createdDirs {
 		if rmErr := os.RemoveAll(dir); rmErr != nil {
 			slog.Debug("backlog: rollback batch-created dir failed", "err", rmErr, "dir", dir)
@@ -121,8 +121,8 @@ func rollbackBatchCreate(createdDirs []string, appliedInitiatives []resolvedInit
 	if assigner == nil {
 		return
 	}
-	for i := len(appliedInitiatives) - 1; i >= 0; i-- {
-		plan := appliedInitiatives[i]
+	for i := len(appliedMilestones) - 1; i >= 0; i-- {
+		plan := appliedMilestones[i]
 		switch plan.action {
 		case "create":
 			_ = assigner.Delete(plan.spec.Name)
@@ -134,27 +134,27 @@ func rollbackBatchCreate(createdDirs []string, appliedInitiatives []resolvedInit
 	}
 }
 
-func (h *Handler) resolveInitiativePlans(
+func (h *Handler) resolveMilestonePlans(
 	referenced map[string]bool,
-	provided map[string]batchCreateInitiative,
-) (map[string]resolvedInitiativePlan, []batchCreateInitiativeResult, error) {
-	plans := make(map[string]resolvedInitiativePlan, len(referenced))
-	results := make([]batchCreateInitiativeResult, 0, len(referenced))
+	provided map[string]batchCreateMilestone,
+) (map[string]resolvedMilestonePlan, []batchCreateMilestoneResult, error) {
+	plans := make(map[string]resolvedMilestonePlan, len(referenced))
+	results := make([]batchCreateMilestoneResult, 0, len(referenced))
 
 	for name := range referenced {
 		providedSpec, hasProvided := provided[name]
-		existing, err := h.initiativeAssigner.Get(name)
+		existing, err := h.milestoneAssigner.Get(name)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
-			return nil, nil, fmt.Errorf("failed to load initiative %q: %w", name, err)
+			return nil, nil, fmt.Errorf("failed to load milestone %q: %w", name, err)
 		}
 
 		if !hasProvided {
 			if existing == nil {
-				return nil, nil, fmt.Errorf("initiative %q does not exist; include it in the initiatives list with metadata", name)
+				return nil, nil, fmt.Errorf("milestone %q does not exist; include it in the milestones list with metadata", name)
 			}
 			deps := append([]string(nil), existing.DependsOn...)
-			plans[name] = resolvedInitiativePlan{
-				spec: InitiativeSpec{
+			plans[name] = resolvedMilestonePlan{
+				spec: MilestoneSpec{
 					Name:        existing.Name,
 					Title:       existing.Title,
 					Description: existing.Description,
@@ -166,7 +166,7 @@ func (h *Handler) resolveInitiativePlans(
 				existing: existing,
 				action:   "reuse",
 			}
-			results = append(results, batchCreateInitiativeResult{
+			results = append(results, batchCreateMilestoneResult{
 				Name:        existing.Name,
 				Title:       existing.Title,
 				Description: existing.Description,
@@ -209,7 +209,7 @@ func (h *Handler) resolveInitiativePlans(
 		if planRef == nil && existing != nil {
 			planRef = existing.PlanRef
 		}
-		spec := InitiativeSpec{
+		spec := MilestoneSpec{
 			Name:        name,
 			Title:       providedSpec.Title,
 			Description: description,
@@ -231,12 +231,12 @@ func (h *Handler) resolveInitiativePlans(
 			}
 		}
 
-		plans[name] = resolvedInitiativePlan{
+		plans[name] = resolvedMilestonePlan{
 			spec:     spec,
 			existing: existing,
 			action:   action,
 		}
-		results = append(results, batchCreateInitiativeResult{
+		results = append(results, batchCreateMilestoneResult{
 			Name:        spec.Name,
 			Title:       spec.Title,
 			Description: spec.Description,
@@ -253,7 +253,7 @@ func (h *Handler) resolveInitiativePlans(
 // stringSetEqual returns true if a and b contain the same elements (set
 // equality). Handles the common mixed-order case where existing deps come
 // back from the store in insertion order and provided deps come in sorted
-// by normalizeInitiativeDeps.
+// by normalizeMilestoneDeps.
 func stringSetEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false

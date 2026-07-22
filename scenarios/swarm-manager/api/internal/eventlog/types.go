@@ -40,6 +40,7 @@ const (
 	EventBacklogDependencyAdded   EventType = "backlog.dependency_added"
 	EventBacklogDependencyRemoved EventType = "backlog.dependency_removed"
 	EventBacklogInitiativeChanged EventType = "backlog.initiative_changed"
+	EventBacklogMilestoneChanged  EventType = "backlog.milestone_changed"
 	EventBacklogBlocked           EventType = "backlog.blocked"
 	EventBacklogUnblocked         EventType = "backlog.unblocked"
 	EventBacklogArchived          EventType = "backlog.archived"
@@ -79,14 +80,19 @@ const (
 // scope-snapshot event records the closure size / progress over time so
 // per-goal scope-creep is surfaced rather than hidden.
 const (
-	EventGoalCreated         EventType = "goal.created"
-	EventGoalUpdated         EventType = "goal.updated"
-	EventGoalTargetAdded     EventType = "goal.target_added"
-	EventGoalTargetRemoved   EventType = "goal.target_removed"
-	EventGoalPriorityChanged EventType = "goal.priority_changed"
-	EventGoalArchived        EventType = "goal.archived"
-	EventGoalUnarchived      EventType = "goal.unarchived"
-	EventGoalScopeSnapshot   EventType = "goal.scope_snapshot"
+	EventGoalCreated              EventType = "goal.created"
+	EventGoalUpdated              EventType = "goal.updated"
+	EventGoalTargetAdded          EventType = "goal.target_added"
+	EventGoalTargetRemoved        EventType = "goal.target_removed"
+	EventGoalPriorityChanged      EventType = "goal.priority_changed"
+	EventGoalArchived             EventType = "goal.archived"
+	EventGoalUnarchived           EventType = "goal.unarchived"
+	EventGoalScopeSnapshot        EventType = "goal.scope_snapshot"
+	EventMilestoneCreated         EventType = "milestone.created"
+	EventMilestoneUpdated         EventType = "milestone.updated"
+	EventMilestoneItemsAssigned   EventType = "milestone.items_assigned"
+	EventMilestoneItemsUnassigned EventType = "milestone.items_unassigned"
+	EventMilestoneArchived        EventType = "milestone.archived"
 )
 
 // Calibration events. A duration_sample is a coarse per-item lead-time
@@ -229,6 +235,12 @@ type InitiativeChangePayload struct {
 	To   string `json:"to"`
 }
 
+// MilestoneChangePayload records a goal-owned milestone assignment change.
+type MilestoneChangePayload struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
 // InitiativeModeChangePayload records an initiative operating-mode transition.
 type InitiativeModeChangePayload struct {
 	From string `json:"from"`
@@ -289,11 +301,11 @@ type BlockPayload struct {
 
 // BacklogCreatedPayload records initial backlog item state.
 type BacklogCreatedPayload struct {
-	Kind       string `json:"kind"`
-	Status     string `json:"status"`
-	Priority   int    `json:"priority"`
-	Initiative string `json:"initiative,omitempty"`
-	Effort     string `json:"effort,omitempty"`
+	Kind      string `json:"kind"`
+	Status    string `json:"status"`
+	Priority  int    `json:"priority"`
+	Milestone string `json:"milestone,omitempty"`
+	Effort    string `json:"effort,omitempty"`
 }
 
 // ExecutionCreatedPayload records execution creation details.
@@ -366,6 +378,13 @@ type GoalScopeSnapshotPayload struct {
 	BlockedCount   int `json:"blocked_count,omitempty"`
 }
 
+// MilestonePayload describes a change to a milestone owned by a goal.
+type MilestonePayload struct {
+	GoalName      string   `json:"goal_name"`
+	MilestoneName string   `json:"milestone_name"`
+	Items         []string `json:"items,omitempty"`
+}
+
 // DurationSamplePayload records one coarse lead-time observation for a
 // completed backlog item, tagged with its effort class. Origin is "backfill"
 // (derived once from historical spec timestamps) or "live" (a completion
@@ -377,7 +396,7 @@ type DurationSamplePayload struct {
 	DurationHours float64 `json:"duration_hours"`
 	Origin        string  `json:"origin"`
 	Kind          string  `json:"kind,omitempty"`
-	Initiative    string  `json:"initiative,omitempty"`
+	Milestone     string  `json:"milestone,omitempty"`
 }
 
 // DurationSampleOrigin values for DurationSamplePayload.Origin.

@@ -1,8 +1,10 @@
 package goals
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -11,7 +13,6 @@ import (
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/eta"
 	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/initiatives"
 )
 
 // ErrValidation wraps user-correctable validation failures so the handler can
@@ -27,11 +28,6 @@ type BacklogReader interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
 }
 
-// InitiativeReader loads initiatives for target expansion and gate semantics.
-type InitiativeReader interface {
-	LoadAll() ([]initiatives.Initiative, error)
-}
-
 // EventLogger records goal state-change events. *eventlog.Emitter satisfies it.
 type EventLogger interface {
 	EmitGoalCreated(name string, payload eventlog.GoalCreatedPayload)
@@ -42,21 +38,33 @@ type EventLogger interface {
 	EmitGoalArchived(name, previousStatus, archivedAt string)
 	EmitGoalUnarchived(name, archivedAt string)
 	EmitGoalScopeSnapshot(name string, payload eventlog.GoalScopeSnapshotPayload)
+	EmitMilestoneCreated(goal, milestone string, payload eventlog.MilestonePayload)
+	EmitMilestoneUpdated(goal, milestone string, payload eventlog.MilestonePayload)
+	EmitMilestoneItemsAssigned(goal, milestone string, payload eventlog.MilestonePayload)
+	EmitMilestoneItemsUnassigned(goal, milestone string, payload eventlog.MilestonePayload)
+	EmitMilestoneArchived(goal, milestone string, payload eventlog.MilestonePayload)
+}
+
+// AIIndexer keeps a goal's semantic-search vector in sync without coupling
+// this domain package to the aisearch implementation.
+type AIIndexer interface {
+	IndexGoal(context.Context, Goal) error
+	DeleteGoal(context.Context, string) error
 }
 
 // Service provides business logic for goals.
 type Service struct {
 	store            *Store
 	backlog          BacklogReader
-	initiatives      InitiativeReader
 	eventLogger      EventLogger
 	eventDispatcher  dispatch.Invalidator
 	estimatorFactory EstimatorFactory
+	aiIndexer        AIIndexer
 }
 
 // NewService creates a goals Service.
-func NewService(store *Store, backlogReader BacklogReader, initiativeReader InitiativeReader) *Service {
-	return &Service{store: store, backlog: backlogReader, initiatives: initiativeReader}
+func NewService(store *Store, backlogReader BacklogReader) *Service {
+	return &Service{store: store, backlog: backlogReader}
 }
 
 // SetEventLogger injects an optional event logger.
@@ -68,6 +76,32 @@ func (s *Service) SetEventDispatcher(d dispatch.Invalidator) { s.eventDispatcher
 // SetEstimatorFactory injects an optional ETA estimator factory. When set, Get
 // and List attach a p50/p80 completion band to each goal.
 func (s *Service) SetEstimatorFactory(f EstimatorFactory) { s.estimatorFactory = f }
+
+// SetAIIndexer configures optional best-effort semantic-search synchronization.
+// Goal persistence is never blocked by an unavailable embedding service.
+func (s *Service) SetAIIndexer(indexer AIIndexer) { s.aiIndexer = indexer }
+
+func (s *Service) indexGoalAsync(goal Goal) {
+	if s.aiIndexer == nil {
+		return
+	}
+	go func() {
+		if err := s.aiIndexer.IndexGoal(context.Background(), goal); err != nil {
+			slog.Debug("[goals] semantic index upsert failed", "goal", goal.Name, "err", err)
+		}
+	}()
+}
+
+func (s *Service) deleteGoalAsync(name string) {
+	if s.aiIndexer == nil {
+		return
+	}
+	go func() {
+		if err := s.aiIndexer.DeleteGoal(context.Background(), name); err != nil {
+			slog.Debug("[goals] semantic index delete failed", "goal", name, "err", err)
+		}
+	}()
+}
 
 // newEstimator builds a fresh estimator via the factory, tolerating a nil
 // factory or a build error by returning nil (ETA is then simply omitted).
@@ -140,6 +174,7 @@ func (s *Service) Create(req CreateRequest) (*GoalWithScope, error) {
 		})
 		s.eventLogger.EmitGoalScopeSnapshot(name, scopeSnapshotPayload(scope))
 	}
+	s.indexGoalAsync(*g)
 	s.invalidate()
 	return &GoalWithScope{Goal: *g, Scope: scope}, nil
 }
@@ -152,17 +187,18 @@ func (s *Service) Get(name string) (*GoalWithScope, error) {
 	if err != nil {
 		return nil, err
 	}
-	in, items, inits, err := s.buildScopeData()
+	in, items, err := s.buildScopeData()
 	if err != nil {
 		return nil, err
 	}
 	in.Targets = g.Targets
+	in.Milestones = g.Milestones
 	scope := ComputeScope(in)
 	s.recordDrift(g, scope)
 	gws := &GoalWithScope{Goal: *g, Scope: scope}
 	// Hydrate the rendered refs from the data the scope walk already loaded —
 	// a map join, not extra I/O.
-	gws.ScopeEntities = buildScopeEntities(g.Targets, scope, items, inits)
+	gws.ScopeEntities = buildScopeEntities(g.Targets, scope, items)
 	attachETA(gws, in, s.newEstimator())
 	return gws, nil
 }
@@ -181,6 +217,7 @@ func (s *Service) ClosureRefs(name string) ([]string, error) {
 		return nil, err
 	}
 	in.Targets = g.Targets
+	in.Milestones = g.Milestones
 	return ComputeScope(in).Closure, nil
 }
 
@@ -204,6 +241,7 @@ func (s *Service) ItemGoalPriorities() (map[string]int, error) {
 		}
 		gin := in
 		gin.Targets = g.Targets
+		gin.Milestones = g.Milestones
 		for _, ref := range ComputeScope(gin).Closure {
 			if p, ok := out[ref]; !ok || g.Priority > p {
 				out[ref] = g.Priority
@@ -233,6 +271,7 @@ func (s *Service) ReadyGoalItems() ([]ReadyGoalItem, error) {
 		}
 		gin := in
 		gin.Targets = g.Targets
+		gin.Milestones = g.Milestones
 		for _, ref := range ComputeScope(gin).Ready {
 			if p, ok := best[ref]; !ok || g.Priority > p {
 				best[ref] = g.Priority
@@ -276,6 +315,7 @@ func (s *Service) List() ([]GoalWithScope, error) {
 		g := goalsList[i]
 		goalIn := in
 		goalIn.Targets = g.Targets
+		goalIn.Milestones = g.Milestones
 		scope := ComputeScope(goalIn)
 		s.recordDrift(&g, scope)
 		gws := GoalWithScope{Goal: g, Scope: scope}
@@ -342,6 +382,7 @@ func (s *Service) Update(name string, req UpdateRequest) (*GoalWithScope, error)
 	if s.eventLogger != nil {
 		s.eventLogger.EmitGoalUpdated(name)
 	}
+	s.indexGoalAsync(*g)
 	s.invalidate()
 	return &GoalWithScope{Goal: *g, Scope: scope}, nil
 }
@@ -384,6 +425,7 @@ func (s *Service) AddTargets(name string, targets []string) (*GoalWithScope, err
 	if err := s.store.Save(g); err != nil {
 		return nil, err
 	}
+	s.indexGoalAsync(*g)
 	s.invalidate()
 	return &GoalWithScope{Goal: *g, Scope: scope}, nil
 }
@@ -423,6 +465,7 @@ func (s *Service) RemoveTargets(name string, targets []string) (*GoalWithScope, 
 	if err := s.store.Save(g); err != nil {
 		return nil, err
 	}
+	s.indexGoalAsync(*g)
 	s.invalidate()
 	return &GoalWithScope{Goal: *g, Scope: scope}, nil
 }
@@ -447,6 +490,34 @@ func (s *Service) Archive(name string) (*Goal, error) {
 	if s.eventLogger != nil {
 		s.eventLogger.EmitGoalArchived(name, prev, now)
 	}
+	s.indexGoalAsync(*g)
+	s.invalidate()
+	return g, nil
+}
+
+// Unarchive restores a goal to active status without discarding its history.
+func (s *Service) Unarchive(name string) (*Goal, error) {
+	g, err := s.store.Load(name)
+	if err != nil {
+		return nil, err
+	}
+	if g.Status != StatusArchived {
+		return g, nil
+	}
+	archivedAt := ""
+	if g.ArchivedAt != nil {
+		archivedAt = *g.ArchivedAt
+	}
+	g.Status = StatusActive
+	g.ArchivedAt = nil
+	g.Updated = nowRFC3339()
+	if err := s.store.Save(g); err != nil {
+		return nil, err
+	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitGoalUnarchived(name, archivedAt)
+	}
+	s.indexGoalAsync(*g)
 	s.invalidate()
 	return g, nil
 }
@@ -456,43 +527,256 @@ func (s *Service) Delete(name string) error {
 	if err := s.store.Delete(name); err != nil {
 		return err
 	}
+	s.deleteGoalAsync(name)
 	s.invalidate()
 	return nil
 }
 
-// computeScope builds the scope input from live backlog + initiatives and runs
-// the pure ComputeScope.
+// CreateMilestone adds an owned milestone without changing derived scope.
+func (s *Service) CreateMilestone(goalName string, milestone Milestone) (*GoalWithScope, error) {
+	g, err := s.store.Load(goalName)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateMilestone(milestone, g.Milestones, ""); err != nil {
+		return nil, err
+	}
+	milestone = normalizeMilestone(milestone)
+	g.Milestones = append(g.Milestones, milestone)
+	g.Updated = nowRFC3339()
+	if err := s.store.Save(g); err != nil {
+		return nil, err
+	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitMilestoneCreated(goalName, milestone.Name, milestonePayload(goalName, milestone))
+	}
+	s.indexGoalAsync(*g)
+	s.invalidate()
+	return s.Get(goalName)
+}
+
+// UpdateMilestone replaces one milestone while preserving its ownership.
+func (s *Service) UpdateMilestone(goalName string, milestone Milestone) (*GoalWithScope, error) {
+	g, err := s.store.Load(goalName)
+	if err != nil {
+		return nil, err
+	}
+	index := milestoneIndex(g.Milestones, milestone.Name)
+	if index < 0 {
+		return nil, validationErr("milestone %q not found", milestone.Name)
+	}
+	if err := validateMilestone(milestone, g.Milestones, milestone.Name); err != nil {
+		return nil, err
+	}
+	milestone = normalizeMilestone(milestone)
+	g.Milestones[index] = milestone
+	g.Updated = nowRFC3339()
+	if err := s.store.Save(g); err != nil {
+		return nil, err
+	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitMilestoneUpdated(goalName, milestone.Name, milestonePayload(goalName, milestone))
+	}
+	s.indexGoalAsync(*g)
+	s.invalidate()
+	return s.Get(goalName)
+}
+
+// AssignMilestoneItems assigns closure items to exactly one owned milestone.
+func (s *Service) AssignMilestoneItems(goalName, milestoneName string, items []string) (*GoalWithScope, error) {
+	g, err := s.store.Load(goalName)
+	if err != nil {
+		return nil, err
+	}
+	index := milestoneIndex(g.Milestones, milestoneName)
+	if index < 0 {
+		return nil, validationErr("milestone %q not found", milestoneName)
+	}
+	scope, err := s.computeScope(g)
+	if err != nil {
+		return nil, err
+	}
+	valid := make(map[string]bool, len(scope.Closure))
+	for _, ref := range scope.Closure {
+		valid[ref] = true
+	}
+	for _, item := range items {
+		if !valid[item] {
+			return nil, validationErr("item %q is outside goal scope", item)
+		}
+	}
+	for i := range g.Milestones {
+		if i != index {
+			g.Milestones[i].Items = withoutRefs(g.Milestones[i].Items, items)
+		}
+	}
+	g.Milestones[index].Items = appendUnique(g.Milestones[index].Items, items)
+	g.Updated = nowRFC3339()
+	if err := s.store.Save(g); err != nil {
+		return nil, err
+	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitMilestoneItemsAssigned(goalName, milestoneName, eventlog.MilestonePayload{GoalName: goalName, MilestoneName: milestoneName, Items: items})
+	}
+	s.indexGoalAsync(*g)
+	s.invalidate()
+	return s.Get(goalName)
+}
+
+// UnassignMilestoneItems returns items to the goal's unassigned bucket.
+func (s *Service) UnassignMilestoneItems(goalName, milestoneName string, items []string) (*GoalWithScope, error) {
+	g, err := s.store.Load(goalName)
+	if err != nil {
+		return nil, err
+	}
+	index := milestoneIndex(g.Milestones, milestoneName)
+	if index < 0 {
+		return nil, validationErr("milestone %q not found", milestoneName)
+	}
+	g.Milestones[index].Items = withoutRefs(g.Milestones[index].Items, items)
+	g.Updated = nowRFC3339()
+	if err := s.store.Save(g); err != nil {
+		return nil, err
+	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitMilestoneItemsUnassigned(goalName, milestoneName, eventlog.MilestonePayload{GoalName: goalName, MilestoneName: milestoneName, Items: items})
+	}
+	s.indexGoalAsync(*g)
+	s.invalidate()
+	return s.Get(goalName)
+}
+
+// ArchiveMilestone preserves the milestone and its provenance while removing
+// it from active work management.
+func (s *Service) ArchiveMilestone(goalName, milestoneName string) (*GoalWithScope, error) {
+	g, err := s.store.Load(goalName)
+	if err != nil {
+		return nil, err
+	}
+	index := milestoneIndex(g.Milestones, milestoneName)
+	if index < 0 {
+		return nil, validationErr("milestone %q not found", milestoneName)
+	}
+	if g.Milestones[index].ArchivedAt == nil {
+		now := nowRFC3339()
+		g.Milestones[index].ArchivedAt = &now
+		g.Updated = now
+	}
+	if err := s.store.Save(g); err != nil {
+		return nil, err
+	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitMilestoneArchived(goalName, milestoneName, milestonePayload(goalName, g.Milestones[index]))
+	}
+	s.indexGoalAsync(*g)
+	s.invalidate()
+	return s.Get(goalName)
+}
+
+func milestoneIndex(milestones []Milestone, name string) int {
+	for i := range milestones {
+		if milestones[i].Name == name {
+			return i
+		}
+	}
+	return -1
+}
+
+func normalizeMilestone(m Milestone) Milestone {
+	m.Name = sanitizeName(m.Name)
+	m.Title = strings.TrimSpace(m.Title)
+	m.Description = strings.TrimSpace(m.Description)
+	m.Items = appendUnique(nil, m.Items)
+	m.DependsOn = appendUnique(nil, m.DependsOn)
+	return m
+}
+
+func appendUnique(existing, values []string) []string {
+	seen := make(map[string]bool, len(existing)+len(values))
+	out := make([]string, 0, len(existing)+len(values))
+	for _, value := range append(existing, values...) {
+		value = strings.TrimSpace(value)
+		if value != "" && !seen[value] {
+			seen[value] = true
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func withoutRefs(existing, removed []string) []string {
+	drop := make(map[string]bool, len(removed))
+	for _, ref := range removed {
+		drop[strings.TrimSpace(ref)] = true
+	}
+	out := make([]string, 0, len(existing))
+	for _, ref := range existing {
+		if !drop[ref] {
+			out = append(out, ref)
+		}
+	}
+	return out
+}
+
+func milestonePayload(goal string, m Milestone) eventlog.MilestonePayload {
+	return eventlog.MilestonePayload{GoalName: goal, MilestoneName: m.Name, Items: m.Items}
+}
+
+func validateMilestone(m Milestone, existing []Milestone, replacing string) error {
+	name := sanitizeName(m.Name)
+	if name == "" {
+		return validationErr("milestone name is required")
+	}
+	if strings.TrimSpace(m.Title) == "" {
+		return validationErr("milestone title is required")
+	}
+	names := make(map[string]bool, len(existing)+1)
+	for _, candidate := range existing {
+		if candidate.Name != replacing {
+			names[candidate.Name] = true
+		}
+	}
+	if names[name] {
+		return validationErr("milestone %q already exists", name)
+	}
+	names[name] = true
+	for _, dependency := range m.DependsOn {
+		dependency = strings.TrimSpace(dependency)
+		if dependency == "" || dependency == name || !names[dependency] {
+			return validationErr("milestone dependency %q must name a sibling milestone", dependency)
+		}
+	}
+	return nil
+}
+
+// computeScope builds the scope input from live backlog and runs the pure
+// ComputeScope.
 func (s *Service) computeScope(g *Goal) (Scope, error) {
 	in, err := s.buildScopeInput()
 	if err != nil {
 		return Scope{}, err
 	}
 	in.Targets = g.Targets
+	in.Milestones = g.Milestones
 	return ComputeScope(in), nil
 }
 
 func (s *Service) buildScopeInput() (ScopeInput, error) {
-	in, _, _, err := s.buildScopeData()
+	in, _, err := s.buildScopeData()
 	return in, err
 }
 
-// buildScopeData builds the scope input and also returns the raw items and
-// initiatives it was built from, for read-time hydration (ScopeEntities).
-func (s *Service) buildScopeData() (ScopeInput, []backlog.BacklogItem, []initiatives.Initiative, error) {
+// buildScopeData builds the scope input and also returns the raw items for
+// read-time hydration (ScopeEntities).
+func (s *Service) buildScopeData() (ScopeInput, []backlog.BacklogItem, error) {
 	items, err := s.backlog.LoadAll(nil)
 	if err != nil {
-		return ScopeInput{}, nil, nil, fmt.Errorf("load backlog: %w", err)
-	}
-	inits, err := s.initiatives.LoadAll()
-	if err != nil {
-		return ScopeInput{}, nil, nil, fmt.Errorf("load initiatives: %w", err)
+		return ScopeInput{}, nil, fmt.Errorf("load backlog: %w", err)
 	}
 	in := ScopeInput{
-		ItemDeps:        make(map[string][]string, len(items)),
-		ItemStatus:      make(map[string]string, len(items)),
-		ItemEffort:      make(map[string]string, len(items)),
-		InitiativeItems: make(map[string][]string, len(inits)),
-		InitiativeDeps:  make(map[string][]string, len(inits)),
+		ItemDeps:   make(map[string][]string, len(items)),
+		ItemStatus: make(map[string]string, len(items)),
+		ItemEffort: make(map[string]string, len(items)),
 	}
 	for _, it := range items {
 		ref := string(it.Kind) + "/" + it.Name
@@ -500,17 +784,13 @@ func (s *Service) buildScopeData() (ScopeInput, []backlog.BacklogItem, []initiat
 		in.ItemDeps[ref] = it.DependsOn
 		in.ItemEffort[ref] = it.Effort
 	}
-	for _, ini := range inits {
-		in.InitiativeItems[ini.Name] = ini.Items
-		in.InitiativeDeps[ini.Name] = ini.DependsOn
-	}
-	return in, items, inits, nil
+	return in, items, nil
 }
 
 // buildScopeEntities hydrates the refs the goal detail view renders (targets ∪
-// ready ∪ blocked) from the already-loaded items and initiatives. Returns nil
+// ready ∪ blocked) from the already-loaded items. Returns nil
 // when nothing resolves so the field is omitted from JSON.
-func buildScopeEntities(targets []string, scope Scope, items []backlog.BacklogItem, inits []initiatives.Initiative) *ScopeEntities {
+func buildScopeEntities(targets []string, scope Scope, items []backlog.BacklogItem) *ScopeEntities {
 	wanted := make(map[string]bool, len(targets)+len(scope.Ready)+len(scope.Blocked))
 	for _, refs := range [][]string{targets, scope.Ready, scope.Blocked} {
 		for _, ref := range refs {
@@ -528,9 +808,6 @@ func buildScopeEntities(targets []string, scope Scope, items []backlog.BacklogIt
 
 	out := &ScopeEntities{}
 	for ref := range wanted {
-		if IsInitiativeTarget(ref) {
-			continue
-		}
 		if it, ok := itemsByRef[ref]; ok {
 			if out.Items == nil {
 				out.Items = make(map[string]backlog.BacklogItem)
@@ -538,55 +815,10 @@ func buildScopeEntities(targets []string, scope Scope, items []backlog.BacklogIt
 			out.Items[ref] = it
 		}
 	}
-	for i := range inits {
-		ref := initiativeNode(inits[i].Name)
-		if !wanted[ref] {
-			continue
-		}
-		if out.Initiatives == nil {
-			out.Initiatives = make(map[string]InitiativeSummary)
-		}
-		out.Initiatives[ref] = InitiativeSummary{
-			Initiative: inits[i],
-			Rollup:     rollupFromItems(inits[i], itemsByRef),
-		}
-	}
-	if out.Items == nil && out.Initiatives == nil {
+	if out.Items == nil {
 		return nil
 	}
 	return out
-}
-
-// rollupFromItems mirrors the initiatives domain's rollup semantics
-// (aggregateInitiativeData) over the in-memory item set: unknown refs count as
-// pending; archived items count as archived (and completed when they finished).
-func rollupFromItems(ini initiatives.Initiative, itemsByRef map[string]backlog.BacklogItem) initiatives.RollupStatus {
-	r := initiatives.RollupStatus{Total: len(ini.Items)}
-	for _, ref := range ini.Items {
-		it, ok := itemsByRef[ref]
-		if !ok {
-			r.Pending++
-			continue
-		}
-		if backlog.IsArchived(it) {
-			r.Archived++
-			if it.Status == backlog.StatusCompleted {
-				r.Completed++
-			}
-			continue
-		}
-		switch it.Status {
-		case backlog.StatusCompleted:
-			r.Completed++
-		case backlog.StatusFailed:
-			r.Failed++
-		case backlog.StatusInProgress, backlog.StatusQueued, backlog.StatusResearching:
-			r.InProgress++
-		default:
-			r.Pending++
-		}
-	}
-	return r
 }
 
 // recordDrift appends a scope snapshot (and emits an event) only when the
@@ -642,12 +874,11 @@ func normalizeTargets(raw []string) ([]string, error) {
 		if t == "" {
 			continue
 		}
-		if IsInitiativeTarget(t) {
-			if strings.TrimSpace(InitiativeName(t)) == "" {
-				return nil, validationErr("invalid initiative target %q", t)
-			}
-		} else if !strings.Contains(t, "/") {
-			return nil, validationErr("target %q must be '<kind>/<name>' or 'initiative/<name>'", t)
+		if strings.HasPrefix(t, "initiative/") {
+			return nil, validationErr("legacy initiative target %q is no longer supported; use its item roots", t)
+		}
+		if !strings.Contains(t, "/") {
+			return nil, validationErr("target %q must be '<kind>/<name>'", t)
 		}
 		if seen[t] {
 			continue

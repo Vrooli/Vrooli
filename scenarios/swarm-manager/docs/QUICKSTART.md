@@ -58,7 +58,7 @@ Expected output:
 Open `http://localhost:35000`.
 
 You should see the **Plan board** (`/plan`) — a single lens-driven workspace over
-backlog, scenarios, initiatives, and execution runs. The old standalone
+backlog, scenarios, milestones, and execution runs. The old standalone
 Scenarios and Execution list tabs were absorbed into it (their routes redirect to
 `/plan`); scenario and execution **detail** pages remain directly reachable. The
 `/graph` and `/stats` lenses and the `/records` browser round out the surfaces.

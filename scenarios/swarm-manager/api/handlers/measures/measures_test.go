@@ -105,7 +105,7 @@ func TestConnectHandler_SharesComputePath(t *testing.T) {
 		events: map[eventlog.EventType]int{
 			eventlog.EventBacklogCreated:      4,
 			eventlog.EventExecutionCompleted:  5,
-			eventlog.EventInitiativeCreated:   2,
+			eventlog.EventGoalCreated:   2,
 			eventlog.EventAgentSessionCreated: 9,
 		},
 	}
@@ -138,13 +138,13 @@ func TestConnectHandler_SharesComputePath(t *testing.T) {
 }
 
 func TestConnectHandler_ExplicitWindowResolves(t *testing.T) {
-	fc := &fakeCounter{events: map[eventlog.EventType]int{eventlog.EventInitiativeCreated: 1}}
+	fc := &fakeCounter{events: map[eventlog.EventType]int{eventlog.EventGoalCreated: 1}}
 	h := NewHandler(fc, fixedNow)
-	_, err := h.CountInitiativesCreated(context.Background(), connect.NewRequest(&smmeasuresv1.CountInitiativesCreatedRequest{
+	_, err := h.CountGoalsCreated(context.Background(), connect.NewRequest(&smmeasuresv1.CountGoalsCreatedRequest{
 		Window: &measuresv1.TimeWindow{Window: &measuresv1.TimeWindow_Token{Token: measuresv1.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_30D}},
 	}))
 	if err != nil {
-		t.Fatalf("CountInitiativesCreated: %v", err)
+		t.Fatalf("CountGoalsCreated: %v", err)
 	}
 	// last_30d → from is 30 days before now.
 	wantFrom := fixedNow().AddDate(0, 0, -30)

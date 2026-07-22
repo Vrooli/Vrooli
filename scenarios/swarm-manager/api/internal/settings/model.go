@@ -44,7 +44,7 @@ var deletableEntityDefaults = map[string]DeleteConfirmLevel{
 	"session":     DeleteConfirmSimple,
 	"scenario":    DeleteConfirmStrong,
 	"backlog":     DeleteConfirmSimple,
-	"initiative":  DeleteConfirmStrong,
+	"goal":        DeleteConfirmStrong,
 	"capture":     DeleteConfirmNone,
 	"backlogFile": DeleteConfirmSimple,
 }
@@ -77,7 +77,7 @@ type Settings struct {
 	SearchDebounceMs int `json:"search_debounce_ms"`
 	ToastDurationMs  int `json:"toast_duration_ms"`
 	// DeleteConfirmationLevels maps a deletable entity-type string (mirroring
-	// the UI registry: "session", "scenario", "backlog", "initiative",
+	// the UI registry: "session", "scenario", "backlog", "goal",
 	// "capture", "backlogFile", ...) to its confirmation level. Missing known
 	// keys are filled from registry defaults on normalize; unknown keys are
 	// preserved for forward-compat with newer UIs.

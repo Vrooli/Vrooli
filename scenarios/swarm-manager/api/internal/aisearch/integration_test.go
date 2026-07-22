@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 	"swarm-manager/internal/testutil"
 )
 
@@ -35,31 +35,31 @@ func saveBacklogItem(t *testing.T, store *backlog.FileStore, item backlog.Backlo
 // buildTestService wires real stores behind a shared *Service backed by the
 // supplied mock ollama/qdrant servers. Returns the store handles for test
 // assertions.
-func buildTestService(t *testing.T, embedder Embedder, qdrantURL string) (*Service, *backlog.FileStore, *initiatives.Store, string) {
+func buildTestService(t *testing.T, embedder Embedder, qdrantURL string) (*Service, *backlog.FileStore, *goals.Service, string) {
 	t.Helper()
 	root := t.TempDir()
 	// Pre-create the kind directories so LoadAll doesn't error.
-	for _, d := range []string{"ideas", "research", "fix", "execute", "chore", "initiatives"} {
+	for _, d := range []string{"ideas", "research", "fix", "execute", "chore", "goals"} {
 		if err := os.MkdirAll(filepath.Join(root, d), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", d, err)
 		}
 	}
 
 	bStore := backlog.NewFileStore(root)
-	iStore := initiatives.NewStore(root)
+	goalService := goals.NewService(goals.NewStore(root), bStore)
 	backlogVS := NewVectorStore(qdrantURL, "", "sm-b", 3)
-	initVS := NewVectorStore(qdrantURL, "", "sm-i", 3)
+	goalVS := NewVectorStore(qdrantURL, "", "sm-g", 3)
 	svc := NewService(
-		embedder, backlogVS, initVS,
+		embedder, backlogVS, goalVS,
 		NewBacklogStoreAdapter(bStore),
-		NewInitiativeStoreAdapter(iStore),
+		NewGoalServiceAdapter(goalService),
 		0.5,
 	)
 	// Wire the write-through seam.
 	bStore.SetAIIndexer(svc)
-	iStore.SetAIIndexer(svc)
+	goalService.SetAIIndexer(svc)
 
-	return svc, bStore, iStore, root
+	return svc, bStore, goalService, root
 }
 
 func TestIntegration_BacklogSave_FiresIndexUpsert(t *testing.T) {
@@ -104,18 +104,17 @@ func TestIntegration_BacklogDelete_FiresIndexDelete(t *testing.T) {
 	})
 }
 
-func TestIntegration_InitiativeSave_FiresIndexUpsert(t *testing.T) {
+func TestIntegration_GoalCreate_FiresIndexUpsert(t *testing.T) {
 	qStub := &qdrantStub{}
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
-	_, _, iStore, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
+	_, _, goalService, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
 
-	init := &initiatives.Initiative{Name: "obs-core", Title: "Observability Core", Status: "active"}
-	if err := iStore.Save(init); err != nil {
-		t.Fatalf("Save: %v", err)
+	if _, err := goalService.Create(goals.CreateRequest{Name: "obs-core", Title: "Observability Core"}); err != nil {
+		t.Fatalf("Create: %v", err)
 	}
-	testutil.Eventually(t, 2*time.Second, "initiative save index upsert", func() bool {
+	testutil.Eventually(t, 2*time.Second, "goal create index upsert", func() bool {
 		return atomic.LoadInt32(&qStub.upsertCalls) >= 1
 	})
 }
@@ -128,7 +127,7 @@ func TestIntegration_QdrantFailure_DoesNotBreakCRUD(t *testing.T) {
 	}))
 	defer qServer.Close()
 
-	_, bStore, iStore, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
+	_, bStore, goalService, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
 
 	// CRUD calls must not propagate the upstream 500.
 	for i := 0; i < 5; i++ {
@@ -137,8 +136,8 @@ func TestIntegration_QdrantFailure_DoesNotBreakCRUD(t *testing.T) {
 	if err := bStore.DeleteItem(backlog.KindIdea, "bad"); err != nil {
 		t.Fatalf("DeleteItem: %v", err)
 	}
-	if err := iStore.Save(&initiatives.Initiative{Name: "x", Title: "X", Status: "active"}); err != nil {
-		t.Fatalf("initiative Save: %v", err)
+	if _, err := goalService.Create(goals.CreateRequest{Name: "x", Title: "X"}); err != nil {
+		t.Fatalf("goal Create: %v", err)
 	}
 	// Fixed sleep intentionally gives fire-and-forget goroutines a short
 	// window to hit the failing Qdrant seam; the assertion is that CRUD did
@@ -169,21 +168,21 @@ func TestIntegration_Status_ReflectsOnDiskCounts(t *testing.T) {
 	qServer := httptest.NewServer(qStub.handler(t))
 	defer qServer.Close()
 
-	svc, bStore, iStore, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
+	svc, bStore, goalService, _ := buildTestService(t, fakeEmbedderOK(), qServer.URL)
 
 	for _, name := range []string{"a", "b", "c"} {
 		saveBacklogItem(t, bStore, backlog.BacklogItem{Name: name, Kind: backlog.KindIdea, Title: name})
 	}
-	if err := iStore.Save(&initiatives.Initiative{Name: "i1", Title: "I1", Status: "active"}); err != nil {
-		t.Fatalf("Save: %v", err)
+	if _, err := goalService.Create(goals.CreateRequest{Name: "i1", Title: "I1"}); err != nil {
+		t.Fatalf("Create: %v", err)
 	}
 
 	st := svc.GetStatus(context.Background())
 	if st.OnDiskBacklog != 3 {
 		t.Errorf("expected 3 backlog items on disk, got %d", st.OnDiskBacklog)
 	}
-	if st.OnDiskInitiatives != 1 {
-		t.Errorf("expected 1 initiative on disk, got %d", st.OnDiskInitiatives)
+	if st.OnDiskGoals != 1 {
+		t.Errorf("expected 1 goal on disk, got %d", st.OnDiskGoals)
 	}
 }
 
@@ -192,37 +191,38 @@ func TestIntegration_Status_ReflectsOnDiskCounts(t *testing.T) {
 // pairing that exercises the disk → reconciler → index pipeline end-to-end
 // without HTTP overhead. Returns the reconciler plus the disk handles so the
 // test can mutate disk between RunOnce calls and observe convergence.
-func buildTestReconciler(t *testing.T) (*Reconciler, *backlog.FileStore, *initiatives.Store, *fakeVectorStore, *fakeVectorStore, *fakeEmbedder) {
+func buildTestReconciler(t *testing.T) (*Reconciler, *backlog.FileStore, *goals.Store, *fakeVectorStore, *fakeVectorStore, *fakeEmbedder) {
 	t.Helper()
 	root := t.TempDir()
-	for _, d := range []string{"ideas", "research", "fix", "execute", "chore", "initiatives"} {
+	for _, d := range []string{"ideas", "research", "fix", "execute", "chore", "goals"} {
 		if err := os.MkdirAll(filepath.Join(root, d), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", d, err)
 		}
 	}
 	bStore := backlog.NewFileStore(root)
-	iStore := initiatives.NewStore(root)
+	goalStore := goals.NewStore(root)
+	goalService := goals.NewService(goalStore, bStore)
 
 	emb := &fakeEmbedder{}
 	bs := &fakeVectorStore{}
-	is := &fakeVectorStore{}
-	r := NewReconciler(emb, bs, is,
+	gs := &fakeVectorStore{}
+	r := NewReconciler(emb, bs, gs,
 		NewBacklogStoreAdapter(bStore),
-		NewInitiativeStoreAdapter(iStore),
+		NewGoalServiceAdapter(goalService),
 		1,
 	)
-	return r, bStore, iStore, bs, is, emb
+	return r, bStore, goalStore, bs, gs, emb
 }
 
 func TestIntegration_Reconciler_PopulatesEmptyIndex(t *testing.T) {
-	r, bStore, iStore, bs, _, emb := buildTestReconciler(t)
+	r, bStore, goalStore, bs, _, emb := buildTestReconciler(t)
 
 	// Seed disk directly (no SetAIIndexer hook) so the only path to qdrant
 	// is the reconciler.
 	saveBacklogItem(t, bStore, backlog.BacklogItem{Name: "a", Title: "A", Kind: backlog.KindIdea})
 	saveBacklogItem(t, bStore, backlog.BacklogItem{Name: "b", Title: "B", Kind: backlog.KindIdea})
-	if err := iStore.Save(&initiatives.Initiative{Name: "i1", Title: "I1", Status: "active"}); err != nil {
-		t.Fatalf("seed initiative: %v", err)
+	if err := goalStore.Save(&goals.Goal{Name: "i1", Title: "I1", Status: goals.StatusActive}); err != nil {
+		t.Fatalf("seed goal: %v", err)
 	}
 
 	plan, res, err := r.RunOnce(context.Background())
@@ -235,11 +235,11 @@ func TestIntegration_Reconciler_PopulatesEmptyIndex(t *testing.T) {
 	if res.UpsertedBacklog != 2 {
 		t.Errorf("expected 2 backlog upserts, got %d", res.UpsertedBacklog)
 	}
-	if res.UpsertedInitiative != 1 {
-		t.Errorf("expected 1 initiative upsert, got %d", res.UpsertedInitiative)
+	if res.UpsertedGoal != 1 {
+		t.Errorf("expected 1 goal upsert, got %d", res.UpsertedGoal)
 	}
 	if emb.callCount() != 3 {
-		t.Errorf("expected 3 embed calls (2 backlog + 1 initiative), got %d", emb.callCount())
+		t.Errorf("expected 3 embed calls (2 backlog + 1 goal), got %d", emb.callCount())
 	}
 	if bs.upsertCalls != 2 {
 		t.Errorf("expected 2 backlog upsert calls, got %d", bs.upsertCalls)

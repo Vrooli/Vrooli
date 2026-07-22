@@ -67,7 +67,7 @@ func TestBriefingBuilderBuildsBoundedDeterministicBriefing(t *testing.T) {
 	builder, err := NewBriefingBuilder(BriefingBuilderConfig{
 		Aggregator: agg,
 		Overview: fakeOverviewReader{resp: &overview.OverviewResponse{
-			Summary:         overview.OverviewSummary{TotalItems: 42, ActiveInitiatives: 7},
+			Summary:         overview.OverviewSummary{TotalItems: 42, ActiveGoals: 7},
 			DependencyGraph: overview.DependencyGraph{Blocked: []string{"feature/blocked"}},
 		}},
 		Stats: fakeStatsReader{resp: stats.StatsResponse{Session: stats.SessionStats{ActiveSessions: 3}}},
@@ -88,7 +88,7 @@ func TestBriefingBuilderBuildsBoundedDeterministicBriefing(t *testing.T) {
 	if briefing.Summary.ActiveActivityCount != 2 || briefing.Summary.RecentlyFinishedCount != 1 {
 		t.Fatalf("summary counts = %+v", briefing.Summary)
 	}
-	if briefing.Summary.TotalBacklogItems != 42 || briefing.Summary.ActiveInitiatives != 7 || briefing.Summary.BlockedItems != 1 || briefing.Summary.ActiveSessions != 3 {
+	if briefing.Summary.TotalBacklogItems != 42 || briefing.Summary.ActiveGoals != 7 || briefing.Summary.BlockedItems != 1 || briefing.Summary.ActiveSessions != 3 {
 		t.Fatalf("summary enrichment = %+v", briefing.Summary)
 	}
 	if len(briefing.NeedsAttention) == 0 || briefing.NeedsAttention[0].Reason != "needs_review" {

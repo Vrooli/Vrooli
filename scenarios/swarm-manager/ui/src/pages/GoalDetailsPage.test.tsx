@@ -15,7 +15,7 @@ function makeGoal(): GoalWithScope {
       description: "Finish the workspace.",
       status: "active",
       priority: 4,
-      targets: ["execute/ship-workspace", "initiative/navigation"],
+      targets: ["execute/ship-workspace"],
       seeded: false,
       scopeHistory: [
         { at: "2026-07-01T00:00:00Z", targetCount: 1, closureSize: 3, completed: 1 },
@@ -24,7 +24,7 @@ function makeGoal(): GoalWithScope {
       updated: "2026-07-02T00:00:00Z",
     },
     scope: {
-      targets: ["execute/ship-workspace", "initiative/navigation"],
+      targets: ["execute/ship-workspace"],
       closure: ["execute/ship-workspace", "fix/blocker"],
       completed: ["fix/blocker"],
       ready: ["execute/ship-workspace"],
@@ -70,7 +70,6 @@ describe("GoalDetailsPage", () => {
     expect(screen.getByTestId("goal-overview")).toHaveTextContent("50%");
     expect(screen.getByTestId("goal-overview")).toHaveTextContent("P4");
     expect(screen.getByTestId("goal-targets")).toHaveTextContent("ship-workspace");
-    expect(screen.getByTestId("goal-targets")).toHaveTextContent("navigation");
     expect(screen.getByTestId("goal-scope")).toHaveTextContent("50%");
     expect(screen.getByTestId("goal-ready")).toHaveTextContent("ship-workspace");
     expect(screen.getByTestId("goal-blocked")).toHaveTextContent("blocker");

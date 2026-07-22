@@ -48,7 +48,7 @@ export function ConceptExplainerDialog({
   intro,
   docLink,
   sections,
-  testId = selectors.initiativeDetails.conceptExplainerDialog,
+  testId = selectors.goalDetails.conceptExplainerDialog,
   maxWidth = "max-w-2xl",
 }: ConceptExplainerDialogProps) {
   // Group sections by heading. Sections without a heading land in the

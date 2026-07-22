@@ -28,23 +28,23 @@ func TestUpdateBacklogRequestEmpty(t *testing.T) {
 	}
 }
 
-func TestInitiativeUpdateRequestHasChanges(t *testing.T) {
-	if (InitiativeUpdateRequest{}).HasChanges() {
+func TestMilestoneUpdateRequestHasChanges(t *testing.T) {
+	if (MilestoneUpdateRequest{}).HasChanges() {
 		t.Error("zero-value should have no changes")
 	}
 
 	status := "active"
-	if !(InitiativeUpdateRequest{Status: &status}).HasChanges() {
+	if !(MilestoneUpdateRequest{Status: &status}).HasChanges() {
 		t.Error("Status set should report changes")
 	}
 
 	items := []string{}
-	if !(InitiativeUpdateRequest{Items: &items}).HasChanges() {
+	if !(MilestoneUpdateRequest{Items: &items}).HasChanges() {
 		t.Error("non-nil Items pointer should report changes")
 	}
 
 	prio := 0
-	if !(InitiativeUpdateRequest{Priority: &prio}).HasChanges() {
+	if !(MilestoneUpdateRequest{Priority: &prio}).HasChanges() {
 		t.Error("Priority pointer to zero should still report changes")
 	}
 }

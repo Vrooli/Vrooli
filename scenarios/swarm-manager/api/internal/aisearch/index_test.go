@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 )
 
 func TestComposeBacklogText_Full(t *testing.T) {
@@ -17,7 +17,7 @@ func TestComposeBacklogText_Full(t *testing.T) {
 		Tags:        []string{"reliability", "observability"},
 		Kind:        backlog.KindExecute,
 		Status:      backlog.StatusReady,
-		Initiative:  "observability-core",
+		Milestone:   "observability-core",
 		Effort:      "M",
 		DependsOn:   []string{"idea/tracing", "fix/metrics-leak"},
 		Note:        "Coordinated with SRE; blocked on metrics pipeline refactor.",
@@ -31,7 +31,7 @@ func TestComposeBacklogText_Full(t *testing.T) {
 		"Tags: reliability, observability",
 		"Kind: execute",
 		"Status: ready",
-		"Initiative: observability-core",
+		"Milestone: observability-core",
 		"Effort: M",
 		"Dependencies: idea/tracing, fix/metrics-leak",
 		"Note: Coordinated with SRE",
@@ -65,26 +65,22 @@ func TestComposeBacklogText_TruncatesLongNote(t *testing.T) {
 	}
 }
 
-func TestComposeInitiativeText_Full(t *testing.T) {
+func TestComposeGoalText_Full(t *testing.T) {
 	archived := "2026-04-01T00:00:00Z"
-	init := initiatives.Initiative{
+	goal := goals.Goal{
 		Name:        "observability-core",
 		Title:       "Observability Core",
 		Description: "Foundational tracing, metrics, logging.",
 		Status:      "active",
-		DependsOn:   []string{"data-platform"},
-		Items:       []string{"execute/retry-semantics", "fix/metrics-leak"},
-		Note:        "Quarterly priority.",
+		Targets:     []string{"execute/retry-semantics", "fix/metrics-leak"},
 		ArchivedAt:  &archived,
 	}
-	got := composeInitiativeText(init)
+	got := composeGoalText(goal)
 	wantSubstrings := []string{
 		"Observability Core",
 		"Description: Foundational tracing, metrics, logging.",
 		"Status: active",
-		"Dependencies: data-platform",
-		"Items: execute/retry-semantics, fix/metrics-leak",
-		"Note: Quarterly priority.",
+		"Targets: execute/retry-semantics, fix/metrics-leak",
 	}
 	for _, s := range wantSubstrings {
 		if !strings.Contains(got, s) {
@@ -102,7 +98,7 @@ func TestBuildBacklogPayload(t *testing.T) {
 		Status:     backlog.StatusReady,
 		Priority:   7,
 		Tags:       []string{"reliability"},
-		Initiative: "observability-core",
+		Milestone:  "observability-core",
 		Effort:     "M",
 		ArchivedAt: &archived,
 	}
@@ -172,14 +168,14 @@ func TestBuildBacklogPayload_TargetScenariosFromAcceptanceAllow(t *testing.T) {
 	}
 }
 
-func TestBuildInitiativePayload(t *testing.T) {
-	init := initiatives.Initiative{
+func TestBuildGoalPayload(t *testing.T) {
+	goal := goals.Goal{
 		Name:     "obs-core",
 		Title:    "Observability Core",
 		Status:   "active",
 		Priority: 3,
 	}
-	p := buildInitiativePayload(init, "")
+	p := buildGoalPayload(goal, "")
 	if p["name"] != "obs-core" || p["title"] != "Observability Core" {
 		t.Errorf("unexpected payload: %+v", p)
 	}
@@ -210,11 +206,11 @@ func TestBacklogPointID_DiffersByKind(t *testing.T) {
 	}
 }
 
-func TestInitiativePointID_DiffersFromBacklog(t *testing.T) {
-	a := initiativePointID("x")
+func TestGoalPointID_DiffersFromBacklog(t *testing.T) {
+	a := goalPointID("x")
 	b := backlogPointID(backlog.KindExecute, "x")
 	if a == b {
-		t.Error("expected initiative and backlog namespaces to differ")
+		t.Error("expected goal and backlog namespaces to differ")
 	}
 }
 
@@ -301,17 +297,17 @@ func TestBuildBacklogPayload_OmitsHashWhenEmpty(t *testing.T) {
 	}
 }
 
-func TestBuildInitiativePayload_IncludesPayloadHash(t *testing.T) {
-	init := initiatives.Initiative{Name: "obs"}
-	out := buildInitiativePayload(init, "sha256:cafebabe00000000")
+func TestBuildGoalPayload_IncludesPayloadHash(t *testing.T) {
+	goal := goals.Goal{Name: "obs"}
+	out := buildGoalPayload(goal, "sha256:cafebabe00000000")
 	if out["payload_hash"] != "sha256:cafebabe00000000" {
 		t.Errorf("expected payload_hash field set, got %v", out["payload_hash"])
 	}
 }
 
-func TestBuildInitiativePayload_OmitsHashWhenEmpty(t *testing.T) {
-	init := initiatives.Initiative{Name: "obs"}
-	out := buildInitiativePayload(init, "")
+func TestBuildGoalPayload_OmitsHashWhenEmpty(t *testing.T) {
+	goal := goals.Goal{Name: "obs"}
+	out := buildGoalPayload(goal, "")
 	if _, present := out["payload_hash"]; present {
 		t.Error("expected payload_hash to be absent when empty")
 	}

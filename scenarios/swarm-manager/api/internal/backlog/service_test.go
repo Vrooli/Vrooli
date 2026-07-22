@@ -14,7 +14,7 @@ import (
 )
 
 // fakeAttacher records RememberItem calls so tests can assert
-// initiative attachment.
+// milestone attachment.
 type fakeAttacher struct {
 	mu    sync.Mutex
 	calls []string
@@ -37,7 +37,7 @@ type fakeEvents struct {
 }
 
 type emittedCreate struct {
-	entityID, kind, status, initiative, effort string
+	entityID, kind, status, milestone, effort string
 	priority                                   int
 	actorType, actorID                         string
 }
@@ -46,7 +46,7 @@ type emittedArchive struct {
 	entityID, previousStatus, archivedAt string
 }
 
-func (e *fakeEvents) EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, initiative, effort, actorType, actorID string) {
+func (e *fakeEvents) EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, milestone, effort, actorType, actorID string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.calls = append(e.calls, emittedCreate{
@@ -54,7 +54,7 @@ func (e *fakeEvents) EmitBacklogCreatedFromSource(entityID, kind, status string,
 		kind:       kind,
 		status:     status,
 		priority:   priority,
-		initiative: initiative,
+		milestone: milestone,
 		effort:     effort,
 		actorType:  actorType,
 		actorID:    actorID,
@@ -64,8 +64,8 @@ func (e *fakeEvents) EmitBacklogCreatedFromSource(entityID, kind, status string,
 // EmitBacklogCreated is here only to satisfy callers that reach for the
 // older signature (none in this test, but it keeps the fake interchangeable
 // with *eventlog.Emitter).
-func (e *fakeEvents) EmitBacklogCreated(entityID, kind, status string, priority int, initiative, effort string) {
-	e.EmitBacklogCreatedFromSource(entityID, kind, status, priority, initiative, effort, "user", "")
+func (e *fakeEvents) EmitBacklogCreated(entityID, kind, status string, priority int, milestone, effort string) {
+	e.EmitBacklogCreatedFromSource(entityID, kind, status, priority, milestone, effort, "user", "")
 }
 
 func (e *fakeEvents) EmitBacklogArchived(entityID, previousStatus, archivedAt string) {
@@ -215,7 +215,7 @@ func sampleItem(name string) BacklogItem {
 		Status:     StatusBacklog,
 		Priority:   4,
 		Effort:     "M",
-		Initiative: "demo",
+		Milestone: "demo",
 		Created:    "2026-04-23T00:00:00Z",
 		Updated:    "2026-04-23T00:00:00Z",
 	}
@@ -258,7 +258,7 @@ func TestService_Create_Batch_DefersOnlyGraphInvalidation(t *testing.T) {
 		Source:                SourceBatch,
 		SkipDuplicateCheck:    true,
 		SkipCycleCheck:        true,
-		SkipInitiativeAttach:  true,
+		SkipMilestoneAttach:  true,
 		SkipGraphInvalidation: true,
 	}
 	if err := env.svc.Create(sampleItem("beta"), cc); err != nil {
@@ -269,7 +269,7 @@ func TestService_Create_Batch_DefersOnlyGraphInvalidation(t *testing.T) {
 		t.Errorf("SkipGraphInvalidation ignored: ScheduleAll fired %d times", got)
 	}
 	if len(env.att.calls) != 0 {
-		t.Errorf("SkipInitiativeAttach ignored: RememberItem fired %v", env.att.calls)
+		t.Errorf("SkipMilestoneAttach ignored: RememberItem fired %v", env.att.calls)
 	}
 	// Event still fires — attribution must land regardless of side-effect skips.
 	if len(env.events.calls) != 1 {
@@ -284,7 +284,7 @@ func TestService_Create_Proposal_AttributesToFeedbackRound(t *testing.T) {
 		FeedbackRoundID: "demo/round-001",
 		RoundNumber:     1,
 		RoundSlug:       "kickoff",
-		Entrypoint:      "initiative.feedback",
+		Entrypoint:      "milestone.feedback",
 		DecidedBy:       "matt",
 		SkipCycleCheck:  true,
 	}
@@ -313,7 +313,7 @@ func TestService_Create_Proposal_ReviewRoundDominatesFeedbackRound(t *testing.T)
 		t.Fatalf("Create: %v", err)
 	}
 	got := env.events.calls[0]
-	if got.actorType != "initiative_review" || got.actorID != "demo/review-002" {
+	if got.actorType != "milestone_review" || got.actorID != "demo/review-002" {
 		t.Errorf("review must dominate feedback: got (%q,%q)", got.actorType, got.actorID)
 	}
 }
@@ -483,12 +483,12 @@ func TestService_ResetArtifacts_RemovesOnlySelectedArtifactScope(t *testing.T) {
 func TestService_RecreateItem_RetargetsDependentsAndArchivesSource(t *testing.T) {
 	env := newServiceTestEnv(t)
 	source := sampleItem("stale-source")
-	source.Initiative = ""
+	source.Milestone = ""
 	if err := env.svc.Create(source, CreationContext{Source: SourceHumanHTTP}); err != nil {
 		t.Fatalf("create source: %v", err)
 	}
-	if stored, err := env.store.LoadItem(KindExecute, source.Name); err != nil || stored.Initiative != "" {
-		t.Fatalf("source initiative = %q, %v; want empty", stored.Initiative, err)
+	if stored, err := env.store.LoadItem(KindExecute, source.Name); err != nil || stored.Milestone != "" {
+		t.Fatalf("source milestone = %q, %v; want empty", stored.Milestone, err)
 	}
 	dependent := sampleItem("dependent")
 	dependent.DependsOn = []string{"execute/stale-source"}

@@ -8,7 +8,7 @@ import { API_BASE } from "../lib/api-client";
 
 export type RelatedTarget =
   | { kind: "backlog"; backlogKind: string; name: string }
-  | { kind: "initiative"; name: string };
+  | { kind: "goal"; name: string };
 
 export interface IRelatedService {
   getRelated(target: RelatedTarget, options: { excludeHistorical: boolean; entityKinds: string[] }): Promise<GetRelatedResponse>;
@@ -22,7 +22,7 @@ export function createRelatedService(): IRelatedService {
       return client.getRelated({
         target: target.kind === "backlog"
           ? { case: "backlog", value: { kind: target.backlogKind, name: target.name } }
-          : { case: "initiative", value: { name: target.name } },
+	          : { case: "goal", value: { name: target.name } },
         excludeHistorical: options.excludeHistorical,
         entityKinds: options.entityKinds,
       });

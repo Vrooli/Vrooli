@@ -128,7 +128,7 @@ function EntityAttachToSessionSheetContent({
     setLocalError(null);
     try {
       const createsProposal = proposalMode || selectedSuggestion?.proposalFlavor === "mutation_list";
-      const session = createsProposal && (option.type === "initiative" || option.type === "backlog_item")
+      const session = createsProposal && (option.type === "goal" || option.type === "backlog_item")
         ? await proposalSessionService.create({
           title: `Proposal for ${option.title || option.ref}`,
           target: { type: option.type, ref: option.ref, name: option.title || option.ref },

@@ -51,7 +51,7 @@ Supported context ref types are closed at the API boundary:
 | Type | Purpose |
 |---|---|
 | `backlog_item` | Attach an existing backlog item summary and planning state. |
-| `initiative` | Attach initiative metadata and rollup context. |
+| `milestone` | Attach milestone metadata and rollup context. |
 | `capture` | Attach a captured note or classified input. |
 | `execution` | Attach an execution-control record. |
 | `agent_activity` | Attach tracked Agent Manager activity. |
@@ -96,8 +96,8 @@ Initial session kinds are closed at the contract boundary:
 
 | Kind | Skill | Purpose |
 |---|---|---|
-| `meta_orchestration` | `swarm-manager-meta-orchestrator` | Conversational planning that can propose multiple initiatives and backlog items in one audited apply action. |
-| `swarm_operations` | `swarm-manager-operations-session` | Conversational operations coordination for initiative progress, pending decisions, and run review. It routes decision draining to `workshop-decision-sync` and keeps mutations operator-gated. |
+| `meta_orchestration` | `swarm-manager-meta-orchestrator` | Conversational planning that can propose multiple milestones and backlog items in one audited apply action. |
+| `swarm_operations` | `swarm-manager-operations-session` | Conversational operations coordination for milestone progress, pending decisions, and run review. It routes decision draining to `workshop-decision-sync` and keeps mutations operator-gated. |
 | `workflow_authoring` | `swarm-manager-workflow-authoring` | Conversational design of reviewed workflow and transition changes. It distinguishes existing transition improvements, new declared workflows, and required Swarm domain backlog work; it never silently applies a declaration. |
 
 Adding a kind should mean adding a skill mapping, prompt builder behavior if needed, allowed proposal kinds, tests, stats expectations, and docs. Do not add an untyped generic chat mode to bypass those contracts.
@@ -131,7 +131,7 @@ Supported proposal kinds:
 
 | Kind | Apply behavior |
 |---|---|
-| `backlog_batch_import` | Uses the backlog batch applier to create or update initiatives and create multiple backlog items in one audited action. |
+| `backlog_batch_import` | Uses the backlog batch applier to create or update milestones and create multiple backlog items in one audited action. |
 | `mutation_list` | A proposal-session change set. It is decided through the proposal-session decision flow, rather than the generic session apply route. |
 
 Proposal apply never lets a session agent directly mutate project-management files from the chat flow. The session can propose; Swarm Manager applies. Proposal kinds and apply behavior are server-owned; response clients must render an unfamiliar future kind generically instead of rejecting the complete session response.
@@ -154,7 +154,7 @@ Artifact records include:
 - verified attribution
 - `created_at`
 
-Backlog and initiative detail views use persisted session attribution and
+Backlog and milestone detail views use persisted session attribution and
 artifact lookup endpoints instead of scraping event logs. Event logs remain for
 metrics and chronology. New artifact links are durably appended to the
 session's `artifacts.jsonl`; this preserves non-receipt review handoffs without
@@ -179,7 +179,7 @@ messages behave consistently.
 
 The graph sidebar owns session history through the `Sessions` tab. Selecting a session opens the session detail panel rather than navigating to a dedicated Sessions page.
 
-Routed entity detail pages for backlog items, initiatives, captures,
+Routed entity detail pages for backlog items, milestones, captures,
 executions, scenarios, and sessions expose `Attach to session`.
 The action filters target sessions by the same context-type policy used by the
 composer picker, excludes the source session when attaching a session, and can

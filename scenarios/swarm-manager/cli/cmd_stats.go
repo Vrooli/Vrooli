@@ -47,11 +47,11 @@ type TimingStats struct {
 }
 
 type ScopeStats struct {
-	Initiatives        []InitiativeHealth `json:"initiatives"`
+	Milestones        []MilestoneHealth `json:"milestones"`
 	MaxDependencyDepth int                `json:"max_dependency_depth"`
 }
 
-type InitiativeHealth struct {
+type MilestoneHealth struct {
 	Name       string  `json:"name"`
 	Total      int     `json:"total"`
 	Completed  int     `json:"completed"`
@@ -125,7 +125,7 @@ type SessionStats struct {
 	FailedSessionRate                 float64             `json:"failed_session_rate"`
 	FailedSessionSampleSize           int                 `json:"failed_session_sample_size"`
 	SessionCreatedBacklogItems        int                 `json:"session_created_backlog_items"`
-	SessionCreatedInitiatives         int                 `json:"session_created_initiatives"`
+	SessionCreatedMilestones         int                 `json:"session_created_milestones"`
 }
 
 type VelocityPoint struct {
@@ -176,7 +176,7 @@ func (a *App) cmdStatsBlocking(args []string) error {
 	return a.statsCategoryCommand("blocking", args)
 }
 
-func (a *App) cmdStatsInitiatives(args []string) error {
+func (a *App) cmdStatsMilestones(args []string) error {
 	return a.statsCategoryCommand("scope", args)
 }
 
@@ -332,12 +332,12 @@ func printAgentMarkdown(a AgentStats) {
 }
 
 func printScopeMarkdown(s ScopeStats) {
-	fmt.Println("### Initiative Health")
-	if len(s.Initiatives) == 0 {
-		fmt.Println("  No initiatives tracked")
+	fmt.Println("### Milestone Health")
+	if len(s.Milestones) == 0 {
+		fmt.Println("  No milestones tracked")
 		return
 	}
-	for _, ih := range s.Initiatives {
+	for _, ih := range s.Milestones {
 		pct := 0.0
 		if ih.Total > 0 {
 			pct = float64(ih.Completed) / float64(ih.Total) * 100
@@ -365,8 +365,8 @@ func printSessionsMarkdown(s SessionStats) {
 		fmt.Printf("  Failed session rate: %.1f%% (n=%d)\n",
 			s.FailedSessionRate*100, s.FailedSessionSampleSize)
 	}
-	fmt.Printf("  Created artifacts: backlog=%d initiatives=%d\n",
-		s.SessionCreatedBacklogItems, s.SessionCreatedInitiatives)
+	fmt.Printf("  Created artifacts: backlog=%d milestones=%d\n",
+		s.SessionCreatedBacklogItems, s.SessionCreatedMilestones)
 	printIntMap("  By kind", s.SessionsByKind)
 	printIntMap("  By status", s.SessionsByStatus)
 	if len(s.ProposalApplyRateByKind) > 0 {

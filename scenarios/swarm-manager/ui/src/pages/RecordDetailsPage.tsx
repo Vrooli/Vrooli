@@ -14,7 +14,7 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { ErrorState } from "../components/ui/error-state";
 import type { RecordNarrativeInput } from "../types";
 
-// Shared style for the in-app reference links (backlog / initiative / supersede
+// Shared style for the in-app reference links (backlog / milestone / supersede
 // chain), mirroring the emerald accent used elsewhere on this page.
 const refLinkClass = "text-emerald-400 underline-offset-4 hover:underline";
 
@@ -92,16 +92,16 @@ export function RecordDetailsPage() {
             </dd>
           </>
         ) : null}
-        {record.initiativeId ? (
+        {record.milestoneId ? (
           <>
-            <dt className="text-slate-400">Initiative</dt>
+            <dt className="text-slate-400">Milestone</dt>
             <dd>
               <Link
-                to={`/initiatives/${record.initiativeId}`}
+                to={`/milestones/${record.milestoneId}`}
                 className={refLinkClass}
-                data-testid="record-initiative-link"
+                data-testid="record-milestone-link"
               >
-                {record.initiativeId}
+                {record.milestoneId}
               </Link>
             </dd>
           </>

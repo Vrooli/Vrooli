@@ -28,7 +28,7 @@ func newCaptureTestAdapter(t *testing.T) (*recordCaptureAdapter, *captureIndexer
 // TestCaptureAdapter_AcceptCreatesFilledIndexedRecord is the core Phase 3 proof:
 // a terminal accept produces ONE filled, indexed, non-stub record whose
 // trigger/approach are the item's title/description, scenario is derived from
-// the acceptance globs, and initiative is linked back.
+// the acceptance globs, and milestone is linked back.
 func TestCaptureAdapter_AcceptCreatesFilledIndexedRecord(t *testing.T) {
 	a, idx := newCaptureTestAdapter(t)
 	id, err := a.CreateBacklogRecord(context.Background(), backlog.BacklogRecordRequest{
@@ -39,7 +39,7 @@ func TestCaptureAdapter_AcceptCreatesFilledIndexedRecord(t *testing.T) {
 			"scenarios/web-console/ui/**",
 			"scenarios/web-console/api/**",
 		},
-		Initiative: "voice-reliability",
+		Milestone: "voice-reliability",
 		Status:     backlog.StatusCompleted,
 		DecidedBy:  "agent-x",
 	})
@@ -71,8 +71,8 @@ func TestCaptureAdapter_AcceptCreatesFilledIndexedRecord(t *testing.T) {
 	if r.Approach != "Debounce VAD stop events behind a 300ms timer." {
 		t.Errorf("approach = %q, want the item description", r.Approach)
 	}
-	if r.InitiativeID != "voice-reliability" {
-		t.Errorf("initiative_id = %q, want voice-reliability", r.InitiativeID)
+	if r.MilestoneID != "voice-reliability" {
+		t.Errorf("milestone_id = %q, want voice-reliability", r.MilestoneID)
 	}
 	if r.BacklogRef != "fix/silence-race" {
 		t.Errorf("backlog_ref = %q, want fix/silence-race", r.BacklogRef)

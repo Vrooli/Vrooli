@@ -11,7 +11,6 @@ import {
   backlogDetailPath,
   captureDetailPath,
   executionDetailPath,
-  initiativeDetailPath,
 } from "../../../app/routes/route-paths";
 import { BoardCard, type BoardCardTone } from "../../../components/cards/BoardCard";
 import { cn } from "../../../lib/utils";
@@ -62,7 +61,7 @@ function cardSubtitle(card: PlanCardData): string {
     parts.push(card.action === "none" ? card.status.replaceAll("_", " ") : card.action);
     if (card.unblocks > 0) parts.push(`unblocks ${card.unblocks}`);
   }
-  if (card.initiative) parts.push(card.initiative);
+  if (card.milestone) parts.push(card.milestone);
   return parts.join(" · ");
 }
 
@@ -95,8 +94,8 @@ export function PlanCardView({ card, showWave = false, dimmed = false, highlight
       navigate(captureDetailPath(card.id.slice("capture/".length)));
       return;
     }
-    if (card.id.startsWith("initiative/")) {
-      navigate(initiativeDetailPath(card.id.slice("initiative/".length)));
+    if (card.id.startsWith("milestone/")) {
+		return;
       return;
     }
     if (card.itemKind && card.itemName) {

@@ -58,7 +58,7 @@ func TestLaneOf_FallsBackToPurposeDefault(t *testing.T) {
 		{PurposeInitialize, LaneInvestigate},
 		{PurposeFinalize, LaneReview},
 		{PurposeReview, LaneReview},
-		{PurposeInitiativeReview, LaneReview},
+		{PurposeMilestoneReview, LaneReview},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.purpose), func(t *testing.T) {

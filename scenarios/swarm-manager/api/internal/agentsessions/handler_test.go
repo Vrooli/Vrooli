@@ -125,7 +125,7 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 
 	if _, err := svc.AttachArtifact(context.Background(), Artifact{
 		SessionID:    sessionID,
-		ArtifactType: ArtifactInitiative,
+		ArtifactType: ArtifactMilestone,
 		Action:       ArtifactActionCreated,
 		EntityRef:    "mode-authoring",
 		Title:        "Mode Authoring",
@@ -142,7 +142,7 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 		t.Fatalf("artifacts response = %+v", artifactsResp.GetArtifacts())
 	}
 
-	byEntityRec := serveAgentSessionRequest(router, http.MethodGet, "/api/v1/artifacts/by-entity?artifact_type=initiative&entity_ref=mode-authoring", nil)
+	byEntityRec := serveAgentSessionRequest(router, http.MethodGet, "/api/v1/artifacts/by-entity?artifact_type=milestone&entity_ref=mode-authoring", nil)
 	if byEntityRec.Code != http.StatusOK {
 		t.Fatalf("by entity status = %d, body = %s", byEntityRec.Code, byEntityRec.Body.String())
 	}
@@ -203,7 +203,7 @@ func TestHandlerDeleteStopsActiveRunAndRejectsInvalidIDs(t *testing.T) {
 	var createResp apipb.CreateAgentSessionResponse
 	unmarshalAgentSessionProto(t, createRec, &createResp)
 	sessionID := createResp.GetSession().GetId()
-	startBody := marshalAgentSessionProto(t, &apipb.StartAgentSessionRequest{Message: "Plan the next initiative."})
+	startBody := marshalAgentSessionProto(t, &apipb.StartAgentSessionRequest{Message: "Plan the next milestone."})
 	startRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions/"+sessionID+"/start", startBody)
 	if startRec.Code != http.StatusOK {
 		t.Fatalf("start status = %d, body = %s", startRec.Code, startRec.Body.String())

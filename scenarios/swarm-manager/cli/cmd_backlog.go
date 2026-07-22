@@ -98,8 +98,8 @@ func printBacklogListItem(item BacklogItem) {
 	if len(item.DependsOn) > 0 {
 		fmt.Printf("    Depends on: %s\n", strings.Join(item.DependsOn, ", "))
 	}
-	if item.Initiative != "" {
-		fmt.Printf("    Initiative: %s\n", item.Initiative)
+	if item.Milestone != "" {
+		fmt.Printf("    Milestone: %s\n", item.Milestone)
 	}
 	if item.Effort != "" {
 		fmt.Printf("    Effort: %s\n", item.Effort)
@@ -160,8 +160,8 @@ func (a *App) cmdBacklogGet(args []string) error {
 	if len(item.DependsOn) > 0 {
 		fmt.Printf("  Depends On: %s\n", strings.Join(item.DependsOn, ", "))
 	}
-	if item.Initiative != "" {
-		fmt.Printf("  Initiative: %s\n", item.Initiative)
+	if item.Milestone != "" {
+		fmt.Printf("  Milestone: %s\n", item.Milestone)
 	}
 	if item.Effort != "" {
 		fmt.Printf("  Effort: %s\n", item.Effort)

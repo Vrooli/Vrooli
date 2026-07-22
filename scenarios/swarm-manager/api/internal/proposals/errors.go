@@ -15,8 +15,8 @@ var ErrInvalidProposal = errors.New("invalid proposal")
 var ErrUnknownOp = errors.New("unknown mutation op")
 
 // ErrTargetNotFound signals that a mutation references an item that is not
-// present in the initiative's current graph.
-var ErrTargetNotFound = errors.New("mutation target not found in initiative")
+// present in the milestone's current graph.
+var ErrTargetNotFound = errors.New("mutation target not found in milestone")
 
 // ErrDuplicateItem signals that an add_item mutation collides with an item
 // that already exists (either elsewhere in the batch or on disk).
@@ -28,6 +28,6 @@ var ErrDuplicateItem = errors.New("item already exists")
 // endpoint.
 var ErrTerminalStatusWrite = errors.New("terminal status transitions require review-decide")
 
-// ErrStandaloneOperation signals an operation which needs initiative graph
+// ErrStandaloneOperation signals an operation which needs milestone graph
 // context but was proposed for an unattached backlog item.
 var ErrStandaloneOperation = errors.New("operation is not allowed for a standalone backlog item")

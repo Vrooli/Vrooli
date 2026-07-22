@@ -1,13 +1,12 @@
 /**
- * Goal types — a goal is an explicit set of end-state targets (backlog items
- * and/or initiatives) whose transitive prerequisite closure defines the work
+ * Goal types — a goal is an explicit set of end-state backlog item targets
+ * whose transitive prerequisite closure defines the work
  * tracked toward it. The API is mux+JSON (snake_case); the goals service
  * normalizes to the camelCase shapes below.
  */
 
 import type { PlanEtaBandData } from "../surfaces/plan/types";
 import type { BacklogItem } from "./backlog";
-import type { InitiativeWithRollup } from "./initiative";
 
 export const GOAL_STATUSES = ["active", "archived"] as const;
 export type GoalStatus = (typeof GOAL_STATUSES)[number];
@@ -27,7 +26,7 @@ export interface Goal {
   description?: string;
   status: GoalStatus;
   priority: number;
-  /** Target refs: "<kind>/<name>" for items, "initiative/<name>" for initiatives. */
+  /** Target refs: "<kind>/<name>" for backlog items. */
   targets: string[];
   seeded: boolean;
   scopeHistory: GoalScopeSnapshot[];
@@ -51,12 +50,11 @@ export interface GoalScope {
 
 /**
  * Read-time hydration of the refs the goal detail view renders (targets ∪
- * ready ∪ blocked), keyed by ref — full items and initiative summaries so the
- * detail page can render the standard cards without joining list endpoints.
+ * ready ∪ blocked), keyed by ref — full items so the detail page can render
+ * the standard cards without joining list endpoints.
  */
 export interface GoalScopeEntities {
   items: Record<string, BacklogItem>;
-  initiatives: Record<string, InitiativeWithRollup>;
 }
 
 /** A goal paired with its computed scope and (optional) ETA band. */

@@ -34,11 +34,11 @@ func (e *Emitter) EmitBacklogCreatedFromSource(entityID, kind, status string, pr
 		actorType = "user"
 	}
 	e.emitWithActor(EntityBacklogItem, entityID, EventBacklogCreated, actorType, actorID, BacklogCreatedPayload{
-		Kind:       kind,
-		Status:     status,
-		Priority:   priority,
-		Initiative: initiative,
-		Effort:     effort,
+		Kind:      kind,
+		Status:    status,
+		Priority:  priority,
+		Milestone: initiative,
+		Effort:    effort,
 	})
 }
 
@@ -83,6 +83,13 @@ func (e *Emitter) EmitBacklogDependencyRemoved(entityID, target string) {
 
 func (e *Emitter) EmitBacklogInitiativeChanged(entityID, from, to string) {
 	e.emit(EntityBacklogItem, entityID, EventBacklogInitiativeChanged, InitiativeChangePayload{From: from, To: to})
+}
+
+// EmitBacklogMilestoneChanged records a goal-owned milestone reference
+// change. The initiative method above is retained solely for replaying older
+// event streams.
+func (e *Emitter) EmitBacklogMilestoneChanged(entityID, from, to string) {
+	e.emit(EntityBacklogItem, entityID, EventBacklogMilestoneChanged, MilestoneChangePayload{From: from, To: to})
 }
 
 func (e *Emitter) EmitBacklogBlocked(entityID, reason string) {
@@ -150,41 +157,6 @@ func (e *Emitter) EmitExecutionManuallyAccepted(execID, acceptedBy, reason, prev
 	})
 }
 
-// --- Initiative events ---
-
-func (e *Emitter) EmitInitiativeCreated(name string) {
-	e.emit(EntityInitiative, name, EventInitiativeCreated, nil)
-}
-
-func (e *Emitter) EmitInitiativeItemAdded(name, item string) {
-	e.emit(EntityInitiative, name, EventInitiativeItemAdded, InitiativeItemPayload{Item: item})
-}
-
-func (e *Emitter) EmitInitiativeItemRemoved(name, item string) {
-	e.emit(EntityInitiative, name, EventInitiativeItemRemoved, InitiativeItemPayload{Item: item})
-}
-
-func (e *Emitter) EmitInitiativeStatusChanged(name, from, to string) {
-	e.emit(EntityInitiative, name, EventInitiativeStatusChanged, StatusChangePayload{From: from, To: to})
-}
-
-func (e *Emitter) EmitInitiativeModeChanged(name, from, to string) {
-	e.emit(EntityInitiative, name, EventInitiativeModeChanged, InitiativeModeChangePayload{From: from, To: to})
-}
-
-func (e *Emitter) EmitInitiativeArchived(name, previousStatus, archivedAt string) {
-	e.emit(EntityInitiative, name, EventInitiativeArchived, ArchivePayload{
-		PreviousStatus: previousStatus,
-		ArchivedAt:     archivedAt,
-	})
-}
-
-func (e *Emitter) EmitInitiativeUnarchived(name, archivedAt string) {
-	e.emit(EntityInitiative, name, EventInitiativeUnarchived, UnarchivePayload{
-		ArchivedAt: archivedAt,
-	})
-}
-
 // --- Queue events ---
 
 func (e *Emitter) EmitQueued(backlogKind, backlogName string, position int) {
@@ -240,6 +212,26 @@ func (e *Emitter) EmitGoalScopeSnapshot(name string, payload GoalScopeSnapshotPa
 	e.emit(EntityGoal, name, EventGoalScopeSnapshot, payload)
 }
 
+func (e *Emitter) EmitMilestoneCreated(goal, milestone string, payload MilestonePayload) {
+	e.emit(EntityGoal, goal+"/"+milestone, EventMilestoneCreated, payload)
+}
+
+func (e *Emitter) EmitMilestoneUpdated(goal, milestone string, payload MilestonePayload) {
+	e.emit(EntityGoal, goal+"/"+milestone, EventMilestoneUpdated, payload)
+}
+
+func (e *Emitter) EmitMilestoneItemsAssigned(goal, milestone string, payload MilestonePayload) {
+	e.emit(EntityGoal, goal+"/"+milestone, EventMilestoneItemsAssigned, payload)
+}
+
+func (e *Emitter) EmitMilestoneItemsUnassigned(goal, milestone string, payload MilestonePayload) {
+	e.emit(EntityGoal, goal+"/"+milestone, EventMilestoneItemsUnassigned, payload)
+}
+
+func (e *Emitter) EmitMilestoneArchived(goal, milestone string, payload MilestonePayload) {
+	e.emit(EntityGoal, goal+"/"+milestone, EventMilestoneArchived, payload)
+}
+
 // --- Calibration events ---
 
 // EmitBacklogDurationSample records one coarse lead-time observation for a
@@ -285,33 +277,6 @@ func (e *Emitter) EmitMigrationApplied(name, description string, affectedIDs int
 		Description: description,
 		AffectedIDs: affectedIDs,
 	})
-}
-
-// --- Operating mode events ---
-
-func (e *Emitter) EmitOperatingModePhaseStarted(scopeID string, payload OperatingModePhasePayload) {
-	e.emit(EntityInitiative, scopeID, EventOperatingModePhaseStarted, payload)
-}
-
-func (e *Emitter) EmitOperatingModePhaseCompleted(scopeID string, payload OperatingModePhasePayload) {
-	e.emit(EntityInitiative, scopeID, EventOperatingModePhaseCompleted, payload)
-}
-
-func (e *Emitter) EmitOperatingModePhaseFailed(scopeID string, payload OperatingModePhasePayload) {
-	e.emit(EntityInitiative, scopeID, EventOperatingModePhaseFailed, payload)
-}
-
-func (e *Emitter) EmitOperatingModePhaseCanceled(scopeID string, payload OperatingModePhasePayload) {
-	e.emit(EntityInitiative, scopeID, EventOperatingModePhaseCanceled, payload)
-}
-
-func (e *Emitter) EmitOperatingModeReplanNeeded(scopeID string, payload OperatingModePhasePayload) {
-	payload.ReplanNeeded = true
-	e.emit(EntityInitiative, scopeID, EventOperatingModeReplanNeeded, payload)
-}
-
-func (e *Emitter) EmitOperatingModeBacklogSynced(scopeID string, payload OperatingModeBacklogSyncPayload) {
-	e.emit(EntityInitiative, scopeID, EventOperatingModeBacklogSynced, payload)
 }
 
 // --- Agent session events ---
@@ -370,10 +335,6 @@ func (e *Emitter) EmitBacklogViewed(entityID, kind string) {
 
 func (e *Emitter) EmitExecutionViewed(execID string) {
 	e.emit(EntityExecution, execID, EventExecutionViewed, nil)
-}
-
-func (e *Emitter) EmitInitiativeViewed(name string) {
-	e.emit(EntityInitiative, name, EventInitiativeViewed, nil)
 }
 
 func (e *Emitter) EmitCaptureViewed(captureID string) {
@@ -465,7 +426,7 @@ func (e *Emitter) EmitReviewFailed(executionID, reason string, durationSecs floa
 
 // EmitBacklogProposalApplied records that a single proposal mutation
 // landed on a backlog item. Actor is set from the originating surface
-// (feedback round or initiative review) so consumers can group changes
+// (feedback round or milestone review) so consumers can group changes
 // by the round that caused them.
 func (e *Emitter) EmitBacklogProposalApplied(entityID string, payload ProposalAppliedPayload) {
 	actorType, actorID := proposalActor(payload)
@@ -479,7 +440,7 @@ func (e *Emitter) EmitBacklogProposalApplied(entityID string, payload ProposalAp
 func proposalActor(p ProposalAppliedPayload) (actorType, actorID string) {
 	switch {
 	case p.ReviewRoundID != "":
-		return "initiative_review", p.ReviewRoundID
+		return "milestone_review", p.ReviewRoundID
 	case p.FeedbackRoundID != "":
 		return "feedback_round", p.FeedbackRoundID
 	default:

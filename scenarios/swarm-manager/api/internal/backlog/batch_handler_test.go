@@ -18,13 +18,13 @@ import (
 	"swarm-manager/internal/testutil"
 )
 
-// mockInitiativeAssigner implements InitiativeAssigner for testing.
-type mockInitiativeAssigner struct {
-	snapshots   map[string]InitiativeSnapshot
+// mockMilestoneAssigner implements MilestoneAssigner for testing.
+type mockMilestoneAssigner struct {
+	snapshots   map[string]MilestoneSnapshot
 	addedItems  map[string][]string
 	createOrder []string
 	updateOrder []string
-	replaceLog  []InitiativeSnapshot
+	replaceLog  []MilestoneSnapshot
 	getErr      error
 	createErr   error
 	updateErr   error
@@ -33,20 +33,20 @@ type mockInitiativeAssigner struct {
 	addErr      error
 }
 
-func newMockInitiativeAssigner() *mockInitiativeAssigner {
-	return &mockInitiativeAssigner{
-		snapshots:  make(map[string]InitiativeSnapshot),
+func newMockMilestoneAssigner() *mockMilestoneAssigner {
+	return &mockMilestoneAssigner{
+		snapshots:  make(map[string]MilestoneSnapshot),
 		addedItems: make(map[string][]string),
 	}
 }
 
-func (m *mockInitiativeAssigner) Get(name string) (*InitiativeSnapshot, error) {
+func (m *mockMilestoneAssigner) Get(name string) (*MilestoneSnapshot, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
 	snapshot, ok := m.snapshots[name]
 	if !ok {
-		return nil, fmt.Errorf("initiative %q not found", name)
+		return nil, fmt.Errorf("milestone %q not found", name)
 	}
 	copied := snapshot
 	copied.Items = append([]string(nil), snapshot.Items...)
@@ -54,12 +54,12 @@ func (m *mockInitiativeAssigner) Get(name string) (*InitiativeSnapshot, error) {
 	return &copied, nil
 }
 
-func (m *mockInitiativeAssigner) Create(spec InitiativeSpec) error {
+func (m *mockMilestoneAssigner) Create(spec MilestoneSpec) error {
 	if m.createErr != nil {
 		return m.createErr
 	}
 	m.createOrder = append(m.createOrder, spec.Name)
-	m.snapshots[spec.Name] = InitiativeSnapshot{
+	m.snapshots[spec.Name] = MilestoneSnapshot{
 		Name:        spec.Name,
 		Title:       spec.Title,
 		Description: spec.Description,
@@ -72,13 +72,13 @@ func (m *mockInitiativeAssigner) Create(spec InitiativeSpec) error {
 	return nil
 }
 
-func (m *mockInitiativeAssigner) Update(spec InitiativeSpec) error {
+func (m *mockMilestoneAssigner) Update(spec MilestoneSpec) error {
 	if m.updateErr != nil {
 		return m.updateErr
 	}
 	snapshot, ok := m.snapshots[spec.Name]
 	if !ok {
-		return fmt.Errorf("initiative %q not found", spec.Name)
+		return fmt.Errorf("milestone %q not found", spec.Name)
 	}
 	m.updateOrder = append(m.updateOrder, spec.Name)
 	snapshot.Title = spec.Title
@@ -90,7 +90,7 @@ func (m *mockInitiativeAssigner) Update(spec InitiativeSpec) error {
 	return nil
 }
 
-func (m *mockInitiativeAssigner) Replace(snapshot InitiativeSnapshot) error {
+func (m *mockMilestoneAssigner) Replace(snapshot MilestoneSnapshot) error {
 	if m.replaceErr != nil {
 		return m.replaceErr
 	}
@@ -102,7 +102,7 @@ func (m *mockInitiativeAssigner) Replace(snapshot InitiativeSnapshot) error {
 	return nil
 }
 
-func (m *mockInitiativeAssigner) Delete(name string) error {
+func (m *mockMilestoneAssigner) Delete(name string) error {
 	if m.deleteErr != nil {
 		return m.deleteErr
 	}
@@ -110,27 +110,27 @@ func (m *mockInitiativeAssigner) Delete(name string) error {
 	return nil
 }
 
-func (m *mockInitiativeAssigner) AddItems(name string, items []string) error {
+func (m *mockMilestoneAssigner) AddItems(name string, items []string) error {
 	if m.addErr != nil {
 		return m.addErr
 	}
 	m.addedItems[name] = append(m.addedItems[name], items...)
 	snapshot, ok := m.snapshots[name]
 	if !ok {
-		return fmt.Errorf("initiative %q not found", name)
+		return fmt.Errorf("milestone %q not found", name)
 	}
 	snapshot.Items = append(snapshot.Items, items...)
 	m.snapshots[name] = snapshot
 	return nil
 }
 
-func (m *mockInitiativeAssigner) RememberItem(name, ref string) error {
+func (m *mockMilestoneAssigner) RememberItem(name, ref string) error {
 	if m.addErr != nil {
 		return m.addErr
 	}
 	snapshot, ok := m.snapshots[name]
 	if !ok {
-		return fmt.Errorf("initiative %q not found", name)
+		return fmt.Errorf("milestone %q not found", name)
 	}
 	for _, existing := range snapshot.Items {
 		if existing == ref {
@@ -143,7 +143,7 @@ func (m *mockInitiativeAssigner) RememberItem(name, ref string) error {
 	return nil
 }
 
-func (m *mockInitiativeAssigner) ForgetItem(name, ref string) error {
+func (m *mockMilestoneAssigner) ForgetItem(name, ref string) error {
 	snapshot, ok := m.snapshots[name]
 	if !ok {
 		return nil
@@ -160,14 +160,14 @@ func (m *mockInitiativeAssigner) ForgetItem(name, ref string) error {
 	return nil
 }
 
-func setupBatchTestHandler(t *testing.T) (*Handler, string, *mockInitiativeAssigner) {
+func setupBatchTestHandler(t *testing.T) (*Handler, string, *mockMilestoneAssigner) {
 	t.Helper()
 	agent := &mockAgentService{
 		result: agentmanager.RunResult{RunID: "batch-run", TaskID: "batch-task"},
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
-	ia := newMockInitiativeAssigner()
-	h.SetInitiativeAssigner(ia)
+	ia := newMockMilestoneAssigner()
+	h.SetMilestoneAssigner(ia)
 	return h, rootDir, ia
 }
 
@@ -215,9 +215,9 @@ func TestBatchCreate_Success(t *testing.T) {
 	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "user-mgmt", "spec.json"))
 	testutil.AssertFileExists(t, filepath.Join(rootDir, "fix", "fix-login", "spec.json"))
 
-	// No initiative was requested.
+	// No milestone was requested.
 	if len(ia.snapshots) != 0 {
-		t.Errorf("expected no initiatives created, got %d", len(ia.snapshots))
+		t.Errorf("expected no milestones created, got %d", len(ia.snapshots))
 	}
 }
 
@@ -226,11 +226,11 @@ func TestBatchCreate_StampsCreatedByFromRequestProvenance(t *testing.T) {
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "agent-batch-a", Title: "Agent Batch A", Kind: "idea", Initiative: "agent-batch-init"},
+			{Name: "agent-batch-a", Title: "Agent Batch A", Kind: "idea", Milestone: "agent-batch-init"},
 			{Name: "agent-batch-b", Title: "Agent Batch B", Kind: "execute"},
 		},
-		Initiatives: []batchCreateInitiative{
-			{Name: "agent-batch-init", Title: "Agent Batch Initiative"},
+		Milestones: []batchCreateMilestone{
+			{Name: "agent-batch-init", Title: "Agent Batch Milestone"},
 		},
 	}
 	body, err := json.Marshal(payload)
@@ -268,27 +268,27 @@ func TestBatchCreate_StampsCreatedByFromRequestProvenance(t *testing.T) {
 			t.Fatalf("%s/%s created_by = %+v, want %+v", tc.kind, tc.name, saved.CreatedBy, prov)
 		}
 	}
-	snapshot := h.initiativeAssigner.(*mockInitiativeAssigner).snapshots["agent-batch-init"]
+	snapshot := h.milestoneAssigner.(*mockMilestoneAssigner).snapshots["agent-batch-init"]
 	if snapshot.CreatedBy == nil {
-		t.Fatal("batch-created initiative missing created_by")
+		t.Fatal("batch-created milestone missing created_by")
 	}
 	if *snapshot.CreatedBy != prov {
-		t.Fatalf("batch-created initiative created_by = %+v, want %+v", snapshot.CreatedBy, prov)
+		t.Fatalf("batch-created milestone created_by = %+v, want %+v", snapshot.CreatedBy, prov)
 	}
 }
 
-func TestBatchCreate_SessionProvenanceRecordsItemAndInitiativeArtifacts(t *testing.T) {
+func TestBatchCreate_SessionProvenanceRecordsItemAndMilestoneArtifacts(t *testing.T) {
 	h, _, _ := setupBatchTestHandler(t)
 	recorder := &fakeSessionArtifacts{}
 	h.SetAgentSessionArtifactRecorder(recorder)
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "session-batch-a", Title: "Session Batch A", Kind: "idea", Initiative: "session-batch-init"},
-			{Name: "session-batch-b", Title: "Session Batch B", Kind: "execute", Initiative: "session-batch-init"},
+			{Name: "session-batch-a", Title: "Session Batch A", Kind: "idea", Milestone: "session-batch-init"},
+			{Name: "session-batch-b", Title: "Session Batch B", Kind: "execute", Milestone: "session-batch-init"},
 		},
-		Initiatives: []batchCreateInitiative{
-			{Name: "session-batch-init", Title: "Session Batch Initiative"},
+		Milestones: []batchCreateMilestone{
+			{Name: "session-batch-init", Title: "Session Batch Milestone"},
 		},
 	}
 	body, err := json.Marshal(payload)
@@ -328,8 +328,8 @@ func TestBatchCreate_SessionProvenanceRecordsItemAndInitiativeArtifacts(t *testi
 	if refs["execute/session-batch-b"] != agentsessions.ArtifactBacklogItem {
 		t.Fatalf("missing backlog artifact for session-batch-b: %+v", refs)
 	}
-	if refs["session-batch-init"] != agentsessions.ArtifactInitiative {
-		t.Fatalf("missing initiative artifact: %+v", refs)
+	if refs["session-batch-init"] != agentsessions.ArtifactMilestone {
+		t.Fatalf("missing milestone artifact: %+v", refs)
 	}
 }
 
@@ -340,11 +340,11 @@ func TestApplyAgentSessionBacklogBatchImportCreatesItemsAndArtifacts(t *testing.
 
 	payload := `{
 		"items": [
-			{"name": "session-apply-a", "title": "Session Apply A", "kind": "idea", "initiative": "session-apply-init"},
-			{"name": "session-apply-b", "title": "Session Apply B", "kind": "execute", "initiative": "session-apply-init"}
+			{"name": "session-apply-a", "title": "Session Apply A", "kind": "idea", "milestone": "session-apply-init"},
+			{"name": "session-apply-b", "title": "Session Apply B", "kind": "execute", "milestone": "session-apply-init"}
 		],
-		"initiatives": [
-			{"name": "session-apply-init", "title": "Session Apply Initiative"}
+		"milestones": [
+			{"name": "session-apply-init", "title": "Session Apply Milestone"}
 		]
 	}`
 	prov := identity.Provenance{
@@ -378,7 +378,7 @@ func TestApplyAgentSessionBacklogBatchImportCreatesItemsAndArtifacts(t *testing.
 		}
 	}
 	if got := ia.snapshots["session-apply-init"].CreatedBy; got == nil || got.SessionID != "sess_apply" {
-		t.Fatalf("initiative created_by = %+v", got)
+		t.Fatalf("milestone created_by = %+v", got)
 	}
 	for _, artifact := range recorder.artifacts {
 		if artifact.MutationSource != "agent_sessions.apply.backlog_batch_import" {
@@ -394,11 +394,11 @@ func TestApplyAgentSessionBacklogBatchImportRollsBackWhenArtifactRecordingFails(
 
 	payload := `{
 		"items": [
-			{"name": "session-rollback-a", "title": "Session Rollback A", "kind": "idea", "initiative": "session-rollback-init"},
-			{"name": "session-rollback-b", "title": "Session Rollback B", "kind": "execute", "initiative": "session-rollback-init"}
+			{"name": "session-rollback-a", "title": "Session Rollback A", "kind": "idea", "milestone": "session-rollback-init"},
+			{"name": "session-rollback-b", "title": "Session Rollback B", "kind": "execute", "milestone": "session-rollback-init"}
 		],
-		"initiatives": [
-			{"name": "session-rollback-init", "title": "Session Rollback Initiative"}
+		"milestones": [
+			{"name": "session-rollback-init", "title": "Session Rollback Milestone"}
 		]
 	}`
 	prov := identity.Provenance{
@@ -418,19 +418,19 @@ func TestApplyAgentSessionBacklogBatchImportRollsBackWhenArtifactRecordingFails(
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "session-rollback-a", "spec.json"))
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "execute", "session-rollback-b", "spec.json"))
 	if _, ok := ia.snapshots["session-rollback-init"]; ok {
-		t.Fatalf("initiative was not rolled back: %+v", ia.snapshots["session-rollback-init"])
+		t.Fatalf("milestone was not rolled back: %+v", ia.snapshots["session-rollback-init"])
 	}
 }
 
-func TestBatchCreate_WithInitiative(t *testing.T) {
+func TestBatchCreate_WithMilestone(t *testing.T) {
 	h, _, ia := setupBatchTestHandler(t)
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "dashboard", Title: "Dashboard", Kind: "idea", Initiative: "q1-sprint"},
-			{Name: "api-refactor", Title: "API Refactor", Kind: "execute", Initiative: "q1-sprint"},
+			{Name: "dashboard", Title: "Dashboard", Kind: "idea", Milestone: "q1-sprint"},
+			{Name: "api-refactor", Title: "API Refactor", Kind: "execute", Milestone: "q1-sprint"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "q1-sprint", Title: "Q1 Sprint"},
 		},
 	}
@@ -443,22 +443,22 @@ func TestBatchCreate_WithInitiative(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if len(resp.Initiatives) != 1 || resp.Initiatives[0].Name != "q1-sprint" {
-		t.Fatalf("expected initiative summary for q1-sprint, got %+v", resp.Initiatives)
+	if len(resp.Milestones) != 1 || resp.Milestones[0].Name != "q1-sprint" {
+		t.Fatalf("expected milestone summary for q1-sprint, got %+v", resp.Milestones)
 	}
-	if resp.Initiatives[0].Action != "create" {
-		t.Errorf("expected create action, got %q", resp.Initiatives[0].Action)
+	if resp.Milestones[0].Action != "create" {
+		t.Errorf("expected create action, got %q", resp.Milestones[0].Action)
 	}
 
 	snapshot, ok := ia.snapshots["q1-sprint"]
 	if !ok {
-		t.Fatal("expected initiative 'q1-sprint' to be created")
+		t.Fatal("expected milestone 'q1-sprint' to be created")
 	}
 	if len(ia.addedItems["q1-sprint"]) != 2 {
-		t.Errorf("expected 2 items added to initiative, got %d", len(ia.addedItems["q1-sprint"]))
+		t.Errorf("expected 2 items added to milestone, got %d", len(ia.addedItems["q1-sprint"]))
 	}
 	if len(snapshot.Items) != 2 {
-		t.Errorf("expected 2 persisted initiative items, got %d", len(snapshot.Items))
+		t.Errorf("expected 2 persisted milestone items, got %d", len(snapshot.Items))
 	}
 }
 
@@ -497,7 +497,7 @@ func TestBatchCreate_RejectsUnknownField(t *testing.T) {
 	}
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "same-item", "spec.json"))
 	if len(ia.snapshots) != 0 {
-		t.Fatalf("expected no initiative mutations, got %d", len(ia.snapshots))
+		t.Fatalf("expected no milestone mutations, got %d", len(ia.snapshots))
 	}
 }
 
@@ -728,17 +728,17 @@ func containsSubstr(s, substr string) bool {
 	return false
 }
 
-func TestBatchCreate_InitiativeAddItemsFails_RollsBackEverything(t *testing.T) {
+func TestBatchCreate_MilestoneAddItemsFails_RollsBackEverything(t *testing.T) {
 	h, rootDir, ia := setupBatchTestHandler(t)
 	ia.addErr = fmt.Errorf("disk full")
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "widget-a", Title: "Widget A", Kind: "idea", Initiative: "my-init"},
-			{Name: "widget-b", Title: "Widget B", Kind: "fix", Initiative: "my-init"},
+			{Name: "widget-a", Title: "Widget A", Kind: "idea", Milestone: "my-init"},
+			{Name: "widget-b", Title: "Widget B", Kind: "fix", Milestone: "my-init"},
 		},
-		Initiatives: []batchCreateInitiative{
-			{Name: "my-init", Title: "My Initiative"},
+		Milestones: []batchCreateMilestone{
+			{Name: "my-init", Title: "My Milestone"},
 		},
 	}
 
@@ -747,19 +747,19 @@ func TestBatchCreate_InitiativeAddItemsFails_RollsBackEverything(t *testing.T) {
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "widget-a", "spec.json"))
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "widget-b", "spec.json"))
 	if _, ok := ia.snapshots["my-init"]; ok {
-		t.Fatal("expected initiative rollback to remove my-init")
+		t.Fatal("expected milestone rollback to remove my-init")
 	}
 }
 
-func TestBatchCreate_InitiativeCreateFails_Returns500(t *testing.T) {
+func TestBatchCreate_MilestoneCreateFails_Returns500(t *testing.T) {
 	h, rootDir, ia := setupBatchTestHandler(t)
 	ia.createErr = fmt.Errorf("store corrupt")
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "orphan-item", Title: "Orphan", Kind: "idea", Initiative: "broken-init"},
+			{Name: "orphan-item", Title: "Orphan", Kind: "idea", Milestone: "broken-init"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "broken-init", Title: "Broken Init"},
 		},
 	}
@@ -767,19 +767,19 @@ func TestBatchCreate_InitiativeCreateFails_Returns500(t *testing.T) {
 	w := doBatchCreate(t, h, payload)
 	testutil.AssertStatus(t, w, http.StatusInternalServerError)
 
-	// Item should NOT be on disk — initiative creation fails before item creation.
+	// Item should NOT be on disk — milestone creation fails before item creation.
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "orphan-item", "spec.json"))
 }
 
-func TestBatchCreate_PreviewDoesNotMutateDiskOrInitiatives(t *testing.T) {
+func TestBatchCreate_PreviewDoesNotMutateDiskOrMilestones(t *testing.T) {
 	h, rootDir, ia := setupBatchTestHandler(t)
 
 	payload := batchCreateRequest{
 		Preview: true,
 		Items: []batchCreateItem{
-			{Name: "preview-item", Title: "Preview Item", Kind: "idea", Initiative: "preview-init"},
+			{Name: "preview-item", Title: "Preview Item", Kind: "idea", Milestone: "preview-init"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "preview-init", Title: "Preview Init"},
 		},
 	}
@@ -793,7 +793,7 @@ func TestBatchCreate_PreviewDoesNotMutateDiskOrInitiatives(t *testing.T) {
 	}
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "preview-item", "spec.json"))
 	if len(ia.snapshots) != 0 {
-		t.Fatalf("expected preview to avoid initiative mutations, got %d snapshots", len(ia.snapshots))
+		t.Fatalf("expected preview to avoid milestone mutations, got %d snapshots", len(ia.snapshots))
 	}
 }
 

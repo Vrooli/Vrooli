@@ -44,7 +44,7 @@ type cliActivityRow struct {
 	Mode           string `json:"mode,omitempty"`
 	Phase          string `json:"phase,omitempty"`
 	Round          int    `json:"round,omitempty"`
-	InitiativeName string `json:"initiative_name,omitempty"`
+	MilestoneName string `json:"milestone_name,omitempty"`
 	RequestedAt    string `json:"requested_at"`
 	StartedAt      string `json:"started_at,omitempty"`
 	FinishedAt     string `json:"finished_at,omitempty"`
@@ -74,7 +74,7 @@ type cliOperationsBriefingSummary struct {
 	SaturatedLanes        []string       `json:"saturated_lanes"`
 	ActiveLaneCountByLane map[string]int `json:"active_lane_count_by_lane"`
 	TotalBacklogItems     int            `json:"total_backlog_items"`
-	ActiveInitiatives     int            `json:"active_initiatives"`
+	ActiveMilestones     int            `json:"active_milestones"`
 	BlockedItems          int            `json:"blocked_items"`
 	ActiveSessions        int            `json:"active_sessions"`
 }
@@ -204,12 +204,12 @@ func printOperationsView(view cliOperationsView) {
 func printOperationsBriefing(briefing cliOperationsBriefing) {
 	printSection("Summary")
 	fmt.Printf("  Generated: %s | Window: %ds\n", briefing.GeneratedAt, briefing.WindowSeconds)
-	fmt.Printf("  Active: %d | Recent: %d | Queue: %d/%d | Initiatives: %d active | Blocked: %d | Sessions: %d active\n",
+	fmt.Printf("  Active: %d | Recent: %d | Queue: %d/%d | Milestones: %d active | Blocked: %d | Sessions: %d active\n",
 		briefing.Summary.ActiveActivityCount,
 		briefing.Summary.RecentlyFinishedCount,
 		briefing.Summary.QueueDepth,
 		briefing.Summary.MaxQueueDepth,
-		briefing.Summary.ActiveInitiatives,
+		briefing.Summary.ActiveMilestones,
 		briefing.Summary.BlockedItems,
 		briefing.Summary.ActiveSessions,
 	)

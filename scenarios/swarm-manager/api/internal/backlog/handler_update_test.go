@@ -127,13 +127,13 @@ func TestUpdate_ClearsFields(t *testing.T) {
 		Name: "clear-test", Title: "Clear Test", Description: "To be cleared",
 		Status: StatusBacklog, Priority: 4, Tags: []string{"stale"},
 		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
-		DependsOn: []string{"idea/alpha"}, Initiative: "release-hardening",
+		DependsOn: []string{"idea/alpha"}, Milestone: "release-hardening",
 		Effort: "L", AcceptanceAllow: []string{"api/**"}, AcceptanceDeny: []string{"secrets/**"},
 	})
 
 	w := doUpdate(t, h, "research", "clear-test", map[string]any{
 		"description": "", "tags": []string{}, "depends_on": []string{},
-		"initiative": "", "effort": "",
+		"milestone": "", "effort": "",
 		"acceptance_allow": []string{}, "acceptance_deny": []string{},
 	})
 	testutil.AssertStatusOK(t, w)
@@ -148,8 +148,8 @@ func TestUpdate_ClearsFields(t *testing.T) {
 	if len(saved.DependsOn) != 0 {
 		t.Fatalf("expected depends_on cleared, got %v", saved.DependsOn)
 	}
-	if saved.Initiative != "" {
-		t.Fatalf("expected initiative cleared, got %q", saved.Initiative)
+	if saved.Milestone != "" {
+		t.Fatalf("expected milestone cleared, got %q", saved.Milestone)
 	}
 	if saved.Effort != "" {
 		t.Fatalf("expected effort cleared, got %q", saved.Effort)

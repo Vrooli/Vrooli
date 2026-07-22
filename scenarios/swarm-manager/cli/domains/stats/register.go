@@ -14,7 +14,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("summary", "Full stats dashboard", deps.StatsSummary),
 			support.APICommand("throughput", "Throughput metrics", deps.StatsThroughput),
 			support.APICommand("blocking", "Blocking analysis", deps.StatsBlocking),
-			support.APICommand("initiatives", "Initiative health", deps.StatsInitiatives),
+			support.APICommand("milestones", "Milestone health", deps.StatsMilestones),
 			support.APICommand("agent", "Agent efficiency metrics", deps.StatsAgent),
 			support.APICommand("sessions", "Native agent session metrics", deps.StatsSessions),
 			support.APICommand("sandbox-adoption", "Sandbox-default rollout adoption breakdown (scrapes agent-manager /metrics)", deps.StatsSandboxAdoption),

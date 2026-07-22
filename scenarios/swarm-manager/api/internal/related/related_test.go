@@ -8,7 +8,7 @@ import (
 	"connectrpc.com/connect"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 	"swarm-manager/internal/records"
 )
 
@@ -26,17 +26,9 @@ func (s testBacklog) LoadItem(k backlog.BacklogKind, n string) (backlog.BacklogI
 	return backlog.BacklogItem{}, records.ErrNotFound
 }
 
-type testInitiatives struct{ items []initiatives.Initiative }
+type testGoals struct{ items []goals.GoalWithScope }
 
-func (s testInitiatives) LoadAll() ([]initiatives.Initiative, error) { return s.items, nil }
-func (s testInitiatives) Load(n string) (*initiatives.Initiative, error) {
-	for _, i := range s.items {
-		if i.Name == n {
-			return &i, nil
-		}
-	}
-	return nil, records.ErrNotFound
-}
+func (s testGoals) List() ([]goals.GoalWithScope, error) { return s.items, nil }
 
 type testRecords struct{ items []records.Record }
 
@@ -61,7 +53,7 @@ func (s testRecords) List(f records.ListFilter) ([]records.Record, error) {
 		if f.BacklogRef != "" && r.BacklogRef != f.BacklogRef {
 			continue
 		}
-		if f.InitiativeID != "" && r.InitiativeID != f.InitiativeID {
+		if f.MilestoneID != "" && r.MilestoneID != f.MilestoneID {
 			continue
 		}
 		out = append(out, r)
@@ -83,12 +75,12 @@ func (s testRecords) SetSupersededBy(string, string) (records.Record, error) {
 
 func TestEngineGroupsLinkedScopeAndRecords(t *testing.T) {
 	items := []backlog.BacklogItem{
-		{Kind: backlog.KindIdea, Name: "source", Title: "Source", DependsOn: []string{"fix/dependency"}, Initiative: "one", AcceptanceAllow: []string{"scenarios/swarm-manager/api/**"}},
-		{Kind: backlog.KindFix, Name: "dependency", Title: "Dependency", Initiative: "one"},
+		{Kind: backlog.KindIdea, Name: "source", Title: "Source", DependsOn: []string{"fix/dependency"}, Milestone: "one", AcceptanceAllow: []string{"scenarios/swarm-manager/api/**"}},
+		{Kind: backlog.KindFix, Name: "dependency", Title: "Dependency", Milestone: "one"},
 		{Kind: backlog.KindChore, Name: "dependent", Title: "Dependent", DependsOn: []string{"idea/source"}},
 		{Kind: backlog.KindExecute, Name: "same", Title: "Same scope", Creates: []string{"scenarios/swarm-manager/api/new/**"}},
 	}
-	engine := NewEngine(testBacklog{items}, testInitiatives{[]initiatives.Initiative{{Name: "one", Title: "One", Items: []string{"idea/source", "fix/dependency"}}}}, testRecords{[]records.Record{{ID: "r1", Trigger: "Record", BacklogRef: "idea/source"}}}, nil)
+	engine := NewEngine(testBacklog{items}, testGoals{[]goals.GoalWithScope{{Goal: goals.Goal{Name: "one", Title: "One"}, Scope: goals.Scope{Closure: []string{"idea/source", "fix/dependency"}}}}}, testRecords{[]records.Record{{ID: "r1", Trigger: "Record", BacklogRef: "idea/source"}}}, nil)
 	report, err := engine.Compute(context.Background(), TargetRef{Kind: TargetBacklog, BacklogKind: backlog.KindIdea, Name: "source"}, 20)
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +112,7 @@ func TestDedupeKeepsStrongestGroupAndMergesReasons(t *testing.T) {
 func TestEngineHydratesSimilarRecordTitleFromCanonicalStore(t *testing.T) {
 	engine := NewEngine(
 		testBacklog{[]backlog.BacklogItem{{Kind: backlog.KindIdea, Name: "source", Title: "Source"}}},
-		testInitiatives{},
+		testGoals{},
 		testRecords{items: []records.Record{{ID: "rec-1", Trigger: "Readable record title", Outcome: records.OutcomeShipped}}},
 		testSimilarity{entities: []Entity{{Kind: EntityRecord, Key: "rec-1", Title: "legacy-vector-point-id", ScorePercent: 80}}},
 	)
@@ -136,7 +128,7 @@ func TestEngineHydratesSimilarRecordTitleFromCanonicalStore(t *testing.T) {
 func TestConnectServiceHonorsFiltersAndAlwaysReturnsGroups(t *testing.T) {
 	engine := NewEngine(
 		testBacklog{[]backlog.BacklogItem{{Kind: backlog.KindIdea, Name: "source", Title: "Source", DependsOn: []string{"fix/linked"}}, {Kind: backlog.KindFix, Name: "linked", Title: "Linked"}}},
-		testInitiatives{}, testRecords{items: []records.Record{{ID: "record", Trigger: "Historical", BacklogRef: "idea/source"}}}, nil,
+		testGoals{}, testRecords{items: []records.Record{{ID: "record", Trigger: "Historical", BacklogRef: "idea/source"}}}, nil,
 	)
 	service := NewConnectService(engine)
 	response, err := service.GetRelated(context.Background(), connect.NewRequest(&api.GetRelatedRequest{

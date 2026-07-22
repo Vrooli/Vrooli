@@ -15,8 +15,6 @@ import (
 	"swarm-manager/internal/eta"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/gates"
-	"swarm-manager/internal/goals"
-	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/operations"
 )
 
@@ -78,15 +76,6 @@ func (s *Service) Build(ctx context.Context, params Params) (Board, error) {
 		}
 	}
 
-	var inits []initiatives.Initiative
-	if s.cfg.Initiatives != nil {
-		inits, err = s.cfg.Initiatives.LoadAll()
-		if err != nil {
-			slog.Warn("planview: initiatives read failed; omitting initiative gate", "error", err)
-			inits = nil
-		}
-	}
-
 	// Goal scoping (optional): subset items, executions, and gates to the
 	// goal's transitive prerequisite closure. Absent a goal this is a no-op, so
 	// the unscoped projection is byte-identical.
@@ -97,10 +86,10 @@ func (s *Service) Build(ctx context.Context, params Params) (Board, error) {
 		}
 		items = filterItemsToScope(items, inScope)
 		execs = filterExecsToScope(execs, inScope)
-		gateList = filterGatesToScope(gateList, inScope, inits)
+		gateList = filterGatesToScope(gateList, inScope)
 	}
 
-	proj := newProjection(items, gateList, inits)
+	proj := newProjection(items, gateList)
 
 	board := Board{
 		Now:   s.buildNowSummary(ctx),
@@ -181,25 +170,12 @@ func filterExecsToScope(execs []execution.Record, inScope map[string]bool) []exe
 // filterGatesToScope keeps backlog/execution gates whose owning item is in
 // scope. Classify gates (capture-owned, not item-closure work) are dropped when
 // the board is goal-scoped.
-func filterGatesToScope(gateList []gates.Gate, inScope map[string]bool, inits []initiatives.Initiative) []gates.Gate {
-	initiativesInScope := make(map[string]bool, len(inits))
-	for _, init := range inits {
-		for _, ref := range init.Items {
-			if inScope[ref] {
-				initiativesInScope[init.Name] = true
-				break
-			}
-		}
-	}
+func filterGatesToScope(gateList []gates.Gate, inScope map[string]bool) []gates.Gate {
 	out := make([]gates.Gate, 0, len(gateList))
 	for _, g := range gateList {
 		switch g.OwnerType {
 		case "backlog", "execution":
 			if inScope[g.OwnerKind+"/"+g.OwnerName] {
-				out = append(out, g)
-			}
-		case "initiative":
-			if initiativesInScope[g.OwnerName] {
 				out = append(out, g)
 			}
 		}
@@ -247,11 +223,11 @@ type projection struct {
 	workshopByKey       map[string]gates.Gate
 	execReview          []gates.Gate
 	classify            []gates.Gate
-	initiativeProposals []gates.Gate
+	milestoneProposals []gates.Gate
 	etaInput            eta.GoalClosureInput
 }
 
-func newProjection(items []backlog.BacklogItem, gateList []gates.Gate, inits []initiatives.Initiative) *projection {
+func newProjection(items []backlog.BacklogItem, gateList []gates.Gate) *projection {
 	p := &projection{
 		items:         items,
 		itemsByKey:    make(map[string]backlog.BacklogItem, len(items)),
@@ -280,26 +256,10 @@ func newProjection(items []backlog.BacklogItem, gateList []gates.Gate, inits []i
 			UpdatedAt: parseTime(item.Updated),
 		})
 	}
-	// Fold in the D2 initiative gate: member items inherit their initiative's
-	// dependencies, blocking them until the depended-on initiatives complete.
-	// Additive — with no gated initiatives the wave graph is unchanged.
-	if len(inits) > 0 {
-		initiativeItems := make(map[string][]string, len(inits))
-		initiativeDeps := make(map[string][]string, len(inits))
-		for _, ini := range inits {
-			initiativeItems[ini.Name] = ini.Items
-			initiativeDeps[ini.Name] = ini.DependsOn
-		}
-		initSatisfied := goals.ApplyInitiativeGate(graphMap, func(k string) bool { return p.satisfied[k] }, initiativeItems, initiativeDeps)
-		for node, done := range initSatisfied {
-			p.satisfied[node] = done
-		}
-	}
-
 	p.waves = depgraph.Waves(graphMap, func(k string) bool { return p.satisfied[k] })
 	p.depthMap = backlogrank.ComputeDepthMap(rankItems)
 	p.unblocking = backlogrank.ComputeUnblockingMap(rankItems)
-	p.etaInput = eta.BuildClosureInput(items, inits)
+	p.etaInput = eta.BuildClosureInput(items)
 
 	for _, g := range gateList {
 		switch {
@@ -309,8 +269,8 @@ func newProjection(items []backlog.BacklogItem, gateList []gates.Gate, inits []i
 			p.reviewByKey[g.OwnerKind+"/"+g.OwnerName] = g
 		case g.Kind == gates.KindProposal && g.OwnerType == "backlog":
 			p.decideByKey[g.OwnerKind+"/"+g.OwnerName] = g
-		case g.Kind == gates.KindProposal && g.OwnerType == "initiative":
-			p.initiativeProposals = append(p.initiativeProposals, g)
+		case g.Kind == gates.KindProposal && g.OwnerType == "milestone":
+			p.milestoneProposals = append(p.milestoneProposals, g)
 		case g.Kind == gates.KindReview && g.OwnerType == "execution":
 			p.execReview = append(p.execReview, g)
 		case g.Kind == gates.KindWorkshop && g.OwnerType == "backlog":
@@ -396,7 +356,7 @@ func (p *projection) itemCard(item backlog.BacklogItem, action string) Card {
 		Status:     string(item.Status),
 		Priority:   item.Priority,
 		Wave:       wave,
-		Initiative: item.Initiative,
+		Milestone: item.Milestone,
 		Effort:     item.Effort,
 		Unblocks:   p.unblocking[key],
 	}
@@ -420,7 +380,7 @@ func (p *projection) gateCard(g gates.Gate, action string) Card {
 		if item, ok := p.itemsByKey[key]; ok {
 			card.Status = string(item.Status)
 			card.Priority = item.Priority
-			card.Initiative = item.Initiative
+			card.Milestone = item.Milestone
 			card.Effort = item.Effort
 		}
 		if wave, ok := p.waves.Waves[key]; ok {
@@ -434,13 +394,13 @@ func (p *projection) gateCard(g gates.Gate, action string) Card {
 		card.ExecutionID = strings.TrimPrefix(g.ID, "review:execution/")
 		key := g.OwnerKind + "/" + g.OwnerName
 		if item, ok := p.itemsByKey[key]; ok {
-			card.Initiative = item.Initiative
+			card.Milestone = item.Milestone
 		}
 	case "capture":
 		card.ID = "capture/" + g.OwnerName
-	case "initiative":
-		card.ID = "initiative/" + g.OwnerName
-		card.Initiative = g.OwnerName
+	case "milestone":
+		card.ID = "milestone/" + g.OwnerName
+		card.Milestone = g.OwnerName
 	}
 	return card
 }
@@ -484,7 +444,7 @@ func (p *projection) buildNext() Column {
 	for _, g := range p.classify {
 		gateCards = append(gateCards, p.gateCard(g, ActionClassify))
 	}
-	for _, g := range p.initiativeProposals {
+	for _, g := range p.milestoneProposals {
 		gateCards = append(gateCards, p.gateCard(g, ActionDecide))
 	}
 	sortGateCards(gateCards)
@@ -773,10 +733,10 @@ func (p *projection) buildDone(execs []execution.Record, now time.Time, windowSe
 		}
 		key := rec.BacklogKind + "/" + rec.BacklogName
 		title := key
-		initiative := ""
+		milestone := ""
 		if item, ok := p.itemsByKey[key]; ok {
 			title = titleOf(item)
-			initiative = item.Initiative
+			milestone = item.Milestone
 		}
 		out = append(out, dated{at: ts, card: Card{
 			ID:          "execution-record/" + rec.ExecutionID,
@@ -786,7 +746,7 @@ func (p *projection) buildDone(execs []execution.Record, now time.Time, windowSe
 			ItemName:    rec.BacklogName,
 			Title:       title,
 			Status:      string(rec.Status),
-			Initiative:  initiative,
+			Milestone:  milestone,
 			Outcome:     outcome,
 			FinishedAt:  ts.Format(time.RFC3339),
 			ExecutionID: rec.ExecutionID,
@@ -819,7 +779,7 @@ func (p *projection) buildDone(execs []execution.Record, now time.Time, windowSe
 			ItemName:   item.Name,
 			Title:      titleOf(item),
 			Status:     string(item.Status),
-			Initiative: item.Initiative,
+			Milestone: item.Milestone,
 			Outcome:    outcome,
 			FinishedAt: ts.Format(time.RFC3339),
 		}})

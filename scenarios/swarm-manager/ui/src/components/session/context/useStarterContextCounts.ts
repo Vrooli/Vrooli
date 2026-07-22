@@ -7,7 +7,7 @@
  * actually need are fetched — opening the picker later reuses these caches.
  */
 import { useEffect, useMemo } from "react";
-import { useBacklogStore, useExecutionStore, useInitiativeStore } from "../../../stores";
+import { useBacklogStore, useExecutionStore } from "../../../stores";
 import type { AgentSessionContextType, AgentSessionKind, ExecutionRecord } from "../../../types";
 import { buildContextOptionsByType } from "./session-context-options";
 import type { SessionContextOption } from "./session-context-refs";
@@ -31,21 +31,17 @@ export function useStarterContextCounts(sessionKind: AgentSessionKind): StarterC
   const fetchExecutions = useExecutionStore((s) => s.fetchExecutions);
   const executions = useExecutionStore((s) => s.items);
   const executionStatus = useExecutionStore((s) => s.status);
-  const fetchInitiatives = useInitiativeStore((s) => s.fetchInitiatives);
-  const initiatives = useInitiativeStore((s) => s.items);
-  const initiativeStatus = useInitiativeStore((s) => s.status);
 
   useEffect(() => {
     if (neededTypes.has("backlog_item")) void fetchBacklog();
     if (neededTypes.has("execution")) void fetchExecutions();
-    if (neededTypes.has("initiative")) void fetchInitiatives();
-  }, [neededTypes, fetchBacklog, fetchExecutions, fetchInitiatives]);
+  }, [neededTypes, fetchBacklog, fetchExecutions]);
 
   const optionsByType = useMemo(
     () =>
       buildContextOptionsByType({
         backlogItems,
-        initiatives,
+		goals: [],
         executions,
         // Types the starter cards never count — picker builds these from its own
         // full subscriptions; empty here keeps the hook's fetch surface minimal.
@@ -56,7 +52,7 @@ export function useStarterContextCounts(sessionKind: AgentSessionKind): StarterC
         sessionKind,
         currentSessionId: undefined,
       }),
-    [backlogItems, initiatives, executions, sessionKind],
+    [backlogItems, executions, sessionKind],
   );
 
   const loading = useMemo<Partial<Record<AgentSessionContextType, boolean>>>(() => {
@@ -66,7 +62,6 @@ export function useStarterContextCounts(sessionKind: AgentSessionKind): StarterC
     const result: Partial<Record<AgentSessionContextType, boolean>> = {};
     if (neededTypes.has("backlog_item")) result.backlog_item = pending(backlogStatus, backlogItems.length);
     if (neededTypes.has("execution")) result.execution = pending(executionStatus, executions.length);
-    if (neededTypes.has("initiative")) result.initiative = pending(initiativeStatus, initiatives.length);
     return result;
   }, [
     neededTypes,
@@ -74,8 +69,6 @@ export function useStarterContextCounts(sessionKind: AgentSessionKind): StarterC
     backlogItems.length,
     executionStatus,
     executions.length,
-    initiativeStatus,
-    initiatives.length,
   ]);
 
   return { optionsByType, executions, loading };

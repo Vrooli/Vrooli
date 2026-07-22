@@ -8,10 +8,10 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils";
-import { backlogDetailPath, executionDetailPath, initiativeDetailPath, recordDetailPath, scenarioDetailPath } from "../../app/routes/route-paths";
+import { backlogDetailPath, executionDetailPath, goalDetailPath, recordDetailPath, scenarioDetailPath } from "../../app/routes/route-paths";
 
 /** Entity types that EntityLink supports navigating to. */
-export type LinkableEntityType = "backlog" | "initiative" | "scenario" | "execution" | "record";
+export type LinkableEntityType = "backlog" | "goal" | "scenario" | "execution" | "record";
 
 export interface EntityLinkProps {
   entityType: LinkableEntityType;
@@ -19,7 +19,7 @@ export interface EntityLinkProps {
   label: string;
   /** Backlog kind (required when entityType is "backlog"). */
   kind?: string;
-  /** Entity name (required for backlog, initiative, scenario). */
+  /** Entity name (required for backlog, goal, scenario). */
   name?: string;
   /** Execution ID (required when entityType is "execution"). */
   executionId?: string;
@@ -38,7 +38,7 @@ export interface EntityLinkProps {
  */
 const ENTITY_COLORS: Record<LinkableEntityType, string> = {
   backlog: "bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 hover:text-cyan-300",
-  initiative: "bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 hover:text-sky-300",
+  goal: "bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 hover:text-sky-300",
   scenario: "bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 hover:text-violet-300",
   execution: "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 hover:text-amber-300",
   record: "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300",
@@ -62,8 +62,8 @@ export function EntityLink({
       case "backlog":
         if (kind && name) navigate(backlogDetailPath(kind, name, tab ? { tab } : undefined));
         break;
-      case "initiative":
-        if (name) navigate(initiativeDetailPath(name, tab ? { tab } : undefined));
+      case "goal":
+        if (name) navigate(goalDetailPath(name, tab ? { tab } : undefined));
         break;
       case "scenario":
         if (name) navigate(scenarioDetailPath(name, tab ? { tab } : undefined));

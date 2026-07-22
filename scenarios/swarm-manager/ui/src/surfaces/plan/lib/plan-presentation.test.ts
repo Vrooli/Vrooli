@@ -22,7 +22,7 @@ function card(id: string, wave: number): PlanCardData {
     status: "ready",
     priority: 3,
     wave,
-    initiative: "",
+    milestone: "",
     effort: "",
     gate: null,
     outcome: "",

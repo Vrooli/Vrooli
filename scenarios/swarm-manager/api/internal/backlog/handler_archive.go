@@ -15,7 +15,7 @@ import (
 
 // Delete deletes a backlog item and cascades referential integrity:
 //   - Removes the item's "kind/name" ref from every other item's depends_on.
-//   - Removes the ref from its enclosing initiative's items[] list.
+//   - Removes the ref from its enclosing milestone's items[] list.
 //
 // Cascade runs before the item file is deleted so that a partial failure
 // leaves a consistent "item still exists, references intact" state. After
@@ -39,18 +39,18 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ref := string(kind) + "/" + name
-	if strings.TrimSpace(existing.Initiative) != "" && h.initiativeAssigner != nil {
-		if err := h.initiativeAssigner.ForgetItem(existing.Initiative, ref); err != nil {
-			slog.Error("failed to forget item from initiative", "ref", ref, "initiative", existing.Initiative, "err", err)
-			apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to update initiative membership"))
+	if strings.TrimSpace(existing.Milestone) != "" && h.milestoneAssigner != nil {
+		if err := h.milestoneAssigner.ForgetItem(existing.Milestone, ref); err != nil {
+			slog.Error("failed to forget item from milestone", "ref", ref, "milestone", existing.Milestone, "err", err)
+			apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to update milestone membership"))
 			return
 		}
 	}
 
 	if err := h.store.DeleteItem(kind, name); err != nil {
-		if existing.Initiative != "" && h.initiativeAssigner != nil {
-			if rollbackErr := h.initiativeAssigner.RememberItem(existing.Initiative, ref); rollbackErr != nil {
-				slog.Error("failed to roll back initiative membership after delete failure", "ref", ref, "err", rollbackErr)
+		if existing.Milestone != "" && h.milestoneAssigner != nil {
+			if rollbackErr := h.milestoneAssigner.RememberItem(existing.Milestone, ref); rollbackErr != nil {
+				slog.Error("failed to roll back milestone membership after delete failure", "ref", ref, "err", rollbackErr)
 			}
 		}
 		slog.Error("failed to delete item", "name", name, "err", err)

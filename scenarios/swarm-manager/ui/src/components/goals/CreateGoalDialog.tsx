@@ -5,24 +5,21 @@
  * a single promoted item. It reuses the same drawer + entity-card + chip-tray
  * primitives as the session-context picker so target selection looks and
  * behaves like the rest of swarm-manager (full-page BottomSheet, CompactTabBar
- * tabs, the shared InitiativeSummaryCard / BacklogCard in pick-mode, and the
+ * the shared BacklogCard in pick-mode, and the
  * ContextChipTray for the current selection).
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Layers, ListTodo, Loader2, Target } from "lucide-react";
+import { Loader2, Target } from "lucide-react";
 import { BottomSheet } from "../ui/bottom-sheet";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { CompactTabBar } from "../ui/compact-tab-bar";
 import { useBacklogStore } from "../../stores";
-import { useInitiativeStore } from "../../stores/initiative-store";
 import { useGoalMutations } from "../../surfaces/plan/hooks/useGoals";
 import { BacklogCard } from "../backlog/backlog-card";
-import { InitiativeSummaryCard } from "../initiative/initiative-summary-card";
 import { ContextChipTray, type ComposerContextChip } from "../composer/ContextChipTray";
 import type { CardSelection } from "../session/context/selectable";
-import type { BacklogItem, InitiativeWithRollup } from "../../types";
+import type { BacklogItem } from "../../types";
 import type { GoalWithScope } from "../../types/goal";
 
 export interface CreateGoalDialogProps {
@@ -34,20 +31,7 @@ export interface CreateGoalDialogProps {
 
 const EMPTY_TARGETS: string[] = [];
 
-type TargetTab = "initiative" | "item";
-
-const TAB_LABELS: Record<TargetTab, string> = {
-  initiative: "Initiatives",
-  item: "Items",
-};
-
 /** A selectable goal target, carrying its entity and the ref persisted on the goal. */
-interface InitiativeTarget {
-  ref: string;
-  entity: InitiativeWithRollup;
-  title: string;
-  subtitle: string;
-}
 interface BacklogTarget {
   ref: string;
   entity: BacklogItem;
@@ -55,9 +39,6 @@ interface BacklogTarget {
   subtitle: string;
 }
 
-function initiativeRef(entry: InitiativeWithRollup): string {
-  return `initiative/${entry.initiative.name}`;
-}
 function backlogRef(item: BacklogItem): string {
   return `${item.kind}/${item.name}`;
 }
@@ -71,15 +52,12 @@ export function CreateGoalDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetQuery, setTargetQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<TargetTab>("initiative");
   const [selectedTargets, setSelectedTargets] = useState<string[]>(initialTargets);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const wasOpenRef = useRef(isOpen);
 
   const backlogItems = useBacklogStore((s) => s.items);
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
-  const initiatives = useInitiativeStore((s) => s.items);
-  const fetchInitiatives = useInitiativeStore((s) => s.fetchInitiatives);
   const { create } = useGoalMutations();
 
   useEffect(() => {
@@ -90,27 +68,11 @@ export function CreateGoalDialog({
       setSelectedTargets(initialTargets);
       setAttemptedSubmit(false);
       setTargetQuery("");
-      setActiveTab("initiative");
     }
     if (backlogItems.length === 0) {
       void fetchBacklog();
     }
-    if (initiatives.length === 0) {
-      void fetchInitiatives();
-    }
-  }, [backlogItems.length, fetchBacklog, fetchInitiatives, initialTargets, initiatives.length, isOpen]);
-
-  const initiativeTargets = useMemo<InitiativeTarget[]>(() => (
-    initiatives
-      .filter((entry) => !(entry.initiative as { archivedAt?: string }).archivedAt)
-      .map((entry) => ({
-        ref: initiativeRef(entry),
-        entity: entry,
-        title: entry.initiative.title || entry.initiative.name,
-        subtitle: `initiative/${entry.initiative.name}`,
-      }))
-      .sort((a, b) => a.title.localeCompare(b.title))
-  ), [initiatives]);
+  }, [backlogItems.length, fetchBacklog, initialTargets, isOpen]);
 
   const backlogTargets = useMemo<BacklogTarget[]>(() => (
     backlogItems
@@ -127,19 +89,10 @@ export function CreateGoalDialog({
   // Ref → display metadata, used to render selection chips even for targets
   // whose entity is not in the currently-loaded lists (e.g. initialTargets).
   const metaByRef = useMemo(() => {
-    const map = new Map<string, { type: TargetTab; title: string; subtitle: string }>();
-    for (const t of initiativeTargets) map.set(t.ref, { type: "initiative", title: t.title, subtitle: t.subtitle });
-    for (const t of backlogTargets) map.set(t.ref, { type: "item", title: t.title, subtitle: t.subtitle });
+    const map = new Map<string, { title: string; subtitle: string }>();
+    for (const t of backlogTargets) map.set(t.ref, { title: t.title, subtitle: t.subtitle });
     return map;
-  }, [initiativeTargets, backlogTargets]);
-
-  const filteredInitiatives = useMemo(() => {
-    const q = targetQuery.trim().toLowerCase();
-    if (!q) return initiativeTargets.slice(0, 80);
-    return initiativeTargets
-      .filter((t) => t.title.toLowerCase().includes(q) || t.subtitle.toLowerCase().includes(q))
-      .slice(0, 80);
-  }, [initiativeTargets, targetQuery]);
+  }, [backlogTargets]);
   const filteredBacklog = useMemo(() => {
     const q = targetQuery.trim().toLowerCase();
     if (!q) return backlogTargets.slice(0, 80);
@@ -154,7 +107,7 @@ export function CreateGoalDialog({
     selectedTargets.map((ref) => {
       const meta = metaByRef.get(ref);
       return {
-        type: meta?.type === "item" ? "backlog_item" : "initiative",
+        type: "backlog_item",
         ref,
         title: meta?.title ?? ref,
         subtitle: meta?.subtitle ?? ref,
@@ -185,7 +138,6 @@ export function CreateGoalDialog({
     setTitle("");
     setDescription("");
     setTargetQuery("");
-    setActiveTab("initiative");
     setSelectedTargets(initialTargets);
     setAttemptedSubmit(false);
     onClose();
@@ -209,14 +161,12 @@ export function CreateGoalDialog({
     );
   };
 
-  const activeList = activeTab === "initiative" ? filteredInitiatives : filteredBacklog;
-
   return (
     <BottomSheet
       isOpen={isOpen}
       onClose={resetAndClose}
       title="Create goal"
-      description="Group initiatives and items under a single target outcome."
+      description="Group backlog items under a single target outcome."
       className="!max-w-2xl border-slate-700/80 bg-slate-900"
       contentClassName="px-0 py-0"
       data-testid="create-goal-dialog"
@@ -302,45 +252,25 @@ export function CreateGoalDialog({
           />
         </div>
 
-        <CompactTabBar
-          items={[
-            { value: "initiative" as const, label: TAB_LABELS.initiative, icon: Layers, count: initiativeTargets.length },
-            { value: "item" as const, label: TAB_LABELS.item, icon: ListTodo, count: backlogTargets.length },
-          ]}
-          activeValue={activeTab}
-          onValueChange={setActiveTab}
-          aria-label="Target types"
-          className="border-b border-white/10 px-1"
-          tabTestIdPrefix="create-goal-tab"
-        />
-
         <div className="max-h-[46vh] overflow-y-auto px-2.5 py-2.5 sm:px-3" data-testid="create-goal-targets">
-          {activeList.length === 0 ? (
+          {filteredBacklog.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-slate-700 bg-slate-950/40 px-4 py-10 text-center text-sm text-slate-500">
               <Target className="h-6 w-6" />
               <span>
                 {targetQuery.trim()
                   ? "No targets match this search."
-                  : `No ${TAB_LABELS[activeTab].toLowerCase()} available.`}
+                  : "No items available."}
               </span>
             </div>
           ) : (
             <div className="space-y-1.5">
-              {activeTab === "initiative"
-                ? filteredInitiatives.map((target) => (
-                    <InitiativeSummaryCard
-                      key={target.ref}
-                      item={target.entity}
-                      selection={selectionFor(target.ref)}
-                    />
-                  ))
-                : filteredBacklog.map((target) => (
-                    <BacklogCard
-                      key={target.ref}
-                      item={target.entity}
-                      selection={selectionFor(target.ref)}
-                    />
-                  ))}
+              {filteredBacklog.map((target) => (
+                <BacklogCard
+                  key={target.ref}
+                  item={target.entity}
+                  selection={selectionFor(target.ref)}
+                />
+              ))}
             </div>
           )}
         </div>

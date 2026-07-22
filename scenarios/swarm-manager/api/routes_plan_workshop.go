@@ -30,7 +30,7 @@ import (
 )
 
 func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
-	if s.backlogHandler == nil || s.initStore == nil {
+	if s.backlogHandler == nil {
 		return
 	}
 	if _, err := planworkshop.MigrateLegacyHistory(dataRoot, time.Now()); err != nil {
@@ -62,23 +62,6 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
 				return "", "", "", err
 			}
 			return workshopSubjectVersion(item), id, hash, nil
-		case planworkshop.SubjectInitiative:
-			initiative, err := s.initStore.Load(subject.Ref)
-			if err != nil {
-				return "", "", "", err
-			}
-			id := ""
-			if initiative.PlanRef != nil {
-				id = strings.TrimSpace(initiative.PlanRef.PlanID)
-				if id == "" {
-					id = strings.TrimSpace(initiative.PlanRef.Slug)
-				}
-			}
-			hash, err := currentPlanHash(context.Background(), plans, id)
-			if err != nil {
-				return "", "", "", err
-			}
-			return workshopSubjectVersion(initiative), id, hash, nil
 		default:
 			return "", "", "", fmt.Errorf("unsupported workshop subject")
 		}
@@ -395,9 +378,6 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
 	attachReviewFinding := func(ctx context.Context, kind, name string, round review.Round) {
 		subjectKind := planworkshop.SubjectBacklog
 		subjectRef := kind + "/" + name
-		if kind == "initiative" {
-			subjectKind, subjectRef = planworkshop.SubjectInitiative, name
-		}
 		summary := strings.TrimSpace(round.AgentAssessment)
 		if summary == "" {
 			summary = "Review result requires operator attention"
@@ -421,9 +401,6 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
 	}
 	if s.reviewSvc != nil {
 		s.reviewSvc.SetRoundTerminalObserver(attachReviewFinding)
-	}
-	if s.initiativeReviewSvc != nil {
-		s.initiativeReviewSvc.SetRoundTerminalObserver(attachReviewFinding)
 	}
 	planworkshop.NewHandler(service).RegisterRoutes(s.router)
 }
@@ -647,9 +624,6 @@ func planWorkshopProposalID(executionID string, index int) string {
 }
 
 func planWorkshopProposalTarget(subject planworkshop.Subject) agentsessions.ProposalTarget {
-	if subject.Kind == planworkshop.SubjectInitiative {
-		return agentsessions.ProposalTarget{Type: agentsessions.ContextInitiative, Ref: subject.Ref, Name: subject.Ref}
-	}
 	return agentsessions.ProposalTarget{Type: agentsessions.ContextBacklogItem, Ref: subject.Ref, Name: subject.Ref}
 }
 

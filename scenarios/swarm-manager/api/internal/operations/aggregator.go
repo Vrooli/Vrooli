@@ -44,7 +44,7 @@ type Aggregator struct {
 
 // NewAggregator builds an Aggregator. Activities and Governance are
 // required; Rounds may be nil (older test wirings without operating-mode
-// service get an empty initiative map). Now defaults to time.Now if unset.
+// service get an empty milestone map). Now defaults to time.Now if unset.
 func NewAggregator(cfg AggregatorConfig) (*Aggregator, error) {
 	if cfg.Activities == nil {
 		return nil, fmt.Errorf("operations: AggregatorConfig.Activities is required")
@@ -136,12 +136,12 @@ func (a *Aggregator) Aggregate(ctx context.Context, f Filters) (*OperationsView,
 }
 
 // indexRoundsByRunID walks the active-rounds map and returns a runID →
-// (initiativeName, round summary) lookup. RunID is stable across the
+// (milestoneName, round summary) lookup. RunID is stable across the
 // activity record and the round payload, so this is the canonical join
-// key — initiative name is not present on activity records.
+// key — milestone name is not present on activity records.
 type roundIndexEntry struct {
-	initiativeName string
-	round          struct {
+	milestoneName string
+	round         struct {
 		Mode, Phase string
 		Round       int
 	}
@@ -170,16 +170,16 @@ func buildRow(rec agentactivity.Record, roundByRunID map[string]roundIndexEntry,
 		row.Lane = string(lane)
 	}
 
-	if rec.OwnerType == agentactivity.OwnerInitiative {
-		row.InitiativeName = rec.OwnerName
+	if rec.OwnerType == agentactivity.OwnerMilestone {
+		row.MilestoneName = rec.OwnerName
 	}
 
 	if entry, ok := roundByRunID[strings.TrimSpace(rec.RunID)]; ok {
 		row.Mode = entry.round.Mode
 		row.Phase = entry.round.Phase
 		row.Round = entry.round.Round
-		if row.InitiativeName == "" {
-			row.InitiativeName = entry.initiativeName
+		if row.MilestoneName == "" {
+			row.MilestoneName = entry.milestoneName
 		}
 	}
 

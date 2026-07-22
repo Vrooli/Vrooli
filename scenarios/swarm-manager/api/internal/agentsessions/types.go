@@ -50,6 +50,10 @@ const (
 	ProposalOperatingModeDraft              ProposalKind = "operating_mode_draft"
 	ProposalOperatingModeImplementationPlan ProposalKind = "operating_mode_implementation_plan"
 	ProposalMutationList                    ProposalKind = "mutation_list"
+	// ProposalGoalMigrationDisposition is a read-only, operator-reviewed
+	// migration plan. Its dedicated kind prevents it being applied by the
+	// legacy backlog mutation path.
+	ProposalGoalMigrationDisposition ProposalKind = "goal_migration_disposition"
 	// ProposalNoChangeRecommendation captures a completed review whose
 	// recommendation is to leave the target unchanged. It is deliberately a
 	// separate outcome from mutation_list so it cannot be accidentally applied
@@ -66,6 +70,7 @@ var knownProposalKinds = []ProposalKind{
 	ProposalOperatingModeDraft,
 	ProposalOperatingModeImplementationPlan,
 	ProposalMutationList,
+	ProposalGoalMigrationDisposition,
 	ProposalNoChangeRecommendation,
 }
 
@@ -90,7 +95,7 @@ type ArtifactType string
 
 const (
 	ArtifactBacklogItem             ArtifactType = "backlog_item"
-	ArtifactInitiative              ArtifactType = "initiative"
+	ArtifactMilestone               ArtifactType = "milestone"
 	ArtifactOperatingModeProposal   ArtifactType = "operating_mode_proposal"
 	ArtifactOperatingModeDefinition ArtifactType = "operating_mode_definition"
 	ArtifactCapture                 ArtifactType = "capture"
@@ -112,7 +117,6 @@ type ContextType string
 
 const (
 	ContextBacklogItem        ContextType = "backlog_item"
-	ContextInitiative         ContextType = "initiative"
 	ContextCapture            ContextType = "capture"
 	ContextExecution          ContextType = "execution"
 	ContextAgentActivity      ContextType = "agent_activity"
@@ -212,7 +216,7 @@ type Proposal struct {
 }
 
 // ProposalTarget is the entity against which a proposal session reasons. A
-// backlog target is resolved to its owning initiative before validation and
+// backlog target is resolved to its owning milestone before validation and
 // application; orphaned backlog items therefore have no synthetic scope.
 type ProposalTarget struct {
 	Type ContextType `json:"type"`
@@ -416,8 +420,8 @@ func (p Proposal) Validate() error {
 }
 
 func (t ProposalTarget) Validate() error {
-	if t.Type != ContextInitiative && t.Type != ContextBacklogItem {
-		return validationError("proposal target type must be initiative or backlog_item")
+	if t.Type != ContextGoal && t.Type != ContextBacklogItem {
+		return validationError("proposal target type must be goal or backlog_item")
 	}
 	if strings.TrimSpace(t.Ref) == "" {
 		return validationError("proposal target ref is required")
@@ -508,7 +512,7 @@ func IsKnownMessageRole(role MessageRole) bool {
 
 func IsKnownProposalKind(kind ProposalKind) bool {
 	switch kind {
-	case ProposalBacklogBatchImport, ProposalOperatingModeDraft, ProposalOperatingModeImplementationPlan, ProposalMutationList, ProposalNoChangeRecommendation:
+	case ProposalBacklogBatchImport, ProposalOperatingModeDraft, ProposalOperatingModeImplementationPlan, ProposalMutationList, ProposalNoChangeRecommendation, ProposalGoalMigrationDisposition:
 		return true
 	default:
 		return false
@@ -527,7 +531,7 @@ func IsKnownProposalStatus(status ProposalStatus) bool {
 
 func IsKnownArtifactType(artifactType ArtifactType) bool {
 	switch artifactType {
-	case ArtifactBacklogItem, ArtifactInitiative, ArtifactOperatingModeProposal,
+	case ArtifactBacklogItem, ArtifactMilestone, ArtifactOperatingModeProposal,
 		ArtifactOperatingModeDefinition, ArtifactCapture, ArtifactFile, ArtifactAgentActivity:
 		return true
 	default:
@@ -547,9 +551,9 @@ func IsKnownArtifactAction(action ArtifactAction) bool {
 
 func IsKnownContextType(contextType ContextType) bool {
 	switch contextType {
-	case ContextBacklogItem, ContextInitiative, ContextCapture, ContextExecution,
+	case ContextBacklogItem, ContextGoal, ContextCapture, ContextExecution,
 		ContextAgentActivity, ContextScenario, ContextOperatingMode, ContextSession, ContextOperationsBriefing, ContextStartupBrief,
-		ContextPlanDependencyCycles, ContextPlanEta, ContextGoal:
+		ContextPlanDependencyCycles, ContextPlanEta:
 		return true
 	default:
 		return false

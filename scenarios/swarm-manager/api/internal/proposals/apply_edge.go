@@ -63,7 +63,7 @@ func (a *Applier) applyRemoveEdge(ctx context.Context, from, to string) error {
 	return a.store.SaveItem(item)
 }
 
-func (a *Applier) applyMoveInitiative(ctx context.Context, ref, currentInit, destination string) error {
+func (a *Applier) applyMoveMilestone(ctx context.Context, ref, currentInit, destination string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -80,8 +80,8 @@ func (a *Applier) applyMoveInitiative(ctx context.Context, ref, currentInit, des
 	}
 
 	if dest == "" {
-		if _, _, err := a.store.ClearItemInitiative(kind, name, currentInit); err != nil {
-			return fmt.Errorf("clear initiative field: %w", err)
+		if _, _, err := a.store.ClearItemMilestone(kind, name, currentInit); err != nil {
+			return fmt.Errorf("clear milestone field: %w", err)
 		}
 		item, loadErr := a.store.LoadItem(kind, name)
 		if loadErr == nil {
@@ -93,24 +93,24 @@ func (a *Applier) applyMoveInitiative(ctx context.Context, ref, currentInit, des
 		return nil
 	}
 
-	if _, err := a.store.SetItemInitiative(kind, name, dest); err != nil {
+	if _, err := a.store.SetItemMilestone(kind, name, dest); err != nil {
 		// Roll back detach so the item isn't orphaned.
 		if currentInit != "" {
 			if remErr := a.assigner.RememberItem(currentInit, ref); remErr != nil {
-				slog.Warn("proposals: rollback re-attach to original initiative failed", "err", remErr, "initiative", currentInit, "ref", ref)
+				slog.Warn("proposals: rollback re-attach to original milestone failed", "err", remErr, "milestone", currentInit, "ref", ref)
 			}
 		}
-		return fmt.Errorf("set initiative field: %w", err)
+		return fmt.Errorf("set milestone field: %w", err)
 	}
 	if err := a.assigner.RememberItem(dest, ref); err != nil {
 		// Full rollback: the item now claims `dest` on disk but neither
-		// initiative lists it. Restore the item field and re-attach to
-		// the original initiative so the user sees pre-mutation state.
-		if _, _, clearErr := a.store.ClearItemInitiative(kind, name, dest); clearErr != nil {
+		// milestone lists it. Restore the item field and re-attach to
+		// the original milestone so the user sees pre-mutation state.
+		if _, _, clearErr := a.store.ClearItemMilestone(kind, name, dest); clearErr != nil {
 			return fmt.Errorf("attach to %s: %w; rollback clear failed: %v", dest, err, clearErr)
 		}
 		if currentInit != "" {
-			if _, restoreErr := a.store.SetItemInitiative(kind, name, currentInit); restoreErr != nil {
+			if _, restoreErr := a.store.SetItemMilestone(kind, name, currentInit); restoreErr != nil {
 				return fmt.Errorf("attach to %s: %w; rollback restore failed: %v", dest, err, restoreErr)
 			}
 			if remErr := a.assigner.RememberItem(currentInit, ref); remErr != nil {

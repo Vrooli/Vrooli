@@ -67,15 +67,15 @@ type ScenarioMetadata struct {
 
 // Handler provides HTTP handlers for scenario operations.
 type Handler struct {
-	scenariosDir      string
-	source            Source
-	lifecycle         Lifecycle
-	completeness      CompletenessSource
-	executionQueuer   ExecutionQueuer
-	eventDispatcher   dispatch.NodeDispatcher
-	backlogLister     BacklogLister
-	executionLister   ExecutionLister
-	initiativesLister InitiativesLister
+	scenariosDir    string
+	source          Source
+	lifecycle       Lifecycle
+	completeness    CompletenessSource
+	executionQueuer ExecutionQueuer
+	eventDispatcher dispatch.NodeDispatcher
+	backlogLister   BacklogLister
+	executionLister ExecutionLister
+	goalsLister     GoalsLister
 }
 
 // NewHandler creates a new scenarios handler.

@@ -35,7 +35,9 @@ export type AgentSessionMessageRole = "user" | "assistant" | "system";
 
 export type AgentSessionContextType =
   | "backlog_item"
-  | "initiative"
+	// Historical session records may still carry this value. New picker flows
+	// never create it; goal is the only grouping context offered to users.
+  | "goal"
   | "capture"
   | "execution"
   | "agent_activity"
@@ -45,8 +47,7 @@ export type AgentSessionContextType =
   | "operations_briefing"
   | "startup_brief"
   | "plan_dependency_cycles"
-  | "plan_eta"
-  | "goal";
+  | "plan_eta";
 
 // Proposal kinds and statuses are service-owned, forward-compatible strings.
 // A newer server must not make an older UI reject the entire sessions response.
@@ -54,14 +55,14 @@ export type AgentSessionProposalKind = string;
 export type AgentSessionProposalStatus = string;
 
 export interface AgentSessionProposalTarget {
-  type: "backlog_item" | "initiative";
+  type: "backlog_item" | "goal";
   ref: string;
   name: string;
 }
 
 export type AgentSessionArtifactType =
   | "backlog_item"
-  | "initiative"
+  | "milestone"
   | "operating_mode_proposal"
   | "operating_mode_definition"
   | "capture"

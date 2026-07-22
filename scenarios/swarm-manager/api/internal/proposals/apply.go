@@ -34,17 +34,17 @@ type BacklogStore interface {
 	LoadItem(kind backlog.BacklogKind, name string) (backlog.BacklogItem, error)
 	SaveItem(item backlog.BacklogItem) error
 	ItemDir(kind backlog.BacklogKind, name string) string
-	SetItemInitiative(kind backlog.BacklogKind, name, initiative string) (string, error)
-	ClearItemInitiative(kind backlog.BacklogKind, name, expected string) (string, bool, error)
+	SetItemMilestone(kind backlog.BacklogKind, name, milestone string) (string, error)
+	ClearItemMilestone(kind backlog.BacklogKind, name, expected string) (string, bool, error)
 	ValidateDependencies(dependsOn []string) error
 }
 
-// InitiativeAssigner is the initiative-side cascade surface the Applier uses.
-// Satisfied by initiatives.Service; mirrors backlog.InitiativeAssigner but is
+// MilestoneAssigner is the milestone-side cascade surface the Applier uses.
+// Satisfied by milestones.Service; mirrors backlog.MilestoneAssigner but is
 // redefined here to keep proposals a leaf package.
-type InitiativeAssigner interface {
-	RememberItem(initiativeName, ref string) error
-	ForgetItem(initiativeName, ref string) error
+type MilestoneAssigner interface {
+	RememberItem(milestoneName, ref string) error
+	ForgetItem(milestoneName, ref string) error
 }
 
 // ExecutionCanceller cancels the item's active execution. Satisfied by
@@ -83,9 +83,9 @@ type ItemLifecycle interface {
 	ResetArtifacts(ctx context.Context, kind backlog.BacklogKind, name string, scopes []backlog.ResetArtifactScope) (backlog.ResetArtifactsResult, error)
 }
 
-// InitiativeLifecycle owns lineage-preserving initiative recreation.
-type InitiativeLifecycle interface {
-	RecreateInitiative(ctx context.Context, name string) error
+// MilestoneLifecycle owns lineage-preserving milestone recreation.
+type MilestoneLifecycle interface {
+	RecreateMilestone(ctx context.Context, name string) error
 }
 
 // Applier executes accepted mutations against the underlying services.
@@ -95,10 +95,10 @@ type InitiativeLifecycle interface {
 // Outcome error rather than a partial mutation.
 type Applier struct {
 	store               BacklogStore
-	assigner            InitiativeAssigner
+	assigner            MilestoneAssigner
 	creator             ItemCreator
 	itemLifecycle       ItemLifecycle
-	initiativeLifecycle InitiativeLifecycle
+	milestoneLifecycle MilestoneLifecycle
 	cancel              ExecutionCanceller
 	invalidator         GraphInvalidator
 	events              EventEmitter
@@ -109,10 +109,10 @@ type Applier struct {
 // Config bundles Applier dependencies.
 type Config struct {
 	Store               BacklogStore
-	Assigner            InitiativeAssigner
+	Assigner            MilestoneAssigner
 	Creator             ItemCreator
 	ItemLifecycle       ItemLifecycle
-	InitiativeLifecycle InitiativeLifecycle
+	MilestoneLifecycle MilestoneLifecycle
 	Canceller           ExecutionCanceller
 	Invalidator         GraphInvalidator
 	Events              EventEmitter
@@ -145,7 +145,7 @@ func NewApplier(cfg Config) (*Applier, error) {
 		assigner:            cfg.Assigner,
 		creator:             cfg.Creator,
 		itemLifecycle:       cfg.ItemLifecycle,
-		initiativeLifecycle: cfg.InitiativeLifecycle,
+		milestoneLifecycle: cfg.MilestoneLifecycle,
 		cancel:              cfg.Canceller,
 		invalidator:         cfg.Invalidator,
 		events:              cfg.Events,
@@ -194,11 +194,11 @@ func (a *Applier) Apply(ctx context.Context, proposal Proposal, current CurrentS
 	if err := Validate(proposal, current); err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(source.InitiativeName) == "" {
-		return nil, errors.New("apply requires source.InitiativeName")
+	if strings.TrimSpace(source.MilestoneName) == "" {
+		return nil, errors.New("apply requires source.MilestoneName")
 	}
-	if source.InitiativeName != current.InitiativeName {
-		return nil, fmt.Errorf("source initiative %q does not match current state %q", source.InitiativeName, current.InitiativeName)
+	if source.MilestoneName != current.MilestoneName {
+		return nil, fmt.Errorf("source milestone %q does not match current state %q", source.MilestoneName, current.MilestoneName)
 	}
 
 	accepted := acceptSet(acceptedIDs)
@@ -231,7 +231,7 @@ func (a *Applier) Apply(ctx context.Context, proposal Proposal, current CurrentS
 			outcome.Error = err.Error()
 			result.Failed++
 			slog.Warn("proposals: mutation failed",
-				"initiative", source.InitiativeName,
+				"milestone", source.MilestoneName,
 				"mutation", m.ID,
 				"op", m.Op,
 				"err", err,
@@ -240,7 +240,7 @@ func (a *Applier) Apply(ctx context.Context, proposal Proposal, current CurrentS
 			outcome.Applied = true
 			result.Applied++
 			slog.Info("proposals: mutation applied",
-				"initiative", source.InitiativeName,
+				"milestone", source.MilestoneName,
 				"feedback_round", source.FeedbackRoundID,
 				"mutation", m.ID,
 				"op", m.Op,
@@ -260,13 +260,13 @@ func (a *Applier) Apply(ctx context.Context, proposal Proposal, current CurrentS
 	return result, nil
 }
 
-// StateBuilder loads CurrentState for an initiative. The single argument is
-// the initiative name and matches the signatures used by feedback rounds and
+// StateBuilder loads CurrentState for an milestone. The single argument is
+// the milestone name and matches the signatures used by feedback rounds and
 // operating-mode reconciliation, so the same builder closure can drive both.
-type StateBuilder func(initiativeName string) (CurrentState, error)
+type StateBuilder func(milestoneName string) (CurrentState, error)
 
 // ApplyFlow is the canonical recipe for turning an agent-supplied proposal
-// into applied mutations: build state for the source initiative, Normalize
+// into applied mutations: build state for the source milestone, Normalize
 // the proposal against that state, then Apply.
 //
 // Every surface that applies proposals (feedback rounds, operating-mode
@@ -277,7 +277,7 @@ type StateBuilder func(initiativeName string) (CurrentState, error)
 // per-mutation errors instead of being canonicalized.
 //
 // Errors returned here are pre-flight: state-build, normalize, or
-// Apply-level rejection (invalid form, missing initiative). A successful
+// Apply-level rejection (invalid form, missing milestone). A successful
 // call returns a non-nil result whose Outcomes capture per-mutation
 // success/failure; callers inspect those rather than expecting a non-nil
 // error on partial failure.
@@ -285,10 +285,10 @@ func (a *Applier) ApplyFlow(ctx context.Context, proposal Proposal, stateBuilder
 	if stateBuilder == nil {
 		return nil, errors.New("proposals: ApplyFlow requires a StateBuilder")
 	}
-	if strings.TrimSpace(source.InitiativeName) == "" {
-		return nil, errors.New("proposals: ApplyFlow requires source.InitiativeName")
+	if strings.TrimSpace(source.MilestoneName) == "" {
+		return nil, errors.New("proposals: ApplyFlow requires source.MilestoneName")
 	}
-	state, err := stateBuilder(source.InitiativeName)
+	state, err := stateBuilder(source.MilestoneName)
 	if err != nil {
 		return nil, fmt.Errorf("build proposal state: %w", err)
 	}
@@ -313,7 +313,7 @@ func applyTarget(m Mutation) string {
 			return m.Item.Ref()
 		}
 		return ""
-	case OpRecreateInitiative:
+	case OpRecreateMilestone:
 		return m.Target
 	}
 	return m.Target
@@ -341,7 +341,7 @@ func (a *Applier) applyOneSafe(ctx context.Context, m Mutation, current CurrentS
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("proposals: mutation panicked",
-				"initiative", source.InitiativeName,
+				"milestone", source.MilestoneName,
 				"mutation", m.ID,
 				"op", m.Op,
 				"panic", r,
@@ -367,8 +367,8 @@ func (a *Applier) applyOne(ctx context.Context, m Mutation, current CurrentState
 		return a.applyAddEdge(ctx, m.From, m.To)
 	case OpRemoveEdge:
 		return a.applyRemoveEdge(ctx, m.From, m.To)
-	case OpMoveInitiative:
-		return a.applyMoveInitiative(ctx, m.Target, source.InitiativeName, m.Initiative)
+	case OpMoveMilestone:
+		return a.applyMoveMilestone(ctx, m.Target, source.MilestoneName, m.Milestone)
 	case OpArchiveItem:
 		return a.applyArchive(ctx, m.Target)
 	case OpInterruptInProgress:
@@ -384,8 +384,8 @@ func (a *Applier) applyOne(ctx context.Context, m Mutation, current CurrentState
 		return a.applyRecreateItem(ctx, m.Target)
 	case OpResetArtifacts:
 		return a.applyResetArtifacts(ctx, m.Target, m.ResetScope)
-	case OpRecreateInitiative:
-		return a.applyRecreateInitiative(ctx, m.Target)
+	case OpRecreateMilestone:
+		return a.applyRecreateMilestone(ctx, m.Target)
 	default:
 		// Defence against a new op added to types.go without a
 		// handler here: every recognized op in AllOps must map to a

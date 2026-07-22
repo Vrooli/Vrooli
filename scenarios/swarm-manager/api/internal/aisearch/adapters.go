@@ -2,7 +2,7 @@ package aisearch
 
 import (
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 )
 
 // BacklogStoreAdapter bridges backlog.Store (whose LoadAll takes a kinds
@@ -27,25 +27,34 @@ func (a *BacklogStoreAdapter) LoadItem(kind backlog.BacklogKind, name string) (b
 	return a.store.LoadItem(kind, name)
 }
 
-// InitiativeStoreAdapter exposes initiatives.Store as an aisearch reader.
-// The Service-level API returns rollups; aisearch only needs raw initiatives,
-// so we bypass rollup computation and read from the Store directly.
-type InitiativeStoreAdapter struct {
-	store *initiatives.Store
+// GoalServiceAdapter exposes goals.Service as an aisearch reader.
+type GoalServiceAdapter struct {
+	service *goals.Service
 }
 
-// NewInitiativeStoreAdapter wraps an initiatives.Store for use as an aisearch
-// reader.
-func NewInitiativeStoreAdapter(store *initiatives.Store) *InitiativeStoreAdapter {
-	return &InitiativeStoreAdapter{store: store}
+// NewGoalServiceAdapter wraps a goals.Service for use as an aisearch reader.
+func NewGoalServiceAdapter(service *goals.Service) *GoalServiceAdapter {
+	return &GoalServiceAdapter{service: service}
 }
 
-// List returns every initiative on disk.
-func (a *InitiativeStoreAdapter) List() ([]initiatives.Initiative, error) {
-	return a.store.LoadAll()
+// List returns every goal on disk.
+func (a *GoalServiceAdapter) List() ([]goals.Goal, error) {
+	list, err := a.service.List()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]goals.Goal, 0, len(list))
+	for _, goal := range list {
+		out = append(out, goal.Goal)
+	}
+	return out, nil
 }
 
-// Get loads a single initiative by name.
-func (a *InitiativeStoreAdapter) Get(name string) (*initiatives.Initiative, error) {
-	return a.store.Load(name)
+// Get loads a single goal by name.
+func (a *GoalServiceAdapter) Get(name string) (*goals.Goal, error) {
+	goal, err := a.service.Get(name)
+	if err != nil {
+		return nil, err
+	}
+	return &goal.Goal, nil
 }

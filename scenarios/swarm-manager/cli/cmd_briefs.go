@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -21,24 +20,6 @@ func (a *App) cmdPortfolioBrief(args []string) error {
 		return err
 	}
 	body, err := a.core.Get("/portfolio/brief", nil)
-	if err != nil {
-		return err
-	}
-	return printBriefResponse(body, *jsonOut)
-}
-
-func (a *App) cmdInitiativesCandidates(args []string) error {
-	fs := flag.NewFlagSet("initiatives candidates", flag.ContinueOnError)
-	purposeFlag := fs.String("purpose", "next-action", "Candidate purpose")
-	jsonOut := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	query := url.Values{}
-	if purpose := strings.TrimSpace(*purposeFlag); purpose != "" {
-		query.Set("purpose", purpose)
-	}
-	body, err := a.core.Get("/initiative-candidates", query)
 	if err != nil {
 		return err
 	}

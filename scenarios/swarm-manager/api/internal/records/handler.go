@@ -126,7 +126,7 @@ type createRequest struct {
 	Kind           string   `json:"kind"`
 	Scenario       string   `json:"scenario"`
 	BacklogRef     string   `json:"backlog_ref"`
-	InitiativeID   string   `json:"initiative_id"`
+	MilestoneID   string   `json:"milestone_id"`
 	Supersedes     string   `json:"supersedes"`
 	Trigger        string   `json:"trigger"`
 	Approach       string   `json:"approach"`
@@ -159,7 +159,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		Kind:         kind,
 		Scenario:     req.Scenario,
 		BacklogRef:   req.BacklogRef,
-		InitiativeID: req.InitiativeID,
+		MilestoneID: req.MilestoneID,
 		Supersedes:   req.Supersedes,
 		Trigger:      req.Trigger,
 		Approach:     req.Approach,
