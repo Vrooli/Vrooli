@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -42,6 +43,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 
@@ -91,6 +93,64 @@ func sqliteFileDSN(path string) (string, error) {
 		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
 		path,
 	), nil
+}
+
+func receiptSignerFromRuntimeConfig() (receiptsigning.ReceiptSigner, bool, error) {
+	type manifestTrustSigning struct {
+		Provider       string `json:"provider"`
+		Address        string `json:"address"`
+		KeyName        string `json:"key_name"`
+		CredentialFile string `json:"credential_file"`
+	}
+	type manifest struct {
+		TrustSigning *manifestTrustSigning `json:"trust_signing"`
+	}
+	scenarioDir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR"))
+	if scenarioDir == "" {
+		scenarioDir = filepath.Clean("..")
+	}
+	manifestBytes, err := os.ReadFile(filepath.Join(scenarioDir, ".vrooli", "service.json"))
+	if err == nil {
+		var service manifest
+		if err := json.Unmarshal(manifestBytes, &service); err != nil {
+			return nil, false, fmt.Errorf("parse trust signing lifecycle declaration: %w", err)
+		}
+		if service.TrustSigning != nil {
+			if service.TrustSigning.Provider == "development" {
+				return receiptsigning.NewDevelopmentSigner(), false, nil
+			}
+			if service.TrustSigning.Provider != "vault-transit" {
+				return nil, false, fmt.Errorf("unsupported trust signing lifecycle provider %q", service.TrustSigning.Provider)
+			}
+			return receiptsigning.NewSignerFromRuntimeConfig(receiptsigning.RuntimeConfig{Version: receiptsigning.RuntimeConfigVersion, Mode: "vault-transit", VaultTransit: &receiptsigning.VaultTransitRuntimeConfig{Address: service.TrustSigning.Address, KeyName: service.TrustSigning.KeyName, CredentialFile: service.TrustSigning.CredentialFile}})
+		}
+	}
+	// A missing declaration is retained only for old developer checkouts. New
+	// lifecycle manifests must declare trust_signing explicitly.
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return nil, false, fmt.Errorf("create receipt signing storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("prompt-manager")
+	if err != nil {
+		return nil, false, fmt.Errorf("resolve prompt-manager receipt signing namespace: %w", err)
+	}
+	path, err := resolver.Path(storage.Options{ScenarioID: scenarioID}, storage.ClassConfig, "receipt-signing.json")
+	if err != nil {
+		return nil, false, fmt.Errorf("resolve receipt signing runtime config: %w", err)
+	}
+	config, err := receiptsigning.LoadRuntimeConfig(path)
+	if os.IsNotExist(err) {
+		return receiptsigning.NewDevelopmentSigner(), false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("load receipt signing runtime config: %w", err)
+	}
+	signer, production, err := receiptsigning.NewSignerFromRuntimeConfig(config)
+	if err != nil {
+		return nil, false, fmt.Errorf("build receipt signer: %w", err)
+	}
+	return signer, production, nil
 }
 
 // discoverScenarioNames returns the names of every scenario directory
@@ -274,10 +334,15 @@ func main() {
 	// Variant and experiment handlers
 	variantHandlers := skills.NewVariantHandlers(fileStore.Variants(), fileStore.Skills())
 	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
-	// The service remains available without an audit secret for ordinary skill
-	// use, but audit/recommendation endpoints fail closed until this server-held
-	// signing key is configured.
-	experimentHandlers.SetAuditSecret([]byte(strings.TrimSpace(os.Getenv("PROMPT_MANAGER_EXPERIMENT_AUDIT_SECRET"))))
+	// Lifecycle/Secrets Manager writes a standard runtime config into the
+	// scenario config directory. Absent config is explicitly development-only;
+	// production config selects scoped Vault Transit without an environment key.
+	receiptSigner, productionReceiptSigning, err := receiptSignerFromRuntimeConfig()
+	if err != nil {
+		panic(err)
+	}
+	experimentHandlers.SetReceiptSigner(receiptSigner)
+	experimentHandlers.SetProductionReceiptSigningRequired(productionReceiptSigning)
 	if decisions, ok := fileStore.Teams().(interface {
 		AppendDecision(context.Context, string, *store.DecisionEntry) error
 	}); ok {

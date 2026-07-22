@@ -430,23 +430,24 @@ type Variant struct {
 // Experiment ties skill variants together for A/B testing with weighted traffic splitting.
 type Experiment struct {
 	BaseEntity
-	ID                    string             `json:"id"`
-	SkillID               string             `json:"skillId"`
-	Name                  string             `json:"name"`
-	Hypothesis            string             `json:"hypothesis,omitempty"`
-	Protocol              ExperimentProtocol `json:"protocol"`
-	Status                string             `json:"status"` // draft, running, concluded
-	Arms                  []ExperimentArm    `json:"arms"`
-	StartedAt             *string            `json:"startedAt,omitempty"`
-	ConcludedAt           *string            `json:"concludedAt,omitempty"`
-	WinnerVariantID       *string            `json:"winnerVariantId,omitempty"`
-	PromotionDecisionID   string             `json:"promotionDecisionId,omitempty"`
-	HoldoutFindingsHash   string             `json:"holdoutFindingsHash,omitempty"`
-	HoldoutCompletedAt    string             `json:"holdoutCompletedAt,omitempty"`
-	HoldoutIdempotencyKey string             `json:"holdoutIdempotencyKey,omitempty"`
-	HoldoutSignature      string             `json:"holdoutSignature,omitempty"`
-	PromotedAt            string             `json:"promotedAt,omitempty"`
-	Notes                 string             `json:"notes,omitempty"`
+	ID                       string             `json:"id"`
+	SkillID                  string             `json:"skillId"`
+	Name                     string             `json:"name"`
+	Hypothesis               string             `json:"hypothesis,omitempty"`
+	Protocol                 ExperimentProtocol `json:"protocol"`
+	Status                   string             `json:"status"` // draft, running, concluded
+	Arms                     []ExperimentArm    `json:"arms"`
+	StartedAt                *string            `json:"startedAt,omitempty"`
+	ConcludedAt              *string            `json:"concludedAt,omitempty"`
+	WinnerVariantID          *string            `json:"winnerVariantId,omitempty"`
+	PromotionDecisionID      string             `json:"promotionDecisionId,omitempty"`
+	HoldoutFindingsHash      string             `json:"holdoutFindingsHash,omitempty"`
+	HoldoutCompletedAt       string             `json:"holdoutCompletedAt,omitempty"`
+	HoldoutIdempotencyKey    string             `json:"holdoutIdempotencyKey,omitempty"`
+	HoldoutSignature         string             `json:"holdoutSignature,omitempty"` // historical development artifact only
+	HoldoutSignatureEnvelope json.RawMessage    `json:"holdoutSignatureEnvelope,omitempty"`
+	PromotedAt               string             `json:"promotedAt,omitempty"`
+	Notes                    string             `json:"notes,omitempty"`
 	Timestamps
 }
 
@@ -509,16 +510,17 @@ type ControlledExperimentOutcome struct {
 // ExperimentAuditReceipt binds a qualitative audit to immutable quantitative
 // evidence. Signature is generated server-side over canonical fields.
 type ExperimentAuditReceipt struct {
-	ExperimentID         string   `json:"experimentId"`
-	ProtocolHash         string   `json:"protocolHash"`
-	SampledAssignmentIDs []string `json:"sampledAssignmentIds"`
-	FindingsHash         string   `json:"findingsHash"`
-	ChallengeState       string   `json:"challengeState"`
-	AnomalyCount         int      `json:"anomalyCount"`
-	GamingCount          int      `json:"gamingCount"`
-	CompletedAt          string   `json:"completedAt"`
-	Signature            string   `json:"signature"`
-	IdempotencyKey       string   `json:"idempotencyKey"`
+	ExperimentID         string          `json:"experimentId"`
+	ProtocolHash         string          `json:"protocolHash"`
+	SampledAssignmentIDs []string        `json:"sampledAssignmentIds"`
+	FindingsHash         string          `json:"findingsHash"`
+	ChallengeState       string          `json:"challengeState"`
+	AnomalyCount         int             `json:"anomalyCount"`
+	GamingCount          int             `json:"gamingCount"`
+	CompletedAt          string          `json:"completedAt"`
+	Signature            string          `json:"signature,omitempty"` // historical development artifact only
+	SignatureEnvelope    json.RawMessage `json:"signatureEnvelope,omitempty"`
+	IdempotencyKey       string          `json:"idempotencyKey"`
 }
 
 // ExperimentServe records that a variant was served for a skill read. It is the

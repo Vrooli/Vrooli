@@ -57,7 +57,6 @@ resource-vault secrets scan
 resource-vault secrets check kopia
 resource-vault secrets validate
 resource-vault secrets export twilio
-resource-vault secrets provision mail-in-a-box
 ```
 
 `check` and `validate` never print secret values. `export` prints shell-safe `export KEY='value'` lines only for present secrets with `default_env` declarations. Dynamic paths such as `{repo-name}` are reported as dynamic inventory entries and are not treated as globally missing.

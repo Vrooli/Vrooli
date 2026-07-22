@@ -64,8 +64,15 @@ CREATE TABLE IF NOT EXISTS experiment_audit_receipts (
   sampled_assignment_ids BLOB NOT NULL, findings_hash TEXT NOT NULL,
   challenge_state TEXT NOT NULL, anomaly_count INTEGER NOT NULL,
   gaming_count INTEGER NOT NULL, completed_at TEXT NOT NULL,
-  signature TEXT NOT NULL, idempotency_key TEXT NOT NULL UNIQUE);
+  signature TEXT NOT NULL DEFAULT '', signature_envelope BLOB NOT NULL DEFAULT '', idempotency_key TEXT NOT NULL UNIQUE);
 `)
+	if err != nil {
+		return err
+	}
+	// Existing development databases may contain historical HMAC receipts. Keep
+	// their legacy signature readable solely so promotion can reject it; all new
+	// trusted receipts use the versioned envelope column.
+	_, _ = s.db.ExecContext(ctx, `ALTER TABLE experiment_audit_receipts ADD COLUMN signature_envelope BLOB NOT NULL DEFAULT ''`)
 	return err
 }
 
@@ -77,13 +84,13 @@ func (s *SQLiteExperimentStore) RecordAuditReceipt(ctx context.Context, receipt 
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO experiment_audit_receipts(experiment_id,protocol_hash,sampled_assignment_ids,findings_hash,challenge_state,anomaly_count,gaming_count,completed_at,signature,idempotency_key) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(experiment_id) DO NOTHING`, receipt.ExperimentID, receipt.ProtocolHash, samples, receipt.FindingsHash, receipt.ChallengeState, receipt.AnomalyCount, receipt.GamingCount, receipt.CompletedAt, receipt.Signature, receipt.IdempotencyKey)
+	_, err = s.db.ExecContext(ctx, `INSERT INTO experiment_audit_receipts(experiment_id,protocol_hash,sampled_assignment_ids,findings_hash,challenge_state,anomaly_count,gaming_count,completed_at,signature,signature_envelope,idempotency_key) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(experiment_id) DO NOTHING`, receipt.ExperimentID, receipt.ProtocolHash, samples, receipt.FindingsHash, receipt.ChallengeState, receipt.AnomalyCount, receipt.GamingCount, receipt.CompletedAt, receipt.Signature, []byte(string(receipt.SignatureEnvelope)), receipt.IdempotencyKey)
 	return err
 }
 func (s *SQLiteExperimentStore) GetAuditReceipt(ctx context.Context, experimentID string) (*ExperimentAuditReceipt, error) {
 	var receipt ExperimentAuditReceipt
 	var samples []byte
-	err := s.db.QueryRowContext(ctx, `SELECT experiment_id,protocol_hash,sampled_assignment_ids,findings_hash,challenge_state,anomaly_count,gaming_count,completed_at,signature,idempotency_key FROM experiment_audit_receipts WHERE experiment_id=?`, experimentID).Scan(&receipt.ExperimentID, &receipt.ProtocolHash, &samples, &receipt.FindingsHash, &receipt.ChallengeState, &receipt.AnomalyCount, &receipt.GamingCount, &receipt.CompletedAt, &receipt.Signature, &receipt.IdempotencyKey)
+	err := s.db.QueryRowContext(ctx, `SELECT experiment_id,protocol_hash,sampled_assignment_ids,findings_hash,challenge_state,anomaly_count,gaming_count,completed_at,signature,signature_envelope,idempotency_key FROM experiment_audit_receipts WHERE experiment_id=?`, experimentID).Scan(&receipt.ExperimentID, &receipt.ProtocolHash, &samples, &receipt.FindingsHash, &receipt.ChallengeState, &receipt.AnomalyCount, &receipt.GamingCount, &receipt.CompletedAt, &receipt.Signature, &receipt.SignatureEnvelope, &receipt.IdempotencyKey)
 	if err != nil {
 		return nil, err
 	}

@@ -496,7 +496,7 @@ func TestSQLiteExperimentStore_PersistsAuditReceipt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt := ExperimentAuditReceipt{ExperimentID: "exp-1", ProtocolHash: "sha256:protocol", SampledAssignmentIDs: []string{"a-1"}, FindingsHash: "sha256:findings", ChallengeState: "clear", CompletedAt: "2026-01-01T00:00:00Z", Signature: "signature", IdempotencyKey: "audit/exp-1"}
+	receipt := ExperimentAuditReceipt{ExperimentID: "exp-1", ProtocolHash: "sha256:protocol", SampledAssignmentIDs: []string{"a-1"}, FindingsHash: "sha256:findings", ChallengeState: "clear", CompletedAt: "2026-01-01T00:00:00Z", SignatureEnvelope: json.RawMessage(`{"version":"vrooli.receipt-signature.v1","keyId":"key:v1"}`), IdempotencyKey: "audit/exp-1"}
 	if err := es.RecordAuditReceipt(ctx, receipt); err != nil {
 		t.Fatal(err)
 	}
@@ -504,7 +504,7 @@ func TestSQLiteExperimentStore_PersistsAuditReceipt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.ProtocolHash != receipt.ProtocolHash || got.Signature != receipt.Signature || len(got.SampledAssignmentIDs) != 1 {
+	if got.ProtocolHash != receipt.ProtocolHash || string(got.SignatureEnvelope) != string(receipt.SignatureEnvelope) || len(got.SampledAssignmentIDs) != 1 {
 		t.Fatalf("unexpected audit receipt: %#v", got)
 	}
 }

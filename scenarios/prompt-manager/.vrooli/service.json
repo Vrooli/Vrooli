@@ -187,6 +187,14 @@
       }
     },
     "resources": {
+      "vault": {
+        "type": "vault",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Lifecycle-owned Vault Transit dependency for non-exportable experiment receipt signing. The production credential is supplied through the standard receipt-signing runtime config, never a scenario environment variable.",
+        "degraded_behavior": "Prompt Manager uses explicitly non-production receipt signing until an operator provisions the Vault Transit runtime configuration."
+      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
@@ -208,6 +216,9 @@
         ]
       }
     }
+  },
+  "trust_signing": {
+    "provider": "development"
   },
   "cli": {
     "enabled": true,

@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/api-core/receiptsigning"
 )
 
 func TestDiscoverScenarioNames(t *testing.T) {
@@ -43,6 +45,32 @@ func TestDiscoverScenarioNames(t *testing.T) {
 		if !expected[n] {
 			t.Errorf("unexpected scenario name: %s", n)
 		}
+	}
+}
+
+func TestReceiptSignerFromLifecycleDeclarationUsesVaultTransit(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	credential := filepath.Join(root, "identity-token")
+	if err := os.WriteFile(credential, []byte("workload-token"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"trust_signing":{"provider":"vault-transit","resource":"vault","address":"https://vault.example.test","key_name":"prompt-manager-experiment-receipts","credential_file":"` + credential + `"}}`
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "service.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_SCENARIO_DIR", root)
+	signer, production, err := receiptSignerFromRuntimeConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !production {
+		t.Fatal("lifecycle Vault Transit declaration did not require production signing")
+	}
+	if _, ok := signer.(*receiptsigning.VaultTransitSigner); !ok {
+		t.Fatalf("signer = %T, want VaultTransitSigner", signer)
 	}
 }
 

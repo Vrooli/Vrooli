@@ -12,6 +12,7 @@ import (
 	"prompt-manager/store"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/receiptsigning"
 )
 
 // mockExperimentStore implements store.ExperimentStore for testing.
@@ -274,7 +275,7 @@ func TestExperimentHandlers_Lifecycle(t *testing.T) {
 	h := NewExperimentHandlers(es, vs, ss)
 	publisher := &mockDecisionPublisher{}
 	h.SetDecisionPublisher(publisher)
-	h.SetAuditSecret([]byte("test-audit-secret"))
+	h.SetReceiptSigner(receiptsigning.NewDevelopmentSigner())
 
 	// Create
 	if err := es.Create(context.Background(), &store.Experiment{
@@ -332,7 +333,11 @@ func TestExperimentHandlers_Lifecycle(t *testing.T) {
 
 	// Conclude
 	audit := &store.ExperimentAuditReceipt{ExperimentID: "exp-1", ProtocolHash: es.experiments["exp-1"].Protocol.ProtocolHash, SampledAssignmentIDs: []string{"attempt-1"}, FindingsHash: "sha256:findings", ChallengeState: "clear", CompletedAt: "2026-01-01T00:00:00Z", IdempotencyKey: "audit/exp-1"}
-	audit.Signature = h.signAuditReceipt(audit)
+	envelope, err := h.signAuditReceipt(context.Background(), audit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	audit.SignatureEnvelope, _ = json.Marshal(envelope)
 	es.auditReceipt = audit
 	concludeBody, _ := json.Marshal(ConcludeExperimentRequest{
 		WinnerVariantID: "v1",
@@ -392,6 +397,27 @@ func TestExperimentHandlers_Lifecycle(t *testing.T) {
 	}
 	if ss.updates != 1 {
 		t.Fatalf("accepted variant must update skill exactly once; got %d", ss.updates)
+	}
+}
+
+func TestExperimentHandlers_ProductionRejectsDevelopmentSigner(t *testing.T) {
+	es := newMockExperimentStore()
+	vs := newMockVariantStore()
+	ss := newMockPackSkillStore()
+	ss.skills["s1"] = &store.Skill{ID: "s1", Name: "S1", Pack: "local"}
+	h := NewExperimentHandlers(es, vs, ss)
+	h.SetReceiptSigner(receiptsigning.NewDevelopmentSigner())
+	h.SetProductionReceiptSigningRequired(true)
+	if err := es.Create(context.Background(), &store.Experiment{ID: "production-exp", SkillID: "s1", Name: "Production", Protocol: validProtocol(), Status: store.ExperimentStatusRunning, Arms: []store.ExperimentArm{{VariantID: "control", Weight: 1}}}); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(RecordAuditReceiptRequest{SampledAssignmentIDs: []string{"assignment-1"}, FindingsHash: "sha256:findings", ChallengeState: "clear", IdempotencyKey: "audit/production-exp"})
+	request := httptest.NewRequest(http.MethodPost, "/experiments/production-exp/audit-receipt", bytes.NewReader(body))
+	request = mux.SetURLVars(request, map[string]string{"eid": "production-exp"})
+	response := httptest.NewRecorder()
+	h.RecordAuditReceipt(response, request)
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("RecordAuditReceipt() status = %d, want %d: %s", response.Code, http.StatusServiceUnavailable, response.Body.String())
 	}
 }
 

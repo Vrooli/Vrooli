@@ -2,9 +2,7 @@ package skills
 
 import (
 	"context"
-	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -15,15 +13,17 @@ import (
 	"prompt-manager/store"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/receiptsigning"
 )
 
 // ExperimentHandlers provides HTTP handlers for experiment operations.
 type ExperimentHandlers struct {
-	experiments store.ExperimentStore
-	variants    store.VariantStore
-	skills      store.SkillStore
-	decisions   decisionPublisher
-	auditSecret []byte
+	experiments              store.ExperimentStore
+	variants                 store.VariantStore
+	skills                   store.SkillStore
+	decisions                decisionPublisher
+	receiptSigner            receiptsigning.ReceiptSigner
+	productionReceiptSigning bool
 }
 
 type decisionPublisher interface {
@@ -46,8 +46,14 @@ func NewExperimentHandlers(experiments store.ExperimentStore, variants store.Var
 // existing human decision queue. It is intentionally optional for isolated
 // handler tests, but production configures it during API startup.
 func (h *ExperimentHandlers) SetDecisionPublisher(p decisionPublisher) { h.decisions = p }
-func (h *ExperimentHandlers) SetAuditSecret(secret []byte) {
-	h.auditSecret = append([]byte(nil), secret...)
+
+// SetReceiptSigner provides the sole receipt-signing boundary. Production
+// passes a lifecycle-bound provider; raw signing material never enters here.
+func (h *ExperimentHandlers) SetReceiptSigner(signer receiptsigning.ReceiptSigner) {
+	h.receiptSigner = signer
+}
+func (h *ExperimentHandlers) SetProductionReceiptSigningRequired(required bool) {
+	h.productionReceiptSigning = required
 }
 
 // ListExperiments handles GET /experiments
@@ -319,8 +325,8 @@ func (h *ExperimentHandlers) ConcludeExperiment(w http.ResponseWriter, r *http.R
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	if len(h.auditSecret) == 0 {
-		http.Error(w, "audit signing is not configured", http.StatusServiceUnavailable)
+	if err := h.requireReceiptSigner(r.Context()); err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	audits, ok := h.experiments.(store.ExperimentAuditStore)
@@ -329,7 +335,7 @@ func (h *ExperimentHandlers) ConcludeExperiment(w http.ResponseWriter, r *http.R
 		return
 	}
 	receipt, err := audits.GetAuditReceipt(r.Context(), eid)
-	if err != nil || !h.verifyAuditReceipt(receipt) || receipt.ProtocolHash != exp.Protocol.ProtocolHash || receipt.ChallengeState != "clear" {
+	if err != nil || !h.verifyAuditReceipt(r.Context(), receipt) || receipt.ProtocolHash != exp.Protocol.ProtocolHash || receipt.ChallengeState != "clear" {
 		http.Error(w, "a valid clear audit receipt is required before recommendation", http.StatusConflict)
 		return
 	}
@@ -413,8 +419,8 @@ func (h *ExperimentHandlers) RecordAuditReceipt(w http.ResponseWriter, r *http.R
 		http.Error(w, "audit receipt requires a running experiment", http.StatusConflict)
 		return
 	}
-	if len(h.auditSecret) == 0 {
-		http.Error(w, "audit signing is not configured", http.StatusServiceUnavailable)
+	if err := h.requireReceiptSigner(r.Context()); err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	audits, ok := h.experiments.(store.ExperimentAuditStore)
@@ -432,7 +438,12 @@ func (h *ExperimentHandlers) RecordAuditReceipt(w http.ResponseWriter, r *http.R
 		return
 	}
 	receipt := store.ExperimentAuditReceipt{ExperimentID: eid, ProtocolHash: exp.Protocol.ProtocolHash, SampledAssignmentIDs: append([]string(nil), req.SampledAssignmentIDs...), FindingsHash: req.FindingsHash, ChallengeState: req.ChallengeState, AnomalyCount: req.AnomalyCount, GamingCount: req.GamingCount, CompletedAt: time.Now().UTC().Format(time.RFC3339), IdempotencyKey: req.IdempotencyKey}
-	receipt.Signature = h.signAuditReceipt(&receipt)
+	envelope, err := h.signAuditReceipt(r.Context(), &receipt)
+	if err != nil {
+		http.Error(w, "sign audit receipt: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	receipt.SignatureEnvelope, _ = json.Marshal(envelope)
 	if err := audits.RecordAuditReceipt(r.Context(), receipt); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -441,24 +452,41 @@ func (h *ExperimentHandlers) RecordAuditReceipt(w http.ResponseWriter, r *http.R
 	_ = json.NewEncoder(w).Encode(receipt)
 }
 
-func (h *ExperimentHandlers) signAuditReceipt(receipt *store.ExperimentAuditReceipt) string {
+func canonicalAuditReceipt(receipt *store.ExperimentAuditReceipt) ([]byte, error) {
 	samples := append([]string(nil), receipt.SampledAssignmentIDs...)
 	sort.Strings(samples)
-	payload, _ := json.Marshal(struct {
+	return json.Marshal(struct {
 		ExperimentID, ProtocolHash, FindingsHash, ChallengeState, CompletedAt, IdempotencyKey string
 		Samples                                                                               []string
 		AnomalyCount, GamingCount                                                             int
 	}{receipt.ExperimentID, receipt.ProtocolHash, receipt.FindingsHash, receipt.ChallengeState, receipt.CompletedAt, receipt.IdempotencyKey, samples, receipt.AnomalyCount, receipt.GamingCount})
-	mac := hmac.New(sha256.New, h.auditSecret)
-	_, _ = mac.Write(payload)
-	return hex.EncodeToString(mac.Sum(nil))
 }
-func (h *ExperimentHandlers) verifyAuditReceipt(receipt *store.ExperimentAuditReceipt) bool {
-	if receipt == nil || receipt.Signature == "" {
+func (h *ExperimentHandlers) signAuditReceipt(ctx context.Context, receipt *store.ExperimentAuditReceipt) (receiptsigning.SignatureEnvelope, error) {
+	if err := h.requireReceiptSigner(ctx); err != nil {
+		return receiptsigning.SignatureEnvelope{}, err
+	}
+	canonical, err := canonicalAuditReceipt(receipt)
+	if err != nil {
+		return receiptsigning.SignatureEnvelope{}, err
+	}
+	return h.receiptSigner.Sign(ctx, receiptsigning.PurposeExperimentAuditReceipt, canonical)
+}
+func (h *ExperimentHandlers) verifyAuditReceipt(ctx context.Context, receipt *store.ExperimentAuditReceipt) bool {
+	if receipt == nil || len(receipt.SignatureEnvelope) == 0 {
 		return false
 	}
-	expected := h.signAuditReceipt(receipt)
-	return hmac.Equal([]byte(expected), []byte(receipt.Signature))
+	var envelope receiptsigning.SignatureEnvelope
+	if err := json.Unmarshal(receipt.SignatureEnvelope, &envelope); err != nil {
+		return false
+	}
+	canonical, err := canonicalAuditReceipt(receipt)
+	if err != nil {
+		return false
+	}
+	if err := h.requireReceiptSigner(ctx); err != nil {
+		return false
+	}
+	return h.receiptSigner.Verify(ctx, envelope, canonical) == nil
 }
 
 // RecordHoldoutReceipt handles POST /experiments/{eid}/holdout-receipt. The
@@ -475,8 +503,8 @@ func (h *ExperimentHandlers) RecordHoldoutReceipt(w http.ResponseWriter, r *http
 		http.Error(w, "holdout receipt requires a concluded experiment with a published recommendation", http.StatusConflict)
 		return
 	}
-	if len(h.auditSecret) == 0 {
-		http.Error(w, "audit signing is not configured", http.StatusServiceUnavailable)
+	if err := h.requireReceiptSigner(r.Context()); err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	var req RecordHoldoutReceiptRequest
@@ -503,7 +531,12 @@ func (h *ExperimentHandlers) RecordHoldoutReceipt(w http.ResponseWriter, r *http
 	exp.HoldoutFindingsHash = req.FindingsHash
 	exp.HoldoutCompletedAt = now
 	exp.HoldoutIdempotencyKey = req.IdempotencyKey
-	exp.HoldoutSignature = h.signHoldoutReceipt(exp, req.IdempotencyKey)
+	envelope, err := h.signHoldoutReceipt(r.Context(), exp, req.IdempotencyKey)
+	if err != nil {
+		http.Error(w, "sign holdout receipt: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	exp.HoldoutSignatureEnvelope, _ = json.Marshal(envelope)
 	if err := h.experiments.Update(r.Context(), eid, exp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -513,13 +546,20 @@ func (h *ExperimentHandlers) RecordHoldoutReceipt(w http.ResponseWriter, r *http
 	_ = json.NewEncoder(w).Encode(h.experimentToResponse(r, *updated, true))
 }
 
-func (h *ExperimentHandlers) signHoldoutReceipt(exp *store.Experiment, idempotencyKey string) string {
-	payload, _ := json.Marshal(struct {
+func canonicalHoldoutReceipt(exp *store.Experiment, idempotencyKey string) ([]byte, error) {
+	return json.Marshal(struct {
 		ExperimentID, ProtocolHash, DecisionID, FindingsHash, CompletedAt, IdempotencyKey string
 	}{exp.ID, exp.Protocol.ProtocolHash, exp.PromotionDecisionID, exp.HoldoutFindingsHash, exp.HoldoutCompletedAt, idempotencyKey})
-	mac := hmac.New(sha256.New, h.auditSecret)
-	_, _ = mac.Write(payload)
-	return hex.EncodeToString(mac.Sum(nil))
+}
+func (h *ExperimentHandlers) signHoldoutReceipt(ctx context.Context, exp *store.Experiment, idempotencyKey string) (receiptsigning.SignatureEnvelope, error) {
+	if err := h.requireReceiptSigner(ctx); err != nil {
+		return receiptsigning.SignatureEnvelope{}, err
+	}
+	canonical, err := canonicalHoldoutReceipt(exp, idempotencyKey)
+	if err != nil {
+		return receiptsigning.SignatureEnvelope{}, err
+	}
+	return h.receiptSigner.Sign(ctx, receiptsigning.PurposeExperimentHoldoutReceipt, canonical)
 }
 
 // PromoteExperiment handles POST /experiments/{eid}/promote. It is the only
@@ -541,7 +581,7 @@ func (h *ExperimentHandlers) PromoteExperiment(w http.ResponseWriter, r *http.Re
 		_ = json.NewEncoder(w).Encode(h.experimentToResponse(r, *exp, true))
 		return
 	}
-	if len(h.auditSecret) == 0 || exp.HoldoutFindingsHash == "" || exp.HoldoutCompletedAt == "" || exp.HoldoutSignature == "" {
+	if err := h.requireReceiptSigner(r.Context()); err != nil || exp.HoldoutFindingsHash == "" || exp.HoldoutCompletedAt == "" || len(exp.HoldoutSignatureEnvelope) == 0 {
 		http.Error(w, "a signed holdout receipt is required before promotion", http.StatusConflict)
 		return
 	}
@@ -554,7 +594,9 @@ func (h *ExperimentHandlers) PromoteExperiment(w http.ResponseWriter, r *http.Re
 		http.Error(w, "decisionId must match the experiment's published promotion decision", http.StatusForbidden)
 		return
 	}
-	if !hmac.Equal([]byte(h.signHoldoutReceipt(exp, exp.HoldoutIdempotencyKey)), []byte(exp.HoldoutSignature)) {
+	var envelope receiptsigning.SignatureEnvelope
+	canonical, canonicalErr := canonicalHoldoutReceipt(exp, exp.HoldoutIdempotencyKey)
+	if json.Unmarshal(exp.HoldoutSignatureEnvelope, &envelope) != nil || canonicalErr != nil || h.receiptSigner.Verify(r.Context(), envelope, canonical) != nil {
 		http.Error(w, "holdout receipt signature is invalid", http.StatusConflict)
 		return
 	}
@@ -603,6 +645,11 @@ func (h *ExperimentHandlers) PromoteExperiment(w http.ResponseWriter, r *http.Re
 	updated, _ := h.experiments.Get(r.Context(), eid)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(h.experimentToResponse(r, *updated, true))
+}
+
+func (h *ExperimentHandlers) requireReceiptSigner(ctx context.Context) error {
+	_, err := receiptsigning.RequireHealthy(ctx, h.receiptSigner, h.productionReceiptSigning)
+	return err
 }
 
 // RecordOutcome handles POST /experiments/{eid}/outcomes
