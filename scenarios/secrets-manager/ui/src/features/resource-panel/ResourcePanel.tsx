@@ -162,8 +162,8 @@ export const ResourcePanel = ({
                     <code>resource-vault secrets check {activeResource}</code> or <code>secrets-manager</code> refresh.
                   </p>
                   <p className="text-white/70">
-                    Need to add declarations? Run <code>resource-vault secrets create-template {activeResource}</code>,
-                    edit the file, then <code>resource-vault secrets init {activeResource}</code> to populate Vault.
+                    Need to add declarations? Create or update <code>resources/{activeResource}/config/secrets.yaml</code>,
+                    then run <code>resource-vault secrets init {activeResource}</code> to populate supported values.
                   </p>
                 </div>
               )}

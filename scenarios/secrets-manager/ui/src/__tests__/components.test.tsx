@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { TabNav } from "../components/ui/TabNav";
 import { TabTip } from "../components/ui/TabTip";
 import { ResourceTable } from "../sections/ResourceTable";
@@ -78,6 +78,16 @@ describe("ResourceTable", () => {
     fireEvent.click(screen.getByText("Only action needed"));
     expect(screen.getByText("postgres")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("redis")).not.toBeInTheDocument());
+  });
+
+  it("documents the supported Vault declaration and provisioning flow", () => {
+    const { container } = render(<ResourceTable resourceStatuses={sample} isLoading={false} onOpenResource={() => {}} />);
+
+    fireEvent.click(within(container).getByLabelText("Help"));
+
+    expect(screen.getByText("resources/<resource>/config/secrets.yaml")).toBeInTheDocument();
+    expect(screen.getByText("resource-vault secrets init <resource>")).toBeInTheDocument();
+    expect(screen.queryByText(/create-template/)).not.toBeInTheDocument();
   });
 });
 

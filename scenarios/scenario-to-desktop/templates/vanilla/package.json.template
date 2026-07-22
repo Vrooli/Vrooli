@@ -127,6 +127,9 @@
         }
       }
     },
+    "appImage": {
+      "license": null
+    },
     "publish": {{PUBLISH_CONFIG}}
   },
   "engines": {

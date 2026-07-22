@@ -122,6 +122,9 @@ func TestPlatformResolver_ResolveCommand_Linux(t *testing.T) {
 				if args[1] == "" || !strings.Contains(args[1], "--appimage-extract") {
 					t.Errorf("ResolveCommand() args[1] missing extract fallback script")
 				}
+				if !strings.Contains(args[1], "APPIMAGE_EXTRACT_AND_RUN=1") {
+					t.Errorf("ResolveCommand() args[1] must avoid FUSE mounts")
+				}
 				if args[2] != "sh" {
 					t.Errorf("ResolveCommand() args[2] = %q, want %q", args[2], "sh")
 				}
@@ -136,6 +139,20 @@ func TestPlatformResolver_ResolveCommand_Linux(t *testing.T) {
 				t.Errorf("ResolveCommand() display = %q, want %q", display, tt.wantDisplay)
 			}
 		})
+	}
+}
+
+func TestPlatformResolver_ResolveCommand_AcceptsConcretePipelineTarget(t *testing.T) {
+	config := smoketest.DefaultConfig()
+	executor := mocks.NewMockProcessExecutor()
+	envReader := mocks.NewMockEnvironmentReader()
+	fs := mocks.NewMockFileSystem()
+	artifact := "/path/to/MyApp.AppImage"
+	fs.AddFileInfo(artifact, &mocks.MockFileInfo{NameVal: "MyApp.AppImage", ModeVal: 0o755})
+	resolver := smoketest.NewPlatformResolver(executor, config, envReader, fs)
+
+	if _, _, _, err := resolver.ResolveCommand("linux-amd64", artifact); err != nil {
+		t.Fatalf("ResolveCommand(linux-amd64) = %v", err)
 	}
 }
 

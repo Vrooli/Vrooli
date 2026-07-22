@@ -24,6 +24,9 @@ type handlerSet struct {
 	campaigns      *CampaignHandlers
 	overrides      *ScenarioOverrideHandlers
 	adminOverrides *AdminOverrideHandlers
+	receiptSigning *ReceiptSigningHandlers
+	allowlist      *AllowlistHandlers
+	watchlist      *WatchlistHandlers
 }
 
 func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
@@ -55,6 +58,9 @@ func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 			campaigns:      NewCampaignHandlers(manifestBuilder, campaignStore),
 			overrides:      NewScenarioOverrideHandlers(db, logger),
 			adminOverrides: NewAdminOverrideHandlers(db, logger),
+			receiptSigning: NewReceiptSigningHandlers(),
+			allowlist:      NewAllowlistHandlers(db, logger),
+			watchlist:      NewWatchlistHandlers(db, logger),
 		},
 	}
 }
@@ -78,11 +84,14 @@ func (s *APIServer) routes() *mux.Router {
 	// Vault coverage and provisioning
 	vault := api.PathPrefix("/vault").Subrouter()
 	s.handlers.vault.RegisterRoutes(vault)
+	s.handlers.receiptSigning.RegisterRoutes(vault)
 	s.handlers.vault.RegisterLegacyRoutes(api)
 
 	// Security intelligence
 	security := api.PathPrefix("/security").Subrouter()
 	s.handlers.security.RegisterRoutes(security)
+	s.handlers.allowlist.RegisterRoutes(security)
+	s.handlers.watchlist.RegisterRoutes(security)
 	s.handlers.security.RegisterLegacyRoutes(api)
 
 	// Resource intelligence

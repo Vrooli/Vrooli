@@ -80,9 +80,9 @@ export const ResourceTable = ({ resourceStatuses, isLoading, onOpenResource }: R
                 to know what to validate and where to store values.
               </p>
               <p>
-                To add secrets for a resource: <code>resource-vault secrets create-template &lt;resource&gt;</code>, edit
-                the generated <code>config/secrets.yaml</code>, then run <code>resource-vault secrets init</code> to set
-                them. secrets-manager will pick them up automatically via the Vault check/fallback scan.
+                To add secrets for a resource, create or update its <code>resources/&lt;resource&gt;/config/secrets.yaml</code>
+                declaration, then run <code>resource-vault secrets init &lt;resource&gt;</code> to set supported values.
+                secrets-manager will pick them up automatically via the Vault check/fallback scan.
               </p>
             </HelpDialog>
           </div>

@@ -1,31 +1,39 @@
 {
   "_metadata": {
-    "description": "Secrets Manager operational requirements aligned with the minimal PRD (v2.0)",
-    "schema_version": "1.0.0",
     "auto_sync_enabled": true,
-    "last_validated_at": "",
-    "last_synced_at": "2025-11-18T20:49:02.389Z"
+    "description": "Secrets Manager operational requirements aligned with the minimal PRD (v2.0)",
+    "last_validated_at": "2026-07-21T20:26:24-04:00",
+    "schema_version": "1.0.0"
   },
-  "meta": {
-    "scenario": "secrets-manager",
-    "version": "2024.11",
-    "generated": "2024-11-19",
-    "owners": [
-      {
-        "team": "Vrooli Security",
-        "contact": "security@vrooli.dev"
-      }
-    ]
-  },
-  "imports": [],
   "requirements": [
     {
-      "id": "SEC-VLT-001",
+      "id": "SEC-TRUST-001",
+      "title": "Trusted receipt signing status",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-001",
       "category": "vault-intelligence",
+      "description": "When an operator requests receipt-signing status, Secrets Manager shall report signer health and key identity without returning signing key material, Vault tokens, or credential paths.",
+      "tags": [
+        "vault",
+        "transit",
+        "receipt-signing"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/receipt_signing_handlers_test.go",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "SEC-VLT-001",
       "title": "Repository secret manifest discovery",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-001",
+      "category": "vault-intelligence",
       "description": "Enumerate every config/secrets manifest across scenarios/resources and normalize keys + metadata for downstream validation.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "status": "complete",
       "tags": [
         "vault",
         "discovery",
@@ -34,20 +42,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "command": "go test ./api -run TestParseVaultConfig",
           "ref": "api/scanner_test.go",
-          "status": "implemented"
+          "phase": "unit",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-VLT-002",
-      "category": "vault-intelligence",
       "title": "Persist secret requirements in Postgres",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-001",
+      "category": "vault-intelligence",
       "description": "Create and maintain the resource_secrets / secret_validations tables plus seeding scripts that describe each required secret.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "status": "complete",
       "tags": [
         "postgres",
         "schema"
@@ -55,20 +62,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "structure",
-          "command": "test -f initialization/storage/postgres/schema.sql && test -f initialization/storage/postgres/seed.sql",
           "ref": "test/phases/test-structure.sh",
-          "status": "implemented"
+          "phase": "structure",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-VLT-003",
-      "category": "vault-intelligence",
       "title": "Vault CLI integration with graceful fallback",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-001",
+      "category": "vault-intelligence",
       "description": "Drive `resource-vault secrets validate/check` for canonical status and fall back to local parsing when CLI output is unavailable.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "status": "complete",
       "tags": [
         "vault",
         "cli",
@@ -77,20 +83,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "command": "go test ./api -run TestVaultValidation",
           "ref": "api/validator_test.go",
-          "status": "implemented"
+          "phase": "unit",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-VLT-004",
-      "category": "vault-intelligence",
       "title": "Vault health endpoint",
-      "description": "Expose `/api/v1/vault/secrets/status` with totals, missing secrets, timestamps, and per-resource health that other surfaces can consume.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-001",
+      "category": "vault-intelligence",
+      "description": "Expose `/api/v1/vault/secrets/status` with totals, missing secrets, timestamps, and per-resource health that other surfaces can consume.",
       "tags": [
         "api",
         "vault"
@@ -98,27 +103,25 @@
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "command": "go test ./api -run TestVaultSecretsStatusHandler",
           "ref": "api/main_test.go:62",
-          "status": "not_implemented"
+          "phase": "unit",
+          "status": "failing"
         },
         {
           "type": "test",
-          "phase": "business",
-          "command": "curl -s http://localhost:16738/api/v1/vault/secrets/status | jq .total_resources",
           "ref": ".vrooli/endpoints.json:23",
-          "status": "not_implemented"
+          "phase": "business",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-VLT-006",
-      "category": "vault-intelligence",
       "title": "Resource secrets workspace",
-      "description": "Provide per-resource views with secret lists, owners, rotation notes, and inline actions to sync or open provisioning flows.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-001",
+      "category": "vault-intelligence",
+      "description": "Provide per-resource views with secret lists, owners, rotation notes, and inline actions to sync or open provisioning flows.",
       "tags": [
         "ui",
         "vault",
@@ -127,20 +130,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Open UI and navigate to resource secrets view",
           "ref": "ui/src/components/VaultCoverage.tsx",
+          "phase": "integration",
           "status": "implemented"
         }
       ]
     },
     {
       "id": "SEC-SCAN-001",
-      "category": "security-scanning",
       "title": "Cross-scenario code scanning",
-      "description": "Scan Go/TypeScript files for hardcoded secrets, SQL injection, and http misuse with component metadata for each finding.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "category": "security-scanning",
+      "description": "Scan Go/TypeScript files for hardcoded secrets, SQL injection, and http misuse with component metadata for each finding.",
       "tags": [
         "scanner",
         "code",
@@ -149,20 +151,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "business",
-          "command": "curl -s http://localhost:16738/api/v1/security/vulnerabilities | jq .total_count",
           "ref": ".vrooli/endpoints.json:46",
-          "status": "not_implemented"
+          "phase": "business",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-SCAN-002",
-      "category": "security-scanning",
       "title": "Risk scoring and severity weighting",
-      "description": "Calculate overall risk and per-vulnerability severity counts so compliance consumers see the weighted exposure.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "category": "security-scanning",
+      "description": "Calculate overall risk and per-vulnerability severity counts so compliance consumers see the weighted exposure.",
       "tags": [
         "scoring",
         "analytics"
@@ -170,20 +171,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "business",
-          "command": "curl -s http://localhost:16738/api/v1/security/vulnerabilities | jq .scan_metadata.risk_score",
           "ref": "api/main.go:1757",
-          "status": "not_implemented"
+          "phase": "business",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-SCAN-004",
-      "category": "security-scanning",
       "title": "Remediation intelligence",
-      "description": "Attach remediation steps, ownership hints, and jump-to-code links for every vulnerability so operators know the next best action.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "category": "security-scanning",
+      "description": "Attach remediation steps, ownership hints, and jump-to-code links for every vulnerability so operators know the next best action.",
       "tags": [
         "security",
         "remediation",
@@ -192,20 +192,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Check vulnerability response includes remediation field",
           "ref": "api/main.go",
+          "phase": "integration",
           "status": "implemented"
         }
       ]
     },
     {
       "id": "SEC-COMP-001",
-      "category": "compliance",
       "title": "Unified compliance aggregator",
-      "description": "Blend vault coverage, vulnerability stats, and risk scores into `/security/compliance` for dashboard + CLI consumption.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "category": "compliance",
+      "description": "Blend vault coverage, vulnerability stats, and risk scores into `/security/compliance` for dashboard + CLI consumption.",
       "tags": [
         "compliance",
         "api"
@@ -213,27 +212,25 @@
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "command": "go test ./api -run TestComplianceHandler",
           "ref": "api/main_test.go:294",
-          "status": "not_implemented"
+          "phase": "unit",
+          "status": "failing"
         },
         {
           "type": "test",
-          "phase": "business",
-          "command": "curl -s http://localhost:16738/api/v1/security/compliance | jq .risk_score",
           "ref": ".vrooli/endpoints.json:79",
-          "status": "not_implemented"
+          "phase": "business",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-OPS-001",
-      "category": "operations",
       "title": "Lifecycle health instrumentation",
-      "description": "Expose `/health` plus lifecycle metadata so the orchestrator can monitor API/UI availability and restart as needed.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "category": "operations",
+      "description": "Expose `/health` plus lifecycle metadata so the orchestrator can monitor API/UI availability and restart as needed.",
       "tags": [
         "lifecycle",
         "health"
@@ -241,27 +238,25 @@
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "command": "go test ./api -run TestHealthHandler",
           "ref": "api/main_test.go:47",
-          "status": "not_implemented"
+          "phase": "unit",
+          "status": "failing"
         },
         {
           "type": "test",
-          "phase": "business",
-          "command": "curl -s http://localhost:16738/health | jq .status",
           "ref": ".vrooli/endpoints.json:7",
-          "status": "not_implemented"
+          "phase": "business",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-DEP-001",
-      "category": "deployment",
       "title": "Tier strategy metadata",
-      "description": "Store per-tier handling strategies (strip/generate/prompt/delegate) for every secret and surface them via API + CLI.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "category": "deployment",
+      "description": "Store per-tier handling strategies (strip/generate/prompt/delegate) for every secret and surface them via API + CLI.",
       "tags": [
         "deployment",
         "metadata"
@@ -269,20 +264,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Verify tier strategy fields exist in schema.sql",
           "ref": "initialization/storage/postgres/schema.sql",
+          "phase": "integration",
           "status": "implemented"
         }
       ]
     },
     {
       "id": "SEC-DEP-002",
-      "category": "deployment",
       "title": "Bundle manifest export",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "category": "deployment",
       "description": "Generate machine-readable bundles describing selected secrets, tiers, prompts, and generators for deployment-manager and scenario-to-*.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "status": "complete",
       "tags": [
         "deployment",
         "manifest",
@@ -291,20 +285,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "business",
-          "command": "curl -s -X POST http://localhost:16739/api/v1/deployment/secrets -H 'Content-Type: application/json' -d '{\"scenario\":\"test\",\"tier\":\"desktop\"}' | jq .secrets",
           "ref": ".vrooli/endpoints.json:134",
-          "status": "implemented"
+          "phase": "business",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-DEP-003",
-      "category": "deployment",
       "title": "Deployment-manager handshake",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "category": "deployment",
       "description": "Expose `/deployment/secrets` + webhook push so deployment-manager can visualize plans, request updates, and confirm readiness.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "status": "complete",
       "tags": [
         "deployment",
         "api",
@@ -313,20 +306,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "business",
-          "command": "curl -s -X POST http://localhost:16739/api/v1/deployment/secrets -H 'Content-Type: application/json' -d '{\"scenario\":\"test\",\"tier\":\"desktop\"}' | jq .scenario",
           "ref": ".vrooli/endpoints.json:134",
-          "status": "implemented"
+          "phase": "business",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-DEP-004",
-      "category": "deployment",
       "title": "Scenario-to-* integration",
-      "description": "Provide SDK/CLI helpers so scenario-to-desktop/mobile/cloud can request tier manifests and receive scoped secrets during packaging.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "category": "deployment",
+      "description": "Provide SDK/CLI helpers so scenario-to-desktop/mobile/cloud can request tier manifests and receive scoped secrets during packaging.",
       "tags": [
         "deployment",
         "sdk"
@@ -334,20 +326,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Check CLI help includes deployment commands",
           "ref": "cli/secrets-manager",
+          "phase": "integration",
           "status": "implemented"
         }
       ]
     },
     {
       "id": "SEC-VLT-005",
-      "category": "vault-intelligence",
       "title": "Guided provisioning API",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-001",
+      "category": "vault-intelligence",
       "description": "Enable `/vault/secrets/provision` (and CLI helper) to accept secret payloads, write to Vault, and trigger validation refreshes.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "status": "complete",
       "tags": [
         "vault",
         "provisioning"
@@ -355,20 +346,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "business",
-          "command": "curl -s -X POST http://localhost:16739/api/v1/secrets/provision -H 'Content-Type: application/json' -d '{\"resource\":\"test\",\"secrets\":{}}' | jq .status",
           "ref": ".vrooli/endpoints.json:117",
-          "status": "implemented"
+          "phase": "business",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-CLI-001",
-      "category": "cli",
       "title": "CLI status proxy",
-      "description": "`secrets-manager status` should call `/health`, respect env/config overrides, and emit JSON for automation.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-004",
+      "category": "cli",
+      "description": "`secrets-manager status` should call `/health`, respect env/config overrides, and emit JSON for automation.",
       "tags": [
         "cli",
         "health"
@@ -376,20 +366,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "command": "./cli/secrets-manager status --json",
           "ref": "cli/secrets-manager",
+          "phase": "integration",
           "status": "not_implemented"
         }
       ]
     },
     {
       "id": "SEC-CLI-002",
-      "category": "cli",
       "title": "CLI wrappers for vault/compliance/vulnerabilities",
-      "description": "Expose thin commands that forward filters to the API instead of re-implementing parsing or data munging locally.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-004",
+      "category": "cli",
+      "description": "Expose thin commands that forward filters to the API instead of re-implementing parsing or data munging locally.",
       "tags": [
         "cli",
         "api"
@@ -397,20 +386,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "command": "./cli/secrets-manager vault list && ./cli/secrets-manager vulnerabilities list",
           "ref": "cli/secrets-manager",
+          "phase": "integration",
           "status": "not_implemented"
         }
       ]
     },
     {
       "id": "SEC-UI-001",
-      "category": "ui",
       "title": "Dashboard hero metrics",
-      "description": "Show top-line counts (configured resources, risk score, missing secrets) sourced directly from compliance + vault endpoints.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-002",
+      "category": "ui",
+      "description": "Show top-line counts (configured resources, risk score, missing secrets) sourced directly from compliance + vault endpoints.",
       "tags": [
         "ui",
         "dashboard"
@@ -418,20 +406,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Open UI dashboard and verify hero metrics display",
           "ref": "ui/src/App.tsx",
+          "phase": "integration",
           "status": "implemented"
         }
       ]
     },
     {
       "id": "SEC-UI-002",
-      "category": "ui",
       "title": "Vault coverage module",
-      "description": "Display per-resource coverage bars, severity badges, and missing secret callouts with automatic refresh via React Query.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-002",
+      "category": "ui",
+      "description": "Display per-resource coverage bars, severity badges, and missing secret callouts with automatic refresh via React Query.",
       "tags": [
         "ui",
         "vault"
@@ -439,20 +426,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Open UI and verify VaultCoverage component renders",
           "ref": "ui/src/components/VaultCoverage.tsx",
+          "phase": "integration",
           "status": "not_implemented"
         }
       ]
     },
     {
       "id": "SEC-UI-003",
-      "category": "ui",
       "title": "Vulnerability filter panel",
-      "description": "Allow filtering by severity, component, or type with responsive tables that mirror the `/vulnerabilities` API params.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-002",
+      "category": "ui",
+      "description": "Allow filtering by severity, component, or type with responsive tables that mirror the `/vulnerabilities` API params.",
       "tags": [
         "ui",
         "filters"
@@ -460,20 +446,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Open UI and verify vulnerability filters work",
           "ref": "ui/src/components/VulnerabilityList.tsx",
+          "phase": "integration",
           "status": "not_implemented"
         }
       ]
     },
     {
       "id": "SEC-UI-004",
-      "category": "ui",
       "title": "Compliance callout",
-      "description": "Highlight the blended risk score with textual guidance plus iconography that reflects severity thresholds.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-002",
+      "category": "ui",
+      "description": "Highlight the blended risk score with textual guidance plus iconography that reflects severity thresholds.",
       "tags": [
         "ui",
         "compliance"
@@ -481,20 +466,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Open UI and verify compliance callout displays risk score",
           "ref": "ui/src/components/ComplianceOverview.tsx",
+          "phase": "integration",
           "status": "not_implemented"
         }
       ]
     },
     {
       "id": "SEC-UX-001",
-      "category": "ui",
       "title": "Accessible dark-chrome theme",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-002",
+      "category": "ui",
       "description": "Apply consistent typography, contrast, and motion guidelines so the cyberpunk aesthetic still passes WCAG AA.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "status": "complete",
       "tags": [
         "ux",
         "branding"
@@ -502,20 +486,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "performance",
-          "command": "Lighthouse accessibility score >= 90%",
           "ref": "test/phases/test-performance.sh",
-          "status": "implemented"
+          "phase": "performance",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-UX-002",
-      "category": "ui",
       "title": "Orientation landing hub",
-      "description": "Design the home view with hero stats, deployment readiness tiles, and journey cards (configure secrets, fix vulns, prep deployments).",
-      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-004",
+      "category": "ui",
+      "description": "Design the home view with hero stats, deployment readiness tiles, and journey cards (configure secrets, fix vulns, prep deployments).",
       "tags": [
         "ux",
         "dashboard"
@@ -523,20 +506,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Verify Dashboard component displays hero metrics",
           "ref": "ui/src/App.tsx",
+          "phase": "integration",
           "status": "implemented"
         }
       ]
     },
     {
       "id": "SEC-UX-003",
-      "category": "ui",
       "title": "Guided remedial flows",
-      "description": "Provide multi-step wizards for each journey so operators move from detection to resolution with progress indicators and contextual help.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-004",
+      "category": "ui",
+      "description": "Provide multi-step wizards for each journey so operators move from detection to resolution with progress indicators and contextual help.",
       "tags": [
         "ux",
         "flows"
@@ -544,20 +526,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Check UI includes wizard components",
           "ref": "ui/src/App.tsx",
+          "phase": "integration",
           "status": "implemented"
         }
       ]
     },
     {
       "id": "SEC-UX-004",
-      "category": "ui",
       "title": "Contextual action rail",
-      "description": "Every table/detail panel should surface the next action (open provisioning, file issue, run scan) with inline status + blockers.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-004",
+      "category": "ui",
+      "description": "Every table/detail panel should surface the next action (open provisioning, file issue, run scan) with inline status + blockers.",
       "tags": [
         "ux",
         "actions"
@@ -565,20 +546,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Verify action buttons present in table components",
           "ref": "ui/src/App.tsx",
+          "phase": "integration",
           "status": "implemented"
         }
       ]
     },
     {
       "id": "SEC-DATA-001",
-      "category": "data",
       "title": "Historical validation telemetry",
-      "description": "Track secret validation runs + scan events over time to power compliance deltas and future analytics.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "status": "not_implemented",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-003",
+      "category": "data",
+      "description": "Track secret validation runs + scan events over time to power compliance deltas and future analytics.",
       "tags": [
         "postgres",
         "telemetry"
@@ -586,20 +566,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Verify telemetry tables exist in schema.sql",
           "ref": "initialization/storage/postgres/schema.sql",
+          "phase": "integration",
           "status": "not_implemented"
         }
       ]
     },
     {
       "id": "SEC-SCAN-003",
-      "category": "security-scanning",
       "title": "File content gateway",
-      "description": "Provide a secure `/files/content` endpoint for reviewing snippets referenced by vulnerabilities with path safeguards.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "status": "planned",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-003",
+      "category": "security-scanning",
+      "description": "Provide a secure `/files/content` endpoint for reviewing snippets referenced by vulnerabilities with path safeguards.",
       "tags": [
         "security",
         "files"
@@ -607,20 +586,19 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "integration",
-          "command": "Test /files/content endpoint with valid path",
           "ref": "api/main.go",
+          "phase": "integration",
           "status": "not_implemented"
         }
       ]
     },
     {
       "id": "SEC-OPS-002",
-      "category": "operations",
       "title": "Schema + seed automation",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-005",
+      "category": "operations",
       "description": "Lifecycle `setup` must run schema + seed SQL files and remain idempotent so agents can reset environments quickly.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-005",
-      "status": "complete",
       "tags": [
         "lifecycle",
         "database"
@@ -628,20 +606,19 @@
       "validation": [
         {
           "type": "test",
-          "phase": "structure",
-          "command": "test -f initialization/storage/postgres/schema.sql && test -f .vrooli/service.json",
           "ref": ".vrooli/service.json",
-          "status": "implemented"
+          "phase": "structure",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-TEST-001",
-      "category": "operations",
       "title": "Phased testing alignment",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-005",
+      "category": "operations",
       "description": "`test/run-tests.sh` must execute structure/unit/integration/performance phases and emit artifacts referencing `[REQ:ID]` tags.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-005",
-      "status": "complete",
       "tags": [
         "testing",
         "phased"
@@ -649,80 +626,59 @@
       "validation": [
         {
           "type": "test",
-          "phase": "structure",
-          "command": "test -x test/run-tests.sh && test -d test/phases",
           "ref": "test/run-tests.sh",
-          "status": "implemented"
+          "phase": "structure",
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-AUTO-001",
-      "category": "future",
       "title": "Auto-remediation suggestions",
-      "description": "Surface remediation text or trigger claude-code agents that can automatically patch common vulnerability classes.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "status": "planned",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-001",
+      "category": "future",
+      "description": "Surface remediation text or trigger claude-code agents that can automatically patch common vulnerability classes.",
       "tags": [
         "ai",
         "remediation"
-      ],
-      "validation": []
+      ]
     },
     {
       "id": "SEC-AUTO-002",
-      "category": "future",
       "title": "Trend analytics",
-      "description": "Compute and display rolling averages plus anomaly detection for risk scores and vault coverage deltas.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "status": "planned",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-002",
+      "category": "future",
+      "description": "Compute and display rolling averages plus anomaly detection for risk scores and vault coverage deltas.",
       "tags": [
         "analytics",
         "trend"
-      ],
-      "validation": []
+      ]
     },
     {
       "id": "SEC-POL-001",
-      "category": "future",
       "title": "Policy gating hooks",
-      "description": "Expose an API/CLI to block deployments or scenario actions until secrets + security thresholds are satisfied.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "status": "planned",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-003",
+      "category": "future",
+      "description": "Expose an API/CLI to block deployments or scenario actions until secrets + security thresholds are satisfied.",
       "tags": [
         "policy",
         "integration"
-      ],
-      "validation": []
+      ]
     },
     {
       "id": "SEC-CLI-003",
-      "category": "future",
       "title": "CI-friendly export",
-      "description": "Provide a CLI/API command that exports validated secrets and vulnerability summaries for CI pipelines without manual parsing.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "status": "planned",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-003",
+      "category": "future",
+      "description": "Provide a CLI/API command that exports validated secrets and vulnerability summaries for CI pipelines without manual parsing.",
       "tags": [
         "cli",
         "ci"
-      ],
-      "validation": []
+      ]
     }
-  ],
-  "reporting": {
-    "phases": [
-      {
-        "name": "structure",
-        "runner": "test/phases/test-structure.sh"
-      },
-      {
-        "name": "unit",
-        "runner": "api"
-      },
-      {
-        "name": "integration",
-        "runner": "test/run-tests.sh"
-      }
-    ]
-  }
+  ]
 }

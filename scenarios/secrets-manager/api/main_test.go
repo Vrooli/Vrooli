@@ -1055,6 +1055,24 @@ func TestRouterSetup(t *testing.T) {
 	}
 }
 
+func TestSecurityManagementRoutesAreRegistered(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	router := newAPIServer(nil, logger).routes()
+	for _, path := range []string{
+		"/api/v1/security/allowlist-rules",
+		"/api/v1/security/watchlist",
+	} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code == http.StatusNotFound {
+			t.Errorf("expected security management route %q to be registered", path)
+		}
+	}
+}
+
 // TestGetLanguageFromPath tests language detection from file paths
 func TestGetLanguageFromPath(t *testing.T) {
 	tests := []struct {

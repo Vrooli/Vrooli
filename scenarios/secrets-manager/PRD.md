@@ -12,7 +12,7 @@
 - [ ] OT-P0-001 | Tier-Aware Secret Intelligence | Maintain a complete inventory of every resource/scenario secret, normalize metadata (owner, tier fitness, rotation notes), and expose per-resource drilldowns with current Vault status.
 - [ ] OT-P0-002 | Threat & Vulnerability Detection | Continuously scan scenarios/resources for hardcoded secrets and insecure patterns, rank findings by severity, and link each issue to contextual remediation guidance.
 - [ ] OT-P0-003 | Deployment Readiness Engine | Produce tier-specific secret strategies (strip/generate/prompt/delegate), emit bundle-ready manifests for deployment-manager + scenario-to-*, and verify no infrastructure secrets leak outside Tier 1.
-- [ ] OT-P0-004 | Guided Operator Journeys | Ship an orientation hub with hero stats and journey cards plus multi-step flows that walk operators from detection → action (configure secrets, fix vulns, prep deployments) without guesswork.
+- [x] OT-P0-004 | Guided Operator Journeys | Ship an orientation hub with hero stats and journey cards plus multi-step flows that walk operators from detection → action (configure secrets, fix vulns, prep deployments) without guesswork.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Guided Provisioning & Export | Provide APIs/CLI hooks to provision secrets, re-run validation, and export the values safely into workflows.

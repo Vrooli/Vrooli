@@ -158,18 +158,11 @@ INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, 
 ('searxng', 'SEARXNG_BASE_URL', 'env_var', false, 'SearXNG base URL', '^https?://[a-zA-Z0-9.-]+(:[0-9]+)?', 'https://searxng.readthedocs.io/')
 ON CONFLICT (resource_name, secret_key) DO NOTHING;
 
--- Judge0 resource secrets
-INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, description, validation_pattern, documentation_url) VALUES
-('judge0', 'JUDGE0_AUTH_TOKEN', 'token', false, 'Judge0 API authentication token', '^[a-zA-Z0-9_.-]+$', 'https://ce.judge0.com/'),
-('judge0', 'REDIS_URL', 'credential', false, 'Redis connection URL for Judge0', '^redis://.*', 'https://ce.judge0.com/'),
-('judge0', 'DATABASE_URL', 'credential', false, 'PostgreSQL connection URL for Judge0', '^postgresql://.*', 'https://ce.judge0.com/')
-ON CONFLICT (resource_name, secret_key) DO NOTHING;
-
 -- Insert initial scan record to track seeding
 INSERT INTO secret_scans (scan_type, resources_scanned, secrets_discovered, scan_duration_ms, scan_status, scan_metadata) 
 VALUES (
     'seed', 
-    ARRAY['postgres', 'vault', 'edge-dns', 'redis', 'n8n', 'ollama', 'minio', 'qdrant', 'browserless', 'huginn', 'searxng', 'judge0'],
+    ARRAY['postgres', 'vault', 'edge-dns', 'redis', 'n8n', 'ollama', 'minio', 'qdrant', 'browserless', 'huginn', 'searxng'],
     (SELECT COUNT(*) FROM resource_secrets),
     0,
     'completed',

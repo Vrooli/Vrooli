@@ -37,6 +37,10 @@ const jsonFetch = async <T>(path: string, init?: RequestInit) => {
     throw new Error(`Request failed (${response.status}): ${response.statusText}`);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return (await response.json()) as T;
 };
 
@@ -348,6 +352,75 @@ export const fetchVaultStatus = (resource?: string) => {
 };
 
 export const fetchCompliance = () => jsonFetch<ComplianceResponse>("/security/compliance");
+
+export interface AllowlistRule {
+  id: string;
+  path_pattern: string;
+  excluded_types: string[];
+  description?: string;
+  enabled: boolean;
+  created_at?: string;
+}
+
+export interface AllowlistRulesResponse {
+  rules: AllowlistRule[];
+  count: number;
+}
+
+export interface UpsertAllowlistRulePayload {
+  path_pattern: string;
+  excluded_types: string[];
+  description?: string;
+  enabled?: boolean;
+}
+
+export const fetchAllowlistRules = () => jsonFetch<AllowlistRulesResponse>("/security/allowlist-rules");
+
+export const createAllowlistRule = (payload: UpsertAllowlistRulePayload) =>
+  jsonFetch<AllowlistRule>("/security/allowlist-rules", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+export const updateAllowlistRule = (id: string, payload: UpsertAllowlistRulePayload) =>
+  jsonFetch<AllowlistRule>(`/security/allowlist-rules/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+
+export const deleteAllowlistRule = (id: string) =>
+  jsonFetch<void>(`/security/allowlist-rules/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export type WatchlistValueType = "email" | "phone" | "path" | "ssn" | "custom";
+
+export interface WatchlistEntry {
+  id: string;
+  label: string;
+  value_type: WatchlistValueType;
+  created_at: string;
+}
+
+export interface WatchlistResponse {
+  entries: WatchlistEntry[];
+  count: number;
+}
+
+export interface CreateWatchlistEntryPayload {
+  label: string;
+  value: string;
+  value_type: WatchlistValueType;
+}
+
+export const fetchWatchlist = () => jsonFetch<WatchlistResponse>("/security/watchlist");
+
+export const createWatchlistEntry = (payload: CreateWatchlistEntryPayload) =>
+  jsonFetch<WatchlistEntry>("/security/watchlist", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+export const deleteWatchlistEntry = (id: string) =>
+  jsonFetch<void>(`/security/watchlist/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 export interface VulnerabilityFilters {
   component?: string;
