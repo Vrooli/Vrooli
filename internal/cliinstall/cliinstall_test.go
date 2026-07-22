@@ -66,22 +66,9 @@ func writeGoScenarioCLIManifest(t *testing.T, root, name string) {
 				Kind:      "go_module",
 				ModuleDir: "cli",
 			},
-		}),
-	))
-}
-
-func writeShellScenarioCLIManifest(t *testing.T, root, name string) {
-	t.Helper()
-	testscenario.WriteScenarioService(t, root, name, testscenario.ScenarioServiceManifest(
-		name,
-		testscenario.WithCLI(&scenario.CLIConfig{
-			Enabled: true,
-			Command: name,
-			Adapter: scenario.CLIAdapterConfig{
-				Kind:          "shell_script",
-				ScriptPath:    filepath.ToSlash(filepath.Join("cli", name)),
-				InstallScript: "cli/install.sh",
-			},
+			SourceBuild: &scenario.CLISourceBuildConfig{Kind: "go_module"},
+			Invoke:      scenario.CLIInvokeConfig{Kind: "installed_command", Command: name},
+			Freshness:   &scenario.CLIFreshnessCheck{Inputs: []string{"cli/**", ".vrooli/service.json"}},
 		}),
 	))
 }
@@ -99,21 +86,6 @@ func writeDisabledResourceCLIManifest(t *testing.T, root, name string) {
 	t.Helper()
 	manifest := testresource.ResourceManifest(name)
 	manifest.CLI = &scenario.CLIConfig{Enabled: false}
-	testresource.WriteResourceManifest(t, root, name, manifest)
-}
-
-func writeShellResourceCLIManifest(t *testing.T, root, name string) {
-	t.Helper()
-	manifest := testresource.ResourceManifest(name)
-	manifest.CLI = &scenario.CLIConfig{
-		Enabled: true,
-		Command: "resource-" + name,
-		Adapter: scenario.CLIAdapterConfig{
-			Kind:          "shell_script",
-			ScriptPath:    filepath.ToSlash(filepath.Join("cli", "resource-"+name)),
-			InstallScript: "cli/install.sh",
-		},
-	}
 	testresource.WriteResourceManifest(t, root, name, manifest)
 }
 
@@ -179,52 +151,12 @@ func TestDiscoverScenarioCLIReportIncludesFailuresWithoutAborting(t *testing.T) 
 	}
 }
 
-func TestDiscoverScenarioCLIsIncludesShellScriptAdapter(t *testing.T) {
-	fixture := testkitgo.NewRepoFixture(t)
-	fixture.WriteRepoContract(t)
-	fixture.WriteScenarioStub(t, "alpha")
-	writeShellScenarioCLIManifest(t, fixture.Root, "alpha")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
-
-	manager := mustManager(t, fixture.Root, fixture.Home)
-	item, err := manager.DiscoverScenarioCLI("alpha")
-	if err != nil {
-		t.Fatalf("DiscoverScenarioCLI: %v", err)
-	}
-	if item.CLI == nil || item.CLI.Adapter.Kind != "shell_script" {
-		t.Fatalf("expected shell_script adapter, got %+v", item)
-	}
-	if item.ScenarioPath != filepath.Join(fixture.Root, "scenarios", "alpha") {
-		t.Fatalf("scenario path = %q", item.ScenarioPath)
-	}
-}
-
-func TestDiscoverScenarioCLIDoesNotInferGoModuleFromLayoutWithoutManifest(t *testing.T) {
-	fixture := testkitgo.NewRepoFixture(t)
-	fixture.WriteRepoContract(t)
-	fixture.WriteScenarioStub(t, "alpha")
-	testscenario.WriteScenarioService(t, fixture.Root, "alpha", testscenario.ScenarioServiceManifest("alpha"))
-	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
-	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "main.go"), "package main\nfunc main() {}\n")
-
-	manager := mustManager(t, fixture.Root, fixture.Home)
-	_, err := manager.DiscoverScenarioCLI("alpha")
-	if err == nil {
-		t.Fatal("expected missing CLI manifest error, got nil")
-	}
-	if !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("expected not-exist error when layout exists without manifest, got %v", err)
-	}
-}
-
 func TestDiscoverScenarioCLIDoesNotInferShellScriptFromLayoutWithoutManifest(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
 	fixture.WriteScenarioStub(t, "alpha")
 	testscenario.WriteScenarioService(t, fixture.Root, "alpha", testscenario.ScenarioServiceManifest("alpha"))
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
 
 	manager := mustManager(t, fixture.Root, fixture.Home)
 	_, err := manager.DiscoverScenarioCLI("alpha")
@@ -288,43 +220,6 @@ func TestDiscoverResourceCLIsReturnsAllInstallableModules(t *testing.T) {
 	got := []string{items[0].BinaryName, items[1].BinaryName}
 	if !reflect.DeepEqual(got, []string{"resource-postgres", "resource-redis"}) {
 		t.Fatalf("resource CLI binaries = %v, want %v", got, []string{"resource-postgres", "resource-redis"})
-	}
-}
-
-func TestDiscoverResourceCLIIncludesShellScriptAdapter(t *testing.T) {
-	fixture := testkitgo.NewRepoFixture(t)
-	fixture.WriteRepoContract(t)
-	writeShellResourceCLIManifest(t, fixture.Root, "postgres")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "resource-postgres"), "#!/usr/bin/env bash\nexit 0\n")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
-
-	manager := mustManager(t, fixture.Root, fixture.Home)
-	item, err := manager.DiscoverResourceCLI("postgres")
-	if err != nil {
-		t.Fatalf("DiscoverResourceCLI: %v", err)
-	}
-	if item.CLI == nil || item.CLI.Adapter.Kind != "shell_script" {
-		t.Fatalf("expected shell_script adapter, got %+v", item)
-	}
-	if item.ResourcePath != filepath.Join(fixture.Root, "resources", "postgres") {
-		t.Fatalf("resource path = %q", item.ResourcePath)
-	}
-}
-
-func TestDiscoverResourceCLIDoesNotInferGoModuleFromLayoutWithoutEnabledManifest(t *testing.T) {
-	fixture := testkitgo.NewRepoFixture(t)
-	fixture.WriteRepoContract(t)
-	writeDisabledResourceCLIManifest(t, fixture.Root, "postgres")
-	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
-	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "main.go"), "package main\nfunc main() {}\n")
-
-	manager := mustManager(t, fixture.Root, fixture.Home)
-	_, err := manager.DiscoverResourceCLI("postgres")
-	if err == nil {
-		t.Fatal("expected missing CLI manifest error, got nil")
-	}
-	if !errors.Is(err, fs.ErrNotExist) {
-		t.Fatalf("expected not-exist error when layout exists without enabled manifest, got %v", err)
 	}
 }
 
@@ -405,29 +300,6 @@ func TestEnsureScenarioCLIInstallsWhenMissing(t *testing.T) {
 	}
 	if len(installer.calls) != 1 {
 		t.Fatalf("install calls = %d, want 1", len(installer.calls))
-	}
-}
-
-func TestEnsureScenarioCLIShellScriptInstallsWhenMissing(t *testing.T) {
-	fixture := testkitgo.NewRepoFixture(t)
-	fixture.WriteRepoContract(t)
-	fixture.WriteScenarioStub(t, "alpha")
-	writeShellScenarioCLIManifest(t, fixture.Root, "alpha")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
-
-	installer := &stubInstaller{}
-	manager := mustManager(t, fixture.Root, fixture.Home)
-	manager.Installer = installer
-
-	if err := manager.EnsureScenarioCLI("alpha"); err != nil {
-		t.Fatalf("EnsureScenarioCLI: %v", err)
-	}
-	if len(installer.calls) != 1 {
-		t.Fatalf("install calls = %d, want 1", len(installer.calls))
-	}
-	if installer.calls[0].item.CLI == nil || installer.calls[0].item.CLI.Adapter.Kind != "shell_script" {
-		t.Fatalf("expected shell_script install item, got %+v", installer.calls[0].item)
 	}
 }
 
@@ -616,28 +488,6 @@ func TestEnsureResourceCLIReinstallsWhenFingerprintStale(t *testing.T) {
 	}
 }
 
-func TestEnsureResourceCLIShellScriptInstallsWhenMissing(t *testing.T) {
-	fixture := testkitgo.NewRepoFixture(t)
-	fixture.WriteRepoContract(t)
-	writeShellResourceCLIManifest(t, fixture.Root, "postgres")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "resource-postgres"), "#!/usr/bin/env bash\nexit 0\n")
-	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
-
-	installer := &stubInstaller{}
-	manager := mustManager(t, fixture.Root, fixture.Home)
-	manager.Installer = installer
-
-	if err := manager.EnsureResourceCLI("postgres"); err != nil {
-		t.Fatalf("EnsureResourceCLI: %v", err)
-	}
-	if len(installer.calls) != 1 {
-		t.Fatalf("install calls = %d, want 1", len(installer.calls))
-	}
-	if installer.calls[0].item.CLI == nil || installer.calls[0].item.CLI.Adapter.Kind != "shell_script" {
-		t.Fatalf("expected shell_script install item, got %+v", installer.calls[0].item)
-	}
-}
-
 func TestRepoEnabledResourceCLIsAreAllDiscoverable(t *testing.T) {
 	root := testkitgo.ProjectRoot(t)
 	manager := mustManager(t, root, t.TempDir())
@@ -773,6 +623,8 @@ func TestComputeResourceCLIFingerprintIncludesManifestForGoModule(t *testing.T) 
 			Kind:      "go_module",
 			ModuleDir: "cli",
 		},
+		SourceBuild: &scenario.CLISourceBuildConfig{Kind: "go_module"},
+		Invoke:      scenario.CLIInvokeConfig{Kind: "installed_command", Command: "resource-alpha"},
 		Freshness: &scenario.CLIFreshnessCheck{
 			Inputs: []string{"cli/**", "resource.json"},
 		},

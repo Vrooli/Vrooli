@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "catalog-observability",
     "description": "Catalog and run history plus health/observability surfaces for backup state.",
+    "last_validated_at": "2026-07-21T17:56:54-04:00",
+    "module": "catalog-observability",
     "prd_ref": "OT-P0-009",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,18 +11,22 @@
     {
       "id": "DBM-CAT-001",
       "title": "Catalog and run history",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "catalog",
       "criticality": "P0",
       "description": "List targets, destinations, plans, and runs; show last-success per target; browse the contents of a snapshot.",
-      "tags": ["catalog", "history", "snapshots"],
+      "tags": [
+        "catalog",
+        "history",
+        "snapshots"
+      ],
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/runs/service_test.go::TestCatalog_ListAndLastSuccess",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/internal/runs/service_test.go::TestCatalog_ListAndLastSuccess",
           "notes": "After runs, assert listings and last-success-per-target; assert snapshot browse returns entries."
         }
       ]
@@ -29,18 +34,22 @@
     {
       "id": "DBM-OBS-001",
       "title": "Health endpoint flags overdue/failed backups",
-      "status": "implemented",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "category": "observability",
       "criticality": "P0",
       "description": "The health endpoint reports degraded when any target is overdue or its last run failed. Backup outcomes are emitted as events for platform monitoring (infra-health/system-monitor).",
-      "tags": ["health", "observability", "events"],
+      "tags": [
+        "health",
+        "observability",
+        "events"
+      ],
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
           "ref": "api/handlers/health/handler_test.go::TestHealth_DegradedOnOverdue",
+          "phase": "unit",
+          "status": "failing",
           "notes": "Seed an overdue/failed target; assert health degraded and an event is emitted."
         }
       ]

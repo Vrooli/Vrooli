@@ -33,7 +33,7 @@ Each intake channel a member drains is declared structurally in `topics.json`:
     {
       "prefix": "research-inbox/*",
       "taxonomy": "marketing-research",
-      "classifier_skill": "marketing-signal-classifier",
+      "classifier_skill": "signal-classifier",
       "source_team": null
     }
   ],
@@ -47,7 +47,7 @@ Each intake channel a member drains is declared structurally in `topics.json`:
 
 ## The inbox-router-drain pattern
 
-The dominant mechanism for unstructured-to-structured signal flow. Used by `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage`, and others (paired with their taxonomies).
+The dominant mechanism for unstructured-to-structured signal flow. Used by `signal-classifier` (parameterized over each intake's taxonomy) and other portable classifiers (paired with their taxonomies).
 
 ### Inbox topics
 
@@ -84,7 +84,7 @@ Each entry must preserve: source URL when available, raw operator note, confiden
 
 The same drain procedure runs in either of two modes, picked per intake by whether the topic-prefix carries enough information to determine `signal_type` deterministically.
 
-**Mode 1 — Classifier-required (judgment intake).** The producer writes a raw note under a generic prefix (`research-inbox/<signal-type>/<slug>`); the assigned signal-type is a *hint*, not authority. The drainer applies a portable classifier skill — pure judgment, no team or destination coupling — to derive the authoritative `signal_type`, `evidence_strength`, and `honesty_flags` for each entry. Use this mode when the producer is upstream of the taxonomy (operator, vision-walk, cross-team handoff) and may misclassify, or when interpretation is required to disambiguate signal types. Examples: `literal:marketing-crew/researcher` → `marketing-signal-classifier` over `marketing-research`; `literal:monetization/opportunity-scout` → `monetization-signal-classifier` over `monetization-opportunity`; `literal:monetization/market-validator` → `market-validation-triage` over `monetization-validation`.
+**Mode 1 — Classifier-required (judgment intake).** The producer writes a raw note under a generic prefix (`research-inbox/<signal-type>/<slug>`); the assigned signal-type is a *hint*, not authority. The drainer applies a portable classifier skill — pure judgment, no team or destination coupling — to derive the authoritative `signal_type`, `evidence_strength`, and `honesty_flags` for each entry. Use this mode when the producer is upstream of the taxonomy (operator, vision-walk, cross-team handoff) and may misclassify, or when interpretation is required to disambiguate signal types. Examples: `literal:marketing-crew/researcher` → `signal-classifier` over `marketing-research`; `literal:monetization/opportunity-scout` → `signal-classifier` over `monetization-opportunity`; `literal:monetization/market-validator` → `signal-classifier` over `monetization-validation`.
 
 **Mode 2 — Deterministic prefix (no classifier).** The producer is constrained to write only valid taxonomy signal-types in the prefix segment after the inbox name (`<inbox-name>/<signal-type>/<slug>`), and that segment is taken as authoritative. No classifier skill is loaded; the drainer's heartbeat omits the classifier line and reads the signal-type straight from the topic. Use this mode when the producer side enforces the topic shape and the taxonomy's signal-types are mutually exclusive enough that misclassification is rare. Examples: `literal:scenario-qa/bug-investigator` drains `bug-inbox/*` through the `bug-report` taxonomy via `report-bug`; `literal:meta-optimization/friction-curator` drains `friction-inbox/*` through the `friction-report` taxonomy via `report-friction`.
 

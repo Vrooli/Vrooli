@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -92,13 +91,8 @@ func main() {
 
 	log.Println("🎉 Database connection established and verified!")
 
-	// Initialize Algorithm Processor
-	judge0URL := os.Getenv("JUDGE0_URL")
-	if judge0URL == "" {
-		judge0URL = "http://localhost:2358" // Default Judge0 port
-	}
-	algorithmProcessor = NewAlgorithmProcessor(judge0URL)
-	log.Printf("🔧 Algorithm processor initialized with Judge0 at %s", judge0URL)
+	algorithmProcessor = NewAlgorithmProcessor()
+	log.Println("🔧 Algorithm processor initialized with the local executor")
 
 	// Set up routes
 	router := mux.NewRouter()
@@ -173,7 +167,6 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-
 
 // searchAlgorithmsHandler searches for algorithms based on query parameters.
 // Supports filtering by query text, category, complexity, language, and difficulty.

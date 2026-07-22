@@ -35,14 +35,11 @@ The resource manifest must declare CLI behavior explicitly. Resource CLI handlin
 
 The long-term goal is one shared contract shape across scenarios and resources wherever practical.
 
-### Supported Adapter Kinds
+### Supported Adapter Kind
 
-Both scenarios and resources support these adapter kinds:
-
-- `go_module`
-- `shell_script`
-
-Adapter selection is manifest policy, not an implementation detail inferred from nearby files.
+Scenarios and resources use the `go_module` adapter. The control plane builds
+and installs that declared module; CLI behavior is never inferred from nearby
+filesystem layout.
 
 ### Invocation Policy
 

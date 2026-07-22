@@ -58,8 +58,11 @@ type EnsureOptions struct {
 	// but no automatic install is attempted. Operators opt in via
 	// `vrooli setup --include-optional`.
 	IncludeOptional bool
-	Stdout          io.Writer
-	Stderr          io.Writer
+	// MaintenanceWindow acknowledges that a safeguard may interrupt an active
+	// graphical or remote-desktop session while applying host state.
+	MaintenanceWindow bool
+	Stdout            io.Writer
+	Stderr            io.Writer
 }
 
 // BlockingReason categorises *why* an item is not yet satisfied. It is
@@ -89,6 +92,9 @@ const (
 	// BlockingManual: handler is manual-only; operator must run the
 	// documented procedure.
 	BlockingManual BlockingReason = "manual"
+	// BlockingNeedsMaintenanceWindow marks a deliberately withheld live change
+	// while a remote desktop server is active.
+	BlockingNeedsMaintenanceWindow BlockingReason = "maintenance_window"
 )
 
 type ItemStatus struct {

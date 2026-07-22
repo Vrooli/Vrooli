@@ -10,7 +10,7 @@ This is the live plan-of-record for the prompt-manager agent system. The Phase 1
 
 The topic-flow data layer is implemented as per-member `topics.json` files and surfaced through `prompt-manager graph topics`. The schema canon lives at `TOPICS_SCHEMA.md` (promoted from drafts during the inbox-flow refactor); the human registry of every topic in active use lives at `TOPICS.md`. The inbox-flow refactor split per-member router skills into portable classifier skills + per-domain taxonomies; see `INTAKE_PIPELINE.md` and the [Active taxonomies](#active-taxonomies) registry below.
 
-Teams that own durable strategic truth keep a full plan-of-record at `path:docs/<domain>/` — the current set is listed in the [docs README's plan-of-record pillar](../README.md), and the authoritative set is whichever `docs/<team>/` folders carry a `manifest.json`. `meta-optimization` is the exception that also owns this framework-canon folder alongside its friction-report canon at `path:docs/meta-optimization/`. Each PoR follows the same paired-doc-and-skill discipline for its technique registries (e.g., marketing's `post-techniques/`, scenario-qa's `methods/investigation/` and `methods/audit/`). The agent system has two **universal observation flows** — universal-source intakes (`source_team: "*"`) fed by writer skills available to every team's members: scenario-qa's `bug-investigator` drains `bug-inbox/*` (fed by `report-bug`) for code/scenario defects, and meta-optimization's `friction-curator` drains `friction-inbox/*` (fed by `report-friction`) for system-level capture-leak. Together they establish the universal-observation-flow primitive (see `TOPICS_SCHEMA.md` § Universal-source intakes).
+Teams that own durable strategic truth keep a full plan-of-record at `path:docs/<domain>/` — the current set is listed in the [docs README's plan-of-record pillar](../README.md), and the authoritative set is whichever `docs/<team>/` folders carry a `manifest.json`. `meta-optimization` is the exception that also owns this framework-canon folder alongside its friction-report canon at `path:docs/meta-optimization/`. Each PoR follows the same paired-doc-and-skill discipline for its technique registries (e.g., marketing's `post-techniques/`, scenario-qa's `methods/investigation/`, `methods/audit/`, and `methods/readiness/`). The agent system has two **universal observation flows** — universal-source intakes (`source_team: "*"`) fed by writer skills available to every team's members: scenario-qa's `bug-investigator` drains `bug-inbox/*` (fed by `report-bug`) for code/scenario defects, and meta-optimization's `friction-curator` drains `friction-inbox/*` (fed by `report-friction`) for system-level capture-leak. Together they establish the universal-observation-flow primitive (see `TOPICS_SCHEMA.md` § Universal-source intakes).
 
 ## Mental Model
 
@@ -67,16 +67,7 @@ flowchart TB
 
 The **`Team inbox topics` cylinder** is the contents of `topics.json`-declared topic prefixes across every team — registry at [`TOPICS.md`](TOPICS.md), schema at [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md). The **`Router skill` diamond** is the per-taxonomy classifier or triage skill that drains the topic; the routing logic and uniform action set live at [`INTAKE_PIPELINE.md`](INTAKE_PIPELINE.md) (§ Two routing modes, § Promotion / Routing). External signals enter through the producers on the left (vision walk, cross-team output, baseline scans); the inputs registry that catalogs every kind of producer lives at `INPUTS.md` *(workshop pending — TODO)*.
 
-The same layering rule applies everywhere:
-
-```text
-Truth -> Plan of Record
-Judgment -> Skills
-Execution -> Actions
-Implementation -> CLIs
-Missing capability -> backlog or capability-gap
-Raw learning -> inbox topics and short-lived synthesis
-```
+The same layering rule applies everywhere; its single canonical statement (truth → Plan of Record, judgment → Skills, and so on down through execution, implementation, unbuilt work, and raw learning) lives in [`LAYERS.md`](LAYERS.md) — read it there rather than restating the mantra here.
 
 For a first read, use this order:
 
@@ -100,6 +91,7 @@ For a first read, use this order:
 | `TEAM_MEMBER_ARCHITECTURE.md` | canon | The 9-layer member capability model |
 | `INTAKE_PIPELINE.md` | canon | Intake → Collection → Analysis → Promotion pipeline; inbox-router-drain pattern; two routing modes (classifier-required vs deterministic-prefix); cross-team schema ownership; topic-prefix conventions |
 | `TOPICS_SCHEMA.md` | canon | `topics.json` schema reference — paired with `path:scenarios/prompt-manager/api/memberflow/schema.go`. Pillar 1 of topic validation (declared graph). |
+| `PROSE_SCAN_TARGETS.md` | canon | Pillar 2 of topic validation (prose scan): scanner target inventory, `prose_topic_leak` pattern set and severities, writer-skill `writes_to[]` registry |
 | `OPERATING_GRAPHS.md` | canon | Operating-model document contracts, including required sections, the typed Mermaid graph section, docs tables, feedback/gaps/adoption validation, and runtime parity against `team.json`, `topics.json`, README links, and generated prompt sections. |
 | `TOPICS.md` | canon | Human registry of every topic prefix in active use — definition, conventions, per-team registry, adoption checklist |
 | `RUNTIME_ATTRIBUTION.md` | canon | Pillar 3 of topic validation: structured-attribution contract, `X-Vrooli-Attribution` HTTP header, `VROOLI_PROMPT_MANAGER_ATTRIBUTION` env-var bridge, per-team `attributionValidFrom` cutoff, threat model |

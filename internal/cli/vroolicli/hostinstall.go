@@ -43,6 +43,46 @@ func hostInstallSpec() commandtree.Spec[string] {
 	}
 }
 
+func hostSafeguardSpec() commandtree.Spec[string] {
+	return commandtree.Spec[string]{
+		Name:    "safeguard",
+		Summary: "Inspect or apply one declared host safeguard",
+		Help: commandtree.Help{
+			Description: "Applies one typed host safeguard through Vrooli's requirement runtime. Use this for focused, auditable repairs such as a kernel driver; high-risk safeguards can report a typed reboot-required result instead of pretending the host is ready.",
+			Usage:       "vrooli host safeguard <name> [--dry-run] [--maintenance-window] [--sudo-mode ask|skip|error]",
+			Options:     []commandtree.OptionArg{{Name: "--dry-run", Description: "Report the managed change without applying it"}, {Name: "--maintenance-window", Description: "Acknowledge graphical/remote-session interruption risk"}, {Name: "--sudo-mode", ValueName: "mode", Description: "Privilege policy: ask, skip, or error (default: skip)"}},
+			Examples:    []string{"vrooli host safeguard nvidia_driver --dry-run", "vrooli host safeguard nvidia_driver --maintenance-window --sudo-mode ask"},
+		},
+		Args:    commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true, Description: "Safeguard name (see internal/safeguards/<name>)"}}, Options: []commandtree.OptionArg{{Name: "--dry-run", Description: "Report the managed change without applying it"}, {Name: "--maintenance-window", Description: "Acknowledge graphical/remote-session interruption risk"}, {Name: "--sudo-mode", ValueName: "mode", Description: "Privilege policy: ask, skip, or error"}}},
+		Handler: "safeguard",
+	}
+}
+
+func (app *App) runHostSafeguardCommand(ctx *CommandContext, args []string) error {
+	spec := hostSafeguardSpec()
+	parsed, err := commandtree.ParseArgs("host safeguard", commandtree.SpecHelpText("", "vrooli host safeguard", spec), spec.Args, args)
+	if err != nil {
+		if rootcli.HandleHelp(ctx.Stdout, err) {
+			return nil
+		}
+		return rootcli.UsageErrorf("host safeguard", "%s", err.Error())
+	}
+	name := strings.TrimSpace(parsed.Positionals[0])
+	sudoMode := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--sudo-mode")))
+	if sudoMode != "" && sudoMode != "ask" && sudoMode != "skip" && sudoMode != "error" {
+		return rootcli.UsageErrorf("host safeguard", "invalid --sudo-mode %q (want ask, skip, or error)", sudoMode)
+	}
+	status, err := hostruntime.EnsureSafeguard(name, hostruntime.EnsureOptions{AutoInstall: true, DryRun: parsed.HasFlag("--dry-run"), MaintenanceWindow: parsed.HasFlag("--maintenance-window"), SudoMode: sudoMode, Stdout: ctx.Stdout, Stderr: ctx.Stderr})
+	if err != nil {
+		return fmt.Errorf("host safeguard %q: %w", name, err)
+	}
+	renderHostInstallText(ctx.Stdout, status)
+	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent && status.ExecutionState != hostreqkit.ExecutionNotApplicable && status.ExecutionState != hostreqkit.ExecutionWouldApply {
+		return rootcli.ExitCodeError{Code: 1, Silent_: true}
+	}
+	return nil
+}
+
 func (app *App) runHostInstallCommand(ctx *CommandContext, args []string) error {
 	spec := hostInstallSpec()
 	parsed, err := commandtree.ParseArgs("host install", commandtree.SpecHelpText("", "vrooli host install", spec), spec.Args, args)

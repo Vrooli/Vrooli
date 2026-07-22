@@ -227,13 +227,6 @@ func (m *Manager) DiscoverScenarioCLI(name string) (InstallableCLI, error) {
 		if err := requireFile(filepath.Join(item.ModulePath, "go.mod")); err != nil {
 			return InstallableCLI{}, fmt.Errorf("discover scenario CLI %q: %w", name, err)
 		}
-	case "shell_script":
-		if err := requireFile(filepath.Join(scenarioRoot, filepath.FromSlash(manifest.CLI.Adapter.ScriptPath))); err != nil {
-			return InstallableCLI{}, fmt.Errorf("discover scenario CLI %q: %w", name, err)
-		}
-		if err := requireFile(filepath.Join(scenarioRoot, filepath.FromSlash(manifest.CLI.Adapter.InstallScript))); err != nil {
-			return InstallableCLI{}, fmt.Errorf("discover scenario CLI %q: %w", name, err)
-		}
 	default:
 		return InstallableCLI{}, fmt.Errorf("discover scenario CLI %q: unsupported adapter kind %q", name, manifest.CLI.Adapter.Kind)
 	}
@@ -276,13 +269,6 @@ func (m *Manager) DiscoverResourceCLI(name string) (InstallableCLI, error) {
 	case "go_module":
 		item.ModulePath = filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
 		if err := requireFile(filepath.Join(item.ModulePath, "go.mod")); err != nil {
-			return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, err)
-		}
-	case "shell_script":
-		if err := requireFile(filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.ScriptPath))); err != nil {
-			return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, err)
-		}
-		if err := requireFile(filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.InstallScript))); err != nil {
 			return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, err)
 		}
 	default:
@@ -679,12 +665,6 @@ func (item InstallableCLI) FreshnessSpec() (cliutil.FreshnessSpec, error) {
 		switch item.CLI.Adapter.Kind {
 		case "go_module":
 			return cliutil.CanonicalScenarioGoModuleFreshnessSpec(item.ScenarioPath, item.ModulePath, item.BinaryName, customInputs), nil
-		case "shell_script":
-			manifestRel, err := filepath.Rel(item.ScenarioPath, item.ServicePath)
-			if err != nil {
-				return cliutil.FreshnessSpec{}, err
-			}
-			return cliutil.CanonicalShellScriptFreshnessSpec(item.ScenarioPath, item.CLI.Adapter.ScriptPath, item.CLI.Adapter.InstallScript, manifestRel, item.BinaryName, customInputs), nil
 		default:
 			return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
 		}
@@ -692,12 +672,6 @@ func (item InstallableCLI) FreshnessSpec() (cliutil.FreshnessSpec, error) {
 		switch item.CLI.Adapter.Kind {
 		case "go_module":
 			return cliutil.CanonicalResourceGoModuleFreshnessSpec(item.ResourcePath, item.ModulePath, item.BinaryName, customInputs), nil
-		case "shell_script":
-			manifestRel, err := filepath.Rel(item.ResourcePath, item.ServicePath)
-			if err != nil {
-				return cliutil.FreshnessSpec{}, err
-			}
-			return cliutil.CanonicalShellScriptFreshnessSpec(item.ResourcePath, item.CLI.Adapter.ScriptPath, item.CLI.Adapter.InstallScript, manifestRel, item.BinaryName, customInputs), nil
 		default:
 			return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
 		}
@@ -756,14 +730,6 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 		switch item.CLI.Adapter.Kind {
 		case "go_module":
 			return runGoModuleInstaller(ctx, item, installDir)
-		case "shell_script":
-			installScript := filepath.Join(item.ScenarioPath, filepath.FromSlash(item.CLI.Adapter.InstallScript))
-			cmd := exec.CommandContext(ctx, "bash", installScript)
-			cmd.Dir = item.ScenarioPath
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Stdin = os.Stdin
-			return cmd.Run()
 		default:
 			return fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
 		}
@@ -774,14 +740,6 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 		switch item.CLI.Adapter.Kind {
 		case "go_module":
 			return runGoModuleInstaller(ctx, item, installDir)
-		case "shell_script":
-			installScript := filepath.Join(item.ResourcePath, filepath.FromSlash(item.CLI.Adapter.InstallScript))
-			cmd := exec.CommandContext(ctx, "bash", installScript)
-			cmd.Dir = item.ResourcePath
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Stdin = os.Stdin
-			return cmd.Run()
 		default:
 			return fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
 		}
@@ -802,19 +760,7 @@ func runGoModuleInstaller(ctx context.Context, item InstallableCLI, installDir s
 		return err
 	}
 
-	args := []string{
-		"run", "./cmd/cli-installer",
-		"--module", item.ModulePath,
-		"--manifest", item.ManifestPath,
-		"--name", item.BinaryName,
-		"--install-dir", installDir,
-	}
-	if strings.TrimSpace(spec.ContextRoot) != "" && filepath.Clean(spec.ContextRoot) != filepath.Clean(item.ModulePath) {
-		args = append(args, "--context-root", spec.ContextRoot)
-	}
-	for _, input := range spec.Inputs {
-		args = append(args, "--freshness-input", input)
-	}
+	args := cliutil.GoModuleInstallerArgs(item.ModulePath, item.ManifestPath, item.BinaryName, installDir, spec)
 
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = installerDir

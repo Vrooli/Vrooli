@@ -238,6 +238,8 @@ func TestReadServiceAcceptsGoModuleCLIContract(t *testing.T) {
 				Kind:      "go_module",
 				ModuleDir: "cli",
 			},
+			SourceBuild: &CLISourceBuildConfig{Kind: "go_module"},
+			Freshness:   &CLIFreshnessCheck{Inputs: []string{"cli/**", ".vrooli/service.json"}},
 		},
 	})
 
@@ -272,7 +274,7 @@ func TestReadServiceRejectsEnabledCLIWithoutAdapterContract(t *testing.T) {
 			Enabled: true,
 			Command: "alpha",
 			Adapter: CLIAdapterConfig{
-				Kind: "shell_script",
+				Kind: "script",
 			},
 		},
 	})
@@ -281,8 +283,34 @@ func TestReadServiceRejectsEnabledCLIWithoutAdapterContract(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected cli validation error")
 	}
-	if !strings.Contains(err.Error(), "adapter.script_path") {
+	if !strings.Contains(err.Error(), "unsupported cli.adapter.kind") {
 		t.Fatalf("unexpected error = %v", err)
+	}
+}
+
+func TestCLIConfigRequiresCompleteGoModuleContract(t *testing.T) {
+	base := CLIConfig{
+		Enabled:     true,
+		Command:     "alpha",
+		Adapter:     CLIAdapterConfig{Kind: "go_module", ModuleDir: "cli"},
+		SourceBuild: &CLISourceBuildConfig{Kind: "go_module"},
+		Invoke:      CLIInvokeConfig{Kind: "installed_command", Command: "alpha"},
+		Freshness:   &CLIFreshnessCheck{Inputs: []string{"cli/**", ".vrooli/service.json"}},
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("Validate() complete contract: %v", err)
+	}
+
+	missingSourceBuild := base
+	missingSourceBuild.SourceBuild = nil
+	if err := missingSourceBuild.Validate(); err == nil || !strings.Contains(err.Error(), "source_build") {
+		t.Fatalf("Validate() missing source_build error = %v", err)
+	}
+
+	mismatchedInvoke := base
+	mismatchedInvoke.Invoke.Command = "beta"
+	if err := mismatchedInvoke.Validate(); err == nil || !strings.Contains(err.Error(), "must match") {
+		t.Fatalf("Validate() mismatched invoke error = %v", err)
 	}
 }
 

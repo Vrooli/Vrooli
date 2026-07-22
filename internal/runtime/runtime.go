@@ -53,6 +53,29 @@ func EnsureTool(name string, opts EnsureOptions) (ItemStatus, error) {
 	return annotateBlockingReason(updated), nil
 }
 
+// EnsureSafeguard applies one named host safeguard without running the wider
+// project setup lifecycle. It is the narrow, auditable path for high-risk host
+// state (kernel drivers, firewall rules, and similar) when an operator needs
+// to repair one capability rather than re-run every setup requirement.
+func EnsureSafeguard(name string, opts EnsureOptions) (ItemStatus, error) {
+	opts.Environment = hostreq.NormalizeEnvironment(opts.Environment)
+	host := Current()
+	requirement := hostreq.ResolvedRequirement{
+		Name:     strings.TrimSpace(name),
+		Kind:     hostreq.KindSafeguard,
+		Required: true,
+	}
+	status := inspectRequirement(host, requirement)
+	if requirementSatisfied(status) {
+		return status, nil
+	}
+	updated, err := applyRequirement(host, status, opts)
+	if err != nil {
+		return status, err
+	}
+	return annotateBlockingReason(updated), nil
+}
+
 func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report, error) {
 	report, err := inspectResolution(Current(), opts.Environment, resolution)
 	if err != nil {

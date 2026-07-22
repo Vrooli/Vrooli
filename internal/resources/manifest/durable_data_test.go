@@ -3,20 +3,14 @@ package manifest
 import (
 	"strings"
 	"testing"
-
-	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 // baseExternalCLI returns a minimal valid external-cli manifest the durable_data
 // tests layer a block onto, so each case isolates durable_data behavior.
 func baseExternalCLI() ResourceManifest {
 	return ResourceManifest{
-		Name: "claude-code",
-		CLI: &scenario.CLIConfig{
-			Enabled: true,
-			Command: "resource-claude-code",
-			Adapter: scenario.CLIAdapterConfig{Kind: "go_module", ModuleDir: "cli"},
-		},
+		Name:            "claude-code",
+		CLI:             validCLI("resource-claude-code"),
 		Driver:          "external-cli",
 		Binary:          "claude",
 		PortabilityTier: "partial",

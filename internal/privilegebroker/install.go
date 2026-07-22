@@ -118,8 +118,9 @@ PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
 # UFW creates this lock even for read-only status requests, and writes its
-# managed rules below /etc/ufw. These are the only UFW paths made writable.
-ReadWritePaths=/run/vrooli /run/ufw.lock /etc/ufw /var/log/vrooli
+# managed rules below /etc/ufw. The lock does not exist until UFW is used, so
+# its path must be optional or systemd refuses to start the broker.
+ReadWritePaths=/run/vrooli -/run/ufw.lock /etc/ufw /var/log/vrooli
 
 [Install]
 WantedBy=multi-user.target

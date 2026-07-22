@@ -9,6 +9,17 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
+func validCLI(command string) *scenario.CLIConfig {
+	return &scenario.CLIConfig{
+		Enabled:     true,
+		Command:     command,
+		Adapter:     scenario.CLIAdapterConfig{Kind: "go_module", ModuleDir: "cli"},
+		SourceBuild: &scenario.CLISourceBuildConfig{Kind: "go_module"},
+		Invoke:      scenario.CLIInvokeConfig{Kind: "installed_command", Command: command},
+		Freshness:   &scenario.CLIFreshnessCheck{Inputs: []string{"cli/**", "resource.json"}},
+	}
+}
+
 func TestValidateRejectsMissingRequiredFields(t *testing.T) {
 	err := Validate(ResourceManifest{})
 	if err == nil || !strings.Contains(err.Error(), "name is required") {
@@ -18,15 +29,8 @@ func TestValidateRejectsMissingRequiredFields(t *testing.T) {
 
 func TestValidateRejectsInvalidDriver(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name: "redis",
-		CLI: &scenario.CLIConfig{
-			Enabled: true,
-			Command: "resource-redis",
-			Adapter: scenario.CLIAdapterConfig{
-				Kind:      "go_module",
-				ModuleDir: "cli",
-			},
-		},
+		Name:            "redis",
+		CLI:             validCLI("resource-redis"),
 		Driver:          "legacy-adapter",
 		PortabilityTier: "partial",
 	})
@@ -37,15 +41,8 @@ func TestValidateRejectsInvalidDriver(t *testing.T) {
 
 func TestValidateAcceptsExternalCLIManifest(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name: "redis",
-		CLI: &scenario.CLIConfig{
-			Enabled: true,
-			Command: "resource-redis",
-			Adapter: scenario.CLIAdapterConfig{
-				Kind:      "go_module",
-				ModuleDir: "cli",
-			},
-		},
+		Name:            "redis",
+		CLI:             validCLI("resource-redis"),
 		Driver:          "external-cli",
 		Binary:          "redis-server",
 		PortabilityTier: "full",
@@ -58,15 +55,8 @@ func TestValidateAcceptsExternalCLIManifest(t *testing.T) {
 
 func TestValidateAcceptsNativeCLIManifest(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name: "fixturecli",
-		CLI: &scenario.CLIConfig{
-			Enabled: true,
-			Command: "resource-fixturecli",
-			Adapter: scenario.CLIAdapterConfig{
-				Kind:      "go_module",
-				ModuleDir: "cli",
-			},
-		},
+		Name:            "fixturecli",
+		CLI:             validCLI("resource-fixturecli"),
 		Driver:          "native-cli",
 		Binary:          "resource-fixturecli",
 		PortabilityTier: "full",
@@ -80,11 +70,11 @@ func TestValidateAcceptsNativeCLIManifest(t *testing.T) {
 func TestValidateRejectsDeploymentModeOutsideArchetypeBaseline(t *testing.T) {
 	err := Validate(ResourceManifest{
 		Name:   "fixture",
-		CLI:    &scenario.CLIConfig{Enabled: true, Command: "resource-fixture", Adapter: scenario.CLIAdapterConfig{Kind: "go_module", ModuleDir: "cli"}},
+		CLI:    validCLI("resource-fixture"),
 		Driver: "external-cli", Binary: "fixture", PortabilityTier: "full",
 		Deployment: ResourceDeployment{Profiles: map[string]ResourceDeploymentProfile{
 			"desktop": {
-				Linux:   &ResourceDeploymentTarget{Support: "conditional", Mode: "bundled-service", Architectures: []string{"amd64"}, Evidence: []string{"test"}},
+				Linux:   &ResourceDeploymentTarget{Support: "conditional", Mode: "remote-service", Architectures: []string{"amd64"}, Evidence: []string{"test"}},
 				MacOS:   &ResourceDeploymentTarget{Support: "unsupported", Mode: "native-host-tool", Reason: "test"},
 				Windows: &ResourceDeploymentTarget{Support: "unsupported", Mode: "native-host-tool", Reason: "test"},
 			},
@@ -97,15 +87,8 @@ func TestValidateRejectsDeploymentModeOutsideArchetypeBaseline(t *testing.T) {
 
 func TestValidateAppliesDefaultCLIArtifacts(t *testing.T) {
 	manifest := ResourceManifest{
-		Name: "redis",
-		CLI: &scenario.CLIConfig{
-			Enabled: true,
-			Command: "resource-redis",
-			Adapter: scenario.CLIAdapterConfig{
-				Kind:      "go_module",
-				ModuleDir: "cli",
-			},
-		},
+		Name:            "redis",
+		CLI:             validCLI("resource-redis"),
 		Driver:          "external-cli",
 		Binary:          "redis-server",
 		PortabilityTier: "full",
@@ -131,15 +114,8 @@ func TestSupportForCurrentPlatformUsesMappedOSNames(t *testing.T) {
 
 func TestValidateAcceptsLegacyRepoDataMarker(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name: "legacy-proxy",
-		CLI: &scenario.CLIConfig{
-			Enabled: true,
-			Command: "resource-legacy-proxy",
-			Adapter: scenario.CLIAdapterConfig{
-				Kind:      "go_module",
-				ModuleDir: "cli",
-			},
-		},
+		Name:                  "legacy-proxy",
+		CLI:                   validCLI("resource-legacy-proxy"),
 		Driver:                "docker-service",
 		PortabilityTier:       "full",
 		LegacyRepoDataAllowed: true,
@@ -217,12 +193,8 @@ func TestValidateAcceptsExplicitDisabledCLIBlock(t *testing.T) {
 
 func TestValidateMemoryLimit(t *testing.T) {
 	base := ResourceManifest{
-		Name: "ollama",
-		CLI: &scenario.CLIConfig{
-			Enabled: true,
-			Command: "resource-ollama",
-			Adapter: scenario.CLIAdapterConfig{Kind: "go_module", ModuleDir: "cli"},
-		},
+		Name:            "ollama",
+		CLI:             validCLI("resource-ollama"),
 		Driver:          "docker-service",
 		PortabilityTier: "full",
 		Runtime:         ResourceRuntime{Image: "ollama/ollama:latest"},
@@ -245,22 +217,20 @@ func TestValidateMemoryLimit(t *testing.T) {
 	}
 }
 
-func TestValidateAcceptsShellScriptCLIBlock(t *testing.T) {
+func TestValidateRejectsUnsupportedCLIAdapter(t *testing.T) {
 	err := Validate(ResourceManifest{
 		Name: "fixture",
 		CLI: &scenario.CLIConfig{
 			Enabled: true,
 			Command: "resource-fixture",
 			Adapter: scenario.CLIAdapterConfig{
-				Kind:          "shell_script",
-				ScriptPath:    "cli/resource-fixture",
-				InstallScript: "cli/install.sh",
+				Kind: "script",
 			},
 		},
 		Driver:          "manual",
 		PortabilityTier: "full",
 	})
-	if err != nil {
-		t.Fatalf("Validate(): %v", err)
+	if err == nil {
+		t.Fatal("Validate() accepted unsupported CLI adapter")
 	}
 }

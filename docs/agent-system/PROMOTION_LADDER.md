@@ -33,7 +33,7 @@ flowchart LR
     P2 -.partial automation<br/>steady state.-> P2
 ```
 
-A skill that classifies fuzzy text (e.g., `marketing-signal-classifier`) will likely never reach step 3 — classification of nuanced human signals is an LLM job. That is fine; the ladder is not a glide path to retirement, it is a tool for recognizing which steps a given skill *can* take.
+A skill that classifies fuzzy text (e.g., `signal-classifier`) will likely never reach step 3 — classification of nuanced human signals is an LLM job. That is fine; the ladder is not a glide path to retirement, it is a tool for recognizing which steps a given skill *can* take.
 
 For the operator-approval gate at step 3 → step 4 (the only step where prose actually retires), see §"Action graduation gate" in `DECISIONS.md`.
 
@@ -121,5 +121,12 @@ Skills and analyses that audit other skills (`skill-validation`, `skill-improvem
 - `Keep` (retention criteria apply)
 - `Collapse to Action/CLI contract` (retirement-eligible)
 - `Delete` (no longer relevant)
+
+Record the classification in a table named **`Prose Retirement Map`** with this exact column shape (every auditing skill uses the same name and shape; do not invent variants):
+
+| Instruction / Gate | Decision (Keep/Collapse/Delete) | Rationale | Prerequisite contract | Risk |
+|---|---|---|---|---|
+
+`Prerequisite contract` names the CLI/tool/Action contract (or existing contract evidence) that a `Collapse`/`Delete` depends on; `Keep` rows cite the retention criterion that applies.
 
 This classification is the dogfooded application of the ladder.

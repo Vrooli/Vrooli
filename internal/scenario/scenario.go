@@ -76,9 +76,55 @@ type ServiceManifest struct {
 	Lifecycle      Lifecycle                 `json:"lifecycle,omitempty"`
 	Health         *HealthConfig             `json:"health,omitempty"`
 	Dependencies   Dependencies              `json:"dependencies,omitempty"`
+	TrustSigning   *TrustSigningConfig       `json:"trust_signing,omitempty"`
 	Environment    map[string]string         `json:"environment,omitempty"`
 	HostTools      []hostreqspec.Declaration `json:"hostTools,omitempty"`
 	HostSafeguards []hostreqspec.Declaration `json:"hostSafeguards,omitempty"`
+}
+
+// TrustSigningConfig is a declarative lifecycle contract for a scenario that
+// signs protected evidence. It identifies a provider and workload credential
+// file; it never embeds a secret or signing key.
+type TrustSigningConfig struct {
+	Provider                string   `json:"provider"`
+	Resource                string   `json:"resource"`
+	Address                 string   `json:"address,omitempty"`
+	KeyName                 string   `json:"key_name,omitempty"`
+	CredentialFile          string   `json:"credential_file,omitempty"`
+	OperatorCredentialFile  string   `json:"operator_credential_file,omitempty"`
+	OperatorSubjects        []string `json:"operator_subjects,omitempty"`
+	OperatorTLSCertFile     string   `json:"operator_tls_cert_file,omitempty"`
+	OperatorTLSKeyFile      string   `json:"operator_tls_key_file,omitempty"`
+	OperatorTLSClientCAFile string   `json:"operator_tls_client_ca_file,omitempty"`
+}
+
+func (config TrustSigningConfig) Validate(dependencies Dependencies) error {
+	switch strings.TrimSpace(config.Provider) {
+	case "development":
+		return nil
+	case "vault-transit":
+		if strings.TrimSpace(config.Resource) != "vault" {
+			return fmt.Errorf("trust_signing vault-transit provider requires resource=vault")
+		}
+		if _, ok := dependencies.Resources["vault"]; !ok {
+			return fmt.Errorf("trust_signing vault-transit provider requires a declared vault resource dependency")
+		}
+		if !strings.HasPrefix(strings.TrimSpace(config.Address), "https://") {
+			return fmt.Errorf("trust_signing vault-transit address must use https")
+		}
+		if strings.TrimSpace(config.KeyName) == "" || strings.TrimSpace(config.CredentialFile) == "" {
+			return fmt.Errorf("trust_signing vault-transit requires key_name and credential_file")
+		}
+		if config.OperatorCredentialFile != "" && len(config.OperatorSubjects) == 0 {
+			return fmt.Errorf("trust_signing operator_credential_file requires operator_subjects")
+		}
+		if config.OperatorCredentialFile != "" && (strings.TrimSpace(config.OperatorTLSCertFile) == "" || strings.TrimSpace(config.OperatorTLSKeyFile) == "" || strings.TrimSpace(config.OperatorTLSClientCAFile) == "") {
+			return fmt.Errorf("trust_signing operator rotation requires operator_tls_cert_file, operator_tls_key_file, and operator_tls_client_ca_file")
+		}
+		return nil
+	default:
+		return fmt.Errorf("trust_signing provider must be development or vault-transit")
+	}
 }
 
 type GenerationMetadata struct {
@@ -133,8 +179,7 @@ type CLIDistributionConfig struct {
 }
 
 type CLISourceBuildConfig struct {
-	Kind            string   `json:"kind,omitempty"`
-	FreshnessInputs []string `json:"freshness_inputs,omitempty"`
+	Kind string `json:"kind,omitempty"`
 }
 
 type CLIArtifactsConfig struct {
@@ -147,10 +192,8 @@ type CLIArtifactConfig struct {
 }
 
 type CLIAdapterConfig struct {
-	Kind          string `json:"kind,omitempty"`
-	ModuleDir     string `json:"module_dir,omitempty"`
-	ScriptPath    string `json:"script_path,omitempty"`
-	InstallScript string `json:"install_script,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	ModuleDir string `json:"module_dir,omitempty"`
 }
 
 type CLIInvokeConfig struct {
@@ -435,6 +478,11 @@ func ReadService(path string) (ServiceManifest, error) {
 	if err := manifest.Dependencies.Validate(); err != nil {
 		return ServiceManifest{}, fmt.Errorf("validate dependencies in %s: %w", path, err)
 	}
+	if manifest.TrustSigning != nil {
+		if err := manifest.TrustSigning.Validate(manifest.Dependencies); err != nil {
+			return ServiceManifest{}, fmt.Errorf("validate trust_signing in %s: %w", path, err)
+		}
+	}
 	// Note: port policy validation (ephemeral-range overlap, canonical-band
 	// membership) is intentionally NOT run here. It is enforced by the
 	// lifecycle on Start (see ValidateManifestPorts). Stop, Status, List,
@@ -472,8 +520,6 @@ func (cfg *CLIConfig) applyDefaults() {
 	cfg.Command = strings.TrimSpace(cfg.Command)
 	cfg.Adapter.Kind = strings.TrimSpace(cfg.Adapter.Kind)
 	cfg.Adapter.ModuleDir = strings.TrimSpace(cfg.Adapter.ModuleDir)
-	cfg.Adapter.ScriptPath = strings.TrimSpace(cfg.Adapter.ScriptPath)
-	cfg.Adapter.InstallScript = strings.TrimSpace(cfg.Adapter.InstallScript)
 	cfg.Artifacts.Manifest.Location = strings.TrimSpace(cfg.Artifacts.Manifest.Location)
 	cfg.Artifacts.BuildMetadata.Location = strings.TrimSpace(cfg.Artifacts.BuildMetadata.Location)
 	if cfg.Distribution != nil {
@@ -515,20 +561,19 @@ func (cfg CLIConfig) Validate() error {
 		if cfg.Adapter.ModuleDir == "" {
 			return errors.New("adapter.module_dir is required for cli.adapter.kind=go_module")
 		}
-	case "shell_script":
-		if cfg.Adapter.ScriptPath == "" {
-			return errors.New("adapter.script_path is required for cli.adapter.kind=shell_script")
-		}
-		if cfg.Adapter.InstallScript == "" {
-			return errors.New("adapter.install_script is required for cli.adapter.kind=shell_script")
-		}
 	default:
 		return fmt.Errorf("unsupported cli.adapter.kind %q", cfg.Adapter.Kind)
 	}
 	switch cfg.Invoke.Kind {
-	case "", "installed_command":
+	case "installed_command":
 	default:
 		return fmt.Errorf("unsupported cli.invoke.kind %q", cfg.Invoke.Kind)
+	}
+	if strings.TrimSpace(cfg.Invoke.Command) == "" {
+		return errors.New("cli.invoke.command is required when cli.enabled=true")
+	}
+	if cfg.Invoke.Command != cfg.Command {
+		return errors.New("cli.invoke.command must match cli.command")
 	}
 	switch cfg.Artifacts.Manifest.Location {
 	case "", CLIArtifactLocationSibling:
@@ -551,21 +596,11 @@ func (cfg CLIConfig) Validate() error {
 			return errors.New("distribution.artifact_name must contain ${os} and ${arch}")
 		}
 	}
-	if cfg.SourceBuild != nil {
-		if cfg.SourceBuild.Kind != "go_module" {
-			return fmt.Errorf("unsupported cli.source_build.kind %q", cfg.SourceBuild.Kind)
-		}
-		if cfg.Adapter.Kind != "go_module" {
-			return errors.New("cli.source_build.kind=go_module requires cli.adapter.kind=go_module")
-		}
-		if len(cfg.SourceBuild.FreshnessInputs) == 0 {
-			return errors.New("cli.source_build.freshness_inputs is required")
-		}
-		for i, input := range cfg.SourceBuild.FreshnessInputs {
-			if strings.TrimSpace(input) == "" {
-				return fmt.Errorf("cli.source_build.freshness_inputs[%d] is required", i)
-			}
-		}
+	if cfg.SourceBuild == nil || cfg.SourceBuild.Kind != "go_module" {
+		return errors.New("cli.source_build.kind=go_module is required when cli.enabled=true")
+	}
+	if cfg.Freshness == nil || len(cfg.Freshness.Inputs) == 0 {
+		return errors.New("cli.freshness.inputs is required when cli.enabled=true")
 	}
 	return nil
 }

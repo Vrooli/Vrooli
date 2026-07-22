@@ -20,9 +20,6 @@ Transform any Vrooli scenario into a native Android application with full device
 ### Installation
 
 ```bash
-# Install the CLI
-./cli/install.sh
-
 # Verify installation
 scenario-to-android --version
 ```

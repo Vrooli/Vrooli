@@ -19,7 +19,7 @@ func TestSystemdUnitRunsOnlyInternalBrokerWithExplicitCallerIdentity(t *testing.
 		"NoNewPrivileges=true",
 		"ProtectSystem=strict",
 		"LogsDirectory=vrooli",
-		"ReadWritePaths=/run/vrooli /run/ufw.lock /etc/ufw /var/log/vrooli",
+		"ReadWritePaths=/run/vrooli -/run/ufw.lock /etc/ufw /var/log/vrooli",
 	} {
 		if !strings.Contains(unit, want) {
 			t.Fatalf("unit missing %q:\n%s", want, unit)

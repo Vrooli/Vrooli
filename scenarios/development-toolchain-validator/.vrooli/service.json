@@ -208,7 +208,12 @@
             "reconcile": true,
             "profileMode": "update_if_unmodified",
             "sources": [
-              ".vrooli/agent-manager/default.json"
+              ".vrooli/agent-manager/default.json",
+    ".vrooli/agent-manager/divergence-probe.json",
+    ".vrooli/agent-manager/skill-experiment-calibration-evaluator.json",
+    ".vrooli/agent-manager/skill-experiment-calibration-treatment.json",
+    ".vrooli/agent-manager/skill-experiment-calibration.json",
+    ".vrooli/agent-manager/skill-experiment-audit.json"
             ]
           }
         }

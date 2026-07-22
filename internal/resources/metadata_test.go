@@ -586,19 +586,18 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 			},
 		},
 	})
-	writeEnvManifestFixture(t, root, "judge0", manifestpkg.ResourceManifest{
-		Name:            "judge0",
+	writeEnvManifestFixture(t, root, "fixtureexec", manifestpkg.ResourceManifest{
+		Name:            "fixtureexec",
 		Driver:          "compose-service",
 		ComposeFile:     "compose.yaml",
 		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 2358, Host: 2358}},
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 9999, Host: 9999}},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
-			Static:         map[string]string{"JUDGE0_HOST": "localhost", "JUDGE0_API_PREFIX": "/api/v1"},
-			FromPorts:      map[string]string{"JUDGE0_PORT": "http"},
-			FromRuntimeEnv: []string{"JUDGE0_API_KEY"},
+			Static:         map[string]string{"FIXTUREEXEC_HOST": "localhost"},
+			FromPorts:      map[string]string{"FIXTUREEXEC_PORT": "http"},
+			FromRuntimeEnv: []string{"FIXTUREEXEC_API_KEY"},
 			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
-				"JUDGE0_BASE_URL": {Template: "http://${JUDGE0_HOST}:${JUDGE0_PORT}"},
-				"JUDGE0_URL":      {Template: "${JUDGE0_BASE_URL}"},
+				"FIXTUREEXEC_URL": {Template: "http://${FIXTUREEXEC_HOST}:${FIXTUREEXEC_PORT}"},
 			},
 		},
 	})
@@ -646,7 +645,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	if err := store.Save(map[string]string{
 		"OPENROUTER_API_KEY":   "sk-or-test",
 		"HOME_ASSISTANT_TOKEN": "ha-token",
-		"JUDGE0_API_KEY":       "judge0-token",
+		"FIXTUREEXEC_API_KEY":  "fixtureexec-token",
 	}); err != nil {
 		t.Fatalf("Save encrypted secrets: %v", err)
 	}
@@ -697,15 +696,15 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		t.Fatalf("KOKORO_BASE_URL = %q", got)
 	}
 
-	judge0Env, err := LoadResourceEnvironment(root, home, "judge0")
+	fixtureExecEnv, err := LoadResourceEnvironment(root, home, "fixtureexec")
 	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(judge0): %v", err)
+		t.Fatalf("LoadResourceEnvironment(fixtureexec): %v", err)
 	}
-	if got := judge0Env["JUDGE0_URL"]; got != "http://localhost:2358" {
-		t.Fatalf("JUDGE0_URL = %q", got)
+	if got := fixtureExecEnv["FIXTUREEXEC_URL"]; got != "http://localhost:9999" {
+		t.Fatalf("FIXTUREEXEC_URL = %q", got)
 	}
-	if got := judge0Env["JUDGE0_API_KEY"]; got != "judge0-token" {
-		t.Fatalf("JUDGE0_API_KEY = %q", got)
+	if got := fixtureExecEnv["FIXTUREEXEC_API_KEY"]; got != "fixtureexec-token" {
+		t.Fatalf("FIXTUREEXEC_API_KEY = %q", got)
 	}
 
 	claudeEnv, err := LoadResourceEnvironment(root, home, "claude-code")
@@ -840,14 +839,6 @@ func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
 	}
 	if got := kokoroEnv["KOKORO_URL"]; got != "http://localhost:8880" {
 		t.Fatalf("KOKORO_URL = %q", got)
-	}
-
-	judge0Env, err := LoadResourceEnvironment(root, home, "judge0")
-	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(judge0): %v", err)
-	}
-	if got := judge0Env["JUDGE0_BASE_URL"]; got != "http://localhost:2358" {
-		t.Fatalf("JUDGE0_BASE_URL = %q", got)
 	}
 
 	claudeEnv, err := LoadResourceEnvironment(root, home, "claude-code")

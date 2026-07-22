@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "surfaces",
     "description": "API, CLI, and UI expose the same registration/destination/plan/run/restore model over one Connect-RPC contract.",
+    "last_validated_at": "2026-07-21T17:56:54-04:00",
+    "module": "surfaces",
     "prd_ref": "OT-P0-011",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,18 +11,22 @@
     {
       "id": "DBM-API-001",
       "title": "Connect-RPC API contract",
-      "status": "implemented",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "category": "api",
       "criticality": "P0",
       "description": "All operations (register/deregister targets, manage destinations/plans, trigger runs, restore/verify, query catalog/health) are exposed via Connect-RPC defined in packages/proto/schemas/data-backup-manager/v1.",
-      "tags": ["api", "connect-rpc", "proto"],
+      "tags": [
+        "api",
+        "connect-rpc",
+        "proto"
+      ],
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
           "ref": "api/internal/modules/registry_test.go::TestProtoConnectParity",
+          "phase": "unit",
+          "status": "failing",
           "notes": "Assert the mounted Connect-RPC endpoint registry stays aligned with the generated proto service procedures."
         }
       ]
@@ -29,18 +34,20 @@
     {
       "id": "DBM-CLI-001",
       "title": "CLI surface for operators and self-registration",
-      "status": "implemented",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "category": "cli",
       "criticality": "P0",
       "description": "The CLI wraps the API so scenarios can self-register targets at setup/lifecycle (e.g. data-backup-manager register ...) and operators can manage destinations/plans, trigger runs, and restore.",
-      "tags": ["cli"],
+      "tags": [
+        "cli"
+      ],
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
           "ref": "cli/domains/domains_test.go::TestSubcommandGroups",
+          "phase": "unit",
+          "status": "failing",
           "notes": "Assert the CLI exposes the target, destination, discovery, coverage, plan, run, and restore command groups."
         }
       ]
@@ -48,25 +55,31 @@
     {
       "id": "DBM-COV-001",
       "title": "First-backup coverage activation",
-      "status": "implemented",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "category": "api",
       "criticality": "P0",
       "description": "CoverageService reports first-backup readiness (registered vs recommended vs sensitive targets, plus planned/backed-up/verified posture) and bulk-registers non-sensitive discovered durable targets; sensitive credential/token targets require explicit opt-in. Plan create/update is guarded against incomplete non-sensitive default coverage unless allow_incomplete_coverage is set. Surfaced across API, CLI (coverage group), and UI (coverage banner).",
-      "tags": ["api", "cli", "ui", "coverage", "connect-rpc"],
+      "tags": [
+        "api",
+        "cli",
+        "ui",
+        "coverage",
+        "connect-rpc"
+      ],
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
           "ref": "api/internal/coverage/service_test.go",
+          "phase": "unit",
+          "status": "failing",
           "notes": "Coverage report classification + dry-run/idempotency/partial-failure of bulk accept; plan guard tested in api/internal/plans/coverage_guard_test.go."
         },
         {
           "type": "test",
+          "ref": "ui/src/features/backup-coverage/CoverageBanner.test.tsx",
           "phase": "ui",
           "status": "implemented",
-          "ref": "ui/src/features/backup-coverage/CoverageBanner.test.tsx",
           "notes": "Register-recommended action, sensitive opt-in, and the plans incomplete-coverage proceed path (ui/src/features/plans/PlanFormDialog.test.tsx)."
         }
       ]
@@ -74,18 +87,20 @@
     {
       "id": "DBM-UI-001",
       "title": "UI for destinations, plans, runs, storage, restore",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "ui",
       "criticality": "P0",
       "description": "The UI presents destinations (with storage usage vs cap), plans, run history with status, and a guided restore/verify/audit flow, using platform design tokens and WCAG AA patterns. The guided restore flow offers one-click non-destructive verify, a confirmation-gated restore, lazy snapshot browsing, and a generic snapshot audit that proves a backup's filesystem/database shape matches live.",
-      "tags": ["ui"],
+      "tags": [
+        "ui"
+      ],
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/pages/RestoresPage.test.tsx",
           "phase": "ui",
           "status": "implemented",
-          "ref": "ui/src/pages/RestoresPage.test.tsx",
           "notes": "Guided restore flow: one-click non-destructive verify, confirmation-gated restore, and the generic snapshot audit action rendering its verdict. Destination usage-vs-cap (DestinationsPage.test.tsx), run history/status (RunsPage.test.tsx), plans (PlansPage.test.tsx), overview posture (OverviewPage.test.tsx + a11y), and the audit report (features/audits/AuditReport.test.tsx) round out parity."
         }
       ]

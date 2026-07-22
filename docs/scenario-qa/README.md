@@ -87,7 +87,7 @@ Enforced by the canon coherence test at `scenarios/prompt-manager/test/agent_sys
 
 ## Cross-references
 
-- `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` — the 9-layer model the audit skill uses to evaluate scenario-qa members. The `skillless canon` smell motivated the audit-techniques registry's seven paired PoR docs.
+- `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` — the 9-layer model the audit skill uses to evaluate scenario-qa members. The `skillless canon` smell motivated the `methods/audit/` registry's seven paired PoR docs.
 - `docs/agent-system/INTAKE_PIPELINE.md` — the inbox-router-drain pattern used by the bug-investigator.
 - `docs/agent-system/TOPICS.md` — registry of every active topic prefix; scenario-qa entries live there.
 - `docs/agent-system/TOPICS_SCHEMA.md` — schema reference for `topics.json`; documents the `source_team: "*"` (universal-source) semantics that bug-inbox uses.
@@ -101,6 +101,6 @@ Flagged here so future operator-curated decisions can promote them when the subs
 - **Quality principles.** A `PRINCIPLES.md` codifying the team's quality philosophy (behavior-oriented evidence, root-cause-over-symptom, contrarian-by-default). Workshop-pending; a few iterations of contrarian challenge-notes will surface the right principles.
 - **Scenario-classification heuristics.** A `SCENARIO_CLASSES.md` declaring how scenarios are bucketed for QA priority (revenue-critical, capability-uplift, internal-tool, archived). Drives queue policy for both readiness reviews and quality audits.
 - **`topic[future]:qa-inbox/*` and `topic[future]:audit-inbox/*` operator-fed inboxes.** Today there is no producer for these prefixes; adding them would create `orphan_input`. If `vision-walk-prep` or another future producer adds them as output, the `quality-auditor` member gains an intake to drain.
-- **Full readiness-checks registry.** Stub README only today; entries graduate once GCT readiness dimensions stabilize.
+- **Full readiness registry (`methods/readiness/`).** Stub README only today; entries graduate once GCT readiness dimensions stabilize.
 - **Future investigation techniques.** `scientific-debugging` is the only registered technique at landing time. Candidates surfaced by the bug-investigator's audit log: bisect-debugging, minimal-reproduction, differential-trace, comparative-environments, 5-whys, fishbone analysis. Each enters via `meta-self-improvement` decision.
 - **Future audit techniques.** Beyond the seven existing skills: performance-audit, security-audit, deprecation-audit, accessibility-audit, observability-audit. Same graduation flow.

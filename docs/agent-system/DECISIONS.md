@@ -218,7 +218,7 @@ A team may override the 14-heartbeat default in its `operatingContract.governanc
 
 When team A produces knowledge that team B consumes (e.g., marketing's `monetization-benchmark-adjacent-record/*` entries that monetization's market-validator drains):
 
-- **Producer owns the schema.** The shape, fields, and prefix taxonomy of the entry are defined where the producer writes them. If multiple producers write to the same prefix, they reference one shared schema doc (typically a section in the producer's POR hub).
+- **Producer owns the schema.** The load-bearing rule and its worked example live in `INTAKE_PIPELINE.md` § Cross-team schema ownership; when multiple producers write one prefix, they reference one shared schema doc (typically a section in the producer's POR hub).
 - **Consumer owns the interpretation.** What the consumer does with each entry — what threshold counts as evidence, what triggers a decision, what gets dropped — is the consumer's call. The consumer does not edit the producer's schema; it adapts.
 - **The cross-team edge is registered structurally.** The producer declares `output[].destination_team` in `topics.json`; the consumer declares `intake[].source_team`. The `prompt-manager graph topics` validation catches orphaned edges.
 

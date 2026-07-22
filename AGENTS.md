@@ -55,6 +55,7 @@ What is the user doing?
 ├─ Creating an implementation plan        → prompt-manager skill read implementation-plan-authoring
 ├─ Building/repurposing a scenario        → prompt-manager skill read ecosystem-fit
 ├─ Deploying/publishing a scenario        → prompt-manager skill read deployment-coordinator
+├─ Authoring plans/requirements/PRDs/tests/reports → prompt-manager skill read writing-standards
 ├─ (add new entries as patterns emerge)
 └─ None of the above                      → proceed normally, no skill needed
 ```

@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimeenv "github.com/vrooli/vrooli/internal/resources/runtime/env"
@@ -220,23 +221,23 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 		_, err = fmt.Fprintf(stdout, "%s: %s\n", item.Name, status.Message)
 		return err
 	case "install":
-		if err := composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "pull"); err == nil {
+		if err := composeCommand(ctx, controller, manifest, io.Discard, stderr, "pull"); err == nil {
 			return nil
 		}
-		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "build")
+		return composeCommand(ctx, controller, manifest, io.Discard, stderr, "build")
 	case "start":
 		if running, err := composeFallbackContainerHealthy(ctx, controller, manifest); err != nil {
 			return err
 		} else if running {
 			return nil
 		}
-		if err := composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d"); err != nil {
+		if err := composeCommand(ctx, controller, manifest, io.Discard, stderr, "up", "-d"); err != nil {
 			return err
 		}
 		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, stderr)
 		return nil
 	case "restart":
-		if err := composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d", "--force-recreate"); err != nil {
+		if err := composeCommand(ctx, controller, manifest, io.Discard, stderr, "up", "-d", "--force-recreate"); err != nil {
 			return err
 		}
 		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, stderr)
@@ -568,6 +569,25 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 	if err != nil {
 		return err
 	}
+	// An externally managed healthy service wins over a stale stopped container.
+	// Check it before inspecting/removing that container: this keeps the resource
+	// lifecycle non-invasive when the service was started outside Docker's local
+	// state (and avoids requiring container-inspect support in that path).
+	if exists && !state.Running {
+		if external, err := probeExternalDockerService(ctx, controller, manifest); err == nil && external {
+			return nil
+		}
+		currentRuntime, runtimeErr := inspectDockerRuntime(ctx, controller, manifest)
+		if runtimeErr != nil {
+			return runtimeErr
+		}
+		if currentRuntime != dockerRuntimeForManifest(ctx, manifest) {
+			if err := dockerCommand(ctx, controller, io.Discard, io.Discard, "rm", dockerContainerName(manifest)); err != nil {
+				return fmt.Errorf("remove stopped resource container with stale runtime: %w", err)
+			}
+			exists = false
+		}
+	}
 	if !exists {
 		if external, err := probeExternalDockerService(ctx, controller, manifest); err == nil && external {
 			return nil
@@ -611,7 +631,7 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 		return err
 	}
 
-	args, err := buildDockerRunArgs(controller, manifest, name)
+	args, err := buildDockerRunArgs(ctx, controller, manifest, name)
 	if err != nil {
 		return err
 	}
@@ -681,10 +701,17 @@ func isAddressInUse(err error) bool {
 
 // buildDockerRunArgs assembles the `docker run` argument list for a docker-service
 // resource and performs the host-side filesystem preparation (mkdir/touch) for any
-// declared bind-mount volume sources. It is split out from startDockerService so
-// driver argument construction (including the --memory cap) can be unit-tested.
-func buildDockerRunArgs(controller *Controller, manifest ResourceManifest, name string) ([]string, error) {
+// declared bind-mount volume sources. A service must explicitly declare and pass a
+// GPU probe before it receives GPU devices; every other service pins runc so a
+// host-wide Docker default runtime cannot inject an unavailable NVIDIA hook.
+func buildDockerRunArgs(ctx context.Context, controller *Controller, manifest ResourceManifest, name string) ([]string, error) {
 	args := []string{"run", "-d", "--name", name}
+	useGPU := dockerUsesGPU(ctx, manifest)
+	if useGPU {
+		args = append(args, "--gpus", "all")
+	} else {
+		args = append(args, "--runtime", "runc")
+	}
 	for _, port := range manifest.Ports {
 		if port.Container <= 0 {
 			continue
@@ -697,6 +724,11 @@ func buildDockerRunArgs(controller *Controller, manifest ResourceManifest, name 
 	}
 	for key, value := range manifest.Runtime.Env {
 		args = append(args, "-e", key+"="+expandResourceRuntimeValue(controller, manifest, value))
+	}
+	if useGPU {
+		for key, value := range manifest.GPU.EnvOverrides {
+			args = append(args, "-e", key+"="+expandResourceRuntimeValue(controller, manifest, value))
+		}
 	}
 	if memLimit := strings.TrimSpace(manifest.Runtime.MemoryLimit); memLimit != "" {
 		args = append(args, "--memory", memLimit)
@@ -731,6 +763,25 @@ func buildDockerRunArgs(controller *Controller, manifest ResourceManifest, name 
 		args = append(args, expandResourceRuntimeValue(controller, manifest, part))
 	}
 	return args, nil
+}
+
+func dockerUsesGPU(ctx context.Context, manifest ResourceManifest) bool {
+	return manifest.GPU != nil && shouldUseGPU(ctx, manifest.GPU.Probe)
+}
+
+func dockerRuntimeForManifest(ctx context.Context, manifest ResourceManifest) string {
+	if dockerUsesGPU(ctx, manifest) {
+		return ""
+	}
+	return "runc"
+}
+
+func inspectDockerRuntime(ctx context.Context, controller *Controller, manifest ResourceManifest) (string, error) {
+	output, err := dockerOutput(ctx, controller, "container", "inspect", dockerContainerName(manifest), "--format", "{{.HostConfig.Runtime}}")
+	if err != nil {
+		return "", fmt.Errorf("inspect resource container runtime: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 
 func resolveDockerVolumeSource(controller *Controller, manifest ResourceManifest, resourceDir string, volume ResourceVolume) string {
@@ -1342,8 +1393,10 @@ func externalCLIBinary(manifest ResourceManifest) string {
 }
 
 func runInstallCommand(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
-	if sourceBuild := manifest.CLI.SourceBuild; sourceBuild != nil {
-		return runSourceBuild(ctx, controller, manifest, sourceBuild)
+	if manifest.CLI != nil && manifest.CLI.Enabled {
+		if sourceBuild := manifest.CLI.SourceBuild; sourceBuild != nil {
+			return runSourceBuild(ctx, controller, manifest, sourceBuild)
+		}
 	}
 	command := manifest.Install.Command
 	if len(command) == 0 {
@@ -1392,22 +1445,13 @@ func runSourceBuild(ctx context.Context, controller *Controller, manifest Resour
 	resourceRoot := filepath.Join(controller.Root, "resources", manifest.Name)
 	moduleDir := filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
 	manifestPath := filepath.Join(resourceRoot, "resource.json")
-	installer := filepath.Join(controller.Root, "packages", "cli-core", "cmd", "cli-installer")
+	installerDir := filepath.Join(controller.Root, "packages", "cli-core")
 	installDir := filepath.Join(controller.Home, ".vrooli", "bin")
-	args := []string{
-		"run", installer,
-		"--module", moduleDir,
-		"--name", manifest.CLI.Command,
-		"--manifest", manifestPath,
-		"--install-dir", installDir,
-		"--context-root", resourceRoot,
-	}
-	for _, input := range sourceBuild.FreshnessInputs {
-		args = append(args, "--freshness-input", input)
-	}
+	spec := cliutil.CanonicalResourceGoModuleFreshnessSpec(resourceRoot, moduleDir, manifest.CLI.Command, manifest.CLI.Freshness.Inputs)
+	args := cliutil.GoModuleInstallerArgs(moduleDir, manifestPath, manifest.CLI.Command, installDir, spec)
 	stderrTail := newTailBuffer(16 << 10)
 	cmd := exec.CommandContext(ctx, "go", args...)
-	cmd.Dir = controller.Root
+	cmd.Dir = installerDir
 	cmd.Env = resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = stderrTail

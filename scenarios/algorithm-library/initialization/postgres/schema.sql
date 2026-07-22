@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS validation_results (
     memory_used_bytes INTEGER,
     actual_output JSONB,
     error_message TEXT,
-    judge0_submission_id VARCHAR(100),  -- Reference to Judge0 submission
+    execution_id VARCHAR(100),  -- Reference to the local execution result
     validated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

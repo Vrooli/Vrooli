@@ -290,7 +290,7 @@ const App = () => {
     
     > Ground truth for algorithm implementations
     > Multi-language support
-    > Judge0 validated
+    > Locally validated
     > Performance benchmarked
     
     SELECT AN ALGORITHM TO BEGIN...`}

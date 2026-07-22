@@ -4,7 +4,7 @@
   "service": {
     "name": "algorithm-library",
     "displayName": "Algorithm Library",
-    "description": "Validated multi-language algorithm and data structure reference library with Judge0 execution",
+    "description": "Validated multi-language algorithm and data structure reference library with local multi-language execution",
     "version": "1.0.0",
     "tags": [
       "technical-reference",
@@ -12,7 +12,6 @@
       "data-structures",
       "validation",
       "benchmarking",
-      "judge0",
       "multi-language",
       "ground-truth",
       "postgres-storage",
@@ -85,14 +84,6 @@
           "critical": true,
           "timeout": 3000,
           "interval": 60000
-        },
-        {
-          "name": "judge0_availability",
-          "type": "http",
-          "target": "http://localhost:${RESOURCE_PORTS[judge0]}/about",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
         }
       ],
       "timeout": 5000,
@@ -147,11 +138,6 @@
           "name": "build-api",
           "run": "cd api && go mod download && go build -o algorithm-library-api .",
           "description": "Build Go API binary"
-        },
-        {
-          "name": "verify-judge0",
-          "run": "resource-judge0 status || echo 'Warning: Judge0 not running. Install with: resource-judge0 manage install'",
-          "description": "Check Judge0 availability"
         }
       ]
     },
@@ -222,12 +208,6 @@
           }
         ]
       },
-      "judge0": {
-        "type": "judge0",
-        "enabled": true,
-        "required": true,
-        "purpose": "Execute and validate algorithm implementations in sandboxed environment"
-      },
       "redis": {
         "type": "redis",
         "enabled": true,
@@ -262,6 +242,9 @@
         "cli/**",
         ".vrooli/service.json"
       ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   }
 }

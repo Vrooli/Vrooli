@@ -792,7 +792,7 @@ func TestRunManifestNativeExternalCLIInstallRejectsUnsupportedAction(t *testing.
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	installMarker := filepath.Join(root, "install.marker")
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+	manifest := testresource.ResourceManifest(
 		"fixture",
 		testresource.WithResourceDriver("external-cli"),
 		testresource.WithResourceTemplate("external-cli"),
@@ -810,7 +810,9 @@ func TestRunManifestNativeExternalCLIInstallRejectsUnsupportedAction(t *testing.
 				"windows": {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
 			},
 		}),
-	))
+	)
+	manifest.CLI.Enabled = false
+	testresource.WriteResourceManifest(t, root, "fixture", manifest)
 	writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\necho 'fixture-cli 1.0.0'\n")
 
 	controller := NewController(root, home)
@@ -830,7 +832,7 @@ func TestRunManifestNativeExternalCLIStartInstallsWhenUnavailable(t *testing.T) 
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	installMarker := filepath.Join(root, "install.marker")
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+	manifest := testresource.ResourceManifest(
 		"fixture",
 		testresource.WithResourceDriver("external-cli"),
 		testresource.WithResourceTemplate("external-cli"),
@@ -849,7 +851,9 @@ func TestRunManifestNativeExternalCLIStartInstallsWhenUnavailable(t *testing.T) 
 				"windows": {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
 			},
 		}),
-	))
+	)
+	manifest.CLI.Enabled = false
+	testresource.WriteResourceManifest(t, root, "fixture", manifest)
 
 	if err := NewController(root, home).Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
 		t.Fatalf("Run(start): %v", err)
@@ -986,14 +990,12 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 		"searxng":         "docker-service",
 		"home-assistant":  "compose-service",
 		"kokoro":          "compose-service",
-		"mail-in-a-box":   "compose-service",
 		"whisper":         "compose-service",
 		"claude-code":     "external-cli",
 		"codex":           "external-cli",
 		"k6":              "external-cli",
 		"opencode":        "external-cli",
 		"ollama":          "docker-service",
-		"judge0":          "compose-service",
 		"unstructured-io": "docker-service",
 		"gemini":          "cloud-api",
 		"openrouter":      "cloud-api",
@@ -1026,7 +1028,7 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "vault", "minio", "searxng", "home-assistant", "kokoro", "mail-in-a-box", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "judge0", "unstructured-io", "gemini", "openrouter", "twilio"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "vault", "minio", "searxng", "home-assistant", "kokoro", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "unstructured-io", "gemini", "openrouter", "twilio"} {
 		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
 		if err != nil {
 			t.Fatalf("loadResourceManifest(%s): %v", name, err)
@@ -1091,7 +1093,6 @@ func TestProjectMigratedResourcesUseNativeDrivers(t *testing.T) {
 
 	expected := map[string]string{
 		"kokoro":        "compose-service",
-		"mail-in-a-box": "compose-service",
 		"whisper":       "compose-service",
 	}
 

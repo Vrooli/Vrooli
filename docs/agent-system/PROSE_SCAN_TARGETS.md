@@ -69,7 +69,7 @@ Skill scanning is **conditional on skill kind** — the prose layer is held to a
 | Skill kind | Detection rule | Treatment |
 |---|---|---|
 | **Writer skill** — `skill.json::tags` contains `writer-skill` | `report-bug`, `report-friction`, `morning-vision-walk`; see § The writer-skill set | `SKILL.md` is **scanned**. Topic references must be a subset of the skill's `writes_to[]` declaration in `skill.json`. Mismatch → `prose_topic_leak`. |
-| **Classifier skill** — id matches `*-classifier` or `*-triage`, e.g. `marketing-signal-classifier`, `monetization-signal-classifier`, `market-validation-triage` | Subject to the stricter rule by the kind-conditional join | `SKILL.md` is **scanned with stricter rule** — *any* topic reference (declared or not) is forbidden, because classifier skills must be portable across teams. The legacy `non_portable_classifier` P1 rule has been retired; coverage is subsumed by `prose_topic_leak`. |
+| **Classifier skill** — id matches `*-classifier` or `*-triage`, e.g. `signal-classifier` | Subject to the stricter rule by the kind-conditional join | `SKILL.md` is **scanned with stricter rule** — *any* topic reference (declared or not) is forbidden, because classifier skills must be portable across teams. The legacy `non_portable_classifier` P1 rule has been retired; coverage is subsumed by `prose_topic_leak`. |
 | **Generic skill** (everything else; the bulk of the ~144-skill catalog) | Default | `SKILL.md` is **scanned** with the classifier-skill rule (any topic reference is a finding) — generic skills should not embed team-specific topic strings. |
 | **Pack-level docs** (e.g. `local/`, `drafts/` packs) | Default | Same as generic skills. |
 
@@ -264,7 +264,7 @@ Captured against the live store — this is the size the scanner is built for, n
 | Skills total | 144 |
 | Writer-skill `SKILL.md` (scanned with `writes_to[]` consultation) | 3 (`report-bug`, `report-friction`, `morning-vision-walk`) |
 | Classifier / generic skill `SKILL.md` (scanned with strict no-topic rule) | 141 |
-| `path:docs/<domain>/**/*.md` files | varies; `path:docs/agent-system/` alone has ~17 canon files |
+| `path:docs/<domain>/**/*.md` files | varies; `path:docs/agent-system/` alone holds the bulk of the canon corpus |
 
 The scanner's runtime is well under one second on this corpus; budget concerns belong to a later workshop, not this one.
 
@@ -275,7 +275,7 @@ The scanner's runtime is well under one second on this corpus; budget concerns b
 These patterns explicitly do **not** appear in the scanner. Each requires a decision to add.
 
 - **Decision-context references** (e.g., `dec-1234` ids in prose). Decisions have their own validators and a different referential surface.
-- **Skill-id references** (e.g., `marketing-signal-classifier` mentioned in member prose). Skill bindings are validated via member `topics.json::intake[].classifier_skill`; bare skill-id mentions in prose are descriptive and not gated.
+- **Skill-id references** (e.g., `signal-classifier` mentioned in member prose). Skill bindings are validated via member `topics.json::intake[].classifier_skill`; bare skill-id mentions in prose are descriptive and not gated.
 - **Cross-scenario CLI commands** (e.g., `swarm-manager backlog add`). Other scenarios have their own knowledge surfaces; prompt-manager's prose scanner does not police them.
 - **Prose claims about *who writes where*** beyond CLI invocations. Claims like "the researcher publishes audience scans" are caught indirectly when the natural rewrite is the CLI invocation; pure prose claims that never crystallize as a CLI command stay out of scope (no reliable detection regex).
 - **Topic strings inside JSON files** (`*.json`). These are P1's surface and validated structurally.

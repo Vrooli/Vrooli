@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
 func TestBuildDockerRunArgsAppendsMemoryLimit(t *testing.T) {
@@ -20,7 +22,7 @@ func TestBuildDockerRunArgsAppendsMemoryLimit(t *testing.T) {
 		},
 	}
 
-	args, err := buildDockerRunArgs(controller, manifest, "ollama")
+	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "ollama")
 	if err != nil {
 		t.Fatalf("buildDockerRunArgs: %v", err)
 	}
@@ -48,12 +50,29 @@ func TestBuildDockerRunArgsOmitsMemoryLimitWhenUnset(t *testing.T) {
 		},
 	}
 
-	args, err := buildDockerRunArgs(controller, manifest, "redis")
+	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "redis")
 	if err != nil {
 		t.Fatalf("buildDockerRunArgs: %v", err)
 	}
 	if slices.Contains(args, "--memory") {
 		t.Fatalf("expected no --memory flag, got %v", args)
+	}
+}
+
+func TestBuildDockerRunArgsPinsRuncForServiceWithoutGPUDeclaration(t *testing.T) {
+	controller := NewController(t.TempDir(), t.TempDir())
+	manifest := ResourceManifest{
+		Name:    "ollama",
+		Driver:  "docker-service",
+		Runtime: ResourceRuntime{Image: "ollama/ollama:0.30.10"},
+	}
+
+	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "ollama")
+	if err != nil {
+		t.Fatalf("buildDockerRunArgs: %v", err)
+	}
+	if !containsSubsequence(args, "--runtime", "runc") {
+		t.Fatalf("non-GPU docker service must pin runc instead of inheriting the daemon default runtime: %v", args)
 	}
 }
 
@@ -71,7 +90,7 @@ func TestBuildDockerRunArgsSupportsHostIPAndProtocol(t *testing.T) {
 		},
 	}
 
-	args, err := buildDockerRunArgs(controller, manifest, "adguard-home")
+	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "adguard-home")
 	if err != nil {
 		t.Fatalf("buildDockerRunArgs: %v", err)
 	}
@@ -81,6 +100,45 @@ func TestBuildDockerRunArgsSupportsHostIPAndProtocol(t *testing.T) {
 	}
 	if !containsSubsequence(args, "-p", "192.168.1.173:53:53/udp") {
 		t.Fatalf("expected udp bind mapping, got %v", args)
+	}
+}
+
+func TestBuildDockerRunArgsUsesGPUOnlyWhenDeclaredAndAvailable(t *testing.T) {
+	controller := NewController(t.TempDir(), t.TempDir())
+	manifest := ResourceManifest{
+		Name:   "ollama",
+		Driver: "docker-service",
+		GPU: &manifestpkg.ResourceGPU{
+			Probe:        "nvidia",
+			EnvOverrides: map[string]string{"NVIDIA_VISIBLE_DEVICES": "all"},
+		},
+		Runtime: ResourceRuntime{Image: "ollama/ollama:0.30.10"},
+	}
+	withStubGPUProbe(t, true)
+
+	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "ollama")
+	if err != nil {
+		t.Fatalf("buildDockerRunArgs: %v", err)
+	}
+	if !containsSubsequence(args, "--gpus", "all") {
+		t.Fatalf("GPU-declared service with a passing probe must receive GPU devices: %v", args)
+	}
+	if slices.Contains(args, "--runtime") {
+		t.Fatalf("GPU-declared service must not pin the CPU runtime: %v", args)
+	}
+	if !containsSubsequence(args, "-e", "NVIDIA_VISIBLE_DEVICES=all") {
+		t.Fatalf("GPU environment overrides are missing: %v", args)
+	}
+}
+
+func TestDockerRuntimeForManifestUsesRuncWhenGPUIsUnavailable(t *testing.T) {
+	manifest := ResourceManifest{
+		Name: "ollama",
+		GPU:  &manifestpkg.ResourceGPU{Probe: "nvidia", EnvOverrides: map[string]string{"NVIDIA_VISIBLE_DEVICES": "all"}},
+	}
+	withStubGPUProbe(t, false)
+	if got := dockerRuntimeForManifest(context.Background(), manifest); got != "runc" {
+		t.Fatalf("runtime = %q, want runc when the GPU probe fails", got)
 	}
 }
 

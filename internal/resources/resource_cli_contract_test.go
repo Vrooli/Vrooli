@@ -69,8 +69,8 @@ func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {
 			if manifest.CLI.SourceBuild == nil || manifest.CLI.SourceBuild.Kind != "go_module" {
 				t.Fatal("expected explicit cli.source_build.kind=go_module")
 			}
-			if len(manifest.CLI.SourceBuild.FreshnessInputs) == 0 {
-				t.Fatal("expected cli.source_build.freshness_inputs")
+			if manifest.CLI.Freshness == nil || len(manifest.CLI.Freshness.Inputs) == 0 {
+				t.Fatal("expected cli.freshness.inputs")
 			}
 			if manifest.CLI.Invoke.Kind != "installed_command" {
 				t.Fatalf("cli.invoke.kind = %q, want installed_command", manifest.CLI.Invoke.Kind)
@@ -92,30 +92,6 @@ func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {
 				t.Fatalf("cli.freshness.inputs = %v, want resource.json included", manifest.CLI.Freshness.Inputs)
 			}
 			requireDeclaredCLIAssets(t, root, name, manifest)
-			if _, err := os.Stat(filepath.Join(root, "resources", name, "cli.sh")); !os.IsNotExist(err) {
-				t.Fatalf("expected root-level cli.sh removal for %s, stat err=%v", name, err)
-			}
-			for _, legacy := range []string{"cli/install.sh", "cli/install.ps1"} {
-				if _, err := os.Stat(filepath.Join(root, "resources", name, filepath.FromSlash(legacy))); !os.IsNotExist(err) {
-					t.Fatalf("expected source-installer wrapper removal for %s: %s", name, legacy)
-				}
-			}
-			installPath := filepath.Join(root, "resources", name, "lib", "install.sh")
-			data, err := os.ReadFile(installPath)
-			if err == nil {
-				body := string(data)
-				for _, forbidden := range []string{
-					"install_resource_cli",
-					"uninstall_resource_cli",
-					".vrooli/resource-registry",
-				} {
-					if strings.Contains(body, forbidden) {
-						t.Fatalf("%s still references deprecated shell-era resource CLI plumbing %q", installPath, forbidden)
-					}
-				}
-			} else if !os.IsNotExist(err) {
-				t.Fatalf("read %s: %v", installPath, err)
-			}
 		})
 	}
 }
@@ -143,13 +119,8 @@ func TestAllResourcesDeclareDesktopDeploymentContract(t *testing.T) {
 			if manifest.CLI == nil || manifest.CLI.Distribution == nil || manifest.CLI.Distribution.Kind != "prebuilt_artifact" {
 				t.Fatal("every resource must declare a prebuilt CLI distribution")
 			}
-			if manifest.CLI.SourceBuild == nil || manifest.CLI.SourceBuild.Kind != "go_module" || len(manifest.CLI.SourceBuild.FreshnessInputs) == 0 {
+			if manifest.CLI.SourceBuild == nil || manifest.CLI.SourceBuild.Kind != "go_module" || manifest.CLI.Freshness == nil || len(manifest.CLI.Freshness.Inputs) == 0 {
 				t.Fatal("every resource must declare a Go-native cli.source_build contract")
-			}
-			for _, legacy := range []string{"cli/install.sh", "cli/install.ps1"} {
-				if _, err := os.Stat(filepath.Join(root, "resources", name, filepath.FromSlash(legacy))); !os.IsNotExist(err) {
-					t.Fatalf("expected source-installer wrapper removal for %s: %s", name, legacy)
-				}
 			}
 			for platform, target := range map[string]*manifestpkg.ResourceDeploymentTarget{
 				"linux": profile.Linux, "macos": profile.MacOS, "windows": profile.Windows,
@@ -189,9 +160,6 @@ func requireDeclaredCLIAssets(t *testing.T, root, name string, manifest manifest
 		if len(entries) == 0 {
 			t.Fatalf("expected Go sources under %s for go_module adapter", moduleDir)
 		}
-	case "shell_script":
-		requireFile(t, filepath.Join(base, filepath.FromSlash(manifest.CLI.Adapter.ScriptPath)))
-		requireFile(t, filepath.Join(base, filepath.FromSlash(manifest.CLI.Adapter.InstallScript)))
 	default:
 		t.Fatalf("unsupported cli.adapter.kind %q", manifest.CLI.Adapter.Kind)
 	}

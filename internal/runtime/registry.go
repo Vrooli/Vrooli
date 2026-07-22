@@ -22,6 +22,7 @@ import (
 	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
 	natprotection "github.com/vrooli/vrooli/internal/safeguards/nat-protection"
 	"github.com/vrooli/vrooli/internal/safeguards/netconsole"
+	nvidiadriver "github.com/vrooli/vrooli/internal/safeguards/nvidia-driver"
 	ollamaresourcecontrols "github.com/vrooli/vrooli/internal/safeguards/ollama-resource-controls"
 	pstorenative "github.com/vrooli/vrooli/internal/safeguards/pstore-native"
 	pstoreobservability "github.com/vrooli/vrooli/internal/safeguards/pstore-observability"
@@ -77,6 +78,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"kernel_config":                   kernelconfig.NewHandler,
 	"nat_protection":                  natprotection.NewHandler,
 	"netconsole":                      netconsole.NewHandler,
+	"nvidia_driver":                   nvidiadriver.NewHandler,
 	"ollama_resource_controls":        ollamaresourcecontrols.NewHandler,
 	"pstore_observability":            pstoreobservability.NewHandler,
 	"pstore_native":                   pstorenative.NewHandler,

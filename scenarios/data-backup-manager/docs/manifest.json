@@ -256,7 +256,7 @@
           "requiredBy": ["monetizable"],
           "completion": "conditional",
           "condition": "Required when the scenario is evaluated as a product, SKU component, add-on, or service accelerator.",
-          "ownerSkills": ["monetization-signal-classifier", "market-validation-triage"],
+          "ownerSkills": ["signal-classifier"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Role In Vrooli", "Customer / Buyer", "Packaging", "Pricing Hypothesis", "Validation Plan", "Current Status", "Cross-References"],
             "forbiddenPlaceholders": ["UNFILLED_PLACEHOLDER"],
@@ -275,7 +275,7 @@
           "requiredBy": ["monetizable"],
           "completion": "conditional",
           "condition": "Required when the scenario has a market-facing use case or monetization hypothesis.",
-          "ownerSkills": ["marketing-signal-classifier", "market-validation-triage"],
+          "ownerSkills": ["signal-classifier"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Audience And Positioning", "Channels", "Launch Motion", "Messaging", "Validation Experiments", "Cross-References"],
             "forbiddenPlaceholders": ["UNFILLED_PLACEHOLDER"],

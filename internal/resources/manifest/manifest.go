@@ -396,7 +396,7 @@ func Validate(manifest ResourceManifest) error {
 
 var (
 	AllowedDeploymentSupports = []string{"supported", "conditional", "degraded", "unsupported"}
-	AllowedDeploymentModes    = []string{"bundled-service", "bundled-controller", "bundled-client", "native-host-tool", "docker-desktop", "remote-service", "manual"}
+	AllowedDeploymentModes    = []string{"bundled-client", "native-host-tool", "docker-desktop", "remote-service", "manual"}
 	AllowedDeploymentArchs    = []string{"amd64", "arm64"}
 )
 
@@ -459,9 +459,9 @@ func validateDeployment(manifest ResourceManifest) error {
 func deploymentModeAllowedForDriver(driver, mode string) bool {
 	allowed := map[string][]string{
 		"cloud-api":       {"bundled-client", "remote-service"},
-		"native-cli":      {"bundled-service", "bundled-client", "manual"},
-		"docker-service":  {"bundled-controller", "docker-desktop", "manual"},
-		"compose-service": {"bundled-controller", "docker-desktop", "manual"},
+		"native-cli":      {"native-host-tool", "bundled-client", "manual"},
+		"docker-service":  {"docker-desktop", "manual"},
+		"compose-service": {"docker-desktop", "manual"},
 		"external-cli":    {"native-host-tool", "bundled-client", "manual"},
 		"desktop-app":     {"native-host-tool", "manual"},
 		"manual":          {"manual"},

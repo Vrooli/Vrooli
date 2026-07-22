@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// LocalExecutor handles local code execution when Judge0 is unavailable
+// LocalExecutor handles the scenario's local code execution.
 type LocalExecutor struct {
 	timeout time.Duration
 }
